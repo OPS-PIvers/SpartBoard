@@ -27,6 +27,10 @@ import {
   INTERACTION_OPTIONS,
 } from '@/config/expectationsData';
 
+// Shrinks a value so the whole word fits beside the icon on one line.
+const valueFontSize = (label: string): string =>
+  `min(32px, 10cqmin, calc((100cqw - 34cqmin - 4px) / ${(Math.max(label.length, 1) * 0.74).toFixed(2)}))`;
+
 export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
@@ -457,7 +461,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
       padding="p-0"
       content={
         <div
-          className="h-full w-full bg-transparent overflow-hidden animate-in fade-in duration-200 flex flex-col"
+          className="h-full w-full bg-transparent overflow-y-auto no-scrollbar animate-in fade-in duration-200 flex flex-col"
           style={{
             padding: 'min(16px, 3cqmin)',
             gap: 'min(16px, 3cqmin)',
@@ -467,14 +471,15 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
             <button
               onClick={() => setActiveCategory('volume')}
               {...tourAttr('expectations.volume', widget.id, widget.type)}
-              className={`flex-1 flex items-center rounded-2xl border-2 transition-all group ${
+              className={`flex-1 min-h-0 flex items-center rounded-2xl border-2 transition-all group ${
                 selectedVolume
                   ? `${selectedVolume.bg} border-current ${selectedVolume.color} shadow-sm`
                   : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 shadow-sm'
               }`}
               style={{
                 gap: 'min(20px, 4cqmin)',
-                padding: 'min(20px, 4cqmin)',
+                padding: 'min(20px, 3cqmin)',
+                minHeight: '32px',
               }}
             >
               <div
@@ -496,10 +501,6 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               >
                 {selectedVolume ? (
                   <>
-                    <Volume2
-                      className={`absolute opacity-5 scale-150 rotate-12 ${selectedVolume.color}`}
-                      style={{ width: '100%', height: '100%' }}
-                    />
                     {(() => {
                       const Icon = getIcon(selectedVolume.icon, Volume2);
                       return (
@@ -537,14 +538,21 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               </div>
               <div className="text-left flex-1 min-w-0">
                 <div
-                  className="font-black uppercase text-slate-400 leading-none mb-1 truncate"
-                  style={{ fontSize: 'min(16px, 5.5cqmin)' }}
+                  className="font-black uppercase text-slate-400 leading-none truncate"
+                  style={{
+                    fontSize: 'min(16px, 5.5cqmin)',
+                    marginBottom: 'min(4px, 1cqmin)',
+                  }}
                 >
                   Volume
                 </div>
                 <div
-                  className="font-black uppercase tracking-tight truncate"
-                  style={{ fontSize: 'min(32px, 10cqmin)' }}
+                  className="font-black uppercase tracking-tight leading-tight truncate"
+                  style={{
+                    fontSize: valueFontSize(
+                      selectedVolume ? selectedVolume.label : 'Not Set'
+                    ),
+                  }}
                 >
                   {selectedVolume ? selectedVolume.label : 'Not Set'}
                 </div>
@@ -556,14 +564,15 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
             <button
               onClick={() => setActiveCategory('groups')}
               {...tourAttr('expectations.groups', widget.id, widget.type)}
-              className={`flex-1 flex items-center rounded-2xl border-2 transition-all group ${
+              className={`flex-1 min-h-0 flex items-center rounded-2xl border-2 transition-all group ${
                 selectedGroup
                   ? `${selectedGroup.bg} border-current ${selectedGroup.color} shadow-sm`
                   : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 shadow-sm'
               }`}
               style={{
                 gap: 'min(20px, 4cqmin)',
-                padding: 'min(20px, 4cqmin)',
+                padding: 'min(20px, 3cqmin)',
+                minHeight: '32px',
               }}
             >
               <div
@@ -583,10 +592,6 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               >
                 {selectedGroup ? (
                   <>
-                    <Users
-                      className={`absolute opacity-5 scale-150 rotate-12 ${selectedGroup.color}`}
-                      style={{ width: '100%', height: '100%' }}
-                    />
                     {(() => {
                       const Icon = getIcon(selectedGroup.icon, Users);
                       return (
@@ -607,14 +612,21 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               </div>
               <div className="text-left flex-1 min-w-0">
                 <div
-                  className="font-black uppercase text-slate-400 leading-none mb-1 truncate"
-                  style={{ fontSize: 'min(16px, 5.5cqmin)' }}
+                  className="font-black uppercase text-slate-400 leading-none truncate"
+                  style={{
+                    fontSize: 'min(16px, 5.5cqmin)',
+                    marginBottom: 'min(4px, 1cqmin)',
+                  }}
                 >
                   Group Size
                 </div>
                 <div
-                  className="font-black uppercase tracking-tight truncate"
-                  style={{ fontSize: 'min(32px, 10cqmin)' }}
+                  className="font-black uppercase tracking-tight leading-tight truncate"
+                  style={{
+                    fontSize: valueFontSize(
+                      selectedGroup ? selectedGroup.label : 'Not Set'
+                    ),
+                  }}
                 >
                   {selectedGroup ? selectedGroup.label : 'Not Set'}
                 </div>
@@ -626,14 +638,15 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
             <button
               onClick={() => setActiveCategory('interaction')}
               {...tourAttr('expectations.interaction', widget.id, widget.type)}
-              className={`flex-1 flex items-center rounded-2xl border-2 transition-all group ${
+              className={`flex-1 min-h-0 flex items-center rounded-2xl border-2 transition-all group ${
                 selectedInteraction
                   ? `${selectedInteraction.bg} border-current ${selectedInteraction.color} shadow-sm`
                   : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 shadow-sm'
               }`}
               style={{
                 gap: 'min(20px, 4cqmin)',
-                padding: 'min(20px, 4cqmin)',
+                padding: 'min(20px, 3cqmin)',
+                minHeight: '32px',
               }}
             >
               <div
@@ -653,10 +666,6 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               >
                 {selectedInteraction ? (
                   <>
-                    <MessagesSquare
-                      className={`absolute opacity-5 scale-150 rotate-12 ${selectedInteraction.color}`}
-                      style={{ width: '100%', height: '100%' }}
-                    />
                     {(() => {
                       const Icon = getIcon(
                         selectedInteraction.icon,
@@ -680,14 +689,23 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               </div>
               <div className="text-left flex-1 min-w-0">
                 <div
-                  className="font-black uppercase text-slate-400 leading-none mb-1 truncate"
-                  style={{ fontSize: 'min(16px, 5.5cqmin)' }}
+                  className="font-black uppercase text-slate-400 leading-none truncate"
+                  style={{
+                    fontSize: 'min(16px, 5.5cqmin)',
+                    marginBottom: 'min(4px, 1cqmin)',
+                  }}
                 >
                   Interaction
                 </div>
                 <div
-                  className="font-black uppercase tracking-tight truncate"
-                  style={{ fontSize: 'min(32px, 10cqmin)' }}
+                  className="font-black uppercase tracking-tight leading-tight truncate"
+                  style={{
+                    fontSize: valueFontSize(
+                      selectedInteraction
+                        ? selectedInteraction.label
+                        : 'Not Set'
+                    ),
+                  }}
                 >
                   {selectedInteraction ? selectedInteraction.label : 'Not Set'}
                 </div>

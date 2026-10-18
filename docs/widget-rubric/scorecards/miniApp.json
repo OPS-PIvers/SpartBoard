@@ -1,9 +1,552 @@
 {
   "$schema": "../scorecard.schema.json",
   "widgetType": "miniApp",
-  "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "rubricVersion": "1.1.0",
+  "gradedAt": "2026-10-18T15:27:51.812Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "I5": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/envelope-min__empty.png",
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/envelope-min__typical.png",
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/envelope-min__stress.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "note": "At 150x100 the empty library keeps its full toolbar shrunk to 2.7 px text and 6.84 px tap targets, and the running app shows only a cropped title with its button cut off.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical.png",
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/large-1400x900__typical.png",
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/large-1400x900__stress.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "note": "At 1400x900 the Fraction Tiles title and button stay at default size in the top-left corner and leave the rest of the card blank.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/widest-aspect__typical.png",
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/widest-aspect__stress.png",
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/tallest-aspect__stress.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "note": "The app keeps the same top-left layout at 1400x350 and 225x900, so the tall shape leaves a large blank band and the stress text clips at the right edge.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__empty.png",
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical.png",
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__stress.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "S6": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/envelope-min__empty.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/envelope-min__typical.png",
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "note": "The minimum sits at the global 150x100 floor, so the envelope is not set higher than what the content needs.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/maximized-1920x1080__stress.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "note": "Maximized shows the same small title and default button in the corner of a blank 1920x1080 screen, with nothing changed for presenting.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "I2": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "I3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "note": "The library controls and the selected-state action bar are all tap targets, and the script found nothing that needs hover or a precise drag.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "I6": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "note": "The running face shows only an unstyled browser button with no designed pressed or active state, although the library tabs do show a selected state.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical__selected.png",
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "note": "The library chrome looks modern, but the running face is a default browser button under a plain bold system-font title on bare white, which reads as dated.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical.png",
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__stress.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "note": "The face is just a title and one Add a tile button, so its purpose is clear at a glance, and every proxy is near zero.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "note": "The Fraction Tiles title is clearly primary and the smaller button steps down below it.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "note": "The library uses shared components with no one-off colors or radii, but the running face shows raw browser controls and the script counts 56 raw controls.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "note": "There are no copy violations, only lucide icons, and short plain labels such as Import, New App and Add a tile.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "note": "The app content is fully teacher-authored, but the face has no visible options for how the app is framed, scaled or presented, and the settings capture shows no drawer to confirm what else can be set.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical__settings.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "note": "The settings-open capture shows only the selected outline on the running app, with no organized drawer visible.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__empty.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "note": "On first drop the library opens with search, sort, folders and a clean empty state, so it is usable and looks finished.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__empty.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "note": "A scaled empty state shows a box icon, the title No apps saved yet and one sentence pointing to Import or create, with New App and Import buttons in the header.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__empty.png",
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "note": "The empty library state is designed, but no loading, error, offline or no-roster views were among the screenshots, so their quality cannot be confirmed.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "note": "No student names or protected data appear on the face in the typical fixture.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "note": "The selected-state bar shows QR and Save As, but nothing on the face shows links to other widgets or to a class roster; proposals: add a link to the active class or Randomizer for student-facing apps, and remove nothing.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical.png"
+        ],
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": true,
+      "evidence": {
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "gradedAt": "2026-10-18T15:27:51.812Z"
+    },
+    "G2": {
+      "pass": true,
+      "evidence": {
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "gradedAt": "2026-10-18T15:27:51.812Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "gradedAt": "2026-10-18T15:27:51.812Z"
+    },
+    "G4": {
+      "pass": true,
+      "evidence": {
+        "runId": "loop-miniApp-2026-10-18-after"
+      },
+      "gradedAt": "2026-10-18T15:27:51.812Z"
+    }
+  }
 }

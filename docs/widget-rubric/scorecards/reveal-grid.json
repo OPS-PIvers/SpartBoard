@@ -1,9 +1,570 @@
 {
   "$schema": "../scorecard.schema.json",
   "widgetType": "reveal-grid",
-  "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "rubricVersion": "1.1.0",
+  "gradedAt": "2026-10-18T15:39:08.398Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "I5": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/envelope-min__empty.png",
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/envelope-min__typical.png",
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/envelope-min__stress.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "note": "At 150x100 the whole grid shrinks uniformly with the header kept, so typical card labels are tiny and stress text (1.24 px) is an unreadable blur with nothing collapsing.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png",
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/large-1400x900__typical.png",
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/large-1400x900__stress.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "note": "At 1400x900 the cards and labels scale up proportionally to fill the card and the stress set fits all 24 cards readably, but no extra detail is added.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/widest-aspect__typical.png",
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/widest-aspect__stress.png",
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/tallest-aspect__stress.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "note": "The grid reflows from 3 or 5 columns wide to 2 columns tall with little dead space, though the tall shape shows mismatched label sizes (tiny terms beside a large answer).",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__empty.png",
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png",
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__stress.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "S6": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/envelope-min__stress.png",
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__stress.png",
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/widest-aspect__stress.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/envelope-min__typical.png",
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "note": "The 150x100 floor matches a card grid that is just about legible with six terms, which is what the content genuinely needs.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/maximized-1920x1080__stress.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "note": "Maximized fills the screen with large cards but keeps the tiny header and toggle, reading as an enlarged card rather than a presenting layout.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "I2": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "I3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "I4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "I6": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "note": "Cards flip or fade to show they were revealed, but the cards show no distinct hover or pressed state in the screenshots beyond the reveal itself.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical__selected.png",
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "note": "Clean soft cards, but every element is a bordered box and the header text and OFF toggle are tiny gray-on-gray, so it reads slightly dated.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png",
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__stress.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "note": "From the back of the room it reads as a grid of vocabulary cards to tap, with only a title and one toggle around it.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "note": "The card grid dominates with bold terms while the title and Show Answers toggle step down to small header text.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "note": "Settings use the shared schema and Toggle, but the face uses one-off hardcoded card colors and a raw control.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "note": "Labels such as Vocabulary Review and Show Answers are short and plain, with lucide icons only.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "note": "Set name, cards, memory mode, flip or fade, column count, front and back colors and font are all configurable without bloat.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical__settings.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "note": "The schema drawer groups settings into content, behavior and display with standard controls and the card editor first, though the screenshot did not capture the open drawer.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__empty.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "note": "On first drop the face is an empty gray card with only a title and toggle, so it does nothing until cards are entered.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__empty.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "note": "The empty fixture is a blank face with no empty state or hint about adding cards in settings.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__empty.png",
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "note": "The empty state renders as a blank card and no designed loading or error views are shown on the face.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "note": "The face shows only teacher-authored vocabulary terms and answers, with no student data on screen.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "note": "Drive save and load work, but high-value links like importing from a flashcard set or quiz library are missing (proposal: add flashcard-set import; remove nothing).",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png"
+        ],
+        "runId": "after-rg6"
+      },
+      "note": "Files are a reasonable size with no architecture violations, but the only test covers settings and none covers reveal or memory-mode behavior.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-rg6"
+      },
+      "gradedAt": "2026-10-18T15:39:08.398Z"
+    },
+    "G2": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-rg6"
+      },
+      "gradedAt": "2026-10-18T15:39:08.398Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-rg6"
+      },
+      "gradedAt": "2026-10-18T15:39:08.398Z"
+    },
+    "G4": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-rg6"
+      },
+      "gradedAt": "2026-10-18T15:39:08.398Z"
+    }
+  }
 }
