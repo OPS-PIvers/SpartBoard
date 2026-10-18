@@ -21,6 +21,12 @@ describe('accountLibraryText', () => {
     expect(text).not.toContain('Rollout');
   });
 
+  it('adds row wording only for the widget type that shows it', () => {
+    const docs = { 'users/u/projects/p1': { title: 'Science fair' } };
+    expect(accountLibraryText(docs, 'projects')).toContain('Set up groups');
+    expect(accountLibraryText(docs, 'review')).not.toContain('Set up groups');
+  });
+
   it('returns nothing without library docs', () => {
     expect(accountLibraryText(undefined)).toBe('');
   });

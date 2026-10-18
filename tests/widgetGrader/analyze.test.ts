@@ -297,12 +297,16 @@ describe('analyzeG4 shared roster', () => {
       secondText: '',
     };
     expect(
-      analyzeG4({ ...base, typicalText: 'Field Trips / Absent Hot lunch 4' })
-        .pass
+      analyzeG4({
+        ...base,
+        typicalText: 'Field Trips / Absent Hot lunch 4',
+        allowedLabels: ['Field Trips / Absent'],
+      }).pass
     ).toBe(true);
     const hit = analyzeG4({
       ...base,
       typicalText: 'Field Trips / Absent Maya was absent today',
+      allowedLabels: ['Field Trips / Absent'],
     });
     expect(hit.pass).toBe(false);
     expect(hit.values.protectedHits).toBe('attendance');

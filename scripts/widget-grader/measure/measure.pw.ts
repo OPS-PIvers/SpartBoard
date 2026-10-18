@@ -34,7 +34,7 @@ const sharedRosterText = (type: string): string => {
       ...r.students.flatMap((st) => [st.firstName, st.lastName]),
     ])
     .join(' ');
-  const library = accountLibraryText(typical?.firestoreDocs);
+  const library = accountLibraryText(typical?.firestoreDocs, type);
   return `${rosters} ${rosterListText(type)} ${library}`.trim();
 };
 const outDir =

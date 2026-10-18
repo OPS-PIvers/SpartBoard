@@ -2,11 +2,7 @@
 
 import type { Box, ControlInfo, FaceSnapshot, TextInfo } from './snapshotTypes';
 import { worstContrast } from './contrast';
-import {
-  PROTECTED_ALLOWED_LABELS,
-  PROTECTED_PATTERNS,
-  type Thresholds,
-} from './constants';
+import { PROTECTED_PATTERNS, type Thresholds } from './constants';
 
 export type Values = Record<string, number | string | boolean>;
 
@@ -166,6 +162,8 @@ export interface G4Input {
   secondText: string;
   /** Words both instances may show legitimately, such as the board's shared roster names. */
   sharedText?: string;
+  /** Exact labels on this widget that can't trip the protected-data check. */
+  allowedLabels?: string[];
 }
 
 /** G4: content lost on reload, content following the type to another instance, or protected data on the face. */
@@ -180,7 +178,7 @@ export function analyzeG4(input: G4Input): Check {
   const second = tokens(input.secondText);
   const leaked = own.filter((t) => second.has(t));
   const leaks = own.length >= 3 && leaked.length / own.length >= 0.5;
-  const protectedText = PROTECTED_ALLOWED_LABELS.reduce(
+  const protectedText = (input.allowedLabels ?? []).reduce(
     (text, label) => text.split(label).join(' '),
     input.typicalText
   );
