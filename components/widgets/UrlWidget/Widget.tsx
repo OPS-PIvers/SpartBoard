@@ -7,6 +7,7 @@ import { Globe } from 'lucide-react';
 import { isSafeIconUrl } from '@/components/widgets/Catalyst/catalystHelpers';
 import { getUrlIcon, DEFAULT_URL_COLOR } from './icons';
 import { toSafeLinkHref } from './url';
+import { ICON_PER_FONT, linkLabelFontSize } from './labelFit';
 
 const getDisplayLabel = (title?: string, url?: string) => {
   const trimmedTitle = title?.trim();
@@ -64,6 +65,10 @@ export const UrlWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 const hasImage = trimmedImage
                   ? isSafeIconUrl(trimmedImage)
                   : false;
+                const labelSize = linkLabelFontSize(label ?? '', {
+                  withIcon: !hasImage,
+                  circle: isCircle,
+                });
                 const radiusClass = isCircle
                   ? 'rounded-full'
                   : 'rounded-[min(16px,3cqmin)]';
@@ -127,7 +132,7 @@ export const UrlWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                           <span
                             className="absolute left-0 right-0 bottom-0 z-10 font-black text-white text-center leading-tight break-words px-1.5"
                             style={{
-                              fontSize: 'clamp(11px, 9cqmin, 28px)',
+                              fontSize: labelSize,
                               padding: 'min(8px, 4cqmin) min(10px, 5cqmin)',
                               backgroundColor: 'rgba(15, 23, 42, 0.42)',
                               backdropFilter: 'blur(min(4px, 2cqmin))',
@@ -142,15 +147,15 @@ export const UrlWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                             <Icon
                               className="text-white drop-shadow-sm z-10"
                               style={{
-                                width: 'min(120px, 38cqmin)',
-                                height: 'min(120px, 38cqmin)',
+                                width: `min(120px, 38cqmin, calc(${labelSize} * ${ICON_PER_FONT}))`,
+                                height: `min(120px, 38cqmin, calc(${labelSize} * ${ICON_PER_FONT}))`,
                                 marginBottom: 'min(4px, 1.5cqmin)',
                               }}
                             />
                             <span
                               className="font-black text-white text-center leading-tight drop-shadow-md break-words max-w-full z-10"
                               style={{
-                                fontSize: 'clamp(11px, 9cqmin, 28px)',
+                                fontSize: labelSize,
                                 padding: '0 min(6px, 1.5cqmin)',
                               }}
                             >
