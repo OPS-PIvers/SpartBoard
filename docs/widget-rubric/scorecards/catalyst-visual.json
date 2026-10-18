@@ -1,9 +1,530 @@
 {
   "$schema": "../scorecard.schema.json",
   "widgetType": "catalyst-visual",
-  "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "rubricVersion": "1.1.0",
+  "gradedAt": "2026-10-18T16:04:33.857Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "S6": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "I2": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "I3": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "I4": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "I6": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/envelope-min__empty.png",
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/envelope-min__typical.png",
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/envelope-min__stress.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "note": "At 150x100 the icon shrinks and the title stays readable and dominant in the typical and empty fixtures, and only the stress title packs into an 8px block that still fits.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical.png",
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/large-1400x900__typical.png",
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/large-1400x900__stress.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "note": "At 1400x900 the icon stops at its 220px cap in the middle of the card, so content fills only 7% and most of the card is empty tint.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/widest-aspect__typical.png",
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/widest-aspect__stress.png",
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/tallest-aspect__stress.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__empty.png",
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical.png",
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__stress.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/envelope-min__typical.png",
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "note": "An icon and a short title genuinely fit the global 150x100 floor, and the minimum render shows both legibly.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/maximized-1920x1080__stress.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "note": "Maximized is the default layout with the icon still capped at 220px, a small island in a 1920x1080 tinted field filled only 10%.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "I5": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical__selected.png",
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "note": "Clean lucide icon and heavy uppercase type, but the full-bleed tinted block with a double border and an always-pulsing icon reads dated next to the glass look.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 4,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical.png",
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__stress.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "note": "The face is only an icon and a three-word title, its purpose is clear from across the room, and nothing could be removed without losing the anchor.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "note": "The large icon leads and the smaller bold title steps down beneath it, giving one clear primary element.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "note": "It uses a hardcoded category color map, a raw double-border div and its own icon lookup instead of the shared Catalyst icon helper or surface tokens.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "note": "The title, icon and category color come only from the routine that created it, with no settings, so a teacher cannot edit the text, icon or color.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical__settings.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "note": "The settings render shows no drawer content at all because the widget uses the no-settings schema.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__empty.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "note": "With no config it shows a gray question-mark icon and the generic label Visual Anchor, which is usable but looks unfinished.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__empty.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "note": "On first drop the face is a gray question mark and Visual Anchor with no hint of what it is for or how to set it.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__empty.png",
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "note": "The widget has no async states, and its one fallback is a hand-rolled question-mark placeholder rather than a designed shared empty state.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "note": "The face shows only an icon and a routine title, with no student data.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "note": "It has no visible link back to the Catalyst routine or set that spawned it, and opening or swapping the anchor from there is a missing high-value connection.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical.png"
+        ],
+        "runId": "after-catalyst-visual"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-catalyst-visual"
+      },
+      "gradedAt": "2026-10-18T16:04:33.857Z"
+    },
+    "G2": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-catalyst-visual"
+      },
+      "gradedAt": "2026-10-18T16:04:33.857Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-catalyst-visual"
+      },
+      "gradedAt": "2026-10-18T16:04:33.857Z"
+    },
+    "G4": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-catalyst-visual"
+      },
+      "gradedAt": "2026-10-18T16:04:33.857Z"
+    }
+  }
 }

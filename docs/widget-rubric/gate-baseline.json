@@ -2,7 +2,6 @@
   "runId": "poll-baseline",
   "generatedAt": "2026-10-18T15:09:36.772Z",
   "failures": {
-    "catalyst-visual": ["G2"],
     "classes": ["G4"],
     "concept-web": ["G1"],
     "countdown": ["G2"],
