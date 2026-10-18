@@ -1,6 +1,6 @@
 {
-  "runId": "baseline-refresh-2026-10-18",
-  "generatedAt": "2026-10-18T14:49:27.284Z",
+  "runId": "poll-baseline",
+  "generatedAt": "2026-10-18T15:09:36.772Z",
   "failures": {
     "catalyst-visual": ["G2"],
     "classes": ["G4"],
@@ -16,7 +16,6 @@
     "miniApp": ["G2"],
     "need-do-put-then": ["G2", "G4"],
     "numberLine": ["G1", "G2"],
-    "poll": ["G1", "G2"],
     "projects": ["G1", "G4"],
     "reveal-grid": ["G1", "G2"],
     "review": ["G1", "G4"],
