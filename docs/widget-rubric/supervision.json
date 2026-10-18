@@ -166,6 +166,19 @@
           "after": 3
         }
       }
+    },
+    {
+      "pr": 4387,
+      "widgetType": "lunchCount",
+      "dimension": "layout",
+      "openedAt": "2026-10-18T22:45:00Z",
+      "outcome": "open",
+      "changes": {
+        "I5": {
+          "before": null,
+          "after": 3
+        }
+      }
     }
   ]
 }
