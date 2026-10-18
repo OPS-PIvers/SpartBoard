@@ -1,4 +1,5 @@
 import type { WidgetType } from '@/types';
+import { customWidgetStub } from './customWidget';
 import { installFakeMedia } from './media';
 import { miniAppStub } from './miniApp';
 import type { WidgetStub } from './types';
@@ -13,4 +14,6 @@ export const WIDGET_STUBS: Partial<Record<WidgetType, WidgetStub>> = {
   miniApp: miniAppStub,
   sound: fakeMedia,
   webcam: fakeMedia,
+  // Widget sweep 4
+  'custom-widget': customWidgetStub,
 };
