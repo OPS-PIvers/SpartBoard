@@ -1673,7 +1673,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
             <iframe
               ref={iframeRef}
               srcDoc={activeApp.html}
-              className="flex-1 w-full border-none bg-white" // Keep bg-white for iframe content visibility
+              className="flex-1 min-h-0 w-full border-none bg-white" // Keep bg-white for iframe content visibility
               // No allow-same-origin: untrusted app html + srcDoc would inherit the parent's origin (DOM/localStorage access); the init/result protocol is postMessage-only.
               sandbox="allow-scripts allow-forms allow-popups allow-modals"
               title={activeApp.title}
