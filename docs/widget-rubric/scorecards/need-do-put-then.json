@@ -1,9 +1,588 @@
 {
   "$schema": "../scorecard.schema.json",
   "widgetType": "need-do-put-then",
-  "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "rubricVersion": "1.1.0",
+  "gradedAt": "2026-10-18T15:34:52.274Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "I5": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 0,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 0
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/envelope-min__empty.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/envelope-min__typical.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/envelope-min__stress.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "note": "At 150x100 the panel and its neighbours spill past the card edges, the empty state is unreadable gray-on-gray, and the script measures 2.7 px text and 7.81 px tap targets.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/large-1400x900__typical.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/large-1400x900__stress.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "note": "At 1400x900 the three typical steps spread out with huge empty gaps between rows and run across nearly the full 1400 px width.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/widest-aspect__typical.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/widest-aspect__stress.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/tallest-aspect__stress.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "note": "Both aspects keep the same single-column list: the tallest leaves big gaps between the rows, the widest stretches rules edge to edge, and neighbour panels bleed in at the sides.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__empty.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__stress.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "S6": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/envelope-min__stress.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__stress.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/large-1400x900__stress.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/maximized-1920x1080__stress.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/widest-aspect__stress.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/tallest-aspect__stress.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/envelope-min__typical.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "note": "The envelope uses the global 150x100 floor, which this content is not too high for, and nothing below it is expected to work.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/maximized-1920x1080__stress.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "note": "Maximized shows the default list stretched: thin text, gaps of several hundred pixels between the three steps, and a nearly invisible empty state.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "I2": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "I3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "I4": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "I6": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "note": "Only a selection outline appears; the chevrons and the section toggle show no visible pressed or active state.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical__selected.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "note": "The empty state is gray-on-gray, and the default face shows panels overflowing the card with the side neighbours bleeding into view.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__stress.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "note": "The 'What you do' purpose reads at a glance, but slivers of neighbour panels, 17 colours and 9 font sizes make the face busy.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "note": "The step list is the primary element, but the coloured neighbour slivers and the half-visible 'Where it goes' footer compete with it.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "note": "Only ScaledEmptyState is shared; the face uses 3 raw controls and 24 one-off colours.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "note": "The section titles 'What you do' and 'Where it goes' are plain teacher wording with lucide icons, though the left chevron points right and the right chevron points left.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "note": "Step text and the four sections can be edited, but the screenshots show no options for layout, which sections appear, or size.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical__settings.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "note": "The settings-open screenshot shows only the selected face with no organized drawer at all.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__empty.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "note": "A freshly dropped widget is a blank gray card whose faint label and empty state can barely be seen, so it does nothing until set up.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__empty.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "note": "An empty state titled NEED / DO / PUT / THEN with 'Flip to set up each section' exists, but its contrast is so low the next step is practically invisible.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__empty.png",
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "note": "An empty state is designed, but it is close to invisible, and the screenshots show no distinct loading, error or offline views.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "R2": {
+      "score": 0,
+      "source": "script",
+      "candidates": {
+        "script": 0
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "note": "The face shows only teacher-written instructions and no student data.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "note": "The widget stands alone with no visible links; likely high-value candidates are Materials for 'What you need', Timer for 'Then', and Expectations. Proposals: add a Materials link and a Timer handoff; remove nothing.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical.png"
+        ],
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": true,
+      "evidence": {
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "gradedAt": "2026-10-18T15:34:52.274Z"
+    },
+    "G2": {
+      "pass": true,
+      "evidence": {
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "gradedAt": "2026-10-18T15:34:52.274Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "gradedAt": "2026-10-18T15:34:52.274Z"
+    },
+    "G4": {
+      "pass": false,
+      "evidence": {
+        "runId": "loop-need-do-put-then-2026-10-18-after"
+      },
+      "gradedAt": "2026-10-18T15:34:52.274Z"
+    }
+  }
 }
