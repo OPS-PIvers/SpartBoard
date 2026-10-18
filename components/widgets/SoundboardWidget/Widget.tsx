@@ -356,7 +356,7 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
                 }}
               >
                 {activeSounds.map((sound) => {
-                  const labelSize = soundLabelFontSize(sound.label);
+                  const labelSize = soundLabelFontSize(sound.label ?? '');
                   const iconSize = `min(48px, 40cqmin, calc(${ICON_PER_FONT} * ${labelSize}))`;
                   return (
                     <button
