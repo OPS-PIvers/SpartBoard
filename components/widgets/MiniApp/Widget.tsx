@@ -247,11 +247,20 @@ export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
               </div>
               {skippedStudentNames.length > 0 && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-                  <p className="text-xs font-bold text-amber-800">
+                  <p
+                    className="font-bold text-amber-800"
+                    style={{ fontSize: 'min(12px, 4.5cqmin)' }}
+                  >
                     Couldn&apos;t target {skippedStudentNames.length} student
                     {skippedStudentNames.length === 1 ? '' : 's'}
                   </p>
-                  <ul className="mt-1 text-xs text-amber-700 list-disc list-inside">
+                  <ul
+                    className="text-amber-700 list-disc list-inside"
+                    style={{
+                      marginTop: 'min(4px, 1cqmin)',
+                      fontSize: 'min(12px, 4.5cqmin)',
+                    }}
+                  >
                     {skippedStudentNames.map((name) => (
                       <li key={name}>{name}</li>
                     ))}
