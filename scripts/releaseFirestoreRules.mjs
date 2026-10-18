@@ -22,13 +22,16 @@
  * and put `firestore:rules` back in the deploy targets.
  *
  * Usage: node scripts/releaseFirestoreRules.mjs <project-id> [rules-path]
+ * Ships the minified text (scripts/minifyRules.mjs) and writes its name map to
+ * rules-name-map.txt; RULES_MINIFY=0 ships the comment-stripped source instead.
  * Credentials: application default (GOOGLE_APPLICATION_CREDENTIALS key or WIF
  * config, or a local gcloud ADC login) with firebaserules write permission.
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { applicationDefault } from 'firebase-admin/app';
+import { formatNameMap, releaseRulesText } from './minifyRules.mjs';
 import { stripRulesComments } from './stripRulesComments.mjs';
 
 const API = 'https://firebaserules.googleapis.com/v1';
@@ -254,7 +257,19 @@ async function main() {
     fileURLToPath(new URL('../firestore.rules', import.meta.url));
 
   // Idempotent: the deploy workflow has usually stripped the file already.
-  const content = stripRulesComments(readFileSync(rulesPath, 'utf8'));
+  const source = readFileSync(rulesPath, 'utf8');
+  let content;
+  if (process.env.RULES_MINIFY === '0') {
+    console.log('::warning::RULES_MINIFY=0: releasing unminified rules.');
+    content = stripRulesComments(source);
+  } else {
+    const minified = releaseRulesText(source, {
+      label: process.env.GITHUB_SHA?.slice(0, 12) ?? 'a local checkout',
+    });
+    console.log(`minified rules: ${minified.proof}`);
+    writeFileSync('rules-name-map.txt', formatNameMap(minified.map));
+    content = minified.text;
+  }
   const files = [{ name: 'firestore.rules', content }];
   const token = await accessToken();
 

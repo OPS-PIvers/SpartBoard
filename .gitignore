@@ -125,3 +125,4 @@ dist-grader/
 # verify-spartboard proof runs
 .claude/verify-runs/
 .claude/live-tour-runs/
+rules-name-map.txt

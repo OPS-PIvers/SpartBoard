@@ -8,6 +8,7 @@ import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { isImeComposing } from '@/utils/imeComposing';
 
 interface RandomGroupsProps {
   displayResult: string | string[] | string[][] | RandomGroup[] | null;
@@ -273,6 +274,7 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
+                if (isImeComposing(e)) return;
                 e.preventDefault();
                 commit();
               } else if (e.key === 'Escape') {

@@ -4,6 +4,7 @@ import { IconButton } from '@/components/common/IconButton';
 import { hexToRgba } from '@/utils/styles';
 import type { ArtsLettersAgendaPartId } from '@/types';
 import { DESCRIPTION_MAX_LENGTH } from '../constants';
+import { isImeComposing } from '@/utils/imeComposing';
 
 interface AgendaRowProps {
   id: ArtsLettersAgendaPartId;
@@ -97,7 +98,7 @@ export const AgendaRow = React.memo<AgendaRowProps>(
               if (next !== description) onDescriptionCommit(id, next);
             }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (e.key === 'Enter' && !e.shiftKey && !isImeComposing(e)) {
                 e.preventDefault();
                 e.currentTarget.blur();
               }

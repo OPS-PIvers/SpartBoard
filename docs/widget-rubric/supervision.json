@@ -43,8 +43,129 @@
       "widgetType": "quiz",
       "dimension": "layout",
       "openedAt": "2026-10-17T04:25:00Z",
-      "outcome": "open",
+      "outcome": "accepted",
       "changes": {}
+    },
+    {
+      "pr": 4360,
+      "widgetType": "url",
+      "dimension": "layout",
+      "openedAt": "2026-10-18T04:20:00Z",
+      "outcome": "open",
+      "changes": {
+        "S1": {
+          "before": null,
+          "after": 1
+        },
+        "S2": {
+          "before": null,
+          "after": 3
+        },
+        "S3": {
+          "before": null,
+          "after": 2
+        },
+        "S4": {
+          "before": null,
+          "after": 2
+        },
+        "S5": {
+          "before": null,
+          "after": 1
+        },
+        "S7": {
+          "before": null,
+          "after": 3
+        },
+        "S8": {
+          "before": null,
+          "after": 2
+        },
+        "I1": {
+          "before": null,
+          "after": 1
+        },
+        "I2": {
+          "before": null,
+          "after": 1
+        },
+        "I3": {
+          "before": null,
+          "after": 3
+        },
+        "I4": {
+          "before": null,
+          "after": 3
+        },
+        "I6": {
+          "before": null,
+          "after": 2
+        },
+        "I7": {
+          "before": null,
+          "after": 3
+        },
+        "V1": {
+          "before": null,
+          "after": 2
+        },
+        "V2": {
+          "before": null,
+          "after": 3
+        },
+        "V3": {
+          "before": null,
+          "after": 2
+        },
+        "V4": {
+          "before": null,
+          "after": 2
+        },
+        "V5": {
+          "before": null,
+          "after": 2
+        },
+        "V6": {
+          "before": null,
+          "after": 3
+        },
+        "C1": {
+          "before": null,
+          "after": 3
+        },
+        "C2": {
+          "before": null,
+          "after": 2
+        },
+        "C3": {
+          "before": null,
+          "after": 1
+        },
+        "C5": {
+          "before": null,
+          "after": 2
+        },
+        "R1": {
+          "before": null,
+          "after": 2
+        },
+        "R3": {
+          "before": null,
+          "after": 3
+        },
+        "R4": {
+          "before": null,
+          "after": 3
+        },
+        "E1": {
+          "before": null,
+          "after": 2
+        },
+        "E3": {
+          "before": null,
+          "after": 3
+        }
+      }
     }
   ]
 }

@@ -25,7 +25,17 @@ if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ]; then
   fi
 
   # Optional dev-project service account, stored as an environment variable (raw JSON or base64).
-  if [ -n "${SPARTBOARD_DEV_SA_KEY:-}" ]; then
+  if [ -z "${SPARTBOARD_DEV_SA_KEY:-}" ] && [ -n "${CLOUDSDK_AUTH_ACCESS_TOKEN:-}" ]; then
+    # GCP network secret: gcloud already sends the placeholder token; this lets Firebase CLI and Admin SDK send it too.
+    shim_port=8939
+    if ! curl -sf -H 'Metadata-Flavor: Google' "http://127.0.0.1:$shim_port/computeMetadata/v1/project/project-id" >/dev/null 2>&1; then
+      METADATA_SHIM_PORT=$shim_port nohup node scripts/cloud-metadata-shim.mjs >/dev/null 2>&1 &
+    fi
+    for var in "GCE_METADATA_HOST=127.0.0.1:$shim_port" "GCE_METADATA_IP=127.0.0.1:$shim_port" \
+      "METADATA_SERVER_DETECTION=assume-present" "GOOGLE_CLOUD_PROJECT=spartboard-dev" "NODE_USE_ENV_PROXY=1"; do
+      persist "export $var"
+    done
+  elif [ -n "${SPARTBOARD_DEV_SA_KEY:-}" ]; then
     key_file="$HOME/.config/gcloud/spartboard-dev-sa.json"
     mkdir -p "$(dirname "$key_file")"
     if printf '%s' "$SPARTBOARD_DEV_SA_KEY" | tr -d '[:space:]' | head -c1 | grep -q '{'; then
