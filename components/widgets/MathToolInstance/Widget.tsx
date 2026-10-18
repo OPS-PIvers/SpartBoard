@@ -72,12 +72,20 @@ function ToolContent({
   switch (toolType) {
     case 'ruler-in':
       return (
-        <RulerTool units={config.rulerUnits ?? 'in'} pixelsPerInch={ppi} />
+        <RulerTool
+          units={config.rulerUnits ?? 'in'}
+          pixelsPerInch={ppi}
+          rotation={config.rotation ?? 0}
+        />
       );
 
     case 'ruler-cm':
       return (
-        <RulerTool units={config.rulerUnits ?? 'cm'} pixelsPerInch={ppi} />
+        <RulerTool
+          units={config.rulerUnits ?? 'cm'}
+          pixelsPerInch={ppi}
+          rotation={config.rotation ?? 0}
+        />
       );
 
     case 'protractor':
@@ -225,7 +233,7 @@ export const MathToolInstanceWidget: React.FC<{ widget: WidgetData }> = ({
         >
           <div
             ref={containerRef}
-            className="flex-1 flex items-center justify-center transition-transform duration-200 will-change-transform relative group"
+            className="flex-1 min-h-0 min-w-0 flex items-center justify-center transition-transform duration-200 will-change-transform relative group"
             style={{ transform: `rotate(${rotation}deg)` }}
           >
             <ToolContent config={config} onUpdate={handleUpdate} />

@@ -1,6 +1,6 @@
 {
-  "runId": "baseline-refresh-2026-10-18",
-  "generatedAt": "2026-10-18T14:49:27.284Z",
+  "runId": "bl-mt",
+  "generatedAt": "2026-10-18T16:13:24.932Z",
   "failures": {
     "catalyst-visual": ["G2"],
     "classes": ["G4"],
@@ -12,7 +12,6 @@
     "graphic-organizer": ["G1", "G2"],
     "hotspot-image": ["G2"],
     "lunchCount": ["G1", "G2", "G3", "G4"],
-    "mathTool": ["G2"],
     "miniApp": ["G2"],
     "need-do-put-then": ["G2", "G4"],
     "numberLine": ["G1", "G2"],
