@@ -71,6 +71,7 @@ export const SeatingChartToolbar: React.FC<SeatingChartToolbarProps> = ({
         {rosterMode === 'class' && (
           <ActiveClassChip
             compact
+            className="min-w-0"
             anchor={tourAttr('seating.class-chip', widgetId, 'seating-chart')}
             groupAnchor={(groupId) =>
               tourFieldAttr('seating.class-group', 'seating-chart', groupId)
@@ -87,6 +88,7 @@ export const SeatingChartToolbar: React.FC<SeatingChartToolbarProps> = ({
             size="sm"
             icon={<Dice5 className="w-4 h-4" />}
             disabled={isPickingRandom}
+            className="shrink-0"
           >
             Pick Random
           </Button>
