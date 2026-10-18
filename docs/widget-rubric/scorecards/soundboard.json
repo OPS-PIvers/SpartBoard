@@ -1,9 +1,592 @@
 {
   "$schema": "../scorecard.schema.json",
   "widgetType": "soundboard",
-  "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "rubricVersion": "1.1.0",
+  "gradedAt": "2026-10-18T15:26:01.461Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "S6": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "I5": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/envelope-min__empty.png",
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/envelope-min__typical.png",
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/envelope-min__stress.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "note": "At 150x100 the six typical tiles stay legible, but the stress fixture shrinks all 24 tiles uniformly to 2px labels and 22px targets instead of hiding or overflowing anything.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png",
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/large-1400x900__typical.png",
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/large-1400x900__stress.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "note": "At 1400x900 the tiles stretch to fill the card but the speaker icon and label barely grow (1.22x), leaving small content floating in huge colored blocks.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/widest-aspect__typical.png",
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/widest-aspect__stress.png",
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/tallest-aspect__stress.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "note": "The grid reflows to a single row of six at the widest aspect and a single column (three columns under stress) at the tallest, with about 7% dead area.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__empty.png",
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png",
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__stress.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/envelope-min__typical.png",
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "note": "The global 150x100 floor still shows six tappable labeled tiles, which matches what a grid of sound buttons needs.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/maximized-1920x1080__stress.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "note": "Maximized fills the screen with six giant tiles whose icon and label stay small, so it reads as an enlarged card, not a presenting layout.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "I2": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "I3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "I4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "I6": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "note": "Tiles have hover brightness and active scale, but nothing on the face shows which sound is playing or lets you see it stop.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical__selected.png",
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "note": "Flat rounded color tiles with one lucide icon style and bold labels look current, with only light text shadows and no ban-list hits on the typical face.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png",
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__stress.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "note": "The face is plainly a grid of labeled sound buttons at a glance, with just six tiles, two font sizes and six words.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "note": "The tiles are the clear primary element and inside each the icon and label step down cleanly, with no secondary chrome competing.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "note": "ScaledEmptyState and Toggle are shared, but the face tiles use one-off radii, borders and hover overlays, and the drawer rows are hand-built cards.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "note": "Labels are short plain sound names with a single lucide speaker icon, though the identical icon on every tile adds nothing to tell sounds apart.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "note": "Teachers can only choose which admin-provided sounds appear, while tile color, order, label text, tile size and volume are all hardcoded.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical__settings.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "note": "The settings screenshot shows only the selected face, and the schema is one ungrouped list of per-sound toggles with no sections or ordering aid.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__empty.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "note": "The default config selects no sounds, so a freshly dropped widget is an empty card that does nothing until configured.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "C4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical__settings.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__empty.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "note": "A ScaledEmptyState says No sounds selected and Flip to set up your board, but the gray-on-gray text is nearly invisible and the action is off the face.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "C6": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical__settings.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__empty.png",
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "note": "The empty state is designed but washed out, and nothing visible covers a sound that fails to load or play.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "note": "The face shows only sound names and holds no student data.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "note": "The widget has no connections; proposals: add triggering a chosen sound when a Timer ends, a Random pick lands or Traffic Light changes; remove nothing.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical.png"
+        ],
+        "runId": "soundboard-after1"
+      },
+      "note": "A 322-line folder test covers the widget, files stay under 470 lines, and there are no any types, useDashboard calls or derived-state effects.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": true,
+      "evidence": {
+        "runId": "soundboard-after1"
+      },
+      "gradedAt": "2026-10-18T15:26:01.461Z"
+    },
+    "G2": {
+      "pass": true,
+      "evidence": {
+        "runId": "soundboard-after1"
+      },
+      "gradedAt": "2026-10-18T15:26:01.461Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "soundboard-after1"
+      },
+      "gradedAt": "2026-10-18T15:26:01.461Z"
+    },
+    "G4": {
+      "pass": true,
+      "evidence": {
+        "runId": "soundboard-after1"
+      },
+      "gradedAt": "2026-10-18T15:26:01.461Z"
+    }
+  }
 }

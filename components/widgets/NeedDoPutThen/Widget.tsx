@@ -151,7 +151,7 @@ const NumberedList: React.FC<NumberedListProps> = ({
 
   return (
     <ol
-      className={`h-full w-full flex flex-col justify-around ${fontClass}`}
+      className={`min-h-full w-full flex flex-col justify-around ${fontClass}`}
       style={{
         gap: 'min(14px, 4cqmin)',
         padding: 'min(6px, 2cqmin)',
@@ -716,7 +716,7 @@ export const NeedDoPutThenWidget: React.FC<{ widget: WidgetData }> = ({
             </button>
           </div>
 
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
             <NumberedList
               items={doItems}
               fontClass={fontClass}
