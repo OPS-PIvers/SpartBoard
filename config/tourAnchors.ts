@@ -513,6 +513,10 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'concept-web.add-node': {
+    label: 'Add Node button in Concept Web',
+    perWidget: true,
+  },
   'activity-wall.toggle-open': {
     label: 'Open/Closed toggle in Activity Wall',
     persists: true,
