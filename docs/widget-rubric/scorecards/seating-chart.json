@@ -1,9 +1,572 @@
 {
   "$schema": "../scorecard.schema.json",
   "widgetType": "seating-chart",
-  "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "rubricVersion": "1.1.0",
+  "gradedAt": "2026-10-18T15:44:20.653Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "S6": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "I5": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 0,
+      "source": "script",
+      "candidates": {
+        "script": 0,
+        "judge": 0
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/envelope-min__empty.png",
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/envelope-min__typical.png",
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/envelope-min__stress.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical.png",
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/large-1400x900__typical.png",
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/large-1400x900__stress.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "note": "At 1400×900 the seat grid stays at its default size in the top-left, leaving more than half the card empty.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/widest-aspect__typical.png",
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/widest-aspect__stress.png",
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/tallest-aspect__stress.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__empty.png",
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical.png",
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__stress.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/envelope-min__typical.png",
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "note": "The minimum is the global 150×100 floor, which is not higher than a seating chart needs, but nothing works there, so it does not reach 4.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/maximized-1920x1080__stress.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "I2": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "I3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "I4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "I6": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "note": "The mode tabs show a selected state, but the seats and the class chip show no visible pressed or active state.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical__selected.png",
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "note": "The style is clean, but every seat is a double-bordered box and the empty state is faint gray on gray.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical.png",
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__stress.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "note": "A grid of named seats with a Pick Random button reads at a glance, and almost all of the high border and box counts come from the seats, which are the content.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "note": "The seat grid is clearly primary, and the tabs, class title and Pick Random step down in size, though the empty placeholder box at the top-left pulls the eye.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "note": "It uses shared Button, ActiveClassChip and ScaledEmptyState, but the face has 17 raw controls with one-off seat and tab styling.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "note": "Labels are short and plain (Interact, Assign, Setup, Pick Random), with lucide icons only.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "note": "Roster source and furniture layout can be changed, but seat label size, card look and display options are hardcoded.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical__settings.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "note": "The schema drawer is short, with roster first and the clear actions last, though the settings-open screenshot did not show the drawer.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__empty.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "note": "On first drop the room is empty with no furniture, so the widget does nothing until the teacher sets it up.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "C4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical__settings.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__empty.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "note": "ScaledEmptyState shows 'Empty Classroom' and one sentence pointing to Setup, though its text is very faint.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "C6": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical__settings.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__empty.png",
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "note": "The empty classroom has a designed view, but nothing on the face shows that loading, error, offline or no-roster states are designed or offer recovery.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "note": "Only student names appear, which is the point of a seating chart, and no protected fields are on the face.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "note": "The class roster link shows as a chip on the face and Pick Random is built in; proposals for Paul: add a Randomizer or Groups handoff from seats, and remove nothing.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical.png"
+        ],
+        "runId": "seating-after5"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": true,
+      "evidence": {
+        "runId": "seating-after5"
+      },
+      "gradedAt": "2026-10-18T15:44:20.653Z"
+    },
+    "G2": {
+      "pass": false,
+      "evidence": {
+        "runId": "seating-after5"
+      },
+      "gradedAt": "2026-10-18T15:44:20.653Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "seating-after5"
+      },
+      "gradedAt": "2026-10-18T15:44:20.653Z"
+    },
+    "G4": {
+      "pass": true,
+      "evidence": {
+        "runId": "seating-after5"
+      },
+      "gradedAt": "2026-10-18T15:44:20.653Z"
+    }
+  }
 }
