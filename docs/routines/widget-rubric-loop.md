@@ -1,6 +1,6 @@
 # Widget rubric loop routine
 
-A Claude Code routine that improves one widget, one dimension at a time, against the widget quality rubric (`docs/plans/WIDGET_RUBRIC.md`, `docs/widget-rubric/rubric.json`). Each run opens at most one PR into `dev-paul` with a before/after scorecard and screenshot grid (R20, R25).
+A Claude Code routine that improves widgets, one widget and one dimension per PR, against the widget quality rubric (`docs/plans/WIDGET_RUBRIC.md`, `docs/widget-rubric/rubric.json`). Each run works through up to 3 queue items and opens one PR into `dev-paul` per item, each with a before/after scorecard and screenshot grid (R20, R25).
 
 A scheduled trigger runs this nightly; it can also be run by hand with "run the widget rubric loop".
 
@@ -52,6 +52,8 @@ A scheduled trigger runs this nightly; it can also be run by hand with "run the 
 
 10. **Journal.** Append one row below in the same PR.
 
+11. **Next item.** Go back to step 1 for the next item, counting this run's PRs as open loops, until this run has opened 3 PRs or the queue exits 3. Each item gets its own branch from `origin/dev-paul` and its own PR; record step 9 outcomes in the first PR only.
+
 ## Never
 
 - Merge a loop PR. Paul merges them (R32).
@@ -68,3 +70,4 @@ A scheduled trigger runs this nightly; it can also be run by hand with "run the 
 | 2026-10-16 | Checklist | Layout | #4325 | G1, G2 fail → pass; D → C (2.33) | Lunch Count skipped for the same G4 false positive; Weather and Randomizer skipped as already fixed (#4216, #4295). Randomizer #4295 recorded as changed. |
 | 2026-10-17 | Quiz | Layout | #4349 | G1 fail → pass; D → C (2.44) | The fix is in the shared library shell, so the other library widgets were re-measured too: no new gate failures, and Flashcards G1 and G2 now pass. Lunch Count skipped for the same G4 false positive; Weather, Randomizer and Checklist skipped as already fixed (#4216, #4295, #4325). Checklist #4325 recorded as accepted. |
 | 2026-10-18 | Links | Layout | #4360 | G2 fail → pass; ungraded → C (2.24) | First scorecard for Links, so every criterion is new. Lunch Count skipped for the same G4 false positive; Weather, Randomizer, Checklist and Quiz skipped as already fixed (#4216, #4295, #4325, #4349). Quiz #4349 recorded as accepted. |
+| 2026-10-18 | 19 widgets | Layout | #4366–#4384 | gate failures fixed | One-off sweep outside the nightly run, merged by Paul; not counted in supervision. No PR for Projects, Flashcards or Classes: their failures are grader false positives. Math Tool keeps one baseline size (turned-ruler measurement). Links #4360 recorded as accepted. From here each run takes up to 3 items. |
