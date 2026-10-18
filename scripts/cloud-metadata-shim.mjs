@@ -8,8 +8,13 @@ const base = '/computeMetadata/v1';
 
 const routes = {
   [`${base}/instance/service-accounts/default/token`]: () =>
-    JSON.stringify({ access_token: token, expires_in: 3599, token_type: 'Bearer' }),
-  [`${base}/instance/service-accounts/default/email`]: () => 'claude-cloud@proxy',
+    JSON.stringify({
+      access_token: token,
+      expires_in: 3599,
+      token_type: 'Bearer',
+    }),
+  [`${base}/instance/service-accounts/default/email`]: () =>
+    'claude-cloud@proxy',
   [`${base}/instance/service-accounts/default/scopes`]: () =>
     'https://www.googleapis.com/auth/cloud-platform',
   [`${base}/project/project-id`]: () => project,
@@ -28,7 +33,10 @@ http
       res.end();
       return;
     }
-    res.setHeader('Content-Type', path.endsWith('/token') ? 'application/json' : 'text/plain');
+    res.setHeader(
+      'Content-Type',
+      path.endsWith('/token') ? 'application/json' : 'text/plain'
+    );
     res.end(route());
   })
   .listen(port, '127.0.0.1');
