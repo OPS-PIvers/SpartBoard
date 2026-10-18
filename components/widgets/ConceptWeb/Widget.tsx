@@ -12,6 +12,7 @@ import {
 } from '@/types';
 import { Trash2 } from 'lucide-react';
 import { getFontClass, hexToRgba } from '@/utils/styles';
+import { tourAttr } from '@/config/tourAnchors';
 
 // Keeps a node's box fully inside the 0-100% container so it can never drift out of view.
 const clampNodePosition = (
@@ -430,209 +431,217 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
 
   return (
     <div
-      ref={containerRef}
-      className={`relative w-full h-full overflow-hidden rounded-[var(--window-radius,0px)] select-none ${fontClassName}`}
+      className={`flex flex-col w-full h-full overflow-hidden rounded-[var(--window-radius,0px)] select-none ${fontClassName}`}
       style={{ backgroundColor: hexToRgba(cardColor, cardOpacity) }}
     >
       {!isReadOnly && (
-        <button
-          className="absolute z-20 bg-white border border-slate-300 rounded shadow-sm font-medium text-slate-700 hover:bg-slate-50 pointer-events-auto"
-          style={{
-            top: 'min(8px, 2cqmin)',
-            left: 'min(8px, 2cqmin)',
-            padding: 'min(4px, 1cqmin) min(12px, 3cqmin)',
-            fontSize: 'min(14px, 4cqmin)',
-          }}
-          onClick={handleAddNode}
+        <div
+          className="shrink-0 flex"
+          style={{ padding: 'min(8px, 2cqmin) min(8px, 2cqmin) 0' }}
         >
-          + Add Node
-        </button>
+          <button
+            {...tourAttr('concept-web.add-node', widget.id, widget.type)}
+            className="bg-white border border-slate-300 rounded shadow-sm font-medium text-slate-700 hover:bg-slate-50"
+            style={{
+              padding: 'min(4px, 1cqmin) min(12px, 3cqmin)',
+              fontSize: 'min(14px, 4cqmin)',
+            }}
+            onClick={handleAddNode}
+          >
+            + Add Node
+          </button>
+        </div>
       )}
 
-      <svg
-        className="absolute inset-0 z-0 pointer-events-none w-full h-full"
-        viewBox="0 0 100 100"
-        preserveAspectRatio="none"
-      >
-        <defs>
-          <marker
-            id={`arrowhead-${widget.id}`}
-            markerWidth="10"
-            markerHeight="7"
-            refX="9"
-            refY="3.5"
-            orient="auto"
-          >
-            <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8" />
-          </marker>
-        </defs>
+      <div ref={containerRef} className="relative flex-1 min-h-0">
+        <svg
+          className="absolute inset-0 z-0 pointer-events-none w-full h-full"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+        >
+          <defs>
+            <marker
+              id={`arrowhead-${widget.id}`}
+              markerWidth="10"
+              markerHeight="7"
+              refX="9"
+              refY="3.5"
+              orient="auto"
+            >
+              <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8" />
+            </marker>
+          </defs>
 
-        {edges.map((edge) => {
-          const source = displayNodes.find((n) => n.id === edge.sourceNodeId);
-          const target = displayNodes.find((n) => n.id === edge.targetNodeId);
-          if (!source || !target) return null;
+          {edges.map((edge) => {
+            const source = displayNodes.find((n) => n.id === edge.sourceNodeId);
+            const target = displayNodes.find((n) => n.id === edge.targetNodeId);
+            if (!source || !target) return null;
 
-          const sourceW = source.width ?? DEFAULT_WIDTH;
-          const sourceH = source.height ?? DEFAULT_HEIGHT;
-          const targetW = target.width ?? DEFAULT_WIDTH;
-          const targetH = target.height ?? DEFAULT_HEIGHT;
+            const sourceW = source.width ?? DEFAULT_WIDTH;
+            const sourceH = source.height ?? DEFAULT_HEIGHT;
+            const targetW = target.width ?? DEFAULT_WIDTH;
+            const targetH = target.height ?? DEFAULT_HEIGHT;
 
-          const x1 = source.x + sourceW / 2;
-          const y1 = source.y + sourceH / 2;
-          const x2 = target.x + targetW / 2;
-          const y2 = target.y + targetH / 2;
+            const x1 = source.x + sourceW / 2;
+            const y1 = source.y + sourceH / 2;
+            const x2 = target.x + targetW / 2;
+            const y2 = target.y + targetH / 2;
 
-          return (
+            return (
+              <path
+                key={edge.id}
+                d={`M ${x1} ${y1} L ${x2} ${y2}`}
+                stroke="#94a3b8"
+                strokeWidth="0.5"
+                strokeDasharray={edge.lineStyle === 'dashed' ? '5,5' : 'none'}
+                markerEnd={`url(#arrowhead-${widget.id})`}
+                className="pointer-events-auto cursor-pointer hover:stroke-rose-400 transition-colors"
+                onClick={(e) => handleDeleteEdge(e, edge.id)}
+              >
+                {!isReadOnly && <title>Click to delete edge</title>}
+              </path>
+            );
+          })}
+
+          {sourceDrawNode && drawingLineEnd && (
             <path
-              key={edge.id}
-              d={`M ${x1} ${y1} L ${x2} ${y2}`}
+              d={`M ${sourceDrawNode.x + (sourceDrawNode.width ?? DEFAULT_WIDTH) / 2} ${sourceDrawNode.y + (sourceDrawNode.height ?? DEFAULT_HEIGHT) / 2} L ${drawingLineEnd.x} ${drawingLineEnd.y}`}
               stroke="#94a3b8"
               strokeWidth="0.5"
-              strokeDasharray={edge.lineStyle === 'dashed' ? '5,5' : 'none'}
+              strokeDasharray="5,5"
               markerEnd={`url(#arrowhead-${widget.id})`}
-              className="pointer-events-auto cursor-pointer hover:stroke-rose-400 transition-colors"
-              onClick={(e) => handleDeleteEdge(e, edge.id)}
+              className="opacity-50 pointer-events-none"
+            />
+          )}
+        </svg>
+
+        {displayNodes.map((node) => {
+          const w = node.width ?? DEFAULT_WIDTH;
+          const h = node.height ?? DEFAULT_HEIGHT;
+
+          return (
+            <div
+              key={node.id}
+              data-node-id={node.id}
+              onPointerDown={(e) => handleNodePointerDown(e, node)}
+              onPointerMove={handleNodePointerMove}
+              onPointerUp={handleNodePointerUp}
+              onPointerCancel={handleNodePointerUp}
+              className="absolute z-10 flex flex-col items-center justify-center shadow-sm border border-slate-300 rounded-[1cqmin] cursor-grab active:cursor-grabbing p-[1cqmin] group"
+              style={{
+                left: `${node.x}%`,
+                top: `${node.y}%`,
+                width: `${w}%`,
+                height: `${h}%`,
+                backgroundColor: node.bgColor,
+                fontFamily: 'inherit',
+                containerType: 'size',
+                touchAction: 'none',
+              }}
             >
-              {!isReadOnly && <title>Click to delete edge</title>}
-            </path>
+              {/* no-tour-anchor: one per node, the tour points at Add Node instead */}
+              <textarea
+                className="w-full h-full text-center bg-transparent border-none resize-none focus:outline-none focus:ring-[var(--ring-width)] focus:ring-slate-400 font-medium text-slate-800 leading-tight"
+                style={
+                  {
+                    borderRadius: '0.5cqmin',
+                    padding: '0.5cqmin',
+                    fontSize: 'clamp(12px, 15cqmin, 48px)',
+                    '--ring-width': '0.2cqmin',
+                  } as React.CSSProperties
+                }
+                value={node.text}
+                onChange={(e) => handleNodeTextChange(node.id, e.target.value)}
+                placeholder="Idea..."
+                readOnly={isReadOnly}
+              />
+
+              {!isReadOnly && (
+                <>
+                  {/* no-tour-anchor: per-node delete, never a tour step */}
+                  <button
+                    type="button"
+                    className="absolute bg-white border border-slate-200 text-rose-500 opacity-0 hover:bg-rose-50 hover:text-rose-600 transition-opacity focus:opacity-100 group-hover:opacity-100"
+                    style={{
+                      top: 'max(-4px, -1cqmin)',
+                      right: 'max(-4px, -1cqmin)',
+                      padding: 'min(4px, 1cqmin)',
+                      borderRadius: '9999px',
+                    }}
+                    onClick={() => handleDeleteNode(node.id)}
+                    title="Delete Node"
+                    aria-label="Delete node"
+                  >
+                    <Trash2
+                      style={{
+                        width: 'min(16px, 4cqmin)',
+                        height: 'min(16px, 4cqmin)',
+                      }}
+                    />
+                  </button>
+
+                  {/* no-tour-anchor: per-node link handle, dragged not clicked */}
+                  <button
+                    type="button"
+                    className="handle absolute bg-white border border-slate-300 cursor-crosshair text-slate-400 hover:text-indigo-500 hover:border-indigo-400 transition-colors shadow-sm"
+                    style={{
+                      bottom: 'max(-4px, -1cqmin)',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      padding: 'min(4px, 1cqmin)',
+                      borderRadius: '9999px',
+                      touchAction: 'none',
+                    }}
+                    onPointerDown={(e) => handleHandlePointerDown(e, node.id)}
+                    onPointerMove={handleHandlePointerMove}
+                    onPointerUp={handleHandlePointerUp}
+                    onPointerCancel={handleHandlePointerUp}
+                    title="Drag to connect"
+                    aria-label="Drag to connect"
+                  >
+                    <div
+                      className="rounded-full bg-current pointer-events-none"
+                      style={{
+                        width: 'min(8px, 2cqmin)',
+                        height: 'min(8px, 2cqmin)',
+                      }}
+                    />
+                  </button>
+
+                  <div
+                    className="resize-handle absolute bottom-0 right-0 cursor-nwse-resize text-slate-300 hover:text-indigo-500 transition-colors"
+                    style={{
+                      padding: 'min(4px, 1cqmin)',
+                      touchAction: 'none',
+                    }}
+                    onPointerDown={(e) => handleResizePointerDown(e, node)}
+                    onPointerMove={handleResizePointerMove}
+                    onPointerUp={handleResizePointerUp}
+                    onPointerCancel={handleResizePointerUp}
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      style={{
+                        width: 'min(12px, 3cqmin)',
+                        height: 'min(12px, 3cqmin)',
+                      }}
+                    >
+                      <line x1="22" y1="12" x2="12" y2="22" />
+                      <line x1="22" y1="18" x2="18" y2="22" />
+                    </svg>
+                  </div>
+                </>
+              )}
+            </div>
           );
         })}
-
-        {sourceDrawNode && drawingLineEnd && (
-          <path
-            d={`M ${sourceDrawNode.x + (sourceDrawNode.width ?? DEFAULT_WIDTH) / 2} ${sourceDrawNode.y + (sourceDrawNode.height ?? DEFAULT_HEIGHT) / 2} L ${drawingLineEnd.x} ${drawingLineEnd.y}`}
-            stroke="#94a3b8"
-            strokeWidth="0.5"
-            strokeDasharray="5,5"
-            markerEnd={`url(#arrowhead-${widget.id})`}
-            className="opacity-50 pointer-events-none"
-          />
-        )}
-      </svg>
-
-      {displayNodes.map((node) => {
-        const w = node.width ?? DEFAULT_WIDTH;
-        const h = node.height ?? DEFAULT_HEIGHT;
-
-        return (
-          <div
-            key={node.id}
-            data-node-id={node.id}
-            onPointerDown={(e) => handleNodePointerDown(e, node)}
-            onPointerMove={handleNodePointerMove}
-            onPointerUp={handleNodePointerUp}
-            onPointerCancel={handleNodePointerUp}
-            className="absolute z-10 flex flex-col items-center justify-center shadow-sm border border-slate-300 rounded-[1cqmin] cursor-grab active:cursor-grabbing p-[1cqmin] group"
-            style={{
-              left: `${node.x}%`,
-              top: `${node.y}%`,
-              width: `${w}%`,
-              height: `${h}%`,
-              backgroundColor: node.bgColor,
-              fontFamily: 'inherit',
-              containerType: 'size',
-              touchAction: 'none',
-            }}
-          >
-            <textarea
-              className="w-full h-full text-center bg-transparent border-none resize-none focus:outline-none focus:ring-[var(--ring-width)] focus:ring-slate-400 font-medium text-slate-800 leading-tight"
-              style={
-                {
-                  borderRadius: '0.5cqmin',
-                  padding: '0.5cqmin',
-                  fontSize: 'clamp(12px, 15cqmin, 48px)',
-                  '--ring-width': '0.2cqmin',
-                } as React.CSSProperties
-              }
-              value={node.text}
-              onChange={(e) => handleNodeTextChange(node.id, e.target.value)}
-              placeholder="Idea..."
-              readOnly={isReadOnly}
-            />
-
-            {!isReadOnly && (
-              <>
-                <button
-                  type="button"
-                  className="absolute bg-white border border-slate-200 text-rose-500 opacity-0 hover:bg-rose-50 hover:text-rose-600 transition-opacity focus:opacity-100 group-hover:opacity-100"
-                  style={{
-                    top: 'max(-4px, -1cqmin)',
-                    right: 'max(-4px, -1cqmin)',
-                    padding: 'min(4px, 1cqmin)',
-                    borderRadius: '9999px',
-                  }}
-                  onClick={() => handleDeleteNode(node.id)}
-                  title="Delete Node"
-                  aria-label="Delete node"
-                >
-                  <Trash2
-                    style={{
-                      width: 'min(16px, 4cqmin)',
-                      height: 'min(16px, 4cqmin)',
-                    }}
-                  />
-                </button>
-
-                <button
-                  type="button"
-                  className="handle absolute bg-white border border-slate-300 cursor-crosshair text-slate-400 hover:text-indigo-500 hover:border-indigo-400 transition-colors shadow-sm"
-                  style={{
-                    bottom: 'max(-4px, -1cqmin)',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    padding: 'min(4px, 1cqmin)',
-                    borderRadius: '9999px',
-                    touchAction: 'none',
-                  }}
-                  onPointerDown={(e) => handleHandlePointerDown(e, node.id)}
-                  onPointerMove={handleHandlePointerMove}
-                  onPointerUp={handleHandlePointerUp}
-                  onPointerCancel={handleHandlePointerUp}
-                  title="Drag to connect"
-                  aria-label="Drag to connect"
-                >
-                  <div
-                    className="rounded-full bg-current pointer-events-none"
-                    style={{
-                      width: 'min(8px, 2cqmin)',
-                      height: 'min(8px, 2cqmin)',
-                    }}
-                  />
-                </button>
-
-                <div
-                  className="resize-handle absolute bottom-0 right-0 cursor-nwse-resize text-slate-300 hover:text-indigo-500 transition-colors"
-                  style={{
-                    padding: 'min(4px, 1cqmin)',
-                    touchAction: 'none',
-                  }}
-                  onPointerDown={(e) => handleResizePointerDown(e, node)}
-                  onPointerMove={handleResizePointerMove}
-                  onPointerUp={handleResizePointerUp}
-                  onPointerCancel={handleResizePointerUp}
-                >
-                  <svg
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    style={{
-                      width: 'min(12px, 3cqmin)',
-                      height: 'min(12px, 3cqmin)',
-                    }}
-                  >
-                    <line x1="22" y1="12" x2="12" y2="22" />
-                    <line x1="22" y1="18" x2="18" y2="22" />
-                  </svg>
-                </div>
-              </>
-            )}
-          </div>
-        );
-      })}
+      </div>
     </div>
   );
 };
