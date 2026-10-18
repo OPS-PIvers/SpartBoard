@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-17_
+_Last audited: 2026-10-18_
 _Last action: 2026-10-17 — LOW Soundboard active-sound dot scaled with cqmin. Moved to Completed._
+
+_2026-10-18: Daily audit (Sunday). 0 `max-w/h-[Npx]` caps in any `Widget.tsx`; only fixed pixel sizes are the two portaled `fixed` DrawingWidget popovers (exempt). Only widget-dir change since last run is a Flashcards editor tweak (`FlashcardEditor.tsx`), no scaling impact. 0 new issues._
 
 _2026-10-17: Daily audit (Saturday). 0 `max-w/h-[Npx]` caps in any `Widget.tsx`; only 2 fixed pixel sizes (`DrawingWidget/Widget.tsx:1300,1390`, fixed-position `z-[2147483600]` popups outside the widget CQ container — already covered by established out-of-scope precedent). 0 new issues; open items unchanged._
 
