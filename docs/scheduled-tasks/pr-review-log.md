@@ -4822,3 +4822,16 @@ rather than "no data") is also still open.
     - #4348: the new Backlog rows have 4 cells in a 2-column table.
   - Needs changes: none.
 - Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. No local test runs were needed.
+
+## 2026-10-18
+
+- PRs reviewed: #4361 (MiniAppAssignModal skipped-students warning cqmin), #4360 (Widget loop: Links layout ungraded → C), #4359 (debugger nightly run 101 log), #4358 (count and save only accessible tools in new-user dock step), #4357 (calendar timed events by viewer's local day), #4356 (IME-confirming Enter guards), #4355 (Unifier run 119 log).
+- Comments processed: 5 total — 0 fixed, 5 explained. No unresolved inline threads. The one actionable comment (#4361, detached `Resolution:` line in `css-scaling.md`) was already fixed by 89add7c6; noted in the review instead of a separate reply. The other four were "no issues" bot summaries.
+- Fixes pushed: none.
+- Reviews posted: 7.
+- Merge readiness:
+  - Ready: #4361, #4359, #4358, #4357, #4356, #4355.
+  - Ready with minor notes:
+    - #4360: `CHAR_EM` counts UTF-16 units (emoji/CJK estimated per code unit), and long labels produce a 20-term CSS expression. Both are optional.
+  - Needs changes: none.
+- Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. No local test runs were needed.
