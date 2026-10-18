@@ -233,7 +233,7 @@ export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
             className={`grid min-h-full w-full ${fontClass}`}
             style={{
               // Up to the configured column count; fewer when cards would get too narrow to read.
-              gridTemplateColumns: `repeat(auto-fill, minmax(max(min(88px, 30cqmin), calc((100% - ${columns - 1} * ${GAP}) / ${columns})), 1fr))`,
+              gridTemplateColumns: `repeat(auto-fill, minmax(max(min(88px, 30cqmin), calc((100% - ${columns - 1} * ${GAP}) / ${columns} - 0.5px)), 1fr))`,
               gridAutoRows: 'minmax(min(64px, 25cqmin), 1fr)',
               gap: GAP,
             }}
