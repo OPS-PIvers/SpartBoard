@@ -6,7 +6,6 @@
     "classes": ["G4"],
     "custom-widget": ["G1", "G2", "G3"],
     "flashcards": ["G4"],
-    "graphic-organizer": ["G1", "G2"],
     "hotspot-image": ["G2"],
     "lunchCount": ["G1", "G2", "G3", "G4"],
     "mathTool": ["G2"],
