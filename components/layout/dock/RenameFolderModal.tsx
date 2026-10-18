@@ -53,7 +53,9 @@ export const RenameFolderModal: React.FC<RenameFolderModalProps> = ({
           aria-invalid={showError || undefined}
           aria-describedby={showError ? 'rename-folder-error' : undefined}
           className={`w-full px-4 py-3 bg-slate-100 border-none rounded-xl focus:ring-2 text-sm font-bold ${showError ? 'ring-2 ring-brand-red-primary focus:ring-brand-red-primary' : 'focus:ring-brand-blue-primary'}`}
-          onKeyDown={(e) => e.key === 'Enter' && commit()}
+          onKeyDown={(e) =>
+            e.key === 'Enter' && !e.nativeEvent.isComposing && commit()
+          }
         />
         {showError && (
           <p
