@@ -7,13 +7,11 @@
     "concept-web": ["G1"],
     "countdown": ["G2"],
     "custom-widget": ["G1", "G2", "G3"],
-    "expectations": ["G1", "G2"],
     "flashcards": ["G4"],
     "graphic-organizer": ["G1", "G2"],
     "hotspot-image": ["G2"],
     "lunchCount": ["G1", "G2", "G3", "G4"],
     "mathTool": ["G2"],
-    "miniApp": ["G2"],
     "need-do-put-then": ["G4"],
     "numberLine": ["G1", "G2"],
     "poll": ["G1", "G2"],
@@ -22,7 +20,6 @@
     "review": ["G1", "G4"],
     "seating-chart": ["G1", "G2"],
     "soundboard": ["G2"],
-    "specialist-schedule": ["G1", "G2"],
     "stations": ["G1", "G2"],
     "syntax-framer": ["G1"]
   }
