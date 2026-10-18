@@ -1,6 +1,6 @@
 {
-  "runId": "baseline-refresh-2026-10-18",
-  "generatedAt": "2026-10-18T14:49:27.284Z",
+  "runId": "2026-10-18T15-50-38-554Z",
+  "generatedAt": "2026-10-18T15:51:42.959Z",
   "failures": {
     "catalyst-visual": ["G2"],
     "classes": ["G4"],
@@ -9,7 +9,6 @@
     "custom-widget": ["G1", "G2", "G3"],
     "expectations": ["G1", "G2"],
     "flashcards": ["G4"],
-    "graphic-organizer": ["G1", "G2"],
     "hotspot-image": ["G2"],
     "lunchCount": ["G1", "G2", "G3", "G4"],
     "mathTool": ["G2"],

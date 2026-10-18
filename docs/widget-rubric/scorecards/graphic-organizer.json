@@ -1,9 +1,601 @@
 {
   "$schema": "../scorecard.schema.json",
   "widgetType": "graphic-organizer",
-  "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "rubricVersion": "1.1.0",
+  "gradedAt": "2026-10-18T15:50:28.594Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "I5": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/envelope-min__empty.png",
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/envelope-min__typical.png",
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/envelope-min__stress.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "note": "At 150x100 all four Frayer quadrants and the KWL columns stay on screen but shrink together to text of about 4 px, the center bubble wraps to 'Pl an t', and the KWL stress text runs off the card, so nothing is collapsed or hidden to keep the main content readable.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png",
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/large-1400x900__typical.png",
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/large-1400x900__stress.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "note": "At 1400x900 the quadrants stretch to fill the card but the 14 px text stays in the top corners, which leaves large empty white panels, and KWL lines run very long.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/widest-aspect__typical.png",
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/widest-aspect__stress.png",
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/tallest-aspect__stress.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "note": "The same 2x2 grid and three-column layout is used at every aspect, so the tall 225x900 Frayer squeezes its columns and breaks KWL words mid-word ('reflectio n') instead of reflowing into a single column.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__empty.png",
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png",
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__stress.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "S6": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/envelope-min__stress.png",
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/tallest-aspect__stress.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/envelope-min__typical.png",
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "note": "The 150x100 global floor is much smaller than a four-quadrant writing organizer can use, and the content cannot be read there (the floor is too low, not too high); the closest listed level is 2, but none of the levels describes this.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/maximized-1920x1080__stress.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "note": "Maximized fills the screen but looks like an enlarged card: text drops to small regular-weight type at the top of huge empty quadrants, with no type scaling for presenting.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "I2": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "I3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "I4": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "I6": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "note": "The only state visible is the card's selected outline; the cells and the center topic bubble show no visible focus or active state in the screenshots.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical__selected.png",
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "note": "The face is clean, but every cell is a bordered white box on a gray frame, quadrant labels are tiny gray uppercase, and the center bubble has a drop shadow and covers the 'NON-EXAMPLES' label, so it looks dated.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png",
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__stress.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "note": "A Frayer model with a center topic is recognisable at a glance, and the proxies are low (5 controls, 2 font sizes, 28 words).",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "note": "The center topic bubble is meant to be the main element but its text is the same small size as the cell text, and the four equal quadrants carry just as much weight.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "note": "The drawer uses the shared settings schema, but the face is styled one-off (custom quadrant boxes and bubble) with no shared imports, and the template picker is a raw select.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "note": "The labels are short and plain (Definition, Examples, What I Know) and there are no copy violations, but the overlapping bubble hides part of 'Non-Examples'.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "note": "The template (five built-in plus building custom) and font and card color can be changed, but cell titles, cell count and the topic-bubble style are fixed by the template, with no per-board options for labels or layout.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical__settings.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "note": "The settings screenshot shows no drawer (only the card with its selected outline); the code shows a single 'content' group with one template select plus style keys, so this score comes from the code.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__empty.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "note": "Dropped empty, it shows a ready-to-use Frayer model with labeled quadrants, placeholder prompts and a 'Topic' center, which is usable right away.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "C4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical__settings.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 4,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__empty.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "note": "The empty face is its own empty state: 'Type definition...' style placeholders invite typing straight into each cell.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "C6": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical__settings.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__empty.png",
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "note": "The widget is local text entry with no data loading, roster or network, so its only reachable states (empty and filled) are both designed.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "note": "No student data appears on the face, only content the teacher types.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "note": "There are no links to other widgets; for Paul: add (1) sending cell content to Text/Notes or an Activity Wall, (2) seeding the topic from the Lesson or Schedule item, (3) starting a KWL from a Quiz or Guided Learning topic; remove nothing.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+        ],
+        "runId": "after-graphic-organizer"
+      },
+      "note": "There is a 352-line folder test, files are a reasonable size (Widget.tsx 619 lines), with no any and no useDashboard or derived-state effect violations.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-graphic-organizer"
+      },
+      "gradedAt": "2026-10-18T15:50:28.594Z"
+    },
+    "G2": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-graphic-organizer"
+      },
+      "gradedAt": "2026-10-18T15:50:28.594Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-graphic-organizer"
+      },
+      "gradedAt": "2026-10-18T15:50:28.594Z"
+    },
+    "G4": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-graphic-organizer"
+      },
+      "gradedAt": "2026-10-18T15:50:28.594Z"
+    }
+  }
 }
