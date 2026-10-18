@@ -1,11 +1,10 @@
 {
-  "runId": "baseline-refresh-2026-10-18",
-  "generatedAt": "2026-10-18T14:49:27.284Z",
+  "runId": "countdown-baseline",
+  "generatedAt": "2026-10-18T15:25:45.187Z",
   "failures": {
     "catalyst-visual": ["G2"],
     "classes": ["G4"],
     "concept-web": ["G1"],
-    "countdown": ["G2"],
     "custom-widget": ["G1", "G2", "G3"],
     "expectations": ["G1", "G2"],
     "flashcards": ["G4"],
