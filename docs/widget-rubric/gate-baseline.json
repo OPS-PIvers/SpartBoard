@@ -23,7 +23,6 @@
     "seating-chart": ["G1", "G2"],
     "soundboard": ["G2"],
     "specialist-schedule": ["G1", "G2"],
-    "stations": ["G1", "G2"],
     "syntax-framer": ["G1"]
   }
 }
