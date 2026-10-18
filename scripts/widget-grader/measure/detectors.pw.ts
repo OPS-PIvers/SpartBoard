@@ -53,6 +53,15 @@ test.describe('G1 unreachable control', () => {
     );
     expect(analyzeG1(s).pass).toBe(true);
   });
+  test('passes for a button with a half-pixel sliver left by a scroller above the card edge', async ({
+    page,
+  }) => {
+    const s = await snap(
+      page,
+      '<div style="height:199.5px;overflow-y:auto"><div style="height:199px"></div><button>Go</button></div>'
+    );
+    expect(analyzeG1(s).pass).toBe(true);
+  });
 });
 
 test.describe('G2 clipped content', () => {

@@ -19,6 +19,7 @@ import {
   GRID_COLS,
   GRID_ROWS,
   MAX_HIT_TESTS,
+  PROTECTED_ALLOWED_LABELS,
   INTERACTIVE_ELEMENTS_SELECTOR,
   REPO_ROOT,
   type Thresholds,
@@ -343,6 +344,9 @@ export async function measureWidget(
       typicalText: texts.typical ?? '',
       secondText: second,
       sharedText: opts.sharedText,
+      allowedLabels: Object.hasOwn(PROTECTED_ALLOWED_LABELS, type)
+        ? PROTECTED_ALLOWED_LABELS[type]
+        : [],
     });
   }
   return summarize(type, records, g4, opts.thresholds);
