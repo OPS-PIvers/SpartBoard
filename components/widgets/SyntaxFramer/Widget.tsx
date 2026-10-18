@@ -64,9 +64,11 @@ const SortableToken: React.FC<SortableTokenProps> = ({
     opacity: isDragging ? 0.8 : 1,
     flex: 'var(--char-count) 1 auto',
     containerType: 'size',
-    minWidth: 'calc(max(2, var(--char-count)) * 10cqmin)',
-    minHeight: 0,
-    padding: '4cqmin',
+    minWidth: 'min(100%, calc(max(2, var(--char-count)) * 10cqmin))',
+    // Room for readable text inside the padding, so crowded rows scroll instead of shrinking to nothing.
+    minHeight: 'calc(2 * min(12px, 4cqmin) + clamp(24px, 10cqmin, 48px))',
+    padding: 'min(12px, 4cqmin)',
+    fontSize: 'clamp(12px, 5cqmin, 24px)',
     '--char-count': token.value.length || 3,
   };
 
@@ -127,7 +129,8 @@ const SortableToken: React.FC<SortableTokenProps> = ({
     >
       <span
         style={{
-          fontSize: `min(50cqh, calc(75cqw / max(1, var(--char-count)) * ${FONT_SCALING_FACTOR}))`,
+          // 1em floor: a token's height reads as 0 to container queries when crowded rows can't stretch.
+          fontSize: `min(max(50cqh, 1em), calc(75cqw / max(1, var(--char-count)) * ${FONT_SCALING_FACTOR}))`,
           lineHeight: 1.2,
           overflow: 'hidden',
           textOverflow: 'clip',
@@ -222,8 +225,8 @@ export const SyntaxFramerWidget: React.FC<WidgetComponentProps> = ({
     <WidgetLayout
       content={
         <div
-          className={`w-full h-full flex flex-wrap content-stretch items-stretch ${justifyClass}`}
-          style={{ gap: '10cqmin', padding: '2cqmin' }}
+          className={`w-full h-full overflow-y-auto flex flex-wrap content-stretch items-stretch ${justifyClass}`}
+          style={{ gap: 'min(16px, 5cqmin)', padding: '2cqmin' }}
         >
           <DndContext
             sensors={sensors}

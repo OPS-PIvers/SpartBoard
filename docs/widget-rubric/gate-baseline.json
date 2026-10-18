@@ -1,6 +1,6 @@
 {
-  "runId": "baseline-refresh-2026-10-18",
-  "generatedAt": "2026-10-18T14:49:27.284Z",
+  "runId": "bl-sf",
+  "generatedAt": "2026-10-18T16:34:43.983Z",
   "failures": {
     "catalyst-visual": ["G2"],
     "classes": ["G4"],
@@ -23,7 +23,6 @@
     "seating-chart": ["G1", "G2"],
     "soundboard": ["G2"],
     "specialist-schedule": ["G1", "G2"],
-    "stations": ["G1", "G2"],
-    "syntax-framer": ["G1"]
+    "stations": ["G1", "G2"]
   }
 }
