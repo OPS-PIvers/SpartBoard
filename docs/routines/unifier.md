@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 118_
-_Last run: 2026-10-17_
+_Run count: 119_
+_Last run: 2026-10-18_
 _Base branch: dev-paul_
 
 ---
@@ -577,6 +577,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-10-18 | `claude/kind-johnson-asfb8r` | D1/D2/D3/D4/D5 | Aligned (run 119) — light probe of 3 commits / 11 source files since run 118 (`0c2a99ce..origin/dev-paul`: PIN sign-in index hardening, student My Assignments fan-out, rules minification, deploy planner). Diff-scoped greps over added lines for `'../'` imports, `<Toast`, `#2d3f89`/`#ad2122`, hand-rolled `text-xxs font-black uppercase` labels, `role="group"`/`aria-pressed` and empty-state copy all returned zero hits. Full `validate` not run (CLAUDE.md forbids it; no code touched). No code shipped. | — |
 | 2026-10-17 | `nightly/unifier-log-2026-10-17` | D1/D2/D3/D4/D5 | Aligned (run 118) — light probe of 14 commits / 82 files since run 117 (`e7732999..origin/dev-paul`: PIN sign-in hardening, student bundle slimming, quiz grading parity, Catalyst/Materials/StarterPack widgets). Diff-scoped greps for added `'../'` imports, `<Toast>`, inline-style `#2d3f89`/`#ad2122`, hand-rolled `text-xxs font-black uppercase` labels and `role="group"`/`aria-pressed` all returned zero hits; the one new empty state (`StarterPack/Widget.tsx`) already uses `ScaledEmptyState`. Full `validate` not run (CLAUDE.md forbids it). No code shipped. | — |
 | 2026-10-16 | `nightly/unify-d4-widget-peer-imports-2026-10-16` | D4 Import Paths | Shipped (run 117) — light probe of 124 commits / 336 files since run 116 (`4585f94b..origin/dev-paul`). Found 2 cross-widget relative escapes: `RoutineGuide/Widget.tsx` → `'../InstructionalRoutines/constants'` and `SpecialistSchedule/utils.test.ts` → `'../Schedule/utils'`; both converted to `@/components/widgets/...`. The `components/widgets/**` `no-restricted-imports` regex now derives its peer-widget directory list from disk (excluding `WidgetLayout`, D4-E2) instead of the hardcoded `math-tools|monitor|present`, so any future widget-to-widget `'../'` import fails lint (live-fire confirmed). 98 related suites / 1158 tests pass. D2/D5: no hits. D3: new `role="group"` hits are `AssignmentSettingsToggleGroup`, quiz `WhiteboardZoomFrame`/`WhiteboardStartingPagePreviewModal` (not settings pickers, left alone). Mechanical. | PR (this branch) |
 | 2026-10-15 | `nightly/unifier-log-2026-10-15` | D1/D2/D3/D4/D5 | Aligned (run 117) — light probe of 100 commits / 217 non-test client files since run 116 (`4585f94b..7fab31f1`). D4: only new `'../'` imports are Quiz `monitor/legacy/LegacyMonitorShell.tsx` -> parent `monitor/` siblings (`OpenPartControl`, `openPart`) and `QuizVersionReview` (own-widget gray zone). D5: no `<Toast>`. D2: only `#2d3f89`/`#ad2122` hits are inside a `WB_PICTURE_SVG` sample-picture data URI string (not an inline style prop). D3: `QuizVersionReview.tsx` `sectionLabel` const (`text-xxs font-bold uppercase tracking-wider text-slate-500`) styles `<h4>` section headings in a review panel, not form-control labels, so it is not a SettingsLabel case (weight/tracking differ; logged LOW, no action). D1: no new hand-rolled empty states. No subagents dispatched, no code shipped; full `validate` not run (docs-only change, CLAUDE.md forbids full runs). | — |
