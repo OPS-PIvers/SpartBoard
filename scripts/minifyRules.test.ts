@@ -112,6 +112,17 @@ describe.runIf(findEmulatorJar())(
       );
     }, 60_000);
 
+    it('rejects a call the minifier left under its original name', () => {
+      const { text, map } = minifyRules(SAMPLE);
+      const short = map.get('incoming') ?? '';
+      const broken = text.replace(
+        new RegExp(`(?<![\\w.])${short}\\(\\)\\.`),
+        'incoming().'
+      );
+      expect(broken).not.toBe(text);
+      expect(() => proveRenamed(SAMPLE, broken, map)).toThrow(/not equivalent/);
+    }, 60_000);
+
     it('rejects a logic change', () => {
       const { text, map } = minifyRules(SAMPLE);
       expect(() =>

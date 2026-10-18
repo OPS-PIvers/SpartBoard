@@ -80,11 +80,15 @@ public class RulesAst {
     return r;
   }
 
+  // Original names still bound or referenced in the minified text; mapping back would hide them.
+  static Set<String> leftovers = new TreeSet<>();
+
   // Maps short names back to originals, but only where a name is bound or referenced, never a field, method or permission.
   static Message unrename(Message m, Map<String, String> back, boolean renamable) {
     String type = m.getDescriptorForType().getName();
     if (type.equals("Identifier")) {
       String n = name(m);
+      if (renamable && !back.containsKey(n) && back.containsValue(n)) leftovers.add(n);
       return renamable && back.containsKey(n) ? m.toBuilder().setField(field(m, "name"), back.get(n)).build() : m;
     }
     boolean hasOperand = (type.equals("Member") || type.equals("CallExpression")) && get(m, "operand") != null;
@@ -145,9 +149,11 @@ public class RulesAst {
         if (p.length != 2 || back.put(p[0], p[1]) != null) { System.err.println("bad name map line: " + l); System.exit(2); }
       }
       if (new HashSet<>(back.values()).size() != back.size()) { System.err.println("name map is not one-to-one"); System.exit(2); }
-      boolean same = stripPositions(before).equals(stripPositions(unrename(after, back, false)));
+      Message mapped = unrename(after, back, false);
+      if (!leftovers.isEmpty()) { System.out.println("DIFFERENT"); System.err.println("names the minifier missed: " + leftovers); System.exit(1); }
+      boolean same = stripPositions(before).equals(stripPositions(mapped));
       System.out.println(same ? "EQUIVALENT (" + back.size() + " names renamed)" : "DIFFERENT");
-      if (!same) { report(documentsRule(before), documentsRule(unrename(after, back, false))); System.exit(1); }
+      if (!same) { report(documentsRule(before), documentsRule(mapped)); System.exit(1); }
       return;
     }
     Set<String> existing = new HashSet<>();

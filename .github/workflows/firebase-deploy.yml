@@ -184,6 +184,7 @@ jobs:
           restore-keys: firebase-emulators-${{ runner.os }}-
       # Deploys test the minified text that ships; PR validation tests the source.
       - name: Minify firestore.rules as released
+        if: vars.RULES_MINIFY != '0'
         run: pnpm exec firebase setup:emulators:firestore && node scripts/minifyRules.mjs firestore.rules --write
       - name: Run Firestore rules tests
         run: pnpm run test:rules
