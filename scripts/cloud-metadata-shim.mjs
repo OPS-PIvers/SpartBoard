@@ -6,27 +6,29 @@ const token = process.env.CLOUDSDK_AUTH_ACCESS_TOKEN ?? 'proxy-injected';
 const project = process.env.GOOGLE_CLOUD_PROJECT ?? 'spartboard-dev';
 const base = '/computeMetadata/v1';
 
-const routes = {
-  [`${base}/instance/service-accounts/default/token`]: () =>
-    JSON.stringify({
-      access_token: token,
-      expires_in: 3599,
-      token_type: 'Bearer',
-    }),
-  [`${base}/instance/service-accounts/default/email`]: () =>
-    'claude-cloud@proxy',
-  [`${base}/instance/service-accounts/default/scopes`]: () =>
-    'https://www.googleapis.com/auth/cloud-platform',
-  [`${base}/project/project-id`]: () => project,
-  [`${base}/project/numeric-project-id`]: () => '0',
-  [`${base}/instance`]: () => '',
-  [base]: () => '',
-};
+const routes = new Map(
+  Object.entries({
+    [`${base}/instance/service-accounts/default/token`]: () =>
+      JSON.stringify({
+        access_token: token,
+        expires_in: 3599,
+        token_type: 'Bearer',
+      }),
+    [`${base}/instance/service-accounts/default/email`]: () =>
+      'claude-cloud@proxy',
+    [`${base}/instance/service-accounts/default/scopes`]: () =>
+      'https://www.googleapis.com/auth/cloud-platform',
+    [`${base}/project/project-id`]: () => project,
+    [`${base}/project/numeric-project-id`]: () => '0',
+    [`${base}/instance`]: () => '',
+    [base]: () => '',
+  })
+);
 
 http
   .createServer((req, res) => {
     const path = (req.url ?? '').split('?')[0].replace(/\/$/, '');
-    const route = routes[path];
+    const route = routes.get(path);
     res.setHeader('Metadata-Flavor', 'Google');
     if (!route) {
       res.statusCode = 404;
