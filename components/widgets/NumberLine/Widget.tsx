@@ -50,6 +50,14 @@ const textWidth = (text: string, fontPx: number): number =>
 const LABEL_PX = 14;
 const TICK_LABEL_PX = 12;
 
+// Smallest 1, 2 or 5 times a power of ten that is at least n, so thinned labels count in round steps.
+const niceUp = (n: number): number => {
+  if (!(n > 1)) return 1;
+  const pow = 10 ** Math.floor(Math.log10(n));
+  const m = [1, 2, 5, 10].find((f) => f * pow >= n - 1e-9) ?? 10;
+  return m * pow;
+};
+
 /** Font size and x for a label so it fits between the line's edges. */
 const fitLabel = (
   text: string,
@@ -190,12 +198,12 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
     (w, v) => Math.max(w, textWidth(tickLabel(v), TICK_LABEL_PX)),
     0
   );
-  const tickStride = Math.max(1, Math.ceil(4 / tickPx));
+  const tickStride = niceUp(4 / tickPx);
   // A multiple of the tick stride, so every label sits on a drawn tick.
   const labelStride =
-    tickStride *
-    Math.max(1, Math.ceil((widestTickLabel + 8) / (tickPx * tickStride)));
+    tickStride * niceUp((widestTickLabel + 8) / (tickPx * tickStride));
   const lastTick = tickValues.length - 1;
+  const lastX = padL + ((tickValues[lastTick] ?? min) - min) * pxPerUnit;
 
   // Marker labels that would overlap a neighbour move up a row.
   const markerRows = useMemo(() => {
@@ -204,6 +212,7 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
     const placed = markers
       .filter((m) => m.label)
       .map((m) => ({ m, x: padL + (m.value - min) * pxPerUnit }))
+      .filter(({ x }) => x >= padL && x <= svgWidth - padR)
       .sort((a, b) => a.x - b.x);
     for (const { m, x } of placed) {
       const label = m.label ?? '';
@@ -303,16 +312,14 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
                 const x = padL + (val - min) * pxPerUnit;
                 const isHovered = hoveredTick === i;
 
-                // The end tick always shows; a stride tick too close to it gives way.
-                const nearEnd = (stride: number) =>
-                  i !== lastTick && lastTick - i < stride / 2;
+                // The end tick always shows; a stride tick or label too close to it gives way.
+                const gapToEnd = lastX - x;
                 const showsTick =
-                  i === lastTick ||
-                  (i % tickStride === 0 && !nearEnd(tickStride));
+                  i === lastTick || (i % tickStride === 0 && gapToEnd >= 4);
                 if (!showsTick) return null;
                 const showsLabel =
                   i === lastTick ||
-                  (i % labelStride === 0 && !nearEnd(labelStride));
+                  (i % labelStride === 0 && gapToEnd >= widestTickLabel + 8);
                 const hitWidth = Math.min(24, tickPx * tickStride);
 
                 return (
