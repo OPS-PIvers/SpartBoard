@@ -1,9 +1,591 @@
 {
   "$schema": "../scorecard.schema.json",
   "widgetType": "numberLine",
-  "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "rubricVersion": "1.1.0",
+  "gradedAt": "2026-10-18T15:53:52.179Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "S6": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "I5": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/envelope-min__empty.png",
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/envelope-min__typical.png",
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/envelope-min__stress.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "note": "At 150x100 the line keeps every-other tick label and stays usable in the typical fixture, but labels drop to about 6px and in the stress fixture marker and jump labels pile on top of each other over the line.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png",
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/large-1400x900__typical.png",
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/large-1400x900__stress.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "note": "At 1400x900 the line stretches across the width but the labels and markers stay their default size in a thin band, leaving most of the card above and below as a giant empty gap.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/widest-aspect__typical.png",
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/widest-aspect__stress.png",
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/tallest-aspect__stress.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "note": "The same single horizontal strip is used at every shape, so the tallest 225x900 card is a tiny line in a sea of white (the script's 10% understates it) with nothing reflowing.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__empty.png",
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png",
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__stress.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/envelope-min__typical.png",
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "note": "The 150x100 floor is roughly what a short number line needs: the typical fixture still shows its start, end and jump, but nothing smaller would work.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/maximized-1920x1080__stress.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "note": "Maximized is the default strip stretched to 1920px with tick labels and marker text still at card size and roughly 90% of the screen empty, with no presenting layout.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "I2": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "I3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "I4": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "I6": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "note": "Tick hit areas show a hover circle but no pressed or active state, and adding a marker has no other feedback.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical__selected.png",
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "note": "The face is clean and flat, but tick labels are tiny and the jump arrowheads are oversized and clumsy where they land on the line.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png",
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__stress.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "note": "It reads as a number line with a jump at a glance, and the 21 controls are invisible tick hit areas, so the face itself carries only the line, two markers and one jump label.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "note": "The axis is clearly primary, with the colored markers and jump arc stepping down as overlays and tick labels as tertiary.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "note": "Face labels are short and plain (Start, End, +8) with one icon style, though the hidden hint says 'Click' on a touch board.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "note": "Range, step, display mode (integers, decimals, fractions), markers, jumps, arrows and style are all configurable without bloat, but nothing anticipates grade-level presets or open/closed points for inequalities.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical__settings.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "note": "The schema drawer puts content settings (range, step, display mode, markers, jumps) first and a short behavior group after it, all using standard controls, though the settings screenshot shows only the focused widget and not the drawer.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__empty.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "note": "With no configuration it shows a clean, usable 0 to 10 number line ready to teach with.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "C4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical__settings.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__empty.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "note": "The empty face is a bare 0 to 10 line with no visible cue that tapping it adds markers, because the only instruction appears on hover.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "C6": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical__settings.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__empty.png",
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "note": "The widget has no loading, network or roster states, and both empty and typical render as designed views.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "note": "No student data appears on the face; it shows only numbers and teacher labels.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "note": "No connections exist and none misfire, but high-value candidates are missing; proposals: add placing a marker from the Random number result and sending an Expression or Math Tools value to the line; remove nothing.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+        ],
+        "runId": "after-nl2"
+      },
+      "note": "Widget and Settings tests exist, the largest file is 489 lines, and there are no any types, useDashboard calls or derived-state effects.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-nl2"
+      },
+      "gradedAt": "2026-10-18T15:53:52.179Z"
+    },
+    "G2": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-nl2"
+      },
+      "gradedAt": "2026-10-18T15:53:52.179Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-nl2"
+      },
+      "gradedAt": "2026-10-18T15:53:52.179Z"
+    },
+    "G4": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-nl2"
+      },
+      "gradedAt": "2026-10-18T15:53:52.179Z"
+    }
+  }
 }

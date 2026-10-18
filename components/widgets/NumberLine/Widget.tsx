@@ -42,6 +42,40 @@ function fractionLabel(num: number, denom: number): string {
   return sign < 0 ? `-${mixed}` : mixed;
 }
 
+// Rough bold-text width in SVG units, used to keep labels inside the line and apart.
+const CHAR_EM = 0.62;
+const textWidth = (text: string, fontPx: number): number =>
+  text.length * CHAR_EM * fontPx;
+
+const LABEL_PX = 14;
+const TICK_LABEL_PX = 12;
+
+// Smallest 1, 2 or 5 times a power of ten that is at least n, so thinned labels count in round steps.
+const niceUp = (n: number): number => {
+  if (!(n > 1)) return 1;
+  const pow = 10 ** Math.floor(Math.log10(n));
+  const m = [1, 2, 5, 10].find((f) => f * pow >= n - 1e-9) ?? 10;
+  return m * pow;
+};
+
+/** Font size and x for a label so it fits between the line's edges. */
+const fitLabel = (
+  text: string,
+  x: number,
+  left: number,
+  right: number
+): { x: number; fontSize: number } => {
+  const fontSize = Math.min(
+    LABEL_PX,
+    (right - left) / Math.max(1, text.length * CHAR_EM)
+  );
+  const half = textWidth(text, fontSize) / 2;
+  return {
+    fontSize,
+    x: Math.min(Math.max(x, left + half), right - half),
+  };
+};
+
 export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
@@ -140,6 +174,58 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
     return ticks;
   }, [min, safeMax, safeStep, range, MAX_TICKS]);
 
+  const tickLabel = (val: number): string => {
+    // toFixed(4) strips floating-point noise (0 + 3×0.1) from every display mode's label.
+    const plain = Number(val.toFixed(4)).toString();
+    if (displayMode !== 'fractions') return plain;
+    // A step like 0.25 implies a denominator of 4; round so FP noise doesn't hide a clean fraction.
+    const denom = Math.round(1 / safeStep);
+    const rawNumerator = val * denom;
+    const roundedNumerator = Math.round(rawNumerator);
+    const isFractional =
+      denom > 1 &&
+      denom <= 100 &&
+      Math.abs(rawNumerator - roundedNumerator) < 1e-9;
+    return isFractional ? fractionLabel(roundedNumerator, denom) : plain;
+  };
+
+  // Show every nth tick when they'd crowd: labels need room to stay apart, tick lines need a few px.
+  const tickPx =
+    tickValues.length > 1
+      ? (svgWidth - padL - padR) / (tickValues.length - 1)
+      : svgWidth;
+  const widestTickLabel = tickValues.reduce(
+    (w, v) => Math.max(w, textWidth(tickLabel(v), TICK_LABEL_PX)),
+    0
+  );
+  const tickStride = niceUp(4 / tickPx);
+  // A multiple of the tick stride, so every label sits on a drawn tick.
+  const labelStride =
+    tickStride * niceUp((widestTickLabel + 8) / (tickPx * tickStride));
+  const lastTick = tickValues.length - 1;
+  const lastX = padL + ((tickValues[lastTick] ?? min) - min) * pxPerUnit;
+
+  // Marker labels that would overlap a neighbour move up a row.
+  const markerRows = useMemo(() => {
+    const rows = new Map<string, number>();
+    const rowEnds: number[] = [];
+    const placed = markers
+      .filter((m) => m.label)
+      .map((m) => ({ m, x: padL + (m.value - min) * pxPerUnit }))
+      .filter(({ x }) => x >= padL && x <= svgWidth - padR)
+      .sort((a, b) => a.x - b.x);
+    for (const { m, x } of placed) {
+      const label = m.label ?? '';
+      const { x: lx, fontSize } = fitLabel(label, x, 4, svgWidth - 4);
+      const half = textWidth(label, fontSize) / 2;
+      let row = rowEnds.findIndex((end) => end + 6 <= lx - half);
+      if (row === -1) row = Math.min(rowEnds.length, 3);
+      rowEnds[row] = lx + half;
+      rows.set(m.id, row);
+    }
+    return rows;
+  }, [markers, min, pxPerUnit, svgWidth]);
+
   const addMarker = (value: number) => {
     // Strip floating-point noise accumulated by the index-based tick formula
     // (e.g. 0 + 3×0.1 = 0.30000000000000004). Without rounding, the raw dirty
@@ -226,34 +312,15 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
                 const x = padL + (val - min) * pxPerUnit;
                 const isHovered = hoveredTick === i;
 
-                // Apply toFixed(4) round-trip as the baseline label for ALL
-                // display modes. FP accumulation (e.g. 0 + 3×0.1 =
-                // 0.30000000000000004) makes val.toString() produce garbage
-                // labels even in 'integers' mode when a decimal step is used.
-                // Four decimal places matches the 'decimals' branch precision
-                // and the fractions fallback, and strips the long mantissa that
-                // would otherwise confuse teachers on classroom projectors.
-                let labelText = Number(val.toFixed(4)).toString();
-                if (displayMode === 'fractions') {
-                  // Simple fraction conversion if step suggests a common denominator (e.g. 0.25 -> 4)
-                  const denom = Math.round(1 / safeStep);
-                  // Use Math.round + epsilon guard instead of strict modulo check:
-                  // `val * denom` accumulates floating-point error (e.g. 3 × 0.1
-                  // yields 0.30000000000000004, so `(val*denom)%1 !== 0` even
-                  // though the tick is a perfect tenth). Round to the nearest
-                  // integer and confirm it's within 1e-9 of the raw product.
-                  const rawNumerator = val * denom;
-                  const roundedNumerator = Math.round(rawNumerator);
-                  const isFractional =
-                    denom > 1 &&
-                    denom <= 100 &&
-                    Math.abs(rawNumerator - roundedNumerator) < 1e-9;
-                  if (isFractional) {
-                    labelText = fractionLabel(roundedNumerator, denom);
-                  } else {
-                    labelText = Number(val.toFixed(4)).toString(); // Fallback
-                  }
-                }
+                // The end tick always shows; a stride tick or label too close to it gives way.
+                const gapToEnd = lastX - x;
+                const showsTick =
+                  i === lastTick || (i % tickStride === 0 && gapToEnd >= 4);
+                if (!showsTick) return null;
+                const showsLabel =
+                  i === lastTick ||
+                  (i % labelStride === 0 && gapToEnd >= widestTickLabel + 8);
+                const hitWidth = Math.min(24, tickPx * tickStride);
 
                 return (
                   <g key={`tick-${i}`}>
@@ -265,23 +332,25 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
                       stroke="#1e293b"
                       strokeWidth={1.5}
                     />
-                    <text
-                      x={x}
-                      y={axisY + 24}
-                      textAnchor="middle"
-                      fill={fontColor}
-                      className={fontClass}
-                      fontWeight="bold"
-                      style={{ fontSize: 'min(12px, 4.5cqmin)' }}
-                    >
-                      {labelText}
-                    </text>
+                    {showsLabel && (
+                      <text
+                        x={x}
+                        y={axisY + 24}
+                        textAnchor="middle"
+                        fill={fontColor}
+                        className={fontClass}
+                        fontWeight="bold"
+                        style={{ fontSize: TICK_LABEL_PX }}
+                      >
+                        {tickLabel(val)}
+                      </text>
+                    )}
 
                     {/* Interaction Rect for adding markers quickly */}
                     <rect
-                      x={x - 12}
+                      x={x - hitWidth / 2}
                       y={axisY - 20}
-                      width={24}
+                      width={hitWidth}
                       height={40}
                       fill="transparent"
                       className="cursor-pointer"
@@ -312,8 +381,13 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
                 const x = padL + (marker.value - min) * pxPerUnit;
                 if (x < padL || x > svgWidth - padR) return null; // Out of bounds visually
 
+                const row = markerRows.get(marker.id) ?? 0;
+                const fit = marker.label
+                  ? fitLabel(marker.label, x, 4, svgWidth - 4)
+                  : null;
+
                 return (
-                  <g key={marker.id}>
+                  <g key={marker.id} className="pointer-events-none">
                     <line
                       x1={x}
                       y1={axisY}
@@ -324,14 +398,14 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
                       strokeDasharray="4 4"
                     />
                     <circle cx={x} cy={axisY - 40} r={6} fill={marker.color} />
-                    {marker.label && (
+                    {marker.label && fit && (
                       <text
-                        x={x}
-                        y={axisY - 52}
+                        x={fit.x}
+                        y={axisY - 52 - row * 18}
                         textAnchor="middle"
                         fill={marker.color}
                         fontWeight="bold"
-                        style={{ fontSize: 'min(14px, 5cqmin)' }}
+                        style={{ fontSize: fit.fontSize }}
                       >
                         {marker.label}
                       </text>
@@ -363,8 +437,16 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
                 // Determine direction for arrow
                 const pathData = `M ${startX} ${axisY} Q ${midX} ${controlY} ${endX} ${axisY}`;
 
+                const jumpFit = jump.label
+                  ? fitLabel(jump.label, midX, 4, svgWidth - 4)
+                  : null;
+
                 return (
-                  <g key={jump.id} style={{ color }}>
+                  <g
+                    key={jump.id}
+                    className="pointer-events-none"
+                    style={{ color }}
+                  >
                     <path
                       d={pathData}
                       fill="none"
@@ -372,17 +454,20 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
                       strokeWidth={3}
                       markerEnd="url(#jumpArrow)"
                     />
-                    {jump.label && (
+                    {jump.label && jumpFit && (
                       <text
-                        x={midX}
-                        y={controlY + jumpHeight * 0.5 - 5}
+                        x={jumpFit.x}
+                        y={Math.max(
+                          controlY + jumpHeight * 0.5 - 5,
+                          jumpFit.fontSize + 2
+                        )}
                         textAnchor="middle"
                         fill="currentColor"
                         fontWeight="bold"
                         stroke="white"
                         strokeWidth="4"
                         paintOrder="stroke"
-                        style={{ fontSize: 'min(14px, 5cqmin)' }}
+                        style={{ fontSize: jumpFit.fontSize }}
                       >
                         {jump.label}
                       </text>
