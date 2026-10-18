@@ -144,6 +144,7 @@ export const NewUserSetup: React.FC = () => {
     orgId,
     orgBuildings,
     orgBuildingsLoaded,
+    canAccessWidget,
   } = useAuth();
   const { setGlobalStyle } = useDashboard();
   const { reorderDockItems } = useToolVisibility();
@@ -196,16 +197,16 @@ export const NewUserSetup: React.FC = () => {
   const handleFinish = async () => {
     setFinishing(true);
     try {
-      const dockItems: DockItem[] = dockTypes.map((t) => ({
-        type: 'tool',
-        toolType: t,
-      }));
       // Canonicalize before persisting so legacy building IDs from
       // useAdminBuildings (e.g. `orono-high-school`) match what every
       // downstream consumer expects. setSelectedBuildings does this
       // internally; we mirror it here so the atomic write doesn't
       // briefly store the raw form.
       const canonicalBuildings = canonicalizeBuildingIds(selectedBuildings);
+      // Preselected defaults the picker hides for these schools must not be saved.
+      const dockItems: DockItem[] = dockTypes
+        .filter((t) => canAccessWidget(t, canonicalBuildings))
+        .map((t) => ({ type: 'tool', toolType: t }));
 
       // Persist dock + setup-completion atomically. The empty-dock recovery
       // effect would otherwise overwrite the wizard's picks if setupCompleted
@@ -649,12 +650,15 @@ const StepDock: React.FC<{
     () => canonicalizeBuildingIds(selectedBuildings),
     [selectedBuildings]
   );
+  const selectedCount = dockTypes.filter((t) =>
+    canAccessWidget(t, canonicalBuildings)
+  ).length;
 
   return (
     <div className="space-y-5">
       <p className="text-slate-400 text-xs">
-        {dockTypes.length} tool{dockTypes.length !== 1 ? 's' : ''} selected —
-        you can change this anytime from the dock.
+        {selectedCount} tool{selectedCount !== 1 ? 's' : ''} selected — you can
+        change this anytime from the dock.
       </p>
       {DOCK_CATEGORIES.map((cat) => (
         <div key={cat.label}>
