@@ -17,6 +17,7 @@ import {
 } from '@/utils/soundboardAudioUrl';
 import { getAvailableSoundboardSounds } from '@/utils/soundboardConfig';
 import { getAudioCtx } from '@/utils/timeToolAudio';
+import { GAP_EM, ICON_PER_FONT, soundLabelFontSize } from './labelFit';
 
 // ─── Web Audio API synthesis ─────────────────────────────────────────────────
 
@@ -354,33 +355,41 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
                   gap: 'min(10px, 2cqmin)',
                 }}
               >
-                {activeSounds.map((sound) => (
-                  <button
-                    key={sound.id}
-                    onClick={() => playSound(sound)}
-                    className="relative overflow-hidden rounded-[min(16px,3cqmin)] flex flex-col items-center justify-center transition-all active:scale-95 group shadow-sm hover:shadow-md border border-white/20 hover:brightness-110"
-                    style={{ backgroundColor: sound.color ?? '#6366f1' }}
-                  >
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 group-active:bg-black/10 transition-colors" />
-                    <Volume2
-                      className="text-white drop-shadow-sm"
+                {activeSounds.map((sound) => {
+                  const labelSize = soundLabelFontSize(sound.label ?? '');
+                  const iconSize = `min(48px, 40cqmin, calc(${ICON_PER_FONT} * ${labelSize}))`;
+                  return (
+                    <button // no-tour-anchor: one tile per teacher-picked sound, no fixed target
+                      key={sound.id}
+                      onClick={() => playSound(sound)}
+                      className="relative overflow-hidden rounded-[min(16px,3cqmin)] flex flex-col items-center justify-center transition-all active:scale-95 group shadow-sm hover:shadow-md border border-white/20 hover:brightness-110"
                       style={{
-                        width: 'min(48px, 15cqmin)',
-                        height: 'min(48px, 15cqmin)',
-                        marginBottom: 'min(6px, 1.5cqmin)',
-                      }}
-                    />
-                    <span
-                      className="font-black text-white text-center leading-tight drop-shadow-md break-words max-w-full"
-                      style={{
-                        fontSize: 'min(18px, 6cqmin)',
-                        padding: '0 min(8px, 1.5cqmin)',
+                        backgroundColor: sound.color ?? '#6366f1',
+                        containerType: 'size',
                       }}
                     >
-                      {sound.label}
-                    </span>
-                  </button>
-                ))}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 group-active:bg-black/10 transition-colors" />
+                      <Volume2
+                        className="text-white drop-shadow-sm shrink-0"
+                        style={{
+                          width: iconSize,
+                          height: iconSize,
+                          marginBottom: `calc(${GAP_EM} * ${labelSize})`,
+                        }}
+                      />
+                      <span
+                        className="font-black text-white text-center drop-shadow-md [overflow-wrap:anywhere] max-w-full"
+                        style={{
+                          fontSize: labelSize,
+                          lineHeight: 1.25,
+                          padding: '0 5cqmin',
+                        }}
+                      >
+                        {sound.label}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             ) : (
               /* Focused with nothing active yet */
