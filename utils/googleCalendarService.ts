@@ -26,6 +26,13 @@ const formatClockTime = (dateTime: string | undefined) => {
   return dateObj.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 };
 
+const localDateKey = (dateTime: string): string => {
+  const d = new Date(dateTime);
+  if (isNaN(d.getTime())) return dateTime.split('T')[0];
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
 // Google returns event descriptions as HTML; the details modal shows plain text.
 export const stripHtml = (html: string): string => {
   const withBreaks = html
@@ -149,8 +156,8 @@ export class GoogleCalendarService {
     return items.flatMap((item) => {
       // Use date for all-day events, otherwise use dateTime
       const startValue = item.start.date ?? item.start.dateTime ?? '';
-      // Format to YYYY-MM-DD for consistency
-      const dateOnly = startValue.split('T')[0];
+      // Timed events use the viewer's local day so date and clock time agree.
+      const dateOnly = item.start.date ? startValue : localDateKey(startValue);
       const dates = item.start.date
         ? allDayDates(item.start.date, item.end?.date, timeMin, timeMax)
         : [dateOnly];

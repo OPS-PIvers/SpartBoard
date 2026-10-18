@@ -167,4 +167,27 @@ describe('GoogleCalendarService', () => {
       'One Day@2026-03-05',
     ]);
   });
+
+  it('dates a timed event by the viewer day, matching its clock time', async () => {
+    (global.fetch as Mock).mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          items: [
+            {
+              id: 'late',
+              summary: 'Late',
+              start: { dateTime: '2026-03-02T22:00:00-05:00' },
+            },
+          ],
+        }),
+    });
+    const [event] = await service.getEvents(
+      'test-cal',
+      '2026-03-01T00:00:00Z',
+      '2026-03-31T00:00:00Z'
+    );
+    expect(event.time).toBe('3:00 AM');
+    expect(event.date).toBe('2026-03-03');
+  });
 });
