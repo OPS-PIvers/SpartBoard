@@ -315,23 +315,23 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
             className="flex items-center justify-between border-b border-slate-100 shrink-0"
             style={{
               gap: 'min(8px, 2cqmin)',
-              marginBottom: 'min(8px, 2cqmin)',
+              marginBottom: 'min(8px, 1cqmin)',
               paddingBottom: 'min(8px, 2cqmin)',
             }}
           >
             <div
-              className="flex items-center"
+              className="flex items-center min-w-0 flex-1"
               style={{ gap: 'min(8px, 2cqmin)' }}
             >
               <Calendar
-                className="text-teal-600"
+                className="text-teal-600 shrink-0"
                 style={{
                   width: 'min(24px, 6cqmin)',
                   height: 'min(24px, 6cqmin)',
                 }}
               />
               <span
-                className="font-black"
+                className="font-black min-w-0 [overflow-wrap:anywhere]"
                 style={{
                   fontSize: `min(${Math.round(18 * textScale)}px, ${(4.5 * textScale).toFixed(2)}cqmin)`,
                   color: fontColor,
@@ -352,7 +352,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
               </span>
             </div>
             <div
-              className="font-bold"
+              className="font-bold shrink-0 whitespace-nowrap"
               style={{
                 fontSize: `min(${Math.round(12 * textScale)}px, ${(3 * textScale).toFixed(2)}cqmin)`,
                 color: fontColor,
@@ -444,7 +444,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                         : ''}
                     </span>
                     <span
-                      className={`font-black leading-tight truncate w-full ${isPast ? 'text-slate-400 line-through' : 'text-slate-700'}`}
+                      className={`font-black leading-tight w-full [overflow-wrap:anywhere] ${isPast ? 'text-slate-400 line-through' : 'text-slate-700'}`}
                       style={{
                         fontSize: `min(${Math.round(20 * textScale)}px, ${(5 * textScale).toFixed(2)}cqmin)`,
                       }}
