@@ -430,8 +430,9 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
               gap: 'min(10px, 2cqmin)',
             }}
           >
+            {/* Narrower cards drop the title, then the Shuffle and Rotate labels, so the header fits. */}
             <div
-              className="flex items-center min-w-0"
+              className="hidden [@container(min-width:720px)]:flex items-center shrink-0"
               style={{ gap: 'min(8px, 2cqmin)' }}
             >
               <h3
@@ -446,7 +447,7 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
             </div>
 
             <div
-              className="flex items-center shrink-0"
+              className="flex items-center min-w-0 ml-auto overflow-x-auto no-scrollbar"
               style={{ gap: 'min(6px, 1.5cqmin)' }}
             >
               {config.rosterMode !== 'custom' && rosters.length > 0 && (
@@ -457,6 +458,7 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                   />
                   <ActiveClassChip
                     compact
+                    className="min-w-0"
                     {...(rosterGroupsEnabled
                       ? {
                           groupSelection: {
@@ -473,7 +475,7 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                 onClick={handleShuffle}
                 variant="ghost"
                 size="sm"
-                className="rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-brand-blue-primary"
+                className="shrink-0 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-brand-blue-primary"
                 style={{
                   padding:
                     'clamp(6px, 1.5cqmin, 10px) clamp(10px, 2.5cqmin, 18px)',
@@ -481,6 +483,7 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                   fontSize: 'clamp(11px, 3.5cqmin, 18px)',
                 }}
                 title="Shuffle students into stations"
+                aria-label="Shuffle"
               >
                 <Shuffle
                   style={{
@@ -489,7 +492,7 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                   }}
                 />
                 <span
-                  className="font-black uppercase tracking-widest"
+                  className="hidden [@container(min-width:480px)]:inline font-black uppercase tracking-widest"
                   style={{
                     fontSize: 'min(11px, 3.5cqmin)',
                     marginLeft: 'min(4px, 1cqmin)',
@@ -503,7 +506,7 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                 onClick={handleRotate}
                 variant="ghost"
                 size="sm"
-                className="rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-brand-blue-primary"
+                className="shrink-0 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-brand-blue-primary"
                 style={{
                   padding:
                     'clamp(6px, 1.5cqmin, 10px) clamp(10px, 2.5cqmin, 18px)',
@@ -511,6 +514,7 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                   fontSize: 'clamp(11px, 3.5cqmin, 18px)',
                 }}
                 title="Rotate clockwise"
+                aria-label="Rotate"
               >
                 <RefreshCw
                   style={{
@@ -519,7 +523,7 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                   }}
                 />
                 <span
-                  className="font-black uppercase tracking-widest"
+                  className="hidden [@container(min-width:480px)]:inline font-black uppercase tracking-widest"
                   style={{
                     fontSize: 'min(11px, 3.5cqmin)',
                     marginLeft: 'min(4px, 1cqmin)',
@@ -533,7 +537,7 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                 onClick={handleResetAll}
                 variant="ghost"
                 size="sm"
-                className="rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-brand-red-primary"
+                className="shrink-0 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-brand-red-primary"
                 style={{
                   padding: 'clamp(6px, 1.5cqmin, 10px)',
                   width: 'clamp(32px, 8cqmin, 48px)',
@@ -565,6 +569,7 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
               style={{
                 gap: 'min(10px, 2cqmin)',
                 gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                gridAutoRows: 'minmax(0, 1fr)',
                 minHeight: 0,
               }}
             >
