@@ -2728,7 +2728,7 @@ service cloud.firestore {
         'id', 'title', 'description', 'termLanguage', 'definitionLanguage', 'cards',
         'createdAt', 'updatedAt', 'sharedBy', 'sharedByEmail', 'sharedByName', 'sharedAt',
         'deletedAt', 'speak'
-      ]);
+      ]) && optMap(incoming(), 'speak');
     }
     function plcAssignmentKeysOk() {
       return incoming().keys().hasOnly([

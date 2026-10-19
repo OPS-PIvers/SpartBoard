@@ -1,5 +1,6 @@
 // Server mirror of hooks/useFlashcardSets.ts saveSet: normalise, write, refresh share, rewrite open Study sessions.
 import type * as admin from 'firebase-admin';
+import { FieldValue } from 'firebase-admin/firestore';
 import { randomUUID } from 'node:crypto';
 
 type Firestore = admin.firestore.Firestore;
@@ -37,6 +38,21 @@ export interface FlashcardSet {
 
 export const setsPath = (uid: string) => `users/${uid}/flashcard_sets`;
 
+const primaryLanguage = (tag: unknown): string =>
+  typeof tag === 'string' ? tag.trim().split(/[-_]/)[0].toLowerCase() : '';
+
+/** True when every dialect named (card refs or a stamp's dialects) belongs to the set's term language. */
+const dialectsFit = (dialects: unknown[], termLanguage: string): boolean =>
+  dialects.every((d) => primaryLanguage(d) === primaryLanguage(termLanguage));
+
+const refDialects = (speak: Record<string, unknown>): unknown[] =>
+  Array.isArray(speak.refs)
+    ? speak.refs.map((ref) => (ref as { dialect?: unknown }).dialect)
+    : [];
+
+const withoutCardSpeak = (cards: FlashcardCard[]): FlashcardCard[] =>
+  cards.map(({ id, term, definition }) => ({ id, term, definition }));
+
 /** Mirrors normalizeSet in hooks/useFlashcardSets.ts. */
 export function normalizeSet(
   set: FlashcardSet,
@@ -52,7 +68,10 @@ export function normalizeSet(
       id: card.id,
       term: card.term.slice(0, MAX_TERM),
       definition: card.definition.slice(0, MAX_DEFINITION),
-      ...(card.speak ? { speak: card.speak } : {}),
+      ...(card.speak &&
+      dialectsFit(refDialects(card.speak), set.termLanguage || 'en-US')
+        ? { speak: card.speak }
+        : {}),
     })),
     folderId: set.folderId ?? null,
     updatedAt: now,
@@ -109,13 +128,17 @@ export async function readSet(
   return { ...(snap.data() as FlashcardSet), id: snap.id };
 }
 
-/** Adds the set (and its public snapshot when shared) to the batch. */
+/** Adds the set (and its public snapshot when shared) to the batch; a changed language drops the snapshot's Speak stamp. */
 export function stageSetWrite(
   db: Firestore,
   batch: WriteBatch,
   uid: string,
-  set: FlashcardSet
+  set: FlashcardSet,
+  previousTermLanguage?: string
 ): void {
+  const dropStamp =
+    previousTermLanguage !== undefined &&
+    primaryLanguage(previousTermLanguage) !== primaryLanguage(set.termLanguage);
   batch.set(db.doc(`${setsPath(uid)}/${set.id}`), set);
   if (set.publicShareId) {
     // Mirrors toPublicSnapshot in hooks/useFlashcardSets.ts.
@@ -130,13 +153,18 @@ export function stageSetWrite(
         definitionLanguage: set.definitionLanguage,
         cards: set.cards,
         updatedAt: set.updatedAt,
+        ...(dropStamp ? { speak: FieldValue.delete() } : {}),
       },
-      { mergeFields: SNAPSHOT_FIELDS }
+      {
+        mergeFields: dropStamp
+          ? [...SNAPSHOT_FIELDS, 'speak']
+          : SNAPSHOT_FIELDS,
+      }
     );
   }
 }
 
-/** Mirrors rewriteOpenStudySessions in hooks/useFlashcardSets.ts but leaves each session's Speak stamp as the client set it. */
+/** Mirrors rewriteOpenStudySessions in hooks/useFlashcardSets.ts; keeps a client Speak stamp unless the language moved off it. */
 export async function rewriteOpenStudySessions(
   db: Firestore,
   uid: string,
@@ -153,15 +181,24 @@ export async function rewriteOpenStudySessions(
   const batch = db.batch();
   snapshot.docs.forEach((sessionDoc) => {
     const inContent = sessionDoc.get('cardsInContent') === true;
+    const stamp: unknown = sessionDoc.get('speak');
+    const dialects = (stamp as { dialects?: unknown } | undefined)?.dialects;
+    const keepStamp =
+      Array.isArray(dialects) && dialectsFit(dialects, set.termLanguage);
+    // Students get card references only alongside a stamp, as on the client.
+    const cards = keepStamp ? set.cards : withoutCardSpeak(set.cards);
     batch.update(sessionDoc.ref, {
       title: set.title,
       termLanguage: set.termLanguage,
       definitionLanguage: set.definitionLanguage,
-      ...(inContent ? {} : { cards: set.cards }),
+      ...(inContent ? {} : { cards }),
+      ...(stamp !== undefined && !keepStamp
+        ? { speak: FieldValue.delete() }
+        : {}),
     });
     if (inContent) {
       batch.set(db.doc(`flashcard_sessions/${sessionDoc.id}/content/cards`), {
-        cards: set.cards,
+        cards,
       });
     }
   });

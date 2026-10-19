@@ -4,6 +4,7 @@ import {
   MAX_TERM,
   mergeCards,
   normalizeSet,
+  rewriteOpenStudySessions,
   stageSetWrite,
   type FlashcardSet,
 } from './flashcardStore';
@@ -102,5 +103,86 @@ describe('Speak carry-through', () => {
     expect([...mergeFields].sort()).toEqual(
       Object.keys(snapshotCall?.[1] as object).sort()
     );
+  });
+
+  it('drops card references from another language', () => {
+    const esSpeak = { ...speak, refs: [{ dialect: 'es-419', tokens: ['o'] }] };
+    const out = normalizeSet({
+      ...base,
+      termLanguage: 'fr-FR',
+      cards: [{ id: 'a', term: 'hola', definition: 'hi', speak: esSpeak }],
+    });
+    expect('speak' in out.cards[0]).toBe(false);
+    const kept = normalizeSet({
+      ...base,
+      termLanguage: 'es-MX',
+      cards: [{ id: 'a', term: 'hola', definition: 'hi', speak: esSpeak }],
+    });
+    expect(kept.cards[0].speak).toBe(esSpeak);
+  });
+
+  it('drops the snapshot stamp only when the term language changes', () => {
+    const calls: unknown[][] = [];
+    const db = { doc: (path: string) => path } as unknown as Parameters<
+      typeof stageSetWrite
+    >[0];
+    const batch = {
+      set: (...args: unknown[]) => calls.push(args),
+    } as unknown as Parameters<typeof stageSetWrite>[1];
+    const shared = { ...base, termLanguage: 'fr-FR', publicShareId: 'share' };
+    stageSetWrite(db, batch, 'uid', shared, 'fr-CA');
+    stageSetWrite(db, batch, 'uid', shared, 'es-US');
+    const same = calls[1]?.[2] as { mergeFields: string[] };
+    const moved = calls[3]?.[2] as { mergeFields: string[] };
+    expect(same.mergeFields).not.toContain('speak');
+    expect(moved.mergeFields).toContain('speak');
+    expect(calls[3]?.[1]).toHaveProperty('speak');
+  });
+
+  it('keeps a session stamp for the same language and clears it otherwise', async () => {
+    const updates: Array<[string, Record<string, unknown>]> = [];
+    const sessions = [
+      { id: 's-es', speak: { dialects: ['es-419'] } },
+      { id: 's-fr', speak: { dialects: ['fr-FR'] } },
+      { id: 's-none' },
+    ];
+    const query = {
+      where: () => query,
+      get: () =>
+        Promise.resolve({
+          empty: false,
+          size: sessions.length,
+          docs: sessions.map((data) => ({
+            id: data.id,
+            ref: data.id,
+            get: (key: string) => (data as Record<string, unknown>)[key],
+          })),
+        }),
+    };
+    const db = {
+      collection: () => query,
+      batch: () => ({
+        update: (ref: string, data: Record<string, unknown>) =>
+          updates.push([ref, data]),
+        set: () => undefined,
+        commit: () => Promise.resolve(),
+      }),
+    } as unknown as Parameters<typeof rewriteOpenStudySessions>[0];
+    await rewriteOpenStudySessions(db, 'uid', {
+      ...base,
+      termLanguage: 'es-US',
+      cards: [{ id: 'a', term: 'hola', definition: 'hi', speak }],
+    });
+    const byId = Object.fromEntries(updates);
+    expect(byId['s-es']).not.toHaveProperty('speak');
+    expect((byId['s-es'].cards as FlashcardSet['cards'])[0].speak).toBe(speak);
+    expect(byId['s-fr']).toHaveProperty('speak');
+    expect((byId['s-fr'].cards as FlashcardSet['cards'])[0]).not.toHaveProperty(
+      'speak'
+    );
+    expect(byId['s-none']).not.toHaveProperty('speak');
+    expect(
+      (byId['s-none'].cards as FlashcardSet['cards'])[0]
+    ).not.toHaveProperty('speak');
   });
 });

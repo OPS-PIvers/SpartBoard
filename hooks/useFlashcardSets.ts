@@ -148,6 +148,15 @@ const rewriteOpenStudySessions = async (
   return snapshot.size;
 };
 
+/** References are per language; a changed term language drops the old ones (they hold another language's dialects). */
+const speakFitsLanguage = (
+  speak: NonNullable<FlashcardSet['cards'][number]['speak']>,
+  termLanguage: string
+): boolean => {
+  const primary = termLanguage.trim().split(/[-_]/)[0].toLowerCase();
+  return speak.refs.every((ref) => ref.dialect.split('-')[0] === primary);
+};
+
 const normalizeSet = (set: FlashcardSet): FlashcardSet => ({
   ...withoutClaudeReview(set),
   title: set.title.trim(),
@@ -158,7 +167,9 @@ const normalizeSet = (set: FlashcardSet): FlashcardSet => ({
     id: card.id,
     term: card.term.slice(0, 500),
     definition: card.definition.slice(0, 1000),
-    ...(card.speak ? { speak: card.speak } : {}),
+    ...(card.speak && speakFitsLanguage(card.speak, set.termLanguage)
+      ? { speak: card.speak }
+      : {}),
   })),
   folderId: set.folderId ?? null,
   updatedAt: Date.now(),

@@ -256,6 +256,23 @@ describe('useFlashcardSets Speak stamp (F21)', () => {
   });
 });
 
+describe('useFlashcardSets card references', () => {
+  it('drops references from another language when the term language changes', async () => {
+    openSessions([]);
+    const { result } = renderHook(() => useFlashcardSets(TEACHER), {
+      wrapper: wrapper(true),
+    });
+    await act(async () => {
+      await result.current.saveSet({ ...speakSet, termLanguage: 'de-DE' });
+    });
+    const saved = opFor('users/teacher-1/flashcard_sets/set-1')?.data;
+    expect((saved?.cards as FlashcardCard[])[0]).not.toHaveProperty('speak');
+    expect(opFor('public_flashcard_sets/share-1')?.data.speak).toMatchObject({
+      dialects: ['de-DE'],
+    });
+  });
+});
+
 describe('useFlashcardAssignments Speak stamp', () => {
   const input = {
     set: speakSet,

@@ -428,4 +428,32 @@ describe('Speak progress (F7, F8)', () => {
       'tests',
     ]);
   });
+
+  it('stops resending Speak data the rules refuse, so the rest of the progress still saves', async () => {
+    const writes: FlashcardProgressWrite[] = [];
+    let refuse = true;
+    const adapter = new TrackedFlashcardAdapter({
+      classId: 'class-a',
+      initial: null,
+      write: (payload) => {
+        writes.push(payload);
+        if (refuse) {
+          refuse = false;
+          return Promise.reject(
+            Object.assign(new Error('denied'), { code: 'permission-denied' })
+          );
+        }
+        return Promise.resolve();
+      },
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    adapter.record('card-a', true, 1);
+    adapter.recordSpeak('card-a', true, 90, 1, tally);
+    await adapter.flush();
+    await adapter.flush();
+    expect(writes).toHaveLength(2);
+    expect(writes[1]?.cards).toHaveProperty('card-a');
+    expect(writes[1]).not.toHaveProperty('speak');
+    expect(writes[1]).not.toHaveProperty('speakSounds');
+  });
 });

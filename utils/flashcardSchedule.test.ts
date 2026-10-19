@@ -179,5 +179,11 @@ describe('Speak schedule', () => {
     expect(
       mergeSpeakTally({ r: { n: 1, m: 1, f: 0 } }, { r: { n: 1, m: 0, f: 1 } })
     ).toEqual({ r: { n: 2, m: 1, f: 1 } });
+    expect(
+      mergeSpeakTally(undefined, {
+        r: { n: 1, m: 0, f: 0 },
+        notAToken: { n: 1, m: 1, f: 0 },
+      })
+    ).toEqual({ r: { n: 1, m: 0, f: 0 } });
   });
 });

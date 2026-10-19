@@ -4,6 +4,7 @@ import type {
   FlashcardSpeakProgress,
   FlashcardStudyState,
 } from '@/types';
+import speakVocab from '@/utils/pronunciation/xlsr53EspeakVocab.json';
 
 export const DEFAULT_FLASHCARD_MASTERY_THRESHOLD = 3;
 
@@ -189,6 +190,8 @@ export const mergeSpeakTally = (
 ): FlashcardSpeakTally => {
   const next: FlashcardSpeakTally = { ...totals };
   for (const [token, add] of Object.entries(delta)) {
+    // The rules cap tallies at the 392-token vocabulary, so nothing outside it is kept.
+    if (!Object.hasOwn(speakVocab, token)) continue;
     const prev = next[token] ?? { n: 0, m: 0, f: 0 };
     next[token] = {
       n: prev.n + clampInt(add.n, 0, 1000),

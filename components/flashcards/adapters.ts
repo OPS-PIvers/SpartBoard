@@ -299,6 +299,9 @@ export interface FlashcardRating {
 
 const TRACKED_FLUSH_DELAY_MS = 5000;
 
+const isPermissionDenied = (error: unknown): boolean =>
+  (error as { code?: unknown } | null)?.code === 'permission-denied';
+
 const sameValues = (a: object, b: object | undefined): boolean =>
   !!b &&
   Object.entries(a).every(
@@ -581,8 +584,11 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
       .catch((error: unknown) => {
         for (const cardId of cardIds) this.dirtyCards.add(cardId);
         for (const cardId of checkIds) this.dirtyCheckLog.add(cardId);
-        for (const cardId of speakIds) this.dirtySpeak.add(cardId);
-        for (const token of soundIds) this.dirtySounds.add(token);
+        // A refused Speak map (e.g. over the rules' size cap) must not block the rest of the progress.
+        if (!isPermissionDenied(error)) {
+          for (const cardId of speakIds) this.dirtySpeak.add(cardId);
+          for (const token of soundIds) this.dirtySounds.add(token);
+        }
         this.dirty = true;
         console.error('[TrackedFlashcardAdapter] Progress save failed:', error);
       })
