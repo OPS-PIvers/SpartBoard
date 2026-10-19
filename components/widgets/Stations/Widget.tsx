@@ -430,13 +430,13 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
               gap: 'min(10px, 2cqmin)',
             }}
           >
-            {/* Narrower cards drop the title, then the Shuffle and Rotate labels, so the header fits. */}
+            {/* Title always shows; narrow cards drop the Shuffle and Rotate labels and scroll the controls. */}
             <div
-              className="hidden [@container(min-width:720px)]:flex items-center shrink-0"
+              className="flex items-center shrink-0"
               style={{ gap: 'min(8px, 2cqmin)' }}
             >
               <h3
-                className="font-black uppercase tracking-widest truncate"
+                className="font-black uppercase tracking-widest"
                 style={{
                   fontSize: 'min(13px, 4.2cqmin)',
                   color: fontColor ?? '#334155',
