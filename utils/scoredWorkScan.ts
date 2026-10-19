@@ -16,11 +16,7 @@ import {
 import type { ScoredWork } from '@/types';
 
 export type UnmatchedReason =
-  | 'no-registration'
-  | 'no-marker'
-  | 'other-set'
-  | 'unknown-seat'
-  | 'bad-page';
+  'no-registration' | 'no-marker' | 'other-set' | 'unknown-seat' | 'bad-page';
 
 export type ScanPageResult =
   | {

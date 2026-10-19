@@ -4,10 +4,9 @@ import { usePaperAnswerSheetsSettings } from '@/hooks/usePaperAnswerSheetsSettin
 /** Scored paper work needs the district paper switch plus both feature gates. */
 export function useScoredWorkAccess(): boolean {
   const { canAccessFeature } = useAuth();
-  const rollout = usePaperAnswerSheetsSettings();
-  return (
-    rollout.enabled &&
+  const flagged =
     canAccessFeature('paper-answer-sheets') &&
-    canAccessFeature('paper-scored-work')
-  );
+    canAccessFeature('paper-scored-work');
+  const rollout = usePaperAnswerSheetsSettings(flagged);
+  return flagged && rollout.enabled;
 }

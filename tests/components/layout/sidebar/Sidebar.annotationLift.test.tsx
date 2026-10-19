@@ -24,6 +24,7 @@ vi.mock('@/context/useAuth', () => ({
     isAdmin: false,
     appSettings: {},
     isExternalUser: false,
+    canAccessFeature: () => false,
   }),
 }));
 

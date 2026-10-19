@@ -23,12 +23,7 @@ import { useScoredWorkAccess } from '@/hooks/useScoredWorkAccess';
 import { tourFieldAttr } from '@/config/tourAnchors';
 
 type AssessmentType =
-  | 'quiz'
-  | 'bank'
-  | 'video-activity'
-  | 'rubric'
-  | 'flashcards'
-  | 'scored-work';
+  'quiz' | 'bank' | 'video-activity' | 'rubric' | 'flashcards' | 'scored-work';
 
 interface TypeNavDef {
   id: AssessmentType;
