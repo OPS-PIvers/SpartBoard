@@ -231,7 +231,7 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/multilingual-pronunciation-engine.md`
 
-- [ ] Move on-device decoding into a Web Worker with a "Checking…" state, CPU only (plan §4.5, #2350). (S)
+- [ ] Move on-device decoding into a Web Worker with a "Checking…" state, CPU only (plan F26, slice S2, #2350). (S)
 - [ ] Send the espeak-ng GPL brief to district counsel; the `flashcards-speak` flag stays admin-only until they confirm (G19, #2337). (S)
 
 #### `docs/gemini-api-terms-audit.md`
@@ -412,7 +412,7 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 #### `docs/multilingual-pronunciation-engine.md`
 
-- [ ] Build Flashcards Speak mode with pronunciation mastery tracking per plan §5.1 (F1–F15) and §6 steps 3–6, behind `flashcards-speak`. The quiz `'speak'` type (§5.2) follows as §6 step 7. (L)
+- [ ] Build Flashcards Speak mode per plan §9 (sessions S0–S13, four waves), behind `flashcards-speak`. The quiz `'speak'` type (§13) follows as its own decision. (L)
 
 #### `docs/rich-response-wayfinder.md`
 
