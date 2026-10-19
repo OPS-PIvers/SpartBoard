@@ -23,6 +23,41 @@ import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 const fieldClass =
   'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40';
 
+const ATTEMPT_OPTIONS = Array.from(
+  { length: SPEAK_ATTEMPTS_MAX - SPEAK_ATTEMPTS_MIN + 1 },
+  (_, i) => SPEAK_ATTEMPTS_MIN + i
+);
+
+type EditedField = SpeakLanguage | 'attempts' | 'unclearConfidence';
+
+// Applies only the fields this admin changed, so another admin's newer save survives.
+const applyEdits = (
+  base: FlashcardsSpeakAdminConfig,
+  draft: FlashcardsSpeakAdminConfig,
+  edited: ReadonlySet<EditedField>
+): FlashcardsSpeakAdminConfig => {
+  const next: FlashcardsSpeakAdminConfig = {
+    ...base,
+    languages: { ...base.languages },
+  };
+  for (const field of edited) {
+    if (field === 'attempts') next.attempts = draft.attempts;
+    else if (field === 'unclearConfidence')
+      next.unclearConfidence = draft.unclearConfidence;
+    else {
+      const preset = draft.languages[field]?.preset;
+      if (preset) {
+        next.languages[field] = {
+          groups: {},
+          ...base.languages[field],
+          preset,
+        };
+      }
+    }
+  }
+  return next;
+};
+
 const configsEqual = (
   a: FlashcardsSpeakAdminConfig,
   b: FlashcardsSpeakAdminConfig
@@ -30,11 +65,14 @@ const configsEqual = (
 
 export const FlashcardsSpeakConfigurationPanel: React.FC = () => {
   const { t } = useTranslation();
-  const saved = useFlashcardsSpeakAdminConfig();
+  const { config: saved, failed: readFailed } = useFlashcardsSpeakAdminConfig();
   const [draft, setDraft] = useState<FlashcardsSpeakAdminConfig>(
     defaultFlashcardsSpeakAdminConfig
   );
   const [seeded, setSeeded] = useState(false);
+  const [edited, setEdited] = useState<ReadonlySet<EditedField>>(
+    () => new Set()
+  );
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
@@ -45,9 +83,17 @@ export const FlashcardsSpeakConfigurationPanel: React.FC = () => {
     setSeeded(true);
   }
 
-  const dirty = saved !== null && !configsEqual(draft, saved);
+  const pending = saved ? applyEdits(saved, draft, edited) : null;
+  const dirty =
+    saved !== null && pending !== null && !configsEqual(pending, saved);
 
-  const setPreset = (language: SpeakLanguage, preset: SpeakPresetId) =>
+  const view = pending ?? draft;
+
+  const markEdited = (field: EditedField) =>
+    setEdited((prev) => new Set(prev).add(field));
+
+  const setPreset = (language: SpeakLanguage, preset: SpeakPresetId) => {
+    markEdited(language);
     setDraft((d) => ({
       ...d,
       languages: {
@@ -55,15 +101,19 @@ export const FlashcardsSpeakConfigurationPanel: React.FC = () => {
         [language]: { groups: {}, ...d.languages[language], preset },
       },
     }));
+  };
 
   const handleSave = async () => {
+    if (!pending) return;
     setSaving(true);
     setFailed(false);
     try {
       await setDoc(
         doc(db, 'admin_settings', FLASHCARDS_SPEAK_SETTINGS_DOC),
-        draft
+        pending
       );
+      setDraft(pending);
+      setEdited(new Set());
       setSavedAt(Date.now());
     } catch (err) {
       console.error('[FlashcardsSpeakConfigurationPanel] save:', err);
@@ -98,7 +148,7 @@ export const FlashcardsSpeakConfigurationPanel: React.FC = () => {
         <>
           <div className="divide-y divide-slate-200 border-y border-slate-200">
             {SPEAK_LANGUAGES.map((language) => {
-              const preset = draft.languages[language]?.preset ?? 'beginner';
+              const preset = view.languages[language]?.preset ?? 'beginner';
               const label = t('flashcards.speak.admin.languageLevel', {
                 language: t(`flashcards.speak.admin.languages.${language}`),
               });
@@ -137,28 +187,28 @@ export const FlashcardsSpeakConfigurationPanel: React.FC = () => {
               <span className="block text-sm font-bold text-slate-700">
                 {t('flashcards.speak.admin.attempts')}
               </span>
-              <input
+              <select
                 {...tourFieldAttr(
                   'admin.widget-config.field',
                   'flashcards',
                   'speak-attempts'
                 )}
-                type="number"
-                min={SPEAK_ATTEMPTS_MIN}
-                max={SPEAK_ATTEMPTS_MAX}
-                step={1}
                 className={fieldClass}
-                value={draft.attempts}
-                onChange={(e) =>
-                  setDraft((d) => ({
-                    ...d,
-                    attempts: clampSpeakAttempts(
-                      Number.parseInt(e.target.value, 10),
-                      d.attempts
-                    ),
-                  }))
-                }
-              />
+                value={view.attempts}
+                onChange={(e) => {
+                  markEdited('attempts');
+                  const attempts = clampSpeakAttempts(
+                    Number.parseInt(e.target.value, 10)
+                  );
+                  setDraft((d) => ({ ...d, attempts }));
+                }}
+              >
+                {ATTEMPT_OPTIONS.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
             </label>
 
             <label className="grid gap-2 py-3 sm:grid-cols-[1fr_14rem] sm:items-center">
@@ -178,16 +228,17 @@ export const FlashcardsSpeakConfigurationPanel: React.FC = () => {
                   max={1}
                   step={0.05}
                   className="w-full accent-brand-blue-primary"
-                  value={draft.unclearConfidence}
+                  value={view.unclearConfidence}
                   onChange={(e) => {
                     const n = Number.parseFloat(e.target.value);
                     if (Number.isFinite(n)) {
+                      markEdited('unclearConfidence');
                       setDraft((d) => ({ ...d, unclearConfidence: n }));
                     }
                   }}
                 />
                 <span className="w-10 text-right font-mono text-sm text-slate-700">
-                  {draft.unclearConfidence.toFixed(2)}
+                  {view.unclearConfidence.toFixed(2)}
                 </span>
               </span>
             </label>
@@ -208,7 +259,7 @@ export const FlashcardsSpeakConfigurationPanel: React.FC = () => {
               type="button"
               {...tourTypeAttr('admin.widget-config.save', 'flashcards')}
               onClick={() => void handleSave()}
-              disabled={!dirty || saving}
+              disabled={!dirty || saving || readFailed}
               className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-bold text-white hover:bg-brand-blue-dark disabled:opacity-40"
             >
               {saving ? (

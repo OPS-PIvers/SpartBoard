@@ -8,21 +8,35 @@ import {
   normalizeFlashcardsSpeakAdminConfig,
 } from '@/config/flashcardsSpeakAdmin';
 
-/** Live `admin_settings/flashcardsSpeak`, normalized; `null` until the first snapshot. */
-export function useFlashcardsSpeakAdminConfig(): FlashcardsSpeakAdminConfig | null {
-  const [config, setConfig] = useState<FlashcardsSpeakAdminConfig | null>(null);
+interface FlashcardsSpeakAdminConfigState {
+  /** Normalized doc; `null` until the first snapshot. */
+  config: FlashcardsSpeakAdminConfig | null;
+  /** True when the read failed and `config` holds the defaults. */
+  failed: boolean;
+}
+
+/** Live `admin_settings/flashcardsSpeak`, normalized. */
+export function useFlashcardsSpeakAdminConfig(): FlashcardsSpeakAdminConfigState {
+  const [state, setState] = useState<FlashcardsSpeakAdminConfigState>({
+    config: null,
+    failed: false,
+  });
 
   useEffect(() => {
     const ref = doc(db, 'admin_settings', FLASHCARDS_SPEAK_SETTINGS_DOC);
     return onSnapshot(
       ref,
-      (snap) => setConfig(normalizeFlashcardsSpeakAdminConfig(snap.data())),
+      (snap) =>
+        setState({
+          config: normalizeFlashcardsSpeakAdminConfig(snap.data()),
+          failed: false,
+        }),
       (err) => {
         console.error('[useFlashcardsSpeakAdminConfig]', err);
-        setConfig(defaultFlashcardsSpeakAdminConfig());
+        setState({ config: defaultFlashcardsSpeakAdminConfig(), failed: true });
       }
     );
   }, []);
 
-  return config;
+  return state;
 }

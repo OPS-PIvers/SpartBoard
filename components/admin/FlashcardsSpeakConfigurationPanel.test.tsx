@@ -1,10 +1,19 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  act,
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+} from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const setDocMock = vi.fn((_ref: { path: string }, _data: unknown) =>
   Promise.resolve()
 );
 let snapshotData: unknown = undefined;
+const live = vi.hoisted(() => ({
+  push: null as ((data: unknown) => void) | null,
+}));
 
 vi.mock('@/config/firebase', () => ({ db: {} }));
 vi.mock('firebase/firestore', () => ({
@@ -16,6 +25,7 @@ vi.mock('firebase/firestore', () => ({
     _ref: unknown,
     next: (snap: { data: () => unknown }) => void
   ) => {
+    live.push = (data) => next({ data: () => data });
     next({ data: () => snapshotData });
     return () => undefined;
   },
@@ -32,10 +42,12 @@ describe('FlashcardsSpeakConfigurationPanel', () => {
 
   it('starts every language at Beginner with Save disabled when no doc exists', () => {
     render(<FlashcardsSpeakConfigurationPanel />);
-    const selects = screen.getAllByRole('combobox');
-    expect(selects).toHaveLength(3);
-    for (const select of selects) {
-      expect((select as HTMLSelectElement).value).toBe('beginner');
+    for (const language of ['Spanish', 'German', 'English']) {
+      expect(
+        screen.getByLabelText<HTMLSelectElement>(
+          `Starting level for ${language}`
+        ).value
+      ).toBe('beginner');
     }
     expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
   });
@@ -44,7 +56,7 @@ describe('FlashcardsSpeakConfigurationPanel', () => {
     snapshotData = { attempts: 99, languages: { de: { preset: 'nope' } } };
     render(<FlashcardsSpeakConfigurationPanel />);
     expect(
-      screen.getByLabelText<HTMLInputElement>('Tries per card').value
+      screen.getByLabelText<HTMLSelectElement>('Tries per card').value
     ).toBe('10');
     expect(
       screen.getByLabelText<HTMLSelectElement>('Starting level for German')
@@ -73,6 +85,24 @@ describe('FlashcardsSpeakConfigurationPanel', () => {
         es: { preset: 'advanced', groups: { 'es-trill': 'require' } },
         de: { preset: 'beginner' },
       },
+    });
+  });
+
+  it("keeps another admin's newer save for fields this admin didn't touch", async () => {
+    render(<FlashcardsSpeakConfigurationPanel />);
+    fireEvent.change(screen.getByLabelText('Starting level for German'), {
+      target: { value: 'intermediate' },
+    });
+    act(() => live.push?.({ attempts: 7 }));
+    expect(
+      screen.getByLabelText<HTMLSelectElement>('Tries per card').value
+    ).toBe('7');
+    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() => expect(setDocMock).toHaveBeenCalledTimes(1));
+    expect(setDocMock.mock.calls[0][1]).toMatchObject({
+      attempts: 7,
+      languages: { de: { preset: 'intermediate' } },
     });
   });
 });
