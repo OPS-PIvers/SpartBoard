@@ -31,7 +31,7 @@ node scripts/pronunciation-corpus/gate.mjs                 # full run, writes do
 node scripts/pronunciation-corpus/gate.mjs --smoke 5       # first 5 clips, never fails the build
 ```
 
-It downloads the pinned model (241 MB) to `~/.cache/spartboard-pronunciation` on first use (`PRONUNCIATION_MODEL_PATH` overrides) and caches each clip's decode there, keyed by the model and the decode code. Until `utils/pronunciation/verdict.ts` (S1) is on the branch it reports decode output only. Browser-versus-Node decode agreement is checked by hand on `/pronunciation-dev`.
+It downloads the pinned model (241 MB) to `~/.cache/spartboard-pronunciation` on first use (`PRONUNCIATION_MODEL_PATH` overrides) and caches each clip's decode there, keyed by the model and the decode code. Decoding mirrors the app's recognizer: `trimSilence`, then the model, with confidence and voiced time from `recognizerCore.ts` (S2) and verdicts from `verdict.ts` (S1). Browser-versus-Node decode agreement is checked by hand on `/pronunciation-dev`.
 
 When enforced, the gate also fails if it could not measure something: a missing `verdict.ts`, a language under 100 clips, a missing clip file, or a check with nothing to count. CI uploads the results as an artifact and job summary; S11 commits the doc.
 

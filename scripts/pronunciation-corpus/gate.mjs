@@ -39,6 +39,7 @@ const [
   audio,
   { greedyCtcDecode, invertVocab },
   stress,
+  core,
   groups,
   { DEFAULT_UNCLEAR_CONFIDENCE },
   { generateMutations, applyMutation },
@@ -47,6 +48,7 @@ const [
   importTs('utils/pronunciation/audio.ts'),
   importTs('utils/pronunciation/ctcDecode.ts'),
   importTs('utils/pronunciation/stress.ts'),
+  importTs('utils/pronunciation/recognizerCore.ts'),
   importTs('config/pronunciationGroups.ts'),
   importTs('config/flashcardsSpeakAdmin.ts'),
   importTs('scripts/pronunciation-corpus/mutate.ts'),
@@ -115,6 +117,7 @@ const decodeCodeHash = md5(
   [
     'utils/pronunciation/audio.ts',
     'utils/pronunciation/ctcDecode.ts',
+    'utils/pronunciation/recognizerCore.ts',
     'scripts/pronunciation-corpus/gate.mjs',
     'utils/pronunciation/xlsr53EspeakVocab.json',
   ]
@@ -126,28 +129,6 @@ const decodeCachePath = path.join(
   `decode-${PRONUNCIATION_MODEL.md5Prefix}-${decodeCodeHash}.json`
 );
 const decodeCache = readJson(decodeCachePath, {});
-
-/** Voiced time by the same frame energy rule trimSilence uses (stand-in until S2's recognizer reports voicedMs). */
-function voicedMs(samples) {
-  const frameLen = Math.round(audio.MODEL_SAMPLE_RATE * 0.02);
-  const frames = Math.floor(samples.length / frameLen);
-  if (frames < 3) return 0;
-  const rms = [];
-  for (let f = 0; f < frames; f++) {
-    let sum = 0;
-    for (let i = f * frameLen; i < (f + 1) * frameLen; i++)
-      sum += samples[i] * samples[i];
-    rms.push(Math.sqrt(sum / frameLen));
-  }
-  const sorted = [...rms].sort((a, b) => a - b);
-  const peak = sorted[frames - 1];
-  if (peak === 0) return 0;
-  const threshold = Math.max(
-    peak * 10 ** (-30 / 20),
-    sorted[Math.floor(frames * 0.1)] * 2
-  );
-  return rms.filter((v) => v >= threshold).length * 20;
-}
 
 async function decodeClip(flacPath, key) {
   const raw = await readClip16k(flacPath);
@@ -178,24 +159,16 @@ async function decodeClip(flacPath, key) {
     SYMBOLS,
     PRONUNCIATION_MODEL.padId
   );
-  // Mean max-posterior over non-blank frames (§4.4 rule 3).
-  let sum = 0;
-  let count = 0;
-  for (let f = 0; f < frames; f++) {
-    const row = data.subarray(f * size, (f + 1) * size);
-    let max = -Infinity;
-    let arg = 0;
-    for (let i = 0; i < size; i++) if (row[i] > max) [max, arg] = [row[i], i];
-    if (arg === PRONUNCIATION_MODEL.padId) continue;
-    let z = 0;
-    for (let i = 0; i < size; i++) z += Math.exp(row[i] - max);
-    sum += 1 / z;
-    count++;
-  }
   const result = {
     tokens,
-    confidence: count ? sum / count : 0,
-    voicedMs: voicedMs(trimmed),
+    confidence: core.meanNonBlankConfidence(
+      data,
+      frames,
+      size,
+      PRONUNCIATION_MODEL.padId
+    ),
+    // On the untrimmed take, as S2's recognizer measures it.
+    voicedMs: core.measureVoicedMs(raw),
     decodeMs,
     seconds: Number((trimmed.length / audio.MODEL_SAMPLE_RATE).toFixed(2)),
   };
