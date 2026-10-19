@@ -1395,7 +1395,20 @@
       "syncError": "Error al sincronizar el menú",
       "noHotLunch": "Sin almuerzo caliente listado",
       "noBentoBox": "Sin bento box listada",
-      "hotLunch": "Almuerzo Caliente"
+      "hotLunch": "Almuerzo Caliente",
+      "noClassTitle": "Elige una clase",
+      "noClassesBody": "Primero añade una clase en Clases.",
+      "emptyCustomTitle": "Aún no hay nombres",
+      "emptyCustomBody": "Añade nombres en la configuración de este widget.",
+      "emptyClassTitle": "Esta clase no tiene estudiantes",
+      "menuUnavailable": "Menú no disponible",
+      "left": "Faltan {{count}}",
+      "refreshMenu": "Actualizar menú",
+      "clearAll": "Borrar todas las asignaciones",
+      "shortHot": "Caliente",
+      "shortBento": "Bento",
+      "shortHome": "Casa",
+      "assignMoreOutsideGroup": "Asigna {{count}} más, {{hidden}} fuera de este grupo"
     },
     "quiz": {
       "leaderboard": {
