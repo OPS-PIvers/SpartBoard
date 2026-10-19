@@ -264,4 +264,35 @@ describe('NumberLineWidget', () => {
     expect(storedValue).toBe(0.3);
     expect(storedValue.toString()).toBe('0.3');
   });
+  it('keeps stacked marker and jump labels below the top edge of the viewBox', () => {
+    vi.spyOn(DashboardCanvasStore, 'useDashboardActions').mockReturnValue(
+      defaultDashboardMock
+    );
+    const colors = ['#ef4444', '#22c55e', '#3b82f6', '#f59e0b', '#8b5cf6'];
+    const widget: WidgetData = {
+      ...baseWidget,
+      config: {
+        min: 0,
+        max: 100,
+        step: 10,
+        displayMode: 'integers',
+        showArrows: true,
+        markers: colors.map((color, n) => ({
+          id: `m${n}`,
+          value: 50 + n,
+          label: `Marker ${n}`,
+          color,
+        })),
+        jumps: [{ id: 'j1', startValue: 0, endValue: 100, label: 'Jump' }],
+      },
+    };
+    const { container } = render(<NumberLineWidget widget={widget} />);
+    const labels = Array.from(
+      container.querySelectorAll('g.pointer-events-none text')
+    );
+    expect(labels.length).toBe(6);
+    for (const label of labels) {
+      expect(Number(label.getAttribute('y'))).toBeGreaterThanOrEqual(18);
+    }
+  });
 });
