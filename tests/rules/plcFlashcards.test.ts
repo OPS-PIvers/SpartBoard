@@ -181,6 +181,27 @@ describe('plcs/{plcId}/flashcard_sets — write', () => {
     await assertFails(setDoc(doc(asMemberA(), setPath), validSet({ id: 'y' })));
   });
 
+  it('carries Speak settings through a share', async () => {
+    const speak = {
+      dialects: ['en-US'],
+      preset: 'beginner',
+      strict: false,
+      groups: {},
+      attempts: 3,
+      example: true,
+    };
+    await assertSucceeds(
+      setDoc(doc(asMemberA(), setPath), validSet({ speak }))
+    );
+    await assertSucceeds(getDoc(doc(asViewer(), setPath)));
+    await assertSucceeds(
+      updateDoc(doc(asMemberB(), setPath), {
+        speak: { ...speak, attempts: 5 },
+        updatedAt: 2000,
+      })
+    );
+  });
+
   it('rejects more than 1000 cards', async () => {
     const cards = Array.from({ length: 1001 }, (_, i) => ({
       id: `c${i}`,

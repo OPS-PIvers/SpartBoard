@@ -121,7 +121,7 @@ async function saveFlashcardEdit(
     { ...next, claudeEditedAt: now, [REVIEW_MARK]: now },
     now
   );
-  stageSetWrite(ctx.db, batch, ctx.uid, normalized);
+  stageSetWrite(ctx.db, batch, ctx.uid, normalized, existing.termLanguage);
   logActivity(ctx, batch, {
     action,
     itemType: 'flashcard_set',

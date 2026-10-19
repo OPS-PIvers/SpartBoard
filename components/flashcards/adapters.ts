@@ -3,12 +3,16 @@ import type {
   FlashcardCheckWriteEntry,
   FlashcardMode,
   FlashcardProgress,
+  FlashcardSpeakProgress,
   FlashcardStudyState,
   FlashcardTestType,
 } from '@/types';
 import {
   createFlashcardStudyState,
+  mergeSpeakTally,
   recordFlashcardAnswer,
+  recordSpeakAnswer,
+  type FlashcardSpeakTally,
 } from '@/utils/flashcardSchedule';
 
 export interface FlashcardTestRecord {
@@ -27,6 +31,15 @@ export interface FlashcardProgressAdapter {
     correct: boolean,
     currentRound: number
   ) => FlashcardStudyState;
+  /** Speak (F7, F8); the round defaults to the state's own `speakRound`. */
+  recordSpeak: (
+    cardId: string,
+    passed: boolean,
+    accuracy: number,
+    tries: number,
+    tally: FlashcardSpeakTally,
+    currentRound?: number
+  ) => FlashcardStudyState;
   star: (cardId: string) => FlashcardStudyState;
   flush: (state?: FlashcardStudyState) => void | Promise<void>;
   reset: (options?: { keepStarred?: boolean }) => FlashcardStudyState;
@@ -34,12 +47,21 @@ export interface FlashcardProgressAdapter {
   recordTest?: (test: FlashcardTestRecord) => void;
 }
 
+const cloneMap = <T extends object>(
+  map: Record<string, T>
+): Record<string, T> =>
+  Object.fromEntries(
+    Object.entries(map).map(([id, value]) => [id, { ...value }])
+  );
+
+// Speak keys appear only once used, so a state that never ran Speak keeps today's shape.
 const cloneState = (state: FlashcardStudyState): FlashcardStudyState => ({
-  cards: Object.fromEntries(
-    Object.entries(state.cards).map(([id, progress]) => [id, { ...progress }])
-  ),
+  cards: cloneMap(state.cards),
   starred: [...state.starred],
   round: state.round,
+  ...(state.speak ? { speak: cloneMap(state.speak) } : {}),
+  ...(state.speakRound !== undefined ? { speakRound: state.speakRound } : {}),
+  ...(state.speakSounds ? { speakSounds: cloneMap(state.speakSounds) } : {}),
 });
 
 const isCardProgress = (value: unknown): value is FlashcardCardProgress => {
@@ -57,6 +79,38 @@ const isCardProgress = (value: unknown): value is FlashcardCardProgress => {
     (progress.w ?? -1) >= 0
   );
 };
+
+const isPct = (value: unknown): boolean =>
+  Number.isInteger(value) && (value as number) >= 0 && (value as number) <= 100;
+
+const isSpeakProgress = (value: unknown): value is FlashcardSpeakProgress => {
+  if (!isCardProgress(value)) return false;
+  const progress = value as Partial<FlashcardSpeakProgress>;
+  return (
+    isPct(progress.best) &&
+    isPct(progress.last) &&
+    Number.isInteger(progress.tries) &&
+    (progress.tries ?? 0) >= 1 &&
+    (progress.tries ?? 11) <= 10
+  );
+};
+
+const isCount = (value: unknown): boolean =>
+  Number.isInteger(value) && (value as number) >= 0;
+
+const isSoundTally = (value: unknown): boolean => {
+  if (typeof value !== 'object' || value === null) return false;
+  const tally = value as Record<string, unknown>;
+  return isCount(tally.n) && isCount(tally.m) && isCount(tally.f);
+};
+
+const filterMap = <T>(
+  raw: unknown,
+  keep: (value: unknown) => boolean
+): Record<string, T> | undefined =>
+  typeof raw === 'object' && raw !== null && !Array.isArray(raw)
+    ? Object.fromEntries(Object.entries(raw).filter((entry) => keep(entry[1])))
+    : undefined;
 
 export const sanitizeFlashcardStudyState = (
   value: unknown
@@ -78,6 +132,14 @@ export const sanitizeFlashcardStudyState = (
         (cardId): cardId is string => typeof cardId === 'string'
       )
     : [];
+  const speak = filterMap<FlashcardSpeakProgress>(
+    candidate.speak,
+    isSpeakProgress
+  );
+  const speakSounds = filterMap<{ n: number; m: number; f: number }>(
+    candidate.speakSounds,
+    isSoundTally
+  );
   return {
     cards,
     starred: [...new Set(starred)],
@@ -85,6 +147,12 @@ export const sanitizeFlashcardStudyState = (
       Number.isInteger(candidate.round) && (candidate.round ?? 0) >= 1
         ? (candidate.round ?? 1)
         : 1,
+    ...(speak ? { speak } : {}),
+    ...(Number.isInteger(candidate.speakRound) &&
+    (candidate.speakRound ?? 0) >= 1
+      ? { speakRound: candidate.speakRound }
+      : {}),
+    ...(speakSounds ? { speakSounds } : {}),
   };
 };
 
@@ -122,6 +190,33 @@ abstract class BaseFlashcardAdapter implements FlashcardProgressAdapter {
           correct
         ),
       },
+    };
+    this.persist();
+    return this.load();
+  }
+
+  recordSpeak(
+    cardId: string,
+    passed: boolean,
+    accuracy: number,
+    tries: number,
+    tally: FlashcardSpeakTally,
+    currentRound = this.state.speakRound ?? 1
+  ): FlashcardStudyState {
+    this.state = {
+      ...this.state,
+      speakRound: currentRound,
+      speak: {
+        ...this.state.speak,
+        [cardId]: recordSpeakAnswer(
+          this.state.speak?.[cardId],
+          currentRound,
+          passed,
+          accuracy,
+          tries
+        ),
+      },
+      speakSounds: mergeSpeakTally(this.state.speakSounds, tally),
     };
     this.persist();
     return this.load();
@@ -203,6 +298,35 @@ export interface FlashcardRating {
 }
 
 const TRACKED_FLUSH_DELAY_MS = 5000;
+
+const isPermissionDenied = (error: unknown): boolean =>
+  (error as { code?: unknown } | null)?.code === 'permission-denied';
+
+const sameValues = (a: object, b: object | undefined): boolean =>
+  !!b &&
+  Object.entries(a).every(
+    ([key, value]) => (b as Record<string, unknown>)[key] === value
+  );
+
+const markChanged = <T extends object>(
+  next: Record<string, T> | undefined,
+  previous: Record<string, T> | undefined,
+  dirty: Set<string>
+): void => {
+  for (const [id, value] of Object.entries(next ?? {})) {
+    if (!sameValues(value, previous?.[id])) dirty.add(id);
+  }
+};
+
+const pickEntries = <T extends object>(
+  map: Record<string, T> | undefined,
+  ids: string[]
+): Record<string, T> | undefined => {
+  const picked = ids
+    .filter((id) => map && id in map)
+    .map((id): [string, T] => [id, { ...(map as Record<string, T>)[id] }]);
+  return picked.length > 0 ? Object.fromEntries(picked) : undefined;
+};
 const MAX_RATINGS_PER_CALL = 500;
 const MAX_STUDY_GAP_MS = 2 * 60 * 1000;
 const MAX_TESTS = 50;
@@ -224,6 +348,8 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
   private lastActivityAt: number;
   private readonly dirtyCards = new Set<string>();
   private readonly dirtyCheckLog = new Set<string>();
+  private readonly dirtySpeak = new Set<string>();
+  private readonly dirtySounds = new Set<string>();
   private dirty = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private pending: Promise<void> = Promise.resolve();
@@ -273,6 +399,26 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
     return super.record(cardId, correct, currentRound);
   }
 
+  override recordSpeak(
+    cardId: string,
+    passed: boolean,
+    accuracy: number,
+    tries: number,
+    tally: FlashcardSpeakTally,
+    currentRound?: number
+  ): FlashcardStudyState {
+    this.dirtySpeak.add(cardId);
+    for (const token of Object.keys(tally)) this.dirtySounds.add(token);
+    return super.recordSpeak(
+      cardId,
+      passed,
+      accuracy,
+      tries,
+      tally,
+      currentRound
+    );
+  }
+
   override flush(state?: FlashcardStudyState): Promise<void> {
     if (state) {
       for (const [cardId, progress] of Object.entries(state.cards)) {
@@ -287,7 +433,14 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
           this.dirtyCards.add(cardId);
         }
       }
-      if (state.round !== this.state.round) this.dirty = true;
+      markChanged(state.speak, this.state.speak, this.dirtySpeak);
+      markChanged(state.speakSounds, this.state.speakSounds, this.dirtySounds);
+      if (
+        state.round !== this.state.round ||
+        state.speakRound !== this.state.speakRound
+      ) {
+        this.dirty = true;
+      }
       this.state = cloneState(state);
     }
     return this.writeNow();
@@ -378,16 +531,22 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
       this.paused ||
       (!this.dirty &&
         this.dirtyCards.size === 0 &&
-        this.dirtyCheckLog.size === 0)
+        this.dirtyCheckLog.size === 0 &&
+        this.dirtySpeak.size === 0 &&
+        this.dirtySounds.size === 0)
     ) {
       return this.pending;
     }
     const cardIds = this.rate ? [] : [...this.dirtyCards];
     const checkIds = [...this.dirtyCheckLog];
+    const speakIds = [...this.dirtySpeak];
+    const soundIds = [...this.dirtySounds];
     const ratings = this.ratings;
     this.ratings = [];
     this.dirtyCards.clear();
     this.dirtyCheckLog.clear();
+    this.dirtySpeak.clear();
+    this.dirtySounds.clear();
     this.dirty = false;
     const payload: FlashcardProgressWrite = {
       classId: this.classId,
@@ -412,12 +571,24 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
         checkIds.map((cardId) => [cardId, { ...this.checkLog[cardId] }])
       );
     }
+    const speak = pickEntries(this.state.speak, speakIds);
+    if (speak) payload.speak = speak;
+    const speakSounds = pickEntries(this.state.speakSounds, soundIds);
+    if (speakSounds) payload.speakSounds = speakSounds;
+    if (this.state.speakRound !== undefined) {
+      payload.speakRound = this.state.speakRound;
+    }
     const rate = this.rate;
     this.pending = this.pending
       .then(() => (this.discarded ? undefined : this.write(payload)))
       .catch((error: unknown) => {
         for (const cardId of cardIds) this.dirtyCards.add(cardId);
         for (const cardId of checkIds) this.dirtyCheckLog.add(cardId);
+        // A refused Speak map (e.g. over the rules' size cap) must not block the rest of the progress.
+        if (!isPermissionDenied(error)) {
+          for (const cardId of speakIds) this.dirtySpeak.add(cardId);
+          for (const token of soundIds) this.dirtySounds.add(token);
+        }
         this.dirty = true;
         console.error('[TrackedFlashcardAdapter] Progress save failed:', error);
       })
