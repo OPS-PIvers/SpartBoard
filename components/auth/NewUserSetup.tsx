@@ -263,8 +263,7 @@ export const NewUserSetup: React.FC = () => {
           ? true
           : selectedBuildings.length > 0;
 
-  const givenName = user?.displayName?.trim().split(/\s+/)[0];
-  const firstName = givenName ? givenName : 'there';
+  const firstName = user?.displayName?.match(/\S+/)?.[0] ?? 'there';
   const showSparty = useShowSparty();
 
   return (
