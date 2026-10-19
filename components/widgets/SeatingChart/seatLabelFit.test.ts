@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { SEAT_LABEL_MIN_PX, seatLabelFontPx } from './seatLabelFit';
+import {
+  SEAT_LABEL_MIN_PX,
+  seatLabelFit,
+  seatLabelFontPx,
+} from './seatLabelFit';
 
 describe('seatLabelFontPx', () => {
   it('keeps a short name at the usual size', () => {
@@ -21,5 +25,10 @@ describe('seatLabelFontPx', () => {
 
   it('never returns zero for an empty box', () => {
     expect(seatLabelFontPx('Ava', 0, 0, 12)).toBe(SEAT_LABEL_MIN_PX);
+  });
+
+  it('reports a name that cannot fit at the minimum so it truncates', () => {
+    expect(seatLabelFit('Malik Kowalski', 18, 20, 12).fits).toBe(false);
+    expect(seatLabelFit('Ava', 80, 40, 12).fits).toBe(true);
   });
 });
