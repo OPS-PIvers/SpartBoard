@@ -430,13 +430,13 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
               gap: 'min(10px, 2cqmin)',
             }}
           >
-            {/* Title always shows; narrow cards drop the Shuffle and Rotate labels and scroll the controls. */}
+            {/* Title takes leftover space and yields first; narrow cards drop the Shuffle and Rotate labels. */}
             <div
-              className="flex items-center shrink-0"
+              className="flex items-center min-w-0 flex-1"
               style={{ gap: 'min(8px, 2cqmin)' }}
             >
               <h3
-                className="font-black uppercase tracking-widest"
+                className="font-black uppercase tracking-widest truncate"
                 style={{
                   fontSize: 'min(13px, 4.2cqmin)',
                   color: fontColor ?? '#334155',
