@@ -8,6 +8,8 @@ describe('InlineNameInput', () => {
     render(
       <InlineNameInput
         ariaLabel="Name"
+        placeholder="Name"
+        commitOnBlur={false}
         onCommit={onCommit}
         onCancel={vi.fn()}
       />
@@ -24,6 +26,8 @@ describe('InlineNameInput', () => {
     render(
       <InlineNameInput
         ariaLabel="Name"
+        placeholder="Name"
+        commitOnBlur={false}
         onCommit={onCommit}
         onCancel={onCancel}
       />
