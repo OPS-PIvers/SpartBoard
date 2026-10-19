@@ -341,6 +341,13 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'admin.widgets.configure:admin#need-do-put-then',
     needs: ['admin'],
   },
+  'admin.widgets.config.flashcards': {
+    label: 'Flashcards admin configuration',
+    kind: 'modal',
+    files: ['components/admin/FlashcardsSpeakConfigurationPanel.tsx'],
+    opensWith: 'admin.widgets.configure:admin#flashcards',
+    needs: ['admin'],
+  },
   'admin.widgets.config.stations': {
     label: 'Stations admin configuration',
     kind: 'modal',
