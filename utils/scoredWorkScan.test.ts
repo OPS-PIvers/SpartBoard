@@ -35,7 +35,6 @@ const ok = (seat: number, page: number): ScanPageResult => ({
   seat,
   page,
   blob: new Blob(),
-  thumb: '',
 });
 
 describe('scoredWorkScan', () => {
@@ -55,7 +54,7 @@ describe('scoredWorkScan', () => {
       ok(1, 1),
       ok(1, 1),
       ok(3, 2),
-      { status: 'unmatched', scanPage: 9, reason: 'no-marker' },
+      { status: 'unmatched', scanPage: 9, reason: 'no-marker', thumb: '' },
     ]);
     expect(summary.unmatched).toBe(1);
     expect(summary.absentSeats).toEqual([2]);

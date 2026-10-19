@@ -6,12 +6,17 @@
 
 import { paperBatchTag, type PaperMarkerPayload } from './paperSheetMarker';
 import { PAGE_HEIGHT_MM, PAGE_WIDTH_MM } from './paperSheetLayout';
-import { readPaperPage } from './paperSheetReader';
+import {
+  readPaperPage,
+  type PageReadResult,
+  type RasterPage,
+} from './paperSheetReader';
 import {
   cropWrittenBlob,
   rasterizeScan,
   type GrayEncoder,
   type RasterDeps,
+  type RasterizedPage,
 } from './paperScanRaster';
 import type { ScoredWork } from '@/types';
 
@@ -25,9 +30,14 @@ export type ScanPageResult =
       seat: number;
       page: number;
       blob: Blob;
-      thumb: string;
     }
-  | { status: 'unmatched'; scanPage: number; reason: UnmatchedReason };
+  | {
+      status: 'unmatched';
+      scanPage: number;
+      reason: UnmatchedReason;
+      /** The page as scanned, so the teacher can see what was uploaded. */
+      thumb: string;
+    };
 
 const THUMB_EDGE_PX = 260;
 
@@ -46,6 +56,51 @@ export function markerMismatch(
   return null;
 }
 
+/** A page turned a quarter turn, for scans a feeder or scanner laid on its side. */
+export function rotateRaster(
+  page: RasterPage,
+  direction: 'cw' | 'ccw'
+): RasterPage {
+  const { width: w, height: h, data } = page;
+  const out = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y += 1) {
+    for (let x = 0; x < w; x += 1) {
+      const nx = direction === 'cw' ? h - 1 - y : y;
+      const ny = direction === 'cw' ? x : w - 1 - x;
+      const from = (y * w + x) * 4;
+      const to = (ny * h + nx) * 4;
+      out[to] = data[from];
+      out[to + 1] = data[from + 1];
+      out[to + 2] = data[from + 2];
+      out[to + 3] = data[from + 3];
+    }
+  }
+  return { width: h, height: w, data: out };
+}
+
+const READ_OPTIONS = { questionCount: 0, choiceCount: 1 };
+
+/** Read a page as scanned; when that fails, as turned each way. */
+export function readStampedPage(page: RasterPage): {
+  read: PageReadResult;
+  page: RasterPage;
+} {
+  const first = readPaperPage(page, READ_OPTIONS);
+  if (first.status === 'ok') return { read: first, page };
+  for (const direction of ['cw', 'ccw'] as const) {
+    const turned = rotateRaster(page, direction);
+    const read = readPaperPage(turned, READ_OPTIONS);
+    if (read.status === 'ok') return { read, page: turned };
+  }
+  return { read: first, page };
+}
+
+const thumbOf = (raster: RasterizedPage): string =>
+  raster.crop(
+    { x: 0, y: 0, w: raster.page.width, h: raster.page.height },
+    THUMB_EDGE_PX
+  );
+
 /** Yield one result per scanned page, releasing each page before the next is read. */
 export async function* scanScoredWork(
   file: Blob,
@@ -55,21 +110,24 @@ export async function* scanScoredWork(
 ): AsyncGenerator<ScanPageResult> {
   const wholePage = { x: 0, y: 0, w: PAGE_WIDTH_MM, h: PAGE_HEIGHT_MM };
   for await (const raster of rasterizeScan(file, deps)) {
-    const read = readPaperPage(raster.page, {
-      questionCount: 0,
-      choiceCount: 1,
-    });
+    const { read, page } = readStampedPage(raster.page);
     if (read.status !== 'ok') {
       yield {
         status: 'unmatched',
         scanPage: raster.pageNumber,
         reason: read.status === 'no-marker' ? 'no-marker' : 'no-registration',
+        thumb: thumbOf(raster),
       };
       continue;
     }
     const reason = markerMismatch(read.marker, work);
     if (reason) {
-      yield { status: 'unmatched', scanPage: raster.pageNumber, reason };
+      yield {
+        status: 'unmatched',
+        scanPage: raster.pageNumber,
+        reason,
+        thumb: thumbOf(raster),
+      };
       continue;
     }
     yield {
@@ -77,11 +135,7 @@ export async function* scanScoredWork(
       scanPage: raster.pageNumber,
       seat: read.marker.seat,
       page: read.marker.page,
-      blob: await cropWrittenBlob(raster.page, read.mmToPx, wholePage, encode),
-      thumb: raster.crop(
-        { x: 0, y: 0, w: raster.page.width, h: raster.page.height },
-        THUMB_EDGE_PX
-      ),
+      blob: await cropWrittenBlob(page, read.mmToPx, wholePage, encode),
     };
   }
 }

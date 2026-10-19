@@ -322,11 +322,25 @@ function blobsInWindow(
 /**
  * Find the four registration marks, in `REGISTRATION_MARK_CENTERS_MM` order.
  *
+ * The corner windows are tried first; a scan with margin around the paper falls back to a whole-image search.
+ */
+export function findRegistrationMarks(
+  dark: Uint8Array,
+  width: number,
+  height: number
+): PointPx[] | null {
+  return (
+    findCornerMarks(dark, width, height) ??
+    findMarksAnywhere(dark, width, height)
+  );
+}
+
+/**
  * Each corner window is searched for the solid, roughly square blob nearest
  * the mark's expected position at the page's nominal scale. A scanner-lid
  * border or a stray staple fails the size or squareness test and is skipped.
  */
-export function findRegistrationMarks(
+function findCornerMarks(
   dark: Uint8Array,
   width: number,
   height: number
@@ -372,6 +386,70 @@ export function findRegistrationMarks(
     found.push({ x: best.blob.cx, y: best.blob.cy });
   }
   return found;
+}
+
+/** Marks are 12 mm in from each corner: the rectangle they form has this width over height. */
+const MARK_RECT_ASPECT =
+  (REGISTRATION_MARK_CENTERS_MM[1].x - REGISTRATION_MARK_CENTERS_MM[0].x) /
+  (REGISTRATION_MARK_CENTERS_MM[2].y - REGISTRATION_MARK_CENTERS_MM[0].y);
+
+/** Smallest mark side worth considering, in pixels; anything smaller is speckle. */
+const MIN_MARK_PX = 8;
+
+/**
+ * Whole-image search for the four marks, for a scan whose margin pushes them out of the corner windows.
+ * Takes solid square blobs and keeps the four that sit at the corners of a rectangle of the printed shape.
+ */
+function findMarksAnywhere(
+  dark: Uint8Array,
+  width: number,
+  height: number
+): PointPx[] | null {
+  const squares = blobsInWindow(dark, width, {
+    x: 0,
+    y: 0,
+    w: width,
+    h: height,
+  }).filter((b) => {
+    const bw = b.maxX - b.minX + 1;
+    const bh = b.maxY - b.minY + 1;
+    const aspect = bw / bh;
+    return (
+      bw >= MIN_MARK_PX &&
+      bh >= MIN_MARK_PX &&
+      aspect >= 0.75 &&
+      aspect <= 1.33 &&
+      b.area / (bw * bh) >= 0.8
+    );
+  });
+  if (squares.length < 4 || squares.length > 400) return null;
+  const pts = squares.map((b) => ({ b, c: { x: b.cx, y: b.cy } }));
+  let best: { marks: PointPx[]; error: number } | null = null;
+  for (const tl of pts) {
+    for (const br of pts) {
+      const dx = br.c.x - tl.c.x;
+      const dy = br.c.y - tl.c.y;
+      if (dx <= 0 || dy <= 0) continue;
+      if (Math.abs(dx / dy / MARK_RECT_ASPECT - 1) > 0.06) continue;
+      const near = (target: PointPx) =>
+        pts.reduce<{ p: (typeof pts)[number]; d: number } | null>((m, p) => {
+          const d = Math.hypot(p.c.x - target.x, p.c.y - target.y);
+          return !m || d < m.d ? { p, d } : m;
+        }, null);
+      const tr = near({ x: br.c.x, y: tl.c.y });
+      const bl = near({ x: tl.c.x, y: br.c.y });
+      if (!tr || !bl || tr.p === bl.p) continue;
+      const tolerance = Math.hypot(dx, dy) * 0.03;
+      if (tr.d > tolerance || bl.d > tolerance) continue;
+      const areas = [tl.b.area, tr.p.b.area, bl.p.b.area, br.b.area];
+      if (Math.max(...areas) / Math.min(...areas) > 2) continue;
+      const error = tr.d + bl.d;
+      if (!best || error < best.error) {
+        best = { marks: [tl.c, tr.p.c, bl.p.c, br.c], error };
+      }
+    }
+  }
+  return best?.marks ?? null;
 }
 
 type MapMm = (p: PointMm) => PointPx;
