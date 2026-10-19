@@ -1,0 +1,104 @@
+name: Pronunciation Gate
+
+# Speak's native-speaker corpus gate (docs/multilingual-pronunciation-engine.md §8). Runs only on its own paths.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    paths:
+      - 'utils/pronunciation/**'
+      - 'config/pronunciation*.ts'
+      - 'scripts/pronunciation-corpus/**'
+      - 'tests/fixtures/pronunciation-corpus/**'
+      - '.github/workflows/pronunciation-gate.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Cloud sessions are rate-limited by Wikimedia; the `fetch-corpus` label fetches the clips from a runner instead.
+  fetch-corpus:
+    if: >-
+      contains(github.event.pull_request.labels.*.name, 'fetch-corpus') &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup
+
+      - name: Install ffmpeg
+        run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+
+      - name: Fetch corpus
+        run: node scripts/pronunciation-corpus/fetch.mjs --max-wait 900
+
+      - name: Commit clips
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tests/fixtures/pronunciation-corpus
+          if git diff --cached --quiet; then echo 'No new clips.'; exit 0; fi
+          git commit -m 'Speak corpus: fetch Lingua Libre clips'
+          git push
+
+      - name: Remove the label
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.removeLabel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              name: 'fetch-corpus',
+            }).catch(() => undefined);
+
+  gate:
+    if: github.event.action != 'labeled'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup
+
+      - name: Install ffmpeg
+        run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+
+      - name: Model cache key
+        id: model
+        run: |
+          echo "md5=$(grep -o "md5Prefix: '[0-9a-f]*'" config/pronunciationModel.ts | cut -d"'" -f2)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache model and decodes
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/spartboard-pronunciation
+          key: pronunciation-model-${{ steps.model.outputs.md5 }}-${{ hashFiles('tests/fixtures/pronunciation-corpus/manifest.json', 'tests/fixtures/pronunciation-corpus/controls.json', 'utils/pronunciation/audio.ts', 'utils/pronunciation/ctcDecode.ts') }}
+          restore-keys: pronunciation-model-${{ steps.model.outputs.md5 }}-
+
+      - name: Run gate
+        run: node scripts/pronunciation-corpus/gate.mjs --out pronunciation-gate-results.md
+
+      - name: Summary
+        if: always()
+        run: test -f pronunciation-gate-results.md && cat pronunciation-gate-results.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pronunciation-gate-results
+          path: pronunciation-gate-results.md
+          retention-days: 30
