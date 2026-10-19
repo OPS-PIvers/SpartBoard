@@ -3453,9 +3453,9 @@
         "listening": "J'écoute…",
         "checking": "Vérification…",
         "levelLabel": "Niveau du microphone",
-        "attempt": "Essai {{current}} sur {{total}}",
+        "attempt": "Tentative {{current}} sur {{total}}",
         "hearIt": "Écouter",
-        "playMyTry": "Réécouter mon essai",
+        "playMyTry": "Réécouter ma tentative",
         "tryAgain": "Réessayer",
         "continue": "Continuer",
         "skip": "Passer",
@@ -3467,7 +3467,7 @@
         "allUnavailableTitle": "Aucune carte à dire",
         "allUnavailableBody": "Aucune de ces cartes ne peut se pratiquer à voix haute. Essaie un autre mode d'étude.",
         "lockedSettings": "Ton enseignant a choisi ces options.",
-        "keys": "Espace : enregistrer. Entrée : continuer. R : réécouter mon essai. H : écouter."
+        "keys": "Espace : enregistrer. Entrée : continuer. R : réécouter ma tentative. H : écouter."
       },
       "verdict": {
         "exact": "Exact",
@@ -3552,7 +3552,7 @@
         },
         "strict": "Strict",
         "strictHelp": "Activé, les sons réglés sur Suivre Strict doivent être justes. Désactivé, ils sont acceptés.",
-        "attempts": "Essais par carte",
+        "attempts": "Tentatives par carte",
         "example": "Bouton Écouter",
         "exampleHelp": "Les élèves peuvent d'abord écouter le mot avec la voix de leur appareil.",
         "advancedSettings": "Avancé",
@@ -3632,7 +3632,7 @@
         "stepTitle": "Speak",
         "show": "Laisser les élèves s'entraîner à voix haute",
         "lock": "Verrouiller les paramètres de Speak",
-        "lockHelp": "Les élèves utilisent tes réglages d'essais et du bouton Écouter et ne peuvent pas les changer."
+        "lockHelp": "Les élèves utilisent tes réglages de tentatives et du bouton Écouter et ne peuvent pas les changer."
       },
       "results": {
         "tab": "Oral",
@@ -3656,7 +3656,7 @@
           "de": "Allemand",
           "en": "Anglais"
         },
-        "attempts": "Essais par carte",
+        "attempts": "Tentatives par carte",
         "unclearConfidence": "Répéter quand c'est flou",
         "unclearConfidenceHelp": "Plus la valeur est haute, plus on demande aux élèves de redire le mot quand le son est flou.",
         "save": "Enregistrer",
