@@ -98,6 +98,33 @@ export function menuLine(
 
 export const COUNT_COLOR: Record<LunchZoneId, string> = {
   hot: 'text-brand-red-primary',
-  bento: 'text-emerald-700',
+  bento: 'text-emerald-600',
   home: 'text-brand-blue-primary',
 };
+
+export const ZONE_TONE: Record<
+  LunchZoneId,
+  { fill: string; over: string; label: string; text: string }
+> = {
+  hot: {
+    fill: 'bg-brand-red-lighter/40',
+    over: 'bg-brand-red-lighter/70 ring-4 ring-inset ring-brand-red-primary',
+    label: 'text-brand-red-primary',
+    text: 'text-brand-red-dark',
+  },
+  bento: {
+    fill: 'bg-emerald-50',
+    over: 'bg-emerald-100 ring-4 ring-inset ring-emerald-600',
+    label: 'text-emerald-700',
+    text: 'text-emerald-800',
+  },
+  home: {
+    fill: 'bg-brand-blue-lighter',
+    over: 'bg-brand-blue-lighter ring-4 ring-inset ring-brand-blue-primary',
+    label: 'text-brand-blue-primary',
+    text: 'text-brand-blue-dark',
+  },
+};
+
+export const isMiddleHighSite = (site: string | undefined): boolean =>
+  site === 'orono-middle-school' || site === 'orono-high-school';

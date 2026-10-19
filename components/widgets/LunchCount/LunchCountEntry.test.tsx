@@ -13,6 +13,8 @@ vi.mock('./redesign/RedesignedLunchCount', () => ({
 }));
 
 const widget = { id: 'w', type: 'lunchCount', config: {} } as WidgetData;
+const siteWidget = (schoolSite: string) =>
+  ({ id: 'w', type: 'lunchCount', config: { schoolSite } }) as WidgetData;
 
 describe('LunchCountWidget flag switch', () => {
   const canAccessFeature = vi.fn();
@@ -40,5 +42,25 @@ describe('LunchCountWidget flag switch', () => {
     );
     expect(getByTestId('new-face')).toBeInTheDocument();
     expect(queryByTestId('legacy-face')).toBeNull();
+  });
+
+  it.each(['orono-middle-school', 'orono-high-school'])(
+    'renders the legacy middle/high face for %s with the flag on',
+    (site) => {
+      canAccessFeature.mockReturnValue(true);
+      const { getByTestId, queryByTestId } = render(
+        <LunchCountWidget widget={siteWidget(site)} />
+      );
+      expect(getByTestId('legacy-face')).toBeInTheDocument();
+      expect(queryByTestId('new-face')).toBeNull();
+    }
+  );
+
+  it('renders the redesigned face for an elementary site with the flag on', () => {
+    canAccessFeature.mockReturnValue(true);
+    const { getByTestId } = render(
+      <LunchCountWidget widget={siteWidget('schumann-elementary')} />
+    );
+    expect(getByTestId('new-face')).toBeInTheDocument();
   });
 });

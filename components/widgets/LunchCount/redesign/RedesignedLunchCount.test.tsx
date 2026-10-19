@@ -17,6 +17,9 @@ import { SubShareHostContext } from '@/context/SubShareHostContextValue';
 // Mock dependencies
 vi.mock('@/context/useDashboard');
 vi.mock('@/context/useAuth');
+vi.mock('../Widget', () => ({
+  LunchCountWidget: () => <div data-testid="legacy-face" />,
+}));
 const nut = vi.hoisted(() => ({ isSyncing: false, fetch: vi.fn() }));
 vi.mock('../useNutrislice', () => ({
   useNutrislice: () => ({
@@ -284,28 +287,11 @@ describe('LunchCountRedesign (legacy suite)', () => {
     expect(updatePayload.config.assignments).not.toHaveProperty('John Doe');
   });
 
-  it('renders correctly for middle school without interactive DND', () => {
-    const widget = createWidget({
-      schoolSite: 'orono-middle-school',
-      cachedMenu: {
-        hotLunch: { name: 'Pizza' },
-        hotLunchSides: [],
-        bentoBox: { name: 'Yogurt Parfait' },
-        date: new Date().toISOString(),
-      },
-    });
-
+  it('hands a middle school board to the legacy face', () => {
+    const widget = createWidget({ schoolSite: 'orono-middle-school' });
     render(<LunchCountWidget widget={widget} />);
-
-    // Check that we're showing the featured view header
-    expect(screen.getByText('Hot Lunch')).toBeTruthy();
-
-    // Check for Hot Lunch value
-    expect(screen.getByText('Pizza')).toBeTruthy();
-
-    // Verify it does NOT render the interactive elements
-    expect(screen.queryByText('Assign 2 More Students')).toBeNull();
-    expect(screen.queryByText('John Doe')).toBeNull(); // Missing interactive student items
+    expect(screen.getByTestId('legacy-face')).toBeInTheDocument();
+    expect(screen.queryByTestId('hot-zone')).toBeNull();
   });
 });
 
@@ -966,37 +952,12 @@ describe('LunchCountRedesign — new face', () => {
     expect(board).toHaveTextContent('Hot1Bento0Home0');
   });
 
-  describe('middle and high school face', () => {
-    const ms = (config: Partial<LunchCountConfig>) =>
-      widgetWith({ schoolSite: 'orono-high-school', ...config });
-
-    it('shows the entree with a labelled refresh that touch screens can see', () => {
-      render(<LunchCountWidget widget={ms({})} />);
-      expect(screen.getByText('Pizza')).toBeInTheDocument();
-      const refresh = screen.getByRole('button', { name: 'Refresh menu' });
-      expect(refresh).toHaveAttribute('data-tour', 'lunch-count.refresh-menu');
-      expect(refresh.className).toContain('[@media(hover:none)]:opacity-100');
-      fireEvent.click(refresh);
-      expect(nut.fetch).toHaveBeenCalled();
-      expect(screen.queryByTestId('hot-zone')).toBeNull();
-    });
-
-    it('uses the manual entree in manual mode', () => {
-      render(
-        <LunchCountWidget
-          widget={ms({ isManualMode: true, manualHotLunch: 'Tacos' })}
-        />
-      );
-      expect(screen.getByText('Tacos')).toBeInTheDocument();
-    });
-
-    it('says the menu is not available after a failed sync', () => {
-      render(
-        <LunchCountWidget
-          widget={ms({ cachedMenu: null, syncError: 'E-SYNC-404' })}
-        />
-      );
-      expect(screen.getByText('Menu not available')).toBeInTheDocument();
-    });
+  it('hands a high school board to the legacy face', () => {
+    render(
+      <LunchCountWidget
+        widget={widgetWith({ schoolSite: 'orono-high-school' })}
+      />
+    );
+    expect(screen.getByTestId('legacy-face')).toBeInTheDocument();
   });
 });

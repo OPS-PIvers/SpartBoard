@@ -14,10 +14,10 @@ import { SubmitReportModal } from '../SubmitReportModal';
 import { MissingInfoModal } from '../MissingInfoModal';
 import { useLunchCountModel } from './useLunchCountModel';
 import type { LunchZoneId } from './useLunchCountModel';
-import { COUNT_COLOR, menuLine } from './lunchCountFormat';
-import { ChipGrid, LunchZone } from './LunchZone';
+import { COUNT_COLOR, isMiddleHighSite, menuLine } from './lunchCountFormat';
+import { CHIP_HEIGHT, ChipGrid, LunchZone, ZONE_TEXT } from './LunchZone';
 import { PhotoPeek } from './PhotoPeek';
-import { MiddleHighFace } from './MiddleHighFace';
+import { LunchCountWidget as LegacyLunchCountWidget } from '../Widget';
 
 // Bands are container queries on the widget body: compact (count board), wide (tray left), tall (zones stacked).
 export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
@@ -60,11 +60,8 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
     if (trigger) window.requestAnimationFrame(() => trigger.focus());
   }, []);
 
-  if (
-    schoolSite === 'orono-middle-school' ||
-    schoolSite === 'orono-high-school'
-  ) {
-    return <MiddleHighFace widget={widget} model={model} />;
+  if (isMiddleHighSite(schoolSite)) {
+    return <LegacyLunchCountWidget widget={widget} />;
   }
 
   const overZones = new Set(drags.map((d) => d.over));
@@ -139,7 +136,7 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
         padding="p-0"
         header={
           <div
-            className="flex flex-wrap items-center border-b border-slate-200 [@container_(min-width:520px)_and_(max-width:1199px)]:flex-nowrap"
+            className="flex flex-wrap items-center"
             style={{
               backgroundColor: hexToRgba(cardColor, cardOpacity),
               padding:
@@ -189,7 +186,7 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
             )}
 
             <div
-              className="flex items-center justify-end flex-[1_1_min(100%,280px)] min-w-[min(100%,280px)] [@container_(min-width:520px)_and_(max-width:1199px)]:flex-[1_1_0%] [@container_(min-width:520px)_and_(max-width:1199px)]:min-w-0"
+              className="flex items-center justify-end flex-[1_1_min(100%,360px)] min-w-[min(100%,360px)]"
               style={{ gap: 'clamp(8px, 2cqmin, 16px)' }}
             >
               {!isEmpty && (
@@ -202,7 +199,7 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
                   onClick={model.handleOpenReport}
                   disabled={!ready}
                   variant={ready ? 'primary' : 'secondary'}
-                  className="flex-1 min-w-0 rounded-lg leading-tight text-center active:brightness-95 [@container_(min-width:520px)_and_(max-width:1199px)]:normal-case [@container_(min-width:520px)_and_(max-width:1199px)]:tracking-normal"
+                  className="flex-1 min-w-0 rounded-lg leading-tight text-center [@container(min-width:520px)]:whitespace-nowrap active:brightness-95"
                   style={{
                     opacity: 1,
                     padding:
@@ -307,7 +304,7 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
               className="flex-1 min-w-0 flex"
               style={{
                 backgroundColor: hexToRgba(cardColor, cardOpacity),
-                padding: '0 clamp(4px, 4cqmin, 20px) clamp(4px, 4cqmin, 20px)',
+                padding: '0 clamp(6px, 4cqmin, 20px) clamp(6px, 4cqmin, 20px)',
               }}
             >
               <div
@@ -336,8 +333,14 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
                 ))}
               </div>
 
-              <div className="flex flex-1 min-w-0 flex-col [@container(min-aspect-ratio:2.2)]:flex-row [@container_(max-width:219px)_or_(max-height:179px)]:hidden">
-                <div className="flex flex-1 min-h-0 min-w-0 flex-row divide-x divide-slate-200 [@container(max-aspect-ratio:0.7)]:flex-col [@container(max-aspect-ratio:0.7)]:divide-x-0 [@container(max-aspect-ratio:0.7)]:divide-y">
+              <div
+                className="flex flex-1 min-w-0 flex-col [@container(min-aspect-ratio:2.2)]:flex-row [@container_(max-width:219px)_or_(max-height:179px)]:hidden"
+                style={{ gap: 'clamp(8px, 2.4cqmin, 20px)' }}
+              >
+                <div
+                  className="flex flex-1 min-h-0 min-w-0 flex-row [@container(max-aspect-ratio:0.7)]:flex-col"
+                  style={{ gap: 'clamp(8px, 2.4cqmin, 20px)' }}
+                >
                   <LunchZone
                     {...zoneCommon}
                     zone="hot"
@@ -378,19 +381,24 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
                   data-drop-zone="unassigned"
                   data-testid="unassigned-zone"
                   aria-label="Unassigned"
-                  className={`flex flex-col min-h-0 shrink-0 overflow-y-auto custom-scrollbar border-t border-slate-200 max-h-[40%] [@container_(max-height:699px)_and_(max-aspect-ratio:2.19)]:max-h-[43%] [@container_(max-width:1199px)_or_(max-height:699px)]:flex-row [@container_(max-width:1199px)_or_(max-height:699px)]:flex-wrap [@container_(max-width:1199px)_or_(max-height:699px)]:items-center [@container_(max-width:1199px)_or_(max-height:699px)]:content-start [@container(min-aspect-ratio:2.2)]:order-first [@container(min-aspect-ratio:2.2)]:max-h-none [@container(min-aspect-ratio:2.2)]:w-[26%] [@container(min-aspect-ratio:2.2)]:border-t-0 [@container(min-aspect-ratio:2.2)]:border-r ${
+                  className={`flex flex-col min-h-0 shrink-0 overflow-y-auto custom-scrollbar rounded-2xl max-h-[40%] [@container_(max-height:699px)_and_(max-aspect-ratio:2.19)]:max-h-[min(var(--tray-3-rows),50%)] [@container_(max-width:1199px)_or_(max-height:699px)]:flex-row [@container_(max-width:1199px)_or_(max-height:699px)]:flex-wrap [@container_(max-width:1199px)_or_(max-height:699px)]:items-center [@container_(max-width:1199px)_or_(max-height:699px)]:content-start [@container(min-aspect-ratio:2.2)]:order-first [@container(min-aspect-ratio:2.2)]:max-h-none [@container(min-aspect-ratio:2.2)]:w-[26%] ${
                     overZones.has('unassigned')
-                      ? 'outline outline-2 -outline-offset-2 outline-brand-blue-primary bg-brand-blue-lighter/30'
-                      : ''
+                      ? 'bg-slate-200 ring-4 ring-inset ring-slate-500'
+                      : 'bg-slate-100'
                   }`}
-                  style={{
-                    gap: 'min(10px, 1.5cqmin)',
-                    padding: 'min(12px, 1.8cqmin)',
-                  }}
+                  style={
+                    {
+                      fontSize: ZONE_TEXT,
+                      gap: 'clamp(8px, 2.4cqmin, 20px)',
+                      padding: 'clamp(8px, 2.4cqmin, 20px)',
+                      // Three whole chip rows plus padding, so no half row shows below 700px tall.
+                      '--tray-3-rows': `calc(3 * ${CHIP_HEIGHT} + 4 * clamp(8px, 2.4cqmin, 20px))`,
+                    } as React.CSSProperties
+                  }
                 >
                   <div
-                    className="font-bold text-slate-800 leading-tight [overflow-wrap:anywhere]"
-                    style={{ fontSize: 'clamp(13px, 3.6cqmin, 26px)' }}
+                    className="font-black text-slate-700 leading-tight [overflow-wrap:anywhere]"
+                    style={{ marginRight: '0.4em' }}
                   >
                     Unassigned ({stats.remaining})
                     {hiddenRemaining > 0 &&

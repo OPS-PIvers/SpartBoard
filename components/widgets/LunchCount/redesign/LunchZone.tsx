@@ -2,7 +2,7 @@ import React from 'react';
 import type { LunchMenuItem } from '@/types';
 import { DragChip } from '../components/DragChip';
 import type { LunchStudent, LunchZoneId } from './useLunchCountModel';
-import { COUNT_COLOR } from './lunchCountFormat';
+import { COUNT_COLOR, ZONE_TONE } from './lunchCountFormat';
 import type { MenuLine } from './lunchCountFormat';
 
 type ChipHandlers = Omit<
@@ -17,8 +17,12 @@ interface ChipGridProps {
   handlers: ChipHandlers;
 }
 
+// One text size for labels, entree and chips keeps the board calm.
+export const ZONE_TEXT = 'clamp(12px, calc(3.4cqmin - 0.5px), 30px)';
+export const CHIP_HEIGHT = 'max(36px, min(64px, 2.4em))';
+
 export const CHIP_CLASS =
-  'flex items-center max-w-full rounded-lg border border-slate-300 bg-white text-slate-800 font-semibold leading-tight [overflow-wrap:anywhere] transition-colors hover:border-slate-500 active:bg-slate-100 active:border-brand-blue-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary [-webkit-tap-highlight-color:transparent]';
+  'flex items-center max-w-full rounded-xl bg-white text-slate-800 font-bold leading-tight shadow-sm [overflow-wrap:anywhere] transition-colors hover:bg-slate-50 active:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary [-webkit-tap-highlight-color:transparent]';
 
 export const ChipGrid: React.FC<ChipGridProps> = ({
   students,
@@ -29,11 +33,8 @@ export const ChipGrid: React.FC<ChipGridProps> = ({
   if (students.length === 0) return null;
   return (
     <div
-      className={`flex flex-wrap w-full ${flowIntoParent ? '[@container_(max-width:1199px)_or_(max-height:699px)]:contents' : ''} [@container_(min-width:1200px)_and_(min-height:700px)]:grid [@container_(min-width:1200px)_and_(min-height:700px)]:grid-cols-[repeat(auto-fill,minmax(min(100%,8.5em),1fr))]`}
-      style={{
-        fontSize: 'clamp(13px, calc(6cqmin - 12px), 28px)',
-        gap: 'min(8px, 1.5cqmin)',
-      }}
+      className={`flex flex-wrap w-full ${flowIntoParent ? '[@container_(max-width:1199px)_or_(max-height:699px)]:contents' : ''}`}
+      style={{ gap: 'clamp(6px, 1.8cqmin, 14px)' }}
     >
       {students.map((student) => (
         <DragChip
@@ -45,8 +46,9 @@ export const ChipGrid: React.FC<ChipGridProps> = ({
           {...handlers}
           className={CHIP_CLASS}
           style={{
-            minHeight: 'max(32px, min(48px, 14cqmin - 24px))',
-            padding: 'min(6px, 1.2cqmin) min(12px, 2.4cqmin)',
+            fontSize: ZONE_TEXT,
+            minHeight: CHIP_HEIGHT,
+            padding: '0.35em 0.6em',
           }}
         />
       ))}
@@ -89,6 +91,7 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
   draggingIds,
   handlers,
 }) => {
+  const tone = ZONE_TONE[zone];
   const menuText =
     menu.kind === 'item'
       ? menu.text
@@ -97,38 +100,40 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
         : menu.kind === 'unavailable'
           ? unavailableText
           : null;
+  const line = menuText ?? subLabel ?? null;
   const imageUrl = menu.kind === 'item' ? menuItem?.imageUrl : undefined;
+  const fullLine =
+    line !== null && menu.kind === 'item' && sides.length > 0
+      ? [line, ...sides.map((s) => s.name)].join(' · ')
+      : (line ?? undefined);
 
   return (
     <section
       data-drop-zone={zone}
       data-testid={testId}
       aria-label={label}
-      className={`flex flex-col min-h-0 min-w-0 flex-1 [@container(max-aspect-ratio:0.7)]:flex-[1_1_auto] transition-colors ${
-        isOver
-          ? 'outline outline-2 -outline-offset-2 outline-brand-blue-primary bg-brand-blue-lighter/30'
-          : ''
+      className={`flex flex-col min-h-0 min-w-0 flex-1 [@container(max-aspect-ratio:0.7)]:flex-[1_1_auto] ${zone === 'hot' ? '[@container_(max-width:1199px)_and_(min-aspect-ratio:0.71)]:flex-[1.8_1_0%]' : ''} rounded-2xl transition-colors ${
+        isOver ? tone.over : tone.fill
       }`}
     >
       <div
-        className="flex items-baseline shrink-0"
+        className="flex items-center shrink-0"
         style={{
-          gap: 'min(12px, 2.5cqmin)',
-          padding: 'clamp(4px, 2.5cqmin - 6px, 12px) min(12px, 2.5cqmin) 0',
+          gap: 'clamp(8px, 2.5cqmin, 20px)',
+          padding:
+            'clamp(6px, calc(4cqmin - 8px), 18px) clamp(8px, calc(4cqmin - 8px), 24px) 0',
         }}
       >
         <span
           data-lunch-count={zone}
           className={`font-black tabular-nums leading-none ${COUNT_COLOR[zone]}`}
-          style={{
-            fontSize: 'clamp(28px, min(13cqmin, 30cqmin - 120px), 120px)',
-          }}
+          style={{ fontSize: 'clamp(32px, calc(20cqmin - 40px), 120px)' }}
         >
           {count}
         </span>
         <span
-          className="font-bold text-slate-800 leading-tight min-w-0 [overflow-wrap:anywhere]"
-          style={{ fontSize: 'clamp(13px, 4cqmin, 26px)' }}
+          className={`font-black leading-tight min-w-0 [overflow-wrap:anywhere] ${tone.label}`}
+          style={{ fontSize: ZONE_TEXT }}
         >
           {label}
         </span>
@@ -136,24 +141,24 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
       <div
         className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col"
         style={{
-          gap: 'clamp(4px, 2cqmin - 4px, 10px)',
+          gap: 'clamp(6px, calc(3cqmin - 6px), 18px)',
           padding:
-            'clamp(2px, 2cqmin - 6px, 8px) min(12px, 2.5cqmin) min(14px, 2cqmin)',
+            'clamp(4px, calc(3cqmin - 8px), 14px) clamp(8px, calc(4cqmin - 8px), 24px) clamp(8px, calc(4cqmin - 8px), 24px)',
         }}
       >
-        {menuText !== null || subLabel ? (
+        {line !== null ? (
           <div
-            className="flex items-start"
-            style={{ gap: 'min(10px, 2cqmin)' }}
+            className="flex items-center"
+            style={{ gap: 'clamp(8px, 2cqmin, 14px)' }}
           >
             {imageUrl && menuItem ? (
               <button
                 type="button"
                 onClick={() => onPeekItem(menuItem)}
-                className="relative touch-target-expand shrink-0 rounded-md overflow-hidden border border-slate-200 bg-white active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+                className="relative touch-target-expand shrink-0 rounded-lg overflow-hidden bg-white active:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
                 style={{
-                  width: 'clamp(28px, 11.5cqmin, 96px)',
-                  height: 'clamp(28px, 11.5cqmin, 96px)',
+                  width: 'clamp(32px, 11cqmin, 96px)',
+                  height: 'clamp(32px, 11cqmin, 96px)',
                 }}
                 aria-label={`Show photo of ${menuItem.name}`}
               >
@@ -165,46 +170,24 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
                 />
               </button>
             ) : null}
-            <div className="flex-1 min-w-0 [overflow-wrap:anywhere]">
-              {menuText !== null ? (
-                <div
-                  className={`font-semibold leading-snug [@container_(max-width:1199px)_or_(max-height:699px)]:inline ${
-                    menu.kind === 'item' ? 'text-slate-800' : 'text-slate-600'
-                  }`}
-                  style={{
-                    fontSize: 'clamp(12px, calc(4.5cqmin - 6px), 26px)',
-                  }}
-                >
-                  {menuText}
-                </div>
-              ) : null}
+            <div
+              title={fullLine}
+              className={`flex-1 min-w-0 font-semibold leading-snug line-clamp-2 [overflow-wrap:anywhere] ${tone.text}`}
+              style={{ fontSize: ZONE_TEXT }}
+            >
+              {line}
               {sides.length > 0 && menu.kind === 'item' ? (
-                <div
-                  className="text-slate-600 leading-snug [@container_(max-width:1199px)_or_(max-height:699px)]:inline"
-                  style={{
-                    fontSize: 'clamp(12px, calc(3.5cqmin - 4px), 20px)',
-                    marginTop: 'min(4px, 0.8cqmin)',
-                  }}
-                >
-                  <span
-                    aria-hidden="true"
-                    className="hidden [@container_(max-width:1199px)_or_(max-height:699px)]:inline"
-                    style={{ margin: '0 0.4em' }}
-                  >
-                    ·
-                  </span>
+                <span className="hidden [@container_(min-width:1200px)_and_(min-height:700px)]:inline font-normal opacity-80">
                   {sides.map((s, i) => (
                     <React.Fragment key={`${s.name}-${i}`}>
-                      {i > 0 ? (
-                        <span aria-hidden="true" style={{ margin: '0 0.4em' }}>
-                          ·
-                        </span>
-                      ) : null}
+                      <span aria-hidden="true" style={{ margin: '0 0.4em' }}>
+                        ·
+                      </span>
                       {s.imageUrl ? (
                         <button
                           type="button"
                           onClick={() => onPeekItem(s)}
-                          className="underline decoration-slate-300 underline-offset-2 hover:decoration-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+                          className="underline decoration-slate-400 underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
                           aria-label={`Show photo of ${s.name}`}
                         >
                           {s.name}
@@ -214,15 +197,7 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
                       )}
                     </React.Fragment>
                   ))}
-                </div>
-              ) : null}
-              {subLabel ? (
-                <div
-                  className="text-slate-600 leading-snug"
-                  style={{ fontSize: 'clamp(12px, 3.5cqmin, 22px)' }}
-                >
-                  {subLabel}
-                </div>
+                </span>
               ) : null}
             </div>
           </div>
