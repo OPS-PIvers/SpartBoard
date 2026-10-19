@@ -549,3 +549,70 @@ describe('useAudioRecording crash recovery', () => {
     expect(result.current.phase).toBe('recording');
   });
 });
+
+describe('useAudioRecording Speak capture options', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('calls getStream and createRecorder exactly as before when unset', async () => {
+    const deps = makeDeps();
+    const { result } = renderHook(() =>
+      useAudioRecording({
+        config: config({ prepSeconds: 0 }),
+        enabled: true,
+        deps,
+      })
+    );
+    await act(async () => {
+      await result.current.start();
+    });
+    expect(vi.mocked(deps.getStream).mock.calls[0]).toEqual([]);
+    expect(vi.mocked(deps.createRecorder).mock.calls[0]).toHaveLength(2);
+  });
+
+  it('passes the bitrate and constraints through when set', async () => {
+    const deps = makeDeps();
+    const constraints = { noiseSuppression: false, echoCancellation: false };
+    const { result } = renderHook(() =>
+      useAudioRecording({
+        config: config({ prepSeconds: 0 }),
+        enabled: true,
+        deps,
+        audioBitsPerSecond: 128000,
+        constraints,
+      })
+    );
+    await act(async () => {
+      await result.current.start();
+    });
+    expect(deps.getStream).toHaveBeenCalledWith(constraints);
+    expect(vi.mocked(deps.createRecorder).mock.calls[0][2]).toBe(128000);
+  });
+
+  it('default deps forward them to getUserMedia and MediaRecorder', async () => {
+    const getUserMedia = vi.fn(() => Promise.resolve({} as MediaStream));
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } });
+    const ctor = vi.fn();
+    vi.stubGlobal(
+      'MediaRecorder',
+      class {
+        constructor(stream: MediaStream, options?: MediaRecorderOptions) {
+          ctor(stream, options);
+        }
+      }
+    );
+    await defaultAudioRecordingDeps.getStream();
+    await defaultAudioRecordingDeps.getStream({ autoGainControl: true });
+    expect(getUserMedia).toHaveBeenNthCalledWith(1, { audio: true });
+    expect(getUserMedia).toHaveBeenNthCalledWith(2, {
+      audio: { autoGainControl: true },
+    });
+    const stream = {} as MediaStream;
+    defaultAudioRecordingDeps.createRecorder(stream, 'audio/webm', 128000);
+    expect(ctor).toHaveBeenCalledWith(stream, {
+      mimeType: 'audio/webm',
+      audioBitsPerSecond: 128000,
+    });
+  });
+});

@@ -72,7 +72,7 @@ export const PRONUNCIATION_GROUPS: Readonly<
     stressGroup,
   ],
   de: [
-    { id: 'de-r', pairs: pairs(['ʁ', 'r'], ['ʁ', 'ɹ'], ['ʁ', 'ɾ']) },
+    { id: 'de-r', pairs: pairs(['r', 'ɹ'], ['ɾ', 'ɹ']) },
     {
       id: 'de-ich-ach',
       pairs: pairs(['ç', 'ʃ'], ['ç', 'x'], ['x', 'k'], ['x', 'h']),
@@ -80,12 +80,8 @@ export const PRONUNCIATION_GROUPS: Readonly<
     {
       id: 'de-umlaut',
       pairs: pairs(
-        ['y', 'u'],
-        ['y', 'i'],
         ['yː', 'uː'],
         ['yː', 'iː'],
-        ['ø', 'o'],
-        ['ø', 'e'],
         ['øː', 'oː'],
         ['øː', 'eː'],
         ['œ', 'ɔ'],
@@ -95,7 +91,7 @@ export const PRONUNCIATION_GROUPS: Readonly<
     {
       id: 'de-vowel-length',
       pairs: withReverse(
-        ['aː', 'a'],
+        ['ɑː', 'a'],
         ['eː', 'ɛ'],
         ['iː', 'ɪ'],
         ['oː', 'ɔ'],
@@ -105,7 +101,7 @@ export const PRONUNCIATION_GROUPS: Readonly<
     { id: 'de-final', pairs: finalPairs(['t', 'd'], ['p', 'b'], ['k', 'ɡ']) },
     {
       id: 'de-endings',
-      pairs: pairs(['ɐ', 'ɜ'], ['ɐ', 'ɜː'], ['ə', 'ɛ'], ['ə', 'e']),
+      pairs: pairs(['ɜ', 'ɜː'], ['ɜ', 'ɚ'], ['ə', 'ɛ'], ['ə', 'e']),
     },
     stressGroup,
   ],
@@ -115,10 +111,6 @@ export const PRONUNCIATION_GROUPS: Readonly<
       pairs: pairs(['θ', 't'], ['θ', 'f'], ['θ', 's'], ['ð', 'd'], ['ð', 'z']),
     },
     { id: 'en-r', pairs: pairs(['ɹ', 'ɾ'], ['ɹ', 'r'], ['ɹ', 'ʁ']) },
-    {
-      id: 'en-aspiration',
-      pairs: pairs(['pʰ', 'p'], ['tʰ', 't'], ['kʰ', 'k']),
-    },
     {
       id: 'en-vowel-length',
       pairs: pairs(['iː', 'ɪ'], ['ɪ', 'iː'], ['uː', 'ʊ'], ['ʊ', 'uː']),
@@ -132,7 +124,7 @@ export const PRONUNCIATION_GROUPS: Readonly<
   ],
 };
 
-/** Always correct, never shown or tallied (§4.2). S11 may add pairs only with Paul's yes. */
+/** Always correct, never shown, missed or forgiven (§4.2). S11 may add pairs only with Paul's yes. */
 export const RECOGNIZER_TOLERANCE: Readonly<
   Record<SpeakLanguage, readonly PronunciationPair[]>
 > = {
@@ -168,7 +160,6 @@ const PRESET_FORGIVE: Readonly<
     'de-endings',
     'en-r',
     'en-th',
-    'en-aspiration',
     'en-final-voicing',
     'en-reduced',
     STRESS_GROUP_ID,
@@ -177,7 +168,6 @@ const PRESET_FORGIVE: Readonly<
     'es-aspiration',
     'es-soft-bdg',
     'de-endings',
-    'en-aspiration',
     'en-final-voicing',
     'en-reduced',
     STRESS_GROUP_ID,
