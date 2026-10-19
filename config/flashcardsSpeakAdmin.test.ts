@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_FLASHCARDS_SPEAK_ADMIN_CONFIG,
+  defaultFlashcardsSpeakAdminConfig,
   DEFAULT_SPEAK_ATTEMPTS,
   DEFAULT_UNCLEAR_CONFIDENCE,
   clampSpeakAttempts,
@@ -12,13 +12,21 @@ describe('normalizeFlashcardsSpeakAdminConfig', () => {
     'returns the defaults for %j',
     (raw) => {
       expect(normalizeFlashcardsSpeakAdminConfig(raw)).toEqual(
-        DEFAULT_FLASHCARDS_SPEAK_ADMIN_CONFIG
+        defaultFlashcardsSpeakAdminConfig()
       );
     }
   );
 
+  it('hands out a fresh copy each call', () => {
+    const a = defaultFlashcardsSpeakAdminConfig();
+    a.attempts = 9;
+    expect(defaultFlashcardsSpeakAdminConfig().attempts).toBe(
+      DEFAULT_SPEAK_ATTEMPTS
+    );
+  });
+
   it('gives every language a preset and no overrides by default', () => {
-    expect(DEFAULT_FLASHCARDS_SPEAK_ADMIN_CONFIG.languages).toEqual({
+    expect(defaultFlashcardsSpeakAdminConfig().languages).toEqual({
       es: { preset: 'beginner', groups: {} },
       de: { preset: 'beginner', groups: {} },
       en: { preset: 'beginner', groups: {} },

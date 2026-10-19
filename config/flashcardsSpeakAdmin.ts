@@ -37,15 +37,16 @@ const perLanguage = (
   return out;
 };
 
-export const DEFAULT_FLASHCARDS_SPEAK_ADMIN_CONFIG: FlashcardsSpeakAdminConfig =
-  {
+/** A fresh copy each call, so a caller can't change the defaults for everyone. */
+export const defaultFlashcardsSpeakAdminConfig =
+  (): FlashcardsSpeakAdminConfig => ({
     languages: perLanguage(() => ({
       preset: DEFAULT_SPEAK_PRESET,
       groups: {},
     })),
     attempts: DEFAULT_SPEAK_ATTEMPTS,
     unclearConfidence: DEFAULT_UNCLEAR_CONFIDENCE,
-  };
+  });
 
 const asRecord = (raw: unknown): Record<string, unknown> =>
   typeof raw === 'object' && raw !== null && !Array.isArray(raw)
