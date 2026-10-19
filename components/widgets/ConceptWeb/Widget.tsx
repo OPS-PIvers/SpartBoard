@@ -431,17 +431,17 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
 
   return (
     <div
-      className={`flex flex-col w-full h-full overflow-hidden rounded-[var(--window-radius,0px)] select-none ${fontClassName}`}
+      className={`relative w-full h-full overflow-hidden rounded-[var(--window-radius,0px)] select-none ${fontClassName}`}
       style={{ backgroundColor: hexToRgba(cardColor, cardOpacity) }}
     >
       {!isReadOnly && (
         <div
-          className="shrink-0 flex"
+          className="absolute top-0 left-0 z-20 flex pointer-events-none"
           style={{ padding: 'min(8px, 2cqmin) min(8px, 2cqmin) 0' }}
         >
           <button
             {...tourAttr('concept-web.add-node', widget.id, widget.type)}
-            className="bg-white border border-slate-300 rounded shadow-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="bg-white border border-slate-300 rounded shadow-sm font-medium text-slate-700 hover:bg-slate-50 pointer-events-auto"
             style={{
               padding: 'min(4px, 1cqmin) min(12px, 3cqmin)',
               fontSize: 'min(14px, 4cqmin)',
@@ -453,7 +453,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
         </div>
       )}
 
-      <div ref={containerRef} className="relative flex-1 min-h-0">
+      <div ref={containerRef} className="absolute inset-0">
         <svg
           className="absolute inset-0 z-0 pointer-events-none w-full h-full"
           viewBox="0 0 100 100"

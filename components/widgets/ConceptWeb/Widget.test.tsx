@@ -225,4 +225,17 @@ describe('ConceptWebWidget — node bounds clamping', () => {
 
     expect(savedNode.width).toBeGreaterThan(14);
   });
+
+  it('keeps the map filling the whole widget with Add Node overlaid, not in a row above it', () => {
+    const { container, getByText } = render(
+      <ConceptWebWidget widget={createWidgetData({})} />
+    );
+    const root = container.firstElementChild as HTMLElement;
+    const map = container.querySelector<HTMLElement>('svg')?.parentElement;
+    expect(root.className).not.toContain('flex-col');
+    expect(map?.className).toContain('absolute');
+    expect(map?.className).toContain('inset-0');
+    const row = getByText('+ Add Node').parentElement;
+    expect(row?.className).toContain('absolute');
+  });
 });
