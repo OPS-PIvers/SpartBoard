@@ -21,9 +21,17 @@ import { GAP_EM, ICON_PER_FONT, soundLabelFontSize } from './labelFit';
 
 // ─── Web Audio API synthesis ─────────────────────────────────────────────────
 
-function playSynthesizedSound(id: string): void {
+async function playSynthesizedSound(id: string): Promise<void> {
   const ctx = getAudioCtx();
   if (!ctx) return;
+
+  if (ctx.state === 'suspended') {
+    try {
+      await ctx.resume();
+    } catch {
+      return; // autoplay policy refused; stay silent
+    }
+  }
 
   const run = () => {
     const t = ctx.currentTime;
@@ -188,11 +196,7 @@ function playSynthesizedSound(id: string): void {
     }
   };
 
-  if (ctx.state === 'suspended') {
-    void ctx.resume().then(run);
-  } else {
-    run();
-  }
+  run();
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -276,7 +280,7 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
 
   const playSound = (sound: SoundboardSound) => {
     if (sound.synthesized) {
-      playSynthesizedSound(sound.id);
+      void playSynthesizedSound(sound.id);
       return;
     }
 
