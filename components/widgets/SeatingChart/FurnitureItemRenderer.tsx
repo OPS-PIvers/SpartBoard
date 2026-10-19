@@ -12,6 +12,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { FloatingPanel } from '@/components/common/FloatingPanel';
+import { seatLabelFontPx } from './seatLabelFit';
 import { tourAttr } from '@/config/tourAnchors';
 
 interface FurnitureItemRendererProps {
@@ -208,34 +209,51 @@ export const FurnitureItemRenderer = memo(
           )}
           {assignedStudents.length > 0 && (
             <div className="flex flex-col items-center justify-center gap-1 w-full h-full overflow-hidden">
-              {assignedStudents.map((student) => (
-                <div
-                  key={student.id}
-                  className={`bg-white px-1.5 rounded font-bold shadow-sm border border-slate-100 truncate w-full text-center pointer-events-auto flex items-center justify-center ${
-                    assignedStudents.length === 1
-                      ? 'h-full text-xs'
-                      : 'py-1 text-xxs'
-                  }`}
-                >
-                  <span className="truncate">{student.label}</span>
-                  {mode === 'assign' && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onRemoveAssignment(student.id);
-                      }}
-                      {...tourAttr(
-                        'seating.unseat-student',
-                        widgetId,
-                        'seating-chart'
-                      )}
-                      className="ml-1 text-red-400 hover:text-red-600"
-                    >
-                      &times;
-                    </button>
-                  )}
-                </div>
-              ))}
+              {assignedStudents.map((student) => {
+                const single = assignedStudents.length === 1;
+                const count = assignedStudents.length;
+                // Seat content box minus padding, borders and the gaps between stacked names.
+                const labelW =
+                  displayW - 8 - 12 - 2 - (mode === 'assign' ? 16 : 0);
+                const labelH = single
+                  ? displayH - 8 - 2
+                  : (displayH - 8 - 4 * (count - 1)) / count - 8 - 2;
+                const fontPx = seatLabelFontPx(
+                  student.label,
+                  labelW,
+                  labelH,
+                  single ? 12 : 10
+                );
+                return (
+                  <div
+                    key={student.id}
+                    className={`bg-white px-1.5 rounded font-bold shadow-sm border border-slate-100 w-full text-center pointer-events-auto flex items-center justify-center ${
+                      single ? 'h-full' : 'py-1'
+                    }`}
+                    style={{ fontSize: fontPx, lineHeight: 1.2 }}
+                  >
+                    <span className="min-w-0 [overflow-wrap:anywhere]">
+                      {student.label}
+                    </span>
+                    {mode === 'assign' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRemoveAssignment(student.id);
+                        }}
+                        {...tourAttr(
+                          'seating.unseat-student',
+                          widgetId,
+                          'seating-chart'
+                        )}
+                        className="ml-1 text-red-400 hover:text-red-600"
+                      >
+                        &times;
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

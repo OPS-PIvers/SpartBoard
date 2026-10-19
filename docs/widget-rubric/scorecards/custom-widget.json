@@ -1,9 +1,569 @@
 {
   "$schema": "../scorecard.schema.json",
   "widgetType": "custom-widget",
-  "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "rubricVersion": "1.1.0",
+  "gradedAt": "2026-10-18T16:03:28.379Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "I5": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/envelope-min__empty.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/envelope-min__typical.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/envelope-min__stress.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "note": "At 150x100 everything shrinks evenly: the label above the counter is about 4 px, the -/+ buttons are about 9 px, and the stress grid crams every block into unreadable cells.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/large-1400x900__typical.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/large-1400x900__stress.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/widest-aspect__typical.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/widest-aspect__stress.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/tallest-aspect__stress.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "note": "The same fixed 2x2 grid shows at every shape, leaving 60% of the widest card and 45% of the tallest empty, and the stress grid crushes words letter by letter in the tall shape.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__empty.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__stress.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "S6": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/envelope-min__stress.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__stress.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/large-1400x900__stress.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/maximized-1920x1080__stress.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/widest-aspect__stress.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/tallest-aspect__stress.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/envelope-min__typical.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "note": "The 150x100 floor suits a widget the teacher lays out, and the default 400x300 holds the typical layout comfortably.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/maximized-1920x1080__stress.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "I2": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "I3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "I4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "I6": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "note": "The flat slate buttons and Submit look like one-off styled controls with no visible selected or pending state apart from the filled stars.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical__selected.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "note": "The layout is clean, but the counter label is gray-on-gray and nearly invisible and every block is centered in its cell.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__stress.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "note": "The purpose (an exit ticket with a rating, a counter and Submit) reads at a glance, but 6 font sizes and 8 controls in a small card are over the threshold.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "note": "The title is the largest element, but the stars are just as heavy beside it and the white 2 outweighs its unreadable label.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "note": "The labels (Exit ticket, Submit, -, +) are short and plain, with lucide icons only and no copy violations.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "note": "The teacher builds the whole face from configurable blocks, so content and structure are not hardcoded.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical__settings.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "note": "The settings-open screenshot shows only a selection outline and no drawer, so there is no visible organized settings structure.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__empty.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "note": "On first drop the widget shows only faint 'No content configured' text and is unusable until configured.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__empty.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "note": "The empty face is a blank gray card with nearly invisible gray text, no title and no next action.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__empty.png",
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "note": "The only designed state is a bare text line for 'no content', and it does not use a shared empty state.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "note": "The typical face shows no student data, only teacher-authored blocks.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "note": "No connections show on the face, and high-value candidates (sending Submit results to a roster or class, or linking to Quiz or Poll) seem missing; proposals: add a roster/class link for responses, add a link to timers; remove none.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical.png"
+        ],
+        "runId": "after-custom-widget"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-custom-widget"
+      },
+      "gradedAt": "2026-10-18T16:03:28.379Z"
+    },
+    "G2": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-custom-widget"
+      },
+      "gradedAt": "2026-10-18T16:03:28.379Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-custom-widget"
+      },
+      "gradedAt": "2026-10-18T16:03:28.379Z"
+    },
+    "G4": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-custom-widget"
+      },
+      "gradedAt": "2026-10-18T16:03:28.379Z"
+    }
+  }
 }

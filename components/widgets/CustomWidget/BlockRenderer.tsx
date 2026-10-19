@@ -66,7 +66,9 @@ function TextBlock({ block, config, blockState }: BlockProps<TextBlockConfig>) {
         fontSize: 'min(16px, 6cqmin)',
       }}
     >
-      <span className="text-center break-words">{displayText}</span>
+      <span className="min-w-0 text-center [overflow-wrap:anywhere]">
+        {displayText}
+      </span>
     </div>
   );
 }
@@ -86,14 +88,17 @@ function HeadingBlock({
   const fontSize = sizeMap[config.size ?? 'md'];
   return (
     <div
-      className="w-full h-full flex items-center justify-center overflow-hidden p-1"
+      className="w-full h-full flex items-center justify-center overflow-hidden leading-tight"
       style={{
         color: block.style.textColor ?? undefined,
         fontSize,
+        padding: 'min(4px, 1cqmin)',
         fontWeight: 'bold',
       }}
     >
-      <span className="text-center break-words">{displayText}</span>
+      <span className="min-w-0 text-center [overflow-wrap:anywhere]">
+        {displayText}
+      </span>
     </div>
   );
 }
@@ -161,7 +166,7 @@ function RevealBlock({
           />
         ) : (
           <span
-            className="text-center break-words p-2"
+            className="min-w-0 text-center [overflow-wrap:anywhere] p-2"
             style={{
               color: block.style.textColor ?? undefined,
               fontSize: 'min(16px, 6cqmin)',
@@ -219,7 +224,7 @@ function FlipCardBlock({
             />
           ) : (
             <span
-              className="text-center break-words p-2"
+              className="min-w-0 text-center [overflow-wrap:anywhere] p-2"
               style={{
                 color: block.style.textColor ?? undefined,
                 fontSize: 'min(16px, 6cqmin)',
@@ -246,7 +251,7 @@ function FlipCardBlock({
             />
           ) : (
             <span
-              className="text-center break-words p-2"
+              className="min-w-0 text-center [overflow-wrap:anywhere] p-2"
               style={{
                 color: block.style.textColor ?? 'white',
                 fontSize: 'min(16px, 6cqmin)',
@@ -275,7 +280,9 @@ function ConditionalLabelBlock({
         fontSize: 'min(16px, 6cqmin)',
       }}
     >
-      <span className="text-center break-words">{displayText}</span>
+      <span className="min-w-0 text-center [overflow-wrap:anywhere]">
+        {displayText}
+      </span>
     </div>
   );
 }
@@ -453,22 +460,13 @@ function CounterBlock({
     <div className="w-full h-full flex flex-col items-center justify-center gap-1 overflow-hidden p-1">
       {config.label && (
         <div
-          className="text-center text-slate-300"
+          className="text-center text-slate-300 leading-tight"
           style={{ fontSize: 'min(12px, 4.5cqmin)' }}
         >
           {config.label}
         </div>
       )}
-      <div
-        className="font-bold text-center"
-        style={{
-          fontSize: 'min(32px, 20cqmin)',
-          color: block.style.textColor ?? 'white',
-        }}
-      >
-        {blockState.value}
-      </div>
-      <div className="flex gap-1">
+      <div className="flex flex-wrap items-center justify-center gap-1">
         <button
           className="bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors"
           style={{
@@ -480,6 +478,15 @@ function CounterBlock({
         >
           −
         </button>
+        <div
+          className="font-bold text-center leading-none"
+          style={{
+            fontSize: 'min(40px, 28cqmin)',
+            color: block.style.textColor ?? 'white',
+          }}
+        >
+          {blockState.value}
+        </div>
         <button
           className="bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors"
           style={{
@@ -572,7 +579,7 @@ function StarsBlock({
   const currentValue = blockState.value;
   return (
     <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden p-1">
-      <div className="flex gap-0.5">
+      <div className="flex flex-wrap justify-center gap-0.5">
         {Array.from({ length: maxStars }, (_, i) => (
           // eslint-disable-next-line no-restricted-syntax -- a star rating is one button per star
           <button

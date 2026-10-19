@@ -19,6 +19,14 @@ export const HotspotImageWidget: React.FC<{ widget: WidgetData }> = ({
   const { updateWidget } = useDashboardActions();
   const config = widget.config as HotspotImageConfig;
   const [activePinId, setActivePinId] = React.useState<string | null>(null);
+  const [imageAspect, setImageAspect] = React.useState<{
+    url: string;
+    ratio: number;
+  } | null>(null);
+  const ratio =
+    imageAspect && imageAspect.url === config.baseImageUrl
+      ? imageAspect.ratio
+      : null;
 
   // Escape closes the open popover. This must be a React onKeyDown (not a
   // document listener) so it fires during React's synthetic bubble phase
@@ -81,18 +89,38 @@ export const HotspotImageWidget: React.FC<{ widget: WidgetData }> = ({
         config.baseImageUrl ? (
           <div
             className="w-full h-full relative bg-slate-900 overflow-hidden flex items-center justify-center"
+            style={{ containerType: 'size' }}
             onClick={() => setActivePinId(null)}
             onKeyDown={handleContentKeyDown}
           >
-            {/* The actual image constraint container so pins align properly */}
+            {/* Sized to the fitted image so pins align with it */}
             <div
               className="relative max-w-full max-h-full flex items-center justify-center"
-              style={{ aspectRatio: 'auto' }}
+              style={
+                ratio
+                  ? {
+                      width: `min(100cqw, calc(100cqh * ${ratio}))`,
+                      height: `min(100cqh, calc(100cqw / ${ratio}))`,
+                    }
+                  : undefined
+              }
             >
               <img
                 src={config.baseImageUrl}
                 alt="Base Hotspot Image"
-                className="max-w-full max-h-full object-contain pointer-events-none"
+                className={`${ratio ? 'w-full h-full' : 'max-w-full max-h-full'} object-contain pointer-events-none`}
+                onLoad={(e) => {
+                  const { naturalWidth, naturalHeight } = e.currentTarget;
+                  if (
+                    naturalWidth > 0 &&
+                    naturalHeight > 0 &&
+                    config.baseImageUrl
+                  )
+                    setImageAspect({
+                      url: config.baseImageUrl,
+                      ratio: naturalWidth / naturalHeight,
+                    });
+                }}
               />
 
               {config.hotspots?.map((spot) => {

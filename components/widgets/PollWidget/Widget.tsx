@@ -181,6 +181,8 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const questionChars = Math.max(1, activeQuestion.question.length);
+
   const arrowStyle = {
     width: 'min(28px, 9cqmin)',
     height: 'min(28px, 9cqmin)',
@@ -213,8 +215,12 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               </button>
             )}
             <div
-              className={`flex-1 min-w-0 font-black uppercase ${isAnnouncement ? 'text-white' : 'text-slate-800'} tracking-tight font-${globalStyle.fontFamily}`}
-              style={{ fontSize: 'min(32px, 10cqmin)', lineHeight: 1.1 }}
+              className={`flex-1 min-w-0 font-black uppercase ${isAnnouncement ? 'text-white' : 'text-slate-800'} tracking-tight [overflow-wrap:anywhere] font-${globalStyle.fontFamily}`}
+              style={{
+                // Long questions shrink so the whole question fits in about 40% of the face.
+                fontSize: `min(32px, 10cqmin, ${(64 / Math.sqrt(questionChars)).toFixed(2)}cqmin)`,
+                lineHeight: 1.1,
+              }}
             >
               {activeQuestion.question}
             </div>
@@ -286,10 +292,15 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               >
                 <div
                   className={`flex justify-between mb-1 uppercase tracking-wider ${isAnnouncement ? 'text-white/90' : 'text-slate-600'} font-${globalStyle.fontFamily}`}
-                  style={{ fontSize: 'min(16px, 5.5cqmin)' }}
+                  style={{
+                    fontSize: 'min(16px, 5.5cqmin)',
+                    gap: 'min(16px, 3cqmin)',
+                  }}
                 >
-                  <span className="font-bold truncate pr-4">{o.label}</span>
-                  <span className="font-mono whitespace-nowrap">
+                  <span className="font-bold min-w-0 [overflow-wrap:anywhere]">
+                    {o.label}
+                  </span>
+                  <span className="font-mono whitespace-nowrap shrink-0">
                     {o.votes} ({percent}%)
                   </span>
                 </div>

@@ -25,6 +25,11 @@ export const PROTECTED_PATTERNS: { name: string; pattern: RegExp }[] = [
   { name: 'attendance', pattern: /\b(absent|tardy|truant)\b/i },
 ];
 
+// Exact labels per widget type that name a headcount bucket, not a student's record, so they can't trip the protected-data check.
+export const PROTECTED_ALLOWED_LABELS: Record<string, string[]> = {
+  lunchCount: ['Field Trips / Absent'],
+};
+
 // Widgets whose harness fixtures show only part of the widget; their measurements cover what renders.
 export const PARTIAL_COVERAGE: Record<string, string> = {
   'car-rider-pro': 'always renders disabled without Firestore data',

@@ -40,6 +40,10 @@ export function collectFaceSnapshot(opts: CollectOptions): FaceSnapshot {
     inner.y < clip.y - TOLERANCE ||
     inner.x + inner.w > clip.x + clip.w + TOLERANCE ||
     inner.y + inner.h > clip.y + clip.h + TOLERANCE;
+  const SLIVER = 2;
+  const isSliver = (before: Box, after: Box): boolean =>
+    (after.w < SLIVER && after.w < before.w) ||
+    (after.h < SLIVER && after.h < before.h);
   const describe = (el: Element): string => {
     const parts: string[] = [];
     for (
@@ -132,6 +136,12 @@ export function collectFaceSnapshot(opts: CollectOptions): FaceSnapshot {
     for (const c of start ? clippers(start) : []) {
       const before = visible;
       visible = visible ? intersect(visible, c.clip) : null;
+      // A sliver left by a scroller is scrolled out of view, not clipped by the next box up.
+      if (before && visible && c.scrolls && isSliver(before, visible)) {
+        visible = null;
+        inScroller = true;
+        break;
+      }
       if (before && cuts(before, visible)) {
         if (c.scrolls) inScroller = true;
         else if (c.truncates) truncated = true;

@@ -55,6 +55,9 @@ function playBeep(frequency = 440, duration = 0.3): void {
   }
 }
 
+// Media blocks fill their cell; every other block scrolls inside its own cell.
+const FIXED_SIZE_BLOCKS = new Set(['image', 'hotspot', 'reveal', 'flip-card']);
+
 // ---------------------------------------------------------------------------
 // Main Widget
 // ---------------------------------------------------------------------------
@@ -290,10 +293,10 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
   return (
     <WidgetStateContext.Provider value={contextValue}>
       <div
-        className="w-full h-full"
+        className="w-full h-full [overflow-wrap:anywhere]"
         style={{
           display: 'grid',
-          gridTemplateColumns: `repeat(${activeGrid.columns}, 1fr)`,
+          gridTemplateColumns: `repeat(${activeGrid.columns}, minmax(0, 1fr))`,
           gridTemplateRows: `repeat(${activeGrid.rows}, 1fr)`,
         }}
       >
@@ -309,16 +312,22 @@ export const CustomWidgetWidget: React.FC<{ widget: WidgetData }> = ({
               />
             );
           }
+          const fixedSize = FIXED_SIZE_BLOCKS.has(cell.block.type);
           return (
             <div
               key={cell.id}
+              className={
+                fixedSize
+                  ? undefined
+                  : '[&>*]:!h-auto [&>*]:min-h-full [&>*]:!overflow-visible'
+              }
               style={{
                 gridColumn: `${cell.colStart} / span ${cell.colSpan}`,
                 gridRow: `${cell.rowStart} / span ${cell.rowSpan}`,
                 backgroundColor: cell.block.style.backgroundColor ?? undefined,
                 borderRadius: cell.block.style.borderRadius ?? undefined,
                 padding: cell.block.style.padding ?? undefined,
-                overflow: 'hidden',
+                overflow: fixedSize ? 'hidden' : 'auto',
               }}
             >
               <BlockRenderer block={cell.block} />

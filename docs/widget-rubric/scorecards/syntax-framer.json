@@ -1,9 +1,606 @@
 {
   "$schema": "../scorecard.schema.json",
   "widgetType": "syntax-framer",
-  "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "rubricVersion": "1.1.0",
+  "gradedAt": "2026-10-18T16:36:38.445Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "I5": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/envelope-min__empty.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/envelope-min__typical.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/envelope-min__stress.png"
+        ],
+        "runId": "after-sf"
+      },
+      "note": "At 150x100 the tokens shrink uniformly into clipped boxes with a 1.87 px smallest text and an unreadable stress row, and nothing collapses to keep the sentence dominant.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/large-1400x900__typical.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/large-1400x900__stress.png"
+        ],
+        "runId": "after-sf"
+      },
+      "note": "At 1400x900 the token tiles grow proportionally and fill the card with large, readable words, but the layout only zooms and shows no extra detail.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/widest-aspect__typical.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/widest-aspect__stress.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/tallest-aspect__stress.png"
+        ],
+        "runId": "after-sf"
+      },
+      "note": "The tokens reflow from a single wide row at 1400x350 to a stacked column of rows at 225x900 with little dead space, though the tall typical layout stretches tiles into oversized blocks.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png"
+        ],
+        "runId": "after-sf"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__empty.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__stress.png"
+        ],
+        "runId": "after-sf"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "S6": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/envelope-min__typical.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/envelope-min__stress.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__stress.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/large-1400x900__stress.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/maximized-1920x1080__stress.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/widest-aspect__stress.png"
+        ],
+        "runId": "after-sf"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/envelope-min__typical.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png"
+        ],
+        "runId": "after-sf"
+      },
+      "note": "The 150x100 minimum is set below what a sentence of tokens needs, so the typical sentence is cut off and unreadable there.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/maximized-1920x1080__stress.png"
+        ],
+        "runId": "after-sf"
+      },
+      "note": "Maximized fills the screen with large readable tokens but is the same card enlarged, with an oversized period tile on its own row and stress text clipped mid-word.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png"
+        ],
+        "runId": "after-sf"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "I2": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png"
+        ],
+        "runId": "after-sf"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "I3": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png"
+        ],
+        "runId": "after-sf"
+      },
+      "note": "Masking and dragging work with one finger, but color cycling needs a double-click or Shift+click, and a double tap also toggles the mask twice.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "I4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png"
+        ],
+        "runId": "after-sf"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "I6": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png"
+        ],
+        "runId": "after-sf"
+      },
+      "note": "Tokens show a masked state and a focus ring, but the default face shows no visible pressed or selected state beyond the grab cursor.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical__selected.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "after-sf"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png"
+        ],
+        "runId": "after-sf"
+      },
+      "note": "The face is clean, but every token sits in its own bordered, shadowed white box with everything centered, which reads dated.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__stress.png"
+        ],
+        "runId": "after-sf"
+      },
+      "note": "The sentence-building purpose reads at a glance and the face holds only the token tiles in two colors with few words.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png"
+        ],
+        "runId": "after-sf"
+      },
+      "note": "The sentence is the primary element, but every token tile has the same weight, and the lone period tile is as heavy as the words.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png"
+        ],
+        "runId": "after-sf"
+      },
+      "note": "It uses ScaledEmptyState and shared drawer schema controls, with no one-off colors or radii and only one raw control.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png"
+        ],
+        "runId": "after-sf"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png"
+        ],
+        "runId": "after-sf"
+      },
+      "note": "There are no copy violations and lucide is the only icon library, but the empty state says 'tokens' and the drawer labels are terse lowercase jargon ('text', 'math', 'content').",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png"
+        ],
+        "runId": "after-sf"
+      },
+      "note": "Content, mode and alignment can be set, but plausible choices such as font size, a no-wrap single line and default token color are hardcoded.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical__settings.png"
+        ],
+        "runId": "after-sf"
+      },
+      "note": "The settings screenshot shows the card selected with no drawer visible, and the schema has two small groups (content, behavior) that are standard but terse, with nothing advanced collapsed.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__empty.png"
+        ],
+        "runId": "after-sf"
+      },
+      "note": "On first drop the widget shows only a faint 'No tokens' empty state and is unusable until a sentence is typed in settings.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "C4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical__settings.png"
+        ],
+        "runId": "after-sf"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__empty.png"
+        ],
+        "runId": "after-sf"
+      },
+      "note": "ScaledEmptyState shows a 'No tokens' title and one line saying to open settings to add tokens, though the gray-on-gray text is faint.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "C6": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical__settings.png"
+        ],
+        "runId": "after-sf"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__empty.png",
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png"
+        ],
+        "runId": "after-sf"
+      },
+      "note": "Only the empty state is designed; the widget has no remote data, so loading, error and offline fall back to the same token face with no dedicated views.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png"
+        ],
+        "runId": "after-sf"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png"
+        ],
+        "runId": "after-sf"
+      },
+      "note": "The face shows only teacher-authored sentence tokens and no student data.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png"
+        ],
+        "runId": "after-sf"
+      },
+      "note": "The widget stands alone; high-value links are missing, such as sending a sentence to Text or Quiz, or using the Randomizer to pick a word to mask. Proposals: add 'send to Text widget' and 'mask a random word'; remove none.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-sf/screenshots/syntax-framer/default__typical.png"
+        ],
+        "runId": "after-sf"
+      },
+      "note": "It has a settings test, five small files (max 259 lines), no any, no useDashboard on the hot path and no derived-state effects, though the face behaviour itself is untested.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:36:38.445Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-sf"
+      },
+      "gradedAt": "2026-10-18T16:36:38.445Z"
+    },
+    "G2": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-sf"
+      },
+      "gradedAt": "2026-10-18T16:36:38.445Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-sf"
+      },
+      "gradedAt": "2026-10-18T16:36:38.445Z"
+    },
+    "G4": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-sf"
+      },
+      "gradedAt": "2026-10-18T16:36:38.445Z"
+    }
+  }
 }

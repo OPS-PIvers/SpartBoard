@@ -2449,6 +2449,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "concept-web.add-node",
+    "label": "Add Node button in Concept Web",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.concept-web.face",
+        "kind": "widget",
+        "widget_type": "concept-web",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "activity-wall.toggle-open",
     "label": "Open/Closed toggle in Activity Wall",
     "scope": "widget",

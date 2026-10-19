@@ -1,9 +1,567 @@
 {
   "$schema": "../scorecard.schema.json",
   "widgetType": "hotspot-image",
-  "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "rubricVersion": "1.1.0",
+  "gradedAt": "2026-10-18T16:05:40.455Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "S6": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/envelope-min__empty.png",
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/envelope-min__typical.png",
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/envelope-min__stress.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "note": "At 150x100 the image, pins and empty-state text all shrink together to about 10px pins and 2.7px text, and the stress grid of pins covers the image with nothing collapsing.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png",
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/large-1400x900__typical.png",
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/large-1400x900__stress.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "note": "At 1400x900 the image scales proportionally to fill the card except for thin letterbox bars, and the pins stay correctly placed at a sensible size.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/widest-aspect__typical.png",
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/widest-aspect__stress.png",
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/tallest-aspect__stress.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 1,
+      "source": "script",
+      "candidates": {
+        "script": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__empty.png",
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png",
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__stress.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/envelope-min__typical.png",
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "note": "The global 150x100 floor suits an image with tappable pins, and the default 500x400 shows the image comfortably.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/maximized-1920x1080__stress.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "note": "Maximized is the same letterboxed image enlarged with dark side bars, and the empty state stays the same faint centered message.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "I2": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "I3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "I4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "I5": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "I6": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "note": "Pins have distinct unviewed (pulsing emerald), viewed (slate) and active (blue, enlarged) states, with hover colors and focus rings.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical__selected.png",
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "note": "The pins look clean, but the heavy dark letterbox bands, shadowed pins and the gray-on-gray empty-state text look dated.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png",
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__stress.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "note": "It reads at a glance as an image with tappable pins, with only three pin controls and almost no text on the face.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "note": "The image is clearly the primary element and the small round pins sit on it as a secondary layer.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "note": "It uses the shared Button and ScaledEmptyState components with no one-off colors or radii, leaving only two raw controls.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "note": "Pins use one lucide icon style, and the copy is short with no copy-guard violations.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "note": "The image, pins, pin icons and popover theme can all be set, but plausible choices such as how the image fits the card (fill or letterbox) and the bar color are hardcoded.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical__settings.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "note": "The schema puts the Content group (base image, hotspots) ahead of a small Display group, and the hotspot fields stay hidden until an image exists, though the settings screenshot does not show the drawer.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__empty.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "note": "On first drop the widget shows only a 'No image uploaded' message and does nothing until the teacher uploads an image.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__empty.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "note": "ScaledEmptyState gives a title and one sentence pointing to Settings to upload an image, but its contrast is so low on the gray card that it is hard to read.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__empty.png",
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "note": "Only the no-image empty state is designed, and nothing visible covers an image that fails to load.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "note": "The face shows only an image and icon pins, with no student data.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "note": "It has no connections, and high-value candidates such as reusing Guided Learning hotspot images or sending a hotspot set to students are missing.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-hotspot-image/screenshots/hotspot-image/default__typical.png"
+        ],
+        "runId": "after-hotspot-image"
+      },
+      "note": "It has a folder test, four small files (largest 432 lines), no any types, no useDashboard calls and no derived-state effects.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T16:05:40.455Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-hotspot-image"
+      },
+      "gradedAt": "2026-10-18T16:05:40.455Z"
+    },
+    "G2": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-hotspot-image"
+      },
+      "gradedAt": "2026-10-18T16:05:40.455Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-hotspot-image"
+      },
+      "gradedAt": "2026-10-18T16:05:40.455Z"
+    },
+    "G4": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-hotspot-image"
+      },
+      "gradedAt": "2026-10-18T16:05:40.455Z"
+    }
+  }
 }
