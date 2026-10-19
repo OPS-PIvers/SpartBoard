@@ -185,4 +185,77 @@ describe('Speak carry-through', () => {
       (byId['s-none'].cards as FlashcardSet['cards'])[0]
     ).not.toHaveProperty('speak');
   });
+
+  it('writes a connector stamp to the snapshot', () => {
+    const calls: unknown[][] = [];
+    const db = { doc: (path: string) => path } as unknown as Parameters<
+      typeof stageSetWrite
+    >[0];
+    const batch = {
+      set: (...args: unknown[]) => calls.push(args),
+    } as unknown as Parameters<typeof stageSetWrite>[1];
+    const stamp = { dialects: ['es-419'], attempts: 3 };
+    stageSetWrite(
+      db,
+      batch,
+      'uid',
+      { ...base, termLanguage: 'es-US', publicShareId: 'share' },
+      'es-US',
+      stamp
+    );
+    expect(calls[1]?.[1]).toMatchObject({ speak: stamp });
+    expect((calls[1]?.[2] as { mergeFields: string[] }).mergeFields).toContain(
+      'speak'
+    );
+  });
+
+  it('re-stamps open sessions with their lock and skips one turned off', async () => {
+    const updates: Array<[string, Record<string, unknown>]> = [];
+    const sessions = [
+      { id: 's-locked', speak: { dialects: ['es-419'], locked: true } },
+      { id: 's-new' },
+      { id: 's-off', speakOff: true },
+    ];
+    const query = {
+      where: () => query,
+      get: () =>
+        Promise.resolve({
+          empty: false,
+          size: sessions.length,
+          docs: sessions.map((data) => ({
+            id: data.id,
+            ref: data.id,
+            get: (key: string) => (data as Record<string, unknown>)[key],
+          })),
+        }),
+    };
+    const db = {
+      collection: () => query,
+      batch: () => ({
+        update: (ref: string, data: Record<string, unknown>) =>
+          updates.push([ref, data]),
+        set: () => undefined,
+        commit: () => Promise.resolve(),
+      }),
+    } as unknown as Parameters<typeof rewriteOpenStudySessions>[0];
+    const stamp = { dialects: ['es-ES'], attempts: 5 };
+    await rewriteOpenStudySessions(
+      db,
+      'uid',
+      {
+        ...base,
+        termLanguage: 'es-US',
+        cards: [{ id: 'a', term: 'hola', definition: 'hi', speak }],
+      },
+      stamp
+    );
+    const byId = Object.fromEntries(updates);
+    expect(byId['s-locked'].speak).toEqual({ ...stamp, locked: true });
+    expect(byId['s-new'].speak).toEqual({ ...stamp, locked: false });
+    expect((byId['s-new'].cards as FlashcardSet['cards'])[0].speak).toBe(speak);
+    expect(byId['s-off']).not.toHaveProperty('speak');
+    expect(
+      (byId['s-off'].cards as FlashcardSet['cards'])[0]
+    ).not.toHaveProperty('speak');
+  });
 });

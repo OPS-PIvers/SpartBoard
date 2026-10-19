@@ -1,11 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { ToolContext } from './activity';
 import { hiddenToolsFor, registerTools } from './tools';
+import { SPEAK_G2P_VERSION } from '../pronunciation/lookup';
 
 const mocks = vi.hoisted(() => ({
+  speakGranted: vi.fn(() => Promise.resolve(false)),
+  compute: vi.fn(),
   isAdmin: vi.fn(),
   resultsOn: vi.fn(),
   restores: {
@@ -40,6 +43,13 @@ vi.mock('./miniAppTools', () => ({
   miniAppResultsOn: mocks.resultsOn,
 }));
 vi.mock('./resultsTools', () => ({ registerResultsTools: vi.fn() }));
+vi.mock('../quizMediaArchive', () => ({
+  isGlobalFeatureGranted: mocks.speakGranted,
+}));
+vi.mock('../pronunciation/lookup', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../pronunciation/lookup')>()),
+  computeSpeakReferences: mocks.compute,
+}));
 vi.mock('./glTools', () => ({
   registerGuidedLearningTools: vi.fn(),
   restoreGuidedLearningRevision: mocks.restores.gl,
@@ -367,6 +377,199 @@ describe('create_flashcard_set', () => {
     expect([...docs.keys()].some((k) => k.includes('flashcard_sets'))).toBe(
       false
     );
+  });
+});
+
+describe('flashcard Speak (S10)', () => {
+  const ref = (dialect: string) => ({
+    dialect,
+    tokens: ['o', 'l', 'a'],
+    stress: [0],
+  });
+  // Echoes each term; a term containing "?" comes back flagged for the teacher.
+  const fakeLookup = (input: {
+    dialects: string[];
+    terms: { cardId: string; term: string }[];
+  }) =>
+    Promise.resolve({
+      g2pVersion: 'test',
+      cards: Object.fromEntries(
+        input.terms.map((t) => [
+          t.cardId,
+          {
+            term: t.term,
+            refs: input.dialects.map(ref),
+            g2pVersion: SPEAK_G2P_VERSION,
+            status: t.term.includes('?') ? 'needs-review' : 'ready',
+            ...(t.term.includes('?') ? { reasons: ['g2p-disagree'] } : {}),
+          },
+        ])
+      ),
+    });
+  const es = (term: string) => ({ term, definition: 'd' });
+
+  beforeEach(() => {
+    mocks.speakGranted.mockReset();
+    mocks.speakGranted.mockResolvedValue(true);
+    mocks.compute.mockReset();
+    mocks.compute.mockImplementation(fakeLookup);
+  });
+
+  afterEach(() => {
+    mocks.speakGranted.mockResolvedValue(false);
+  });
+
+  it('saves Speak settings from a level, looks up every card and reports cards to check', async () => {
+    const { db, docs } = fakeDb({
+      'admin_settings/flashcardsSpeak': { attempts: 4 },
+    });
+    const res = await (
+      await connect(db)
+    )('create_flashcard_set', {
+      title: 'Animales',
+      term_language: 'es-MX',
+      cards: [es('perro'), es('l?bo')],
+      speak: { level: 'intermediate', dialects: ['es-ES'], hear_it: false },
+    });
+    expect(res.speak).toMatchObject({
+      cards_ready: 1,
+      cards_to_check: 1,
+      cards_unavailable: 0,
+      note: expect.any(String) as string,
+    });
+    const saved = docs.get(setPath(res.set_id as string)) as Data;
+    expect(saved.speak).toMatchObject({
+      dialects: ['es-ES'],
+      preset: 'intermediate',
+      strict: false,
+      attempts: 4,
+      example: false,
+    });
+    expect((saved.speak as { groups: Data }).groups).toMatchObject({
+      'es-trill': 'require',
+      'es-soft-bdg': 'forgive',
+    });
+    const cards = saved.cards as { speak?: { status: string } }[];
+    expect(cards.map((c) => c.speak?.status)).toEqual([
+      'ready',
+      'needs-review',
+    ]);
+    expect(mocks.compute).toHaveBeenCalledTimes(1);
+  });
+
+  it('looks up cards for a Speak language without writing settings', async () => {
+    const { db, docs } = fakeDb();
+    const res = await (
+      await connect(db)
+    )('create_flashcard_set', {
+      title: 'Tiere',
+      term_language: 'de-DE',
+      cards: [es('Hund')],
+    });
+    const saved = docs.get(setPath(res.set_id as string)) as Data;
+    expect(saved).not.toHaveProperty('speak');
+    expect((saved.cards as { speak?: unknown }[])[0].speak).toMatchObject({
+      refs: [ref('de-DE')],
+    });
+  });
+
+  it('refuses Speak settings for an unsupported language or without the flag', async () => {
+    const { db, docs } = fakeDb();
+    const call = await connect(db);
+    expect(
+      (
+        await call('create_flashcard_set', {
+          title: 'Animaux',
+          term_language: 'fr-FR',
+          cards: [es('chien')],
+          speak: { level: 'beginner' },
+        })
+      ).error
+    ).toMatch(/Spanish, German or English/);
+    mocks.speakGranted.mockResolvedValue(false);
+    expect(
+      (
+        await call('create_flashcard_set', {
+          title: 'Animales',
+          term_language: 'es-MX',
+          cards: [es('perro')],
+          speak: { level: 'beginner' },
+        })
+      ).error
+    ).toMatch(/not turned on/);
+    expect([...docs.keys()].some((k) => k.includes('flashcard_sets'))).toBe(
+      false
+    );
+  });
+
+  it('runs no lookup without the flag', async () => {
+    mocks.speakGranted.mockResolvedValue(false);
+    const { db, docs } = fakeDb();
+    const res = await (
+      await connect(db)
+    )('create_flashcard_set', {
+      title: 'Animales',
+      term_language: 'es-MX',
+      cards: [es('perro')],
+    });
+    expect(mocks.compute).not.toHaveBeenCalled();
+    expect(res).not.toHaveProperty('speak');
+    expect((docs.get(setPath(res.set_id as string)) as Data).cards).toEqual([
+      { id: expect.any(String) as string, term: 'perro', definition: 'd' },
+    ]);
+  });
+
+  it('looks up only changed terms on an edit and keeps the set settings', async () => {
+    const { db, docs } = fakeDb();
+    const call = await connect(db);
+    const made = await call('create_flashcard_set', {
+      title: 'Animales',
+      term_language: 'es-MX',
+      cards: [es('perro'), es('gato')],
+      speak: { attempts: 2 },
+    });
+    const id = made.set_id as string;
+    const before = (docs.get(setPath(id)) as Data).cards as {
+      id: string;
+      term: string;
+    }[];
+    mocks.compute.mockClear();
+    await call('update_flashcard_set', {
+      set_id: id,
+      cards: [
+        { id: before[0].id, term: 'perro', definition: 'dog' },
+        { id: before[1].id, term: 'gata', definition: 'cat' },
+      ],
+    });
+    expect(mocks.compute).toHaveBeenCalledTimes(1);
+    expect(
+      (mocks.compute.mock.calls[0][0] as { terms: { term: string }[] }).terms
+    ).toEqual([{ cardId: before[1].id, term: 'gata' }]);
+    const saved = docs.get(setPath(id)) as Data;
+    expect((saved.speak as Data).attempts).toBe(2);
+    expect(
+      (saved.cards as { speak?: { term: string } }[]).map((c) => c.speak?.term)
+    ).toEqual(['perro', 'gata']);
+  });
+
+  it('marks cards when the lookup fails and retries them on the next save', async () => {
+    const { db, docs } = fakeDb();
+    const call = await connect(db);
+    mocks.compute.mockRejectedValueOnce(new Error('espeak down'));
+    const made = await call('create_flashcard_set', {
+      title: 'Animales',
+      term_language: 'es-MX',
+      cards: [es('perro')],
+    });
+    const id = made.set_id as string;
+    expect(made.speak).toMatchObject({ cards_unavailable: 1 });
+    expect(
+      ((docs.get(setPath(id)) as Data).cards as { speak?: Data }[])[0].speak
+    ).toMatchObject({ status: 'unavailable', reasons: ['lookup-failed'] });
+    await call('update_flashcard_set', { set_id: id, title: 'Animales 2' });
+    expect(
+      ((docs.get(setPath(id)) as Data).cards as { speak?: Data }[])[0].speak
+    ).toMatchObject({ status: 'ready' });
   });
 });
 
