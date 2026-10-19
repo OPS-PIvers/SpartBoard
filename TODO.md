@@ -232,7 +232,7 @@ Each item names the plan it came from; the plan holds the detail.
 #### `docs/multilingual-pronunciation-engine.md`
 
 - [ ] Move on-device decoding into a Web Worker with a "Checking…" state, CPU only (plan §4.5, #2350). (S)
-- [ ] Send the espeak-ng GPL brief to district counsel, with the question of whether practice-only Speak scores need the Tennessen notice; the `flashcards-speak` flag stays admin-only until they confirm (G19, F3, #2337). (S)
+- [ ] Send the espeak-ng GPL brief to district counsel; the `flashcards-speak` flag stays admin-only until they confirm (G19, #2337). (S)
 
 #### `docs/gemini-api-terms-audit.md`
 

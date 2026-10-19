@@ -225,7 +225,7 @@ what carries over.
 - **F3 — No recording is kept.** Audio is held in memory for the decode and discarded. Nothing is uploaded, archived to Drive or written to Firestore.
   - Rich response's capture pieces (`useAudioRecording`, its take/review UI) are reused for the microphone only, not its upload path or `RecordingConsentNotice`.
   - D1's "voice stays on the device" is a property of this mode again, not a choice.
-  - **Open:** whether the Tennessen notice still applies to practice scores and sound tallies. Expected answer: they are ordinary Study progress. Goes in the same counsel brief as G19.
+  - **No consent notice** (Paul, 2026-10-19). Practice scores and sound tallies are no more sensitive than a quiz question response, so Speak mode shows no Tennessen notice.
 - **F4 — Dialects and references.** The set stores its accepted dialect set (`speakDialects`), prefilled from `termLanguage` with G4's defaults. Each card stores reference phonemes per dialect, computed on set save by the step 3 callable, plus `g2pVersion` and a confirmed flag. The student is scored against the closest dialect.
 - **F5 — Attempts.** Each card shown in a round allows up to N attempts (G5: 1–10, default 3, set per set and lockable per assignment). Every attempt is scored and shown at once. The card **passes the round** if an attempt clears the strictness mark; otherwise it fails the round.
 - **F6 — Strictness and example.** G7 carries: Loose / Close / Exact, default Close, admin-tunable marks, stress at `w` = 10–15%. Set per set, lockable per assignment. G8's example is read-aloud TTS in the dialect, with a per-set off switch. A teacher-recorded example is deferred, since it would add teacher audio storage to a set.
@@ -384,7 +384,7 @@ written for the quiz type that follows it.
    - set and card fields (`speakDialects`, per-card references), the save-time lookup and the editor (F4, F11);
    - the `'speak'` mode in `FlashcardPlayer`: capture, Web Worker decode, attempts and feedback (F1–F3, F5, F6, G16), and the unsupported state (F12).
 5. Mastery tracking and results: `speak` progress and `speakSounds` with their progress rules (F7, F8), the Study results columns and class views (F10), and connector support (F11).
-6. Before the flag opens: the adult L2 corpus and the per-word pass-rate review (F13), and counsel sign-off on espeak and on the notice question (G19, F3).
+6. Before the flag opens: the adult L2 corpus and the per-word pass-rate review (F13), and counsel sign-off on espeak (G19).
 7. **Later, its own decision:** the graded quiz `'speak'` type (§5.2's deferred rows), behind `quiz-speak-questions`, reusing the editor and player pieces from step 4.
 
 ---
