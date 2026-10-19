@@ -9,6 +9,11 @@ import { scansFile, unanchoredControls } from './checkTourAnchors.ts';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const json = args.includes('--json');
+const unknown = args.filter((a) => a.startsWith('--') && a !== '--json');
+if (unknown.length) {
+  console.error(`Unknown flag: ${unknown.join(', ')}`);
+  process.exit(2);
+}
 const prefixes = args.filter((a) => a !== '--json');
 
 const files = execFileSync('git', ['ls-files', 'components', 'App.tsx'], {
@@ -21,6 +26,13 @@ const files = execFileSync('git', ['ls-files', 'components', 'App.tsx'], {
       scansFile(path) &&
       (prefixes.length === 0 || prefixes.some((p) => path.startsWith(p)))
   );
+
+if (prefixes.length && files.length === 0) {
+  console.error(
+    `No teacher-facing .tsx files match ${prefixes.join(', ')} (paths are case-sensitive).`
+  );
+  process.exit(2);
+}
 
 const out: { file: string; controls: { line: number; tag: string }[] }[] = [];
 for (const file of files) {

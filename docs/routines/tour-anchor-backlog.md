@@ -10,7 +10,7 @@ Work the first area that still has controls listed, finishing whole files before
 
 1. **Widgets:** `components/widgets/` (widget faces and their settings panels).
 2. **Board chrome:** `components/layout/`, `App.tsx`, `components/settings/`, `components/settingsModal/`, `components/backgroundsModal/`.
-3. **Shared pieces:** `components/common/`. Tag the call site's surface where the shared component takes a `tourId`-style prop; otherwise defer.
+3. **Shared pieces:** `components/common/`. A control here renders on many surfaces, so one fixed id is only right when it means the same thing everywhere (a shared dialog's Close). Otherwise add a prop the callers pass to `tourAttr`, or defer the control.
 4. **Library and assigning:** `components/quiz/`, `components/flashcards/`, `components/activityWall/`, `components/videoActivity/`, `components/classes/`, `components/share/`, `components/schoology/`, `components/spotify/`.
 5. **Teams:** `components/plc/`.
 6. **Admin:** `components/admin/`.
