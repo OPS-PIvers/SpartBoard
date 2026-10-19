@@ -758,6 +758,14 @@ service cloud.firestore {
       allow read, write: if ownsUserTeacher(userId) && notAnon();
     }
 
+    match /users/{userId}/scored_work/{workId} {
+      allow read, write: if ownsUserTeacher(userId) && notAnon();
+
+      match /scores/{seat} {
+        allow read, write: if ownsUserTeacher(userId) && notAnon();
+      }
+    }
+
     // Handwriting transcription jobs: owner reads; the import callable and worker write.
     match /users/{userId}/paper_transcription_jobs/{jobId} {
       allow read: if ownsUserTeacher(userId) && notAnon();
@@ -2984,6 +2992,12 @@ service cloud.firestore {
           );
         // No client writes — server-only (Admin SDK bypasses rules).
         allow create, update, delete: if false;
+      }
+
+      // Anonymized scored-paper-work rollups; written only by publishScoredWorkToPlcV1.
+      match /scored_work_rollups/{rollupId} {
+        allow read: if plcReader(plcId);
+        allow write: if false;
       }
 
       // ---- Team updates (TEAMS_REDESIGN T27) ----

@@ -254,7 +254,11 @@ export interface RosterGroupSymbol {
 }
 
 export type RosterGroupReminderSound =
-  'off' | 'chime' | 'bell' | 'marimba' | 'harp';
+  | 'off'
+  | 'chime'
+  | 'bell'
+  | 'marimba'
+  | 'harp';
 
 export interface RosterGroupAlert {
   /** 24-hour "HH:mm" in the teacher's local time. */
@@ -1142,7 +1146,9 @@ export interface PlcNoteAgendaBlock extends PlcNoteBlockBase {
 }
 
 export type PlcNoteBlock =
-  PlcNoteDataBlock | PlcNoteDecisionBlock | PlcNoteAgendaBlock;
+  | PlcNoteDataBlock
+  | PlcNoteDecisionBlock
+  | PlcNoteAgendaBlock;
 
 /** Lifecycle of a note's meeting recording (docs/plans/shipped/PLC_MEETING_RECORDING.md). */
 export type PlcRecordingStatus =
@@ -1156,7 +1162,9 @@ export type PlcRecordingStatus =
   | 'failed';
 
 export type PlcRecordingAudioDeletedReason =
-  'manual' | 'expired' | 'transcribed';
+  | 'manual'
+  | 'expired'
+  | 'transcribed';
 
 /** One MediaRecorder run; its segments concatenate into one WebM file (MR-D7). */
 export interface PlcRecordingPart {
@@ -1667,7 +1675,11 @@ export interface PlcMeeting {
 
 // --- Admin-curated resources pushed to PLCs ---
 export type PlcResourceKind =
-  'quiz' | 'video-activity' | 'assignment' | 'doc' | 'board';
+  | 'quiz'
+  | 'video-activity'
+  | 'assignment'
+  | 'doc'
+  | 'board';
 
 export type PlcResourceScope = 'all' | 'selected';
 
@@ -1783,7 +1795,13 @@ export interface Path {
 // `kind` (see components/widgets/DrawingWidget/useDrawingCanvas.ts).
 
 export type DrawableObjectKind =
-  'path' | 'rect' | 'ellipse' | 'line' | 'arrow' | 'text' | 'image';
+  | 'path'
+  | 'rect'
+  | 'ellipse'
+  | 'line'
+  | 'arrow'
+  | 'text'
+  | 'image';
 
 export interface BaseDrawableObject {
   id: string;
@@ -2143,7 +2161,14 @@ export interface SoundConfig {
 
 /** Active drawing tool. Replaces the legacy `config.color === 'eraser'` overload. */
 export type ShapeTool =
-  'pen' | 'eraser' | 'rect' | 'ellipse' | 'line' | 'arrow' | 'text' | 'select';
+  | 'pen'
+  | 'eraser'
+  | 'rect'
+  | 'ellipse'
+  | 'line'
+  | 'arrow'
+  | 'text'
+  | 'select';
 
 /**
  * Eraser sub-tool. The DrawingWidget eraser surfaces three modes:
@@ -2340,18 +2365,35 @@ export interface PollSessionDoc {
 
 export type ActivityWallMode = 'text' | 'photo';
 export type ActivityWallIdentificationMode =
-  'anonymous' | 'name' | 'pin' | 'name-pin';
+  | 'anonymous'
+  | 'name'
+  | 'pin'
+  | 'name-pin';
 
 export type ActivityWallArchiveStatus =
-  'firebase' | 'syncing' | 'archived' | 'failed' | 'lost';
+  | 'firebase'
+  | 'syncing'
+  | 'archived'
+  | 'failed'
+  | 'lost';
 
 /** Padlet-lite redesign (P1-1): board layout a wall renders as. */
 export type ActivityWallLayout =
-  'wall' | 'columns' | 'table' | 'timeline' | 'map' | 'wordcloud';
+  | 'wall'
+  | 'columns'
+  | 'table'
+  | 'timeline'
+  | 'map'
+  | 'wordcloud';
 
 /** Per-wall toggleable submission kinds; `text` is always on. */
 export type ActivityWallSubmissionType =
-  'text' | 'word' | 'photo' | 'link' | 'file' | 'video';
+  | 'text'
+  | 'word'
+  | 'photo'
+  | 'link'
+  | 'file'
+  | 'video';
 
 /** Wall background: a Tailwind class string (color/gradient) or a preset image URL. */
 export interface ActivityWallAppearance {
@@ -2741,7 +2783,12 @@ export interface ExpectationsConfig {
   voiceLevel: number | null; // 0, 1, 2, 3, or 4
   workMode: 'individual' | 'partner' | 'group' | null;
   interactionMode:
-    'none' | 'respectful' | 'listening' | 'productive' | 'discussion' | null;
+    | 'none'
+    | 'respectful'
+    | 'listening'
+    | 'productive'
+    | 'discussion'
+    | null;
   instructionalRoutine?: string; // Legacy/K-8
   activeRoutines?: string[]; // New: 9-12 Multi-select
   layout?: 'secondary' | 'elementary';
@@ -2814,7 +2861,12 @@ export interface WorkSymbolsGlobalConfig {
 // --- BLOOM'S TAXONOMY ---
 
 export type BloomsLevelKey =
-  'remember' | 'understand' | 'apply' | 'analyze' | 'evaluate' | 'create';
+  | 'remember'
+  | 'understand'
+  | 'apply'
+  | 'analyze'
+  | 'evaluate'
+  | 'create';
 
 export type BloomsCategoryKey =
   | 'questionStems'
@@ -3475,7 +3527,13 @@ export interface MiniAppItem {
 }
 
 export type MiniAppQuestionType =
-  'mc' | 'multi' | 'tf' | 'numeric' | 'short' | 'order' | 'other';
+  | 'mc'
+  | 'multi'
+  | 'tf'
+  | 'numeric'
+  | 'short'
+  | 'order'
+  | 'other';
 
 export interface MiniAppManifestQuestion {
   id: string;
@@ -4062,7 +4120,12 @@ export interface RecessGearConfig {
  * `utils/quizQuestionNormalize.ts`.
  */
 export type QuizQuestionType =
-  'MC' | 'FIB' | 'Matching' | 'Ordering' | 'MA' | 'free-response';
+  | 'MC'
+  | 'FIB'
+  | 'Matching'
+  | 'Ordering'
+  | 'MA'
+  | 'free-response';
 
 /** True iff the question type requires manual teacher grading. */
 export function isFreeResponseType(type: QuizQuestionType): boolean {
@@ -4454,7 +4517,10 @@ export interface QuizSessionBankSlot {
 
 /** What happens when a recording question's prep countdown runs out. */
 export type RecordingPrepExpiry =
-  'auto-start' | 'auto-advance' | 'armed' | 'unanswered';
+  | 'auto-start'
+  | 'auto-advance'
+  | 'armed'
+  | 'unanswered';
 
 /**
  * Per-question audio capture settings. `limitSeconds` is a hard stop with a
@@ -4486,7 +4552,10 @@ export type RecordingResponseMode = 'audio' | 'whiteboard';
 
 /** One shape drawn large and centred on a whiteboard starting page. */
 export type WhiteboardShapeKind =
-  'triangle' | 'rectangle' | 'circle' | 'polygon';
+  | 'triangle'
+  | 'rectangle'
+  | 'circle'
+  | 'polygon';
 
 /** The code-drawn pattern under a whiteboard starting page. */
 export type WhiteboardStartingPattern =
@@ -5481,7 +5550,11 @@ export type PaperTranscriptState = 'pending' | 'done' | 'blank';
 
 /** Teacher-side transcription state, kept in the private subdoc. */
 export type PaperPrivateStatus =
-  'pending' | 'done' | 'failed' | 'blank' | 'over-quota';
+  | 'pending'
+  | 'done'
+  | 'failed'
+  | 'blank'
+  | 'over-quota';
 
 /** `quiz_sessions/{sid}/responses/{key}/paperPrivate/{questionId}`: teacher-only AI internals. */
 export interface PaperPrivateAnswer {
@@ -5506,7 +5579,12 @@ export interface PaperPrivateAnswer {
 export type WrittenReturnMode = 'handwriting' | 'typed' | 'both';
 
 export type PaperTranscriptionJobStatus =
-  'queued' | 'running' | 'done' | 'failed' | 'over-quota' | 'superseded';
+  | 'queued'
+  | 'running'
+  | 'done'
+  | 'failed'
+  | 'over-quota'
+  | 'superseded';
 
 /** `users/{uid}/paper_transcription_jobs/{scanId}_{seat}_{page}_{attempt}`: one page to transcribe. */
 export interface PaperTranscriptionJob {
@@ -5597,7 +5675,10 @@ export interface QuizResponseBackTranslation {
 
 /** How an exit from a quiz or video activity ended; unset while the student is still away. */
 export type TabExitOutcome =
-  'returned' | 'over-limit' | 'auto-submitted' | 'session-ended';
+  | 'returned'
+  | 'over-limit'
+  | 'auto-submitted'
+  | 'session-ended';
 
 /** One time a student left a quiz or video activity (docs/plans/shipped/TAB_AWAY_TIMER.md §3.1). */
 export interface TabExit {
@@ -6247,6 +6328,87 @@ export interface PlcRubricEntry extends Rubric {
 }
 
 /**
+ * A teacher's own worksheet printed once per student and scored by rubric from
+ * a scan, at `users/{teacherUid}/scored_work/{workId}`.
+ *
+ * PII-free like `PaperBatch`: seats hold opaque ids, and names and scan images
+ * live only in the teacher's Drive (`driveFolderId`).
+ */
+export interface ScoredWork {
+  id: string;
+  title: string;
+  /** Snapshot of the rubric at creation; later library edits never move scores. */
+  rubric: Rubric;
+  rosterIds: string[];
+  /** Seat number printed in the page marker -> roster row. Opaque. */
+  seats: Record<number, PaperSeatAssignment>;
+  /** Seats printed without a student, for walk-ins. */
+  spareSeats: number[];
+  /** Worksheet pages each student receives. */
+  pageCount: number;
+  createdAt: number;
+  updatedAt: number;
+  /** Drive folder holding the scan images and the name manifest. */
+  driveFolderId?: string;
+  /** Set once the teacher shares scores with a PLC. */
+  plc?: ScoredWorkPlcLink;
+}
+
+export interface ScoredWorkPlcLink {
+  plcId: string;
+  /** Teacher-chosen name that ties repeat administrations together over time. */
+  seriesLabel: string;
+  publishedAt?: number;
+}
+
+/**
+ * One student's rubric scores, at `users/{teacherUid}/scored_work/{workId}/scores/{seat}`.
+ * Seat keyed and name-free; `scanFileIds` are opaque Drive ids.
+ */
+export interface ScoredWorkScore {
+  seat: number;
+  /** `RubricCriterion.id` -> index into that criterion's `levels`. */
+  levels: Record<string, number>;
+  points: number;
+  max: number;
+  scoredAt: number;
+  scanFileIds?: string[];
+}
+
+/** One criterion row of a PLC rollup: how many students landed on each level. */
+export interface PlcScoredWorkCriterionRow {
+  criterionId: string;
+  name: string;
+  levelLabels: string[];
+  levelPoints: number[];
+  /** Student count per level, same order as `levelLabels`. */
+  levelCounts: number[];
+  /** Mean percent of the criterion's top level across scored students. */
+  averagePercent: number;
+}
+
+/**
+ * Anonymized rollup of one teacher's scored work, at
+ * `plcs/{plcId}/scored_work_rollups/{workId}`. Server-written only and never
+ * holds a student row, name or seat.
+ */
+export interface PlcScoredWorkRollup {
+  workId: string;
+  plcId: string;
+  teacherUid: string;
+  title: string;
+  seriesLabel: string;
+  studentCount: number;
+  averagePercent: number;
+  criteria: PlcScoredWorkCriterionRow[];
+  /** Scored students pooled into percent bands. */
+  scoreDistribution: PlcAggregateScoreBand[];
+  /** ms when the teacher published; drives the over-time view. */
+  publishedAt: number;
+  ranAt: number;
+}
+
+/**
  * Per-roster, non-PII PIN index. Stored at
  * `/users/{teacherUid}/rosters/{rosterId}/pin_index/{indexKey}`.
  *
@@ -6449,7 +6611,10 @@ export type QuizAssignmentStatus = 'active' | 'paused' | 'inactive';
  * level without needing access to the teacher's assignment doc.
  */
 export type QuizScoreVisibility =
-  'none' | 'score-only' | 'score-and-responses' | 'score-responses-and-answers';
+  | 'none'
+  | 'score-only'
+  | 'score-and-responses'
+  | 'score-responses-and-answers';
 
 /**
  * Anti-screenshot protections applied to a student's view of published quiz
@@ -6528,7 +6693,8 @@ export interface PlcLinkage {
 
 /** A student a teacher can individually target. sourcedId is PII-adjacent — see spec §2a. */
 export type StudentTargetRef =
-  { kind: 'classlink'; sourcedId: string } | { kind: 'test'; email: string };
+  | { kind: 'classlink'; sourcedId: string }
+  | { kind: 'test'; email: string };
 
 /** Embedded rubric snapshot used by per-student rubric overrides. */
 export type RubricSnapshot = Rubric;
@@ -6557,7 +6723,11 @@ export interface StudentOverride {
  */
 export interface StudentAssignmentPointer {
   kind:
-    'quiz' | 'video-activity' | 'guided-learning' | 'mini-app' | 'flashcards';
+    | 'quiz'
+    | 'video-activity'
+    | 'guided-learning'
+    | 'mini-app'
+    | 'flashcards';
   sessionId: string;
   teacherUid: string;
   classId: string;
@@ -7017,7 +7187,8 @@ export type SyncedQuizVersionSnapshot =
 export type SyncedVideoActivityVersionSnapshot =
   PlcVersionSnapshot<PlcVideoActivityVersionContent>;
 export type SyncedVersionSnapshot =
-  SyncedQuizVersionSnapshot | SyncedVideoActivityVersionSnapshot;
+  | SyncedQuizVersionSnapshot
+  | SyncedVideoActivityVersionSnapshot;
 
 /**
  * Shared-assignment document stored at
@@ -7223,7 +7394,10 @@ export interface VideoActivitySessionSettings {
  * what the student sees on the post-completion screen.
  */
 export type VideoActivityScoreVisibility =
-  'none' | 'score-only' | 'score-and-responses' | 'score-responses-and-answers';
+  | 'none'
+  | 'score-only'
+  | 'score-and-responses'
+  | 'score-responses-and-answers';
 
 /**
  * Assignment-policy options for a Video Activity session. Distinct from
@@ -8088,9 +8262,14 @@ export type GuidedLearningInteractionType =
   | 'spotlight'
   | 'question';
 export type GuidedLearningOverlayType =
-  'none' | 'popover' | 'tooltip' | 'banner';
+  | 'none'
+  | 'popover'
+  | 'tooltip'
+  | 'banner';
 export type GuidedLearningQuestionType =
-  'multiple-choice' | 'matching' | 'sorting';
+  | 'multiple-choice'
+  | 'matching'
+  | 'sorting';
 
 /**
  * Score-visibility levels for a Guided Learning assignment. Structurally
@@ -8099,7 +8278,10 @@ export type GuidedLearningQuestionType =
  * picker works across all three widgets.
  */
 export type GuidedLearningScoreVisibility =
-  'none' | 'score-only' | 'score-and-responses' | 'score-responses-and-answers';
+  | 'none'
+  | 'score-only'
+  | 'score-and-responses'
+  | 'score-responses-and-answers';
 
 export interface GuidedLearningQuestion {
   type: GuidedLearningQuestionType;
@@ -8234,7 +8416,11 @@ export type GuidedLearningPublicNarration = Pick<
 >;
 
 export type GuidedLearningTourAction =
-  'click' | 'observe' | 'toggle' | 'select' | 'type';
+  | 'click'
+  | 'observe'
+  | 'toggle'
+  | 'select'
+  | 'type';
 
 export interface GuidedLearningTourBinding {
   /** TOUR_ANCHORS key */
@@ -8275,7 +8461,11 @@ export interface TourOpenMaterial {
 }
 
 export type TourMaterialKind =
-  'quiz' | 'video-activity' | 'guided-learning' | 'mini-app' | 'activity-wall';
+  | 'quiz'
+  | 'video-activity'
+  | 'guided-learning'
+  | 'mini-app'
+  | 'activity-wall';
 
 /** A library item's library entry and full content, as its widget stores them. */
 export interface TourMaterialContent {
@@ -9078,7 +9268,10 @@ export interface FlashcardsConfig {
  * states.
  */
 export type ProjectStepState =
-  'notStarted' | 'inProgress' | 'readyForReview' | 'done';
+  | 'notStarted'
+  | 'inProgress'
+  | 'readyForReview'
+  | 'done';
 
 export interface ProjectStep {
   id: string;
@@ -9861,7 +10054,10 @@ export interface Dashboard {
  * honor the host's choice instead of letting the recipient pick.
  */
 export type SharedBoardIntendedMode =
-  'copy' | 'synced' | 'view-only' | 'substitute';
+  | 'copy'
+  | 'synced'
+  | 'view-only'
+  | 'substitute';
 
 /**
  * Per-roster Drive permission record persisted on a substitute share when the
@@ -9925,7 +10121,12 @@ export interface Toast {
 }
 
 export type WidgetCategory =
-  'time' | 'management' | 'instruction' | 'interaction' | 'media' | 'fun';
+  | 'time'
+  | 'management'
+  | 'instruction'
+  | 'interaction'
+  | 'media'
+  | 'fun';
 
 export interface ToolMetadata {
   type: WidgetType | InternalToolType;
@@ -9991,6 +10192,7 @@ export type GlobalFeature =
   | 'quiz-imscc-import'
   /** Paper answer sheets; only meaningful while the district switch is on. */
   | 'paper-answer-sheets'
+  | 'paper-scored-work'
   /** Saved class groups inside board widgets; AND-ed with the district switch. */
   | 'roster-groups'
   /** Importing a quiz from a test document; AND-ed with the district switch. */
@@ -10201,7 +10403,10 @@ export type AssignmentMode = 'submissions' | 'view-only';
 
 /** Widgets whose assignment behavior is controlled by AssignmentModesConfig. */
 export type AssignmentWidgetKey =
-  'quiz' | 'videoActivity' | 'miniApp' | 'guidedLearning';
+  | 'quiz'
+  | 'videoActivity'
+  | 'miniApp'
+  | 'guidedLearning';
 
 /**
  * Stored as the `config` of the `assignment-modes` GlobalFeaturePermission doc.
@@ -10425,7 +10630,10 @@ export interface ScalingConfig {
 
 export type AnnouncementActivationType = 'manual' | 'scheduled';
 export type AnnouncementDismissalType =
-  'user' | 'scheduled' | 'duration' | 'admin';
+  | 'user'
+  | 'scheduled'
+  | 'duration'
+  | 'admin';
 
 /**
  * An admin-created announcement that is pushed to users' dashboards as an overlay widget.
@@ -11335,7 +11543,14 @@ export interface LibraryFolder {
 }
 
 export type LibraryFolderColor =
-  'red' | 'orange' | 'amber' | 'green' | 'teal' | 'blue' | 'pink' | 'gray';
+  | 'red'
+  | 'orange'
+  | 'amber'
+  | 'green'
+  | 'teal'
+  | 'blue'
+  | 'pink'
+  | 'gray';
 
 /**
  * A Board collection (folder) stored at

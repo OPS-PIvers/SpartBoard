@@ -41,6 +41,7 @@ import {
   StickyNote,
   Table2,
   Target,
+  ScanLine,
   TextCursorInput,
   Timer,
   UserSearch,
@@ -64,7 +65,12 @@ import type {
 
 export type FeatureStage = 'preview' | 'permanent';
 export type FeatureCategory =
-  'ai' | 'sharing' | 'integrations' | 'students' | 'groups' | 'look';
+  | 'ai'
+  | 'sharing'
+  | 'integrations'
+  | 'students'
+  | 'groups'
+  | 'look';
 
 export const FEATURE_CATEGORY_LABELS: Record<FeatureCategory, string> = {
   ai: 'AI',
@@ -775,6 +781,21 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     afterLaunch: 'keep',
     widget: 'quiz',
     modalLabel: 'Handwritten answers',
+    group: 'questions',
+    requires: 'paper-answer-sheets',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Print a teacher's worksheet per student, scan it and score by rubric; AND-ed with the paper-answer-sheets gate.
+  'paper-scored-work': {
+    label: 'Scored paper work',
+    icon: ScanLine,
+    description: 'Print worksheets per student, scan them and score by rubric.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    modalLabel: 'Scored paper work',
     group: 'questions',
     requires: 'paper-answer-sheets',
     defaultAccessLevel: 'admin',

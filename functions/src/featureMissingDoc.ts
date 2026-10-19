@@ -24,6 +24,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'gl-student-progress',
   'plc-notes-rich-editor',
   'paper-handwritten-responses',
+  'paper-scored-work',
   'claude-connector',
   'claude-connector-guided-learning',
   'video-activity-live',
