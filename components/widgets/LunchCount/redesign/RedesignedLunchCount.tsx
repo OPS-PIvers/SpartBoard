@@ -435,7 +435,7 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
         isOpen={model.isModalOpen}
         onClose={() => model.setIsModalOpen(false)}
         onSubmit={model.handleSubmitReport}
-        data={model.reportData}
+        data={{ ...model.reportData, schoolSite }}
         isSubmitting={model.isSubmitting}
       />
       <PhotoPeek widget={widget} item={peekedItem} onClose={closePeek} />

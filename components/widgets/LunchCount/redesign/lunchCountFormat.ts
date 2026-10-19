@@ -126,5 +126,7 @@ export const ZONE_TONE: Record<
   },
 };
 
-export const isMiddleHighSite = (site: string | undefined): boolean =>
+export const isMiddleHighSite = (
+  site: string | undefined
+): site is 'orono-middle-school' | 'orono-high-school' =>
   site === 'orono-middle-school' || site === 'orono-high-school';
