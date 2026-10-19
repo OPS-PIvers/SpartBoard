@@ -139,24 +139,25 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
         padding="p-0"
         header={
           <div
-            className="flex flex-wrap items-center border-b border-slate-200"
+            className="flex flex-wrap items-center border-b border-slate-200 [@container_(min-width:520px)_and_(max-width:1199px)]:flex-nowrap"
             style={{
               backgroundColor: hexToRgba(cardColor, cardOpacity),
-              padding: 'min(10px, 2cqmin) clamp(6px, 4cqmin, 20px)',
-              columnGap: 'min(14px, 3cqmin)',
+              padding:
+                'min(10px, 2cqmin, max(4px, 2.5cqmin - 6px)) clamp(6px, 4cqmin, 20px)',
+              columnGap: 'min(14px, 3cqmin, 1.67cqmin + 1.33px)',
               rowGap: 'min(8px, 1.5cqmin)',
             }}
           >
             <div className="flex flex-col min-w-0 [@container_(max-width:219px)_or_(max-height:179px)]:hidden">
               <h3
                 className="font-bold text-slate-800 leading-tight"
-                style={{ fontSize: 'clamp(13px, 3.6cqmin, 24px)' }}
+                style={{ fontSize: 'clamp(13px, 3.3cqmin, 24px)' }}
               >
                 Daily Lunch Count
               </h3>
               <p
                 className="text-slate-600 leading-tight"
-                style={{ fontSize: 'clamp(12px, 3.5cqmin, 18px)' }}
+                style={{ fontSize: 'clamp(12px, 3cqmin, 18px)' }}
               >
                 {new Date().toLocaleDateString('en-US', {
                   weekday: 'short',
@@ -166,7 +167,7 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
               </p>
             </div>
             {rosterMode === 'class' && (
-              <div className="max-w-full [@container_(max-width:219px)_or_(max-height:179px)]:hidden">
+              <div className="max-w-full [@container_(min-width:520px)_and_(max-width:1199px)]:max-w-[40%] [@container_(min-width:520px)_and_(max-width:1199px)]:min-w-0 [@container_(max-width:219px)_or_(max-height:179px)]:hidden">
                 <ActiveClassChip
                   compact
                   className="max-w-full"
@@ -188,12 +189,8 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
             )}
 
             <div
-              className="flex items-center justify-end"
-              style={{
-                gap: 'clamp(10px, 3cqmin, 16px)',
-                flex: '1 1 min(100%, 280px)',
-                minWidth: 'min(100%, 280px)',
-              }}
+              className="flex items-center justify-end flex-[1_1_min(100%,280px)] min-w-[min(100%,280px)] [@container_(min-width:520px)_and_(max-width:1199px)]:flex-[1_1_0%] [@container_(min-width:520px)_and_(max-width:1199px)]:min-w-0"
+              style={{ gap: 'clamp(8px, 2cqmin, 16px)' }}
             >
               {!isEmpty && (
                 <Button
@@ -205,12 +202,13 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
                   onClick={model.handleOpenReport}
                   disabled={!ready}
                   variant={ready ? 'primary' : 'secondary'}
-                  className="flex-1 min-w-0 rounded-lg leading-tight text-center active:brightness-95"
+                  className="flex-1 min-w-0 rounded-lg leading-tight text-center active:brightness-95 [@container_(min-width:520px)_and_(max-width:1199px)]:normal-case [@container_(min-width:520px)_and_(max-width:1199px)]:tracking-normal"
                   style={{
                     opacity: 1,
-                    padding: 'min(8px, 1.5cqmin) min(14px, 3cqmin)',
-                    fontSize: 'clamp(11px, 3.5cqmin, 18px)',
-                    minHeight: 'max(32px, min(48px, 12cqmin))',
+                    padding:
+                      'min(8px, 1.5cqmin, 0.9cqmin + 0.6px) min(14px, 3cqmin, 1.67cqmin + 1.33px)',
+                    fontSize: 'clamp(11px, 2.8cqmin, 18px)',
+                    minHeight: 'max(32px, min(48px, 9cqmin))',
                     maxWidth: 'min(420px, 100%)',
                   }}
                 >
@@ -243,7 +241,7 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
               )}
               <div
                 className="flex shrink-0 [@container_(max-width:219px)_or_(max-height:179px)]:hidden"
-                style={{ gap: 'clamp(10px, 3cqmin, 16px)' }}
+                style={{ gap: 'clamp(8px, 2cqmin, 16px)' }}
               >
                 <IconButton
                   {...tourAttr(
@@ -257,7 +255,7 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
                   variant="glass"
                   shape="square"
                   className="active:bg-slate-800/15"
-                  style={{ padding: 'clamp(6px, 3cqmin, 14px)' }}
+                  style={{ padding: 'clamp(6px, 2cqmin, 14px)' }}
                   icon={
                     <RefreshCw
                       aria-hidden="true"
@@ -281,7 +279,7 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
                   variant="glass"
                   shape="square"
                   className="active:bg-slate-800/15"
-                  style={{ padding: 'clamp(6px, 3cqmin, 14px)' }}
+                  style={{ padding: 'clamp(6px, 2cqmin, 14px)' }}
                   icon={<Undo2 aria-hidden="true" style={iconStyle} />}
                 />
               </div>
@@ -380,14 +378,14 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
                   data-drop-zone="unassigned"
                   data-testid="unassigned-zone"
                   aria-label="Unassigned"
-                  className={`flex flex-col min-h-0 shrink-0 overflow-y-auto custom-scrollbar border-t border-slate-200 max-h-[40%] [@container(min-aspect-ratio:2.2)]:order-first [@container(min-aspect-ratio:2.2)]:max-h-none [@container(min-aspect-ratio:2.2)]:w-[26%] [@container(min-aspect-ratio:2.2)]:border-t-0 [@container(min-aspect-ratio:2.2)]:border-r ${
+                  className={`flex flex-col min-h-0 shrink-0 overflow-y-auto custom-scrollbar border-t border-slate-200 max-h-[40%] [@container_(max-height:699px)_and_(max-aspect-ratio:2.19)]:max-h-[43%] [@container_(max-width:1199px)_or_(max-height:699px)]:flex-row [@container_(max-width:1199px)_or_(max-height:699px)]:flex-wrap [@container_(max-width:1199px)_or_(max-height:699px)]:items-center [@container_(max-width:1199px)_or_(max-height:699px)]:content-start [@container(min-aspect-ratio:2.2)]:order-first [@container(min-aspect-ratio:2.2)]:max-h-none [@container(min-aspect-ratio:2.2)]:w-[26%] [@container(min-aspect-ratio:2.2)]:border-t-0 [@container(min-aspect-ratio:2.2)]:border-r ${
                     overZones.has('unassigned')
                       ? 'outline outline-2 -outline-offset-2 outline-brand-blue-primary bg-brand-blue-lighter/30'
                       : ''
                   }`}
                   style={{
-                    gap: 'min(10px, 2cqmin)',
-                    padding: 'min(12px, 2.5cqmin)',
+                    gap: 'min(10px, 1.5cqmin)',
+                    padding: 'min(12px, 1.8cqmin)',
                   }}
                 >
                   <div
@@ -399,6 +397,7 @@ export const LunchCountRedesign: React.FC<{ widget: WidgetData }> = ({
                       ` · ${hiddenRemaining} outside this group`}
                   </div>
                   <ChipGrid
+                    flowIntoParent
                     students={groupedStudents.unassigned}
                     draggingIds={draggingIds}
                     handlers={dragHandlers}

@@ -12,26 +12,27 @@ type ChipHandlers = Omit<
 
 interface ChipGridProps {
   students: LunchStudent[];
+  flowIntoParent?: boolean;
   draggingIds: Set<string>;
   handlers: ChipHandlers;
 }
 
 export const CHIP_CLASS =
-  'flex items-center rounded-lg border border-slate-300 bg-white text-slate-800 font-semibold leading-tight [overflow-wrap:anywhere] transition-colors hover:border-slate-500 active:bg-slate-100 active:border-brand-blue-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary [-webkit-tap-highlight-color:transparent]';
+  'flex items-center max-w-full rounded-lg border border-slate-300 bg-white text-slate-800 font-semibold leading-tight [overflow-wrap:anywhere] transition-colors hover:border-slate-500 active:bg-slate-100 active:border-brand-blue-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary [-webkit-tap-highlight-color:transparent]';
 
 export const ChipGrid: React.FC<ChipGridProps> = ({
   students,
+  flowIntoParent = false,
   draggingIds,
   handlers,
 }) => {
   if (students.length === 0) return null;
   return (
     <div
-      className="grid w-full"
+      className={`flex flex-wrap w-full ${flowIntoParent ? '[@container_(max-width:1199px)_or_(max-height:699px)]:contents' : ''} [@container_(min-width:1200px)_and_(min-height:700px)]:grid [@container_(min-width:1200px)_and_(min-height:700px)]:grid-cols-[repeat(auto-fill,minmax(min(100%,8.5em),1fr))]`}
       style={{
-        fontSize: 'clamp(13px, 4cqmin, 28px)',
+        fontSize: 'clamp(13px, calc(6cqmin - 12px), 28px)',
         gap: 'min(8px, 1.5cqmin)',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 8.5em), 1fr))',
       }}
     >
       {students.map((student) => (
@@ -44,7 +45,7 @@ export const ChipGrid: React.FC<ChipGridProps> = ({
           {...handlers}
           className={CHIP_CLASS}
           style={{
-            minHeight: 'max(32px, min(48px, 12cqmin))',
+            minHeight: 'max(32px, min(48px, 14cqmin - 24px))',
             padding: 'min(6px, 1.2cqmin) min(12px, 2.4cqmin)',
           }}
         />
@@ -103,7 +104,7 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
       data-drop-zone={zone}
       data-testid={testId}
       aria-label={label}
-      className={`flex flex-col min-h-0 min-w-0 flex-1 transition-colors ${
+      className={`flex flex-col min-h-0 min-w-0 flex-1 [@container(max-aspect-ratio:0.7)]:flex-[1_1_auto] transition-colors ${
         isOver
           ? 'outline outline-2 -outline-offset-2 outline-brand-blue-primary bg-brand-blue-lighter/30'
           : ''
@@ -113,13 +114,15 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
         className="flex items-baseline shrink-0"
         style={{
           gap: 'min(12px, 2.5cqmin)',
-          padding: 'min(12px, 2.5cqmin) min(12px, 2.5cqmin) 0',
+          padding: 'clamp(4px, 2.5cqmin - 6px, 12px) min(12px, 2.5cqmin) 0',
         }}
       >
         <span
           data-lunch-count={zone}
           className={`font-black tabular-nums leading-none ${COUNT_COLOR[zone]}`}
-          style={{ fontSize: 'clamp(28px, 13cqmin, 120px)' }}
+          style={{
+            fontSize: 'clamp(28px, min(13cqmin, 30cqmin - 120px), 120px)',
+          }}
         >
           {count}
         </span>
@@ -133,8 +136,9 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
       <div
         className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col"
         style={{
-          gap: 'min(10px, 2cqmin)',
-          padding: 'min(8px, 1.5cqmin) min(12px, 2.5cqmin) min(14px, 3cqmin)',
+          gap: 'clamp(4px, 2cqmin - 4px, 10px)',
+          padding:
+            'clamp(2px, 2cqmin - 6px, 8px) min(12px, 2.5cqmin) min(14px, 2cqmin)',
         }}
       >
         {menuText !== null || subLabel ? (
@@ -164,22 +168,31 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
             <div className="flex-1 min-w-0 [overflow-wrap:anywhere]">
               {menuText !== null ? (
                 <div
-                  className={`font-semibold leading-snug ${
+                  className={`font-semibold leading-snug [@container_(max-width:1199px)_or_(max-height:699px)]:inline ${
                     menu.kind === 'item' ? 'text-slate-800' : 'text-slate-600'
                   }`}
-                  style={{ fontSize: 'clamp(12px, 3.6cqmin, 26px)' }}
+                  style={{
+                    fontSize: 'clamp(12px, calc(4.5cqmin - 6px), 26px)',
+                  }}
                 >
                   {menuText}
                 </div>
               ) : null}
               {sides.length > 0 && menu.kind === 'item' ? (
                 <div
-                  className="text-slate-600 leading-snug"
+                  className="text-slate-600 leading-snug [@container_(max-width:1199px)_or_(max-height:699px)]:inline"
                   style={{
-                    fontSize: 'clamp(12px, 3.5cqmin, 20px)',
+                    fontSize: 'clamp(12px, calc(3.5cqmin - 4px), 20px)',
                     marginTop: 'min(4px, 0.8cqmin)',
                   }}
                 >
+                  <span
+                    aria-hidden="true"
+                    className="hidden [@container_(max-width:1199px)_or_(max-height:699px)]:inline"
+                    style={{ margin: '0 0.4em' }}
+                  >
+                    ·
+                  </span>
                   {sides.map((s, i) => (
                     <React.Fragment key={`${s.name}-${i}`}>
                       {i > 0 ? (
