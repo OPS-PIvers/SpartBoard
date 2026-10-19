@@ -1,3 +1,4 @@
+import { isImeComposing } from '@/utils/imeComposing';
 import React, {
   useState,
   useRef,
@@ -3121,7 +3122,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
                   onChange={(e) => setTempTitle(e.target.value)}
                   onBlur={saveTitle}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') saveTitle();
+                    if (e.key === 'Enter' && !isImeComposing(e)) saveTitle();
                     if (e.key === 'Escape') {
                       setTempTitle(widget.customTitle ?? title);
                       // Set the cancellation flag BEFORE calling setIsEditingTitle —

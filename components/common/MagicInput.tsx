@@ -1,3 +1,4 @@
+import { isImeComposing } from '@/utils/imeComposing';
 import React, { useState } from 'react';
 import { Wand2, Loader2, AlertCircle } from 'lucide-react';
 import { useViewAsOutward } from '@/hooks/useViewAsOutward';
@@ -54,7 +55,7 @@ export const MagicInput = <T,>({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !isImeComposing(e)) {
       e.preventDefault();
       void handleGenerate();
     }
