@@ -220,10 +220,12 @@ export function defaultRecognizerEnv(): RecognizerEnv {
   };
 }
 
+// Integrity is permanent too: a bad hosted file fails the same way, and a retry costs another 240 MB.
 const PERMANENT: ReadonlySet<string> = new Set([
   'no-wasm',
   'no-worker',
   'too-slow',
+  'integrity',
 ]);
 
 export function createRecognizer(
@@ -283,6 +285,17 @@ export function createRecognizer(
     set({ kind: 'ready' });
   };
 
+  // A failed run may have killed the Worker or its wasm heap, so the next prepare() starts a fresh one.
+  const runFailed = (err: unknown): RecognizerError => {
+    backend?.dispose();
+    backend = null;
+    set({ kind: 'idle' });
+    return new RecognizerError(
+      'failed',
+      err instanceof Error ? err.message : String(err)
+    );
+  };
+
   const runOne = async (audio: Blob): Promise<RecognizeResult> => {
     if (current.kind !== 'ready' || !backend) {
       throw new RecognizerError('not-ready', `Recognizer is ${current.kind}`);
@@ -313,18 +326,12 @@ export function createRecognizer(
             timer = setTimeout(() => resolve({ kind: 'slow' }), env.slowMs);
           }),
         ]).catch((err: unknown) => {
-          throw new RecognizerError(
-            'failed',
-            err instanceof Error ? err.message : String(err)
-          );
+          throw runFailed(err);
         })
       : await work
           .then((r) => ({ kind: 'done' as const, r }))
           .catch((err: unknown) => {
-            throw new RecognizerError(
-              'failed',
-              err instanceof Error ? err.message : String(err)
-            );
+            throw runFailed(err);
           });
     if (timer !== null) clearTimeout(timer);
     if (outcome.kind === 'slow') {
@@ -367,6 +374,7 @@ export function createRecognizer(
     dispose() {
       backend?.dispose();
       backend = null;
+      current = { kind: 'idle' };
       listeners.clear();
     },
   };

@@ -106,24 +106,39 @@ describe('prepare', () => {
     expect(r.state().kind).toBe('ready');
   });
 
-  it('reports an integrity failure and can retry it', async () => {
+  it('retries a failed download but not an integrity failure', async () => {
     let attempt = 0;
-    const { r, dispose } = make(
+    const { r, dispose, load } = make(
       {},
       fakeBackend({
         load: () => {
           attempt += 1;
           return attempt === 1
-            ? Promise.reject(new BackendLoadError('integrity', 'md5'))
+            ? Promise.reject(new BackendLoadError('download-failed', 'net'))
             : Promise.resolve();
         },
       })
     );
     await r.prepare({ allowMetered: false });
-    expect(r.state()).toEqual({ kind: 'unsupported', reason: 'integrity' });
+    expect(r.state()).toEqual({
+      kind: 'unsupported',
+      reason: 'download-failed',
+    });
     expect(dispose).toHaveBeenCalled();
     await r.prepare({ allowMetered: false });
     expect(r.state().kind).toBe('ready');
+
+    const bad = make(
+      {},
+      fakeBackend({
+        load: () => Promise.reject(new BackendLoadError('integrity', 'md5')),
+      })
+    );
+    await bad.r.prepare({ allowMetered: false });
+    await bad.r.prepare({ allowMetered: false });
+    expect(bad.r.state()).toEqual({ kind: 'unsupported', reason: 'integrity' });
+    expect(bad.load).toHaveBeenCalledTimes(1);
+    expect(load).toHaveBeenCalledTimes(2);
   });
 
   it('maps an unknown load error to download-failed', async () => {
@@ -233,6 +248,30 @@ describe('recognize', () => {
     await vi.advanceTimersByTimeAsync(20_000);
     await expect(second).resolves.toMatchObject({ confidence: 0.5 });
     expect(r.state().kind).toBe('ready');
+  });
+
+  it('drops a backend whose run failed so prepare starts a fresh one', async () => {
+    let calls = 0;
+    const { r, dispose, load } = make(
+      {},
+      fakeBackend({
+        run: () => {
+          calls += 1;
+          return calls === 1
+            ? Promise.reject(new Error('wasm abort'))
+            : Promise.resolve({ tokens: [], confidence: 0.4 });
+        },
+      })
+    );
+    await r.prepare({ allowMetered: false });
+    await expect(r.recognize(blob())).rejects.toMatchObject({ code: 'failed' });
+    expect(dispose).toHaveBeenCalled();
+    expect(r.state().kind).toBe('idle');
+    await r.prepare({ allowMetered: false });
+    expect(load).toHaveBeenCalledTimes(2);
+    await expect(r.recognize(blob())).resolves.toMatchObject({
+      confidence: 0.4,
+    });
   });
 
   it('surfaces a decode failure without changing state', async () => {

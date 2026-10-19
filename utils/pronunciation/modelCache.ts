@@ -206,13 +206,18 @@ async function downloadOne(
       })
     );
   } catch (err) {
-    if (tracked.received() < pin.bytes) {
+    const quota =
+      typeof err === 'object' &&
+      err !== null &&
+      'name' in err &&
+      err.name === 'QuotaExceededError';
+    if (!quota) {
       throw new ModelLoadError(
         'download-failed',
         `${url}: ${err instanceof Error ? err.message : String(err)}`
       );
     }
-    // The download finished but the cache refused it (quota): keep it in memory for this page only.
+    // The cache is full: download again into memory for this page only.
     return downloadToMemory(url, pin, deps, onProgress);
   }
   try {
