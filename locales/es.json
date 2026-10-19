@@ -3309,7 +3309,8 @@
       "label": "Modo de estudio",
       "flashcards": "Tarjetas",
       "write": "Escribir",
-      "test": "Prueba"
+      "test": "Prueba",
+      "speak": "Speak"
     },
     "player": {
       "back": "Volver a la biblioteca de tarjetas",
@@ -3443,6 +3444,200 @@
       "periodPausedBody": "Tu progreso se queda en esta página. Mantén esta pestaña abierta.",
       "notInPeriod": "No estás en ninguna clase a la que se haya asignado este conjunto. Pregúntale a tu docente.",
       "seatError": "No se pudo entrar a tu clase. Recarga la página para intentarlo de nuevo."
+    },
+    "speak": {
+      "player": {
+        "prompt": "Say this word",
+        "record": "Start speaking",
+        "stop": "Stop",
+        "listening": "Listening…",
+        "checking": "Checking…",
+        "levelLabel": "Microphone level",
+        "attempt": "Try {{current}} of {{total}}",
+        "hearIt": "Hear it",
+        "playMyTry": "Play my try",
+        "tryAgain": "Try again",
+        "continue": "Continue",
+        "skip": "Skip",
+        "round": "Round {{round}}",
+        "mastered": "{{mastered}}/{{total}} said well",
+        "masteryLabel": "{{mastered}} of {{total}} cards said well",
+        "cardUnavailable": "Not available to speak",
+        "cardUnavailableBody": "This card is skipped in Speak.",
+        "allUnavailableTitle": "No cards to speak",
+        "allUnavailableBody": "None of these cards can be practiced aloud. Try another study mode.",
+        "lockedSettings": "Your teacher set these options."
+      },
+      "verdict": {
+        "exact": "Exact",
+        "exactBody": "You said it just right.",
+        "accepted": "Accepted",
+        "acceptedBody": "Close enough. We let these go:",
+        "notYet": "Not yet",
+        "notYetBody": "Listen and try again.",
+        "outOfTries": "Not yet. We'll come back to this word.",
+        "unclear": "Couldn't hear you",
+        "unclearBody": "Try again a little closer to the microphone.",
+        "stress": "Stress this part: {{syllables}}",
+        "marksLabel": "How each letter went",
+        "markCorrect": "Right",
+        "markChanged": "Changed",
+        "markMissed": "Missed",
+        "markExtra": "Extra",
+        "showHint": "How to say it"
+      },
+      "micCheck": {
+        "title": "Let's check your microphone",
+        "body": "Say {{word}} and watch the bar move.",
+        "heard": "We can hear you.",
+        "notHeard": "We can't hear anything yet.",
+        "done": "Back to practice"
+      },
+      "permission": {
+        "title": "Speak uses your microphone",
+        "body": "Your voice is checked on this device. It is never saved or sent anywhere.",
+        "allow": "Turn on microphone",
+        "notNow": "Not now"
+      },
+      "setup": {
+        "title": "Get Speak ready",
+        "body": "Speak needs a one-time download of {{size}} on this device.",
+        "download": "Get Speak ready ({{size}}, once per device)",
+        "downloading": "Getting Speak ready… {{percent}}%",
+        "starting": "Getting ready…",
+        "meteredTitle": "This connection may have limited data",
+        "meteredBody": "The download is {{size}}. Download it now?",
+        "meteredConfirm": "Download",
+        "cancel": "Not now"
+      },
+      "unavailable": {
+        "title": "Speak isn't available",
+        "otherModes": "The other study modes still work.",
+        "noMic": "No microphone found",
+        "noMicBody": "Connect a microphone, then try again.",
+        "micBlocked": "Microphone blocked",
+        "micBlockedBody": "Allow the microphone for this site, then try again.",
+        "micBlockedChromeOs": "On a Chromebook, select the icon at the left of the address bar, then turn on Microphone.",
+        "framed": "Speak can't use the microphone here",
+        "framedBody": "Open this page in its own tab to practice aloud.",
+        "openNewTab": "Open in a new tab",
+        "downloadFailed": "Speak couldn't get ready",
+        "downloadFailedBody": "Check your internet connection and try again.",
+        "tooSlow": "This device is too slow for Speak",
+        "unsupported": "This browser can't run Speak",
+        "retry": "Try again"
+      },
+      "editor": {
+        "title": "Speak",
+        "intro": "Students say each term aloud and hear how close they were.",
+        "unsupportedLanguage": "Speak works when the term language is Spanish, German or English.",
+        "dialects": "Accents to accept",
+        "dialectNames": {
+          "es-419": "Latin American Spanish",
+          "es-ES": "Spanish from Spain",
+          "de-DE": "German",
+          "en-US": "American English"
+        },
+        "level": "Level",
+        "presets": {
+          "beginner": "Beginner",
+          "beginnerHelp": "Vowels must be right. Most hard consonants are let go.",
+          "intermediate": "Intermediate",
+          "intermediateHelp": "Most sounds must be right. A few small ones are let go.",
+          "advanced": "Advanced",
+          "advancedHelp": "Every sound must be right.",
+          "custom": "Custom"
+        },
+        "strict": "Strict",
+        "strictHelp": "When Strict is off, sounds that follow it are let go.",
+        "attempts": "Tries per card",
+        "example": "Show Hear it",
+        "exampleHelp": "Students can hear the word on their device first.",
+        "advancedSettings": "Advanced",
+        "groupsTitle": "Sounds",
+        "groupSetting": {
+          "follow": "Follow Strict",
+          "forgive": "Always let go",
+          "require": "Always require"
+        },
+        "status": {
+          "ready": "Ready",
+          "needsReview": "Check this",
+          "unavailable": "Can't speak"
+        },
+        "reasons": {
+          "multi-word": "Speak works with one word per card.",
+          "unrenderable": "We couldn't work out how to say this word.",
+          "untokenizable": "We couldn't work out how to say this word.",
+          "g2p-disagree": "Our sources disagree on how to say this word.",
+          "stress-disagree": "Our sources disagree on which part is stressed.",
+          "language-switch": "This word looks like it's in a different language.",
+          "lookup-failed": "We couldn't check this word. We'll try again when you save."
+        },
+        "reviewTitle": "{{count}} cards to check",
+        "confirm": "Looks right",
+        "ipaLabel": "Pronunciation (IPA), {{dialect}}",
+        "ipaInvalid": "Some of these symbols aren't recognized.",
+        "stressLabel": "Stressed part",
+        "checkingCards": "Checking how to say {{count}} cards…",
+        "hearIt": "Hear it"
+      },
+      "groups": {
+        "es-trill": "Rolled r (perro)",
+        "es-tap": "Tapped r (pero)",
+        "es-soft-bdg": "Soft b, d, g (lobo, nada, lago)",
+        "es-aspiration": "No puff of air on p, t, k",
+        "es-vowel-glide": "Pure vowels (e, o without a glide)",
+        "es-vowel-reduce": "Full unstressed vowels (casa)",
+        "es-jota": "The j sound (jota)",
+        "de-r": "German r (rot)",
+        "de-ich-ach": "ch sounds (ich, ach)",
+        "de-umlaut": "ü and ö",
+        "de-vowel-length": "Long and short vowels (Staat, Stadt)",
+        "de-final": "Final b, d, g sound like p, t, k (Hund)",
+        "de-endings": "Unstressed endings (-er, -e)",
+        "en-th": "th sounds (think, this)",
+        "en-r": "English r (red)",
+        "en-aspiration": "Puff of air on p, t, k (pin)",
+        "en-vowel-length": "ship and sheep",
+        "en-reduced": "Weak vowels (about)",
+        "en-final-voicing": "Final z, d, v (dogs)",
+        "stress": "Stressed syllable"
+      },
+      "assign": {
+        "stepTitle": "Speak",
+        "show": "Let students practice aloud",
+        "lock": "Lock Speak settings",
+        "lockHelp": "Students use your tries and Hear it settings and can't change them."
+      },
+      "results": {
+        "tab": "Speaking",
+        "masteredAloud": "Said well",
+        "inProgress": "In progress",
+        "notStarted": "Not started",
+        "missedSounds": "Sounds to practice",
+        "neverRan": "—",
+        "classMissed": "Sounds missed most",
+        "classForgiven": "Sounds let go most",
+        "wordsToCheck": "Words to check",
+        "wordsToCheckHelp": "Most students who tried these missed them. Check the card's pronunciation.",
+        "empty": "No one has practiced aloud yet."
+      },
+      "admin": {
+        "title": "Speak defaults",
+        "intro": "New Speak sets start with these settings. Teachers can change them per set.",
+        "languageLevel": "Starting level for {{language}}",
+        "languages": {
+          "es": "Spanish",
+          "de": "German",
+          "en": "English"
+        },
+        "attempts": "Tries per card",
+        "unclearConfidence": "Couldn't hear you sensitivity",
+        "unclearConfidenceHelp": "Higher asks students to repeat more often when the audio is unclear.",
+        "save": "Save",
+        "saved": "Saved"
+      }
     }
   },
   "studentAssignment": {

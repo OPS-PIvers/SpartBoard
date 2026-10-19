@@ -1247,6 +1247,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Fail-closed for admins until Paul saves the row (espeak counsel hold, G19).
+  'flashcards-speak': {
+    label: 'Flashcards: Speak',
+    icon: Mic,
+    description: 'Students say each term aloud and see how close they were.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'flashcards',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: false,
+    missingDocPublic: false,
+    failClosedForAdmins: true,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */

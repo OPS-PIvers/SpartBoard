@@ -37,6 +37,15 @@ describe('FEATURE_DEFAULTS', () => {
     expect(entry.missingDocPublic).toBe(false);
     expect(entry.defaultMinTier).toBeUndefined();
   });
+
+  it('keeps flashcards-speak off for everyone, admins included, until the row is saved', () => {
+    const entry = FEATURE_DEFAULTS['flashcards-speak'];
+    expect(entry.defaultAccessLevel).toBe('admin');
+    expect(entry.defaultEnabled).toBe(false);
+    expect(entry.missingDocPublic).toBe(false);
+    expect(entry.failClosedForAdmins).toBe(true);
+    expect(isAdminPreviewFeature('flashcards-speak')).toBe(false);
+  });
 });
 
 describe('widget access defaults', () => {
