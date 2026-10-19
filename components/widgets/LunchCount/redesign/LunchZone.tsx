@@ -152,6 +152,7 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
             style={{ gap: 'clamp(8px, 2cqmin, 14px)' }}
           >
             {imageUrl && menuItem ? (
+              // no-tour-anchor: a photo of today's menu item, different every day
               <button
                 type="button"
                 onClick={() => onPeekItem(menuItem)}
@@ -184,6 +185,7 @@ export const LunchZone: React.FC<LunchZoneProps> = ({
                         ·
                       </span>
                       {s.imageUrl ? (
+                        // no-tour-anchor: a photo of today's side dish, different every day
                         <button
                           type="button"
                           onClick={() => onPeekItem(s)}
