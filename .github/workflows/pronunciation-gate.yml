@@ -11,10 +11,6 @@ on:
       - 'tests/fixtures/pronunciation-corpus/**'
       - '.github/workflows/pronunciation-gate.yml'
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 permissions:
   contents: read
 
@@ -26,6 +22,10 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 60
+    # Never cancelled mid-fetch; a second label waits for the first run.
+    concurrency:
+      group: pronunciation-fetch-${{ github.ref }}
+      cancel-in-progress: false
     permissions:
       contents: write
       pull-requests: write
@@ -41,9 +41,13 @@ jobs:
         run: command -v ffmpeg || (sudo apt-get update && sudo apt-get install -y ffmpeg)
 
       - name: Fetch corpus
+        id: fetch
+        continue-on-error: true
         run: node scripts/pronunciation-corpus/fetch.mjs --max-wait 900
 
+      # Commits whatever arrived, so a rate-limited run resumes from here next time.
       - name: Commit clips
+        if: always()
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -51,6 +55,12 @@ jobs:
           if git diff --cached --quiet; then echo 'No new clips.'; exit 0; fi
           git commit -m 'Speak corpus: fetch Lingua Libre clips'
           git push
+
+      - name: Fail when the fetch stopped early
+        if: steps.fetch.outcome == 'failure'
+        run: |
+          echo '::error::The fetch stopped before finishing; the clips it got are committed. Add the label again to resume.'
+          exit 1
 
       - name: Remove the label
         if: always()
@@ -64,12 +74,19 @@ jobs:
               name: 'fetch-corpus',
             }).catch(() => undefined);
 
+  # Runs after a fetch too, on the commit it pushed: pushes made with GITHUB_TOKEN start no workflows.
   gate:
-    if: github.event.action != 'labeled'
+    needs: fetch-corpus
+    if: ${{ !cancelled() && (github.event.action != 'labeled' || needs.fetch-corpus.result != 'skipped') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    concurrency:
+      group: pronunciation-gate-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.fetch-corpus.result != 'skipped' && github.event.pull_request.head.ref || '' }}
 
       - name: Setup Node.js and pnpm
         uses: ./.github/actions/setup

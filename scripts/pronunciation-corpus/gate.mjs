@@ -24,7 +24,7 @@ const { values: args } = parseArgs({
   options: {
     smoke: { type: 'string' },
     enforce: { type: 'boolean', default: false },
-    out: { type: 'string', default: 'pronunciation-gate-results.md' },
+    out: { type: 'string', default: 'docs/pronunciation-gate-results.md' },
     json: { type: 'string' },
   },
 });
@@ -58,11 +58,11 @@ const SYMBOLS = invertVocab(vocab);
 
 // S1's judgeSpeech; until it lands on this branch the gate reports decode output only.
 let judgeSpeech = null;
-try {
+if (fs.existsSync(path.join(ROOT, 'utils/pronunciation/verdict.ts'))) {
   ({ judgeSpeech } = await importTs('utils/pronunciation/verdict.ts'));
-} catch (err) {
+} else {
   console.warn(
-    `verdict.ts not available (${err.message.split('\n')[0]}); decode-only run.`
+    'utils/pronunciation/verdict.ts is not on this branch; decode-only run.'
   );
 }
 
@@ -116,6 +116,7 @@ const decodeCodeHash = md5(
     'utils/pronunciation/audio.ts',
     'utils/pronunciation/ctcDecode.ts',
     'scripts/pronunciation-corpus/gate.mjs',
+    'utils/pronunciation/xlsr53EspeakVocab.json',
   ]
     .map((f) => fs.readFileSync(path.join(ROOT, f)))
     .join('\n')
@@ -244,9 +245,10 @@ const manifest = readJson(MANIFEST_PATH, { clips: [] });
 const controls = readJson(path.join(FIXTURE_DIR, 'controls.json'), {
   controls: [],
 });
-let clips = manifest.clips.filter((c) =>
-  fs.existsSync(path.join(FIXTURE_DIR, 'clips', c.flac))
+const missingClips = manifest.clips.filter(
+  (c) => !fs.existsSync(path.join(FIXTURE_DIR, 'clips', c.flac))
 );
+let clips = manifest.clips.filter((c) => !missingClips.includes(c));
 if (smoke !== null) clips = clips.slice(0, smoke);
 
 const refsFor = (language, word) => {
@@ -263,7 +265,7 @@ const rows = [];
 for (const [i, clip] of clips.entries()) {
   const decoded = await decodeClip(
     path.join(FIXTURE_DIR, 'clips', clip.flac),
-    clip.flacSha1
+    clip.flacSha1 ?? clip.id
   );
   if ((i + 1) % 25 === 0) console.log(`  decoded ${i + 1}/${clips.length}`);
   const refs = refsFor(clip.language, clip.word);
@@ -307,17 +309,25 @@ for (const [i, clip] of clips.entries()) {
   if (advanced.verdict === 'exact' || advanced.verdict === 'accepted')
     L.advanced++;
   // Native substitutions under Advanced, for S11's tolerance review.
-  for (const e of advanced.entries) {
-    if (e.status !== 'substituted') continue;
-    const k = `${clip.language} ${e.targetIPA}→${e.spokenIPA}`;
-    confusions[k] = (confusions[k] ?? 0) + 1;
-  }
+  const pairs = new Set(
+    advanced.entries
+      .filter((e) => e.status === 'substituted')
+      .map((e) => `${clip.language} ${e.targetIPA}→${e.spokenIPA}`)
+  );
+  for (const k of pairs) confusions[k] = (confusions[k] ?? 0) + 1;
 
   // Mutations use the dialect the clean Advanced judgement matched, and only clips that pass it clean.
   if (advanced.verdict === 'wrong' || advanced.verdict === 'unclear') continue;
   const base = refs.find((r) => r.dialect === advanced.dialect) ?? refs[0];
   const lenient = { strict: false, groups: {} };
+  // Only positions the clean alignment heard exactly, so the change is the only difference.
+  const heardExactly = new Set(
+    advanced.entries
+      .filter((e) => e.kind === 'correct')
+      .map((e) => e.position - 1)
+  );
   for (const m of generateMutations(base.tokens, clip.language)) {
+    if (!heardExactly.has(m.position)) continue;
     const mutated = [{ ...base, tokens: applyMutation(base.tokens, m) }];
     const at = (j) =>
       j.entries.find(
@@ -338,7 +348,8 @@ for (const [i, clip] of clips.entries()) {
         groups: { [m.groupId]: 'require' },
       });
       L.groupRequire[1]++;
-      if (req.verdict === 'wrong') L.groupRequire[0]++;
+      if (req.verdict === 'wrong' && at(req)?.kind === 'error')
+        L.groupRequire[0]++;
       const fgv = judge(clip.language, mutated, decoded, {
         ...lenient,
         groups: { [m.groupId]: 'forgive' },
@@ -353,7 +364,10 @@ for (const [i, clip] of clips.entries()) {
 let controlsUnclear = 0;
 const controlRows = [];
 for (const c of controls.controls) {
-  const decoded = await decodeClip(path.join(FIXTURE_DIR, c.flac), c.flacSha1);
+  const decoded = await decodeClip(
+    path.join(FIXTURE_DIR, c.flac),
+    c.flacSha1 ?? c.id
+  );
   const verdict = judgeSpeech
     ? judge(
         'es',
@@ -433,6 +447,19 @@ const thin = Object.keys(words.languages).filter(
   (l) => (perLanguage[l]?.clips ?? 0) < config.minClipsPerLanguage
 );
 const failed = checks.filter((c) => c.pass === false);
+// An enforced gate never passes on a corpus or engine it could not measure.
+const unmeasured = [
+  ...(judgeSpeech ? [] : ['utils/pronunciation/verdict.ts is missing']),
+  ...thin.map((l) => `${l} has fewer than ${config.minClipsPerLanguage} clips`),
+  ...(missingClips.length
+    ? [`${missingClips.length} manifest clips are missing`]
+    : []),
+  ...(judgeSpeech
+    ? checks
+        .filter((c) => c.pass === null)
+        .map((c) => `${c.name} had nothing to measure`)
+    : []),
+];
 const md = [
   '# Speak corpus gate results',
   '',
@@ -493,8 +520,9 @@ if (args.json)
 console.log(md.slice(0, 6 + checks.length + 2).join('\n'));
 console.log(`\nWrote ${args.out}.`);
 
-if (failed.length && enforce) {
+if (enforce && (failed.length || unmeasured.length)) {
   console.error(`${failed.length} checks below their pass mark.`);
+  for (const u of unmeasured) console.error(`Not measured: ${u}.`);
   process.exit(1);
 }
 if (failed.length)

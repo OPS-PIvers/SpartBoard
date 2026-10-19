@@ -103,39 +103,72 @@ async function commonsInfo(titles) {
       format: 'json',
       formatversion: '2',
       prop: 'imageinfo',
-      iiprop: 'sha1|size|extmetadata',
+      iiprop: 'sha1|size|url|extmetadata',
+      redirects: '1',
       iiextmetadatafilter: 'Artist|LicenseShortName|LicenseUrl',
       maxlag: '5',
       titles: batch.map((t) => `File:${t}`).join('|'),
     });
-    const res = await client.request(`${COMMONS_API}?${params}`);
-    if (!res.ok) throw new Error(`Commons API ${res.status}`);
-    const json = await res.json();
-    const normalized = new Map(
+    let json;
+    for (let attempt = 1; ; attempt++) {
+      const res = await client.request(`${COMMONS_API}?${params}`);
+      if (!res.ok) throw new Error(`Commons API ${res.status}`);
+      json = await res.json();
+      // MediaWiki reports replica lag as HTTP 200 with an error body.
+      if (json.error?.code === 'maxlag' && attempt < 6) {
+        console.log(`  Commons replicas lagging; waiting 10s`);
+        await new Promise((resolve) => setTimeout(resolve, 10_000));
+        continue;
+      }
+      if (json.error)
+        throw new Error(
+          `Commons API error: ${json.error.code} ${json.error.info ?? ''}`
+        );
+      break;
+    }
+    // Map each returned title back to the one we asked for, through normalization and redirects.
+    const asked = new Map(
       (json.query?.normalized ?? []).map((n) => [n.to, n.from])
     );
+    for (const r of json.query?.redirects ?? []) {
+      asked.set(r.to, asked.get(r.from) ?? r.from);
+    }
     for (const page of json.query?.pages ?? []) {
       const info = page.imageinfo?.[0];
       if (!info) continue;
       const meta = info.extmetadata ?? {};
-      const title = (normalized.get(page.title) ?? page.title).replace(
-        /^File:/,
-        ''
-      );
+      const title = (asked.get(page.title) ?? page.title).replace(/^File:/, '');
       out.set(title, {
         sha1: info.sha1,
         bytes: info.size,
+        url: info.url,
         license: meta.LicenseShortName?.value ?? null,
         licenseUrl: meta.LicenseUrl?.value ?? null,
-        artist: meta.Artist?.value?.replace(/<[^>]+>/g, '').trim() ?? null,
+        artist: meta.Artist?.value ? plainText(meta.Artist.value) : null,
       });
     }
   }
   return out;
 }
 
+/** Commons HTML metadata to plain text that is safe in a Markdown table cell. */
+function plainText(html) {
+  return html
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const cell = (s) => String(s).replace(/\|/g, '\\|');
+
 async function download(clip) {
-  const res = await client.request(commonsUploadUrl(clip.title));
+  const res = await client.request(clip.url ?? commonsUploadUrl(clip.title));
   if (!res.ok) throw new Error(`${clip.title}: HTTP ${res.status}`);
   const bytes = Buffer.from(await res.arrayBuffer());
   const got = sha1(bytes);
@@ -164,8 +197,13 @@ function writeCredits() {
   ];
   for (const c of manifest.clips) {
     const source = `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(c.title.replace(/ /g, '_'))}`;
+    const license = c.license
+      ? c.licenseUrl
+        ? `[${cell(c.license)}](${c.licenseUrl})`
+        : cell(c.license)
+      : 'see source';
     lines.push(
-      `| \`${c.flac}\` | ${c.word} | ${c.artist ?? c.speakerName ?? c.speaker} | ${c.license ?? 'see source'} | [Commons](${source}) |`
+      `| \`${c.flac}\` | ${cell(c.word)} | ${cell(c.artist ?? c.speakerName ?? c.speaker)} | ${license} | [Commons](${source}) |`
     );
   }
   fs.writeFileSync(
@@ -200,11 +238,14 @@ async function main() {
       for (const p of picked) {
         const id = `${language}/${p.word}/${p.speaker}`;
         if (done.has(id)) continue;
+        // A clip already pinned in the manifest keeps its pin.
+        const pinned = manifest.clips.find((c) => c.id === id);
         todo.push({
           id,
           language,
           ...p,
           flac: clipFileName(language, p.word, p.speaker),
+          ...(pinned ? { sha1: pinned.sha1 } : {}),
         });
       }
     }
@@ -218,19 +259,25 @@ async function main() {
 
   const info = await commonsInfo(todo.map((c) => c.title));
   let fetched = 0;
+  const skipped = [];
   for (const clip of todo) {
     const meta = info.get(clip.title);
     if (!meta) {
-      console.warn(`skip ${clip.title}: not on Commons`);
+      skipped.push(`${clip.title}: not on Commons`);
       continue;
     }
     if (clip.sha1 && meta.sha1 !== clip.sha1) {
-      console.warn(
-        `skip ${clip.title}: Commons file changed since it was pinned`
-      );
+      skipped.push(`${clip.title}: Commons file changed since it was pinned`);
       continue;
     }
-    const result = await download({ ...clip, sha1: meta.sha1 });
+    let result;
+    try {
+      result = await download({ ...clip, sha1: meta.sha1, url: meta.url });
+    } catch (err) {
+      if (err instanceof RateLimitedError) throw err;
+      skipped.push(err.message);
+      continue;
+    }
     const entry = { ...clip, ...meta, ...result };
     manifest.clips = manifest.clips
       .filter((c) => c.id !== entry.id)
@@ -243,6 +290,10 @@ async function main() {
   console.log(
     `Fetched ${fetched} clips; manifest has ${manifest.clips.length}.`
   );
+  if (skipped.length) {
+    for (const s of skipped) console.warn(`skipped ${s}`);
+    process.exitCode = 1;
+  }
 }
 
 try {

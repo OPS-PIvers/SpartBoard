@@ -27,16 +27,18 @@ The fetch sends a descriptive User-Agent, makes one request at a time at least 1
 ## Running the gate
 
 ```
-node scripts/pronunciation-corpus/gate.mjs                 # full run, writes pronunciation-gate-results.md
+node scripts/pronunciation-corpus/gate.mjs                 # full run, writes docs/pronunciation-gate-results.md
 node scripts/pronunciation-corpus/gate.mjs --smoke 5       # first 5 clips, never fails the build
 ```
 
 It downloads the pinned model (241 MB) to `~/.cache/spartboard-pronunciation` on first use (`PRONUNCIATION_MODEL_PATH` overrides) and caches each clip's decode there, keyed by the model and the decode code. Until `utils/pronunciation/verdict.ts` (S1) is on the branch it reports decode output only. Browser-versus-Node decode agreement is checked by hand on `/pronunciation-dev`.
 
+When enforced, the gate also fails if it could not measure something: a missing `verdict.ts`, a language under 100 clips, a missing clip file, or a check with nothing to count. CI uploads the results as an artifact and job summary; S11 commits the doc.
+
 How each check is counted:
 
 - **Natives pass:** the clip's clean references under the Beginner and Advanced presets give Exact or Accepted.
-- **Mutations** use clips that pass Advanced clean, against the dialect that matched. A high-load swap counts as caught when Beginner says Not yet with an error at the changed position. A group pair is judged with only that group set to require (Not yet expected) and then to forgive (Accepted naming the group expected).
+- **Mutations** use clips that pass Advanced clean, against the dialect that matched, and only positions that alignment heard exactly. A high-load swap counts as caught when Beginner says Not yet with an error at the changed position. A group pair is judged with only that group set to require (Not yet with the error at that position expected) and then to forgive (Accepted naming the group expected).
 - **Controls** are judged against a short Spanish word and must all read as unclear.
 
 ## Refreshing references
