@@ -288,10 +288,10 @@ export function computeLetterSpans(
         relax(i, j, 1, 0, silent);
       }
       if (j < m) relax(i, j, 0, 1, skipTokenCost(tokens[j]));
+      const letters: string[] = [];
       for (let k = 1; k <= 4 && i + k <= n && j < m; k++) {
-        const slice = u.slice(i, i + k);
-        if (!slice.every((x) => x.letter)) break;
-        const letters = slice.map((x) => x.key);
+        if (!u[i + k - 1].letter) break;
+        letters.push(u[i + k - 1].key);
         relax(i, j, k, 1, tokenCost(lang, tokens[j], letters));
         for (let g = 2; g <= 3 && j + g <= m && k <= 3; g++) {
           const group = GROUP_SEEDS[lang][tokens.slice(j, j + g).join(' ')];

@@ -335,3 +335,42 @@ describe('lookupSpeakReferencesV1', () => {
     expect(out.cards.a.refs[0].tokens).toEqual(['k', 'æ', 't']);
   });
 });
+
+describe('review fixes', () => {
+  it('hears a decomposed accent like a composed one, spans on the original text', async () => {
+    const nfd = 'está'.normalize('NFD');
+    const card = await lookup('es', nfd);
+    expect(card.status).toBe('ready');
+    expect(card.refs[0].stress).toEqual([1]);
+    expect(card.refs[0].letterSpans?.at(-1)).toBe(nfd.length);
+  });
+
+  it('treats a term espeak reads as several words as multi-word', async () => {
+    expect(await lookup('en', '42')).toMatchObject({
+      status: 'unavailable',
+      reasons: ['multi-word'],
+    });
+  });
+
+  it('refuses a word longer than any real one', async () => {
+    expect(await lookup('es', 'a'.repeat(65))).toMatchObject({
+      status: 'unavailable',
+      reasons: ['untokenizable'],
+    });
+  });
+
+  it('accepts dictionary-style override notation', async () => {
+    const card = await lookup('de', 'Schütze', { 'de-DE': '/ˈʃʏ.tsə/' });
+    expect(card.status).toBe('ready');
+    expect(card.refs[0].tokens).toContain('y');
+  });
+
+  it('keeps a __proto__ card id as an ordinary key', async () => {
+    const out = await computeSpeakReferences({
+      language: 'en',
+      dialects: ['en-US'],
+      terms: [{ cardId: '__proto__', term: 'cat' }],
+    });
+    expect(Object.keys(out.cards)).toEqual(['__proto__']);
+  });
+});

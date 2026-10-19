@@ -32,6 +32,8 @@ export const SPEAK_G2P_VERSION = `${ESPEAK_PACKAGE}+1.51norm/cmudict-7479086`;
 export const MAX_LOOKUP_TERMS = 500;
 const MAX_TERM_LENGTH = 500;
 const MAX_IPA_LENGTH = 200;
+// Longer than any real single word; also bounds the span aligner's work per card.
+const MAX_WORD_LENGTH = 64;
 
 const DIALECTS: Record<SpeakLanguage, readonly SpeakDialect[]> = {
   es: ['es-419', 'es-ES'],
@@ -136,24 +138,31 @@ function lookupDialect(
   let stress: number[];
   if (override !== undefined) {
     // A teacher's IPA is authoritative: no cross-check and no flags.
-    tok = tokenizeIpa(override);
+    // Dictionary notation (`/ˈʃʏtsə/`, syllable dots) is accepted; ʏ maps to y as on the espeak path.
+    tok = tokenizeIpa(override.replace(/[/[\].]/g, '').replaceAll('ʏ', 'y'));
     if (!tok.ok) return { reasons: [failureReason(tok)] };
     stress = deriveStress(language, tok).stress;
   } else {
     let ipa: string;
     try {
-      ipa = normalizeEspeakIpa(phonemizer.phonemize(dialect, word), language);
+      // espeak drops a separate combining accent, so it hears NFC; spans still index the original text.
+      ipa = normalizeEspeakIpa(
+        phonemizer.phonemize(dialect, word.normalize('NFC')),
+        language
+      );
     } catch (err) {
       logger.warn('[speakLookup] espeak failed', { dialect, err: String(err) });
       return { reasons: ['lookup-failed'] };
     }
+    // espeak read it as several words (`hello,world`, `42`).
+    if (/\s/u.test(ipa)) return { reasons: ['multi-word'] };
     tok = tokenizeIpa(ipa);
     if (!tok.ok) return { reasons: [failureReason(tok)] };
     if (tok.languageSwitches.length > 0) reasons.push('language-switch');
     const derived = deriveStress(
       language,
       tok,
-      crossCheckFor(language, word, tok, ipa, reasons)
+      crossCheckFor(language, word.normalize('NFC'), tok, ipa, reasons)
     );
     if (derived.flagged) reasons.push('stress-disagree');
     stress = derived.stress;
@@ -181,7 +190,7 @@ function lookupCard(
     ...(card.ipaOverride ? { ipaOverride: card.ipaOverride } : {}),
   };
   const word = parseFlashcardAnswerVariants(card.term)[0] ?? '';
-  if (!word) {
+  if (!word || word.length > MAX_WORD_LENGTH) {
     return {
       ...base,
       refs: [],
@@ -230,9 +239,10 @@ export async function computeSpeakReferences(
   phonemizer?: Phonemizer
 ): Promise<SpeakLookupOutput> {
   const p = phonemizer ?? (await loadPhonemizer());
-  const cards: Record<string, FlashcardCardSpeak> = {};
-  for (const term of input.terms)
-    cards[term.cardId] = lookupCard(p, input, term);
+  // fromEntries defines own keys, so even a `__proto__` card id survives.
+  const cards: Record<string, FlashcardCardSpeak> = Object.fromEntries(
+    input.terms.map((term) => [term.cardId, lookupCard(p, input, term)])
+  );
   return { g2pVersion: SPEAK_G2P_VERSION, cards };
 }
 
