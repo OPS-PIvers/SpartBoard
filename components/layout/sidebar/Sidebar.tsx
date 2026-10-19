@@ -610,7 +610,7 @@ export const Sidebar: React.FC = () => {
                     </button>
                   )}
                   {canScoreWork && (
-                    <button
+                    <button // no-tour-anchor: preview feature, tours are added when it opens
                       onClick={() => {
                         setShowScoredWork(true);
                         setIsOpen(false);

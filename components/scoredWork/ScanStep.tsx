@@ -106,7 +106,7 @@ export const ScanStep: React.FC<ScanStepProps> = ({ work, onDone }) => {
             ? `Reading page ${pagesRead + 1}`
             : 'Choose the scanned PDF of the whole stack'}
         </span>
-        <input
+        <input // no-tour-anchor: preview feature, tours are added when it opens
           type="file"
           accept="application/pdf,image/*"
           disabled={busy}

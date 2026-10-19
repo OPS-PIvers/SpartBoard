@@ -6,6 +6,7 @@ import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { useAuth } from '@/context/useAuth';
 import { useScoredWorkList, useScoredWorkScores } from '@/hooks/useScoredWork';
 import { rubricMaxPoints } from '@/utils/scoredWorkMath';
+import { RubricBuilderPanel } from '@/components/widgets/QuizWidget/components/RubricBuilderPanel';
 import { NewScoredWork } from './NewScoredWork';
 import { ScanStep } from './ScanStep';
 import { ScoringStep } from './ScoringStep';
@@ -24,6 +25,8 @@ export const ScoredWorkModal: React.FC<ScoredWorkModalProps> = ({
   const { data: works, loading } = useScoredWorkList(user?.uid);
   const [view, setView] = useState<string>('list');
   const [step, setStep] = useState<Step>('scan');
+  const [builderOpen, setBuilderOpen] = useState(false);
+  const [newRubricId, setNewRubricId] = useState<string | null>(null);
   const active = works.find((w) => w.id === view) ?? null;
   const { data: scores } = useScoredWorkScores(user?.uid, active?.id);
 
@@ -41,9 +44,25 @@ export const ScoredWorkModal: React.FC<ScoredWorkModalProps> = ({
       allowFullscreen
       className="max-h-[90vh] flex flex-col"
       contentClassName="px-6 pb-6 overflow-y-auto"
+      overlay={
+        builderOpen &&
+        user && (
+          <RubricBuilderPanel
+            questionId="scored-work"
+            attachLabel="Use for worksheet"
+            onAttach={(rubric) => {
+              setNewRubricId(rubric.id);
+              setBuilderOpen(false);
+            }}
+            onDetach={() => setBuilderOpen(false)}
+            onClose={() => setBuilderOpen(false)}
+            teacherUid={user.uid}
+          />
+        )
+      }
     >
       {!showList && (
-        <button
+        <button // no-tour-anchor: preview feature, tours are added when it opens
           type="button"
           onClick={() => setView('list')}
           className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-600 hover:text-slate-900"
@@ -69,7 +88,7 @@ export const ScoredWorkModal: React.FC<ScoredWorkModalProps> = ({
           <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
             {works.map((w) => (
               <li key={w.id}>
-                <button
+                <button // no-tour-anchor: preview feature, tours are added when it opens
                   type="button"
                   onClick={() => {
                     setView(w.id);
@@ -93,7 +112,13 @@ export const ScoredWorkModal: React.FC<ScoredWorkModalProps> = ({
         </div>
       )}
 
-      {view === 'new' && <NewScoredWork onCreated={(id) => setView(id)} />}
+      {view === 'new' && (
+        <NewScoredWork
+          onCreated={(id) => setView(id)}
+          onOpenRubricBuilder={() => setBuilderOpen(true)}
+          requestedRubricId={newRubricId}
+        />
+      )}
 
       {active && (
         <div className="space-y-4">

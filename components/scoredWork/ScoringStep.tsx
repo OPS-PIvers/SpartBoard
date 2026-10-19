@@ -163,7 +163,7 @@ export const ScoringStep: React.FC<ScoringStepProps> = ({ work }) => {
           const scanned = !!work.scans?.[seat]?.some(Boolean);
           return (
             <li key={seat}>
-              <button
+              <button // no-tour-anchor: preview feature, tours are added when it opens
                 type="button"
                 onClick={() => setSelected(seat)}
                 aria-current={seat === current}
@@ -223,7 +223,7 @@ export const ScoringStep: React.FC<ScoringStepProps> = ({ work }) => {
                 <span className="block font-semibold text-slate-700 mb-1">
                   Whose work is this?
                 </span>
-                <select
+                <select // no-tour-anchor: preview feature, tours are added when it opens
                   defaultValue=""
                   onChange={(e) => {
                     const target = unassigned.find(
@@ -268,7 +268,7 @@ export const ScoringStep: React.FC<ScoringStepProps> = ({ work }) => {
                     .map(({ level, index }) => {
                       const on = live[c.id] === index;
                       return (
-                        <button
+                        <button // no-tour-anchor: preview feature, tours are added when it opens
                           key={level.id}
                           type="button"
                           role="radio"
@@ -295,7 +295,7 @@ export const ScoringStep: React.FC<ScoringStepProps> = ({ work }) => {
                 {totals.points} / {max}
               </span>
               {scoreBySeat.has(current) && (
-                <button
+                <button // no-tour-anchor: preview feature, tours are added when it opens
                   type="button"
                   onClick={() => clear(current)}
                   className="text-sm text-slate-600 underline"
@@ -304,7 +304,7 @@ export const ScoringStep: React.FC<ScoringStepProps> = ({ work }) => {
                 </button>
               )}
               <span className="flex-1" />
-              <button
+              <button // no-tour-anchor: preview feature, tours are added when it opens
                 type="button"
                 onClick={() => move(-1)}
                 aria-label="Previous student"
@@ -312,7 +312,7 @@ export const ScoringStep: React.FC<ScoringStepProps> = ({ work }) => {
               >
                 <ChevronLeft className="w-4 h-4" aria-hidden="true" />
               </button>
-              <button
+              <button // no-tour-anchor: preview feature, tours are added when it opens
                 type="button"
                 onClick={() => move(1)}
                 aria-label="Next student"

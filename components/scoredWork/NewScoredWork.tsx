@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { FileUp, Printer } from 'lucide-react';
+import { FileUp, Plus, Printer } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
@@ -14,11 +14,18 @@ import { rubricMaxPoints } from '@/utils/scoredWorkMath';
 
 interface NewScoredWorkProps {
   onCreated: (workId: string) => void;
+  onOpenRubricBuilder: () => void;
+  /** A rubric just made in the builder; picked once, then the teacher can change it. */
+  requestedRubricId: string | null;
 }
 
 const MAX_SPARES = 10;
 
-export const NewScoredWork: React.FC<NewScoredWorkProps> = ({ onCreated }) => {
+export const NewScoredWork: React.FC<NewScoredWorkProps> = ({
+  onCreated,
+  onOpenRubricBuilder,
+  requestedRubricId,
+}) => {
   const { user } = useAuth();
   const { rosters, addToast } = useDashboard();
   const { driveService } = useGoogleDrive();
@@ -29,6 +36,11 @@ export const NewScoredWork: React.FC<NewScoredWorkProps> = ({ onCreated }) => {
   const [rosterIds, setRosterIds] = useState<string[]>([]);
   const [spares, setSpares] = useState(2);
   const [busy, setBusy] = useState(false);
+  const [adoptedRubricId, setAdoptedRubricId] = useState<string | null>(null);
+  if (requestedRubricId && requestedRubricId !== adoptedRubricId) {
+    setAdoptedRubricId(requestedRubricId);
+    setRubricId(requestedRubricId);
+  }
 
   const rubric = useMemo(
     () => rubrics.find((r) => r.id === rubricId) ?? null,
@@ -111,7 +123,7 @@ export const NewScoredWork: React.FC<NewScoredWorkProps> = ({ onCreated }) => {
         <span className="block text-sm font-semibold text-slate-700 mb-1">
           Name
         </span>
-        <input
+        <input // no-tour-anchor: preview feature, tours are added when it opens
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={80}
@@ -120,28 +132,37 @@ export const NewScoredWork: React.FC<NewScoredWorkProps> = ({ onCreated }) => {
         />
       </label>
 
-      <label className="block">
-        <span className="block text-sm font-semibold text-slate-700 mb-1">
-          Rubric
-        </span>
-        <select
-          value={rubricId}
-          onChange={(e) => setRubricId(e.target.value)}
-          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white"
+      <div>
+        <label
+          htmlFor="scored-work-rubric"
+          className="block text-sm font-semibold text-slate-700 mb-1"
         >
-          <option value="">Choose a rubric</option>
-          {rubrics.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.title} ({rubricMaxPoints(r)} pts)
-            </option>
-          ))}
-        </select>
-        {rubrics.length === 0 && (
-          <span className="block text-xs text-slate-500 mt-1">
-            Make a rubric in your library first.
-          </span>
-        )}
-      </label>
+          Rubric
+        </label>
+        <div className="flex gap-2">
+          <select // no-tour-anchor: preview feature, tours are added when it opens
+            id="scored-work-rubric"
+            value={rubricId}
+            onChange={(e) => setRubricId(e.target.value)}
+            className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white"
+          >
+            <option value="">Choose a rubric</option>
+            {rubrics.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.title} ({rubricMaxPoints(r)} pts)
+              </option>
+            ))}
+          </select>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onOpenRubricBuilder}
+            icon={<Plus className="w-4 h-4" aria-hidden="true" />}
+          >
+            New rubric
+          </Button>
+        </div>
+      </div>
 
       <label className="block">
         <span className="block text-sm font-semibold text-slate-700 mb-1">
@@ -152,7 +173,7 @@ export const NewScoredWork: React.FC<NewScoredWorkProps> = ({ onCreated }) => {
           <span className="truncate">
             {file ? file.name : 'Choose a PDF or image'}
           </span>
-          <input
+          <input // no-tour-anchor: preview feature, tours are added when it opens
             type="file"
             accept="application/pdf,image/*"
             className="sr-only"
@@ -182,7 +203,7 @@ export const NewScoredWork: React.FC<NewScoredWorkProps> = ({ onCreated }) => {
               key={r.id}
               className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer hover:bg-slate-50"
             >
-              <input
+              <input // no-tour-anchor: preview feature, tours are added when it opens
                 type="checkbox"
                 checked={rosterIds.includes(r.id)}
                 onChange={() => toggleRoster(r.id)}
@@ -198,7 +219,7 @@ export const NewScoredWork: React.FC<NewScoredWorkProps> = ({ onCreated }) => {
         <span className="block text-sm font-semibold text-slate-700 mb-1">
           Blank spares
         </span>
-        <input
+        <input // no-tour-anchor: preview feature, tours are added when it opens
           type="number"
           min={0}
           max={MAX_SPARES}
