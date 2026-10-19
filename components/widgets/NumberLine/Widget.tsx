@@ -401,7 +401,7 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
                     {marker.label && fit && (
                       <text
                         x={fit.x}
-                        y={axisY - 52 - row * 18}
+                        y={Math.max(axisY - 52 - row * 18, LABEL_PX + 4)}
                         textAnchor="middle"
                         fill={marker.color}
                         fontWeight="bold"
@@ -459,7 +459,7 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
                         x={jumpFit.x}
                         y={Math.max(
                           controlY + jumpHeight * 0.5 - 5,
-                          jumpFit.fontSize + 2
+                          jumpFit.fontSize + 6
                         )}
                         textAnchor="middle"
                         fill="currentColor"
