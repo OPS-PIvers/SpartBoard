@@ -3614,7 +3614,7 @@
         "es-soft-bdg": "Accepte un b, d ou g dur à la place du son doux, et l'inverse.",
         "es-aspiration": "Accepte un souffle après p, t et k, comme en anglais.",
         "es-vowel-glide": "Accepte un e et un o qui glissent, comme dans l'anglais say et go.",
-        "es-vowel-reduce": "Accepte un e muet à la place de a, e ou o.",
+        "es-vowel-reduce": "Accepte un « euh » détendu à la place de a, e ou o.",
         "es-jota": "Accepte un h anglais pour le son j.",
         "de-r": "Accepte un r roulé, battu ou anglais pour le r allemand.",
         "de-ich-ach": "Accepte ch comme dans « chat » ou un k dans ich, et k ou h pour le ch de ach.",
@@ -3626,7 +3626,7 @@
         "en-r": "Accepte un r roulé, battu ou allemand pour le r anglais.",
         "en-aspiration": "Accepte p, t, k sans le souffle.",
         "en-vowel-length": "Accepte la voyelle brève à la place de la longue (ship pour sheep), et l'inverse.",
-        "en-reduced": "Accepte un e muet plus net ou un er dans les parties non accentuées.",
+        "en-reduced": "Accepte un « euh » plus plein ou un er dans les parties non accentuées.",
         "en-final-voicing": "Accepte s, t, f en fin de mot à la place de z, d, v.",
         "stress": "Accepte le mot avec l'accent sur une autre partie."
       },

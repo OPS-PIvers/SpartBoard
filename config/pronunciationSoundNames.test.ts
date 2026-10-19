@@ -271,6 +271,18 @@ describe('pronunciationSoundNames', () => {
     }
   });
 
+  it('gives each sound its own example word', () => {
+    for (const language of SPEAK_LANGUAGES) {
+      const words = Object.values(SPEAK_SOUND_EXAMPLES[language]);
+      expect(words.length).toBe(new Set(words).size);
+    }
+  });
+
+  it('ignores object prototype keys', () => {
+    expect(speakSoundName('en', 'constructor', 'en').known).toBe(false);
+    expect(isKnownSpeakSound('en', 'toString')).toBe(false);
+  });
+
   it('never shows the symbol for an unlisted sound', () => {
     const sound = speakSoundName('es', 'iou1', 'en');
     expect(sound).toEqual({

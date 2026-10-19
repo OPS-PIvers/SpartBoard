@@ -3613,7 +3613,7 @@
         "es-tap": "Lässt ein englisches r oder ein d durch, wo das Wort ein geschlagenes r hat.",
         "es-soft-bdg": "Lässt ein hartes b, d oder g für den weichen Laut durch, und umgekehrt.",
         "es-aspiration": "Lässt einen Lufthauch nach p, t und k durch, wie im Deutschen.",
-        "es-vowel-glide": "Lässt e und o durch, die gleiten, wie im Deutschen in Tee und Boot.",
+        "es-vowel-glide": "Lässt e und o durch, die gleiten, wie im Englischen in say und go.",
         "es-vowel-reduce": "Lässt ein entspanntes, schwaches e statt a, e oder o durch.",
         "es-jota": "Lässt ein deutsches h für den j-Laut durch.",
         "de-r": "Lässt ein gerolltes, geschlagenes oder englisches r für das deutsche r durch.",

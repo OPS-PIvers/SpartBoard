@@ -200,13 +200,13 @@ const BASE_SOUNDS: Readonly<Record<string, LocalizedSound>> = {
     en: ['Weak uh', 'Say a short, relaxed uh.'],
     es: ['vocal débil', 'Di una vocal corta y relajada, como una e muy suave.'],
     de: ['Schwaches e', 'Sag ein kurzes, entspanntes e.'],
-    fr: ['e muet', 'Dis un e muet, court et détendu.'],
+    fr: ['e neutre', 'Dis un « euh » court et détendu.'],
   },
   ɐ: {
     en: ['Weak uh', 'Say a short, relaxed uh.'],
     es: ['vocal débil', 'Di una vocal corta y relajada, como una a muy suave.'],
     de: ['Schwaches e', 'Sag ein kurzes, entspanntes e.'],
-    fr: ['e muet', 'Dis un e muet, court et détendu.'],
+    fr: ['e neutre', 'Dis un « euh » court et détendu.'],
   },
   ɜ: {
     en: ['Soft -er ending', 'Relax your mouth and say a soft uh, with no r.'],
@@ -217,7 +217,7 @@ const BASE_SOUNDS: Readonly<Record<string, LocalizedSound>> = {
     ],
     fr: [
       'finale -er douce',
-      'Détends la bouche et dis un e muet doux, sans r.',
+      'Détends la bouche et dis un « euh » doux, sans r.',
     ],
   },
   ɜː: {
@@ -248,7 +248,10 @@ const BASE_SOUNDS: Readonly<Record<string, LocalizedSound>> = {
       'Kurzes dumpfes a',
       'Öffne den Mund ein wenig und sag ein kurzes, dumpfes a.',
     ],
-    fr: ['eu bref', 'Ouvre un peu la bouche et dis un eu court.'],
+    fr: [
+      'a bref détendu',
+      'Ouvre un peu la bouche et dis un a court et détendu.',
+    ],
   },
   ərɜ: {
     en: ['-erer ending', 'Say a soft e, a light r, then a soft uh.'],
@@ -257,7 +260,7 @@ const BASE_SOUNDS: Readonly<Record<string, LocalizedSound>> = {
       '-erer-Endung',
       'Sag ein weiches e, ein leichtes r und dann ein weiches e.',
     ],
-    fr: ['finale -erer', 'Dis un e doux, un r léger, puis un e muet doux.'],
+    fr: ['finale -erer', 'Dis un e doux, un r léger, puis un « euh » doux.'],
   },
   əl: {
     en: [
@@ -274,7 +277,7 @@ const BASE_SOUNDS: Readonly<Record<string, LocalizedSound>> = {
     ],
     fr: [
       'finale -le',
-      'Dis un e muet doux, puis pose la langue derrière les dents.',
+      'Dis un « euh » doux, puis pose la langue derrière les dents.',
     ],
   },
   n̩: {
@@ -350,7 +353,7 @@ const BASE_SOUNDS: Readonly<Record<string, LocalizedSound>> = {
     en: ['eye-uh', 'Say the eye sound, then a soft uh.'],
     es: ['ai y vocal suave', 'Di el sonido ai y luego una vocal suave.'],
     de: ['ai-e', 'Sag den ai-Laut und dann ein weiches e.'],
-    fr: ['aï-e', 'Dis le son aï, puis un e muet doux.'],
+    fr: ['aï-e', 'Dis le son aï, puis un « euh » doux.'],
   },
   aɪɚ: {
     en: ['eye-er', 'Say the eye sound, then a soft er.'],
@@ -362,7 +365,7 @@ const BASE_SOUNDS: Readonly<Record<string, LocalizedSound>> = {
     en: ['ee-uh', 'Say ee, then a soft uh.'],
     es: ['i y vocal suave', 'Di i y luego una vocal suave.'],
     de: ['i-e', 'Sag i und dann ein weiches e.'],
-    fr: ['i-e', 'Dis i, puis un e muet doux.'],
+    fr: ['i-e', 'Dis i, puis un « euh » doux.'],
   },
   ɪɹ: {
     en: ['eer sound', 'Say a short i, then curl into r.'],
@@ -981,7 +984,7 @@ const LANGUAGE_SOUNDS: Readonly<
         'Spanische Vokale bleiben voll. Sprich jeden deutlich.',
       ],
       fr: [
-        'e muet',
+        'e neutre',
         'Les voyelles espagnoles restent pleines. Dis chacune clairement.',
       ],
     },
@@ -1110,7 +1113,7 @@ const LANGUAGE_SOUNDS: Readonly<
       ],
       fr: [
         'finale -er douce',
-        'Détends la bouche et dis un e muet doux, sans r.',
+        'Détends la bouche et dis un « euh » doux, sans r.',
       ],
     },
     əl: {
@@ -1128,14 +1131,14 @@ const LANGUAGE_SOUNDS: Readonly<
       ],
       fr: [
         'finale -el',
-        'Dis un e muet doux, puis pose la langue derrière les dents.',
+        'Dis un « euh » doux, puis pose la langue derrière les dents.',
       ],
     },
     ə: {
       en: ['Weak e', 'Say a short, relaxed uh.'],
       es: ['e débil', 'Di una e corta y relajada.'],
       de: ['Schwaches e', 'Sag ein kurzes, entspanntes e.'],
-      fr: ['e faible', 'Dis un e muet, court et détendu.'],
+      fr: ['e faible', 'Dis un « euh » court et détendu.'],
     },
   },
   en: {
@@ -1192,12 +1195,12 @@ export const SPEAK_SOUND_EXAMPLES: Readonly<
     a: 'casa',
     e: 'mesa',
     i: 'sí',
-    o: 'no',
+    o: 'ojo',
     u: 'tú',
     s: 'sol',
     n: 'no',
     t: 'taza',
-    k: 'casa',
+    k: 'queso',
     l: 'luna',
     m: 'mamá',
     p: 'papá',
@@ -1210,7 +1213,7 @@ export const SPEAK_SOUND_EXAMPLES: Readonly<
     r: 'perro',
     f: 'foto',
     x: 'jota',
-    ɛ: 'tengo',
+    ɛ: 'cuenta',
     ɣ: 'lago',
     w: 'cuando',
     ja: 'hacia',
@@ -1244,16 +1247,16 @@ export const SPEAK_SOUND_EXAMPLES: Readonly<
     n: 'nein',
     ə: 'bitte',
     t: 'Tag',
-    l: 'lang',
+    l: 'Lampe',
     ɾ: 'war',
     ɛ: 'Bett',
     a: 'Mann',
-    ɪ: 'bitte',
+    ɪ: 'Kind',
     k: 'kalt',
     f: 'Fisch',
     s: 'das',
     ɡ: 'gut',
-    m: 'Mutter',
+    m: 'Meer',
     b: 'Ball',
     iː: 'Liebe',
     r: 'rot',
@@ -1265,14 +1268,14 @@ export const SPEAK_SOUND_EXAMPLES: Readonly<
     ɜ: 'aber',
     aɪ: 'mein',
     v: 'wie',
-    ʊ: 'Mutter',
+    ʊ: 'Hund',
     p: 'Papa',
     ts: 'Zeit',
-    z: 'Sonne',
+    z: 'Hase',
     ç: 'ich',
     ɔ: 'Sonne',
     ŋ: 'lang',
-    h: 'Haus',
+    h: 'Hand',
     uː: 'Schuh',
     aʊ: 'Haus',
     j: 'ja',
@@ -1302,15 +1305,15 @@ export const SPEAK_SOUND_EXAMPLES: Readonly<
     tsh: 'Gerichtshof',
     ɔ̃: 'Saison',
     aː: 'Staat',
-    ʁ: 'rot',
-    ɐ: 'aber',
+    ʁ: 'Rad',
+    ɐ: 'Lehrer',
   },
   en: {
     n: 'no',
     ɪ: 'sit',
-    s: 'see',
+    s: 'sun',
     t: 'top',
-    k: 'cat',
+    k: 'kite',
     ɹ: 'red',
     d: 'dog',
     l: 'like',
@@ -1363,7 +1366,7 @@ export const SPEAK_SOUND_EXAMPLES: Readonly<
     ð: 'this',
     aɪə: 'science',
     aɪɚ: 'fire',
-    ʔ: 'button',
+    ʔ: 'kitten',
     n̩: 'button',
     th: 'lighthouse',
     x: 'Bach',
@@ -1371,8 +1374,8 @@ export const SPEAK_SOUND_EXAMPLES: Readonly<
     pf: 'helpful',
     ph: 'uphold',
     pʰ: 'pin',
-    tʰ: 'top',
-    kʰ: 'cat',
+    tʰ: 'tea',
+    kʰ: 'key',
   },
 };
 
@@ -1412,12 +1415,12 @@ export function isKnownSpeakSound(
   token: string
 ): boolean {
   return (
-    token in SPEAK_SOUND_EXAMPLES[language] ||
+    Object.hasOwn(SPEAK_SOUND_EXAMPLES[language], token) ||
     SPEAK_HEARD_ONLY_SOUNDS[language].includes(token)
   );
 }
 
-/** A token outside the language's list reads "This sound" with no hint, so a mark never shows a symbol. */
+/** An unlisted token reads "This sound" with no hint (`known: false`), so a mark never shows a symbol. */
 export function speakSoundName(
   language: SpeakLanguage,
   token: string,
@@ -1425,14 +1428,16 @@ export function speakSoundName(
 ): SpeakSoundName {
   const locale = soundNameLocale(uiLanguage);
   const known = isKnownSpeakSound(language, token);
+  const own = <T>(table: Readonly<Record<string, T>>): T | undefined =>
+    Object.hasOwn(table, token) ? table[token] : undefined;
   const entry = known
-    ? (LANGUAGE_SOUNDS[language][token] ?? BASE_SOUNDS[token] ?? FALLBACK)
+    ? (own(LANGUAGE_SOUNDS[language]) ?? own(BASE_SOUNDS) ?? FALLBACK)
     : FALLBACK;
   const [name, hint] = entry[locale];
   return {
     name,
     hint,
-    example: SPEAK_SOUND_EXAMPLES[language][token] ?? null,
+    example: own(SPEAK_SOUND_EXAMPLES[language]) ?? null,
     known: known && entry !== FALLBACK,
   };
 }
