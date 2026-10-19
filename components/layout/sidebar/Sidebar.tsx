@@ -27,6 +27,7 @@ import {
   Sparkles,
   ClipboardList,
   BookOpenCheck,
+  ScanLine,
 } from 'lucide-react';
 import { GoogleDriveIcon } from '@/components/common/GoogleDriveIcon';
 import { LazyChunkErrorBoundary } from '@/components/common/LazyChunkErrorBoundary';
@@ -58,6 +59,7 @@ import { SidebarGoogleDrive } from './SidebarGoogleDrive';
 import { SidebarClasses } from './SidebarClasses';
 import { SidebarPlcs } from './SidebarPlcs';
 import { usePlcs } from '@/hooks/usePlcs';
+import { useScoredWorkAccess } from '@/hooks/useScoredWorkAccess';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
 import { buildPlcPath, spaNavigate } from '@/utils/plcPath';
 import { BoardsModal } from '@/components/boardsModal/BoardsModal';
@@ -72,6 +74,11 @@ import { useTourFrameHold } from '@/components/tours/tourFrame';
 declare const __APP_VERSION__: string;
 
 // Lazy: AdminSettings pulls in recharts + the admin surface (~1.2MB) but only admins open it.
+const ScoredWorkModal = React.lazy(() =>
+  import('@/components/scoredWork/ScoredWorkModal').then((m) => ({
+    default: m.ScoredWorkModal,
+  }))
+);
 const AdminSettings = React.lazy(() =>
   import('@/components/admin/AdminSettings').then((m) => ({
     default: m.AdminSettings,
@@ -231,6 +238,8 @@ export const Sidebar: React.FC = () => {
   const [settingsModalSection, setSettingsModalSection] =
     useState<SettingsSectionId | null>(null);
   const [showAssignmentsHub, setShowAssignmentsHub] = useState(false);
+  const [showScoredWork, setShowScoredWork] = useState(false);
+  const canScoreWork = useScoredWorkAccess();
   const [showShortLinkQuickCreate, setShowShortLinkQuickCreate] =
     useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
@@ -403,6 +412,13 @@ export const Sidebar: React.FC = () => {
       )}
       {showAssignmentsHub && (
         <AssignmentsHubModal onClose={() => setShowAssignmentsHub(false)} />
+      )}
+      {showScoredWork && (
+        <LazyChunkErrorBoundary>
+          <React.Suspense fallback={null}>
+            <ScoredWorkModal onClose={() => setShowScoredWork(false)} />
+          </React.Suspense>
+        </LazyChunkErrorBoundary>
       )}
 
       {showShortLinkQuickCreate && (
@@ -589,6 +605,23 @@ export const Sidebar: React.FC = () => {
                         {t('sidebar.nav.assignments', {
                           defaultValue: 'Assignments',
                         })}
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
+                    </button>
+                  )}
+                  {canScoreWork && (
+                    <button
+                      onClick={() => {
+                        setShowScoredWork(true);
+                        setIsOpen(false);
+                      }}
+                      className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                        <ScanLine className="w-4 h-4 text-brand-blue-light group-hover:text-brand-blue-primary transition-colors" />
+                      </div>
+                      <span className="flex-grow text-[13px]">
+                        Scored paper work
                       </span>
                       <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                     </button>

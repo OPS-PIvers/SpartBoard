@@ -6350,6 +6350,8 @@ export interface ScoredWork {
   updatedAt: number;
   /** Drive folder holding the scan images and the name manifest. */
   driveFolderId?: string;
+  /** Seat -> opaque Drive file id per scanned page, in page order (index 0 = page 1). */
+  scans?: Record<number, Array<string | null>>;
   /** Set once the teacher shares scores with a PLC. */
   plc?: ScoredWorkPlcLink;
 }
@@ -6363,7 +6365,7 @@ export interface ScoredWorkPlcLink {
 
 /**
  * One student's rubric scores, at `users/{teacherUid}/scored_work/{workId}/scores/{seat}`.
- * Seat keyed and name-free; `scanFileIds` are opaque Drive ids.
+ * Seat keyed and name-free.
  */
 export interface ScoredWorkScore {
   seat: number;
@@ -6372,7 +6374,6 @@ export interface ScoredWorkScore {
   points: number;
   max: number;
   scoredAt: number;
-  scanFileIds?: string[];
 }
 
 /** One criterion of a pooled scored-work aggregate. Criteria pool across teachers by name. */

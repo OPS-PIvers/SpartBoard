@@ -45,13 +45,12 @@ describe('scoredWorkMath', () => {
 
   it('builds a score doc only when complete', () => {
     expect(buildScoreDoc(rubric, 3, { a: 1 }, 9)).toBeNull();
-    expect(buildScoreDoc(rubric, 3, { a: 1, b: 1 }, 9, ['f1'])).toEqual({
+    expect(buildScoreDoc(rubric, 3, { a: 1, b: 1 }, 9)).toEqual({
       seat: 3,
       levels: { a: 1, b: 1 },
       points: 5,
       max: 7,
       scoredAt: 9,
-      scanFileIds: ['f1'],
     });
   });
 

@@ -50,8 +50,7 @@ export function buildScoreDoc(
   rubric: Rubric,
   seat: number,
   levels: Record<string, number>,
-  now: number,
-  scanFileIds?: string[]
+  now: number
 ): ScoredWorkScore | null {
   if (!isFullyScored(rubric, levels)) return null;
   const clean = cleanLevels(rubric, levels);
@@ -62,6 +61,5 @@ export function buildScoreDoc(
     points,
     max,
     scoredAt: now,
-    ...(scanFileIds?.length ? { scanFileIds } : {}),
   };
 }

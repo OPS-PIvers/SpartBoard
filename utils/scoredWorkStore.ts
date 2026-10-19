@@ -50,6 +50,27 @@ export const updateScoredWork = (
     updatedAt: Date.now(),
   });
 
+/** Record where one scanned page went in Drive; a rescan overwrites the same slot. */
+export const saveScanPageId = (
+  userId: string,
+  workId: string,
+  seat: number,
+  pageCount: number,
+  page: number,
+  existing: Array<string | null> | undefined,
+  fileId: string
+): Promise<void> => {
+  const next = Array.from(
+    { length: pageCount },
+    (_, i) => existing?.[i] ?? null
+  );
+  next[page - 1] = fileId;
+  return updateDoc(doc(workRef(userId), workId), {
+    [`scans.${seat}`]: next,
+    updatedAt: Date.now(),
+  });
+};
+
 /** Hand a walk-in's spare sheet to a roster student once the teacher knows who it was. */
 export const assignSpareSeat = (
   userId: string,
