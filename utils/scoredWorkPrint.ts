@@ -19,6 +19,7 @@ import {
   registrationMarksHtml,
 } from './paperSheetPrint';
 import {
+  defaultOpenWindow,
   escapeHtml,
   printHtmlDocument,
   type OpenWindow,
@@ -112,6 +113,24 @@ export function buildScoredWorkHtml(
 
 const SCORED_WORK_STYLES = `${PAPER_SHEET_STYLES}
   .ws-page { position: absolute; object-fit: contain; }`;
+
+/** Open the print window on the click itself; browsers block a window opened after any await. */
+export function openPrintWindow(
+  openWindow: OpenWindow = defaultOpenWindow
+): Window {
+  const win = openWindow('', '_blank');
+  if (!win) {
+    throw new Error('Printing blocked: please allow pop-ups for this site.');
+  }
+  try {
+    win.document.write(
+      '<p style="font-family:sans-serif;padding:24px">Preparing your sheets...</p>'
+    );
+  } catch {
+    // A window we cannot write to still prints once the sheets are ready.
+  }
+  return win;
+}
 
 /** Open the print dialog on one stamped worksheet per student. */
 export function printScoredWork(

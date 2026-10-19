@@ -30,6 +30,34 @@ export interface ScoredWorkPlanInput {
   now: number;
 }
 
+/** Rebuild the printed sheets of a saved set; `nameOf` resolves a seat through the Drive roster. */
+export function sheetsFromWork(
+  work: Pick<ScoredWork, 'seats' | 'spareSeats'>,
+  nameOf: (
+    seat: PaperSeatAssignment
+  ) => { name: string; className: string } | null
+): ScoredWorkSheet[] {
+  const assigned = Object.keys(work.seats)
+    .map(Number)
+    .map((seat) => {
+      const student = work.seats[seat];
+      const label = nameOf(student);
+      return {
+        seat,
+        student,
+        displayName: label?.name ?? 'Unnamed student',
+        className: label?.className ?? '',
+      };
+    });
+  const spares = work.spareSeats.map((seat) => ({
+    seat,
+    student: null,
+    displayName: 'Name ______________________',
+    className: '',
+  }));
+  return [...assigned, ...spares].sort((a, b) => a.seat - b.seat);
+}
+
 const studentLabel = (s: Student): string =>
   [s.lastName, s.firstName].filter(Boolean).join(', ') || 'Unnamed student';
 

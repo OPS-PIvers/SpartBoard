@@ -8,6 +8,7 @@ import { useScoredWorkList, useScoredWorkScores } from '@/hooks/useScoredWork';
 import { rubricMaxPoints } from '@/utils/scoredWorkMath';
 import { RubricBuilderPanel } from '@/components/widgets/QuizWidget/components/RubricBuilderPanel';
 import { NewScoredWork } from './NewScoredWork';
+import { ReprintButton } from './ReprintButton';
 import { ScanStep } from './ScanStep';
 import { ScoringStep } from './ScoringStep';
 import { ShareStep } from './ShareStep';
@@ -122,16 +123,19 @@ export const ScoredWorkModal: React.FC<ScoredWorkModalProps> = ({
 
       {active && (
         <div className="space-y-4">
-          <SegmentedControl<Step>
-            value={step}
-            onChange={setStep}
-            ariaLabel="Step"
-            options={[
-              { value: 'scan', label: 'Scan' },
-              { value: 'score', label: 'Score' },
-              { value: 'share', label: 'Share' },
-            ]}
-          />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <SegmentedControl<Step>
+              value={step}
+              onChange={setStep}
+              ariaLabel="Step"
+              options={[
+                { value: 'scan', label: 'Scan' },
+                { value: 'score', label: 'Score' },
+                { value: 'share', label: 'Share' },
+              ]}
+            />
+            <ReprintButton work={active} />
+          </div>
           {step === 'scan' && (
             <ScanStep work={active} onDone={() => setStep('score')} />
           )}

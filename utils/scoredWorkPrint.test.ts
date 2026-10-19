@@ -13,6 +13,7 @@ import {
   SCORED_WORK_BODY_MM,
   buildScoredWorkHtml,
   fitWorksheetPage,
+  openPrintWindow,
 } from './scoredWorkPrint';
 
 const sheets = [
@@ -69,5 +70,19 @@ describe('scoredWorkPrint', () => {
         PAGE_HEIGHT_MM - CORNER_WINDOW_H_MM + 0.001
       );
     }
+  });
+});
+
+describe('openPrintWindow', () => {
+  it('opens a window right away and says it is preparing', () => {
+    const written: string[] = [];
+    const win = { document: { write: (h: string) => written.push(h) } };
+    const opened = openPrintWindow(() => win as unknown as Window);
+    expect(opened).toBe(win);
+    expect(written.join('')).toContain('Preparing');
+  });
+
+  it('explains a blocked pop-up', () => {
+    expect(() => openPrintWindow(() => null)).toThrow(/allow pop-ups/);
   });
 });

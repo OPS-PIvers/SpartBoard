@@ -6269,6 +6269,8 @@ export interface ScoredWork {
   updatedAt: number;
   /** Drive folder holding the scan images and the name manifest. */
   driveFolderId?: string;
+  /** Drive file of the teacher's original worksheet, so it can be printed again. */
+  worksheetFileId?: string;
   /** Seat -> opaque Drive file id per scanned page, in page order (index 0 = page 1). */
   scans?: Record<number, Array<string | null>>;
   /** Set once the teacher shares scores with a PLC. */

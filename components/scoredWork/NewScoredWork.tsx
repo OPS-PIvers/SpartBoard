@@ -7,7 +7,7 @@ import { useRubrics } from '@/hooks/useRubrics';
 import { Button } from '@/components/common/Button';
 import { rasterizeWorksheet } from '@/utils/scoredWorkWorksheet';
 import { planScoredWork } from '@/utils/scoredWorkPlan';
-import { printScoredWork } from '@/utils/scoredWorkPrint';
+import { openPrintWindow, printScoredWork } from '@/utils/scoredWorkPrint';
 import { saveScoredWork } from '@/utils/scoredWorkStore';
 import { ensureWorkFolder, writeNamesManifest } from '@/utils/scoredWorkDrive';
 import { rubricMaxPoints } from '@/utils/scoredWorkMath';
@@ -68,8 +68,19 @@ export const NewScoredWork: React.FC<NewScoredWorkProps> = ({
       addToast('Connect Google Drive to keep your scans.', 'error');
       return;
     }
+    let printWindow: Window;
+    try {
+      printWindow = openPrintWindow();
+    } catch (error) {
+      addToast(
+        error instanceof Error ? error.message : 'Printing blocked.',
+        'error'
+      );
+      return;
+    }
     setBusy(true);
     let pages: Awaited<ReturnType<typeof rasterizeWorksheet>> | null = null;
+    let printed = false;
     try {
       pages = await rasterizeWorksheet(file);
       const { work, sheets } = planScoredWork({
@@ -89,7 +100,16 @@ export const NewScoredWork: React.FC<NewScoredWorkProps> = ({
         work.id
       );
       await writeNamesManifest(driveService, folderId, sheets);
-      await saveScoredWork(user.uid, { ...work, driveFolderId: folderId });
+      const worksheet = await driveService.uploadFileToFolderId(
+        file,
+        `worksheet-${file.name}`,
+        folderId
+      );
+      await saveScoredWork(user.uid, {
+        ...work,
+        driveFolderId: folderId,
+        worksheetFileId: worksheet.id,
+      });
       const release = pages.release;
       printScoredWork(
         {
@@ -100,8 +120,10 @@ export const NewScoredWork: React.FC<NewScoredWorkProps> = ({
           pageImageSrc: pages.srcs,
           onImagesReady: release,
         },
-        pages.aspects
+        pages.aspects,
+        () => printWindow
       );
+      printed = true;
       pages = null;
       onCreated(work.id);
     } catch (error) {
@@ -112,6 +134,7 @@ export const NewScoredWork: React.FC<NewScoredWorkProps> = ({
         'error'
       );
     } finally {
+      if (!printed) printWindow.close();
       pages?.release();
       setBusy(false);
     }
