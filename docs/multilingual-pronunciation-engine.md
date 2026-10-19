@@ -31,6 +31,9 @@ Scoring runs on the student's device and the audio never leaves it. The teacher 
   - the counsel brief on espeak's licence (G19); the flag stays admin-only until counsel answers;
   - running the model upload script on both projects (§10, P2);
   - the Chromebook recheck at the Speak capture settings (§10, P3).
+- **Known risks, each with a fallback:**
+  - espeak running in Cloud Functions is unproven; S3 starts with a go/no-go and a Cloud Run fallback (P7);
+  - Wikimedia rate-limits cloud sessions; S4's fetch throttles, and Paul runs it locally if needed (P6).
 - **Open, settled by the build itself:**
   - the scorer's thresholds and confusion lists are calibrated by the corpus gate (S11, §8), no longer guessed;
   - the German `??` token question is answered by the same corpus run.
@@ -727,7 +730,15 @@ Each slice lists **owns** (exclusive files), **does**, and **done when**.
 - **Owns:** `functions/src/pronunciation/**`, the export line in `functions/src/index.ts`, `functions/package.json` (espeak dependency only).
 - **Does:**
   - implements `lookupSpeakReferencesV1` per §5;
-  - **First step: choose and pin an espeak-ng build that runs in Node 24 Cloud Functions without apt.** The candidate is the Emscripten build `@echogarden/espeak-ng-emscripten`; verify its version and licence. Its IPA output must match espeak-ng 1.51 (the spikes' version) on the spike word lists, or the differences are recorded.
+  - **First step, a go/no-go before anything else in S3: prove an espeak-ng build runs in Node 24 Cloud Functions without apt.**
+    - The candidate is `@echogarden/espeak-ng-emscripten` (0.3.5 on npm, GPL-3.0-only, checked 2026-10-19). Pin the exact version.
+    - **Go** means all four hold:
+      - it loads and phonemizes in a deployed dev function, not only locally, with es-419, es-ES, de-DE and en-US voices;
+      - its IPA matches espeak-ng 1.51 (the spikes' version) on the spike word lists, or every difference is listed and none changes a token after `tokenizeIpa`;
+      - a cold start plus a 500-term batch finishes inside the callable timeout;
+      - memory stays within a 1 GiB function.
+    - **No-go fallback:** a minimal Cloud Run service on the dev project (`Dockerfile` with `apt-get install espeak-ng`, pinned to 1.51) behind an authenticated internal endpoint that only `lookupSpeakReferencesV1` calls. It has the same GPL posture (server-side, only IPA output stored), so G19's counsel brief is unchanged.
+    - The S3 PR states which path was taken and the measured numbers. **If the fallback is taken, S3 stops and the orchestrator asks Paul before building it**, because it adds a deployed service and a deploy step to `plan-deploy.sh`.
   - mirrors `tokenizeIpa` (as `functions/src/flashcardMatch.ts` mirrors its client file), with a test that the two agree;
   - runs the CMUDict cross-check for `en` (committed dictionary with its licence);
   - computes stress references per R1–R5 (Spanish by spelling rule, from `scripts/spikes/stress-reference/reference.ts`);
@@ -745,6 +756,13 @@ Each slice lists **owns** (exclusive files), **does**, and **done when**.
 - **Owns:** `scripts/pronunciation-corpus/**`, `tests/fixtures/pronunciation-corpus/**`, `.github/workflows/pronunciation-gate.yml`.
 - **Does:**
   - builds the §8 fetch with manifest, credits and FLAC conversion;
+  - **respects Wikimedia's rate limits.** The Commons API returned HTTP 429 from a cloud session on 2026-10-19. The fetch:
+    - sends a descriptive `User-Agent` with a contact address, per Wikimedia's policy;
+    - makes one request at a time, with at least 1 s between requests;
+    - honours `Retry-After` and backs off exponentially on 429/503;
+    - batches metadata lookups (`titles=` up to 50 per call);
+    - can resume from a partial `manifest.json`.
+  - **If cloud sessions stay rate-limited:** S4 commits the script and a 5-clip smoke subset, and Paul runs the full fetch once from his machine (P6). The clips are committed, so CI and S11 never call Wikimedia.
   - writes the controls;
   - builds the mutated-reference generator;
   - writes `gate.mjs` against the §5 `judgeSpeech` and a Node recognizer path (it imports S2's pure decode helpers once merged; until then it builds against the contract);
@@ -877,6 +895,8 @@ Each slice lists **owns** (exclusive files), **does**, and **done when**.
 - **P3.** The Chromebook recheck on the Speak capture path (§8), after S2.
 - **P4.** Yes or no on any S11 calibration proposal (tolerance pairs, preset defaults).
 - **P5.** Review **words to check** during the admin-only period; flip the flag per the release rule.
+- **P6.** Only if S4 reports cloud rate-limiting: run `node scripts/pronunciation-corpus/fetch.mjs` once locally and push the clips it writes.
+- **P7.** Only if S3 reports no-go: approve or decline the Cloud Run fallback.
 
 ---
 
