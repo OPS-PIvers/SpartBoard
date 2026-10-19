@@ -32,7 +32,7 @@ export interface RasterizedPage {
   pageNumber: number;
   page: RasterPage;
   /** Crops a region of the page as a PNG data URL, while the page is live. */
-  crop: (rect: RectPx) => string;
+  crop: (rect: RectPx, maxEdge?: number) => string;
 }
 
 /** A canvas 2D surface, narrowed to what rasterizing needs; injectable for tests. */
@@ -234,7 +234,8 @@ function pageFromSurface(
   return {
     pageNumber,
     page: surface.getImageData(),
-    crop: (rect) => surface.toDataUrl(rect, CROP_MAX_EDGE_PX),
+    crop: (rect, maxEdge = CROP_MAX_EDGE_PX) =>
+      surface.toDataUrl(rect, maxEdge),
   };
 }
 

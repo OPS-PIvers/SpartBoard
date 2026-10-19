@@ -6375,36 +6375,54 @@ export interface ScoredWorkScore {
   scanFileIds?: string[];
 }
 
-/** One criterion row of a PLC rollup: how many students landed on each level. */
+/** One criterion of a pooled scored-work aggregate. Criteria pool across teachers by name. */
 export interface PlcScoredWorkCriterionRow {
-  criterionId: string;
   name: string;
-  levelLabels: string[];
-  levelPoints: number[];
-  /** Student count per level, same order as `levelLabels`. */
-  levelCounts: number[];
-  /** Mean percent of the criterion's top level across scored students. */
+  /** Scored students pooled into this criterion. */
+  studentCount: number;
+  /** Mean percent of the criterion's top level. */
   averagePercent: number;
+  /** Present only when every contributing rubric used the same level labels. */
+  levelLabels?: string[];
+  levelCounts?: number[];
 }
 
 /**
- * Anonymized rollup of one teacher's scored work, at
- * `plcs/{plcId}/scored_work_rollups/{workId}`. Server-written only and never
- * holds a student row, name or seat.
+ * One teacher's published scores for a series, at the server-only
+ * `plcs/{plcId}/scored_work_sources/{teacherUid}__{workId}`. Clients can
+ * neither read nor write it; it exists so the pooled aggregate can be rebuilt
+ * without exposing a per-teacher figure.
  */
-export interface PlcScoredWorkRollup {
-  workId: string;
-  plcId: string;
+export interface PlcScoredWorkSource {
   teacherUid: string;
-  title: string;
+  workId: string;
+  seriesKey: string;
   seriesLabel: string;
+  studentCount: number;
+  criteria: Array<
+    PlcScoredWorkCriterionRow & { levelLabels: string[]; levelCounts: number[] }
+  >;
+  /** Percent bands of scored students, counts only. */
+  scoreDistribution: PlcAggregateScoreBand[];
+  publishedAt: number;
+}
+
+/**
+ * Anonymized pooled results for one series of scored paper work, at
+ * `plcs/{plcId}/scored_work_aggregates/{seriesKey}` and written server-side
+ * only. Holds no student row, name, seat or per-teacher figure.
+ */
+export interface PlcScoredWorkAggregate {
+  seriesKey: string;
+  seriesLabel: string;
+  teacherCount: number;
   studentCount: number;
   averagePercent: number;
   criteria: PlcScoredWorkCriterionRow[];
-  /** Scored students pooled into percent bands. */
   scoreDistribution: PlcAggregateScoreBand[];
-  /** ms when the teacher published; drives the over-time view. */
-  publishedAt: number;
+  /** First and latest publish across contributors, for the over-time view. */
+  firstPublishedAt: number;
+  lastPublishedAt: number;
   ranAt: number;
 }
 

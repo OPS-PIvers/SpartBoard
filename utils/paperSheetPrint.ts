@@ -160,7 +160,7 @@ export const WRITTEN_RULE_MM = 0.3;
 const letterGrey = (): string =>
   `#${BUBBLE_LETTER_GREY.toString(16).padStart(2, '0').repeat(3)}`;
 
-function registrationMarksHtml(): string {
+export function registrationMarksHtml(): string {
   return REGISTRATION_MARK_CENTERS_MM.map(
     (c) =>
       `<div class="reg" style="left:${mm(c.x - REGISTRATION_MARK_SIZE_MM / 2)};top:${mm(
@@ -169,7 +169,7 @@ function registrationMarksHtml(): string {
   ).join('');
 }
 
-function markerHtml(
+export function markerHtml(
   batchId: string,
   seat: number,
   page: number,
@@ -194,7 +194,7 @@ function markerHtml(
   return cells.join('');
 }
 
-function footerHtml(): string {
+export function footerHtml(): string {
   return `<div class="foot" style="left:${mm(FOOTER_RECT_MM.x)};top:${mm(
     FOOTER_RECT_MM.y
   )};width:${mm(FOOTER_RECT_MM.w)};height:${mm(
@@ -837,7 +837,7 @@ const SHEET_STYLES = `
   }
 `;
 
-const STYLES = `
+export const PAPER_SHEET_STYLES = `
   @page { size: ${PAGE_WIDTH_MM}mm ${PAGE_HEIGHT_MM}mm; margin: 0; }
   html, body { margin: 0; padding: 0; background: #fff; }
   * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }${SHEET_STYLES}`;
@@ -898,7 +898,7 @@ export function printPaperSheets(
   printHtmlDocument(
     {
       title: `${job.quizTitle} — answer sheets`,
-      styles: STYLES,
+      styles: PAPER_SHEET_STYLES,
       body: buildPaperSheetsHtml(job),
       // A remote image that has not decoded yet prints as an empty box.
       awaitImages: !!job.sheetStimuli?.length || hasPromptImages(job),

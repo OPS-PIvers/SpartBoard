@@ -547,6 +547,25 @@ export class GoogleDriveService {
     return (await detailResponse.json()) as DriveFile;
   }
 
+  /** Upload into a folder already resolved to an id, skipping the path lookup `uploadFile` repeats per file. */
+  async uploadFileToFolderId(
+    file: Blob,
+    fileName: string,
+    folderId: string
+  ): Promise<{ id: string; name: string }> {
+    const createResponse = await this.fetchWithRetry(`${DRIVE_API_URL}/files`, {
+      method: 'POST',
+      headers: this.headers,
+      body: JSON.stringify({ name: fileName, parents: [folderId] }),
+    });
+    if (!createResponse.ok) {
+      throw new Error('Failed to create file metadata in Drive');
+    }
+    const created = (await createResponse.json()) as DriveFileCreateResponse;
+    await this.updateFileContent(created.id, file);
+    return { id: created.id, name: created.name };
+  }
+
   /**
    * Share a file with users in a Google Workspace domain, or with anyone
    * if no domain is provided or the domain is a consumer email provider.

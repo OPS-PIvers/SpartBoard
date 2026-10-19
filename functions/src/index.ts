@@ -361,3 +361,9 @@ export {
 export { mcpServer } from './mcp/mcpEndpoint';
 export { mcpOAuth } from './mcp/oauthEndpoints';
 export { mcpAuthorizeV1, revokeMcpGrantV1 } from './mcp/authorizeCallables';
+
+// Scored paper work shared to a PLC: pooled anonymized results (PlcScoredWorkAggregate in types.ts).
+export {
+  publishScoredWorkToPlcV1,
+  withdrawScoredWorkFromPlcV1,
+} from './scoredWorkPlc';

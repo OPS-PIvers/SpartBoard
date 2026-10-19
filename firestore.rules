@@ -2994,10 +2994,15 @@ service cloud.firestore {
         allow create, update, delete: if false;
       }
 
-      // Anonymized scored-paper-work rollups; written only by publishScoredWorkToPlcV1.
-      match /scored_work_rollups/{rollupId} {
+      // Pooled scored-paper-work results; written only by publishScoredWorkToPlcV1.
+      match /scored_work_aggregates/{seriesKey} {
         allow read: if plcReader(plcId);
         allow write: if false;
+      }
+
+      // Per-teacher inputs to the aggregate; server-only so no per-teacher figure leaks.
+      match /scored_work_sources/{sourceId} {
+        allow read, write: if false;
       }
 
       // ---- Team updates (TEAMS_REDESIGN T27) ----

@@ -4,6 +4,7 @@
  */
 
 import {
+  arrayRemove,
   collection,
   deleteDoc,
   doc,
@@ -17,7 +18,12 @@ import {
   type Unsubscribe,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import type { ScoredWork, ScoredWorkPlcLink, ScoredWorkScore } from '@/types';
+import type {
+  PaperSeatAssignment,
+  ScoredWork,
+  ScoredWorkPlcLink,
+  ScoredWorkScore,
+} from '@/types';
 
 const WORK_COLLECTION = 'scored_work';
 const SCORES_COLLECTION = 'scores';
@@ -41,6 +47,19 @@ export const updateScoredWork = (
 ): Promise<void> =>
   updateDoc(doc(workRef(userId), workId), {
     ...patch,
+    updatedAt: Date.now(),
+  });
+
+/** Hand a walk-in's spare sheet to a roster student once the teacher knows who it was. */
+export const assignSpareSeat = (
+  userId: string,
+  workId: string,
+  seat: number,
+  student: PaperSeatAssignment
+): Promise<void> =>
+  updateDoc(doc(workRef(userId), workId), {
+    [`seats.${seat}`]: student,
+    spareSeats: arrayRemove(seat),
     updatedAt: Date.now(),
   });
 
