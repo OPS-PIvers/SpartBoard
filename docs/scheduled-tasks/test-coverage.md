@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-10-12_
+_Last audited: 2026-10-19_
 _Last action: 2026-10-12 — Claude MCP connector: added `functions/src/mcp/quizTools.test.ts` (33 tests). Item stays Open — only `tools.ts` is still untested. Prior: 2026-10-05 — `videoTools.test.ts`; 2026-09-28 — auth gate, write-budget/revision infra._
+
+_2026-10-19: Weekly audit (Monday). `pnpm test` did not finish inside the sandbox's 25-minute limit (killed); 1072 test files had reported ✓ and none had failed before the cut-off, so the miniAppResultsExport failure and the sandbox dependency-drift failures from 2026-10-12 were not re-confirmed. A filename heuristic lists 84 `utils/`+`hooks/` files with no test importing them; most are already tracked below, and the rest are mostly thin Firestore-listener hooks and small helpers (e.g. `miniAppGrading.ts`, `miniAppResults.ts`, `quizScoreOnSubmit.ts`, `periodCompat.ts`, `useProjectRuns.ts`, `usePlcMeetingNotes.ts`, `useGradebookSource.ts`) that may be covered indirectly. Not filed individually; worth a manual pass on the pure-logic ones. 0 new items._
 
 ---
 
