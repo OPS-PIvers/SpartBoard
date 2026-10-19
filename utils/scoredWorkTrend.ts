@@ -20,6 +20,7 @@ export function buildScoredWorkTrend(
   const names = new Map<string, string>();
   for (const agg of columns) {
     for (const c of agg.criteria) {
+      if (c.question) continue;
       const key = c.name.trim().toLowerCase();
       if (!names.has(key)) names.set(key, c.name);
     }

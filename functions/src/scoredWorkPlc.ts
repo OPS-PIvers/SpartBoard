@@ -29,6 +29,7 @@ interface RubricCriterion {
 }
 export interface WorkDoc {
   title: string;
+  scoring?: 'rubric' | 'questions';
   rubric: { criteria: RubricCriterion[] };
 }
 export interface ScoreDoc {
@@ -38,6 +39,7 @@ export interface ScoreDoc {
 }
 export interface CriterionRow {
   name: string;
+  question?: true;
   studentCount: number;
   averagePercent: number;
   levelLabels?: string[];
@@ -104,6 +106,7 @@ export function buildSource(
     }
     return {
       name: c.name,
+      ...(work.scoring === 'questions' ? { question: true as const } : {}),
       studentCount: n,
       averagePercent: n ? Math.round(percentSum / n) : 0,
       levelLabels: c.levels.map((l) => l.label),
@@ -142,6 +145,7 @@ export interface AggregateDoc {
 
 interface Pooling {
   label: string;
+  question: boolean;
   n: number;
   sum: number;
   labels: string[][];
@@ -160,6 +164,7 @@ export function poolSources(
       const key = c.name.trim().toLowerCase();
       const row = byName.get(key) ?? {
         label: c.name,
+        question: !!c.question,
         n: 0,
         sum: 0,
         labels: [],
@@ -179,6 +184,7 @@ export function poolSources(
     );
     return {
       name: r.label,
+      ...(r.question ? { question: true as const } : {}),
       studentCount: r.n,
       averagePercent: r.n ? Math.round(r.sum / r.n) : 0,
       ...(sameLevels

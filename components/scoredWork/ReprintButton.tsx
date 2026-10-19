@@ -35,7 +35,9 @@ export const ReprintButton: React.FC<ReprintButtonProps> = ({ work }) => {
     let pages: Awaited<ReturnType<typeof rasterizeWorksheet>> | null = null;
     let printed = false;
     try {
-      pages = await rasterizeWorksheet(await getFile());
+      pages = await rasterizeWorksheet(await getFile(), {
+        trim: work.trimMargins ?? true,
+      });
       if (pages.srcs.length !== work.pageCount) {
         throw new Error(
           `That file has ${pages.srcs.length} pages, but this worksheet has ${work.pageCount}.`
@@ -50,6 +52,7 @@ export const ReprintButton: React.FC<ReprintButtonProps> = ({ work }) => {
             seatDisplayName(rosters, seat)
           ),
           pageImageSrc: pages.srcs,
+          orientation: work.orientation ?? 'auto',
           onImagesReady: pages.release,
         },
         pages.aspects,

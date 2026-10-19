@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Plus } from 'lucide-react';
+import { ArrowLeft, Plus, ScanLine } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { Button } from '@/components/common/Button';
-import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { useAuth } from '@/context/useAuth';
 import { useScoredWorkList, useScoredWorkScores } from '@/hooks/useScoredWork';
 import { rubricMaxPoints } from '@/utils/scoredWorkMath';
@@ -11,9 +10,7 @@ import { NewScoredWork } from './NewScoredWork';
 import { ReprintButton } from './ReprintButton';
 import { ScanStep } from './ScanStep';
 import { ScoringStep } from './ScoringStep';
-import { ShareStep } from './ShareStep';
-
-type Step = 'scan' | 'score' | 'share';
+import { ShareBar } from './ShareBar';
 
 interface ScoredWorkModalProps {
   onClose: () => void;
@@ -25,7 +22,7 @@ export const ScoredWorkModal: React.FC<ScoredWorkModalProps> = ({
   const { user } = useAuth();
   const { data: works, loading } = useScoredWorkList(user?.uid);
   const [view, setView] = useState<string>('list');
-  const [step, setStep] = useState<Step>('scan');
+  const [scanOpen, setScanOpen] = useState(false);
   const [builderOpen, setBuilderOpen] = useState(false);
   const [newRubricId, setNewRubricId] = useState<string | null>(null);
   const active = works.find((w) => w.id === view) ?? null;
@@ -35,6 +32,12 @@ export const ScoredWorkModal: React.FC<ScoredWorkModalProps> = ({
   let title = 'Scored paper work';
   if (view === 'new') title = 'New worksheet';
   else if (active) title = active.title;
+
+  const hasScans = !!active?.scans && Object.keys(active.scans).length > 0;
+  const total = active
+    ? Object.keys(active.seats).length +
+      active.spareSeats.filter((s) => active.scans?.[s]).length
+    : 0;
 
   return (
     <Modal
@@ -93,7 +96,7 @@ export const ScoredWorkModal: React.FC<ScoredWorkModalProps> = ({
                   type="button"
                   onClick={() => {
                     setView(w.id);
-                    setStep(w.scans ? 'score' : 'scan');
+                    setScanOpen(false);
                   }}
                   className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"
                 >
@@ -101,7 +104,12 @@ export const ScoredWorkModal: React.FC<ScoredWorkModalProps> = ({
                     {w.title}
                   </span>
                   <span className="text-sm text-slate-500">
-                    {w.rubric.title} · {rubricMaxPoints(w.rubric)} pts
+                    {w.scoring === 'questions'
+                      ? `${w.rubric.criteria.length} questions`
+                      : `${w.rubric.title} · ${rubricMaxPoints(w.rubric)} pts`}
+                  </span>
+                  <span className="text-sm text-slate-500">
+                    {w.plc ? 'Shared' : w.scans ? 'Scanned' : 'Printed'}
                   </span>
                   <span className="text-sm text-slate-500">
                     {new Date(w.createdAt).toLocaleDateString()}
@@ -115,32 +123,56 @@ export const ScoredWorkModal: React.FC<ScoredWorkModalProps> = ({
 
       {view === 'new' && (
         <NewScoredWork
-          onCreated={(id) => setView(id)}
+          onCreated={(id) => {
+            setView(id);
+            setScanOpen(true);
+          }}
           onOpenRubricBuilder={() => setBuilderOpen(true)}
           requestedRubricId={newRubricId}
         />
       )}
 
       {active && (
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <SegmentedControl<Step>
-              value={step}
-              onChange={setStep}
-              ariaLabel="Step"
-              options={[
-                { value: 'scan', label: 'Scan' },
-                { value: 'score', label: 'Score' },
-                { value: 'share', label: 'Share' },
-              ]}
-            />
+        <div className="space-y-4 pb-6">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="min-w-48 flex-1">
+              <p className="text-sm font-semibold text-slate-800">
+                {scores.length} of {total} scored
+              </p>
+              <div
+                role="progressbar"
+                aria-label="Scoring progress"
+                aria-valuemin={0}
+                aria-valuemax={total}
+                aria-valuenow={scores.length}
+                className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100"
+              >
+                <div
+                  className="h-full rounded-full bg-emerald-500"
+                  style={{
+                    width: `${total ? Math.min(100, (scores.length / total) * 100) : 0}%`,
+                  }}
+                />
+              </div>
+            </div>
+            {hasScans && (
+              <Button
+                variant="secondary"
+                onClick={() => setScanOpen((open) => !open)}
+                icon={<ScanLine className="w-4 h-4" aria-hidden="true" />}
+              >
+                Scan more sheets
+              </Button>
+            )}
             <ReprintButton work={active} />
           </div>
-          {step === 'scan' && (
-            <ScanStep work={active} onDone={() => setStep('score')} />
+
+          {scores.length > 0 && <ShareBar work={active} scores={scores} />}
+
+          {(scanOpen || !hasScans) && (
+            <ScanStep work={active} onDone={() => setScanOpen(false)} />
           )}
-          {step === 'score' && <ScoringStep work={active} />}
-          {step === 'share' && <ShareStep work={active} scores={scores} />}
+          {hasScans && <ScoringStep work={active} scores={scores} />}
         </div>
       )}
     </Modal>

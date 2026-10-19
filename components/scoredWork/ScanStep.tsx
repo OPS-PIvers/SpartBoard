@@ -47,8 +47,10 @@ export const ScanStep: React.FC<ScanStepProps> = ({ work, onDone }) => {
     setPagesRead(0);
     setResults([]);
     scansRef.current = { ...(work.scans ?? {}) };
+    const collected: ScanPageResult[] = [];
     try {
       for await (const result of scanScoredWork(file, work)) {
+        collected.push(result);
         if (result.status === 'ok') {
           const fileId = await uploadScanPage(
             driveService,
@@ -79,6 +81,15 @@ export const ScanStep: React.FC<ScanStepProps> = ({ work, onDone }) => {
           ...prev,
           result.status === 'ok' ? { ...result, blob: new Blob() } : result,
         ]);
+      }
+      // A clean stack goes straight to scoring; problems stay on screen to read.
+      const clean = summarizeScan(work, collected);
+      if (
+        collected.length > 0 &&
+        clean.unmatched === 0 &&
+        clean.seats.every((s) => s.missingPages.length === 0)
+      ) {
+        onDone();
       }
     } catch (error) {
       addToast(
@@ -150,7 +161,7 @@ export const ScanStep: React.FC<ScanStepProps> = ({ work, onDone }) => {
                 .join('; ')}
             </p>
           )}
-          <Button onClick={onDone}>Start scoring</Button>
+          <Button onClick={onDone}>Continue to scoring</Button>
         </div>
       )}
     </div>

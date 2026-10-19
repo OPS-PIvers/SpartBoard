@@ -1,12 +1,10 @@
 /**
  * Stamps a teacher's own worksheet with the per-student corner marks and seat
  * marker the Spartron reader already understands, then prints one copy each.
- * The worksheet shrinks into the band between the header and the lower corner
- * search windows so nothing of the teacher's page can hide a registration mark.
+ * The worksheet is scaled into the band under the header, clear of the corner marks.
  */
 
 import {
-  CORNER_WINDOW_H_MM,
   HEADER_RECT_MM,
   PAGE_HEIGHT_MM,
   PAGE_WIDTH_MM,
@@ -26,6 +24,9 @@ import {
 } from './printHtmlDocument';
 import type { ScoredWorkSheet } from './scoredWorkPlan';
 
+/** `auto` turns a wide worksheet sideways when that makes it bigger. */
+export type WorksheetOrientation = 'auto' | 'upright' | 'sideways';
+
 export interface ScoredWorkPrintJob {
   workId: string;
   title: string;
@@ -33,34 +34,56 @@ export interface ScoredWorkPrintJob {
   sheets: readonly ScoredWorkSheet[];
   /** One image URL per worksheet page, in order. */
   pageImageSrc: readonly string[];
+  orientation?: WorksheetOrientation;
   onImagesReady?: () => void;
 }
 
 const mm = (n: number): string => `${n.toFixed(3)}mm`;
 
 /** Just under the header and marker grid. */
-const BODY_TOP_MM = 48;
-const BODY_SIDE_MM = 14;
+const BODY_TOP_MM = 46;
+const BODY_SIDE_MM = 8;
+/** Stops above the bottom corner marks and their search windows. */
+const BODY_BOTTOM_MM = 246;
 
-/** Free area for the worksheet: clear of the header, footer and every corner window. */
+/** Free area for the worksheet. */
 export const SCORED_WORK_BODY_MM: RectMm = {
   x: BODY_SIDE_MM,
   y: BODY_TOP_MM,
   w: PAGE_WIDTH_MM - BODY_SIDE_MM * 2,
-  h: PAGE_HEIGHT_MM - CORNER_WINDOW_H_MM - BODY_TOP_MM,
+  h: BODY_BOTTOM_MM - BODY_TOP_MM,
 };
 
-/** Scale and centre a worksheet page of `pageAspect` (w/h) into the body, never enlarging past the page. */
-export function fitWorksheetPage(pageAspect: number): RectMm {
+export interface WorksheetPlacement {
+  /** Where the worksheet appears on the sheet, after any turn. */
+  box: RectMm;
+  /** Turned a quarter turn clockwise onto the portrait sheet. */
+  rotated: boolean;
+}
+
+/** Scale and centre a shape of `aspect` (w/h) into the body. */
+export function fitWorksheetPage(aspect: number): RectMm {
   const body = SCORED_WORK_BODY_MM;
-  const aspect = pageAspect > 0 ? pageAspect : PAGE_WIDTH_MM / PAGE_HEIGHT_MM;
+  const a = aspect > 0 ? aspect : PAGE_WIDTH_MM / PAGE_HEIGHT_MM;
   let w = body.w;
-  let h = w / aspect;
+  let h = w / a;
   if (h > body.h) {
     h = body.h;
-    w = h * aspect;
+    w = h * a;
   }
   return { x: body.x + (body.w - w) / 2, y: body.y, w, h };
+}
+
+export function placeWorksheet(
+  aspect: number,
+  orientation: WorksheetOrientation = 'auto'
+): WorksheetPlacement {
+  const upright = fitWorksheetPage(aspect);
+  const turned = fitWorksheetPage(aspect > 0 ? 1 / aspect : 0);
+  const rotated =
+    orientation === 'sideways' ||
+    (orientation === 'auto' && turned.w * turned.h > upright.w * upright.h);
+  return { box: rotated ? turned : upright, rotated };
 }
 
 function headerHtml(
@@ -82,6 +105,20 @@ function headerHtml(
     </div>`;
 }
 
+function worksheetImageHtml(src: string, place: WorksheetPlacement): string {
+  const { box, rotated } = place;
+  // A turned image is laid out unturned, centred on its final box, then rotated.
+  const w = rotated ? box.h : box.w;
+  const h = rotated ? box.w : box.h;
+  const left = box.x + box.w / 2 - w / 2;
+  const top = box.y + box.h / 2 - h / 2;
+  return `<img class="ws-page" src="${escapeHtml(src)}" alt="" style="left:${mm(
+    left
+  )};top:${mm(top)};width:${mm(w)};height:${mm(h)}${
+    rotated ? ';transform:rotate(90deg)' : ''
+  }">`;
+}
+
 /** Every student's worksheet pages, one `.sheet` per page. Exported for tests. */
 export function buildScoredWorkHtml(
   job: ScoredWorkPrintJob,
@@ -91,12 +128,7 @@ export function buildScoredWorkHtml(
   for (const sheet of job.sheets) {
     for (let page = 1; page <= job.pageCount; page += 1) {
       const src = job.pageImageSrc[page - 1];
-      const box = fitWorksheetPage(pageAspects[page - 1] ?? 0);
-      const body = src
-        ? `<img class="ws-page" src="${escapeHtml(src)}" alt="" style="left:${mm(
-            box.x
-          )};top:${mm(box.y)};width:${mm(box.w)};height:${mm(box.h)}">`
-        : '';
+      const place = placeWorksheet(pageAspects[page - 1] ?? 0, job.orientation);
       pages.push(
         `<div class="sheet">${registrationMarksHtml()}${markerHtml(
           job.workId,
@@ -104,15 +136,17 @@ export function buildScoredWorkHtml(
           page,
           false,
           false
-        )}${headerHtml(sheet, job.title, page, job.pageCount)}${body}${footerHtml()}</div>`
+        )}${headerHtml(sheet, job.title, page, job.pageCount)}${
+          src ? worksheetImageHtml(src, place) : ''
+        }${footerHtml()}</div>`
       );
     }
   }
   return pages.join('');
 }
 
-const SCORED_WORK_STYLES = `${PAPER_SHEET_STYLES}
-  .ws-page { position: absolute; object-fit: contain; }`;
+export const SCORED_WORK_STYLES = `${PAPER_SHEET_STYLES}
+  .ws-page { position: absolute; object-fit: contain; transform-origin: center; }`;
 
 /** Open the print window on the click itself; browsers block a window opened after any await. */
 export function openPrintWindow(

@@ -27,9 +27,6 @@ vi.mock('@/context/useDashboard', () => ({
 vi.mock('@/hooks/useGoogleDrive', () => ({
   useGoogleDrive: () => ({ driveService: null }),
 }));
-vi.mock('@/hooks/useScoredWork', () => ({
-  useScoredWorkScores: () => ({ data: [], loading: false, error: null }),
-}));
 vi.mock('@/utils/scoredWorkStore', () => ({
   saveScore: (...args: unknown[]) => saveScore(...(args as [])),
   deleteScore: (...args: unknown[]) => deleteScore(...(args as [])),
@@ -72,13 +69,13 @@ describe('ScoringStep', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('lists students by name from the roster', () => {
-    render(<ScoringStep work={work} />);
+    render(<ScoringStep work={work} scores={[]} />);
     expect(screen.getAllByText('Lee, Ann').length).toBeGreaterThan(0);
     expect(screen.getByText('Kim, Bo')).toBeTruthy();
   });
 
   it('saves only once every criterion has a level', () => {
-    render(<ScoringStep work={work} />);
+    render(<ScoringStep work={work} scores={[]} />);
     const thesis = screen.getByRole('radiogroup', { name: 'Thesis' });
     fireEvent.click(thesis.querySelectorAll('[role="radio"]')[0]);
     expect(saveScore).not.toHaveBeenCalled();
@@ -98,5 +95,65 @@ describe('ScoringStep', () => {
       max: 7,
       levels: { a: 1, b: 1 },
     });
+  });
+});
+
+describe('ScoringStep right or wrong', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const questionWork: ScoredWork = {
+    ...work,
+    scoring: 'questions',
+    rubric: {
+      ...work.rubric,
+      criteria: [1, 2, 3].map((n) => ({
+        id: `q${n}`,
+        name: `Question ${n}`,
+        levels: [level(`q${n}w`, 0), level(`q${n}r`, 1)],
+      })),
+    },
+  };
+
+  it('starts every question correct and saves the misses on Save and next', () => {
+    render(<ScoringStep work={questionWork} scores={[]} />);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Question 2, correct' })
+    );
+    expect(saveScore).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Save and next' }));
+    const doc = (saveScore.mock.calls[0] as unknown[])[2] as {
+      seat: number;
+      points: number;
+      max: number;
+    };
+    expect(doc).toMatchObject({ seat: 1, points: 2, max: 3 });
+  });
+
+  it('keeps saving edits to a student who is already scored', () => {
+    render(
+      <ScoringStep
+        work={questionWork}
+        scores={[
+          {
+            seat: 1,
+            levels: { q1: 1, q2: 1, q3: 1 },
+            points: 3,
+            max: 3,
+            scoredAt: 1,
+          },
+          {
+            seat: 2,
+            levels: { q1: 1, q2: 1, q3: 1 },
+            points: 3,
+            max: 3,
+            scoredAt: 1,
+          },
+        ]}
+      />
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Question 3, correct' })
+    );
+    expect(saveScore).toHaveBeenCalledTimes(1);
   });
 });

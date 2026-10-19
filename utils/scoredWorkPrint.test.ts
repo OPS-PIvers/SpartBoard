@@ -13,6 +13,7 @@ import {
   SCORED_WORK_BODY_MM,
   buildScoredWorkHtml,
   fitWorksheetPage,
+  placeWorksheet,
   openPrintWindow,
 } from './scoredWorkPrint';
 
@@ -67,8 +68,9 @@ describe('scoredWorkPrint', () => {
         PAGE_WIDTH_MM - SCORED_WORK_BODY_MM.x + 0.001
       );
       expect(r.y + r.h).toBeLessThanOrEqual(
-        PAGE_HEIGHT_MM - CORNER_WINDOW_H_MM + 0.001
+        SCORED_WORK_BODY_MM.y + SCORED_WORK_BODY_MM.h + 0.001
       );
+      expect(r.y + r.h).toBeLessThan(PAGE_HEIGHT_MM - CORNER_WINDOW_H_MM + 15);
     }
   });
 });
@@ -84,5 +86,40 @@ describe('openPrintWindow', () => {
 
   it('explains a blocked pop-up', () => {
     expect(() => openPrintWindow(() => null)).toThrow(/allow pop-ups/);
+  });
+});
+
+describe('placeWorksheet', () => {
+  it('turns a wide worksheet sideways on Best fit, and leaves a tall one upright', () => {
+    expect(placeWorksheet(1.29, 'auto').rotated).toBe(true);
+    expect(placeWorksheet(0.77, 'auto').rotated).toBe(false);
+  });
+
+  it('obeys an explicit choice', () => {
+    expect(placeWorksheet(0.77, 'sideways').rotated).toBe(true);
+    expect(placeWorksheet(1.29, 'upright').rotated).toBe(false);
+  });
+
+  it('prints a trimmed worksheet larger than a full letter page', () => {
+    // Scale of the printed content against its original size, for a letter page and the same page cropped to its text.
+    const fullPage =
+      fitWorksheetPage(PAGE_WIDTH_MM / PAGE_HEIGHT_MM).w / PAGE_WIDTH_MM;
+    const trimmed = fitWorksheetPage(165 / 229).w / 165;
+    expect(trimmed).toBeGreaterThan(fullPage * 1.15);
+  });
+
+  it('draws a turned worksheet with a quarter turn about its own box', () => {
+    const html = buildScoredWorkHtml(
+      {
+        workId: 'w',
+        title: 'T',
+        pageCount: 1,
+        sheets: [sheets[0]],
+        pageImageSrc: ['x'],
+        orientation: 'sideways',
+      },
+      [1.29]
+    );
+    expect(html).toContain('rotate(90deg)');
   });
 });

@@ -6271,6 +6271,14 @@ export interface ScoredWork {
   driveFolderId?: string;
   /** Drive file of the teacher's original worksheet, so it can be printed again. */
   worksheetFileId?: string;
+  /** `questions` scores each numbered question right or wrong; absent means a rubric. */
+  scoring?: 'rubric' | 'questions';
+  /** How the worksheet sat on the printed page; reprints use the same. */
+  orientation?: 'auto' | 'upright' | 'sideways';
+  /** Whether blank page margins were cropped before printing. */
+  trimMargins?: boolean;
+  /** Group the teacher chose to share with at creation; nothing is shared until they do. */
+  shareWith?: { plcId: string };
   /** Seat -> opaque Drive file id per scanned page, in page order (index 0 = page 1). */
   scans?: Record<number, Array<string | null>>;
   /** Set once the teacher shares scores with a PLC. */
@@ -6300,6 +6308,8 @@ export interface ScoredWorkScore {
 /** One criterion of a pooled scored-work aggregate. Criteria pool across teachers by name. */
 export interface PlcScoredWorkCriterionRow {
   name: string;
+  /** A numbered question of a right/wrong worksheet; never followed across series. */
+  question?: true;
   /** Scored students pooled into this criterion. */
   studentCount: number;
   /** Mean percent of the criterion's top level. */
