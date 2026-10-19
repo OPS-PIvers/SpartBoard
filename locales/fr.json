@@ -1395,7 +1395,20 @@
       "syncError": "Échec de la synchronisation du menu",
       "noHotLunch": "Aucun déjeuner chaud répertorié",
       "noBentoBox": "Aucune bento box répertoriée",
-      "hotLunch": "Déjeuner Chaud"
+      "hotLunch": "Déjeuner Chaud",
+      "noClassTitle": "Choisissez une classe",
+      "noClassesBody": "Ajoutez d'abord une classe dans Classes.",
+      "emptyCustomTitle": "Aucun nom pour l'instant",
+      "emptyCustomBody": "Ajoutez des noms dans les réglages de ce widget.",
+      "emptyClassTitle": "Cette classe n'a aucun élève",
+      "menuUnavailable": "Menu indisponible",
+      "left": "Encore {{count}}",
+      "refreshMenu": "Actualiser le menu",
+      "clearAll": "Effacer toutes les affectations",
+      "shortHot": "Chaud",
+      "shortBento": "Bento",
+      "shortHome": "Maison",
+      "assignMoreOutsideGroup": "Encore {{count}} à placer, {{hidden}} hors de ce groupe"
     },
     "quiz": {
       "leaderboard": {

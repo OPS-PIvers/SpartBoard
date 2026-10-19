@@ -52,6 +52,7 @@ import {
   BookMarked,
   Quote,
   Calculator,
+  Utensils,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -1230,6 +1231,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Lunch Count redesign. Admin-only until Paul has used it in prod.
+  'lunch-count-redesign': {
+    label: 'Lunch Count redesign',
+    icon: Utensils,
+    description: 'Big counts, layouts for every size and clearer empty states.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'lunchCount',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

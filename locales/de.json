@@ -1395,7 +1395,20 @@
       "syncError": "Menü konnte nicht synchronisiert werden",
       "noHotLunch": "Kein Mittagessen aufgelistet",
       "noBentoBox": "Keine Bento-Box aufgelistet",
-      "hotLunch": "Mittagessen"
+      "hotLunch": "Mittagessen",
+      "noClassTitle": "Klasse wählen",
+      "noClassesBody": "Lege zuerst unter Klassen eine Klasse an.",
+      "emptyCustomTitle": "Noch keine Namen",
+      "emptyCustomBody": "Füge Namen in den Einstellungen dieses Widgets hinzu.",
+      "emptyClassTitle": "Diese Klasse hat keine Schüler",
+      "menuUnavailable": "Menü nicht verfügbar",
+      "left": "{{count}} offen",
+      "refreshMenu": "Menü aktualisieren",
+      "clearAll": "Alle Zuordnungen löschen",
+      "shortHot": "Warm",
+      "shortBento": "Bento",
+      "shortHome": "Zuhause",
+      "assignMoreOutsideGroup": "Noch {{count}} zuordnen, {{hidden}} außerhalb dieser Gruppe"
     },
     "quiz": {
       "leaderboard": {
