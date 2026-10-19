@@ -252,6 +252,34 @@ describe('every preset × group setting', () => {
     }
   }
 
+  it('every pair of every group is attributed to its group at the last position', () => {
+    for (const language of SPEAK_LANGUAGES) {
+      for (const group of PRONUNCIATION_GROUPS[language]) {
+        for (const pair of group.pairs) {
+          const r = judge(
+            [ref(['m', pair.target], SPEAK_DIALECTS[language][0])],
+            ['m', pair.spoken],
+            { language, settings: { strict: false, groups: {} } }
+          );
+          expect(r.entries[1]).toMatchObject({
+            kind: 'forgiven',
+            groupId: group.id,
+          });
+        }
+      }
+    }
+  });
+
+  it('a stored unknown setting follows Strict', () => {
+    const groups = { 'es-trill': 'Forgive' } as unknown as Record<
+      string,
+      SpeakGroupSetting
+    >;
+    expect(
+      effectiveGroupSettings('es', { strict: true, groups })['es-trill']
+    ).toBe('require');
+  });
+
   it('Beginner forgives the trill and requires the vowels (Paul’s example)', () => {
     const groups = effectiveGroupSettings('es', BEGINNER_ES);
     expect(groups['es-trill']).toBe('forgive');
@@ -354,6 +382,21 @@ describe('dialect selection', () => {
     });
   });
 
+  it('breaks an Accepted tie by accuracy', () => {
+    const longer = ref(['p', 'e', 'r', 'o', 's'], 'es-419');
+    const exact = ref(PERRO, 'es-ES');
+    expect(judge([longer, exact], ['p', 'e', 'ɾ', 'o', 's'])).toMatchObject({
+      verdict: 'accepted',
+      dialect: 'es-419',
+      accuracy: 80,
+    });
+    expect(judge([exact, longer], ['p', 'e', 'ɾ', 'o'])).toMatchObject({
+      verdict: 'accepted',
+      dialect: 'es-ES',
+      accuracy: 75,
+    });
+  });
+
   it('breaks a verdict tie by accuracy, then by reference order', () => {
     const far = ref(['x', 'x', 'x', 'o'], 'es-419');
     const near = ref(['p', 'e', 'x', 'o'], 'es-ES');
@@ -403,6 +446,21 @@ describe('§4.4 unclear', () => {
     expect(judge([ref(PERRO)], PERRO, { confidence: 0.5 }).verdict).toBe(
       'exact'
     );
+  });
+
+  it('an infinite reading is unclear, never a verdict', () => {
+    expect(judge([ref(PERRO)], PERRO, { confidence: Infinity }).verdict).toBe(
+      'unclear'
+    );
+    expect(judge([ref(PERRO)], PERRO, { voicedMs: Infinity }).verdict).toBe(
+      'unclear'
+    );
+  });
+
+  it('throws on a non-finite cut-off instead of hearing nothing forever', () => {
+    expect(() =>
+      judge([ref(PERRO)], PERRO, { unclearConfidence: NaN })
+    ).toThrow(RangeError);
   });
 
   it('a NaN reading is unclear, never a verdict', () => {
@@ -456,7 +514,12 @@ function mulberry32(seed: number) {
 
 describe('property: forgiving never hurts, requiring never helps', () => {
   const rank = { wrong: 0, accepted: 1, exact: 2, unclear: -1 } as const;
-  const settingsPool: SpeakGroupSetting[] = ['follow', 'forgive', 'require'];
+  const settingsPool: Array<SpeakGroupSetting | undefined> = [
+    'follow',
+    'forgive',
+    'require',
+    undefined,
+  ];
 
   for (const language of SPEAK_LANGUAGES) {
     it(language, () => {
@@ -490,7 +553,10 @@ describe('property: forgiving never hurts, requiring never helps', () => {
         const settings = {
           strict: rand() < 0.5,
           groups: Object.fromEntries(
-            groups.map((g) => [g.id, pick(settingsPool)])
+            groups.flatMap((g) => {
+              const setting = pick(settingsPool);
+              return setting ? [[g.id, setting]] : [];
+            })
           ),
         };
         const base = { language, stressFor: () => detected };
@@ -514,6 +580,13 @@ describe('property: forgiving never hurts, requiring never helps', () => {
           rank[before.verdict]
         );
         expect(rank[requiring.verdict]).toBeLessThanOrEqual(
+          rank[before.verdict]
+        );
+        const strictOn = judge(refs, spoken, {
+          ...base,
+          settings: { ...settings, strict: true },
+        });
+        expect(rank[strictOn.verdict]).toBeLessThanOrEqual(
           rank[before.verdict]
         );
       }

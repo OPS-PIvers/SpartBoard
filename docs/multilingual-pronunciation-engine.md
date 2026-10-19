@@ -263,27 +263,28 @@ The data lives in `config/pronunciationGroups.ts`, owned by S0.
 
 **German (`de`)**
 
-| Group id          | Teacher label (draft)                         | Pairs                                                                                            |
-| ----------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `de-r`            | German r (_rot_)                              | `ʁ → r`, `ʁ → ɹ`, `ʁ → ɾ`                                                                        |
-| `de-ich-ach`      | _ch_ sounds (_ich_, _ach_)                    | `ç → ʃ`, `ç → x`, `x → k`, `x → h`                                                               |
-| `de-umlaut`       | _ü_ and _ö_                                   | `y → u`, `y → i`, `yː → uː`, `yː → iː`, `ø → o`, `ø → e`, `øː → oː`, `øː → eː`, `œ → ɔ`, `œ → ɛ` |
-| `de-vowel-length` | Long and short vowels (_Staat_, _Stadt_)      | `aː → a`, `eː → ɛ`, `iː → ɪ`, `oː → ɔ`, `uː → ʊ` and the reverse five                            |
-| `de-final`        | Final _b, d, g_ sound like _p, t, k_ (_Hund_) | `t → d`, `p → b`, `k → ɡ` (final)                                                                |
-| `de-endings`      | Unstressed endings (_-er_, _-e_)              | `ɐ → ɜ`, `ɐ → ɜː`, `ə → ɛ`, `ə → e`                                                              |
-| `stress`          | Stressed syllable                             | (stress)                                                                                         |
+| Group id          | Teacher label (draft)                         | Pairs                                                                 |
+| ----------------- | --------------------------------------------- | --------------------------------------------------------------------- |
+| `de-r`            | German r (_rot_)                              | `r → ɹ`, `ɾ → ɹ`                                                      |
+| `de-ich-ach`      | _ch_ sounds (_ich_, _ach_)                    | `ç → ʃ`, `ç → x`, `x → k`, `x → h`                                    |
+| `de-umlaut`       | _ü_ and _ö_                                   | `yː → uː`, `yː → iː`, `øː → oː`, `øː → eː`, `œ → ɔ`, `œ → ɛ`          |
+| `de-vowel-length` | Long and short vowels (_Staat_, _Stadt_)      | `ɑː → a`, `eː → ɛ`, `iː → ɪ`, `oː → ɔ`, `uː → ʊ` and the reverse five |
+| `de-final`        | Final _b, d, g_ sound like _p, t, k_ (_Hund_) | `t → d`, `p → b`, `k → ɡ` (final)                                     |
+| `de-endings`      | Unstressed endings (_-er_, _-e_)              | `ɜ → ɜː`, `ɜ → ɚ`, `ə → ɛ`, `ə → e`                                   |
+| `stress`          | Stressed syllable                             | (stress)                                                              |
 
 **English (`en`)**
 
-| Group id           | Teacher label (draft)          | Pairs                                       |
-| ------------------ | ------------------------------ | ------------------------------------------- |
-| `en-th`            | _th_ sounds (_think_, _this_)  | `θ → t`, `θ → f`, `θ → s`, `ð → d`, `ð → z` |
-| `en-r`             | English r (_red_)              | `ɹ → ɾ`, `ɹ → r`, `ɹ → ʁ`                   |
-| `en-aspiration`    | Puff of air on p, t, k (_pin_) | `pʰ → p`, `tʰ → t`, `kʰ → k`                |
-| `en-vowel-length`  | _ship_ and _sheep_             | `iː → ɪ`, `ɪ → iː`, `uː → ʊ`, `ʊ → uː`      |
-| `en-reduced`       | Weak vowels (_about_)          | `ə → ʌ`, `ə → ɐ`, `ɚ → ɜː`                  |
-| `en-final-voicing` | Final _z, d, v_ (_dogs_)       | `z → s`, `d → t`, `v → f` (final)           |
-| `stress`           | Stressed syllable              | (stress)                                    |
+| Group id           | Teacher label (draft)         | Pairs                                       |
+| ------------------ | ----------------------------- | ------------------------------------------- |
+| `en-th`            | _th_ sounds (_think_, _this_) | `θ → t`, `θ → f`, `θ → s`, `ð → d`, `ð → z` |
+| `en-r`             | English r (_red_)             | `ɹ → ɾ`, `ɹ → r`, `ɹ → ʁ`                   |
+| `en-vowel-length`  | _ship_ and _sheep_            | `iː → ɪ`, `ɪ → iː`, `uː → ʊ`, `ʊ → uː`      |
+| `en-reduced`       | Weak vowels (_about_)         | `ə → ʌ`, `ə → ɐ`, `ɚ → ɜː`                  |
+| `en-final-voicing` | Final _z, d, v_ (_dogs_)      | `z → s`, `d → t`, `v → f` (final)           |
+| `stress`           | Stressed syllable             | (stress)                                    |
+
+Targets were checked against real espeak output on 2026-10-19 (S1, `config/pronunciationGroups.espeak.test.ts`): German writes r as `r`/`ɾ`, _-er_ as `ɜ` and long a as `ɑː`, and en-us never marks aspiration, so `en-aspiration` was dropped.
 
 **Recognizer tolerance (always on, never shown as an error, not tallied):**
 
@@ -300,11 +301,11 @@ S11 may add pairs **only** when the corpus shows natives produce them in at leas
   - Changing one group row moves `preset` to `custom`.
 - **Presets** (Paul, 2026-10-19) fill `strict` and `groups`:
 
-| Preset       | Strict | Forgive                                                                                                                                                                                       | Require                                                                                                                      |
-| ------------ | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Beginner     | off    | `es-trill`, `es-tap`, `es-aspiration`, `es-soft-bdg`, `es-jota`, `de-r`, `de-ich-ach`, `de-final`, `de-endings`, `en-r`, `en-th`, `en-aspiration`, `en-final-voicing`, `en-reduced`, `stress` | every other group (the vowel groups: `es-vowel-glide`, `es-vowel-reduce`, `de-umlaut`, `de-vowel-length`, `en-vowel-length`) |
-| Intermediate | off    | `es-aspiration`, `es-soft-bdg`, `de-endings`, `en-aspiration`, `en-final-voicing`, `en-reduced`, `stress`                                                                                     | every other group                                                                                                            |
-| Advanced     | on     | —                                                                                                                                                                                             | every group (all `follow`, and Strict is on)                                                                                 |
+| Preset       | Strict | Forgive                                                                                                                                                                      | Require                                                                                                                      |
+| ------------ | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Beginner     | off    | `es-trill`, `es-tap`, `es-aspiration`, `es-soft-bdg`, `es-jota`, `de-r`, `de-ich-ach`, `de-final`, `de-endings`, `en-r`, `en-th`, `en-final-voicing`, `en-reduced`, `stress` | every other group (the vowel groups: `es-vowel-glide`, `es-vowel-reduce`, `de-umlaut`, `de-vowel-length`, `en-vowel-length`) |
+| Intermediate | off    | `es-aspiration`, `es-soft-bdg`, `de-endings`, `en-final-voicing`, `en-reduced`, `stress`                                                                                     | every other group                                                                                                            |
+| Advanced     | on     | —                                                                                                                                                                            | every group (all `follow`, and Strict is on)                                                                                 |
 
 A preset writes an explicit setting for **every** group of the language (Beginner and Intermediate write `forgive`/`require`; Advanced writes `follow`), so a preset's meaning never depends on the Strict switch's later state. Beginner encodes Paul's example: vowels strict, the trill forgiven. Recognizer-tolerance pairs (§4.2) apply under every preset.
 

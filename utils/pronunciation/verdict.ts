@@ -69,20 +69,20 @@ const VERDICT_RANK: Record<Exclude<SpeakVerdict, 'unclear'>, number> = {
   exact: 2,
 };
 
-/** Follow resolves through the Strict switch; a group with no setting follows it. */
+/** Follow resolves through the Strict switch; a missing or unknown setting follows it. */
 export function effectiveGroupSettings(
   language: SpeakLanguage,
   settings: Pick<FlashcardSpeakSettings, 'strict' | 'groups'>
 ): Record<string, 'forgive' | 'require'> {
   const effective: Record<string, 'forgive' | 'require'> = {};
   for (const group of PRONUNCIATION_GROUPS[language]) {
-    const setting = settings.groups[group.id] ?? 'follow';
+    const setting = settings.groups[group.id];
     effective[group.id] =
-      setting === 'follow'
-        ? settings.strict
+      setting === 'forgive' || setting === 'require'
+        ? setting
+        : settings.strict
           ? 'require'
-          : 'forgive'
-        : setting;
+          : 'forgive';
   }
   return effective;
 }
@@ -194,11 +194,13 @@ function judgeDialect(
   };
 }
 
-// Negated comparisons so a NaN reading counts as unclear.
+// A non-finite reading counts as unclear rather than as a verdict.
 const isUnclear = (input: SpeakJudgeInput) =>
-  !(input.voicedMs >= SPEAK_MIN_VOICED_MS) ||
+  !Number.isFinite(input.voicedMs) ||
+  !Number.isFinite(input.confidence) ||
+  input.voicedMs < SPEAK_MIN_VOICED_MS ||
   input.spoken.length === 0 ||
-  !(input.confidence >= input.unclearConfidence);
+  input.confidence < input.unclearConfidence;
 
 /** Best verdict across the accepted dialects (Exact > Accepted > Not yet), ties broken by accuracy. */
 export function judgeSpeech(input: SpeakJudgeInput): SpeakJudgement {
@@ -207,6 +209,12 @@ export function judgeSpeech(input: SpeakJudgeInput): SpeakJudgement {
     input.refs.some((r) => r.tokens.length === 0)
   ) {
     throw new EmptyReferenceError();
+  }
+  // A bad cut-off would read every take as unclear, which costs no attempt and never ends.
+  if (!Number.isFinite(input.unclearConfidence)) {
+    throw new RangeError(
+      `unclearConfidence must be finite, received ${input.unclearConfidence}`
+    );
   }
 
   if (isUnclear(input)) {
