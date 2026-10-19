@@ -62,6 +62,8 @@ export interface CreateFlashcardAssignmentInput {
   periodGate?: Pick<FlashcardSession, 'accessMode' | 'periodAccess'>;
   /** Study only: students can't change the stamped Speak settings (§4.3). */
   speakLocked?: boolean;
+  /** Study only: Speak is hidden for this assignment and stays hidden on set saves. */
+  speakOff?: boolean;
 }
 
 export interface UseFlashcardAssignmentsResult {
@@ -174,9 +176,11 @@ export const useFlashcardAssignments = (
       const scoreVisibility =
         isCheck && input.scoreVisibility ? input.scoreVisibility : undefined;
       // F1: Speak is a Study mode only, so a Check never carries a stamp.
-      const adminConfig = isCheck
-        ? null
-        : await speakAdminConfigFor(input.set, canSpeak);
+      const speakOff = !isCheck && input.speakOff === true;
+      const adminConfig =
+        isCheck || speakOff
+          ? null
+          : await speakAdminConfigFor(input.set, canSpeak);
       const speak = adminConfig
         ? buildSpeakStamp(
             input.set,
@@ -206,6 +210,7 @@ export const useFlashcardAssignments = (
         cards: periodGate ? [] : cards,
         ...(periodGate ? { cardsInContent: true, ...periodGate } : {}),
         ...(speak ? { speak } : {}),
+        ...(speakOff ? { speakOff: true as const } : {}),
         classIds,
         classId: classIds[0] ?? '',
         ...(periodNames.length > 0 ? { periodNames } : {}),

@@ -201,6 +201,19 @@ describe('useFlashcardSets Speak stamp (F21)', () => {
     });
   });
 
+  it('never stamps a session the teacher turned Speak off for', async () => {
+    openSessions([{ speakOff: true }]);
+    const { result } = renderHook(() => useFlashcardSets(TEACHER), {
+      wrapper: wrapper(true),
+    });
+    await act(async () => {
+      await result.current.saveSet(speakSet);
+    });
+    const session = opFor('flashcard_sessions/session-0')?.data;
+    expect(session).not.toHaveProperty('speak');
+    expect(session?.cards).toEqual(plainSet.cards);
+  });
+
   it('resolves a set without its own settings from the district defaults', async () => {
     openSessions([]);
     const { result } = renderHook(() => useFlashcardSets(TEACHER), {
@@ -332,5 +345,24 @@ describe('useFlashcardAssignments Speak stamp', () => {
     const session = opFor(`flashcard_sessions/${studyId}`)?.data;
     expect(session).not.toHaveProperty('speak');
     expect(session?.cards).toEqual(plainSet.cards);
+  });
+
+  it('marks a Study session with Speak off and skips the stamp', async () => {
+    const { result } = renderHook(() => useFlashcardAssignments(TEACHER), {
+      wrapper: wrapper(true),
+    });
+    let id = '';
+    await act(async () => {
+      id = await result.current.createAssignment({
+        ...input,
+        kind: 'study',
+        speakOff: true,
+      });
+    });
+    const session = opFor(`flashcard_sessions/${id}`)?.data;
+    expect(session).not.toHaveProperty('speak');
+    expect(session?.speakOff).toBe(true);
+    expect(session?.cards).toEqual(plainSet.cards);
+    expect(getDoc).not.toHaveBeenCalled();
   });
 });
