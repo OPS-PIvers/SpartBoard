@@ -293,3 +293,139 @@ describe('TrackedFlashcardAdapter', () => {
     expect(batches).toEqual([[{ cardId: 'card-a', correct: true, round: 1 }]]);
   });
 });
+
+describe('Speak progress (F7, F8)', () => {
+  beforeEach(() => localStorage.clear());
+
+  const tally = { r: { n: 1, m: 1, f: 0 }, a: { n: 2, m: 0, f: 0 } };
+
+  it('round-trips Speak progress through local storage on its own round', () => {
+    const adapter = new LocalFlashcardAdapter('speak-share');
+    adapter.record('card-a', true, 1);
+    adapter.recordSpeak('card-a', false, 40, 3, tally, 2);
+    adapter.recordSpeak('card-a', true, 90, 1, { r: { n: 1, m: 0, f: 1 } });
+
+    const reloaded = new LocalFlashcardAdapter('speak-share').load();
+    expect(reloaded.cards['card-a']).toMatchObject({ s: 1, c: 1 });
+    expect(reloaded.round).toBe(1);
+    expect(reloaded.speakRound).toBe(2);
+    expect(reloaded.speak?.['card-a']).toEqual({
+      s: 1,
+      due: 3,
+      c: 1,
+      w: 1,
+      best: 90,
+      last: 90,
+      tries: 1,
+    });
+    expect(reloaded.speakSounds).toEqual({
+      r: { n: 2, m: 1, f: 1 },
+      a: { n: 2, m: 0, f: 0 },
+    });
+  });
+
+  it('keeps the old shape for a learner who never used Speak', () => {
+    const adapter = new LocalFlashcardAdapter('no-speak');
+    adapter.record('card-a', true, 1);
+    expect(
+      JSON.parse(localStorage.getItem('spart.flashcards.v1.no-speak') ?? '')
+    ).toEqual({
+      cards: { 'card-a': { s: 1, due: 2, c: 1, w: 0 } },
+      starred: [],
+      round: 1,
+    });
+  });
+
+  it('drops malformed Speak entries from stored state', () => {
+    localStorage.setItem(
+      'spart.flashcards.v1.bad-speak',
+      JSON.stringify({
+        cards: {},
+        starred: [],
+        round: 1,
+        speak: {
+          ok: { s: 1, due: 2, c: 1, w: 0, best: 80, last: 80, tries: 2 },
+          over: { s: 1, due: 2, c: 1, w: 0, best: 180, last: 80, tries: 2 },
+          plain: { s: 1, due: 2, c: 1, w: 0 },
+        },
+        speakRound: 0,
+        speakSounds: { r: { n: 1, m: 0, f: 0 }, x: { n: -1, m: 0, f: 0 } },
+      })
+    );
+    const state = new LocalFlashcardAdapter('bad-speak').load();
+    expect(Object.keys(state.speak ?? {})).toEqual(['ok']);
+    expect(state.speakRound).toBeUndefined();
+    expect(Object.keys(state.speakSounds ?? {})).toEqual(['r']);
+  });
+
+  it('clamps accuracy and tries, and resets clear Speak', () => {
+    const adapter = new MemoryFlashcardAdapter();
+    const state = adapter.recordSpeak('card-a', true, 140, 25, {});
+    expect(state.speak?.['card-a']).toMatchObject({
+      best: 100,
+      last: 100,
+      tries: 10,
+    });
+    expect(adapter.reset().speak).toBeUndefined();
+  });
+
+  it('writes only changed Speak cards and sounds from the tracked adapter', async () => {
+    const writes: FlashcardProgressWrite[] = [];
+    const adapter = new TrackedFlashcardAdapter({
+      classId: 'class-a',
+      initial: {
+        cards: {},
+        starred: [],
+        round: 1,
+        speak: {
+          old: { s: 1, due: 2, c: 1, w: 0, best: 70, last: 70, tries: 1 },
+        },
+        speakRound: 1,
+        speakSounds: { e: { n: 4, m: 0, f: 0 } },
+      },
+      write: (payload) => {
+        writes.push(payload);
+        return Promise.resolve();
+      },
+    });
+    adapter.recordSpeak('card-b', true, 85, 2, tally, 2);
+    await adapter.flush();
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toMatchObject({ speakRound: 2 });
+    expect(Object.keys(writes[0]?.speak ?? {})).toEqual(['card-b']);
+    expect(writes[0]?.speakSounds).toEqual(tally);
+
+    const next = adapter.load();
+    next.speak = {
+      ...next.speak,
+      old: { s: 2, due: 4, c: 2, w: 0, best: 90, last: 90, tries: 1 },
+    };
+    await adapter.flush(next);
+    expect(Object.keys(writes[1]?.speak ?? {})).toEqual(['old']);
+    expect(writes[1]?.speakSounds).toBeUndefined();
+  });
+
+  it('sends no Speak keys when Speak was never used', async () => {
+    const writes: FlashcardProgressWrite[] = [];
+    const adapter = new TrackedFlashcardAdapter({
+      classId: 'class-a',
+      initial: null,
+      write: (payload) => {
+        writes.push(payload);
+        return Promise.resolve();
+      },
+    });
+    adapter.record('card-a', true, 1);
+    await adapter.flush();
+    expect(Object.keys(writes[0] ?? {}).sort()).toEqual([
+      'cards',
+      'classId',
+      'lastActiveAt',
+      'modesUsed',
+      'round',
+      'starred',
+      'studyMs',
+      'tests',
+    ]);
+  });
+});

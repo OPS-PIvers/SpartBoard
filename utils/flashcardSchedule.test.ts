@@ -4,8 +4,11 @@ import { describe, expect, it } from 'vitest';
 import type { FlashcardCard } from '@/types';
 import {
   buildFlashcardRoundQueue,
+  buildSpeakRoundQueue,
   countMasteredFlashcards,
+  mergeSpeakTally,
   recordFlashcardAnswer,
+  recordSpeakAnswer,
 } from './flashcardSchedule';
 
 const cards: FlashcardCard[] = [
@@ -106,5 +109,75 @@ describe('flashcard schedule server parity', () => {
       undefined
     );
     expect(result).toEqual(expected);
+  });
+});
+
+describe('Speak schedule', () => {
+  const speakCard = (
+    id: string,
+    overrides: Partial<NonNullable<FlashcardCard['speak']>> = {}
+  ): FlashcardCard => ({
+    id,
+    term: id,
+    definition: `${id} def`,
+    speak: {
+      term: id,
+      refs: [{ dialect: 'es-419', tokens: ['o', 'l', 'a'], stress: [0] }],
+      g2pVersion: 'v1',
+      status: 'ready',
+      ...overrides,
+    },
+  });
+
+  it('queues only cards with usable references for their current term', () => {
+    const cards: FlashcardCard[] = [
+      speakCard('ready'),
+      speakCard('review', { status: 'needs-review' }),
+      speakCard('gone', { status: 'unavailable' }),
+      speakCard('stale', { term: 'older' }),
+      speakCard('empty', { refs: [] }),
+      { id: 'plain', term: 'plain', definition: 'p' },
+    ];
+    const queue = buildSpeakRoundQueue({
+      cards,
+      speak: undefined,
+      speakRound: undefined,
+    });
+    expect(queue.round).toBe(1);
+    expect(queue.cards.map((card) => card.id)).toEqual(['ready', 'review']);
+  });
+
+  it('runs on Speak progress and round, not recall', () => {
+    const cards = [speakCard('a'), speakCard('b')];
+    const queue = buildSpeakRoundQueue({
+      cards,
+      speak: {
+        a: { s: 2, due: 5, c: 2, w: 0, best: 90, last: 90, tries: 1 },
+        b: { s: 1, due: 4, c: 1, w: 0, best: 80, last: 80, tries: 1 },
+      },
+      speakRound: 3,
+    });
+    expect(queue).toEqual({ round: 4, cards: [cards[1]] });
+  });
+
+  it('records passes on the shared spacing and merges tallies', () => {
+    const first = recordSpeakAnswer(undefined, 1, true, 72.4, 2);
+    expect(first).toEqual({
+      s: 1,
+      due: 2,
+      c: 1,
+      w: 0,
+      best: 72,
+      last: 72,
+      tries: 2,
+    });
+    expect(recordSpeakAnswer(first, 2, false, 30, 3)).toMatchObject({
+      s: 0,
+      best: 72,
+      last: 30,
+    });
+    expect(
+      mergeSpeakTally({ r: { n: 1, m: 1, f: 0 } }, { r: { n: 1, m: 0, f: 1 } })
+    ).toEqual({ r: { n: 2, m: 1, f: 1 } });
   });
 });

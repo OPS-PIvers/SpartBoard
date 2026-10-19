@@ -13,6 +13,8 @@ export interface FlashcardCard {
   id: string;
   term: string;
   definition: string;
+  /** Speak references (client FlashcardCardSpeak); valid only for the term they were computed for. */
+  speak?: Record<string, unknown>;
 }
 
 export interface FlashcardSet {
@@ -24,6 +26,8 @@ export interface FlashcardSet {
   cards: FlashcardCard[];
   folderId?: string | null;
   publicShareId?: string | null;
+  /** Speak settings (client FlashcardSpeakSettings), carried untouched. */
+  speak?: Record<string, unknown>;
   createdAt: number;
   updatedAt: number;
   claudeCreatedAt?: number;
@@ -48,6 +52,7 @@ export function normalizeSet(
       id: card.id,
       term: card.term.slice(0, MAX_TERM),
       definition: card.definition.slice(0, MAX_DEFINITION),
+      ...(card.speak ? { speak: card.speak } : {}),
     })),
     folderId: set.folderId ?? null,
     updatedAt: now,
@@ -59,7 +64,7 @@ export function mergeCards(
   existing: FlashcardCard[],
   incoming: { id?: string; term: string; definition: string }[]
 ): FlashcardCard[] {
-  const known = new Set(existing.map((c) => c.id));
+  const known = new Map(existing.map((c) => [c.id, c]));
   const used = new Set<string>();
   return incoming.map((card) => {
     const id =
@@ -67,9 +72,32 @@ export function mergeCards(
         ? card.id
         : randomUUID();
     used.add(id);
-    return { id, term: card.term, definition: card.definition };
+    // Speak references belong to a term; a changed term drops them for the next lookup.
+    const previous = known.get(id);
+    const speak =
+      previous?.speak && previous.term === card.term
+        ? previous.speak
+        : undefined;
+    return {
+      id,
+      term: card.term,
+      definition: card.definition,
+      ...(speak ? { speak } : {}),
+    };
   });
 }
+
+// Every snapshot field but `speak`: the Speak stamp is the teacher client's call (F21), so a server write keeps it.
+const SNAPSHOT_FIELDS = [
+  'teacherUid',
+  'setId',
+  'title',
+  'description',
+  'termLanguage',
+  'definitionLanguage',
+  'cards',
+  'updatedAt',
+];
 
 export async function readSet(
   db: Firestore,
@@ -91,20 +119,24 @@ export function stageSetWrite(
   batch.set(db.doc(`${setsPath(uid)}/${set.id}`), set);
   if (set.publicShareId) {
     // Mirrors toPublicSnapshot in hooks/useFlashcardSets.ts.
-    batch.set(db.doc(`public_flashcard_sets/${set.publicShareId}`), {
-      teacherUid: uid,
-      setId: set.id,
-      title: set.title,
-      description: set.description ?? '',
-      termLanguage: set.termLanguage,
-      definitionLanguage: set.definitionLanguage,
-      cards: set.cards,
-      updatedAt: set.updatedAt,
-    });
+    batch.set(
+      db.doc(`public_flashcard_sets/${set.publicShareId}`),
+      {
+        teacherUid: uid,
+        setId: set.id,
+        title: set.title,
+        description: set.description ?? '',
+        termLanguage: set.termLanguage,
+        definitionLanguage: set.definitionLanguage,
+        cards: set.cards,
+        updatedAt: set.updatedAt,
+      },
+      { mergeFields: SNAPSHOT_FIELDS }
+    );
   }
 }
 
-/** Mirrors rewriteOpenStudySessions in hooks/useFlashcardSets.ts; returns sessions rewritten. */
+/** Mirrors rewriteOpenStudySessions in hooks/useFlashcardSets.ts but leaves each session's Speak stamp as the client set it. */
 export async function rewriteOpenStudySessions(
   db: Firestore,
   uid: string,
