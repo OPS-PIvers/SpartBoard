@@ -368,7 +368,7 @@ export interface FlashcardSpeakReference {
   dialect: SpeakDialect;
   tokens: string[]; // 392-vocab tokens, non-empty
   stress: number[]; // accepted 0-based syllable indices; [] = not stress-judged
-  letterSpans?: Array<[number, number]>; // per token, [start, end) into the spoken variant
+  letterSpans?: number[]; // flat [start, end) pairs per token into the spoken variant (Firestore can't nest arrays)
 }
 
 export type FlashcardSpeakStatus = 'ready' | 'needs-review' | 'unavailable';

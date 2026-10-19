@@ -8904,8 +8904,8 @@ export interface FlashcardSpeakReference {
   tokens: string[];
   /** Accepted 0-based syllable indices; [] means not stress-judged. */
   stress: number[];
-  /** Per token, [start, end) into the spoken variant. */
-  letterSpans?: Array<[number, number]>;
+  /** Flat [start, end) pairs into the spoken variant, one pair per token (Firestore can't nest arrays). */
+  letterSpans?: number[];
 }
 
 export type FlashcardSpeakStatus = 'ready' | 'needs-review' | 'unavailable';
