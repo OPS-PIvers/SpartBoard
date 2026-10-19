@@ -54,6 +54,7 @@ jobs:
           git add tests/fixtures/pronunciation-corpus
           if git diff --cached --quiet; then echo 'No new clips.'; exit 0; fi
           git commit -m 'Speak corpus: fetch Lingua Libre clips'
+          git pull --rebase
           git push
 
       - name: Fail when the fetch stopped early
