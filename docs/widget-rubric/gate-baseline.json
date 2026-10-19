@@ -1,7 +1,8 @@
 {
-  "runId": "2026-10-18T18-30-34-056Z",
-  "generatedAt": "2026-10-18T18:47:00.816Z",
+  "runId": "cw-after2",
+  "generatedAt": "2026-10-19T02:43:57.300Z",
   "failures": {
+    "concept-web": ["G1"],
     "lunchCount": ["G1", "G2", "G3"],
     "mathTool": ["G2"],
     "need-do-put-then": ["G4"],
