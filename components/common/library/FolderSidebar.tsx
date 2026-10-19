@@ -10,6 +10,7 @@
  * Intended slot: `LibraryShellProps.filterSidebarSlot`.
  */
 
+import { isImeComposing } from '@/utils/imeComposing';
 import React, { useMemo, useRef, useState } from 'react';
 import {
   FolderPlus,
@@ -749,6 +750,7 @@ const NewFolderInput: React.FC<{
       }}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {
+          if (isImeComposing(e)) return;
           e.preventDefault();
           onCommit();
         } else if (e.key === 'Escape') {

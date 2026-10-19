@@ -1,3 +1,4 @@
+import { isImeComposing } from '@/utils/imeComposing';
 import { useEffect, useLayoutEffect, useRef, useState, type FC } from 'react';
 import { GripVertical, type LucideIcon } from 'lucide-react';
 import type { SortableListDragHandleProps } from '@/components/common/SortableList';
@@ -109,6 +110,7 @@ export const InlineNameInput: FC<InlineNameInputProps> = ({
           // Keep caret keys and Escape away from the menu's own key handling.
           e.stopPropagation();
           if (e.key === 'Enter') {
+            if (isImeComposing(e)) return;
             e.preventDefault();
             finish(true);
           } else if (e.key === 'Escape') {
