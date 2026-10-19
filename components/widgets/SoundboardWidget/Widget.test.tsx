@@ -15,7 +15,7 @@ vi.mock('@/context/useAuth', () => ({
 
 vi.mock('@/context/dashboardCanvasStore');
 
-const mockCtx = vi.hoisted(() => ({ current: null as unknown }));
+const mockCtx: { current: unknown } = vi.hoisted(() => ({ current: null }));
 vi.mock('@/utils/timeToolAudio', () => ({
   getAudioCtx: () => mockCtx.current,
 }));
