@@ -1373,9 +1373,6 @@ export const SPEAK_SOUND_EXAMPLES: Readonly<
     kh: 'Stockholm',
     pf: 'helpful',
     ph: 'uphold',
-    pʰ: 'pin',
-    tʰ: 'tea',
-    kʰ: 'key',
   },
 };
 
@@ -1384,8 +1381,8 @@ export const SPEAK_HEARD_ONLY_SOUNDS: Readonly<
   Record<SpeakLanguage, readonly string[]>
 > = {
   es: ['ə', 'ɹ', 'kʰ', 'pʰ', 'tʰ', 'oʊ'],
-  de: ['o', 'ɜː', 'u', 'e', 'ø', 'ɹ'],
-  en: ['r', 'ʁ'],
+  de: ['o', 'ɜː', 'u', 'e', 'ø', 'ɹ', 'ɚ'],
+  en: ['r', 'ʁ', 'pʰ', 'tʰ', 'kʰ'],
 };
 
 const FALLBACK: LocalizedSound = {
