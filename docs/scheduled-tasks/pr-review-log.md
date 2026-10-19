@@ -4835,3 +4835,16 @@ rather than "no data") is also still open.
     - #4360: `CHAR_EM` counts UTF-16 units (emoji/CJK estimated per code unit), and long labels produce a 20-term CSS expression. Both are optional.
   - Needs changes: none.
 - Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. No local test runs were needed.
+
+## 2026-10-19
+
+- PRs reviewed: #4400 (MCP `tools.ts` test coverage), #4399 (debugger nightly run 102 log), #4398 (IME-confirming Enter guards in eight more inputs), #4397 (Soundboard refused `AudioContext.resume()`), #4396 (word cloud `constructor` prototype-key bug), #4395 (new-user greeting for an empty or blank display name), #4390 (Unifier run 120 log), #4388 (Widget loop: Time Tool compact layout), #4387 (Widget loop: Lunch Count header layout).
+- Comments processed: 8 total — 0 fixed, 8 explained. No unresolved inline threads; all were bot summaries. The one optional nit (#4398, `return e.stopPropagation()` in `FolderTree.tsx`) passes `lint-app` in CI, so it was answered in the review rather than pushed.
+- Fixes pushed: none.
+- Reviews posted: 9.
+- Merge readiness:
+  - Ready: #4400, #4399, #4398, #4397, #4396, #4395, #4390, #4387.
+  - Ready with minor notes:
+    - #4388: no unit test for the 180px compact threshold; a CSS `@container` query could replace the ResizeObserver state. Both are optional.
+  - Needs changes: none.
+- Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. No local test runs were needed.
