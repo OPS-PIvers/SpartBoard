@@ -208,7 +208,7 @@ export const FurnitureItemRenderer = memo(
             </div>
           )}
           {assignedStudents.length > 0 && (
-            <div className="flex flex-col items-center justify-center gap-1 w-full h-full overflow-hidden">
+            <div className="flex flex-col items-center justify-center gap-1 w-full h-full">
               {assignedStudents.map((student) => {
                 const single = assignedStudents.length === 1;
                 const count = assignedStudents.length;
@@ -228,9 +228,10 @@ export const FurnitureItemRenderer = memo(
                   <div
                     key={student.id}
                     className={`bg-white px-1.5 rounded font-bold shadow-sm border border-slate-100 w-full text-center pointer-events-auto flex items-center justify-center ${
-                      single ? 'h-full' : 'py-1'
+                      single ? 'min-h-full' : 'py-1'
                     }`}
                     style={{ fontSize: fontPx, lineHeight: 1.2 }}
+                    title={student.label}
                   >
                     <span className="min-w-0 [overflow-wrap:anywhere]">
                       {student.label}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { seatLabelFontPx } from './seatLabelFit';
+import { SEAT_LABEL_MIN_PX, seatLabelFontPx } from './seatLabelFit';
 
 describe('seatLabelFontPx', () => {
   it('keeps a short name at the usual size', () => {
@@ -10,10 +10,16 @@ describe('seatLabelFontPx', () => {
     const label = 'Maximiliana-Josephine Vanderbilt-Oyelaran-Castellanos';
     const px = seatLabelFontPx(label, 68, 50, 12);
     expect(px).toBeLessThan(12);
-    expect(px).toBeGreaterThan(4);
+    expect(px).toBeGreaterThanOrEqual(SEAT_LABEL_MIN_PX);
+  });
+
+  it('holds the readable minimum on very small furniture', () => {
+    expect(seatLabelFontPx('Malik Kowalski', 18, 20, 12)).toBe(
+      SEAT_LABEL_MIN_PX
+    );
   });
 
   it('never returns zero for an empty box', () => {
-    expect(seatLabelFontPx('Ava', 0, 0, 12)).toBe(1);
+    expect(seatLabelFontPx('Ava', 0, 0, 12)).toBe(SEAT_LABEL_MIN_PX);
   });
 });
