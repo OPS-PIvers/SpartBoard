@@ -10103,7 +10103,9 @@ export type GlobalFeature =
   | 'quiz-monitor-declutter'
   | 'quiz-banks-in-library'
   /** Teachers turn in a quiz for a student who left without submitting. */
-  | 'quiz-submit-for-student';
+  | 'quiz-submit-for-student'
+  /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
+  | 'lunch-count-redesign';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

@@ -25,6 +25,18 @@ describe('buildWordCloud', () => {
   });
 });
 
+describe('buildWordCloud prototype-named words', () => {
+  it('counts "constructor" like any other word', () => {
+    const result = buildWordCloud([
+      { content: 'constructor constructor class' },
+    ]);
+    expect(result.find((w) => w.word === 'constructor')).toMatchObject({
+      count: 2,
+      weight: 1,
+    });
+  });
+});
+
 describe('wordColor', () => {
   it('is deterministic per word', () => {
     expect(wordColor('fox')).toBe(wordColor('fox'));

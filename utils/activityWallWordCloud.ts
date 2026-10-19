@@ -80,16 +80,16 @@ export const buildWordCloud = (
   submissions: Pick<ActivityWallSubmission, 'content'>[],
   maxWords: number = WORD_CLOUD_MAX_WORDS
 ): WordWeight[] => {
-  const counts: Record<string, number> = {};
+  const counts = new Map<string, number>();
   for (const sub of submissions) {
     const words = sub.content.toLowerCase().match(/\b[a-z']{2,}\b/g) ?? [];
     for (const word of words) {
       if (!STOP_WORDS.has(word)) {
-        counts[word] = (counts[word] ?? 0) + 1;
+        counts.set(word, (counts.get(word) ?? 0) + 1);
       }
     }
   }
-  const entries = Object.entries(counts)
+  const entries = [...counts.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .slice(0, maxWords);
   const maxCount = entries[0]?.[1] ?? 1;

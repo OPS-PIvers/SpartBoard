@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-18_
+_Last audited: 2026-10-19_
 _Last action: 2026-10-18 — LOW `MiniAppAssignModal` skipped-students warning text scaled with cqmin (both duplicate entries moved to Completed). Prior: 2026-10-17 — LOW Soundboard active-sound dot scaled with cqmin._
+
+_2026-10-19: Daily audit (Monday). Widget-dir changes since last run (ConceptWeb, NumberLine, Stations, SeatingChart label fit) reviewed: no new hardcoded px sizes, `max-w/h-[Npx]` caps or content-level `overflow-hidden` without `flex-1`. 0 new issues._
 
 _2026-10-18: Daily audit (Sunday). 0 `max-w/h-[Npx]` caps in any `Widget.tsx`; only fixed pixel sizes are the two portaled `fixed` DrawingWidget popovers (exempt). Only widget-dir change since last run is a Flashcards editor tweak (`FlashcardEditor.tsx`), no scaling impact. 0 new issues._
 

@@ -12,6 +12,7 @@
  * recursive rendering + expand/collapse behavior in isolation.
  */
 
+import { isImeComposing } from '@/utils/imeComposing';
 import React, { useMemo, useRef, useEffect } from 'react';
 import { tourAttr } from '@/config/tourAnchors';
 import {
@@ -123,6 +124,7 @@ const RenameInput: React.FC<{
       onBlur={handleBlur}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {
+          if (isImeComposing(e)) return e.stopPropagation();
           const v = (e.target as HTMLInputElement).value.trim();
           if (v) onCommit(v);
           else onCancel();

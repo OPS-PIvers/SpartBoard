@@ -1,4 +1,5 @@
 // Path bar, search scope and folder rows above the library list (docs/plans/LIBRARY_FOLDERS.md D3, D4, D7).
+import { isImeComposing } from '@/utils/imeComposing';
 import React, { useContext, useRef, useState } from 'react';
 import { ChevronRight, Folder } from 'lucide-react';
 import { useDroppable } from '@dnd-kit/core';
@@ -151,7 +152,7 @@ const NameField: React.FC<{
       value={value}
       onChange={(e) => setValue(e.target.value)}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') settle(value);
+        if (e.key === 'Enter' && !isImeComposing(e)) settle(value);
         if (e.key === 'Escape') {
           e.stopPropagation();
           settle(null);
