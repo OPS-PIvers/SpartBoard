@@ -55,10 +55,14 @@ describe('speakEditorState', () => {
     expect(cardNeedsLookup(card({ term: 'hole' }), ['es-419'], {})).toBe(true);
     expect(cardNeedsLookup(card(), ['es-419', 'es-ES'], {})).toBe(true);
     expect(
-      cardNeedsLookup(card(), ['es-419'], { c1: { 'es-419': 'ola' } })
+      cardNeedsLookup(card(), ['es-419'], {
+        c1: { term: 'hola', ipa: { 'es-419': 'ola' } },
+      })
     ).toBe(true);
     expect(
-      cardNeedsLookup(card(), ['es-419'], { c1: { 'es-419': '  ' } })
+      cardNeedsLookup(card(), ['es-419'], {
+        c1: { term: 'hola', ipa: { 'es-419': '  ' } },
+      })
     ).toBe(false);
     const failed = card({
       speak: { ...readySpeak(), reasons: ['lookup-failed'] },

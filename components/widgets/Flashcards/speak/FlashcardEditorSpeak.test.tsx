@@ -190,7 +190,7 @@ describe('FlashcardEditor Speak', () => {
       screen.getAllByText('Our sources disagree on which part is stressed.')
         .length
     ).toBeGreaterThan(0);
-    fireEvent.click(screen.getAllByRole('button', { name: 'Looks right' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: /^Looks right/ })[0]);
     expect(screen.queryByText('1 card to check')).toBeNull();
     save();
     await waitFor(() => expect(onSave).toHaveBeenCalled());
@@ -222,6 +222,75 @@ describe('FlashcardEditor Speak', () => {
     expect(lookup.mock.calls[0][0].terms).toEqual([
       { cardId: 'c1', term: 'hola', ipaOverride: { 'es-419': 'ˈola' } },
     ]);
+  });
+
+  it('keeps typed IPA when the lookup fails', async () => {
+    const lookup = vi.fn<SpeakLookupCall>(() =>
+      Promise.reject(new Error('offline'))
+    );
+    const { onSave } = renderEditor({ speak: true, lookup });
+    await screen.findByLabelText('Level');
+    fireEvent.click(
+      screen.getAllByRole('button', { name: /^Advanced\s*1$/ })[0]
+    );
+    fireEvent.change(
+      screen.getByLabelText('Pronunciation (IPA), Latin American Spanish'),
+      { target: { value: 'ˈola' } }
+    );
+    save();
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
+    expect(onSave.mock.calls[0][0].cards[0].speak).toMatchObject({
+      reasons: ['lookup-failed'],
+      ipaOverride: { 'es-419': 'ˈola' },
+    });
+    save();
+    await waitFor(() => expect(onSave).toHaveBeenCalledTimes(2));
+    expect(lookup.mock.calls[1][0].terms).toEqual([
+      { cardId: 'c1', term: 'hola', ipaOverride: { 'es-419': 'ˈola' } },
+    ]);
+  });
+
+  it('drops typed IPA once the term changes', async () => {
+    const lookup = lookupReturning();
+    const { onSave } = renderEditor({ speak: true, lookup });
+    await screen.findByLabelText('Level');
+    fireEvent.click(
+      screen.getAllByRole('button', { name: /^Advanced\s*1$/ })[0]
+    );
+    fireEvent.change(
+      screen.getByLabelText('Pronunciation (IPA), Latin American Spanish'),
+      { target: { value: 'ˈola' } }
+    );
+    fireEvent.change(screen.getByLabelText('Term 1'), {
+      target: { value: 'perro' },
+    });
+    save();
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(lookup.mock.calls[0][0].terms).toEqual([
+      { cardId: 'c1', term: 'perro' },
+    ]);
+  });
+
+  it("doesn't carry one language's settings to another", async () => {
+    const set = spanishSet();
+    set.speak = {
+      dialects: ['es-419'],
+      preset: 'beginner',
+      strict: false,
+      groups: { 'es-trill': 'forgive' },
+      attempts: 4,
+      example: true,
+    };
+    set.termLanguage = 'de-DE';
+    const { onSave } = renderEditor({
+      speak: true,
+      set,
+      lookup: lookupReturning(),
+    });
+    await screen.findByLabelText('Level');
+    save();
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0][0].speak).toBeUndefined();
   });
 
   it('explains when the term language has no Speak', async () => {

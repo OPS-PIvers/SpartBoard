@@ -90,7 +90,12 @@ export async function attachSpeakReferences(
           ...card,
           speak: keepSpeakConfirmation(
             speakForTerm(card),
-            found[card.id] ?? lookupFailedSpeak(card, g2pVersion)
+            found[card.id] ??
+              lookupFailedSpeak(
+                card,
+                g2pVersion,
+                effectiveIpaOverride(card, drafts, dialects)
+              )
           ),
         }
       : card

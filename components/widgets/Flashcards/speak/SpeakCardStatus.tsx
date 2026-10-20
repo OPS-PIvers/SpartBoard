@@ -79,7 +79,8 @@ export const HearItButton: React.FC<{
   term: string;
   dialect: SpeakDialect | undefined;
   fieldKey: string;
-}> = ({ term, dialect, fieldKey }) => {
+  srSuffix?: string;
+}> = ({ term, dialect, fieldKey, srSuffix }) => {
   const { t } = useTranslation();
   const hasVoice = useHasVoice(dialect);
   const word = parseFlashcardAnswerVariants(term)[0] ?? '';
@@ -103,6 +104,7 @@ export const HearItButton: React.FC<{
     >
       <Volume2 aria-hidden="true" style={ICON_STYLE} />
       {label}
+      {srSuffix && <span className="sr-only"> {srSuffix}</span>}
     </button>
   );
 };
@@ -158,11 +160,13 @@ export const SpeakCardRow: React.FC<SpeakCardRowProps> = ({
             )}
           >
             {t('flashcards.speak.editor.confirm')}
+            <span className="sr-only"> {index + 1}</span>
           </button>
         )}
         <HearItButton
           term={card.term}
           dialect={dialects[0]}
+          srSuffix={String(index + 1)}
           fieldKey={fieldKey}
         />
         <button

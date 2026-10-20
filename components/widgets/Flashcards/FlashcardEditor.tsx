@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   DndContext,
@@ -49,6 +49,7 @@ import {
 } from './speak/lookupSpeakReferences';
 import {
   initialSpeakSettings,
+  ipaDraftFor,
   settingsFitLanguage,
   speakForTerm,
   type SpeakIpaDrafts,
@@ -215,7 +216,7 @@ const SortableCardRow: React.FC<SortableCardRowProps> = ({
           card={card}
           index={index}
           dialects={speak.dialects}
-          ipaDraft={speak.ipaDrafts[card.id]}
+          ipaDraft={ipaDraftFor(card, speak.ipaDrafts)}
           onIpaChange={speak.onIpaChange}
           onConfirm={speak.onConfirm}
         />
@@ -261,6 +262,7 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
   } | null>(null);
   const [ipaDrafts, setIpaDrafts] = useState<SpeakIpaDrafts>({});
   const [checkingCount, setCheckingCount] = useState(0);
+  const savingRef = useRef(false);
 
   const speakLanguage = canSpeak ? speakLanguageOf(termLanguage) : null;
 
@@ -316,8 +318,13 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
       ? {
           dialects: speakSettings.dialects,
           ipaDrafts,
-          onIpaChange: (cardId, ipa) =>
-            setIpaDrafts((current) => ({ ...current, [cardId]: ipa })),
+          onIpaChange: (cardId, ipa) => {
+            const term = cards.find((card) => card.id === cardId)?.term ?? '';
+            setIpaDrafts((current) => ({
+              ...current,
+              [cardId]: { term: term.trim(), ipa },
+            }));
+          },
           onConfirm: confirmSpeakCard,
         }
       : null;
@@ -363,6 +370,16 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
   };
 
   const handleSave = async (): Promise<void> => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    try {
+      await saveSet();
+    } finally {
+      savingRef.current = false;
+    }
+  };
+
+  const saveSet = async (): Promise<void> => {
     const cleaned = cards
       .map((card) => {
         const term = card.term.trim();
@@ -410,10 +427,11 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
       }
     }
     // F22: a set keeps the district defaults until its own Speak settings are first changed.
-    const speak =
-      speakOn && speakSettings && (speakEdit || savedSpeak)
+    const speak = !speakOn
+      ? initialSet.speak
+      : speakSettings && (speakEdit || savedSpeak)
         ? speakSettings
-        : initialSet.speak;
+        : undefined;
     const { speak: _previousSpeak, ...rest } = initialSet;
     await onSave({
       ...rest,
@@ -444,6 +462,7 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
             <button
               type="button"
               onClick={onCancel}
+              disabled={checkingCount > 0}
               className="rounded-xl text-white/80 hover:bg-white/10 hover:text-white"
               style={{ padding: 'min(7px, 1.8cqmin)' }}
               aria-label="Back to flashcard library"
@@ -469,6 +488,17 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
               >
                 {cards.length} / 500 cards
               </p>
+              <p
+                role="status"
+                className="font-bold text-white empty:hidden"
+                style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+              >
+                {checkingCount > 0
+                  ? t('flashcards.speak.editor.checkingCards', {
+                      count: checkingCount,
+                    })
+                  : null}
+              </p>
             </div>
           </div>
           <div
@@ -478,6 +508,7 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
             <button
               type="button"
               onClick={() => setPasteOpen(true)}
+              disabled={checkingCount > 0}
               {...tourTypeAttr('flashcards.editor-paste', 'flashcards')}
               className="inline-flex items-center rounded-xl border border-white/20 bg-white/10 font-bold text-white hover:bg-white/20"
               style={{
@@ -519,6 +550,8 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
 
         <div
           className="min-h-0 flex-1 overflow-y-auto bg-slate-50/80"
+          // Edits made during the lookup would be overwritten by its result.
+          inert={checkingCount > 0}
           style={{ padding: 'min(16px, 4cqmin)' }}
         >
           <div
@@ -599,21 +632,6 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
                 />
               )}
             </div>
-
-            {checkingCount > 0 && (
-              <div
-                role="status"
-                className="rounded-xl bg-slate-100 font-bold text-slate-700"
-                style={{
-                  padding: 'min(10px, 2.5cqmin)',
-                  fontSize: 'min(11px, 3.5cqmin)',
-                }}
-              >
-                {t('flashcards.speak.editor.checkingCards', {
-                  count: checkingCount,
-                })}
-              </div>
-            )}
 
             {speakOn && (
               <SpeakReviewList

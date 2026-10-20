@@ -48,13 +48,15 @@ const GROUP_SETTINGS: readonly SpeakGroupSetting[] = [
 ];
 
 const DialectPicker: React.FC<{
+  labelId: string;
   dialects: readonly SpeakDialect[];
   options: readonly SpeakDialect[];
   onChange: (dialects: SpeakDialect[]) => void;
-}> = ({ dialects, options, onChange }) => {
+}> = ({ labelId, dialects, options, onChange }) => {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const menuId = useId();
+  const valueId = useId();
   const name = (dialect: SpeakDialect) =>
     t(`flashcards.speak.editor.dialectNames.${dialect}`);
   return (
@@ -69,15 +71,15 @@ const DialectPicker: React.FC<{
     >
       <button
         type="button"
-        aria-haspopup="menu"
         aria-expanded={open}
+        aria-labelledby={`${labelId} ${valueId}`}
         aria-controls={menuId}
         onClick={() => setOpen((value) => !value)}
         className={`${CONTROL_CLASS} flex items-center justify-between text-left`}
         style={{ ...CONTROL_STYLE, gap: 'min(6px, 1.5cqmin)' }}
         {...tourTypeAttr('flashcards-speak-editor.dialects', 'flashcards')}
       >
-        <span className="truncate">
+        <span id={valueId} className="truncate">
           {options
             .filter((d) => dialects.includes(d))
             .map(name)
@@ -92,7 +94,8 @@ const DialectPicker: React.FC<{
       {open && (
         <div
           id={menuId}
-          role="menu"
+          role="group"
+          aria-labelledby={labelId}
           className="absolute left-0 right-0 z-20 mt-1 rounded-xl border border-slate-200 bg-white shadow-lg"
           style={{ padding: 'min(4px, 1cqmin)' }}
         >
@@ -104,7 +107,7 @@ const DialectPicker: React.FC<{
               <button
                 key={dialect}
                 type="button"
-                role="menuitemcheckbox"
+                role="checkbox"
                 aria-checked={checked}
                 aria-disabled={locked}
                 onClick={() => {
@@ -151,6 +154,7 @@ export const SpeakSettingsPanel: React.FC<SpeakSettingsPanelProps> = ({
   const { t } = useTranslation();
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const levelId = useId();
+  const dialectsId = useId();
   const attemptsId = useId();
   const groupsId = useId();
 
@@ -216,10 +220,11 @@ export const SpeakSettingsPanel: React.FC<SpeakSettingsPanelProps> = ({
       >
         {dialectOptions.length > 1 && (
           <div>
-            <span className={LABEL_CLASS} style={LABEL_STYLE}>
+            <span id={dialectsId} className={LABEL_CLASS} style={LABEL_STYLE}>
               {t('flashcards.speak.editor.dialects')}
             </span>
             <DialectPicker
+              labelId={dialectsId}
               dialects={settings.dialects}
               options={dialectOptions}
               onChange={(dialects) => onChange({ ...settings, dialects })}

@@ -90,6 +90,7 @@ export const SpeakReviewList: React.FC<SpeakReviewListProps> = ({
                 )}
               >
                 {t('flashcards.speak.editor.confirm')}
+                <span className="sr-only"> {card.term}</span>
               </button>
             </li>
           );

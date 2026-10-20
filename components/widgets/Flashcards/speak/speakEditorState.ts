@@ -16,10 +16,20 @@ import {
 import { buildSpeakStamp } from '../utils/flashcardAssign';
 import { tokenizeIpa } from '@/utils/pronunciation/tokenizeIpa';
 
+/** Unsaved IPA per card id, tied to the term it was typed for. */
 export type SpeakIpaDrafts = Record<
   string,
-  Partial<Record<SpeakDialect, string>>
+  { term: string; ipa: Partial<Record<SpeakDialect, string>> }
 >;
+
+/** The card's draft IPA, unless its term changed since it was typed. */
+export const ipaDraftFor = (
+  card: FlashcardCard,
+  drafts: SpeakIpaDrafts
+): Partial<Record<SpeakDialect, string>> | undefined => {
+  const draft = drafts[card.id];
+  return draft && draft.term === card.term.trim() ? draft.ipa : undefined;
+};
 
 /** The set's own settings, else the district defaults for the language (F22). */
 export function initialSpeakSettings(
@@ -111,7 +121,7 @@ export function effectiveIpaOverride(
   drafts: SpeakIpaDrafts,
   dialects: readonly SpeakDialect[]
 ): Partial<Record<SpeakDialect, string>> | undefined {
-  const source = drafts[card.id] ?? speakForTerm(card)?.ipaOverride;
+  const source = ipaDraftFor(card, drafts) ?? speakForTerm(card)?.ipaOverride;
   const out: Partial<Record<SpeakDialect, string>> = {};
   for (const dialect of dialects) {
     const ipa = source?.[dialect]?.trim();
@@ -143,15 +153,18 @@ export function cardNeedsLookup(
   );
 }
 
+/** Keeps the teacher's IPA so the retry on the next save still sends it. */
 export const lookupFailedSpeak = (
   card: FlashcardCard,
-  g2pVersion = ''
+  g2pVersion = '',
+  ipaOverride?: Partial<Record<SpeakDialect, string>>
 ): FlashcardCardSpeak => ({
   term: card.term,
   refs: [],
   g2pVersion,
   status: 'unavailable',
   reasons: ['lookup-failed'],
+  ...(ipaOverride ? { ipaOverride } : {}),
 });
 
 /** A teacher's confirmation survives a re-lookup that returns the same references. */
