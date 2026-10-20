@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "embed",
   "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-20T04:10:54.415Z",
+  "gradedAt": "2026-10-20T13:28:38.964Z",
   "stale": false,
   "criteria": {
     "S6": {
@@ -587,30 +587,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "loop-embed-2026-10-20"
+        "runId": "grade-embed-2026-10-20"
       },
-      "gradedAt": "2026-10-20T04:10:54.415Z"
+      "gradedAt": "2026-10-20T13:28:38.964Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "loop-embed-2026-10-20"
+        "runId": "grade-embed-2026-10-20"
       },
-      "gradedAt": "2026-10-20T04:10:54.415Z"
+      "gradedAt": "2026-10-20T13:28:38.964Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "loop-embed-2026-10-20"
+        "runId": "grade-embed-2026-10-20"
       },
-      "gradedAt": "2026-10-20T04:10:54.415Z"
+      "gradedAt": "2026-10-20T13:28:38.964Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "loop-embed-2026-10-20"
+        "runId": "grade-embed-2026-10-20"
       },
-      "gradedAt": "2026-10-20T04:10:54.415Z"
+      "gradedAt": "2026-10-20T13:28:38.964Z"
     }
   }
 }
