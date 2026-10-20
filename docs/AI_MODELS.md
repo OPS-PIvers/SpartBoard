@@ -35,3 +35,18 @@ Moved from the retired GEMINI.md. Code comments in `config/geminiModels.ts` and 
   limit, when set, replaces the call's own token budget on Claude and Gemini.
 - **Monitoring.** Each call increments `ai_call_log/{date}__{integration}__{model}` (calls, tokens,
   fallbacks, errors), which the AI tab shows for the last 30 days. Quotas still live in `ai_usage`.
+
+## Pronunciation models (the one exception to `generateAi`)
+
+Flashcards Speak (`docs/multilingual-pronunciation-engine.md`, flag `flashcards-speak`) runs speech models that
+are not language-model calls, so they don't go through `generateAi` and have no integration id or admin model picker.
+
+- **On the student's device.** A pinned wav2vec2 phoneme model (`config/pronunciationModel.ts`: id, byte size,
+  MD5 prefix, upstream licence Apache-2.0) is downloaded from our own Storage bucket (`pronunciation-models/**`,
+  public read), never from a third party, and runs in a Web Worker with `onnxruntime-web`. Audio never leaves the
+  device. `scripts/upload-pronunciation-model.mjs --project dev|prod` uploads it.
+- **On the server, at save time only.** `lookupSpeakReferencesV1` turns each term into reference sounds with
+  espeak-ng (GPL-3.0, server-side only, IPA output stored; counsel brief pending, G19) and, since S11a, the same
+  model's readings of Cloud TTS voices (`config/pronunciationVoices.ts`). The connector skips the voices.
+- **Changing any of them** changes `SPEAK_G2P_VERSION` (`functions/src/pronunciation/g2pVersion.ts`, copied in
+  `utils/pronunciation/g2pVersion.ts`), so every card is looked up again on its next editor save.

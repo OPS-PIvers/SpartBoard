@@ -9,6 +9,7 @@ export interface FakeTake {
   tokens: string[];
   confidence?: number;
   voicedMs?: number;
+  audio16k?: Float32Array;
 }
 
 export interface FakeRecognizer extends Recognizer {
@@ -26,7 +27,7 @@ export const toResult = (take: FakeTake): RecognizeResult => ({
   })),
   confidence: take.confidence ?? 0.9,
   voicedMs: take.voicedMs ?? 800,
-  audio16k: new Float32Array(0),
+  audio16k: take.audio16k ?? new Float32Array(0),
   decodeMs: 5,
 });
 
