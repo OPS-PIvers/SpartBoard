@@ -3106,6 +3106,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-step.speak",
+    "label": "Speak step header in the Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-step.sharing",
     "label": "Sharing step header in the Assign dialog",
     "scope": "board",
@@ -3688,6 +3701,50 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "assign-step.check"
         ],
         "reveal": "assign-step.check",
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-speak.show",
+    "label": "Let students practice aloud switch in the Assign dialog Speak step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.assign",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:flashcards#row-1",
+          "assign-step.speak"
+        ],
+        "reveal": "assign-step.speak",
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-speak.lock",
+    "label": "Lock Speak settings switch in the Assign dialog Speak step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.assign",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:flashcards#row-1",
+          "assign-step.speak"
+        ],
+        "reveal": "assign-step.speak",
         "needs": [
           "library-item",
           "class",

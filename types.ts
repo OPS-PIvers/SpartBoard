@@ -8904,8 +8904,8 @@ export interface FlashcardSpeakReference {
   tokens: string[];
   /** Accepted 0-based syllable indices; [] means not stress-judged. */
   stress: number[];
-  /** Per token, [start, end) into the spoken variant. */
-  letterSpans?: Array<[number, number]>;
+  /** Flat [start, end) pairs into the spoken variant, one pair per token (Firestore can't nest arrays). */
+  letterSpans?: number[];
 }
 
 export type FlashcardSpeakStatus = 'ready' | 'needs-review' | 'unavailable';
@@ -9031,6 +9031,8 @@ export interface FlashcardSession
   lockedSettings?: FlashcardModeSettings;
   /** Teacher-stamped Speak settings (F21); absent means Speak is hidden. */
   speak?: FlashcardSpeakSettings & { locked: boolean };
+  /** The teacher turned Speak off for this assignment, so a set save never stamps it. */
+  speakOff?: true;
   masteryThreshold?: FlashcardMasteryThreshold;
   termLanguage: string;
   definitionLanguage: string;
