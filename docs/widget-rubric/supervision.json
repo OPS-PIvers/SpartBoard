@@ -179,6 +179,47 @@
           "after": 3
         }
       }
+    },
+    {
+      "pr": 4432,
+      "widgetType": "url",
+      "dimension": "layout",
+      "openedAt": "2026-10-20T04:30:00Z",
+      "outcome": "open",
+      "changes": {
+        "S1": {
+          "before": 1,
+          "after": 2
+        },
+        "S3": {
+          "before": 2,
+          "after": 3
+        },
+        "S6": {
+          "before": null,
+          "after": 4
+        },
+        "I2": {
+          "before": 1,
+          "after": 2
+        },
+        "V1": {
+          "before": 2,
+          "after": 3
+        },
+        "V3": {
+          "before": 2,
+          "after": 3
+        },
+        "C3": {
+          "before": 1,
+          "after": 2
+        },
+        "C5": {
+          "before": 2,
+          "after": 3
+        }
+      }
     }
   ]
 }
