@@ -115,6 +115,10 @@ describe('CTC scores', () => {
     expect(readings?.[0].map((r) => r.spoken)).toEqual(['e']);
   });
 
+  it('returns null when the take has too few frames to spell the reference', () => {
+    expect(scoreReference(randomLogProbs(1, 4), ['l', 'l'], ['a'])).toBeNull();
+  });
+
   it('returns null for a token outside the vocabulary or an empty take', () => {
     expect(scoreReference(randomLogProbs(4, 1), ['☃'], ['a'])).toBeNull();
     expect(

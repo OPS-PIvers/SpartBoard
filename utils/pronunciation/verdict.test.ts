@@ -644,10 +644,11 @@ describe('likelihood segments (S11c)', () => {
       letterSpans: [0, 1, 1, 2, 2, 3],
     };
     const voice: FlashcardSpeakReference = {
-      ...ref(['a', 'x', 'b', 'c']),
+      ...ref(['a', 'x', 'b', 'e']),
       source: 'voice',
     };
     const r = judge([letters, voice], ['a', 'x', 'b', 'd']);
+    // Voice e lines up with espeak c, so the mark names the letters' sound.
     expect(r.verdict).toBe('wrong');
     const error = r.entries.find((e) => e.kind === 'error');
     // Voice position 4 (c) sits on espeak position 3.

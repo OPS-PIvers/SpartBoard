@@ -151,9 +151,10 @@ function scoreReferenceUncached(
   if (!ids || ids.length === 0 || lp.frames === 0) return null;
   const ext = extend(ids);
   const base = forward(lp, ext, 0, null);
+  // Too few frames to spell the reference: the greedy tokens judge it instead.
+  if (base.score === NEG) return null;
   const prefix = { alpha: base.alpha, width: ext.length };
-  const lead = (score: number) =>
-    base.score === NEG ? (score === NEG ? NEG : Infinity) : score - base.score;
+  const lead = (score: number) => score - base.score;
   const candidateIds = candidates
     .map((c) => [c, VOCAB[c]] as const)
     .filter((c): c is readonly [string, number] => c[1] !== undefined);

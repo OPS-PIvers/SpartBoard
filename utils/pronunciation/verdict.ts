@@ -275,16 +275,25 @@ function onLetterRef(
   );
   if (!letters) return result;
   const { alignment } = alignPronunciation(letters.tokens, ref.tokens);
-  const toLetters: number[] = [];
+  // Each voice token's espeak position, and the espeak sound when the two line up.
+  const toLetters: Array<{ position: number; token: string | null }> = [];
   for (const a of alignment) {
     if (a.spokenIPA === null) continue;
-    toLetters.push(Math.min(Math.max(a.position, 1), letters.tokens.length));
+    toLetters.push({
+      position: Math.min(Math.max(a.position, 1), letters.tokens.length),
+      token: a.targetIPA,
+    });
   }
   return {
     ...result,
-    entries: result.entries.map((e) => ({
-      ...e,
-      position: toLetters[e.position - 1] ?? e.position,
-    })),
+    entries: result.entries.map((e) => {
+      const at = toLetters[e.position - 1];
+      if (!at) return e;
+      return {
+        ...e,
+        position: at.position,
+        targetIPA: e.targetIPA !== null && at.token ? at.token : e.targetIPA,
+      };
+    }),
   };
 }
