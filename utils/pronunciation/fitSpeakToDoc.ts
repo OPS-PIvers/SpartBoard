@@ -85,6 +85,12 @@ const asStub = (speak: SpeakRecord): SpeakRecord => {
   };
 };
 
+// A shed card waiting on voices would be looked up again and shed again, so it counts as done.
+const settled = (speak: SpeakRecord): SpeakRecord =>
+  typeof speak.g2pVersion === 'string' && speak.g2pVersion.endsWith('/pending')
+    ? { ...speak, g2pVersion: speak.g2pVersion.slice(0, -'/pending'.length) }
+    : speak;
+
 // Voice readings go first (extra accepted readings), then letter highlights, then a card's references.
 const TIERS = [withoutVoices, withoutSpans, asStub];
 
@@ -101,8 +107,9 @@ export function fitSpeakToDoc<T extends { cards: unknown[] }>(
     for (let i = cards.length - 1; i >= 0 && over > 0; i--) {
       const card = cards[i];
       if (!isRecord(card) || !isRecord(card.speak)) continue;
-      const next = shed(card.speak);
-      if (next === card.speak) continue;
+      const lighter = shed(card.speak);
+      if (lighter === card.speak) continue;
+      const next = settled(lighter);
       over -= firestoreBytes(card.speak) - firestoreBytes(next);
       cards[i] = { ...card, speak: next };
     }

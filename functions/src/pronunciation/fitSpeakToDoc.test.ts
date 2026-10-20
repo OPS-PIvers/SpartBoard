@@ -164,6 +164,17 @@ describe('fitSpeakToDoc', () => {
     });
   });
 
+  it('marks a shed card waiting on voices as current, so the editor does not look it up again', () => {
+    const pending = { ...worstSpeak('perro'), g2pVersion: 'v/pending' };
+    const fitted = fitSpeakToDoc(
+      PATH,
+      { cards: [{ id: 'a', speak: pending }] },
+      firestoreBytes({ cards: [{ id: 'a', speak: pending }] }) - 1
+    );
+    expect(fitted.cards[0].speak.g2pVersion).toBe('v');
+    expect(fitted.cards[0].speak.refs).toHaveLength(2);
+  });
+
   it('leaves cards without Speak and unknown shapes alone', () => {
     const odd = {
       cards: [

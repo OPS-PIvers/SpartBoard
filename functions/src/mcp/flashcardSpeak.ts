@@ -218,7 +218,9 @@ export async function prepareSpeakSave(
   if (input && !granted) {
     throw new ToolError('Speak is not turned on for this account.');
   }
-  if (!language || !granted) return { set };
+  if (!language || !granted) {
+    return { set: fitSpeakToDoc(`${setsPath(who.uid)}/${set.id}`, set) };
+  }
   const own = ownSpeakFits(set.speak, language) ? set.speak : undefined;
   const defaults = await readSpeakAdminDefaults(db);
   const resolved = resolveSpeakSettings(language, own, defaults);
