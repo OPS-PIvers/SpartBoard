@@ -21,7 +21,9 @@ import {
   SPEAK_DOC_BUDGET_BYTES,
 } from '@/utils/pronunciation/fitSpeakToDoc';
 
-interface LookupInput {
+export interface LookupInput {
+  /** false skips the slow voice readings, leaving those cards pending. */
+  voices?: false;
   language: SpeakLanguage;
   dialects: SpeakDialect[];
   terms: Array<{
@@ -31,14 +33,14 @@ interface LookupInput {
   }>;
 }
 
-interface LookupOutput {
+export interface LookupOutput {
   g2pVersion: string;
   cards: Record<string, FlashcardCardSpeak>;
 }
 
 export type SpeakLookupCall = (input: LookupInput) => Promise<LookupOutput>;
 
-const callLookup: SpeakLookupCall = async (input) => {
+export const callLookup: SpeakLookupCall = async (input) => {
   const call = httpsCallable<LookupInput, LookupOutput>(
     functions,
     'lookupSpeakReferencesV1',
@@ -77,7 +79,7 @@ export const cardsNeedingLookup = (
   return cards.filter((card) => stale.includes(card) || retry.has(card));
 };
 
-/** Looks up only new or changed terms; a failure marks those cards so the next save retries. */
+/** Quick lookup of new or changed terms, without voices; a failure marks those cards so the next save retries. */
 export async function attachSpeakReferences(
   cards: FlashcardCard[],
   language: SpeakLanguage,
@@ -91,6 +93,7 @@ export async function attachSpeakReferences(
   let g2pVersion = '';
   try {
     const out = await call({
+      voices: false,
       language,
       dialects,
       terms: stale.map((card) => {

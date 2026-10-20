@@ -54,6 +54,7 @@ import {
   speakForTerm,
   type SpeakIpaDrafts,
 } from './speak/speakEditorState';
+import { useVoiceFillProgress } from './speak/speakVoiceFill';
 
 interface FlashcardEditorProps {
   initialSet: FlashcardSet;
@@ -265,6 +266,7 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
   const savingRef = useRef(false);
 
   const speakLanguage = canSpeak ? speakLanguageOf(termLanguage) : null;
+  const voiceFill = useVoiceFillProgress().get(initialSet.id);
 
   useEffect(() => {
     if (!canSpeak) return;
@@ -497,7 +499,11 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
                   ? t('flashcards.speak.editor.checkingCards', {
                       count: checkingCount,
                     })
-                  : null}
+                  : voiceFill
+                    ? t('flashcards.speak.editor.finishingCards', {
+                        ...voiceFill,
+                      })
+                    : null}
               </p>
             </div>
           </div>

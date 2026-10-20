@@ -34,6 +34,11 @@ import {
 } from '@/components/widgets/Flashcards/utils/flashcardAssign';
 import { fitSpeakToDoc } from '@/utils/pronunciation/fitSpeakToDoc';
 import {
+  applyVoiceResults,
+  startVoiceFill,
+  type VoiceFillWrite,
+} from '@/components/widgets/Flashcards/speak/speakVoiceFill';
+import {
   FC_CONTENT_COLLECTION,
   FC_CONTENT_DOC,
 } from '@/utils/flashcardSessionContent';
@@ -58,6 +63,21 @@ interface UseFlashcardSetsResult {
 }
 
 const SETS_COLLECTION = 'flashcard_sets';
+
+// Writes to one set run in order, so a background voice fill never overwrites a newer save.
+const setWrites = new Map<string, Promise<unknown>>();
+const oneWriteAtATime = <T>(key: string, write: () => Promise<T>) => {
+  const next = (setWrites.get(key) ?? Promise.resolve())
+    .catch(() => undefined)
+    .then(write);
+  setWrites.set(key, next);
+  void next
+    .finally(() => {
+      if (setWrites.get(key) === next) setWrites.delete(key);
+    })
+    .catch(() => undefined);
+  return next;
+};
 
 /** F22: one read at save time; any failure falls back to the shipped defaults. */
 export const readFlashcardsSpeakAdminConfig =
@@ -244,13 +264,26 @@ export function useFlashcardSets(
     );
   }, [userId]);
 
-  const saveSet = useCallback(
-    async (set: FlashcardSet): Promise<number> => {
+  const writeSet = useCallback(
+    async (
+      set: FlashcardSet,
+      kept?: FlashcardSet
+    ): Promise<{ saved: FlashcardSet; rewritten: number }> => {
       if (!userId) throw new Error('Sign in to save flashcard sets.');
-      const normalized = fitSpeakToDoc(
+      const fitted = fitSpeakToDoc(
         `users/${userId}/${SETS_COLLECTION}/${set.id}`,
         normalizeSet(set)
       );
+      // A background voice fill is not an edit: it keeps the set's date and review mark.
+      const normalized: FlashcardSet = kept
+        ? {
+            ...fitted,
+            updatedAt: kept.updatedAt,
+            ...(kept.claudeReviewPendingAt !== undefined
+              ? { claudeReviewPendingAt: kept.claudeReviewPendingAt }
+              : {}),
+          }
+        : fitted;
       const adminConfig = await speakAdminConfigFor(normalized, canSpeak);
       const batch = writeBatch(db);
       batch.set(
@@ -265,7 +298,14 @@ export function useFlashcardSets(
       }
       await batch.commit();
       try {
-        return await rewriteOpenStudySessions(userId, normalized, adminConfig);
+        return {
+          saved: normalized,
+          rewritten: await rewriteOpenStudySessions(
+            userId,
+            normalized,
+            adminConfig
+          ),
+        };
       } catch (syncError) {
         logError('useFlashcardSets.rewriteOpenStudySessions', syncError, {
           userId,
@@ -275,6 +315,45 @@ export function useFlashcardSets(
       }
     },
     [canSpeak, userId]
+  );
+
+  const patchVoices = useCallback(
+    (setId: string): VoiceFillWrite =>
+      (merge) =>
+        oneWriteAtATime(`${userId}/${setId}`, async () => {
+          if (!userId) return;
+          const snap = await getDoc(
+            doc(db, 'users', userId, SETS_COLLECTION, setId)
+          );
+          if (!snap.exists()) return;
+          const latest = { ...(snap.data() as FlashcardSet), id: setId };
+          const next = merge(latest);
+          if (next === latest) return;
+          try {
+            await writeSet(next, latest);
+          } catch (err) {
+            if (!(err instanceof FlashcardStudySyncError)) throw err;
+          }
+        }),
+    [userId, writeSet]
+  );
+
+  const saveSet = useCallback(
+    (set: FlashcardSet): Promise<number> =>
+      oneWriteAtATime(`${userId}/${set.id}`, async () => {
+        let result: { saved: FlashcardSet; rewritten: number };
+        try {
+          result = await writeSet(applyVoiceResults(set));
+        } catch (err) {
+          if (err instanceof FlashcardStudySyncError && canSpeak) {
+            startVoiceFill(applyVoiceResults(set), patchVoices(set.id));
+          }
+          throw err;
+        }
+        if (canSpeak) startVoiceFill(result.saved, patchVoices(set.id));
+        return result.rewritten;
+      }),
+    [canSpeak, patchVoices, userId, writeSet]
   );
 
   const deleteSet = useCallback(

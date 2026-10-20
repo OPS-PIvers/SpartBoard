@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { FlashcardCard } from '@/types';
-import { cardsNeedingLookup } from './lookupSpeakReferences';
+import {
+  attachSpeakReferences,
+  cardsNeedingLookup,
+  type SpeakLookupCall,
+} from './lookupSpeakReferences';
 import { SPEAK_G2P_VERSION } from '@/utils/pronunciation/g2pVersion';
 
 const dropped = (id: string, definition = 'd'): FlashcardCard => ({
@@ -42,5 +46,24 @@ describe('cardsNeedingLookup headroom', () => {
     expect(ids.length).toBeGreaterThan(0);
     expect(ids.length).toBeLessThan(30);
     expect(ids).toEqual(cards.slice(0, ids.length).map((c) => c.id));
+  });
+});
+
+describe('attachSpeakReferences', () => {
+  it('asks for the quick check, leaving voices to the background fill', async () => {
+    const call = vi.fn<SpeakLookupCall>().mockResolvedValue({
+      g2pVersion: SPEAK_G2P_VERSION,
+      cards: {},
+    });
+    await attachSpeakReferences(
+      [{ id: 'a', term: 'perro', definition: 'dog' }],
+      'es',
+      ['es-419'],
+      {},
+      call
+    );
+    expect(call).toHaveBeenCalledWith(
+      expect.objectContaining({ voices: false })
+    );
   });
 });

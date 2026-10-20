@@ -3584,6 +3584,7 @@
         "ipaInvalid": "Certains de ces symboles ne sont pas reconnus.",
         "checkingCards_one": "Recherche de la prononciation de {{count}} carte…",
         "checkingCards_other": "Recherche de la prononciation de {{count}} cartes…",
+        "finishingCards": "Finalisation de Speak : {{done}} sur {{total}} cartes",
         "hearIt": "Écouter"
       },
       "groups": {

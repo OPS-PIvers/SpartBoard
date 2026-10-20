@@ -373,11 +373,18 @@ export const lookupSpeakReferencesV1 = onCall(
       throw new HttpsError('permission-denied', 'Speak is not turned on.');
     }
     const input = parseLookupInput(request.data);
+    // The editor saves without voices, then fills them in small background batches.
+    const skipVoices = isRecord(request.data) && request.data.voices === false;
     const started = Date.now();
-    const out = await computeSpeakReferences(input);
+    const out = await computeSpeakReferences(
+      input,
+      undefined,
+      skipVoices ? { voices: false } : {}
+    );
     logger.info('[speakLookup] done', {
       terms: input.terms.length,
       dialects: input.dialects.length,
+      voices: !skipVoices,
       ms: Date.now() - started,
       rssMB: Math.round(process.memoryUsage().rss / 1e6),
     });
