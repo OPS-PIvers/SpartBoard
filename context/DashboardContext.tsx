@@ -496,6 +496,40 @@ const unsavedConfigWidgetIds = (
   return ids;
 };
 
+/** Ids of widgets whose PII keys differ from the save baseline (names edited here and not saved yet). */
+const unsavedPiiWidgetIds = (
+  local: Dashboard | undefined,
+  baselineWidgets: string
+): Set<string> => {
+  const ids = new Set<string>();
+  if (!local || !baselineWidgets) return ids;
+  let saved: WidgetData[];
+  try {
+    saved = JSON.parse(baselineWidgets) as WidgetData[];
+  } catch {
+    return ids;
+  }
+  const savedById = new Map(saved.map((w) => [w.id, w]));
+  for (const w of local.widgets) {
+    const s = savedById.get(w.id);
+    if (!s) {
+      ids.add(w.id);
+      continue;
+    }
+    const lc = w.config as Record<string, unknown>;
+    const sc = s.config as Record<string, unknown>;
+    for (const key of PII_CONFIG_KEYS) {
+      if (
+        stableStringify(lc[key] ?? null) !== stableStringify(sc[key] ?? null)
+      ) {
+        ids.add(w.id);
+        break;
+      }
+    }
+  }
+  return ids;
+};
+
 /** Delay before retrying a failed autosave: 2s, 4s, 8s … capped at 60s. */
 const saveRetryDelayMs = (failures: number): number =>
   Math.min(60_000, 2000 * 2 ** Math.max(0, failures - 1));
@@ -1644,6 +1678,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Bumped whenever a stale supplement entry is dropped, so the Drive restore
   // effect re-reads the authoritative copy instead of waiting for a board switch.
   const [piiRestoreNonce, setPiiRestoreNonce] = useState(0);
+  // Boards whose names were cleared here but whose `{}` Drive write has not landed; restores skip them.
+  const pendingPiiClearRef = useRef<Set<string>>(new Set());
   // `updatedAt` values this device itself wrote. A transaction write bypasses
   // the local mutation queue, so its own commit arrives as a real snapshot
   // (hasPendingWrites === false) that would otherwise be mistaken for a remote
@@ -1669,16 +1705,31 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Backs up PII before a caller scrubs it for Firestore; throws so callers abort rather than silently lose it.
   const backupDashboardPIIToDrive = useCallback(
     async (dashboard: Dashboard): Promise<void> => {
+      const cached = dashboardPiiRef.current.get(dashboard.id);
       if (!dashboardHasPII(dashboard)) {
+        // Nothing cached means the names were never loaded here (or a snapshot dropped them), not cleared; writing {} would wipe another device's copy.
+        const clearPending = pendingPiiClearRef.current.has(dashboard.id);
+        if (
+          !clearPending &&
+          (!cached || Object.keys(cached.supplement).length === 0)
+        )
+          return;
         // Names were cleared — overwrite any existing supplement so old ones aren't merged back.
         dashboardPiiRef.current.delete(dashboard.id);
         const staleFileId = piiDriveFileIdRef.current.get(dashboard.id);
-        if (driveService && staleFileId) {
+        if (!staleFileId) {
+          pendingPiiClearRef.current.delete(dashboard.id);
+          return;
+        }
+        // Stays pending until the clear lands, so a failed or offline clear is retried on the next save.
+        pendingPiiClearRef.current.add(dashboard.id);
+        if (driveService) {
           try {
             await driveService.updateFileContent(
               staleFileId,
               new Blob(['{}'], { type: 'application/json' })
             );
+            pendingPiiClearRef.current.delete(dashboard.id);
             // Once cleared, forget the file so later saves don't re-upload {} on every debounce.
             piiDriveFileIdRef.current.delete(dashboard.id);
           } catch (e) {
@@ -1696,6 +1747,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       const pii = extractDashboardPII(dashboard);
+      // Unchanged since this device last wrote or read it: rewriting would put this copy over a newer one from another device.
+      if (
+        cached &&
+        stableStringify(cached.supplement) === stableStringify(pii)
+      ) {
+        dashboardPiiRef.current.set(
+          dashboard.id,
+          stampPiiVersions(dashboard, pii)
+        );
+        return;
+      }
       const blob = new Blob([JSON.stringify(pii)], {
         type: 'application/json',
       });
@@ -1711,6 +1773,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           );
           piiDriveFileIdRef.current.set(dashboard.id, file.id);
         }
+        pendingPiiClearRef.current.delete(dashboard.id);
         // Only once Drive holds it: a cache stamped with unsaved versions reads as another device's edit and triggers a Drive restore over the local text.
         dashboardPiiRef.current.set(
           dashboard.id,
@@ -3345,14 +3408,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // Stamp it against the versions currently in state — that is the server
         // copy this supplement is known to belong to.
         const current = dashboardsRef.current.find((d) => d.id === currentId);
-        // Drive holds the last saved roster; never overlay it on an edit that hasn't saved yet.
+        // Drive holds the last saved roster; never overlay it on names edited here and not saved yet.
         const unsaved =
           lastSavedDashboardIdRef.current === currentId
-            ? unsavedConfigWidgetIds(
-                current,
-                lastSavedFieldsRef.current.widgets
-              )
+            ? unsavedPiiWidgetIds(current, lastSavedFieldsRef.current.widgets)
             : new Set<string>();
+        // Drive still holds names cleared here; the pending clear will overwrite them.
+        if (pendingPiiClearRef.current.has(currentId)) return;
         const restorable: DashboardPiiSupplement = Object.fromEntries(
           Object.entries(pii).filter(([widgetId]) => !unsaved.has(widgetId))
         );

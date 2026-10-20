@@ -118,7 +118,7 @@ export const useNutrislice = ({
     if (configRef.current.isManualMode || isSyncing) return;
     setIsSyncing(true);
     updateWidget(widgetId, {
-      config: { ...configRef.current, syncError: null },
+      config: { syncError: null },
     });
 
     try {
@@ -260,7 +260,6 @@ export const useNutrislice = ({
 
       updateWidget(widgetId, {
         config: {
-          ...configRef.current,
           cachedMenu: newMenu,
           lastSyncDate: now.toISOString(),
           syncError: null,
@@ -280,7 +279,6 @@ export const useNutrislice = ({
       const wasLegacy = isLegacyCachedMenu(configRef.current.cachedMenu);
       updateWidget(widgetId, {
         config: {
-          ...configRef.current,
           ...(wasLegacy
             ? {
                 cachedMenu: buildEmptyMenu(
