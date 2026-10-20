@@ -359,8 +359,8 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         content={
           <ScaledEmptyState
             icon={Globe}
-            title="No URL Provided"
-            subtitle="Flip to add a link."
+            title="No link yet"
+            subtitle="Open settings to add a link."
           />
         }
       />
@@ -374,8 +374,8 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         content={
           <ScaledEmptyState
             icon={Code}
-            title="No Code Provided"
-            subtitle="Flip to add code."
+            title="No code yet"
+            subtitle="Open settings to add code."
           />
         }
       />
