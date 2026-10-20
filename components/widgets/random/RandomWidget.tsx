@@ -201,6 +201,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   };
 
   const [isSpinning, setIsSpinning] = useState(false);
+  const spinningRef = useRef(false);
   const [displayResult, setDisplayResult] = useState<
     string | string[] | string[][] | RandomGroup[]
   >(() => normalizeLastResult(config.lastResult));
@@ -1006,6 +1007,13 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const handlePick = async () => {
     if (students.length === 0) return;
+    // Sync guard: state is stale across the audio-resume await below.
+    if (spinningRef.current) return;
+    spinningRef.current = true;
+    const endSpin = () => {
+      spinningRef.current = false;
+      setIsSpinning(false);
+    };
 
     // CRITICAL: Resume AudioContext within the click handler to unlock sound
     const ctx = getAudioCtx();
@@ -1017,7 +1025,6 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       }
     }
 
-    if (isSpinning) return;
     setIsSpinning(true);
 
     const performUpdate = (
@@ -1147,7 +1154,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             clearInterval(interval);
             setDisplayResult(winnerName);
             if (soundEnabledRef.current) playWinner();
-            setIsSpinning(false);
+            endSpin();
             performUpdate(winnerName, nextRemaining);
           }
         }, 80);
@@ -1173,7 +1180,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           if (elapsed >= duration) {
             setDisplayResult(winnerName);
             if (soundEnabledRef.current) playWinner();
-            setIsSpinning(false);
+            endSpin();
             performUpdate(winnerName, nextRemaining);
             return;
           }
@@ -1202,7 +1209,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             clearInterval(interval);
             setDisplayResult(winnerName);
             if (soundEnabledRef.current) playWinner();
-            setIsSpinning(false);
+            endSpin();
             performUpdate(winnerName, nextRemaining);
           }
         }, 100);
@@ -1214,7 +1221,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         // 500 ms timeout was pending — otherwise we'd write home/expert
         // groups for a mode the user already moved away from.
         if (myGen !== spinGenRef.current) {
-          setIsSpinning(false);
+          endSpin();
           return;
         }
         const lockedSet = new Set(lockedNames);
@@ -1352,7 +1359,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         withViewTransition(() => {
           setLocalJigsaw({ home: homeGroups, expert: expertGroups });
           setDisplayResult(homeGroups);
-          setIsSpinning(false);
+          endSpin();
         });
 
         try {
@@ -1401,7 +1408,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       const myGen = ++spinGenRef.current;
       setTimeout(() => {
         if (myGen !== spinGenRef.current) {
-          setIsSpinning(false);
+          endSpin();
           return;
         }
         const lockedSet = new Set(lockedNames);
@@ -1555,7 +1562,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         // View Transition support.
         withViewTransition(() => {
           setDisplayResult(result);
-          setIsSpinning(false);
+          endSpin();
           // Always clear legacy unassignedNames after a successful pick.
           performUpdate(result, undefined, []);
         });
