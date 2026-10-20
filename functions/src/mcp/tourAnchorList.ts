@@ -33887,6 +33887,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.analytics.cohort-group",
+    "label": "Season or month buttons in Analytics retention chart",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.analytics",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#analytics"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.analytics.domain-filter",
     "label": "Domain filter dropdown in Analytics",
     "scope": "board",
