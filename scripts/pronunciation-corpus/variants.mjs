@@ -29,8 +29,13 @@ const { values: args } = parseArgs({
 });
 const RATE = Number(args.rate);
 const MIN_COUNT = Number(args['min-count']);
-if (!(RATE > 0 && RATE < 1) || !(Number.isInteger(MIN_COUNT) && MIN_COUNT >= 1)) {
-  console.error('--rate must be between 0 and 1 and --min-count a whole number from 1.');
+if (
+  !(RATE > 0 && RATE < 1) ||
+  !(Number.isInteger(MIN_COUNT) && MIN_COUNT >= 1)
+) {
+  console.error(
+    '--rate must be between 0 and 1 and --min-count a whole number from 1.'
+  );
   process.exit(1);
 }
 const OUT_PATH = path.join(ROOT, 'config/pronunciationVariants.ts');
@@ -66,9 +71,9 @@ const heldOut = Object.fromEntries(
   SPEAK_LANGUAGES.map((language) => [
     language,
     new Set(
-      readJson(corpusSet('heldout').wordsPath).languages[
-        language
-      ].words.map((w) => w.word.toLowerCase())
+      readJson(corpusSet('heldout').wordsPath).languages[language].words.map(
+        (w) => w.word.toLowerCase()
+      )
     ),
   ])
 );
@@ -121,8 +126,7 @@ async function synthesize(language, voice, word) {
   const file = wavPath(language, voice, word);
   if (fs.existsSync(file)) return fs.readFileSync(file);
   for (let attempt = 1; ; attempt++) {
-    const retry = () =>
-      new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
+    const retry = () => new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
     let res;
     try {
       res = await fetch(

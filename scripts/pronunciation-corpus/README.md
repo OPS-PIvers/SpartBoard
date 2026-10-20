@@ -62,3 +62,12 @@ ESPEAK_NG_MODULE=/tmp/espeak/node_modules/@echogarden/espeak-ng-emscripten/espea
 ```
 
 espeak-ng is GPL-3.0 and is never added to the app's dependencies; it runs only here and on the server (S3).
+
+## Native variants
+
+```
+gcloud auth application-default login
+node scripts/pronunciation-corpus/variants.mjs
+```
+
+Each word in `words.json` and `variant-words.json` (about 330 more common words per language, never a corpus or held-out word) is spoken by every voice in `config/pronunciationVoices.ts` through Cloud TTS on `spartboard-dev`, decoded with the pinned model and aligned to its closest espeak reference. A swap or drop the voices make at least twice and in at least 5% of that sound's uses is written to `config/pronunciationVariants.ts` (`--min-count`, `--rate`). Group pairs, high-load swaps, tolerance pairs and tokens with tone digits or `.` are never learned, and the native clips are never used. Audio and decodes are cached in `~/.cache/spartboard-pronunciation/tts`; a cold run is about 9,000 TTS calls and three hours of decoding on four cores. The table is committed, so CI never calls TTS. Refresh `variant-words.json` references with `refs.mjs --words variant-words.json`.
