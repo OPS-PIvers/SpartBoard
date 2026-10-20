@@ -16,6 +16,16 @@ const glState = vi.hoisted(() => ({
   ),
   loadSetData: vi.fn<(driveFileId: string) => Promise<GuidedLearningSet>>(),
   loadBuildingSet: vi.fn<(id: string) => Promise<GuidedLearningSet | null>>(),
+  deleteSet: vi.fn<
+    (setId: string, driveFileId: string, openIds?: string[]) => Promise<void>
+  >(() => Promise.resolve()),
+  openAssignmentIdsForSet: vi.fn<
+    (uid: string, setId: string) => Promise<string[]>
+  >(() => Promise.resolve([])),
+}));
+
+vi.mock('@/utils/guidedLearningFileRelease', () => ({
+  openAssignmentIdsForSet: glState.openAssignmentIdsForSet,
 }));
 
 vi.mock('@/context/useAuth', () => ({
@@ -71,6 +81,7 @@ vi.mock('@/hooks/useGuidedLearning', () => ({
     buildingLoading: false,
     loadSetData: glState.loadSetData,
     saveBuildingSet: glState.saveBuildingSet,
+    deleteSet: glState.deleteSet,
   }),
 }));
 
@@ -124,7 +135,11 @@ const renderPicker = (
 
 describe('GuidedLearningPicker', () => {
   beforeEach(() => {
-    glState.saveBuildingSet.mockClear();
+    glState.saveBuildingSet.mockReset();
+    glState.saveBuildingSet.mockResolvedValue(undefined);
+    glState.deleteSet.mockClear();
+    glState.openAssignmentIdsForSet.mockReset();
+    glState.openAssignmentIdsForSet.mockResolvedValue([]);
     glState.loadSetData.mockReset();
     glState.loadBuildingSet.mockReset();
     glState.loadBuildingSet.mockImplementation((id) =>
@@ -141,7 +156,7 @@ describe('GuidedLearningPicker', () => {
     expect(within(library).getByText('Building Lesson')).toBeTruthy();
   });
 
-  it('reuses the existing Help Center copy of a personal activity', async () => {
+  it('reuses the existing Help Center copy and removes the personal original', async () => {
     const { onSelect } = renderPicker();
 
     fireEvent.click(screen.getByRole('button', { name: 'Choose activity' }));
@@ -152,9 +167,12 @@ describe('GuidedLearningPicker', () => {
     expect(glState.loadSetData).not.toHaveBeenCalled();
     expect(glState.saveBuildingSet).not.toHaveBeenCalled();
     expect(onSelect).toHaveBeenCalledWith('help-p-1', 'Older Roster Copy');
+    await waitFor(() =>
+      expect(glState.deleteSet).toHaveBeenCalledWith('p-1', 'drive-1', [])
+    );
   });
 
-  it('makes a Help Center copy of a personal activity picked the first time', async () => {
+  it('moves a personal activity into the Help Center the first time it is picked', async () => {
     glState.loadBuildingSet.mockResolvedValue(null);
     glState.loadSetData.mockResolvedValue(
       set('p-1', 'My Roster Guide', {
@@ -174,6 +192,44 @@ describe('GuidedLearningPicker', () => {
     expect(saved.isBuilding).toBe(true);
     expect(saved.authorUid).toBe('admin-1');
     expect(onSelect).toHaveBeenCalledWith(saved.id, 'My Roster Guide');
+    await waitFor(() =>
+      expect(glState.deleteSet).toHaveBeenCalledWith('p-1', 'drive-1', [])
+    );
+    expect(glState.openAssignmentIdsForSet).toHaveBeenCalledWith(
+      'admin-1',
+      'p-1'
+    );
+    // The original goes only after its copy is saved.
+    expect(glState.saveBuildingSet.mock.invocationCallOrder[0]).toBeLessThan(
+      glState.deleteSet.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('holds the files of a moved activity that still has open assignments', async () => {
+    glState.openAssignmentIdsForSet.mockResolvedValue(['a-1']);
+    renderPicker();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose activity' }));
+    fireEvent.click(screen.getByText('My Roster Guide'));
+
+    await waitFor(() =>
+      expect(glState.deleteSet).toHaveBeenCalledWith('p-1', 'drive-1', ['a-1'])
+    );
+  });
+
+  it('keeps the personal activity when its Help Center copy fails to save', async () => {
+    glState.loadBuildingSet.mockResolvedValue(null);
+    glState.loadSetData.mockResolvedValue(set('p-1', 'My Roster Guide'));
+    glState.saveBuildingSet.mockRejectedValue(new Error('save failed'));
+    const onError = vi.fn();
+    const { onSelect } = renderPicker({ onError });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose activity' }));
+    fireEvent.click(screen.getByText('My Roster Guide'));
+
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('save failed'));
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(glState.deleteSet).not.toHaveBeenCalled();
   });
 
   it('creates a new Help Center activity and picks it on first save', async () => {
