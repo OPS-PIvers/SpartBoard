@@ -2734,6 +2734,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "materials.bar-item",
+    "label": "Material button in the Materials selection bar, by position",
+    "scope": "field",
+    "key_pattern": "materials#row-[1-9]\\d*",
+    "key_hint": "materials#row-1 for the first material in the bar",
+    "routes": [
+      {
+        "surface": "widgets.materials.face",
+        "kind": "widget",
+        "widget_type": "materials",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "poll.next-question",
     "label": "Next question button in Poll",
     "scope": "widget",

@@ -138,6 +138,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'random.group-color': ['widgets.random.face'],
     'random.group-color-swatch': ['widgets.random.face'],
     'schedule.start-timer': ['widgets.schedule.face'],
+    'materials.bar-item': ['widgets.materials.face'],
     'poll.next-question': ['widgets.poll.face'],
     'poll.reset': ['widgets.poll.face'],
     'stations.shuffle': ['widgets.stations.face'],

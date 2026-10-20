@@ -66,3 +66,4 @@ When the script lists nothing outside **Deferred**, say so in the final message 
 | 2026-10-06 | #3897 | 9 | 6 | Recheck of prod needs-human; open queues empty. 4 already had settings/per-field refs; Randomizer group color button and swatches newly keyed. |
 | 2026-10-07 | #3947 | 5 | 2 | Dev only; prod queue empty. PLC tab rail and per-item assignee select left for a human. |
 | 2026-10-13 | #4190 | 1 | 0 | Dev only; prod queue empty. Calendar ID box in Calendar settings. |
+| 2026-10-20 | (this PR) | 4 | 0 | Prod only; dev queue empty. Four Materials selection-bar buttons share one by-position field anchor. |

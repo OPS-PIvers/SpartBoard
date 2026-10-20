@@ -590,6 +590,12 @@ export const TOUR_ANCHORS = {
     keyHint:
       'schedule#active for the Now row, schedule#row-1 for the first row',
   },
+  'materials.bar-item': {
+    label: 'Material button in the Materials selection bar, by position',
+    perField: true,
+    keyPattern: 'materials#row-[1-9]\\d*',
+    keyHint: 'materials#row-1 for the first material in the bar',
+  },
   'poll.next-question': {
     label: 'Next question button in Poll',
     perWidget: true,
