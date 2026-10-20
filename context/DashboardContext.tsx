@@ -1669,7 +1669,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Backs up PII before a caller scrubs it for Firestore; throws so callers abort rather than silently lose it.
   const backupDashboardPIIToDrive = useCallback(
     async (dashboard: Dashboard): Promise<void> => {
+      const cached = dashboardPiiRef.current.get(dashboard.id);
       if (!dashboardHasPII(dashboard)) {
+        // Nothing cached means the names were never loaded here (or a snapshot dropped them), not cleared; writing {} would wipe another device's copy.
+        if (!cached || Object.keys(cached.supplement).length === 0) return;
         // Names were cleared — overwrite any existing supplement so old ones aren't merged back.
         dashboardPiiRef.current.delete(dashboard.id);
         const staleFileId = piiDriveFileIdRef.current.get(dashboard.id);
@@ -1696,6 +1699,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       const pii = extractDashboardPII(dashboard);
+      // Unchanged since this device last wrote or read it: rewriting would put this copy over a newer one from another device.
+      if (
+        cached &&
+        stableStringify(cached.supplement) === stableStringify(pii)
+      ) {
+        dashboardPiiRef.current.set(
+          dashboard.id,
+          stampPiiVersions(dashboard, pii)
+        );
+        return;
+      }
       const blob = new Blob([JSON.stringify(pii)], {
         type: 'application/json',
       });

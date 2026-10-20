@@ -800,10 +800,12 @@ describe('DashboardContext transaction self-echo', () => {
       ...updateFileContentMock.mock.calls.map((c) => c[1] as Blob),
       ...uploadFileMock.mock.calls.map((c) => c[0] as Blob),
     ];
-    expect(blobs.length).toBeGreaterThan(0);
-    // An empty supplement serializes to the two bytes of `{}`; anything larger
-    // still carries the roster. (jsdom Blob has no `.text()`.)
+    // The roster didn't change, so Drive is left as it is; any write must still carry it.
+    // An empty supplement serializes to the two bytes of `{}`. (jsdom Blob has no `.text()`.)
     for (const blob of blobs) expect(blob.size).toBeGreaterThan(2);
+    expect(configOf(stateRef.current?.activeDashboard, 'w-pii').names).toBe(
+      'Alice\nBob'
+    );
   });
 });
 
@@ -1151,5 +1153,134 @@ describe('DashboardContext autosave when the Drive PII backup fails', () => {
     expect(
       configOf(stateRef.current?.activeDashboard, 'w-rand').firstNames
     ).toBe('Grace');
+  });
+});
+
+describe('DashboardContext PII supplement shared with another device', () => {
+  const lunchConfig = {
+    rosterMode: 'custom',
+    roster: ['Ada', 'Ben'],
+    assignments: { Ada: 'hot' },
+  };
+  const scrubbedLunch = (version: number): WidgetData => ({
+    ...makePiiWidget('w-lunch'),
+    type: 'lunchCount',
+    version,
+    config: { rosterMode: 'custom' },
+  });
+  const driveWrites = () => [
+    ...updateFileContentMock.mock.calls.map((c) => c[1] as Blob),
+    ...uploadFileMock.mock.calls.map((c) => c[0] as Blob),
+  ];
+
+  beforeEach(() => {
+    capturedSnapshotCb = null;
+    saveDashboardMock.mockClear();
+    uploadFileMock.mockClear();
+    updateFileContentMock.mockClear();
+    listFilesMock.mockReset();
+    downloadFileMock.mockReset();
+    listFilesMock.mockResolvedValue([{ id: 'pii-1', name: 'dash-1-pii.json' }]);
+    downloadFileMock.mockResolvedValue(
+      piiBlob({
+        'w-lunch': { roster: lunchConfig.roster, assignments: { Ada: 'hot' } },
+      })
+    );
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    listFilesMock.mockResolvedValue([]);
+    vi.useRealTimers();
+  });
+
+  async function loadLunchBoard() {
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [
+      makeDashboard('dash-1', [
+        scrubbedLunch(1),
+        { ...makeTextWidget('w-text', 'v0'), version: 1 },
+      ]),
+    ]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(configOf(stateRef.current?.activeDashboard, 'w-lunch')).toEqual(
+      expect.objectContaining({ assignments: { Ada: 'hot' } })
+    );
+    return stateRef;
+  }
+
+  it('does not rewrite the Drive copy when a save leaves names and picks unchanged', async () => {
+    const stateRef = await loadLunchBoard();
+
+    // The daily menu sync rewrites the whole config from this device's copy.
+    saveDashboardMock.mockResolvedValueOnce(5151);
+    act(() => {
+      stateRef.current?.updateWidget('w-lunch', {
+        config: {
+          ...configOf(stateRef.current?.activeDashboard, 'w-lunch'),
+          lastSyncDate: '2026-10-20T12:00:00.000Z',
+        },
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+
+    expect(saveDashboardMock).toHaveBeenCalled();
+    // Another device may have saved newer picks to Drive; this copy must not land over them.
+    expect(driveWrites()).toHaveLength(0);
+
+    // Its own echo still shows the names and picks.
+    const saved = saveDashboardMock.mock.calls.at(-1)?.[0] as Dashboard;
+    await pushSnapshot([{ ...saved, updatedAt: 5151 }]);
+    expect(configOf(stateRef.current?.activeDashboard, 'w-lunch')).toEqual(
+      expect.objectContaining({
+        roster: ['Ada', 'Ben'],
+        assignments: { Ada: 'hot' },
+      })
+    );
+  });
+
+  it('still writes the Drive copy when a pick changes', async () => {
+    const stateRef = await loadLunchBoard();
+
+    act(() => {
+      stateRef.current?.updateWidget('w-lunch', {
+        config: { assignments: { Ada: 'hot', Ben: 'home' } },
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+
+    expect(driveWrites()).toHaveLength(1);
+  });
+
+  it('never blanks the Drive copy after a snapshot dropped names it had not reloaded yet', async () => {
+    const stateRef = await loadLunchBoard();
+
+    // Another device moves the widget version; the re-read of Drive stays pending.
+    listFilesMock.mockReturnValue(new Promise(() => undefined));
+    await pushSnapshot([
+      makeDashboard('dash-1', [
+        scrubbedLunch(2),
+        { ...makeTextWidget('w-text', 'v0'), version: 1 },
+      ]),
+    ]);
+    expect(
+      configOf(stateRef.current?.activeDashboard, 'w-lunch').roster
+    ).toBeUndefined();
+
+    act(() => {
+      stateRef.current?.updateWidget('w-text', { config: { content: 'v1' } });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+
+    expect(saveDashboardMock).toHaveBeenCalled();
+    expect(driveWrites()).toHaveLength(0);
   });
 });
