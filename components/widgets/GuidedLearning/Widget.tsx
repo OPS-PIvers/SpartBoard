@@ -1679,7 +1679,6 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                     })
                   }
                   revealAnswers
-                  playerV2
                 />
               </Suspense>
             )}

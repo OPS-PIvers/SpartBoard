@@ -8633,7 +8633,7 @@ export interface GuidedLearningSession
   welcomeImageAlt?: string;
   /** Mirrors `GuidedLearningSet.watchPace`. */
   watchPace?: GuidedLearningWatchPace;
-  /** Set on every new session; unmarked sessions predate the new player and keep the old one. */
+  /** Set on every new session; unmarked sessions predate progress tracking, so Results shows them as not tracked. */
   playerV2?: boolean;
   /**
    * Mirror of {@link GuidedLearningAssignment.scoreVisibility} for the

@@ -4074,13 +4074,11 @@
       "retry": "Erneut versuchen"
     },
     "closePlayer": "Player schließen",
-    "exploreHint": "Klicke auf eine Markierung, um zu entdecken",
     "showSlide": "Folie {{n}} anzeigen",
     "prev": "Vorheriger Schritt",
     "next": "Nächster Schritt",
     "play": "Abspielen",
     "pause": "Pause",
-    "sessionProgress": "Fortschritt der Sitzung",
     "stepProgress": "Schrittfortschritt",
     "goToStep": "Zu Schritt {{n}}",
     "resetView": "Ansicht zurücksetzen",
@@ -4157,11 +4155,6 @@
       "selectClass": "Wähle deine Klasse",
       "whichPeriod": "In welcher Stunde bist du?",
       "pickOne": "Wähle eine aus, um fortzufahren. Deine PIN kannst du danach eingeben.",
-      "legacyMode": {
-        "guided": "Geführter Modus",
-        "structured": "Strukturierter Modus",
-        "explore": "Entdeckungsmodus"
-      },
       "steps_one": "{{count}} Schritt",
       "steps_other": "{{count}} Schritte",
       "class": "Klasse",

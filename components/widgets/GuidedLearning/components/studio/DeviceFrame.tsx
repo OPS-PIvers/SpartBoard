@@ -13,7 +13,6 @@ import { FOOTER_COMPACT_PX, playerShowsFooter } from '../player/playerLayout';
 export interface DeviceFrameChrome {
   title: string;
   mode: GuidedLearningMode;
-  playerV2?: boolean;
   steps: readonly GuidedLearningPublicStep[];
   /** The step shown on the canvas, for the footer's step count. */
   stepIndex: number;
@@ -81,12 +80,10 @@ export const DeviceFrame: React.FC<DeviceFrameProps> = ({
                 <PlayerShell
                   testId="gl-device-shell"
                   inertChrome
-                  playerV2={chrome.playerV2}
                   topBar={
                     <PlayerTopBar
                       title={chrome.title}
                       mode={chrome.mode}
-                      playerV2={chrome.playerV2}
                       imageCount={chrome.imageCount}
                       currentImageIndex={chrome.imageIndex}
                     />
@@ -96,7 +93,6 @@ export const DeviceFrame: React.FC<DeviceFrameProps> = ({
                       <PlayerFooterPreview
                         steps={chrome.steps}
                         stepIndex={chrome.stepIndex}
-                        playerV2={chrome.playerV2}
                         compact={preset.w < FOOTER_COMPACT_PX}
                       />
                     ) : undefined

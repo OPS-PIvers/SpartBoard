@@ -50,11 +50,9 @@ const layout = () => {
   });
 };
 
-function renderPlayer(set: GuidedLearningSet, playerV2 = true) {
+function renderPlayer(set: GuidedLearningSet) {
   layout();
-  const view = render(
-    <GuidedLearningPlayer set={set} teacherMode playerV2={playerV2} />
-  );
+  const view = render(<GuidedLearningPlayer set={set} teacherMode />);
   act(() => handle?.fireResize());
   return view;
 }
@@ -99,13 +97,6 @@ describe('P8-7 slide loading', () => {
     expect(screen.queryByTestId('gl-slide-loading')).toBeNull();
     expect(screen.queryByTestId('gl-slide-error')).toBeNull();
   });
-
-  it('keeps v1 without a shimmer or error state', () => {
-    renderPlayer(makeSet(2), false);
-    expect(screen.queryByTestId('gl-slide-loading')).toBeNull();
-    fireEvent.error(slideImg());
-    expect(screen.queryByTestId('gl-slide-error')).toBeNull();
-  });
 });
 
 describe('P8-7 preload window', () => {
@@ -133,7 +124,7 @@ describe('P8-7 preload window', () => {
     const { fetched, decoded, ImageMock } = stubImage();
     layout();
     vi.stubGlobal('Image', ImageMock);
-    render(<GuidedLearningPlayer set={makeSet(8)} teacherMode playerV2 />);
+    render(<GuidedLearningPlayer set={makeSet(8)} teacherMode />);
     expect([...fetched].sort()).toEqual([url(1), url(2)]);
     expect(decoded).toEqual([url(1)]);
 
@@ -145,14 +136,6 @@ describe('P8-7 preload window', () => {
     expect(fetched).not.toContain(url(5));
     expect(fetched).toContain(url(4));
     expect(decoded).toEqual([url(1), url(2), url(3)]);
-  });
-
-  it('keeps v1 preloading every image slide', () => {
-    const { fetched, ImageMock } = stubImage();
-    layout();
-    vi.stubGlobal('Image', ImageMock);
-    render(<GuidedLearningPlayer set={makeSet(8)} teacherMode />);
-    expect(fetched).toHaveLength(8);
   });
 
   it('skips video slides in the window', () => {

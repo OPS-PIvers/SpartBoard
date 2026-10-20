@@ -117,7 +117,6 @@ export const SubShareGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
             <GuidedLearningPlayer
               set={set as GuidedLearningSet}
               revealAnswers
-              playerV2
             />
           </Suspense>
         </div>

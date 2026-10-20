@@ -71,6 +71,10 @@ vi.mock('@/hooks/useGuidedLearningSession', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useGuidedLearningProgress', () => ({
+  useGuidedLearningProgress: () => ({ onStepEvent: vi.fn() }),
+}));
+
 vi.mock('@/hooks/useStudentAssignmentPointer', () => ({
   useStudentAssignmentPointer: mockUseOverride,
 }));

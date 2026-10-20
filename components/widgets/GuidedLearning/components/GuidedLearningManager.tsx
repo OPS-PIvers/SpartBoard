@@ -1973,7 +1973,6 @@ const GuidedLearningPreviewPane: React.FC<{
                 set={previewSet}
                 onClose={() => setPreviewState('idle')}
                 teacherMode
-                playerV2
               />
             </Suspense>
             {previewStale && (

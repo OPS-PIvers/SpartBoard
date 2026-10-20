@@ -422,7 +422,7 @@ const StudentExperience: React.FC<{
   const { onStepEvent, stored: storedProgress } = useGuidedLearningProgress({
     sessionId,
     uid: anonymousUid,
-    enabled: session?.playerV2 === true && !pointer?.excluded,
+    enabled: !!session && !pointer?.excluded,
     stepIds: session?.publicSteps.map((s) => s.id) ?? [],
     ...(perPeriod ? { paused: periodHold } : {}),
   });
@@ -436,10 +436,10 @@ const StudentExperience: React.FC<{
     (storedProgress.completed ||
       storedProgress.furthestStepIdx >= stepCount - 1);
 
-  // v2 asks first when the student submits early or with questions unanswered.
+  // Asks first when the student submits early or with questions unanswered.
   const handleDone = async () => {
     if (!session || submitting) return;
-    if (session.playerV2 === true && !submitFailed) {
+    if (!submitFailed) {
       const answered = new Set(answersRef.current.map((a) => a.stepId));
       const unanswered = session.publicSteps.filter(
         (s) => s.interactionType === 'question' && !answered.has(s.id)
@@ -641,14 +641,12 @@ const StudentExperience: React.FC<{
           }
           teacherMode={false}
           timeMultiplier={timeMultiplier}
-          // Unmarked sessions were started before the new player and keep the old one.
-          playerV2={session.playerV2 === true}
           onStepEvent={onStepEvent}
           autoPlay
           held={periodPaused || endCardOpen}
           onReachedEnd={() => dispatchFlow({ type: 'reachedEnd' })}
         />
-        {endCardOpen && !periodPaused && session.playerV2 === true && (
+        {endCardOpen && !periodPaused && (
           <FinishedCard
             submitting={submitting}
             onSubmit={() => void handleDone()}
@@ -858,19 +856,13 @@ const StartScreen: React.FC<{
               <div className="mb-6" />
             )
           ) : (
-            <p
-              className={`text-slate-300 text-sm mb-6 ${session.playerV2 ? '' : 'capitalize'}`}
-            >
-              {session.playerV2 ? (
-                <span
-                  data-testid="gl-start-mode-chip"
-                  className="inline-block rounded-full bg-white/10 border border-white/15 px-2.5 py-0.5 text-slate-200 font-semibold"
-                >
-                  {t(`glPlayer.modeChip.${session.mode}`)}
-                </span>
-              ) : (
-                t(`glStudent.start.legacyMode.${session.mode}`)
-              )}
+            <p className="text-slate-300 text-sm mb-6">
+              <span
+                data-testid="gl-start-mode-chip"
+                className="inline-block rounded-full bg-white/10 border border-white/15 px-2.5 py-0.5 text-slate-200 font-semibold"
+              >
+                {t(`glPlayer.modeChip.${session.mode}`)}
+              </span>
               {/* A per-period session's steps stay hidden until the period opens. */}
               {session.stepsInContent && session.publicSteps.length === 0
                 ? null

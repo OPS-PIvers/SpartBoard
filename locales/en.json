@@ -5124,13 +5124,11 @@
       "retry": "Retry"
     },
     "closePlayer": "Close player",
-    "exploreHint": "Click any pin to explore",
     "showSlide": "Show slide {{n}}",
     "prev": "Previous step",
     "next": "Next step",
     "play": "Play",
     "pause": "Pause",
-    "sessionProgress": "Session progress",
     "stepProgress": "Step progress",
     "goToStep": "Go to step {{n}}",
     "resetView": "Reset view",
@@ -5207,11 +5205,6 @@
       "selectClass": "Select Your Class",
       "whichPeriod": "Which class period are you in?",
       "pickOne": "Pick one to continue. You can enter your PIN after this step.",
-      "legacyMode": {
-        "guided": "guided mode",
-        "structured": "structured mode",
-        "explore": "explore mode"
-      },
       "steps_one": "{{count}} step",
       "steps_other": "{{count}} steps",
       "class": "Class",
