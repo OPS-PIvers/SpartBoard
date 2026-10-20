@@ -3632,7 +3632,10 @@
         "stepTitle": "Speak",
         "show": "Laisser les élèves s'entraîner à voix haute",
         "lock": "Verrouiller les paramètres de Speak",
-        "lockHelp": "Les élèves utilisent tes réglages de tentatives et du bouton Écouter et ne peuvent pas les changer."
+        "lockHelp": "Les élèves utilisent tes réglages de tentatives et du bouton Écouter et ne peuvent pas les changer.",
+        "valueOn": "Activé",
+        "valueLocked": "Activé, verrouillé",
+        "valueOff": "Désactivé"
       },
       "results": {
         "tab": "Oral",

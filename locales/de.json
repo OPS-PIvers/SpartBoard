@@ -3632,7 +3632,10 @@
         "stepTitle": "Speak",
         "show": "Lernende laut üben lassen",
         "lock": "Speak-Einstellungen sperren",
-        "lockHelp": "Die Lernenden nutzen deine Einstellungen für Versuche und „Anhören“ und können sie nicht ändern."
+        "lockHelp": "Die Lernenden nutzen deine Einstellungen für Versuche und „Anhören“ und können sie nicht ändern.",
+        "valueOn": "An",
+        "valueLocked": "An, gesperrt",
+        "valueOff": "Aus"
       },
       "results": {
         "tab": "Sprechen",

@@ -3632,7 +3632,10 @@
         "stepTitle": "Speak",
         "show": "Dejar que los estudiantes practiquen en voz alta",
         "lock": "Bloquear la configuración de Speak",
-        "lockHelp": "Los estudiantes usan tu configuración de intentos y Escucharla, y no pueden cambiarla."
+        "lockHelp": "Los estudiantes usan tu configuración de intentos y Escucharla, y no pueden cambiarla.",
+        "valueOn": "Activado",
+        "valueLocked": "Activado, bloqueado",
+        "valueOff": "Desactivado"
       },
       "results": {
         "tab": "Habla",

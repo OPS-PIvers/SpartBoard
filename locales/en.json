@@ -4772,7 +4772,10 @@
         "stepTitle": "Speak",
         "show": "Let students practice aloud",
         "lock": "Lock Speak settings",
-        "lockHelp": "Students use your attempts and Hear it settings and can't change them."
+        "lockHelp": "Students use your attempts and Hear it settings and can't change them.",
+        "valueOn": "On",
+        "valueLocked": "On, locked",
+        "valueOff": "Off"
       },
       "results": {
         "tab": "Speaking",
