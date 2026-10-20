@@ -131,6 +131,7 @@ export const BloomsDetailWidget: React.FC<{ widget: WidgetData }> = ({
               style={{ gap: 'min(6px, 1.5cqmin)' }}
             >
               {viewState.view === 'content' && (
+                // no-tour-anchor: companion widget spawned by Add to board, never on stage for a tour
                 <button
                   onClick={() => setViewState({ view: 'categories' })}
                   className="text-white/70 hover:text-white transition-colors shrink-0"
@@ -164,6 +165,7 @@ export const BloomsDetailWidget: React.FC<{ widget: WidgetData }> = ({
                 )}
               </span>
             </div>
+            {/* no-tour-anchor: companion widget spawned by Add to board, never on stage for a tour */}
             <button
               onClick={handleClose}
               className="text-white/70 hover:text-white transition-colors shrink-0"
@@ -190,6 +192,7 @@ export const BloomsDetailWidget: React.FC<{ widget: WidgetData }> = ({
                 style={{ gap: 'min(8px, 2cqmin)' }}
               >
                 {activeCategories.map((cat) => (
+                  // no-tour-anchor: one tile per category
                   <button
                     key={cat}
                     onClick={() =>
@@ -224,6 +227,7 @@ export const BloomsDetailWidget: React.FC<{ widget: WidgetData }> = ({
                 {activeCategories.map((cat) => {
                   const isSelected = cat === viewState.category;
                   return (
+                    // no-tour-anchor: one tab per category
                     <button
                       key={cat}
                       onClick={() =>
@@ -288,6 +292,7 @@ export const BloomsDetailWidget: React.FC<{ widget: WidgetData }> = ({
                   padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
                 }}
               >
+                {/* no-tour-anchor: companion widget spawned by Add to board, never on stage for a tour */}
                 <button
                   onClick={handleAddToBoard}
                   className="w-full flex items-center justify-center font-semibold text-white rounded-lg transition-all duration-150 hover:brightness-110 active:scale-[0.98]"

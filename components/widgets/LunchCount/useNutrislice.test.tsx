@@ -188,6 +188,29 @@ describe('useNutrislice', () => {
     );
   });
 
+  it('writes only the menu keys, so picks made while the menu loads are not overwritten', async () => {
+    mockStoredMenu(mockMenuData);
+
+    render(
+      <TestComponent
+        initialConfig={{
+          ...mockConfig,
+          roster: ['Ada'],
+          assignments: { Ada: 'hot' },
+        }}
+      />
+    );
+
+    await waitFor(() => {
+      expect(mockUpdateWidget).toHaveBeenCalledTimes(2);
+    });
+    for (const [, updates] of mockUpdateWidget.mock.calls) {
+      const keys = Object.keys(updates.config ?? {});
+      expect(keys).not.toContain('assignments');
+      expect(keys).not.toContain('roster');
+    }
+  });
+
   it('handles proxy failure', async () => {
     const mockProxy = mockStoredMenuFailure();
 

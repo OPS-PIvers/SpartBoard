@@ -21,6 +21,7 @@ import {
   type DayActivityDoc,
   buildActivitySeries,
   buildCohorts,
+  buildRetention,
   buildNewUsersByMonth,
   estimateActivityDays,
   measuredDateKey,
@@ -900,10 +901,12 @@ async function recordAndBuildHistory(input: {
   const signupByUid = new Map<string, number>();
   for (const [uid, info] of authUsersMap) signupByUid.set(uid, info.creationMs);
 
+  const retention = buildRetention(signupByUid, days, now);
   return {
     days: buildActivitySeries(days),
     newUsersByMonth: buildNewUsersByMonth([...signupByUid.values()], now),
     cohorts: buildCohorts(signupByUid, days, now),
+    ...(retention ? { retention } : {}),
   };
 }
 

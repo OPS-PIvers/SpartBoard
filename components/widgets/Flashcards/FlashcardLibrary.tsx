@@ -1,5 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { useVoiceFillProgress } from './speak/speakVoiceFill';
 import {
   BarChart3,
   BookOpen,
@@ -145,6 +147,14 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   onAssignmentStopSharingWithPlc,
 }) => {
   const [folderTarget, setFolderTarget] = useState<FlashcardSet | null>(null);
+  const { t } = useTranslation();
+  const voiceFills = useVoiceFillProgress();
+  const setStatus = (set: FlashcardSet): string => {
+    const fill = voiceFills.get(set.id);
+    return fill
+      ? t('flashcards.speak.editor.finishingCards', { ...fill })
+      : `Updated ${new Date(set.updatedAt).toLocaleDateString()}`;
+  };
   const lastAssigned = useMemo(
     () => latestAssignedAt(assignments, (a) => a.setId),
     [assignments]
@@ -365,7 +375,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
       tourIndex={index}
       tourWidgetType="flashcards"
       badges={badgesFor?.(set)}
-      subtitle={`${set.cards.length} card${set.cards.length === 1 ? '' : 's'} · Updated ${new Date(set.updatedAt).toLocaleDateString()}`}
+      subtitle={`${set.cards.length} card${set.cards.length === 1 ? '' : 's'} · ${setStatus(set)}`}
       thumbnail={
         <div className="flex h-full w-full items-center justify-center bg-rose-50 text-rose-600">
           <Layers

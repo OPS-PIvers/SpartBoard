@@ -56,6 +56,19 @@ describe('getAssignSteps (D4)', () => {
     ).toEqual(['classes', 'when']);
   });
 
+  it('adds the Speak step to a Flashcards study resource when Speak is available', () => {
+    expect(
+      getAssignSteps('flashcards', { kind: 'resource', speak: true })
+    ).toEqual(['classes', 'when', 'speak']);
+    expect(getAssignSteps('flashcards', { kind: 'work', speak: true })).toEqual(
+      ['classes', 'when', 'check']
+    );
+    expect(getAssignSteps('gl', { kind: 'resource', speak: true })).toEqual([
+      'classes',
+      'when',
+    ]);
+  });
+
   it('gives Mini App Classes and When for either kind (D20)', () => {
     expect(getAssignSteps('miniapp', { kind: 'work', inPlc: true })).toEqual([
       'classes',

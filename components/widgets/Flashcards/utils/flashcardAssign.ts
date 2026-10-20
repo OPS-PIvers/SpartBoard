@@ -1,13 +1,32 @@
 import type {
   ClassRoster,
+  FlashcardCard,
   FlashcardMasteryThreshold,
   FlashcardMode,
   FlashcardModeSettings,
   FlashcardScoreVisibility,
   FlashcardSet,
   FlashcardSide,
+  FlashcardSpeakSettings,
+  FlashcardSpeakStudentSettings,
+  FlashcardsSpeakAdminConfig,
   FlashcardTestType,
+  SpeakDialect,
+  SpeakGroupSetting,
+  SpeakPreset,
 } from '@/types';
+import {
+  DEFAULT_SPEAK_DIALECTS,
+  SPEAK_DIALECTS,
+  SPEAK_PRESET_IDS,
+  speakGroupIds,
+  speakLanguageOf,
+  speakPresetSettings,
+} from '@/config/pronunciationGroups';
+import {
+  DEFAULT_SPEAK_PRESET,
+  clampSpeakAttempts,
+} from '@/config/flashcardsSpeakAdmin';
 import type { CreateFlashcardAssignmentInput } from '@/hooks/useFlashcardAssignments';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import {
@@ -223,3 +242,93 @@ export const buildFlashcardAssignSubmission = (args: {
 export const rosterHasSsoClass = (roster: ClassRoster): boolean =>
   !roster.loadError &&
   (Boolean(roster.classlinkClassId) || Boolean(roster.testClassId));
+
+/** F21: what students read; present means Speak is shown. */
+export type FlashcardSpeakStamp = FlashcardSpeakStudentSettings & {
+  locked: boolean;
+};
+
+const SPEAK_PRESETS: readonly SpeakPreset[] = [...SPEAK_PRESET_IDS, 'custom'];
+const SPEAK_GROUP_SETTINGS: readonly SpeakGroupSetting[] = [
+  'follow',
+  'forgive',
+  'require',
+];
+
+const knownGroups = (
+  ids: readonly string[],
+  raw: unknown
+): Partial<Record<string, SpeakGroupSetting>> => {
+  const out: Partial<Record<string, SpeakGroupSetting>> = {};
+  if (typeof raw !== 'object' || raw === null) return out;
+  for (const [id, setting] of Object.entries(raw)) {
+    if (
+      ids.includes(id) &&
+      (SPEAK_GROUP_SETTINGS as readonly unknown[]).includes(setting)
+    ) {
+      out[id] = setting as SpeakGroupSetting;
+    }
+  }
+  return out;
+};
+
+/** F21/F22: the set's Speak settings, else the district defaults; undefined without the flag or language. */
+export function buildSpeakStamp(
+  set: Pick<FlashcardSet, 'termLanguage' | 'speak'>,
+  canSpeak: boolean,
+  adminConfig: FlashcardsSpeakAdminConfig,
+  lock: boolean
+): FlashcardSpeakStamp | undefined {
+  if (!canSpeak) return undefined;
+  const language = speakLanguageOf(set.termLanguage);
+  if (!language) return undefined;
+  const allowed = SPEAK_DIALECTS[language];
+  const own = set.speak as Partial<FlashcardSpeakSettings> | undefined;
+  const picked = Array.isArray(own?.dialects)
+    ? allowed.filter((dialect) => own.dialects?.includes(dialect))
+    : [];
+  const dialects: SpeakDialect[] =
+    picked.length > 0 ? picked : [...DEFAULT_SPEAK_DIALECTS[language]];
+  const ids = speakGroupIds(language);
+  if (own && typeof own === 'object') {
+    return {
+      dialects,
+      preset: SPEAK_PRESETS.includes(own.preset as SpeakPreset)
+        ? (own.preset as SpeakPreset)
+        : 'custom',
+      strict: own.strict === true,
+      groups: knownGroups(ids, own.groups),
+      attempts: clampSpeakAttempts(own.attempts, adminConfig.attempts),
+      example: own.example !== false,
+      unclearConfidence: adminConfig.unclearConfidence,
+      locked: lock,
+    };
+  }
+  const district = adminConfig.languages[language];
+  const preset = district?.preset ?? DEFAULT_SPEAK_PRESET;
+  const base = speakPresetSettings(language, preset);
+  const overrides = knownGroups(ids, district?.groups);
+  return {
+    dialects,
+    preset: Object.keys(overrides).length > 0 ? 'custom' : preset,
+    strict: base.strict,
+    groups: { ...base.groups, ...overrides },
+    attempts: clampSpeakAttempts(adminConfig.attempts),
+    example: true,
+    unclearConfidence: adminConfig.unclearConfidence,
+    locked: lock,
+  };
+}
+
+/** Students get card references only alongside a stamp. */
+export const speakCardsFor = (
+  cards: FlashcardCard[],
+  stamp: FlashcardSpeakStamp | undefined
+): FlashcardCard[] =>
+  stamp
+    ? cards
+    : cards.map((card) => {
+        if (!card.speak) return card;
+        const { speak: _speak, ...rest } = card;
+        return rest;
+      });

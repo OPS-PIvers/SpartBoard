@@ -9,7 +9,7 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'widget',
     widgetType: 'quiz',
     needs: ['widget-on-stage'],
-    files: [Q],
+    files: [Q, `${C}QuizManager.tsx`],
     inner: {
       'quiz-library.bulk-merge': 'quiz.select-mode',
       'quiz-library.bulk-share-plc': 'quiz.select-mode',
@@ -22,6 +22,34 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-library.import-responses': 'library-shell.card-menu:quiz#row-1',
       'quiz-library.import-questions': 'library-shell.card-menu:quiz#row-1',
       'quiz-library.archive-monitor': 'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.archive-settings': 'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.archive-plc-results':
+        'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.archive-copy-link': 'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.archive-results': 'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.archive-share': 'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.archive-pause': 'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.archive-end': 'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.archive-publish-scores':
+        'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.archive-unpublish-scores':
+        'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.archive-reopen': 'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.archive-reactivate':
+        'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.archive-delete': 'library-shell.archive-menu:quiz#row-1',
+    },
+  },
+  // Owns no anchors (the face lists the manager first): the In Progress tab, where a live row's primary action is Monitor.
+  'quiz.in-progress': {
+    label: 'Quiz In Progress tab',
+    kind: 'panel',
+    widgetType: 'quiz',
+    files: [`${C}QuizManager.tsx`],
+    opensWith: 'library-shell.tab:quiz#active',
+    parent: 'quiz.face',
+    needs: ['widget-on-stage'],
+    inner: {
       'quiz-library.archive-settings': 'library-shell.archive-menu:quiz#row-1',
       'quiz-library.archive-plc-results':
         'library-shell.archive-menu:quiz#row-1',
@@ -204,12 +232,13 @@ export const SURFACES: TourSurfaceMap = {
     needs: ['library-item'],
     files: [`${C}PaperQuestionTextModal.tsx`],
   },
-  // Completed tab: a row's primary action is Results.
+  // Archive (Completed) tab: a row's primary action is Results.
   'quiz.results': {
     label: 'Quiz results',
     kind: 'panel',
     opensWith: 'library-shell.archive-primary-action:quiz#row-1',
     parent: 'quiz.face',
+    alsoOpensWith: ['quiz-library.archive-results:quiz'],
     needs: ['library-item', 'student-data'],
     files: [
       `${C}QuizResults.tsx`,
@@ -296,7 +325,7 @@ export const SURFACES: TourSurfaceMap = {
     label: 'Quiz assignment Settings dialog',
     kind: 'modal',
     opensWith: 'quiz-library.archive-settings:quiz',
-    parent: 'library.assignments',
+    parent: 'quiz.in-progress',
     needs: ['widget-on-stage', 'library-item'],
     files: [`${C}QuizAssignmentSettingsModal.tsx`],
   },
@@ -304,7 +333,7 @@ export const SURFACES: TourSurfaceMap = {
     label: 'Share results with PLC dialog',
     kind: 'modal',
     opensWith: 'quiz-library.archive-plc-results:quiz',
-    parent: 'library.assignments',
+    parent: 'quiz.in-progress',
     needs: ['widget-on-stage', 'library-item', 'plc'],
     files: [`${C}SharePlcResultsModal.tsx`],
   },
@@ -318,7 +347,7 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'panel',
     // On the In Progress tab a live row's primary action is Monitor.
     opensWith: 'library-shell.archive-primary-action:quiz#row-1',
-    parent: 'library.assignments',
+    parent: 'quiz.in-progress',
     needs: ['widget-on-stage', 'library-item', 'live-session'],
     files: [`${C}QuizLiveMonitor.tsx`, `${C}monitor/`],
     inner: {

@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "controls": [
+    {
+      "id": "silence-digital",
+      "flac": "controls/silence-digital.flac",
+      "flacSha1": "918d7bc10a675dbe034d61c4077da568ef05fdc5"
+    },
+    {
+      "id": "silence-dither",
+      "flac": "controls/silence-dither.flac",
+      "flacSha1": "623be814d39019a2c10a3582937d48fa37270649"
+    },
+    {
+      "id": "silence-mic-floor",
+      "flac": "controls/silence-mic-floor.flac",
+      "flacSha1": "e86d6ce740681c2740d9fc43b850375323458b1a"
+    },
+    {
+      "id": "silence-dc-offset",
+      "flac": "controls/silence-dc-offset.flac",
+      "flacSha1": "6193ccbbacd9f4c8781bc3db94f9c112674e0c0c"
+    },
+    {
+      "id": "room-quiet",
+      "flac": "controls/room-quiet.flac",
+      "flacSha1": "9460c8fb7ae722899bf40d3fc1d60dc924966acc"
+    },
+    {
+      "id": "room-hvac",
+      "flac": "controls/room-hvac.flac",
+      "flacSha1": "fb5c5201119c3c438ec8060750600e1f25eb9843"
+    },
+    {
+      "id": "room-hiss",
+      "flac": "controls/room-hiss.flac",
+      "flacSha1": "15e379a1b9e8ab16d52b52a45e9cec47b60684b8"
+    },
+    {
+      "id": "room-hum-60hz",
+      "flac": "controls/room-hum-60hz.flac",
+      "flacSha1": "85a6328612a6dff571bc36518eead40c2cbcd499"
+    },
+    {
+      "id": "room-hum-50hz",
+      "flac": "controls/room-hum-50hz.flac",
+      "flacSha1": "4d09444487ab87e60fdebfbcfd64a9ced48e6748"
+    },
+    {
+      "id": "room-loud-hiss",
+      "flac": "controls/room-loud-hiss.flac",
+      "flacSha1": "a3ca16ca3400d425079e48ff80f749237f936671"
+    },
+    {
+      "id": "cough-single",
+      "flac": "controls/cough-single.flac",
+      "flacSha1": "f9def154a091c08cad325a21ef286f2021edefed"
+    },
+    {
+      "id": "cough-double",
+      "flac": "controls/cough-double.flac",
+      "flacSha1": "ea40215d5a977e2115ff436734dbc57773eb8786"
+    },
+    {
+      "id": "cough-soft",
+      "flac": "controls/cough-soft.flac",
+      "flacSha1": "c5a6921cc8b3a371907ff264c3e5e7614246f03c"
+    },
+    {
+      "id": "cough-triple",
+      "flac": "controls/cough-triple.flac",
+      "flacSha1": "990f23b8bfc741713ba37db6b85e56793968be93"
+    },
+    {
+      "id": "cough-late",
+      "flac": "controls/cough-late.flac",
+      "flacSha1": "7c06751562be410f3b02b22d17d18ad11f85c221"
+    },
+    {
+      "id": "clipped-noise",
+      "flac": "controls/clipped-noise.flac",
+      "flacSha1": "59dea78d947f92ea0b92ddc46403527d0035c604"
+    },
+    {
+      "id": "clipped-low-tone",
+      "flac": "controls/clipped-low-tone.flac",
+      "flacSha1": "14e280d1bc6ad338464a1dd408c19976850ddbf1"
+    },
+    {
+      "id": "clipped-high-tone",
+      "flac": "controls/clipped-high-tone.flac",
+      "flacSha1": "45045993a280653b16655bf17d3765722dc47009"
+    },
+    {
+      "id": "clipped-hum-burst",
+      "flac": "controls/clipped-hum-burst.flac",
+      "flacSha1": "61ad5c9de0e38e9e563d49b91a74f0e2f48facd0"
+    },
+    {
+      "id": "tone-beep",
+      "flac": "controls/tone-beep.flac",
+      "flacSha1": "1e65cac50d7c5256ad2f948ab38b43b7d1b0c705"
+    }
+  ]
+}

@@ -8840,6 +8840,7 @@ export interface FlashcardCard {
   id: string;
   term: string;
   definition: string;
+  speak?: FlashcardCardSpeak;
 }
 
 /** A teacher-owned flashcard set stored inline in Firestore. */
@@ -8854,6 +8855,8 @@ export interface FlashcardSet {
   cards: FlashcardCard[];
   folderId?: string | null;
   publicShareId?: string | null;
+  /** Speak settings; the source of the student-facing stamp (docs/multilingual-pronunciation-engine.md F21). */
+  speak?: FlashcardSpeakSettings;
   createdAt: number;
   updatedAt: number;
 }
@@ -8867,10 +8870,101 @@ export interface PublicFlashcardSet {
   termLanguage: string;
   definitionLanguage: string;
   cards: FlashcardCard[];
+  /** Present means Speak is shown. */
+  speak?: FlashcardSpeakStudentSettings;
   updatedAt: number;
 }
 
-export type FlashcardMode = 'flashcards' | 'write' | 'test';
+export type FlashcardMode = 'flashcards' | 'write' | 'test' | 'speak';
+
+// === Flashcards Speak (docs/multilingual-pronunciation-engine.md §5) ===
+
+export type SpeakLanguage = 'es' | 'de' | 'en';
+export type SpeakDialect = 'es-419' | 'es-ES' | 'de-DE' | 'en-US';
+export type SpeakGroupSetting = 'follow' | 'forgive' | 'require';
+export type SpeakPreset = 'beginner' | 'intermediate' | 'advanced' | 'custom';
+export type SpeakVerdict = 'exact' | 'accepted' | 'wrong' | 'unclear';
+
+export interface FlashcardSpeakSettings {
+  /** At least one, all of the set's language. */
+  dialects: SpeakDialect[];
+  preset: SpeakPreset;
+  strict: boolean;
+  /** Keys are group ids from config/pronunciationGroups.ts. */
+  groups: Partial<Record<string, SpeakGroupSetting>>;
+  /** 1-10. */
+  attempts: number;
+  /** "Hear it" shown. */
+  example: boolean;
+}
+
+/** What students read: the settings plus the district's "Repeat when unclear" cut-off (0-1), stamped at save. */
+export type FlashcardSpeakStudentSettings = FlashcardSpeakSettings & {
+  unclearConfidence?: number;
+};
+
+export interface FlashcardSpeakReference {
+  dialect: SpeakDialect;
+  /** Tokens from the 392-token vocabulary; non-empty. */
+  tokens: string[];
+  /** Accepted 0-based syllable indices; [] means not stress-judged. */
+  stress: number[];
+  /** Flat [start, end) pairs into the spoken variant, one pair per token (Firestore can't nest arrays). */
+  letterSpans?: number[];
+  /** Absent means espeak; voice refs are a Cloud TTS voice's reading and carry no letterSpans. */
+  source?: 'espeak' | 'voice';
+}
+
+export type FlashcardSpeakStatus = 'ready' | 'needs-review' | 'unavailable';
+export type FlashcardSpeakReason =
+  | 'multi-word'
+  | 'unrenderable'
+  | 'untokenizable'
+  | 'g2p-disagree'
+  | 'stress-disagree'
+  | 'language-switch'
+  | 'lookup-failed'
+  | 'set-too-large';
+
+export interface FlashcardCardSpeak {
+  /** The term the refs were computed for; a changed term invalidates them. */
+  term: string;
+  refs: FlashcardSpeakReference[];
+  g2pVersion: string;
+  status: FlashcardSpeakStatus;
+  reasons?: FlashcardSpeakReason[];
+  /** Accents the lookup covered, so a card with no refs is looked up again for a new one. */
+  dialects?: SpeakDialect[];
+  /** Teacher confirmed a needs-review card. */
+  confirmedAt?: number;
+  /** Advanced panel. */
+  ipaOverride?: Partial<Record<SpeakDialect, string>>;
+}
+
+export interface FlashcardSpeakProgress extends FlashcardCardProgress {
+  /** 0-100 accuracy, best deciding attempt. */
+  best: number;
+  /** 0-100, last deciding attempt. */
+  last: number;
+  /** Scored attempts used in the last round (1-10). */
+  tries: number;
+}
+
+/** `admin_settings/flashcardsSpeak`: district defaults (normalized by config/flashcardsSpeakAdmin.ts). */
+export interface FlashcardsSpeakAdminConfig {
+  languages: Partial<
+    Record<
+      SpeakLanguage,
+      {
+        preset: Exclude<SpeakPreset, 'custom'>;
+        groups: Partial<Record<string, SpeakGroupSetting>>;
+      }
+    >
+  >;
+  attempts: number;
+  /** 0-1. */
+  unclearConfidence: number;
+}
 export type FlashcardSide = 'term' | 'definition';
 export type FlashcardTestType = 'mc' | 'fib';
 
@@ -8897,6 +8991,11 @@ export interface FlashcardStudyState {
   cards: Record<string, FlashcardCardProgress>;
   starred: string[];
   round: number;
+  /** Speak has its own schedule and round counter (F7). */
+  speak?: Record<string, FlashcardSpeakProgress>;
+  speakRound?: number;
+  /** Per-token tallies: n attempted, m missed, f forgiven (F8). */
+  speakSounds?: Record<string, { n: number; m: number; f: number }>;
 }
 
 export type FlashcardAssignmentKind = 'check' | 'study';
@@ -8940,6 +9039,10 @@ export interface FlashcardSession
   kind: FlashcardAssignmentKind;
   checkMode?: FlashcardMode;
   lockedSettings?: FlashcardModeSettings;
+  /** Teacher-stamped Speak settings (F21); absent means Speak is hidden. */
+  speak?: FlashcardSpeakStudentSettings & { locked: boolean };
+  /** The teacher turned Speak off for this assignment, so a set save never stamps it. */
+  speakOff?: true;
   masteryThreshold?: FlashcardMasteryThreshold;
   termLanguage: string;
   definitionLanguage: string;
@@ -10103,7 +10206,11 @@ export type GlobalFeature =
   | 'quiz-monitor-declutter'
   | 'quiz-banks-in-library'
   /** Teachers turn in a quiz for a student who left without submitting. */
-  | 'quiz-submit-for-student';
+  | 'quiz-submit-for-student'
+  /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
+  | 'lunch-count-redesign'
+  /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
+  | 'flashcards-speak';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

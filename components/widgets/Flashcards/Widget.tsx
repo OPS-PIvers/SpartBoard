@@ -157,6 +157,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   };
   const handleEditSet = (set: FlashcardSet) => {
     claudeReview.markReviewed(set);
+    flashcardSets.fillSpeakVoices(set);
     setEditingSet(set);
   };
   const [saving, setSaving] = useState(false);

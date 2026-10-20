@@ -57,6 +57,7 @@ export const CountdownDateField: React.FC<{
       aria-labelledby={ctx.labelId}
       aria-describedby={ctx.describedBy}
     >
+      {/* no-tour-anchor: the settings field row is already anchored */}
       <input
         id={`${ctx.id}-input`}
         type="date"

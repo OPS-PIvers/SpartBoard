@@ -91,6 +91,7 @@ export const ModerationAndAccess: React.FC<ModerationAndAccessProps> = ({
                 key={cls.sourcedId}
                 className="flex items-center gap-2 text-sm text-slate-700"
               >
+                {/* no-tour-anchor: one checkbox per class row */}
                 <input
                   type="checkbox"
                   checked={checked}

@@ -1,8 +1,10 @@
 import type {
   FlashcardCard,
   FlashcardCardProgress,
+  FlashcardSpeakProgress,
   FlashcardStudyState,
 } from '@/types';
+import speakVocab from '@/utils/pronunciation/xlsr53EspeakVocab.json';
 
 export const DEFAULT_FLASHCARD_MASTERY_THRESHOLD = 3;
 
@@ -153,3 +155,80 @@ export const countMasteredFlashcards = (
       count + (isFlashcardMastered(progress[card.id], threshold) ? 1 : 0),
     0
   );
+
+export type FlashcardSpeakTally = Record<
+  string,
+  { n: number; m: number; f: number }
+>;
+
+const clampInt = (value: number, min: number, max: number): number =>
+  Number.isFinite(value)
+    ? Math.min(max, Math.max(min, Math.round(value)))
+    : min;
+
+/** F7: a Speak pass or fail on the shared spacing, plus best/last accuracy and tries. */
+export const recordSpeakAnswer = (
+  progress: FlashcardSpeakProgress | undefined,
+  currentRound: number,
+  passed: boolean,
+  accuracy: number,
+  tries: number
+): FlashcardSpeakProgress => {
+  const score = clampInt(accuracy, 0, 100);
+  return {
+    ...recordFlashcardAnswer(progress, currentRound, passed),
+    best: Math.max(progress?.best ?? 0, score),
+    last: score,
+    tries: clampInt(tries, 1, 10),
+  };
+};
+
+/** F8: adds one deciding attempt's per-token counts to the running tallies. */
+export const mergeSpeakTally = (
+  totals: FlashcardSpeakTally | undefined,
+  delta: FlashcardSpeakTally
+): FlashcardSpeakTally => {
+  const next: FlashcardSpeakTally = { ...totals };
+  for (const [token, add] of Object.entries(delta)) {
+    // The rules cap tallies at the 392-token vocabulary, so nothing outside it is kept.
+    if (!Object.hasOwn(speakVocab, token)) continue;
+    const prev = next[token] ?? { n: 0, m: 0, f: 0 };
+    next[token] = {
+      n: prev.n + clampInt(add.n, 0, 1000),
+      m: prev.m + clampInt(add.m, 0, 1000),
+      f: prev.f + clampInt(add.f, 0, 1000),
+    };
+  }
+  return next;
+};
+
+/** F2: a card can be spoken when it has references for its current term and isn't marked unavailable. */
+export const isSpeakableCard = (card: FlashcardCard): boolean =>
+  !!card.speak &&
+  card.speak.status !== 'unavailable' &&
+  card.speak.term === card.term &&
+  card.speak.refs.some((ref) => ref.tokens.length > 0);
+
+export interface SpeakRoundOptions extends Omit<
+  FlashcardRoundOptions,
+  'progress' | 'round'
+> {
+  speak: Record<string, FlashcardSpeakProgress> | undefined;
+  speakRound: number | undefined;
+}
+
+/** The Speak queue: speakable cards on Speak's own progress and round counter (F7). */
+export const buildSpeakRoundQueue = ({
+  cards,
+  speak,
+  speakRound,
+  seed = 'flashcards',
+  ...rest
+}: SpeakRoundOptions): FlashcardRoundQueue =>
+  buildFlashcardRoundQueue({
+    ...rest,
+    cards: cards.filter(isSpeakableCard),
+    progress: speak ?? {},
+    round: speakRound ?? 1,
+    seed: `${seed}:speak`,
+  });

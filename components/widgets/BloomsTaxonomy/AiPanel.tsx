@@ -1,5 +1,6 @@
 import React from 'react';
 import { Wand2, Loader2, X } from 'lucide-react';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface AiPanelProps {
   topic: string;
@@ -34,6 +35,7 @@ export const AiPanel: React.FC<AiPanelProps> = ({
           }}
         />
         <input
+          {...tourTypeAttr('blooms-taxonomy.ai-topic', 'blooms-taxonomy')}
           type="text"
           value={topic}
           onChange={(e) => onTopicChange(e.target.value)}
@@ -74,6 +76,7 @@ export const AiPanel: React.FC<AiPanelProps> = ({
               {result}
             </pre>
             <button
+              {...tourTypeAttr('blooms-taxonomy.ai-dismiss', 'blooms-taxonomy')}
               onClick={onDismiss}
               className="shrink-0 text-white/50 hover:text-white ml-2"
             >

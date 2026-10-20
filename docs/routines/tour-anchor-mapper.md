@@ -27,7 +27,7 @@ The endpoints are fixed: `https://us-central1-spartboard.cloudfunctions.net/tour
 ## Each run
 
 1. **Read both projects.** `GET` prod and dev and merge the items by `fingerprint`. Keep the union of `occurrences` for context. An unreachable project is logged in the journal and skipped, not fatal.
-2. **Skip work in flight.** List open PRs whose head matches `claude/tour-anchors-*` against `dev-paul`. Skip any fingerprint listed in one of their bodies. If nothing is left, stop without a PR.
+2. **Skip work in flight.** List open PRs whose head matches `claude/tour-anchors-*` against `dev-paul`. Skip any fingerprint listed in one of their bodies. If nothing is left, run the **Sweep** below instead of steps 3-7.
 3. **Place each item.** Use `nearestAnchor`, `ancestors` (innermost first: tag, `data-testid`, `aria-label`, role), `htmlExcerpt`, `widgetType`, `pathname`, `role` and `name` to find the rendering component. Grep for `data-testid`, `aria-label` and i18n strings from the excerpt, then confirm the tag chain.
    - Register an id in `TOUR_ANCHORS` in `config/tourAnchors.ts`, following the existing `area.thing` names (lowercase, dotted, dashed words). `suggestedId` is only a hint.
    - Tag the element with `{...tourAttr(id)}`. Use `perWidget: true` with `tourAttr(id, widget.id)` for one element per widget instance, and `perWidgetType: true` with `tourTypeAttr(id, type)` for one per widget type. Set `destructive: true` for deletes and closes, and `panel: true` when it only renders inside an open menu or panel.
@@ -40,9 +40,22 @@ The endpoints are fixed: `https://us-central1-spartboard.cloudfunctions.net/tour
 4. **Verify, scoped.** Run `pnpm exec vitest related --run tests/tourAnchors.test.ts <touched files>`. Follow CLAUDE.md's verification limits: no `pnpm run validate`, full lint, full test or `tsc`. The pre-commit hook lints staged files.
 5. **Open one PR** from `claude/tour-anchors-<YYYY-MM-DD>` against `dev-paul`. Title: `Tour anchors: tag N recorded elements`. The body lists each mapped item: the new id, the file, what was clicked (name and role), its fingerprint, and the needs-human items with reasons. There's no feature flag, since anchors are internal attributes.
 6. **Report back.** `POST /resolve` to **each** project: `pr-open` with the full ref as `anchorId` and `prUrl` for mapped items, `needs-human` with `reason` for the rest.
-7. **Journal.** Append one row to the log below in the same PR.
+7. **Journal.** Append one row to the log below in the same PR. Sweep runs log in the backlog's Run log instead.
 
 Once the PR merges and deploys, Tour Health shows **Rebind N steps** for each item. Paul clicks it, so steps are never rebound automatically.
+
+## Sweep (when the queue is empty)
+
+When step 2 leaves nothing to map, tag existing controls nobody has recorded yet. Progress lives in `docs/routines/tour-anchor-backlog.md`; read it first.
+
+1. **One sweep at a time.** If any PR from a `claude/tour-anchors-*` branch is still open against `dev-paul` (queue or sweep), stop: the next batch waits until Paul merges it, so PRs never conflict in `config/tourAnchors.ts` or the generated lists.
+2. **Pick the batch.** Run `node scripts/listUnanchoredControls.ts <prefixes>` for the first area in the backlog's **Order** that still lists controls. Take whole files until the batch reaches about 30 controls (a single file with more counts as the whole batch), skipping anything in the backlog's **Deferred** table.
+3. **Resolve each control** with the step 3 rules above (registry names, `perWidget`/`perWidgetType`, `requires`, `panel`, `destructive`, no `[data-pii]` or student content). Use the visible label, `aria-label` or i18n string to name it. A control no tour would point at (a hidden file input, a drag handle, a control that never shows on the teacher board) gets a `no-tour-anchor: <why>` comment on its line or the line above instead. When you can't tell what the control is or whether a tour would use it, add it to **Deferred** with a one-line reason.
+4. **Keep the surface map whole.** A file that renders anchors for the first time goes on a surface in `config/tourSurfaces/<area>.ts`. Regenerate the derived lists with `UPDATE_TOUR_ANCHOR_LIST=1 pnpm exec vitest run tests/tourAnchorRoutes.test.ts tests/mcpTourAnchorList.test.ts`, then verify with `pnpm exec vitest related --run tests/tourAnchors.test.ts tests/tourAnchorRoutes.test.ts tests/mcpTourAnchorList.test.ts <touched files>` and `pnpm run check:tour-anchors`. The regeneration writes unformatted JSON; commit normally (never `--no-verify`) so the pre-commit hook formats it, then check that `git diff --stat origin/dev-paul` on the generated files is in proportion to the anchors added.
+5. **Open one PR** from `claude/tour-anchors-<YYYY-MM-DD>` against `dev-paul`, titled `Tour anchors: sweep N controls in <area>`. The body lists each new id with its file and label, the opt-outs with reasons, and the deferred controls.
+6. **Log it.** In the same PR, add a row to the backlog's **Run log** (rerun the script for `Remaining`; put the branch name in the PR column, since the number doesn't exist yet) and any new **Deferred** rows. Nothing is posted to `/resolve`; sweep items were never in the queue.
+
+When the script lists nothing outside **Deferred**, say so in the final message and stop.
 
 ## Journal
 

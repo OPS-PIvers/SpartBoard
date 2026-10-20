@@ -55,14 +55,22 @@ export interface UseAudioRecordingOptions {
   deps?: AudioRecordingDeps;
   /** Mirrors chunks of the running take locally so a crash can offer it back (D17). */
   recovery?: { store: TakeRecoveryStore; key: string };
+  /** Recorder bitrate; defaults to {@link SPEECH_AUDIO_BITS_PER_SECOND}. */
+  audioBitsPerSecond?: number;
+  /** getUserMedia audio constraints; defaults to `true`. */
+  constraints?: MediaTrackConstraints;
 }
 
 /** How often the recorder hands over a chunk while a recovery copy is kept. */
 export const RECOVERY_CHUNK_MS = 1000;
 
 export interface AudioRecordingDeps {
-  getStream: () => Promise<MediaStream>;
-  createRecorder: (stream: MediaStream, mimeType: string) => MediaRecorder;
+  getStream: (constraints?: MediaTrackConstraints) => Promise<MediaStream>;
+  createRecorder: (
+    stream: MediaStream,
+    mimeType: string,
+    audioBitsPerSecond?: number
+  ) => MediaRecorder;
   isTypeSupported: (mimeType: string) => boolean;
   now: () => number;
 }
@@ -77,16 +85,21 @@ const CANDIDATE_MIME_TYPES = [
 // 32 kbps keeps a 300 s spoken take near 1.2 MB instead of Chrome's ~128 kbps default.
 export const SPEECH_AUDIO_BITS_PER_SECOND = 32000;
 
-function speechRecorderOptions(mimeType: string): MediaRecorderOptions {
-  return mimeType
-    ? { mimeType, audioBitsPerSecond: SPEECH_AUDIO_BITS_PER_SECOND }
-    : { audioBitsPerSecond: SPEECH_AUDIO_BITS_PER_SECOND };
+function speechRecorderOptions(
+  mimeType: string,
+  audioBitsPerSecond = SPEECH_AUDIO_BITS_PER_SECOND
+): MediaRecorderOptions {
+  return mimeType ? { mimeType, audioBitsPerSecond } : { audioBitsPerSecond };
 }
 
 export const defaultAudioRecordingDeps: AudioRecordingDeps = {
-  getStream: () => navigator.mediaDevices.getUserMedia({ audio: true }),
-  createRecorder: (stream, mimeType) =>
-    new MediaRecorder(stream, speechRecorderOptions(mimeType)),
+  getStream: (constraints) =>
+    navigator.mediaDevices.getUserMedia({ audio: constraints ?? true }),
+  createRecorder: (stream, mimeType, audioBitsPerSecond) =>
+    new MediaRecorder(
+      stream,
+      speechRecorderOptions(mimeType, audioBitsPerSecond)
+    ),
   isTypeSupported: (mimeType) =>
     typeof MediaRecorder !== 'undefined' &&
     typeof MediaRecorder.isTypeSupported === 'function' &&
@@ -127,7 +140,7 @@ export interface UseAudioRecordingResult {
 export function useAudioRecording(
   options: UseAudioRecordingOptions
 ): UseAudioRecordingResult {
-  const { config, enabled } = options;
+  const { config, enabled, audioBitsPerSecond, constraints } = options;
   const deps = options.deps ?? defaultAudioRecordingDeps;
 
   const [phase, setPhase] = useState<AudioRecordingPhase>(
@@ -210,7 +223,10 @@ export function useAudioRecording(
     setPrepSecondsLeft(null);
     setPhase('requesting-permission');
     try {
-      const stream = await deps.getStream();
+      // Only pass the Speak capture options when set, so quiz recording calls stay exactly as before.
+      const stream = await (constraints
+        ? deps.getStream(constraints)
+        : deps.getStream());
       if (!mountedRef.current) {
         stream.getTracks().forEach((t) => t.stop());
         return;
@@ -229,7 +245,10 @@ export function useAudioRecording(
       chunksRef.current = [];
       streamRef.current = stream;
       const mimeType = pickMimeType(deps);
-      const recorder = deps.createRecorder(stream, mimeType);
+      const recorder =
+        audioBitsPerSecond === undefined
+          ? deps.createRecorder(stream, mimeType)
+          : deps.createRecorder(stream, mimeType, audioBitsPerSecond);
       const effectiveMime = recorder.mimeType || mimeType || 'audio/webm';
 
       recorder.ondataavailable = (e: BlobEvent) => {
@@ -296,7 +315,15 @@ export function useAudioRecording(
     } finally {
       isStartingRef.current = false;
     }
-  }, [config.limitSeconds, deps, enabled, queueRecoveryWrite, stop]);
+  }, [
+    audioBitsPerSecond,
+    config.limitSeconds,
+    constraints,
+    deps,
+    enabled,
+    queueRecoveryWrite,
+    stop,
+  ]);
 
   const arm = useCallback(() => {
     clearPrepTimer();

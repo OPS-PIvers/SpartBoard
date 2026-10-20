@@ -11,6 +11,7 @@ const STEP_TOUR: Record<AssignStepId, ReturnType<typeof tourAttr>> = {
   integrity: tourAttr('assign-step.integrity'),
   feedback: tourAttr('assign-step.feedback'),
   check: tourAttr('assign-step.check'),
+  speak: tourAttr('assign-step.speak'),
   sharing: tourAttr('assign-step.sharing'),
 };
 
