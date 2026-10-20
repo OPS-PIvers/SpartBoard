@@ -32,6 +32,7 @@ import {
   speakCardsFor,
   type FlashcardSpeakStamp,
 } from '@/components/widgets/Flashcards/utils/flashcardAssign';
+import { fitSpeakToDoc } from '@/utils/pronunciation/fitSpeakToDoc';
 import {
   FC_CONTENT_COLLECTION,
   FC_CONTENT_DOC,
@@ -246,7 +247,10 @@ export function useFlashcardSets(
   const saveSet = useCallback(
     async (set: FlashcardSet): Promise<number> => {
       if (!userId) throw new Error('Sign in to save flashcard sets.');
-      const normalized = normalizeSet(set);
+      const normalized = fitSpeakToDoc(
+        `users/${userId}/${SETS_COLLECTION}/${set.id}`,
+        normalizeSet(set)
+      );
       const adminConfig = await speakAdminConfigFor(normalized, canSpeak);
       const batch = writeBatch(db);
       batch.set(
@@ -294,7 +298,10 @@ export function useFlashcardSets(
         throw new Error('Add at least one card before sharing this set.');
       }
       const shareId = set.publicShareId ?? crypto.randomUUID();
-      const normalized = normalizeSet({ ...set, publicShareId: shareId });
+      const normalized = fitSpeakToDoc(
+        `users/${userId}/${SETS_COLLECTION}/${set.id}`,
+        normalizeSet({ ...set, publicShareId: shareId })
+      );
       const adminConfig = await speakAdminConfigFor(normalized, canSpeak);
       const batch = writeBatch(db);
       batch.set(

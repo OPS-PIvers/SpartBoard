@@ -203,6 +203,51 @@ describe('useFlashcardSets Speak stamp (F21)', () => {
     });
   });
 
+  it('sheds voice readings so a large set still fits in one document', async () => {
+    openSessions([{}]);
+    const voiced = (term: string): NonNullable<FlashcardCard['speak']> => ({
+      ...speakCard(term),
+      refs: [
+        ...speakCard(term).refs,
+        ...Array.from({ length: 8 }, (_, v) => ({
+          dialect: 'es-419' as const,
+          tokens: Array.from({ length: 64 }, (_, t) =>
+            (t + v) % 2 ? 'ɐ̃ʊ̃' : 'ɾ'
+          ),
+          stress: [0],
+          source: 'voice' as const,
+        })),
+      ],
+    });
+    const big: FlashcardSet = {
+      ...speakSet,
+      cards: Array.from({ length: 500 }, (_, i) => ({
+        id: `c${i}`,
+        term: `palabra${i}`,
+        definition: 'word',
+        speak: voiced(`palabra${i}`),
+      })),
+    };
+    const { result } = renderHook(() => useFlashcardSets(TEACHER), {
+      wrapper: wrapper(true),
+    });
+    await act(async () => {
+      await result.current.saveSet(big);
+    });
+
+    const saved = opFor('users/teacher-1/flashcard_sets/set-1')?.data
+      .cards as FlashcardCard[];
+    const voices = (cards: FlashcardCard[]) =>
+      cards.map(
+        (c) => c.speak?.refs.filter((r) => r.source === 'voice').length
+      );
+    expect(voices(saved)[0]).toBe(8);
+    expect(voices(saved)[499]).toBe(0);
+    expect(saved[499].speak?.refs).toEqual(speakCard('palabra499').refs);
+    expect(opFor('public_flashcard_sets/share-1')?.data.cards).toEqual(saved);
+    expect(opFor('flashcard_sessions/session-0')?.data.cards).toEqual(saved);
+  });
+
   it('never stamps a session the teacher turned Speak off for', async () => {
     openSessions([{ speakOff: true }]);
     const { result } = renderHook(() => useFlashcardSets(TEACHER), {

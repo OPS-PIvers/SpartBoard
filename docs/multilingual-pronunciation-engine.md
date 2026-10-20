@@ -518,7 +518,7 @@ export function getRecognizer(): Recognizer; // singleton per page
 - **PLC set keys** `plcFlashcardSetKeysOk` (`:2719-2725`) gains `speak`.
 - The session create rule has no key whitelist (`:6455-6463`).
 - `admin_settings/flashcardsSpeak` gets a `signedIn()` read.
-- **Size:** the cards map holds up to 500 cards × ~3 refs × ~12 tokens. That's about 150 KB worst case on the set doc, under the 1 MiB doc limit. S7 adds a test at 500 cards × 2 dialects.
+- **Size:** measured after S11a, a 500-card Spanish set with eight distinct voice readings per card is about 0.4 to 0.8 MB of Speak data for ordinary words, and over 4 MB at 64-letter words, where espeak refs alone pass 1 MiB. `fitSpeakToDoc` (client and connector saves) keeps the set doc under 900 KiB by dropping voice readings, then letter spans, then a card's refs, from the last card back.
 
 **Player** (`components/flashcards/FlashcardPlayer.tsx`):
 

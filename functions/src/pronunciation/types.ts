@@ -29,6 +29,7 @@ export interface FlashcardCardSpeak {
   g2pVersion: string;
   status: FlashcardSpeakStatus;
   reasons?: FlashcardSpeakReason[];
+  dialects?: SpeakDialect[];
   confirmedAt?: number;
   ipaOverride?: Partial<Record<SpeakDialect, string>>;
 }

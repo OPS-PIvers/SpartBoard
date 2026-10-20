@@ -120,17 +120,20 @@ describe('connector Speak settings match the client', () => {
       ['es-419', 'es-ES'],
     ];
     for (const [refs, reasons] of cases) {
-      const speak: FlashcardCardSpeak = {
-        term: 'hola',
-        refs,
-        g2pVersion: 'v',
-        status: refs.length > 0 ? 'ready' : 'unavailable',
-        ...(reasons ? { reasons } : {}),
-      };
-      for (const dialects of accentSets) {
-        expect(refsFitSpeakDialects(speak, dialects)).toBe(
-          refsFitDialects(speak, dialects)
-        );
+      for (const covered of [undefined, ...accentSets]) {
+        const speak: FlashcardCardSpeak = {
+          term: 'hola',
+          refs,
+          g2pVersion: 'v',
+          status: refs.length > 0 ? 'ready' : 'unavailable',
+          ...(reasons ? { reasons } : {}),
+          ...(covered ? { dialects: covered } : {}),
+        };
+        for (const dialects of accentSets) {
+          expect(refsFitSpeakDialects(speak, dialects)).toBe(
+            refsFitDialects(speak, dialects)
+          );
+        }
       }
     }
   });

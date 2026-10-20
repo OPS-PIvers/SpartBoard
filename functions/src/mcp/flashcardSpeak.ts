@@ -7,13 +7,18 @@ import {
   SPEAK_G2P_VERSION,
   SPEAK_G2P_VOICES_PENDING,
 } from '../pronunciation/lookup';
+import { fitSpeakToDoc } from '../pronunciation/fitSpeakToDoc';
 import type {
   FlashcardCardSpeak,
   SpeakDialect,
   SpeakLanguage,
 } from '../pronunciation/types';
 import { ToolError } from './activity';
-import type { FlashcardCard, FlashcardSet } from './flashcardStore';
+import {
+  setsPath,
+  type FlashcardCard,
+  type FlashcardSet,
+} from './flashcardStore';
 import {
   clampSpeakAttempts,
   normalizeSpeakAdminDefaults,
@@ -213,7 +218,9 @@ export async function prepareSpeakSave(
   if (input && !granted) {
     throw new ToolError('Speak is not turned on for this account.');
   }
-  if (!language || !granted) return { set };
+  if (!language || !granted) {
+    return { set: fitSpeakToDoc(`${setsPath(who.uid)}/${set.id}`, set) };
+  }
   const own = ownSpeakFits(set.speak, language) ? set.speak : undefined;
   const defaults = await readSpeakAdminDefaults(db);
   const resolved = resolveSpeakSettings(language, own, defaults);
@@ -225,12 +232,15 @@ export async function prepareSpeakSave(
     language,
     settings.dialects
   );
-  const next: FlashcardSet = { ...set, cards };
+  const next = fitSpeakToDoc(`${setsPath(who.uid)}/${set.id}`, {
+    ...set,
+    cards,
+  });
   if (input || own) next.speak = settings as unknown as Record<string, unknown>;
   else delete next.speak;
   return {
     set: next,
     stamp: { ...settings, unclearConfidence: defaults.unclearConfidence },
-    counts: countSpeakCards(cards),
+    counts: countSpeakCards(next.cards),
   };
 }
