@@ -1,0 +1,14 @@
+{
+  "note": "§8 pass marks, agreed with Paul 2026-10-19. Never lower one without Paul's yes. S11 sets enforce to true after the first full calibration run.",
+  "enforce": false,
+  "minClipsPerLanguage": 100,
+  "thresholds": {
+    "nativeBeginnerPass": 0.95,
+    "nativeAdvancedPass": 0.85,
+    "nativeUnclearMax": 0.02,
+    "controlsUnclear": 1,
+    "highLoadRecall": 0.8,
+    "groupRequireRecall": 0.8,
+    "groupForgiveAccepted": 0.9
+  }
+}
