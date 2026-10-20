@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { Clock, GraduationCap, Sparkles, UserX } from 'lucide-react';
-import type { FlashcardSession } from '@/types';
+import type { FlashcardSession, SpeakLanguage } from '@/types';
 import { StatTile } from '@/components/common/sessionViews/StatTile';
 import { SessionRow } from '@/components/common/sessionViews/SessionRow';
 import { ScorePill } from '@/components/common/sessionViews/ScorePill';
+import { SegmentedTabs } from '@/components/common/sessionViews/SegmentedTabs';
 import {
   aggregateStudyRows,
   buildStudyRows,
@@ -14,6 +15,7 @@ import {
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { ResultsSection, SectionEmpty } from './resultsShared';
 import { relativeTime } from './resultsFormat';
+import { FlashcardSpeakResults } from './FlashcardSpeakResults';
 
 interface FlashcardStudyResultsProps {
   session: FlashcardSession;
@@ -25,7 +27,16 @@ interface FlashcardStudyResultsProps {
   letInFor?: (studentUid: string) => (() => void) | undefined;
   /** Clock tick owned by the parent so render stays pure. */
   now: number;
+  /** Set when this assignment has Speak and the teacher can see it; adds the Speaking view. */
+  speakLanguage?: SpeakLanguage | null;
 }
+
+type StudyResultsView = 'study' | 'speaking';
+
+const VIEW_TABS: { key: StudyResultsView; label: string }[] = [
+  { key: 'study', label: 'Study' },
+  { key: 'speaking', label: 'Speaking' },
+];
 
 const BUCKET_BARS: {
   key: keyof FlashcardStudyRow['buckets'];
@@ -74,7 +85,9 @@ export const FlashcardStudyResults: React.FC<FlashcardStudyResultsProps> = ({
   onResetStudent,
   now,
   letInFor,
+  speakLanguage,
 }) => {
+  const [view, setView] = useState<StudyResultsView>('study');
   const [openStudent, setOpenStudent] = useState<string | null>(null);
   const rows = useMemo(
     () => buildStudyRows(session, results),
@@ -102,211 +115,237 @@ export const FlashcardStudyResults: React.FC<FlashcardStudyResultsProps> = ({
       className="flex flex-col"
       style={{ gap: 'min(16px, 3.5cqmin)', padding: 'min(16px, 3.5cqmin)' }}
     >
-      <div
-        className="grid grid-cols-2 sm:grid-cols-4"
-        style={{ gap: 'min(10px, 2.2cqmin)' }}
-      >
-        <StatTile
-          icon={<GraduationCap aria-hidden="true" />}
-          tone="green"
-          value={`${Math.round(aggregate.averageMasteredPercent)}%`}
-          label="Average mastered"
+      {speakLanguage && (
+        <div className="flex">
+          <SegmentedTabs
+            tabs={VIEW_TABS}
+            value={view}
+            onChange={setView}
+            ariaLabel="Results view"
+            tourId="flashcards.results-view"
+            tourScope="flashcards"
+          />
+        </div>
+      )}
+      {speakLanguage && view === 'speaking' ? (
+        <FlashcardSpeakResults
+          session={session}
+          results={results}
+          language={speakLanguage}
+          nameFor={nameFor}
         />
-        <StatTile
-          icon={<Sparkles aria-hidden="true" />}
-          value={aggregate.started}
-          label="Started"
-        />
-        <StatTile
-          icon={<UserX aria-hidden="true" />}
-          tone="amber"
-          value={aggregate.notStarted}
-          label="Not started"
-        />
-        <StatTile
-          icon={<Clock aria-hidden="true" />}
-          tone="violet"
-          value={session.cards.length}
-          label="Cards in set"
-        />
-      </div>
-
-      <ResultsSection title="Students" count={sortedRows.length}>
-        {sortedRows.length === 0 ? (
-          <SectionEmpty message="No student has opened this assignment yet." />
-        ) : (
-          sortedRows.map((row, rowIndex) => (
-            <SessionRow
-              key={row.studentUid}
-              anchor={tourFieldAttr(
-                'flashcards.student-row',
-                'flashcards',
-                `row-${rowIndex + 1}`
-              )}
-              dot={{ tone: row.started ? 'success' : 'neutral' }}
-              onClick={() =>
-                setOpenStudent(
-                  openStudent === row.studentUid ? null : row.studentUid
-                )
-              }
-              trailing={
-                <ScorePill score={row.masteredPercent} display="percent" />
-              }
-            >
-              <div className="min-w-0 flex-1">
-                <div
-                  className="truncate font-bold text-slate-800"
-                  style={{ fontSize: 'min(13px, 3.8cqmin)' }}
-                >
-                  {nameFor(row.studentUid)}
-                </div>
-                <div className="mt-1">
-                  <BucketBar buckets={row.buckets} />
-                </div>
-                <div
-                  className="mt-1 text-slate-500"
-                  style={{ fontSize: 'min(11px, 3.2cqmin)' }}
-                >
-                  {row.mastered}/{row.total} mastered · {row.studyMinutes} min ·{' '}
-                  {relativeTime(row.lastActiveAt, now)}
-                </div>
-              </div>
-            </SessionRow>
-          ))
-        )}
-      </ResultsSection>
-
-      {openRow && (
-        <ResultsSection title={`${nameFor(openRow.studentUid)}'s progress`}>
+      ) : (
+        <>
           <div
-            className="flex flex-col"
-            style={{
-              gap: 'min(8px, 2cqmin)',
-              padding: 'min(12px, 2.6cqmin)',
-            }}
+            className="grid grid-cols-2 sm:grid-cols-4"
+            style={{ gap: 'min(10px, 2.2cqmin)' }}
           >
-            <div className="flex flex-wrap" style={{ gap: 'min(8px, 2cqmin)' }}>
-              {BUCKET_BARS.map((bar) => (
-                <span
-                  key={bar.key}
-                  className="rounded-full bg-slate-100 font-bold text-slate-700"
-                  style={{
-                    fontSize: 'min(11px, 3.2cqmin)',
-                    padding: 'min(4px, 1cqmin) min(10px, 2.2cqmin)',
-                  }}
+            <StatTile
+              icon={<GraduationCap aria-hidden="true" />}
+              tone="green"
+              value={`${Math.round(aggregate.averageMasteredPercent)}%`}
+              label="Average mastered"
+            />
+            <StatTile
+              icon={<Sparkles aria-hidden="true" />}
+              value={aggregate.started}
+              label="Started"
+            />
+            <StatTile
+              icon={<UserX aria-hidden="true" />}
+              tone="amber"
+              value={aggregate.notStarted}
+              label="Not started"
+            />
+            <StatTile
+              icon={<Clock aria-hidden="true" />}
+              tone="violet"
+              value={session.cards.length}
+              label="Cards in set"
+            />
+          </div>
+
+          <ResultsSection title="Students" count={sortedRows.length}>
+            {sortedRows.length === 0 ? (
+              <SectionEmpty message="No student has opened this assignment yet." />
+            ) : (
+              sortedRows.map((row, rowIndex) => (
+                <SessionRow
+                  key={row.studentUid}
+                  anchor={tourFieldAttr(
+                    'flashcards.student-row',
+                    'flashcards',
+                    `row-${rowIndex + 1}`
+                  )}
+                  dot={{ tone: row.started ? 'success' : 'neutral' }}
+                  onClick={() =>
+                    setOpenStudent(
+                      openStudent === row.studentUid ? null : row.studentUid
+                    )
+                  }
+                  trailing={
+                    <ScorePill score={row.masteredPercent} display="percent" />
+                  }
                 >
-                  {bar.label} {openRow.buckets[bar.key]}
-                </span>
-              ))}
-            </div>
-            <div
-              className="text-slate-600"
-              style={{ fontSize: 'min(12px, 3.4cqmin)' }}
-            >
-              {openRow.modesUsed.length > 0
-                ? `Modes used: ${openRow.modesUsed.join(', ')}`
-                : 'No mode recorded yet.'}
-            </div>
-            <div>
+                  <div className="min-w-0 flex-1">
+                    <div
+                      className="truncate font-bold text-slate-800"
+                      style={{ fontSize: 'min(13px, 3.8cqmin)' }}
+                    >
+                      {nameFor(row.studentUid)}
+                    </div>
+                    <div className="mt-1">
+                      <BucketBar buckets={row.buckets} />
+                    </div>
+                    <div
+                      className="mt-1 text-slate-500"
+                      style={{ fontSize: 'min(11px, 3.2cqmin)' }}
+                    >
+                      {row.mastered}/{row.total} mastered · {row.studyMinutes}{' '}
+                      min · {relativeTime(row.lastActiveAt, now)}
+                    </div>
+                  </div>
+                </SessionRow>
+              ))
+            )}
+          </ResultsSection>
+
+          {openRow && (
+            <ResultsSection title={`${nameFor(openRow.studentUid)}'s progress`}>
               <div
-                className="font-black uppercase tracking-widest text-slate-500"
-                style={{ fontSize: 'min(10px, 3cqmin)' }}
-              >
-                Practice tests
-              </div>
-              {(tests[openRow.studentUid] ?? []).length === 0 ? (
-                <p
-                  className="text-slate-500"
-                  style={{ fontSize: 'min(12px, 3.4cqmin)' }}
-                >
-                  No practice test taken yet.
-                </p>
-              ) : (
-                <ul className="mt-1">
-                  {(tests[openRow.studentUid] ?? [])
-                    .slice()
-                    .sort((a, b) => b.at - a.at)
-                    .slice(0, 10)
-                    .map((test) => (
-                      <li
-                        key={`${test.at}`}
-                        className="flex justify-between text-slate-600"
-                        style={{ fontSize: 'min(12px, 3.4cqmin)' }}
-                      >
-                        <span>{new Date(test.at).toLocaleString()}</span>
-                        <span className="font-bold tabular-nums">
-                          {test.score}/{test.count}
-                        </span>
-                      </li>
-                    ))}
-                </ul>
-              )}
-            </div>
-            {letInOpen && (
-              <button
-                type="button"
-                onClick={letInOpen}
-                {...tourTypeAttr('flashcards.let-in', 'flashcards')}
-                className="self-start rounded-xl border border-brand-blue-primary/30 font-bold text-brand-blue-primary hover:bg-brand-blue-lighter/40"
+                className="flex flex-col"
                 style={{
-                  fontSize: 'min(12px, 3.4cqmin)',
-                  padding: 'min(6px, 1.4cqmin) min(12px, 2.6cqmin)',
+                  gap: 'min(8px, 2cqmin)',
+                  padding: 'min(12px, 2.6cqmin)',
                 }}
               >
-                Let in now
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => onResetStudent(openRow.studentUid)}
-              {...tourTypeAttr('flashcards.reset-student', 'flashcards')}
-              className="self-start rounded-xl border border-red-200 font-bold text-red-600 hover:bg-red-50"
-              style={{
-                fontSize: 'min(12px, 3.4cqmin)',
-                padding: 'min(6px, 1.4cqmin) min(12px, 2.6cqmin)',
-              }}
-            >
-              Reset this student
-            </button>
-          </div>
-        </ResultsSection>
-      )}
-
-      <ResultsSection title="Hardest cards" count={hardest.length}>
-        {hardest.length === 0 ? (
-          <SectionEmpty message="No misses recorded yet." />
-        ) : (
-          hardest.map((hard) => (
-            <SessionRow
-              key={hard.card.id}
-              trailing={
-                <span
-                  className="font-black tabular-nums text-rose-600"
-                  style={{ fontSize: 'min(13px, 3.8cqmin)' }}
-                >
-                  {hard.wrong} miss{hard.wrong === 1 ? '' : 'es'}
-                </span>
-              }
-            >
-              <div className="min-w-0 flex-1">
                 <div
-                  className="truncate font-bold text-slate-800"
-                  style={{ fontSize: 'min(13px, 3.8cqmin)' }}
+                  className="flex flex-wrap"
+                  style={{ gap: 'min(8px, 2cqmin)' }}
                 >
-                  {hard.card.term}
+                  {BUCKET_BARS.map((bar) => (
+                    <span
+                      key={bar.key}
+                      className="rounded-full bg-slate-100 font-bold text-slate-700"
+                      style={{
+                        fontSize: 'min(11px, 3.2cqmin)',
+                        padding: 'min(4px, 1cqmin) min(10px, 2.2cqmin)',
+                      }}
+                    >
+                      {bar.label} {openRow.buckets[bar.key]}
+                    </span>
+                  ))}
                 </div>
                 <div
-                  className="truncate text-slate-500"
-                  style={{ fontSize: 'min(11px, 3.2cqmin)' }}
+                  className="text-slate-600"
+                  style={{ fontSize: 'min(12px, 3.4cqmin)' }}
                 >
-                  {hard.card.definition} · {hard.strugglingStudents} still
-                  working on it
+                  {openRow.modesUsed.length > 0
+                    ? `Modes used: ${openRow.modesUsed.join(', ')}`
+                    : 'No mode recorded yet.'}
                 </div>
+                <div>
+                  <div
+                    className="font-black uppercase tracking-widest text-slate-500"
+                    style={{ fontSize: 'min(10px, 3cqmin)' }}
+                  >
+                    Practice tests
+                  </div>
+                  {(tests[openRow.studentUid] ?? []).length === 0 ? (
+                    <p
+                      className="text-slate-500"
+                      style={{ fontSize: 'min(12px, 3.4cqmin)' }}
+                    >
+                      No practice test taken yet.
+                    </p>
+                  ) : (
+                    <ul className="mt-1">
+                      {(tests[openRow.studentUid] ?? [])
+                        .slice()
+                        .sort((a, b) => b.at - a.at)
+                        .slice(0, 10)
+                        .map((test) => (
+                          <li
+                            key={`${test.at}`}
+                            className="flex justify-between text-slate-600"
+                            style={{ fontSize: 'min(12px, 3.4cqmin)' }}
+                          >
+                            <span>{new Date(test.at).toLocaleString()}</span>
+                            <span className="font-bold tabular-nums">
+                              {test.score}/{test.count}
+                            </span>
+                          </li>
+                        ))}
+                    </ul>
+                  )}
+                </div>
+                {letInOpen && (
+                  <button
+                    type="button"
+                    onClick={letInOpen}
+                    {...tourTypeAttr('flashcards.let-in', 'flashcards')}
+                    className="self-start rounded-xl border border-brand-blue-primary/30 font-bold text-brand-blue-primary hover:bg-brand-blue-lighter/40"
+                    style={{
+                      fontSize: 'min(12px, 3.4cqmin)',
+                      padding: 'min(6px, 1.4cqmin) min(12px, 2.6cqmin)',
+                    }}
+                  >
+                    Let in now
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => onResetStudent(openRow.studentUid)}
+                  {...tourTypeAttr('flashcards.reset-student', 'flashcards')}
+                  className="self-start rounded-xl border border-red-200 font-bold text-red-600 hover:bg-red-50"
+                  style={{
+                    fontSize: 'min(12px, 3.4cqmin)',
+                    padding: 'min(6px, 1.4cqmin) min(12px, 2.6cqmin)',
+                  }}
+                >
+                  Reset this student
+                </button>
               </div>
-            </SessionRow>
-          ))
-        )}
-      </ResultsSection>
+            </ResultsSection>
+          )}
+
+          <ResultsSection title="Hardest cards" count={hardest.length}>
+            {hardest.length === 0 ? (
+              <SectionEmpty message="No misses recorded yet." />
+            ) : (
+              hardest.map((hard) => (
+                <SessionRow
+                  key={hard.card.id}
+                  trailing={
+                    <span
+                      className="font-black tabular-nums text-rose-600"
+                      style={{ fontSize: 'min(13px, 3.8cqmin)' }}
+                    >
+                      {hard.wrong} miss{hard.wrong === 1 ? '' : 'es'}
+                    </span>
+                  }
+                >
+                  <div className="min-w-0 flex-1">
+                    <div
+                      className="truncate font-bold text-slate-800"
+                      style={{ fontSize: 'min(13px, 3.8cqmin)' }}
+                    >
+                      {hard.card.term}
+                    </div>
+                    <div
+                      className="truncate text-slate-500"
+                      style={{ fontSize: 'min(11px, 3.2cqmin)' }}
+                    >
+                      {hard.card.definition} · {hard.strugglingStudents} still
+                      working on it
+                    </div>
+                  </div>
+                </SessionRow>
+              ))
+            )}
+          </ResultsSection>
+        </>
+      )}
     </div>
   );
 };

@@ -3273,6 +3273,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'gl-ai.attach-doc': ['guidedLearning.ai-generator'],
     'dock.magic-layout-attach': ['board.magic-layout'],
     'flashcards.student-row': ['library.flashcards.results'],
+    'flashcards.results-view': ['library.flashcards.results'],
     'plc-assessments.folder-new': ['plc.assessments'],
     'plc-assessments.folder-root': ['plc.assessments'],
     'plc-assessments.folder-name': ['plc.assessments'],

@@ -13549,6 +13549,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'flashcards.results-view': {
+    label: 'Study and Speaking switch in Flashcards Study results',
+    perField: true,
+    panel: true,
+  },
   'plc-assessments.folder-new': {
     label: 'New folder button in the PLC assessments folder panel',
     panel: true,

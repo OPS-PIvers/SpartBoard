@@ -7,8 +7,14 @@ import type {
   FlashcardCardProgress,
   FlashcardMode,
   FlashcardSession,
+  FlashcardSpeakProgress,
+  SpeakLanguage,
 } from '@/types';
-import { DEFAULT_FLASHCARD_MASTERY_THRESHOLD } from './flashcardSchedule';
+import { isKnownSpeakSound } from '@/config/pronunciationSoundNames';
+import {
+  DEFAULT_FLASHCARD_MASTERY_THRESHOLD,
+  isSpeakableCard,
+} from './flashcardSchedule';
 
 export type FlashcardBucket = 'new' | 'learning' | 'familiar' | 'mastered';
 
@@ -39,6 +45,8 @@ export interface FlashcardResultRecord {
     attempts?: number;
   }>;
   flags?: Array<{ cardId: string; response: string; accepted?: boolean }>;
+  speak?: Record<string, FlashcardSpeakProgress>;
+  speakSounds?: Record<string, { n: number; m: number; f: number }>;
 }
 
 export interface FlashcardStudyRow {
@@ -286,3 +294,195 @@ export const buildFlagRows = (
     })
   );
 };
+
+export interface FlashcardSpeakRow {
+  studentUid: string;
+  classId: string;
+  /** False when this student's device never ran Speak, shown as "—" (F10). */
+  ran: boolean;
+  mastered: number;
+  inProgress: number;
+  notStarted: number;
+  total: number;
+  masteredPercent: number;
+  /** Up to three most-missed sound tokens, most missed first. */
+  missedSounds: string[];
+}
+
+export interface FlashcardSpeakAggregate {
+  students: number;
+  ran: number;
+  notRan: number;
+  averageMasteredPercent: number;
+}
+
+export interface FlashcardSpeakSoundTotal {
+  token: string;
+  n: number;
+  m: number;
+  f: number;
+}
+
+export interface FlashcardSpeakWordToCheck {
+  card: FlashcardCard;
+  tried: number;
+  failed: number;
+}
+
+/** F10 "words to check": at least this many students tried the word. */
+export const SPEAK_WORDS_TO_CHECK_MIN_STUDENTS = 5;
+/** ...and at least this share of them failed their last round. */
+export const SPEAK_WORDS_TO_CHECK_FAIL_SHARE = 0.6;
+
+const count = (value: unknown): number =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
+
+const speakTouched = (progress: FlashcardSpeakProgress | undefined): boolean =>
+  count(progress?.c) + count(progress?.w) > 0;
+
+const knownSounds = (
+  sounds: FlashcardResultRecord['speakSounds'],
+  language: SpeakLanguage
+): FlashcardSpeakSoundTotal[] =>
+  Object.entries(sounds ?? {})
+    .filter(([token]) => isKnownSpeakSound(language, token))
+    .map(([token, tally]) => ({
+      token,
+      n: count(tally?.n),
+      m: count(tally?.m),
+      f: count(tally?.f),
+    }));
+
+const byMissed = (a: FlashcardSpeakSoundTotal, b: FlashcardSpeakSoundTotal) =>
+  b.m - a.m ||
+  b.m / Math.max(b.n, 1) - a.m / Math.max(a.n, 1) ||
+  a.token.localeCompare(b.token);
+
+export const buildSpeakRows = (
+  session: FlashcardSession,
+  results: readonly FlashcardResultRecord[],
+  language: SpeakLanguage
+): FlashcardSpeakRow[] => {
+  const threshold = sessionThreshold(session);
+  const cards = session.cards.filter(isSpeakableCard);
+  return results.map((result) => {
+    let mastered = 0;
+    let inProgress = 0;
+    for (const card of cards) {
+      const progress = result.speak?.[card.id];
+      if (!speakTouched(progress)) continue;
+      if ((progress?.s ?? 0) >= threshold) mastered += 1;
+      else inProgress += 1;
+    }
+    const sounds = knownSounds(result.speakSounds, language);
+    const ran =
+      Object.values(result.speak ?? {}).some(speakTouched) ||
+      sounds.some((sound) => sound.n > 0);
+    return {
+      studentUid: result.studentUid,
+      classId: result.classId ?? '',
+      ran,
+      mastered,
+      inProgress,
+      notStarted: cards.length - mastered - inProgress,
+      total: cards.length,
+      masteredPercent: cards.length === 0 ? 0 : (mastered / cards.length) * 100,
+      missedSounds: sounds
+        .filter((sound) => sound.m > 0)
+        .sort(byMissed)
+        .slice(0, 3)
+        .map((sound) => sound.token),
+    };
+  });
+};
+
+/** Averages only students who ran Speak, so never-ran students don't read as 0%. */
+export const aggregateSpeakRows = (
+  rows: readonly FlashcardSpeakRow[]
+): FlashcardSpeakAggregate => {
+  const ranRows = rows.filter((row) => row.ran);
+  const percentSum = ranRows.reduce((sum, row) => sum + row.masteredPercent, 0);
+  return {
+    students: rows.length,
+    ran: ranRows.length,
+    notRan: rows.length - ranRows.length,
+    averageMasteredPercent:
+      ranRows.length === 0 ? 0 : percentSum / ranRows.length,
+  };
+};
+
+export const speakClassSounds = (
+  results: readonly FlashcardResultRecord[],
+  language: SpeakLanguage
+): FlashcardSpeakSoundTotal[] => {
+  const totals = new Map<string, FlashcardSpeakSoundTotal>();
+  for (const result of results) {
+    for (const sound of knownSounds(result.speakSounds, language)) {
+      const current = totals.get(sound.token) ?? {
+        token: sound.token,
+        n: 0,
+        m: 0,
+        f: 0,
+      };
+      current.n += sound.n;
+      current.m += sound.m;
+      current.f += sound.f;
+      totals.set(sound.token, current);
+    }
+  }
+  return [...totals.values()];
+};
+
+export const mostMissedSounds = (
+  totals: readonly FlashcardSpeakSoundTotal[],
+  limit = 5
+): FlashcardSpeakSoundTotal[] =>
+  totals
+    .filter((sound) => sound.m > 0)
+    .sort(byMissed)
+    .slice(0, limit);
+
+export const mostForgivenSounds = (
+  totals: readonly FlashcardSpeakSoundTotal[],
+  limit = 5
+): FlashcardSpeakSoundTotal[] =>
+  totals
+    .filter((sound) => sound.f > 0)
+    .sort(
+      (a, b) =>
+        b.f - a.f ||
+        b.f / Math.max(b.n, 1) - a.f / Math.max(a.n, 1) ||
+        a.token.localeCompare(b.token)
+    )
+    .slice(0, limit);
+
+/** F10: words most students fail aloud point at a scorer problem more than a teaching one. */
+export const speakWordsToCheck = (
+  session: FlashcardSession,
+  results: readonly FlashcardResultRecord[]
+): FlashcardSpeakWordToCheck[] =>
+  session.cards
+    .filter(isSpeakableCard)
+    .map((card) => {
+      let tried = 0;
+      let failed = 0;
+      for (const result of results) {
+        const progress = result.speak?.[card.id];
+        if (!speakTouched(progress)) continue;
+        tried += 1;
+        // A failed round resets the streak, so s 0 means the last round failed.
+        if ((progress?.s ?? 0) === 0) failed += 1;
+      }
+      return { card, tried, failed };
+    })
+    .filter(
+      (word) =>
+        word.tried >= SPEAK_WORDS_TO_CHECK_MIN_STUDENTS &&
+        word.failed / word.tried >= SPEAK_WORDS_TO_CHECK_FAIL_SHARE
+    )
+    .sort(
+      (a, b) =>
+        b.failed / b.tried - a.failed / a.tried ||
+        b.tried - a.tried ||
+        a.card.term.localeCompare(b.card.term)
+    );
