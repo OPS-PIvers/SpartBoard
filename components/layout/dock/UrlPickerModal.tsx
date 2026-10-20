@@ -1,3 +1,4 @@
+import { isImeComposing } from '@/utils/imeComposing';
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, QrCode, X, ArrowLeft, Check } from 'lucide-react';
 import { GlassCard } from '@/components/common/GlassCard';
@@ -249,7 +250,7 @@ export const UrlPickerModal: React.FC<UrlPickerModalProps> = ({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleConfirm();
+                  if (e.key === 'Enter' && !isImeComposing(e)) handleConfirm();
                 }}
                 autoFocus
                 {...tourAttr('dock.url-picker-title')}

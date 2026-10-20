@@ -47,6 +47,7 @@ export const LimitsAndEditing: React.FC<LimitsAndEditingProps> = ({
             const selected =
               maxPostsPerStudent === preset.value && preset.value >= 0;
             return (
+              // no-tour-anchor: one preset per limit, the tour points at the Max posts group
               <button
                 key={preset.value}
                 type="button"

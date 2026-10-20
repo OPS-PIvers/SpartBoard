@@ -231,8 +231,8 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/multilingual-pronunciation-engine.md`
 
-- [ ] Move on-device decoding into a Web Worker with a "Checking…" state, CPU only (plan §4.5, #2350). (S)
-- [ ] Send the espeak-ng GPL brief to district counsel; the `quiz-speak-questions` flag stays admin-only until they confirm (G19, #2337). (S)
+- [x] ~~Move on-device decoding into a Web Worker with a "Checking…" state, CPU only (plan F26, slice S2, #2350).~~ Done in S2 (`utils/pronunciation/recognizer.worker.ts`).
+- [ ] Send the espeak-ng GPL brief to district counsel; the `flashcards-speak` flag stays admin-only until they confirm (G19, #2337). (S)
 
 #### `docs/gemini-api-terms-audit.md`
 
@@ -412,7 +412,12 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 #### `docs/multilingual-pronunciation-engine.md`
 
-- [ ] Build the `'speak'` question type per plan §5 (G1–G22) and §6 steps 3–6, behind `quiz-speak-questions`. (L)
+- [x] ~~Build Flashcards Speak mode per plan §9 (sessions S0–S13), behind `flashcards-speak`.~~ Built 2026-10-20; the scorer rebuild (S11b, S11c) may still be landing.
+- [ ] Paul: save the Flashcards Speak row on Admin Settings > Access > Previews on dev, then on prod after release (the flag is fail-closed until a row exists). (S)
+- [ ] Paul: upload the phoneme model to prod at release, `node scripts/upload-pronunciation-model.mjs --project prod` (plan §10, P2). (S)
+- [ ] Paul: review "words to check" in the Speaking view during the admin-only period, then open the flag (P5). (M)
+- [ ] Speak follow-up from S13: editor saves look every card up again while hosting runs a newer engine version than functions. (S)
+- [ ] The quiz `'speak'` type (§13) follows as its own decision. (L)
 
 #### `docs/rich-response-wayfinder.md`
 

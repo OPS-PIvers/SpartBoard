@@ -17,6 +17,7 @@ import path from 'path';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { changedWidgetTypes } from './checkReleaseWidgetNotes.ts';
+import { classifyCommit, stripCommitPrefix } from './changelogCommitSubject.ts';
 import { resolveWidgetFiles } from './widget-grader/widgetFiles.ts';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -55,34 +56,17 @@ try {
 
 const lines = rawLog ? rawLog.split('\n') : [];
 
-const classify = (subject) => {
-  // Strip surrounding quotes that some shells leave behind.
-  const s = subject.replace(/^['"]|['"]$/g, '').trim();
-  if (/^feat(\(|:)/i.test(s)) return 'feature';
-  if (/^fix(\(|:)/i.test(s)) return 'fix';
-  if (/^(perf|refactor|harden|audit)(\(|:)/i.test(s)) return 'improvement';
-  if (/^(docs|chore|test|style|ci|build)(\(|:)/i.test(s)) return null;
-  return null;
-};
-
-const stripPrefix = (subject) =>
-  subject
-    .replace(/^['"]|['"]$/g, '')
-    .replace(/^[a-z]+(\([^)]+\))?:\s*/i, '')
-    .replace(/\s*\(#\d+\)$/, '')
-    .trim();
-
 const highlights = [];
 const skipped = [];
 for (const line of lines) {
-  const type = classify(line);
+  const type = classifyCommit(line);
   if (!type) {
     skipped.push(line);
     continue;
   }
   highlights.push({
     type,
-    text: stripPrefix(line) + ' [TODO: rewrite for users]',
+    text: stripCommitPrefix(line) + ' [TODO: rewrite for users]',
   });
 }
 

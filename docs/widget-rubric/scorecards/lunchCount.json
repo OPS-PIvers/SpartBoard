@@ -1,16 +1,24 @@
 {
   "$schema": "../scorecard.schema.json",
   "widgetType": "lunchCount",
-  "rubricVersion": "1.0.0",
-  "gradedAt": "2026-10-06T03:13:32.259Z",
+  "rubricVersion": "1.1.0",
+  "gradedAt": "2026-10-18T22:30:22.030Z",
   "stale": false,
   "criteria": {
     "I5": {
-      "score": null,
+      "score": 3,
       "source": "script",
-      "note": "N/A by rule",
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T03:13:32.259Z",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/loop-lunchCount-2026-10-18-after2/screenshots/lunchCount/default__typical.png"
+        ],
+        "runId": "loop-lunchCount-2026-10-18-after2"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T22:30:22.030Z",
       "stale": false
     },
     "S1": {
@@ -637,32 +645,32 @@
   },
   "gates": {
     "G1": {
-      "pass": false,
+      "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "loop-lunchCount-2026-10-18-after2"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-18T22:30:22.030Z"
     },
     "G2": {
-      "pass": false,
+      "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "loop-lunchCount-2026-10-18-after2"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-18T22:30:22.030Z"
     },
     "G3": {
       "pass": false,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "loop-lunchCount-2026-10-18-after2"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-18T22:30:22.030Z"
     },
     "G4": {
-      "pass": false,
+      "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "loop-lunchCount-2026-10-18-after2"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-18T22:30:22.030Z"
     }
   }
 }

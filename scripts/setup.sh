@@ -60,9 +60,16 @@ corepack prepare pnpm@10.30.2 --activate
 
 pnpm run install:all >&2
 
-# Pre-fetch the Firestore emulator so `pnpm run test:rules` works on the first try.
+# Pre-fetch the emulator jars with curl; firebase-tools' own download dies mid-stream behind the cloud proxy.
 if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ]; then
-  pnpm exec firebase setup:emulators:firestore >&2 || true
+  emu_dir="$HOME/.cache/firebase/emulators"
+  mkdir -p "$emu_dir"
+  for emu in firestore storage; do
+    read -r url size < <(node -p "const e=require('./node_modules/firebase-tools/lib/emulator/downloadableEmulatorInfo.json').$emu; e.remoteUrl+' '+e.expectedSize") || continue
+    jar="$emu_dir/$(basename "$url")"
+    [ "$(stat -c %s "$jar" 2>/dev/null)" = "$size" ] && continue
+    curl -sSfL -o "$jar.tmp" "$url" >&2 && mv "$jar.tmp" "$jar" || rm -f "$jar.tmp"
+  done
 fi
 
 echo "Setup complete." >&2

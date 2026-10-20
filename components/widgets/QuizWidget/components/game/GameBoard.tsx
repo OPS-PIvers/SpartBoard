@@ -184,7 +184,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           <Stat label="Joined" value={String(stats.joined)} />
           <div className="flex flex-col" style={{ gap: 'min(6px, 1cqmin)' }}>
             <Stat
-              label="First try"
+              label="First attempt"
               value={stats.firstTryPct == null ? '-' : `${stats.firstTryPct}%`}
             />
             <div
@@ -194,7 +194,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
                 width: 'min(140px, 22cqmin, 18cqw)',
               }}
               role="meter"
-              aria-label="First try accuracy"
+              aria-label="First attempt accuracy"
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={stats.firstTryPct ?? 0}

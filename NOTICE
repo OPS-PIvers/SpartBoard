@@ -1,0 +1,21 @@
+SpartBoard
+
+This product redistributes the following third-party work.
+
+Pronunciation practice phoneme model
+  File: model_q4.onnx (241,430,967 bytes), served from each Firebase
+  project's Storage bucket at
+  pronunciation-models/wav2vec2-xlsr-53-espeak-cv-ft-q4/model_q4.onnx
+  and downloaded to the student's device, where it runs locally.
+
+  ONNX export: qnighy/wav2vec2-xlsr-53-espeak-cv-ft-ONNX
+    https://huggingface.co/qnighy/wav2vec2-xlsr-53-espeak-cv-ft-ONNX
+    Licensed under the Apache License, Version 2.0 (model card, checked 2026-10-19).
+
+  Base model: facebook/wav2vec2-xlsr-53-espeak-cv-ft
+    https://huggingface.co/facebook/wav2vec2-xlsr-53-espeak-cv-ft
+    Copyright Meta Platforms, Inc.
+    Licensed under the Apache License, Version 2.0.
+
+  The exported file is unmodified. A copy of the Apache License, Version 2.0
+  is at https://www.apache.org/licenses/LICENSE-2.0

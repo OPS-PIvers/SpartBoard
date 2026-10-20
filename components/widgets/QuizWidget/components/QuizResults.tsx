@@ -918,8 +918,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         : [],
     [isReview, filteredResponses, quiz.questions, session, fibGrading]
   );
-  // A game's `answers` hold only each student's first try (D25).
-  const questionsLabel = isGame ? 'First-try results' : 'Question results';
+  // A game's `answers` hold only each student's first attempt (D25).
+  const questionsLabel = isGame ? 'First-attempt results' : 'Question results';
   const targetStats = useMemo(
     () =>
       computeTargetStats(
@@ -2222,7 +2222,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                   className="font-sans font-semibold text-brand-blue-primary uppercase tracking-wider"
                   style={{ fontSize: 'min(10px, 3.5cqmin)' }}
                 >
-                  {isGame ? 'First-try accuracy' : 'Class average'}
+                  {isGame ? 'First-attempt accuracy' : 'Class average'}
                 </p>
                 <p
                   className="font-sans font-bold text-brand-blue-dark tabular-nums"
@@ -4329,7 +4329,7 @@ const StudentsScreen: React.FC<{
                           style={{ fontSize: 'min(10px, 3cqmin)' }}
                         >
                           {firstTry
-                            ? `${firstTry.correct}/${firstTry.tried} first try`
+                            ? `${firstTry.correct}/${firstTry.tried} first attempt`
                             : showPoints && (finalPct === null || finalPoints)
                               ? `${Math.round(finalPct ?? score)}%`
                               : finalPoints

@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-10-12_
+_Last audited: 2026-10-19_
 _Last action: 2026-08-30 (starterPacks `notDeactivated()` gate, via nightly debugger routine)_
+
+_2026-10-19: Weekly rules audit (Monday). Re-ran the collection cross-reference over `components/`, `context/`, `hooks/`, `utils/`, `functions/src/`: every client-side name has a matching rule path. Only names with no explicit `match` are Admin SDK-only (`mcp_oauth_codes`, `notesJobs`, `student_sections`, `contributions`), all covered by the default deny; nothing new. 0 new issues._
 
 ---
 

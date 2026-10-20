@@ -166,7 +166,7 @@ describe('QuizResults, Review variant', () => {
         variant="review"
       />
     );
-    expect(screen.getByText('First-try accuracy')).toBeInTheDocument();
+    expect(screen.getByText('First-attempt accuracy')).toBeInTheDocument();
     expect(screen.getByText('50%')).toBeInTheDocument();
     expect(screen.getByText('2 students played')).toBeInTheDocument();
     const rows = within(
@@ -176,7 +176,7 @@ describe('QuizResults, Review variant', () => {
       '1PIN 22221,225 pts',
       '2PIN 1111750 pts',
     ]);
-    expect(screen.getByText('First-try results')).toBeInTheDocument();
+    expect(screen.getByText('First-attempt results')).toBeInTheDocument();
   });
 
   it('hides grade push, grading and the score distribution', () => {
@@ -207,8 +207,8 @@ describe('QuizResults, Review variant', () => {
       />
     );
     fireEvent.click(screen.getByText('Students'));
-    expect(screen.getByText('2/2 first try')).toBeInTheDocument();
-    expect(screen.getByText(/0\/2 first try/)).toBeInTheDocument();
+    expect(screen.getByText('2/2 first attempt')).toBeInTheDocument();
+    expect(screen.getByText(/0\/2 first attempt/)).toBeInTheDocument();
   });
 
   it('keeps the Quiz variant unchanged', () => {

@@ -37,10 +37,11 @@ export const StudentPickMenu: React.FC<StudentPickMenuProps> = ({
   if (picked.length === 0) return null;
   return (
     <div className="space-y-1.5">
-      {picked.map((roster) => (
+      {picked.map((roster, rowIndex) => (
         <ClassStudentRow
           key={roster.id}
           roster={roster}
+          rowKey={`row-${rowIndex + 1}`}
           anchor={rowAnchor?.(roster.id)}
           refs={value.studentsByClass[roster.id] ?? null}
           onChange={(refs) =>
@@ -54,10 +55,11 @@ export const StudentPickMenu: React.FC<StudentPickMenuProps> = ({
 
 const ClassStudentRow: React.FC<{
   roster: ClassRoster;
+  rowKey: string;
   refs: StudentTargetRef[] | null;
   onChange: (refs: StudentTargetRef[] | null) => void;
   anchor?: TourAnchorAttrs;
-}> = ({ roster, refs, onChange, anchor }) => {
+}> = ({ roster, rowKey, refs, onChange, anchor }) => {
   const { open, setOpen, rootRef, onKeyDown } = usePickMenu();
   const menuId = useId();
   const narrowed = !!refs && refs.length > 0;
@@ -79,7 +81,7 @@ const ClassStudentRow: React.FC<{
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-controls={open ? menuId : undefined}
-          {...tourFieldAttr('assign-students.trigger', 'assign', roster.id)}
+          {...tourFieldAttr('assign-students.trigger', 'assign', rowKey)}
           aria-label={`${roster.name}: ${narrowed ? studentCountLabel(refs.length) : 'All students'}`}
           className={`flex h-8 w-full items-center gap-2 rounded-lg border px-2.5 text-sm hover:border-slate-400 ${
             narrowed
@@ -123,6 +125,12 @@ const StudentMenu: React.FC<{
   const [search, setSearch] = useState('');
   const rows = useRosterStudentRows(roster, search);
   const pickedKeys = new Set(refs.map(studentTargetRefKey));
+  // Tour keys count only the students who can be picked, so row-1 is the first checkbox.
+  const pickableRowKeys = new Map(
+    rows
+      .filter(isTargetableRow)
+      .map((row, i) => [row.studentId, `row-${i + 1}`])
+  );
   const groups = roster.groups ?? [];
 
   const toggleStudent = (ref: StudentTargetRef) => {
@@ -228,7 +236,7 @@ const StudentMenu: React.FC<{
                 {...tourFieldAttr(
                   'assign-students.option',
                   'assign',
-                  row.studentId
+                  pickableRowKeys.get(row.studentId) ?? ''
                 )}
                 className="h-4 w-4 rounded accent-brand-blue-primary"
               />

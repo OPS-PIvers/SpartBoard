@@ -15,6 +15,11 @@ vi.mock('@/context/useAuth', () => ({
 
 vi.mock('@/context/dashboardCanvasStore');
 
+const mockCtx: { current: unknown } = vi.hoisted(() => ({ current: null }));
+vi.mock('@/utils/timeToolAudio', () => ({
+  getAudioCtx: () => mockCtx.current,
+}));
+
 const mockPlay = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
 
 const mockAudioConstructor = vi.fn<(src?: string) => void>();
@@ -318,5 +323,49 @@ describe('SoundboardWidget', () => {
     expect(
       screen.queryByRole('button', { name: /Gong/i })
     ).not.toBeInTheDocument();
+  });
+
+  it('does not leak an unhandled rejection when AudioContext.resume() is refused', async () => {
+    const resume = vi.fn(() => Promise.reject(new Error('NotAllowedError')));
+    mockCtx.current = { state: 'suspended', resume };
+    vi.mocked(useAuth).mockReturnValue({
+      selectedBuildings: ['school-1'],
+      featurePermissions: [
+        {
+          widgetType: 'soundboard',
+          enabled: true,
+          config: {
+            buildingDefaults: {
+              'school-1': {
+                availableSounds: [],
+                enabledLibrarySoundIds: ['lib-ding'],
+              },
+            },
+          },
+        },
+      ],
+    } as unknown as ReturnType<typeof useAuth>);
+    const unhandled = vi.fn();
+    process.on('unhandledRejection', unhandled);
+    try {
+      render(
+        <SoundboardWidget
+          widget={
+            {
+              id: 'sb',
+              type: 'soundboard',
+              config: { selectedSoundIds: ['lib-ding'] },
+            } as unknown as WidgetData
+          }
+        />
+      );
+      fireEvent.click(screen.getByRole('button'));
+      await new Promise((r) => setTimeout(r, 10));
+      expect(resume).toHaveBeenCalled();
+      expect(unhandled).not.toHaveBeenCalled();
+    } finally {
+      process.off('unhandledRejection', unhandled);
+      mockCtx.current = null;
+    }
   });
 });

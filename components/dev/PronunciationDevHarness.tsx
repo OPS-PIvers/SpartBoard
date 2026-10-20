@@ -1,28 +1,39 @@
-// Chromebook go/no-go for on-device pronunciation scoring (#2350). Dev builds and the spartboard-dev site only.
-import React, { useEffect, useRef, useState } from 'react';
-import * as ort from 'onnxruntime-web-1-30';
-import wasmUrl from '../../node_modules/onnxruntime-web-1-30/dist/ort-wasm-simd-threaded.jsep.wasm?url';
+// On-device pronunciation check (#2350, P3): the real Speak recognizer and capture path. Dev builds and the spartboard-dev site only.
+import React, {
+  useCallback,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import angloUrl from '../../scripts/spikes/pronunciation-bias-probe/audio/pero_anglo_r_human.wav?url';
 import tapUrl from '../../scripts/spikes/pronunciation-bias-probe/audio/pero_tap_human.wav?url';
 import trill1Url from '../../scripts/spikes/pronunciation-bias-probe/audio/perro_trill_human_1.wav?url';
 import trill2Url from '../../scripts/spikes/pronunciation-bias-probe/audio/perro_trill_human_2.wav?url';
 import trill3Url from '../../scripts/spikes/pronunciation-bias-probe/audio/perro_trill_human_3.wav?url';
-import { PRONUNCIATION_MODEL } from '@/config/pronunciationModel';
-import vocab from '@/utils/pronunciation/xlsr53EspeakVocab.json';
-import { greedyCtcDecode, invertVocab } from '@/utils/pronunciation/ctcDecode';
 import {
-  MODEL_SAMPLE_RATE,
-  decodeToModelRate,
-  normalizeForWav2Vec2,
-  trimSilence,
-} from '@/utils/pronunciation/audio';
+  PRONUNCIATION_MODEL,
+  SPEAK_CAPTURE,
+} from '@/config/pronunciationModel';
+import { useAudioRecording, type AudioTake } from '@/hooks/useAudioRecording';
+import { MODEL_SAMPLE_RATE } from '@/utils/pronunciation/audio';
+import { clearModelCache } from '@/utils/pronunciation/modelCache';
+import {
+  createRecognizer,
+  defaultModelUrls,
+  isMeteredConnection,
+  type Recognizer,
+  type RecognizerState,
+} from '@/utils/pronunciation/recognizer';
+import type { RecordingConfig } from '@/types';
 
-ort.env.wasm.wasmPaths = { wasm: wasmUrl };
-
-const SYMBOLS = invertVocab(vocab);
-const CACHE_NAME = 'spartboard-pronunciation-models';
 const URL_KEY = 'pronunciationDev.modelUrl';
 const MIC_SECONDS = 3;
+const MIC_CONFIG: RecordingConfig = {
+  prepSeconds: 0,
+  limitSeconds: MIC_SECONDS,
+  prepExpiry: 'armed',
+  takeLimit: null,
+};
 
 // Expected strings are the q4 CPU decodes recorded in scripts/spikes/retroflex-confusion/RESULTS.md.
 const CLIPS = [
@@ -48,41 +59,30 @@ const CLIPS = [
   },
 ] as const;
 
-type Backend = 'wasm' | 'webgpu';
-
 interface DeviceInfo {
   userAgent: string;
   cores: number;
   deviceMemoryGb: number | null;
   crossOriginIsolated: boolean;
-  webgpuAdapter: boolean;
+  metered: boolean;
   storageQuotaMb: number | null;
   storageUsageMb: number | null;
 }
 
 interface LoadResult {
-  backend: Backend;
-  source: 'cache' | 'network' | 'file';
-  bytes: number;
-  sizeMatchesPin: boolean;
-  fetchMs: number;
-  sessionMs: number;
-  threads: number;
+  url: string;
+  readyMs: number;
   heapMb: number | null;
-  cacheWriteError: string | null;
 }
 
 interface DecodeRow {
   clip: string;
-  backend: Backend;
   pass: 'cold' | 'warm' | 'mic';
-  trimmed: boolean;
-  rawSeconds: number;
   audioSeconds: number;
-  prepMs: number;
-  inferMs: number;
+  decodeMs: number;
   realTimeFactor: number;
-  frames: number;
+  confidence: number;
+  voicedMs: number;
   output: string;
   python: string | null;
   target: string | null;
@@ -102,16 +102,7 @@ function mb(bytes: number): string {
 }
 
 async function probeDevice(): Promise<DeviceInfo> {
-  const nav = navigator as Navigator & {
-    deviceMemory?: number;
-    gpu?: { requestAdapter: () => Promise<unknown> };
-  };
-  let webgpuAdapter = false;
-  try {
-    webgpuAdapter = !!(await nav.gpu?.requestAdapter());
-  } catch {
-    webgpuAdapter = false;
-  }
+  const nav = navigator as Navigator & { deviceMemory?: number };
   let quota: number | null = null;
   let usage: number | null = null;
   try {
@@ -126,64 +117,60 @@ async function probeDevice(): Promise<DeviceInfo> {
     cores: navigator.hardwareConcurrency,
     deviceMemoryGb: nav.deviceMemory ?? null,
     crossOriginIsolated: window.crossOriginIsolated,
-    webgpuAdapter,
+    metered: isMeteredConnection(),
     storageQuotaMb: quota,
     storageUsageMb: usage,
   };
 }
 
-/** Wraps a download so bytes stream through (into Cache Storage) without a second in-memory copy. */
-function withProgress(
-  response: Response,
-  onProgress: (received: number) => void
-): Response {
-  const body = response.body;
-  if (!body) return response;
-  let received = 0;
-  const reader = body.getReader();
-  const stream = new ReadableStream<Uint8Array>({
-    async pull(controller) {
-      const { done, value } = await reader.read();
-      if (done) {
-        controller.close();
-        return;
-      }
-      received += value.length;
-      onProgress(received);
-      controller.enqueue(value);
-    },
-    cancel(reason) {
-      return reader.cancel(reason);
-    },
-  });
-  return new Response(stream, {
-    headers: { 'Content-Type': 'application/octet-stream' },
-  });
+function defaultUrl(): string {
+  return defaultModelUrls()[0] ?? PRONUNCIATION_MODEL.huggingFaceUrl;
+}
+
+const IDLE: RecognizerState = { kind: 'idle' };
+
+function describeState(s: RecognizerState): string {
+  switch (s.kind) {
+    case 'idle':
+      return 'Not loaded';
+    case 'needs-download':
+      return `Needs a ${mb(s.bytes)} MB download`;
+    case 'downloading':
+      return `Downloading ${mb(s.loaded)} / ${mb(s.total)} MB`;
+    case 'starting':
+      return 'Starting the model…';
+    case 'ready':
+      return 'Ready';
+    case 'unsupported':
+      return `Unsupported: ${s.reason}`;
+  }
 }
 
 export const PronunciationDevHarness: React.FC = () => {
   const [device, setDevice] = useState<DeviceInfo | null>(null);
   const [modelUrl, setModelUrl] = useState<string>(() => {
     try {
-      return localStorage.getItem(URL_KEY) ?? PRONUNCIATION_MODEL.defaultUrl;
+      return localStorage.getItem(URL_KEY) ?? defaultUrl();
     } catch {
-      return PRONUNCIATION_MODEL.defaultUrl;
+      return defaultUrl();
     }
   });
-  const [backend, setBackend] = useState<Backend>('wasm');
+  const [recognizer, setRecognizer] = useState<
+    (Recognizer & { dispose(): void }) | null
+  >(null);
   const [status, setStatus] = useState('Idle');
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState<{
-    received: number;
-    mbps: string | null;
-  } | null>(null);
   const [load, setLoad] = useState<LoadResult | null>(null);
   const [rows, setRows] = useState<DecodeRow[]>([]);
   const [busy, setBusy] = useState(false);
-  const [trim, setTrim] = useState(true);
-  const [startedAt, setStartedAt] = useState<number | null>(null);
-  const [now, setNow] = useState(() => Date.now());
-  const sessionRef = useRef<ort.InferenceSession | null>(null);
+
+  const subscribe = useCallback(
+    (cb: () => void) => recognizer?.subscribe(cb) ?? (() => undefined),
+    [recognizer]
+  );
+  const modelState = useSyncExternalStore(subscribe, () =>
+    recognizer ? recognizer.state() : IDLE
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -195,19 +182,13 @@ export const PronunciationDevHarness: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (startedAt == null) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [startedAt]);
+  // The recognizer owns a Worker; terminate it when it is replaced or the page closes.
+  useEffect(() => () => recognizer?.dispose(), [recognizer]);
 
   const run = async (label: string, task: () => Promise<void>) => {
     setBusy(true);
     setError(null);
     setStatus(label);
-    const start = Date.now();
-    setStartedAt(start);
-    setNow(start);
     try {
       await task();
       setStatus('Done');
@@ -218,218 +199,102 @@ export const PronunciationDevHarness: React.FC = () => {
       setStatus('Failed');
     } finally {
       setBusy(false);
-      setStartedAt(null);
-      setProgress(null);
     }
   };
 
-  const createSession = async (
-    bytes: Uint8Array,
-    source: LoadResult['source'],
-    fetchMs: number,
-    cacheWriteError: string | null
-  ) => {
-    await sessionRef.current?.release();
-    sessionRef.current = null;
-    const threads = window.crossOriginIsolated
-      ? Math.min(4, navigator.hardwareConcurrency || 1)
-      : 1;
-    ort.env.wasm.numThreads = threads;
-    setStatus(`Creating ${backend} session…`);
-    const t0 = performance.now();
-    sessionRef.current = await ort.InferenceSession.create(bytes, {
-      executionProviders: [backend],
-    });
-    setLoad({
-      backend,
-      source,
-      bytes: bytes.length,
-      sizeMatchesPin: bytes.length === PRONUNCIATION_MODEL.bytes,
-      fetchMs: Math.round(fetchMs),
-      sessionMs: Math.round(performance.now() - t0),
-      threads,
-      heapMb: heapMb(),
-      cacheWriteError,
-    });
-  };
-
-  const loadFromUrl = () =>
+  const loadModel = () =>
     run('Loading model…', async () => {
       try {
         localStorage.setItem(URL_KEY, modelUrl);
       } catch {
         // Remembering the URL is a convenience only.
       }
+      const next = createRecognizer({ urls: [modelUrl] });
+      setRecognizer(next);
+      setLoad(null);
       const t0 = performance.now();
-      let cache: Cache | null = null;
-      try {
-        cache = await caches.open(CACHE_NAME);
-      } catch {
-        cache = null;
-      }
-      const hit = await cache?.match(modelUrl);
-      if (hit) {
-        setStatus('Reading model from device cache…');
-        const bytes = new Uint8Array(await hit.arrayBuffer());
-        await createSession(bytes, 'cache', performance.now() - t0, null);
-        return;
-      }
-      setStatus('Downloading model…');
-      const download = async () => {
-        const response = await fetch(modelUrl);
-        if (!response.ok)
-          throw new Error(`Download failed: HTTP ${response.status}`);
-        const startedAt = performance.now();
-        setProgress({ received: 0, mbps: null });
-        return withProgress(response, (received) => {
-          const seconds = (performance.now() - startedAt) / 1000;
-          setProgress({
-            received,
-            mbps: seconds > 0 ? (received / 1e6 / seconds).toFixed(1) : null,
-          });
-        });
-      };
-      let bytes: Uint8Array | null = null;
-      let cacheWriteError: string | null = null;
-      if (cache) {
-        try {
-          await cache.put(modelUrl, await download());
-          const stored = await cache.match(modelUrl);
-          if (stored) bytes = new Uint8Array(await stored.arrayBuffer());
-        } catch (err) {
-          cacheWriteError = err instanceof Error ? err.message : String(err);
-        }
-      }
-      bytes ??= new Uint8Array(await (await download()).arrayBuffer());
-      const fetchMs = performance.now() - t0;
-      await createSession(bytes, 'network', fetchMs, cacheWriteError);
-    });
-
-  const loadFromFile = (file: File) =>
-    run('Reading model file…', async () => {
-      const t0 = performance.now();
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      await createSession(bytes, 'file', performance.now() - t0, null);
+      await next.prepare({ allowMetered: true });
+      const s = next.state();
+      if (s.kind !== 'ready') throw new Error(describeState(s));
+      setLoad({
+        url: modelUrl,
+        readyMs: Math.round(performance.now() - t0),
+        heapMb: heapMb(),
+      });
     });
 
   const clearCache = () =>
     run('Clearing cached model…', async () => {
-      await caches.delete(CACHE_NAME);
+      await clearModelCache();
       setDevice(await probeDevice());
     });
 
   const decode = async (
-    audioBytes: ArrayBuffer
-  ): Promise<Omit<DecodeRow, 'clip' | 'pass' | 'python' | 'target'>> => {
-    const session = sessionRef.current;
-    if (!session || !load) throw new Error('Load the model first.');
-    const t0 = performance.now();
-    const raw = await decodeToModelRate(audioBytes);
-    const audio = normalizeForWav2Vec2(trim ? trimSilence(raw) : raw);
-    const prepMs = performance.now() - t0;
-    const feeds: Record<string, ort.Tensor> = {
-      [session.inputNames[0]]: new ort.Tensor('float32', audio, [
-        1,
-        audio.length,
-      ]),
-    };
-    if (session.inputNames.includes('attention_mask')) {
-      feeds.attention_mask = new ort.Tensor(
-        'int64',
-        new BigInt64Array(audio.length).fill(1n),
-        [1, audio.length]
-      );
-    }
-    const t1 = performance.now();
-    const out = await session.run(feeds);
-    const inferMs = performance.now() - t1;
-    const logits = out[session.outputNames[0]];
-    const [, frames, vocabSize] = logits.dims;
-    const result = greedyCtcDecode(
-      logits.data as Float32Array,
-      frames,
-      vocabSize,
-      SYMBOLS,
-      PRONUNCIATION_MODEL.padId
-    );
-    const audioSeconds = audio.length / MODEL_SAMPLE_RATE;
-    return {
-      backend: load.backend,
-      trimmed: trim,
-      rawSeconds: Number((raw.length / MODEL_SAMPLE_RATE).toFixed(2)),
-      audioSeconds: Number(audioSeconds.toFixed(2)),
-      prepMs: Math.round(prepMs),
-      inferMs: Math.round(inferMs),
-      realTimeFactor: Number((inferMs / 1000 / audioSeconds).toFixed(2)),
-      frames,
-      output: result.text,
-    };
+    audio: Blob,
+    meta: Pick<DecodeRow, 'clip' | 'pass' | 'python' | 'target'>
+  ) => {
+    if (!recognizer) throw new Error('Load the model first.');
+    const r = await recognizer.recognize(audio);
+    const audioSeconds = r.audio16k.length / MODEL_SAMPLE_RATE;
+    setRows((prev) => [
+      ...prev,
+      {
+        ...meta,
+        audioSeconds: Number(audioSeconds.toFixed(2)),
+        decodeMs: r.decodeMs,
+        realTimeFactor: Number(
+          (r.decodeMs / 1000 / Math.max(audioSeconds, 0.01)).toFixed(2)
+        ),
+        confidence: Number(r.confidence.toFixed(3)),
+        voicedMs: r.voicedMs,
+        output: r.tokens.map((t) => t.symbol).join(''),
+      },
+    ]);
   };
 
   const decodeClips = () =>
     run('Decoding clips…', async () => {
-      const pass: DecodeRow['pass'] = rows.some(
-        (r) =>
-          r.pass === 'cold' && r.backend === load?.backend && r.trimmed === trim
-      )
+      const pass: DecodeRow['pass'] = rows.some((r) => r.pass === 'cold')
         ? 'warm'
         : 'cold';
       for (const clip of CLIPS) {
         setStatus(`Decoding ${clip.name} (${pass})…`);
-        const bytes = await (await fetch(clip.url)).arrayBuffer();
-        const row = await decode(bytes);
-        setRows((prev) => [
-          ...prev,
-          {
-            clip: clip.name,
-            pass,
-            python: clip.python,
-            target: clip.target,
-            ...row,
-          },
-        ]);
+        const blob = await (await fetch(clip.url)).blob();
+        await decode(blob, {
+          clip: clip.name,
+          pass,
+          python: clip.python,
+          target: clip.target,
+        });
       }
     });
 
-  const recordMic = () =>
-    run(`Recording ${MIC_SECONDS} s, say "perro"…`, async () => {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      try {
-        const recorder = new MediaRecorder(stream);
-        const chunks: Blob[] = [];
-        recorder.ondataavailable = (e) => chunks.push(e.data);
-        const stopped = new Promise<void>((resolve) => {
-          recorder.onstop = () => resolve();
-        });
-        recorder.start();
-        await new Promise((resolve) => setTimeout(resolve, MIC_SECONDS * 1000));
-        recorder.stop();
-        await stopped;
-        setStatus('Decoding microphone take…');
-        const bytes = await new Blob(chunks, {
-          type: recorder.mimeType,
-        }).arrayBuffer();
-        const row = await decode(bytes);
-        setRows((prev) => [
-          ...prev,
-          {
-            clip: 'microphone',
-            pass: 'mic',
-            python: null,
-            target: 'pero',
-            ...row,
-          },
-        ]);
-      } finally {
-        stream.getTracks().forEach((t) => t.stop());
-      }
-    });
+  const onTakeReady = (take: AudioTake) =>
+    void run('Decoding microphone take…', () =>
+      decode(take.blob, {
+        clip: `microphone (${take.mimeType})`,
+        pass: 'mic',
+        python: null,
+        target: 'pero',
+      })
+    );
+
+  const mic = useAudioRecording({
+    config: MIC_CONFIG,
+    enabled: true,
+    onTakeReady,
+    audioBitsPerSecond: SPEAK_CAPTURE.audioBitsPerSecond,
+    constraints: SPEAK_CAPTURE.constraints,
+  });
+  const recording = mic.phase === 'recording';
 
   const report = JSON.stringify(
     {
       recordedAt: new Date().toISOString(),
       model: PRONUNCIATION_MODEL.id,
+      capture: SPEAK_CAPTURE,
       device,
+      modelState,
       load,
       rows,
       error,
@@ -446,9 +311,9 @@ export const PronunciationDevHarness: React.FC = () => {
             Pronunciation model device test
           </h1>
           <p className="text-sm text-slate-600">
-            Loads the pinned {mb(PRONUNCIATION_MODEL.bytes)} MB phoneme model in
-            this browser and decodes the five committed clips. Nothing is
-            uploaded. Copy the report at the bottom back into #2350.
+            Runs Speak&apos;s recognizer ({mb(PRONUNCIATION_MODEL.bytes)} MB
+            model in a Worker) on the five committed clips and on the microphone
+            at Speak&apos;s capture settings. Nothing is uploaded.
           </p>
         </header>
 
@@ -460,12 +325,12 @@ export const PronunciationDevHarness: React.FC = () => {
               <dd>{device.cores}</dd>
               <dt>Memory (GB, rounded by browser)</dt>
               <dd>{device.deviceMemoryGb ?? 'unknown'}</dd>
-              <dt>WebGPU adapter</dt>
-              <dd>{device.webgpuAdapter ? 'yes' : 'no'}</dd>
               <dt>Cross-origin isolated (threads)</dt>
               <dd>
                 {device.crossOriginIsolated ? 'yes' : 'no, single thread'}
               </dd>
+              <dt>Metered connection</dt>
+              <dd>{device.metered ? 'yes' : 'no'}</dd>
               <dt>Storage used / quota (MB)</dt>
               <dd>
                 {device.storageUsageMb ?? '?'} / {device.storageQuotaMb ?? '?'}
@@ -489,42 +354,15 @@ export const PronunciationDevHarness: React.FC = () => {
               disabled={busy}
             />
           </label>
-          <fieldset className="flex gap-4 text-sm" disabled={busy}>
-            <legend className="sr-only">Backend</legend>
-            {(['wasm', 'webgpu'] as const).map((b) => (
-              <label key={b} className="flex items-center gap-1">
-                <input
-                  type="radio"
-                  name="backend"
-                  checked={backend === b}
-                  onChange={() => setBackend(b)}
-                />
-                {b === 'wasm' ? 'CPU (WASM)' : 'GPU (WebGPU)'}
-              </label>
-            ))}
-          </fieldset>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
               className="rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
-              onClick={() => void loadFromUrl()}
+              onClick={() => void loadModel()}
               disabled={busy}
             >
               Load model
             </button>
-            <label className="cursor-pointer rounded border px-3 py-1.5 text-sm">
-              Load from a downloaded file…
-              <input
-                type="file"
-                accept=".onnx"
-                className="sr-only"
-                disabled={busy}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) void loadFromFile(file);
-                }}
-              />
-            </label>
             <button
               type="button"
               className="rounded border px-3 py-1.5 text-sm disabled:opacity-50"
@@ -534,37 +372,13 @@ export const PronunciationDevHarness: React.FC = () => {
               Clear cached model
             </button>
           </div>
-          {progress && (
-            <p className="text-sm">
-              {mb(progress.received)} / {mb(PRONUNCIATION_MODEL.bytes)} MB
-              {progress.mbps && ` · ${progress.mbps} MB/s`}
-            </p>
-          )}
+          <p className="text-sm">Model: {describeState(modelState)}</p>
           {load && (
             <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
-              <dt>Source</dt>
-              <dd>{load.source}</dd>
-              <dt>Bytes</dt>
-              <dd>
-                {load.bytes.toLocaleString()}{' '}
-                {load.sizeMatchesPin ? '(matches pin)' : '(DIFFERS from pin)'}
-              </dd>
-              <dt>Fetch / read</dt>
-              <dd>{(load.fetchMs / 1000).toFixed(1)} s</dd>
-              <dt>Session create</dt>
-              <dd>{(load.sessionMs / 1000).toFixed(1)} s</dd>
-              <dt>Backend / threads</dt>
-              <dd>
-                {load.backend} / {load.threads}
-              </dd>
-              <dt>JS heap after load</dt>
+              <dt>Ready after</dt>
+              <dd>{(load.readyMs / 1000).toFixed(1)} s</dd>
+              <dt>JS heap (page)</dt>
               <dd>{load.heapMb != null ? `${load.heapMb} MB` : 'unknown'}</dd>
-              {load.cacheWriteError && (
-                <>
-                  <dt>Cache write</dt>
-                  <dd className="text-red-700">{load.cacheWriteError}</dd>
-                </>
-              )}
             </dl>
           )}
         </section>
@@ -576,40 +390,39 @@ export const PronunciationDevHarness: React.FC = () => {
               type="button"
               className="rounded bg-blue-700 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
               onClick={() => void decodeClips()}
-              disabled={busy || !load}
+              disabled={busy || recording || modelState.kind !== 'ready'}
             >
               Decode the 5 clips
             </button>
             <button
               type="button"
               className="rounded border px-3 py-1.5 text-sm disabled:opacity-50"
-              onClick={() => void recordMic()}
-              disabled={busy || !load}
+              onClick={() => (recording ? mic.stop() : void mic.start())}
+              disabled={busy || modelState.kind !== 'ready'}
             >
-              Record {MIC_SECONDS} s from the mic
+              {recording
+                ? `Stop (${mic.recordSecondsLeft ?? 0} s left)`
+                : `Record ${MIC_SECONDS} s from the mic, say "perro"`}
             </button>
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={trim}
-              onChange={(e) => setTrim(e.target.checked)}
-              disabled={busy}
-            />
-            Trim silence before decoding
-          </label>
+          {mic.phase === 'capture-unavailable' && (
+            <p className="text-sm text-red-700">
+              Microphone {mic.micState === 'denied' ? 'blocked' : 'unavailable'}
+              .
+            </p>
+          )}
           {rows.length > 0 && (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b">
                     <th className="py-1 pr-3">Clip</th>
-                    <th className="pr-3">Backend</th>
                     <th className="pr-3">Pass</th>
-                    <th className="pr-3">Audio s (raw)</th>
-                    <th className="pr-3">Prep ms</th>
-                    <th className="pr-3">Infer ms</th>
+                    <th className="pr-3">Trimmed s</th>
+                    <th className="pr-3">Decode ms</th>
                     <th className="pr-3">× real time</th>
+                    <th className="pr-3">Confidence</th>
+                    <th className="pr-3">Voiced ms</th>
                     <th className="pr-3">Heard</th>
                     <th className="pr-3">Python q4</th>
                     <th>Target</th>
@@ -619,15 +432,12 @@ export const PronunciationDevHarness: React.FC = () => {
                   {rows.map((r, i) => (
                     <tr key={i} className="border-b font-mono text-xs">
                       <td className="py-1 pr-3 font-sans">{r.clip}</td>
-                      <td className="pr-3">{r.backend}</td>
                       <td className="pr-3">{r.pass}</td>
-                      <td className="pr-3">
-                        {r.audioSeconds}
-                        {r.trimmed && ` (${r.rawSeconds})`}
-                      </td>
-                      <td className="pr-3">{r.prepMs}</td>
-                      <td className="pr-3">{r.inferMs}</td>
+                      <td className="pr-3">{r.audioSeconds}</td>
+                      <td className="pr-3">{r.decodeMs}</td>
                       <td className="pr-3">{r.realTimeFactor}</td>
+                      <td className="pr-3">{r.confidence}</td>
+                      <td className="pr-3">{r.voicedMs}</td>
                       <td className="pr-3 text-base">{r.output || '∅'}</td>
                       <td className="pr-3">
                         {r.python == null
@@ -647,8 +457,6 @@ export const PronunciationDevHarness: React.FC = () => {
 
         <p role="status" className="text-sm">
           Status: {status}
-          {startedAt != null &&
-            ` ${Math.max(0, Math.round((now - startedAt) / 1000))} s`}
         </p>
         {error && (
           <p

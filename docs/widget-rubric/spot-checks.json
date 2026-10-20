@@ -1,4 +1,74 @@
 {
-  "paused": {},
-  "checks": []
+  "paused": {
+    "S5": {
+      "since": "2026-10-20T02:45:06.792Z",
+      "reason": "drift in spot check"
+    }
+  },
+  "checks": [
+    {
+      "date": "2026-10-20T02:45:06.792Z",
+      "deckId": "widget-2026-10-19T12-01-08-794Z",
+      "cards": [
+        {
+          "widgetType": "catalyst-visual",
+          "criterionId": "E1",
+          "autoBefore": null,
+          "auto": 2,
+          "paul": 2
+        },
+        {
+          "widgetType": "expectations",
+          "criterionId": "R1",
+          "autoBefore": null,
+          "auto": 3,
+          "paul": 3
+        },
+        {
+          "widgetType": "expectations",
+          "criterionId": "S5",
+          "autoBefore": null,
+          "auto": 1,
+          "paul": 3
+        },
+        {
+          "widgetType": "expectations",
+          "criterionId": "V6",
+          "autoBefore": null,
+          "auto": 3,
+          "paul": 3
+        },
+        {
+          "widgetType": "graphic-organizer",
+          "criterionId": "I4",
+          "autoBefore": null,
+          "auto": 2,
+          "paul": 2
+        },
+        {
+          "widgetType": "graphic-organizer",
+          "criterionId": "V5",
+          "autoBefore": null,
+          "auto": 2,
+          "paul": 1
+        },
+        {
+          "widgetType": "graphic-organizer",
+          "criterionId": "V6",
+          "autoBefore": null,
+          "auto": 3,
+          "paul": 3
+        },
+        {
+          "widgetType": "poll",
+          "criterionId": "C1",
+          "autoBefore": null,
+          "auto": 2,
+          "paul": 2
+        }
+      ],
+      "drift": ["S5"],
+      "gaming": []
+    }
+  ]
 }

@@ -4835,3 +4835,33 @@ rather than "no data") is also still open.
     - #4360: `CHAR_EM` counts UTF-16 units (emoji/CJK estimated per code unit), and long labels produce a 20-term CSS expression. Both are optional.
   - Needs changes: none.
 - Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. No local test runs were needed.
+
+## 2026-10-19
+
+- PRs reviewed: #4400 (MCP `tools.ts` test coverage), #4399 (debugger nightly run 102 log), #4398 (IME-confirming Enter guards in eight more inputs), #4397 (Soundboard refused `AudioContext.resume()`), #4396 (word cloud `constructor` prototype-key bug), #4395 (new-user greeting for an empty or blank display name), #4390 (Unifier run 120 log), #4388 (Widget loop: Time Tool compact layout), #4387 (Widget loop: Lunch Count header layout).
+- Comments processed: 8 total — 0 fixed, 8 explained. No unresolved inline threads; all were bot summaries. The one optional nit (#4398, `return e.stopPropagation()` in `FolderTree.tsx`) passes `lint-app` in CI, so it was answered in the review rather than pushed.
+- Fixes pushed: none.
+- Reviews posted: 9.
+- Merge readiness:
+  - Ready: #4400, #4399, #4398, #4397, #4396, #4395, #4390, #4387.
+  - Ready with minor notes:
+    - #4388: no unit test for the 180px compact threshold; a CSS `@container` query could replace the ResizeObserver state. Both are optional.
+  - Needs changes: none.
+- Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. No local test runs were needed.
+
+## 2026-10-20
+
+- PRs reviewed: #4436 (ActivityWall spacing residuals), #4432 (Widget loop: Links layout), #4431 (debugger nightly run 103 log), #4430 (changelog draft breaking-change commits), #4429 (invite acceptance stale claim result), #4428 (OLF converter prototype-named element types), #4427 (GroupBoundingBox re-render), #4426 (Random widget double pick during audio resume), #4425 (Widget loop: Embed interaction), #4414 (Unifier run 121 log), #4403 (patch/minor dependency bump), #4388 (Widget loop: Time Tool layout).
+- Comments processed: 9 total — 0 fixed, 0 explained, 9 skipped. None had unresolved inline threads. Each comment was a bot "no issues" summary or had already been answered (#4388).
+- Fixes pushed: none.
+- Reviews posted: 12.
+- Merge readiness:
+  - Ready: #4436, #4430, #4429, #4428, #4427, #4426, #4414.
+  - Ready with minor notes:
+    - #4432: `gapPx` is measured from the inner box rather than the container, so it is under 1px low. The PR asks for `/grade-widget --disagreements url` before merge.
+    - #4431: the 10-19 backlog rows fixed by #4426 and #4429 are still marked open, and the new rows have 2 of 4 cells.
+    - #4425: I1's 1 → 2 is not in `embed.json`, because Paul's existing grade is preserved. Re-grade I1 before merge.
+    - #4388: `docs/widget-rubric/supervision.json` now conflicts with dev-paul. Keep both entries.
+  - Needs changes:
+    - #4403: CI type-check fails with TS2345 at `ModificationsView.tsx:690`. After the i18next 26.5 bump, `t` no longer fits the local `Translate` type. The branch also conflicts with dev-paul in `functions/package.json` and `functions/pnpm-lock.yaml`. It was not auto-fixed because the cause is a dependency bump, not reviewer feedback, and the lockfile needs regenerating.
+- Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. Scoped `vitest related` runs passed for #4427, #4426 and #4425.

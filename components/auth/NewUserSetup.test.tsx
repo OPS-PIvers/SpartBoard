@@ -4,12 +4,13 @@ import { NewUserSetup } from './NewUserSetup';
 
 const reorderDockItems = vi.fn();
 const completeSetup = vi.fn().mockResolvedValue(undefined);
+let displayName: string | null = 'Ada Lovelace';
 
 vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: true }));
 vi.mock('firebase/firestore', () => ({ doc: vi.fn(), setDoc: vi.fn() }));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
-    user: { uid: 'u1', displayName: 'Ada Lovelace' },
+    user: { uid: 'u1', displayName },
     setSelectedBuildings: vi.fn().mockResolvedValue(undefined),
     completeSetup,
     orgId: null,
@@ -30,7 +31,29 @@ vi.mock('@/components/sparty/useShowSparty', () => ({
 }));
 
 describe('NewUserSetup dock step', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    displayName = 'Ada Lovelace';
+  });
+
+  it.each([[''], ['   '], [null]])(
+    'greets without a dangling comma for display name %j',
+    (name) => {
+      displayName = name;
+      render(<NewUserSetup />);
+      expect(
+        screen.getByRole('heading', { name: 'Welcome, there!' })
+      ).toBeInTheDocument();
+    }
+  );
+
+  it('greets by first name, ignoring leading whitespace', () => {
+    displayName = '  Ada Lovelace';
+    render(<NewUserSetup />);
+    expect(
+      screen.getByRole('heading', { name: 'Welcome, Ada!' })
+    ).toBeInTheDocument();
+  });
 
   it('counts and saves only tools the user can access', async () => {
     render(<NewUserSetup />);

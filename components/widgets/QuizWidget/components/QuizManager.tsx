@@ -1432,6 +1432,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           label: 'End share',
           icon: PowerOff,
           destructive: true,
+          anchor: tourTypeAttr('quiz-library.archive-end', 'quiz'),
           // Confirm before tearing down the URL — accidental dismissal
           // shouldn't kill a tracked link silently. Copy is view-only
           // flavored (no submissions to preserve, no roster to retire).
@@ -1456,6 +1457,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           id: 'reactivate',
           label: 'Reactivate',
           icon: RotateCcw,
+          anchor: tourTypeAttr('quiz-library.archive-reactivate', 'quiz'),
           onClick: () => void onArchiveReopen(a),
         });
       }
@@ -1464,6 +1466,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         label: 'Delete',
         icon: Trash2,
         destructive: true,
+        anchor: tourTypeAttr('quiz-library.archive-delete', 'quiz'),
         onClick: async () => {
           const ok = await showConfirm(
             'Delete this share permanently? The link will stop working.',
@@ -1524,6 +1527,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           id: 'copy-url',
           label: 'Copy Student Link',
           icon: Link2,
+          anchor: tourTypeAttr('quiz-library.archive-copy-link', 'quiz'),
           onClick: () => (onArchiveCopyUrl ?? noop)(a),
           disabled: !urlLive,
         });
@@ -1541,6 +1545,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         id: 'results',
         label: 'Results',
         icon: BarChart3,
+        anchor: tourTypeAttr('quiz-library.archive-results', 'quiz'),
         onClick: () => void (onArchiveResults ?? noop)(a),
       });
       // D32: Review rows have no settings dialog.
@@ -1557,6 +1562,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         id: 'share',
         label: 'Share',
         icon: Share2,
+        anchor: tourTypeAttr('quiz-library.archive-share', 'quiz'),
         onClick: () => void (onArchiveShare ?? noop)(a),
       });
       // "Assign to Google Classroom" — only when the host provides the handler
@@ -1612,6 +1618,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           id: 'pause',
           label: 'Pause',
           icon: Pause,
+          anchor: tourTypeAttr('quiz-library.archive-pause', 'quiz'),
           onClick: () => void (onArchivePauseResume ?? noop)(a),
         });
       }
@@ -1620,6 +1627,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         label: 'End',
         icon: PowerOff,
         destructive: true,
+        anchor: tourTypeAttr('quiz-library.archive-end', 'quiz'),
         onClick: async () => {
           const ok = await showConfirm(
             'End this assignment? The join URL will stop working. Responses are preserved.',
@@ -1637,6 +1645,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         label: 'Delete',
         icon: Trash2,
         destructive: true,
+        anchor: tourTypeAttr('quiz-library.archive-delete', 'quiz'),
         onClick: async () => {
           const ok = await showConfirm(
             'Delete this assignment and all responses? This cannot be undone.',
@@ -1683,6 +1692,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       id: 'share',
       label: 'Share',
       icon: Share2,
+      anchor: tourTypeAttr('quiz-library.archive-share', 'quiz'),
       onClick: () => void (onArchiveShare ?? noop)(a),
     });
     if (onArchivePublishScores) {
@@ -1690,6 +1700,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       // modal handles both first-publish and unpublish/re-publish flows.
       secondaries.push({
         id: 'publish-scores',
+        anchor: tourTypeAttr('quiz-library.archive-publish-scores', 'quiz'),
         label:
           a.scoreVisibility && a.scoreVisibility !== 'none'
             ? 'Update published scores'
@@ -1707,6 +1718,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         id: 'unpublish-scores',
         label: 'Unpublish scores',
         icon: EyeOff,
+        anchor: tourTypeAttr('quiz-library.archive-unpublish-scores', 'quiz'),
         onClick: async () => {
           const ok = await showConfirm(
             'Students will no longer be able to see their scores or responses. You can republish anytime.',
@@ -1724,6 +1736,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       id: 'reopen',
       label: 'Reopen',
       icon: RefreshCw,
+      anchor: tourTypeAttr('quiz-library.archive-reopen', 'quiz'),
       onClick: () => void (onArchiveReopen ?? noop)(a),
     });
     secondaries.push({
@@ -1731,6 +1744,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       label: 'Delete',
       icon: Trash2,
       destructive: true,
+      anchor: tourTypeAttr('quiz-library.archive-delete', 'quiz'),
       onClick: async () => {
         const ok = await showConfirm(
           'Delete this assignment and all responses? This cannot be undone.',

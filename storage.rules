@@ -433,6 +433,13 @@ service firebase.storage {
       allow delete: if viewAsWriteOk() && (isAdmin() || pjOwnsRun() || pjIsGroupMember());
     }
 
+    // On-device pronunciation model (F27): anyone may download it, even signed out;
+    // only scripts/upload-pronunciation-model.mjs (Admin SDK) writes it.
+    match /pronunciation-models/{allPaths=**} {
+      allow get: if true;
+      allow list, write: if false;
+    }
+
     // Default deny for everything else
     match /{allPaths=**} {
       allow read, write: if false;

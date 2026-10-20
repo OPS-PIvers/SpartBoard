@@ -341,6 +341,13 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'admin.widgets.configure:admin#need-do-put-then',
     needs: ['admin'],
   },
+  'admin.widgets.config.flashcards': {
+    label: 'Flashcards admin configuration',
+    kind: 'modal',
+    files: ['components/admin/FlashcardsSpeakConfigurationPanel.tsx'],
+    opensWith: 'admin.widgets.configure:admin#flashcards',
+    needs: ['admin'],
+  },
   'admin.widgets.config.stations': {
     label: 'Stations admin configuration',
     kind: 'modal',
@@ -546,10 +553,11 @@ export const SURFACES: TourSurfaceMap = {
     needs: ['admin'],
     inner: {
       'admin.announcements.poll-results-close':
-        'admin.announcements.poll-results',
-      'admin.announcements.poll-export-csv': 'admin.announcements.poll-results',
-      'admin.announcements.delete-confirm': 'admin.announcements.delete',
-      'admin.announcements.remove-cancel': 'admin.announcements.delete',
+        'admin.announcements.poll-results:admin',
+      'admin.announcements.poll-export-csv':
+        'admin.announcements.poll-results:admin',
+      'admin.announcements.delete-confirm': 'admin.announcements.delete:admin',
+      'admin.announcements.remove-cancel': 'admin.announcements.delete:admin',
       'admin.announcements.qr-url': 'admin.announcements.new',
       'admin.announcements.voice-level': 'admin.announcements.new',
       'admin.announcements.work-mode': 'admin.announcements.new',
@@ -867,11 +875,11 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'admin.settings.tab:admin#links',
     needs: ['admin'],
     inner: {
-      'admin.links.modal-close': 'admin.links.edit',
-      'admin.links.edit-destination': 'admin.links.edit',
-      'admin.links.edit-label': 'admin.links.edit',
-      'admin.links.edit-cancel': 'admin.links.edit',
-      'admin.links.edit-save': 'admin.links.edit',
+      'admin.links.modal-close': 'admin.links.edit:admin',
+      'admin.links.edit-destination': 'admin.links.edit:admin',
+      'admin.links.edit-label': 'admin.links.edit:admin',
+      'admin.links.edit-cancel': 'admin.links.edit:admin',
+      'admin.links.edit-save': 'admin.links.edit:admin',
     },
   },
   'admin.links.quick-create': {
@@ -898,9 +906,9 @@ export const SURFACES: TourSurfaceMap = {
       'admin-plc.resource-cancel': 'admin-plc.resource-new',
       'admin-plc.target-scope': 'admin-plc.resource-new',
       'admin-plc.target-plc': 'admin-plc.resource-new',
-      'admin-plc.recovery-new-lead': 'admin-plc.recovery-reassign',
-      'admin-plc.recovery-reassign-confirm': 'admin-plc.recovery-reassign',
-      'admin-plc.recovery-reassign-cancel': 'admin-plc.recovery-reassign',
+      'admin-plc.recovery-new-lead': 'admin-plc.recovery-reassign:plc',
+      'admin-plc.recovery-reassign-confirm': 'admin-plc.recovery-reassign:plc',
+      'admin-plc.recovery-reassign-cancel': 'admin-plc.recovery-reassign:plc',
     },
   },
   'admin.building-groups': {

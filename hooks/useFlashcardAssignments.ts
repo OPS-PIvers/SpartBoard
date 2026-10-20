@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 import {
   collection,
   deleteDoc,
@@ -12,6 +12,12 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { AuthContext } from '@/context/AuthContextValue';
+import { speakAdminConfigFor } from '@/hooks/useFlashcardSets';
+import {
+  buildSpeakStamp,
+  speakCardsFor,
+} from '@/components/widgets/Flashcards/utils/flashcardAssign';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import {
@@ -54,6 +60,10 @@ export interface CreateFlashcardAssignmentInput {
   workKind?: WorkKind;
   /** Per-period gate; the cards then move to `content/cards` and no shared window is kept. */
   periodGate?: Pick<FlashcardSession, 'accessMode' | 'periodAccess'>;
+  /** Study only: students can't change the stamped Speak settings (§4.3). */
+  speakLocked?: boolean;
+  /** Study only: Speak is hidden for this assignment and stays hidden on set saves. */
+  speakOff?: boolean;
 }
 
 export interface UseFlashcardAssignmentsResult {
@@ -90,6 +100,8 @@ export const useFlashcardAssignments = (
   const [assignments, setAssignments] = useState<FlashcardAssignment[]>([]);
   const [loading, setLoading] = useState<boolean>(!!userId);
   const [error, setError] = useState<string | null>(null);
+  const canSpeak =
+    useContext(AuthContext)?.canAccessFeature('flashcards-speak') ?? false;
 
   // Reset during render when the signed-in user changes.
   const [prevUserId, setPrevUserId] = useState(userId);
@@ -163,6 +175,21 @@ export const useFlashcardAssignments = (
         isCheck && input.checkMode ? input.checkMode : undefined;
       const scoreVisibility =
         isCheck && input.scoreVisibility ? input.scoreVisibility : undefined;
+      // F1: Speak is a Study mode only, so a Check never carries a stamp.
+      const speakOff = !isCheck && input.speakOff === true;
+      const adminConfig =
+        isCheck || speakOff
+          ? null
+          : await speakAdminConfigFor(input.set, canSpeak);
+      const speak = adminConfig
+        ? buildSpeakStamp(
+            input.set,
+            true,
+            adminConfig,
+            input.speakLocked === true
+          )
+        : undefined;
+      const cards = speakCardsFor(input.set.cards, speak);
 
       const session: FlashcardSession = {
         id,
@@ -180,8 +207,10 @@ export const useFlashcardAssignments = (
         ...(scoreVisibility ? { scoreVisibility } : {}),
         termLanguage: input.set.termLanguage,
         definitionLanguage: input.set.definitionLanguage,
-        cards: periodGate ? [] : input.set.cards,
+        cards: periodGate ? [] : cards,
         ...(periodGate ? { cardsInContent: true, ...periodGate } : {}),
+        ...(speak ? { speak } : {}),
+        ...(speakOff ? { speakOff: true as const } : {}),
         classIds,
         classId: classIds[0] ?? '',
         ...(periodNames.length > 0 ? { periodNames } : {}),
@@ -222,7 +251,7 @@ export const useFlashcardAssignments = (
       batch.set(doc(db, FLASHCARD_SESSIONS_COLLECTION, id), session);
       if (periodGate) {
         // Same batch: the content rule checks the session's teacher via getAfter.
-        const content: FlashcardSessionContent = { cards: input.set.cards };
+        const content: FlashcardSessionContent = { cards };
         batch.set(
           doc(
             db,
@@ -241,7 +270,7 @@ export const useFlashcardAssignments = (
       await batch.commit();
       return id;
     },
-    [userId]
+    [canSpeak, userId]
   );
 
   const endAssignment = useCallback<

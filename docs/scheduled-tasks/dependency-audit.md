@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-10-15_
+_Last audited: 2026-10-20_
 _Last action: 2026-09-15 — HIGH `browserslist`/`baseline-browser-mapping` resolved: added `pnpm.overrides.browserslist: "^4.28.7"` to both `package.json` and `functions/package.json`, clearing two HIGH + one moderate advisory in the Babel/Jest build-toolchain chain. PR opened against dev-paul. Item moved to Completed._
+
+_2026-10-20: Tuesday Audit B2 (read-only). Root and `functions/` each report 2 vulnerabilities (1 moderate `sprintf-js` | 1 high `braces`), both transitive via `firebase-functions-test>jest`, identical to 2026-10-15 (sprintf-js has no patched version). `pnpm outdated`: only patch/minor bumps for react/react-dom (19.3.0→19.3.1), firebase packages and vitest; majors behind unchanged (eslint 9→10, firebase-admin 13→14, tailwindcss 3→4, typescript 6→7, lucide-react 0.x→1.x); `crypto-js`/`fluent-ffmpeg` still deprecated in `functions/`. 0 new issues._
 
 _2026-10-15: Thursday Audit B2 (read-only). `pnpm audit --audit-level=moderate`: root and `functions/` each report **2 vulnerabilities (1 moderate | 1 high)**: `braces` (high, via `firebase-functions-test>jest>@jest/core>micromatch`) and `sprintf-js` (moderate, `<=1.1.3`, no patched version), both dev/test-toolchain only and already covered by the 2026-10-06 MEDIUM item. No new advisories. `pnpm outdated` (root): patch/minor bumps only for react/react-dom 19.3.0→19.3.1, dompurify, i18next, vitest, typescript-eslint, playwright; majors behind: `eslint` 9→10, `@eslint/js` 9→10, `firebase-admin` 13→14, `tailwindcss` 3→4, `typescript` 6→7, `lucide-react` 0.563→1.57; deprecated: `@types/tesseract.js`, `crypto-js`. `functions/`: `firebase-admin` 13→14, `typescript` 6→7, deprecated `crypto-js` and `fluent-ffmpeg`, minor bumps for `zod`, `@google/genai`, `@anthropic-ai/sdk`. No firebase/vite packages are more than one major behind except `firebase-admin`. 0 new issues._
 

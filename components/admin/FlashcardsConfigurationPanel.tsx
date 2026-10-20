@@ -1,5 +1,7 @@
 import React from 'react';
 import { Layers } from 'lucide-react';
+import { useAuth } from '@/context/useAuth';
+import { FlashcardsSpeakConfigurationPanel } from './FlashcardsSpeakConfigurationPanel';
 
 interface FlashcardsConfigurationPanelProps {
   config: Record<string, unknown>;
@@ -14,15 +16,23 @@ interface FlashcardsConfigurationPanelProps {
  */
 export const FlashcardsConfigurationPanel: React.FC<
   FlashcardsConfigurationPanelProps
-> = () => (
-  <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-    <div className="flex items-start gap-3">
-      <div className="rounded-xl bg-rose-100 p-2 text-rose-700">
-        <Layers className="h-5 w-5" aria-hidden="true" />
-      </div>
-      <h3 className="text-sm font-black uppercase tracking-widest text-slate-700">
-        Teacher-owned libraries
-      </h3>
+> = () => {
+  const { canAccessFeature } = useAuth();
+  return (
+    <div className="space-y-6">
+      <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+        <div className="flex items-start gap-3">
+          <div className="rounded-xl bg-rose-100 p-2 text-rose-700">
+            <Layers className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <h3 className="text-sm font-black uppercase tracking-widest text-slate-700">
+            Teacher-owned libraries
+          </h3>
+        </div>
+      </section>
+      {canAccessFeature('flashcards-speak') && (
+        <FlashcardsSpeakConfigurationPanel />
+      )}
     </div>
-  </section>
-);
+  );
+};

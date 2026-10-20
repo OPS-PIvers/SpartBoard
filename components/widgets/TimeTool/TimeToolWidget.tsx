@@ -413,6 +413,20 @@ export const TimeToolWidget: React.FC<{
   };
 
   const [isEditing, setIsEditing] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [isCompact, setIsCompact] = useState(false);
+
+  // Below ~180px the +/- steppers hide so play and reset stay tappable.
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setIsCompact(Math.min(width, height) < 180);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const isVisual = config.visualType === 'visual';
 
@@ -426,7 +440,7 @@ export const TimeToolWidget: React.FC<{
 
   const effectiveAdjustStep = Math.max(5, Math.min(60, adjustStepSeconds));
 
-  const showAdjustControls = mode === 'timer' && !isEditing;
+  const showAdjustControls = mode === 'timer' && !isEditing && !isCompact;
   const isExpired = clockStateOf(config).phase === 'expired';
 
   // ─── Parse time into parts ───────────────────────────────────────
@@ -484,6 +498,7 @@ export const TimeToolWidget: React.FC<{
     mode === 'timer' && config.duration > 0 ? displayTime / config.duration : 1;
 
   const timeColor = getTimeColor();
+  const ctrlSize = isCompact ? 'max(20px, 10cqmin)' : 'min(40px, 10cqmin)';
 
   // ─── Render ───────────────────────────────────────────────────────
 
@@ -492,6 +507,7 @@ export const TimeToolWidget: React.FC<{
       padding="p-0"
       content={
         <div
+          ref={rootRef}
           className={`h-full w-full flex flex-col items-center justify-center transition-all duration-500 ${
             clockStyle === 'lcd' ? 'bg-black/5' : ''
           }`}
@@ -644,8 +660,8 @@ export const TimeToolWidget: React.FC<{
                           : 'bg-brand-blue-primary text-white shadow-brand-blue-primary/20'
                       }`}
                       style={{
-                        width: 'min(40px, 10cqmin)',
-                        height: 'min(40px, 10cqmin)',
+                        width: ctrlSize,
+                        height: ctrlSize,
                       }}
                     >
                       {isRunning ? (
@@ -669,8 +685,8 @@ export const TimeToolWidget: React.FC<{
                       onClick={handleReset}
                       className="flex items-center justify-center rounded-xl bg-slate-200/60 text-slate-400 hover:bg-slate-300/70 hover:text-brand-blue-primary transition-all select-none active:scale-95 shadow-sm"
                       style={{
-                        width: 'min(40px, 10cqmin)',
-                        height: 'min(40px, 10cqmin)',
+                        width: ctrlSize,
+                        height: ctrlSize,
                       }}
                       aria-label={t('widgets.timeTool.reset')}
                     >

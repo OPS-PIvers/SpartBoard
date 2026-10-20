@@ -90,21 +90,19 @@ export function scoreStress(stress: StressInput): number | null {
   return stress.accepted.includes(stress.detected) ? 100 : 0;
 }
 
-export function evaluatePronunciation(input: EvaluateInput): EvaluateResult {
-  const { targetPhonemes: target, spokenPhonemes: spoken } = input;
-  const { matchLevel, thresholds } = input;
+export interface AlignmentCounts {
+  correct: number;
+  substituted: number;
+  omitted: number;
+  inserted: number;
+  held: number;
+}
 
-  if (!Object.prototype.hasOwnProperty.call(thresholds, matchLevel)) {
-    throw new InvalidMatchLevelError(matchLevel, Object.keys(thresholds));
-  }
-  const requiredScore = thresholds[matchLevel];
-
-  const stressWeight = input.stressWeight ?? 0;
-  if (!Number.isFinite(stressWeight) || stressWeight < 0 || stressWeight > 1) {
-    throw new InvalidStressWeightError(stressWeight);
-  }
-  if (target.length === 0) throw new EmptyReferenceError();
-
+/** The A1-A8/T1 alignment alone, shared by evaluatePronunciation and the Speak verdict. */
+export function alignPronunciation(
+  target: readonly string[],
+  spoken: readonly string[]
+): { alignment: AlignmentEntry[]; counts: AlignmentCounts } {
   const n = target.length;
   const m = spoken.length;
   // T1: an extra token repeating the recognized token before it is free, so a run is charged at most once.
@@ -125,7 +123,7 @@ export function evaluatePronunciation(input: EvaluateInput): EvaluateResult {
 
   // Backtrace checks each step against dp because free insertions break plain Levenshtein's greedy match; A8 order: match, substitution, omission, insertion.
   const alignment: AlignmentEntry[] = [];
-  const counts = {
+  const counts: AlignmentCounts = {
     correct: 0,
     substituted: 0,
     omitted: 0,
@@ -169,6 +167,26 @@ export function evaluatePronunciation(input: EvaluateInput): EvaluateResult {
     }
   }
   alignment.reverse();
+  return { alignment, counts };
+}
+
+export function evaluatePronunciation(input: EvaluateInput): EvaluateResult {
+  const { targetPhonemes: target, spokenPhonemes: spoken } = input;
+  const { matchLevel, thresholds } = input;
+
+  if (!Object.prototype.hasOwnProperty.call(thresholds, matchLevel)) {
+    throw new InvalidMatchLevelError(matchLevel, Object.keys(thresholds));
+  }
+  const requiredScore = thresholds[matchLevel];
+
+  const stressWeight = input.stressWeight ?? 0;
+  if (!Number.isFinite(stressWeight) || stressWeight < 0 || stressWeight > 1) {
+    throw new InvalidStressWeightError(stressWeight);
+  }
+  if (target.length === 0) throw new EmptyReferenceError();
+
+  const { alignment, counts } = alignPronunciation(target, spoken);
+  const n = target.length;
 
   // T3: held entries are not edits.
   const per = (counts.substituted + counts.omitted + counts.inserted) / n;

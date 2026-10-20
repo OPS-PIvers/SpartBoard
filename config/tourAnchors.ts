@@ -611,6 +611,23 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'blooms-taxonomy.ai-topic': {
+    label: "AI topic box in Bloom's Taxonomy",
+    perWidgetType: true,
+  },
+  'blooms-taxonomy.ai-dismiss': {
+    label: "Dismiss AI result button in Bloom's Taxonomy",
+    perWidgetType: true,
+    destructive: true,
+  },
+  'calendar.start-timer': {
+    label: 'Start countdown to event button in Calendar',
+    perWidgetType: true,
+  },
+  'calendar.connect-google': {
+    label: 'Connect Google Calendar button on the Calendar face',
+    perWidgetType: true,
+  },
   'arts-letters-agenda.reset-checks': {
     label: 'Reset checks button in Arts & Letters Agenda',
     perWidget: true,
@@ -682,6 +699,10 @@ export const TOUR_ANCHORS = {
   },
   'assign-step.check': {
     label: 'Check step header in the Assign dialog',
+    panel: true,
+  },
+  'assign-step.speak': {
+    label: 'Speak step header in the Assign dialog',
     panel: true,
   },
   'assign-step.sharing': {
@@ -769,6 +790,8 @@ export const TOUR_ANCHORS = {
   'assign-classes.option': {
     label: 'Class checkbox in the Assign dialog classes menu',
     perField: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
     panel: true,
   },
   'assign-classes.select-all': {
@@ -782,6 +805,8 @@ export const TOUR_ANCHORS = {
   'assign-students.trigger': {
     label: 'All students menu button for a class in the Assign dialog',
     perField: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
     panel: true,
   },
   'assign-students.search': {
@@ -796,6 +821,8 @@ export const TOUR_ANCHORS = {
   'assign-students.option': {
     label: 'Student checkbox in the Assign dialog students menu',
     perField: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
     panel: true,
   },
   'assign-students.all': {
@@ -830,6 +857,14 @@ export const TOUR_ANCHORS = {
   'flashcards-check.mastery': {
     label:
       'Correct in a row to master box in the Assign dialog flashcards check step',
+    panel: true,
+  },
+  'flashcards-speak.show': {
+    label: 'Let students practice aloud switch in the Assign dialog Speak step',
+    panel: true,
+  },
+  'flashcards-speak.lock': {
+    label: 'Lock Speak settings switch in the Assign dialog Speak step',
     panel: true,
   },
   'flashcards-check.score-visibility': {
@@ -4562,16 +4597,18 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'library-shell.archive-primary-action': {
-    label: 'Primary action button on an assignment archive row',
+    label:
+      'Primary action button on an assignment row (In Progress or Archive tab)',
     persists: true,
     perField: true,
   },
   'library-shell.archive-menu': {
-    label: 'Kebab menu button on an assignment archive row',
+    label:
+      'Kebab menu button on an assignment row (In Progress or Archive tab)',
     perField: true,
   },
   'library-shell.archive-menu-item': {
-    label: 'Item inside an assignment archive row kebab menu',
+    label: 'Item inside an assignment row kebab menu',
     persists: true,
     perField: true,
     panel: true,
@@ -6670,7 +6707,8 @@ export const TOUR_ANCHORS = {
   },
   'modal.close': { label: 'Close button in a dialog header', panel: true },
   'library-shell.tab': {
-    label: 'Tab in a library shell header',
+    label:
+      'Library header tab: library (Library), active (In Progress), archive (Archive, Completed in Quiz), banks',
     perField: true,
     panel: true,
   },
@@ -9283,6 +9321,86 @@ export const TOUR_ANCHORS = {
   'flashcards.editor-description': {
     label: 'Description box in the Flashcards editor',
     perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.panel': {
+    label: 'Speak settings in the Flashcards editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.dialects': {
+    label: 'Accents to accept menu in the Flashcards editor Speak settings',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.dialect': {
+    label: 'An accent in the Accents to accept menu of the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.level': {
+    label: 'Level dropdown in the Flashcards editor Speak settings',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.attempts': {
+    label: 'Attempts per card box in the Flashcards editor Speak settings',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.strict': {
+    label: 'Strict switch in the Flashcards editor Speak settings',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.example': {
+    label: 'Hear it button switch in the Flashcards editor Speak settings',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.advanced': {
+    label: 'Advanced button in the Flashcards editor Speak settings',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.group': {
+    label: 'Sound row dropdown in the Flashcards editor Speak settings',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.review': {
+    label: 'Cards to check list in the Flashcards editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.review-card': {
+    label: 'A card in the Flashcards editor cards to check list',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.review-confirm': {
+    label: 'Looks right button in the Flashcards editor cards to check list',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.hear-it': {
+    label: 'Hear it button on a card in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.confirm': {
+    label: 'Looks right button on a card in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.card-advanced': {
+    label: 'Advanced button on a card in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.ipa': {
+    label: 'Pronunciation box on a card in the Flashcards editor',
+    perField: true,
     panel: true,
   },
   'flashcards.add-card': {
@@ -13537,6 +13655,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'flashcards.results-view': {
+    label: 'Study and Speaking switch in Flashcards Study results',
+    perField: true,
+    panel: true,
+  },
   'plc-assessments.folder-new': {
     label: 'New folder button in the PLC assessments folder panel',
     panel: true,
@@ -13986,6 +14109,63 @@ export const TOUR_ANCHORS = {
     label: 'Share results with PLC item in a quiz assignment row menu',
     perWidgetType: true,
     panel: true,
+  },
+  'quiz-library.archive-copy-link': {
+    label: 'Copy Student Link item in a quiz In Progress row menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.archive-results': {
+    label: 'Results item in a quiz In Progress row menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.archive-share': {
+    label: 'Share item (copies a share link) in a quiz assignment row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-pause': {
+    label: 'Pause item in a live quiz In Progress row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-end': {
+    label: 'End or End share item in a quiz In Progress row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-publish-scores': {
+    label: 'Publish scores item in a quiz Archive (Completed) row menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.archive-unpublish-scores': {
+    label: 'Unpublish scores item in a quiz Archive (Completed) row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-reopen': {
+    label: 'Reopen item in a quiz Archive (Completed) row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-reactivate': {
+    label: 'Reactivate item in an ended view-only quiz share row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-delete': {
+    label: 'Delete item in a quiz assignment row menu',
+    perWidgetType: true,
+    panel: true,
+    destructive: true,
   },
   // Quiz assignment Settings dialog (from an assignment row menu).
   'quiz-settings-modal.plc-results': {
