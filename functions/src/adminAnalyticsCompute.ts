@@ -790,14 +790,24 @@ export async function computeAnalyticsForOrg(
     readWidgetDayOrNull(addDays(widgetDay, -1)),
     readWidgetDayOrNull(addDays(widgetDay, -30)),
   ]);
-  const usage = widgetUsage.build({
-    now,
-    day: widgetDay,
-    members: memberByUid,
-    prevDay: prevWidgetDay,
-    monthAgo: monthAgoWidgetDay,
-  });
-  if (historyOptions.record && historyOptions.saveDay) {
+  // A bad stamp drops the widget usage table, never the whole snapshot.
+  let usage: Record<string, WidgetUsage> | undefined;
+  try {
+    usage = widgetUsage.build({
+      now,
+      day: widgetDay,
+      members: memberByUid,
+      prevDay: prevWidgetDay,
+      monthAgo: monthAgoWidgetDay,
+    });
+  } catch (err) {
+    console.error('[getAdminAnalytics] widget usage failed', {
+      ...logContext,
+      orgId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+  if (usage && historyOptions.record && historyOptions.saveDay) {
     try {
       await writeWidgetDay(orgId, widgetDay, widgetDayCounts(usage));
     } catch (err) {
@@ -826,7 +836,7 @@ export async function computeAnalyticsForOrg(
       totalInstances: totalWidgetCounts,
       activeInstances: activeWidgetCounts,
       usersByType,
-      usage,
+      ...(usage ? { usage } : {}),
     },
     dashboards: {
       total: totalDashboards,

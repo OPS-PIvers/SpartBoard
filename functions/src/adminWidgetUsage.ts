@@ -90,7 +90,9 @@ export class WidgetUsageTracker {
       let monthly = 0;
       const buildings: Record<string, number> = {};
       const users: WidgetUserRow[] = [];
-      for (const [uid, at] of byUid) {
+      for (const [uid, stamped] of byUid) {
+        // A stamp from a client clock far ahead of ours is not a real use.
+        const at = stamped > now + DAY_MS ? 0 : stamped;
         const age = now - at;
         if (at > 0 && age <= DAY_MS && chicagoDateKey(at) >= input.day) {
           daily += 1;

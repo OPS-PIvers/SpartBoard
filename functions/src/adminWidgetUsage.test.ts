@@ -51,6 +51,15 @@ describe('WidgetUsageTracker', () => {
     expect(usage.timer.users[2].lastUsedMs).toBe(0);
   });
 
+  it('ignores a stamp from a clock far in the future instead of throwing', () => {
+    const t = new WidgetUsageTracker();
+    t.add('clock', 'a', { uid: 'a', at: 1e17 });
+    t.add('clock', 'b', { uid: 'b', at: NOW + 2 * DAY });
+    const usage = t.build({ now: NOW, day: DAY_KEY, members });
+    expect(usage.clock).toMatchObject({ daily: 0, monthly: 0 });
+    expect(usage.clock.users.every((u) => u.lastUsedMs === 0)).toBe(true);
+  });
+
   it('ignores use stamped by someone else, such as on a copied board', () => {
     const t = new WidgetUsageTracker();
     t.add('clock', 'a', { uid: 'b', at: NOW - 1000 });
