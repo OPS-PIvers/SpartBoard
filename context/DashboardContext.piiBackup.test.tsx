@@ -1258,6 +1258,66 @@ describe('DashboardContext PII supplement shared with another device', () => {
     expect(driveWrites()).toHaveLength(1);
   });
 
+  it('still restores names and picks when the menu sync edits the widget before Drive answers', async () => {
+    let releaseRestore: () => void = () => undefined;
+    listFilesMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        releaseRestore = () =>
+          resolve([{ id: 'pii-1', name: 'dash-1-pii.json' }]);
+      })
+    );
+    const stateRef = setup();
+    await settleSnapshot(stateRef, [
+      makeDashboard('dash-1', [
+        scrubbedLunch(1),
+        { ...makeTextWidget('w-text', 'v0'), version: 1 },
+      ]),
+    ]);
+
+    act(() => {
+      stateRef.current?.updateWidget('w-lunch', {
+        config: { lastSyncDate: '2026-10-20T12:00:00.000Z' },
+      });
+    });
+    await act(async () => {
+      releaseRestore();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(configOf(stateRef.current?.activeDashboard, 'w-lunch')).toEqual(
+      expect.objectContaining({
+        roster: ['Ada', 'Ben'],
+        assignments: { Ada: 'hot' },
+        lastSyncDate: '2026-10-20T12:00:00.000Z',
+      })
+    );
+  });
+
+  it('retries clearing the Drive copy when the first clear fails', async () => {
+    const stateRef = await loadLunchBoard();
+    updateFileContentMock.mockRejectedValueOnce(new Error('offline'));
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    act(() => {
+      stateRef.current?.updateWidget('w-lunch', {
+        config: { roster: [], assignments: {} },
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+    expect(updateFileContentMock).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      stateRef.current?.updateWidget('w-text', { config: { content: 'v1' } });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000);
+    });
+    expect(updateFileContentMock).toHaveBeenCalledTimes(2);
+    expect((updateFileContentMock.mock.calls[1][1] as Blob).size).toBe(2);
+  });
+
   it('never blanks the Drive copy after a snapshot dropped names it had not reloaded yet', async () => {
     const stateRef = await loadLunchBoard();
 
