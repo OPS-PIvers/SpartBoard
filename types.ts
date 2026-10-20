@@ -9697,6 +9697,8 @@ export interface WidgetData {
   groupId?: string;
   /** Added by a live tour and not yet kept: never saved or recorded in undo history. */
   transient?: boolean;
+  /** Who last clicked, tapped or typed in this widget, stamped once a day for admin analytics. */
+  lastUse?: { uid: string; at: number };
   config: WidgetConfig;
 
   // Universal style properties

@@ -63,6 +63,7 @@ import {
   INSTANCE_FIELDS,
 } from '@/utils/widgetMergeFields';
 import { stableStringify } from '@/utils/stableStringify';
+import { withLaterUse } from '@/utils/widgetUse';
 import { useAuth } from './useAuth';
 import { mergeWidgetConfig } from '@/utils/widgetConfigPersistence';
 import i18n from '@/i18n';
@@ -2491,6 +2492,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                       ...(keepLocalAnnotation
                         ? { annotation: lw.annotation }
                         : {}),
+                      ...withLaterUse(lw, sw),
                     };
                   }
                 );

@@ -125,7 +125,7 @@ export function nextChicagoHourMs(
   return ms + 24 * ONE_HOUR_MS;
 }
 
-const addDays = (date: string, n: number): string => {
+export const addDays = (date: string, n: number): string => {
   const d = new Date(`${date}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);

@@ -6,6 +6,7 @@ import {
   type MergeFieldKey,
 } from '@/utils/widgetMergeFields';
 import { stableStringify } from '@/utils/stableStringify';
+import { withLaterUse } from '@/utils/widgetUse';
 
 /**
  * The last state this device knew the server to hold, used to tell its own
@@ -135,6 +136,7 @@ const mergeWidget = (
   ...(stableStringify(local.annotation) === stableStringify(base.annotation)
     ? { annotation: server.annotation }
     : {}),
+  ...withLaterUse(local, server),
 });
 
 /** Fold a newer server copy into the local board so a save never overwrites edits this device has not seen. */
