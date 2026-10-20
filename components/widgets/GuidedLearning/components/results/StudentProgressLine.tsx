@@ -5,7 +5,7 @@ import type { StudentProgressSummary } from '../../utils/progress';
 
 interface Props {
   progress: StudentProgressSummary | undefined;
-  /** Sessions without the v2 player never write progress. */
+  /** Sessions started before the v2 player hold no progress for work done in the old one. */
   playerV2: boolean;
   stepCount: number | null;
   className?: string;
@@ -23,14 +23,14 @@ export const StudentProgressLine: React.FC<Props> = ({
   const { t } = useTranslation();
   const now = useMinuteClock();
 
-  if (!playerV2) {
+  if (!progress) {
+    if (playerV2) return null;
     return (
       <p className={className} style={style}>
         {t('glStudentProgress.notTracked')}
       </p>
     );
   }
-  if (!progress) return null;
 
   const current = progress.furthestStepIdx + 1;
   const slide =
