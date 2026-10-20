@@ -195,6 +195,35 @@
       "openedAt": "2026-10-20T04:20:00Z",
       "outcome": "open",
       "changes": {}
+    },
+    {
+      "pr": 4432,
+      "widgetType": "url",
+      "dimension": "layout",
+      "openedAt": "2026-10-20T04:30:00Z",
+      "outcome": "open",
+      "changes": {
+        "S3": {
+          "before": 2,
+          "after": 3
+        },
+        "S6": {
+          "before": null,
+          "after": 4
+        },
+        "I2": {
+          "before": 1,
+          "after": 2
+        },
+        "V3": {
+          "before": 2,
+          "after": 3
+        },
+        "I6": {
+          "before": 2,
+          "after": 3
+        }
+      }
     }
   ]
 }
