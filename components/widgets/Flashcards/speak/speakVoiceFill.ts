@@ -15,9 +15,10 @@ export interface VoiceFillProgress {
   total: number;
 }
 
-/** Writes `merge` of the set's latest saved copy. */
+/** Writes `merge` of the set's latest saved copy; `final` is the job's last write. */
 export type VoiceFillWrite = (
-  merge: (latest: FlashcardSet) => FlashcardSet
+  merge: (latest: FlashcardSet) => FlashcardSet,
+  final: boolean
 ) => Promise<void>;
 
 interface Job {
@@ -98,6 +99,7 @@ export function applyVoiceResults<T extends Pick<FlashcardSet, 'id' | 'cards'>>(
     const speak = speakForTerm(card);
     if (
       !next ||
+      next.g2pVersion === SPEAK_G2P_VOICES_PENDING ||
       !speak ||
       !cardWaitsOnVoices(card) ||
       fillKey(speak) !== fillKey(next)
@@ -109,13 +111,17 @@ export function applyVoiceResults<T extends Pick<FlashcardSet, 'id' | 'cards'>>(
   return changed ? { ...set, cards } : set;
 }
 
-const scheduleWrite = (setId: string, job: Job): Promise<void> => {
-  if (job.writeQueued) return job.writing;
+const scheduleWrite = (
+  setId: string,
+  job: Job,
+  final = false
+): Promise<void> => {
+  if (job.writeQueued && !final) return job.writing;
   job.writeQueued = true;
   job.writing = job.writing
     .then(async () => {
       job.writeQueued = false;
-      await job.write((latest) => applyVoiceResults(latest));
+      await job.write((latest) => applyVoiceResults(latest), final);
     })
     .catch((err: unknown) => logError('speakVoiceFill.write', err, { setId }));
   return job.writing;
@@ -138,8 +144,11 @@ const takeBatch = (job: Job): FlashcardCard[] => {
 
 async function runWorker(setId: string, job: Job): Promise<void> {
   for (let batch = takeBatch(job); batch.length > 0; batch = takeBatch(job)) {
-    const dialects = speakForTerm(batch[0])?.dialects ?? [];
     try {
+      const dialects = speakForTerm(batch[0])?.dialects ?? [];
+      const sent = new Map(
+        batch.map((card) => [card.id, job.keys.get(card.id)] as const)
+      );
       const out = await job.call({
         language: job.language,
         dialects,
@@ -156,11 +165,14 @@ async function runWorker(setId: string, job: Job): Promise<void> {
       results.set(setId, found);
       for (const card of batch) {
         const speak = out.cards[card.id];
-        if (speak) found.set(card.id, speak);
+        // A reading for a term edited since it was sent is dropped; the newer one is queued.
+        if (speak && job.keys.get(card.id) === sent.get(card.id)) {
+          found.set(card.id, speak);
+        }
       }
       void scheduleWrite(setId, job);
     } catch (err) {
-      // Those cards stay pending; the next save tries again.
+      // Those cards stay pending; the next save or edit opening tries again.
       logError('speakVoiceFill.lookup', err, { setId });
     }
     job.done += batch.length;
@@ -172,7 +184,7 @@ async function runWorker(setId: string, job: Job): Promise<void> {
 async function finish(setId: string, job: Job): Promise<void> {
   job.running--;
   if (job.running > 0 || job.queue.length > 0) return;
-  await job.writing;
+  await scheduleWrite(setId, job, true);
   // A save during the last write can add cards to this job.
   if (jobs.get(setId) !== job || job.running > 0 || job.queue.length > 0)
     return;
@@ -204,15 +216,18 @@ export function startVoiceFill(
     language,
   };
   job.write = write;
+  job.call = call;
+  job.language = language;
   for (const card of waiting) {
     const speak = speakForTerm(card);
     if (!speak) continue;
     const key = fillKey(speak);
     if (job.keys.get(card.id) === key) continue;
     job.keys.set(card.id, key);
-    job.queue = job.queue.filter((queued) => queued.id !== card.id);
+    const queued = job.queue.length;
+    job.queue = job.queue.filter((other) => other.id !== card.id);
     job.queue.push(card);
-    job.total++;
+    if (job.queue.length > queued) job.total++;
   }
   if (job.queue.length === 0) return;
   jobs.set(set.id, job);

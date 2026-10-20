@@ -9,6 +9,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   where,
   writeBatch,
 } from 'firebase/firestore';
@@ -60,6 +61,8 @@ interface UseFlashcardSetsResult {
   deleteSet: (setId: string) => Promise<void>;
   publishSet: (set: FlashcardSet) => Promise<string>;
   revokeShare: (set: FlashcardSet) => Promise<void>;
+  /** Finishes Speak voice readings a set is still waiting on, in the background. */
+  fillSpeakVoices: (set: FlashcardSet) => void;
 }
 
 const SETS_COLLECTION = 'flashcard_sets';
@@ -266,24 +269,13 @@ export function useFlashcardSets(
 
   const writeSet = useCallback(
     async (
-      set: FlashcardSet,
-      kept?: FlashcardSet
+      set: FlashcardSet
     ): Promise<{ saved: FlashcardSet; rewritten: number }> => {
       if (!userId) throw new Error('Sign in to save flashcard sets.');
-      const fitted = fitSpeakToDoc(
+      const normalized = fitSpeakToDoc(
         `users/${userId}/${SETS_COLLECTION}/${set.id}`,
         normalizeSet(set)
       );
-      // A background voice fill is not an edit: it keeps the set's date and review mark.
-      const normalized: FlashcardSet = kept
-        ? {
-            ...fitted,
-            updatedAt: kept.updatedAt,
-            ...(kept.claudeReviewPendingAt !== undefined
-              ? { claudeReviewPendingAt: kept.claudeReviewPendingAt }
-              : {}),
-          }
-        : fitted;
       const adminConfig = await speakAdminConfigFor(normalized, canSpeak);
       const batch = writeBatch(db);
       batch.set(
@@ -319,23 +311,44 @@ export function useFlashcardSets(
 
   const patchVoices = useCallback(
     (setId: string): VoiceFillWrite =>
-      (merge) =>
+      (merge, final) =>
         oneWriteAtATime(`${userId}/${setId}`, async () => {
           if (!userId) return;
-          const snap = await getDoc(
-            doc(db, 'users', userId, SETS_COLLECTION, setId)
-          );
-          if (!snap.exists()) return;
-          const latest = { ...(snap.data() as FlashcardSet), id: setId };
-          const next = merge(latest);
-          if (next === latest) return;
+          const setRef = doc(db, 'users', userId, SETS_COLLECTION, setId);
+          // A transaction, so an edit from another tab, a delete or a revoked share always wins.
+          const patched = await runTransaction(db, async (tx) => {
+            const snap = await tx.get(setRef);
+            if (!snap.exists()) return null;
+            const latest = { ...(snap.data() as FlashcardSet), id: setId };
+            const merged = merge(latest);
+            if (merged === latest) return latest;
+            const next = fitSpeakToDoc(
+              `users/${userId}/${SETS_COLLECTION}/${setId}`,
+              merged
+            );
+            tx.update(setRef, { cards: next.cards });
+            if (next.publicShareId) {
+              const adminConfig = await speakAdminConfigFor(next, canSpeak);
+              tx.set(
+                doc(db, 'public_flashcard_sets', next.publicShareId),
+                toPublicSnapshot(next, userId, adminConfig)
+              );
+            }
+            return next;
+          });
+          // Open Study assignments get the readings once, at the end.
+          if (!patched || !final) return;
           try {
-            await writeSet(next, latest);
+            await rewriteOpenStudySessions(
+              userId,
+              patched,
+              await speakAdminConfigFor(patched, canSpeak)
+            );
           } catch (err) {
-            if (!(err instanceof FlashcardStudySyncError)) throw err;
+            logError('useFlashcardSets.patchVoices', err, { userId, setId });
           }
         }),
-    [userId, writeSet]
+    [canSpeak, userId]
   );
 
   const saveSet = useCallback(
@@ -354,6 +367,13 @@ export function useFlashcardSets(
         return result.rewritten;
       }),
     [canSpeak, patchVoices, userId, writeSet]
+  );
+
+  const fillSpeakVoices = useCallback(
+    (set: FlashcardSet): void => {
+      if (canSpeak && userId) startVoiceFill(set, patchVoices(set.id));
+    },
+    [canSpeak, patchVoices, userId]
   );
 
   const deleteSet = useCallback(
@@ -421,5 +441,6 @@ export function useFlashcardSets(
     deleteSet,
     publishSet,
     revokeShare,
+    fillSpeakVoices,
   };
 }

@@ -110,7 +110,8 @@ describe('startVoiceFill', () => {
     await flush();
     expect(stored.cards.every((c) => c.speak?.refs.length === 2)).toBe(true);
     expect(stored.cards[0].definition).toBe('edited');
-    expect(write.mock.calls.length).toBeLessThanOrEqual(3);
+    expect(write.mock.calls.length).toBeLessThanOrEqual(4);
+    expect(write.mock.calls.at(-1)?.[1]).toBe(true);
   });
 
   it('skips a card whose term changed while its voices were read', async () => {
@@ -142,6 +143,45 @@ describe('startVoiceFill', () => {
     calls[0].reject(new Error('down'));
     await flush();
     expect(stored.cards[0].speak?.g2pVersion).toBe(SPEAK_G2P_VOICES_PENDING);
+  });
+
+  it('drops a late reading for a term edited and saved again mid-fill', async () => {
+    let stored = makeSet([card(0)]);
+    const write = (merge: (s: FlashcardSet) => FlashcardSet) => {
+      stored = merge(stored);
+      return Promise.resolve();
+    };
+    const { calls, call, answer } = controlledCall();
+    startVoiceFill(stored, write, call);
+    stored = makeSet([{ ...card(0, pendingSpeak('nuevo')), term: 'nuevo' }]);
+    startVoiceFill(stored, write, call);
+    answer(calls[0]);
+    await flush();
+    expect(stored.cards[0].speak?.g2pVersion).toBe(SPEAK_G2P_VOICES_PENDING);
+    answer(calls[1]);
+    await flush();
+    expect(stored.cards[0].speak?.term).toBe('nuevo');
+    expect(stored.cards[0].speak?.g2pVersion).toBe(SPEAK_G2P_VERSION);
+  });
+
+  it('does not write a reading that is still waiting on voices', async () => {
+    let stored = makeSet([card(0)]);
+    const { calls, call } = controlledCall();
+    startVoiceFill(
+      stored,
+      (merge) => {
+        stored = merge(stored);
+        return Promise.resolve();
+      },
+      call
+    );
+    const before = stored;
+    calls[0].resolve({
+      g2pVersion: SPEAK_G2P_VERSION,
+      cards: { c0: pendingSpeak('t0') },
+    });
+    await flush();
+    expect(stored).toBe(before);
   });
 
   it('does not read a card twice when the set is saved again mid-fill', () => {
