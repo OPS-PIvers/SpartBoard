@@ -269,12 +269,17 @@ export function applySpeakInput(
   const dialects = input.dialects
     ? SPEAK_DIALECTS[language].filter((d) => input.dialects?.includes(d))
     : settings.dialects;
+  if (dialects.length === 0) {
+    throw new ToolError(
+      `Pick accents for this language: ${SPEAK_DIALECTS[language].join(', ')}.`
+    );
+  }
   return {
     ...settings,
     ...(input.level
       ? { preset: input.level, ...speakPresetSettings(language, input.level) }
       : {}),
-    dialects: dialects.length > 0 ? dialects : settings.dialects,
+    dialects,
     attempts:
       input.attempts === undefined
         ? settings.attempts
@@ -360,14 +365,26 @@ export async function attachSpeakReferences(
     staleIds.has(card.id)
       ? {
           ...card,
-          speak: (found[card.id] ?? lookupFailed(card)) as unknown as Record<
-            string,
-            unknown
-          >,
+          speak: keepConfirmation(
+            card.speak as FlashcardCardSpeak | undefined,
+            found[card.id] ?? lookupFailed(card)
+          ) as unknown as Record<string, unknown>,
         }
       : card
   );
 }
+
+/** A teacher's confirmation survives a re-lookup that returns the same references. */
+const keepConfirmation = (
+  previous: FlashcardCardSpeak | undefined,
+  next: FlashcardCardSpeak
+): FlashcardCardSpeak =>
+  previous?.confirmedAt &&
+  previous.term === next.term &&
+  next.status === 'needs-review' &&
+  JSON.stringify(previous.refs) === JSON.stringify(next.refs)
+    ? { ...next, confirmedAt: previous.confirmedAt }
+    : next;
 
 export interface SpeakCounts {
   ready: number;

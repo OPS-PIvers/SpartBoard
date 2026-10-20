@@ -90,7 +90,18 @@ function fullSet(set: FlashcardSet) {
     definition_language: set.definitionLanguage,
     shared_publicly: Boolean(set.publicShareId),
     ...(set.speak ? { speak: set.speak } : {}),
-    cards: set.cards,
+    // References are for the student player; Claude only needs each card's status.
+    cards: set.cards.map(({ speak, ...card }) =>
+      speak
+        ? {
+            ...card,
+            speak_status: speak.status,
+            ...(Array.isArray(speak.reasons)
+              ? { speak_reasons: speak.reasons }
+              : {}),
+          }
+        : card
+    ),
   };
 }
 

@@ -552,6 +552,73 @@ describe('flashcard Speak (S10)', () => {
     ).toEqual(['perro', 'gata']);
   });
 
+  it("returns each card's Speak status, not its references", async () => {
+    const { db } = fakeDb();
+    const call = await connect(db);
+    const made = await call('create_flashcard_set', {
+      title: 'Animales',
+      term_language: 'es-MX',
+      cards: [es('l?bo')],
+    });
+    const res = await call('get_flashcard_set', {
+      set_id: made.set_id as string,
+    });
+    expect((res.cards as Data[])[0]).toEqual({
+      id: expect.any(String) as string,
+      term: 'l?bo',
+      definition: 'd',
+      speak_status: 'needs-review',
+      speak_reasons: ['g2p-disagree'],
+    });
+  });
+
+  it('refuses accents from another language', async () => {
+    const { db, docs } = fakeDb();
+    const res = await (
+      await connect(db)
+    )('create_flashcard_set', {
+      title: 'Tiere',
+      term_language: 'de-DE',
+      cards: [es('Hund')],
+      speak: { dialects: ['es-ES'] },
+    });
+    expect(res.error).toMatch(/de-DE/);
+    expect([...docs.keys()].some((k) => k.includes('flashcard_sets'))).toBe(
+      false
+    );
+  });
+
+  it('keeps a teacher confirmation when a re-lookup returns the same references', async () => {
+    const cardSpeak = {
+      term: 'l?bo',
+      refs: [ref('es-419')],
+      g2pVersion: 'old-engine',
+      status: 'needs-review',
+      reasons: ['g2p-disagree'],
+      confirmedAt: 5,
+    };
+    const { db, docs } = fakeDb({
+      [setPath('s1')]: {
+        title: 'Animales',
+        termLanguage: 'es-MX',
+        definitionLanguage: 'en-US',
+        speak: { dialects: ['es-419'] },
+        cards: [{ id: 'c1', term: 'l?bo', definition: 'd', speak: cardSpeak }],
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    });
+    await (
+      await connect(db)
+    )('update_flashcard_set', {
+      set_id: 's1',
+      title: 'Animales 2',
+    });
+    expect(
+      ((docs.get(setPath('s1')) as Data).cards as { speak?: Data }[])[0].speak
+    ).toMatchObject({ g2pVersion: SPEAK_G2P_VERSION, confirmedAt: 5 });
+  });
+
   it('marks cards when the lookup fails and retries them on the next save', async () => {
     const { db, docs } = fakeDb();
     const call = await connect(db);
