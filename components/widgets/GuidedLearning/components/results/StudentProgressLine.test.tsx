@@ -66,9 +66,16 @@ describe('StudentProgressLine', () => {
     expect(screen.getByText('Slide 7 · active just now')).toBeInTheDocument();
   });
 
-  it('says "Not tracked" for a session without the v2 player', () => {
+  it('says "Not tracked" for a student with no progress on an older session', () => {
     renderLine({ playerV2: false, progress: undefined });
     expect(screen.getByText('Not tracked')).toBeInTheDocument();
+  });
+
+  it('shows progress recorded on an older session', () => {
+    renderLine({ playerV2: false });
+    expect(
+      screen.getByText('Slide 7 of 12 · active just now')
+    ).toBeInTheDocument();
   });
 
   it('renders nothing for a tracked student with no progress doc yet', () => {

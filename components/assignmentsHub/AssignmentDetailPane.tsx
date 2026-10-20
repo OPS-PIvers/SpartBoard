@@ -82,13 +82,13 @@ const RosterRow: React.FC<{
         {row.modifiedNote && (
           <p className="text-xs text-slate-400">{row.modifiedNote}</p>
         )}
-        {progress &&
+        {progress?.byUid &&
           !row.skipped &&
           !row.removed &&
           !row.manual &&
           row.status !== 'not-started' && (
             <StudentProgressLine
-              progress={progress.byUid?.get(row.key)}
+              progress={progress.byUid.get(row.key)}
               playerV2={progress.playerV2}
               stepCount={progress.stepCount}
               className="text-xs text-slate-500"
@@ -323,7 +323,7 @@ export const AssignmentDetailPane: React.FC<{
   const glShape = useGuidedLearningSessionShape(row.sessionId, glProgressOn);
   const glProgressByUid = useGuidedLearningStudentProgress(
     row.sessionId,
-    glProgressOn && glShape?.playerV2 === true
+    glProgressOn
   );
   const glProgress: GuidedProgress | undefined = glShape
     ? {

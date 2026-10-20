@@ -278,7 +278,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
     !viewOnly && canAccessFeature('gl-student-progress');
   const progressByUid = useGuidedLearningStudentProgress(
     sessionId,
-    showStudentProgress && playerV2
+    showStudentProgress
   );
   const { byStudentUid } = useAssignmentPseudonymsMulti(
     sessionId,
@@ -823,19 +823,21 @@ export const GuidedLearningResults: React.FC<Props> = ({
                                 Locked
                               </span>
                             )}
-                            {showStudentProgress && sessionLoaded && (
-                              <StudentProgressLine
-                                progress={progressByUid?.get(
-                                  r.studentAnonymousId
-                                )}
-                                playerV2={playerV2}
-                                stepCount={
-                                  sessionSteps?.length ?? set.steps.length
-                                }
-                                className="text-slate-500"
-                                style={{ fontSize: 'min(12px, 4.5cqmin)' }}
-                              />
-                            )}
+                            {showStudentProgress &&
+                              sessionLoaded &&
+                              progressByUid && (
+                                <StudentProgressLine
+                                  progress={progressByUid.get(
+                                    r.studentAnonymousId
+                                  )}
+                                  playerV2={playerV2}
+                                  stepCount={
+                                    sessionSteps?.length ?? set.steps.length
+                                  }
+                                  className="text-slate-500"
+                                  style={{ fontSize: 'min(12px, 4.5cqmin)' }}
+                                />
+                              )}
                           </div>
                           <div
                             className="flex items-center"
