@@ -18,8 +18,9 @@ const SortableRow: React.FC<{
   id: string;
   disabled: boolean;
   handleSize: string;
+  tight: string;
   children: React.ReactNode;
-}> = ({ id, disabled, handleSize, children }) => {
+}> = ({ id, disabled, handleSize, tight, children }) => {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id, disabled });
 
@@ -28,7 +29,7 @@ const SortableRow: React.FC<{
       ref={setNodeRef}
       className="flex items-start"
       style={{
-        gap: '4px',
+        gap: tight,
         transform: CSS.Transform.toString(transform),
         transition,
       }}
@@ -38,6 +39,7 @@ const SortableRow: React.FC<{
           attributes={attributes}
           listeners={listeners}
           size={handleSize}
+          padding={tight}
         />
       )}
       <div className="min-w-0 flex-1">{children}</div>
@@ -70,7 +72,10 @@ export const TimelineLayout: React.FC<WallRenderProps> = ({
   // Gap spots live in their own <li> so the sortable rows stay a clean id list.
   const gap = (index: number) =>
     addSpots ? (
-      <li className="group flex justify-center border-l-2 border-transparent pl-3">
+      <li
+        className="group flex justify-center border-l-2 border-transparent"
+        style={{ paddingLeft: scale.indent }}
+      >
         <AddSpot
           mode={mode}
           placement={gapPlacement(items, index)}
@@ -88,12 +93,16 @@ export const TimelineLayout: React.FC<WallRenderProps> = ({
       {gap(0)}
       {items.map((submission, index) => (
         <React.Fragment key={submission.id}>
-          <li className="border-l-2 border-white/20 pl-3">
+          <li
+            className="border-l-2 border-white/20"
+            style={{ paddingLeft: scale.indent }}
+          >
             {sortable ? (
               <SortableRow
                 id={submission.id}
                 disabled={false}
                 handleSize={scale.icon}
+                tight={scale.tight}
               >
                 <SubmissionCard
                   submission={submission}

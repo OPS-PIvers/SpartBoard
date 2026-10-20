@@ -585,8 +585,12 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
               {toolbarMenuOpen && (
                 <div
                   role="menu"
-                  className="absolute right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-white/15 bg-slate-900/95 py-1 shadow-xl backdrop-blur-md"
-                  style={{ minWidth: 'min(176px, 55cqw)' }}
+                  className="absolute right-0 top-full z-20 overflow-hidden rounded-xl border border-white/15 bg-slate-900/95 shadow-xl backdrop-blur-md"
+                  style={{
+                    minWidth: 'min(176px, 55cqw)',
+                    marginTop: 'min(4px, 1cqmin)',
+                    paddingBlock: 'min(4px, 1cqmin)',
+                  }}
                 >
                   {secondaryActions.map((action) => (
                     <button
