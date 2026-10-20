@@ -15,6 +15,8 @@ import {
   speakPresetSettings,
 } from '@/config/pronunciationGroups';
 import { EmptyReferenceError } from './score';
+import { logSoftmax } from './likelihood';
+import vocab from './xlsr53EspeakVocab.json';
 import {
   effectiveGroupSettings,
   judgeSpeech,
@@ -592,4 +594,70 @@ describe('property: forgiving never hurts, requiring never helps', () => {
       }
     });
   }
+});
+
+describe('likelihood segments (S11c)', () => {
+  const VOCAB: Record<string, number> = vocab;
+  const V = Object.keys(VOCAB).length;
+  // Each frame strongly favours one symbol; '-' is the CTC blank.
+  const spokenAs = (frames: string[]) => {
+    const logits = new Float32Array(frames.length * V);
+    frames.forEach((f, t) => {
+      logits[t * V + (f === '-' ? 0 : VOCAB[f])] = 8;
+    });
+    return {
+      data: logSoftmax(logits, frames.length, V),
+      frames: frames.length,
+      vocabSize: V,
+    };
+  };
+  const OLA = ['o', 'l', 'a'];
+
+  it('judges segments from the log-probabilities, not the greedy tokens', () => {
+    const logProbs = spokenAs(['-', 'o', 'o', '-', 'l', '-', 'a', 'a', '-']);
+    // The greedy tokens say "ole"; the frames say "ola".
+    const r = judge([ref(OLA)], ['o', 'l', 'e'], { logProbs });
+    expect(r.verdict).toBe('exact');
+    const wrong = judge([ref(OLA)], OLA, {
+      logProbs: spokenAs(['-', 'o', 'o', '-', 'l', '-', 'e', 'e', '-']),
+    });
+    expect(wrong.verdict).toBe('wrong');
+    expect(wrong.entries[2]).toMatchObject({ targetIPA: 'a', spokenIPA: 'e' });
+  });
+
+  it('still reads an unclear take from the greedy tokens and confidence', () => {
+    const logProbs = spokenAs(['-', 'o', '-', 'l', '-', 'a', '-']);
+    expect(judge([ref(OLA)], [], { logProbs }).verdict).toBe('unclear');
+    expect(judge([ref(OLA)], OLA, { logProbs, confidence: 0.1 }).verdict).toBe(
+      'unclear'
+    );
+  });
+
+  it('falls back to the greedy tokens for a reference the model cannot spell', () => {
+    const logProbs = spokenAs(['-', 'o', '-', 'l', '-', 'a', '-']);
+    expect(judge([ref(['☃'])], ['o'], { logProbs }).verdict).toBe('wrong');
+  });
+
+  it('places a winning voice reference on the espeak reference letters', () => {
+    const letters: FlashcardSpeakReference = {
+      ...ref(['a', 'b', 'c']),
+      letterSpans: [0, 1, 1, 2, 2, 3],
+    };
+    const voice: FlashcardSpeakReference = {
+      ...ref(['a', 'x', 'b', 'c']),
+      source: 'voice',
+    };
+    const r = judge([letters, voice], ['a', 'x', 'b', 'd']);
+    expect(r.verdict).toBe('wrong');
+    const error = r.entries.find((e) => e.kind === 'error');
+    // Voice position 4 (c) sits on espeak position 3.
+    expect(error).toMatchObject({
+      position: 3,
+      targetIPA: 'c',
+      spokenIPA: 'd',
+    });
+    expect(Math.max(...r.entries.map((e) => e.position))).toBeLessThanOrEqual(
+      3
+    );
+  });
 });

@@ -4,6 +4,7 @@ import {
   hostedModelUrl,
 } from '@/config/pronunciationModel';
 import type { CtcToken } from './ctcDecode';
+import type { SpeakLogProbs } from './likelihood';
 import { decodeToModelRate, trimSilence } from './audio';
 import { findCachedModel } from './modelCache';
 import {
@@ -31,6 +32,8 @@ export interface RecognizeResult {
   voicedMs: number;
   audio16k: Float32Array;
   decodeMs: number;
+  /** Per-frame log-probabilities for the likelihood verdict; absent when the take was too short to decode. */
+  logProbs?: SpeakLogProbs;
 }
 
 export interface Recognizer {
@@ -56,8 +59,14 @@ export interface RecognizerBackend {
     onProgress: (loaded: number, total: number) => void,
     onStarting: () => void
   ): Promise<void>;
-  run(audio: Float32Array): Promise<{ tokens: CtcToken[]; confidence: number }>;
+  run(audio: Float32Array): Promise<BackendResult>;
   dispose(): void;
+}
+
+export interface BackendResult {
+  tokens: CtcToken[];
+  confidence: number;
+  logProbs?: SpeakLogProbs;
 }
 
 export class BackendLoadError extends Error {
@@ -115,7 +124,7 @@ function createWorkerBackend(): RecognizerBackend {
   const pending = new Map<
     number,
     {
-      resolve: (r: { tokens: CtcToken[]; confidence: number }) => void;
+      resolve: (r: BackendResult) => void;
       reject: (e: Error) => void;
     }
   >();
@@ -342,6 +351,7 @@ export function createRecognizer(
     return {
       tokens: outcome.r.tokens,
       confidence: outcome.r.confidence,
+      ...(outcome.r.logProbs ? { logProbs: outcome.r.logProbs } : {}),
       voicedMs,
       audio16k,
       decodeMs: Math.round(env.now() - t0),

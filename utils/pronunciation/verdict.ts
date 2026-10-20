@@ -18,6 +18,12 @@ import {
   EmptyReferenceError,
   type AlignmentEntry,
 } from './score';
+import {
+  decideSounds,
+  scoreReference,
+  scoringCandidates,
+  type SpeakLogProbs,
+} from './likelihood';
 
 /** §4.4 rule 1: under this much voiced audio after trimSilence reads as unclear. */
 export const SPEAK_MIN_VOICED_MS = 150;
@@ -37,6 +43,8 @@ export interface SpeakJudgeInput {
   language: SpeakLanguage;
   settings: Pick<FlashcardSpeakSettings, 'strict' | 'groups'>;
   unclearConfidence: number;
+  /** The take's per-frame log-probabilities; with them segments are judged by likelihood, without them by the greedy tokens. */
+  logProbs?: SpeakLogProbs | null;
 }
 
 export interface SpeakJudgeEntry extends AlignmentEntry {
@@ -131,11 +139,18 @@ type DialectJudgement = Omit<SpeakJudgement, 'verdict' | 'dialect'> & {
 function judgeDialect(
   ref: FlashcardSpeakReference,
   input: SpeakJudgeInput,
-  effective: Record<string, 'forgive' | 'require'>
+  effective: Record<string, 'forgive' | 'require'>,
+  candidates: readonly string[]
 ): DialectJudgement {
   const n = ref.tokens.length;
   const { alignment } = alignPronunciation(ref.tokens, input.spoken);
-  const entries = alignment.map((e) =>
+  const readings = input.logProbs
+    ? scoreReference(input.logProbs, ref.tokens, candidates)
+    : null;
+  const segments = readings
+    ? decideSounds(ref.tokens, readings, input.language, effective)
+    : alignment;
+  const entries = segments.map((e) =>
     classify(e, input.language, effective, n)
   );
 
@@ -230,15 +245,46 @@ export function judgeSpeech(input: SpeakJudgeInput): SpeakJudgement {
   }
 
   const effective = effectiveGroupSettings(input.language, input.settings);
-  const [first, ...rest] = input.refs.map((ref) =>
-    judgeDialect(ref, input, effective)
+  const candidates = scoringCandidates(
+    input.language,
+    input.refs.filter((r) => r.source !== 'voice').flatMap((r) => r.tokens)
   );
-  return rest.reduce(
-    (best, result) =>
-      VERDICT_RANK[result.verdict] > VERDICT_RANK[best.verdict] ||
-      (result.verdict === best.verdict && result.accuracy > best.accuracy)
-        ? result
-        : best,
-    first
+  const judged = input.refs.map((ref) => ({
+    ref,
+    result: judgeDialect(ref, input, effective, candidates),
+  }));
+  const best = judged.reduce((top, next) =>
+    VERDICT_RANK[next.result.verdict] > VERDICT_RANK[top.result.verdict] ||
+    (next.result.verdict === top.result.verdict &&
+      next.result.accuracy > top.result.accuracy)
+      ? next
+      : top
   );
+  return onLetterRef(best.ref, best.result, input.refs);
+}
+
+// A voice reference has no letter spans, so its marks move onto the dialect's espeak reference.
+function onLetterRef(
+  ref: FlashcardSpeakReference,
+  result: DialectJudgement,
+  refs: readonly FlashcardSpeakReference[]
+): DialectJudgement {
+  if (ref.source !== 'voice') return result;
+  const letters = refs.find(
+    (r) => r.dialect === ref.dialect && r.source !== 'voice'
+  );
+  if (!letters) return result;
+  const { alignment } = alignPronunciation(letters.tokens, ref.tokens);
+  const toLetters: number[] = [];
+  for (const a of alignment) {
+    if (a.spokenIPA === null) continue;
+    toLetters.push(Math.min(Math.max(a.position, 1), letters.tokens.length));
+  }
+  return {
+    ...result,
+    entries: result.entries.map((e) => ({
+      ...e,
+      position: toLetters[e.position - 1] ?? e.position,
+    })),
+  };
 }
