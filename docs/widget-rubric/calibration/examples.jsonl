@@ -329,3 +329,6 @@
 {"widgetType":"graphic-organizer","criterionId":"V5","paul":1,"judge":null,"script":2,"rubricVersion":"1.1.0","gradedAt":"2026-10-19T12:09:40.817Z","runId":"spot-2026-10-19","deckId":"widget-2026-10-19T12-01-08-794Z"}
 {"widgetType":"graphic-organizer","criterionId":"V6","paul":3,"judge":3,"script":null,"rubricVersion":"1.1.0","gradedAt":"2026-10-19T12:09:59.277Z","runId":"spot-2026-10-19","deckId":"widget-2026-10-19T12-01-08-794Z"}
 {"widgetType":"poll","criterionId":"C1","paul":2,"judge":2,"script":null,"rubricVersion":"1.1.0","gradedAt":"2026-10-19T12:10:12.813Z","runId":"spot-2026-10-19","deckId":"widget-2026-10-19T12-01-08-794Z"}
+{"widgetType":"embed","criterionId":"C5","paul":2,"judge":2,"script":null,"rubricVersion":"1.1.0","gradedAt":"2026-10-20T13:39:04.643Z","runId":"grade-embed-2026-10-20","deckId":"widget-2026-10-20T13-28-30-362Z"}
+{"widgetType":"embed","criterionId":"I1","paul":2,"judge":null,"script":2,"rubricVersion":"1.1.0","gradedAt":"2026-10-20T13:37:52.076Z","runId":"grade-embed-2026-10-20","deckId":"widget-2026-10-20T13-28-30-362Z"}
+{"widgetType":"embed","criterionId":"V6","paul":2,"judge":2,"script":null,"note":"Agreed - the \"flip\" terminology is also legacy and not correct anymore.","rubricVersion":"1.1.0","gradedAt":"2026-10-20T13:38:53.096Z","runId":"grade-embed-2026-10-20","deckId":"widget-2026-10-20T13-28-30-362Z"}
