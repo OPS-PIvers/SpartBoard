@@ -641,23 +641,26 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               </a>
             </div>
           ) : (
-            <div className="flex-1 relative overflow-hidden">
-              <iframe
-                key={refreshKey}
-                title="Embed Content"
-                src={displayMode === 'url' ? finalEmbedUrl : undefined}
-                srcDoc={displayMode === 'code' ? html : undefined}
-                className="absolute top-0 left-0 border-none block"
-                style={{
-                  transform: `scale(${effectiveZoom})`,
-                  transformOrigin: 'top left',
-                  width: `${100 / effectiveZoom}%`,
-                  height: `${100 / effectiveZoom}%`,
-                }}
-                sandbox={sandbox}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-              />
+            <div className="flex-1 relative">
+              {/* Thin frame outside the iframe stays grabbable so the widget drags from inside. */}
+              <div className="absolute inset-[min(14px,4cqmin)] overflow-hidden">
+                <iframe
+                  key={refreshKey}
+                  title="Embed Content"
+                  src={displayMode === 'url' ? finalEmbedUrl : undefined}
+                  srcDoc={displayMode === 'code' ? html : undefined}
+                  className="absolute top-0 left-0 border-none block"
+                  style={{
+                    transform: `scale(${effectiveZoom})`,
+                    transformOrigin: 'top left',
+                    width: `${100 / effectiveZoom}%`,
+                    height: `${100 / effectiveZoom}%`,
+                  }}
+                  sandbox={sandbox}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              </div>
             </div>
           )}
         </div>
