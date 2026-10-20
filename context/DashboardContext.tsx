@@ -3316,7 +3316,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // Ink is excluded from the dedupe: a Drive re-export of the whole board
     // per annotation session is a lot of API traffic for markup the export
     // is not there to carry. The next real board edit ships current ink.
-    const currentData = serializeWithoutInk(serializeDashboard(active));
+    // Use stamps are left out too, so a widget's first click of the day saves without a Drive export.
+    const currentData = serializeWithoutInk(
+      serializeDashboard(withoutUseStamps(active))
+    );
 
     if (currentData === lastExportedDataRef.current) return;
     if (currentData === pendingExportDataRef.current) return;
