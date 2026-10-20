@@ -7,7 +7,8 @@ import { ALLOWED_ORIGINS } from '../classlinkShared';
 import { parseFlashcardAnswerVariants } from '../flashcardMatch';
 import { assertViewAsAllowed } from '../viewAsGuard';
 import { cmudictStress, disagreesWithCmudict, lookupCmudict } from './cmudict';
-import { ESPEAK_PACKAGE, loadPhonemizer, type Phonemizer } from './espeak';
+import { loadPhonemizer, type Phonemizer } from './espeak';
+import { SPEAK_G2P_VERSION, SPEAK_G2P_VOICES_PENDING } from './g2pVersion';
 import { computeLetterSpans } from './letterSpans';
 import { normalizeEspeakIpa } from './normalize';
 import {
@@ -22,11 +23,7 @@ import {
   VoiceServiceError,
   type VoiceReader,
 } from './voiceRefs';
-import {
-  PRONUNCIATION_MODEL,
-  PRONUNCIATION_VOICES,
-  voiceDialect,
-} from './voices';
+import { PRONUNCIATION_VOICES, voiceDialect } from './voices';
 import type {
   FlashcardCardSpeak,
   FlashcardSpeakReason,
@@ -39,9 +36,7 @@ import type {
 } from './types';
 
 export const FLASHCARDS_SPEAK_FEATURE_ID = 'flashcards-speak';
-export const SPEAK_G2P_VERSION = `${ESPEAK_PACKAGE}+1.51norm/cmudict-7479086/voices-r2-${PRONUNCIATION_MODEL.md5Prefix}`;
-// Any version but the current one makes the next save look the card up again.
-export const SPEAK_G2P_VOICES_PENDING = `${SPEAK_G2P_VERSION}/pending`;
+export { SPEAK_G2P_VERSION, SPEAK_G2P_VOICES_PENDING };
 // About 1 s of model time per voice on 2 vCPU; leaves the callable's 540 s timeout a margin for the last card.
 export const DEFAULT_VOICE_BUDGET_MS = 420_000;
 export const MAX_LOOKUP_TERMS = 500;

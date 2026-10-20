@@ -1,8 +1,6 @@
 // espeak-ng (GPL-3.0, WASM build) for server-side reference phonemes only; loaded on first use so other functions' cold starts don't pay for it.
 import type { SpeakDialect } from './types';
 
-export const ESPEAK_PACKAGE = '@echogarden/espeak-ng-emscripten@0.3.5';
-
 const VOICES: Record<SpeakDialect, string> = {
   'es-419': 'es-419',
   'es-ES': 'es',

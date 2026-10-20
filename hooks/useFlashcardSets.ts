@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type {
-  FlashcardSpeakSettings,
+  FlashcardSpeakStudentSettings,
   FlashcardsSpeakAdminConfig,
   FlashcardSet,
   PublicFlashcardSet,
@@ -84,7 +84,7 @@ export const speakAdminConfigFor = (
 const withoutLock = ({
   locked: _locked,
   ...settings
-}: FlashcardSpeakStamp): FlashcardSpeakSettings => settings;
+}: FlashcardSpeakStamp): FlashcardSpeakStudentSettings => settings;
 
 const stampFor = (
   set: FlashcardSet,

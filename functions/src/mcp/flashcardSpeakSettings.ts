@@ -106,6 +106,7 @@ const GROUP_SETTINGS: readonly SpeakGroupSetting[] = [
 ];
 export const DEFAULT_SPEAK_ATTEMPTS = 3;
 const DEFAULT_SPEAK_PRESET: SpeakPresetId = 'beginner';
+export const DEFAULT_UNCLEAR_CONFIDENCE = 0.4;
 
 export function speakPresetSettings(
   language: SpeakLanguage,
@@ -176,9 +177,11 @@ export interface SpeakAdminDefaults {
     >
   >;
   attempts: number;
+  /** 0-1; stamped for students, never saved on the set. */
+  unclearConfidence: number;
 }
 
-/** Mirrors normalizeFlashcardsSpeakAdminConfig (config/flashcardsSpeakAdmin.ts), minus the student-only cut-off. */
+/** Mirrors normalizeFlashcardsSpeakAdminConfig (config/flashcardsSpeakAdmin.ts). */
 export function normalizeSpeakAdminDefaults(raw: unknown): SpeakAdminDefaults {
   const src = asRecord(raw);
   const languages = asRecord(src.languages);
@@ -190,7 +193,18 @@ export function normalizeSpeakAdminDefaults(raw: unknown): SpeakAdminDefaults {
       groups: knownGroups(language, entry.groups),
     };
   }
-  return { languages: out, attempts: clampSpeakAttempts(src.attempts) };
+  const unclear = src.unclearConfidence;
+  return {
+    languages: out,
+    attempts: clampSpeakAttempts(src.attempts),
+    unclearConfidence:
+      typeof unclear === 'number' &&
+      Number.isFinite(unclear) &&
+      unclear >= 0 &&
+      unclear <= 1
+        ? unclear
+        : DEFAULT_UNCLEAR_CONFIDENCE,
+  };
 }
 
 /** Mirrors buildSpeakStamp (components/widgets/Flashcards/utils/flashcardAssign.ts) without the lock. */
