@@ -178,6 +178,20 @@ describe('voice references in the lookup', () => {
     expect(out.cards.c2.status).toBe('ready');
   });
 
+  it('leaves voice-eligible cards pending when voices are turned off', async () => {
+    const out = await computeSpeakReferences(
+      es([
+        { cardId: 'c1', term: 'perro' },
+        { cardId: 'c2', term: 'dos palabras' },
+      ]),
+      undefined,
+      { voices: false }
+    );
+    expect(out.cards.c1.g2pVersion).toBe(SPEAK_G2P_VOICES_PENDING);
+    expect(out.cards.c1.refs).toHaveLength(2);
+    expect(out.cards.c2.g2pVersion).toBe(SPEAK_G2P_VERSION);
+  });
+
   it('leaves cards past the time budget pending with their espeak refs', async () => {
     const voices = reader({});
     const out = await computeSpeakReferences(

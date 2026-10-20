@@ -100,9 +100,9 @@ function unauthorized(res: Response, description: string): void {
 
 export const mcpServer = onRequest(
   {
-    // Flashcards Speak runs the espeak lookup (about 220 MB) and the voice model (about 1 GB) in-process.
-    memory: '2GiB',
-    timeoutSeconds: 120,
+    // Flashcards Speak runs the espeak lookup in-process (S10); about 220 MB once loaded.
+    memory: '1GiB',
+    timeoutSeconds: 60,
     maxInstances: 10,
     concurrency: 40,
     invoker: 'public',

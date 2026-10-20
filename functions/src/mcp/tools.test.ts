@@ -455,6 +455,7 @@ describe('flashcard Speak (S10)', () => {
       'needs-review',
     ]);
     expect(mocks.compute).toHaveBeenCalledTimes(1);
+    expect(mocks.compute.mock.calls[0][2]).toEqual({ voices: false });
   });
 
   it('looks up cards for a Speak language without writing settings', async () => {

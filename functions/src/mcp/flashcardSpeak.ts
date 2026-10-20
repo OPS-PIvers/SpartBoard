@@ -28,8 +28,6 @@ import {
 
 type Firestore = admin.firestore.Firestore;
 const ADMIN_DOC = 'admin_settings/flashcardsSpeak';
-// Leaves mcpServer's 120 s timeout room for the save; cards past it come back pending and fill on a later save.
-export const MCP_VOICE_BUDGET_MS = 60_000;
 
 /** F22: one read at save time; any failure falls back to the shipped defaults. */
 export async function readSpeakAdminDefaults(
@@ -133,9 +131,9 @@ export async function attachSpeakReferences(
         };
       }),
     });
-    found = (
-      await compute(input, undefined, { voiceBudgetMs: MCP_VOICE_BUDGET_MS })
-    ).cards;
+    found =
+      // The voice model blocks the event loop for seconds, so the shared connector leaves voices pending for the editor's callable.
+      (await compute(input, undefined, { voices: false })).cards;
   } catch (err) {
     console.error('[mcpServer] Speak lookup failed', { err });
     found = {};

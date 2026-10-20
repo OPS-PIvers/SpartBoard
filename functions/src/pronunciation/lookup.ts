@@ -312,8 +312,8 @@ function lookupCard(
 }
 
 export interface SpeakLookupOptions {
-  /** Defaults to Cloud TTS and the pinned model. */
-  voices?: VoiceReader;
+  /** Defaults to Cloud TTS and the pinned model; false leaves voice-eligible cards pending. */
+  voices?: VoiceReader | false;
   /** Cards not started within this many ms come back pending. */
   voiceBudgetMs?: number;
 }
@@ -326,9 +326,9 @@ export async function computeSpeakReferences(
 ): Promise<SpeakLookupOutput> {
   const p = phonemizer ?? (await loadPhonemizer());
   const run: VoiceRun = {
-    reader: options.voices ?? createVoiceReader(),
+    reader: options.voices || createVoiceReader(),
     deadline: Date.now() + (options.voiceBudgetMs ?? DEFAULT_VOICE_BUDGET_MS),
-    stopped: false,
+    stopped: options.voices === false,
   };
   const entries: [string, FlashcardCardSpeak][] = [];
   for (const term of input.terms) {
@@ -349,6 +349,7 @@ export const lookupSpeakReferencesV1 = onCall(
     memory: '4GiB',
     cpu: 2,
     concurrency: 1,
+    maxInstances: 10,
     timeoutSeconds: 540,
     cors: ALLOWED_ORIGINS,
   },

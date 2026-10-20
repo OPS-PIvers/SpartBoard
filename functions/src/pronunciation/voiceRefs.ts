@@ -105,8 +105,8 @@ async function synthesizeWithCloudTts(
       : content;
   } catch (err) {
     const code = (err as { code?: unknown }).code;
-    // PERMISSION_DENIED (API not enabled) and UNAUTHENTICATED fail every voice alike.
-    if (code === 7 || code === 16) {
+    // PERMISSION_DENIED (API not enabled), RESOURCE_EXHAUSTED and UNAUTHENTICATED fail every voice alike.
+    if (code === 7 || code === 8 || code === 16) {
       throw new VoiceServiceError(`Cloud TTS refused (code ${code})`);
     }
     // INVALID_ARGUMENT / NOT_FOUND: this voice is gone or won't say the text, which retrying won't change.
@@ -123,6 +123,11 @@ interface ModelSession {
 }
 
 let modelLoading: Promise<ModelSession> | null = null;
+let modelFailedAt = 0;
+// A bad or missing model isn't downloaded again for every queued take.
+const MODEL_RETRY_MS = 5 * 60_000;
+// The callable runs on 2 vCPU; more threads than that only add worker memory.
+const MODEL_THREADS = 2;
 let modelQueue: Promise<unknown> = Promise.resolve();
 
 async function loadModel(): Promise<ModelSession> {
@@ -141,7 +146,10 @@ async function loadModel(): Promise<ModelSession> {
     );
   }
   const ort = await import('onnxruntime-web');
-  ort.env.wasm.numThreads = Math.max(1, os.availableParallelism());
+  ort.env.wasm.numThreads = Math.max(
+    1,
+    Math.min(MODEL_THREADS, os.availableParallelism())
+  );
   const session = await ort.InferenceSession.create(bytes, {
     executionProviders: ['wasm'],
   });
@@ -170,8 +178,12 @@ async function loadModel(): Promise<ModelSession> {
 /** One model run at a time per instance; the session is loaded on first use and retried after a failure. */
 function runPinnedModel(input: Float32Array): Promise<ModelOutput> {
   const job = modelQueue.then(async () => {
+    if (!modelLoading && Date.now() - modelFailedAt < MODEL_RETRY_MS) {
+      throw new VoiceServiceError('Model unavailable (recent failure)');
+    }
     modelLoading ??= loadModel().catch((err: unknown) => {
       modelLoading = null;
+      modelFailedAt = Date.now();
       throw new VoiceServiceError(`Model unavailable: ${String(err)}`);
     });
     return (await modelLoading).run(input);
