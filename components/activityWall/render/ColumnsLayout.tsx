@@ -86,6 +86,7 @@ export const ColumnsLayout: React.FC<WallRenderProps> = ({
                 id={submission.id}
                 disabled={!canMove}
                 handleSize={scale.icon}
+                tight={scale.tight}
               >
                 <SubmissionCard
                   submission={submission}
