@@ -1,0 +1,2129 @@
+{
+  "version": 1,
+  "note": "Corpus words (§8). refs.mjs fills refs from espeak-ng; fetch.mjs picks Lingua Libre clips for each word.",
+  "languages": {
+    "es": {
+      "dialects": {
+        "es-419": "es-419",
+        "es-ES": "es"
+      },
+      "words": [
+        {
+          "word": "perro",
+          "refs": {
+            "es-419": {
+              "ipa": "pˈero",
+              "tokens": ["p", "e", "r", "o"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "pˈero",
+              "tokens": ["p", "e", "r", "o"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "para",
+          "refs": {
+            "es-419": {
+              "ipa": "pˈaɾa",
+              "tokens": ["p", "a", "ɾ", "a"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "pˈaɾa",
+              "tokens": ["p", "a", "ɾ", "a"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "pera",
+          "refs": {
+            "es-419": {
+              "ipa": "pˈeɾa",
+              "tokens": ["p", "e", "ɾ", "a"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "pˈeɾa",
+              "tokens": ["p", "e", "ɾ", "a"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "perra",
+          "refs": {
+            "es-419": {
+              "ipa": "pˈera",
+              "tokens": ["p", "e", "r", "a"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "pˈera",
+              "tokens": ["p", "e", "r", "a"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "zorra",
+          "refs": {
+            "es-419": {
+              "ipa": "sˈora",
+              "tokens": ["s", "o", "r", "a"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "θˈora",
+              "tokens": ["θ", "o", "r", "a"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "guerra",
+          "refs": {
+            "es-419": {
+              "ipa": "ɡˈera",
+              "tokens": ["ɡ", "e", "r", "a"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "ɡˈera",
+              "tokens": ["ɡ", "e", "r", "a"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "carrera",
+          "refs": {
+            "es-419": {
+              "ipa": "karˈeɾa",
+              "tokens": ["k", "a", "r", "e", "ɾ", "a"],
+              "stress": [1]
+            },
+            "es-ES": {
+              "ipa": "karˈeɾa",
+              "tokens": ["k", "a", "r", "e", "ɾ", "a"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "cuerda",
+          "refs": {
+            "es-419": {
+              "ipa": "kwˈeɾða",
+              "tokens": ["k", "w", "e", "ɾ", "ð", "a"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "kwˈeɾða",
+              "tokens": ["k", "w", "e", "ɾ", "ð", "a"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "marido",
+          "refs": {
+            "es-419": {
+              "ipa": "maɾˈiðo",
+              "tokens": ["m", "a", "ɾ", "i", "ð", "o"],
+              "stress": [1]
+            },
+            "es-ES": {
+              "ipa": "maɾˈiðo",
+              "tokens": ["m", "a", "ɾ", "i", "ð", "o"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "tierra",
+          "refs": {
+            "es-419": {
+              "ipa": "tjˈera",
+              "tokens": ["t", "j", "e", "r", "a"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "tjˈera",
+              "tokens": ["t", "j", "e", "r", "a"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "río",
+          "refs": {
+            "es-419": {
+              "ipa": "rˈio",
+              "tokens": ["r", "i", "o"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "rˈio",
+              "tokens": ["r", "i", "o"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "rojo",
+          "refs": {
+            "es-419": {
+              "ipa": "rˈoxo",
+              "tokens": ["r", "o", "x", "o"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "rˈoxo",
+              "tokens": ["r", "o", "x", "o"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "rosa",
+          "refs": {
+            "es-419": {
+              "ipa": "rˈosa",
+              "tokens": ["r", "o", "s", "a"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "rˈosa",
+              "tokens": ["r", "o", "s", "a"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "ratón",
+          "refs": {
+            "es-419": {
+              "ipa": "ratˈon",
+              "tokens": ["r", "a", "t", "o", "n"],
+              "stress": [1]
+            },
+            "es-ES": {
+              "ipa": "ratˈon",
+              "tokens": ["r", "a", "t", "o", "n"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "lobo",
+          "refs": {
+            "es-419": {
+              "ipa": "lˈoβo",
+              "tokens": ["l", "o", "β", "o"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "lˈoβo",
+              "tokens": ["l", "o", "β", "o"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "cabeza",
+          "refs": {
+            "es-419": {
+              "ipa": "kaβˈesa",
+              "tokens": ["k", "a", "β", "e", "s", "a"],
+              "stress": [1]
+            },
+            "es-ES": {
+              "ipa": "kaβˈeθa",
+              "tokens": ["k", "a", "β", "e", "θ", "a"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "huevo",
+          "refs": {
+            "es-419": {
+              "ipa": "wˈeβo",
+              "tokens": ["w", "e", "β", "o"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "wˈeβo",
+              "tokens": ["w", "e", "β", "o"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "cabra",
+          "refs": {
+            "es-419": {
+              "ipa": "kˈaβɾa",
+              "tokens": ["k", "a", "β", "ɾ", "a"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "kˈaβɾa",
+              "tokens": ["k", "a", "β", "ɾ", "a"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "lago",
+          "refs": {
+            "es-419": {
+              "ipa": "lˈaɣo",
+              "tokens": ["l", "a", "ɣ", "o"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "lˈaɣo",
+              "tokens": ["l", "a", "ɣ", "o"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "agua",
+          "refs": {
+            "es-419": {
+              "ipa": "ˈaɣwa",
+              "tokens": ["a", "ɣ", "w", "a"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "ˈaɣwa",
+              "tokens": ["a", "ɣ", "w", "a"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "madre",
+          "refs": {
+            "es-419": {
+              "ipa": "mˈaðɾe",
+              "tokens": ["m", "a", "ð", "ɾ", "e"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "mˈaðɾe",
+              "tokens": ["m", "a", "ð", "ɾ", "e"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "todo",
+          "refs": {
+            "es-419": {
+              "ipa": "tˈoðo",
+              "tokens": ["t", "o", "ð", "o"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "tˈoðo",
+              "tokens": ["t", "o", "ð", "o"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "verde",
+          "refs": {
+            "es-419": {
+              "ipa": "bˈeɾðe",
+              "tokens": ["b", "e", "ɾ", "ð", "e"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "bˈeɾðe",
+              "tokens": ["b", "e", "ɾ", "ð", "e"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "pez",
+          "refs": {
+            "es-419": {
+              "ipa": "pˈes",
+              "tokens": ["p", "e", "s"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "pˈeθ",
+              "tokens": ["p", "e", "θ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "papa",
+          "refs": {
+            "es-419": {
+              "ipa": "pˈapa",
+              "tokens": ["p", "a", "p", "a"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "pˈapa",
+              "tokens": ["p", "a", "p", "a"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "poco",
+          "refs": {
+            "es-419": {
+              "ipa": "pˈoko",
+              "tokens": ["p", "o", "k", "o"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "pˈoko",
+              "tokens": ["p", "o", "k", "o"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "techo",
+          "refs": {
+            "es-419": {
+              "ipa": "tˈetʃo",
+              "tokens": ["t", "e", "tʃ", "o"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "tˈetʃo",
+              "tokens": ["t", "e", "tʃ", "o"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "queso",
+          "refs": {
+            "es-419": {
+              "ipa": "kˈeso",
+              "tokens": ["k", "e", "s", "o"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "kˈeso",
+              "tokens": ["k", "e", "s", "o"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "cinco",
+          "refs": {
+            "es-419": {
+              "ipa": "sˈinko",
+              "tokens": ["s", "i", "n", "k", "o"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "θˈinko",
+              "tokens": ["θ", "i", "n", "k", "o"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "puerta",
+          "refs": {
+            "es-419": {
+              "ipa": "pwˈeɾta",
+              "tokens": ["p", "w", "e", "ɾ", "t", "a"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "pwˈeɾta",
+              "tokens": ["p", "w", "e", "ɾ", "t", "a"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "piedra",
+          "refs": {
+            "es-419": {
+              "ipa": "pjˈeðɾa",
+              "tokens": ["p", "j", "e", "ð", "ɾ", "a"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "pjˈeðɾa",
+              "tokens": ["p", "j", "e", "ð", "ɾ", "a"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "noche",
+          "refs": {
+            "es-419": {
+              "ipa": "nˈotʃe",
+              "tokens": ["n", "o", "tʃ", "e"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "nˈotʃe",
+              "tokens": ["n", "o", "tʃ", "e"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "mano",
+          "refs": {
+            "es-419": {
+              "ipa": "mˈano",
+              "tokens": ["m", "a", "n", "o"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "mˈano",
+              "tokens": ["m", "a", "n", "o"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "ocho",
+          "refs": {
+            "es-419": {
+              "ipa": "ˈotʃo",
+              "tokens": ["o", "tʃ", "o"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "ˈotʃo",
+              "tokens": ["o", "tʃ", "o"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "mañana",
+          "refs": {
+            "es-419": {
+              "ipa": "maɲˈana",
+              "tokens": ["m", "a", "ɲ", "a", "n", "a"],
+              "stress": [1]
+            },
+            "es-ES": {
+              "ipa": "maɲˈana",
+              "tokens": ["m", "a", "ɲ", "a", "n", "a"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "manzana",
+          "refs": {
+            "es-419": {
+              "ipa": "mansˈana",
+              "tokens": ["m", "a", "n", "s", "a", "n", "a"],
+              "stress": [1]
+            },
+            "es-ES": {
+              "ipa": "manθˈana",
+              "tokens": ["m", "a", "n", "θ", "a", "n", "a"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "naranja",
+          "refs": {
+            "es-419": {
+              "ipa": "naɾˈaŋxa",
+              "tokens": ["n", "a", "ɾ", "a", "ŋ", "x", "a"],
+              "stress": [1]
+            },
+            "es-ES": {
+              "ipa": "naɾˈaŋxa",
+              "tokens": ["n", "a", "ɾ", "a", "ŋ", "x", "a"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "yo",
+          "refs": {
+            "es-419": {
+              "ipa": "ʝˈo",
+              "tokens": ["ʝ", "o"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "ʝˈo",
+              "tokens": ["ʝ", "o"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "lluvia",
+          "refs": {
+            "es-419": {
+              "ipa": "ʝˈuβja",
+              "tokens": ["ʝ", "u", "β", "ja"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "ʎˈuβja",
+              "tokens": ["ʎ", "u", "β", "ja"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "ella",
+          "refs": {
+            "es-419": {
+              "ipa": "ˈejja",
+              "tokens": ["e", "j", "ja"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "ˈeʎa",
+              "tokens": ["e", "ʎ", "a"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "lleno",
+          "refs": {
+            "es-419": {
+              "ipa": "ʝˈeno",
+              "tokens": ["ʝ", "e", "n", "o"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "ʎˈeno",
+              "tokens": ["ʎ", "e", "n", "o"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "hoja",
+          "refs": {
+            "es-419": {
+              "ipa": "ˈoxa",
+              "tokens": ["o", "x", "a"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "ˈoxa",
+              "tokens": ["o", "x", "a"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "ojo",
+          "refs": {
+            "es-419": {
+              "ipa": "ˈoxo",
+              "tokens": ["o", "x", "o"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "ˈoxo",
+              "tokens": ["o", "x", "o"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "piojo",
+          "refs": {
+            "es-419": {
+              "ipa": "pjˈoxo",
+              "tokens": ["p", "j", "o", "x", "o"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "pjˈoxo",
+              "tokens": ["p", "j", "o", "x", "o"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "corazón",
+          "refs": {
+            "es-419": {
+              "ipa": "kˌoɾasˈon",
+              "tokens": ["k", "o", "ɾ", "a", "s", "o", "n"],
+              "stress": [2]
+            },
+            "es-ES": {
+              "ipa": "kˌoɾaθˈon",
+              "tokens": ["k", "o", "ɾ", "a", "θ", "o", "n"],
+              "stress": [2]
+            }
+          }
+        },
+        {
+          "word": "café",
+          "refs": {
+            "es-419": {
+              "ipa": "kafˈe",
+              "tokens": ["k", "a", "f", "e"],
+              "stress": [1]
+            },
+            "es-ES": {
+              "ipa": "kafˈe",
+              "tokens": ["k", "a", "f", "e"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "mujer",
+          "refs": {
+            "es-419": {
+              "ipa": "muxˈeɾ",
+              "tokens": ["m", "u", "x", "e", "ɾ"],
+              "stress": [1]
+            },
+            "es-ES": {
+              "ipa": "muxˈeɾ",
+              "tokens": ["m", "u", "x", "e", "ɾ"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "hablar",
+          "refs": {
+            "es-419": {
+              "ipa": "aβlˈaɾ",
+              "tokens": ["a", "β", "l", "a", "ɾ"],
+              "stress": [1]
+            },
+            "es-ES": {
+              "ipa": "aβlˈaɾ",
+              "tokens": ["a", "β", "l", "a", "ɾ"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "papel",
+          "refs": {
+            "es-419": {
+              "ipa": "papˈel",
+              "tokens": ["p", "a", "p", "e", "l"],
+              "stress": [1]
+            },
+            "es-ES": {
+              "ipa": "papˈel",
+              "tokens": ["p", "a", "p", "e", "l"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "caminar",
+          "refs": {
+            "es-419": {
+              "ipa": "kˌaminˈaɾ",
+              "tokens": ["k", "a", "m", "i", "n", "a", "ɾ"],
+              "stress": [2]
+            },
+            "es-ES": {
+              "ipa": "kˌaminˈaɾ",
+              "tokens": ["k", "a", "m", "i", "n", "a", "ɾ"],
+              "stress": [2]
+            }
+          }
+        },
+        {
+          "word": "pájaro",
+          "refs": {
+            "es-419": {
+              "ipa": "pˈaxaɾo",
+              "tokens": ["p", "a", "x", "a", "ɾ", "o"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "pˈaxaɾo",
+              "tokens": ["p", "a", "x", "a", "ɾ", "o"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "número",
+          "refs": {
+            "es-419": {
+              "ipa": "nˈumeɾo",
+              "tokens": ["n", "u", "m", "e", "ɾ", "o"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "nˈumeɾo",
+              "tokens": ["n", "u", "m", "e", "ɾ", "o"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "música",
+          "refs": {
+            "es-419": {
+              "ipa": "mˈusika",
+              "tokens": ["m", "u", "s", "i", "k", "a"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "mˈusika",
+              "tokens": ["m", "u", "s", "i", "k", "a"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "máquina",
+          "refs": {
+            "es-419": {
+              "ipa": "mˈakina",
+              "tokens": ["m", "a", "k", "i", "n", "a"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "mˈakina",
+              "tokens": ["m", "a", "k", "i", "n", "a"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "murciélago",
+          "refs": {
+            "es-419": {
+              "ipa": "muɾsjˈelaɣo",
+              "tokens": ["m", "u", "ɾ", "s", "j", "e", "l", "a", "ɣ", "o"],
+              "stress": [1]
+            },
+            "es-ES": {
+              "ipa": "muɾθjˈelaɣo",
+              "tokens": ["m", "u", "ɾ", "θ", "j", "e", "l", "a", "ɣ", "o"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "húmedo",
+          "refs": {
+            "es-419": {
+              "ipa": "ˈumeðo",
+              "tokens": ["u", "m", "e", "ð", "o"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "ˈumeðo",
+              "tokens": ["u", "m", "e", "ð", "o"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "árbol",
+          "refs": {
+            "es-419": {
+              "ipa": "ˈaɾβol",
+              "tokens": ["a", "ɾ", "β", "o", "l"],
+              "stress": [0]
+            },
+            "es-ES": {
+              "ipa": "ˈaɾβol",
+              "tokens": ["a", "ɾ", "β", "o", "l"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "escuela",
+          "refs": {
+            "es-419": {
+              "ipa": "eskwˈela",
+              "tokens": ["e", "s", "k", "w", "e", "l", "a"],
+              "stress": [1]
+            },
+            "es-ES": {
+              "ipa": "eskwˈela",
+              "tokens": ["e", "s", "k", "w", "e", "l", "a"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "domingo",
+          "refs": {
+            "es-419": {
+              "ipa": "domˈiŋɡo",
+              "tokens": ["d", "o", "m", "i", "ŋ", "ɡ", "o"],
+              "stress": [1]
+            },
+            "es-ES": {
+              "ipa": "domˈiŋɡo",
+              "tokens": ["d", "o", "m", "i", "ŋ", "ɡ", "o"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "termómetro",
+          "refs": {
+            "es-419": {
+              "ipa": "teɾmˈometɾo",
+              "tokens": ["t", "e", "ɾ", "m", "o", "m", "e", "t", "ɾ", "o"],
+              "stress": [1]
+            },
+            "es-ES": {
+              "ipa": "teɾmˈometɾo",
+              "tokens": ["t", "e", "ɾ", "m", "o", "m", "e", "t", "ɾ", "o"],
+              "stress": [1]
+            }
+          }
+        }
+      ]
+    },
+    "de": {
+      "dialects": {
+        "de-DE": "de"
+      },
+      "words": [
+        {
+          "word": "rot",
+          "refs": {
+            "de-DE": {
+              "ipa": "rˈoːt",
+              "tokens": ["r", "oː", "t"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "rund",
+          "refs": {
+            "de-DE": {
+              "ipa": "rˈʊnt",
+              "tokens": ["r", "ʊ", "n", "t"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Fisch",
+          "refs": {
+            "de-DE": {
+              "ipa": "fˈɪʃ",
+              "tokens": ["f", "ɪ", "ʃ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "riechen",
+          "refs": {
+            "de-DE": {
+              "ipa": "rˈiːçən",
+              "tokens": ["r", "iː", "ç", "ə", "n"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Regen",
+          "refs": {
+            "de-DE": {
+              "ipa": "rˈeːɡən",
+              "tokens": ["r", "eː", "ɡ", "ə", "n"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Rauch",
+          "refs": {
+            "de-DE": {
+              "ipa": "rˈaʊx",
+              "tokens": ["r", "aʊ", "x"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "richtig",
+          "refs": {
+            "de-DE": {
+              "ipa": "rˈɪçtɪç",
+              "tokens": ["r", "ɪ", "ç", "t", "ɪ", "ç"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "rechts",
+          "refs": {
+            "de-DE": {
+              "ipa": "rˈɛçts",
+              "tokens": ["r", "ɛ", "ç", "ts"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "drei",
+          "refs": {
+            "de-DE": {
+              "ipa": "dɾˈaɪ",
+              "tokens": ["d", "ɾ", "aɪ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Straße",
+          "refs": {
+            "de-DE": {
+              "ipa": "ʃtɾˈɑːsə",
+              "tokens": ["ʃ", "t", "ɾ", "ɑː", "s", "ə"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Frau",
+          "refs": {
+            "de-DE": {
+              "ipa": "frˈaʊ",
+              "tokens": ["f", "r", "aʊ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "ich",
+          "refs": {
+            "de-DE": {
+              "ipa": "ˈɪç",
+              "tokens": ["ɪ", "ç"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "nicht",
+          "refs": {
+            "de-DE": {
+              "ipa": "nˈɪçt",
+              "tokens": ["n", "ɪ", "ç", "t"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "lachen",
+          "refs": {
+            "de-DE": {
+              "ipa": "lˈaxən",
+              "tokens": ["l", "a", "x", "ə", "n"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Bauch",
+          "refs": {
+            "de-DE": {
+              "ipa": "bˈaʊx",
+              "tokens": ["b", "aʊ", "x"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Nacht",
+          "refs": {
+            "de-DE": {
+              "ipa": "nˈaxt",
+              "tokens": ["n", "a", "x", "t"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "acht",
+          "refs": {
+            "de-DE": {
+              "ipa": "ˈaxt",
+              "tokens": ["a", "x", "t"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Himmel",
+          "refs": {
+            "de-DE": {
+              "ipa": "hˈɪməl",
+              "tokens": ["h", "ɪ", "m", "əl"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "grün",
+          "refs": {
+            "de-DE": {
+              "ipa": "ɡɾˈyːn",
+              "tokens": ["ɡ", "ɾ", "yː", "n"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Schnee",
+          "refs": {
+            "de-DE": {
+              "ipa": "ʃnˈeː",
+              "tokens": ["ʃ", "n", "eː"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Flügel",
+          "refs": {
+            "de-DE": {
+              "ipa": "flˈyːɡəl",
+              "tokens": ["f", "l", "yː", "ɡ", "əl"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "hören",
+          "refs": {
+            "de-DE": {
+              "ipa": "hˈøːrən",
+              "tokens": ["h", "øː", "r", "ə", "n"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "zwölf",
+          "refs": {
+            "de-DE": {
+              "ipa": "tsvˈœlf",
+              "tokens": ["ts", "v", "œ", "l", "f"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Vögel",
+          "refs": {
+            "de-DE": {
+              "ipa": "vˈøːɡəl",
+              "tokens": ["v", "øː", "ɡ", "əl"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Haar",
+          "refs": {
+            "de-DE": {
+              "ipa": "hˈɑːɾ",
+              "tokens": ["h", "ɑː", "ɾ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Hand",
+          "refs": {
+            "de-DE": {
+              "ipa": "hˈant",
+              "tokens": ["h", "a", "n", "t"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Ohr",
+          "refs": {
+            "de-DE": {
+              "ipa": "ˈoːɾ",
+              "tokens": ["oː", "ɾ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Zahn",
+          "refs": {
+            "de-DE": {
+              "ipa": "tsˈɑːn",
+              "tokens": ["ts", "ɑː", "n"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "See",
+          "refs": {
+            "de-DE": {
+              "ipa": "zˈeː",
+              "tokens": ["z", "eː"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Meer",
+          "refs": {
+            "de-DE": {
+              "ipa": "mˈeːɾ",
+              "tokens": ["m", "eː", "ɾ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Blatt",
+          "refs": {
+            "de-DE": {
+              "ipa": "blˈat",
+              "tokens": ["b", "l", "a", "t"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Fuß",
+          "refs": {
+            "de-DE": {
+              "ipa": "fˈuːs",
+              "tokens": ["f", "uː", "s"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Blut",
+          "refs": {
+            "de-DE": {
+              "ipa": "blˈuːt",
+              "tokens": ["b", "l", "uː", "t"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Fluss",
+          "refs": {
+            "de-DE": {
+              "ipa": "flˈʊs",
+              "tokens": ["f", "l", "ʊ", "s"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Stock",
+          "refs": {
+            "de-DE": {
+              "ipa": "ʃtˈɔk",
+              "tokens": ["ʃ", "t", "ɔ", "k"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Mond",
+          "refs": {
+            "de-DE": {
+              "ipa": "mˈoːnt",
+              "tokens": ["m", "oː", "n", "t"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Kind",
+          "refs": {
+            "de-DE": {
+              "ipa": "kˈɪnt",
+              "tokens": ["k", "ɪ", "n", "t"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Tier",
+          "refs": {
+            "de-DE": {
+              "ipa": "tˈiːɾ",
+              "tokens": ["t", "iː", "ɾ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Hund",
+          "refs": {
+            "de-DE": {
+              "ipa": "hˈʊnt",
+              "tokens": ["h", "ʊ", "n", "t"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Berg",
+          "refs": {
+            "de-DE": {
+              "ipa": "bˈɛɾk",
+              "tokens": ["b", "ɛ", "ɾ", "k"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Tag",
+          "refs": {
+            "de-DE": {
+              "ipa": "tˈɑːk",
+              "tokens": ["t", "ɑː", "k"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Wald",
+          "refs": {
+            "de-DE": {
+              "ipa": "vˈalt",
+              "tokens": ["v", "a", "l", "t"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Wind",
+          "refs": {
+            "de-DE": {
+              "ipa": "vˈɪnt",
+              "tokens": ["v", "ɪ", "n", "t"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "gelb",
+          "refs": {
+            "de-DE": {
+              "ipa": "ɡˈɛlp",
+              "tokens": ["ɡ", "ɛ", "l", "p"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Mutter",
+          "refs": {
+            "de-DE": {
+              "ipa": "mˈʊtɜ",
+              "tokens": ["m", "ʊ", "t", "ɜ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Vater",
+          "refs": {
+            "de-DE": {
+              "ipa": "fˈɑːtɜ",
+              "tokens": ["f", "ɑː", "t", "ɜ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Feder",
+          "refs": {
+            "de-DE": {
+              "ipa": "fˈeːdɜ",
+              "tokens": ["f", "eː", "d", "ɜ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Wasser",
+          "refs": {
+            "de-DE": {
+              "ipa": "vˈasɜ",
+              "tokens": ["v", "a", "s", "ɜ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Zunge",
+          "refs": {
+            "de-DE": {
+              "ipa": "tsˈʊŋə",
+              "tokens": ["ts", "ʊ", "ŋ", "ə"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Nase",
+          "refs": {
+            "de-DE": {
+              "ipa": "nˈɑːzə",
+              "tokens": ["n", "ɑː", "z", "ə"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Auge",
+          "refs": {
+            "de-DE": {
+              "ipa": "ˈaʊɡə",
+              "tokens": ["aʊ", "ɡ", "ə"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Sonne",
+          "refs": {
+            "de-DE": {
+              "ipa": "zˈɔnə",
+              "tokens": ["z", "ɔ", "n", "ə"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Erde",
+          "refs": {
+            "de-DE": {
+              "ipa": "ˈeːɾdə",
+              "tokens": ["eː", "ɾ", "d", "ə"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Feuer",
+          "refs": {
+            "de-DE": {
+              "ipa": "fˈɔøɜ",
+              "tokens": ["f", "ɔø", "ɜ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Fingernagel",
+          "refs": {
+            "de-DE": {
+              "ipa": "fˈɪŋɜnˌɑɡəl",
+              "tokens": ["f", "ɪ", "ŋ", "ɜ", "n", "ɑ", "ɡ", "əl"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "Knochen",
+          "refs": {
+            "de-DE": {
+              "ipa": "knˈɔxən",
+              "tokens": ["k", "n", "ɔ", "x", "ə", "n"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "natürlich",
+          "refs": {
+            "de-DE": {
+              "ipa": "nɑːtˈyːɾlɪç",
+              "tokens": ["n", "ɑː", "t", "yː", "ɾ", "l", "ɪ", "ç"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "überall",
+          "refs": {
+            "de-DE": {
+              "ipa": "ˌyːbɜˈal",
+              "tokens": ["yː", "b", "ɜ", "a", "l"],
+              "stress": [2]
+            }
+          }
+        },
+        {
+          "word": "violett",
+          "refs": {
+            "de-DE": {
+              "ipa": "vˌiːoːlˈɛt",
+              "tokens": ["v", "iː", "oː", "l", "ɛ", "t"],
+              "stress": [2]
+            }
+          }
+        },
+        {
+          "word": "Figur",
+          "refs": {
+            "de-DE": {
+              "ipa": "fiːɡˈuːɾ",
+              "tokens": ["f", "iː", "ɡ", "uː", "ɾ"],
+              "stress": [1]
+            }
+          }
+        }
+      ]
+    },
+    "en": {
+      "dialects": {
+        "en-US": "en-us"
+      },
+      "words": [
+        {
+          "word": "think",
+          "refs": {
+            "en-US": {
+              "ipa": "θˈɪŋk",
+              "tokens": ["θ", "ɪ", "ŋ", "k"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "three",
+          "refs": {
+            "en-US": {
+              "ipa": "θɹˈiː",
+              "tokens": ["θ", "ɹ", "iː"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "bath",
+          "refs": {
+            "en-US": {
+              "ipa": "bˈæθ",
+              "tokens": ["b", "æ", "θ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "thank",
+          "refs": {
+            "en-US": {
+              "ipa": "θˈæŋk",
+              "tokens": ["θ", "æ", "ŋ", "k"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "mouth",
+          "refs": {
+            "en-US": {
+              "ipa": "mˈaʊθ",
+              "tokens": ["m", "aʊ", "θ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "tooth",
+          "refs": {
+            "en-US": {
+              "ipa": "tˈuːθ",
+              "tokens": ["t", "uː", "θ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "this",
+          "refs": {
+            "en-US": {
+              "ipa": "ðˈɪs",
+              "tokens": ["ð", "ɪ", "s"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "mother",
+          "refs": {
+            "en-US": {
+              "ipa": "mˈʌðɚ",
+              "tokens": ["m", "ʌ", "ð", "ɚ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "weather",
+          "refs": {
+            "en-US": {
+              "ipa": "wˈɛðɚ",
+              "tokens": ["w", "ɛ", "ð", "ɚ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "brother",
+          "refs": {
+            "en-US": {
+              "ipa": "bɹˈʌðɚ",
+              "tokens": ["b", "ɹ", "ʌ", "ð", "ɚ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "red",
+          "refs": {
+            "en-US": {
+              "ipa": "ɹˈɛd",
+              "tokens": ["ɹ", "ɛ", "d"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "rabbit",
+          "refs": {
+            "en-US": {
+              "ipa": "ɹˈæbɪt",
+              "tokens": ["ɹ", "æ", "b", "ɪ", "t"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "carry",
+          "refs": {
+            "en-US": {
+              "ipa": "kˈæɹi",
+              "tokens": ["k", "æ", "ɹ", "i"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "right",
+          "refs": {
+            "en-US": {
+              "ipa": "ɹˈaɪt",
+              "tokens": ["ɹ", "aɪ", "t"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "road",
+          "refs": {
+            "en-US": {
+              "ipa": "ɹˈoʊd",
+              "tokens": ["ɹ", "oʊ", "d"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "pin",
+          "refs": {
+            "en-US": {
+              "ipa": "pˈɪn",
+              "tokens": ["p", "ɪ", "n"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "top",
+          "refs": {
+            "en-US": {
+              "ipa": "tˈɑːp",
+              "tokens": ["t", "ɑː", "p"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "cat",
+          "refs": {
+            "en-US": {
+              "ipa": "kˈæt",
+              "tokens": ["k", "æ", "t"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "key",
+          "refs": {
+            "en-US": {
+              "ipa": "kˈiː",
+              "tokens": ["k", "iː"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "time",
+          "refs": {
+            "en-US": {
+              "ipa": "tˈaɪm",
+              "tokens": ["t", "aɪ", "m"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "paper",
+          "refs": {
+            "en-US": {
+              "ipa": "pˈeɪpɚ",
+              "tokens": ["p", "eɪ", "p", "ɚ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "ship",
+          "refs": {
+            "en-US": {
+              "ipa": "ʃˈɪp",
+              "tokens": ["ʃ", "ɪ", "p"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "sheep",
+          "refs": {
+            "en-US": {
+              "ipa": "ʃˈiːp",
+              "tokens": ["ʃ", "iː", "p"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "sit",
+          "refs": {
+            "en-US": {
+              "ipa": "sˈɪt",
+              "tokens": ["s", "ɪ", "t"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "seat",
+          "refs": {
+            "en-US": {
+              "ipa": "sˈiːt",
+              "tokens": ["s", "iː", "t"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "leave",
+          "refs": {
+            "en-US": {
+              "ipa": "lˈiːv",
+              "tokens": ["l", "iː", "v"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "live",
+          "refs": {
+            "en-US": {
+              "ipa": "lˈaɪv",
+              "tokens": ["l", "aɪ", "v"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "full",
+          "refs": {
+            "en-US": {
+              "ipa": "fˈʊl",
+              "tokens": ["f", "ʊ", "l"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "fool",
+          "refs": {
+            "en-US": {
+              "ipa": "fˈuːl",
+              "tokens": ["f", "uː", "l"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "pull",
+          "refs": {
+            "en-US": {
+              "ipa": "pˈʊl",
+              "tokens": ["p", "ʊ", "l"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "pool",
+          "refs": {
+            "en-US": {
+              "ipa": "pˈuːl",
+              "tokens": ["p", "uː", "l"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "book",
+          "refs": {
+            "en-US": {
+              "ipa": "bˈʊk",
+              "tokens": ["b", "ʊ", "k"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "about",
+          "refs": {
+            "en-US": {
+              "ipa": "ɐbˈaʊt",
+              "tokens": ["ɐ", "b", "aʊ", "t"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "banana",
+          "refs": {
+            "en-US": {
+              "ipa": "bɐnˈænə",
+              "tokens": ["b", "ɐ", "n", "æ", "n", "ə"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "today",
+          "refs": {
+            "en-US": {
+              "ipa": "tədˈeɪ",
+              "tokens": ["t", "ə", "d", "eɪ"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "again",
+          "refs": {
+            "en-US": {
+              "ipa": "ɐɡˈɛn",
+              "tokens": ["ɐ", "ɡ", "ɛ", "n"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "water",
+          "refs": {
+            "en-US": {
+              "ipa": "wˈɔːɾɚ",
+              "tokens": ["w", "ɔː", "ɾ", "ɚ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "butter",
+          "refs": {
+            "en-US": {
+              "ipa": "bˈʌɾɚ",
+              "tokens": ["b", "ʌ", "ɾ", "ɚ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "teacher",
+          "refs": {
+            "en-US": {
+              "ipa": "tˈiːtʃɚ",
+              "tokens": ["t", "iː", "tʃ", "ɚ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "bird",
+          "refs": {
+            "en-US": {
+              "ipa": "bˈɜːd",
+              "tokens": ["b", "ɜː", "d"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "dogs",
+          "refs": {
+            "en-US": {
+              "ipa": "dˈɑːɡz",
+              "tokens": ["d", "ɑː", "ɡ", "z"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "bed",
+          "refs": {
+            "en-US": {
+              "ipa": "bˈɛd",
+              "tokens": ["b", "ɛ", "d"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "five",
+          "refs": {
+            "en-US": {
+              "ipa": "fˈaɪv",
+              "tokens": ["f", "aɪ", "v"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "love",
+          "refs": {
+            "en-US": {
+              "ipa": "lˈʌv",
+              "tokens": ["l", "ʌ", "v"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "eyes",
+          "refs": {
+            "en-US": {
+              "ipa": "ˈaɪz",
+              "tokens": ["aɪ", "z"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "need",
+          "refs": {
+            "en-US": {
+              "ipa": "nˈiːd",
+              "tokens": ["n", "iː", "d"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "computer",
+          "refs": {
+            "en-US": {
+              "ipa": "kəmpjˈuːɾɚ",
+              "tokens": ["k", "ə", "m", "p", "j", "uː", "ɾ", "ɚ"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "elephant",
+          "refs": {
+            "en-US": {
+              "ipa": "ˈɛlɪfənt",
+              "tokens": ["ɛ", "l", "ɪ", "f", "ə", "n", "t"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "photograph",
+          "refs": {
+            "en-US": {
+              "ipa": "fˈoʊɾəɡɹˌæf",
+              "tokens": ["f", "oʊ", "ɾ", "ə", "ɡ", "ɹ", "æ", "f"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "hotel",
+          "refs": {
+            "en-US": {
+              "ipa": "hoʊtˈɛl",
+              "tokens": ["h", "oʊ", "t", "ɛ", "l"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "begin",
+          "refs": {
+            "en-US": {
+              "ipa": "bɪɡˈɪn",
+              "tokens": ["b", "ɪ", "ɡ", "ɪ", "n"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "apple",
+          "refs": {
+            "en-US": {
+              "ipa": "ˈæpəl",
+              "tokens": ["æ", "p", "əl"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "potato",
+          "refs": {
+            "en-US": {
+              "ipa": "pətˈeɪɾoʊ",
+              "tokens": ["p", "ə", "t", "eɪ", "ɾ", "oʊ"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "tomorrow",
+          "refs": {
+            "en-US": {
+              "ipa": "təmˈɑːɹoʊ",
+              "tokens": ["t", "ə", "m", "ɑːɹ", "oʊ"],
+              "stress": [1]
+            }
+          }
+        },
+        {
+          "word": "yesterday",
+          "refs": {
+            "en-US": {
+              "ipa": "jˈɛstɚdˌeɪ",
+              "tokens": ["j", "ɛ", "s", "t", "ɚ", "d", "eɪ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "afternoon",
+          "refs": {
+            "en-US": {
+              "ipa": "ˌæftɚnˈuːn",
+              "tokens": ["æ", "f", "t", "ɚ", "n", "uː", "n"],
+              "stress": [2]
+            }
+          }
+        },
+        {
+          "word": "chicken",
+          "refs": {
+            "en-US": {
+              "ipa": "tʃˈɪkɪn",
+              "tokens": ["tʃ", "ɪ", "k", "ɪ", "n"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "kitchen",
+          "refs": {
+            "en-US": {
+              "ipa": "kˈɪtʃən",
+              "tokens": ["k", "ɪ", "tʃ", "ə", "n"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "sister",
+          "refs": {
+            "en-US": {
+              "ipa": "sˈɪstɚ",
+              "tokens": ["s", "ɪ", "s", "t", "ɚ"],
+              "stress": [0]
+            }
+          }
+        },
+        {
+          "word": "river",
+          "refs": {
+            "en-US": {
+              "ipa": "ɹˈɪvɚ",
+              "tokens": ["ɹ", "ɪ", "v", "ɚ"],
+              "stress": [0]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "g2p": "@echogarden/espeak-ng-emscripten@0.3.5"
+}

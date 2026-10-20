@@ -33,6 +33,7 @@ const VALUES: Record<AssignStepId, string> = {
   integrity: 'Off',
   feedback: 'Their score',
   check: 'Flashcards, hide until I publish',
+  speak: 'On',
   sharing: 'Not shared',
 };
 

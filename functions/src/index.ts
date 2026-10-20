@@ -158,6 +158,9 @@ export {
 export { submitMiniAppResultV1 } from './miniAppResults';
 export { resolveFlashcardFlagV1 } from './flashcardFlags';
 
+// ── Flashcards Speak reference lookup (docs/multilingual-pronunciation-engine.md S3) ─
+export { lookupSpeakReferencesV1 } from './pronunciation/lookup';
+
 // ── Video Activity answer key (server-graded; key kept off session docs) ────
 export {
   checkVideoActivityAnswerV1,

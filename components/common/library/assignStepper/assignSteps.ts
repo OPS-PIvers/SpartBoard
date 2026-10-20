@@ -8,6 +8,7 @@ export type AssignStepId =
   | 'integrity'
   | 'feedback'
   | 'check'
+  | 'speak'
   | 'sharing';
 
 export type AssignActivity = 'quiz' | 'video' | 'gl' | 'flashcards' | 'miniapp';
@@ -18,6 +19,8 @@ export interface AssignStepContext {
   kind: AssignKind;
   live?: boolean;
   inPlc?: boolean;
+  /** Flashcards Study: Speak is available for this set (flag and language). */
+  speak?: boolean;
 }
 
 export interface AssignStepDef {
@@ -39,7 +42,10 @@ export function getAssignSteps(
   ctx: AssignStepContext
 ): AssignStepId[] {
   const steps: AssignStepId[] = ['classes', 'when'];
-  if (effectiveKind(activity, ctx.kind) === 'resource') return steps;
+  if (effectiveKind(activity, ctx.kind) === 'resource') {
+    if (activity === 'flashcards' && ctx.speak) steps.push('speak');
+    return steps;
+  }
   if (activity === 'quiz') steps.push('attempts', 'integrity', 'feedback');
   if (activity === 'flashcards') steps.push('check');
   if ((activity === 'quiz' || activity === 'video') && ctx.inPlc) {
@@ -55,6 +61,7 @@ const TITLES: Record<AssignStepId, string> = {
   integrity: 'Quiz integrity',
   feedback: 'What students see',
   check: 'How students are checked',
+  speak: 'Speak',
   sharing: 'Sharing',
 };
 
