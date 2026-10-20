@@ -773,6 +773,8 @@ export const TOUR_ANCHORS = {
   'assign-classes.option': {
     label: 'Class checkbox in the Assign dialog classes menu',
     perField: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
     panel: true,
   },
   'assign-classes.select-all': {
@@ -786,6 +788,8 @@ export const TOUR_ANCHORS = {
   'assign-students.trigger': {
     label: 'All students menu button for a class in the Assign dialog',
     perField: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
     panel: true,
   },
   'assign-students.search': {
@@ -800,6 +804,8 @@ export const TOUR_ANCHORS = {
   'assign-students.option': {
     label: 'Student checkbox in the Assign dialog students menu',
     perField: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
     panel: true,
   },
   'assign-students.all': {
