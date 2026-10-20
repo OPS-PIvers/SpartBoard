@@ -128,15 +128,17 @@ export async function readSet(
   return { ...(snap.data() as FlashcardSet), id: snap.id };
 }
 
-/** Adds the set (and its public snapshot when shared) to the batch; a changed language drops the snapshot's Speak stamp. */
+/** Adds the set (and its public snapshot when shared) to the batch; a changed language drops the snapshot's Speak stamp, and `speakStamp` replaces it. */
 export function stageSetWrite(
   db: Firestore,
   batch: WriteBatch,
   uid: string,
   set: FlashcardSet,
-  previousTermLanguage?: string
+  previousTermLanguage?: string,
+  speakStamp?: Record<string, unknown>
 ): void {
   const dropStamp =
+    !speakStamp &&
     previousTermLanguage !== undefined &&
     primaryLanguage(previousTermLanguage) !== primaryLanguage(set.termLanguage);
   batch.set(db.doc(`${setsPath(uid)}/${set.id}`), set);
@@ -153,22 +155,25 @@ export function stageSetWrite(
         definitionLanguage: set.definitionLanguage,
         cards: set.cards,
         updatedAt: set.updatedAt,
+        ...(speakStamp ? { speak: speakStamp } : {}),
         ...(dropStamp ? { speak: FieldValue.delete() } : {}),
       },
       {
-        mergeFields: dropStamp
-          ? [...SNAPSHOT_FIELDS, 'speak']
-          : SNAPSHOT_FIELDS,
+        mergeFields:
+          dropStamp || speakStamp
+            ? [...SNAPSHOT_FIELDS, 'speak']
+            : SNAPSHOT_FIELDS,
       }
     );
   }
 }
 
-/** Mirrors rewriteOpenStudySessions in hooks/useFlashcardSets.ts; keeps a client Speak stamp unless the language moved off it. */
+/** Mirrors rewriteOpenStudySessions in hooks/useFlashcardSets.ts; without `speakStamp` keeps a client stamp unless the language moved off it. */
 export async function rewriteOpenStudySessions(
   db: Firestore,
   uid: string,
-  set: FlashcardSet
+  set: FlashcardSet,
+  speakStamp?: Record<string, unknown>
 ): Promise<number> {
   const snapshot = await db
     .collection('flashcard_sessions')
@@ -183,8 +188,21 @@ export async function rewriteOpenStudySessions(
     const inContent = sessionDoc.get('cardsInContent') === true;
     const stamp: unknown = sessionDoc.get('speak');
     const dialects = (stamp as { dialects?: unknown } | undefined)?.dialects;
+    const speakOff = sessionDoc.get('speakOff') === true;
+    // A fresh stamp keeps the assignment's lock; a session turned off never gets one.
+    const nextStamp =
+      speakStamp && !speakOff
+        ? {
+            ...speakStamp,
+            locked:
+              (stamp as { locked?: unknown } | undefined)?.locked === true,
+          }
+        : undefined;
     const keepStamp =
-      Array.isArray(dialects) && dialectsFit(dialects, set.termLanguage);
+      !!nextStamp ||
+      (!speakOff &&
+        Array.isArray(dialects) &&
+        dialectsFit(dialects, set.termLanguage));
     // Students get card references only alongside a stamp, as on the client.
     const cards = keepStamp ? set.cards : withoutCardSpeak(set.cards);
     batch.update(sessionDoc.ref, {
@@ -192,6 +210,7 @@ export async function rewriteOpenStudySessions(
       termLanguage: set.termLanguage,
       definitionLanguage: set.definitionLanguage,
       ...(inContent ? {} : { cards }),
+      ...(nextStamp ? { speak: nextStamp } : {}),
       ...(stamp !== undefined && !keepStamp
         ? { speak: FieldValue.delete() }
         : {}),

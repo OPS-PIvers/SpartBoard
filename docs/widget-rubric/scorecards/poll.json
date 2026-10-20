@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "poll",
   "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-18T15:08:35.174Z",
+  "gradedAt": "2026-10-20T02:45:06.451Z",
   "stale": false,
   "criteria": {
     "I5": {
@@ -380,20 +380,20 @@
     },
     "C1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/poll-after3/screenshots/poll/default__typical.png"
+          "scripts/widget-grader/out/spot-2026-10-19/screenshots/poll/default__typical.png"
         ],
-        "runId": "poll-after3"
+        "runId": "spot-2026-10-19"
       },
-      "note": "The question and options are configurable, but visible choices such as count versus percent display and bar color look fixed on the face.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:08:35.174Z",
+      "gradedAt": "2026-10-19T12:10:12.813Z",
       "stale": false
     },
     "C2": {
@@ -543,30 +543,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "poll-after3"
+        "runId": "spot-2026-10-19"
       },
-      "gradedAt": "2026-10-18T15:08:35.174Z"
+      "gradedAt": "2026-10-20T02:45:06.451Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "poll-after3"
+        "runId": "spot-2026-10-19"
       },
-      "gradedAt": "2026-10-18T15:08:35.174Z"
+      "gradedAt": "2026-10-20T02:45:06.451Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "poll-after3"
+        "runId": "spot-2026-10-19"
       },
-      "gradedAt": "2026-10-18T15:08:35.174Z"
+      "gradedAt": "2026-10-20T02:45:06.451Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "poll-after3"
+        "runId": "spot-2026-10-19"
       },
-      "gradedAt": "2026-10-18T15:08:35.174Z"
+      "gradedAt": "2026-10-20T02:45:06.451Z"
     }
   }
 }

@@ -684,6 +684,10 @@ export const TOUR_ANCHORS = {
     label: 'Check step header in the Assign dialog',
     panel: true,
   },
+  'assign-step.speak': {
+    label: 'Speak step header in the Assign dialog',
+    panel: true,
+  },
   'assign-step.sharing': {
     label: 'Sharing step header in the Assign dialog',
     panel: true,
@@ -830,6 +834,14 @@ export const TOUR_ANCHORS = {
   'flashcards-check.mastery': {
     label:
       'Correct in a row to master box in the Assign dialog flashcards check step',
+    panel: true,
+  },
+  'flashcards-speak.show': {
+    label: 'Let students practice aloud switch in the Assign dialog Speak step',
+    panel: true,
+  },
+  'flashcards-speak.lock': {
+    label: 'Lock Speak settings switch in the Assign dialog Speak step',
     panel: true,
   },
   'flashcards-check.score-visibility': {

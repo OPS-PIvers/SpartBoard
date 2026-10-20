@@ -9031,6 +9031,8 @@ export interface FlashcardSession
   lockedSettings?: FlashcardModeSettings;
   /** Teacher-stamped Speak settings (F21); absent means Speak is hidden. */
   speak?: FlashcardSpeakSettings & { locked: boolean };
+  /** The teacher turned Speak off for this assignment, so a set save never stamps it. */
+  speakOff?: true;
   masteryThreshold?: FlashcardMasteryThreshold;
   termLanguage: string;
   definitionLanguage: string;

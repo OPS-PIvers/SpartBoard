@@ -4606,7 +4606,8 @@
         "cardUnavailableBody": "This card is skipped in Speak.",
         "allUnavailableTitle": "No cards to speak",
         "allUnavailableBody": "None of these cards can be practiced aloud. Try another study mode.",
-        "lockedSettings": "Your teacher set these options."
+        "lockedSettings": "Your teacher set these options.",
+        "keys": "Space: record. Enter: continue. R: play my attempt. H: hear it."
       },
       "verdict": {
         "exact": "Exact",
@@ -4614,7 +4615,7 @@
         "accepted": "Accepted",
         "acceptedBody": "Close enough. We let these go:",
         "notYet": "Not yet",
-        "notYetBody": "Listen and try again.",
+        "notYetBody": "Look at the marked letters and try again.",
         "outOfTries": "Not yet. We'll come back to this word.",
         "unclear": "Couldn't hear you",
         "unclearBody": "Try again a little closer to the microphone.",
@@ -4624,7 +4625,8 @@
         "markChanged": "Changed",
         "markMissed": "Missed",
         "markExtra": "Extra",
-        "showHint": "How to say it"
+        "showHint": "How to say it",
+        "soundAsIn": "{{name}}, as in {{example}}"
       },
       "micCheck": {
         "title": "Let's check your microphone",
@@ -4669,7 +4671,7 @@
       },
       "editor": {
         "title": "Speak",
-        "intro": "Students say each term aloud and hear how close they were.",
+        "intro": "Students say each term aloud and see how close they were.",
         "unsupportedLanguage": "Speak works when the term language is Spanish, German or English.",
         "dialects": "Accents to accept",
         "dialectNames": {
@@ -4681,18 +4683,18 @@
         "level": "Level",
         "presets": {
           "beginner": "Beginner",
-          "beginnerHelp": "Vowels must be right. Most hard consonants are let go.",
+          "beginnerHelp": "Vowels must be right. Most other tricky sounds are let go.",
           "intermediate": "Intermediate",
-          "intermediateHelp": "Most sounds must be right. A few small ones are let go.",
+          "intermediateHelp": "Most sounds must be right. A few small differences are let go.",
           "advanced": "Advanced",
           "advancedHelp": "Every sound must be right.",
           "custom": "Custom"
         },
         "strict": "Strict",
-        "strictHelp": "When Strict is off, sounds that follow it are let go.",
+        "strictHelp": "When on, sounds set to Follow Strict must be right. When off, they're let go.",
         "attempts": "Attempts per card",
-        "example": "Show Hear it",
-        "exampleHelp": "Students can hear the word on their device first.",
+        "example": "Hear it button",
+        "exampleHelp": "Students can play the word first, using their device's voice.",
         "advancedSettings": "Advanced",
         "groupsTitle": "Sounds",
         "groupSetting": {
@@ -4703,7 +4705,7 @@
         "status": {
           "ready": "Ready",
           "needsReview": "Check this",
-          "unavailable": "Can't speak"
+          "unavailable": "Not available"
         },
         "reasons": {
           "multi-word": "Speak works with one word per card.",
@@ -4714,41 +4716,66 @@
           "language-switch": "This word looks like it's in a different language.",
           "lookup-failed": "We couldn't check this word. We'll try again when you save."
         },
-        "reviewTitle": "{{count}} cards to check",
+        "reviewTitle_one": "{{count}} card to check",
+        "reviewTitle_other": "{{count}} cards to check",
         "confirm": "Looks right",
         "ipaLabel": "Pronunciation (IPA), {{dialect}}",
         "ipaInvalid": "Some of these symbols aren't recognized.",
         "stressLabel": "Stressed part",
-        "checkingCards": "Checking how to say {{count}} cards…",
+        "checkingCards_one": "Checking how to say {{count}} card…",
+        "checkingCards_other": "Checking how to say {{count}} cards…",
         "hearIt": "Hear it"
       },
       "groups": {
         "es-trill": "Rolled r (perro)",
         "es-tap": "Tapped r (pero)",
         "es-soft-bdg": "Soft b, d, g (lobo, nada, lago)",
-        "es-aspiration": "No puff of air on p, t, k",
-        "es-vowel-glide": "Pure vowels (e, o without a glide)",
+        "es-aspiration": "No puff of air on p, t, k (pato)",
+        "es-vowel-glide": "Pure e and o (se, no)",
         "es-vowel-reduce": "Full unstressed vowels (casa)",
         "es-jota": "The j sound (jota)",
         "de-r": "German r (rot)",
         "de-ich-ach": "ch sounds (ich, ach)",
         "de-umlaut": "ü and ö",
         "de-vowel-length": "Long and short vowels (Staat, Stadt)",
-        "de-final": "Final b, d, g sound like p, t, k (Hund)",
+        "de-final": "Final b, d, g said as p, t, k (Hund)",
         "de-endings": "Unstressed endings (-er, -e)",
         "en-th": "th sounds (think, this)",
         "en-r": "English r (red)",
-        "en-aspiration": "Puff of air on p, t, k (pin)",
-        "en-vowel-length": "ship and sheep",
+        "en-vowel-length": "Long and short vowels (ship, sheep)",
         "en-reduced": "Weak vowels (about)",
         "en-final-voicing": "Final z, d, v (dogs)",
         "stress": "Stressed syllable"
+      },
+      "groupHints": {
+        "es-trill": "Accepts a tapped or English r where the word has a rolled r.",
+        "es-tap": "Accepts an English r or a d where the word has a tapped r.",
+        "es-soft-bdg": "Accepts a hard b, d or g for the soft sound, and the reverse.",
+        "es-aspiration": "Accepts a puff of air after p, t and k, as in English.",
+        "es-vowel-glide": "Accepts e and o that slide, as in English say and go.",
+        "es-vowel-reduce": "Accepts a relaxed uh in place of a, e or o.",
+        "es-jota": "Accepts an English h for the j sound.",
+        "de-r": "Accepts an English r for the German r.",
+        "de-ich-ach": "Accepts sh or a k-like ch in ich, and k or h for the ch in ach.",
+        "de-umlaut": "Accepts u, i, o or e in place of ü and ö.",
+        "de-vowel-length": "Accepts a long vowel said short, and the reverse.",
+        "de-final": "Accepts b, d, g at the end of a word, where German says p, t, k.",
+        "de-endings": "Accepts a clearer e or er in unstressed endings.",
+        "en-th": "Accepts t, f, s, d or z for the th sounds.",
+        "en-r": "Accepts a rolled, tapped or German r for the English r.",
+        "en-vowel-length": "Accepts the short vowel for the long one (ship for sheep), and the reverse.",
+        "en-reduced": "Accepts a fuller uh or er in unstressed parts.",
+        "en-final-voicing": "Accepts s, t, f at the end of a word for z, d, v.",
+        "stress": "Accepts the word with the stress on a different part."
       },
       "assign": {
         "stepTitle": "Speak",
         "show": "Let students practice aloud",
         "lock": "Lock Speak settings",
-        "lockHelp": "Students use your attempts and Hear it settings and can't change them."
+        "lockHelp": "Students use your attempts and Hear it settings and can't change them.",
+        "valueOn": "On",
+        "valueLocked": "On, locked",
+        "valueOff": "Off"
       },
       "results": {
         "tab": "Speaking",
@@ -4773,8 +4800,8 @@
           "en": "English"
         },
         "attempts": "Attempts per card",
-        "unclearConfidence": "Couldn't hear you sensitivity",
-        "unclearConfidenceHelp": "Higher asks students to repeat more often when the audio is unclear.",
+        "unclearConfidence": "Repeat when unclear",
+        "unclearConfidenceHelp": "Higher asks students to say the word again more often when the sound is unclear.",
         "save": "Save",
         "saved": "Saved"
       }

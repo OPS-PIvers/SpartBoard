@@ -79,8 +79,8 @@ const modelPath =
 
 async function loadModelBytes() {
   if (!fs.existsSync(modelPath)) {
-    console.log(`Downloading ${PRONUNCIATION_MODEL.defaultUrl}`);
-    const res = await fetch(PRONUNCIATION_MODEL.defaultUrl);
+    console.log(`Downloading ${PRONUNCIATION_MODEL.huggingFaceUrl}`);
+    const res = await fetch(PRONUNCIATION_MODEL.huggingFaceUrl);
     if (!res.ok) throw new Error(`Model download failed: HTTP ${res.status}`);
     fs.mkdirSync(path.dirname(modelPath), { recursive: true });
     fs.writeFileSync(modelPath, Buffer.from(await res.arrayBuffer()));

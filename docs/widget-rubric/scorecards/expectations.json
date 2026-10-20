@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "expectations",
   "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-18T15:20:53.019Z",
+  "gradedAt": "2026-10-20T02:45:06.451Z",
   "stale": false,
   "criteria": {
     "I5": {
@@ -91,21 +91,22 @@
       "stale": false
     },
     "S5": {
-      "score": 1,
-      "source": "script",
+      "score": 3,
+      "source": "paul",
       "candidates": {
-        "script": 1
+        "script": 1,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-expectations-2026-10-18-after/screenshots/expectations/default__empty.png",
-          "scripts/widget-grader/out/loop-expectations-2026-10-18-after/screenshots/expectations/default__typical.png",
-          "scripts/widget-grader/out/loop-expectations-2026-10-18-after/screenshots/expectations/default__stress.png"
+          "scripts/widget-grader/out/spot-2026-10-19/screenshots/expectations/default__empty.png",
+          "scripts/widget-grader/out/spot-2026-10-19/screenshots/expectations/default__typical.png",
+          "scripts/widget-grader/out/spot-2026-10-19/screenshots/expectations/default__stress.png"
         ],
-        "runId": "loop-expectations-2026-10-18-after"
+        "runId": "spot-2026-10-19"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:20:53.019Z",
+      "gradedAt": "2026-10-19T12:08:55.515Z",
       "stale": false
     },
     "S6": {
@@ -359,20 +360,20 @@
     },
     "V6": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-expectations-2026-10-18-after/screenshots/expectations/default__typical.png"
+          "scripts/widget-grader/out/spot-2026-10-19/screenshots/expectations/default__typical.png"
         ],
-        "runId": "loop-expectations-2026-10-18-after"
+        "runId": "spot-2026-10-19"
       },
-      "note": "Short plain labels like Volume, Group Size and Interaction with one consistent lucide icon set.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:20:53.019Z",
+      "gradedAt": "2026-10-19T12:09:22.017Z",
       "stale": false
     },
     "C1": {
@@ -481,21 +482,21 @@
     },
     "R1": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-expectations-2026-10-18-after/screenshots/expectations/default__empty.png",
-          "scripts/widget-grader/out/loop-expectations-2026-10-18-after/screenshots/expectations/default__typical.png"
+          "scripts/widget-grader/out/spot-2026-10-19/screenshots/expectations/default__empty.png",
+          "scripts/widget-grader/out/spot-2026-10-19/screenshots/expectations/default__typical.png"
         ],
-        "runId": "loop-expectations-2026-10-18-after"
+        "runId": "spot-2026-10-19"
       },
-      "note": "The widget has no remote data, so loading, error, offline and no-roster states all render the same designed face without raw errors or spinners.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:20:53.019Z",
+      "gradedAt": "2026-10-19T12:09:29.369Z",
       "stale": false
     },
     "R3": {
@@ -572,30 +573,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "loop-expectations-2026-10-18-after"
+        "runId": "spot-2026-10-19"
       },
-      "gradedAt": "2026-10-18T15:20:53.019Z"
+      "gradedAt": "2026-10-20T02:45:06.451Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "loop-expectations-2026-10-18-after"
+        "runId": "spot-2026-10-19"
       },
-      "gradedAt": "2026-10-18T15:20:53.019Z"
+      "gradedAt": "2026-10-20T02:45:06.451Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "loop-expectations-2026-10-18-after"
+        "runId": "spot-2026-10-19"
       },
-      "gradedAt": "2026-10-18T15:20:53.019Z"
+      "gradedAt": "2026-10-20T02:45:06.451Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "loop-expectations-2026-10-18-after"
+        "runId": "spot-2026-10-19"
       },
-      "gradedAt": "2026-10-18T15:20:53.019Z"
+      "gradedAt": "2026-10-20T02:45:06.451Z"
     }
   }
 }

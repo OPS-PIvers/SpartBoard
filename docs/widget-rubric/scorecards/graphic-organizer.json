@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "graphic-organizer",
   "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-18T15:50:28.594Z",
+  "gradedAt": "2026-10-20T02:45:06.451Z",
   "stale": false,
   "criteria": {
     "I5": {
@@ -215,18 +215,19 @@
     },
     "I4": {
       "score": 2,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 2
+        "script": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+          "scripts/widget-grader/out/spot-2026-10-19/screenshots/graphic-organizer/default__typical.png"
         ],
-        "runId": "after-graphic-organizer"
+        "runId": "spot-2026-10-19"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "gradedAt": "2026-10-19T12:09:36.704Z",
       "stale": false
     },
     "I6": {
@@ -341,37 +342,38 @@
       "stale": false
     },
     "V5": {
-      "score": 2,
-      "source": "script",
+      "score": 1,
+      "source": "paul",
       "candidates": {
-        "script": 2
+        "script": 2,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+          "scripts/widget-grader/out/spot-2026-10-19/screenshots/graphic-organizer/default__typical.png"
         ],
-        "runId": "after-graphic-organizer"
+        "runId": "spot-2026-10-19"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "gradedAt": "2026-10-19T12:09:40.817Z",
       "stale": false
     },
     "V6": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-graphic-organizer/screenshots/graphic-organizer/default__typical.png"
+          "scripts/widget-grader/out/spot-2026-10-19/screenshots/graphic-organizer/default__typical.png"
         ],
-        "runId": "after-graphic-organizer"
+        "runId": "spot-2026-10-19"
       },
-      "note": "The labels are short and plain (Definition, Examples, What I Know) and there are no copy violations, but the overlapping bubble hides part of 'Non-Examples'.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:50:28.594Z",
+      "gradedAt": "2026-10-19T12:09:59.277Z",
       "stale": false
     },
     "C1": {
@@ -572,30 +574,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "after-graphic-organizer"
+        "runId": "spot-2026-10-19"
       },
-      "gradedAt": "2026-10-18T15:50:28.594Z"
+      "gradedAt": "2026-10-20T02:45:06.451Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "after-graphic-organizer"
+        "runId": "spot-2026-10-19"
       },
-      "gradedAt": "2026-10-18T15:50:28.594Z"
+      "gradedAt": "2026-10-20T02:45:06.451Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "after-graphic-organizer"
+        "runId": "spot-2026-10-19"
       },
-      "gradedAt": "2026-10-18T15:50:28.594Z"
+      "gradedAt": "2026-10-20T02:45:06.451Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "after-graphic-organizer"
+        "runId": "spot-2026-10-19"
       },
-      "gradedAt": "2026-10-18T15:50:28.594Z"
+      "gradedAt": "2026-10-20T02:45:06.451Z"
     }
   }
 }
