@@ -501,6 +501,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
         >
           {t('flashcards.player.emptyBody')}
         </p>
+        {/* no-tour-anchor: student player */}
         <button
           type="button"
           onClick={() => setSettingsOpen(true)}
