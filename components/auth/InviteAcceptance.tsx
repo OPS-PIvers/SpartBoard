@@ -276,6 +276,11 @@ export const InviteAcceptance: React.FC = () => {
   const { user, loading, signOut } = useAuth();
   const [status, setStatus] = React.useState<ClaimStatus>({ kind: 'idle' });
   const claimRanRef = React.useRef(false);
+  const currentUidRef = React.useRef(user?.uid);
+  const uid = user?.uid;
+  React.useLayoutEffect(() => {
+    currentUidRef.current = uid;
+  }, [uid]);
 
   // Reset claim state when the signed-in user changes, so sign-out-then-sign-in-again re-arms the claim instead of showing the stale error forever.
   const [trackedUid, setTrackedUid] = React.useState(user?.uid);
@@ -297,6 +302,8 @@ export const InviteAcceptance: React.FC = () => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- marks the one-shot async claim as started
     setStatus({ kind: 'claiming' });
 
+    const requestUid = user.uid;
+    const isCurrent = () => currentUidRef.current === requestUid;
     const run = async () => {
       try {
         // Prefer the org carried in the invite URL; fall back to domain
@@ -307,6 +314,7 @@ export const InviteAcceptance: React.FC = () => {
           { ok: true }
         >(functions, 'claimOrganizationInvite');
         await claim({ token, orgId });
+        if (!isCurrent()) return;
         setStatus({ kind: 'success' });
         // Brief success state before dropping the user into the app.
         window.setTimeout(() => {
@@ -317,6 +325,7 @@ export const InviteAcceptance: React.FC = () => {
         const message =
           error instanceof Error ? error.message : 'Unexpected error';
         console.error('Invite claim failed:', error);
+        if (!isCurrent()) return;
         setStatus({ kind: 'error', code, message });
       }
     };
