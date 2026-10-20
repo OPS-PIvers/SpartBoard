@@ -114,11 +114,14 @@ const rewriteOpenStudySessions = async (
     const inContent = sessionDoc.get('cardsInContent') === true;
     // F21: re-stamp on every save, keeping the assignment's lock; a lost flag clears it.
     const previous: unknown = sessionDoc.get('speak');
-    const stamp = stampFor(
-      set,
-      adminConfig,
-      (previous as { locked?: unknown } | undefined)?.locked === true
-    );
+    const stamp =
+      sessionDoc.get('speakOff') === true
+        ? undefined
+        : stampFor(
+            set,
+            adminConfig,
+            (previous as { locked?: unknown } | undefined)?.locked === true
+          );
     const cards = speakCardsFor(set.cards, stamp);
     batch.update(sessionDoc.ref, {
       title: set.title,

@@ -3453,9 +3453,9 @@
         "listening": "Listening…",
         "checking": "Checking…",
         "levelLabel": "Microphone level",
-        "attempt": "Try {{current}} of {{total}}",
+        "attempt": "Attempt {{current}} of {{total}}",
         "hearIt": "Hear it",
-        "playMyTry": "Play my try",
+        "playMyTry": "Play my attempt",
         "tryAgain": "Try again",
         "continue": "Continue",
         "skip": "Skip",
@@ -3550,7 +3550,7 @@
         },
         "strict": "Strict",
         "strictHelp": "When Strict is off, sounds that follow it are let go.",
-        "attempts": "Tries per card",
+        "attempts": "Attempts per card",
         "example": "Show Hear it",
         "exampleHelp": "Students can hear the word on their device first.",
         "advancedSettings": "Advanced",
@@ -3608,7 +3608,10 @@
         "stepTitle": "Speak",
         "show": "Let students practice aloud",
         "lock": "Lock Speak settings",
-        "lockHelp": "Students use your tries and Hear it settings and can't change them."
+        "lockHelp": "Students use your attempts and Hear it settings and can't change them.",
+        "valueOn": "On",
+        "valueLocked": "On, locked",
+        "valueOff": "Off"
       },
       "results": {
         "tab": "Speaking",
@@ -3632,7 +3635,7 @@
           "de": "German",
           "en": "English"
         },
-        "attempts": "Tries per card",
+        "attempts": "Attempts per card",
         "unclearConfidence": "Couldn't hear you sensitivity",
         "unclearConfidenceHelp": "Higher asks students to repeat more often when the audio is unclear.",
         "save": "Save",

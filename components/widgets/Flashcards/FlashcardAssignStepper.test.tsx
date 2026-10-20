@@ -83,22 +83,26 @@ const PERIOD_CTX: AssignPeriodAccessContext = {
 const renderStepper = ({
   rosterIds = ['r1'],
   periodAccess,
+  canSpeak = false,
+  set = makeSet(),
 }: {
   rosterIds?: string[];
   periodAccess?: AssignPeriodAccessContext;
+  canSpeak?: boolean;
+  set?: FlashcardSet;
 } = {}) => {
   const onAssign = vi.fn((_submission: FlashcardAssignSubmission) =>
     Promise.resolve(true)
   );
   const auth = {
     user: { uid: 'teacher-1' },
-    canAccessFeature: () => false,
+    canAccessFeature: (id: string) => canSpeak && id === 'flashcards-speak',
   } as unknown as React.ContextType<typeof AuthContext>;
   render(
     <AuthContext.Provider value={auth}>
       <FlashcardAssignStepper
         isOpen
-        set={makeSet()}
+        set={set}
         rosters={ROSTERS}
         initialRosterIds={rosterIds}
         onClose={vi.fn()}
@@ -202,6 +206,82 @@ describe('FlashcardAssignStepper', () => {
       { kind: 'classlink', sourcedId: 'SID-r1-a' },
     ]);
     expect(submission.input.classIds).toEqual(['CL-1', 'CL-2']);
+  });
+
+  describe('Speak step', () => {
+    const studyResource = () =>
+      fireEvent.click(screen.getByRole('radio', { name: /Study resource/ }));
+
+    it('is hidden without the flag', () => {
+      renderStepper();
+      studyResource();
+      expect(screen.queryByText('Speak')).toBeNull();
+    });
+
+    it('is hidden for a language Speak does not support', () => {
+      renderStepper({
+        canSpeak: true,
+        set: { ...makeSet(), termLanguage: 'fr-FR' },
+      });
+      studyResource();
+      expect(screen.queryByText('Speak')).toBeNull();
+    });
+
+    it('is a Study step only', () => {
+      renderStepper({ canSpeak: true });
+      expect(screen.queryByText('Speak')).toBeNull();
+      studyResource();
+      expect(screen.getByText('Speak')).toBeTruthy();
+    });
+
+    it('assigns Speak shown and unlocked by default', async () => {
+      const { onAssign } = renderStepper({ canSpeak: true });
+      studyResource();
+      expect(screen.getByText('On')).toBeTruthy();
+      assign();
+      await waitFor(() => expect(onAssign).toHaveBeenCalled());
+      const { input } = lastSubmission(onAssign);
+      expect(input.speakLocked).toBe(false);
+      expect(input.speakOff).toBeUndefined();
+    });
+
+    it('locks the Speak settings', async () => {
+      const { onAssign } = renderStepper({ canSpeak: true });
+      studyResource();
+      fireEvent.click(screen.getByText('Speak'));
+      fireEvent.click(
+        screen.getByRole('switch', { name: 'Lock Speak settings' })
+      );
+      assign();
+      await waitFor(() => expect(onAssign).toHaveBeenCalled());
+      expect(lastSubmission(onAssign).input.speakLocked).toBe(true);
+    });
+
+    it('turns Speak off for the assignment and hides the lock', async () => {
+      const { onAssign } = renderStepper({ canSpeak: true });
+      studyResource();
+      fireEvent.click(screen.getByText('Speak'));
+      fireEvent.click(
+        screen.getByRole('switch', { name: 'Let students practice aloud' })
+      );
+      expect(
+        screen.queryByRole('switch', { name: 'Lock Speak settings' })
+      ).toBeNull();
+      assign();
+      await waitFor(() => expect(onAssign).toHaveBeenCalled());
+      const { input } = lastSubmission(onAssign);
+      expect(input.speakOff).toBe(true);
+      expect(input.speakLocked).toBeUndefined();
+    });
+
+    it('sends no Speak fields on a Check', async () => {
+      const { onAssign } = renderStepper({ canSpeak: true });
+      assign();
+      await waitFor(() => expect(onAssign).toHaveBeenCalled());
+      const { input } = lastSubmission(onAssign);
+      expect(input).not.toHaveProperty('speakLocked');
+      expect(input).not.toHaveProperty('speakOff');
+    });
   });
 
   it('blocks Assign without a ClassLink class', () => {
