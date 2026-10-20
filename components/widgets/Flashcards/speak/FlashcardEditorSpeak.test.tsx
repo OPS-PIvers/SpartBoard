@@ -1,4 +1,5 @@
 import React from 'react';
+import { SPEAK_G2P_VERSION } from '@/utils/pronunciation/g2pVersion';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FlashcardEditor } from '../FlashcardEditor';
@@ -20,7 +21,7 @@ const ready = (term: string): FlashcardCardSpeak => ({
     { dialect: 'es-419', tokens: ['o', 'l', 'a'], stress: [0] },
     { dialect: 'es-ES', tokens: ['o', 'l', 'a'], stress: [0] },
   ],
-  g2pVersion: 'v1',
+  g2pVersion: SPEAK_G2P_VERSION,
   status: 'ready',
 });
 
@@ -47,7 +48,7 @@ const lookupReturning = (
 ): ReturnType<typeof vi.fn<SpeakLookupCall>> =>
   vi.fn<SpeakLookupCall>((input) =>
     Promise.resolve({
-      g2pVersion: 'v1',
+      g2pVersion: SPEAK_G2P_VERSION,
       cards: Object.fromEntries(
         input.terms.map((t) => [t.cardId, build(t.term)])
       ),

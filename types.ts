@@ -8871,7 +8871,7 @@ export interface PublicFlashcardSet {
   definitionLanguage: string;
   cards: FlashcardCard[];
   /** Present means Speak is shown. */
-  speak?: FlashcardSpeakSettings;
+  speak?: FlashcardSpeakStudentSettings;
   updatedAt: number;
 }
 
@@ -8898,6 +8898,11 @@ export interface FlashcardSpeakSettings {
   example: boolean;
 }
 
+/** What students read: the settings plus the district's "Repeat when unclear" cut-off (0-1), stamped at save. */
+export type FlashcardSpeakStudentSettings = FlashcardSpeakSettings & {
+  unclearConfidence?: number;
+};
+
 export interface FlashcardSpeakReference {
   dialect: SpeakDialect;
   /** Tokens from the 392-token vocabulary; non-empty. */
@@ -8906,6 +8911,8 @@ export interface FlashcardSpeakReference {
   stress: number[];
   /** Flat [start, end) pairs into the spoken variant, one pair per token (Firestore can't nest arrays). */
   letterSpans?: number[];
+  /** Absent means espeak; voice refs are a Cloud TTS voice's reading and carry no letterSpans. */
+  source?: 'espeak' | 'voice';
 }
 
 export type FlashcardSpeakStatus = 'ready' | 'needs-review' | 'unavailable';
@@ -8925,6 +8932,8 @@ export interface FlashcardCardSpeak {
   g2pVersion: string;
   status: FlashcardSpeakStatus;
   reasons?: FlashcardSpeakReason[];
+  /** Accents the lookup covered, so a card with no refs is looked up again for a new one. */
+  dialects?: SpeakDialect[];
   /** Teacher confirmed a needs-review card. */
   confirmedAt?: number;
   /** Advanced panel. */
@@ -9030,7 +9039,7 @@ export interface FlashcardSession
   checkMode?: FlashcardMode;
   lockedSettings?: FlashcardModeSettings;
   /** Teacher-stamped Speak settings (F21); absent means Speak is hidden. */
-  speak?: FlashcardSpeakSettings & { locked: boolean };
+  speak?: FlashcardSpeakStudentSettings & { locked: boolean };
   /** The teacher turned Speak off for this assignment, so a set save never stamps it. */
   speakOff?: true;
   masteryThreshold?: FlashcardMasteryThreshold;

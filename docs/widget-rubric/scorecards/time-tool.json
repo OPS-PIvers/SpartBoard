@@ -1,16 +1,16 @@
 {
   "$schema": "../scorecard.schema.json",
   "widgetType": "time-tool",
-  "rubricVersion": "1.0.0",
-  "gradedAt": "2026-10-06T03:13:32.259Z",
+  "rubricVersion": "1.1.0",
+  "gradedAt": "2026-10-18T22:32:01.755Z",
   "stale": false,
   "criteria": {
     "S6": {
       "score": null,
       "source": "script",
       "note": "N/A by rule",
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T03:13:32.259Z",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T22:32:01.755Z",
       "stale": false
     },
     "S1": {
@@ -635,30 +635,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "loop-time-tool-2026-10-18-after"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-18T22:32:01.755Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "loop-time-tool-2026-10-18-after"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-18T22:32:01.755Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "loop-time-tool-2026-10-18-after"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-18T22:32:01.755Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "loop-time-tool-2026-10-18-after"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-18T22:32:01.755Z"
     }
   }
 }

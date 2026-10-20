@@ -91,6 +91,8 @@ const PublicFlashcardsReady: React.FC<{
           definitionLanguage={set.definitionLanguage}
           adapter={adapter}
           seed={shareId}
+          speak={set.speak}
+          framed={embedded}
         />
       </main>
     </div>

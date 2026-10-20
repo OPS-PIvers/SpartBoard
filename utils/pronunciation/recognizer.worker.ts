@@ -5,6 +5,7 @@ import { PRONUNCIATION_MODEL } from '@/config/pronunciationModel';
 import vocab from './xlsr53EspeakVocab.json';
 import { normalizeForWav2Vec2 } from './audio';
 import { greedyCtcDecode, invertVocab } from './ctcDecode';
+import { logSoftmax } from './likelihood';
 import { ModelLoadError, loadModel } from './modelCache';
 import {
   meanNonBlankConfidence,
@@ -87,8 +88,22 @@ async function recognize(id: number, audio: Float32Array): Promise<void> {
       vocabSize,
       PRONUNCIATION_MODEL.padId
     );
+    const logProbs = {
+      data: logSoftmax(data, frames, vocabSize),
+      frames,
+      vocabSize,
+    };
     logits.dispose();
-    post({ type: 'result', id, tokens, confidence });
+    self.postMessage(
+      {
+        type: 'result',
+        id,
+        tokens,
+        confidence,
+        logProbs,
+      } satisfies WorkerResponse,
+      { transfer: [logProbs.data.buffer] }
+    );
   } catch (err) {
     post({
       type: 'recognize-error',

@@ -144,6 +144,7 @@ describe('flashcard_sessions', () => {
       groups: {},
       attempts: 3,
       example: true,
+      unclearConfidence: 0.35,
       locked: false,
     };
     const teacherDb = asTeacher(TEACHER_UID);
@@ -154,6 +155,7 @@ describe('flashcard_sessions', () => {
       doc(asStudent(STUDENT_UID, [CLASS_A]), SESSION_PATH)
     );
     expect(read.get('speak.locked')).toBe(false);
+    expect(read.get('speak.unclearConfidence')).toBe(0.35);
     await assertSucceeds(
       setDoc(
         doc(teacherDb, SESSION_PATH),

@@ -1,5 +1,6 @@
 // Pure pieces shared by the recognizer and its Worker: the message protocol, confidence and voiced time.
 import type { CtcToken } from './ctcDecode';
+import type { SpeakLogProbs } from './likelihood';
 import type { ModelLoadFailure } from './modelCache';
 import { MODEL_SAMPLE_RATE } from './audio';
 
@@ -14,7 +15,13 @@ export type WorkerResponse =
   | { type: 'starting' }
   | { type: 'loaded'; source: 'cache' | 'network' }
   | { type: 'load-error'; reason: WorkerLoadFailure; message: string }
-  | { type: 'result'; id: number; tokens: CtcToken[]; confidence: number }
+  | {
+      type: 'result';
+      id: number;
+      tokens: CtcToken[];
+      confidence: number;
+      logProbs: SpeakLogProbs;
+    }
   | { type: 'recognize-error'; id: number; message: string };
 
 /** Mean max-posterior (softmax) over frames whose argmax is not the CTC blank; 0 when every frame is blank. */

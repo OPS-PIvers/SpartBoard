@@ -1,10 +1,10 @@
 # Pronunciation Practice — Plan
 
-**Status:** Live plan, **ready to build** (rewritten 2026-10-19 for a one-shot parallel build).
+**Status:** Live plan, **built behind `flashcards-speak`** (S0-S13 merged into `dev-paul` by 2026-10-20; the S11 scorer rebuild may still be landing).
 
 - **History.** Grilled 2026-10-13 (G1–G22, kept for the quiz type in §13). Redirected 2026-10-19 to a Flashcards **Speak** study mode (F-decisions, §3). Strictness re-grilled the same day to mirror Write mode (§4).
-- **Built so far:** the engine pieces exist in `utils/pronunciation/`. Nothing user-facing does.
-- **Next step:** the orchestrator runs §9 from S0.
+- **Built so far:** the whole Speak mode: editor settings and card review, save-time lookup (editor and connector), the player, the Speaking results view, and the end-to-end test (`tests/e2e/flashcards-speak.spec.ts` on `/flashcards-speak-dev`). The flag starts fail-closed, admins included.
+- **Next step:** Paul's §10 actions (P1, P2 prod upload at release, P5), then open the flag at Admin Settings > Access > Previews. Move this doc to `docs/plans/shipped/` once S11 lands; follow-ups are in `TODO.md`.
 
 **Owner:** Paul (OPS-PIvers) + Claude
 
@@ -518,7 +518,7 @@ export function getRecognizer(): Recognizer; // singleton per page
 - **PLC set keys** `plcFlashcardSetKeysOk` (`:2719-2725`) gains `speak`.
 - The session create rule has no key whitelist (`:6455-6463`).
 - `admin_settings/flashcardsSpeak` gets a `signedIn()` read.
-- **Size:** the cards map holds up to 500 cards × ~3 refs × ~12 tokens. That's about 150 KB worst case on the set doc, under the 1 MiB doc limit. S7 adds a test at 500 cards × 2 dialects.
+- **Size:** measured after S11a, a 500-card Spanish set with eight distinct voice readings per card is about 0.4 to 0.8 MB of Speak data for ordinary words, and over 4 MB at 64-letter words, where espeak refs alone pass 1 MiB. `fitSpeakToDoc` (client and connector saves) keeps the set doc under 900 KiB by dropping voice readings, then letter spans, then a card's refs, from the last card back.
 
 **Player** (`components/flashcards/FlashcardPlayer.tsx`):
 
