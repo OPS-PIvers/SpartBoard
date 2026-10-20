@@ -1823,6 +1823,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     ],
     'admin.analytics.building-filter': ['admin.analytics'],
     'admin.analytics.user-building-filter': ['admin.analytics'],
+    'admin.analytics.cohort-group': ['admin.analytics'],
     'admin.analytics.domain-filter': ['admin.analytics'],
     'admin.analytics.group': ['admin.analytics'],
     'admin.analytics.kpi-card': ['admin.analytics'],

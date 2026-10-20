@@ -21,12 +21,17 @@ import {
   type ChartWeek,
   type CohortRow,
   type MonthCount,
+  type Retention,
+  type RetentionCell,
   activityStats,
+  cohortWeight,
   combineDays,
   filterRange,
   formatDay,
+  formatCohortKey,
   formatMonth,
   joinWeeks,
+  legacyRetentionRows,
   recencyBuckets,
   toWeekly,
 } from './overviewMetrics';
@@ -551,14 +556,101 @@ export const NewUsersPanel: React.FC<{ months: MonthCount[] }> = ({
   );
 };
 
-const cohortColor = (pct: number) => heatColor(pct / 100);
+// Heat colour for a percent, washed toward white when few teachers back it.
+const cohortCellStyle = (cell: RetentionCell): React.CSSProperties => {
+  const w = cohortWeight(cell.n);
+  const t = cell.pct / 100;
+  const rgb = HEAT_LOW.map((lo, i) => {
+    const heat = lo + (HEAT_HIGH[i] - lo) * t;
+    return Math.round(255 + (heat - 255) * w);
+  });
+  const dark = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2] < 150;
+  const stripe = dark ? 'rgba(255,255,255,0.35)' : 'rgba(15,23,42,0.14)';
+  return {
+    backgroundColor: `rgb(${rgb.join(',')})`,
+    color: dark ? '#fff' : '#0f172a',
+    ...(cell.partial
+      ? {
+          backgroundImage: `repeating-linear-gradient(135deg, ${stripe} 0 2px, transparent 2px 6px)`,
+        }
+      : {}),
+  };
+};
 
-export const CohortPanel: React.FC<{ cohorts: CohortRow[] }> = ({
-  cohorts,
-}) => {
-  const span = Math.max(0, ...cohorts.map((c) => c.retained.length));
+type CohortGroup = 'season' | 'month';
+
+const COHORT_GROUPS: { id: CohortGroup; label: string }[] = [
+  { id: 'season', label: 'By season' },
+  { id: 'month', label: 'By month' },
+];
+
+const monthName = (month: string) =>
+  new Date(`${month}-15T12:00:00Z`).toLocaleDateString(undefined, {
+    month: 'long',
+    timeZone: 'UTC',
+  });
+
+const percentOf = (part: number, whole: number) =>
+  whole > 0 ? Math.round((part / whole) * 100) : 0;
+
+export const CohortPanel: React.FC<{
+  cohorts: CohortRow[];
+  retention?: Retention;
+}> = ({ cohorts, retention }) => {
+  const [group, setGroup] = useState<CohortGroup>('season');
+  const rows = retention
+    ? group === 'season'
+      ? retention.bySeason
+      : retention.byMonth
+    : legacyRetentionRows(cohorts);
+  const span = Math.max(0, ...rows.map((r) => r.cells.length));
+  const hasPartial = rows.some((r) => r.cells.some((c) => c?.partial));
+  const hasReturn = rows.some((r) => r.fallReturn);
+  const overall = retention?.fallReturn;
   return (
-    <Panel title="Still Active by Sign-up Month">
+    <Panel
+      title={
+        retention
+          ? 'Still Active by School Month'
+          : 'Still Active by Sign-up Month'
+      }
+      actions={
+        retention && (
+          <div className="flex gap-0.5 text-xs font-semibold" role="group">
+            {COHORT_GROUPS.map((g) => (
+              <button
+                {...tourFieldAttr(
+                  'admin.analytics.cohort-group',
+                  'admin',
+                  g.id
+                )}
+                key={g.id}
+                type="button"
+                aria-pressed={group === g.id}
+                onClick={() => setGroup(g.id)}
+                className={`px-2.5 py-1 rounded-md transition-colors ${
+                  group === g.id
+                    ? 'bg-slate-200 text-slate-900'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                {g.label}
+              </button>
+            ))}
+          </div>
+        )
+      }
+    >
+      {overall && (
+        <p className="mb-3 text-sm text-slate-600">
+          <b className="text-2xl font-bold text-slate-900 tabular-nums mr-1.5">
+            {percentOf(overall.returned, overall.spring)}%
+          </b>
+          of teachers active in spring {overall.year} came back in September
+          {overall.partial ? ' so far' : ''} ({NUMBER.format(overall.returned)}{' '}
+          of {NUMBER.format(overall.spring)})
+        </p>
+      )}
       <div className="overflow-x-auto">
         <table className="w-full border-separate border-spacing-[3px] text-xs">
           <thead>
@@ -570,21 +662,26 @@ export const CohortPanel: React.FC<{ cohorts: CohortRow[] }> = ({
                   M{i}
                 </th>
               ))}
+              {hasReturn && (
+                <th className="text-right font-semibold pl-2 whitespace-nowrap">
+                  Back in Sep
+                </th>
+              )}
             </tr>
           </thead>
           <tbody>
-            {cohorts.map((c) => (
-              <tr key={c.month}>
+            {rows.map((r) => (
+              <tr key={r.key}>
                 <td className="text-slate-700 whitespace-nowrap pr-2">
-                  {formatMonth(c.month)}
+                  {formatCohortKey(r.key)}
                 </td>
                 <td className="text-right text-slate-500 pr-2 tabular-nums">
-                  {c.users}
+                  {r.users}
                 </td>
                 {Array.from({ length: span }, (_, i) => {
-                  const pct = c.retained[i];
-                  if (pct === undefined) return <td key={i} />;
-                  if (pct === null)
+                  const cell = r.cells[i];
+                  if (cell === undefined) return <td key={i} />;
+                  if (cell === null)
                     return (
                       <td
                         key={i}
@@ -598,19 +695,50 @@ export const CohortPanel: React.FC<{ cohorts: CohortRow[] }> = ({
                     <td
                       key={i}
                       className="text-center h-6 rounded tabular-nums"
-                      style={{
-                        background: cohortColor(pct),
-                        color: pct > 55 ? '#fff' : '#0f172a',
-                      }}
+                      style={cohortCellStyle(cell)}
+                      title={`${cell.active} of ${cell.n} teachers`}
                     >
-                      {pct}%
+                      {cell.pct}%
                     </td>
                   );
                 })}
+                {hasReturn && (
+                  <td
+                    className="text-right pl-2 tabular-nums text-slate-700"
+                    title={
+                      r.fallReturn
+                        ? `${r.fallReturn.returned} of ${r.fallReturn.spring} teachers active in spring`
+                        : undefined
+                    }
+                  >
+                    {r.fallReturn
+                      ? `${percentOf(r.fallReturn.returned, r.fallReturn.spring)}%`
+                      : '–'}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500">
+        {retention && <span>June and July are skipped.</span>}
+        <span>Paler cells are based on fewer teachers.</span>
+        {retention && hasPartial && (
+          <span className="inline-flex items-center gap-1.5">
+            <span
+              className="inline-block w-3 h-3 rounded-sm"
+              style={cohortCellStyle({
+                pct: 60,
+                active: 18,
+                n: 30,
+                partial: true,
+              })}
+            />
+            Striped cells include {monthName(retention.currentMonth)}, which is
+            not over yet.
+          </span>
+        )}
       </div>
     </Panel>
   );

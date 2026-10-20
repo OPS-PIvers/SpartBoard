@@ -507,7 +507,10 @@ const OverviewPanel: React.FC<{
           <NewUsersPanel months={history.newUsersByMonth} />
         )}
         {history && history.cohorts.length > 0 && (
-          <CohortPanel cohorts={history.cohorts} />
+          <CohortPanel
+            cohorts={history.cohorts}
+            retention={history.retention}
+          />
         )}
         {buildingRows.length > 0 && (
           <BuildingAdoptionPanel rows={buildingRows} />

@@ -7526,6 +7526,11 @@ export const TOUR_ANCHORS = {
     label: 'Building filter dropdown in the Analytics user list',
     panel: true,
   },
+  'admin.analytics.cohort-group': {
+    label: 'Season or month buttons in Analytics retention chart',
+    perField: true,
+    panel: true,
+  },
   'admin.analytics.domain-filter': {
     label: 'Domain filter dropdown in Analytics',
     panel: true,
