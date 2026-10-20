@@ -61045,6 +61045,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "flashcards.results-view",
+    "label": "Study and Speaking switch in Flashcards Study results",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
     "id": "plc-assessments.folder-new",
     "label": "New folder button in the PLC assessments folder panel",
     "scope": "board",

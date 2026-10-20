@@ -5,7 +5,7 @@ import { render, screen } from '@testing-library/react';
 import type { FlashcardAssignment, FlashcardSession } from '@/types';
 
 const auth = vi.hoisted(() => ({ canSpeak: false }));
-const state = vi.hoisted(() => ({ session: null }));
+const state = vi.hoisted((): { session: unknown } => ({ session: null }));
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
