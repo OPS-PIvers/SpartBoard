@@ -34111,20 +34111,62 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "admin.analytics.widget-users-search",
-    "label": "Email search field in a widget usage row",
+    "id": "admin.analytics.widget-users-building",
+    "label": "Building filter in a widget users list",
     "scope": "board",
     "panel": true,
     "routes": [
       {
-        "surface": "admin.analytics",
-        "kind": "panel",
+        "surface": "admin.analytics.widget-users",
+        "kind": "modal",
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#analytics",
-          "admin.analytics.tab:admin#widgets"
+          "admin.analytics.tab:admin#widgets",
+          "admin.analytics.widget-users-toggle:admin#timer"
         ],
-        "reveal": "admin.analytics.tab:admin#widgets",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.analytics.widget-users-search",
+    "label": "Email search field in a widget users list",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.analytics.widget-users",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#analytics",
+          "admin.analytics.tab:admin#widgets",
+          "admin.analytics.widget-users-toggle:admin#timer"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.analytics.widget-users-sort",
+    "label": "Sortable column headers in a widget users list",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.analytics.widget-users",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#analytics",
+          "admin.analytics.tab:admin#widgets",
+          "admin.analytics.widget-users-toggle:admin#timer"
+        ],
         "needs": [
           "admin"
         ]
@@ -34133,7 +34175,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.analytics.widget-users-toggle",
-    "label": "Show users button in a widget usage row",
+    "label": "Widget name in the widget usage table, opens its users",
     "scope": "field",
     "panel": true,
     "routes": [
