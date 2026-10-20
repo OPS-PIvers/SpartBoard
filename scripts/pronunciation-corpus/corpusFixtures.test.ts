@@ -26,6 +26,7 @@ interface VoiceRef {
   source: string;
 }
 const refs = voiceRefs.refs as Record<string, Record<string, VoiceRef[]>>;
+const espeakKeys = voiceRefs.espeak as Record<string, Record<string, string>>;
 const readings = voiceRefs.readings as Record<
   string,
   Record<string, Record<string, string[]>>
@@ -80,7 +81,7 @@ describe('Speak corpus fixtures', () => {
       for (const [language, spec] of Object.entries(words.languages)) {
         for (const entry of spec.words) {
           const label = `${language} ${entry.word}`;
-          expect(voiceRefs.espeak[language]?.[entry.word], label).toBe(
+          expect(espeakKeys[language]?.[entry.word], label).toBe(
             espeakKey(entry)
           );
           const bases = Object.entries(entry.refs ?? {})
