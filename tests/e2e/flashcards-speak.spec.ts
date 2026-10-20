@@ -1,4 +1,46 @@
+import { writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test, expect, type Page } from '@playwright/test';
+
+// A looping fake mic: quiet, a 0.6 s voiced word, then quiet long enough for the take to end itself.
+const fakeWordWav = (): string => {
+  const rate = 16000;
+  const parts: Array<[number, boolean]> = [
+    [0.5, false],
+    [0.6, true],
+    [2.9, false],
+  ];
+  const total = Math.round(parts.reduce((sum, [s]) => sum + s, 0) * rate);
+  const data = Buffer.alloc(44 + total * 2);
+  data.write('RIFF', 0);
+  data.writeUInt32LE(36 + total * 2, 4);
+  data.write('WAVEfmt ', 8);
+  data.writeUInt32LE(16, 16);
+  data.writeUInt16LE(1, 20);
+  data.writeUInt16LE(1, 22);
+  data.writeUInt32LE(rate, 24);
+  data.writeUInt32LE(rate * 2, 28);
+  data.writeUInt16LE(2, 32);
+  data.writeUInt16LE(16, 34);
+  data.write('data', 36);
+  data.writeUInt32LE(total * 2, 40);
+  let i = 0;
+  for (const [seconds, voiced] of parts) {
+    for (let n = 0; n < Math.round(seconds * rate); n++, i++) {
+      const t = i / rate;
+      const v = voiced
+        ? 0.25 *
+          (Math.sin(2 * Math.PI * 160 * t) +
+            0.5 * Math.sin(2 * Math.PI * 480 * t))
+        : 0.001 * Math.sin(2 * Math.PI * 50 * t);
+      data.writeInt16LE(Math.round(v * 32767), 44 + i * 2);
+    }
+  }
+  const path = join(tmpdir(), 'spartboard-speak-word.wav');
+  writeFileSync(path, data);
+  return path;
+};
 
 // The stamp is built the way a locked Study assignment saves it; the recognizer is scripted to say each word exactly.
 test.use({
@@ -7,15 +49,19 @@ test.use({
     args: [
       '--use-fake-ui-for-media-stream',
       '--use-fake-device-for-media-stream',
+      `--use-file-for-fake-audio-capture=${fakeWordWav()}`,
     ],
   },
 });
 
+// No Stop click: the take ends on its own once the word is over.
 const sayCurrentWord = async (page: Page) => {
   await page.getByRole('button', { name: 'Start speaking' }).click();
-  await page.getByRole('button', { name: 'Stop' }).click();
-  // Exact or Accepted both pass; the synthetic take's stress may be forgiven.
-  await expect(page.getByText(/^(Exact|Accepted)$/)).toBeVisible();
+  await expect(page.getByText('Listening…')).toBeVisible();
+  // Exact or Accepted both pass; under the 8 s limit, only the auto-stop can have ended the take.
+  await expect(page.getByText(/^(Exact|Accepted)$/)).toBeVisible({
+    timeout: 7000,
+  });
 };
 
 test('a student practises a Speak set to mastery aloud and the teacher sees it', async ({
