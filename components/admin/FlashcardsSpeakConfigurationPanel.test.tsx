@@ -56,7 +56,7 @@ describe('FlashcardsSpeakConfigurationPanel', () => {
     snapshotData = { attempts: 99, languages: { de: { preset: 'nope' } } };
     render(<FlashcardsSpeakConfigurationPanel />);
     expect(
-      screen.getByLabelText<HTMLSelectElement>('Tries per card').value
+      screen.getByLabelText<HTMLSelectElement>('Attempts per card').value
     ).toBe('10');
     expect(
       screen.getByLabelText<HTMLSelectElement>('Starting level for German')
@@ -95,7 +95,7 @@ describe('FlashcardsSpeakConfigurationPanel', () => {
     });
     act(() => live.push?.({ attempts: 7 }));
     expect(
-      screen.getByLabelText<HTMLSelectElement>('Tries per card').value
+      screen.getByLabelText<HTMLSelectElement>('Attempts per card').value
     ).toBe('7');
     fireEvent.click(screen.getByRole('button', { name: /save/i }));
 
