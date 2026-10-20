@@ -1308,6 +1308,16 @@ describe('DashboardContext PII supplement shared with another device', () => {
     });
     expect(updateFileContentMock).toHaveBeenCalledTimes(1);
 
+    // Its own save echoes back at the new version; Drive still has the old names.
+    const saved = saveDashboardMock.mock.calls.at(-1)?.[0] as Dashboard;
+    await pushSnapshot([saved]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(
+      configOf(stateRef.current?.activeDashboard, 'w-lunch').roster ?? []
+    ).toEqual([]);
+
     act(() => {
       stateRef.current?.updateWidget('w-text', { config: { content: 'v1' } });
     });
