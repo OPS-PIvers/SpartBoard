@@ -512,6 +512,25 @@ describe('convertOlfToBundle', () => {
     expect(result.pageCount).toBe(1);
   });
 
+  it('counts element types named like Object.prototype members as numbers', async () => {
+    const content = doc([
+      page([
+        { constructor: { id: 'c1' } },
+        { constructor: { id: 'c2' } },
+        { toString: { id: 't1' } },
+        JSON.parse('{"__proto__":{"id":"p1"}}'),
+      ]),
+    ]);
+    const result = await convertOlfToBundle(await olfFile(content), {
+      measureText: monoMeasure,
+    });
+    const count = (key: string): unknown =>
+      Object.getOwnPropertyDescriptor(result.skipped, key)?.value as unknown;
+    expect(count('constructor')).toBe(2);
+    expect(count('toString')).toBe(1);
+    expect(count('__proto__')).toBe(1);
+  });
+
   it('carries locked flags and flip from the additional list', async () => {
     const content = doc(
       [
