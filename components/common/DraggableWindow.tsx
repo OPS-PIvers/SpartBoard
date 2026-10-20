@@ -53,6 +53,8 @@ import { POSITION_AWARE_WIDGETS } from '@/config/widgetDefaults';
 import { calculateSnapBounds, SNAP_LAYOUT_CONSTANTS } from '@/utils/layoutMath';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { getLocalIsoDate } from '@/utils/localDate';
+import { needsUseStamp } from '@/utils/widgetUse';
+import { auth } from '@/config/firebase';
 import { clampWidgetToWorld, getWorldBounds } from '@/utils/zoomPanMath';
 import { useScreenshot } from '@/hooks/useScreenshot';
 import { useWindowSize } from '@/hooks/useWindowSize';
@@ -916,7 +918,22 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     [handleSnapToZone]
   );
 
+  // First click, tap or keypress of the day marks the widget used, for admin analytics.
+  const stampUse = () => {
+    const uid = auth.currentUser?.uid;
+    const now = Date.now();
+    if (!uid || widget.transient || !needsUseStamp(widget.lastUse, uid, now)) {
+      return;
+    }
+    updateWidget(
+      widget.id,
+      { lastUse: { uid, at: now } },
+      { skipHistory: true }
+    );
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    stampUse();
     // Stop propagation if we're in an input to prevent global shortcuts
     const target = e.target as HTMLElement;
     const isInput =
@@ -2134,6 +2151,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     // start the long-press screenshot timer or the 2-finger annotation
     // gesture on the widget that hosts the modal.
     if (isFromPortaledOverlay(e)) return;
+    stampUse();
     if (e.pointerType !== 'mouse') {
       activeTouchCount.current++;
 

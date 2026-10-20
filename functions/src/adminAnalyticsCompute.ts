@@ -21,6 +21,7 @@ import {
   type DayActivityDoc,
   buildActivitySeries,
   buildCohorts,
+  addDays,
   buildRetention,
   buildNewUsersByMonth,
   estimateActivityDays,
@@ -30,6 +31,13 @@ import {
 } from './adminAnalyticsHistory';
 import { OPEN_SOURCES } from './adminActiveStudents';
 import { chunk as chunksOf } from './shared';
+import {
+  type WidgetUsage,
+  WidgetUsageTracker,
+  readWidgetDay,
+  widgetDayCounts,
+  writeWidgetDay,
+} from './adminWidgetUsage';
 
 export interface AdminAnalyticsPayload {
   users: {
@@ -48,6 +56,7 @@ export interface AdminAnalyticsPayload {
     totalInstances: Record<string, number>;
     activeInstances: Record<string, number>;
     usersByType: Record<string, { count: number; emails: string[] }>;
+    usage?: Record<string, WidgetUsage>;
   };
   dashboards: {
     total: number;
@@ -95,7 +104,7 @@ interface AnalyticsUserRow {
 interface DashboardData {
   createdAt?: number;
   updatedAt?: number;
-  widgets?: { type: string }[];
+  widgets?: { type: string; lastUse?: unknown }[];
 }
 
 interface MemberLite {
@@ -294,10 +303,8 @@ export async function computeAnalyticsForOrg(
   const activeWidgetCounts: Record<string, number> = {};
   const allDashboardOwnerUids = new Set<string>();
   let totalWidgetInstances = 0;
-  // Bounded at MAX_WIDGET_USER_TRACK UIDs per type: memory is
-  // O(widget_types × limit) instead of O(widget_types × all_users).
-  // count = Set.size is exact up to the cap; above the cap it means "≥ cap".
-  const MAX_WIDGET_USER_TRACK = 100;
+  // Owners are org members only, so per-type sets stay bounded by the roster.
+  const widgetUsage = new WidgetUsageTracker();
   const widgetToUserUids: Record<string, Set<string>> = {};
   const activeThreshold = now - 30 * 24 * 60 * 60 * 1000;
   const lastEditByUser = new Map<string, number>();
@@ -350,8 +357,9 @@ export async function computeAnalyticsForOrg(
     totalWidgetInstances += widgetCount;
 
     if (dashData.widgets && Array.isArray(dashData.widgets)) {
-      dashData.widgets.forEach((w: { type: string }) => {
+      dashData.widgets.forEach((w) => {
         if (w && w.type) {
+          widgetUsage.add(w.type, ownerUid, w.lastUse);
           totalWidgetCounts[w.type] = (totalWidgetCounts[w.type] || 0) + 1;
           if (isActive) {
             activeWidgetCounts[w.type] = (activeWidgetCounts[w.type] || 0) + 1;
@@ -360,10 +368,7 @@ export async function computeAnalyticsForOrg(
             if (!widgetToUserUids[w.type]) {
               widgetToUserUids[w.type] = new Set<string>();
             }
-            const uidSet = widgetToUserUids[w.type];
-            if (uidSet.size < MAX_WIDGET_USER_TRACK || uidSet.has(ownerUid)) {
-              uidSet.add(ownerUid);
-            }
+            widgetToUserUids[w.type].add(ownerUid);
           }
         }
       });
@@ -458,16 +463,10 @@ export async function computeAnalyticsForOrg(
 
   const totalRegisteredUsers = authUsersMap.size;
 
-  // Resolve widget UIDs to emails (cap at 200 unique UIDs total).
-  const allWidgetUids = new Set<string>();
-  outer: for (const uids of Object.values(widgetToUserUids)) {
-    for (const uid of uids) {
-      if (allWidgetUids.size >= 200) break outer;
-      allWidgetUids.add(uid);
-    }
-  }
+  // Every widget owner is a member, so the roster supplies emails and buildings.
+  const memberByUid = new Map<string, MemberLite>();
+  for (const m of members) if (m.uid) memberByUid.set(m.uid, m);
 
-  const widgetUserEmails: Record<string, string> = {};
   const resolveUserEmailsViaAuthFallback = async (
     uids: string[],
     targetMap: Record<string, string>,
@@ -507,44 +506,14 @@ export async function computeAnalyticsForOrg(
     );
   };
 
-  const allWidgetUidArray = Array.from(allWidgetUids);
-  for (let i = 0; i < allWidgetUidArray.length; i += 30) {
-    const uidChunk = allWidgetUidArray.slice(i, i + 30);
-    if (uidChunk.length === 0) continue;
-    const snapshot = await db
-      .collection('users')
-      .where(admin.firestore.FieldPath.documentId(), 'in', uidChunk)
-      .select('email')
-      .get();
-    snapshot.docs.forEach((d) => {
-      const userData = d.data();
-      if (
-        typeof userData['email'] === 'string' &&
-        userData['email'].length > 0
-      ) {
-        widgetUserEmails[d.id] = userData['email'];
-      }
-    });
-  }
-  const unresolvedWidgetUids = allWidgetUidArray.filter(
-    (uid) => !widgetUserEmails[uid]
-  );
-  if (unresolvedWidgetUids.length > 0) {
-    await resolveUserEmailsViaAuthFallback(
-      unresolvedWidgetUids,
-      widgetUserEmails,
-      'widget drilldowns'
-    );
-  }
-
   const usersByType: Record<string, { count: number; emails: string[] }> = {};
   for (const [widgetType, uidSet] of Object.entries(widgetToUserUids)) {
     usersByType[widgetType] = {
       count: uidSet.size,
       emails: Array.from(uidSet)
-        .slice(0, 20)
-        .map((uid) => widgetUserEmails[uid] ?? `Unknown (${uid})`)
-        .sort(),
+        .map((uid) => memberByUid.get(uid)?.email ?? `Unknown (${uid})`)
+        .sort()
+        .slice(0, 20),
     };
   }
 
@@ -803,6 +772,43 @@ export async function computeAnalyticsForOrg(
     }
   }
 
+  // A failed read only drops the comparison; the counts still ship.
+  const widgetDay = measuredDateKey(now);
+  const readWidgetDayOrNull = (date: string) =>
+    historyOptions.record
+      ? readWidgetDay(orgId, date).catch((err: unknown) => {
+          console.warn('[getAdminAnalytics] widget day read failed', {
+            ...logContext,
+            orgId,
+            date,
+            error: err instanceof Error ? err.message : String(err),
+          });
+          return null;
+        })
+      : Promise.resolve(null);
+  const [prevWidgetDay, monthAgoWidgetDay] = await Promise.all([
+    readWidgetDayOrNull(addDays(widgetDay, -1)),
+    readWidgetDayOrNull(addDays(widgetDay, -30)),
+  ]);
+  const usage = widgetUsage.build({
+    now,
+    day: widgetDay,
+    members: memberByUid,
+    prevDay: prevWidgetDay,
+    monthAgo: monthAgoWidgetDay,
+  });
+  if (historyOptions.record && historyOptions.saveDay) {
+    try {
+      await writeWidgetDay(orgId, widgetDay, widgetDayCounts(usage));
+    } catch (err) {
+      console.error('[getAdminAnalytics] widget day write failed', {
+        ...logContext,
+        orgId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
   return {
     users: {
       total: totalEngagement.total,
@@ -820,6 +826,7 @@ export async function computeAnalyticsForOrg(
       totalInstances: totalWidgetCounts,
       activeInstances: activeWidgetCounts,
       usersByType,
+      usage,
     },
     dashboards: {
       total: totalDashboards,

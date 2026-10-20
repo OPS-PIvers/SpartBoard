@@ -14,6 +14,7 @@ import { getMaterialMap } from './constants';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useAuth } from '@/context/useAuth';
 import { resolveBaseTextScale } from '@/config/widgetAppearance';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 import { WidgetLayout } from '../WidgetLayout';
 
@@ -204,12 +205,19 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
               className="w-full flex-shrink-0 bg-slate-100/80 rounded-2xl p-1.5 flex gap-2 overflow-x-auto custom-scrollbar no-scrollbar"
               style={{ minHeight: 'max(64px, min(80px, 20cqmin))' }}
             >
-              {selectionItems.map((item) => {
+              {selectionItems.map((item, itemIndex) => {
                 const isActive = activeSet.has(item.id);
                 return (
                   <button
                     key={item.id}
                     onClick={() => toggleActive(item.id)}
+                    aria-pressed={isActive}
+                    {...tourFieldAttr(
+                      'materials.tray-item',
+                      widget.type,
+                      `row-${itemIndex + 1}`
+                    )}
+                    data-tour-widget={widget.id}
                     className={`flex-shrink-0 flex flex-col items-center justify-center rounded-xl border-2 transition-all relative ${
                       isActive
                         ? 'bg-white border-blue-500 shadow-sm'

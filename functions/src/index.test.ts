@@ -2415,6 +2415,75 @@ describe('recomputeAdminAnalytics (scheduled)', () => {
     );
   });
 
+  it('saves widget daily and monthly users and compares with saved days', async () => {
+    mockFirestoreState.organizations = [{ id: 'orono', status: 'active' }];
+    mockFirestoreState.users = [
+      {
+        id: 'uid-1',
+        data: {
+          email: 'a@orono.k12.mn.us',
+          lastLogin: Date.now(),
+          buildings: ['middle'],
+        },
+      },
+      {
+        id: 'uid-2',
+        data: { email: 'b@orono.k12.mn.us', lastLogin: Date.now() },
+      },
+    ];
+    mockFirestoreState.dashboards = [
+      {
+        id: 'dash-1',
+        ownerUid: 'uid-1',
+        data: {
+          updatedAt: Date.now(),
+          widgets: [
+            { type: 'timer', lastUse: { uid: 'uid-1', at: Date.now() - 1000 } },
+          ],
+        },
+      },
+      {
+        id: 'dash-2',
+        ownerUid: 'uid-2',
+        data: {
+          updatedAt: Date.now(),
+          widgets: [
+            {
+              type: 'timer',
+              lastUse: { uid: 'uid-2', at: Date.now() - 5 * 86400000 },
+            },
+          ],
+        },
+      },
+    ];
+    mockFirestoreState.docs.set(
+      'organizations/orono/analytics_widget_days/2026-09-30',
+      { counts: { timer: { daily: 2, monthly: 2 } } }
+    );
+    await (recomputeAdminAnalytics as unknown as () => Promise<void>)();
+
+    expect(
+      mockFirestoreState.docs.get(
+        'organizations/orono/analytics_widget_days/2026-10-01'
+      )
+    ).toEqual({
+      date: '2026-10-01',
+      counts: { timer: { daily: 1, monthly: 2 } },
+    });
+    const snapshot = mockFirestoreState.docs.get(
+      'organizations/orono/analytics/snapshot'
+    ) as {
+      payload: { widgets: { usage?: Record<string, Record<string, unknown>> } };
+    };
+    expect(snapshot.payload.widgets.usage?.timer).toMatchObject({
+      daily: 1,
+      monthly: 2,
+      dailyPrev: 2,
+      monthlyPrev: null,
+      buildings: { middle: 1, none: 1 },
+    });
+  });
+
   it('refreshes KPIs at midday without saving a day or running the estimate', async () => {
     vi.setSystemTime(Date.UTC(2026, 9, 2, 17, 0, 30));
     mockFirestoreState.organizations = [{ id: 'orono', status: 'active' }];
