@@ -14,6 +14,11 @@ vi.mock('firebase-functions/v2/https', () => {
   };
 });
 vi.mock('../functionsInit', () => ({}));
+// Voice readings need Cloud TTS and the model; voiceRefs.test.ts covers them.
+vi.mock('./voiceRefs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./voiceRefs')>()),
+  createVoiceReader: () => ({ read: () => Promise.resolve([]) }),
+}));
 vi.mock('../classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
 vi.mock('firebase-admin', () => ({ firestore: () => ({}) }));
 const isGlobalFeatureGranted =

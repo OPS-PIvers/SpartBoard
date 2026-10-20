@@ -619,6 +619,57 @@ describe('flashcard Speak (S10)', () => {
     ).toMatchObject({ g2pVersion: SPEAK_G2P_VERSION, confirmedAt: 5 });
   });
 
+  it('keeps a confirmation when the re-lookup only adds voice references', async () => {
+    const voice = {
+      ...ref('es-419'),
+      tokens: ['l', 'o', 'β', 'o'],
+      source: 'voice' as const,
+    };
+    mocks.compute.mockImplementation(
+      async (input: Parameters<typeof fakeLookup>[0]) => {
+        const out = await fakeLookup(input);
+        for (const c of Object.values(out.cards))
+          (c.refs as unknown[]).push(voice);
+        return out;
+      }
+    );
+    const { db, docs } = fakeDb({
+      [setPath('s1')]: {
+        title: 'Animales',
+        termLanguage: 'es-MX',
+        definitionLanguage: 'en-US',
+        speak: { dialects: ['es-419'] },
+        cards: [
+          {
+            id: 'c1',
+            term: 'l?bo',
+            definition: 'd',
+            speak: {
+              term: 'l?bo',
+              refs: [ref('es-419')],
+              g2pVersion: 'old-engine',
+              status: 'needs-review',
+              reasons: ['g2p-disagree'],
+              confirmedAt: 5,
+            },
+          },
+        ],
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    });
+    const call = await connect(db);
+    await call('update_flashcard_set', { set_id: 's1', title: 'Animales 2' });
+    const speak = (
+      (docs.get(setPath('s1')) as Data).cards as { speak?: Data }[]
+    )[0].speak as { refs: unknown[]; confirmedAt?: number };
+    expect(speak.refs).toHaveLength(2);
+    expect(speak.confirmedAt).toBe(5);
+    // Voice refs don't make the card look stale for its dialects.
+    await call('update_flashcard_set', { set_id: 's1', title: 'Animales 3' });
+    expect(mocks.compute).toHaveBeenCalledTimes(1);
+  });
+
   it('marks cards when the lookup fails and retries them on the next save', async () => {
     const { db, docs } = fakeDb();
     const call = await connect(db);

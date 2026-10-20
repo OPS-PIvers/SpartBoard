@@ -28,6 +28,8 @@ import {
 
 type Firestore = admin.firestore.Firestore;
 const ADMIN_DOC = 'admin_settings/flashcardsSpeak';
+// Leaves mcpServer's 120 s timeout room for the save; cards past it come back pending and fill on a later save.
+export const MCP_VOICE_BUDGET_MS = 60_000;
 
 /** F22: one read at save time; any failure falls back to the shipped defaults. */
 export async function readSpeakAdminDefaults(
@@ -69,10 +71,18 @@ export function applySpeakInput(
   };
 }
 
-const sameDialects = (speak: FlashcardCardSpeak, dialects: SpeakDialect[]) =>
-  speak.refs.length === 0 ||
-  (speak.refs.length === dialects.length &&
-    speak.refs.every((ref) => dialects.includes(ref.dialect)));
+// Voice refs ride along with their dialect's espeak ref, so only espeak refs say which dialects were looked up.
+const espeakRefs = (speak: FlashcardCardSpeak) =>
+  speak.refs.filter((ref) => ref.source !== 'voice');
+
+const sameDialects = (speak: FlashcardCardSpeak, dialects: SpeakDialect[]) => {
+  const refs = espeakRefs(speak);
+  return (
+    speak.refs.length === 0 ||
+    (refs.length === dialects.length &&
+      speak.refs.every((ref) => dialects.includes(ref.dialect)))
+  );
+};
 
 /** A card's references are current for its term, the engine version and the set's dialects. */
 export function cardSpeakCurrent(
@@ -123,7 +133,9 @@ export async function attachSpeakReferences(
         };
       }),
     });
-    found = (await compute(input)).cards;
+    found = (
+      await compute(input, undefined, { voiceBudgetMs: MCP_VOICE_BUDGET_MS })
+    ).cards;
   } catch (err) {
     console.error('[mcpServer] Speak lookup failed', { err });
     found = {};
@@ -150,7 +162,7 @@ const keepConfirmation = (
   previous?.confirmedAt &&
   previous.term === next.term &&
   next.status === 'needs-review' &&
-  JSON.stringify(previous.refs) === JSON.stringify(next.refs)
+  JSON.stringify(espeakRefs(previous)) === JSON.stringify(espeakRefs(next))
     ? { ...next, confirmedAt: previous.confirmedAt }
     : next;
 
