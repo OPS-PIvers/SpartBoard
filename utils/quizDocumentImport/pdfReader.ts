@@ -75,6 +75,8 @@ export interface PdfContent {
   usedOcr: boolean;
   /** Pictures placed among `lines`; their `figureKey`s are the lines' image ids. */
   pictures: FigureBox[];
+  /** Each page's top lines before running headers are stripped, where version headings sit. */
+  pageHeads: string[][];
 }
 
 export interface ReadPdfOptions {
@@ -119,6 +121,9 @@ const toLayoutItem = (item: PdfTextItem): LayoutItem => ({
   ...(item.width !== undefined ? { width: item.width } : {}),
   fontSize: Math.hypot(item.transform[2] ?? 0, item.transform[3] ?? 0),
 });
+
+/** How far down a page a version heading may sit. */
+const HEAD_LINES = 3;
 
 /** Group positioned fragments back into lines, top-to-bottom. */
 export function groupItemsIntoLines(items: readonly PdfTextItem[]): string[] {
@@ -200,6 +205,17 @@ export async function readPdf(
     await pdf.destroy?.();
   }
 
+  const headsByPage = new Map(
+    pages.map((p) => [p.page, p.lines.map((l) => l.text)])
+  );
+  for (const [n, ocrLines] of plainOcr)
+    headsByPage.set(
+      n,
+      ocrLines.map((l) => l.text)
+    );
+  const pageHeads = Array.from({ length: pageCount }, (_, i) =>
+    (headsByPage.get(i + 1) ?? []).slice(0, HEAD_LINES)
+  );
   const laidOut = new Map(stripRunningLines(pages).map((p) => [p.page, p]));
   const pictureNumbers = [...picturesByPage.keys()];
   const kept = new Map(
@@ -242,5 +258,6 @@ export async function readPdf(
     scannedPages,
     usedOcr,
     pictures,
+    pageHeads,
   };
 }

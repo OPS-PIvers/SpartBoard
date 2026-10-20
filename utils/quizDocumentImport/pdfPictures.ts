@@ -359,8 +359,16 @@ export const pictureLine = (box: FigureBox): DocLine => ({
   imageIds: [figureKey(box)],
 });
 
-/** A line wholly inside a picture is one of its labels. */
+/** A sentence is text, even where a picture's box runs over it. */
+const MAX_LABEL_WORDS = 10;
+
+const isSentence = (line: DocLine): boolean =>
+  (line.segments?.length ?? 1) <= 1 &&
+  line.text.trim().split(/\s+/).length > MAX_LABEL_WORDS;
+
+/** A line wholly inside a picture is one of its labels, unless it is a sentence. */
 const insidePicture = (l: PositionedLine, picture: PageBox): boolean =>
+  !isSentence(l.line) &&
   l.left !== undefined &&
   l.right !== undefined &&
   l.left >= picture.x &&

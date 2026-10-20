@@ -1849,6 +1849,7 @@ const TeacherQuizWidget: React.FC<{
       ...(canImportVersions
         ? {
             importVersions: true,
+            plainVersions: canAccessFeature('quiz-import-versions-plain'),
             saveVersionImport,
             rubricScoringGuides: canAccessFeature('rubric-scoring-guides'),
             ...(canUseAiReader

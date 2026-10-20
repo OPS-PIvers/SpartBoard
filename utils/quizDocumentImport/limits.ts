@@ -6,6 +6,8 @@
 
 export const MAX_DOCUMENT_BYTES = 25 * 1024 * 1024;
 export const MAX_DOCUMENT_PAGES = 20;
+/** A file split into versions may run longer, as on the server (QUIZ_IMPORT_VERSIONS V12). */
+export const MAX_VERSIONED_DOCUMENT_PAGES = 40;
 /** An LMS export is a zip, so its unpacked size needs its own ceiling. */
 export const MAX_CARTRIDGE_UNZIPPED_BYTES = 100 * 1024 * 1024;
 
