@@ -43,7 +43,9 @@ jobs:
       - name: Fetch corpus
         id: fetch
         continue-on-error: true
-        run: node scripts/pronunciation-corpus/fetch.mjs --max-wait 900
+        run: |
+          node scripts/pronunciation-corpus/fetch.mjs --max-wait 900
+          node scripts/pronunciation-corpus/fetch.mjs --set heldout --max-wait 900
 
       # Commits whatever arrived, so a rate-limited run resumes from here next time.
       - name: Commit clips
@@ -80,7 +82,7 @@ jobs:
     needs: fetch-corpus
     if: ${{ !cancelled() && (github.event.action != 'labeled' || needs.fetch-corpus.result != 'skipped') }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
     concurrency:
       group: pronunciation-gate-${{ github.ref }}
       cancel-in-progress: true
@@ -104,7 +106,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/spartboard-pronunciation
-          key: pronunciation-model-${{ steps.model.outputs.md5 }}-${{ hashFiles('tests/fixtures/pronunciation-corpus/manifest.json', 'tests/fixtures/pronunciation-corpus/controls.json', 'utils/pronunciation/audio.ts', 'utils/pronunciation/ctcDecode.ts') }}
+          key: pronunciation-model-${{ steps.model.outputs.md5 }}-${{ hashFiles('tests/fixtures/pronunciation-corpus/manifest.json', 'tests/fixtures/pronunciation-corpus/heldout/manifest.json', 'tests/fixtures/pronunciation-corpus/controls.json', 'utils/pronunciation/audio.ts', 'utils/pronunciation/ctcDecode.ts') }}
           restore-keys: pronunciation-model-${{ steps.model.outputs.md5 }}-
 
       - name: Run gate

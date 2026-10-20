@@ -2,6 +2,7 @@
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -16,6 +17,24 @@ export const FIXTURE_DIR = path.join(
 );
 export const MANIFEST_PATH = path.join(FIXTURE_DIR, 'manifest.json');
 export const WORDS_PATH = path.join(SCRIPT_DIR, 'words.json');
+export const VOICE_REFS_PATH = path.join(FIXTURE_DIR, 'voice-refs.json');
+
+/** The tuning corpus (`main`) or the held-out one S11d confirms the cut-offs on (`heldout`); never tune on `heldout`. */
+export const CORPUS_SETS = ['main', 'heldout'];
+
+export function corpusSet(name = 'main') {
+  if (!CORPUS_SETS.includes(name)) throw new Error(`Unknown corpus set ${name}`);
+  const dir = name === 'main' ? FIXTURE_DIR : path.join(FIXTURE_DIR, name);
+  return {
+    name,
+    wordsPath:
+      name === 'main' ? WORDS_PATH : path.join(SCRIPT_DIR, `words.${name}.json`),
+    dir,
+    manifestPath: path.join(dir, 'manifest.json'),
+    clipsDir: path.join(dir, 'clips'),
+    creditsPath: path.join(dir, 'CREDITS.md'),
+  };
+}
 
 // Wikimedia's User-Agent policy asks for a tool name and a contact.
 export const USER_AGENT =
@@ -284,4 +303,55 @@ export async function importTs(relPath) {
     resolve: { alias: { '@': ROOT } },
   });
   return module;
+}
+
+export const MODEL_CACHE_DIR =
+  process.env.PRONUNCIATION_GATE_CACHE ??
+  path.join(os.homedir(), '.cache/spartboard-pronunciation');
+
+/** The pinned model as an onnxruntime session, downloaded once to the cache and checked by size and MD5. */
+export async function createModelSession(model) {
+  const modelPath =
+    process.env.PRONUNCIATION_MODEL_PATH ??
+    path.join(MODEL_CACHE_DIR, `${model.id}.onnx`);
+  if (!fs.existsSync(modelPath)) {
+    console.log(`Downloading ${model.huggingFaceUrl}`);
+    const res = await fetch(model.huggingFaceUrl);
+    if (!res.ok) throw new Error(`Model download failed: HTTP ${res.status}`);
+    fs.mkdirSync(path.dirname(modelPath), { recursive: true });
+    fs.writeFileSync(modelPath, Buffer.from(await res.arrayBuffer()));
+  }
+  const bytes = fs.readFileSync(modelPath);
+  const digest = md5(bytes);
+  if (bytes.length !== model.bytes || !digest.startsWith(model.md5Prefix)) {
+    throw new Error(
+      `${modelPath} is not the pinned model (size ${bytes.length}, md5 ${digest.slice(0, 12)})`
+    );
+  }
+  const ort = await import('onnxruntime-web-1-30');
+  ort.env.wasm.numThreads = Math.min(4, os.availableParallelism());
+  const session = await ort.InferenceSession.create(bytes, {
+    executionProviders: ['wasm'],
+  });
+  return {
+    /** Raw logits for one normalized 16 kHz take. */
+    async run(input) {
+      const feeds = {
+        [session.inputNames[0]]: new ort.Tensor('float32', input, [
+          1,
+          input.length,
+        ]),
+      };
+      if (session.inputNames.includes('attention_mask')) {
+        feeds.attention_mask = new ort.Tensor(
+          'int64',
+          new BigInt64Array(input.length).fill(1n),
+          [1, input.length]
+        );
+      }
+      const out = (await session.run(feeds))[session.outputNames[0]];
+      const [, frames, size] = out.dims;
+      return { data: out.data, frames, size };
+    },
+  };
 }
