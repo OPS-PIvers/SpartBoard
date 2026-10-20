@@ -33,6 +33,8 @@ import {
   lookupSpeakReferencesV1,
   MAX_LOOKUP_TERMS,
   parseLookupInput,
+  SPEAK_G2P_VERSION,
+  SPEAK_G2P_VOICES_PENDING,
 } from './lookup';
 import { loadPhonemizer } from './espeak';
 import type { FlashcardCardSpeak, SpeakDialect, SpeakLanguage } from './types';
@@ -341,6 +343,16 @@ describe('lookupSpeakReferencesV1', () => {
       cards: Record<string, FlashcardCardSpeak>;
     };
     expect(out.cards.a.refs[0].tokens).toEqual(['k', 'æ', 't']);
+    expect(out.cards.a.g2pVersion).toBe(SPEAK_G2P_VERSION);
+  });
+
+  it('leaves voices pending when the editor asks for the quick check', async () => {
+    const out = (await call({
+      auth: teacher,
+      data: { ...data, voices: false },
+    })) as { cards: Record<string, FlashcardCardSpeak> };
+    expect(out.cards.a.refs[0].tokens).toEqual(['k', 'æ', 't']);
+    expect(out.cards.a.g2pVersion).toBe(SPEAK_G2P_VOICES_PENDING);
   });
 });
 

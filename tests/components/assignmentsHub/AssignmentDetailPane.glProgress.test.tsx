@@ -135,11 +135,25 @@ describe('AssignmentDetailPane: Guided Learning student progress', () => {
     expect(screen.getAllByText(/Slide \d/)).toHaveLength(1);
   });
 
-  it('says "Not tracked" for a session without the v2 player', () => {
+  it('shows recorded progress on a session started before the v2 player', () => {
     arrange({ flag: true, playerV2: false });
     render(<AssignmentDetailPane row={row} />);
+    expect(screen.getByText('Slide 7 of 12')).toBeInTheDocument();
+    expect(screen.queryByText('Not tracked')).not.toBeInTheDocument();
+  });
+
+  it('says "Not tracked" for a started student with no progress on an older session', () => {
+    arrange({ flag: true, playerV2: false });
+    vi.mocked(useGuidedLearningStudentProgress).mockReturnValue(new Map());
+    render(<AssignmentDetailPane row={row} />);
     expect(screen.getByText('Not tracked')).toBeInTheDocument();
-    expect(screen.queryByText(/Slide \d/)).not.toBeInTheDocument();
+  });
+
+  it('waits for progress to load before saying "Not tracked"', () => {
+    arrange({ flag: true, playerV2: false });
+    vi.mocked(useGuidedLearningStudentProgress).mockReturnValue(null);
+    render(<AssignmentDetailPane row={row} />);
+    expect(screen.queryByText('Not tracked')).not.toBeInTheDocument();
   });
 
   it('shows nothing with the flag off', () => {

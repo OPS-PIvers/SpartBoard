@@ -527,6 +527,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Version split without AI (F24). Admin-only until Paul has imported with it.
+  'quiz-import-versions-plain': {
+    label: 'Split versions without AI',
+    icon: Layers,
+    description: 'Splits a typed PDF with version headings without using AI.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Print/scan paper answer sheets. Admin-only until opened up; the district
   // switch (admin_settings/paper_answer_sheets) must also be on.
   'paper-answer-sheets': {

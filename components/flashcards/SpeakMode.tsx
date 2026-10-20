@@ -50,6 +50,7 @@ import { RoundSummary } from './PlayerPrimitives';
 import { cx } from './playerUtils';
 import { LevelMeter, LiveLevelMeter } from './speak/LevelMeter';
 import { useMicLevel } from './speak/useMicLevel';
+import { useSpeechEnd } from './speak/useSpeechEnd';
 import { SpeakMarks } from './speak/SpeakMarks';
 import {
   canCapture,
@@ -667,6 +668,9 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
 
   const recording =
     capture.phase === 'recording' || capture.phase === 'requesting-permission';
+
+  // The student just speaks; the take ends itself, and Stop stays for anyone who wants it.
+  useSpeechEnd(capture.phase === 'recording' ? stream : null, capture.stop);
 
   const startTake = () => {
     if (blockReason || recording || phase.kind === 'checking') return;

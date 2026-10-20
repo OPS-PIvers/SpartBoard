@@ -318,6 +318,13 @@ const TeamsAdminDefaultsDevHarness = import.meta.env.DEV
       )
     )
   : null;
+const WidgetAnalyticsDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WidgetAnalyticsDevHarness').then((module) => ({
+        default: module.WidgetAnalyticsDevHarness,
+      }))
+    )
+  : null;
 const MemberSuggestDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/plc/teams/dev/MemberSuggestDevHarness').then(
@@ -1085,6 +1092,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <MemberSuggestDevHarness />
+      </Suspense>
+    );
+  }
+
+  if (
+    import.meta.env.DEV &&
+    WidgetAnalyticsDevHarness &&
+    isAuthBypass &&
+    pathname === '/widget-analytics-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WidgetAnalyticsDevHarness />
       </Suspense>
     );
   }

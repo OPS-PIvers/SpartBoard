@@ -359,8 +359,8 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         content={
           <ScaledEmptyState
             icon={Globe}
-            title="No URL Provided"
-            subtitle="Flip to add a link."
+            title="No link yet"
+            subtitle="Open settings to add a link."
           />
         }
       />
@@ -374,8 +374,8 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         content={
           <ScaledEmptyState
             icon={Code}
-            title="No Code Provided"
-            subtitle="Flip to add code."
+            title="No code yet"
+            subtitle="Open settings to add code."
           />
         }
       />
@@ -658,6 +658,13 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
               />
+              {/* Top and left edge strips drag the widget; right and bottom stay clear for the page's scrollbars. */}
+              {!widget.maximized && (
+                <>
+                  <div className="absolute inset-x-0 top-0 h-[min(14px,4cqmin)] cursor-grab" />
+                  <div className="absolute inset-y-0 left-0 w-[min(14px,4cqmin)] cursor-grab" />
+                </>
+              )}
             </div>
           )}
         </div>

@@ -141,6 +141,7 @@ describe('FlashcardEditor Speak', () => {
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     expect(lookup).toHaveBeenCalledTimes(1);
     expect(lookup.mock.calls[0][0]).toEqual({
+      voices: false,
       language: 'es',
       dialects: ['es-419', 'es-ES'],
       terms: [{ cardId: 'c2', term: 'gracias' }],

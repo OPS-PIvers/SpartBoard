@@ -36,17 +36,53 @@ export interface CohortRow {
   retained: (number | null)[];
 }
 
+export interface RetentionCell {
+  pct: number;
+  active: number;
+  // Teachers this cell is based on.
+  n: number;
+  // Includes the current month, which is not over yet.
+  partial: boolean;
+}
+
+export interface RetentionRow {
+  // `YYYY-MM` for a sign-up month, `YYYY-spring` or `YYYY-fall` for a season.
+  key: string;
+  users: number;
+  // Per school month since sign-up (June and July skipped); null = before history.
+  cells: (RetentionCell | null)[];
+  // Of this row's teachers active in spring, how many were active that September.
+  fallReturn: FallReturn | null;
+}
+
+export interface FallReturn {
+  year: number;
+  spring: number;
+  returned: number;
+  partial: boolean;
+}
+
+export interface Retention {
+  currentMonth: string;
+  byMonth: RetentionRow[];
+  bySeason: RetentionRow[];
+  fallReturn: FallReturn | null;
+}
+
 export interface AnalyticsHistory {
   days: ActivityPoint[];
   // SSO students, from analytics_student_days; omitted when the student read fails.
   studentDays?: ActivityPoint[];
   newUsersByMonth: MonthCount[];
+  // Calendar-month cohorts kept for clients older than `retention`.
   cohorts: CohortRow[];
+  retention?: Retention;
 }
 
 const MAU_WINDOW_DAYS = 30;
 const MAX_COHORT_ROWS = 12;
 const MAX_COHORT_MONTHS = 12;
+const MAX_SEASON_ROWS = 6;
 
 const CHICAGO_DATE = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'America/Chicago',
@@ -89,7 +125,7 @@ export function nextChicagoHourMs(
   return ms + 24 * ONE_HOUR_MS;
 }
 
-const addDays = (date: string, n: number): string => {
+export const addDays = (date: string, n: number): string => {
   const d = new Date(`${date}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
@@ -208,6 +244,184 @@ export function buildCohorts(
       }
       return { month, users: uids.length, retained };
     });
+}
+
+const isSummer = (month: string) => {
+  const m = month.slice(5);
+  return m === '06' || m === '07';
+};
+
+/** First school month on or after `month`: June and July roll forward to August. */
+const firstSchoolMonth = (month: string): string =>
+  isSummer(month) ? `${month.slice(0, 4)}-08` : month;
+
+/** The school month `k` school months after `month`, skipping June and July. */
+export function addSchoolMonths(month: string, k: number): string {
+  let m = firstSchoolMonth(month);
+  for (let i = 0; i < k; i++) m = firstSchoolMonth(addMonths(m, 1));
+  return m;
+}
+
+/** Spring is January to May; fall is June to December, so summer sign-ups join fall. */
+export const seasonKey = (month: string): string =>
+  `${month.slice(0, 4)}-${Number(month.slice(5)) <= 5 ? 'spring' : 'fall'}`;
+
+const seasonOrder = (key: string) =>
+  Number(key.slice(0, 4)) * 2 + (key.endsWith('fall') ? 1 : 0);
+
+/** Latest September with history; its spring is the one teachers return from. */
+function fallReturnYear(firstHistoryMonth: string, currentMonth: string) {
+  let year = Number(currentMonth.slice(0, 4));
+  if (`${year}-09` > currentMonth) year -= 1;
+  if (`${year}-05` < firstHistoryMonth) return null;
+  return year;
+}
+
+function retentionRow(
+  key: string,
+  members: { uid: string; month: string }[],
+  activeMonths: Map<string, Set<string>>,
+  firstHistoryMonth: string,
+  currentMonth: string,
+  returnYear: number | null
+): RetentionRow {
+  const cells: (RetentionCell | null)[] = [];
+  for (let k = 0; k < MAX_COHORT_MONTHS; k++) {
+    // Teachers whose month k is the current one count only when no one has a finished month k.
+    const full = { n: 0, active: 0 };
+    const current = { n: 0, active: 0 };
+    let reached = false;
+    let finished = false;
+    for (const { uid, month } of members) {
+      const target = addSchoolMonths(month, k);
+      if (target > currentMonth) continue;
+      reached = true;
+      if (target < currentMonth) finished = true;
+      if (target < firstHistoryMonth) continue;
+      const tally = target === currentMonth ? current : full;
+      tally.n++;
+      if (activeMonths.get(uid)?.has(target)) tally.active++;
+    }
+    if (!reached) break;
+    const partial = !finished;
+    const { n, active } = partial ? current : full;
+    cells.push(
+      n === 0
+        ? null
+        : { pct: Math.round((active / n) * 100), active, n, partial }
+    );
+  }
+  return {
+    key,
+    users: members.length,
+    cells,
+    fallReturn:
+      returnYear === null
+        ? null
+        : fallReturnOf(
+            members.map((m) => m.uid),
+            activeMonths,
+            returnYear,
+            currentMonth
+          ),
+  };
+}
+
+function fallReturnOf(
+  uids: Iterable<string>,
+  activeMonths: Map<string, Set<string>>,
+  year: number,
+  currentMonth: string
+): FallReturn | null {
+  const springMonths = ['01', '02', '03', '04', '05'].map(
+    (m) => `${year}-${m}`
+  );
+  const september = `${year}-09`;
+  let spring = 0;
+  let returned = 0;
+  for (const uid of uids) {
+    const months = activeMonths.get(uid);
+    if (!months || !springMonths.some((m) => months.has(m))) continue;
+    spring++;
+    if (months.has(september)) returned++;
+  }
+  if (spring === 0) return null;
+  return { year, spring, returned, partial: september === currentMonth };
+}
+
+/** School-year retention: June and July skipped, by sign-up month and by season. */
+export function buildRetention(
+  signupByUid: Map<string, number>,
+  docs: DayActivityDoc[],
+  nowMs: number
+): Retention | undefined {
+  if (docs.length === 0) return undefined;
+  const activeMonths = new Map<string, Set<string>>();
+  let firstDay = docs[0].date;
+  for (const doc of docs) {
+    if (doc.date < firstDay) firstDay = doc.date;
+    const month = monthOf(doc.date);
+    for (const uid of doc.activeUids) {
+      let set = activeMonths.get(uid);
+      if (!set) activeMonths.set(uid, (set = new Set()));
+      set.add(month);
+    }
+  }
+  const firstHistoryMonth = monthOf(firstDay);
+  const currentMonth = monthOf(chicagoDateKey(nowMs));
+  const returnYear = fallReturnYear(firstHistoryMonth, currentMonth);
+
+  const byMonth = new Map<string, { uid: string; month: string }[]>();
+  const bySeason = new Map<string, { uid: string; month: string }[]>();
+  for (const [uid, ms] of signupByUid) {
+    if (ms <= 0) continue;
+    const month = monthOf(chicagoDateKey(ms));
+    if (month > currentMonth) continue;
+    const member = { uid, month };
+    for (const [groups, key] of [
+      [byMonth, month],
+      [bySeason, seasonKey(month)],
+    ] as const) {
+      const list = groups.get(key);
+      if (list) list.push(member);
+      else groups.set(key, [member]);
+    }
+  }
+
+  const rows = (
+    groups: Map<string, { uid: string; month: string }[]>,
+    keys: string[]
+  ) =>
+    keys.map((key) =>
+      retentionRow(
+        key,
+        groups.get(key) ?? [],
+        activeMonths,
+        firstHistoryMonth,
+        currentMonth,
+        returnYear
+      )
+    );
+
+  return {
+    currentMonth,
+    byMonth: rows(byMonth, [...byMonth.keys()].sort().slice(-MAX_COHORT_ROWS)),
+    bySeason: rows(
+      bySeason,
+      [...bySeason.keys()]
+        .sort((a, b) => seasonOrder(a) - seasonOrder(b))
+        .slice(-MAX_SEASON_ROWS)
+    ),
+    fallReturn:
+      returnYear === null
+        ? null
+        : fallReturnOf(
+            signupByUid.keys(),
+            activeMonths,
+            returnYear,
+            currentMonth
+          ),
+  };
 }
 
 /** Groups dated (uid, timestamp) events into estimated day docs before `beforeDate`. */

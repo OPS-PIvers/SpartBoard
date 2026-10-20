@@ -81,7 +81,17 @@ describe('speakEditorState', () => {
     const pending = card({
       speak: { ...readySpeak(), g2pVersion: `${SPEAK_G2P_VERSION}/pending` },
     });
+    // Without its accents recorded the background fill can't take it, so Save does.
     expect(cardNeedsLookup(pending, ['es-419'], {})).toBe(true);
+    const waiting = card({
+      speak: {
+        ...readySpeak(),
+        dialects: ['es-419'],
+        g2pVersion: `${SPEAK_G2P_VERSION}/pending`,
+      },
+    });
+    expect(cardNeedsLookup(waiting, ['es-419'], {})).toBe(false);
+    expect(cardNeedsLookup(waiting, ['es-419', 'es-ES'], {})).toBe(true);
     const voiced = card({
       speak: {
         ...readySpeak(),

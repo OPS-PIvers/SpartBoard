@@ -16,11 +16,40 @@ export interface CohortRow {
   retained: (number | null)[];
 }
 
+export interface RetentionCell {
+  pct: number;
+  active: number;
+  n: number;
+  partial: boolean;
+}
+
+export interface FallReturn {
+  year: number;
+  spring: number;
+  returned: number;
+  partial: boolean;
+}
+
+export interface RetentionRow {
+  key: string;
+  users: number;
+  cells: (RetentionCell | null)[];
+  fallReturn: FallReturn | null;
+}
+
+export interface Retention {
+  currentMonth: string;
+  byMonth: RetentionRow[];
+  bySeason: RetentionRow[];
+  fallReturn: FallReturn | null;
+}
+
 export interface AnalyticsHistory {
   days: ActivityPoint[];
   studentDays?: ActivityPoint[];
   newUsersByMonth: MonthCount[];
   cohorts: CohortRow[];
+  retention?: Retention;
 }
 
 export interface ActivityUser {
@@ -226,3 +255,40 @@ export const formatRelativeTime = (ms: number): string => {
   if (days < 30) return `${days}d ago`;
   return new Date(ms).toLocaleDateString();
 };
+
+// `YYYY-spring` / `YYYY-fall` season keys, else a `YYYY-MM` sign-up month.
+export const formatCohortKey = (key: string): string => {
+  const [year, part] = key.split('-');
+  if (part === 'spring') return `Spring ${year}`;
+  if (part === 'fall') return `Fall ${year}`;
+  return formatMonth(key);
+};
+
+// Snapshots written before `retention` existed only carry calendar-month cohorts.
+export const legacyRetentionRows = (cohorts: CohortRow[]): RetentionRow[] =>
+  cohorts.map((c) => ({
+    key: c.month,
+    users: c.users,
+    cells: c.retained.map((pct) =>
+      pct === null
+        ? null
+        : {
+            pct,
+            active: Math.round((pct * c.users) / 100),
+            n: c.users,
+            partial: false,
+          }
+    ),
+    fallReturn: null,
+  }));
+
+const FULL_WEIGHT_TEACHERS = 30;
+
+// 0-1 strength of a cell: about 0.4 for one teacher, full from 30.
+export const cohortWeight = (n: number): number =>
+  0.25 +
+  0.75 *
+    Math.min(
+      1,
+      Math.log(1 + Math.max(0, n)) / Math.log(1 + FULL_WEIGHT_TEACHERS)
+    );

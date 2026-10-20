@@ -3574,7 +3574,8 @@
           "g2p-disagree": "Nos sources ne sont pas d'accord sur la façon de dire ce mot.",
           "stress-disagree": "Nos sources ne sont pas d'accord sur la partie accentuée.",
           "language-switch": "Ce mot semble être dans une autre langue.",
-          "lookup-failed": "On n'a pas pu vérifier ce mot. On réessaiera à l'enregistrement."
+          "lookup-failed": "On n'a pas pu vérifier ce mot. On réessaiera à l'enregistrement.",
+          "set-too-large": "Cet ensemble est trop grand pour garder la prononciation de chaque carte. Retire quelques cartes et enregistre à nouveau."
         },
         "reviewTitle_one": "{{count}} carte à vérifier",
         "reviewTitle_other": "{{count}} cartes à vérifier",
@@ -3583,6 +3584,7 @@
         "ipaInvalid": "Certains de ces symboles ne sont pas reconnus.",
         "checkingCards_one": "Recherche de la prononciation de {{count}} carte…",
         "checkingCards_other": "Recherche de la prononciation de {{count}} cartes…",
+        "finishingCards": "Finalisation de Speak : {{done}} sur {{total}} cartes",
         "hearIt": "Écouter"
       },
       "groups": {
@@ -4072,13 +4074,11 @@
       "retry": "Réessayer"
     },
     "closePlayer": "Fermer le lecteur",
-    "exploreHint": "Clique sur un repère pour explorer",
     "showSlide": "Afficher la diapositive {{n}}",
     "prev": "Étape précédente",
     "next": "Étape suivante",
     "play": "Lire",
     "pause": "Pause",
-    "sessionProgress": "Progression de la séance",
     "stepProgress": "Progression des étapes",
     "goToStep": "Aller à l’étape {{n}}",
     "resetView": "Réinitialiser la vue",
@@ -4155,11 +4155,6 @@
       "selectClass": "Choisis ta classe",
       "whichPeriod": "Dans quel cours es-tu ?",
       "pickOne": "Choisis-en un pour continuer. Tu pourras saisir ton code PIN ensuite.",
-      "legacyMode": {
-        "guided": "mode guidé",
-        "structured": "mode structuré",
-        "explore": "mode exploration"
-      },
       "steps_one": "{{count}} étape",
       "steps_other": "{{count}} étapes",
       "class": "Classe",

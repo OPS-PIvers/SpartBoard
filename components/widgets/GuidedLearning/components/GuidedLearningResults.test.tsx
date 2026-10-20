@@ -253,12 +253,26 @@ describe('GuidedLearningResults student progress', () => {
     expect(await screen.findByText('Slide 7 of 12')).toBeInTheDocument();
   });
 
-  it('says "Not tracked" on sessions without Player v2', async () => {
+  it('shows recorded progress on sessions started before Player v2', async () => {
     session({});
     render(
       <GuidedLearningResults set={stepsSet} sessionId="s1" onClose={vi.fn()} />
     );
+    expect(await screen.findByText('Slide 7 of 12')).toBeInTheDocument();
+    expect(screen.queryByText('Not tracked')).not.toBeInTheDocument();
+  });
+
+  it('says "Not tracked" for a student with no progress on an older session', async () => {
+    session({});
+    mockResponses = [
+      ...mockResponses,
+      { ...base, studentAnonymousId: 'u2', pin: '22', completedAt: 1 },
+    ];
+    render(
+      <GuidedLearningResults set={stepsSet} sessionId="s1" onClose={vi.fn()} />
+    );
     expect(await screen.findByText('Not tracked')).toBeInTheDocument();
+    expect(screen.getByText('Slide 7 of 12')).toBeInTheDocument();
   });
 
   it('shows nothing with the flag off', async () => {

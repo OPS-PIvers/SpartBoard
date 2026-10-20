@@ -8633,7 +8633,7 @@ export interface GuidedLearningSession
   welcomeImageAlt?: string;
   /** Mirrors `GuidedLearningSet.watchPace`. */
   watchPace?: GuidedLearningWatchPace;
-  /** Set on every new session; unmarked sessions predate the new player and keep the old one. */
+  /** Set on every new session; unmarked sessions predate progress tracking, so Results shows them as not tracked. */
   playerV2?: boolean;
   /**
    * Mirror of {@link GuidedLearningAssignment.scoreVisibility} for the
@@ -8923,7 +8923,8 @@ export type FlashcardSpeakReason =
   | 'g2p-disagree'
   | 'stress-disagree'
   | 'language-switch'
-  | 'lookup-failed';
+  | 'lookup-failed'
+  | 'set-too-large';
 
 export interface FlashcardCardSpeak {
   /** The term the refs were computed for; a changed term invalidates them. */
@@ -9696,6 +9697,8 @@ export interface WidgetData {
   groupId?: string;
   /** Added by a live tour and not yet kept: never saved or recorded in undo history. */
   transient?: boolean;
+  /** Who last clicked, tapped or typed in this widget, stamped once a day for admin analytics. */
+  lastUse?: { uid: string; at: number };
   config: WidgetConfig;
 
   // Universal style properties
@@ -10103,6 +10106,8 @@ export type GlobalFeature =
   | 'quiz-import-suggested-targets'
   /** Multi-version test import: versions, FRQ rubrics, balanced dealing, Stop checkpoints (docs/plans/QUIZ_IMPORT_VERSIONS.md). */
   | 'quiz-import-versions'
+  /** Splits a typed PDF with version headings without AI; AND-ed with `quiz-import-versions`. */
+  | 'quiz-import-versions-plain'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */

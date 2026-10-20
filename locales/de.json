@@ -3574,7 +3574,8 @@
           "g2p-disagree": "Unsere Quellen sind sich uneinig, wie man dieses Wort spricht.",
           "stress-disagree": "Unsere Quellen sind sich uneinig, welcher Teil betont wird.",
           "language-switch": "Dieses Wort scheint aus einer anderen Sprache zu sein.",
-          "lookup-failed": "Wir konnten dieses Wort nicht prüfen. Beim Speichern versuchen wir es erneut."
+          "lookup-failed": "Wir konnten dieses Wort nicht prüfen. Beim Speichern versuchen wir es erneut.",
+          "set-too-large": "Dieses Set ist zu groß, um für jede Karte eine Aussprache zu speichern. Entferne einige Karten und speichere erneut."
         },
         "reviewTitle_one": "{{count}} Karte zu prüfen",
         "reviewTitle_other": "{{count}} Karten zu prüfen",
@@ -3583,6 +3584,7 @@
         "ipaInvalid": "Einige dieser Zeichen werden nicht erkannt.",
         "checkingCards_one": "Aussprache von {{count}} Karte wird geprüft…",
         "checkingCards_other": "Aussprache von {{count}} Karten wird geprüft…",
+        "finishingCards": "Speak wird fertiggestellt: {{done}} von {{total}} Karten",
         "hearIt": "Anhören"
       },
       "groups": {
@@ -4072,13 +4074,11 @@
       "retry": "Erneut versuchen"
     },
     "closePlayer": "Player schließen",
-    "exploreHint": "Klicke auf eine Markierung, um zu entdecken",
     "showSlide": "Folie {{n}} anzeigen",
     "prev": "Vorheriger Schritt",
     "next": "Nächster Schritt",
     "play": "Abspielen",
     "pause": "Pause",
-    "sessionProgress": "Fortschritt der Sitzung",
     "stepProgress": "Schrittfortschritt",
     "goToStep": "Zu Schritt {{n}}",
     "resetView": "Ansicht zurücksetzen",
@@ -4155,11 +4155,6 @@
       "selectClass": "Wähle deine Klasse",
       "whichPeriod": "In welcher Stunde bist du?",
       "pickOne": "Wähle eine aus, um fortzufahren. Deine PIN kannst du danach eingeben.",
-      "legacyMode": {
-        "guided": "Geführter Modus",
-        "structured": "Strukturierter Modus",
-        "explore": "Entdeckungsmodus"
-      },
       "steps_one": "{{count}} Schritt",
       "steps_other": "{{count}} Schritte",
       "class": "Klasse",

@@ -142,6 +142,8 @@ export interface QuizImportAdapterDeps {
   aiExtract?: AiExtractFn;
   /** True when `quiz-import-versions` is on; a test with versions then gets the version review (QUIZ_IMPORT_VERSIONS V17). */
   importVersions?: boolean;
+  /** `quiz-import-versions-plain` is on, so a typed PDF splits into versions without AI. */
+  plainVersions?: boolean;
   /** The versioned AI call; given only with `importVersions` and AI access. */
   aiExtractVersions?: AiExtractVersionsFn;
   /** Creates the folder, bank and quizzes a version review settled on, pictures already attached (V6). */
@@ -457,6 +459,9 @@ export function createQuizImportAdapter(
             ...(deps.importVersions && deps.aiExtractVersions
               ? { aiExtractVersions: deps.aiExtractVersions }
               : {}),
+            ...(deps.importVersions && deps.plainVersions
+              ? { plainVersions: true }
+              : {}),
             key: source.keyFile,
             ...(source.useAi === false ? { useAi: false } : {}),
             multiAnswer: true,
@@ -471,10 +476,18 @@ export function createQuizImportAdapter(
           return {
             data: registerVersionImport(extracted.testSet),
             warnings: testSetWarnings(extracted.testSet),
-            note: readByLabel('ai'),
+            ...(extracted.readBy
+              ? { note: readByLabel(extracted.readBy) }
+              : {}),
+            ...(deps.aiExtract &&
+            deps.aiExtractVersions &&
+            source.useAi === false &&
+            extracted.readBy === 'plain'
+              ? { aiRetry: true }
+              : {}),
           };
         }
-        // Only the AI reader finds versions (V13).
+        // A plain read that didn’t split may still hold versions the AI reader finds (V13).
         const versionsNeedAi =
           deps.importVersions &&
           extracted.readBy !== 'ai' &&

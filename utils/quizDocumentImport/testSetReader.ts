@@ -1,6 +1,11 @@
 // A versioned AI read in the browser: each version mapped, its pictures cropped and compared (QUIZ_IMPORT_VERSIONS V4, V7).
 import { aiQuizToExtracted } from './aiReader';
-import { cropPdfFigures, figureKey, type PdfCropperDeps } from './pdfFigures';
+import {
+  cropPdfFigures,
+  figureKey,
+  type FigureBox,
+  type PdfCropperDeps,
+} from './pdfFigures';
 import {
   figureCaption,
   linkIdenticalFigures,
@@ -8,6 +13,7 @@ import {
 } from './figureMatch';
 import type {
   ExtractedImage,
+  ExtractedQuestion,
   ExtractedTestSet,
   ImportedTestSet,
   ImportedVersion,
@@ -24,24 +30,45 @@ export interface TestSetReadOptions {
   decodePixels?: (blob: Blob) => Promise<Pixels | null>;
 }
 
+/** One version read either way, each question's figure boxes beside it. */
+export interface MappedVersion {
+  label: string;
+  title: string;
+  warnings: string[];
+  questions: ExtractedQuestion[];
+  figures: FigureBox[][];
+}
+
 export async function readTestSet(
   set: ExtractedTestSet,
   options: TestSetReadOptions
 ): Promise<ImportedTestSet> {
   const reader = { multiAnswer: options.multiAnswer === true };
-  const warnings = [...(set.warnings ?? [])];
-  const mapped = set.versions.map((v) => ({
-    raw: v,
-    quiz: aiQuizToExtracted(
+  const mapped = set.versions.map((v): MappedVersion => {
+    const quiz = aiQuizToExtracted(
       { title: v.title, questions: v.questions ?? [], warnings: v.warnings },
       v.label,
       reader
-    ),
-  }));
+    );
+    return {
+      label: v.label,
+      title: quiz.title,
+      warnings: quiz.warnings,
+      questions: quiz.questions,
+      figures: quiz.questions.map((_, qi) => v.questions?.[qi]?.figures ?? []),
+    };
+  });
+  return assembleTestSet(set, mapped, options);
+}
 
-  const boxes = mapped.flatMap((m) =>
-    (m.raw.questions ?? []).flatMap((q) => q.figures ?? [])
-  );
+/** Crops every version's pictures once and links the identical ones (V4). */
+export async function assembleTestSet(
+  set: Omit<ExtractedTestSet, 'kind' | 'versions'>,
+  mapped: readonly MappedVersion[],
+  options: TestSetReadOptions
+): Promise<ImportedTestSet> {
+  const warnings = [...(set.warnings ?? [])];
+  const boxes = mapped.flatMap((m) => m.figures.flat());
   let cropped: Awaited<ReturnType<typeof cropPdfFigures>> | null = null;
   if (boxes.length > 0) {
     if (!options.cropper) warnings.push(VERSION_PICTURES_SKIPPED);
@@ -60,12 +87,12 @@ export async function readTestSet(
   const images: ExtractedImage[] = [];
   const imageVersion: Record<string, number> = {};
   const sourceOf = new Map<string, string>();
-  const versions: ImportedVersion[] = mapped.map(({ raw, quiz }, v) => ({
-    label: raw.label,
-    title: quiz.title,
-    warnings: quiz.warnings,
-    questions: quiz.questions.map((question, qi) => {
-      const ids = (raw.questions?.[qi]?.figures ?? []).flatMap((box) => {
+  const versions: ImportedVersion[] = mapped.map((m, v) => ({
+    label: m.label,
+    title: m.title,
+    warnings: m.warnings,
+    questions: m.questions.map((question, qi) => {
+      const ids = (m.figures[qi] ?? []).flatMap((box) => {
         const sourceId = cropped?.idByBox.get(figureKey(box));
         const source = sourceId ? sourceById.get(sourceId) : undefined;
         if (!sourceId || !source) return [];

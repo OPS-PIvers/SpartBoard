@@ -74,7 +74,7 @@ function renderPlayer(
 ) {
   handle = mockStageLayout({ container, image: { w: 1600, h: 900 } });
   const view = render(
-    <GuidedLearningPlayer set={set} teacherMode playerV2 {...props} />
+    <GuidedLearningPlayer set={set} teacherMode {...props} />
   );
   fireEvent.load(
     document.querySelector('[data-gl-stage] img') as HTMLImageElement
@@ -87,7 +87,7 @@ const stage = () => document.querySelector('[data-gl-stage]') as HTMLElement;
 const footer = () => document.querySelector('[data-gl-footer]') as HTMLElement;
 
 describe('P8-6 touch targets', () => {
-  it('gives pins and footer buttons a 44px hit box in v2 only', () => {
+  it('gives pins and footer buttons a 44px hit box', () => {
     renderPlayer(makeSet('explore'));
     const [region, pin] = screen.getAllByRole('button', { name: 'Tiny' });
     expect(region).toHaveAttribute('data-gl-region', 'one');
@@ -106,11 +106,6 @@ describe('P8-6 touch targets', () => {
         screen.getByRole('button', { name }).querySelector('[data-gl-hitbox]')
       ).not.toBeNull();
     }
-    cleanup();
-    handle?.restore();
-
-    renderPlayer(makeSet('structured'), { playerV2: false });
-    expect(document.querySelector('[data-gl-hitbox]')).toBeNull();
   });
 
   it('counts a tap within 44px of a small Try target as a hit', () => {
@@ -166,13 +161,6 @@ describe('P8-6 misclick feedback', () => {
     fireEvent.click(stage(), { clientX: 100, clientY: 100 });
     expect(screen.getByTestId('gl-miss-marker')).toBeInTheDocument();
     expect(screen.getByTestId('gl-miss-live')).toHaveTextContent(/not there/i);
-  });
-
-  it('has no marker or message when player v2 is off', () => {
-    renderPlayer(makeSet('structured'), { playerV2: false });
-    fireEvent.click(stage(), { clientX: 100, clientY: 100 });
-    expect(screen.queryByTestId('gl-miss-marker')).toBeNull();
-    expect(screen.queryByTestId('gl-miss-live')).toBeNull();
   });
 });
 
@@ -253,11 +241,5 @@ describe('P8-6 footer', () => {
     ).toBeInTheDocument();
     fireEvent.keyDown(menu, { key: 'Escape' });
     expect(screen.queryByTestId('gl-footer-overflow')).toBeNull();
-  });
-
-  it('keeps the v1 footer without an overflow menu at any width', () => {
-    renderPlayer(makeSet('guided'), { playerV2: false }, { w: 400, h: 300 });
-    expect(screen.queryByRole('button', { name: /more options/i })).toBeNull();
-    expect(screen.getByText('1 / 2')).toBeInTheDocument();
   });
 });

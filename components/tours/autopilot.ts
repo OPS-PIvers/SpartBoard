@@ -20,7 +20,7 @@ export const AUTO_NEXT_WAIT_MS = 10_000;
 export const autoObserveMs = (
   step: StepDurationInput,
   watchPace?: GuidedLearningWatchPace
-): number => stepDurationMs(step, { playerV2: true, watchPace });
+): number => stepDurationMs(step, { watchPace });
 
 /** Reading time on a click step before the cursor starts to glide. */
 export const autoLeadMs = (

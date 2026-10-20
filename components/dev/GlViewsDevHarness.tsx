@@ -264,7 +264,6 @@ const FreshPlayer: React.FC<{ start: string }> = ({ start }) => {
     <GuidedLearningPlayer
       set={PLAYER_SET}
       teacherMode
-      playerV2
       startStepId={start}
       onClose={noop}
     />

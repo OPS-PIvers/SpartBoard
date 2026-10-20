@@ -24,8 +24,6 @@ import {
   ArrowUp,
   ArrowDown,
   BarChart2,
-  ChevronDown,
-  ChevronUp,
   Clock,
   Info,
   LayoutGrid,
@@ -49,6 +47,12 @@ import { type StudentKpiCategory } from './activeStudents';
 import { AI_FEATURE_LABELS } from './aiFeatureLabels';
 import { AiModelSpendPanel } from './AiModelSpendPanel';
 import { WIDGET_LABELS } from './widgetLabels';
+import {
+  foldUsageBuildings,
+  usageBuildingColumns,
+  type WidgetUsage,
+} from './widgetUsage';
+import { ChangeLabel, WidgetUsersModal } from './WidgetUsersModal';
 import {
   type AnalyticsHistory,
   formatRelativeTime,
@@ -91,7 +95,7 @@ const KPI_TITLES: Record<KpiCategory, string> = {
   dailyActive: 'Daily Active Users',
 };
 
-interface AnalyticsData {
+export interface AnalyticsData {
   users: {
     total: number;
     registered: number;
@@ -108,6 +112,7 @@ interface AnalyticsData {
     totalInstances: Record<string, number>;
     activeInstances: Record<string, number>;
     usersByType?: Record<string, { count: number; emails: string[] }>;
+    usage?: Record<string, WidgetUsage>;
   };
   dashboards: {
     total: number;
@@ -506,8 +511,11 @@ const OverviewPanel: React.FC<{
         {history && history.newUsersByMonth.length > 0 && (
           <NewUsersPanel months={history.newUsersByMonth} />
         )}
-        {history && history.cohorts.length > 0 && (
-          <CohortPanel cohorts={history.cohorts} />
+        {history && (history.cohorts.length > 0 || history.retention) && (
+          <CohortPanel
+            cohorts={history.cohorts}
+            retention={history.retention}
+          />
         )}
         {buildingRows.length > 0 && (
           <BuildingAdoptionPanel rows={buildingRows} />
@@ -560,37 +568,87 @@ const OverviewPanel: React.FC<{
   );
 };
 
-type WidgetSortKey = 'name' | 'total' | 'active' | 'activeRate' | 'users';
+type WidgetSortKey =
+  'name' | 'total' | 'daily' | 'monthly' | 'users' | `b:${string}`;
 
-const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
-  const [expandedWidget, setExpandedWidget] = useState<string | null>(null);
+interface WidgetTableRow {
+  name: string;
+  total: number;
+  daily: number;
+  monthly: number;
+  users: number;
+  usage?: WidgetUsage;
+}
+
+const widgetSortValue = (
+  row: WidgetTableRow,
+  key: WidgetSortKey
+): string | number => {
+  switch (key) {
+    case 'name':
+      return row.name;
+    case 'total':
+      return row.total;
+    case 'daily':
+      return row.daily;
+    case 'monthly':
+      return row.monthly;
+    case 'users':
+      return row.users;
+    default:
+      return row.usage?.buildings[key.slice(2)] ?? 0;
+  }
+};
+
+export const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
+  const KNOWN_BUILDINGS = useKnownBuildings();
+  const orgBuildings = useAdminBuildings();
+  const [openWidget, setOpenWidget] = useState<string | null>(null);
   const [widgetSearch, setWidgetSearch] = useState('');
-  const [emailSearch, setEmailSearch] = useState('');
   const [widgetSort, setWidgetSort] = useState<{
     key: WidgetSortKey;
     dir: 'asc' | 'desc';
   }>({ key: 'total', dir: 'desc' });
 
+  const usage = data.widgets.usage;
   const rows = useMemo(() => {
     const usersByType = data.widgets.usersByType;
-    const usersAvailable = usersByType !== undefined;
     return Object.entries(data.widgets.totalInstances)
       .map(([type, total]) => {
-        const active = data.widgets.activeInstances[type] ?? 0;
-        const usersEntry = usersByType?.[type];
+        const u = usage?.[type];
         return {
           type,
           name: WIDGET_LABELS[type] ?? type,
           total,
-          active,
-          usersAvailable,
-          users: usersEntry?.count ?? 0,
-          emails: usersEntry?.emails ?? [],
-          activeRate: total > 0 ? (active / total) * 100 : 0,
+          active: data.widgets.activeInstances[type] ?? 0,
+          users: usersByType?.[type]?.count ?? 0,
+          usage: u,
+          daily: u?.daily ?? -1,
+          monthly: u?.monthly ?? -1,
         };
       })
       .sort((a, b) => b.total - a.total);
-  }, [data.widgets]);
+  }, [data.widgets, usage]);
+
+  const buildingColumns = useMemo(
+    () =>
+      usageBuildingColumns(
+        usage,
+        orgBuildings.map((b) => b.id)
+      ),
+    [usage, orgBuildings]
+  );
+
+  const buildingsByEmail = useMemo(
+    () =>
+      new Map(
+        (data.users.userList ?? []).map((u) => [
+          u.email.toLowerCase(),
+          u.buildings,
+        ])
+      ),
+    [data.users.userList]
+  );
 
   const filteredRows = useMemo(() => {
     let result = rows;
@@ -600,8 +658,8 @@ const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
     }
     const { key, dir } = widgetSort;
     return [...result].sort((a, b) => {
-      const av = a[key];
-      const bv = b[key];
+      const av = widgetSortValue(a, key);
+      const bv = widgetSortValue(b, key);
       if (typeof av === 'string' && typeof bv === 'string') {
         return dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
       }
@@ -624,14 +682,22 @@ const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
     setWidgetSort((prev) =>
       prev.key === key
         ? { key, dir: prev.dir === 'desc' ? 'asc' : 'desc' }
-        : { key, dir: 'desc' }
+        : { key, dir: key === 'name' ? 'asc' : 'desc' }
     );
   };
+
+  const buildingLabel = (id: string) =>
+    id === 'none'
+      ? 'No building'
+      : (KNOWN_BUILDINGS.lookup(id)?.name ?? `Unknown (${id})`);
+
+  const hasBuildingRow = buildingColumns.length > 0;
 
   const widgetHeader = (
     label: string,
     key: WidgetSortKey,
-    align = 'text-right'
+    align = 'text-right',
+    extra = ''
   ) => {
     const ariaSort =
       widgetSort.key === key
@@ -641,15 +707,17 @@ const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
         : 'none';
     return (
       <th
+        key={key}
         scope="col"
+        rowSpan={hasBuildingRow && !key.startsWith('b:') ? 2 : undefined}
         aria-sort={ariaSort}
-        className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 ${align}`}
+        className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 align-bottom ${align} ${extra}`}
       >
         <button
           {...tourFieldAttr('admin.analytics.widget-sort', 'admin', key)}
           type="button"
           onClick={() => toggleWidgetSort(key)}
-          className="hover:text-slate-900 transition-colors"
+          className="hover:text-slate-900 transition-colors uppercase"
         >
           {label}
           {widgetSort.key === key
@@ -661,6 +729,9 @@ const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
       </th>
     );
   };
+
+  const openRow = rows.find((r) => r.type === openWidget);
+  const colCount = 6 + buildingColumns.length;
 
   return (
     <div className="space-y-5">
@@ -732,138 +803,112 @@ const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
               <tr>
                 <th
                   scope="col"
-                  className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right w-12"
+                  rowSpan={hasBuildingRow ? 2 : undefined}
+                  className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 text-right w-12 align-bottom"
                 >
                   #
                 </th>
                 {widgetHeader('Widget Name', 'name', 'text-left')}
-                {widgetHeader('Total', 'total')}
-                {widgetHeader('Active (30d)', 'active')}
-                {widgetHeader('Active %', 'activeRate')}
+                {widgetHeader('Total Open', 'total')}
+                {widgetHeader('Daily Users', 'daily')}
+                {widgetHeader('Monthly Users', 'monthly')}
                 {widgetHeader('Users', 'users')}
-                <th
-                  scope="col"
-                  className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 w-16"
-                />
+                {hasBuildingRow && (
+                  <th
+                    scope="colgroup"
+                    colSpan={buildingColumns.length}
+                    className="px-4 pt-3 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-500 text-center border-l border-slate-200"
+                  >
+                    Users by Building
+                  </th>
+                )}
               </tr>
+              {hasBuildingRow && (
+                <tr>
+                  {buildingColumns.map((id, i) =>
+                    widgetHeader(
+                      buildingLabel(id),
+                      `b:${id}`,
+                      'text-right',
+                      `pt-1 normal-case tracking-normal max-w-[8rem] whitespace-normal leading-tight ${i === 0 ? 'border-l border-slate-200' : ''}`
+                    )
+                  )}
+                </tr>
+              )}
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredRows.map((row, index) => {
-                const expanded = expandedWidget === row.type;
-                const filteredEmails = emailSearch
-                  ? row.emails.filter((e) =>
-                      e.toLowerCase().includes(emailSearch.toLowerCase())
-                    )
-                  : [...row.emails].sort();
-                return (
-                  <React.Fragment key={row.type}>
-                    <tr className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3 text-sm text-slate-400 text-right">
-                        {index + 1}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium text-slate-900">
-                        {row.name}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-700 text-right font-semibold">
-                        {formatNumber(row.total)}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-700 text-right">
-                        {formatNumber(row.active)}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="inline-flex items-center gap-2 w-28 justify-end">
-                          <span className="text-sm text-slate-700">
-                            {formatRate(row.activeRate)}
-                          </span>
-                          <span className="relative h-1.5 w-12 rounded-full bg-slate-200 overflow-hidden">
-                            <span
-                              className="absolute inset-y-0 left-0 rounded-full bg-blue-500"
-                              style={{
-                                width: `${Math.min(100, row.activeRate)}%`,
-                              }}
-                            />
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-700 text-right">
-                        {row.usersAvailable ? formatNumber(row.users) : '—'}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <button
-                          {...tourFieldAttr(
-                            'admin.analytics.widget-users-toggle',
-                            'admin',
-                            row.type
-                          )}
-                          type="button"
-                          disabled={!row.usersAvailable}
-                          onClick={() => {
-                            setExpandedWidget((prev) =>
-                              prev === row.type ? null : row.type
-                            );
-                            setEmailSearch('');
-                          }}
-                          className="text-slate-400 hover:text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
-                        >
-                          {expanded ? (
-                            <ChevronUp className="w-4 h-4" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4" />
-                          )}
-                        </button>
-                      </td>
-                    </tr>
-                    {expanded && (
-                      <tr>
-                        <td colSpan={7} className="px-6 py-3 bg-slate-50">
-                          {!row.usersAvailable ? (
-                            <p className="text-sm text-slate-500">
-                              User drilldown is unavailable until the latest
-                              Cloud Function is deployed.
-                            </p>
-                          ) : row.emails.length === 0 ? (
-                            <p className="text-sm text-slate-500">
-                              No users found with this widget.
-                            </p>
-                          ) : (
-                            <div className="space-y-2">
-                              <input
-                                {...tourAttr(
-                                  'admin.analytics.widget-users-search'
-                                )}
-                                type="text"
-                                placeholder="Search emails..."
-                                value={emailSearch}
-                                onChange={(e) => setEmailSearch(e.target.value)}
-                                className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 bg-white outline-none focus:ring-2 focus:ring-blue-500 w-64"
-                              />
-                              <div className="max-h-48 overflow-y-auto space-y-0.5">
-                                {filteredEmails.map((email) => (
-                                  <div
-                                    key={email}
-                                    className="text-sm text-slate-700 py-0.5 px-1"
-                                  >
-                                    {email}
-                                  </div>
-                                ))}
-                                {filteredEmails.length === 0 && (
-                                  <p className="text-sm text-slate-400 py-1">
-                                    No matching emails.
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
+              {filteredRows.map((row, index) => (
+                <tr
+                  key={row.type}
+                  onClick={() => setOpenWidget(row.type)}
+                  className="hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  <td className="px-4 py-3 text-sm text-slate-400 text-right">
+                    {index + 1}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-medium text-slate-900">
+                    <button
+                      {...tourFieldAttr(
+                        'admin.analytics.widget-users-toggle',
+                        'admin',
+                        row.type
+                      )}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenWidget(row.type);
+                      }}
+                      className="text-left hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+                    >
+                      {row.name}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-slate-700 text-right font-semibold">
+                    {formatNumber(row.total)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-slate-700 text-right whitespace-nowrap">
+                    {row.usage ? (
+                      <>
+                        {formatNumber(row.usage.daily)}
+                        <ChangeLabel
+                          current={row.usage.daily}
+                          prev={row.usage.dailyPrev}
+                        />
+                      </>
+                    ) : (
+                      '—'
                     )}
-                  </React.Fragment>
-                );
-              })}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-slate-700 text-right whitespace-nowrap">
+                    {row.usage ? (
+                      <>
+                        {formatNumber(row.usage.monthly)}
+                        <ChangeLabel
+                          current={row.usage.monthly}
+                          prev={row.usage.monthlyPrev}
+                        />
+                      </>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-slate-700 text-right">
+                    {formatNumber(row.users)}
+                  </td>
+                  {buildingColumns.map((id, i) => (
+                    <td
+                      key={id}
+                      className={`px-4 py-3 text-sm text-slate-600 text-right ${i === 0 ? 'border-l border-slate-200' : ''}`}
+                    >
+                      {formatNumber(row.usage?.buildings[id] ?? 0)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
               {filteredRows.length === 0 && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={colCount}
                     className="px-4 py-8 text-center text-slate-400 text-sm"
                   >
                     No widgets found.
@@ -874,6 +919,14 @@ const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
           </table>
         </div>
       </div>
+
+      {openRow && (
+        <WidgetUsersModal
+          row={openRow}
+          buildingsByEmail={buildingsByEmail}
+          onClose={() => setOpenWidget(null)}
+        />
+      )}
     </div>
   );
 };
@@ -1619,6 +1672,14 @@ export const AnalyticsManager: React.FC = () => {
           totalInstances: raw.widgets?.totalInstances ?? {},
           activeInstances: raw.widgets?.activeInstances ?? {},
           usersByType: raw.widgets?.usersByType,
+          usage: raw.widgets?.usage
+            ? Object.fromEntries(
+                Object.entries(raw.widgets.usage).map(([type, u]) => [
+                  type,
+                  { ...u, buildings: foldUsageBuildings(u.buildings ?? {}) },
+                ])
+              )
+            : undefined,
         },
         dashboards: raw.dashboards ?? { total: 0, avgWidgetsPerDashboard: 0 },
         api: {

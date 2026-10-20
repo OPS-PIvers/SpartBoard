@@ -89,7 +89,7 @@ beforeEach(() => {
 });
 
 describe('GuidedLearningStudentApp progress writer', () => {
-  it('records progress for Player v2 sessions and hands the player its handler', async () => {
+  it('records progress for stamped sessions and hands the player its handler', async () => {
     mockSession.current = { ...baseSession, playerV2: true };
     render(<GuidedLearningStudentApp />);
     await waitFor(() =>
@@ -102,12 +102,13 @@ describe('GuidedLearningStudentApp progress writer', () => {
     );
   });
 
-  it('leaves the writer off for sessions without Player v2', async () => {
+  it('records progress for sessions started before the playerV2 stamp too', async () => {
     mockSession.current = { ...baseSession };
     render(<GuidedLearningStudentApp />);
-    await waitFor(() => expect(mockProgress).toHaveBeenCalled());
-    expect(mockProgress).toHaveBeenLastCalledWith(
-      expect.objectContaining({ enabled: false })
+    await waitFor(() =>
+      expect(mockProgress).toHaveBeenLastCalledWith(
+        expect.objectContaining({ enabled: true })
+      )
     );
   });
 
@@ -137,11 +138,10 @@ describe('GuidedLearningStudentApp mode chip and auto-play', () => {
     expect(playerProps.current?.autoPlay).toBe(true);
   });
 
-  it('keeps the mode name on the start screen without Player v2', async () => {
+  it('shows the chip for sessions started before the playerV2 stamp too', async () => {
     mockSession.current = { ...baseSession, mode: 'structured' };
-    const { findByText, queryByTestId } = render(<GuidedLearningStudentApp />);
-    expect(await findByText(/structured mode/i)).toBeInTheDocument();
-    expect(queryByTestId('gl-start-mode-chip')).toBeNull();
+    const { findByTestId } = render(<GuidedLearningStudentApp />);
+    expect(await findByTestId('gl-start-mode-chip')).toBeInTheDocument();
   });
 });
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 type AudioContextCtor = typeof AudioContext;
 
-const audioContextCtor = (): AudioContextCtor | null => {
+export const audioContextCtor = (): AudioContextCtor | null => {
   if (typeof window === 'undefined') return null;
   const w = window as Window & {
     AudioContext?: AudioContextCtor;

@@ -32,37 +32,32 @@ const set: GuidedLearningSet = {
 
 describe('GuidedLearningPlayer server-seeded resume (P8-8)', () => {
   it('offers the progress doc’s step when this device has no saved place', () => {
-    render(<GuidedLearningPlayer set={set} playerV2 resumeServerIdx={2} />);
+    render(<GuidedLearningPlayer set={set} resumeServerIdx={2} />);
     expect(screen.getByText('Resume at step 3?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Resume' }));
     expect(screen.getByText('3 / 3')).toBeInTheDocument();
   });
 
   it('offers the server step when it lands after the player opened', () => {
-    const { rerender } = render(<GuidedLearningPlayer set={set} playerV2 />);
+    const { rerender } = render(<GuidedLearningPlayer set={set} />);
     expect(screen.queryByText(/resume at step/i)).toBeNull();
-    rerender(<GuidedLearningPlayer set={set} playerV2 resumeServerIdx={1} />);
+    rerender(<GuidedLearningPlayer set={set} resumeServerIdx={1} />);
     expect(screen.getByText('Resume at step 2?')).toBeInTheDocument();
   });
 
   it('does not offer a late server step after the learner moved and came back', () => {
-    const { rerender } = render(<GuidedLearningPlayer set={set} playerV2 />);
+    const { rerender } = render(<GuidedLearningPlayer set={set} />);
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
     expect(screen.getByText('2 / 3')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /previous/i }));
     expect(screen.getByText('1 / 3')).toBeInTheDocument();
-    rerender(<GuidedLearningPlayer set={set} playerV2 resumeServerIdx={2} />);
+    rerender(<GuidedLearningPlayer set={set} resumeServerIdx={2} />);
     expect(screen.queryByText(/resume at step/i)).toBeNull();
   });
 
   it('keeps this device’s place over the server’s', () => {
     writeResume({ id: 'set', idx: 1, mode: 'try', updatedAt: Date.now() });
-    render(<GuidedLearningPlayer set={set} playerV2 resumeServerIdx={2} />);
-    expect(screen.getByText('Resume at step 2?')).toBeInTheDocument();
-  });
-
-  it('ignores the server step in v1', () => {
     render(<GuidedLearningPlayer set={set} resumeServerIdx={2} />);
-    expect(screen.queryByText(/resume at step/i)).toBeNull();
+    expect(screen.getByText('Resume at step 2?')).toBeInTheDocument();
   });
 });

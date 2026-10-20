@@ -58,7 +58,7 @@ const renderBoard = (
   render(
     <GuidedLearningPlayer
       set={authoredSet()}
-      playerV2
+
       revealAnswers
       {...props}
     />
@@ -122,10 +122,7 @@ describe('GuidedLearningPlayer Reveal answer (subs and the teacher board)', () =
     expect(items).toEqual(['First', 'Second', 'Third']);
   });
 
-  it('offers no Reveal answer in v1 or in teacher mode', () => {
-    renderBoard({ playerV2: false });
-    expect(screen.queryByRole('button', { name: 'Reveal answer' })).toBeNull();
-    cleanup();
+  it('offers no Reveal answer in teacher mode', () => {
     renderBoard({ teacherMode: true });
     expect(screen.queryByRole('button', { name: 'Reveal answer' })).toBeNull();
   });

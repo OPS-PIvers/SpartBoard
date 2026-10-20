@@ -4714,7 +4714,8 @@
           "g2p-disagree": "Our sources disagree on how to say this word.",
           "stress-disagree": "Our sources disagree on which part is stressed.",
           "language-switch": "This word looks like it's in a different language.",
-          "lookup-failed": "We couldn't check this word. We'll try again when you save."
+          "lookup-failed": "We couldn't check this word. We'll try again when you save.",
+          "set-too-large": "This set is too big to keep a pronunciation for every card. Remove some cards and save again."
         },
         "reviewTitle_one": "{{count}} card to check",
         "reviewTitle_other": "{{count}} cards to check",
@@ -4723,6 +4724,7 @@
         "ipaInvalid": "Some of these symbols aren't recognized.",
         "checkingCards_one": "Checking how to say {{count}} card…",
         "checkingCards_other": "Checking how to say {{count}} cards…",
+        "finishingCards": "Finishing Speak: {{done}} of {{total}} cards",
         "hearIt": "Hear it"
       },
       "groups": {
@@ -5122,13 +5124,11 @@
       "retry": "Retry"
     },
     "closePlayer": "Close player",
-    "exploreHint": "Click any pin to explore",
     "showSlide": "Show slide {{n}}",
     "prev": "Previous step",
     "next": "Next step",
     "play": "Play",
     "pause": "Pause",
-    "sessionProgress": "Session progress",
     "stepProgress": "Step progress",
     "goToStep": "Go to step {{n}}",
     "resetView": "Reset view",
@@ -5205,11 +5205,6 @@
       "selectClass": "Select Your Class",
       "whichPeriod": "Which class period are you in?",
       "pickOne": "Pick one to continue. You can enter your PIN after this step.",
-      "legacyMode": {
-        "guided": "guided mode",
-        "structured": "structured mode",
-        "explore": "explore mode"
-      },
       "steps_one": "{{count}} step",
       "steps_other": "{{count}} steps",
       "class": "Class",

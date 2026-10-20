@@ -3574,7 +3574,8 @@
           "g2p-disagree": "Nuestras fuentes no coinciden en cómo se dice esta palabra.",
           "stress-disagree": "Nuestras fuentes no coinciden en qué parte se acentúa.",
           "language-switch": "Esta palabra parece estar en otro idioma.",
-          "lookup-failed": "No pudimos revisar esta palabra. Lo intentaremos de nuevo al guardar."
+          "lookup-failed": "No pudimos revisar esta palabra. Lo intentaremos de nuevo al guardar.",
+          "set-too-large": "Este conjunto es demasiado grande para guardar la pronunciación de cada tarjeta. Quita algunas tarjetas y vuelve a guardar."
         },
         "reviewTitle_one": "{{count}} tarjeta por revisar",
         "reviewTitle_other": "{{count}} tarjetas por revisar",
@@ -3583,6 +3584,7 @@
         "ipaInvalid": "Algunos de estos símbolos no se reconocen.",
         "checkingCards_one": "Revisando cómo se dice {{count}} tarjeta…",
         "checkingCards_other": "Revisando cómo se dicen {{count}} tarjetas…",
+        "finishingCards": "Terminando Speak: {{done}} de {{total}} tarjetas",
         "hearIt": "Escucharla"
       },
       "groups": {
@@ -4072,13 +4074,11 @@
       "retry": "Reintentar"
     },
     "closePlayer": "Cerrar reproductor",
-    "exploreHint": "Haz clic en cualquier marcador para explorar",
     "showSlide": "Mostrar diapositiva {{n}}",
     "prev": "Paso anterior",
     "next": "Paso siguiente",
     "play": "Reproducir",
     "pause": "Pausa",
-    "sessionProgress": "Progreso de la sesión",
     "stepProgress": "Progreso de los pasos",
     "goToStep": "Ir al paso {{n}}",
     "resetView": "Restablecer vista",
@@ -4155,11 +4155,6 @@
       "selectClass": "Selecciona tu clase",
       "whichPeriod": "¿En qué periodo de clase estás?",
       "pickOne": "Elige uno para continuar. Podrás escribir tu PIN después de este paso.",
-      "legacyMode": {
-        "guided": "modo guiado",
-        "structured": "modo estructurado",
-        "explore": "modo exploración"
-      },
       "steps_one": "{{count}} paso",
       "steps_other": "{{count}} pasos",
       "class": "Clase",

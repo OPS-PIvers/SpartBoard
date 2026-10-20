@@ -15711,6 +15711,83 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.materials.form-name",
+    "label": "Name input in the Materials new or edit material form",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.materials.settings",
+        "kind": "settings-drawer",
+        "widget_type": "materials",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.materials.form-icon-search",
+    "label": "Icon search box in the Materials new or edit material form",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.materials.settings",
+        "kind": "settings-drawer",
+        "widget_type": "materials",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.materials.form-save",
+    "label": "Save button in the Materials new or edit material form",
+    "scope": "widget",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.materials.settings",
+        "kind": "settings-drawer",
+        "widget_type": "materials",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.materials.form-cancel",
+    "label": "Cancel button in the Materials new or edit material form",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.materials.settings",
+        "kind": "settings-drawer",
+        "widget_type": "materials",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.music.sync-time-tool",
     "label": "Sync with Time Tool toggle in Music settings",
     "scope": "widget",
@@ -19458,6 +19535,66 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "widget.settings-opener"
         ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.materials.form-icon",
+    "label": "Icon choice in the Materials new or edit material form",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "materials#[A-Z][A-Za-z0-9]*",
+    "key_hint": "materials#Folder; the Lucide icon name as its tooltip shows it",
+    "routes": [
+      {
+        "surface": "widgets.materials.settings",
+        "kind": "settings-drawer",
+        "widget_type": "materials",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.materials.form-color",
+    "label": "Color swatch in the Materials new or edit material form",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "materials#row-([1-9]|10)",
+    "key_hint": "materials#row-1 for the first swatch, left to right",
+    "routes": [
+      {
+        "surface": "widgets.materials.settings",
+        "kind": "settings-drawer",
+        "widget_type": "materials",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "materials.tray-item",
+    "label": "Material tile in the tray of a selected Materials widget, which shows it on the board",
+    "scope": "field",
+    "key_pattern": "materials#row-[1-9]\\d*",
+    "key_hint": "materials#row-1 for the first tile; tiles follow the checked order in settings",
+    "routes": [
+      {
+        "surface": "widgets.materials.face",
+        "kind": "widget",
+        "widget_type": "materials",
+        "path": [],
         "needs": [
           "widget-on-stage"
         ]
@@ -33887,6 +34024,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.analytics.cohort-group",
+    "label": "Season or month buttons in Analytics retention chart",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.analytics",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#analytics"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.analytics.domain-filter",
     "label": "Domain filter dropdown in Analytics",
     "scope": "board",
@@ -34092,20 +34248,62 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "admin.analytics.widget-users-search",
-    "label": "Email search field in a widget usage row",
+    "id": "admin.analytics.widget-users-building",
+    "label": "Building filter in a widget users list",
     "scope": "board",
     "panel": true,
     "routes": [
       {
-        "surface": "admin.analytics",
-        "kind": "panel",
+        "surface": "admin.analytics.widget-users",
+        "kind": "modal",
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#analytics",
-          "admin.analytics.tab:admin#widgets"
+          "admin.analytics.tab:admin#widgets",
+          "admin.analytics.widget-users-toggle:admin#timer"
         ],
-        "reveal": "admin.analytics.tab:admin#widgets",
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.analytics.widget-users-search",
+    "label": "Email search field in a widget users list",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.analytics.widget-users",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#analytics",
+          "admin.analytics.tab:admin#widgets",
+          "admin.analytics.widget-users-toggle:admin#timer"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.analytics.widget-users-sort",
+    "label": "Sortable column headers in a widget users list",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.analytics.widget-users",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#analytics",
+          "admin.analytics.tab:admin#widgets",
+          "admin.analytics.widget-users-toggle:admin#timer"
+        ],
         "needs": [
           "admin"
         ]
@@ -34114,7 +34312,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "admin.analytics.widget-users-toggle",
-    "label": "Show users button in a widget usage row",
+    "label": "Widget name in the widget usage table, opens its users",
     "scope": "field",
     "panel": true,
     "routes": [

@@ -18,7 +18,7 @@ export const PROGRESS_WRITE_INTERVAL_MS = 10_000;
 interface Options {
   sessionId: string | null | undefined;
   uid: string | null | undefined;
-  /** Student app with a `playerV2` session only; teacher previews, Help and the Studio pass false. */
+  /** Off until the session loads, and for an excluded student. */
   enabled: boolean;
   /** Step ids in set order, for the furthest-step index. */
   stepIds: readonly string[];

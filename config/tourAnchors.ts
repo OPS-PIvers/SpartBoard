@@ -3736,6 +3736,27 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'widget-settings.materials.form-name': {
+    label: 'Name input in the Materials new or edit material form',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.materials.form-icon-search': {
+    label: 'Icon search box in the Materials new or edit material form',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.materials.form-save': {
+    label: 'Save button in the Materials new or edit material form',
+    persists: true,
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.materials.form-cancel': {
+    label: 'Cancel button in the Materials new or edit material form',
+    perWidget: true,
+    panel: true,
+  },
   'widget-settings.music.sync-time-tool': {
     label: 'Sync with Time Tool toggle in Music settings',
     perWidget: true,
@@ -4675,6 +4696,28 @@ export const TOUR_ANCHORS = {
     label: 'Show a hidden material again in Materials settings',
     perField: true,
     panel: true,
+  },
+  'widget-settings.materials.form-icon': {
+    label: 'Icon choice in the Materials new or edit material form',
+    perField: true,
+    panel: true,
+    keyPattern: 'materials#[A-Z][A-Za-z0-9]*',
+    keyHint: 'materials#Folder; the Lucide icon name as its tooltip shows it',
+  },
+  'widget-settings.materials.form-color': {
+    label: 'Color swatch in the Materials new or edit material form',
+    perField: true,
+    panel: true,
+    keyPattern: 'materials#row-([1-9]|10)',
+    keyHint: 'materials#row-1 for the first swatch, left to right',
+  },
+  'materials.tray-item': {
+    label:
+      'Material tile in the tray of a selected Materials widget, which shows it on the board',
+    perField: true,
+    keyPattern: 'materials#row-[1-9]\\d*',
+    keyHint:
+      'materials#row-1 for the first tile; tiles follow the checked order in settings',
   },
   'widget-settings.music.source': {
     label: 'Source option (curated or Spotify) in Music settings',
@@ -7526,6 +7569,11 @@ export const TOUR_ANCHORS = {
     label: 'Building filter dropdown in the Analytics user list',
     panel: true,
   },
+  'admin.analytics.cohort-group': {
+    label: 'Season or month buttons in Analytics retention chart',
+    perField: true,
+    panel: true,
+  },
   'admin.analytics.domain-filter': {
     label: 'Domain filter dropdown in Analytics',
     panel: true,
@@ -7573,12 +7621,21 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'admin.analytics.widget-users-building': {
+    label: 'Building filter in a widget users list',
+    panel: true,
+  },
   'admin.analytics.widget-users-search': {
-    label: 'Email search field in a widget usage row',
+    label: 'Email search field in a widget users list',
+    panel: true,
+  },
+  'admin.analytics.widget-users-sort': {
+    label: 'Sortable column headers in a widget users list',
+    perField: true,
     panel: true,
   },
   'admin.analytics.widget-users-toggle': {
-    label: 'Show users button in a widget usage row',
+    label: 'Widget name in the widget usage table, opens its users',
     perField: true,
     panel: true,
   },

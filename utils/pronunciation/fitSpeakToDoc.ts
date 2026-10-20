@@ -80,6 +80,7 @@ const asStub = (speak: SpeakRecord): SpeakRecord => {
     refs: [],
     g2pVersion,
     status: 'unavailable',
+    reasons: ['set-too-large'],
     dialects: coveredDialects(speak),
     ...(ipaOverride !== undefined ? { ipaOverride } : {}),
   };

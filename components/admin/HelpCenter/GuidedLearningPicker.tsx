@@ -11,6 +11,7 @@ import type { GuidedLearningSet } from '@/types';
 import { isHelpCenterSet } from '@/components/widgets/GuidedLearning/utils/helpCenterSets';
 import { isLiveTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import { requestEditTour } from '@/components/tours/editor/tourEditStore';
+import { openAssignmentIdsForSet } from '@/utils/guidedLearningFileRelease';
 
 const GuidedLearningStudio = lazy(() =>
   import('@/components/widgets/GuidedLearning/components/studio/GuidedLearningStudio').then(
@@ -47,8 +48,14 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
 }) => {
   const { user, canAccessFeature } = useAuth();
   const liveTours = canAccessFeature('gl-live-tours');
-  const { sets, buildingSets, buildingLoading, loadSetData, saveBuildingSet } =
-    useGuidedLearning(user?.uid);
+  const {
+    sets,
+    buildingSets,
+    buildingLoading,
+    loadSetData,
+    saveBuildingSet,
+    deleteSet,
+  } = useGuidedLearning(user?.uid);
   const [search, setSearch] = useState('');
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -111,34 +118,42 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
     if (set.id !== selectedSetId) onSelect(set.id, set.title);
   };
 
-  // Personal sets live in Drive, which teachers can't read, so the Help Center keeps its own copy.
+  // Personal sets live in Drive, which teachers can't read, so the set moves into a Help Center copy.
   const handlePersonalPick = async (
     setId: string,
-    driveFileId: string
+    driveFileId: string,
+    personalUpdatedAt: number
   ): Promise<void> => {
+    if (!user?.uid) return;
     setCopyingId(setId);
     try {
       const copyId = helpCopyId(setId);
       // One copy per personal set: picking it again reuses that copy, keeping admin edits.
-      const existing = await loadBuildingSet(copyId);
-      if (existing) {
-        onSelect(existing.id, existing.title);
-        return;
+      let picked = await loadBuildingSet(copyId);
+      // An original edited after its older copy was made keeps the newer work.
+      let removeOriginal = !picked || personalUpdatedAt <= picked.createdAt;
+      if (!picked) {
+        const loaded = await loadSetData(driveFileId);
+        // eslint-disable-next-line react-hooks/purity -- runs in an async select handler, not render
+        const now = Date.now();
+        picked = {
+          ...loaded,
+          id: copyId,
+          isBuilding: true,
+          helpCenter: true,
+          authorUid: user.uid,
+          createdAt: now,
+          updatedAt: now,
+        };
+        await saveBuildingSet(picked);
       }
-      const loaded = await loadSetData(driveFileId);
-      // eslint-disable-next-line react-hooks/purity -- runs in an async select handler, not render
-      const now = Date.now();
-      const copy: GuidedLearningSet = {
-        ...loaded,
-        id: copyId,
-        isBuilding: true,
-        helpCenter: true,
-        authorUid: user?.uid,
-        createdAt: now,
-        updatedAt: now,
-      };
-      await saveBuildingSet(copy);
-      onSelect(copy.id, copy.title);
+      onSelect(picked.id, picked.title);
+      // Removed only after the copy is saved, and kept while students still work on it.
+      if (removeOriginal) {
+        const openIds = await openAssignmentIdsForSet(user.uid, setId);
+        removeOriginal = openIds.length === 0;
+      }
+      if (removeOriginal) await deleteSet(setId, driveFileId);
     } catch (err) {
       onError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -179,14 +194,14 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
     {
       heading: 'My library',
       empty: 'No personal activities.',
-      note: 'Picking one makes a separate Help Center copy.',
+      note: 'Picking one moves it out of My library.',
       rows: personal.map((set) => ({
         id: set.id,
         title: set.title || 'Untitled activity',
         onPick: () => {
           setMenuOpen(false);
           setSearch('');
-          void handlePersonalPick(set.id, set.driveFileId);
+          void handlePersonalPick(set.id, set.driveFileId, set.updatedAt);
         },
       })),
     },

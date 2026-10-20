@@ -66,7 +66,7 @@ function renderPlayer(
 ) {
   const handle = layout();
   const view = render(
-    <GuidedLearningPlayer set={set} teacherMode playerV2 {...props} />
+    <GuidedLearningPlayer set={set} teacherMode {...props} />
   );
   fireEvent.load(
     document.querySelector('[data-gl-stage] img') as HTMLImageElement
@@ -129,18 +129,6 @@ describe('GuidedLearningPlayer author mode', () => {
     expect(screen.getByText('2 / 2')).toBeInTheDocument();
     expect(events.every((e) => e.mode === 'try')).toBe(true);
   });
-
-  it('shows no chip, toggle or cursor when player v2 is off', () => {
-    vi.useFakeTimers();
-    renderPlayer(makeSet('guided'), { playerV2: false });
-    expect(screen.queryByTestId('gl-mode-chip')).toBeNull();
-    expect(screen.queryByTestId('gl-cursor')).toBeNull();
-    expect(screen.getByTestId('gl-tooltip-card')).toBeInTheDocument();
-    cleanup();
-    restore?.();
-    renderPlayer(makeSet('explore'), { playerV2: false });
-    expect(screen.getByText('Click any pin to explore')).toBeInTheDocument();
-  });
 });
 
 describe('GuidedLearningPlayer guided start', () => {
@@ -169,16 +157,10 @@ describe('GuidedLearningPlayer guided start', () => {
     expect(screen.getByText('1 / 2')).toBeInTheDocument();
   });
 
-  it('never auto-plays structured sets or v1 guided sets', () => {
+  it('never auto-plays structured sets', () => {
     vi.useFakeTimers();
     renderPlayer(makeSet('structured'), { autoPlay: true });
     oneStep();
-    expect(screen.getByText('1 / 2')).toBeInTheDocument();
-    cleanup();
-    restore?.();
-    renderPlayer(makeSet('guided'), { autoPlay: true, playerV2: false });
-    expect(screen.getByRole('button', { name: /^play$/i })).toBeInTheDocument();
-    tick(10000);
     expect(screen.getByText('1 / 2')).toBeInTheDocument();
   });
 
@@ -337,7 +319,7 @@ describe('GuidedLearningPlayer Watch / Try', () => {
 });
 
 describe('GuidedLearningPlayer reaching the end', () => {
-  it('finishes when Next is pressed on the last step (v2)', () => {
+  it('finishes when Next is pressed on the last step', () => {
     const onReachedEnd = vi.fn();
     renderPlayer(makeSet('structured'), { onReachedEnd });
     const next = () => screen.getByRole('button', { name: /next step/i });
@@ -358,18 +340,9 @@ describe('GuidedLearningPlayer reaching the end', () => {
     tick(3100);
     expect(onReachedEnd).toHaveBeenCalledTimes(1);
   });
-
-  it('never finishes from the player in v1', () => {
-    const onReachedEnd = vi.fn();
-    renderPlayer(makeSet('structured'), { onReachedEnd, playerV2: false });
-    const next = screen.getByRole('button', { name: /next step/i });
-    fireEvent.click(next);
-    expect(next).toBeDisabled();
-    expect(onReachedEnd).not.toHaveBeenCalled();
-  });
 });
 
-describe('GuidedLearningPlayer presenting keys (v2)', () => {
+describe('GuidedLearningPlayer presenting keys', () => {
   const threeSteps = (mode: GuidedLearningSet['mode']) => ({
     ...makeSet(mode),
     steps: [target, { ...target, id: 'two' }, { ...target, id: 'three' }],
@@ -422,20 +395,7 @@ describe('GuidedLearningPlayer presenting keys (v2)', () => {
     expect(screen.getByText('1 / 3')).toBeInTheDocument();
   });
 
-  it('keeps v1 on arrows over the canvas only', () => {
-    renderPlayer(threeSteps('structured'), { playerV2: false });
-    stage().focus();
-    fireEvent.keyDown(stage(), { key: 'PageDown' });
-    expect(screen.getByText('1 / 3')).toBeInTheDocument();
-    nextBtn().focus();
-    fireEvent.keyDown(nextBtn(), { key: 'ArrowRight' });
-    expect(screen.getByText('1 / 3')).toBeInTheDocument();
-    stage().focus();
-    fireEvent.keyDown(stage(), { key: 'ArrowRight' });
-    expect(screen.getByText('2 / 3')).toBeInTheDocument();
-  });
-
-  it('scales callout text up to 30px in v2 only', () => {
+  it('scales callout text up to 30px', () => {
     renderPlayer(makeSet('structured'));
     const root = screen.getByTestId('gl-player-root');
     expect(root.style.getPropertyValue('--gl-text-title')).toBe(
@@ -444,13 +404,5 @@ describe('GuidedLearningPlayer presenting keys (v2)', () => {
     expect(screen.getByTestId('gl-tooltip-card').style.fontSize).toContain(
       'var(--gl-text-body'
     );
-    cleanup();
-    restore?.();
-    renderPlayer(makeSet('structured'), { playerV2: false });
-    expect(
-      screen
-        .getByTestId('gl-player-root')
-        .style.getPropertyValue('--gl-text-title')
-    ).toBe('');
   });
 });

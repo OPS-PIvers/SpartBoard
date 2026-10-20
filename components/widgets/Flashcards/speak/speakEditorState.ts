@@ -16,7 +16,10 @@ import {
 } from '@/config/pronunciationGroups';
 import { buildSpeakStamp } from '../utils/flashcardAssign';
 import { tokenizeIpa } from '@/utils/pronunciation/tokenizeIpa';
-import { SPEAK_G2P_VERSION } from '@/utils/pronunciation/g2pVersion';
+import {
+  SPEAK_G2P_VERSION,
+  SPEAK_G2P_VOICES_PENDING,
+} from '@/utils/pronunciation/g2pVersion';
 
 /** Unsaved IPA per card id, tied to the term it was typed for. */
 export type SpeakIpaDrafts = Record<
@@ -167,7 +170,15 @@ export function cardNeedsLookup(
   const speak = speakForTerm(card);
   if (!speak || !Array.isArray(speak.refs)) return true;
   if (speak.reasons?.includes('lookup-failed')) return true;
-  if (speak.g2pVersion !== SPEAK_G2P_VERSION) return true;
+  // A card waiting on voices is current; the background fill adds them.
+  if (
+    speak.g2pVersion !== SPEAK_G2P_VERSION &&
+    !(
+      speak.g2pVersion === SPEAK_G2P_VOICES_PENDING &&
+      Array.isArray(speak.dialects)
+    )
+  )
+    return true;
   if (!refsFitDialects(speak, dialects)) return true;
   if (speak.refs.length === 0 && speak.status !== 'unavailable') return true;
   return !sameOverride(

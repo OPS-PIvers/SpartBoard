@@ -1,56 +1,56 @@
 {
   "$schema": "../scorecard.schema.json",
   "widgetType": "embed",
-  "rubricVersion": "1.0.0",
-  "gradedAt": "2026-10-06T03:13:32.259Z",
+  "rubricVersion": "1.1.0",
+  "gradedAt": "2026-10-20T13:39:27.231Z",
   "stale": false,
   "criteria": {
     "S6": {
       "score": null,
       "source": "script",
       "note": "N/A by rule",
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T03:13:32.259Z",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-20T04:10:54.415Z",
       "stale": false
     },
     "I2": {
       "score": null,
       "source": "script",
       "note": "N/A by rule",
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T03:13:32.259Z",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-20T04:10:54.415Z",
       "stale": false
     },
     "I3": {
       "score": null,
       "source": "script",
       "note": "N/A by rule",
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T03:13:32.259Z",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-20T04:10:54.415Z",
       "stale": false
     },
     "I4": {
       "score": null,
       "source": "script",
       "note": "N/A by rule",
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T03:13:32.259Z",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-20T04:10:54.415Z",
       "stale": false
     },
     "I5": {
       "score": null,
       "source": "script",
       "note": "N/A by rule",
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T03:13:32.259Z",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-20T04:10:54.415Z",
       "stale": false
     },
     "I6": {
       "score": null,
       "source": "script",
       "note": "N/A by rule",
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T03:13:32.259Z",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-20T04:10:54.415Z",
       "stale": false
     },
     "S1": {
@@ -190,20 +190,20 @@
       "stale": false
     },
     "I1": {
-      "score": 1,
+      "score": 2,
       "source": "paul",
       "candidates": {
-        "script": 1,
-        "paul": 1
+        "script": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png"
+          "scripts/widget-grader/out/grade-embed-2026-10-20/screenshots/embed/default__typical.png"
         ],
-        "runId": "norming-1"
+        "runId": "grade-embed-2026-10-20"
       },
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:43:10.611Z",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-20T13:37:52.076Z",
       "stale": false
     },
     "I7": {
@@ -318,21 +318,22 @@
       "stale": false
     },
     "V6": {
-      "score": 4,
+      "score": 2,
       "source": "paul",
       "candidates": {
         "script": null,
         "judge": 2,
-        "paul": 4
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/norming-1/screenshots/embed/default__typical.png"
+          "scripts/widget-grader/out/grade-embed-2026-10-20/screenshots/embed/default__typical.png"
         ],
-        "runId": "norming-1"
+        "runId": "grade-embed-2026-10-20"
       },
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:57:19.342Z",
+      "note": "Agreed - the \"flip\" terminology is also legacy and not correct anymore.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-20T13:38:53.096Z",
       "stale": false
     },
     "C1": {
@@ -411,17 +412,17 @@
       "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3,
+        "judge": 2,
         "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/norming-1/screenshots/embed/default__empty.png"
+          "scripts/widget-grader/out/grade-embed-2026-10-20/screenshots/embed/default__empty.png"
         ],
-        "runId": "norming-1"
+        "runId": "grade-embed-2026-10-20"
       },
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T03:02:28.985Z",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-20T13:39:04.643Z",
       "stale": false
     },
     "C6": {
@@ -587,30 +588,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "grade-embed-2026-10-20"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-20T13:39:27.231Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "grade-embed-2026-10-20"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-20T13:39:27.231Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "grade-embed-2026-10-20"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-20T13:39:27.231Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "grade-embed-2026-10-20"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-20T13:39:27.231Z"
     }
   }
 }

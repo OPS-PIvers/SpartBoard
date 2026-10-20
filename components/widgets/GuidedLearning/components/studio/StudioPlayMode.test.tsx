@@ -69,7 +69,6 @@ const renderPreview = () =>
       set={buildSet()}
       preset={DEVICE_PRESETS[0]}
       startStepId="step-q"
-      playerV2={false}
       onStepShown={vi.fn()}
       onExit={vi.fn()}
     />
