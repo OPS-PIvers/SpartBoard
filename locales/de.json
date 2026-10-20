@@ -3575,7 +3575,7 @@
           "stress-disagree": "Unsere Quellen sind sich uneinig, welcher Teil betont wird.",
           "language-switch": "Dieses Wort scheint aus einer anderen Sprache zu sein.",
           "lookup-failed": "Wir konnten dieses Wort nicht prüfen. Beim Speichern versuchen wir es erneut.",
-          "set-too-large": "Dieser Satz ist zu groß, um für jede Karte eine Aussprache zu speichern. Entferne einige Karten und speichere erneut."
+          "set-too-large": "Dieses Set ist zu groß, um für jede Karte eine Aussprache zu speichern. Entferne einige Karten und speichere erneut."
         },
         "reviewTitle_one": "{{count}} Karte zu prüfen",
         "reviewTitle_other": "{{count}} Karten zu prüfen",

@@ -26,8 +26,21 @@ describe('cardsNeedingLookup', () => {
 
   it('leaves dropped cards alone while the set is still near the limit', () => {
     const cards = Array.from({ length: 500 }, (_, i) =>
-      dropped(`c${i}`, 'd'.repeat(1400))
+      dropped(`c${i}`, 'd'.repeat(1800))
     );
     expect(cardsNeedingLookup(cards, ['es-419'], {})).toEqual([]);
+  });
+});
+
+describe('cardsNeedingLookup headroom', () => {
+  it('retries only as many dropped cards as the set has room for, first first', () => {
+    // About 870 KiB of cards leaves room for a few retried cards.
+    const cards = Array.from({ length: 500 }, (_, i) =>
+      dropped(`c${i}`, 'd'.repeat(1550))
+    );
+    const ids = cardsNeedingLookup(cards, ['es-419'], {}).map((c) => c.id);
+    expect(ids.length).toBeGreaterThan(0);
+    expect(ids.length).toBeLessThan(30);
+    expect(ids).toEqual(cards.slice(0, ids.length).map((c) => c.id));
   });
 });
