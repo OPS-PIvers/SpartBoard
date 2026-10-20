@@ -2073,9 +2073,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.link-classroom"
+          "classes.link-classroom:classes"
         ],
-        "reveal": "classes.link-classroom"
+        "reveal": "classes.link-classroom:classes"
       }
     ]
   },
@@ -2091,9 +2091,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.link-classroom"
+          "classes.link-classroom:classes"
         ],
-        "reveal": "classes.link-classroom"
+        "reveal": "classes.link-classroom:classes"
       }
     ]
   },
@@ -2110,9 +2110,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.link-classroom"
+          "classes.link-classroom:classes"
         ],
-        "reveal": "classes.link-classroom"
+        "reveal": "classes.link-classroom:classes"
       }
     ]
   },
@@ -2128,9 +2128,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.link-classroom"
+          "classes.link-classroom:classes"
         ],
-        "reveal": "classes.link-classroom"
+        "reveal": "classes.link-classroom:classes"
       }
     ]
   },
@@ -2305,7 +2305,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -2326,7 +2326,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -2347,7 +2347,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -2368,7 +2368,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -2389,7 +2389,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -2953,7 +2953,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -2974,7 +2974,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -2996,7 +2996,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -3017,7 +3017,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -3037,7 +3037,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -3059,7 +3059,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz.more-actions"
         ],
@@ -3600,9 +3600,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.assign-stepper",
         "kind": "shared",
         "path": [
-          "assign-students.trigger"
+          "assign-students.trigger:assign"
         ],
-        "reveal": "assign-students.trigger"
+        "reveal": "assign-students.trigger:assign"
       }
     ]
   },
@@ -3616,9 +3616,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.assign-stepper",
         "kind": "shared",
         "path": [
-          "assign-students.trigger"
+          "assign-students.trigger:assign"
         ],
-        "reveal": "assign-students.trigger"
+        "reveal": "assign-students.trigger:assign"
       }
     ]
   },
@@ -3634,9 +3634,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.assign-stepper",
         "kind": "shared",
         "path": [
-          "assign-students.trigger"
+          "assign-students.trigger:assign"
         ],
-        "reveal": "assign-students.trigger"
+        "reveal": "assign-students.trigger:assign"
       }
     ]
   },
@@ -3650,9 +3650,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.assign-stepper",
         "kind": "shared",
         "path": [
-          "assign-students.trigger"
+          "assign-students.trigger:assign"
         ],
-        "reveal": "assign-students.trigger"
+        "reveal": "assign-students.trigger:assign"
       }
     ]
   },
@@ -3666,9 +3666,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.assign-stepper",
         "kind": "shared",
         "path": [
-          "assign-students.trigger"
+          "assign-students.trigger:assign"
         ],
-        "reveal": "assign-students.trigger"
+        "reveal": "assign-students.trigger:assign"
       }
     ]
   },
@@ -4833,7 +4833,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity",
           "plc-video.cta"
@@ -4856,7 +4856,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity",
           "plc-video.cta"
@@ -4991,7 +4991,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -5012,7 +5012,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -5033,7 +5033,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -5054,7 +5054,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -5075,7 +5075,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -11248,6 +11248,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.tab:quiz#archive",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
+        "opened_by": [
+          "quiz-library.archive-results:quiz"
+        ],
         "needs": [
           "library-item",
           "student-data",
@@ -11271,6 +11274,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.tab:quiz#archive",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
+        "opened_by": [
+          "quiz-library.archive-results:quiz"
+        ],
         "needs": [
           "library-item",
           "student-data",
@@ -11293,6 +11299,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.tab:quiz#archive",
           "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "opened_by": [
+          "quiz-library.archive-results:quiz"
         ],
         "needs": [
           "library-item",
@@ -11318,6 +11327,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.tab:quiz#archive",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
+        "opened_by": [
+          "quiz-library.archive-results:quiz"
+        ],
         "needs": [
           "library-item",
           "student-data",
@@ -11337,6 +11349,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.tab:quiz#archive",
           "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "opened_by": [
+          "quiz-library.archive-results:quiz"
         ],
         "needs": [
           "library-item",
@@ -11361,6 +11376,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.tab:quiz#archive",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
+        "opened_by": [
+          "quiz-library.archive-results:quiz"
+        ],
         "needs": [
           "library-item",
           "student-data",
@@ -11383,6 +11401,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.tab:quiz#archive",
           "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "opened_by": [
+          "quiz-library.archive-results:quiz"
         ],
         "needs": [
           "library-item",
@@ -11407,6 +11428,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.tab:quiz#archive",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
+        "opened_by": [
+          "quiz-library.archive-results:quiz"
+        ],
         "needs": [
           "library-item",
           "student-data",
@@ -11429,6 +11453,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.tab:quiz#archive",
           "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "opened_by": [
+          "quiz-library.archive-results:quiz"
         ],
         "needs": [
           "library-item",
@@ -11454,6 +11481,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.tab:quiz#archive",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
+        "opened_by": [
+          "quiz-library.archive-results:quiz"
+        ],
         "needs": [
           "library-item",
           "student-data",
@@ -11478,6 +11508,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.tab:quiz#archive",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
+        "opened_by": [
+          "quiz-library.archive-results:quiz"
+        ],
         "needs": [
           "library-item",
           "student-data",
@@ -11500,6 +11533,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.tab:quiz#archive",
           "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "opened_by": [
+          "quiz-library.archive-results:quiz"
         ],
         "needs": [
           "library-item",
@@ -11525,6 +11561,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.tab:quiz#archive",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
+        "opened_by": [
+          "quiz-library.archive-results:quiz"
+        ],
         "needs": [
           "library-item",
           "student-data",
@@ -11548,6 +11587,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.tab:quiz#archive",
           "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "opened_by": [
+          "quiz-library.archive-results:quiz"
         ],
         "needs": [
           "library-item",
@@ -13881,7 +13923,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -13901,7 +13943,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -13922,7 +13964,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz.more-actions"
         ],
@@ -13945,7 +13987,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz.more-actions"
         ],
@@ -13967,7 +14009,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -13987,7 +14029,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -14007,7 +14049,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -14027,7 +14069,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -14052,7 +14094,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -14077,7 +14119,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -14098,7 +14140,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -14123,7 +14165,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-monitor.roster-row-actions:quiz"
         ],
@@ -14150,7 +14192,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-monitor.roster-row-actions:quiz"
         ],
@@ -14177,7 +14219,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-monitor.roster-row-actions:quiz"
         ],
@@ -14204,7 +14246,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-monitor.roster-row-actions:quiz"
         ],
@@ -14231,7 +14273,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-monitor.roster-row-actions:quiz"
         ],
@@ -14256,7 +14298,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -14279,7 +14321,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -14299,7 +14341,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -14322,7 +14364,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -14345,7 +14387,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -14407,7 +14449,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor.settings",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-monitor.menu-settings"
         ],
@@ -14431,7 +14473,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor.settings",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-monitor.menu-settings"
         ],
@@ -14452,7 +14494,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -14472,7 +14514,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-monitor.menu-question-results"
         ],
@@ -14497,7 +14539,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-monitor.menu-show-join-code"
         ],
@@ -14522,7 +14564,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-monitor.menu-show-join-code"
         ],
@@ -14547,7 +14589,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.present",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz.more-actions",
           "quiz-monitor.menu-present"
@@ -14572,7 +14614,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.present",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz.more-actions",
           "quiz-monitor.menu-present"
@@ -14597,7 +14639,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.present",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz.more-actions",
           "quiz-monitor.menu-present"
@@ -14622,7 +14664,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.present",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz.more-actions",
           "quiz-monitor.menu-present"
@@ -14647,7 +14689,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.present",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz.more-actions",
           "quiz-monitor.menu-present"
@@ -14672,7 +14714,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -14695,7 +14737,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -14718,7 +14760,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -14741,7 +14783,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor.settings",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-monitor.menu-settings"
         ],
@@ -14765,7 +14807,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor.settings",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-monitor.menu-settings"
         ],
@@ -14789,7 +14831,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor.settings",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-monitor.menu-settings"
         ],
@@ -14813,7 +14855,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor.settings",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-monitor.menu-settings"
         ],
@@ -14837,7 +14879,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor.settings",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-monitor.menu-settings"
         ],
@@ -14862,7 +14904,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -14886,7 +14928,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -14911,7 +14953,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.monitor",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:quiz#active",
           "library-shell.archive-primary-action:quiz#row-1"
         ],
         "needs": [
@@ -17089,7 +17131,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster"
+          "classes.edit-roster:classes"
         ],
         "opened_by": [
           "classes.new-class",
@@ -17113,7 +17155,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster"
+          "classes.edit-roster:classes"
         ],
         "opened_by": [
           "classes.new-class",
@@ -17138,7 +17180,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster"
+          "classes.edit-roster:classes"
         ],
         "opened_by": [
           "classes.new-class",
@@ -17162,7 +17204,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster"
+          "classes.edit-roster:classes"
         ],
         "opened_by": [
           "classes.new-class",
@@ -17187,7 +17229,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster"
+          "classes.edit-roster:classes"
         ],
         "opened_by": [
           "classes.new-class",
@@ -17216,7 +17258,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster"
+          "classes.edit-roster:classes"
         ],
         "opened_by": [
           "classes.new-class",
@@ -17240,7 +17282,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups"
         ],
         "needs": [
@@ -17261,7 +17303,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups"
         ],
         "needs": [
@@ -17282,7 +17324,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups"
         ],
         "needs": [
@@ -17304,7 +17346,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups"
         ],
         "needs": [
@@ -17325,7 +17367,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups"
         ],
         "needs": [
@@ -17346,7 +17388,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups"
         ],
         "needs": [
@@ -17367,7 +17409,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups"
         ],
         "needs": [
@@ -17388,7 +17430,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups"
         ],
         "needs": [
@@ -17409,7 +17451,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.split"
         ],
@@ -17432,7 +17474,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.split"
         ],
@@ -17455,7 +17497,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.split"
         ],
@@ -17478,7 +17520,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.split"
         ],
@@ -17501,7 +17543,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17524,7 +17566,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17547,7 +17589,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17570,7 +17612,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17593,7 +17635,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17616,7 +17658,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17639,7 +17681,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17662,7 +17704,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17685,7 +17727,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17708,7 +17750,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17731,7 +17773,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17754,7 +17796,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17777,7 +17819,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17800,7 +17842,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17823,7 +17865,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17846,7 +17888,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17869,7 +17911,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17892,7 +17934,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17915,7 +17957,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17938,7 +17980,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17961,7 +18003,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -17984,7 +18026,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -18007,7 +18049,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -18030,7 +18072,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -18053,7 +18095,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -18076,7 +18118,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -18099,7 +18141,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -18122,7 +18164,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -18145,7 +18187,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -18168,7 +18210,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -18191,7 +18233,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -18214,7 +18256,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster",
+          "classes.edit-roster:classes",
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
@@ -19154,48 +19196,40 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.archive-primary-action",
-    "label": "Primary action button on an assignment archive row",
+    "label": "Primary action button on an assignment row (In Progress or Archive tab)",
     "scope": "field",
     "persists": true,
     "routes": [
       {
         "surface": "library.assignments",
-        "kind": "panel",
-        "path": [
-          "library-shell.tab#active"
-        ]
+        "kind": "shared",
+        "path": []
       }
     ]
   },
   {
     "id": "library-shell.archive-menu",
-    "label": "Kebab menu button on an assignment archive row",
+    "label": "Kebab menu button on an assignment row (In Progress or Archive tab)",
     "scope": "field",
     "routes": [
       {
         "surface": "library.assignments",
-        "kind": "panel",
-        "path": [
-          "library-shell.tab#active"
-        ]
+        "kind": "shared",
+        "path": []
       }
     ]
   },
   {
     "id": "library-shell.archive-menu-item",
-    "label": "Item inside an assignment archive row kebab menu",
+    "label": "Item inside an assignment row kebab menu",
     "scope": "field",
     "panel": true,
     "persists": true,
     "routes": [
       {
         "surface": "library.assignments",
-        "kind": "panel",
-        "path": [
-          "library-shell.tab#active",
-          "library-shell.archive-menu"
-        ],
-        "reveal": "library-shell.archive-menu"
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -19601,9 +19635,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.link-classroom"
+          "classes.link-classroom:classes"
         ],
-        "reveal": "classes.link-classroom"
+        "reveal": "classes.link-classroom:classes"
       }
     ]
   },
@@ -19651,9 +19685,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.actions-menu"
+          "plcs.actions-menu:plcs"
         ],
-        "reveal": "plcs.actions-menu"
+        "reveal": "plcs.actions-menu:plcs"
       }
     ]
   },
@@ -19670,9 +19704,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.actions-menu"
+          "plcs.actions-menu:plcs"
         ],
-        "reveal": "plcs.actions-menu"
+        "reveal": "plcs.actions-menu:plcs"
       }
     ]
   },
@@ -19689,9 +19723,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.actions-menu"
+          "plcs.actions-menu:plcs"
         ],
-        "reveal": "plcs.actions-menu"
+        "reveal": "plcs.actions-menu:plcs"
       }
     ]
   },
@@ -19797,7 +19831,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -19817,7 +19851,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#members"
         ],
         "needs": [
@@ -19838,7 +19872,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.goal.add"
         ],
@@ -19859,7 +19893,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -19879,7 +19913,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -19899,7 +19933,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments"
         ],
         "needs": [
@@ -20297,9 +20331,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#plc-resources",
-          "admin-plc.recovery-reassign"
+          "admin-plc.recovery-reassign:plc"
         ],
-        "reveal": "admin-plc.recovery-reassign",
+        "reveal": "admin-plc.recovery-reassign:plc",
         "needs": [
           "admin"
         ]
@@ -20319,9 +20353,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#plc-resources",
-          "admin-plc.recovery-reassign"
+          "admin-plc.recovery-reassign:plc"
         ],
-        "reveal": "admin-plc.recovery-reassign",
+        "reveal": "admin-plc.recovery-reassign:plc",
         "needs": [
           "admin"
         ]
@@ -20340,9 +20374,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#plc-resources",
-          "admin-plc.recovery-reassign"
+          "admin-plc.recovery-reassign:plc"
         ],
-        "reveal": "admin-plc.recovery-reassign",
+        "reveal": "admin-plc.recovery-reassign:plc",
         "needs": [
           "admin"
         ]
@@ -20608,7 +20642,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity",
           "plc-video.tab:plc#inProgress",
@@ -20625,9 +20659,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.menu",
+          "plc-assessments.menu:plc",
           "plc-assessments.menu-item:plc#import"
         ],
         "needs": [
@@ -20641,10 +20675,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity",
-          "plc-video.import"
+          "plc-video.import:plc"
         ],
         "needs": [
           "plc",
@@ -20665,7 +20699,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc"
+          "plcs.open-plc:plcs"
         ],
         "needs": [
           "plc"
@@ -20884,9 +20918,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.menu",
+          "plc-assessments.menu:plc",
           "plc-assessments.menu-item:plc#print-teammate"
         ],
         "needs": [
@@ -20908,9 +20942,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.menu",
+          "plc-assessments.menu:plc",
           "plc-assessments.menu-item:plc#print-teammate"
         ],
         "needs": [
@@ -20932,9 +20966,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.menu",
+          "plc-assessments.menu:plc",
           "plc-assessments.menu-item:plc#print-teammate"
         ],
         "needs": [
@@ -20956,9 +20990,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.menu",
+          "plc-assessments.menu:plc",
           "plc-assessments.menu-item:plc#print-teammate"
         ],
         "needs": [
@@ -20980,9 +21014,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.menu",
+          "plc-assessments.menu:plc",
           "plc-assessments.menu-item:plc#print-teammate"
         ],
         "needs": [
@@ -21005,9 +21039,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.menu",
+          "plc-assessments.menu:plc",
           "plc-assessments.menu-item:plc#print-teammate"
         ],
         "needs": [
@@ -21029,9 +21063,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.menu",
+          "plc-assessments.menu:plc",
           "plc-assessments.menu-item:plc#print-teammate"
         ],
         "needs": [
@@ -21054,9 +21088,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.menu",
+          "plc-assessments.menu:plc",
           "plc-assessments.menu-item:plc#print-teammate"
         ],
         "needs": [
@@ -21078,9 +21112,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.menu",
+          "plc-assessments.menu:plc",
           "plc-assessments.menu-item:plc#print-teammate"
         ],
         "needs": [
@@ -21103,9 +21137,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.menu",
+          "plc-assessments.menu:plc",
           "plc-assessments.menu-item:plc#print-teammate"
         ],
         "needs": [
@@ -21130,9 +21164,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.open"
+          "plc-assessments.open:plc"
         ],
         "needs": [
           "plc",
@@ -21152,9 +21186,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.open"
+          "plc-assessments.open:plc"
         ],
         "needs": [
           "plc",
@@ -21174,9 +21208,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.open"
+          "plc-assessments.open:plc"
         ],
         "needs": [
           "plc",
@@ -21196,7 +21230,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments"
         ],
         "needs": [
@@ -21216,7 +21250,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments"
         ],
         "needs": [
@@ -21236,7 +21270,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments"
         ],
         "needs": [
@@ -21257,7 +21291,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments"
         ],
         "needs": [
@@ -21278,7 +21312,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments"
         ],
         "needs": [
@@ -21309,11 +21343,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.menu"
+          "plc-assessments.menu:plc"
         ],
-        "reveal": "plc-assessments.menu",
+        "reveal": "plc-assessments.menu:plc",
         "needs": [
           "plc"
         ]
@@ -21332,11 +21366,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.menu"
+          "plc-assessments.menu:plc"
         ],
-        "reveal": "plc-assessments.menu",
+        "reveal": "plc-assessments.menu:plc",
         "needs": [
           "plc"
         ]
@@ -21356,11 +21390,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.menu"
+          "plc-assessments.menu:plc"
         ],
-        "reveal": "plc-assessments.menu",
+        "reveal": "plc-assessments.menu:plc",
         "needs": [
           "plc"
         ]
@@ -21379,7 +21413,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments"
         ],
         "needs": [
@@ -21400,7 +21434,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments"
         ],
         "needs": [
@@ -21420,7 +21454,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments"
         ],
         "needs": [
@@ -21440,7 +21474,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments"
         ],
         "needs": [
@@ -21460,7 +21494,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments"
         ],
         "needs": [
@@ -21480,7 +21514,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments"
         ],
         "needs": [
@@ -21513,7 +21547,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#members"
         ],
         "needs": [
@@ -21534,7 +21568,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#members"
         ],
         "needs": [
@@ -21555,7 +21589,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#members"
         ],
         "needs": [
@@ -21576,7 +21610,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#members"
         ],
         "needs": [
@@ -21597,7 +21631,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#members"
         ],
         "needs": [
@@ -21618,7 +21652,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#members"
         ],
         "needs": [
@@ -21643,7 +21677,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -21663,7 +21697,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -21684,7 +21718,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs",
           "plc-notes.new-menu"
         ],
@@ -21706,7 +21740,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -21726,7 +21760,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -21747,7 +21781,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -21767,7 +21801,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -21788,7 +21822,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -21808,7 +21842,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -21828,7 +21862,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -21849,7 +21883,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -21869,7 +21903,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -21889,7 +21923,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -21909,7 +21943,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -21929,7 +21963,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments"
         ],
         "needs": [
@@ -21949,7 +21983,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#flashcards"
         ],
@@ -21971,7 +22005,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#flashcards"
         ],
@@ -21994,7 +22028,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#flashcards"
         ],
@@ -22016,7 +22050,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#flashcards"
         ],
@@ -22037,7 +22071,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -22057,7 +22091,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -22077,7 +22111,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -22098,7 +22132,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#bank"
         ],
@@ -22120,7 +22154,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#bank"
         ],
@@ -22143,7 +22177,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#bank"
         ],
@@ -22165,7 +22199,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#rubric"
         ],
@@ -22187,7 +22221,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#rubric"
         ],
@@ -22210,7 +22244,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#rubric"
         ],
@@ -22231,7 +22265,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#sharedBoards"
         ],
         "needs": [
@@ -22252,7 +22286,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity"
         ],
@@ -22274,7 +22308,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity"
         ],
@@ -22295,7 +22329,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity"
         ],
@@ -22316,7 +22350,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity"
         ],
@@ -22339,7 +22373,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity"
         ],
@@ -22360,7 +22394,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity"
         ],
@@ -22382,7 +22416,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity"
         ],
@@ -22454,7 +22488,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs",
           "plc-notes.new-menu",
           "plc-notes.new-menu-item:plc#doc"
@@ -22477,7 +22511,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs",
           "plc-notes.new-menu",
           "plc-notes.new-menu-item:plc#doc"
@@ -22500,7 +22534,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs",
           "plc-notes.new-menu",
           "plc-notes.new-menu-item:plc#doc"
@@ -22523,7 +22557,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs",
           "plc-notes.new-menu",
           "plc-notes.new-menu-item:plc#doc"
@@ -22547,7 +22581,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs",
           "plc-notes.new-menu",
           "plc-notes.new-menu-item:plc#doc"
@@ -22571,7 +22605,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.goal.add"
         ],
@@ -22593,7 +22627,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.goal.add"
         ],
@@ -22616,7 +22650,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.goal.add"
         ],
@@ -22638,7 +22672,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.goal.add"
         ],
@@ -22660,7 +22694,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.goal.add"
         ],
@@ -22682,7 +22716,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.goal.add"
         ],
@@ -22704,7 +22738,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.goal.add"
         ],
@@ -22727,7 +22761,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.goal.add"
         ],
@@ -22750,7 +22784,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.goal.add"
         ],
@@ -22772,7 +22806,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.goal.add"
         ],
@@ -22794,7 +22828,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.goal.add"
         ],
@@ -22816,7 +22850,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc"
+          "plcs.open-plc:plcs"
         ],
         "needs": [
           "plc"
@@ -22881,7 +22915,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -22902,7 +22936,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -22923,7 +22957,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -22944,9 +22978,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.open"
+          "plc-assessments.open:plc"
         ],
         "needs": [
           "plc",
@@ -22967,9 +23001,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.open"
+          "plc-assessments.open:plc"
         ],
         "needs": [
           "plc",
@@ -22990,7 +23024,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23012,7 +23046,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23033,7 +23067,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23054,7 +23088,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23075,7 +23109,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23097,7 +23131,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23117,7 +23151,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23138,7 +23172,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23160,7 +23194,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23186,7 +23220,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23206,7 +23240,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23226,7 +23260,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23246,7 +23280,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23268,7 +23302,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs",
           "plc-notes.review-open"
         ],
@@ -23291,7 +23325,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs",
           "plc-notes.review-open"
         ],
@@ -23314,7 +23348,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs",
           "plc-notes.review-open"
         ],
@@ -23337,7 +23371,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs",
           "plc-notes.review-open"
         ],
@@ -23359,7 +23393,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs",
           "plc-notes.review-open"
         ],
@@ -23381,7 +23415,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23402,7 +23436,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23422,7 +23456,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23442,7 +23476,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23463,7 +23497,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23484,7 +23518,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23505,7 +23539,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23525,7 +23559,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23546,7 +23580,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23566,7 +23600,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23586,7 +23620,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23607,7 +23641,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23628,7 +23662,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -23648,7 +23682,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#resources"
         ],
         "needs": [
@@ -23674,7 +23708,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#resources",
           "plc-resources.add-link"
         ],
@@ -23697,7 +23731,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#resources",
           "plc-resources.add-link"
         ],
@@ -23721,7 +23755,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#resources",
           "plc-resources.add-link"
         ],
@@ -23743,7 +23777,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#resources"
         ],
         "needs": [
@@ -23764,7 +23798,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#resources"
         ],
         "needs": [
@@ -23785,7 +23819,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#resources"
         ],
         "needs": [
@@ -23806,7 +23840,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc"
+          "plcs.open-plc:plcs"
         ],
         "needs": [
           "plc"
@@ -23827,7 +23861,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc"
+          "plcs.open-plc:plcs"
         ],
         "needs": [
           "plc"
@@ -23847,7 +23881,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc"
+          "plcs.open-plc:plcs"
         ],
         "needs": [
           "plc"
@@ -23867,7 +23901,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#targets"
         ],
         "needs": [
@@ -23887,7 +23921,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#targets"
         ],
         "needs": [
@@ -23908,7 +23942,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#targets"
         ],
         "needs": [
@@ -23928,7 +23962,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#targets"
         ],
         "needs": [
@@ -23949,7 +23983,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#targets"
         ],
         "needs": [
@@ -23969,7 +24003,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#targets"
         ],
         "needs": [
@@ -23990,7 +24024,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#targets"
         ],
         "needs": [
@@ -24011,7 +24045,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#targets"
         ],
         "needs": [
@@ -24032,7 +24066,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#targets"
         ],
         "needs": [
@@ -24053,7 +24087,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#targets"
         ],
         "needs": [
@@ -24074,7 +24108,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#targets"
         ],
         "needs": [
@@ -24095,7 +24129,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#targets"
         ],
         "needs": [
@@ -24117,7 +24151,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#targets"
         ],
         "needs": [
@@ -24138,7 +24172,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#targets"
         ],
         "needs": [
@@ -24159,7 +24193,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#targets"
         ],
         "needs": [
@@ -24180,7 +24214,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#targets"
         ],
         "needs": [
@@ -24201,7 +24235,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#targets"
         ],
         "needs": [
@@ -24222,7 +24256,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#targets"
         ],
         "needs": [
@@ -24247,7 +24281,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#targets"
         ],
         "needs": [
@@ -24269,7 +24303,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#targets"
         ],
         "needs": [
@@ -24290,7 +24324,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -24311,7 +24345,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -24331,7 +24365,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -24352,7 +24386,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -24372,7 +24406,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -24392,7 +24426,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -24412,7 +24446,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -24432,7 +24466,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -24452,7 +24486,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -24472,7 +24506,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -24493,7 +24527,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -24514,7 +24548,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -24535,7 +24569,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings",
           "plc-settings.trash-toggle"
         ],
@@ -24585,7 +24619,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity",
           "plc-video.tab:plc#inProgress"
@@ -24607,7 +24641,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity",
           "plc-video.tab:plc#inProgress"
@@ -24630,7 +24664,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity",
           "plc-video.tab:plc#inProgress"
@@ -24652,7 +24686,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity",
           "plc-video.tab:plc#inProgress"
@@ -24675,7 +24709,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -24696,7 +24730,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -24716,7 +24750,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -24737,10 +24771,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity",
-          "plc-video.version-history"
+          "plc-video.version-history:plc"
         ],
         "needs": [
           "plc",
@@ -24762,10 +24796,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity",
-          "plc-video.version-history"
+          "plc-video.version-history:plc"
         ],
         "needs": [
           "plc",
@@ -24787,10 +24821,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity",
-          "plc-video.version-history"
+          "plc-video.version-history:plc"
         ],
         "needs": [
           "plc",
@@ -24811,9 +24845,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace",
+          "teams.tracker.open-workspace:teams-mentoring",
           "teams.workspace.add-doc"
         ],
         "reveal": "teams.workspace.add-doc",
@@ -24907,9 +24941,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace",
+          "teams.tracker.open-workspace:teams-mentoring",
           "teams.workspace.new-check-in"
         ],
         "reveal": "teams.workspace.new-check-in",
@@ -24930,7 +24964,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview"
         ],
         "needs": [
@@ -24957,7 +24991,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview"
         ],
         "needs": [
@@ -24982,7 +25016,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu",
           "teams.shell.whats-new"
         ],
@@ -25005,7 +25039,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu",
           "teams.menu.edit-layout"
         ],
@@ -25027,7 +25061,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu",
           "teams.menu.edit-layout"
         ],
@@ -25049,7 +25083,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu",
           "teams.menu.edit-layout"
         ],
@@ -25071,7 +25105,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu",
           "teams.menu.edit-layout"
         ],
@@ -25092,7 +25126,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#programHub"
         ],
         "needs": [
@@ -25113,7 +25147,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
           "teams.mentoring.post-task"
         ],
@@ -25134,7 +25168,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#resources"
         ],
         "needs": [
@@ -25155,7 +25189,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.data.tag-questions"
         ],
@@ -25177,7 +25211,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.data.tag-questions"
         ],
@@ -25210,7 +25244,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace"
         ],
         "needs": [
@@ -25230,7 +25264,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#updates"
         ],
         "needs": [
@@ -25331,9 +25365,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace",
+          "teams.tracker.open-workspace:teams-mentoring",
           "teams.workspace.add-doc"
         ],
         "reveal": "teams.workspace.add-doc",
@@ -25355,9 +25389,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace",
+          "teams.tracker.open-workspace:teams-mentoring",
           "teams.workspace.add-doc"
         ],
         "reveal": "teams.workspace.add-doc",
@@ -25380,9 +25414,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace",
+          "teams.tracker.open-workspace:teams-mentoring",
           "teams.workspace.add-doc"
         ],
         "reveal": "teams.workspace.add-doc",
@@ -25404,9 +25438,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace",
+          "teams.tracker.open-workspace:teams-mentoring",
           "teams.workspace.add-doc"
         ],
         "reveal": "teams.workspace.add-doc",
@@ -25685,7 +25719,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#hub"
         ],
         "needs": [
@@ -25705,7 +25739,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#hub"
         ],
         "needs": [
@@ -25786,7 +25820,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -25807,7 +25841,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -25827,7 +25861,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -25848,9 +25882,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace",
+          "teams.tracker.open-workspace:teams-mentoring",
           "teams.workspace.new-check-in"
         ],
         "reveal": "teams.workspace.new-check-in",
@@ -25872,9 +25906,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace",
+          "teams.tracker.open-workspace:teams-mentoring",
           "teams.workspace.new-check-in"
         ],
         "reveal": "teams.workspace.new-check-in",
@@ -25897,9 +25931,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace",
+          "teams.tracker.open-workspace:teams-mentoring",
           "teams.workspace.new-check-in"
         ],
         "reveal": "teams.workspace.new-check-in",
@@ -25921,9 +25955,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace",
+          "teams.tracker.open-workspace:teams-mentoring",
           "teams.workspace.new-check-in"
         ],
         "reveal": "teams.workspace.new-check-in",
@@ -25944,7 +25978,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview"
         ],
         "needs": [
@@ -25964,7 +25998,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview"
         ],
         "needs": [
@@ -25984,7 +26018,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview"
         ],
         "needs": [
@@ -26004,7 +26038,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview"
         ],
         "needs": [
@@ -26024,7 +26058,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview"
         ],
         "needs": [
@@ -26044,7 +26078,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview"
         ],
         "needs": [
@@ -26064,7 +26098,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview"
         ],
         "needs": [
@@ -26084,7 +26118,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview"
         ],
         "needs": [
@@ -26105,7 +26139,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#hub"
         ],
         "needs": [
@@ -26125,7 +26159,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#hub"
         ],
         "needs": [
@@ -26145,7 +26179,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#hub"
         ],
         "needs": [
@@ -26165,7 +26199,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#hub"
         ],
         "needs": [
@@ -26185,7 +26219,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#hub"
         ],
         "needs": [
@@ -26205,7 +26239,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#hub"
         ],
         "needs": [
@@ -26226,7 +26260,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#hub"
         ],
         "needs": [
@@ -26246,7 +26280,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#hub"
         ],
         "needs": [
@@ -26267,7 +26301,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#hub"
         ],
         "needs": [
@@ -26287,7 +26321,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#hub"
         ],
         "needs": [
@@ -26307,7 +26341,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#hub"
         ],
         "needs": [
@@ -26327,7 +26361,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#hub"
         ],
         "needs": [
@@ -26347,7 +26381,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#hub"
         ],
         "needs": [
@@ -26368,9 +26402,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace"
+          "teams.tracker.open-workspace:teams-mentoring"
         ],
         "needs": [
           "plc"
@@ -26390,9 +26424,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace"
+          "teams.tracker.open-workspace:teams-mentoring"
         ],
         "needs": [
           "plc"
@@ -26412,7 +26446,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu",
           "teams.shell.whats-new"
         ],
@@ -26436,7 +26470,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu",
           "teams.shell.whats-new"
         ],
@@ -26459,7 +26493,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview"
         ],
         "needs": [
@@ -26479,7 +26513,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview"
         ],
         "needs": [
@@ -26500,7 +26534,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview"
         ],
         "needs": [
@@ -26520,7 +26554,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview"
         ],
         "needs": [
@@ -26546,7 +26580,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview"
         ],
         "needs": [
@@ -26566,7 +26600,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview"
         ],
         "needs": [
@@ -26591,7 +26625,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#hub"
         ],
         "needs": [
@@ -26617,7 +26651,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview"
         ],
         "needs": [
@@ -26643,7 +26677,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu",
           "teams.menu.edit-layout"
         ],
@@ -26665,7 +26699,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu",
           "teams.menu.edit-layout"
         ],
@@ -26700,7 +26734,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu",
           "teams.menu.edit-layout"
         ],
@@ -26722,7 +26756,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu",
           "teams.menu.edit-layout"
         ],
@@ -26744,7 +26778,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu",
           "teams.menu.edit-layout",
           "teams.layout.reset-to-default"
@@ -26769,7 +26803,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu",
           "teams.menu.edit-layout",
           "teams.layout.reset-to-default"
@@ -26793,7 +26827,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu",
           "teams.menu.edit-layout"
         ],
@@ -26816,7 +26850,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu",
           "teams.menu.edit-layout"
         ],
@@ -26837,7 +26871,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu"
         ],
         "needs": [
@@ -26858,7 +26892,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu",
           "plc-home.members-avatars"
         ],
@@ -26880,7 +26914,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#programHub"
         ],
         "needs": [
@@ -26900,7 +26934,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#programHub"
         ],
         "needs": [
@@ -26920,7 +26954,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#programHub"
         ],
         "needs": [
@@ -26933,7 +26967,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace"
         ],
         "needs": [
@@ -26954,7 +26988,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu"
         ],
         "needs": [
@@ -26975,7 +27009,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu"
         ],
         "needs": [
@@ -26996,7 +27030,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu"
         ],
         "needs": [
@@ -27018,7 +27052,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "teams.shell.team-menu",
           "teams.shell.my-items"
         ],
@@ -27054,7 +27088,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -27074,7 +27108,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -27094,7 +27128,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -27127,7 +27161,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -27147,7 +27181,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -27168,7 +27202,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -27189,7 +27223,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -27210,7 +27244,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -27230,7 +27264,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#docs"
         ],
         "needs": [
@@ -27429,7 +27463,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -27450,7 +27484,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -27470,7 +27504,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -27490,7 +27524,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -27511,7 +27545,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#settings"
         ],
         "needs": [
@@ -27532,7 +27566,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
           "teams.mentoring.post-task"
         ],
@@ -27554,7 +27588,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
           "teams.mentoring.post-task"
         ],
@@ -27576,7 +27610,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
           "teams.mentoring.post-task"
         ],
@@ -27598,7 +27632,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
           "teams.mentoring.post-task"
         ],
@@ -27621,7 +27655,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
           "teams.mentoring.post-task"
         ],
@@ -27644,7 +27678,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
           "teams.mentoring.post-task"
         ],
@@ -27666,7 +27700,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
           "teams.mentoring.post-task"
         ],
@@ -27688,7 +27722,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
           "teams.mentoring.post-task"
         ],
@@ -27710,7 +27744,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc"
+          "plcs.open-plc:plcs"
         ],
         "needs": [
           "plc"
@@ -27730,7 +27764,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc"
+          "plcs.open-plc:plcs"
         ],
         "needs": [
           "plc"
@@ -27750,7 +27784,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc"
+          "plcs.open-plc:plcs"
         ],
         "needs": [
           "plc"
@@ -27770,7 +27804,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc"
+          "plcs.open-plc:plcs"
         ],
         "needs": [
           "plc"
@@ -27790,7 +27824,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc"
+          "plcs.open-plc:plcs"
         ],
         "needs": [
           "plc"
@@ -27810,7 +27844,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.data.tag-questions"
         ],
@@ -27832,7 +27866,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.data.tag-questions"
         ],
@@ -27855,7 +27889,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.data.tag-questions"
         ],
@@ -27877,7 +27911,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.data.tag-questions"
         ],
@@ -27899,7 +27933,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.data.tag-questions"
         ],
@@ -27921,7 +27955,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.data.tag-questions"
         ],
@@ -27943,7 +27977,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.data.tag-questions"
         ],
@@ -27966,7 +28000,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.data.tag-questions"
         ],
@@ -27988,7 +28022,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#dataOverview",
           "teams.data.tag-questions"
         ],
@@ -28096,7 +28130,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace"
         ],
         "needs": [
@@ -28116,7 +28150,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace"
         ],
         "needs": [
@@ -28136,7 +28170,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace"
         ],
         "needs": [
@@ -28156,7 +28190,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#updates"
         ],
         "needs": [
@@ -28176,7 +28210,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#updates"
         ],
         "needs": [
@@ -28196,7 +28230,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#updates"
         ],
         "needs": [
@@ -28216,7 +28250,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#updates"
         ],
         "needs": [
@@ -28237,7 +28271,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#updates"
         ],
         "needs": [
@@ -28257,7 +28291,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#updates"
         ],
         "needs": [
@@ -28278,7 +28312,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#updates"
         ],
         "needs": [
@@ -28298,7 +28332,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#updates"
         ],
         "needs": [
@@ -28318,7 +28352,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#updates"
         ],
         "needs": [
@@ -28339,7 +28373,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#updates"
         ],
         "needs": [
@@ -28361,7 +28395,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#updates"
         ],
         "needs": [
@@ -28382,7 +28416,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#updates"
         ],
         "needs": [
@@ -28402,7 +28436,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#updates"
         ],
         "needs": [
@@ -28422,7 +28456,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#updates"
         ],
         "needs": [
@@ -28442,7 +28476,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#updates"
         ],
         "needs": [
@@ -28464,7 +28498,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#updates"
         ],
         "needs": [
@@ -28485,7 +28519,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#updates"
         ],
         "needs": [
@@ -28505,7 +28539,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#updates"
         ],
         "needs": [
@@ -28525,7 +28559,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#updates"
         ],
         "needs": [
@@ -28570,9 +28604,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace"
+          "teams.tracker.open-workspace:teams-mentoring"
         ],
         "needs": [
           "plc"
@@ -28591,9 +28625,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace",
+          "teams.tracker.open-workspace:teams-mentoring",
           "teams.workspace.add-action-item"
         ],
         "reveal": "teams.workspace.add-action-item",
@@ -28614,9 +28648,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace",
+          "teams.tracker.open-workspace:teams-mentoring",
           "teams.workspace.add-action-item"
         ],
         "reveal": "teams.workspace.add-action-item",
@@ -28638,9 +28672,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace",
+          "teams.tracker.open-workspace:teams-mentoring",
           "teams.workspace.add-action-item"
         ],
         "reveal": "teams.workspace.add-action-item",
@@ -28661,9 +28695,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace",
+          "teams.tracker.open-workspace:teams-mentoring",
           "teams.workspace.add-action-item"
         ],
         "reveal": "teams.workspace.add-action-item",
@@ -28684,9 +28718,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace"
+          "teams.tracker.open-workspace:teams-mentoring"
         ],
         "needs": [
           "plc"
@@ -28705,9 +28739,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace"
+          "teams.tracker.open-workspace:teams-mentoring"
         ],
         "needs": [
           "plc"
@@ -28726,9 +28760,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace"
+          "teams.tracker.open-workspace:teams-mentoring"
         ],
         "needs": [
           "plc"
@@ -28747,9 +28781,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace"
+          "teams.tracker.open-workspace:teams-mentoring"
         ],
         "needs": [
           "plc"
@@ -28768,9 +28802,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace"
+          "teams.tracker.open-workspace:teams-mentoring"
         ],
         "needs": [
           "plc"
@@ -28789,9 +28823,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace"
+          "teams.tracker.open-workspace:teams-mentoring"
         ],
         "needs": [
           "plc"
@@ -28810,9 +28844,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace"
+          "teams.tracker.open-workspace:teams-mentoring"
         ],
         "needs": [
           "plc"
@@ -28832,9 +28866,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace"
+          "teams.tracker.open-workspace:teams-mentoring"
         ],
         "needs": [
           "plc"
@@ -28853,9 +28887,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#workspace",
-          "teams.tracker.open-workspace"
+          "teams.tracker.open-workspace:teams-mentoring"
         ],
         "needs": [
           "plc"
@@ -29260,7 +29294,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "library-shell.tab",
-    "label": "Tab in a library shell header",
+    "label": "Library header tab: library (Library), active (In Progress), archive (Archive, Completed in Quiz), banks",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -29495,7 +29529,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "board-actions.help",
           "help-center.tab:help#guides",
-          "help-center.guides.item"
+          "help-center.guides.item:help"
         ]
       }
     ]
@@ -29512,7 +29546,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "board-actions.help",
           "help-center.tab:help#guides",
-          "help-center.guides.item"
+          "help-center.guides.item:help"
         ]
       }
     ]
@@ -29529,7 +29563,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "board-actions.help",
           "help-center.tab:help#guides",
-          "help-center.guides.item"
+          "help-center.guides.item:help"
         ]
       }
     ]
@@ -31845,9 +31879,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#announcements",
-          "admin.announcements.delete"
+          "admin.announcements.delete:admin"
         ],
-        "reveal": "admin.announcements.delete",
+        "reveal": "admin.announcements.delete:admin",
         "needs": [
           "admin"
         ]
@@ -31868,9 +31902,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#announcements",
-          "admin.announcements.delete"
+          "admin.announcements.delete:admin"
         ],
-        "reveal": "admin.announcements.delete",
+        "reveal": "admin.announcements.delete:admin",
         "needs": [
           "admin"
         ]
@@ -32519,9 +32553,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#announcements",
-          "admin.announcements.poll-results"
+          "admin.announcements.poll-results:admin"
         ],
-        "reveal": "admin.announcements.poll-results",
+        "reveal": "admin.announcements.poll-results:admin",
         "needs": [
           "admin"
         ]
@@ -32559,9 +32593,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#announcements",
-          "admin.announcements.poll-results"
+          "admin.announcements.poll-results:admin"
         ],
-        "reveal": "admin.announcements.poll-results",
+        "reveal": "admin.announcements.poll-results:admin",
         "needs": [
           "admin"
         ]
@@ -34621,9 +34655,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#links",
-          "admin.links.edit"
+          "admin.links.edit:admin"
         ],
-        "reveal": "admin.links.edit",
+        "reveal": "admin.links.edit:admin",
         "needs": [
           "admin"
         ]
@@ -34642,9 +34676,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#links",
-          "admin.links.edit"
+          "admin.links.edit:admin"
         ],
-        "reveal": "admin.links.edit",
+        "reveal": "admin.links.edit:admin",
         "needs": [
           "admin"
         ]
@@ -34663,9 +34697,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#links",
-          "admin.links.edit"
+          "admin.links.edit:admin"
         ],
-        "reveal": "admin.links.edit",
+        "reveal": "admin.links.edit:admin",
         "needs": [
           "admin"
         ]
@@ -34685,9 +34719,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#links",
-          "admin.links.edit"
+          "admin.links.edit:admin"
         ],
-        "reveal": "admin.links.edit",
+        "reveal": "admin.links.edit:admin",
         "needs": [
           "admin"
         ]
@@ -34725,9 +34759,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.admin-settings",
           "admin.settings.tab:admin#links",
-          "admin.links.edit"
+          "admin.links.edit:admin"
         ],
-        "reveal": "admin.links.edit",
+        "reveal": "admin.links.edit:admin",
         "needs": [
           "admin"
         ]
@@ -39565,9 +39599,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "panel",
         "path": [
           "activity-wall.moderate",
-          "activity-wall-moderation.edit-start"
+          "activity-wall-moderation.edit-start:activity-wall"
         ],
-        "reveal": "activity-wall-moderation.edit-start",
+        "reveal": "activity-wall-moderation.edit-start:activity-wall",
         "needs": [
           "library-item",
           "widget-on-stage"
@@ -39589,9 +39623,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "panel",
         "path": [
           "activity-wall.moderate",
-          "activity-wall-moderation.edit-start"
+          "activity-wall-moderation.edit-start:activity-wall"
         ],
-        "reveal": "activity-wall-moderation.edit-start",
+        "reveal": "activity-wall-moderation.edit-start:activity-wall",
         "needs": [
           "library-item",
           "widget-on-stage"
@@ -39614,9 +39648,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "panel",
         "path": [
           "activity-wall.moderate",
-          "activity-wall-moderation.edit-start"
+          "activity-wall-moderation.edit-start:activity-wall"
         ],
-        "reveal": "activity-wall-moderation.edit-start",
+        "reveal": "activity-wall-moderation.edit-start:activity-wall",
         "needs": [
           "library-item",
           "widget-on-stage"
@@ -42221,11 +42255,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.flashcards.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:flashcards#archive",
           "library-shell.archive-primary-action:flashcards#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42242,11 +42277,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.flashcards.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:flashcards#archive",
           "library-shell.archive-primary-action:flashcards#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42262,11 +42298,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.flashcards.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:flashcards#archive",
           "library-shell.archive-primary-action:flashcards#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42282,11 +42319,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.flashcards.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:flashcards#archive",
           "library-shell.archive-primary-action:flashcards#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42305,11 +42343,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.flashcards.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:flashcards#archive",
           "library-shell.archive-primary-action:flashcards#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42329,11 +42368,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.flashcards.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:flashcards#archive",
           "library-shell.archive-primary-action:flashcards#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42352,11 +42392,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.flashcards.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:flashcards#archive",
           "library-shell.archive-primary-action:flashcards#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42371,11 +42412,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.flashcards.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:flashcards#archive",
           "library-shell.archive-primary-action:flashcards#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42393,12 +42435,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.flashcards.publish-scores",
         "kind": "modal",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:flashcards#archive",
           "library-shell.archive-primary-action:flashcards#row-1",
           "flashcards.publish-scores:flashcards"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42417,12 +42460,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.flashcards.publish-scores",
         "kind": "modal",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:flashcards#archive",
           "library-shell.archive-primary-action:flashcards#row-1",
           "flashcards.publish-scores:flashcards"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42437,12 +42481,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.flashcards.publish-scores",
         "kind": "modal",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:flashcards#archive",
           "library-shell.archive-primary-action:flashcards#row-1",
           "flashcards.publish-scores:flashcards"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42570,13 +42615,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-student-link:miniApp"
         ],
         "reveal": "mini-app.toolbar-student-link:miniApp",
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42594,13 +42640,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-student-link:miniApp"
         ],
         "reveal": "mini-app.toolbar-student-link:miniApp",
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42643,13 +42690,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-student-link:miniApp"
         ],
         "reveal": "mini-app.toolbar-student-link:miniApp",
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42666,11 +42714,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1"
         ],
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42687,11 +42736,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1"
         ],
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42709,11 +42759,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1"
         ],
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42732,11 +42783,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1"
         ],
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42754,11 +42806,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1"
         ],
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42775,11 +42828,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1"
         ],
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42797,13 +42851,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-save:miniApp"
         ],
         "reveal": "mini-app.toolbar-save:miniApp",
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42821,13 +42876,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-save:miniApp"
         ],
         "reveal": "mini-app.toolbar-save:miniApp",
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -42847,13 +42903,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-save:miniApp"
         ],
         "reveal": "mini-app.toolbar-save:miniApp",
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -43041,12 +43098,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-sessions:miniApp"
         ],
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -43061,14 +43119,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-sessions:miniApp",
-          "mini-app.session-rename"
+          "mini-app.session-rename:miniApp"
         ],
-        "reveal": "mini-app.session-rename",
+        "reveal": "mini-app.session-rename:miniApp",
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -43084,14 +43143,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-sessions:miniApp",
-          "mini-app.session-rename"
+          "mini-app.session-rename:miniApp"
         ],
-        "reveal": "mini-app.session-rename",
+        "reveal": "mini-app.session-rename:miniApp",
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -43106,12 +43166,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-sessions:miniApp"
         ],
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -43126,12 +43187,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-sessions:miniApp"
         ],
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -43146,12 +43208,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-sessions:miniApp"
         ],
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -43166,12 +43229,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-sessions:miniApp"
         ],
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -43188,14 +43252,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-sessions:miniApp",
-          "mini-app.session-end"
+          "mini-app.session-end:miniApp"
         ],
-        "reveal": "mini-app.session-end",
+        "reveal": "mini-app.session-end:miniApp",
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -43212,12 +43277,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-sessions:miniApp"
         ],
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -43235,14 +43301,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.submissions",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-sessions:miniApp",
-          "mini-app.session-submissions"
+          "mini-app.session-submissions:miniApp"
         ],
         "needs": [
           "student-data",
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -43257,14 +43324,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.submissions",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-sessions:miniApp",
-          "mini-app.session-submissions"
+          "mini-app.session-submissions:miniApp"
         ],
         "needs": [
           "student-data",
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -43282,12 +43350,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.save-as-widget",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-save-as-widget:miniApp"
         ],
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -43305,12 +43374,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.save-as-widget",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-save-as-widget:miniApp"
         ],
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -43325,12 +43395,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.save-as-widget",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-save-as-widget:miniApp"
         ],
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -43345,12 +43416,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.save-as-widget",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-save-as-widget:miniApp"
         ],
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -43368,12 +43440,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.save-as-widget",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-save-as-widget:miniApp"
         ],
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -43392,12 +43465,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.save-as-widget",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu#row-1",
+          "library-shell.card-menu:miniApp#row-1",
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-save-as-widget:miniApp"
         ],
         "needs": [
-          "library-item"
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]
@@ -44043,11 +44117,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.live",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:video-activity#active",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "live-session"
+          "live-session",
+          "widget-on-stage"
         ]
       }
     ]
@@ -44061,11 +44136,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.live",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:video-activity#active",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "live-session"
+          "live-session",
+          "widget-on-stage"
         ]
       }
     ]
@@ -44080,11 +44156,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.live",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:video-activity#active",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "live-session"
+          "live-session",
+          "widget-on-stage"
         ]
       }
     ]
@@ -44098,11 +44175,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.live",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:video-activity#active",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "live-session"
+          "live-session",
+          "widget-on-stage"
         ]
       }
     ]
@@ -44116,11 +44194,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.live",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:video-activity#active",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "live-session"
+          "live-session",
+          "widget-on-stage"
         ]
       }
     ]
@@ -44134,11 +44213,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.live",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:video-activity#active",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "live-session"
+          "live-session",
+          "widget-on-stage"
         ]
       }
     ]
@@ -44152,11 +44232,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.live",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:video-activity#active",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "live-session"
+          "live-session",
+          "widget-on-stage"
         ]
       }
     ]
@@ -44171,11 +44252,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.live",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:video-activity#active",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "live-session"
+          "live-session",
+          "widget-on-stage"
         ]
       }
     ]
@@ -44190,11 +44272,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.live",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:video-activity#active",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "live-session"
+          "live-session",
+          "widget-on-stage"
         ]
       }
     ]
@@ -44208,11 +44291,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.live",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:video-activity#active",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "live-session"
+          "live-session",
+          "widget-on-stage"
         ]
       }
     ]
@@ -44226,11 +44310,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#archive",
+          "library-shell.tab:video-activity#archive",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -44246,11 +44331,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#archive",
+          "library-shell.tab:video-activity#archive",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -44464,7 +44550,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity",
           "plc-video.cta"
@@ -44488,7 +44574,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity",
           "plc-video.cta"
@@ -48973,9 +49059,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "dock",
         "path": [
           "dock.open-tools",
-          "dock.folder-open"
+          "dock.folder-open:folders"
         ],
-        "reveal": "dock.folder-open"
+        "reveal": "dock.folder-open:folders"
       }
     ]
   },
@@ -48990,7 +49076,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "menu",
         "path": [
           "dock.open-tools",
-          "dock.folder-open"
+          "dock.folder-open:folders"
         ]
       }
     ]
@@ -49006,7 +49092,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "menu",
         "path": [
           "dock.open-tools",
-          "dock.folder-open"
+          "dock.folder-open:folders"
         ]
       }
     ]
@@ -49172,8 +49258,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "path": [
           "dock.open-tools",
-          "dock.folder-open",
-          "dock.folder-rename"
+          "dock.folder-open:folders",
+          "dock.folder-rename:folders"
         ]
       }
     ]
@@ -49189,8 +49275,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "path": [
           "dock.open-tools",
-          "dock.folder-open",
-          "dock.folder-rename"
+          "dock.folder-open:folders",
+          "dock.folder-rename:folders"
         ]
       }
     ]
@@ -49207,8 +49293,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "path": [
           "dock.open-tools",
-          "dock.folder-open",
-          "dock.folder-rename"
+          "dock.folder-open:folders",
+          "dock.folder-rename:folders"
         ]
       }
     ]
@@ -49885,7 +49971,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "menu",
         "path": [
           "board-nav.select-board",
-          "board-nav.move-board"
+          "board-nav.move-board:boards"
         ]
       }
     ]
@@ -49961,7 +50047,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "menu",
         "path": [
           "board-nav.select-board",
-          "board-nav.move-board"
+          "board-nav.move-board:boards"
         ]
       }
     ]
@@ -49978,7 +50064,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "menu",
         "path": [
           "board-nav.select-board",
-          "board-nav.move-board"
+          "board-nav.move-board:boards"
         ]
       }
     ]
@@ -49995,7 +50081,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "menu",
         "path": [
           "board-nav.select-board",
-          "board-nav.move-board"
+          "board-nav.move-board:boards"
         ]
       }
     ]
@@ -50011,7 +50097,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "menu",
         "path": [
           "board-nav.select-board",
-          "board-nav.move-board"
+          "board-nav.move-board:boards"
         ]
       }
     ]
@@ -56584,11 +56670,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.live",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:video-activity#active",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "live-session"
+          "live-session",
+          "widget-on-stage"
         ]
       }
     ]
@@ -56603,11 +56690,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.live",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:video-activity#active",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "live-session"
+          "live-session",
+          "widget-on-stage"
         ]
       }
     ]
@@ -56622,11 +56710,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.live",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:video-activity#active",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "live-session"
+          "live-session",
+          "widget-on-stage"
         ]
       }
     ]
@@ -56641,11 +56730,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.live",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:video-activity#active",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "live-session"
+          "live-session",
+          "widget-on-stage"
         ]
       }
     ]
@@ -56660,11 +56750,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.live",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:video-activity#active",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "live-session"
+          "live-session",
+          "widget-on-stage"
         ]
       }
     ]
@@ -56679,11 +56770,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.live",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:video-activity#active",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "live-session"
+          "live-session",
+          "widget-on-stage"
         ]
       }
     ]
@@ -56699,11 +56791,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.live",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:video-activity#active",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "live-session"
+          "live-session",
+          "widget-on-stage"
         ]
       }
     ]
@@ -56720,11 +56813,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.live",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:video-activity#active",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "live-session"
+          "live-session",
+          "widget-on-stage"
         ]
       }
     ]
@@ -56738,11 +56832,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#archive",
+          "library-shell.tab:video-activity#archive",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -56757,11 +56852,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#archive",
+          "library-shell.tab:video-activity#archive",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -56776,11 +56872,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#archive",
+          "library-shell.tab:video-activity#archive",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -56795,11 +56892,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#archive",
+          "library-shell.tab:video-activity#archive",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -56817,7 +56915,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.tab:plc#video-activity",
           "plc-video.cta"
@@ -57048,11 +57146,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.flashcards.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:flashcards#archive",
           "library-shell.archive-primary-action:flashcards#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -57071,11 +57170,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.flashcards.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:flashcards#archive",
           "library-shell.archive-primary-action:flashcards#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -57093,11 +57193,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.flashcards.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:flashcards#archive",
           "library-shell.archive-primary-action:flashcards#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -57350,7 +57451,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.cell"
+          "gradebook.grid.cell:gradebook"
         ],
         "needs": [
           "class",
@@ -57372,7 +57473,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.cell",
+          "gradebook.grid.cell:gradebook",
           "gradebook.cell.flag"
         ],
         "reveal": "gradebook.cell.flag",
@@ -57396,7 +57497,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header"
+          "gradebook.grid.column-header:gradebook"
         ],
         "needs": [
           "class",
@@ -57920,7 +58021,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.cell"
+          "gradebook.grid.cell:gradebook"
         ],
         "needs": [
           "class",
@@ -57941,7 +58042,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.cell"
+          "gradebook.grid.cell:gradebook"
         ],
         "needs": [
           "class",
@@ -57962,7 +58063,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.cell"
+          "gradebook.grid.cell:gradebook"
         ],
         "needs": [
           "class",
@@ -57984,7 +58085,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.cell"
+          "gradebook.grid.cell:gradebook"
         ],
         "needs": [
           "class",
@@ -58006,7 +58107,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.cell"
+          "gradebook.grid.cell:gradebook"
         ],
         "needs": [
           "class",
@@ -58028,7 +58129,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.cell"
+          "gradebook.grid.cell:gradebook"
         ],
         "needs": [
           "class",
@@ -58049,7 +58150,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.cell"
+          "gradebook.grid.cell:gradebook"
         ],
         "needs": [
           "class",
@@ -58071,7 +58172,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.cell"
+          "gradebook.grid.cell:gradebook"
         ],
         "needs": [
           "class",
@@ -58092,7 +58193,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header"
+          "gradebook.grid.column-header:gradebook"
         ],
         "needs": [
           "class",
@@ -58113,7 +58214,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header"
+          "gradebook.grid.column-header:gradebook"
         ],
         "needs": [
           "class",
@@ -58134,7 +58235,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header"
+          "gradebook.grid.column-header:gradebook"
         ],
         "needs": [
           "class",
@@ -58156,7 +58257,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header"
+          "gradebook.grid.column-header:gradebook"
         ],
         "needs": [
           "class",
@@ -58178,7 +58279,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header",
+          "gradebook.grid.column-header:gradebook",
           "gradebook.column.delete"
         ],
         "reveal": "gradebook.column.delete",
@@ -58201,7 +58302,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header",
+          "gradebook.grid.column-header:gradebook",
           "gradebook.column.delete"
         ],
         "reveal": "gradebook.column.delete",
@@ -58224,7 +58325,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header"
+          "gradebook.grid.column-header:gradebook"
         ],
         "needs": [
           "class",
@@ -58245,7 +58346,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header"
+          "gradebook.grid.column-header:gradebook"
         ],
         "needs": [
           "class",
@@ -58267,7 +58368,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header"
+          "gradebook.grid.column-header:gradebook"
         ],
         "needs": [
           "class",
@@ -58289,7 +58390,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header"
+          "gradebook.grid.column-header:gradebook"
         ],
         "needs": [
           "class",
@@ -58311,7 +58412,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header"
+          "gradebook.grid.column-header:gradebook"
         ],
         "needs": [
           "class",
@@ -58333,7 +58434,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header"
+          "gradebook.grid.column-header:gradebook"
         ],
         "needs": [
           "class",
@@ -58355,7 +58456,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header"
+          "gradebook.grid.column-header:gradebook"
         ],
         "needs": [
           "class",
@@ -58376,7 +58477,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header"
+          "gradebook.grid.column-header:gradebook"
         ],
         "needs": [
           "class",
@@ -58398,7 +58499,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header"
+          "gradebook.grid.column-header:gradebook"
         ],
         "needs": [
           "class",
@@ -58420,7 +58521,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header"
+          "gradebook.grid.column-header:gradebook"
         ],
         "needs": [
           "class",
@@ -58441,7 +58542,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header",
+          "gradebook.grid.column-header:gradebook",
           "gradebook.column.standards"
         ],
         "reveal": "gradebook.column.standards",
@@ -58465,7 +58566,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header",
+          "gradebook.grid.column-header:gradebook",
           "gradebook.column.standards"
         ],
         "reveal": "gradebook.column.standards",
@@ -59279,7 +59380,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.tab#analysis"
+          "gradebook.tab:gradebook#analysis"
         ],
         "needs": [
           "class",
@@ -59300,7 +59401,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.tab#analysis"
+          "gradebook.tab:gradebook#analysis"
         ],
         "needs": [
           "class",
@@ -59320,7 +59421,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.tab#analysis"
+          "gradebook.tab:gradebook#analysis"
         ],
         "needs": [
           "class",
@@ -59340,7 +59441,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.tab#analysis"
+          "gradebook.tab:gradebook#analysis"
         ],
         "needs": [
           "class",
@@ -59360,7 +59461,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.tab#analysis"
+          "gradebook.tab:gradebook#analysis"
         ],
         "needs": [
           "class",
@@ -59381,7 +59482,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.tab#analysis",
+          "gradebook.tab:gradebook#analysis",
           "gradebook.analysis.filters"
         ],
         "reveal": "gradebook.analysis.filters",
@@ -59404,7 +59505,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.tab#analysis",
+          "gradebook.tab:gradebook#analysis",
           "gradebook.analysis.filters"
         ],
         "reveal": "gradebook.analysis.filters",
@@ -59427,7 +59528,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.tab#analysis",
+          "gradebook.tab:gradebook#analysis",
           "gradebook.analysis.filters"
         ],
         "reveal": "gradebook.analysis.filters",
@@ -59450,7 +59551,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.tab#analysis",
+          "gradebook.tab:gradebook#analysis",
           "gradebook.analysis.filters"
         ],
         "reveal": "gradebook.analysis.filters",
@@ -59473,7 +59574,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.tab#analysis",
+          "gradebook.tab:gradebook#analysis",
           "gradebook.analysis.filters"
         ],
         "reveal": "gradebook.analysis.filters",
@@ -59496,7 +59597,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.tab#analysis",
+          "gradebook.tab:gradebook#analysis",
           "gradebook.analysis.filters"
         ],
         "reveal": "gradebook.analysis.filters",
@@ -59518,7 +59619,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.tab#analysis"
+          "gradebook.tab:gradebook#analysis"
         ],
         "needs": [
           "class",
@@ -59538,7 +59639,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.tab#analysis"
+          "gradebook.tab:gradebook#analysis"
         ],
         "needs": [
           "class",
@@ -59558,7 +59659,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.tab#analysis"
+          "gradebook.tab:gradebook#analysis"
         ],
         "needs": [
           "class",
@@ -59578,7 +59679,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.tab#analysis"
+          "gradebook.tab:gradebook#analysis"
         ],
         "needs": [
           "class",
@@ -59598,7 +59699,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.tab#analysis"
+          "gradebook.tab:gradebook#analysis"
         ],
         "needs": [
           "class",
@@ -59618,7 +59719,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.tab#analysis"
+          "gradebook.tab:gradebook#analysis"
         ],
         "needs": [
           "class",
@@ -59639,7 +59740,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header",
+          "gradebook.grid.column-header:gradebook",
           "gradebook.column.analyze"
         ],
         "needs": [
@@ -59661,7 +59762,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.column-header",
+          "gradebook.grid.column-header:gradebook",
           "gradebook.column.analyze"
         ],
         "needs": [
@@ -59682,7 +59783,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.student-name"
+          "gradebook.grid.student-name:gradebook"
         ],
         "needs": [
           "class",
@@ -59702,7 +59803,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.student-name"
+          "gradebook.grid.student-name:gradebook"
         ],
         "needs": [
           "class",
@@ -59722,7 +59823,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.student-name"
+          "gradebook.grid.student-name:gradebook"
         ],
         "needs": [
           "class",
@@ -59742,7 +59843,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.student-name"
+          "gradebook.grid.student-name:gradebook"
         ],
         "needs": [
           "class",
@@ -59763,7 +59864,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.student-name",
+          "gradebook.grid.student-name:gradebook",
           "gradebook.student.customize"
         ],
         "reveal": "gradebook.student.customize",
@@ -59786,7 +59887,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.student-name",
+          "gradebook.grid.student-name:gradebook",
           "gradebook.student.customize"
         ],
         "reveal": "gradebook.student.customize",
@@ -59808,7 +59909,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.student-name"
+          "gradebook.grid.student-name:gradebook"
         ],
         "needs": [
           "class",
@@ -59828,7 +59929,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.student-name"
+          "gradebook.grid.student-name:gradebook"
         ],
         "needs": [
           "class",
@@ -59848,7 +59949,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.student-name"
+          "gradebook.grid.student-name:gradebook"
         ],
         "needs": [
           "class",
@@ -59868,7 +59969,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.student-name"
+          "gradebook.grid.student-name:gradebook"
         ],
         "needs": [
           "class",
@@ -59888,7 +59989,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.gradebook",
-          "gradebook.grid.student-name",
+          "gradebook.grid.student-name:gradebook",
           "gradebook.student.preview"
         ],
         "reveal": "gradebook.student.preview",
@@ -61031,11 +61132,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.flashcards.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:flashcards#archive",
           "library-shell.archive-primary-action:flashcards#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -61050,11 +61152,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.live",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:video-activity#active",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "live-session"
+          "live-session",
+          "widget-on-stage"
         ]
       }
     ]
@@ -61069,11 +61172,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#archive",
+          "library-shell.tab:video-activity#archive",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -61088,11 +61192,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.video-activity.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#archive",
+          "library-shell.tab:video-activity#archive",
           "library-shell.archive-primary-action:video-activity#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -61430,11 +61535,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.flashcards.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:flashcards#archive",
           "library-shell.archive-primary-action:flashcards#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -61449,11 +61555,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.flashcards.results",
         "kind": "panel",
         "path": [
-          "library-shell.tab#active",
+          "library-shell.tab:flashcards#archive",
           "library-shell.archive-primary-action:flashcards#row-1"
         ],
         "needs": [
-          "student-data"
+          "student-data",
+          "widget-on-stage"
         ]
       }
     ]
@@ -61470,7 +61577,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments"
         ],
         "needs": [
@@ -61491,7 +61598,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments"
         ],
         "needs": [
@@ -61512,7 +61619,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
+          "plcs.open-plc:plcs",
           "plc-dashboard.section-tab:plc#assessments"
         ],
         "needs": [
@@ -62870,7 +62977,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster"
+          "classes.edit-roster:classes"
         ],
         "opened_by": [
           "classes.new-class",
@@ -62894,7 +63001,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster"
+          "classes.edit-roster:classes"
         ],
         "opened_by": [
           "classes.new-class",
@@ -62918,7 +63025,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster"
+          "classes.edit-roster:classes"
         ],
         "opened_by": [
           "classes.new-class",
@@ -62942,7 +63049,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster"
+          "classes.edit-roster:classes"
         ],
         "opened_by": [
           "classes.new-class",
@@ -62966,7 +63073,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster"
+          "classes.edit-roster:classes"
         ],
         "opened_by": [
           "classes.new-class",
@@ -62990,7 +63097,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster"
+          "classes.edit-roster:classes"
         ],
         "opened_by": [
           "classes.new-class",
@@ -63014,7 +63121,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster"
+          "classes.edit-roster:classes"
         ],
         "opened_by": [
           "classes.new-class",
@@ -63038,7 +63145,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster"
+          "classes.edit-roster:classes"
         ],
         "opened_by": [
           "classes.new-class",
@@ -63062,7 +63169,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster"
+          "classes.edit-roster:classes"
         ],
         "opened_by": [
           "classes.new-class",
@@ -63086,7 +63193,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster"
+          "classes.edit-roster:classes"
         ],
         "opened_by": [
           "classes.new-class",
@@ -63111,7 +63218,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster"
+          "classes.edit-roster:classes"
         ],
         "opened_by": [
           "classes.new-class",
@@ -63135,7 +63242,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.classes",
-          "classes.edit-roster"
+          "classes.edit-roster:classes"
         ],
         "opened_by": [
           "classes.new-class",
@@ -63263,6 +63370,243 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-library.archive-copy-link",
+    "label": "Copy Student Link item in a quiz In Progress row menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.archive-results",
+    "label": "Results item in a quiz In Progress row menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.archive-share",
+    "label": "Share item (copies a share link) in a quiz assignment row menu",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.archive-pause",
+    "label": "Pause item in a live quiz In Progress row menu",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.archive-end",
+    "label": "End or End share item in a quiz In Progress row menu",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.archive-publish-scores",
+    "label": "Publish scores item in a quiz Archive (Completed) row menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.archive-unpublish-scores",
+    "label": "Unpublish scores item in a quiz Archive (Completed) row menu",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.archive-reopen",
+    "label": "Reopen item in a quiz Archive (Completed) row menu",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.archive-reactivate",
+    "label": "Reactivate item in an ended view-only quiz share row menu",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.archive-delete",
+    "label": "Delete item in a quiz assignment row menu",
+    "scope": "widget type",
+    "panel": true,
+    "destructive": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-settings-modal.plc-results",
     "label": "Share results with PLC button in the quiz assignment Settings dialog",
     "scope": "widget type",
@@ -63275,8 +63619,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.assignment-settings",
         "kind": "modal",
         "path": [
-          "library-shell.tab#active",
-          "library-shell.archive-menu",
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-menu:quiz#row-1",
           "quiz-library.archive-settings:quiz"
         ],
         "needs": [
@@ -63300,8 +63644,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.assignment-settings",
         "kind": "modal",
         "path": [
-          "library-shell.tab#active",
-          "library-shell.archive-menu",
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-menu:quiz#row-1",
           "quiz-library.archive-settings:quiz"
         ],
         "needs": [
@@ -63324,8 +63668,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.share-plc-results",
         "kind": "modal",
         "path": [
-          "library-shell.tab#active",
-          "library-shell.archive-menu",
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-menu:quiz#row-1",
           "quiz-library.archive-plc-results:quiz"
         ],
         "needs": [
@@ -63346,8 +63690,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.share-plc-results",
         "kind": "modal",
         "path": [
-          "library-shell.tab#active",
-          "library-shell.archive-menu",
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-menu:quiz#row-1",
           "quiz-library.archive-plc-results:quiz"
         ],
         "needs": [
@@ -63371,8 +63715,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.share-plc-results",
         "kind": "modal",
         "path": [
-          "library-shell.tab#active",
-          "library-shell.archive-menu",
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-menu:quiz#row-1",
           "quiz-library.archive-plc-results:quiz"
         ],
         "needs": [
@@ -63393,8 +63737,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.share-plc-results",
         "kind": "modal",
         "path": [
-          "library-shell.tab#active",
-          "library-shell.archive-menu",
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-menu:quiz#row-1",
           "quiz-library.archive-plc-results:quiz"
         ],
         "needs": [
@@ -63418,8 +63762,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.share-plc-results",
         "kind": "modal",
         "path": [
-          "library-shell.tab#active",
-          "library-shell.archive-menu",
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-menu:quiz#row-1",
           "quiz-library.archive-plc-results:quiz"
         ],
         "needs": [
@@ -63443,8 +63787,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.share-plc-results",
         "kind": "modal",
         "path": [
-          "library-shell.tab#active",
-          "library-shell.archive-menu",
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-menu:quiz#row-1",
           "quiz-library.archive-plc-results:quiz"
         ],
         "needs": [
@@ -63468,8 +63812,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.share-plc-results",
         "kind": "modal",
         "path": [
-          "library-shell.tab#active",
-          "library-shell.archive-menu",
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-menu:quiz#row-1",
           "quiz-library.archive-plc-results:quiz"
         ],
         "needs": [
@@ -63494,8 +63838,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "quiz.share-plc-results",
         "kind": "modal",
         "path": [
-          "library-shell.tab#active",
-          "library-shell.archive-menu",
+          "library-shell.tab:quiz#active",
+          "library-shell.archive-menu:quiz#row-1",
           "quiz-library.archive-plc-results:quiz"
         ],
         "needs": [
@@ -63620,7 +63964,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.assignments",
-          "assignments-hub.row#row-1"
+          "assignments-hub.row:assignments-hub#row-1"
         ],
         "needs": [
           "class"
@@ -63640,7 +63984,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.assignments",
-          "assignments-hub.row#row-1"
+          "assignments-hub.row:assignments-hub#row-1"
         ],
         "needs": [
           "class"
@@ -63661,7 +64005,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.assignments",
-          "assignments-hub.row#row-1"
+          "assignments-hub.row:assignments-hub#row-1"
         ],
         "needs": [
           "class"
@@ -63681,7 +64025,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.assignments",
-          "assignments-hub.row#row-1"
+          "assignments-hub.row:assignments-hub#row-1"
         ],
         "needs": [
           "class"
@@ -63701,7 +64045,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.assignments",
-          "assignments-hub.row#row-1"
+          "assignments-hub.row:assignments-hub#row-1"
         ],
         "needs": [
           "class"
@@ -63721,7 +64065,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.assignments",
-          "assignments-hub.row#row-1"
+          "assignments-hub.row:assignments-hub#row-1"
         ],
         "needs": [
           "class"
@@ -63742,7 +64086,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.assignments",
-          "assignments-hub.row#row-1"
+          "assignments-hub.row:assignments-hub#row-1"
         ],
         "needs": [
           "class"
@@ -63762,7 +64106,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.assignments",
-          "assignments-hub.row#row-1"
+          "assignments-hub.row:assignments-hub#row-1"
         ],
         "needs": [
           "class"

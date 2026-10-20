@@ -72,16 +72,29 @@ const literal = (arg: string | undefined): string | null => {
   return m ? m[2] : null;
 };
 
-/** Anchor id to the `type` or `type#field` keys its tags use; `complete` is false when any tag computes one. */
+/** Anchor id to the `type` or `type#field` keys and the types its tags use; `complete` is false when any tag computes one. */
 export function anchorKeys(): Map<
   string,
-  { keys: string[]; complete: boolean }
+  { keys: string[]; complete: boolean; types: string[]; typesComplete: boolean }
 > {
-  const out = new Map<string, { keys: Set<string>; complete: boolean }>();
+  const out = new Map<
+    string,
+    {
+      keys: Set<string>;
+      complete: boolean;
+      types: Set<string>;
+      typesComplete: boolean;
+    }
+  >();
   eachSource((_path, text) => {
     for (const match of text.matchAll(ANCHOR_USE)) {
       const id = match[2];
-      const entry = out.get(id) ?? { keys: new Set<string>(), complete: true };
+      const entry = out.get(id) ?? {
+        keys: new Set<string>(),
+        complete: true,
+        types: new Set<string>(),
+        typesComplete: true,
+      };
       out.set(id, entry);
       const call = match[0];
       const args = restArgs(text, (match.index ?? 0) + call.length);
@@ -100,12 +113,22 @@ export function anchorKeys(): Map<
         if (type) entry.keys.add(type);
         else entry.complete = false;
       } else entry.complete = false;
+      const typed =
+        call.startsWith('tourTypeAttr') || call.startsWith('tourFieldAttr');
+      const type = typed ? literal(args[0]) : null;
+      if (type) entry.types.add(type);
+      else entry.typesComplete = false;
     }
   });
   return new Map(
-    [...out].map(([id, { keys, complete }]) => [
+    [...out].map(([id, { keys, complete, types, typesComplete }]) => [
       id,
-      { keys: [...keys].sort(), complete },
+      {
+        keys: [...keys].sort(),
+        complete,
+        types: [...types].sort(),
+        typesComplete,
+      },
     ])
   );
 }

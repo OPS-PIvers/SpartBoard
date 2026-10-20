@@ -288,7 +288,7 @@ export const SURFACES: TourSurfaceMap = {
   'guidedLearning.gradebook.cell': {
     label: 'Gradebook score cell popover',
     kind: 'menu',
-    opensWith: 'gradebook.grid.cell',
+    opensWith: 'gradebook.grid.cell:gradebook',
     needs: ['class', 'student-data'],
     files: [`${GB}popovers/GradebookCellPopover.tsx`],
     inner: {
@@ -298,7 +298,7 @@ export const SURFACES: TourSurfaceMap = {
   'guidedLearning.gradebook.column': {
     label: 'Gradebook assignment column popover',
     kind: 'menu',
-    opensWith: 'gradebook.grid.column-header',
+    opensWith: 'gradebook.grid.column-header:gradebook',
     needs: ['class', 'student-data'],
     files: [`${GB}popovers/`, `${GB}targets/`],
     inner: {
@@ -321,7 +321,7 @@ export const SURFACES: TourSurfaceMap = {
   'guidedLearning.gradebook.analysis': {
     label: 'Gradebook Data analysis tab (URL /gradebook/{classId}/analysis)',
     kind: 'panel',
-    opensWith: 'gradebook.tab#analysis',
+    opensWith: 'gradebook.tab:gradebook#analysis',
     parent: 'guidedLearning.gradebook',
     needs: ['class', 'student-data'],
     files: [`${GB}analysis/`, `${GB}charts/`],
@@ -337,7 +337,7 @@ export const SURFACES: TourSurfaceMap = {
   'guidedLearning.gradebook.student': {
     label: 'Gradebook student view (click a student name)',
     kind: 'panel',
-    opensWith: 'gradebook.grid.student-name',
+    opensWith: 'gradebook.grid.student-name:gradebook',
     needs: ['class', 'student-data'],
     files: [`${GB}student/`],
     inner: {
