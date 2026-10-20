@@ -260,6 +260,7 @@ function lookupCard(
   const base = {
     term: card.term,
     g2pVersion: SPEAK_G2P_VERSION,
+    dialects: [...input.dialects],
     ...(card.ipaOverride ? { ipaOverride: card.ipaOverride } : {}),
   };
   const word = spokenWord(card.term);

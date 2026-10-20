@@ -7,13 +7,18 @@ import {
   SPEAK_G2P_VERSION,
   SPEAK_G2P_VOICES_PENDING,
 } from '../pronunciation/lookup';
+import { fitSpeakToDoc } from '../pronunciation/fitSpeakToDoc';
 import type {
   FlashcardCardSpeak,
   SpeakDialect,
   SpeakLanguage,
 } from '../pronunciation/types';
 import { ToolError } from './activity';
-import type { FlashcardCard, FlashcardSet } from './flashcardStore';
+import {
+  setsPath,
+  type FlashcardCard,
+  type FlashcardSet,
+} from './flashcardStore';
 import {
   clampSpeakAttempts,
   normalizeSpeakAdminDefaults,
@@ -225,12 +230,15 @@ export async function prepareSpeakSave(
     language,
     settings.dialects
   );
-  const next: FlashcardSet = { ...set, cards };
+  const next = fitSpeakToDoc(`${setsPath(who.uid)}/${set.id}`, {
+    ...set,
+    cards,
+  });
   if (input || own) next.speak = settings as unknown as Record<string, unknown>;
   else delete next.speak;
   return {
     set: next,
     stamp: { ...settings, unclearConfidence: defaults.unclearConfidence },
-    counts: countSpeakCards(cards),
+    counts: countSpeakCards(next.cards),
   };
 }

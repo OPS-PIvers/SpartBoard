@@ -121,6 +121,40 @@ describe('speakEditorState', () => {
     expect(cardNeedsLookup(flagged, ['es-419', 'es-ES'], {})).toBe(true);
   });
 
+  it('looks a card with no refs up again for an accent it was not looked up for', () => {
+    const noneSpeak: NonNullable<FlashcardCard['speak']> = {
+      ...readySpeak(),
+      refs: [],
+      status: 'unavailable',
+      reasons: ['untokenizable'],
+      dialects: ['es-419'],
+    };
+    const none = card({ speak: noneSpeak });
+    expect(cardNeedsLookup(none, ['es-419'], {})).toBe(false);
+    expect(cardNeedsLookup(none, ['es-419', 'es-ES'], {})).toBe(true);
+    expect(cardNeedsLookup(none, ['es-ES'], {})).toBe(true);
+    // Saved before lookups recorded their accents, so it can't say which it covered.
+    const legacy = { ...noneSpeak };
+    delete legacy.dialects;
+    expect(cardNeedsLookup(card({ speak: legacy }), ['es-419'], {})).toBe(true);
+    // One accent failed: the recorded accents say both were tried.
+    const oneFailedSpeak: NonNullable<FlashcardCard['speak']> = {
+      ...readySpeak(),
+      status: 'needs-review',
+      reasons: ['untokenizable'],
+      dialects: ['es-419'],
+    };
+    const oneFailed = card({ speak: oneFailedSpeak });
+    expect(cardNeedsLookup(oneFailed, ['es-419', 'es-ES'], {})).toBe(true);
+    expect(
+      cardNeedsLookup(
+        card({ speak: { ...oneFailedSpeak, dialects: ['es-419', 'es-ES'] } }),
+        ['es-419', 'es-ES'],
+        {}
+      )
+    ).toBe(false);
+  });
+
   it('relies on no language having more than two accents', () => {
     for (const language of SPEAK_LANGUAGES) {
       expect(SPEAK_DIALECTS[language].length).toBeLessThanOrEqual(2);

@@ -416,7 +416,7 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 - [ ] Paul: save the Flashcards Speak row on Admin Settings > Access > Previews on dev, then on prod after release (the flag is fail-closed until a row exists). (S)
 - [ ] Paul: upload the phoneme model to prod at release, `node scripts/upload-pronunciation-model.mjs --project prod` (plan §10, P2). (S)
 - [ ] Paul: review "words to check" in the Speaking view during the admin-only period, then open the flag (P5). (M)
-- [ ] Speak follow-ups from S13: a card that failed every accent isn't retried when the teacher adds an accent; editor saves look every card up again while hosting runs a newer engine version than functions. (S)
+- [ ] Speak follow-up from S13: editor saves look every card up again while hosting runs a newer engine version than functions. (S)
 - [ ] The quiz `'speak'` type (§13) follows as its own decision. (L)
 
 #### `docs/rich-response-wayfinder.md`

@@ -148,12 +148,15 @@ export const refsFitDialects = (
   dialects: readonly SpeakDialect[]
 ): boolean =>
   speak.refs.every((ref) => dialects.includes(ref.dialect)) &&
-  (speak.refs.length === 0 ||
-    dialects.every((d) =>
-      speak.refs.some((ref) => ref.dialect === d && ref.source !== 'voice')
-    ) ||
-    // A language has at most two accents, so a recorded failure explains the missing one.
-    (speak.reasons ?? []).some((r) => NO_REF_REASONS.includes(r)));
+  (Array.isArray(speak.dialects)
+    ? dialects.every((d) => speak.dialects?.includes(d))
+    : // Saved before lookups recorded their accents: a card with no refs can't say which it covered.
+      speak.refs.length > 0 &&
+      (dialects.every((d) =>
+        speak.refs.some((ref) => ref.dialect === d && ref.source !== 'voice')
+      ) ||
+        // A language has at most two accents, so a recorded failure explains the missing one.
+        (speak.reasons ?? []).some((r) => NO_REF_REASONS.includes(r))));
 
 /** A card needs a lookup when its term, accents, IPA or the engine changed, or the last lookup failed. */
 export function cardNeedsLookup(

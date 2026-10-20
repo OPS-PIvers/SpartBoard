@@ -9,6 +9,10 @@ import {
   SPEAK_G2P_VOICES_PENDING,
 } from '../pronunciation/lookup';
 import { prepareSpeakSave } from './flashcardSpeak';
+import {
+  firestoreBytes,
+  SPEAK_DOC_BUDGET_BYTES,
+} from '../pronunciation/fitSpeakToDoc';
 
 const mocks = vi.hoisted(() => ({
   speakGranted: vi.fn(() => Promise.resolve(false)),
@@ -591,6 +595,39 @@ describe('flashcard Speak (S10)', () => {
     expect([...docs.keys()].some((k) => k.includes('flashcard_sets'))).toBe(
       false
     );
+  });
+
+  it('sheds voice references so a large set still fits in one document', async () => {
+    const voices = Array.from({ length: 8 }, (_, v) => ({
+      ...ref('es-419'),
+      tokens: Array.from({ length: 64 }, (_, t) => ((t + v) % 2 ? 'ɐ̃ʊ̃' : 'ɾ')),
+      source: 'voice' as const,
+    }));
+    mocks.compute.mockImplementation(
+      async (input: Parameters<typeof fakeLookup>[0]) => {
+        const out = await fakeLookup(input);
+        for (const c of Object.values(out.cards))
+          (c.refs as unknown[]).push(...voices);
+        return out;
+      }
+    );
+    const { db, docs } = fakeDb();
+    const res = await (
+      await connect(db)
+    )('create_flashcard_set', {
+      title: 'Animales',
+      term_language: 'es-MX',
+      cards: Array.from({ length: 500 }, (_, i) => es(`palabra${i}`)),
+    });
+    const path = setPath(res.set_id as string);
+    const saved = docs.get(path) as Data;
+    expect(firestoreBytes(saved)).toBeLessThanOrEqual(SPEAK_DOC_BUDGET_BYTES);
+    const refs = (saved.cards as { speak: { refs: unknown[] } }[]).map(
+      (c) => c.speak.refs.length
+    );
+    // Both district accents keep their espeak refs; the last cards lose their voices.
+    expect(refs[0]).toBe(10);
+    expect(refs[499]).toBe(2);
   });
 
   it('keeps a teacher confirmation when a re-lookup returns the same references', async () => {

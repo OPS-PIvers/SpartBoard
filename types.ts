@@ -8932,6 +8932,8 @@ export interface FlashcardCardSpeak {
   g2pVersion: string;
   status: FlashcardSpeakStatus;
   reasons?: FlashcardSpeakReason[];
+  /** Accents the lookup covered, so a card with no refs is looked up again for a new one. */
+  dialects?: SpeakDialect[];
   /** Teacher confirmed a needs-review card. */
   confirmedAt?: number;
   /** Advanced panel. */
