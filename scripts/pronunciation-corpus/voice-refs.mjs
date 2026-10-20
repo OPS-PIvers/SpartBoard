@@ -12,6 +12,7 @@ import {
   VOICE_REFS_PATH,
   corpusSet,
   createModelSession,
+  espeakKey,
   importTs,
   readJson,
   writeJson,
@@ -82,38 +83,44 @@ const reader = voiceRefs.createVoiceReader({
   },
 });
 
-const previous = readJson(VOICE_REFS_PATH, null);
+const previous = args.fresh ? null : readJson(VOICE_REFS_PATH, null);
 const reuse =
-  !args.fresh && previous?.model === PRONUNCIATION_MODEL.md5Prefix
-    ? previous.readings
-    : {};
+  previous?.model === PRONUNCIATION_MODEL.md5Prefix ? previous.readings : {};
 const out = {
   version: 1,
   note: 'Voiced-example references for the corpus words (S11a pipeline), written by voice-refs.mjs. Regenerate when the voices, the model or the espeak references change.',
   model: PRONUNCIATION_MODEL.md5Prefix,
   voices: PRONUNCIATION_VOICES,
-  readings: previous?.model === PRONUNCIATION_MODEL.md5Prefix ? previous.readings : {},
-  refs: previous?.model === PRONUNCIATION_MODEL.md5Prefix ? previous.refs : {},
+  // Per word, the espeak references the voice ones were built beside; the gate ignores a word whose espeak refs changed since.
+  espeak: {},
+  readings: {},
+  refs: {},
 };
 
 for (const setName of args.set ?? CORPUS_SETS) {
   const words = readJson(corpusSet(setName).wordsPath);
   for (const [language, spec] of Object.entries(words.languages)) {
-    const list = PRONUNCIATION_VOICES[language];
     for (const [i, entry] of spec.words.entries()) {
-      const readings = Object.fromEntries(
-        await Promise.all(
-          list.map(async (voice) => [
-            voice,
-            reuse[language]?.[entry.word]?.[voice] ??
-              (await reader.read(voice, entry.word)),
-          ])
-        )
-      );
-      // As the lookup's addVoiceReferences: each distinct usable reading joins its dialect's espeak reference.
       const bases = Object.entries(entry.refs ?? {})
         .filter(([, r]) => r.tokens)
         .map(([dialect, r]) => ({ dialect, tokens: r.tokens, stress: r.stress }));
+      // As the lookup's addVoiceReferences: only voices with an espeak dialect, the word in NFC (corpus words have no variants).
+      const list = PRONUNCIATION_VOICES[language].filter((voice) =>
+        bases.some((r) => r.dialect === voiceDialect(voice))
+      );
+      const text = entry.word.normalize('NFC');
+      const readings = Object.fromEntries(
+        await Promise.all(
+          list.map(async (voice) => {
+            const known = reuse[language]?.[entry.word]?.[voice];
+            // An empty reading may have been a passing TTS failure, so it is asked again.
+            return [
+              voice,
+              known?.length ? known : await reader.read(voice, text),
+            ];
+          })
+        )
+      );
       const seen = new Set(bases.map((r) => r.tokens.join(' ')));
       const refs = [];
       for (const voice of list) {
@@ -123,6 +130,7 @@ for (const setName of args.set ?? CORPUS_SETS) {
         seen.add(ref.tokens.join(' '));
         refs.push(ref);
       }
+      (out.espeak[language] ??= {})[entry.word] = espeakKey(entry);
       (out.readings[language] ??= {})[entry.word] = readings;
       (out.refs[language] ??= {})[entry.word] = refs;
       if ((i + 1) % 10 === 0) {

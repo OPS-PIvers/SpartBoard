@@ -15,6 +15,7 @@ import {
   VOICE_REFS_PATH,
   corpusSet,
   createModelSession,
+  espeakKey,
   importTs,
   md5,
   readClip16k,
@@ -72,7 +73,10 @@ function cachedLogits(key) {
   const file = path.join(logitsDir, `${key}.f32`);
   if (!fs.existsSync(file)) return null;
   const buf = fs.readFileSync(file);
-  return new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4);
+  // Copied out, since a Buffer's offset isn't always 4-byte aligned.
+  return new Float32Array(
+    buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
+  );
 }
 
 async function decodeClip(flacPath, key) {
@@ -168,7 +172,10 @@ const pct = (r) => (r === null ? 'n/a' : `${(r * 100).toFixed(1)}%`);
 // S11a's voice references, committed by voice-refs.mjs because CI has no TTS.
 const voiceRefFile = readJson(VOICE_REFS_PATH, null);
 const voiceRefsUsable =
-  voiceRefFile?.model === PRONUNCIATION_MODEL.md5Prefix ? voiceRefFile : null;
+  voiceRefFile?.model === PRONUNCIATION_MODEL.md5Prefix &&
+  JSON.stringify(voiceRefFile.voices) === JSON.stringify(E.PRONUNCIATION_VOICES)
+    ? voiceRefFile
+    : null;
 
 function refBuilder(words) {
   const missingVoice = new Set();
@@ -182,7 +189,11 @@ function refBuilder(words) {
         stress: r.stress,
         source: 'espeak',
       }));
-    const voiced = voiceRefsUsable?.refs?.[language]?.[word];
+    // Voice references built beside other espeak ones are stale, so they count as missing.
+    const voiced =
+      voiceRefsUsable?.espeak?.[language]?.[word] === espeakKey(entry ?? {})
+        ? voiceRefsUsable.refs?.[language]?.[word]
+        : undefined;
     if (!voiced) missingVoice.add(`${language} ${word}`);
     return [...espeak, ...(voiced ?? [])];
   };
@@ -191,8 +202,12 @@ function refBuilder(words) {
 
 // ---------- one corpus set ----------
 
-// Other words each clip is judged against; a stride keeps the picks spread and deterministic.
-const WRONG_WORDS_PER_CLIP = 5;
+// Other words each clip is judged against, picked from a hash of the clip id so a pick never shifts when clips are added.
+const WRONG_WORDS_PER_CLIP = 8;
+const sameSound = (a, b) => {
+  const keys = new Set(a.map((r) => r.tokens.join(' ')));
+  return b.some((r) => keys.has(r.tokens.join(' ')));
+};
 
 async function runSet(name) {
   const set = corpusSet(name);
@@ -267,11 +282,13 @@ async function runSet(name) {
       const others = words.languages[clip.language].words.filter(
         (w) => w.word !== clip.word
       );
+      const start = parseInt(md5(clip.id).slice(0, 8), 16);
       const stride = Math.max(1, Math.floor(others.length / WRONG_WORDS_PER_CLIP));
       for (let k = 0; k < Math.min(WRONG_WORDS_PER_CLIP, others.length); k++) {
-        const other = others[(i + k * stride) % others.length].word;
+        const other = others[(start + k * stride) % others.length].word;
         const otherRefs = refsFor(clip.language, other);
-        if (otherRefs.length === 0) continue;
+        // A homophone's references are this word's too.
+        if (otherRefs.length === 0 || sameSound(refs, otherRefs)) continue;
         L.wrongWord[1]++;
         const j = judge(
           clip.language,
@@ -381,6 +398,11 @@ for (const c of controls.controls) {
 }
 fs.mkdirSync(cacheDir, { recursive: true });
 writeJson(decodeCachePath, decodeCache);
+// Decodes from older models or decode code are never read again; dropping them keeps the CI cache from growing.
+for (const f of fs.readdirSync(cacheDir)) {
+  if (/^(decode|logits)-/.test(f) && !f.includes(cacheTag))
+    fs.rmSync(path.join(cacheDir, f), { recursive: true, force: true });
+}
 
 // ---------- checks ----------
 
@@ -433,7 +455,7 @@ for (const r of results) {
       (v) => v >= T.groupForgiveAccepted,
       `≥ ${pct(T.groupForgiveAccepted)}`
     );
-    // No pass mark agreed yet; reported until Paul sets wrongWordAcceptedMax.
+    // No pass mark agreed yet: reported, and an enforced gate counts it as unmeasured until Paul sets wrongWordAcceptedMax.
     c(
       'another word accepted (Beginner)',
       ratio(...L.wrongWord),
@@ -476,6 +498,9 @@ const unmeasured = [
   ...checks
     .filter((c) => c.value === null)
     .map((c) => `${c.set} ${c.name} had nothing to measure`),
+  ...(T.wrongWordAcceptedMax === undefined
+    ? ['the another-word check has no pass mark (wrongWordAcceptedMax)']
+    : []),
 ];
 
 // ---------- report ----------

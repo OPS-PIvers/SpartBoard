@@ -11,3 +11,4 @@ export { logSoftmax } from '@/utils/pronunciation/likelihood';
 export { PRONUNCIATION_VARIANTS } from '@/config/pronunciationVariants';
 export * as scoring from '@/config/pronunciationScoring';
 export { generateMutations, applyMutation } from './mutate';
+export { PRONUNCIATION_VOICES } from '@/config/pronunciationVoices';

@@ -305,6 +305,13 @@ export async function importTs(relPath) {
   return module;
 }
 
+/** A word's espeak references as one string, so stale voice references are noticed. */
+export const espeakKey = (entry) =>
+  Object.entries(entry.refs ?? {})
+    .filter(([, r]) => r.tokens)
+    .map(([d, r]) => `${d}:${r.tokens.join(' ')}:${r.stress.join(',')}`)
+    .join('|');
+
 export const MODEL_CACHE_DIR =
   process.env.PRONUNCIATION_GATE_CACHE ??
   path.join(os.homedir(), '.cache/spartboard-pronunciation');
