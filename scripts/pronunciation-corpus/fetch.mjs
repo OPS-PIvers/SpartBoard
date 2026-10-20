@@ -3,7 +3,7 @@
 //
 //   node scripts/pronunciation-corpus/fetch.mjs                 pick clips for words.json and download them
 //   node scripts/pronunciation-corpus/fetch.mjs --from-manifest re-download exactly the pinned clips, checking SHA-1
-//   options: --language es|de|en  --per-word 3  --limit N (clips, for a smoke run)  --gap-ms 1100  --max-wait 120
+//   options: --set main|heldout  --language es|de|en  --per-word 3  --limit N (clips, for a smoke run)  --gap-ms 1100  --max-wait 120
 //
 // Safe to stop and rerun: finished clips stay in manifest.json and are skipped.
 import fs from 'node:fs';
@@ -11,16 +11,14 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 import {
   COMMONS_API,
-  FIXTURE_DIR,
   LINGUA_LIBRE_SPARQL,
   LL_LANGUAGE,
   LL_NATIVE_LEVEL,
-  MANIFEST_PATH,
   RateLimitedError,
-  WORDS_PATH,
   clipFileName,
   commonsTitleFromFilePath,
   commonsUploadUrl,
+  corpusSet,
   createPoliteClient,
   pickClips,
   readJson,
@@ -31,6 +29,7 @@ import {
 
 const { values: args } = parseArgs({
   options: {
+    set: { type: 'string', default: 'main' },
     language: { type: 'string', multiple: true },
     'per-word': { type: 'string', default: '3' },
     limit: { type: 'string' },
@@ -47,9 +46,10 @@ const client = createPoliteClient({
   maxWaitSeconds: Number(args['max-wait']),
 });
 
-const words = readJson(WORDS_PATH);
+const set = corpusSet(args.set);
+const words = readJson(set.wordsPath);
 const languages = args.language ?? Object.keys(words.languages);
-const manifest = readJson(MANIFEST_PATH, {
+const manifest = readJson(set.manifestPath, {
   version: 1,
   source: 'Lingua Libre (https://lingualibre.org) via Wikimedia Commons',
   format: '16 kHz mono 16-bit FLAC',
@@ -57,7 +57,7 @@ const manifest = readJson(MANIFEST_PATH, {
 });
 const save = () => {
   manifest.clips.sort((a, b) => a.id.localeCompare(b.id));
-  writeJson(MANIFEST_PATH, manifest);
+  writeJson(set.manifestPath, manifest);
 };
 
 /** Every native-speaker recording Lingua Libre has for these words, in one SPARQL query per language. */
@@ -179,7 +179,7 @@ async function download(clip) {
   }
   const flac = await toFlac16k(
     bytes,
-    path.join(FIXTURE_DIR, 'clips', clip.flac)
+    path.join(set.clipsDir, clip.flac)
   );
   return { sha1: got, bytes: bytes.length, flacSha1: sha1(flac) };
 }
@@ -206,16 +206,13 @@ function writeCredits() {
       `| \`${c.flac}\` | ${cell(c.word)} | ${cell(c.artist ?? c.speakerName ?? c.speaker)} | ${license} | [Commons](${source}) |`
     );
   }
-  fs.writeFileSync(
-    path.join(FIXTURE_DIR, 'CREDITS.md'),
-    `${lines.join('\n')}\n`
-  );
+  fs.writeFileSync(set.creditsPath, `${lines.join('\n')}\n`);
 }
 
 async function main() {
   const done = new Set(
     manifest.clips
-      .filter((c) => fs.existsSync(path.join(FIXTURE_DIR, 'clips', c.flac)))
+      .filter((c) => fs.existsSync(path.join(set.clipsDir, c.flac)))
       .map((c) => c.id)
   );
   let todo;
