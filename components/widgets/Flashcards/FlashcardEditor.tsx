@@ -429,7 +429,7 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
     // F22: a set keeps the district defaults until its own Speak settings are first changed.
     const speak = !speakOn
       ? initialSet.speak
-      : speakSettings && (speakEdit || savedSpeak)
+      : speakSettings && (speakEdit?.language === speakLanguage || savedSpeak)
         ? speakSettings
         : undefined;
     const { speak: _previousSpeak, ...rest } = initialSet;
