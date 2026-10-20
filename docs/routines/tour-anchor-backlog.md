@@ -23,6 +23,7 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 
 | File:line | Control | Why |
 | --------- | ------- | --- |
+| components/widgets/Checklist/settingsFields.tsx:117 | Paste tasks textarea | A real control inside a custom settings field; unclear whether a tour would target it or the field row. |
 
 ## Run log
 
@@ -31,4 +32,4 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | Date | PR | Area | Tagged | Opted out | Deferred | Remaining |
 | ---- | -- | ---- | ------ | --------- | -------- | --------- |
 | 2026-10-19 | (baseline) | | | | | 801 in 325 files |
-| 2026-10-20 | claude/tour-anchors-2026-10-20 | Widgets (ActivityWall editor, ArtsLettersAgenda, BloomsTaxonomy, Calendar, ConceptWeb, Countdown) | 7 | 15 | 0 | 779 in 313 files |
+| 2026-10-20 | claude/tour-anchors-2026-10-20 | Widgets (ActivityWall editor, ArtsLettersAgenda, BloomsTaxonomy, Calendar, ConceptWeb, Countdown) | 8 | 13 | 1 | 779 in 313 files |
