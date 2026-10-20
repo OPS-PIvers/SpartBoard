@@ -30531,6 +30531,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         ]
       },
       {
+        "surface": "admin.widgets.config.flashcards",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#flashcards"
+        ],
+        "needs": [
+          "admin"
+        ]
+      },
+      {
         "surface": "admin.widgets.config.graphic-organizer",
         "kind": "modal",
         "path": [
@@ -30995,6 +31007,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.admin-settings",
           "admin.settings.tab:admin#widgets",
           "admin.widgets.configure:admin#catalyst"
+        ],
+        "needs": [
+          "admin"
+        ]
+      },
+      {
+        "surface": "admin.widgets.config.flashcards",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#flashcards"
         ],
         "needs": [
           "admin"
