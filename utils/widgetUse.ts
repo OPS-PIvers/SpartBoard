@@ -21,3 +21,35 @@ export function withLaterUse(
   if (!x || !y) return { lastUse: x ?? y };
   return { lastUse: y.at > x.at ? y : x };
 }
+
+/** Board copy without use stamps, for Synced shares: each teacher's stamps stay on their own board. */
+export function withoutUseStamps<T extends { widgets: WidgetData[] }>(
+  board: T
+): T {
+  if (!board.widgets.some((w) => w.lastUse)) return board;
+  return {
+    ...board,
+    widgets: board.widgets.map((w) => {
+      if (!w.lastUse) return w;
+      const { lastUse: _lastUse, ...rest } = w;
+      return rest;
+    }),
+  };
+}
+
+/** Remote widgets with this device's own use stamps kept. */
+export function keepLocalUseStamps(
+  remote: WidgetData[],
+  local: WidgetData[]
+): WidgetData[] {
+  const stamps = new Map(
+    local.filter((w) => w.lastUse).map((w) => [w.id, w.lastUse])
+  );
+  return remote.map((w) => {
+    const lastUse = stamps.get(w.id);
+    if (lastUse) return { ...w, lastUse };
+    if (!w.lastUse) return w;
+    const { lastUse: _lastUse, ...rest } = w;
+    return rest;
+  });
+}

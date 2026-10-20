@@ -63,7 +63,11 @@ import {
   INSTANCE_FIELDS,
 } from '@/utils/widgetMergeFields';
 import { stableStringify } from '@/utils/stableStringify';
-import { withLaterUse } from '@/utils/widgetUse';
+import {
+  keepLocalUseStamps,
+  withLaterUse,
+  withoutUseStamps,
+} from '@/utils/widgetUse';
 import { useAuth } from './useAuth';
 import { mergeWidgetConfig } from '@/utils/widgetConfigPersistence';
 import i18n from '@/i18n';
@@ -403,7 +407,11 @@ const mirroredAnnotationBaseline = (
 
 /** Widget signature for remote-vs-local comparison: PII-free and key-stable. */
 const widgetMirrorSignature = (widgets: WidgetData[]): string =>
-  stableStringify(scrubWidgetsPII(widgets).map(stripDerivedPixels));
+  stableStringify(
+    withoutUseStamps({ widgets: scrubWidgetsPII(widgets) }).widgets.map(
+      stripDerivedPixels
+    )
+  );
 
 // The only DASHBOARD_FIELDS with no dedicated targeted-write path (pinBoard, moveBoardToCollection, reorderDashboards, Drive-sync and share-linking all bypass the debounced autosave entirely) — everything else already gets its own updateDoc, so folding them into this signature too would double-write on every pin/move/reorder/export.
 const UNTARGETED_DASHBOARD_FIELDS: readonly MergedDashboardField[] = [
@@ -3844,7 +3852,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // had names merged back in from Drive (mergeDashboardPII); those must
       // never reach Firestore — least of all the cross-user shared_boards
       // collection. The mirror sees only scrubbed data.
-      const scrubbed = scrubDashboardPII(withoutTransient(d));
+      const scrubbed = withoutUseStamps(scrubDashboardPII(withoutTransient(d)));
 
       // Cheap dedupe based on the same fields the saveDashboard path uses.
       const payload = serializeDashboard(scrubbed);
@@ -4045,7 +4053,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               : x;
             const next: Dashboard = {
               ...x,
-              widgets: remoteHydrated.widgets,
+              widgets: keepLocalUseStamps(remoteHydrated.widgets, x.widgets),
               background: remote.background ?? x.background,
               globalStyle: remote.globalStyle ?? x.globalStyle,
               settings: remote.settings ?? x.settings,

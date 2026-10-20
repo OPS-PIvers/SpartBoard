@@ -792,6 +792,7 @@ export async function computeAnalyticsForOrg(
   ]);
   const usage = widgetUsage.build({
     now,
+    day: widgetDay,
     members: memberByUid,
     prevDay: prevWidgetDay,
     monthAgo: monthAgoWidgetDay,

@@ -9,11 +9,27 @@
  */
 
 import * as admin from 'firebase-admin';
+import { chicagoDateKey } from './adminAnalyticsHistory';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MONTH_MS = 30 * DAY_MS;
-// Rows per widget in the drill-down list; keeps the snapshot doc well under 1 MiB.
+// Drill-down rows per widget, and across all widgets, so the snapshot doc stays well under 1 MiB.
 export const MAX_WIDGET_USER_ROWS = 500;
+export const MAX_TOTAL_USER_ROWS = 6000;
+
+/** Splits the row budget so small widgets keep every row and big ones share the rest evenly. */
+export function rowAllowance(sizes: Map<string, number>): Map<string, number> {
+  const out = new Map<string, number>();
+  let left = MAX_TOTAL_USER_ROWS;
+  const ordered = [...sizes].sort(([, a], [, b]) => a - b);
+  ordered.forEach(([type, size], i) => {
+    const fair = Math.floor(left / (ordered.length - i));
+    const take = Math.min(size, MAX_WIDGET_USER_ROWS, fair);
+    out.set(type, take);
+    left -= take;
+  });
+  return out;
+}
 
 export interface WidgetUserRow {
   email: string;
@@ -58,12 +74,17 @@ export class WidgetUsageTracker {
 
   build(input: {
     now: number;
+    // `YYYY-MM-DD` district day being measured; any use on or after it counts as daily.
+    day: string;
     members: Map<string, WidgetUsageMember>;
     prevDay?: WidgetDayCounts | null;
     monthAgo?: WidgetDayCounts | null;
   }): Record<string, WidgetUsage> {
     const { now, members } = input;
     const out: Record<string, WidgetUsage> = {};
+    const allowance = rowAllowance(
+      new Map([...this.owners].map(([type, byUid]) => [type, byUid.size]))
+    );
     for (const [type, byUid] of this.owners) {
       let daily = 0;
       let monthly = 0;
@@ -71,12 +92,14 @@ export class WidgetUsageTracker {
       const users: WidgetUserRow[] = [];
       for (const [uid, at] of byUid) {
         const age = now - at;
-        if (at > 0 && age <= DAY_MS) daily += 1;
+        if (at > 0 && age <= DAY_MS && chicagoDateKey(at) >= input.day) {
+          daily += 1;
+        }
         if (at > 0 && age <= MONTH_MS) monthly += 1;
         const member = members.get(uid);
         const ids =
           member && member.buildingIds.length > 0
-            ? member.buildingIds
+            ? new Set(member.buildingIds)
             : ['none'];
         for (const id of ids) buildings[id] = (buildings[id] ?? 0) + 1;
         users.push({
@@ -95,7 +118,7 @@ export class WidgetUsageTracker {
           ? (input.monthAgo[type]?.monthly ?? 0)
           : null,
         buildings,
-        users: users.slice(0, MAX_WIDGET_USER_ROWS),
+        users: users.slice(0, allowance.get(type) ?? 0),
       };
     }
     return out;
