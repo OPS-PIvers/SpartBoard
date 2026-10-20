@@ -161,11 +161,12 @@ function plainText(html) {
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&amp;/g, '&')
+    .replace(/[<>]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-const cell = (s) => String(s).replace(/\|/g, '\\|');
+const cell = (s) => String(s).replace(/[\\|]/g, '\\$&');
 
 async function download(clip) {
   const res = await client.request(clip.url ?? commonsUploadUrl(clip.title));
