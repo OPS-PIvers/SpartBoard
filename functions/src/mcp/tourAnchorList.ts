@@ -2833,6 +2833,83 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "blooms-taxonomy.ai-topic",
+    "label": "AI topic box in Bloom's Taxonomy",
+    "scope": "widget type",
+    "keys": [
+      "blooms-taxonomy"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.blooms-taxonomy.face",
+        "kind": "widget",
+        "widget_type": "blooms-taxonomy",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "blooms-taxonomy.ai-dismiss",
+    "label": "Dismiss AI result button in Bloom's Taxonomy",
+    "scope": "widget type",
+    "destructive": true,
+    "keys": [
+      "blooms-taxonomy"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.blooms-taxonomy.face",
+        "kind": "widget",
+        "widget_type": "blooms-taxonomy",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "calendar.start-timer",
+    "label": "Start countdown to event button in Calendar",
+    "scope": "widget type",
+    "keys": [
+      "calendar"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.calendar.face",
+        "kind": "widget",
+        "widget_type": "calendar",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "calendar.connect-google",
+    "label": "Connect Google Calendar button on the Calendar face",
+    "scope": "widget type",
+    "keys": [
+      "calendar"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.calendar.face",
+        "kind": "widget",
+        "widget_type": "calendar",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "arts-letters-agenda.reset-checks",
     "label": "Reset checks button in Arts & Letters Agenda",
     "scope": "widget",

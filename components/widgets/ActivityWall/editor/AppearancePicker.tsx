@@ -48,6 +48,7 @@ export const AppearancePicker: React.FC<AppearancePickerProps> = ({
             const selected =
               value.kind === 'gradient' && value.value === gradient.id;
             return (
+              // no-tour-anchor: one swatch per option, the tour points at the Appearance group
               <button
                 key={gradient.id}
                 type="button"
@@ -73,6 +74,7 @@ export const AppearancePicker: React.FC<AppearancePickerProps> = ({
           {BACKGROUND_COLORS.map((color) => {
             const selected = value.kind === 'color' && value.value === color.id;
             return (
+              // no-tour-anchor: one swatch per option, the tour points at the Appearance group
               <button
                 key={color.id}
                 type="button"
@@ -102,6 +104,7 @@ export const AppearancePicker: React.FC<AppearancePickerProps> = ({
               const selected =
                 value.kind === 'image' && value.value === preset.id;
               return (
+                // no-tour-anchor: one preset per image, the tour points at the Appearance group
                 <button
                   key={preset.id}
                   type="button"

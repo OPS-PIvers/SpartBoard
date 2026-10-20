@@ -86,6 +86,7 @@ export const AgendaRow = React.memo<AgendaRowProps>(
           >
             {label}
           </label>
+          {/* no-tour-anchor: one details box per agenda row */}
           <textarea
             key={description}
             defaultValue={description}

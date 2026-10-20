@@ -611,6 +611,23 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'blooms-taxonomy.ai-topic': {
+    label: "AI topic box in Bloom's Taxonomy",
+    perWidgetType: true,
+  },
+  'blooms-taxonomy.ai-dismiss': {
+    label: "Dismiss AI result button in Bloom's Taxonomy",
+    perWidgetType: true,
+    destructive: true,
+  },
+  'calendar.start-timer': {
+    label: 'Start countdown to event button in Calendar',
+    perWidgetType: true,
+  },
+  'calendar.connect-google': {
+    label: 'Connect Google Calendar button on the Calendar face',
+    perWidgetType: true,
+  },
   'arts-letters-agenda.reset-checks': {
     label: 'Reset checks button in Arts & Letters Agenda',
     perWidget: true,
