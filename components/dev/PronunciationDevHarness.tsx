@@ -26,7 +26,8 @@ import {
 } from '@/utils/pronunciation/recognizer';
 import type { RecordingConfig } from '@/types';
 
-const URL_KEY = 'pronunciationDev.modelUrl';
+// v2: the old key still holds the Hugging Face URL saved before the model was hosted.
+const URL_KEY = 'pronunciationDev.modelUrl.v2';
 const MIC_SECONDS = 3;
 const MIC_CONFIG: RecordingConfig = {
   prepSeconds: 0,
@@ -205,7 +206,8 @@ export const PronunciationDevHarness: React.FC = () => {
   const loadModel = () =>
     run('Loading model…', async () => {
       try {
-        localStorage.setItem(URL_KEY, modelUrl);
+        if (modelUrl === defaultUrl()) localStorage.removeItem(URL_KEY);
+        else localStorage.setItem(URL_KEY, modelUrl);
       } catch {
         // Remembering the URL is a convenience only.
       }
