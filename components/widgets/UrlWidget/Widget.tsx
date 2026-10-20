@@ -1,34 +1,46 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { WidgetData, UrlWidgetConfig } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
-import { tourFieldAttr } from '@/config/tourAnchors';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { Globe } from 'lucide-react';
-import { isSafeIconUrl } from '@/components/widgets/Catalyst/catalystHelpers';
-import { getUrlIcon, DEFAULT_URL_COLOR } from './icons';
-import { toSafeLinkHref } from './url';
-import { ICON_PER_FONT, linkLabelFontSize } from './labelFit';
+import { LinkRow, LinkTile, type UrlLink } from './LinkTile';
+import { pickLinkLayout } from './layout';
 
-const getDisplayLabel = (title?: string, url?: string) => {
-  const trimmedTitle = title?.trim();
-  return trimmedTitle && trimmedTitle.length > 0 ? trimmedTitle : url;
+const GAP = 'min(6px, 1.5cqmin)';
+
+const useBoxSize = () => {
+  const [node, setNode] = useState<HTMLDivElement | null>(null);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    if (!node || typeof ResizeObserver === 'undefined') return;
+    const measure = () => {
+      const w = node.clientWidth;
+      const h = node.clientHeight;
+      setSize((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, [node]);
+  return [setNode, size] as const;
+};
+
+const chunkRows = (urls: UrlLink[], rows: number[]): UrlLink[][] => {
+  let start = 0;
+  return rows.map((n) => {
+    const row = urls.slice(start, start + n);
+    start += n;
+    return row;
+  });
 };
 
 export const UrlWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const config = widget.config as UrlWidgetConfig;
   const urls = config.urls ?? [];
-
-  const { cols, rows } = useMemo(() => {
-    const count = urls.length;
-    if (count === 0) return { cols: 1, rows: 1 };
-    if (count <= 2) return { cols: count, rows: 1 };
-    if (count <= 4) return { cols: 2, rows: 2 };
-    if (count <= 6) return { cols: 3, rows: 2 };
-    if (count <= 9) return { cols: 3, rows: 3 };
-    if (count <= 12) return { cols: 4, rows: 3 };
-    if (count <= 16) return { cols: 4, rows: 4 };
-    return { cols: 5, rows: Math.ceil(count / 5) };
-  }, [urls.length]);
+  const [boxRef, box] = useBoxSize();
+  const gapPx = Math.min(6, 0.015 * Math.min(box.w, box.h));
+  const layout = pickLinkLayout(urls.length, box.w, box.h, gapPx);
 
   if (urls.length === 0) {
     return (
@@ -48,127 +60,48 @@ export const UrlWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           className="h-full w-full flex flex-col overflow-hidden"
           style={{ padding: 'min(4px, 1cqmin)' }}
         >
-          <div className="flex-1 min-h-0">
-            <div
-              className="grid h-full w-full"
-              style={{
-                gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-                gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`,
-                gap: 'min(6px, 1.5cqmin)',
-              }}
-            >
-              {urls.map((urlItem) => {
-                const Icon = getUrlIcon(urlItem.icon);
-                const label = getDisplayLabel(urlItem.title, urlItem.url);
-                const isCircle = urlItem.shape === 'circle';
-                const trimmedImage = urlItem.imageUrl?.trim();
-                const hasImage = trimmedImage
-                  ? isSafeIconUrl(trimmedImage)
-                  : false;
-                const labelSize = linkLabelFontSize(label ?? '', {
-                  withIcon: !hasImage,
-                  circle: isCircle,
-                });
-                const radiusClass = isCircle
-                  ? 'rounded-full'
-                  : 'rounded-[min(16px,3cqmin)]';
-                // Wrap the tile in a centering cell so a circle (which forces
-                // aspect-square) sits centered inside its grid cell rather
-                // than collapsing to one edge.
-                return (
+          <div ref={boxRef} className="flex-1 min-h-0">
+            {layout.mode === 'list' ? (
+              <div
+                className="h-full w-full overflow-y-auto"
+                style={{ paddingBottom: 'max(12px, 2cqmin)' }}
+              >
+                <div
+                  className="grid min-h-full"
+                  style={{
+                    gridTemplateColumns: `repeat(${layout.columns}, minmax(0, 1fr))`,
+                    gridAutoRows: 'minmax(max-content, 1fr)',
+                    gap: GAP,
+                  }}
+                >
+                  {urls.map((link) => (
+                    <LinkRow
+                      key={link.id}
+                      link={link}
+                      widgetType={widget.type}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col h-full w-full" style={{ gap: GAP }}>
+                {chunkRows(urls, layout.rows).map((row) => (
                   <div
-                    key={urlItem.id}
-                    className="relative flex items-center justify-center min-w-0 min-h-0"
+                    key={row[0]?.id}
+                    className="flex flex-1 min-h-0"
+                    style={{ gap: GAP }}
                   >
-                    <div
-                      className={`relative overflow-hidden transition-all group shadow-sm hover:shadow-md border border-white/20 hover:brightness-110 ${radiusClass} ${
-                        isCircle
-                          ? 'aspect-square max-w-full max-h-full'
-                          : 'h-full w-full'
-                      }`}
-                      style={{
-                        ...(isCircle
-                          ? { height: '100%', width: 'auto' }
-                          : null),
-                        backgroundColor: hasImage
-                          ? '#1e293b'
-                          : (urlItem.color ?? DEFAULT_URL_COLOR),
-                        containerType: 'size',
-                      }}
-                    >
-                      {hasImage && (
-                        <img
-                          src={trimmedImage}
-                          alt=""
-                          referrerPolicy="no-referrer"
-                          loading="lazy"
-                          aria-hidden="true"
-                          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-                        />
-                      )}
-                      <button
-                        type="button"
-                        {...tourFieldAttr(
-                          'url.open-link',
-                          widget.type,
-                          urlItem.id
-                        )}
-                        onClick={() => {
-                          const href = toSafeLinkHref(urlItem.url);
-                          if (href) {
-                            window.open(href, '_blank', 'noopener,noreferrer');
-                          }
-                        }}
-                        aria-label={`Open ${label}`}
-                        className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer text-left transition-all active:scale-95 outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-inset"
-                      >
-                        <span
-                          aria-hidden="true"
-                          className={`absolute inset-0 bg-black/0 group-hover:bg-black/5 group-active:bg-black/10 transition-colors pointer-events-none ${radiusClass}`}
-                        />
-
-                        {hasImage ? (
-                          // Image mode: bottom text plate, no icon (image IS the visual).
-                          <span
-                            className="absolute left-0 right-0 bottom-0 z-10 font-black text-white text-center leading-tight break-words px-1.5"
-                            style={{
-                              fontSize: labelSize,
-                              padding: 'min(8px, 4cqmin) min(10px, 5cqmin)',
-                              backgroundColor: 'rgba(15, 23, 42, 0.42)',
-                              backdropFilter: 'blur(min(4px, 2cqmin))',
-                              WebkitBackdropFilter: 'blur(min(4px, 2cqmin))',
-                            }}
-                          >
-                            {label}
-                          </span>
-                        ) : (
-                          // Color mode: large icon + label centered.
-                          <>
-                            <Icon
-                              className="text-white drop-shadow-sm z-10"
-                              style={{
-                                width: `min(120px, 38cqmin, calc(${labelSize} * ${ICON_PER_FONT}))`,
-                                height: `min(120px, 38cqmin, calc(${labelSize} * ${ICON_PER_FONT}))`,
-                                marginBottom: 'min(4px, 1.5cqmin)',
-                              }}
-                            />
-                            <span
-                              className="font-black text-white text-center leading-tight drop-shadow-md break-words max-w-full z-10"
-                              style={{
-                                fontSize: labelSize,
-                                padding: '0 min(6px, 1.5cqmin)',
-                              }}
-                            >
-                              {label}
-                            </span>
-                          </>
-                        )}
-                      </button>
-                    </div>
+                    {row.map((link) => (
+                      <LinkTile
+                        key={link.id}
+                        link={link}
+                        widgetType={widget.type}
+                      />
+                    ))}
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       }
