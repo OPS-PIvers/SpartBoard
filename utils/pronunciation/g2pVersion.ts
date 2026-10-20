@@ -2,3 +2,4 @@
 import { PRONUNCIATION_MODEL } from '@/config/pronunciationModel';
 
 export const SPEAK_G2P_VERSION = `@echogarden/espeak-ng-emscripten@0.3.5+1.51norm/cmudict-7479086/voices-r2-${PRONUNCIATION_MODEL.md5Prefix}`;
+export const SPEAK_G2P_VOICES_PENDING = `${SPEAK_G2P_VERSION}/pending`;

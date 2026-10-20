@@ -9,6 +9,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   where,
   writeBatch,
 } from 'firebase/firestore';
@@ -34,6 +35,11 @@ import {
 } from '@/components/widgets/Flashcards/utils/flashcardAssign';
 import { fitSpeakToDoc } from '@/utils/pronunciation/fitSpeakToDoc';
 import {
+  applyVoiceResults,
+  startVoiceFill,
+  type VoiceFillWrite,
+} from '@/components/widgets/Flashcards/speak/speakVoiceFill';
+import {
   FC_CONTENT_COLLECTION,
   FC_CONTENT_DOC,
 } from '@/utils/flashcardSessionContent';
@@ -55,9 +61,26 @@ interface UseFlashcardSetsResult {
   deleteSet: (setId: string) => Promise<void>;
   publishSet: (set: FlashcardSet) => Promise<string>;
   revokeShare: (set: FlashcardSet) => Promise<void>;
+  /** Finishes Speak voice readings a set is still waiting on, in the background. */
+  fillSpeakVoices: (set: FlashcardSet) => void;
 }
 
 const SETS_COLLECTION = 'flashcard_sets';
+
+// Writes to one set run in order, so a background voice fill never overwrites a newer save.
+const setWrites = new Map<string, Promise<unknown>>();
+const oneWriteAtATime = <T>(key: string, write: () => Promise<T>) => {
+  const next = (setWrites.get(key) ?? Promise.resolve())
+    .catch(() => undefined)
+    .then(write);
+  setWrites.set(key, next);
+  void next
+    .finally(() => {
+      if (setWrites.get(key) === next) setWrites.delete(key);
+    })
+    .catch(() => undefined);
+  return next;
+};
 
 /** F22: one read at save time; any failure falls back to the shipped defaults. */
 export const readFlashcardsSpeakAdminConfig =
@@ -244,8 +267,10 @@ export function useFlashcardSets(
     );
   }, [userId]);
 
-  const saveSet = useCallback(
-    async (set: FlashcardSet): Promise<number> => {
+  const writeSet = useCallback(
+    async (
+      set: FlashcardSet
+    ): Promise<{ saved: FlashcardSet; rewritten: number }> => {
       if (!userId) throw new Error('Sign in to save flashcard sets.');
       const normalized = fitSpeakToDoc(
         `users/${userId}/${SETS_COLLECTION}/${set.id}`,
@@ -265,7 +290,14 @@ export function useFlashcardSets(
       }
       await batch.commit();
       try {
-        return await rewriteOpenStudySessions(userId, normalized, adminConfig);
+        return {
+          saved: normalized,
+          rewritten: await rewriteOpenStudySessions(
+            userId,
+            normalized,
+            adminConfig
+          ),
+        };
       } catch (syncError) {
         logError('useFlashcardSets.rewriteOpenStudySessions', syncError, {
           userId,
@@ -275,6 +307,73 @@ export function useFlashcardSets(
       }
     },
     [canSpeak, userId]
+  );
+
+  const patchVoices = useCallback(
+    (setId: string): VoiceFillWrite =>
+      (merge, final) =>
+        oneWriteAtATime(`${userId}/${setId}`, async () => {
+          if (!userId) return;
+          const setRef = doc(db, 'users', userId, SETS_COLLECTION, setId);
+          // A transaction, so an edit from another tab, a delete or a revoked share always wins.
+          const patched = await runTransaction(db, async (tx) => {
+            const snap = await tx.get(setRef);
+            if (!snap.exists()) return null;
+            const latest = { ...(snap.data() as FlashcardSet), id: setId };
+            const merged = merge(latest);
+            if (merged === latest) return latest;
+            const next = fitSpeakToDoc(
+              `users/${userId}/${SETS_COLLECTION}/${setId}`,
+              merged
+            );
+            tx.update(setRef, { cards: next.cards });
+            if (next.publicShareId) {
+              const adminConfig = await speakAdminConfigFor(next, canSpeak);
+              tx.set(
+                doc(db, 'public_flashcard_sets', next.publicShareId),
+                toPublicSnapshot(next, userId, adminConfig)
+              );
+            }
+            return next;
+          });
+          // Open Study assignments get the readings once, at the end.
+          if (!patched || !final) return;
+          try {
+            await rewriteOpenStudySessions(
+              userId,
+              patched,
+              await speakAdminConfigFor(patched, canSpeak)
+            );
+          } catch (err) {
+            logError('useFlashcardSets.patchVoices', err, { userId, setId });
+          }
+        }),
+    [canSpeak, userId]
+  );
+
+  const saveSet = useCallback(
+    (set: FlashcardSet): Promise<number> =>
+      oneWriteAtATime(`${userId}/${set.id}`, async () => {
+        let result: { saved: FlashcardSet; rewritten: number };
+        try {
+          result = await writeSet(applyVoiceResults(set));
+        } catch (err) {
+          if (err instanceof FlashcardStudySyncError && canSpeak) {
+            startVoiceFill(applyVoiceResults(set), patchVoices(set.id));
+          }
+          throw err;
+        }
+        if (canSpeak) startVoiceFill(result.saved, patchVoices(set.id));
+        return result.rewritten;
+      }),
+    [canSpeak, patchVoices, userId, writeSet]
+  );
+
+  const fillSpeakVoices = useCallback(
+    (set: FlashcardSet): void => {
+      if (canSpeak && userId) startVoiceFill(set, patchVoices(set.id));
+    },
+    [canSpeak, patchVoices, userId]
   );
 
   const deleteSet = useCallback(
@@ -342,5 +441,6 @@ export function useFlashcardSets(
     deleteSet,
     publishSet,
     revokeShare,
+    fillSpeakVoices,
   };
 }

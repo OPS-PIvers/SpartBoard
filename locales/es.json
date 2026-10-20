@@ -3584,6 +3584,7 @@
         "ipaInvalid": "Algunos de estos símbolos no se reconocen.",
         "checkingCards_one": "Revisando cómo se dice {{count}} tarjeta…",
         "checkingCards_other": "Revisando cómo se dicen {{count}} tarjetas…",
+        "finishingCards": "Terminando Speak: {{done}} de {{total}} tarjetas",
         "hearIt": "Escucharla"
       },
       "groups": {

@@ -3584,6 +3584,7 @@
         "ipaInvalid": "Einige dieser Zeichen werden nicht erkannt.",
         "checkingCards_one": "Aussprache von {{count}} Karte wird geprüft…",
         "checkingCards_other": "Aussprache von {{count}} Karten wird geprüft…",
+        "finishingCards": "Speak wird fertiggestellt: {{done}} von {{total}} Karten",
         "hearIt": "Anhören"
       },
       "groups": {

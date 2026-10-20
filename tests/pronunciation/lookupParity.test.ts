@@ -16,8 +16,14 @@ import {
 } from '@/config/pronunciationVoices';
 import * as serverAudio from '@/functions/src/pronunciation/voiceAudio';
 import * as serverVoices from '@/functions/src/pronunciation/voices';
-import { SPEAK_G2P_VERSION as serverVersion } from '@/functions/src/pronunciation/g2pVersion';
-import { SPEAK_G2P_VERSION as clientVersion } from '@/utils/pronunciation/g2pVersion';
+import {
+  SPEAK_G2P_VERSION as serverVersion,
+  SPEAK_G2P_VOICES_PENDING as serverPending,
+} from '@/functions/src/pronunciation/g2pVersion';
+import {
+  SPEAK_G2P_VERSION as clientVersion,
+  SPEAK_G2P_VOICES_PENDING as clientPending,
+} from '@/utils/pronunciation/g2pVersion';
 
 describe('Speak lookup client/server parity', () => {
   it('copies the model vocabulary and nuclei exactly', () => {
@@ -30,6 +36,7 @@ describe('Speak lookup client/server parity', () => {
 
   it('copies the engine version, so editor saves refresh after a bump', () => {
     expect(clientVersion).toBe(serverVersion);
+    expect(clientPending).toBe(serverPending);
   });
 
   it('tokenizes espeak IPA the same way on both sides', () => {

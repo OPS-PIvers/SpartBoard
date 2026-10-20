@@ -4724,6 +4724,7 @@
         "ipaInvalid": "Some of these symbols aren't recognized.",
         "checkingCards_one": "Checking how to say {{count}} card…",
         "checkingCards_other": "Checking how to say {{count}} cards…",
+        "finishingCards": "Finishing Speak: {{done}} of {{total}} cards",
         "hearIt": "Hear it"
       },
       "groups": {
