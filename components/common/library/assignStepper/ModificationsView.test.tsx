@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import type { TFunction } from 'i18next';
 import type { ClassRoster } from '@/types';
 import {
   EMPTY_ASSIGN_TARGETING_VALUE,
@@ -56,8 +57,10 @@ const other: ClassRoster = {
   ],
 };
 
-const t = (key: string, fallback: string, opts?: Record<string, unknown>) =>
-  fallback.replace(/\{\{(\w+)\}\}/g, (_, k: string) => String(opts?.[k]));
+const t = ((_key: string, fallback: string, opts?: Record<string, unknown>) =>
+  fallback.replace(/\{\{(\w+)\}\}/g, (_, k: string) =>
+    String(opts?.[k])
+  )) as unknown as TFunction;
 
 const adaRef = { kind: 'classlink' as const, sourcedId: 'SID-1' };
 const alanRef = { kind: 'classlink' as const, sourcedId: 'SID-4' };

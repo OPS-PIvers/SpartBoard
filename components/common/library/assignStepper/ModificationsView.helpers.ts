@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 import type { ClassRoster, StudentTargetRef } from '@/types';
 import {
   classStudentRows,
@@ -87,16 +88,10 @@ export const clearedModifications = (
   excludedStudents: [],
 });
 
-type Translate = (
-  key: string,
-  defaultValue: string,
-  opts?: Record<string, unknown>
-) => string;
-
 /** Collapsed value for the Modifications link: "None", "1 modified", "1 modified, 2 skipped". */
 export function formatModificationsValue(
   counts: ModificationCounts,
-  t: Translate
+  t: TFunction
 ): string {
   const parts = [
     counts.modified > 0
