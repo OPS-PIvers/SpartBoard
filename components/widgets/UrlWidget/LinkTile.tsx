@@ -68,7 +68,7 @@ export const LinkTile: React.FC<LinkProps> = ({ link, widgetType }) => {
     >
       <div
         className={`relative overflow-hidden transition-all group shadow-sm hover:shadow-md border border-white/20 hover:brightness-110 ${radiusClass} ${
-          isCircle ? '' : 'h-full w-full'
+          isCircle ? 'aspect-square' : 'h-full w-full'
         }`}
         style={{
           ...(isCircle ? { height: '100cqmin', width: '100cqmin' } : null),
