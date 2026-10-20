@@ -16,6 +16,17 @@ import {
   type StressReading,
 } from './stressReference';
 import { tokenizeIpa, type TokenizeSuccess } from './tokenizeIpa';
+import {
+  createVoiceReader,
+  voiceReference,
+  VoiceServiceError,
+  type VoiceReader,
+} from './voiceRefs';
+import {
+  PRONUNCIATION_MODEL,
+  PRONUNCIATION_VOICES,
+  voiceDialect,
+} from './voices';
 import type {
   FlashcardCardSpeak,
   FlashcardSpeakReason,
@@ -28,7 +39,11 @@ import type {
 } from './types';
 
 export const FLASHCARDS_SPEAK_FEATURE_ID = 'flashcards-speak';
-export const SPEAK_G2P_VERSION = `${ESPEAK_PACKAGE}+1.51norm/cmudict-7479086`;
+export const SPEAK_G2P_VERSION = `${ESPEAK_PACKAGE}+1.51norm/cmudict-7479086/voices-r2-${PRONUNCIATION_MODEL.md5Prefix}`;
+// Any version but the current one makes the next save look the card up again.
+export const SPEAK_G2P_VOICES_PENDING = `${SPEAK_G2P_VERSION}/pending`;
+// About 1 s of model time per voice on 2 vCPU; leaves the callable's 540 s timeout a margin for the last card.
+export const DEFAULT_VOICE_BUDGET_MS = 420_000;
 export const MAX_LOOKUP_TERMS = 500;
 const MAX_TERM_LENGTH = 500;
 const MAX_IPA_LENGTH = 200;
@@ -179,6 +194,69 @@ function lookupDialect(
   };
 }
 
+const spokenWord = (term: string) =>
+  parseFlashcardAnswerVariants(term)[0] ?? '';
+
+interface VoiceRun {
+  reader: VoiceReader;
+  deadline: number;
+  stopped: boolean;
+}
+
+/** Adds each distinct voice reading for the dialects espeak read; a card whose voices didn't all finish is marked pending. */
+async function addVoiceReferences(
+  language: SpeakLanguage,
+  card: SpeakLookupTerm,
+  speak: FlashcardCardSpeak,
+  run: VoiceRun
+): Promise<FlashcardCardSpeak> {
+  // A teacher's IPA is authoritative, so an overridden dialect gets no voice readings.
+  const bases = speak.refs.filter((ref) => !card.ipaOverride?.[ref.dialect]);
+  const voices = PRONUNCIATION_VOICES[language].filter((voice) =>
+    bases.some((ref) => ref.dialect === voiceDialect(voice))
+  );
+  if (voices.length === 0) return speak;
+  if (run.stopped || Date.now() >= run.deadline) {
+    return { ...speak, g2pVersion: SPEAK_G2P_VOICES_PENDING };
+  }
+  const word = spokenWord(card.term).normalize('NFC');
+  const results = await Promise.allSettled(
+    voices.map((voice) => run.reader.read(voice, word))
+  );
+  const refs = [...speak.refs];
+  const seen = new Set(refs.map((ref) => ref.tokens.join(' ')));
+  let complete = true;
+  results.forEach((result, i) => {
+    if (result.status === 'rejected') {
+      complete = false;
+      if (result.reason instanceof VoiceServiceError) {
+        if (!run.stopped) {
+          logger.error('[speakLookup] voices unavailable', {
+            err: result.reason.message,
+          });
+        }
+        run.stopped = true;
+      } else {
+        logger.warn('[speakLookup] voice failed', {
+          voice: voices[i],
+          err: String(result.reason),
+        });
+      }
+      return;
+    }
+    const base = bases.find((ref) => ref.dialect === voiceDialect(voices[i]));
+    const ref = base && voiceReference(base, result.value);
+    if (!ref || seen.has(ref.tokens.join(' '))) return;
+    seen.add(ref.tokens.join(' '));
+    refs.push(ref);
+  });
+  return {
+    ...speak,
+    refs,
+    ...(complete ? {} : { g2pVersion: SPEAK_G2P_VOICES_PENDING }),
+  };
+}
+
 function lookupCard(
   phonemizer: Phonemizer,
   input: SpeakLookupInput,
@@ -189,7 +267,7 @@ function lookupCard(
     g2pVersion: SPEAK_G2P_VERSION,
     ...(card.ipaOverride ? { ipaOverride: card.ipaOverride } : {}),
   };
-  const word = parseFlashcardAnswerVariants(card.term)[0] ?? '';
+  const word = spokenWord(card.term);
   if (!word || word.length > MAX_WORD_LENGTH) {
     return {
       ...base,
@@ -233,21 +311,48 @@ function lookupCard(
   };
 }
 
-/** Pure lookup used by the callable and, in-process, by the connector (S10); input must already be valid. */
+export interface SpeakLookupOptions {
+  /** Defaults to Cloud TTS and the pinned model; false leaves voice-eligible cards pending. */
+  voices?: VoiceReader | false;
+  /** Cards not started within this many ms come back pending. */
+  voiceBudgetMs?: number;
+}
+
+/** Lookup used by the callable and, in-process, by the connector (S10); input must already be valid. */
 export async function computeSpeakReferences(
   input: SpeakLookupInput,
-  phonemizer?: Phonemizer
+  phonemizer?: Phonemizer,
+  options: SpeakLookupOptions = {}
 ): Promise<SpeakLookupOutput> {
   const p = phonemizer ?? (await loadPhonemizer());
+  const run: VoiceRun = {
+    reader: options.voices || createVoiceReader(),
+    deadline: Date.now() + (options.voiceBudgetMs ?? DEFAULT_VOICE_BUDGET_MS),
+    stopped: options.voices === false,
+  };
+  const entries: [string, FlashcardCardSpeak][] = [];
+  for (const term of input.terms) {
+    const speak = lookupCard(p, input, term);
+    entries.push([
+      term.cardId,
+      await addVoiceReferences(input.language, term, speak, run),
+    ]);
+  }
   // fromEntries defines own keys, so even a `__proto__` card id survives.
-  const cards: Record<string, FlashcardCardSpeak> = Object.fromEntries(
-    input.terms.map((term) => [term.cardId, lookupCard(p, input, term)])
-  );
+  const cards: Record<string, FlashcardCardSpeak> = Object.fromEntries(entries);
   return { g2pVersion: SPEAK_G2P_VERSION, cards };
 }
 
 export const lookupSpeakReferencesV1 = onCall(
-  { memory: '1GiB', timeoutSeconds: 120, cors: ALLOWED_ORIGINS },
+  // The voice model holds about 1 GB and is read one take at a time, so one request per instance.
+  {
+    memory: '4GiB',
+    cpu: 2,
+    concurrency: 1,
+    maxInstances: 10,
+    timeoutSeconds: 540,
+    cors: ALLOWED_ORIGINS,
+  },
   async (request): Promise<SpeakLookupOutput> => {
     assertViewAsAllowed(request, { read: true });
     const auth = request.auth;

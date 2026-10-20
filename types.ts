@@ -8906,6 +8906,8 @@ export interface FlashcardSpeakReference {
   stress: number[];
   /** Flat [start, end) pairs into the spoken variant, one pair per token (Firestore can't nest arrays). */
   letterSpans?: number[];
+  /** Absent means espeak; voice refs are a Cloud TTS voice's reading and carry no letterSpans. */
+  source?: 'espeak' | 'voice';
 }
 
 export type FlashcardSpeakStatus = 'ready' | 'needs-review' | 'unavailable';
