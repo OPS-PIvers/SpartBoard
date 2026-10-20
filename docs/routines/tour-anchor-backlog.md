@@ -32,4 +32,4 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | Date | PR | Area | Tagged | Opted out | Deferred | Remaining |
 | ---- | -- | ---- | ------ | --------- | -------- | --------- |
 | 2026-10-19 | (baseline) | | | | | 801 in 325 files |
-| 2026-10-20 | claude/tour-anchors-2026-10-20 | Widgets (ActivityWall editor, ArtsLettersAgenda, BloomsTaxonomy, Calendar, ConceptWeb, Countdown) | 8 | 13 | 1 | 779 in 313 files |
+| 2026-10-20 | claude/tour-anchors-2026-10-20 | Widgets (ActivityWall editor, ArtsLettersAgenda, BloomsTaxonomy, Calendar, ConceptWeb, Countdown) | 5 | 16 | 1 | 779 in 313 files |
