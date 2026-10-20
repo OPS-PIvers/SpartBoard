@@ -270,7 +270,7 @@ export const FlashcardCheckReview: React.FC<FlashcardCheckReviewProps> = ({
         )}
       </ResultsSection>
 
-      <ResultsSection title="First-try accuracy" count={accuracy.length}>
+      <ResultsSection title="First-attempt accuracy" count={accuracy.length}>
         {accuracy.length === 0 ? (
           <SectionEmpty message="Accuracy appears once students submit." />
         ) : (
