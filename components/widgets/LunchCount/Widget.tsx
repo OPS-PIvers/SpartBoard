@@ -726,7 +726,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
         padding="p-0"
         header={
           <div
-            className="flex flex-wrap justify-between items-center border-b border-slate-100"
+            className="flex justify-between items-center border-b border-slate-100"
             style={{
               backgroundColor: hexToRgba(cardColor, cardOpacity),
               padding: 'min(10px, 2cqmin)',
@@ -734,10 +734,10 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
             }}
           >
             <div
-              className="flex items-center min-w-0 max-w-full"
+              className="flex items-center shrink-0"
               style={{ gap: 'min(10px, 2cqmin)' }}
             >
-              <div className="flex flex-col min-w-0">
+              <div className="flex flex-col shrink-0">
                 <h3
                   style={{ fontSize: 'min(14px, 4.5cqmin)' }}
                   className="font-black text-slate-700 uppercase tracking-widest"
@@ -758,7 +758,6 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
               {rosterMode === 'class' && (
                 <ActiveClassChip
                   compact
-                  className="min-w-0"
                   anchor={tourAttr(
                     'lunch-count.class-chip',
                     widget.id,
@@ -776,119 +775,110 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
               )}
             </div>
 
-            <div
-              className="flex flex-1 items-center min-w-0"
+            <Button
+              {...tourAttr('lunch-count.open-report', widget.id, widget.type)}
+              onClick={handleOpenReport}
+              disabled={reportStats.remaining > 0 || reportStats.total === 0}
+              variant={
+                reportStats.remaining === 0 && reportStats.total > 0
+                  ? 'primary'
+                  : 'secondary'
+              }
+              className="flex-1 rounded-xl font-black uppercase tracking-widest transition-all shadow-sm"
               style={{
-                gap: 'min(12px, 2.5cqmin)',
-                minWidth: 'min(220px, 70cqmin)',
+                padding: 'min(6px, 1.5cqmin) min(16px, 4cqmin)',
+                fontSize: 'min(12px, 4cqmin)',
+                height: 'min(36px, 9cqmin)',
+                maxWidth: 'min(280px, 50%)',
               }}
             >
+              {reportStats.remaining === 0 && reportStats.total > 0 ? (
+                <div
+                  className="flex items-center justify-center"
+                  style={{ gap: 'min(8px, 2cqmin)' }}
+                >
+                  <CheckCircle2
+                    style={{
+                      width: 'min(18px, 4.5cqmin)',
+                      height: 'min(18px, 4.5cqmin)',
+                    }}
+                  />
+                  Submit Report
+                </div>
+              ) : (
+                <div
+                  className="flex items-center justify-center opacity-60"
+                  style={{ gap: 'min(8px, 2cqmin)' }}
+                >
+                  <Users
+                    style={{
+                      width: 'min(18px, 4.5cqmin)',
+                      height: 'min(18px, 4.5cqmin)',
+                    }}
+                  />
+                  {hiddenRemaining > 0
+                    ? `Assign ${reportStats.remaining} more — ${hiddenRemaining} outside this group`
+                    : `Assign ${reportStats.remaining} More Students`}
+                </div>
+              )}
+            </Button>
+
+            <div
+              className="flex shrink-0"
+              style={{ gap: 'min(6px, 1.5cqmin)' }}
+            >
               <Button
-                {...tourAttr('lunch-count.open-report', widget.id, widget.type)}
-                onClick={handleOpenReport}
-                disabled={reportStats.remaining > 0 || reportStats.total === 0}
-                variant={
-                  reportStats.remaining === 0 && reportStats.total > 0
-                    ? 'primary'
-                    : 'secondary'
-                }
-                className="flex-1 min-w-0 mx-auto rounded-xl font-black uppercase tracking-widest leading-tight text-center transition-all shadow-sm"
+                {...tourAttr(
+                  'lunch-count.refresh-menu',
+                  widget.id,
+                  widget.type
+                )}
+                onClick={() => void fetchNutrislice()}
+                variant="ghost"
+                size="sm"
+                className="rounded-xl bg-white border border-slate-200"
                 style={{
-                  padding: 'min(6px, 1.5cqmin) min(16px, 4cqmin)',
-                  fontSize: 'min(12px, 4cqmin)',
-                  minHeight: 'min(36px, 9cqmin)',
-                  minWidth: 'min(150px, 45cqmin)',
-                  maxWidth: 'min(280px, 100%)',
+                  padding: 'min(6px, 1.5cqmin)',
+                  width: 'min(32px, 8cqmin)',
+                  height: 'min(32px, 8cqmin)',
+                }}
+                disabled={isSyncing}
+              >
+                <RefreshCw
+                  style={{
+                    width: 'min(16px, 4.5cqmin)',
+                    height: 'min(16px, 4.5cqmin)',
+                  }}
+                  className={isSyncing ? 'animate-spin' : ''}
+                />
+              </Button>
+              <Button
+                {...tourAttr(
+                  'lunch-count.reset-assignments',
+                  widget.id,
+                  widget.type
+                )}
+                onClick={() =>
+                  updateWidget(widget.id, {
+                    config: { ...config, assignments: {} },
+                  })
+                }
+                variant="ghost"
+                size="sm"
+                className="rounded-xl text-slate-400 hover:text-brand-red-primary bg-white border border-slate-200"
+                style={{
+                  padding: 'min(6px, 1.5cqmin)',
+                  width: 'min(32px, 8cqmin)',
+                  height: 'min(32px, 8cqmin)',
                 }}
               >
-                {reportStats.remaining === 0 && reportStats.total > 0 ? (
-                  <div
-                    className="flex items-center justify-center"
-                    style={{ gap: 'min(8px, 2cqmin)' }}
-                  >
-                    <CheckCircle2
-                      style={{
-                        width: 'min(18px, 4.5cqmin)',
-                        height: 'min(18px, 4.5cqmin)',
-                      }}
-                    />
-                    Submit Report
-                  </div>
-                ) : (
-                  <div
-                    className="flex items-center justify-center opacity-60"
-                    style={{ gap: 'min(8px, 2cqmin)' }}
-                  >
-                    <Users
-                      style={{
-                        width: 'min(18px, 4.5cqmin)',
-                        height: 'min(18px, 4.5cqmin)',
-                      }}
-                    />
-                    {hiddenRemaining > 0
-                      ? `Assign ${reportStats.remaining} more — ${hiddenRemaining} outside this group`
-                      : `Assign ${reportStats.remaining} More Students`}
-                  </div>
-                )}
+                <Undo2
+                  style={{
+                    width: 'min(16px, 4.5cqmin)',
+                    height: 'min(16px, 4.5cqmin)',
+                  }}
+                />
               </Button>
-
-              <div
-                className="flex shrink-0"
-                style={{ gap: 'min(6px, 1.5cqmin)' }}
-              >
-                <Button
-                  {...tourAttr(
-                    'lunch-count.refresh-menu',
-                    widget.id,
-                    widget.type
-                  )}
-                  onClick={() => void fetchNutrislice()}
-                  variant="ghost"
-                  size="sm"
-                  className="rounded-xl bg-white border border-slate-200"
-                  style={{
-                    padding: 'min(6px, 1.5cqmin)',
-                    width: 'min(32px, 8cqmin)',
-                    height: 'min(32px, 8cqmin)',
-                  }}
-                  disabled={isSyncing}
-                >
-                  <RefreshCw
-                    style={{
-                      width: 'min(16px, 4.5cqmin)',
-                      height: 'min(16px, 4.5cqmin)',
-                    }}
-                    className={isSyncing ? 'animate-spin' : ''}
-                  />
-                </Button>
-                <Button
-                  {...tourAttr(
-                    'lunch-count.reset-assignments',
-                    widget.id,
-                    widget.type
-                  )}
-                  onClick={() =>
-                    updateWidget(widget.id, {
-                      config: { ...config, assignments: {} },
-                    })
-                  }
-                  variant="ghost"
-                  size="sm"
-                  className="rounded-xl text-slate-400 hover:text-brand-red-primary bg-white border border-slate-200"
-                  style={{
-                    padding: 'min(6px, 1.5cqmin)',
-                    width: 'min(32px, 8cqmin)',
-                    height: 'min(32px, 8cqmin)',
-                  }}
-                >
-                  <Undo2
-                    style={{
-                      width: 'min(16px, 4.5cqmin)',
-                      height: 'min(16px, 4.5cqmin)',
-                    }}
-                  />
-                </Button>
-              </div>
             </div>
           </div>
         }
@@ -906,7 +896,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
               <div
                 data-drop-zone="hot"
                 data-testid="hot-zone"
-                className={`min-h-0 bg-brand-red-lighter/10 border-2 border-dashed border-brand-red-lighter rounded-2xl flex flex-col transition-all group ${overZones.has('hot') ? 'border-solid border-brand-red-primary bg-brand-red-lighter/30 scale-[1.02]' : ''}`}
+                className={`bg-brand-red-lighter/10 border-2 border-dashed border-brand-red-lighter rounded-2xl flex flex-col transition-all group ${overZones.has('hot') ? 'border-solid border-brand-red-primary bg-brand-red-lighter/30 scale-[1.02]' : ''}`}
                 style={{ padding: 'min(10px, 2cqmin)' }}
               >
                 <div
@@ -972,7 +962,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
               <div
                 data-drop-zone="bento"
                 data-testid="bento-zone"
-                className={`min-h-0 bg-emerald-50 border-2 border-dashed border-emerald-300 rounded-2xl flex flex-col transition-all group ${overZones.has('bento') ? 'border-solid border-emerald-500 bg-emerald-100/50 scale-[1.02]' : ''}`}
+                className={`bg-emerald-50 border-2 border-dashed border-emerald-300 rounded-2xl flex flex-col transition-all group ${overZones.has('bento') ? 'border-solid border-emerald-500 bg-emerald-100/50 scale-[1.02]' : ''}`}
                 style={{ padding: 'min(10px, 2cqmin)' }}
               >
                 <div
@@ -1037,7 +1027,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
               <div
                 data-drop-zone="home"
                 data-testid="home-zone"
-                className={`min-h-0 bg-brand-blue-lighter/20 border-2 border-dashed border-brand-blue-lighter rounded-2xl flex flex-col transition-all group ${overZones.has('home') ? 'border-solid border-brand-blue-primary bg-brand-blue-lighter/40 scale-[1.02]' : ''}`}
+                className={`bg-brand-blue-lighter/20 border-2 border-dashed border-brand-blue-lighter rounded-2xl flex flex-col transition-all group ${overZones.has('home') ? 'border-solid border-brand-blue-primary bg-brand-blue-lighter/40 scale-[1.02]' : ''}`}
                 style={{ padding: 'min(10px, 2cqmin)' }}
               >
                 <div
