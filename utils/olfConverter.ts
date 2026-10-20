@@ -526,7 +526,14 @@ const parsePointList = (raw: string): [number, number][] => {
 };
 
 const bump = (bag: Record<string, number>, key: string): void => {
-  bag[key] = (bag[key] ?? 0) + 1;
+  const prev = Object.hasOwn(bag, key) ? bag[key] : 0;
+  // defineProperty keeps keys like "__proto__" as own entries.
+  Object.defineProperty(bag, key, {
+    value: prev + 1,
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
 };
 
 const metaAttrs = (meta: ElementMeta | undefined): string => {
