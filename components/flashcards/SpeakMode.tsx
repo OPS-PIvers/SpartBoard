@@ -111,6 +111,8 @@ export interface SpeakModeProps {
   onStar: (cardId: string) => void;
   onNextRound: () => void;
   onRestart?: () => void;
+  /** Keyboard shortcuts pause while the settings drawer is open. */
+  paused?: boolean;
 }
 
 type Phase =
@@ -497,6 +499,7 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
   onStar,
   onNextRound,
   onRestart,
+  paused = false,
 }) => {
   const { t } = useTranslation();
   const recognizer = getRecognizer();
@@ -554,6 +557,8 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
 
   useEffect(
     () => () => {
+      // A result that lands after unmount must not record a card the student left.
+      runRef.current += 1;
       if (takeUrlRef.current) URL.revokeObjectURL(takeUrlRef.current);
       audioRef.current?.pause();
       stopHearRef.current?.();
@@ -629,7 +634,7 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
         if (runRef.current !== run) return;
         // too-slow moves the recognizer to unsupported, which swaps in the F12 panel.
         if (err instanceof RecognizerError && err.code === 'too-slow') return;
-        void recognizer.prepare({ allowMetered: true });
+        void recognizer.prepare({ allowMetered: false });
         setPhase({ kind: 'unclear' });
         focusSoon(actionRef);
       });
@@ -720,8 +725,10 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
   const decidedResult = phase.kind === 'result' && phase.decided;
 
   const onKey = useEffectEvent((event: KeyboardEvent) => {
-    if (summary || blockReason || isTypingTarget(event.target)) return;
-    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    if (paused || summary || blockReason || isTypingTarget(event.target))
+      return;
+    if (event.repeat || event.metaKey || event.ctrlKey || event.altKey) return;
+    const recordingNow = capture.phase === 'recording';
     const onButton = event.target instanceof HTMLButtonElement;
     const key = event.key.toLowerCase();
     if (event.key === ' ' && !onButton) {
@@ -731,10 +738,10 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
     } else if (event.key === 'Enter' && !onButton && decidedResult) {
       event.preventDefault();
       next();
-    } else if (key === 'r' && takeUrlRef.current) {
+    } else if (key === 'r' && !recordingNow && takeUrlRef.current) {
       event.preventDefault();
       playTake();
-    } else if (key === 'h' && canHear) {
+    } else if (key === 'h' && !recordingNow && canHear) {
       event.preventDefault();
       playExample();
     }
@@ -767,7 +774,7 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
         onRetry={
           blockReason === 'mic-blocked' ||
           blockReason === 'no-mic' ||
-          blockReason === 'framed'
+          (blockReason === 'framed' && !frameBlocked)
             ? retryMic
             : undefined
         }
@@ -1130,7 +1137,6 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
               ref={micButtonRef}
               type="button"
               onClick={toggleRecording}
-              aria-pressed={capture.phase === 'recording'}
               aria-keyshortcuts="Space"
               title={t('flashcards.speak.player.keys')}
               disabled={capture.phase === 'requesting-permission'}

@@ -20,6 +20,8 @@ export function useMicLevel(stream: MediaStream | null): number {
     let context: AudioContext;
     try {
       context = new Ctor();
+      // Safari starts a context suspended outside a user gesture.
+      void context.resume().catch(() => undefined);
     } catch {
       return undefined;
     }

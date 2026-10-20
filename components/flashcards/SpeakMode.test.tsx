@@ -13,6 +13,7 @@ import { LocalFlashcardAdapter } from './adapters';
 import { FlashcardPlayer, type FlashcardPlayerSpeak } from './FlashcardPlayer';
 import {
   createFakeRecognizer,
+  toResult,
   type FakeRecognizer,
 } from './speak/fakeRecognizer';
 
@@ -426,6 +427,39 @@ describe('Speak mode', () => {
     await user.keyboard('{Enter}');
     expect(screen.getByText('hola')).toBeTruthy();
     expect(adapter.load().speak?.perro?.s).toBe(1);
+  });
+
+  it('drops a result that lands after the student leaves Speak', async () => {
+    const user = userEvent.setup();
+    const adapter = renderPlayer();
+    let finish: (value: ReturnType<typeof toResult>) => void = () => undefined;
+    fake.recognize = () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      });
+    await user.click(await openSpeak(user));
+    expect(await screen.findByText('Checking…')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Write' }));
+    await act(async () => {
+      finish(toResult({ tokens: ['p', 'e', 'r', 'o'] }));
+      await Promise.resolve();
+    });
+    expect(adapter.load().speak).toBeUndefined();
+  });
+
+  it('keeps a mid-card attempts change without restarting the round', async () => {
+    const user = userEvent.setup();
+    renderPlayer();
+    fake.queue({ tokens: ['p', 'a', 'r', 'o'] });
+    await user.click(await openSpeak(user));
+    expect(await screen.findByText('Not yet')).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: 'Study settings' }));
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Attempts per card' }),
+      '4'
+    );
+    expect(screen.getByText('Not yet')).toBeTruthy();
+    expect(screen.getByRole('img', { name: 'Attempt 2 of 4' })).toBeTruthy();
   });
 
   it('skips stress judging on a disputed card the teacher has not confirmed', async () => {

@@ -174,9 +174,13 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
       ...(check?.mode === 'flashcards' ? { hideMastered: true } : {}),
     };
   });
-  const [mode, setMode] = useState<FlashcardMode>(
+  const [chosenMode, setMode] = useState<FlashcardMode>(
     allowedModes[0] ?? 'flashcards'
   );
+  // Speak drops out if the stamp goes away mid-session; fall back to the first mode left.
+  const mode = allowedModes.includes(chosenMode)
+    ? chosenMode
+    : (allowedModes[0] ?? 'flashcards');
   const [checkLog, setCheckLog] = useState<
     Record<string, FlashcardCheckWriteEntry>
   >(() => check?.initialCheckLog ?? {});
@@ -476,7 +480,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     height: 'min(17px, 4cqmin)',
   };
   const modeKey = `${mode}:${session.round}:${session.roundCards.map((card) => card.id).join(',')}:${settings.showFirst}:${settings.strict}:${settings.testTypes.join(',')}:${settings.testCount}`;
-  const speakKey = `speak:${session.speakRound}:${session.speakCards.map((card) => card.id).join(',')}:${speakSettings?.attempts ?? 0}`;
+  const speakKey = `speak:${session.speakRound}:${session.speakCards.map((card) => card.id).join(',')}`;
 
   const emptyView = (
     <div className="flex h-full items-center justify-center text-center">
@@ -821,6 +825,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                 onStar={star}
                 onNextRound={nextRound}
                 onRestart={onRestart}
+                paused={settingsOpen}
               />
             </Suspense>
           )
