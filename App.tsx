@@ -441,6 +441,14 @@ const AssignStepperDevHarness = import.meta.env.DEV
     )
   : null;
 
+const SpeakPlayerDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/SpeakPlayerDevHarness').then((module) => ({
+        default: module.SpeakPlayerDevHarness,
+      }))
+    )
+  : null;
+
 const GlViewsDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/GlViewsDevHarness').then((module) => ({
@@ -1264,6 +1272,15 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <AssignStepperDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: Flashcards Speak player with a scripted recognizer, for screenshots.
+  if (SpeakPlayerDevHarness && pathname === '/speak-player-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <SpeakPlayerDevHarness />
       </Suspense>
     );
   }
