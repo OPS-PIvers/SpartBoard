@@ -2833,6 +2833,64 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "blooms-taxonomy.ai-topic",
+    "label": "AI topic box in Bloom's Taxonomy",
+    "scope": "widget type",
+    "keys": [
+      "blooms-taxonomy"
+    ]
+  },
+  {
+    "id": "blooms-taxonomy.ai-dismiss",
+    "label": "Dismiss AI result button in Bloom's Taxonomy",
+    "scope": "widget type",
+    "destructive": true,
+    "keys": [
+      "blooms-taxonomy"
+    ]
+  },
+  {
+    "id": "blooms-detail.back",
+    "label": "Back to categories button in the Bloom's detail panel",
+    "scope": "widget type",
+    "keys": [
+      "blooms-detail"
+    ]
+  },
+  {
+    "id": "blooms-detail.close",
+    "label": "Close button in the Bloom's detail panel",
+    "scope": "widget type",
+    "destructive": true,
+    "keys": [
+      "blooms-detail"
+    ]
+  },
+  {
+    "id": "blooms-detail.add-to-board",
+    "label": "Add to board button in the Bloom's detail panel",
+    "scope": "widget type",
+    "keys": [
+      "blooms-detail"
+    ]
+  },
+  {
+    "id": "calendar.start-timer",
+    "label": "Start countdown to event button in Calendar",
+    "scope": "widget type",
+    "keys": [
+      "calendar"
+    ]
+  },
+  {
+    "id": "calendar.connect-google",
+    "label": "Connect Google Calendar button on the Calendar face",
+    "scope": "widget type",
+    "keys": [
+      "calendar"
+    ]
+  },
+  {
     "id": "arts-letters-agenda.reset-checks",
     "label": "Reset checks button in Arts & Letters Agenda",
     "scope": "widget",

@@ -26,6 +26,7 @@ export const LayoutPicker: React.FC<LayoutPickerProps> = ({
     {LAYOUT_OPTIONS.map((option) => {
       const selected = value === option.layout;
       return (
+        // no-tour-anchor: one card per layout, the tour points at the Layout picker group
         <button
           key={option.layout}
           type="button"

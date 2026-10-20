@@ -62,6 +62,7 @@ export const BloomsCategoriesField: React.FC<{ ctx: CustomRenderCtx }> = ({
           key={category}
           className="flex items-center gap-2 text-sm text-slate-700"
         >
+          {/* no-tour-anchor: one checkbox per category in an anchored settings field */}
           <input
             type="checkbox"
             checked={enabledCategories.includes(category)}

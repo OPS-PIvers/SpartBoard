@@ -36,6 +36,7 @@ export const ConceptWebCanvasField: React.FC<{ ctx: CustomRenderCtx }> = ({
             containerType: 'size',
           }}
         >
+          {/* no-tour-anchor: read-only preview, nobody clicks it */}
           <textarea
             aria-label={t('previewLabel')}
             readOnly
