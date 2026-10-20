@@ -620,19 +620,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     destructive: true,
   },
-  'blooms-detail.back': {
-    label: "Back to categories button in the Bloom's detail panel",
-    perWidgetType: true,
-  },
-  'blooms-detail.close': {
-    label: "Close button in the Bloom's detail panel",
-    perWidgetType: true,
-    destructive: true,
-  },
-  'blooms-detail.add-to-board': {
-    label: "Add to board button in the Bloom's detail panel",
-    perWidgetType: true,
-  },
   'calendar.start-timer': {
     label: 'Start countdown to event button in Calendar',
     perWidgetType: true,

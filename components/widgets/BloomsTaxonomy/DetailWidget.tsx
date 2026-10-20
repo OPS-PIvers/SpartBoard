@@ -1,4 +1,3 @@
-import { tourTypeAttr } from '@/config/tourAnchors';
 import React, { useState } from 'react';
 import { Plus, ArrowLeft, X } from 'lucide-react';
 import {
@@ -132,8 +131,8 @@ export const BloomsDetailWidget: React.FC<{ widget: WidgetData }> = ({
               style={{ gap: 'min(6px, 1.5cqmin)' }}
             >
               {viewState.view === 'content' && (
+                // no-tour-anchor: companion widget spawned by Add to board, never on stage for a tour
                 <button
-                  {...tourTypeAttr('blooms-detail.back', 'blooms-detail')}
                   onClick={() => setViewState({ view: 'categories' })}
                   className="text-white/70 hover:text-white transition-colors shrink-0"
                   aria-label="Back to categories"
@@ -166,8 +165,8 @@ export const BloomsDetailWidget: React.FC<{ widget: WidgetData }> = ({
                 )}
               </span>
             </div>
+            {/* no-tour-anchor: companion widget spawned by Add to board, never on stage for a tour */}
             <button
-              {...tourTypeAttr('blooms-detail.close', 'blooms-detail')}
               onClick={handleClose}
               className="text-white/70 hover:text-white transition-colors shrink-0"
               aria-label="Close detail panel"
@@ -293,11 +292,8 @@ export const BloomsDetailWidget: React.FC<{ widget: WidgetData }> = ({
                   padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
                 }}
               >
+                {/* no-tour-anchor: companion widget spawned by Add to board, never on stage for a tour */}
                 <button
-                  {...tourTypeAttr(
-                    'blooms-detail.add-to-board',
-                    'blooms-detail'
-                  )}
                   onClick={handleAddToBoard}
                   className="w-full flex items-center justify-center font-semibold text-white rounded-lg transition-all duration-150 hover:brightness-110 active:scale-[0.98]"
                   style={{

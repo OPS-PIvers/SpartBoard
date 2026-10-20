@@ -2872,64 +2872,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "blooms-detail.back",
-    "label": "Back to categories button in the Bloom's detail panel",
-    "scope": "widget type",
-    "keys": [
-      "blooms-detail"
-    ],
-    "routes": [
-      {
-        "surface": "widgets.blooms-taxonomy.face",
-        "kind": "widget",
-        "widget_type": "blooms-taxonomy",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "blooms-detail.close",
-    "label": "Close button in the Bloom's detail panel",
-    "scope": "widget type",
-    "destructive": true,
-    "keys": [
-      "blooms-detail"
-    ],
-    "routes": [
-      {
-        "surface": "widgets.blooms-taxonomy.face",
-        "kind": "widget",
-        "widget_type": "blooms-taxonomy",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "blooms-detail.add-to-board",
-    "label": "Add to board button in the Bloom's detail panel",
-    "scope": "widget type",
-    "keys": [
-      "blooms-detail"
-    ],
-    "routes": [
-      {
-        "surface": "widgets.blooms-taxonomy.face",
-        "kind": "widget",
-        "widget_type": "blooms-taxonomy",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "calendar.start-timer",
     "label": "Start countdown to event button in Calendar",
     "scope": "widget type",

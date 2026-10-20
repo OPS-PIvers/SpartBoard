@@ -1,4 +1,3 @@
-import { tourTypeAttr } from '@/config/tourAnchors';
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Timer, Clock, MapPin, AlignLeft, CalendarDays } from 'lucide-react';
 import type { CalendarEvent } from '@/types';
@@ -10,6 +9,7 @@ import {
   isPastEvent,
   toSeconds,
 } from './agendaUtils';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface CalendarAgendaProps {
   events: CalendarEvent[];
