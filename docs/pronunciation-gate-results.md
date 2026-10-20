@@ -1,85 +1,86 @@
 # Speak corpus gate results
 
-Run 2026-10-20 on 488 clips and 20 controls, model `wav2vec2-xlsr-53-espeak-cv-ft-q4`, unclear cut-off 0.4, 563 s.
+Run 2026-10-20 on 488 main and 355 heldout clips and 20 controls, model `wav2vec2-xlsr-53-espeak-cv-ft-q4`, likelihood scorer (swap 3.5, required group 1, forgiven group -1, window 5), 0 es / 0 de / 0 en native variants, unclear cut-off 0.4, 877 s.
+
+References: espeak-ng plus 8 es / 8 de / 8 en Cloud TTS voices per word (`tests/fixtures/pronunciation-corpus/voice-refs.json`).
+
+**Not measured:** the another-word check has no pass mark (wrongWordAcceptedMax).
+
+Gate not enforced: 16 checks below their pass mark.
+
+## Tuning set
+
+The words the scorer cut-offs were picked on (`words.json`).
 
 | Check                                  | Result | Pass mark |          |
 | -------------------------------------- | ------ | --------- | -------- |
-| de: natives pass Beginner              | 35.4%  | ≥ 95.0%   | **fail** |
-| de: natives pass Advanced              | 29.1%  | ≥ 85.0%   | **fail** |
+| de: natives pass Beginner              | 90.9%  | ≥ 95.0%   | **fail** |
+| de: natives pass Advanced              | 81.7%  | ≥ 85.0%   | **fail** |
 | de: natives unclear                    | 1.1%   | ≤ 2.0%    | pass     |
-| de: high-load mutations caught         | 100.0% | ≥ 80.0%   | pass     |
-| de: group pairs caught under require   | 100.0% | ≥ 80.0%   | pass     |
-| de: group pairs Accepted under forgive | 100.0% | ≥ 90.0%   | pass     |
-| en: natives pass Beginner              | 51.2%  | ≥ 95.0%   | **fail** |
-| en: natives pass Advanced              | 45.8%  | ≥ 85.0%   | **fail** |
+| de: high-load mutations caught         | 92.4%  | ≥ 80.0%   | pass     |
+| de: group pairs caught under require   | 89.1%  | ≥ 80.0%   | pass     |
+| de: group pairs Accepted under forgive | 84.5%  | ≥ 90.0%   | **fail** |
+| de: another word accepted (Beginner)   | 1.3%   | none set  | n/a      |
+| en: natives pass Beginner              | 95.2%  | ≥ 95.0%   | pass     |
+| en: natives pass Advanced              | 88.7%  | ≥ 85.0%   | pass     |
 | en: natives unclear                    | 1.8%   | ≤ 2.0%    | pass     |
-| en: high-load mutations caught         | 100.0% | ≥ 80.0%   | pass     |
-| en: group pairs caught under require   | 100.0% | ≥ 80.0%   | pass     |
-| en: group pairs Accepted under forgive | 100.0% | ≥ 90.0%   | pass     |
-| es: natives pass Beginner              | 51.0%  | ≥ 95.0%   | **fail** |
-| es: natives pass Advanced              | 43.4%  | ≥ 85.0%   | **fail** |
+| en: high-load mutations caught         | 91.9%  | ≥ 80.0%   | pass     |
+| en: group pairs caught under require   | 93.1%  | ≥ 80.0%   | pass     |
+| en: group pairs Accepted under forgive | 91.7%  | ≥ 90.0%   | pass     |
+| en: another word accepted (Beginner)   | 2.0%   | none set  | n/a      |
+| es: natives pass Beginner              | 90.3%  | ≥ 95.0%   | **fail** |
+| es: natives pass Advanced              | 84.8%  | ≥ 85.0%   | **fail** |
 | es: natives unclear                    | 0.0%   | ≤ 2.0%    | pass     |
-| es: high-load mutations caught         | 100.0% | ≥ 80.0%   | pass     |
-| es: group pairs caught under require   | 100.0% | ≥ 80.0%   | pass     |
-| es: group pairs Accepted under forgive | 100.0% | ≥ 90.0%   | pass     |
-| controls: judged unclear               | 100.0% | 100%      | pass     |
+| es: high-load mutations caught         | 90.5%  | ≥ 80.0%   | pass     |
+| es: group pairs caught under require   | 45.6%  | ≥ 80.0%   | **fail** |
+| es: group pairs Accepted under forgive | 61.4%  | ≥ 90.0%   | **fail** |
+| es: another word accepted (Beginner)   | 1.8%   | none set  | n/a      |
 
-| Language | Clips | Mutations (high-load / group) |
-| -------- | ----- | ----------------------------- |
-| de       | 175   | 131 / 92                      |
-| en       | 168   | 120 / 118                     |
-| es       | 145   | 231 / 23                      |
+| Language | Clips | Mutations (high-load / group) | Other-word judgements |
+| -------- | ----- | ----------------------------- | --------------------- |
+| de       | 175   | 291 / 220                     | 1383                  |
+| en       | 168   | 248 / 216                     | 1316                  |
+| es       | 145   | 422 / 57                      | 1159                  |
 
-Browser and Node decode agreement (§8) is checked by hand on `/pronunciation-dev`, not here.
+## Held-out set
 
-## Native substitutions under Advanced
+New words and speakers (`words.heldout.json`) that no cut-off was tuned on; they confirm the tuning set generalises.
 
-Pairs natives produce in at least 10% of clips are tolerance candidates for S11 (§4.2), each with Paul's yes.
+| Check                                  | Result | Pass mark |          |
+| -------------------------------------- | ------ | --------- | -------- |
+| de: natives pass Beginner              | 93.3%  | ≥ 95.0%   | **fail** |
+| de: natives pass Advanced              | 91.7%  | ≥ 85.0%   | pass     |
+| de: natives unclear                    | 3.3%   | ≤ 2.0%    | **fail** |
+| de: high-load mutations caught         | 93.6%  | ≥ 80.0%   | pass     |
+| de: group pairs caught under require   | 88.1%  | ≥ 80.0%   | pass     |
+| de: group pairs Accepted under forgive | 89.2%  | ≥ 90.0%   | **fail** |
+| de: another word accepted (Beginner)   | 2.2%   | none set  | n/a      |
+| en: natives pass Beginner              | 91.7%  | ≥ 95.0%   | **fail** |
+| en: natives pass Advanced              | 89.2%  | ≥ 85.0%   | pass     |
+| en: natives unclear                    | 4.2%   | ≤ 2.0%    | **fail** |
+| en: high-load mutations caught         | 96.0%  | ≥ 80.0%   | pass     |
+| en: group pairs caught under require   | 96.7%  | ≥ 80.0%   | pass     |
+| en: group pairs Accepted under forgive | 92.1%  | ≥ 90.0%   | pass     |
+| en: another word accepted (Beginner)   | 1.3%   | none set  | n/a      |
+| es: natives pass Beginner              | 89.6%  | ≥ 95.0%   | **fail** |
+| es: natives pass Advanced              | 83.5%  | ≥ 85.0%   | **fail** |
+| es: natives unclear                    | 0.0%   | ≤ 2.0%    | pass     |
+| es: high-load mutations caught         | 89.4%  | ≥ 80.0%   | pass     |
+| es: group pairs caught under require   | 76.3%  | ≥ 80.0%   | **fail** |
+| es: group pairs Accepted under forgive | 80.3%  | ≥ 90.0%   | **fail** |
+| es: another word accepted (Beginner)   | 0.2%   | none set  | n/a      |
 
-| Pair     | Clips |
-| -------- | ----- |
-| es ɾ→r   | 24    |
-| de ɾ→r   | 9     |
-| de ə→e   | 8     |
-| de ɑː→a  | 8     |
-| en æ→ɛ   | 8     |
-| de ɜ→a   | 7     |
-| de ʊ→u   | 7     |
-| de yː→y  | 6     |
-| de t→d   | 6     |
-| en æ→a   | 6     |
-| en ɚ→ə   | 6     |
-| es a→ɐ   | 6     |
-| es β→b   | 6     |
-| es β→v   | 6     |
-| de ɑː→aː | 5     |
-| en ɪ→ɛ   | 5     |
-| en iː→i  | 5     |
-| es e→eː  | 5     |
-| es ð→d   | 5     |
-| es ʝ→j   | 5     |
-| de iː→i  | 4     |
-| de əl→ə  | 4     |
-| de ɪ→i   | 4     |
-| de ʊ→o   | 4     |
-| en t→tʃ  | 4     |
-| es ɾ→d   | 4     |
-| de aʊ→ɑː | 3     |
-| de ɾ→a   | 3     |
-| de ɾ→i   | 3     |
-| de eː→iː | 3     |
-| de ɔø→j  | 3     |
-| de yː→uː | 3     |
-| de eː→i  | 3     |
-| de oː→o  | 3     |
-| de z→s   | 3     |
-| de ç→k   | 3     |
-| de ɔ→o   | 3     |
-| de v→f   | 3     |
-| en ɪ→ə   | 3     |
-| en ɜː→ɚ  | 3     |
+| Language | Clips | Mutations (high-load / group) | Other-word judgements |
+| -------- | ----- | ----------------------------- | --------------------- |
+| de       | 120   | 295 / 176                     | 928                   |
+| en       | 120   | 225 / 152                     | 920                   |
+| es       | 115   | 407 / 76                      | 920                   |
 
 ## Controls
+
+| Check                    | Result | Pass mark |      |
+| ------------------------ | ------ | --------- | ---- |
+| controls: judged unclear | 100.0% | 100%      | pass |
 
 | Control           | Heard     | Confidence | Voiced ms | Verdict |
 | ----------------- | --------- | ---------- | --------- | ------- |
@@ -103,3 +104,42 @@ Pairs natives produce in at least 10% of clips are tolerance candidates for S11 
 | clipped-high-tone | (nothing) | 0.00       | 0         | unclear |
 | clipped-hum-burst | (nothing) | 0.00       | 0         | unclear |
 | tone-beep         | (nothing) | 0.00       | 300       | unclear |
+
+Browser and Node decode agreement (§8) is checked by hand on `/pronunciation-dev`, not here.
+
+## Native errors under Advanced (tuning set)
+
+Substitutions the scorer still counts against natives; candidates for the variant table or a tolerance pair, each with Paul's yes.
+
+| Pair     | Clips |
+| -------- | ----- |
+| de ç→k   | 3     |
+| es o→ə   | 3     |
+| de ɔ→ɑ   | 2     |
+| en d→t   | 2     |
+| en ɾ→t   | 2     |
+| es x→s   | 2     |
+| de k→ɡ   | 1     |
+| de eː→iː | 1     |
+| de ɜ→ɚ   | 1     |
+| de ɡ→t   | 1     |
+| de ɜ→ɛ   | 1     |
+| de v→f   | 1     |
+| de ts→t  | 1     |
+| en ɹ→w   | 1     |
+| en ɪ→iː  | 1     |
+| en ɚ→a   | 1     |
+| en θ→f   | 1     |
+| en ɾ→tʃ  | 1     |
+| es k→j   | 1     |
+| es r→t   | 1     |
+| es ʎ→ʃ   | 1     |
+| es dʒ→ʃ  | 1     |
+| es ŋ→k   | 1     |
+| es x→k   | 1     |
+| es x→h   | 1     |
+| es ð→d   | 1     |
+| es ɾ→n   | 1     |
+| es o→e   | 1     |
+| es t→ɡ   | 1     |
+| es ð→l   | 1     |
