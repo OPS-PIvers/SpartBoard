@@ -187,6 +187,14 @@
       "openedAt": "2026-10-18T22:45:00Z",
       "outcome": "open",
       "changes": {}
+    },
+    {
+      "pr": 4425,
+      "widgetType": "embed",
+      "dimension": "interaction",
+      "openedAt": "2026-10-20T04:20:00Z",
+      "outcome": "open",
+      "changes": {}
     }
   ]
 }
