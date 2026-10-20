@@ -62,9 +62,7 @@ function renderPlayer(
   set: GuidedLearningSet,
   props: Partial<React.ComponentProps<typeof GuidedLearningPlayer>> = {}
 ) {
-  const view = render(
-    <GuidedLearningPlayer set={set} playerV2 autoPlay {...props} />
-  );
+  const view = render(<GuidedLearningPlayer set={set} autoPlay {...props} />);
   loadSlides();
   return view;
 }
@@ -92,7 +90,7 @@ describe('GuidedLearningPlayer held (period paused, finishing card)', () => {
     const { rerender } = renderPlayer(set, { held: true });
     tick(20000);
     expect(screen.getByText('1 / 2')).toBeInTheDocument();
-    rerender(<GuidedLearningPlayer set={set} playerV2 autoPlay />);
+    rerender(<GuidedLearningPlayer set={set} autoPlay />);
     tick(20000);
     expect(screen.getByText('2 / 2')).toBeInTheDocument();
   });
@@ -107,7 +105,7 @@ describe('GuidedLearningPlayer held (period paused, finishing card)', () => {
       .mockImplementation(() => undefined);
     const { rerender } = renderPlayer(set);
     pause.mockClear();
-    rerender(<GuidedLearningPlayer set={set} playerV2 autoPlay held />);
+    rerender(<GuidedLearningPlayer set={set} autoPlay held />);
     expect(pause).toHaveBeenCalled();
   });
 
@@ -118,14 +116,6 @@ describe('GuidedLearningPlayer held (period paused, finishing card)', () => {
     nextButton().focus();
     fireEvent.keyDown(nextButton(), { key: 'ArrowRight' });
     expect(screen.getByText('1 / 2')).toBeInTheDocument();
-  });
-
-  it('keeps v1 on the clock whatever held says', () => {
-    render(<GuidedLearningPlayer set={makeSet([tip('a'), tip('b')])} held />);
-    loadSlides();
-    fireEvent.click(screen.getAllByRole('button', { name: /^play$/i })[0]);
-    tick(20000);
-    expect(screen.getByText('2 / 2')).toBeInTheDocument();
   });
 });
 
@@ -219,8 +209,8 @@ describe('GuidedLearningPlayer keyboard scope', () => {
     const set = makeSet([tip('a'), tip('b')], { mode: 'structured' });
     render(
       <>
-        <GuidedLearningPlayer set={set} playerV2 />
-        <GuidedLearningPlayer set={{ ...set, id: 'other' }} playerV2 />
+        <GuidedLearningPlayer set={set} />
+        <GuidedLearningPlayer set={{ ...set, id: 'other' }} />
       </>
     );
     const [rootA, rootB] = screen.getAllByTestId('gl-player-root');
@@ -282,7 +272,7 @@ describe('GuidedLearningPlayer Studio preview (teacherMode)', () => {
       ],
       { mode: 'structured' }
     );
-    render(<GuidedLearningPlayer set={set} playerV2 teacherMode />);
+    render(<GuidedLearningPlayer set={set} teacherMode />);
     fireEvent.click(screen.getByText('Paris'));
     fireEvent.click(screen.getByRole('button', { name: 'Submit Answer' }));
     expect(screen.getByText('Correct!')).toBeInTheDocument();

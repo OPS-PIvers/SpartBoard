@@ -72,67 +72,62 @@ function bar(root: HTMLElement, selector: string) {
 describe('Studio frame matches the student player', () => {
   it.each(
     [...DEVICE_PRESETS, customPreset(480, 360)].flatMap((preset) =>
-      (['guided', 'structured', 'explore'] as const).flatMap((mode) =>
-        [false, true].map((playerV2) => ({ preset, mode, playerV2 }))
-      )
+      (['guided', 'structured', 'explore'] as const).map((mode) => ({
+        preset,
+        mode,
+      }))
     )
-  )(
-    '$preset.id, $mode, v2 $playerV2: same boxes around the stage',
-    ({ preset, mode, playerV2 }) => {
-      const set = makeSet(mode);
-      const studio = render(
-        <DeviceFrame
-          preset={preset}
-          chrome={{
-            title: set.title,
-            mode,
-            playerV2,
-            steps: set.steps as unknown as GuidedLearningPublicStep[],
-            stepIndex: 0,
-            imageCount: set.imageUrls.length,
-            imageIndex: 0,
-          }}
-        >
-          <GuidedLearningStage
-            set={set}
-            steps={set.steps as unknown as GuidedLearningPublicStep[]}
-            imageIndex={0}
-            activeStepId="s1"
-            authorMode="explore"
-            answeredStepIds={NO_ANSWERS}
-            teacherMode
-            zoomScale={1}
-            forceOverlay
-            onPinClick={noop}
-            onAdvance={noop}
-            onDismiss={noop}
-          />
-        </DeviceFrame>
-      ).container;
-      const player = render(
-        <DeviceFrame preset={preset}>
-          <GuidedLearningPlayer set={set} teacherMode playerV2={playerV2} />
-        </DeviceFrame>
-      ).container;
+  )('$preset.id, $mode: same boxes around the stage', ({ preset, mode }) => {
+    const set = makeSet(mode);
+    const studio = render(
+      <DeviceFrame
+        preset={preset}
+        chrome={{
+          title: set.title,
+          mode,
+          steps: set.steps as unknown as GuidedLearningPublicStep[],
+          stepIndex: 0,
+          imageCount: set.imageUrls.length,
+          imageIndex: 0,
+        }}
+      >
+        <GuidedLearningStage
+          set={set}
+          steps={set.steps as unknown as GuidedLearningPublicStep[]}
+          imageIndex={0}
+          activeStepId="s1"
+          authorMode="explore"
+          answeredStepIds={NO_ANSWERS}
+          teacherMode
+          zoomScale={1}
+          forceOverlay
+          onPinClick={noop}
+          onAdvance={noop}
+          onDismiss={noop}
+        />
+      </DeviceFrame>
+    ).container;
+    const player = render(
+      <DeviceFrame preset={preset}>
+        <GuidedLearningPlayer set={set} teacherMode />
+      </DeviceFrame>
+    ).container;
 
-      expect(stageChain(studio)).toEqual(stageChain(player));
-      expect(bar(studio, '[data-gl-topbar]')).toEqual(
-        bar(player, '[data-gl-topbar]')
-      );
-      expect(bar(studio, '[data-gl-footer]')).toEqual(
-        bar(player, '[data-gl-footer]')
-      );
-      expect(Boolean(studio.querySelector('[data-gl-footer]'))).toBe(
-        mode !== 'explore'
-      );
-      // The chrome's text sizes resolve against the same container box.
-      expect(
-        studio.querySelector('[data-testid="gl-mode-chip"]')?.outerHTML
-      ).toEqual(
-        player.querySelector('[data-testid="gl-mode-chip"]')?.outerHTML
-      );
-    }
-  );
+    expect(stageChain(studio)).toEqual(stageChain(player));
+    expect(bar(studio, '[data-gl-topbar]')).toEqual(
+      bar(player, '[data-gl-topbar]')
+    );
+    expect(bar(studio, '[data-gl-footer]')).toEqual(
+      bar(player, '[data-gl-footer]')
+    );
+    expect(Boolean(studio.querySelector('[data-gl-footer]'))).toBe(
+      mode !== 'explore'
+    );
+    // The chrome's text sizes resolve against the same container box.
+    expect(
+      studio.querySelector('[data-testid="gl-mode-chip"]')?.outerHTML
+    ).toEqual(player.querySelector('[data-testid="gl-mode-chip"]')?.outerHTML);
+  });
 
   it('keeps the Studio bars out of the tab order and accessibility tree', () => {
     const set = makeSet('guided');

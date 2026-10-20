@@ -97,8 +97,7 @@ The job is one of three:
 ## How learners play it
 
 The author's `mode` picks how the set starts. Everything below describes
-the calmer player every new session uses; the legacy player notes say
-what differs for sessions started before it.
+the player every session uses.
 
 - `guided` starts in **Watch**: the set plays itself. An animated cursor
   glides from the last target to the next before each step's zoom and
@@ -121,10 +120,6 @@ what differs for sessions started before it.
 - Learners can resume where they left off, and a set assigned to a class is
   scored: question answers are graded and teachers see each step's reach
   and misclick heatmap. Write distractors a real misconception would pick.
-- Legacy player: Watch has no cursor and every step lasts
-  `autoAdvanceDuration` or 5 s, so reading time does not apply. Set
-  `autoAdvanceDuration` only when a step needs more than 5 s there and you
-  accept it in both players.
 
 ## Writing rules (step `text` and `label`)
 

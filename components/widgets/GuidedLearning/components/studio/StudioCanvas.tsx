@@ -33,8 +33,6 @@ interface StudioCanvasProps {
   tools: CanvasTools;
   setId: string;
   preset: DevicePreset;
-  /** Apply the v2 player's text sizes, matching how sessions will play. */
-  playerV2?: boolean;
   /** Deletes a step with the Studio's undo toast (callout toolbar). */
   onDeleteStep?: (id: string) => void;
 }
@@ -51,7 +49,6 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
   tools,
   setId,
   preset,
-  playerV2 = false,
   onDeleteStep,
 }) => {
   const { t } = useTranslation();
@@ -279,7 +276,6 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
           chrome={{
             title,
             mode,
-            playerV2,
             steps: steps as unknown as GuidedLearningPublicStep[],
             stepIndex: Math.max(
               0,
@@ -289,10 +285,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
             imageIndex: currentImageIndex,
           }}
         >
-          <div
-            className="contents"
-            style={playerV2 ? PROJECTOR_TEXT_VARS : undefined}
-          >
+          <div className="contents" style={PROJECTOR_TEXT_VARS}>
             <GuidedLearningStage
               set={set}
               steps={steps}

@@ -15,8 +15,6 @@ export const READING_WPM = 180;
 export const READING_PAD_S = 1.5;
 /** `watchPace: 'calm'` stretches every auto-advance by this much. */
 export const CALM_PACE_FACTOR = 1.3;
-/** Legacy (player v1) auto-advance when a step sets no duration, in seconds. */
-export const LEGACY_STEP_S = 5;
 
 export const LEARNER_SPEEDS = [0.5, 1, 1.5] as const;
 export type LearnerSpeed = (typeof LEARNER_SPEEDS)[number];
@@ -59,11 +57,9 @@ export interface StepDurationInput {
 
 export interface StepDurationOptions {
   timeMultiplier?: StudentOverride['timeMultiplier'];
-  /** Learner speed; v2 only. */
+  /** Learner speed. */
   speed?: number;
   watchPace?: GuidedLearningWatchPace;
-  /** false keeps today's timing: the step's duration or 5s. */
-  playerV2?: boolean;
 }
 
 /** Auto-advance time in ms; 0 means the step waits for the learner. */
@@ -71,13 +67,6 @@ export function stepDurationMs(
   step: StepDurationInput,
   opts: StepDurationOptions = {}
 ): number {
-  if (!opts.playerV2) {
-    const ms = applyTimeMultiplier(
-      (step.autoAdvanceDuration ?? LEGACY_STEP_S) * 1000,
-      opts.timeMultiplier
-    );
-    return Number.isFinite(ms) && ms > 0 ? ms : 0;
-  }
   // The editor labels 0 as "manual", so it keeps meaning "wait for Next".
   if (step.autoAdvanceDuration === 0) return 0;
   const baseS = Math.max(

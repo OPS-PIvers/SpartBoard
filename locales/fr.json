@@ -4074,13 +4074,11 @@
       "retry": "Réessayer"
     },
     "closePlayer": "Fermer le lecteur",
-    "exploreHint": "Clique sur un repère pour explorer",
     "showSlide": "Afficher la diapositive {{n}}",
     "prev": "Étape précédente",
     "next": "Étape suivante",
     "play": "Lire",
     "pause": "Pause",
-    "sessionProgress": "Progression de la séance",
     "stepProgress": "Progression des étapes",
     "goToStep": "Aller à l’étape {{n}}",
     "resetView": "Réinitialiser la vue",
@@ -4157,11 +4155,6 @@
       "selectClass": "Choisis ta classe",
       "whichPeriod": "Dans quel cours es-tu ?",
       "pickOne": "Choisis-en un pour continuer. Tu pourras saisir ton code PIN ensuite.",
-      "legacyMode": {
-        "guided": "mode guidé",
-        "structured": "mode structuré",
-        "explore": "mode exploration"
-      },
       "steps_one": "{{count}} étape",
       "steps_other": "{{count}} étapes",
       "class": "Classe",

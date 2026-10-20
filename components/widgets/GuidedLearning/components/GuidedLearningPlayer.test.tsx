@@ -171,7 +171,7 @@ describe('GuidedLearningPlayer', () => {
     // tooltip's transformed coordinates above is sufficient — the pin's
     // own coordinates would just duplicate that math.
     expect(
-      screen.queryByRole('button', { name: /step 1/i })
+      screen.queryByRole('button', { name: /^step 1$/i })
     ).not.toBeInTheDocument();
   });
 
@@ -262,6 +262,7 @@ describe('GuidedLearningPlayer', () => {
           yPct: 50,
           imageIndex: 0,
           interactionType: 'tooltip',
+          cursor: { hide: true },
           autoAdvanceDuration: 10,
           text: 'Step 1',
         },
@@ -271,6 +272,7 @@ describe('GuidedLearningPlayer', () => {
           yPct: 30,
           imageIndex: 0,
           interactionType: 'tooltip',
+          cursor: { hide: true },
           text: 'Step 2',
         },
       ],
@@ -312,6 +314,7 @@ describe('GuidedLearningPlayer', () => {
           yPct: 50,
           imageIndex: 0,
           interactionType: 'tooltip',
+          cursor: { hide: true },
           autoAdvanceDuration: 5,
           text: 'Step 1',
         },
@@ -321,6 +324,7 @@ describe('GuidedLearningPlayer', () => {
           yPct: 30,
           imageIndex: 0,
           interactionType: 'tooltip',
+          cursor: { hide: true },
           text: 'Step 2',
         },
       ],
@@ -598,15 +602,15 @@ describe('GuidedLearningPlayer', () => {
     fireEvent.load(screen.getByAltText('V2 Spotlight Test'));
 
     // Zoomed on its own hotspot: centered, radius scaled by the zoom.
-    expect(screen.getByTestId('spotlight')).toHaveTextContent(
-      'spot-step|50,50,r50'
-    );
+    for (const el of screen.getAllByTestId('spotlight')) {
+      expect(el).toHaveTextContent('spot-step|50,50,r50');
+    }
 
-    // Reset view: overlay follows the identity transform back to raw coords.
+    // Reset view: overlay (label and dim) follows the identity transform back to raw coords.
     fireEvent.click(screen.getByRole('button', { name: /reset view/i }));
-    expect(screen.getByTestId('spotlight')).toHaveTextContent(
-      'spot-step|30,80,r25'
-    );
+    for (const el of screen.getAllByTestId('spotlight')) {
+      expect(el).toHaveTextContent('spot-step|30,80,r25');
+    }
   });
 
   it('clears the held v2 zoom when the active explore pin is deselected', () => {
@@ -679,6 +683,7 @@ describe('GuidedLearningPlayer', () => {
             yPct: 80,
             imageIndex: 0,
             interactionType: 'tooltip',
+            cursor: { hide: true },
             text: 'One',
           },
           {
@@ -687,6 +692,7 @@ describe('GuidedLearningPlayer', () => {
             yPct: 30,
             imageIndex: 0,
             interactionType: 'tooltip',
+            cursor: { hide: true },
             text: 'Two',
           },
         ],
@@ -790,128 +796,6 @@ describe('GuidedLearningPlayer', () => {
     expect(bar).toHaveAttribute('aria-valuenow', '2');
   });
 
-  it('renders guided-mode play/pause and session progress in the footer', () => {
-    vi.useFakeTimers();
-
-    const set: GuidedLearningSet = {
-      id: 'set-guided-footer',
-      title: 'Guided Footer Test',
-      imageUrls: ['https://example.com/image.png'],
-      steps: [
-        {
-          id: 'step-1',
-          xPct: 50,
-          yPct: 50,
-          imageIndex: 0,
-          interactionType: 'tooltip',
-          autoAdvanceDuration: 10,
-          text: 'One',
-        },
-        {
-          id: 'step-2',
-          xPct: 30,
-          yPct: 30,
-          imageIndex: 0,
-          interactionType: 'tooltip',
-          text: 'Two',
-        },
-      ],
-      mode: 'guided',
-      createdAt: 0,
-      updatedAt: 0,
-    };
-
-    render(<GuidedLearningPlayer set={set} />);
-    fireEvent.load(screen.getByAltText('Guided Footer Test'));
-
-    // Guided mode keeps manual prev/next alongside play/pause.
-    expect(
-      screen.getByRole('button', { name: /next step/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /previous step/i })
-    ).toBeDisabled();
-
-    const bar = screen.getByRole('progressbar', { name: /session progress/i });
-    expect(bar).toHaveAttribute('aria-valuenow', '0');
-
-    fireEvent.click(screen.getByRole('button', { name: /^play$/i }));
-    expect(
-      screen.getByRole('button', { name: /^pause$/i })
-    ).toBeInTheDocument();
-
-    // Half of a 10s step across 2 steps = 25% of the session.
-    act(() => {
-      vi.advanceTimersByTime(5000);
-    });
-    expect(bar).toHaveAttribute('aria-valuenow', '25');
-
-    fireEvent.click(screen.getByRole('button', { name: /^pause$/i }));
-    expect(screen.getByRole('button', { name: /^play$/i })).toBeInTheDocument();
-
-    vi.useRealTimers();
-  });
-
-  it('navigates guided mode manually and restarts the step timer on a jump', () => {
-    vi.useFakeTimers();
-
-    const set: GuidedLearningSet = {
-      id: 'set-guided-nav',
-      title: 'Guided Nav Test',
-      imageUrls: ['https://example.com/image.png'],
-      steps: [
-        {
-          id: 'step-1',
-          xPct: 50,
-          yPct: 50,
-          imageIndex: 0,
-          interactionType: 'tooltip',
-          autoAdvanceDuration: 10,
-          text: 'One',
-        },
-        {
-          id: 'step-2',
-          xPct: 30,
-          yPct: 30,
-          imageIndex: 0,
-          interactionType: 'tooltip',
-          autoAdvanceDuration: 10,
-          text: 'Two',
-        },
-      ],
-      mode: 'guided',
-      createdAt: 0,
-      updatedAt: 0,
-    };
-
-    render(<GuidedLearningPlayer set={set} />);
-    fireEvent.load(screen.getByAltText('Guided Nav Test'));
-
-    const bar = screen.getByRole('progressbar', { name: /session progress/i });
-
-    fireEvent.click(screen.getByRole('button', { name: /^play$/i }));
-    act(() => {
-      vi.advanceTimersByTime(5000);
-    });
-    expect(bar).toHaveAttribute('aria-valuenow', '25');
-
-    // Manual jump forward restarts that step's timer from zero.
-    fireEvent.click(screen.getByRole('button', { name: /next step/i }));
-    expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('40,30');
-    expect(bar).toHaveAttribute('aria-valuenow', '50');
-    act(() => {
-      vi.advanceTimersByTime(5000);
-    });
-    expect(bar).toHaveAttribute('aria-valuenow', '75');
-
-    // Manual jump back also restarts the step timer state.
-    fireEvent.click(screen.getByRole('button', { name: /previous step/i }));
-    expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('50,50');
-    expect(bar).toHaveAttribute('aria-valuenow', '0');
-
-    vi.useRealTimers();
-  });
-
   it('supports arrow-key navigation in guided mode', () => {
     const set: GuidedLearningSet = {
       id: 'set-guided-keys',
@@ -924,6 +808,7 @@ describe('GuidedLearningPlayer', () => {
           yPct: 50,
           imageIndex: 0,
           interactionType: 'tooltip',
+          cursor: { hide: true },
           text: 'One',
         },
         {
@@ -932,6 +817,7 @@ describe('GuidedLearningPlayer', () => {
           yPct: 30,
           imageIndex: 0,
           interactionType: 'tooltip',
+          cursor: { hide: true },
           text: 'Two',
         },
       ],
@@ -949,132 +835,10 @@ describe('GuidedLearningPlayer', () => {
       throw new Error('Expected canvas container');
     container.focus();
 
-    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    fireEvent.keyDown(container, { key: 'ArrowRight' });
     expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('40,30');
-    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    fireEvent.keyDown(container, { key: 'ArrowLeft' });
     expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('50,50');
-  });
-
-  it('keeps in-step progress on pause and restarts it on resume', () => {
-    vi.useFakeTimers();
-
-    const set: GuidedLearningSet = {
-      id: 'set-guided-pause',
-      title: 'Guided Pause Test',
-      imageUrls: ['https://example.com/image.png'],
-      steps: [
-        {
-          id: 'step-1',
-          xPct: 50,
-          yPct: 50,
-          imageIndex: 0,
-          interactionType: 'tooltip',
-          autoAdvanceDuration: 10,
-          text: 'One',
-        },
-        {
-          id: 'step-2',
-          xPct: 30,
-          yPct: 30,
-          imageIndex: 0,
-          interactionType: 'tooltip',
-          text: 'Two',
-        },
-      ],
-      mode: 'guided',
-      createdAt: 0,
-      updatedAt: 0,
-    };
-
-    render(<GuidedLearningPlayer set={set} />);
-    fireEvent.load(screen.getByAltText('Guided Pause Test'));
-
-    const bar = screen.getByRole('progressbar', { name: /session progress/i });
-
-    fireEvent.click(screen.getByRole('button', { name: /^play$/i }));
-    act(() => {
-      vi.advanceTimersByTime(4000);
-    });
-    expect(bar).toHaveAttribute('aria-valuenow', '20');
-
-    // Pause keeps the current in-step progress instead of zeroing it.
-    fireEvent.click(screen.getByRole('button', { name: /^pause$/i }));
-    expect(bar).toHaveAttribute('aria-valuenow', '20');
-    act(() => {
-      vi.advanceTimersByTime(4000);
-    });
-    expect(bar).toHaveAttribute('aria-valuenow', '20');
-
-    // Resume restarts the step's timer from zero (dot-jump semantics).
-    fireEvent.click(screen.getByRole('button', { name: /^play$/i }));
-    expect(bar).toHaveAttribute('aria-valuenow', '0');
-    act(() => {
-      vi.advanceTimersByTime(5000);
-    });
-    expect(bar).toHaveAttribute('aria-valuenow', '25');
-
-    vi.useRealTimers();
-  });
-
-  it('holds the session progress bar at 100% once the final step completes', () => {
-    vi.useFakeTimers();
-
-    const set: GuidedLearningSet = {
-      id: 'set-guided-final',
-      title: 'Guided Final Test',
-      imageUrls: ['https://example.com/image.png'],
-      steps: [
-        {
-          id: 'step-1',
-          xPct: 50,
-          yPct: 50,
-          imageIndex: 0,
-          interactionType: 'tooltip',
-          autoAdvanceDuration: 10,
-          text: 'One',
-        },
-        {
-          id: 'step-2',
-          xPct: 30,
-          yPct: 30,
-          imageIndex: 0,
-          interactionType: 'tooltip',
-          autoAdvanceDuration: 10,
-          text: 'Two',
-        },
-      ],
-      mode: 'guided',
-      createdAt: 0,
-      updatedAt: 0,
-    };
-
-    render(<GuidedLearningPlayer set={set} />);
-    fireEvent.load(screen.getByAltText('Guided Final Test'));
-
-    const bar = screen.getByRole('progressbar', { name: /session progress/i });
-
-    fireEvent.click(screen.getByRole('button', { name: /^play$/i }));
-    // First step's 10s timer completes and auto-advances into the second
-    // (final) step, resetting in-step progress for the new step.
-    act(() => {
-      vi.advanceTimersByTime(10000);
-    });
-    expect(bar).toHaveAttribute('aria-valuenow', '50');
-
-    // Final step's timer expiring must not clamp progress back down —
-    // the bar should reach and hold 100% instead of dropping.
-    act(() => {
-      vi.advanceTimersByTime(10000);
-    });
-    expect(bar).toHaveAttribute('aria-valuenow', '100');
-
-    // Holds at 100% rather than resetting on further ticks.
-    act(() => {
-      vi.advanceTimersByTime(5000);
-    });
-    expect(bar).toHaveAttribute('aria-valuenow', '100');
-
-    vi.useRealTimers();
   });
 
   it('renders video slides in a <video> element and skips them when preloading', () => {
@@ -1174,7 +938,7 @@ describe('GuidedLearningPlayer', () => {
     expect(video.currentTime).toBe(2);
   });
 
-  describe('player v2 pacing', () => {
+  describe('pacing', () => {
     const pacedSet = (): GuidedLearningSet => ({
       id: 'set-paced',
       title: 'Paced',
@@ -1215,24 +979,9 @@ describe('GuidedLearningPlayer', () => {
         vi.advanceTimersByTime(ms);
       });
 
-    it('keeps today’s 5s default and shows no speed control when off', () => {
-      vi.useFakeTimers();
-      window.localStorage.setItem('spartboard.gl.learnerSpeed', '0.5');
-      render(<GuidedLearningPlayer set={pacedSet()} />);
-      fireEvent.load(screen.getByAltText('Paced'));
-      expect(
-        screen.queryByRole('group', { name: /playback speed/i })
-      ).toBeNull();
-      fireEvent.click(screen.getByRole('button', { name: /^play$/i }));
-      advance(4900);
-      expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('50,50');
-      advance(200);
-      expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('40,30');
-    });
-
     it('paces by reading time with a 3s floor at 1x', () => {
       vi.useFakeTimers();
-      render(<GuidedLearningPlayer set={pacedSet()} playerV2 />);
+      render(<GuidedLearningPlayer set={pacedSet()} />);
       fireEvent.load(screen.getByAltText('Paced'));
       fireEvent.click(screen.getByRole('button', { name: /^play$/i }));
       advance(2900);
@@ -1243,9 +992,7 @@ describe('GuidedLearningPlayer', () => {
 
     it('slows auto-advance at 0.5x and remembers the choice', () => {
       vi.useFakeTimers();
-      const { unmount } = render(
-        <GuidedLearningPlayer set={pacedSet()} playerV2 />
-      );
+      const { unmount } = render(<GuidedLearningPlayer set={pacedSet()} />);
       fireEvent.load(screen.getByAltText('Paced'));
       // The 400px player keeps speed in the overflow menu.
       fireEvent.click(screen.getByRole('button', { name: /more options/i }));
@@ -1262,7 +1009,7 @@ describe('GuidedLearningPlayer', () => {
       expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('40,30');
       unmount();
 
-      render(<GuidedLearningPlayer set={pacedSet()} playerV2 />);
+      render(<GuidedLearningPlayer set={pacedSet()} />);
       fireEvent.click(screen.getByRole('button', { name: /more options/i }));
       expect(
         screen.getByRole('button', { name: /0\.5× speed/i })
@@ -1272,10 +1019,7 @@ describe('GuidedLearningPlayer', () => {
     it('stretches a calm-paced set by 1.3x', () => {
       vi.useFakeTimers();
       render(
-        <GuidedLearningPlayer
-          set={{ ...pacedSet(), watchPace: 'calm' }}
-          playerV2
-        />
+        <GuidedLearningPlayer set={{ ...pacedSet(), watchPace: 'calm' }} />
       );
       fireEvent.load(screen.getByAltText('Paced'));
       fireEvent.click(screen.getByRole('button', { name: /^play$/i }));
@@ -1287,10 +1031,7 @@ describe('GuidedLearningPlayer', () => {
 
     it('shows the speed control in structured mode too', () => {
       render(
-        <GuidedLearningPlayer
-          set={{ ...pacedSet(), mode: 'structured' }}
-          playerV2
-        />
+        <GuidedLearningPlayer set={{ ...pacedSet(), mode: 'structured' }} />
       );
       fireEvent.click(screen.getByRole('button', { name: /more options/i }));
       expect(

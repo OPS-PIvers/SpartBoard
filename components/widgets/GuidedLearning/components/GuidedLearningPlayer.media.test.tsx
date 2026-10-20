@@ -70,9 +70,7 @@ function renderPlayer(
   set: GuidedLearningSet,
   props: Partial<React.ComponentProps<typeof GuidedLearningPlayer>> = {}
 ) {
-  const view = render(
-    <GuidedLearningPlayer set={set} playerV2 autoPlay {...props} />
-  );
+  const view = render(<GuidedLearningPlayer set={set} autoPlay {...props} />);
   loadSlide();
   return view;
 }
@@ -156,18 +154,5 @@ describe('GuidedLearningPlayer media steps hold the clock (v2)', () => {
     fireEvent.click(footerPlay());
     tick(3100);
     expect(screen.getByText('2 / 2')).toBeInTheDocument();
-  });
-
-  it('keeps v1 on the step clock with a plain YouTube embed', () => {
-    render(<GuidedLearningPlayer set={audioSet()} />);
-    loadSlide();
-    fireEvent.click(footerPlay());
-    tick(5100);
-    expect(screen.getByText('2 / 2')).toBeInTheDocument();
-    cleanup();
-    render(<GuidedLearningPlayer set={youtubeSet()} />);
-    expect(
-      document.querySelector('iframe[src*="youtube.com/embed"]')
-    ).not.toBeNull();
   });
 });

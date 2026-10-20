@@ -169,7 +169,7 @@ beforeEach(() => {
   window.history.replaceState({}, '', '/guided-learning/session-1');
 });
 
-describe('GuidedLearningStudentApp finishing (player v2)', () => {
+describe('GuidedLearningStudentApp finishing', () => {
   it("shows a You're finished card with Submit when the end is reached", async () => {
     await startPlayer();
     expect(screen.queryByText("You're finished")).toBeNull();
@@ -249,17 +249,5 @@ describe('GuidedLearningStudentApp finishing (player v2)', () => {
     fireEvent.click(screen.getByRole('button', { name: /I.m Done/ }));
     await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1));
     expect(confirm.mock.calls[0][0]).toBe('2 questions unanswered.');
-  });
-
-  it('keeps v1 unchanged: no confirm and no end card', async () => {
-    hookState.session = session({ playerV2: false });
-    await startPlayer();
-    reachEnd();
-    expect(screen.queryByText("You're finished")).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /I.m Done/ }));
-    expect(
-      await screen.findByText('Your responses have been submitted.')
-    ).toBeInTheDocument();
-    expect(confirm).not.toHaveBeenCalled();
   });
 });

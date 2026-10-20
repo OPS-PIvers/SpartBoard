@@ -58,7 +58,7 @@ function renderPlayer(set: GuidedLearningSet) {
     image: { w: 1600, h: 900 },
   });
   restore = handle.restore;
-  const view = render(<GuidedLearningPlayer set={set} teacherMode playerV2 />);
+  const view = render(<GuidedLearningPlayer set={set} teacherMode />);
   fireEvent.load(
     document.querySelector('[data-gl-stage] img') as HTMLImageElement
   );

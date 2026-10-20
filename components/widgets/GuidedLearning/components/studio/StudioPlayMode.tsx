@@ -15,7 +15,6 @@ interface StudioPlayModeProps {
   set: GuidedLearningSet;
   preset: DevicePreset;
   startStepId: string | null;
-  playerV2: boolean;
   onStepShown: (stepId: string) => void;
   onExit: () => void;
 }
@@ -25,7 +24,6 @@ export const StudioPlayMode: React.FC<StudioPlayModeProps> = ({
   set,
   preset,
   startStepId,
-  playerV2,
   onStepShown,
   onExit,
 }) => {
@@ -97,7 +95,6 @@ export const StudioPlayMode: React.FC<StudioPlayModeProps> = ({
             key={showKey ? 'key' : 'student'}
             set={showKey ? set : studentSet}
             teacherMode={showKey}
-            playerV2={playerV2}
             startStepId={resumeStepId ?? undefined}
             onStepEvent={onStepEvent}
           />
