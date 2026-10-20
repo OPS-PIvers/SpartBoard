@@ -1,6 +1,6 @@
 import { FONT_COLORS } from '@/config/fonts';
 import { STICKY_NOTE_COLORS } from '@/config/colors';
-import type { TextSizePreset } from '@/types';
+import type { TextSizePreset, WidgetData } from '@/types';
 
 export const TEXT_SIZE_PRESETS = [
   { id: 'small', label: 'Small', multiplier: 0.85 },
@@ -83,6 +83,22 @@ export const resolveTextPresetMultiplier = (
   const preset = TEXT_SIZE_PRESETS.find((item) => item.id === textSizePreset);
   return preset?.multiplier ?? fallback;
 };
+
+// Window text size as a multiplier, matching the Tailwind sizes DraggableWindow applies (text-sm..text-2xl over 16px).
+const BASE_TEXT_SIZE_SCALE: Record<
+  NonNullable<WidgetData['baseTextSize']>,
+  number
+> = {
+  sm: 0.875,
+  base: 1,
+  lg: 1.125,
+  xl: 1.25,
+  '2xl': 1.5,
+};
+
+export const resolveBaseTextScale = (
+  baseTextSize?: WidgetData['baseTextSize']
+): number => (baseTextSize ? BASE_TEXT_SIZE_SCALE[baseTextSize] : 1);
 
 export const presetFromScale = (scale: number): TextSizePreset => {
   if (scale <= 0.92) return 'small';
