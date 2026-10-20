@@ -641,26 +641,32 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               </a>
             </div>
           ) : (
-            <div className="flex-1 relative">
-              {/* Thin frame outside the iframe stays grabbable so the widget drags from inside. */}
-              <div className="absolute inset-[min(14px,4cqmin)] overflow-hidden">
-                <iframe
-                  key={refreshKey}
-                  title="Embed Content"
-                  src={displayMode === 'url' ? finalEmbedUrl : undefined}
-                  srcDoc={displayMode === 'code' ? html : undefined}
-                  className="absolute top-0 left-0 border-none block"
-                  style={{
-                    transform: `scale(${effectiveZoom})`,
-                    transformOrigin: 'top left',
-                    width: `${100 / effectiveZoom}%`,
-                    height: `${100 / effectiveZoom}%`,
-                  }}
-                  sandbox={sandbox}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                />
-              </div>
+            <div className="flex-1 relative overflow-hidden">
+              <iframe
+                key={refreshKey}
+                title="Embed Content"
+                src={displayMode === 'url' ? finalEmbedUrl : undefined}
+                srcDoc={displayMode === 'code' ? html : undefined}
+                className="absolute top-0 left-0 border-none block"
+                style={{
+                  transform: `scale(${effectiveZoom})`,
+                  transformOrigin: 'top left',
+                  width: `${100 / effectiveZoom}%`,
+                  height: `${100 / effectiveZoom}%`,
+                }}
+                sandbox={sandbox}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+              {/* Transparent edge strips over the iframe keep the content full bleed but drag the widget. */}
+              {!widget.maximized && (
+                <>
+                  <div className="absolute inset-x-0 top-0 h-[min(14px,4cqmin)] cursor-grab" />
+                  <div className="absolute inset-x-0 bottom-0 h-[min(14px,4cqmin)] cursor-grab" />
+                  <div className="absolute inset-y-0 left-0 w-[min(14px,4cqmin)] cursor-grab" />
+                  <div className="absolute inset-y-0 right-0 w-[min(14px,4cqmin)] cursor-grab" />
+                </>
+              )}
             </div>
           )}
         </div>
