@@ -67,6 +67,7 @@ export function judgeTake({
     spoken,
     confidence: result.confidence,
     voicedMs: result.voicedMs,
+    logProbs: result.logProbs,
     language,
     settings,
     unclearConfidence,
@@ -276,4 +277,9 @@ export const judgedRef = (
   refs: readonly FlashcardSpeakReference[],
   judgement: SpeakJudgement
 ): FlashcardSpeakReference | undefined =>
-  refs.find((ref) => ref.dialect === judgement.dialect) ?? refs[0];
+  // Marks from a voice reference are already placed on its dialect's espeak reference.
+  refs.find(
+    (ref) => ref.dialect === judgement.dialect && ref.source !== 'voice'
+  ) ??
+  refs.find((ref) => ref.dialect === judgement.dialect) ??
+  refs[0];

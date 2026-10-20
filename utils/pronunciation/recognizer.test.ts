@@ -202,6 +202,27 @@ describe('recognize', () => {
     expect(sent).toEqual(result.audio16k);
   });
 
+  it('passes the Worker log-probabilities through for the verdict', async () => {
+    const logProbs = {
+      data: new Float32Array([-0.1, -2.3]),
+      frames: 1,
+      vocabSize: 2,
+    };
+    const { r } = make(
+      {},
+      fakeBackend({
+        run: () =>
+          Promise.resolve({
+            tokens: [{ symbol: 'p', startFrame: 0, endFrame: 1 }],
+            confidence: 0.9,
+            logProbs,
+          }),
+      })
+    );
+    await r.prepare({ allowMetered: false });
+    expect((await r.recognize(blob())).logProbs).toBe(logProbs);
+  });
+
   it('skips the model on silence', async () => {
     const { r, run } = make({
       decodeAudio: () => Promise.resolve(new Float32Array(200)),
