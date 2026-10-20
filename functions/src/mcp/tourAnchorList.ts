@@ -2838,6 +2838,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "keys": [
       "blooms-taxonomy"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.blooms-taxonomy.face",
+        "kind": "widget",
+        "widget_type": "blooms-taxonomy",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
     ]
   },
   {
@@ -2847,6 +2858,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "destructive": true,
     "keys": [
       "blooms-taxonomy"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.blooms-taxonomy.face",
+        "kind": "widget",
+        "widget_type": "blooms-taxonomy",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
     ]
   },
   {
@@ -2855,6 +2877,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "keys": [
       "blooms-detail"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.blooms-taxonomy.face",
+        "kind": "widget",
+        "widget_type": "blooms-taxonomy",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
     ]
   },
   {
@@ -2864,6 +2897,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "destructive": true,
     "keys": [
       "blooms-detail"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.blooms-taxonomy.face",
+        "kind": "widget",
+        "widget_type": "blooms-taxonomy",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
     ]
   },
   {
@@ -2872,6 +2916,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "keys": [
       "blooms-detail"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.blooms-taxonomy.face",
+        "kind": "widget",
+        "widget_type": "blooms-taxonomy",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
     ]
   },
   {
@@ -2880,6 +2935,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "keys": [
       "calendar"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.calendar.face",
+        "kind": "widget",
+        "widget_type": "calendar",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
     ]
   },
   {
@@ -2888,6 +2954,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "keys": [
       "calendar"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.calendar.face",
+        "kind": "widget",
+        "widget_type": "calendar",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
     ]
   },
   {
