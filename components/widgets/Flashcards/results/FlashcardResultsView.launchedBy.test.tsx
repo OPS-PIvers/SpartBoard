@@ -4,7 +4,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { FlashcardAssignment } from '@/types';
 
-vi.mock('@/context/useAuth', () => ({ useAuth: () => ({ orgId: null }) }));
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ orgId: null, canAccessFeature: () => false }),
+}));
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ rosters: [], addToast: vi.fn() }),
 }));

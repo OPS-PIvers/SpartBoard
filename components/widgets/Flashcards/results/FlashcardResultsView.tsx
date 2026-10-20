@@ -14,6 +14,7 @@ import { SessionViewHeader } from '@/components/common/sessionViews/SessionViewH
 import { LaunchedBySubTag } from '@/components/common/sessionViews/LaunchedBySubTag';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { filterResultsByClass } from '@/utils/flashcardResults';
+import { speakLanguageOf } from '@/config/pronunciationGroups';
 import { EXTEND_MS, usePeriodAccess } from '@/hooks/usePeriodAccess';
 import { useServerNow } from '@/hooks/useServerNow';
 import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
@@ -52,7 +53,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
   onUnpublishScores,
   syncPlcShare = false,
 }) => {
-  const { orgId } = useAuth();
+  const { orgId, canAccessFeature } = useAuth();
   const { rosters, addToast } = useDashboard();
   const { showConfirm } = useDialog();
   const { session, results, loading, error, resetStudent, resolveFlag } =
@@ -203,6 +204,12 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
       );
     }
   };
+
+  // F10: the Speaking view needs the flag and a Speak stamp on this assignment.
+  const speakLanguage =
+    session?.speak && canAccessFeature('flashcards-speak')
+      ? speakLanguageOf(session.termLanguage)
+      : null;
 
   const published = isPublished(
     session?.scoreVisibility ?? assignment.scoreVisibility
@@ -382,6 +389,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
             onResetStudent={(uid) => void handleReset(uid)}
             now={now}
             letInFor={letInFor}
+            speakLanguage={speakLanguage}
           />
         )}
       </div>

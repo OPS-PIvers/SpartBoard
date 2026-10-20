@@ -231,6 +231,9 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       'components/widgets/Flashcards/FlashcardEditor.tsx',
       'components/widgets/Flashcards/FlashcardLanguageField.tsx',
+      'components/widgets/Flashcards/speak/SpeakSettingsPanel.tsx',
+      'components/widgets/Flashcards/speak/SpeakCardStatus.tsx',
+      'components/widgets/Flashcards/speak/SpeakReviewList.tsx',
     ],
     opensWith: 'library-shell.new:flashcards',
     parent: 'library.flashcards',
