@@ -3736,6 +3736,27 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'widget-settings.materials.form-name': {
+    label: 'Name input in the Materials new or edit material form',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.materials.form-icon-search': {
+    label: 'Icon search box in the Materials new or edit material form',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.materials.form-save': {
+    label: 'Save button in the Materials new or edit material form',
+    persists: true,
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.materials.form-cancel': {
+    label: 'Cancel button in the Materials new or edit material form',
+    perWidget: true,
+    panel: true,
+  },
   'widget-settings.music.sync-time-tool': {
     label: 'Sync with Time Tool toggle in Music settings',
     perWidget: true,
@@ -4675,6 +4696,28 @@ export const TOUR_ANCHORS = {
     label: 'Show a hidden material again in Materials settings',
     perField: true,
     panel: true,
+  },
+  'widget-settings.materials.form-icon': {
+    label: 'Icon choice in the Materials new or edit material form',
+    perField: true,
+    panel: true,
+    keyPattern: 'materials#[A-Z][A-Za-z0-9]*',
+    keyHint: 'materials#Folder; the Lucide icon name as its tooltip shows it',
+  },
+  'widget-settings.materials.form-color': {
+    label: 'Color swatch in the Materials new or edit material form',
+    perField: true,
+    panel: true,
+    keyPattern: 'materials#row-([1-9]|10)',
+    keyHint: 'materials#row-1 for the first swatch, left to right',
+  },
+  'materials.tray-item': {
+    label:
+      'Material tile in the tray of a selected Materials widget, which shows it on the board',
+    perField: true,
+    keyPattern: 'materials#row-[1-9]\\d*',
+    keyHint:
+      'materials#row-1 for the first tile; tiles follow the checked order in settings',
   },
   'widget-settings.music.source': {
     label: 'Source option (curated or Spotify) in Music settings',

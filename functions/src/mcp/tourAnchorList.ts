@@ -15711,6 +15711,83 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.materials.form-name",
+    "label": "Name input in the Materials new or edit material form",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.materials.settings",
+        "kind": "settings-drawer",
+        "widget_type": "materials",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.materials.form-icon-search",
+    "label": "Icon search box in the Materials new or edit material form",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.materials.settings",
+        "kind": "settings-drawer",
+        "widget_type": "materials",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.materials.form-save",
+    "label": "Save button in the Materials new or edit material form",
+    "scope": "widget",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.materials.settings",
+        "kind": "settings-drawer",
+        "widget_type": "materials",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.materials.form-cancel",
+    "label": "Cancel button in the Materials new or edit material form",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.materials.settings",
+        "kind": "settings-drawer",
+        "widget_type": "materials",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.music.sync-time-tool",
     "label": "Sync with Time Tool toggle in Music settings",
     "scope": "widget",
@@ -19458,6 +19535,66 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "widget.settings-opener"
         ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.materials.form-icon",
+    "label": "Icon choice in the Materials new or edit material form",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "materials#[A-Z][A-Za-z0-9]*",
+    "key_hint": "materials#Folder; the Lucide icon name as its tooltip shows it",
+    "routes": [
+      {
+        "surface": "widgets.materials.settings",
+        "kind": "settings-drawer",
+        "widget_type": "materials",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.materials.form-color",
+    "label": "Color swatch in the Materials new or edit material form",
+    "scope": "field",
+    "panel": true,
+    "key_pattern": "materials#row-([1-9]|10)",
+    "key_hint": "materials#row-1 for the first swatch, left to right",
+    "routes": [
+      {
+        "surface": "widgets.materials.settings",
+        "kind": "settings-drawer",
+        "widget_type": "materials",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "materials.tray-item",
+    "label": "Material tile in the tray of a selected Materials widget, which shows it on the board",
+    "scope": "field",
+    "key_pattern": "materials#row-[1-9]\\d*",
+    "key_hint": "materials#row-1 for the first tile; tiles follow the checked order in settings",
+    "routes": [
+      {
+        "surface": "widgets.materials.face",
+        "kind": "widget",
+        "widget_type": "materials",
+        "path": [],
         "needs": [
           "widget-on-stage"
         ]

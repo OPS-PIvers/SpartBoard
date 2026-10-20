@@ -387,6 +387,7 @@ export const MaterialsCatalogField: React.FC<{
           }
           onCancel={() => setForm({ mode: 'closed' })}
           translate={(leaf, options) => translate(ctx, leaf, options)}
+          tourWidget={{ id: ctx.widget.id, type: ctx.widget.type }}
         />
       ) : (
         <>

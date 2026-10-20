@@ -2,6 +2,7 @@ import React, { useId, useMemo, useState } from 'react';
 import { Check, Search, Trash2, X } from 'lucide-react';
 import { MaterialDefinition } from '@/types';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { getLucideIconNames, useLucideIconMap } from '@/utils/lucideIconMap';
 import {
   MATERIAL_COLOR_OPTIONS,
@@ -35,6 +36,8 @@ interface CustomMaterialFormProps {
   onDelete?: () => void;
   onCancel: () => void;
   translate?: (leaf: string, options?: Record<string, unknown>) => string;
+  /** The widget whose settings host the form, for live-tour anchors. */
+  tourWidget?: { id: string; type: string };
 }
 
 export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
@@ -43,6 +46,7 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
   onDelete,
   onCancel,
   translate,
+  tourWidget,
 }) => {
   const labelInputId = useId();
   const iconSearchId = useId();
@@ -74,6 +78,7 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
 
   const trimmedLabel = label.trim();
   const canSave = trimmedLabel.length > 0;
+  const widgetAttr = tourWidget ? { 'data-tour-widget': tourWidget.id } : {};
   const t = (leaf: string, options?: Record<string, unknown>) => {
     const template =
       translate?.(leaf, options) ?? DEFAULT_FORM_LABELS[leaf] ?? leaf;
@@ -119,6 +124,11 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
             maxLength={MAX_MATERIAL_LABEL_LENGTH}
             placeholder={t('materialPlaceholder')}
             autoFocus
+            {...tourAttr(
+              'widget-settings.materials.form-name',
+              tourWidget?.id,
+              tourWidget?.type
+            )}
             className="w-full p-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           />
         </div>
@@ -134,6 +144,11 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
             value={iconQuery}
             onChange={(e) => setIconQuery(e.target.value)}
             placeholder={t('iconSearch')}
+            {...tourAttr(
+              'widget-settings.materials.form-icon-search',
+              tourWidget?.id,
+              tourWidget?.type
+            )}
             className="w-full py-2 pl-9 pr-3 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
           />
         </div>
@@ -160,6 +175,12 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
                   onClick={() => setIcon(iconName)}
                   aria-pressed={isActive}
                   title={iconName}
+                  {...tourFieldAttr(
+                    'widget-settings.materials.form-icon',
+                    tourWidget?.type ?? 'materials',
+                    iconName
+                  )}
+                  {...widgetAttr}
                   className={`flex items-center justify-center rounded-lg border p-2 transition-colors ${
                     isActive
                       ? 'border-blue-500 bg-blue-50 text-blue-600'
@@ -183,13 +204,19 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
           role="group"
           aria-labelledby={colorGroupId}
         >
-          {MATERIAL_COLOR_OPTIONS.map((swatch) => (
+          {MATERIAL_COLOR_OPTIONS.map((swatch, swatchIndex) => (
             <button
               key={swatch}
               type="button"
               onClick={() => setColor(swatch)}
               aria-pressed={color === swatch}
               title={swatch}
+              {...tourFieldAttr(
+                'widget-settings.materials.form-color',
+                tourWidget?.type ?? 'materials',
+                `row-${swatchIndex + 1}`
+              )}
+              {...widgetAttr}
               className={`w-6 h-6 rounded-full border-2 transition-all ${
                 color === swatch
                   ? 'border-slate-800 scale-125 shadow-md'
@@ -206,6 +233,11 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
           type="button"
           onClick={handleSave}
           disabled={!canSave}
+          {...tourAttr(
+            'widget-settings.materials.form-save',
+            tourWidget?.id,
+            tourWidget?.type
+          )}
           className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
         >
           <Check className="h-3.5 w-3.5" />
@@ -214,6 +246,11 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
         <button
           type="button"
           onClick={onCancel}
+          {...tourAttr(
+            'widget-settings.materials.form-cancel',
+            tourWidget?.id,
+            tourWidget?.type
+          )}
           className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50"
         >
           <X className="h-3.5 w-3.5" />

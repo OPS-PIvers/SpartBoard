@@ -792,6 +792,12 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'widget-settings.materials.add-material': ['widgets.materials.settings'],
     'widget-settings.materials.toggle-all': ['widgets.materials.settings'],
     'widget-settings.materials.show-hidden': ['widgets.materials.settings'],
+    'widget-settings.materials.form-name': ['widgets.materials.settings'],
+    'widget-settings.materials.form-icon-search': [
+      'widgets.materials.settings',
+    ],
+    'widget-settings.materials.form-save': ['widgets.materials.settings'],
+    'widget-settings.materials.form-cancel': ['widgets.materials.settings'],
     'widget-settings.music.sync-time-tool': ['widgets.music.settings'],
     'scoreboard.add-point': ['widgets.scoreboard.face'],
     'scoreboard.remove-point': ['widgets.scoreboard.face'],
@@ -1036,6 +1042,9 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'widget-settings.materials.edit-item': ['widgets.materials.settings'],
     'widget-settings.materials.hide-item': ['widgets.materials.settings'],
     'widget-settings.materials.unhide-item': ['widgets.materials.settings'],
+    'widget-settings.materials.form-icon': ['widgets.materials.settings'],
+    'widget-settings.materials.form-color': ['widgets.materials.settings'],
+    'materials.tray-item': ['widgets.materials.face'],
     'widget-settings.music.source': ['widgets.music.settings'],
     'widget-settings.music.station': ['widgets.music.settings'],
     'widget-settings.custom-widget.definition-input': [

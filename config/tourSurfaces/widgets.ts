@@ -248,7 +248,10 @@ export const SURFACES: TourSurfaceMap = {
   'widgets.materials.settings': {
     label: 'Materials settings',
     kind: 'settings-drawer',
-    files: ['components/widgets/MaterialsWidget/settingsFields.tsx'],
+    files: [
+      'components/widgets/MaterialsWidget/settingsFields.tsx',
+      'components/widgets/MaterialsWidget/CustomMaterialForm.tsx',
+    ],
     opensWith: 'widget.settings-opener',
     parent: 'widgets.materials.face',
     widgetType: 'materials',
