@@ -3106,6 +3106,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-step.speak",
+    "label": "Speak step header in the Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-step.sharing",
     "label": "Sharing step header in the Assign dialog",
     "scope": "board",
@@ -3688,6 +3701,50 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "assign-step.check"
         ],
         "reveal": "assign-step.check",
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-speak.show",
+    "label": "Let students practice aloud switch in the Assign dialog Speak step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.assign",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:flashcards#row-1",
+          "assign-step.speak"
+        ],
+        "reveal": "assign-step.speak",
+        "needs": [
+          "library-item",
+          "class",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-speak.lock",
+    "label": "Lock Speak settings switch in the Assign dialog Speak step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.assign",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:flashcards#row-1",
+          "assign-step.speak"
+        ],
+        "reveal": "assign-step.speak",
         "needs": [
           "library-item",
           "class",
@@ -30474,6 +30531,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         ]
       },
       {
+        "surface": "admin.widgets.config.flashcards",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#flashcards"
+        ],
+        "needs": [
+          "admin"
+        ]
+      },
+      {
         "surface": "admin.widgets.config.graphic-organizer",
         "kind": "modal",
         "path": [
@@ -30938,6 +31007,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.admin-settings",
           "admin.settings.tab:admin#widgets",
           "admin.widgets.configure:admin#catalyst"
+        ],
+        "needs": [
+          "admin"
+        ]
+      },
+      {
+        "surface": "admin.widgets.config.flashcards",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#flashcards"
         ],
         "needs": [
           "admin"
@@ -41665,6 +41746,318 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "keys": [
       "flashcards"
     ],
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-speak-editor.panel",
+    "label": "Speak settings in the Flashcards editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-speak-editor.dialects",
+    "label": "Accents to accept menu in the Flashcards editor Speak settings",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-speak-editor.dialect",
+    "label": "An accent in the Accents to accept menu of the Flashcards editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-speak-editor.level",
+    "label": "Level dropdown in the Flashcards editor Speak settings",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-speak-editor.attempts",
+    "label": "Attempts per card box in the Flashcards editor Speak settings",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-speak-editor.strict",
+    "label": "Strict switch in the Flashcards editor Speak settings",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-speak-editor.example",
+    "label": "Hear it button switch in the Flashcards editor Speak settings",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-speak-editor.advanced",
+    "label": "Advanced button in the Flashcards editor Speak settings",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-speak-editor.group",
+    "label": "Sound row dropdown in the Flashcards editor Speak settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-speak-editor.review",
+    "label": "Cards to check list in the Flashcards editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-speak-editor.review-card",
+    "label": "A card in the Flashcards editor cards to check list",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-speak-editor.review-confirm",
+    "label": "Looks right button in the Flashcards editor cards to check list",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-speak-editor.hear-it",
+    "label": "Hear it button on a card in the Flashcards editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-speak-editor.confirm",
+    "label": "Looks right button on a card in the Flashcards editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-speak-editor.card-advanced",
+    "label": "Advanced button on a card in the Flashcards editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:flashcards"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards-speak-editor.ipa",
+    "label": "Pronunciation box on a card in the Flashcards editor",
+    "scope": "field",
+    "panel": true,
     "routes": [
       {
         "surface": "library.flashcards.editor",
@@ -60947,6 +61340,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "flashcards.student-row",
     "label": "Student row in Flashcards Study results",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.results-view",
+    "label": "Study and Speaking switch in Flashcards Study results",
     "scope": "field",
     "panel": true,
     "routes": [

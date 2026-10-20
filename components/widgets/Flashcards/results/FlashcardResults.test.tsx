@@ -98,6 +98,86 @@ describe('FlashcardStudyResults', () => {
   });
 });
 
+describe('FlashcardStudyResults Speaking view', () => {
+  const ref = { dialect: 'es-ES' as const, tokens: ['p'], stress: [] };
+  const SPEAK_CARDS = ['perro', 'casa'].map((term, i) => ({
+    id: `s${i + 1}`,
+    term,
+    definition: term === 'perro' ? 'dog' : 'house',
+    speak: { term, refs: [ref], g2pVersion: 'v1', status: 'ready' as const },
+  }));
+  const sp = (s: number, c = 0, w = 0) =>
+    ({ s, due: 1, c, w, best: 0, last: 0, tries: 1 }) as never;
+  const ran: FlashcardResultRecord = {
+    studentUid: 'a',
+    speak: { s1: sp(3, 3, 0), s2: sp(0, 0, 2) },
+    speakSounds: { r: { n: 4, m: 3, f: 1 } },
+  };
+  const neverRan: FlashcardResultRecord = { studentUid: 'b', cards: {} };
+  const showSpeaking = (results: FlashcardResultRecord[]) => {
+    render(
+      <FlashcardStudyResults
+        session={session({ cards: SPEAK_CARDS })}
+        results={results}
+        tests={{}}
+        nameFor={nameFor}
+        onResetStudent={vi.fn()}
+        now={Date.now()}
+        speakLanguage="es"
+      />
+    );
+    fireEvent.click(screen.getByRole('tab', { name: 'Speaking' }));
+  };
+
+  it('has no switch without a Speak language', () => {
+    render(
+      <FlashcardStudyResults
+        session={session()}
+        results={[]}
+        tests={{}}
+        nameFor={nameFor}
+        onResetStudent={vi.fn()}
+        now={Date.now()}
+      />
+    );
+    expect(screen.queryByRole('tablist')).toBeNull();
+  });
+
+  it('shows per-student words and sounds, and a dash for never-ran', () => {
+    showSpeaking([ran, neverRan]);
+    expect(
+      screen.getByText('Said well 1 · In progress 1 · Not started 0')
+    ).toBeTruthy();
+    expect(screen.getByText('Rolled r')).toBeTruthy();
+    expect(screen.getByText('Sounds to practice:')).toBeTruthy();
+    const rows = screen.getAllByTestId('session-row');
+    const blaise = rows.find((row) => row.textContent?.includes('Blaise'));
+    expect(blaise?.textContent).toContain('—');
+    expect(blaise?.textContent).not.toContain('Said well');
+    expect(screen.getAllByText('Rolled r, as in perro')).toHaveLength(2);
+    expect(screen.getByText('3/4')).toBeTruthy();
+    expect(screen.getByText('Sounds let go most (1)')).toBeTruthy();
+    expect(screen.queryByText(/Words to check/)).toBeNull();
+  });
+
+  it('says no one has practiced aloud when nobody ran Speak', () => {
+    showSpeaking([neverRan]);
+    expect(screen.getByText('No one has practiced aloud yet.')).toBeTruthy();
+    expect(screen.queryByText(/Sounds let go most/)).toBeNull();
+  });
+
+  it('lists words to check once five students mostly failed', () => {
+    const failing = Array.from({ length: 5 }, (_, i) => ({
+      studentUid: `f${i}`,
+      speak: { s2: sp(0, 0, 2) },
+    }));
+    showSpeaking(failing);
+    expect(screen.getByText('Words to check (1)')).toBeTruthy();
+    expect(screen.getByText('5/5')).toBeTruthy();
+    expect(screen.getByText('house')).toBeTruthy();
+  });
+});
+
 describe('FlashcardCheckReview', () => {
   const checkSession = session({ kind: 'check', checkMode: 'write' });
   const results: FlashcardResultRecord[] = [

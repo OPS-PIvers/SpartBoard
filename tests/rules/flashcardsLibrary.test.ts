@@ -3,7 +3,7 @@
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   assertFails,
   assertSucceeds,
@@ -24,6 +24,25 @@ const PROJECT_ID = 'spartboard-flashcards-library';
 const OWNER_UID = 'flashcard-owner';
 const OTHER_UID = 'flashcard-other';
 const STUDENT_UID = 'flashcard-student';
+const ADMIN_EMAIL = 'speak-admin@example.com';
+const SPEAK_SETTINGS = {
+  dialects: ['es-419', 'es-ES'],
+  preset: 'beginner',
+  strict: false,
+  groups: { 'es-trill': 'forgive' },
+  attempts: 3,
+  example: true,
+};
+const cardSpeak = (term: string) => ({
+  term,
+  g2pVersion: 'test-1',
+  status: 'ready',
+  refs: ['es-419', 'es-ES'].map((dialect) => ({
+    dialect,
+    tokens: ['p', 'a', 'l', 'a', 'β', 'ɾ', 'a', 'x', 'x', 'x', 'x', 'x'],
+    stress: [1],
+  })),
+});
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
 );
@@ -34,6 +53,15 @@ const asTeacher = (uid: string) =>
   testEnv
     .authenticatedContext(uid, {
       email: `${uid}@example.com`,
+      firebase: { sign_in_provider: 'google.com' },
+    })
+    .firestore();
+
+const asAdmin = () =>
+  testEnv
+    .authenticatedContext('speak-admin', {
+      email: ADMIN_EMAIL,
+      email_verified: true,
       firebase: { sign_in_provider: 'google.com' },
     })
     .firestore();
@@ -139,6 +167,92 @@ describe('public flashcard snapshots', () => {
         ...snapshot,
         secret: 'not allowed',
       })
+    );
+  });
+
+  it('accepts a Speak stamp that anyone with the link can read, and rejects a malformed one', async () => {
+    const path = 'public_flashcard_sets/share-speak';
+    await assertSucceeds(
+      setDoc(doc(asTeacher(OWNER_UID), path), {
+        ...snapshot,
+        speak: { ...SPEAK_SETTINGS, unclearConfidence: 0.35 },
+        cards: [{ ...snapshot.cards[0], speak: cardSpeak('hola') }],
+      })
+    );
+    const read = await getDoc(
+      doc(testEnv.unauthenticatedContext().firestore(), path)
+    );
+    expect(read.get('speak.unclearConfidence')).toBe(0.35);
+    await assertFails(
+      setDoc(doc(asTeacher(OWNER_UID), path), { ...snapshot, speak: 'on' })
+    );
+  });
+});
+
+describe('Speak on the teacher-owned set', () => {
+  it('saves a 500-card set with references for two dialects', async () => {
+    const path = `users/${OWNER_UID}/flashcard_sets/set-big`;
+    const cards = Array.from({ length: 500 }, (_, i) => ({
+      id: `card-${i}`,
+      term: `palabra${i}`,
+      definition: `word ${i}`,
+      speak: cardSpeak(`palabra${i}`),
+    }));
+    await assertSucceeds(
+      setDoc(doc(asTeacher(OWNER_UID), path), {
+        id: 'set-big',
+        title: 'Big set',
+        termLanguage: 'es-US',
+        definitionLanguage: 'en-US',
+        cards,
+        speak: SPEAK_SETTINGS,
+        createdAt: 1,
+        updatedAt: 1,
+      })
+    );
+    await assertSucceeds(getDoc(doc(asTeacher(OWNER_UID), path)));
+  });
+});
+
+describe('admin_settings/flashcardsSpeak', () => {
+  const path = 'admin_settings/flashcardsSpeak';
+  const defaults = { languages: {}, attempts: 3, unclearConfidence: 0.4 };
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), path), defaults);
+      await setDoc(doc(context.firestore(), 'admin_settings/other'), {
+        secret: true,
+      });
+      await setDoc(doc(context.firestore(), `admins/${ADMIN_EMAIL}`), {
+        addedAt: 1,
+      });
+    });
+  });
+
+  it('lets any signed-in user read it, and nobody signed out', async () => {
+    await assertSucceeds(getDoc(doc(asTeacher(OTHER_UID), path)));
+    await assertSucceeds(getDoc(doc(asStudent(), path)));
+    await assertFails(
+      getDoc(doc(testEnv.unauthenticatedContext().firestore(), path))
+    );
+  });
+
+  it('opens no other admin_settings doc', async () => {
+    await assertFails(
+      getDoc(doc(asTeacher(OTHER_UID), 'admin_settings/other'))
+    );
+  });
+
+  it('lets only an admin write it', async () => {
+    await assertFails(
+      setDoc(doc(asTeacher(OTHER_UID), path), { ...defaults, attempts: 9 })
+    );
+    await assertFails(
+      setDoc(doc(asStudent(), path), { ...defaults, attempts: 9 })
+    );
+    await assertSucceeds(
+      setDoc(doc(asAdmin(), path), { ...defaults, attempts: 5 })
     );
   });
 });

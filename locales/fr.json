@@ -1395,7 +1395,20 @@
       "syncError": "Échec de la synchronisation du menu",
       "noHotLunch": "Aucun déjeuner chaud répertorié",
       "noBentoBox": "Aucune bento box répertoriée",
-      "hotLunch": "Déjeuner Chaud"
+      "hotLunch": "Déjeuner Chaud",
+      "noClassTitle": "Choisissez une classe",
+      "noClassesBody": "Ajoutez d'abord une classe dans Classes.",
+      "emptyCustomTitle": "Aucun nom pour l'instant",
+      "emptyCustomBody": "Ajoutez des noms dans les réglages de ce widget.",
+      "emptyClassTitle": "Cette classe n'a aucun élève",
+      "menuUnavailable": "Menu indisponible",
+      "left": "Encore {{count}}",
+      "refreshMenu": "Actualiser le menu",
+      "clearAll": "Effacer toutes les affectations",
+      "shortHot": "Chaud",
+      "shortBento": "Bento",
+      "shortHome": "Maison",
+      "assignMoreOutsideGroup": "Encore {{count}} à placer, {{hidden}} hors de ce groupe"
     },
     "quiz": {
       "leaderboard": {
@@ -3296,7 +3309,8 @@
       "label": "Mode d'étude",
       "flashcards": "Cartes",
       "write": "Écrire",
-      "test": "Test"
+      "test": "Test",
+      "speak": "Speak"
     },
     "player": {
       "back": "Retour à la bibliothèque de cartes",
@@ -3430,6 +3444,226 @@
       "periodPausedBody": "Ta progression reste sur cette page. Garde cet onglet ouvert.",
       "notInPeriod": "Tu n’es dans aucune classe à laquelle cette série a été attribuée. Demande à ton enseignant.",
       "seatError": "Impossible de rejoindre ta classe. Recharge la page pour réessayer."
+    },
+    "speak": {
+      "player": {
+        "prompt": "Dis ce mot",
+        "record": "Commencer à parler",
+        "stop": "Arrêter",
+        "listening": "J'écoute…",
+        "checking": "Vérification…",
+        "levelLabel": "Niveau du microphone",
+        "attempt": "Tentative {{current}} sur {{total}}",
+        "hearIt": "Écouter",
+        "playMyTry": "Réécouter ma tentative",
+        "tryAgain": "Réessayer",
+        "continue": "Continuer",
+        "skip": "Passer",
+        "round": "Série {{round}}",
+        "mastered": "{{mastered}}/{{total}} bien dites",
+        "masteryLabel": "{{mastered}} cartes bien dites sur {{total}}",
+        "cardUnavailable": "Impossible à dire à voix haute",
+        "cardUnavailableBody": "Cette carte est passée dans Speak.",
+        "allUnavailableTitle": "Aucune carte à dire",
+        "allUnavailableBody": "Aucune de ces cartes ne peut se pratiquer à voix haute. Essaie un autre mode d'étude.",
+        "lockedSettings": "Ton enseignant a choisi ces options.",
+        "keys": "Espace : enregistrer. Entrée : continuer. R : réécouter ma tentative. H : écouter."
+      },
+      "verdict": {
+        "exact": "Exact",
+        "exactBody": "Tu l'as dit parfaitement.",
+        "accepted": "Acceptée",
+        "acceptedBody": "C'est assez proche. On laisse passer :",
+        "notYet": "Pas encore",
+        "notYetBody": "Regarde les lettres marquées et réessaie.",
+        "outOfTries": "Pas encore. On reviendra sur ce mot.",
+        "unclear": "Je ne t'ai pas entendu",
+        "unclearBody": "Réessaie en te rapprochant un peu du microphone.",
+        "stress": "Insiste sur cette partie : {{syllables}}",
+        "marksLabel": "Résultat pour chaque lettre",
+        "markCorrect": "Bien",
+        "markChanged": "Changée",
+        "markMissed": "Manquée",
+        "markExtra": "En trop",
+        "showHint": "Comment le dire",
+        "soundAsIn": "{{name}}, comme dans {{example}}"
+      },
+      "micCheck": {
+        "title": "Vérifions ton microphone",
+        "body": "Dis {{word}} et regarde la barre bouger.",
+        "heard": "On t'entend bien.",
+        "notHeard": "On n'entend rien pour l'instant.",
+        "done": "Retour à l'entraînement"
+      },
+      "permission": {
+        "title": "Speak utilise ton microphone",
+        "body": "Ta voix est analysée sur cet appareil. Elle n'est jamais enregistrée ni envoyée.",
+        "allow": "Activer le microphone",
+        "notNow": "Pas maintenant"
+      },
+      "setup": {
+        "title": "Prépare Speak",
+        "body": "Speak a besoin d'un téléchargement unique de {{size}} sur cet appareil.",
+        "download": "Préparer Speak ({{size}}, une fois par appareil)",
+        "downloading": "Préparation de Speak… {{percent}} %",
+        "starting": "Préparation…",
+        "meteredTitle": "Cette connexion a peut-être des données limitées",
+        "meteredBody": "Le téléchargement fait {{size}}. Le lancer maintenant ?",
+        "meteredConfirm": "Télécharger",
+        "cancel": "Pas maintenant"
+      },
+      "unavailable": {
+        "title": "Speak n'est pas disponible",
+        "otherModes": "Les autres modes d'étude fonctionnent toujours.",
+        "noMic": "Aucun microphone trouvé",
+        "noMicBody": "Branche un microphone, puis réessaie.",
+        "micBlocked": "Microphone bloqué",
+        "micBlockedBody": "Autorise le microphone pour ce site, puis réessaie.",
+        "micBlockedChromeOs": "Sur un Chromebook, sélectionne l'icône à gauche de la barre d'adresse, puis active Microphone.",
+        "framed": "Speak ne peut pas utiliser le microphone ici",
+        "framedBody": "Ouvre cette page dans son propre onglet pour t'entraîner à voix haute.",
+        "openNewTab": "Ouvrir dans un nouvel onglet",
+        "downloadFailed": "Speak n'a pas pu se préparer",
+        "downloadFailedBody": "Vérifie ta connexion Internet et réessaie.",
+        "tooSlow": "Cet appareil est trop lent pour Speak",
+        "unsupported": "Ce navigateur ne peut pas utiliser Speak",
+        "retry": "Réessayer"
+      },
+      "editor": {
+        "title": "Speak",
+        "intro": "Les élèves disent chaque terme à voix haute et voient à quel point ils étaient proches.",
+        "unsupportedLanguage": "Speak fonctionne quand la langue du terme est l'espagnol, l'allemand ou l'anglais.",
+        "dialects": "Accents acceptés",
+        "dialectNames": {
+          "es-419": "Espagnol d'Amérique latine",
+          "es-ES": "Espagnol d'Espagne",
+          "de-DE": "Allemand",
+          "en-US": "Anglais américain"
+        },
+        "level": "Niveau",
+        "presets": {
+          "beginner": "Débutant",
+          "beginnerHelp": "Les voyelles doivent être justes. La plupart des autres sons difficiles sont acceptés.",
+          "intermediate": "Intermédiaire",
+          "intermediateHelp": "La plupart des sons doivent être justes. Quelques petites différences sont acceptées.",
+          "advanced": "Avancé",
+          "advancedHelp": "Chaque son doit être juste.",
+          "custom": "Personnalisé"
+        },
+        "strict": "Strict",
+        "strictHelp": "Activé, les sons réglés sur Suivre Strict doivent être justes. Désactivé, ils sont acceptés.",
+        "attempts": "Tentatives par carte",
+        "example": "Bouton Écouter",
+        "exampleHelp": "Les élèves peuvent d'abord écouter le mot avec la voix de leur appareil.",
+        "advancedSettings": "Avancé",
+        "groupsTitle": "Sons",
+        "groupSetting": {
+          "follow": "Suivre Strict",
+          "forgive": "Toujours accepter",
+          "require": "Toujours exiger"
+        },
+        "status": {
+          "ready": "Prête",
+          "needsReview": "À vérifier",
+          "unavailable": "Indisponible"
+        },
+        "reasons": {
+          "multi-word": "Speak fonctionne avec un seul mot par carte.",
+          "unrenderable": "On n'a pas trouvé comment dire ce mot.",
+          "untokenizable": "On n'a pas trouvé comment dire ce mot.",
+          "g2p-disagree": "Nos sources ne sont pas d'accord sur la façon de dire ce mot.",
+          "stress-disagree": "Nos sources ne sont pas d'accord sur la partie accentuée.",
+          "language-switch": "Ce mot semble être dans une autre langue.",
+          "lookup-failed": "On n'a pas pu vérifier ce mot. On réessaiera à l'enregistrement."
+        },
+        "reviewTitle_one": "{{count}} carte à vérifier",
+        "reviewTitle_other": "{{count}} cartes à vérifier",
+        "confirm": "C'est juste",
+        "ipaLabel": "Prononciation (API), {{dialect}}",
+        "ipaInvalid": "Certains de ces symboles ne sont pas reconnus.",
+        "checkingCards_one": "Recherche de la prononciation de {{count}} carte…",
+        "checkingCards_other": "Recherche de la prononciation de {{count}} cartes…",
+        "hearIt": "Écouter"
+      },
+      "groups": {
+        "es-trill": "r roulé (perro)",
+        "es-tap": "r battu (pero)",
+        "es-soft-bdg": "b, d, g doux (lobo, nada, lago)",
+        "es-aspiration": "Pas de souffle sur p, t, k (pato)",
+        "es-vowel-glide": "e et o purs (se, no)",
+        "es-vowel-reduce": "Voyelles pleines non accentuées (casa)",
+        "es-jota": "Le son j (jota)",
+        "de-r": "r allemand (rot)",
+        "de-ich-ach": "Sons ch (ich, ach)",
+        "de-umlaut": "ü et ö",
+        "de-vowel-length": "Voyelles longues et brèves (Staat, Stadt)",
+        "de-final": "b, d, g finaux dits p, t, k (Hund)",
+        "de-endings": "Finales non accentuées (-er, -e)",
+        "en-th": "Sons th (think, this)",
+        "en-r": "r anglais (red)",
+        "en-vowel-length": "Voyelles longues et brèves (ship, sheep)",
+        "en-reduced": "Voyelles faibles (about)",
+        "en-final-voicing": "z, d, v finaux (dogs)",
+        "stress": "Syllabe accentuée"
+      },
+      "groupHints": {
+        "es-trill": "Accepte un r battu ou anglais quand le mot a un r roulé.",
+        "es-tap": "Accepte un r anglais ou un d quand le mot a un r battu.",
+        "es-soft-bdg": "Accepte un b, d ou g dur à la place du son doux, et l'inverse.",
+        "es-aspiration": "Accepte un souffle après p, t et k, comme en anglais.",
+        "es-vowel-glide": "Accepte un e et un o qui glissent, comme dans l'anglais say et go.",
+        "es-vowel-reduce": "Accepte un « euh » détendu à la place de a, e ou o.",
+        "es-jota": "Accepte un h anglais pour le son j.",
+        "de-r": "Accepte un r anglais à la place du r allemand.",
+        "de-ich-ach": "Accepte ch comme dans « chat » ou un k dans ich, et k ou h pour le ch de ach.",
+        "de-umlaut": "Accepte u, i, o ou e à la place de ü et ö.",
+        "de-vowel-length": "Accepte une voyelle longue dite brève, et l'inverse.",
+        "de-final": "Accepte b, d, g en fin de mot, là où l'allemand dit p, t, k.",
+        "de-endings": "Accepte un e ou un er plus net dans les finales non accentuées.",
+        "en-th": "Accepte t, f, s, d ou z pour les sons th.",
+        "en-r": "Accepte un r roulé, battu ou allemand pour le r anglais.",
+        "en-vowel-length": "Accepte la voyelle brève à la place de la longue (ship pour sheep), et l'inverse.",
+        "en-reduced": "Accepte un « euh » plus plein ou un er dans les parties non accentuées.",
+        "en-final-voicing": "Accepte s, t, f en fin de mot à la place de z, d, v.",
+        "stress": "Accepte le mot avec l'accent sur une autre partie."
+      },
+      "assign": {
+        "stepTitle": "Speak",
+        "show": "Laisser les élèves s'entraîner à voix haute",
+        "lock": "Verrouiller les paramètres de Speak",
+        "lockHelp": "Les élèves utilisent tes réglages de tentatives et du bouton Écouter et ne peuvent pas les changer.",
+        "valueOn": "Activé",
+        "valueLocked": "Activé, verrouillé",
+        "valueOff": "Désactivé"
+      },
+      "results": {
+        "tab": "Oral",
+        "masteredAloud": "Bien dites",
+        "inProgress": "En cours",
+        "notStarted": "Pas commencé",
+        "missedSounds": "Sons à travailler",
+        "neverRan": "—",
+        "classMissed": "Sons les plus manqués",
+        "classForgiven": "Sons les plus acceptés",
+        "wordsToCheck": "Mots à vérifier",
+        "wordsToCheckHelp": "La plupart des élèves qui les ont essayés les ont manqués. Vérifie la prononciation de la carte.",
+        "empty": "Personne ne s'est encore entraîné à voix haute."
+      },
+      "admin": {
+        "title": "Valeurs par défaut de Speak",
+        "intro": "Les nouveaux ensembles Speak démarrent avec ces réglages. Les enseignants peuvent les changer pour chaque ensemble.",
+        "languageLevel": "Niveau de départ pour {{language}}",
+        "languages": {
+          "es": "Espagnol",
+          "de": "Allemand",
+          "en": "Anglais"
+        },
+        "attempts": "Tentatives par carte",
+        "unclearConfidence": "Répéter quand c'est flou",
+        "unclearConfidenceHelp": "Plus la valeur est haute, plus on demande aux élèves de redire le mot quand le son est flou.",
+        "save": "Enregistrer",
+        "saved": "Enregistré"
+      }
     }
   },
   "studentAssignment": {

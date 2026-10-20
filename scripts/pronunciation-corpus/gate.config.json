@@ -1,0 +1,15 @@
+{
+  "note": "§8 pass marks, agreed with Paul 2026-10-19. Never lower one without Paul's yes. enforce turns true only when the tuning and held-out sets both meet every mark.",
+  "enforce": false,
+  "minClipsPerLanguage": 100,
+  "minHeldOutClipsPerLanguage": 80,
+  "thresholds": {
+    "nativeBeginnerPass": 0.95,
+    "nativeAdvancedPass": 0.85,
+    "nativeUnclearMax": 0.02,
+    "controlsUnclear": 1,
+    "highLoadRecall": 0.8,
+    "groupRequireRecall": 0.8,
+    "groupForgiveAccepted": 0.9
+  }
+}

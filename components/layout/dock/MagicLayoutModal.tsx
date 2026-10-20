@@ -1,3 +1,4 @@
+import { isImeComposing } from '@/utils/imeComposing';
 import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AI_PROMPT_TEXTAREA_CLASS } from '@/components/common/aiPanelStyles';
@@ -79,7 +80,7 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
           placeholder="e.g., Math rotations with 4 groups, a 15-minute timer, and a noise meter."
           className={`${AI_PROMPT_TEXTAREA_CLASS} mb-4`}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            if (e.key === 'Enter' && !e.shiftKey && !isImeComposing(e)) {
               e.preventDefault();
               void handleGenerate();
             }

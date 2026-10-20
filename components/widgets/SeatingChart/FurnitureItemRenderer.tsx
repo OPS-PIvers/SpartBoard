@@ -12,7 +12,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { FloatingPanel } from '@/components/common/FloatingPanel';
-import { seatLabelFontPx } from './seatLabelFit';
+import { seatLabelFit } from './seatLabelFit';
 import { tourAttr } from '@/config/tourAnchors';
 
 interface FurnitureItemRendererProps {
@@ -218,7 +218,7 @@ export const FurnitureItemRenderer = memo(
                 const labelH = single
                   ? displayH - 8 - 2
                   : (displayH - 8 - 4 * (count - 1)) / count - 8 - 2;
-                const fontPx = seatLabelFontPx(
+                const { px: fontPx, fits } = seatLabelFit(
                   student.label,
                   labelW,
                   labelH,
@@ -231,8 +231,15 @@ export const FurnitureItemRenderer = memo(
                       single ? 'h-full' : 'py-1'
                     }`}
                     style={{ fontSize: fontPx, lineHeight: 1.2 }}
+                    title={student.label}
                   >
-                    <span className="min-w-0 [overflow-wrap:anywhere]">
+                    <span
+                      className={
+                        fits
+                          ? 'min-w-0 [overflow-wrap:anywhere]'
+                          : 'min-w-0 truncate'
+                      }
+                    >
                       {student.label}
                     </span>
                     {mode === 'assign' && (

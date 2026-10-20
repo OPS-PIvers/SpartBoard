@@ -684,6 +684,10 @@ export const TOUR_ANCHORS = {
     label: 'Check step header in the Assign dialog',
     panel: true,
   },
+  'assign-step.speak': {
+    label: 'Speak step header in the Assign dialog',
+    panel: true,
+  },
   'assign-step.sharing': {
     label: 'Sharing step header in the Assign dialog',
     panel: true,
@@ -830,6 +834,14 @@ export const TOUR_ANCHORS = {
   'flashcards-check.mastery': {
     label:
       'Correct in a row to master box in the Assign dialog flashcards check step',
+    panel: true,
+  },
+  'flashcards-speak.show': {
+    label: 'Let students practice aloud switch in the Assign dialog Speak step',
+    panel: true,
+  },
+  'flashcards-speak.lock': {
+    label: 'Lock Speak settings switch in the Assign dialog Speak step',
     panel: true,
   },
   'flashcards-check.score-visibility': {
@@ -9285,6 +9297,86 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'flashcards-speak-editor.panel': {
+    label: 'Speak settings in the Flashcards editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.dialects': {
+    label: 'Accents to accept menu in the Flashcards editor Speak settings',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.dialect': {
+    label: 'An accent in the Accents to accept menu of the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.level': {
+    label: 'Level dropdown in the Flashcards editor Speak settings',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.attempts': {
+    label: 'Attempts per card box in the Flashcards editor Speak settings',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.strict': {
+    label: 'Strict switch in the Flashcards editor Speak settings',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.example': {
+    label: 'Hear it button switch in the Flashcards editor Speak settings',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.advanced': {
+    label: 'Advanced button in the Flashcards editor Speak settings',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.group': {
+    label: 'Sound row dropdown in the Flashcards editor Speak settings',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.review': {
+    label: 'Cards to check list in the Flashcards editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.review-card': {
+    label: 'A card in the Flashcards editor cards to check list',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.review-confirm': {
+    label: 'Looks right button in the Flashcards editor cards to check list',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.hear-it': {
+    label: 'Hear it button on a card in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.confirm': {
+    label: 'Looks right button on a card in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.card-advanced': {
+    label: 'Advanced button on a card in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-speak-editor.ipa': {
+    label: 'Pronunciation box on a card in the Flashcards editor',
+    perField: true,
+    panel: true,
+  },
   'flashcards.add-card': {
     label: 'Add card button in the Flashcards editor',
     perWidgetType: true,
@@ -13534,6 +13626,11 @@ export const TOUR_ANCHORS = {
   },
   'flashcards.student-row': {
     label: 'Student row in Flashcards Study results',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.results-view': {
+    label: 'Study and Speaking switch in Flashcards Study results',
     perField: true,
     panel: true,
   },

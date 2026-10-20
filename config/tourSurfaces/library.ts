@@ -231,6 +231,9 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       'components/widgets/Flashcards/FlashcardEditor.tsx',
       'components/widgets/Flashcards/FlashcardLanguageField.tsx',
+      'components/widgets/Flashcards/speak/SpeakSettingsPanel.tsx',
+      'components/widgets/Flashcards/speak/SpeakCardStatus.tsx',
+      'components/widgets/Flashcards/speak/SpeakReviewList.tsx',
     ],
     opensWith: 'library-shell.new:flashcards',
     parent: 'library.flashcards',
@@ -247,6 +250,7 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       'components/widgets/Flashcards/FlashcardAssignStepper.tsx',
       'components/common/library/assignStepper/FlashcardsCheckStep.tsx',
+      'components/common/library/assignStepper/FlashcardsSpeakStep.tsx',
     ],
     opensWith: 'library-shell.card-primary-action:flashcards#row-1',
     parent: 'library.flashcards',
@@ -259,6 +263,8 @@ export const SURFACES: TourSurfaceMap = {
       'flashcards-check.questions': 'assign-step.check',
       'flashcards-check.mastery': 'assign-step.check',
       'flashcards-check.score-visibility': 'assign-step.check',
+      'flashcards-speak.show': 'assign-step.speak',
+      'flashcards-speak.lock': 'assign-step.speak',
     },
   },
   'library.flashcards.results': {

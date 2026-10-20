@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { FlashcardSession } from '@/types';
 import {
+  aggregateSpeakRows,
   aggregateStudyRows,
+  buildSpeakRows,
+  mostForgivenSounds,
+  mostMissedSounds,
+  speakClassSounds,
+  speakWordsToCheck,
   buildCheckRows,
   buildFlagRows,
   buildStudyRows,
@@ -166,5 +172,158 @@ describe('check aggregation', () => {
         accepted: undefined,
       },
     ]);
+  });
+});
+
+describe('speak aggregation (F10)', () => {
+  const ref = { dialect: 'es-ES' as const, tokens: ['p'], stress: [] };
+  const speakable = (id: string, term: string) => ({
+    id,
+    term,
+    definition: id,
+    speak: { term, refs: [ref], g2pVersion: 'v1', status: 'ready' as const },
+  });
+  const SPEAK_CARDS = [
+    speakable('s1', 'perro'),
+    speakable('s2', 'casa'),
+    speakable('s3', 'gato'),
+    {
+      id: 's4',
+      term: 'el perro',
+      definition: 'the dog',
+      speak: {
+        term: 'el perro',
+        refs: [],
+        g2pVersion: 'v1',
+        status: 'unavailable' as const,
+        reasons: ['multi-word' as const],
+      },
+    },
+  ];
+  const speakSession = session({ cards: SPEAK_CARDS });
+  const sp = (s: number, c = 0, w = 0) =>
+    ({ s, due: 1, c, w, best: 0, last: 0, tries: 1 }) as never;
+
+  it('counts said well, in progress and not started over speakable cards', () => {
+    const [row] = buildSpeakRows(
+      speakSession,
+      [
+        {
+          studentUid: 'a',
+          speak: { s1: sp(3, 3, 0), s2: sp(1, 1, 1), s4: sp(3, 3, 0) },
+          speakSounds: {
+            r: { n: 4, m: 3, f: 0 },
+            β: { n: 4, m: 1, f: 2 },
+            a: { n: 6, m: 1, f: 0 },
+            e: { n: 2, m: 2, f: 0 },
+            zz: { n: 9, m: 9, f: 0 },
+          },
+        },
+      ],
+      'es'
+    );
+    expect(row).toMatchObject({
+      ran: true,
+      mastered: 1,
+      inProgress: 1,
+      notStarted: 1,
+      total: 3,
+    });
+    expect(row.masteredPercent).toBeCloseTo(100 / 3);
+    // Unknown tokens are dropped; ties on misses go to the higher miss share.
+    expect(row.missedSounds).toEqual(['r', 'e', 'β']);
+  });
+
+  it('marks a student whose device never ran Speak', () => {
+    const rows = buildSpeakRows(
+      speakSession,
+      [
+        { studentUid: 'a', cards: { s1: card(3, 3, 0) } },
+        { studentUid: 'b', speak: { s1: sp(0) }, speakSounds: {} },
+      ],
+      'es'
+    );
+    expect(rows.map((row) => row.ran)).toEqual([false, false]);
+    const aggregate = aggregateSpeakRows([
+      ...rows,
+      ...buildSpeakRows(
+        speakSession,
+        [{ studentUid: 'c', speak: { s1: sp(3, 3, 0) } }],
+        'es'
+      ),
+    ]);
+    expect(aggregate).toMatchObject({ students: 3, ran: 1, notRan: 2 });
+    expect(aggregate.averageMasteredPercent).toBeCloseTo(100 / 3);
+  });
+
+  it('uses the session mastery threshold', () => {
+    const [row] = buildSpeakRows(
+      session({ cards: SPEAK_CARDS, masteryThreshold: 2 }),
+      [{ studentUid: 'a', speak: { s1: sp(2, 2, 0) } }],
+      'es'
+    );
+    expect(row.mastered).toBe(1);
+  });
+
+  it('ranks class sounds by misses and by forgiven', () => {
+    const totals = speakClassSounds(
+      [
+        { studentUid: 'a', speakSounds: { r: { n: 2, m: 2, f: 0 } } },
+        {
+          studentUid: 'b',
+          speakSounds: { r: { n: 2, m: 1, f: 1 }, β: { n: 5, m: 0, f: 4 } },
+        },
+        { studentUid: 'c', speakSounds: { zz: { n: 1, m: 1, f: 1 } } },
+      ],
+      'es'
+    );
+    expect(mostMissedSounds(totals)).toEqual([
+      { token: 'r', n: 4, m: 3, f: 1 },
+    ]);
+    expect(mostForgivenSounds(totals).map((sound) => sound.token)).toEqual([
+      'β',
+      'r',
+    ]);
+  });
+
+  describe('words to check', () => {
+    const students = (
+      failed: number,
+      passed: number
+    ): FlashcardResultRecord[] => [
+      ...Array.from({ length: failed }, (_, i) => ({
+        studentUid: `f${i}`,
+        speak: { s1: sp(0, 0, 2) },
+      })),
+      ...Array.from({ length: passed }, (_, i) => ({
+        studentUid: `p${i}`,
+        speak: { s1: sp(1, 1, 1) },
+      })),
+    ];
+
+    it('needs at least 5 students who tried', () => {
+      expect(speakWordsToCheck(speakSession, students(4, 0))).toEqual([]);
+      const [word] = speakWordsToCheck(speakSession, students(5, 0));
+      expect(word).toMatchObject({ tried: 5, failed: 5 });
+      expect(word.card.id).toBe('s1');
+    });
+
+    it('needs at least 60% failing their last round', () => {
+      expect(speakWordsToCheck(speakSession, students(3, 2))).toHaveLength(1);
+      expect(speakWordsToCheck(speakSession, students(2, 3))).toEqual([]);
+      expect(speakWordsToCheck(speakSession, students(6, 4))).toHaveLength(1);
+      expect(speakWordsToCheck(speakSession, students(5, 4))).toEqual([]);
+    });
+
+    it('ignores students who never tried the word and unspeakable cards', () => {
+      const untouched = Array.from({ length: 5 }, (_, i) => ({
+        studentUid: `u${i}`,
+        speak: { s1: sp(0), s4: sp(0, 0, 3) },
+      }));
+      expect(
+        speakWordsToCheck(speakSession, [...students(3, 2), ...untouched])
+      ).toHaveLength(1);
+      expect(speakWordsToCheck(speakSession, untouched)).toEqual([]);
+    });
   });
 });

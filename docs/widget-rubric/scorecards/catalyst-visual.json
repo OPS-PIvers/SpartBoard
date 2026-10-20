@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "catalyst-visual",
   "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-18T16:04:33.857Z",
+  "gradedAt": "2026-10-20T02:45:06.451Z",
   "stale": false,
   "criteria": {
     "S6": {
@@ -463,20 +463,20 @@
     },
     "E1": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical.png"
+          "scripts/widget-grader/out/spot-2026-10-19/screenshots/catalyst-visual/default__typical.png"
         ],
-        "runId": "after-catalyst-visual"
+        "runId": "spot-2026-10-19"
       },
-      "note": "It has no visible link back to the Catalyst routine or set that spawned it, and opening or swapping the anchor from there is a missing high-value connection.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "gradedAt": "2026-10-19T12:08:46.279Z",
       "stale": false
     },
     "E3": {
@@ -501,30 +501,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "after-catalyst-visual"
+        "runId": "spot-2026-10-19"
       },
-      "gradedAt": "2026-10-18T16:04:33.857Z"
+      "gradedAt": "2026-10-20T02:45:06.451Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "after-catalyst-visual"
+        "runId": "spot-2026-10-19"
       },
-      "gradedAt": "2026-10-18T16:04:33.857Z"
+      "gradedAt": "2026-10-20T02:45:06.451Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "after-catalyst-visual"
+        "runId": "spot-2026-10-19"
       },
-      "gradedAt": "2026-10-18T16:04:33.857Z"
+      "gradedAt": "2026-10-20T02:45:06.451Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "after-catalyst-visual"
+        "runId": "spot-2026-10-19"
       },
-      "gradedAt": "2026-10-18T16:04:33.857Z"
+      "gradedAt": "2026-10-20T02:45:06.451Z"
     }
   }
 }

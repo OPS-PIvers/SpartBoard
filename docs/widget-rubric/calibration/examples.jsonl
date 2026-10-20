@@ -321,3 +321,11 @@
 {"widgetType":"weather","criterionId":"V4","paul":3,"judge":3,"script":null,"rubricVersion":"1.0.0","gradedAt":"2026-10-06T02:56:17.513Z","runId":"norming-1","deckId":"norming-seed-1"}
 {"widgetType":"weather","criterionId":"V5","paul":3,"judge":null,"script":3,"rubricVersion":"1.0.0","gradedAt":"2026-10-06T02:56:59.491Z","runId":"norming-1","deckId":"norming-seed-1"}
 {"widgetType":"weather","criterionId":"V6","paul":3,"judge":1,"script":null,"rubricVersion":"1.0.0","gradedAt":"2026-10-06T02:58:17.934Z","runId":"norming-1","deckId":"norming-seed-1"}
+{"widgetType":"catalyst-visual","criterionId":"E1","paul":2,"judge":2,"script":null,"rubricVersion":"1.1.0","gradedAt":"2026-10-19T12:08:46.279Z","runId":"spot-2026-10-19","deckId":"widget-2026-10-19T12-01-08-794Z"}
+{"widgetType":"expectations","criterionId":"R1","paul":3,"judge":3,"script":null,"rubricVersion":"1.1.0","gradedAt":"2026-10-19T12:09:29.369Z","runId":"spot-2026-10-19","deckId":"widget-2026-10-19T12-01-08-794Z"}
+{"widgetType":"expectations","criterionId":"S5","paul":3,"judge":null,"script":1,"rubricVersion":"1.1.0","gradedAt":"2026-10-19T12:08:55.515Z","runId":"spot-2026-10-19","deckId":"widget-2026-10-19T12-01-08-794Z"}
+{"widgetType":"expectations","criterionId":"V6","paul":3,"judge":3,"script":null,"rubricVersion":"1.1.0","gradedAt":"2026-10-19T12:09:22.017Z","runId":"spot-2026-10-19","deckId":"widget-2026-10-19T12-01-08-794Z"}
+{"widgetType":"graphic-organizer","criterionId":"I4","paul":2,"judge":null,"script":2,"rubricVersion":"1.1.0","gradedAt":"2026-10-19T12:09:36.704Z","runId":"spot-2026-10-19","deckId":"widget-2026-10-19T12-01-08-794Z"}
+{"widgetType":"graphic-organizer","criterionId":"V5","paul":1,"judge":null,"script":2,"rubricVersion":"1.1.0","gradedAt":"2026-10-19T12:09:40.817Z","runId":"spot-2026-10-19","deckId":"widget-2026-10-19T12-01-08-794Z"}
+{"widgetType":"graphic-organizer","criterionId":"V6","paul":3,"judge":3,"script":null,"rubricVersion":"1.1.0","gradedAt":"2026-10-19T12:09:59.277Z","runId":"spot-2026-10-19","deckId":"widget-2026-10-19T12-01-08-794Z"}
+{"widgetType":"poll","criterionId":"C1","paul":2,"judge":2,"script":null,"rubricVersion":"1.1.0","gradedAt":"2026-10-19T12:10:12.813Z","runId":"spot-2026-10-19","deckId":"widget-2026-10-19T12-01-08-794Z"}

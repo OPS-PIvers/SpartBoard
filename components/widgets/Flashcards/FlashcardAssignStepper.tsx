@@ -34,6 +34,13 @@ import {
   formatFlashcardsCheckValue,
   type FlashcardsCheckValue,
 } from '@/components/common/library/assignStepper/flashcardsCheckValue';
+import { FlashcardsSpeakStep } from '@/components/common/library/assignStepper/FlashcardsSpeakStep';
+import {
+  DEFAULT_FLASHCARDS_SPEAK_VALUE,
+  formatFlashcardsSpeakValue,
+  type FlashcardsSpeakValue,
+} from '@/components/common/library/assignStepper/flashcardsSpeakValue';
+import { speakLanguageOf } from '@/config/pronunciationGroups';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { applyWhen } from '@/utils/assignAvailability';
 import {
@@ -95,6 +102,13 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
     EMPTY_ASSIGN_TARGETING_VALUE
   );
   const [showMods, setShowMods] = useState(false);
+  const [speak, setSpeak] = useState<FlashcardsSpeakValue>(
+    DEFAULT_FLASHCARDS_SPEAK_VALUE
+  );
+  // F21: the same check the save-time stamp makes.
+  const speakAvailable =
+    (auth?.canAccessFeature('flashcards-speak') ?? false) &&
+    speakLanguageOf(set.termLanguage) !== null;
 
   const [check, setCheck] = useState<FlashcardsCheckValue>(() => {
     const { collectSubmission: _kind, ...rules } = getFlashcardAssignPrefill(
@@ -142,7 +156,7 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
               )
             : undefined;
 
-  const ctx = { kind };
+  const ctx = { kind, speak: speakAvailable };
   const whenVariant = kind === 'resource' ? 'available' : 'when';
   const manualAvailable = whenVariant === 'when' && !!periodAccess;
 
@@ -217,13 +231,26 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
         />
       ),
     },
+    speak: {
+      value: formatFlashcardsSpeakValue(speak, t),
+      body: <FlashcardsSpeakStep value={speak} onChange={setSpeak} />,
+    },
   };
 
   const steps: AssignStepDef[] = getAssignSteps('flashcards', ctx).flatMap(
     (id) => {
       const step = bodies[id];
       return step
-        ? [{ id, title: getAssignStepTitle(id, 'flashcards', ctx), ...step }]
+        ? [
+            {
+              id,
+              title:
+                id === 'speak'
+                  ? t('flashcards.speak.assign.stepTitle', 'Speak')
+                  : getAssignStepTitle(id, 'flashcards', ctx),
+              ...step,
+            },
+          ]
         : [];
     }
   );
@@ -239,17 +266,29 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
         workKind: { default: kind, locked: true },
       }
     );
+    const submission = buildFlashcardAssignSubmission({
+      set,
+      form,
+      rosters,
+      rosterIds: classes.classIds,
+      targeting: resolved.targeting,
+      bellWindow: periodAccess?.bellWindow,
+      classes,
+      manualStart,
+    });
+    const studySpeak = speakAvailable && kind === 'resource';
     const ok = await onAssign(
-      buildFlashcardAssignSubmission({
-        set,
-        form,
-        rosters,
-        rosterIds: classes.classIds,
-        targeting: resolved.targeting,
-        bellWindow: periodAccess?.bellWindow,
-        classes,
-        manualStart,
-      })
+      studySpeak
+        ? {
+            ...submission,
+            input: {
+              ...submission.input,
+              ...(speak.show
+                ? { speakLocked: speak.lock }
+                : { speakOff: true }),
+            },
+          }
+        : submission
     );
     if (ok !== false && kind === 'work') lastUsed.save(check);
   };

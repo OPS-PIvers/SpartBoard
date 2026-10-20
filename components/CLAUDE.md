@@ -28,6 +28,7 @@ Permanent helper text was cut across the app in September 2026 (`docs/plans/ship
 - Detail that is needed but rarely goes in the control's `title` tooltip, not in a new permanent line.
 - Empty states get a title and at most one short sentence naming the next action.
 - No em dashes, "Tip:" or "Note:" boxes, marketing words, or mechanics (Firestore, JSON, CSS, sync internals, flag names) in UI text. Run `deslop --writing` on new strings.
+- A student's go at a quiz, card or recording is an "attempt" ("Attempts per card", "Attempt 2 of 3", "First-attempt accuracy"), never a "try" or "take". "Try again" and verbs like "Take a photo" are fine. `tests/copyGuard.test.ts` fails on the noun in `locales/*.json` and in strings under `components/`, `utils/`, `hooks/`, `context/` and `config/`, with no baseline.
 - `tests/copyGuard.test.ts` fails on new em dashes, Tip/Note prefixes and strings over 30 words. Shorten the string. Never add to `tests/fixtures/copyGuardBaseline.json`, which may only shrink.
 
 ## Picking a number

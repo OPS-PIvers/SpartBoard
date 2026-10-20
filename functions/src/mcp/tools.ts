@@ -23,6 +23,7 @@ import {
   stageSetWrite,
   type FlashcardSet,
 } from './flashcardStore';
+import { prepareSpeakSave, type SpeakSaveResult } from './flashcardSpeak';
 import {
   CONTENT_TYPES,
   FOLDER_COLLECTIONS,
@@ -88,9 +89,66 @@ function fullSet(set: FlashcardSet) {
     term_language: set.termLanguage,
     definition_language: set.definitionLanguage,
     shared_publicly: Boolean(set.publicShareId),
-    cards: set.cards,
+    ...(set.speak ? { speak: set.speak } : {}),
+    // References are for the student player; Claude only needs each card's status.
+    cards: set.cards.map(({ speak, ...card }) =>
+      speak
+        ? {
+            ...card,
+            speak_status: speak.status,
+            ...(Array.isArray(speak.reasons)
+              ? { speak_reasons: speak.reasons }
+              : {}),
+          }
+        : card
+    ),
   };
 }
+
+const speakInput = z
+  .object({
+    dialects: z
+      .array(z.enum(['es-419', 'es-ES', 'de-DE', 'en-US']))
+      .min(1)
+      .optional()
+      .describe(
+        "Accents to accept; must match the term language. Default: all of the language's."
+      ),
+    level: z
+      .enum(['beginner', 'intermediate', 'advanced'])
+      .optional()
+      .describe(
+        'beginner lets most hard sounds go, intermediate a few, advanced none.'
+      ),
+    attempts: z.number().int().min(1).max(10).optional(),
+    hear_it: z
+      .boolean()
+      .optional()
+      .describe(
+        "Show a Hear it button that plays the word in the device's voice."
+      ),
+  })
+  .optional()
+  .describe(
+    "Speak study mode: students say each term aloud. Only for Spanish, German or English terms and accounts that have Speak; omitted keeps the set's settings."
+  );
+
+/** Tool output for Speak: cards the teacher must check in SpartBoard before students are judged on them. */
+const speakSummary = (speak: SpeakSaveResult) =>
+  speak.counts
+    ? {
+        speak: {
+          cards_ready: speak.counts.ready,
+          cards_to_check: speak.counts.to_check,
+          cards_unavailable: speak.counts.unavailable,
+          ...(speak.counts.to_check > 0
+            ? {
+                note: 'Ask the teacher to check the flagged cards in the set editor in SpartBoard.',
+              }
+            : {}),
+        },
+      }
+    : {};
 
 const cardInput = z.object({
   term: z.string().min(1).max(MAX_TERM),
@@ -104,9 +162,15 @@ const languageInput = z
 async function saveFlashcardEdit(
   ctx: ToolContext,
   existing: FlashcardSet,
-  next: FlashcardSet,
+  prepared: FlashcardSet | SpeakSaveResult,
   action: 'update' | 'restore'
 ) {
+  const speak =
+    'set' in prepared
+      ? prepared
+      : await prepareSpeakSave(ctx.db, ctx, prepared, undefined);
+  const next = speak.set;
+  const stamp = speak.stamp as Record<string, unknown> | undefined;
   const now = Date.now();
   const batch = ctx.db.batch();
   const previous: Record<string, unknown> = { ...existing };
@@ -121,7 +185,14 @@ async function saveFlashcardEdit(
     { ...next, claudeEditedAt: now, [REVIEW_MARK]: now },
     now
   );
-  stageSetWrite(ctx.db, batch, ctx.uid, normalized);
+  stageSetWrite(
+    ctx.db,
+    batch,
+    ctx.uid,
+    normalized,
+    existing.termLanguage,
+    stamp
+  );
   logActivity(ctx, batch, {
     action,
     itemType: 'flashcard_set',
@@ -136,7 +207,8 @@ async function saveFlashcardEdit(
     studySessionsUpdated = await rewriteOpenStudySessions(
       ctx.db,
       ctx.uid,
-      normalized
+      normalized,
+      stamp
     );
   } catch (err) {
     console.error('[mcpServer] study session rewrite failed', {
@@ -150,6 +222,7 @@ async function saveFlashcardEdit(
     ...summarizeSet(normalized),
     previous_version_revision_id: revisionId,
     open_study_assignments_updated: studySessionsUpdated,
+    ...speakSummary(speak),
     ...(warning ? { warning } : {}),
   };
 }
@@ -404,6 +477,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           .optional()
           .describe('From list_folders; omit for top level.'),
         cards: z.array(cardInput).min(1).max(MAX_CARDS),
+        speak: speakInput,
       },
       annotations: {
         readOnlyHint: false,
@@ -415,9 +489,8 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     (input) =>
       run('create_flashcard_set', ctx, async () => {
         await assertFolder(ctx, 'flashcards', input.folder_id);
-        await reserveWrite(ctx);
         const now = Date.now();
-        const set = normalizeSet(
+        const draft = normalizeSet(
           {
             id: db.collection(setsPath(uid)).doc().id,
             title: input.title,
@@ -433,6 +506,9 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           },
           now
         );
+        const speak = await prepareSpeakSave(db, ctx, draft, input.speak);
+        await reserveWrite(ctx);
+        const set = speak.set;
         const batch = db.batch();
         stageSetWrite(db, batch, uid, set);
         logActivity(ctx, batch, {
@@ -445,6 +521,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         return {
           ...summarizeSet(set),
           where_to_find_it: 'SpartBoard > Flashcards widget > library',
+          ...speakSummary(speak),
         };
       })
   );
@@ -454,7 +531,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     {
       title: 'Edit a flashcard set',
       description:
-        'Edits a flashcard set; only passed fields change. `cards` replaces the whole list: send every card to keep, with its id. Open Study assignments update.',
+        'Edits a flashcard set; only passed fields change. `cards` replaces the whole list: send every card to keep, with its id. Open Study assignments update. With Speak, changed terms get new pronunciations; cards to check wait for the teacher.',
       inputSchema: {
         set_id: z.string().min(1),
         title: z.string().trim().min(1).max(200).optional(),
@@ -475,6 +552,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           .min(1)
           .max(MAX_CARDS)
           .optional(),
+        speak: speakInput,
       },
       annotations: {
         readOnlyHint: false,
@@ -490,7 +568,6 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           throw new ToolError(`Flashcard set ${input.set_id} was not found.`);
         if (input.folder_id)
           await assertFolder(ctx, 'flashcards', input.folder_id);
-        await reserveWrite(ctx);
         const next: FlashcardSet = {
           ...existing,
           title: input.title ?? existing.title,
@@ -504,7 +581,9 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
             ? mergeCards(existing.cards, input.cards)
             : existing.cards,
         };
-        return saveFlashcardEdit(ctx, existing, next, 'update');
+        const speak = await prepareSpeakSave(db, ctx, next, input.speak);
+        await reserveWrite(ctx);
+        return saveFlashcardEdit(ctx, existing, speak, 'update');
       })
   );
 

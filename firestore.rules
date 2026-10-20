@@ -72,6 +72,7 @@ service cloud.firestore {
     // 2026-09-21; every release was then refused with a bare INVALID_ARGUMENT.
     function optString(d, k) { return !(k in d) || d[k] is string; }
     function optMap(d, k) { return !(k in d) || d[k] is map; }
+    function optMapMax(d, k, n) { return !(k in d) || (d[k] is map && d[k].size() <= n); }
     function optList(d, k) { return !(k in d) || d[k] is list; }
     function optInt(d, k) { return !(k in d) || d[k] is int; }
     function optBool(d, k) { return !(k in d) || d[k] is bool; }
@@ -985,6 +986,12 @@ service cloud.firestore {
 
     // Content areas (subjects) — teachers read them for their profile; admins edit.
     match /admin_settings/subjects {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Flashcards Speak district defaults; teachers resolve them into the stamp at save (F22).
+    match /admin_settings/flashcardsSpeak {
       allow read: if signedIn();
       allow write: if isAdmin();
     }
@@ -2720,8 +2727,8 @@ service cloud.firestore {
       return incoming().keys().hasOnly([
         'id', 'title', 'description', 'termLanguage', 'definitionLanguage', 'cards',
         'createdAt', 'updatedAt', 'sharedBy', 'sharedByEmail', 'sharedByName', 'sharedAt',
-        'deletedAt'
-      ]);
+        'deletedAt', 'speak'
+      ]) && optMap(incoming(), 'speak');
     }
     function plcAssignmentKeysOk() {
       return incoming().keys().hasOnly([
@@ -6380,7 +6387,7 @@ service cloud.firestore {
                && incoming().keys().hasOnly([
                  'teacherUid', 'setId', 'title', 'description',
                  'termLanguage', 'definitionLanguage', 'cards',
-                 'updatedAt'
+                 'updatedAt', 'speak'
                ])
                && isStr('setId')
                && isStr('title')
@@ -6391,7 +6398,8 @@ service cloud.firestore {
                && isList('cards')
                && incoming().cards.size() > 0
                && incoming().cards.size() <= 500
-               && isInt('updatedAt');
+               && isInt('updatedAt')
+               && optMap(incoming(), 'speak');
       }
 
       allow get: if true;
@@ -6505,7 +6513,8 @@ service cloud.firestore {
           let data = incoming();
           return data.keys().hasOnly([
                    'classId', 'cards', 'starred', 'round', 'studyMs', 'modesUsed',
-                   'tests', 'lastActiveAt', 'checkLog'
+                   'tests', 'lastActiveAt', 'checkLog', 'speak', 'speakRound',
+                   'speakSounds'
                  ])
                  && data.classId is string
                  && fcCardsOk()
@@ -6516,7 +6525,11 @@ service cloud.firestore {
                  && data.tests is list
                  && data.tests.size() <= 50
                  && data.lastActiveAt is int
-                 && optMap(data, 'checkLog');
+                 && optMap(data, 'checkLog')
+                 // Speak (F7, F8): one entry per card, one per vocabulary token.
+                 && optMapMax(data, 'speak', 500)
+                 && optInt(data, 'speakRound')
+                 && optMapMax(data, 'speakSounds', 392);
         }
 
         allow get: if signedIn() && (

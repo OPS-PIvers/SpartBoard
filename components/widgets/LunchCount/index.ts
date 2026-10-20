@@ -1,1 +1,1 @@
-export { LunchCountWidget } from './Widget';
+export { LunchCountWidget } from './LunchCountEntry';

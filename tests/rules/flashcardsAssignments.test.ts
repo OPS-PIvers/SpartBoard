@@ -136,6 +136,42 @@ describe('flashcard_sessions', () => {
     );
   });
 
+  it('lets a teacher stamp and clear Speak on a session that students then read', async () => {
+    const speak = {
+      dialects: ['es-419'],
+      preset: 'beginner',
+      strict: false,
+      groups: {},
+      attempts: 3,
+      example: true,
+      unclearConfidence: 0.35,
+      locked: false,
+    };
+    const teacherDb = asTeacher(TEACHER_UID);
+    await assertSucceeds(
+      setDoc(doc(teacherDb, SESSION_PATH), session({ speak }))
+    );
+    const read = await getDoc(
+      doc(asStudent(STUDENT_UID, [CLASS_A]), SESSION_PATH)
+    );
+    expect(read.get('speak.locked')).toBe(false);
+    expect(read.get('speak.unclearConfidence')).toBe(0.35);
+    await assertSucceeds(
+      setDoc(
+        doc(teacherDb, SESSION_PATH),
+        { speak: { ...speak, locked: true } },
+        { merge: true }
+      )
+    );
+    await assertFails(
+      setDoc(
+        doc(asStudent(STUDENT_UID, [CLASS_A]), SESSION_PATH),
+        { speak: null },
+        { merge: true }
+      )
+    );
+  });
+
   it('denies students creating sessions', async () => {
     await assertFails(
       setDoc(
@@ -420,6 +456,72 @@ describe('flashcard_sessions progress', () => {
     });
     await assertSucceeds(
       setDoc(doc(outsiderDb, outsiderProgress), progress({ classId: '' }))
+    );
+  });
+
+  it('accepts Speak progress and lets the student and teacher read it', async () => {
+    await seed(SESSION_PATH, session());
+    const studentDb = asStudent(STUDENT_UID, [CLASS_A]);
+    const speak = {
+      'card-1': { s: 2, due: 3, c: 1, w: 0, best: 88, last: 80, tries: 2 },
+    };
+    const speakSounds = { r: { n: 3, m: 1, f: 1 }, a: { n: 6, m: 0, f: 0 } };
+    await assertSucceeds(
+      setDoc(
+        doc(studentDb, progressPath),
+        progress({ speak, speakRound: 2, speakSounds })
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(studentDb, progressPath),
+        { speakRound: 3, lastActiveAt: 3 },
+        { merge: true }
+      )
+    );
+    const own = await getDoc(doc(studentDb, progressPath));
+    expect(own.get('speakRound')).toBe(3);
+    const teacherView = await getDoc(doc(asTeacher(TEACHER_UID), progressPath));
+    expect(teacherView.get('speakSounds')).toEqual(speakSounds);
+    await assertFails(getDoc(doc(asTeacher(OTHER_TEACHER_UID), progressPath)));
+  });
+
+  it('rejects malformed or oversized Speak progress', async () => {
+    await seed(SESSION_PATH, session());
+    const studentDb = asStudent(STUDENT_UID, [CLASS_A]);
+    const tooMany = (count: number) =>
+      Object.fromEntries(
+        Array.from({ length: count }, (_, i) => [`k${i}`, { n: 1, m: 0, f: 0 }])
+      );
+    await assertFails(
+      setDoc(doc(studentDb, progressPath), progress({ speak: ['card-1'] }))
+    );
+    await assertFails(
+      setDoc(doc(studentDb, progressPath), progress({ speakRound: '2' }))
+    );
+    await assertFails(
+      setDoc(doc(studentDb, progressPath), progress({ speakSounds: 'r' }))
+    );
+    await assertFails(
+      setDoc(doc(studentDb, progressPath), progress({ speak: tooMany(501) }))
+    );
+    await assertSucceeds(
+      setDoc(doc(studentDb, progressPath), progress({ speak: tooMany(500) }))
+    );
+    await assertFails(
+      setDoc(
+        doc(studentDb, progressPath),
+        progress({ speakSounds: tooMany(393) })
+      )
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(studentDb, progressPath),
+        progress({ speakSounds: tooMany(392) })
+      )
+    );
+    await assertFails(
+      setDoc(doc(studentDb, progressPath), progress({ speakAudio: 'x' }))
     );
   });
 
