@@ -420,7 +420,7 @@ export const MaterialsCatalogField: React.FC<{
               {translate(ctx, isAllSelected ? 'deselectAll' : 'selectAll')}
             </button>
           </div>
-          <div className="flex max-h-[280px] flex-col gap-2 overflow-y-auto pr-1 pb-1">
+          <div className="flex flex-col gap-2">
             {visibleCatalog.length === 0 && (
               <p className="py-2 text-xs italic text-slate-500">
                 {translate(ctx, 'everyMaterialHidden')}

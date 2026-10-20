@@ -13,6 +13,7 @@ import { Package } from 'lucide-react';
 import { getMaterialMap } from './constants';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useAuth } from '@/context/useAuth';
+import { resolveBaseTextScale } from '@/config/widgetAppearance';
 import { tourFieldAttr } from '@/config/tourAnchors';
 
 import { WidgetLayout } from '../WidgetLayout';
@@ -23,6 +24,7 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   const globalStyle = useGlobalStyle();
   const config = widget.config as MaterialsConfig;
   const isFocused = useIsWidgetSelected(widget.id);
+  const textScale = resolveBaseTextScale(widget.baseTextSize);
   const permission = featurePermissions.find(
     (item) => item.widgetType === 'materials'
   );
@@ -135,9 +137,9 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
         >
           {/* Title */}
           <div
-            className={`w-full text-center font-bold truncate mb-2 ${getTitleFontClass()}`}
+            className={`w-full text-center font-bold leading-tight truncate mb-2 ${getTitleFontClass()}`}
             style={{
-              fontSize: 'min(24px, max(14px, 7cqmin))',
+              fontSize: `min(${24 * textScale}px, max(${14 * textScale}px, ${7 * textScale}cqmin))`,
               color: titleColor,
               opacity: gridItems.length === 0 ? 0.3 : 1,
             }}
@@ -178,7 +180,10 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
                     />
                     <span
                       className="uppercase tracking-wide text-center font-black leading-tight truncate w-full"
-                      style={{ fontSize: 'min(18px, 14cqmin)' }}
+                      style={{
+                        // Width cap keeps a long label whole at large text sizes.
+                        fontSize: `min(${18 * textScale}px, ${14 * textScale}cqmin, ${(110 / Math.max(item.label.length, 1)).toFixed(2)}cqw)`,
+                      }}
                     >
                       {item.label}
                     </span>
