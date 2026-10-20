@@ -15,7 +15,7 @@ import {
   normalizeSpeakAdminDefaults,
   resolveSpeakSettings,
   speakPresetSettings,
-} from '@/functions/src/mcp/flashcardSpeak';
+} from '@/functions/src/mcp/flashcardSpeakSettings';
 import type { FlashcardSpeakSettings } from '@/types';
 
 describe('connector Speak settings match the client', () => {
