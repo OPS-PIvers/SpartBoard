@@ -203,10 +203,6 @@
       "openedAt": "2026-10-20T04:30:00Z",
       "outcome": "open",
       "changes": {
-        "S1": {
-          "before": 1,
-          "after": 2
-        },
         "S3": {
           "before": 2,
           "after": 3
@@ -219,19 +215,11 @@
           "before": 1,
           "after": 2
         },
-        "V1": {
-          "before": 2,
-          "after": 3
-        },
         "V3": {
           "before": 2,
           "after": 3
         },
-        "C3": {
-          "before": 1,
-          "after": 2
-        },
-        "C5": {
+        "I6": {
           "before": 2,
           "after": 3
         }

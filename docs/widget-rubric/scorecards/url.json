@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "url",
   "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-20T04:16:40.160Z",
+  "gradedAt": "2026-10-20T14:19:07.458Z",
   "stale": false,
   "criteria": {
     "S6": {
@@ -183,23 +183,23 @@
       "stale": false
     },
     "S1": {
-      "score": 2,
-      "source": "judge",
+      "score": 1,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-url-2026-10-20-after/screenshots/url/envelope-min__empty.png",
-          "scripts/widget-grader/out/loop-url-2026-10-20-after/screenshots/url/envelope-min__typical.png",
-          "scripts/widget-grader/out/loop-url-2026-10-20-after/screenshots/url/envelope-min__stress.png"
+          "scripts/widget-grader/out/grade-url-2026-10-20/screenshots/url/envelope-min__empty.png",
+          "scripts/widget-grader/out/grade-url-2026-10-20/screenshots/url/envelope-min__typical.png",
+          "scripts/widget-grader/out/grade-url-2026-10-20/screenshots/url/envelope-min__stress.png"
         ],
-        "runId": "loop-url-2026-10-20-after"
+        "runId": "grade-url-2026-10-20"
       },
-      "note": "At 80×80 the typical tiles are readable and tappable, but the stress labels clip and the empty state text is a 2px unreadable smear.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-20T04:16:40.160Z",
+      "gradedAt": "2026-10-20T14:17:19.285Z",
       "stale": false
     },
     "S2": {
@@ -283,39 +283,39 @@
       "stale": false
     },
     "I6": {
-      "score": 2,
-      "source": "judge",
+      "score": 3,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-url-2026-10-20-after/screenshots/url/default__typical.png"
+          "scripts/widget-grader/out/grade-url-2026-10-20/screenshots/url/default__typical.png"
         ],
-        "runId": "loop-url-2026-10-20-after"
+        "runId": "grade-url-2026-10-20"
       },
-      "note": "The screenshot shows no pressed, active or selected states on the tiles, so feedback is unproven and probably limited.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-20T04:16:40.160Z",
+      "gradedAt": "2026-10-20T14:18:04.505Z",
       "stale": false
     },
     "V1": {
-      "score": 3,
-      "source": "judge",
+      "score": 2,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-url-2026-10-20-after/screenshots/url/default__typical.png"
+          "scripts/widget-grader/out/grade-url-2026-10-20/screenshots/url/default__typical.png"
         ],
-        "runId": "loop-url-2026-10-20-after"
+        "runId": "grade-url-2026-10-20"
       },
-      "note": "Clean flat tiles with consistent radii and one icon style, but the five saturated colours are loud and the empty card has a faint gradient.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-20T04:16:40.160Z",
+      "gradedAt": "2026-10-20T14:18:15.275Z",
       "stale": false
     },
     "V2": {
@@ -428,39 +428,40 @@
       "stale": false
     },
     "C3": {
-      "score": 2,
-      "source": "judge",
+      "score": 1,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-url-2026-10-20-after/screenshots/url/default__empty.png"
+          "scripts/widget-grader/out/grade-url-2026-10-20/screenshots/url/default__empty.png"
         ],
-        "runId": "loop-url-2026-10-20-after"
+        "runId": "grade-url-2026-10-20"
       },
-      "note": "A fresh widget is an empty grey card with a faint 'No links added' that looks unfinished and has no starter links.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-20T04:16:40.160Z",
+      "gradedAt": "2026-10-20T14:18:28.389Z",
       "stale": false
     },
     "C5": {
-      "score": 3,
-      "source": "judge",
+      "score": 2,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-url-2026-10-20-after/screenshots/url/default__empty.png"
+          "scripts/widget-grader/out/grade-url-2026-10-20/screenshots/url/default__empty.png"
         ],
-        "runId": "loop-url-2026-10-20-after"
+        "runId": "grade-url-2026-10-20"
       },
-      "note": "The empty state has a globe icon, a title and one sentence ('Flip to set up your URLs'), but its contrast is low.",
+      "note": "also the white text ont he light gray background is atrocious",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-20T04:16:40.160Z",
+      "gradedAt": "2026-10-20T14:18:48.848Z",
       "stale": false
     },
     "R1": {
@@ -541,30 +542,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "loop-url-2026-10-20-after"
+        "runId": "grade-url-2026-10-20"
       },
-      "gradedAt": "2026-10-20T04:16:40.160Z"
+      "gradedAt": "2026-10-20T14:19:07.458Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "loop-url-2026-10-20-after"
+        "runId": "grade-url-2026-10-20"
       },
-      "gradedAt": "2026-10-20T04:16:40.160Z"
+      "gradedAt": "2026-10-20T14:19:07.458Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "loop-url-2026-10-20-after"
+        "runId": "grade-url-2026-10-20"
       },
-      "gradedAt": "2026-10-20T04:16:40.160Z"
+      "gradedAt": "2026-10-20T14:19:07.458Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "loop-url-2026-10-20-after"
+        "runId": "grade-url-2026-10-20"
       },
-      "gradedAt": "2026-10-20T04:16:40.160Z"
+      "gradedAt": "2026-10-20T14:19:07.458Z"
     }
   }
 }
