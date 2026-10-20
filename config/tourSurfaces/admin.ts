@@ -841,8 +841,6 @@ export const SURFACES: TourSurfaceMap = {
       'admin.analytics.widget-search': 'admin.analytics.tab:admin#widgets',
       'admin.analytics.widget-users-toggle':
         'admin.analytics.tab:admin#widgets',
-      'admin.analytics.widget-users-search':
-        'admin.analytics.tab:admin#widgets',
       'admin.analytics.table-sort': 'admin.analytics.tab:admin#users',
       'admin.analytics.user-search':
         'admin.analytics.kpi-card:admin#Users with Dashboards',
@@ -851,6 +849,13 @@ export const SURFACES: TourSurfaceMap = {
       'admin.analytics.user-sort':
         'admin.analytics.kpi-card:admin#Users with Dashboards',
     },
+  },
+  'admin.analytics.widget-users': {
+    label: 'Widget users list',
+    kind: 'modal',
+    files: ['components/admin/Analytics/WidgetUsersModal.tsx'],
+    opensWith: 'admin.analytics.widget-users-toggle:admin#timer',
+    needs: ['admin'],
   },
   'admin.analytics.active-students': {
     label: 'Active students list',

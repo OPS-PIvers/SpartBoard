@@ -66,6 +66,27 @@ describe('mergeDashboardForSave', () => {
     expect(a.x).toBe(42);
   });
 
+  it('keeps the later use stamp from either copy', () => {
+    const base = board([widget('a', 'a0'), widget('b', 'b0')]);
+    const local = board([
+      widget('a', 'a0', { lastUse: { uid: 'u', at: 5 } }),
+      widget('b', 'b0', { lastUse: { uid: 'u', at: 1 } }),
+    ]);
+    const server = board([
+      widget('a', 'a0', { lastUse: { uid: 'u', at: 2 } }),
+      widget('b', 'b0', { lastUse: { uid: 'u', at: 9 } }),
+    ]);
+
+    const [a, b] = mergeDashboardForSave(
+      local,
+      server,
+      baselineOf(base)
+    ).widgets;
+
+    expect(a.lastUse?.at).toBe(5);
+    expect(b.lastUse?.at).toBe(9);
+  });
+
   it('honours remote adds and deletes, and keeps local adds and deletes', () => {
     const base = board([widget('gone-remote', 'x'), widget('gone-local', 'y')]);
     const local = board([widget('gone-remote', 'x'), widget('new-local', 'l')]);

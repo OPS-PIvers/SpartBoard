@@ -7621,12 +7621,21 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'admin.analytics.widget-users-building': {
+    label: 'Building filter in a widget users list',
+    panel: true,
+  },
   'admin.analytics.widget-users-search': {
-    label: 'Email search field in a widget usage row',
+    label: 'Email search field in a widget users list',
+    panel: true,
+  },
+  'admin.analytics.widget-users-sort': {
+    label: 'Sortable column headers in a widget users list',
+    perField: true,
     panel: true,
   },
   'admin.analytics.widget-users-toggle': {
-    label: 'Show users button in a widget usage row',
+    label: 'Widget name in the widget usage table, opens its users',
     perField: true,
     panel: true,
   },
