@@ -3530,6 +3530,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class checkbox in the Assign dialog classes menu",
     "scope": "field",
     "panel": true,
+    "key_pattern": "assign#row-[1-9]\\d*",
+    "key_hint": "assign#row-1 for the first row",
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -3578,6 +3580,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "All students menu button for a class in the Assign dialog",
     "scope": "field",
     "panel": true,
+    "key_pattern": "assign#row-[1-9]\\d*",
+    "key_hint": "assign#row-1 for the first row",
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -3623,6 +3627,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student checkbox in the Assign dialog students menu",
     "scope": "field",
     "panel": true,
+    "key_pattern": "assign#row-[1-9]\\d*",
+    "key_hint": "assign#row-1 for the first row",
     "routes": [
       {
         "surface": "library.assign-stepper",
