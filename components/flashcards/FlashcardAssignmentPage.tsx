@@ -40,6 +40,7 @@ import {
   sanitizeFlashcardStudyState,
 } from './adapters';
 import { FlashcardCheckResults } from './FlashcardCheckResults';
+import { isFramedWindow } from './speak/micAccess';
 import {
   FlashcardPlayer,
   type FlashcardCheckSubmission,
@@ -145,6 +146,7 @@ const TrackedPlayer: React.FC<{
   resetCount,
 }) => {
   const { t } = useTranslation();
+  const [framed] = useState(isFramedWindow);
   const [tracked, setTracked] = useState(() => ({
     adapter: createTrackedAdapter(session, studentUid, classId, progress),
     resetCount,
@@ -197,6 +199,8 @@ const TrackedPlayer: React.FC<{
       definitionLanguage={session.definitionLanguage}
       adapter={adapter}
       seed={`${session.id}:${studentUid}`}
+      speak={isCheck ? undefined : session.speak}
+      framed={framed}
       lockedSettings={isCheck ? session.lockedSettings : undefined}
       check={
         isCheck && session.checkMode
@@ -246,6 +250,7 @@ const UntrackedPlayer: React.FC<{
   progress: FlashcardProgress | null;
   studentUid: string;
 }> = ({ session, progress, studentUid }) => {
+  const [framed] = useState(isFramedWindow);
   const [adapter] = useState(
     () =>
       new LocalFlashcardAdapter(
@@ -260,6 +265,8 @@ const UntrackedPlayer: React.FC<{
       definitionLanguage={session.definitionLanguage}
       adapter={adapter}
       seed={`${session.id}:${studentUid}`}
+      speak={session.kind === 'check' ? undefined : session.speak}
+      framed={framed}
     />
   );
 };
