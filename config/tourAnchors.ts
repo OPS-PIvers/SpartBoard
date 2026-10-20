@@ -4597,16 +4597,18 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'library-shell.archive-primary-action': {
-    label: 'Primary action button on an assignment archive row',
+    label:
+      'Primary action button on an assignment row (In Progress or Archive tab)',
     persists: true,
     perField: true,
   },
   'library-shell.archive-menu': {
-    label: 'Kebab menu button on an assignment archive row',
+    label:
+      'Kebab menu button on an assignment row (In Progress or Archive tab)',
     perField: true,
   },
   'library-shell.archive-menu-item': {
-    label: 'Item inside an assignment archive row kebab menu',
+    label: 'Item inside an assignment row kebab menu',
     persists: true,
     perField: true,
     panel: true,
@@ -6705,7 +6707,8 @@ export const TOUR_ANCHORS = {
   },
   'modal.close': { label: 'Close button in a dialog header', panel: true },
   'library-shell.tab': {
-    label: 'Tab in a library shell header',
+    label:
+      'Library header tab: library (Library), active (In Progress), archive (Archive, Completed in Quiz), banks',
     perField: true,
     panel: true,
   },
@@ -14106,6 +14109,63 @@ export const TOUR_ANCHORS = {
     label: 'Share results with PLC item in a quiz assignment row menu',
     perWidgetType: true,
     panel: true,
+  },
+  'quiz-library.archive-copy-link': {
+    label: 'Copy Student Link item in a quiz In Progress row menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.archive-results': {
+    label: 'Results item in a quiz In Progress row menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.archive-share': {
+    label: 'Share item (copies a share link) in a quiz assignment row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-pause': {
+    label: 'Pause item in a live quiz In Progress row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-end': {
+    label: 'End or End share item in a quiz In Progress row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-publish-scores': {
+    label: 'Publish scores item in a quiz Archive (Completed) row menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.archive-unpublish-scores': {
+    label: 'Unpublish scores item in a quiz Archive (Completed) row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-reopen': {
+    label: 'Reopen item in a quiz Archive (Completed) row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-reactivate': {
+    label: 'Reactivate item in an ended view-only quiz share row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-delete': {
+    label: 'Delete item in a quiz assignment row menu',
+    perWidgetType: true,
+    panel: true,
+    destructive: true,
   },
   // Quiz assignment Settings dialog (from an assignment row menu).
   'quiz-settings-modal.plc-results': {

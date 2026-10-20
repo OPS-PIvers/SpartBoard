@@ -136,6 +136,7 @@ describe('tour anchor registry', () => {
       'quiz-results.student-delete-cancel',
       'quiz-rubric.share-link',
       'quiz-rubric.share-copy',
+      'quiz-library.archive-publish-scores',
     ]);
     // Destination options and step headers only move through the Assign dialog.
     const opensOnly = (id: string) =>

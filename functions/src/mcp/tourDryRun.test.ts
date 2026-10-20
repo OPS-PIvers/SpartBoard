@@ -68,7 +68,7 @@ describe('dryRunTour', () => {
     expect(viaNew.errors).toEqual([]);
     const notOpened = dryRunTour([...open, step('roster-editor.save')], board);
     expect(messages(notOpened.errors)).toEqual([
-      expect.stringContaining('only shows once "classes.edit-roster"'),
+      expect.stringContaining('only shows once "classes.edit-roster:classes"'),
     ]);
   });
 
