@@ -118,6 +118,7 @@ describe('fitSpeakToDoc', () => {
       refs: [],
       g2pVersion: 'v',
       status: 'unavailable',
+      reasons: ['set-too-large'],
       dialects: ['es-419', 'es-ES'],
     });
     for (const card of fitted.cards) {

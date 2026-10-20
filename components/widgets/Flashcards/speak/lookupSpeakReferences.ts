@@ -16,6 +16,10 @@ import {
   type SpeakIpaDrafts,
 } from './speakEditorState';
 import { logError } from '@/utils/logError';
+import {
+  firestoreBytes,
+  SPEAK_DOC_BUDGET_BYTES,
+} from '@/utils/pronunciation/fitSpeakToDoc';
 
 interface LookupInput {
   language: SpeakLanguage;
@@ -43,15 +47,27 @@ const callLookup: SpeakLookupCall = async (input) => {
   return (await call(input)).data;
 };
 
+// A card dropped from a set that was too big gets another lookup once the set has room again.
+const RETRY_DROPPED_BYTES = SPEAK_DOC_BUDGET_BYTES * 0.75;
+
+const droppedForSize = (card: FlashcardCard): boolean =>
+  !!speakForTerm(card)?.reasons?.includes('set-too-large');
+
 /** Cards whose references must be looked up again before saving. */
 export const cardsNeedingLookup = (
   cards: readonly FlashcardCard[],
   dialects: readonly SpeakDialect[],
   drafts: SpeakIpaDrafts
-): FlashcardCard[] =>
-  cards.filter(
-    (card) => card.term.trim() !== '' && cardNeedsLookup(card, dialects, drafts)
+): FlashcardCard[] => {
+  const retryDropped =
+    cards.some(droppedForSize) && firestoreBytes(cards) < RETRY_DROPPED_BYTES;
+  return cards.filter(
+    (card) =>
+      card.term.trim() !== '' &&
+      (cardNeedsLookup(card, dialects, drafts) ||
+        (retryDropped && droppedForSize(card)))
   );
+};
 
 /** Looks up only new or changed terms; a failure marks those cards so the next save retries. */
 export async function attachSpeakReferences(
