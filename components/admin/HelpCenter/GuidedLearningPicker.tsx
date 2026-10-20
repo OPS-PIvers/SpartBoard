@@ -121,7 +121,8 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
   // Personal sets live in Drive, which teachers can't read, so the set moves into a Help Center copy.
   const handlePersonalPick = async (
     setId: string,
-    driveFileId: string
+    driveFileId: string,
+    personalUpdatedAt: number
   ): Promise<void> => {
     if (!user?.uid) return;
     setCopyingId(setId);
@@ -129,6 +130,8 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
       const copyId = helpCopyId(setId);
       // One copy per personal set: picking it again reuses that copy, keeping admin edits.
       let picked = await loadBuildingSet(copyId);
+      // An original edited after its older copy was made keeps the newer work.
+      let removeOriginal = !picked || personalUpdatedAt <= picked.createdAt;
       if (!picked) {
         const loaded = await loadSetData(driveFileId);
         // eslint-disable-next-line react-hooks/purity -- runs in an async select handler, not render
@@ -145,12 +148,12 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
         await saveBuildingSet(picked);
       }
       onSelect(picked.id, picked.title);
-      // Removed only after the copy is saved; open assignments keep their files until they close.
-      await deleteSet(
-        setId,
-        driveFileId,
-        await openAssignmentIdsForSet(user.uid, setId)
-      );
+      // Removed only after the copy is saved, and kept while students still work on it.
+      if (removeOriginal) {
+        const openIds = await openAssignmentIdsForSet(user.uid, setId);
+        removeOriginal = openIds.length === 0;
+      }
+      if (removeOriginal) await deleteSet(setId, driveFileId);
     } catch (err) {
       onError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -198,7 +201,7 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
         onPick: () => {
           setMenuOpen(false);
           setSearch('');
-          void handlePersonalPick(set.id, set.driveFileId);
+          void handlePersonalPick(set.id, set.driveFileId, set.updatedAt);
         },
       })),
     },

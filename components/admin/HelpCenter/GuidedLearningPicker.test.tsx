@@ -168,7 +168,7 @@ describe('GuidedLearningPicker', () => {
     expect(glState.saveBuildingSet).not.toHaveBeenCalled();
     expect(onSelect).toHaveBeenCalledWith('help-p-1', 'Older Roster Copy');
     await waitFor(() =>
-      expect(glState.deleteSet).toHaveBeenCalledWith('p-1', 'drive-1', [])
+      expect(glState.deleteSet).toHaveBeenCalledWith('p-1', 'drive-1')
     );
   });
 
@@ -193,7 +193,7 @@ describe('GuidedLearningPicker', () => {
     expect(saved.authorUid).toBe('admin-1');
     expect(onSelect).toHaveBeenCalledWith(saved.id, 'My Roster Guide');
     await waitFor(() =>
-      expect(glState.deleteSet).toHaveBeenCalledWith('p-1', 'drive-1', [])
+      expect(glState.deleteSet).toHaveBeenCalledWith('p-1', 'drive-1')
     );
     expect(glState.openAssignmentIdsForSet).toHaveBeenCalledWith(
       'admin-1',
@@ -205,16 +205,34 @@ describe('GuidedLearningPicker', () => {
     );
   });
 
-  it('holds the files of a moved activity that still has open assignments', async () => {
+  it('keeps a personal activity that still has open assignments', async () => {
     glState.openAssignmentIdsForSet.mockResolvedValue(['a-1']);
-    renderPicker();
+    const { onSelect } = renderPicker();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose activity' }));
+    fireEvent.click(screen.getByText('My Roster Guide'));
+
+    await waitFor(() => expect(onSelect).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(glState.openAssignmentIdsForSet).toHaveBeenCalled()
+    );
+    expect(glState.deleteSet).not.toHaveBeenCalled();
+  });
+
+  it('keeps a personal activity edited after its Help Center copy was made', async () => {
+    glState.loadBuildingSet.mockResolvedValue(
+      set('help-p-1', 'Older Roster Copy', { helpCenter: true, createdAt: 0 })
+    );
+    const { onSelect } = renderPicker();
 
     fireEvent.click(screen.getByRole('button', { name: 'Choose activity' }));
     fireEvent.click(screen.getByText('My Roster Guide'));
 
     await waitFor(() =>
-      expect(glState.deleteSet).toHaveBeenCalledWith('p-1', 'drive-1', ['a-1'])
+      expect(onSelect).toHaveBeenCalledWith('help-p-1', 'Older Roster Copy')
     );
+    expect(glState.openAssignmentIdsForSet).not.toHaveBeenCalled();
+    expect(glState.deleteSet).not.toHaveBeenCalled();
   });
 
   it('keeps the personal activity when its Help Center copy fails to save', async () => {
