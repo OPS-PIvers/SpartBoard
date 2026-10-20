@@ -1,8 +1,26 @@
 #!/usr/bin/env node
 // Fills words.json refs from espeak-ng (the engine S3 runs server-side), tokenized like the app does.
-// Usage: ESPEAK_NG_MODULE=/path/to/@echogarden/espeak-ng-emscripten/espeak-ng.js node scripts/pronunciation-corpus/refs.mjs
+// Usage: ESPEAK_NG_MODULE=/path/to/@echogarden/espeak-ng-emscripten/espeak-ng.js node scripts/pronunciation-corpus/refs.mjs [--set main|heldout] [--words variant-words.json]
+import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { WORDS_PATH, importTs, readJson, writeJson } from './lib.mjs';
+import { parseArgs } from 'node:util';
+import {
+  SCRIPT_DIR,
+  corpusSet,
+  importTs,
+  readJson,
+  writeJson,
+} from './lib.mjs';
+
+const { values: args } = parseArgs({
+  options: {
+    set: { type: 'string', default: 'main' },
+    words: { type: 'string' },
+  },
+});
+const WORDS_PATH = args.words
+  ? path.resolve(SCRIPT_DIR, args.words)
+  : corpusSet(args.set).wordsPath;
 
 const ESPEAK_VERSION = '@echogarden/espeak-ng-emscripten@0.3.5';
 

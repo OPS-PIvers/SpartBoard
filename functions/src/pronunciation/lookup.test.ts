@@ -14,6 +14,11 @@ vi.mock('firebase-functions/v2/https', () => {
   };
 });
 vi.mock('../functionsInit', () => ({}));
+// Voice readings need Cloud TTS and the model; voiceRefs.test.ts covers them.
+vi.mock('./voiceRefs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./voiceRefs')>()),
+  createVoiceReader: () => ({ read: () => Promise.resolve([]) }),
+}));
 vi.mock('../classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
 vi.mock('firebase-admin', () => ({ firestore: () => ({}) }));
 const isGlobalFeatureGranted =
@@ -94,6 +99,7 @@ describe('computeSpeakReferences', () => {
       refs: [],
       status: 'unavailable',
       reasons: ['multi-word'],
+      dialects: ['es-419', 'es-ES'],
     });
   });
 
@@ -163,6 +169,8 @@ describe('computeSpeakReferences', () => {
     expect(card.status).toBe('needs-review');
     expect(card.reasons).toEqual(['untokenizable']);
     expect(card.refs.map((r) => r.dialect)).toEqual(['es-419']);
+    // Both accents were tried, so the editor won't look es-ES up again.
+    expect(card.dialects).toEqual(['es-419', 'es-ES']);
   });
 
   it('reports lookup-failed when espeak throws', async () => {

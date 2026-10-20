@@ -2,6 +2,7 @@
 import type {
   FlashcardCard,
   FlashcardCardSpeak,
+  FlashcardSpeakReason,
   FlashcardSpeakSettings,
   FlashcardsSpeakAdminConfig,
   SpeakDialect,
@@ -15,6 +16,7 @@ import {
 } from '@/config/pronunciationGroups';
 import { buildSpeakStamp } from '../utils/flashcardAssign';
 import { tokenizeIpa } from '@/utils/pronunciation/tokenizeIpa';
+import { SPEAK_G2P_VERSION } from '@/utils/pronunciation/g2pVersion';
 
 /** Unsaved IPA per card id, tied to the term it was typed for. */
 export type SpeakIpaDrafts = Record<
@@ -44,7 +46,11 @@ export function initialSpeakSettings(
     false
   );
   if (!stamp) return null;
-  const { locked: _locked, ...settings } = stamp;
+  const {
+    locked: _locked,
+    unclearConfidence: _unclearConfidence,
+    ...settings
+  } = stamp;
   return settings;
 }
 
@@ -130,7 +136,29 @@ export function effectiveIpaOverride(
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
-/** A card needs a lookup when its term, accents or IPA changed, or the last lookup failed. */
+const NO_REF_REASONS: readonly FlashcardSpeakReason[] = [
+  'unrenderable',
+  'untokenizable',
+  'multi-word',
+];
+
+/** The references were looked up for these accents; an accent that failed for a recorded reason counts. */
+export const refsFitDialects = (
+  speak: FlashcardCardSpeak,
+  dialects: readonly SpeakDialect[]
+): boolean =>
+  speak.refs.every((ref) => dialects.includes(ref.dialect)) &&
+  (Array.isArray(speak.dialects)
+    ? dialects.every((d) => speak.dialects?.includes(d))
+    : // Saved before lookups recorded their accents: a card with no refs can't say which it covered.
+      speak.refs.length > 0 &&
+      (dialects.every((d) =>
+        speak.refs.some((ref) => ref.dialect === d && ref.source !== 'voice')
+      ) ||
+        // A language has at most two accents, so a recorded failure explains the missing one.
+        (speak.reasons ?? []).some((r) => NO_REF_REASONS.includes(r))));
+
+/** A card needs a lookup when its term, accents, IPA or the engine changed, or the last lookup failed. */
 export function cardNeedsLookup(
   card: FlashcardCard,
   dialects: readonly SpeakDialect[],
@@ -139,13 +167,8 @@ export function cardNeedsLookup(
   const speak = speakForTerm(card);
   if (!speak || !Array.isArray(speak.refs)) return true;
   if (speak.reasons?.includes('lookup-failed')) return true;
-  if (
-    speak.refs.length > 0 &&
-    (speak.refs.length !== dialects.length ||
-      !speak.refs.every((ref) => dialects.includes(ref.dialect)))
-  ) {
-    return true;
-  }
+  if (speak.g2pVersion !== SPEAK_G2P_VERSION) return true;
+  if (!refsFitDialects(speak, dialects)) return true;
   if (speak.refs.length === 0 && speak.status !== 'unavailable') return true;
   return !sameOverride(
     effectiveIpaOverride(card, drafts, dialects),
@@ -167,6 +190,10 @@ export const lookupFailedSpeak = (
   ...(ipaOverride ? { ipaOverride } : {}),
 });
 
+// Voice readings ride along with their accent's espeak reference, so they never change what the teacher confirmed.
+const espeakRefs = (speak: FlashcardCardSpeak) =>
+  speak.refs.filter((ref) => ref.source !== 'voice');
+
 /** A teacher's confirmation survives a re-lookup that returns the same references. */
 export const keepSpeakConfirmation = (
   previous: FlashcardCardSpeak | undefined,
@@ -175,7 +202,7 @@ export const keepSpeakConfirmation = (
   previous?.confirmedAt &&
   previous.term === next.term &&
   next.status === 'needs-review' &&
-  JSON.stringify(previous.refs) === JSON.stringify(next.refs)
+  JSON.stringify(espeakRefs(previous)) === JSON.stringify(espeakRefs(next))
     ? { ...next, confirmedAt: previous.confirmedAt }
     : next;
 

@@ -4,7 +4,15 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import type { ToolContext } from './activity';
 import { hiddenToolsFor, registerTools } from './tools';
-import { SPEAK_G2P_VERSION } from '../pronunciation/lookup';
+import {
+  SPEAK_G2P_VERSION,
+  SPEAK_G2P_VOICES_PENDING,
+} from '../pronunciation/lookup';
+import { prepareSpeakSave } from './flashcardSpeak';
+import {
+  firestoreBytes,
+  SPEAK_DOC_BUDGET_BYTES,
+} from '../pronunciation/fitSpeakToDoc';
 
 const mocks = vi.hoisted(() => ({
   speakGranted: vi.fn(() => Promise.resolve(false)),
@@ -455,6 +463,7 @@ describe('flashcard Speak (S10)', () => {
       'needs-review',
     ]);
     expect(mocks.compute).toHaveBeenCalledTimes(1);
+    expect(mocks.compute.mock.calls[0][2]).toEqual({ voices: false });
   });
 
   it('looks up cards for a Speak language without writing settings', async () => {
@@ -588,6 +597,39 @@ describe('flashcard Speak (S10)', () => {
     );
   });
 
+  it('sheds voice references so a large set still fits in one document', async () => {
+    const voices = Array.from({ length: 8 }, (_, v) => ({
+      ...ref('es-419'),
+      tokens: Array.from({ length: 64 }, (_, t) => ((t + v) % 2 ? 'ɐ̃ʊ̃' : 'ɾ')),
+      source: 'voice' as const,
+    }));
+    mocks.compute.mockImplementation(
+      async (input: Parameters<typeof fakeLookup>[0]) => {
+        const out = await fakeLookup(input);
+        for (const c of Object.values(out.cards))
+          (c.refs as unknown[]).push(...voices);
+        return out;
+      }
+    );
+    const { db, docs } = fakeDb();
+    const res = await (
+      await connect(db)
+    )('create_flashcard_set', {
+      title: 'Animales',
+      term_language: 'es-MX',
+      cards: Array.from({ length: 500 }, (_, i) => es(`palabra${i}`)),
+    });
+    const path = setPath(res.set_id as string);
+    const saved = docs.get(path) as Data;
+    expect(firestoreBytes(saved)).toBeLessThanOrEqual(SPEAK_DOC_BUDGET_BYTES);
+    const refs = (saved.cards as { speak: { refs: unknown[] } }[]).map(
+      (c) => c.speak.refs.length
+    );
+    // Both district accents keep their espeak refs; the last cards lose their voices.
+    expect(refs[0]).toBe(10);
+    expect(refs[499]).toBe(2);
+  });
+
   it('keeps a teacher confirmation when a re-lookup returns the same references', async () => {
     const cardSpeak = {
       term: 'l?bo',
@@ -617,6 +659,144 @@ describe('flashcard Speak (S10)', () => {
     expect(
       ((docs.get(setPath('s1')) as Data).cards as { speak?: Data }[])[0].speak
     ).toMatchObject({ g2pVersion: SPEAK_G2P_VERSION, confirmedAt: 5 });
+  });
+
+  it('keeps a confirmation when the re-lookup only adds voice references', async () => {
+    const voice = {
+      ...ref('es-419'),
+      tokens: ['l', 'o', 'β', 'o'],
+      source: 'voice' as const,
+    };
+    mocks.compute.mockImplementation(
+      async (input: Parameters<typeof fakeLookup>[0]) => {
+        const out = await fakeLookup(input);
+        for (const c of Object.values(out.cards))
+          (c.refs as unknown[]).push(voice);
+        return out;
+      }
+    );
+    const { db, docs } = fakeDb({
+      [setPath('s1')]: {
+        title: 'Animales',
+        termLanguage: 'es-MX',
+        definitionLanguage: 'en-US',
+        speak: { dialects: ['es-419'] },
+        cards: [
+          {
+            id: 'c1',
+            term: 'l?bo',
+            definition: 'd',
+            speak: {
+              term: 'l?bo',
+              refs: [ref('es-419')],
+              g2pVersion: 'old-engine',
+              status: 'needs-review',
+              reasons: ['g2p-disagree'],
+              confirmedAt: 5,
+            },
+          },
+        ],
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    });
+    const call = await connect(db);
+    await call('update_flashcard_set', { set_id: 's1', title: 'Animales 2' });
+    const speak = (
+      (docs.get(setPath('s1')) as Data).cards as { speak?: Data }[]
+    )[0].speak as { refs: unknown[]; confirmedAt?: number };
+    expect(speak.refs).toHaveLength(2);
+    expect(speak.confirmedAt).toBe(5);
+    // Voice refs don't make the card look stale for its dialects.
+    await call('update_flashcard_set', { set_id: 's1', title: 'Animales 3' });
+    expect(mocks.compute).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps a card whose other accent failed instead of looking it up on every save', async () => {
+    mocks.compute.mockImplementation(
+      (input: { terms: { cardId: string; term: string }[] }) =>
+        Promise.resolve({
+          g2pVersion: SPEAK_G2P_VERSION,
+          cards: Object.fromEntries(
+            input.terms.map((t) => [
+              t.cardId,
+              {
+                term: t.term,
+                refs: [ref('es-419')],
+                g2pVersion: SPEAK_G2P_VERSION,
+                status: 'needs-review',
+                reasons: ['untokenizable'],
+              },
+            ])
+          ),
+        })
+    );
+    const { db } = fakeDb();
+    const call = await connect(db);
+    const made = await call('create_flashcard_set', {
+      title: 'Animales',
+      term_language: 'es-MX',
+      cards: [es('perro')],
+      speak: { dialects: ['es-419', 'es-ES'] },
+    });
+    mocks.compute.mockClear();
+    await call('update_flashcard_set', {
+      set_id: made.set_id as string,
+      title: 'Animales 2',
+    });
+    expect(mocks.compute).not.toHaveBeenCalled();
+  });
+
+  it('leaves a card waiting on voices for the editor instead of looking it up again', async () => {
+    const { db } = fakeDb({
+      [setPath('s1')]: {
+        title: 'Animales',
+        termLanguage: 'es-MX',
+        definitionLanguage: 'en-US',
+        speak: { dialects: ['es-419'] },
+        cards: [
+          {
+            id: 'c1',
+            term: 'perro',
+            definition: 'd',
+            speak: {
+              term: 'perro',
+              refs: [ref('es-419')],
+              g2pVersion: SPEAK_G2P_VOICES_PENDING,
+              status: 'ready',
+            },
+          },
+        ],
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    });
+    await (
+      await connect(db)
+    )('update_flashcard_set', { set_id: 's1', title: 'Animales 2' });
+    expect(mocks.compute).not.toHaveBeenCalled();
+  });
+
+  it("stamps the district's Repeat when unclear cut-off, never the set", async () => {
+    const { db } = fakeDb({
+      'admin_settings/flashcardsSpeak': { unclearConfidence: 0.3 },
+    });
+    const saved = await prepareSpeakSave(
+      db as unknown as Parameters<typeof prepareSpeakSave>[0],
+      { email: 'u1@example.org', uid: 'u1' },
+      {
+        id: 's1',
+        title: 'Animales',
+        termLanguage: 'es-MX',
+        definitionLanguage: 'en-US',
+        cards: [{ id: 'c1', ...es('perro') }],
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      { attempts: 2 }
+    );
+    expect(saved.stamp).toMatchObject({ attempts: 2, unclearConfidence: 0.3 });
+    expect(saved.set.speak).not.toHaveProperty('unclearConfidence');
   });
 
   it('marks cards when the lookup fails and retries them on the next save', async () => {

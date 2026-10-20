@@ -3581,7 +3581,6 @@
         "confirm": "C'est juste",
         "ipaLabel": "Prononciation (API), {{dialect}}",
         "ipaInvalid": "Certains de ces symboles ne sont pas reconnus.",
-        "stressLabel": "Partie accentuée",
         "checkingCards_one": "Recherche de la prononciation de {{count}} carte…",
         "checkingCards_other": "Recherche de la prononciation de {{count}} cartes…",
         "hearIt": "Écouter"

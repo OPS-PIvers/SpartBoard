@@ -5,18 +5,25 @@ import {
   FLASHCARDS_SPEAK_FEATURE_ID,
   parseLookupInput,
   SPEAK_G2P_VERSION,
+  SPEAK_G2P_VOICES_PENDING,
 } from '../pronunciation/lookup';
+import { fitSpeakToDoc } from '../pronunciation/fitSpeakToDoc';
 import type {
   FlashcardCardSpeak,
   SpeakDialect,
   SpeakLanguage,
 } from '../pronunciation/types';
 import { ToolError } from './activity';
-import type { FlashcardCard, FlashcardSet } from './flashcardStore';
+import {
+  setsPath,
+  type FlashcardCard,
+  type FlashcardSet,
+} from './flashcardStore';
 import {
   clampSpeakAttempts,
   normalizeSpeakAdminDefaults,
   ownSpeakFits,
+  refsFitSpeakDialects,
   resolveSpeakSettings,
   SPEAK_DIALECTS,
   speakLanguageOf,
@@ -69,10 +76,9 @@ export function applySpeakInput(
   };
 }
 
-const sameDialects = (speak: FlashcardCardSpeak, dialects: SpeakDialect[]) =>
-  speak.refs.length === 0 ||
-  (speak.refs.length === dialects.length &&
-    speak.refs.every((ref) => dialects.includes(ref.dialect)));
+// Voice refs ride along with their dialect's espeak ref, so only espeak refs say which dialects were looked up.
+const espeakRefs = (speak: FlashcardCardSpeak) =>
+  speak.refs.filter((ref) => ref.source !== 'voice');
 
 /** A card's references are current for its term, the engine version and the set's dialects. */
 export function cardSpeakCurrent(
@@ -83,10 +89,12 @@ export function cardSpeakCurrent(
   return (
     !!speak &&
     speak.term === card.term &&
-    speak.g2pVersion === SPEAK_G2P_VERSION &&
+    // The connector never reads voices, so a card waiting on them is as current as it can make it.
+    (speak.g2pVersion === SPEAK_G2P_VERSION ||
+      speak.g2pVersion === SPEAK_G2P_VOICES_PENDING) &&
     Array.isArray(speak.refs) &&
     !speak.reasons?.includes('lookup-failed') &&
-    sameDialects(speak, dialects)
+    refsFitSpeakDialects(speak, dialects)
   );
 }
 
@@ -123,7 +131,9 @@ export async function attachSpeakReferences(
         };
       }),
     });
-    found = (await compute(input)).cards;
+    found =
+      // The voice model blocks the event loop for seconds, so the shared connector leaves voices pending for the editor's callable.
+      (await compute(input, undefined, { voices: false })).cards;
   } catch (err) {
     console.error('[mcpServer] Speak lookup failed', { err });
     found = {};
@@ -150,7 +160,7 @@ const keepConfirmation = (
   previous?.confirmedAt &&
   previous.term === next.term &&
   next.status === 'needs-review' &&
-  JSON.stringify(previous.refs) === JSON.stringify(next.refs)
+  JSON.stringify(espeakRefs(previous)) === JSON.stringify(espeakRefs(next))
     ? { ...next, confirmedAt: previous.confirmedAt }
     : next;
 
@@ -176,7 +186,7 @@ export const countSpeakCards = (cards: FlashcardCard[]): SpeakCounts => {
 export interface SpeakSaveResult {
   set: FlashcardSet;
   /** Present when the teacher has Speak and the language supports it (F21 stamp source). */
-  stamp?: SpeakSettings;
+  stamp?: SpeakSettings & { unclearConfidence: number };
   counts?: SpeakCounts;
 }
 
@@ -208,7 +218,9 @@ export async function prepareSpeakSave(
   if (input && !granted) {
     throw new ToolError('Speak is not turned on for this account.');
   }
-  if (!language || !granted) return { set };
+  if (!language || !granted) {
+    return { set: fitSpeakToDoc(`${setsPath(who.uid)}/${set.id}`, set) };
+  }
   const own = ownSpeakFits(set.speak, language) ? set.speak : undefined;
   const defaults = await readSpeakAdminDefaults(db);
   const resolved = resolveSpeakSettings(language, own, defaults);
@@ -220,8 +232,15 @@ export async function prepareSpeakSave(
     language,
     settings.dialects
   );
-  const next: FlashcardSet = { ...set, cards };
+  const next = fitSpeakToDoc(`${setsPath(who.uid)}/${set.id}`, {
+    ...set,
+    cards,
+  });
   if (input || own) next.speak = settings as unknown as Record<string, unknown>;
   else delete next.speak;
-  return { set: next, stamp: settings, counts: countSpeakCards(cards) };
+  return {
+    set: next,
+    stamp: { ...settings, unclearConfidence: defaults.unclearConfidence },
+    counts: countSpeakCards(next.cards),
+  };
 }

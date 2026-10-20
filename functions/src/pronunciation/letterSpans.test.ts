@@ -1,9 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { computeLetterSpans } from './letterSpans';
 import { computeSpeakReferences } from './lookup';
 import type { SpeakDialect, SpeakLanguage } from './types';
+
+vi.mock('./voiceRefs', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./voiceRefs')>()),
+  createVoiceReader: () => ({ read: () => Promise.resolve([]) }),
+}));
 
 const sample = JSON.parse(
   readFileSync(resolve(__dirname, 'testdata/letterSpanSample.json'), 'utf8')

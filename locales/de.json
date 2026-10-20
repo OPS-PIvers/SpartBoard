@@ -3581,7 +3581,6 @@
         "confirm": "Sieht richtig aus",
         "ipaLabel": "Aussprache (IPA), {{dialect}}",
         "ipaInvalid": "Einige dieser Zeichen werden nicht erkannt.",
-        "stressLabel": "Betonter Teil",
         "checkingCards_one": "Aussprache von {{count}} Karte wird geprüft…",
         "checkingCards_other": "Aussprache von {{count}} Karten wird geprüft…",
         "hearIt": "Anhören"

@@ -8,6 +8,7 @@ import type {
   FlashcardSet,
   FlashcardSide,
   FlashcardSpeakSettings,
+  FlashcardSpeakStudentSettings,
   FlashcardsSpeakAdminConfig,
   FlashcardTestType,
   SpeakDialect,
@@ -243,7 +244,9 @@ export const rosterHasSsoClass = (roster: ClassRoster): boolean =>
   (Boolean(roster.classlinkClassId) || Boolean(roster.testClassId));
 
 /** F21: what students read; present means Speak is shown. */
-export type FlashcardSpeakStamp = FlashcardSpeakSettings & { locked: boolean };
+export type FlashcardSpeakStamp = FlashcardSpeakStudentSettings & {
+  locked: boolean;
+};
 
 const SPEAK_PRESETS: readonly SpeakPreset[] = [...SPEAK_PRESET_IDS, 'custom'];
 const SPEAK_GROUP_SETTINGS: readonly SpeakGroupSetting[] = [
@@ -297,6 +300,7 @@ export function buildSpeakStamp(
       groups: knownGroups(ids, own.groups),
       attempts: clampSpeakAttempts(own.attempts, adminConfig.attempts),
       example: own.example !== false,
+      unclearConfidence: adminConfig.unclearConfidence,
       locked: lock,
     };
   }
@@ -311,6 +315,7 @@ export function buildSpeakStamp(
     groups: { ...base.groups, ...overrides },
     attempts: clampSpeakAttempts(adminConfig.attempts),
     example: true,
+    unclearConfidence: adminConfig.unclearConfidence,
     locked: lock,
   };
 }

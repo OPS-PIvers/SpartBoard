@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ArrowLeft,
   FileCheck2,
   Layers3,
+  Mic,
   PenLine,
   RotateCcw,
   Settings,
@@ -16,21 +17,36 @@ import type {
   FlashcardFlag,
   FlashcardMode,
   FlashcardModeSettings,
+  FlashcardSpeakStudentSettings,
   FlashcardStudyState,
   FlashcardTestType,
 } from '@/types';
 import {
   DEFAULT_FLASHCARD_MASTERY_THRESHOLD,
   buildFlashcardRoundQueue,
+  buildSpeakRoundQueue,
   countMasteredFlashcards,
   isFlashcardMastered,
+  isSpeakableCard,
+  type FlashcardSpeakTally,
 } from '@/utils/flashcardSchedule';
+import { speakLanguageOf } from '@/config/pronunciationGroups';
+import {
+  SPEAK_ATTEMPTS_MAX,
+  SPEAK_ATTEMPTS_MIN,
+  clampSpeakAttempts,
+} from '@/config/flashcardsSpeakAdmin';
 import type { FlashcardProgressAdapter } from './adapters';
 import { FlashcardsMode } from './FlashcardsMode';
 import { WriteMode } from './WriteMode';
 import { TestMode } from './TestMode';
 import { CheckSubmitPanel } from './PlayerPrimitives';
 import { cx } from './playerUtils';
+
+// Lazy so the player's first render never loads the recognizer (plan §7 performance).
+const SpeakMode = lazy(() =>
+  import('./SpeakMode').then((module) => ({ default: module.SpeakMode }))
+);
 
 const DEFAULT_SETTINGS: FlashcardModeSettings = {
   showFirst: 'term',
@@ -46,6 +62,18 @@ interface PlayerSession {
   study: FlashcardStudyState;
   round: number;
   roundCards: FlashcardCard[];
+  speakRound: number;
+  speakCards: FlashcardCard[];
+}
+
+/** The teacher's Speak stamp (F21); present means Speak is offered. */
+export type FlashcardPlayerSpeak = FlashcardSpeakStudentSettings & {
+  locked?: boolean;
+};
+
+interface SpeakPrefs {
+  attempts?: number;
+  example?: boolean;
 }
 
 export interface FlashcardCheckSubmission {
@@ -87,6 +115,9 @@ export interface FlashcardPlayerProps {
   lockedSettings?: FlashcardModeSettings;
   check?: FlashcardPlayerCheck;
   allowedModes?: FlashcardMode[];
+  speak?: FlashcardPlayerSpeak;
+  /** The page runs inside a frame, which may block the microphone (F12). */
+  framed?: boolean;
   theme?: 'light' | 'present';
   seed?: string;
   onSettingsChange?: (settings: FlashcardModeSettings) => void;
@@ -101,6 +132,7 @@ const modes: Array<{
   { id: 'flashcards', labelKey: 'flashcards.modes.flashcards', icon: Layers3 },
   { id: 'write', labelKey: 'flashcards.modes.write', icon: PenLine },
   { id: 'test', labelKey: 'flashcards.modes.test', icon: FileCheck2 },
+  { id: 'speak', labelKey: 'flashcards.modes.speak', icon: Mic },
 ];
 
 export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
@@ -111,7 +143,9 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
   initialSettings,
   lockedSettings,
   check,
-  allowedModes: requestedModes = ['flashcards', 'write', 'test'],
+  allowedModes: requestedModes = ['flashcards', 'write', 'test', 'speak'],
+  speak,
+  framed = false,
   theme = 'light',
   seed = 'flashcards',
   onSettingsChange,
@@ -120,7 +154,14 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
   const { t } = useTranslation();
   const dark = theme === 'present';
   const locked = Boolean(lockedSettings);
-  const allowedModes = check ? [check.mode] : requestedModes;
+  const speakLanguage =
+    speak && !check && requestedModes.includes('speak')
+      ? speakLanguageOf(termLanguage)
+      : null;
+  // Without a stamp and a supported language there is no Speak tab and no Speak state (F21).
+  const allowedModes = check
+    ? [check.mode]
+    : requestedModes.filter((id) => id !== 'speak' || speakLanguage !== null);
   const masteryThreshold =
     check?.masteryThreshold ?? DEFAULT_FLASHCARD_MASTERY_THRESHOLD;
   const [settings, setSettings] = useState<FlashcardModeSettings>(() => {
@@ -133,18 +174,41 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
       ...(check?.mode === 'flashcards' ? { hideMastered: true } : {}),
     };
   });
-  const [mode, setMode] = useState<FlashcardMode>(
+  const [chosenMode, setMode] = useState<FlashcardMode>(
     allowedModes[0] ?? 'flashcards'
   );
+  // Speak drops out if the stamp goes away mid-session; fall back to the first mode left.
+  const mode = allowedModes.includes(chosenMode)
+    ? chosenMode
+    : (allowedModes[0] ?? 'flashcards');
   const [checkLog, setCheckLog] = useState<
     Record<string, FlashcardCheckWriteEntry>
   >(() => check?.initialCheckLog ?? {});
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [speakPrefs, setSpeakPrefs] = useState<SpeakPrefs>({});
   const [deckSignature, setDeckSignature] = useState(() =>
     cards
       .map((card) => `${card.id}:${card.term}:${card.definition}`)
       .join('\u0000')
   );
+  const speakQueueFor = (
+    study: FlashcardStudyState,
+    nextSettings: FlashcardModeSettings,
+    fromRound: number
+  ): { round: number; cards: FlashcardCard[] } =>
+    speakLanguage
+      ? buildSpeakRoundQueue({
+          cards,
+          speak: study.speak,
+          speakRound: fromRound,
+          starred: study.starred,
+          favoritesOnly: nextSettings.favoritesOnly,
+          hideMastered: nextSettings.hideMastered,
+          masteryThreshold,
+          shuffle: nextSettings.shuffle,
+          seed,
+        })
+      : { round: fromRound, cards: [] };
   const [session, setSession] = useState<PlayerSession>(() => {
     const study = adapter.load();
     const queue = buildFlashcardRoundQueue({
@@ -158,7 +222,14 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
       shuffle: settings.shuffle,
       seed,
     });
-    return { study, round: queue.round, roundCards: queue.cards };
+    const speakQueue = speakQueueFor(study, settings, study.speakRound ?? 1);
+    return {
+      study,
+      round: queue.round,
+      roundCards: queue.cards,
+      speakRound: speakQueue.round,
+      speakCards: speakQueue.cards,
+    };
   });
 
   const currentDeckSignature = cards
@@ -177,7 +248,18 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
       shuffle: settings.shuffle,
       seed,
     });
-    setSession({ ...session, round: queue.round, roundCards: queue.cards });
+    const speakQueue = speakQueueFor(
+      session.study,
+      settings,
+      session.speakRound
+    );
+    setSession({
+      ...session,
+      round: queue.round,
+      roundCards: queue.cards,
+      speakRound: speakQueue.round,
+      speakCards: speakQueue.cards,
+    });
   }
 
   useEffect(() => {
@@ -200,7 +282,8 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
   const rebuildQueue = (
     study: FlashcardStudyState,
     nextSettings: FlashcardModeSettings,
-    fromRound: number
+    fromRound: number,
+    fromSpeakRound: number = session.speakRound
   ): void => {
     const queue = buildFlashcardRoundQueue({
       cards,
@@ -213,12 +296,19 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
       shuffle: nextSettings.shuffle,
       seed,
     });
-    const nextStudy = { ...study, round: queue.round };
+    const speakQueue = speakQueueFor(study, nextSettings, fromSpeakRound);
+    const nextStudy: FlashcardStudyState = { ...study, round: queue.round };
+    // Speak's round is written only once it moves, so a set without Speak keeps today's state.
+    if (speakLanguage && speakQueue.round !== (study.speakRound ?? 1)) {
+      nextStudy.speakRound = speakQueue.round;
+    }
     void adapter.flush(nextStudy);
     setSession({
       study: nextStudy,
       round: queue.round,
       roundCards: queue.cards,
+      speakRound: speakQueue.round,
+      speakCards: speakQueue.cards,
     });
   };
 
@@ -251,13 +341,38 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     setSession((current) => ({ ...current, study }));
   };
 
+  const recordSpeak = (
+    cardId: string,
+    passed: boolean,
+    accuracy: number,
+    tries: number,
+    tally: FlashcardSpeakTally
+  ): void => {
+    const study = adapter.recordSpeak(
+      cardId,
+      passed,
+      accuracy,
+      tries,
+      tally,
+      session.speakRound
+    );
+    setSession((current) => ({ ...current, study }));
+  };
+
   const star = (cardId: string): void => {
     const study = adapter.star(cardId);
     setSession((current) => ({ ...current, study }));
   };
 
   const nextRound = (): void => {
-    rebuildQueue(session.study, settings, session.round + 1);
+    if (mode === 'speak') {
+      rebuildQueue(
+        session.study,
+        settings,
+        session.round,
+        session.speakRound + 1
+      );
+    } else rebuildQueue(session.study, settings, session.round + 1);
   };
 
   const recordTest = (test: {
@@ -313,12 +428,12 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
 
   const restart = (): void => {
     const study = adapter.reset({ keepStarred: true });
-    rebuildQueue(study, settings, 1);
+    rebuildQueue(study, settings, 1, 1);
   };
 
   const resetProgress = (): void => {
     const study = adapter.reset();
-    rebuildQueue(study, settings, 1);
+    rebuildQueue(study, settings, 1, 1);
   };
 
   const testPool = useMemo(() => {
@@ -337,9 +452,17 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     settings.hideMastered,
   ]);
 
+  const speaking = mode === 'speak' && speakLanguage !== null && Boolean(speak);
+  const speakableCards = speaking ? cards.filter(isSpeakableCard) : [];
+  const speakSettings: FlashcardSpeakStudentSettings | null = speak
+    ? speak.locked
+      ? speak
+      : { ...speak, ...speakPrefs }
+    : null;
+  const progressCards = speaking ? speakableCards : cards;
   const mastered = countMasteredFlashcards(
-    cards,
-    session.study.cards,
+    progressCards,
+    speaking ? (session.study.speak ?? {}) : session.study.cards,
     masteryThreshold
   );
   const onRestart = adapter.canReset ? restart : undefined;
@@ -347,7 +470,8 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     check?.mode === 'write' &&
     cards.length > 0 &&
     cards.every((card) => checkLog[card.id]?.done);
-  const masteryPercent = cards.length > 0 ? (mastered / cards.length) * 100 : 0;
+  const masteryPercent =
+    progressCards.length > 0 ? (mastered / progressCards.length) * 100 : 0;
   const visibleModes = modes.filter((candidate) =>
     allowedModes.includes(candidate.id)
   );
@@ -356,6 +480,47 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     height: 'min(17px, 4cqmin)',
   };
   const modeKey = `${mode}:${session.round}:${session.roundCards.map((card) => card.id).join(',')}:${settings.showFirst}:${settings.strict}:${settings.testTypes.join(',')}:${settings.testCount}`;
+  const speakKey = `speak:${session.speakRound}:${session.speakCards.map((card) => card.id).join(',')}`;
+
+  const emptyView = (
+    <div className="flex h-full items-center justify-center text-center">
+      <section
+        className={cx(
+          'max-w-lg rounded-[min(24px,5cqmin)] border',
+          dark
+            ? 'border-white/15 bg-slate-950/55 text-white'
+            : 'border-slate-200 bg-white text-slate-900'
+        )}
+        style={{ padding: 'min(28px, 6cqmin)' }}
+      >
+        <h2 className="font-black" style={{ fontSize: 'min(24px, 6cqmin)' }}>
+          {t('flashcards.player.emptyTitle')}
+        </h2>
+        <p
+          className={dark ? 'text-white/75' : 'text-slate-600'}
+          style={{
+            marginTop: 'min(8px, 2cqmin)',
+            fontSize: 'min(13px, 3.4cqmin)',
+          }}
+        >
+          {t('flashcards.player.emptyBody')}
+        </p>
+        {/* no-tour-anchor: student player */}
+        <button
+          type="button"
+          onClick={() => setSettingsOpen(true)}
+          className="rounded-full bg-rose-600 font-black text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300"
+          style={{
+            marginTop: 'min(14px, 3cqmin)',
+            padding: 'min(10px, 2.4cqmin) min(18px, 4cqmin)',
+            fontSize: 'min(12px, 3.2cqmin)',
+          }}
+        >
+          {t('flashcards.player.openSettings')}
+        </button>
+      </section>
+    </div>
+  );
 
   return (
     <div
@@ -447,18 +612,25 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
               <div
                 className={cx(
                   'flex justify-between font-bold',
+                  speaking && 'gap-2',
                   dark ? 'text-white/75' : 'text-slate-600'
                 )}
                 style={{ fontSize: 'min(10px, 2.7cqmin)' }}
               >
                 <span>
-                  {t('flashcards.player.round', { round: session.round })}
+                  {speaking
+                    ? t('flashcards.speak.player.round', {
+                        round: session.speakRound,
+                      })
+                    : t('flashcards.player.round', { round: session.round })}
                 </span>
                 <span>
-                  {t('flashcards.player.mastered', {
-                    mastered,
-                    total: cards.length,
-                  })}
+                  {t(
+                    speaking
+                      ? 'flashcards.speak.player.mastered'
+                      : 'flashcards.player.mastered',
+                    { mastered, total: progressCards.length }
+                  )}
                 </span>
               </div>
               <div
@@ -470,10 +642,12 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                   height: 'min(5px, 1.1cqmin)',
                   marginTop: 'min(4px, .8cqmin)',
                 }}
-                aria-label={t('flashcards.player.masteryLabel', {
-                  mastered,
-                  total: cards.length,
-                })}
+                aria-label={t(
+                  speaking
+                    ? 'flashcards.speak.player.masteryLabel'
+                    : 'flashcards.player.masteryLabel',
+                  { mastered, total: progressCards.length }
+                )}
               >
                 <div
                   className="h-full rounded-full bg-emerald-500 transition-[width] duration-200 motion-reduce:transition-none"
@@ -593,46 +767,70 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
             flaggedCount={0}
             onSubmit={() => submitCheck([])}
           />
-        ) : session.roundCards.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-center">
-            <section
-              className={cx(
-                'max-w-lg rounded-[min(24px,5cqmin)] border',
-                dark
-                  ? 'border-white/15 bg-slate-950/55 text-white'
-                  : 'border-slate-200 bg-white text-slate-900'
-              )}
-              style={{ padding: 'min(28px, 6cqmin)' }}
+        ) : speaking && speakLanguage && speakSettings ? (
+          speakableCards.length === 0 ? (
+            <div className="flex h-full items-center justify-center text-center">
+              <section
+                role="status"
+                className={cx(
+                  'max-w-lg rounded-[min(24px,5cqmin)] border',
+                  dark
+                    ? 'border-white/15 bg-slate-950/55 text-white'
+                    : 'border-slate-200 bg-white text-slate-900'
+                )}
+                style={{ padding: 'min(28px, 6cqmin)' }}
+              >
+                <h2
+                  className="font-black"
+                  style={{ fontSize: 'min(24px, 6cqmin)' }}
+                >
+                  {t('flashcards.speak.player.allUnavailableTitle')}
+                </h2>
+                <p
+                  className={dark ? 'text-white/75' : 'text-slate-600'}
+                  style={{
+                    marginTop: 'min(8px, 2cqmin)',
+                    fontSize: 'min(13px, 3.4cqmin)',
+                  }}
+                >
+                  {t('flashcards.speak.player.allUnavailableBody')}
+                </p>
+              </section>
+            </div>
+          ) : session.speakCards.length === 0 ? (
+            emptyView
+          ) : (
+            <Suspense
+              fallback={
+                <p
+                  role="status"
+                  className="flex h-full items-center justify-center font-bold"
+                  style={{ fontSize: 'min(13px, 3.4cqmin)' }}
+                >
+                  {t('flashcards.speak.setup.starting')}
+                </p>
+              }
             >
-              <h2
-                className="font-black"
-                style={{ fontSize: 'min(24px, 6cqmin)' }}
-              >
-                {t('flashcards.player.emptyTitle')}
-              </h2>
-              <p
-                className={dark ? 'text-white/75' : 'text-slate-600'}
-                style={{
-                  marginTop: 'min(8px, 2cqmin)',
-                  fontSize: 'min(13px, 3.4cqmin)',
-                }}
-              >
-                {t('flashcards.player.emptyBody')}
-              </p>
-              <button
-                type="button"
-                onClick={() => setSettingsOpen(true)}
-                className="rounded-full bg-rose-600 font-black text-white focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300"
-                style={{
-                  marginTop: 'min(14px, 3cqmin)',
-                  padding: 'min(10px, 2.4cqmin) min(18px, 4cqmin)',
-                  fontSize: 'min(12px, 3.2cqmin)',
-                }}
-              >
-                {t('flashcards.player.openSettings')}
-              </button>
-            </section>
-          </div>
+              <SpeakMode
+                key={speakKey}
+                cards={session.speakCards}
+                round={session.speakRound}
+                language={speakLanguage}
+                settings={speakSettings}
+                framed={framed}
+                starred={session.study.starred}
+                showMarks={adapter.showsMarks}
+                dark={dark}
+                onRecord={recordSpeak}
+                onStar={star}
+                onNextRound={nextRound}
+                onRestart={onRestart}
+                paused={settingsOpen}
+              />
+            </Suspense>
+          )
+        ) : session.roundCards.length === 0 ? (
+          emptyView
         ) : mode === 'flashcards' ? (
           <FlashcardsMode
             key={modeKey}
@@ -806,6 +1004,50 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                   disabled={locked}
                   dark={dark}
                   onChange={(checked) => updateSettings({ strict: checked })}
+                />
+              </SettingsGroup>
+            )}
+
+            {speaking && speakSettings && (
+              <SettingsGroup label={t('flashcards.modes.speak')} dark={dark}>
+                {speak?.locked && (
+                  <p
+                    className={cx(
+                      'rounded-xl font-bold',
+                      dark
+                        ? 'bg-white/10 text-white/80'
+                        : 'bg-slate-100 text-slate-700'
+                    )}
+                    style={{
+                      padding: 'min(10px, 2.3cqmin)',
+                      fontSize: 'min(11px, 3cqmin)',
+                    }}
+                  >
+                    {t('flashcards.speak.player.lockedSettings')}
+                  </p>
+                )}
+                <SelectSetting
+                  label={t('flashcards.speak.editor.attempts')}
+                  value={speakSettings.attempts}
+                  min={SPEAK_ATTEMPTS_MIN}
+                  max={SPEAK_ATTEMPTS_MAX}
+                  disabled={Boolean(speak?.locked)}
+                  dark={dark}
+                  onChange={(attempts) =>
+                    setSpeakPrefs((prefs) => ({
+                      ...prefs,
+                      attempts: clampSpeakAttempts(attempts),
+                    }))
+                  }
+                />
+                <ToggleSetting
+                  label={t('flashcards.speak.editor.example')}
+                  checked={speakSettings.example}
+                  disabled={Boolean(speak?.locked)}
+                  dark={dark}
+                  onChange={(example) =>
+                    setSpeakPrefs((prefs) => ({ ...prefs, example }))
+                  }
                 />
               </SettingsGroup>
             )}
@@ -1045,6 +1287,49 @@ const QuestionCountSetting: React.FC<{
     </div>
   );
 };
+
+const SelectSetting: React.FC<{
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  dark: boolean;
+  disabled?: boolean;
+  onChange: (value: number) => void;
+}> = ({ label, value, min, max, dark, disabled = false, onChange }) => (
+  <label className="flex items-center" style={{ gap: 'min(10px, 2.2cqmin)' }}>
+    <span
+      className="min-w-0 flex-1 font-bold"
+      style={{ fontSize: 'min(11px, 3cqmin)' }}
+    >
+      {label}
+    </span>
+    {/* no-tour-anchor: student player */}
+    <select
+      value={value}
+      disabled={disabled}
+      onChange={(event) => onChange(Number(event.target.value))}
+      className={cx(
+        'rounded-lg border-2 font-bold outline-none transition focus:ring-4 disabled:cursor-not-allowed disabled:opacity-60',
+        dark
+          ? 'border-white/15 bg-slate-900 text-white focus:border-cyan-300 focus:ring-cyan-300/20'
+          : 'border-slate-200 bg-white text-slate-900 focus:border-rose-400 focus:ring-rose-200'
+      )}
+      style={{
+        padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)',
+        fontSize: 'min(12px, 3.2cqmin)',
+      }}
+    >
+      {Array.from({ length: max - min + 1 }, (_, index) => min + index).map(
+        (option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        )
+      )}
+    </select>
+  </label>
+);
 
 const ToggleSetting: React.FC<{
   label: string;
