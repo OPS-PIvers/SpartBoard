@@ -42,7 +42,7 @@ Flashcards Speak (`docs/multilingual-pronunciation-engine.md`, flag `flashcards-
 are not language-model calls, so they don't go through `generateAi` and have no integration id or admin model picker.
 
 - **On the student's device.** A pinned wav2vec2 phoneme model (`config/pronunciationModel.ts`: id, byte size,
-  MD5 prefix, upstream licence Apache-2.0) is downloaded from our own Storage bucket (`pronunciation-models/**`,
+  MD5 prefix; upstream Apache-2.0, the ONNX export's licence still to be confirmed) is downloaded from our own Storage bucket (`pronunciation-models/**`,
   public read), never from a third party, and runs in a Web Worker with `onnxruntime-web`. Audio never leaves the
   device. `scripts/upload-pronunciation-model.mjs --project dev|prod` uploads it.
 - **On the server, at save time only.** `lookupSpeakReferencesV1` turns each term into reference sounds with

@@ -1295,7 +1295,11 @@ const App: React.FC = () => {
     );
   }
 
-  if (FlashcardsSpeakFlowDevHarness && pathname === '/flashcards-speak-dev') {
+  if (
+    FlashcardsSpeakFlowDevHarness &&
+    (import.meta.env.DEV || isAuthBypass) &&
+    pathname === '/flashcards-speak-dev'
+  ) {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <FlashcardsSpeakFlowDevHarness />

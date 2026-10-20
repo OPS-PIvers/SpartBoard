@@ -52,9 +52,13 @@ test('a student practises a Speak set to mastery aloud and the teacher sees it',
   await page.evaluate(() => {
     (window as unknown as { __longTasks: number[] }).__longTasks = [];
   });
+  const mastered = page.getByText('2/2 said well');
+  const nextRound = page.getByRole('button', { name: /next round/i });
+  const record = page.getByRole('button', { name: 'Start speaking' });
   for (let take = 0; take < 12; take++) {
-    if (await page.getByText('2/2 said well').isVisible()) break;
-    const nextRound = page.getByRole('button', { name: /next round/i });
+    // Wait for whichever comes next instead of sampling a frame that may not have rendered yet.
+    await mastered.or(nextRound).or(record).first().waitFor();
+    if (await mastered.isVisible()) break;
     if (await nextRound.isVisible()) {
       await nextRound.click();
       continue;
@@ -63,7 +67,7 @@ test('a student practises a Speak set to mastery aloud and the teacher sees it',
     await page.getByRole('button', { name: 'Continue' }).click();
   }
   await expect(page.getByText('2/2 said well')).toBeVisible();
-  // §7: judging a take never blocks the main thread for more than 200 ms.
+  // §7: scoring and stress measuring on the main thread never block it for 200 ms; the fake skips the Worker's decode.
   const longest = await page.evaluate(() =>
     Math.max(0, ...(window as unknown as { __longTasks: number[] }).__longTasks)
   );
