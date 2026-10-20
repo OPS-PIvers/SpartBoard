@@ -155,7 +155,7 @@ describe('FlashcardStudyResults Speaking view', () => {
     expect(blaise?.textContent).toContain('—');
     expect(blaise?.textContent).not.toContain('Said well');
     expect(screen.getAllByText('Rolled r, as in perro')).toHaveLength(2);
-    expect(screen.getByText('3 misses')).toBeTruthy();
+    expect(screen.getByText('3/4')).toBeTruthy();
     expect(screen.getByText('Sounds let go most (1)')).toBeTruthy();
     expect(screen.queryByText(/Words to check/)).toBeNull();
   });

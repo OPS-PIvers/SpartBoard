@@ -256,7 +256,7 @@ export const FlashcardSpeakResults: React.FC<FlashcardSpeakResultsProps> = ({
               key={sound.token}
               trailing={
                 <Count className="text-rose-600">
-                  {sound.m} miss{sound.m === 1 ? '' : 'es'}
+                  {sound.m}/{sound.n}
                 </Count>
               }
             >

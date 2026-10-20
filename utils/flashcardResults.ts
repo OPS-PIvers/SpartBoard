@@ -334,8 +334,11 @@ export const SPEAK_WORDS_TO_CHECK_MIN_STUDENTS = 5;
 /** ...and at least this share of them failed their last round. */
 export const SPEAK_WORDS_TO_CHECK_FAIL_SHARE = 0.6;
 
+// Progress is client-written, so every number is clamped to a small whole count.
 const count = (value: unknown): number =>
-  typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
+  typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? Math.min(Math.round(value), 100000)
+    : 0;
 
 const speakTouched = (progress: FlashcardSpeakProgress | undefined): boolean =>
   count(progress?.c) + count(progress?.w) > 0;
@@ -371,13 +374,12 @@ export const buildSpeakRows = (
     for (const card of cards) {
       const progress = result.speak?.[card.id];
       if (!speakTouched(progress)) continue;
-      if ((progress?.s ?? 0) >= threshold) mastered += 1;
+      if (count(progress?.s) >= threshold) mastered += 1;
       else inProgress += 1;
     }
     const sounds = knownSounds(result.speakSounds, language);
     const ran =
-      Object.values(result.speak ?? {}).some(speakTouched) ||
-      sounds.some((sound) => sound.n > 0);
+      mastered + inProgress > 0 || sounds.some((sound) => sound.n > 0);
     return {
       studentUid: result.studentUid,
       classId: result.classId ?? '',
@@ -471,7 +473,7 @@ export const speakWordsToCheck = (
         if (!speakTouched(progress)) continue;
         tried += 1;
         // A failed round resets the streak, so s 0 means the last round failed.
-        if ((progress?.s ?? 0) === 0) failed += 1;
+        if (count(progress?.s) === 0) failed += 1;
       }
       return { card, tried, failed };
     })
