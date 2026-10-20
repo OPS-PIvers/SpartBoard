@@ -274,6 +274,14 @@ describe('Speak mode', () => {
     expect(screen.getByRole('button', { name: 'Start speaking' })).toBeTruthy();
   });
 
+  it("uses the district's Repeat when unclear cut-off from the stamp", async () => {
+    const user = userEvent.setup();
+    renderPlayer({ speak: stamp({ unclearConfidence: 0.95 }) });
+    fake.queue({ tokens: ['p', 'e', 'r', 'o'], confidence: 0.9 });
+    await user.click(await openSpeak(user));
+    expect(await screen.findByText("Couldn't hear you")).toBeTruthy();
+  });
+
   it('skips cards that are not available to speak', async () => {
     const user = userEvent.setup();
     const multi = speakCard('dog', 'der Hund', [], 'unavailable');

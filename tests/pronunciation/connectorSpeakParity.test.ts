@@ -13,10 +13,12 @@ import {
   SPEAK_GROUP_IDS,
   SPEAK_PRESET_IDS,
   normalizeSpeakAdminDefaults,
+  refsFitSpeakDialects,
   resolveSpeakSettings,
   speakPresetSettings,
 } from '@/functions/src/mcp/flashcardSpeakSettings';
-import type { FlashcardSpeakSettings } from '@/types';
+import type { FlashcardCardSpeak, FlashcardSpeakSettings } from '@/types';
+import { refsFitDialects } from '@/components/widgets/Flashcards/speak/speakEditorState';
 
 describe('connector Speak settings match the client', () => {
   it('copies the dialects, group ids and presets exactly', () => {
@@ -34,9 +36,14 @@ describe('connector Speak settings match the client', () => {
 
   const adminDocs: unknown[] = [
     undefined,
-    { attempts: 7, languages: { es: { preset: 'advanced' } } },
+    {
+      attempts: 7,
+      unclearConfidence: 0.25,
+      languages: { es: { preset: 'advanced' } },
+    },
     {
       attempts: 'x',
+      unclearConfidence: 3,
       languages: {
         de: {
           preset: 'intermediate',
@@ -64,6 +71,7 @@ describe('connector Speak settings match the client', () => {
       const client = normalizeFlashcardsSpeakAdminConfig(raw);
       const server = normalizeSpeakAdminDefaults(raw);
       expect(server.attempts).toBe(client.attempts);
+      expect(server.unclearConfidence).toBe(client.unclearConfidence);
       expect(server.languages).toEqual(client.languages);
       for (const termLanguage of ['es-US', 'de', 'en-GB']) {
         for (const speak of own) {
@@ -73,12 +81,56 @@ describe('connector Speak settings match the client', () => {
             client,
             false
           );
-          const { locked: _locked, ...settings } = stamp ?? { locked: false };
+          const {
+            locked: _locked,
+            unclearConfidence,
+            ...settings
+          } = stamp ?? { locked: false };
+          expect(unclearConfidence).toBe(server.unclearConfidence);
           const language = termLanguage.slice(0, 2) as 'es' | 'de' | 'en';
           expect(resolveSpeakSettings(language, speak, server)).toEqual(
             settings
           );
         }
+      }
+    }
+  });
+
+  it('decides which cards fit their accents the same way', () => {
+    const r = (dialect: 'es-419' | 'es-ES', source?: 'voice') => ({
+      dialect,
+      tokens: ['o'],
+      stress: [],
+      ...(source ? { source } : {}),
+    });
+    const cases: Array<
+      [FlashcardCardSpeak['refs'], FlashcardCardSpeak['reasons']]
+    > = [
+      [[], undefined],
+      [[r('es-419')], undefined],
+      [[r('es-419'), r('es-ES')], undefined],
+      [[r('es-419'), r('es-419', 'voice')], undefined],
+      [[r('es-419')], ['untokenizable']],
+      [[r('es-419')], ['g2p-disagree']],
+      [[r('es-ES', 'voice')], undefined],
+    ];
+    const accentSets: Array<Array<'es-419' | 'es-ES'>> = [
+      ['es-419'],
+      ['es-ES'],
+      ['es-419', 'es-ES'],
+    ];
+    for (const [refs, reasons] of cases) {
+      const speak: FlashcardCardSpeak = {
+        term: 'hola',
+        refs,
+        g2pVersion: 'v',
+        status: refs.length > 0 ? 'ready' : 'unavailable',
+        ...(reasons ? { reasons } : {}),
+      };
+      for (const dialects of accentSets) {
+        expect(refsFitSpeakDialects(speak, dialects)).toBe(
+          refsFitDialects(speak, dialects)
+        );
       }
     }
   });

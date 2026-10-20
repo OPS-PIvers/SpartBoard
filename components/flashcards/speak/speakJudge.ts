@@ -58,7 +58,7 @@ export function judgeTake({
   result,
   language,
   settings,
-  unclearConfidence = DEFAULT_UNCLEAR_CONFIDENCE,
+  unclearConfidence,
 }: JudgeTakeInput): SpeakJudgement {
   const refs = cardRefs(card, settings.dialects);
   const spoken = result.tokens.map((token) => token.symbol);
@@ -70,7 +70,13 @@ export function judgeTake({
     logProbs: result.logProbs,
     language,
     settings,
-    unclearConfidence,
+    // A stamp written before the cut-off was stamped, or a malformed one, uses the default.
+    unclearConfidence:
+      typeof unclearConfidence === 'number' &&
+      unclearConfidence >= 0 &&
+      unclearConfidence <= 1
+        ? unclearConfidence
+        : DEFAULT_UNCLEAR_CONFIDENCE,
     stressFor: (ref, alignment) => {
       const nuclei = extractNuclei(result.tokens, alignment);
       const found = detectStress({

@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import type {
   FlashcardCard,
-  FlashcardSpeakSettings,
+  FlashcardSpeakStudentSettings,
   RecordingConfig,
   SpeakLanguage,
 } from '@/types';
@@ -96,7 +96,7 @@ export interface SpeakModeProps {
   cards: FlashcardCard[];
   round: number;
   language: SpeakLanguage;
-  settings: FlashcardSpeakSettings;
+  settings: FlashcardSpeakStudentSettings;
   framed: boolean;
   starred: string[];
   showMarks: boolean;
@@ -616,7 +616,13 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
         if (runRef.current !== run) return;
         let judgement: SpeakJudgement;
         try {
-          judgement = judgeTake({ card, result, language, settings });
+          judgement = judgeTake({
+            card,
+            result,
+            language,
+            settings,
+            unclearConfidence: settings.unclearConfidence,
+          });
         } catch {
           judgement = {
             verdict: 'unclear',

@@ -17,7 +17,7 @@ import type {
   FlashcardFlag,
   FlashcardMode,
   FlashcardModeSettings,
-  FlashcardSpeakSettings,
+  FlashcardSpeakStudentSettings,
   FlashcardStudyState,
   FlashcardTestType,
 } from '@/types';
@@ -67,7 +67,7 @@ interface PlayerSession {
 }
 
 /** The teacher's Speak stamp (F21); present means Speak is offered. */
-export type FlashcardPlayerSpeak = FlashcardSpeakSettings & {
+export type FlashcardPlayerSpeak = FlashcardSpeakStudentSettings & {
   locked?: boolean;
 };
 
@@ -454,7 +454,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
 
   const speaking = mode === 'speak' && speakLanguage !== null && Boolean(speak);
   const speakableCards = speaking ? cards.filter(isSpeakableCard) : [];
-  const speakSettings: FlashcardSpeakSettings | null = speak
+  const speakSettings: FlashcardSpeakStudentSettings | null = speak
     ? speak.locked
       ? speak
       : { ...speak, ...speakPrefs }

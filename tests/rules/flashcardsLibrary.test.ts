@@ -3,7 +3,7 @@
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   assertFails,
   assertSucceeds,
@@ -175,13 +175,14 @@ describe('public flashcard snapshots', () => {
     await assertSucceeds(
       setDoc(doc(asTeacher(OWNER_UID), path), {
         ...snapshot,
-        speak: SPEAK_SETTINGS,
+        speak: { ...SPEAK_SETTINGS, unclearConfidence: 0.35 },
         cards: [{ ...snapshot.cards[0], speak: cardSpeak('hola') }],
       })
     );
-    await assertSucceeds(
-      getDoc(doc(testEnv.unauthenticatedContext().firestore(), path))
+    const read = await getDoc(
+      doc(testEnv.unauthenticatedContext().firestore(), path)
     );
+    expect(read.get('speak.unclearConfidence')).toBe(0.35);
     await assertFails(
       setDoc(doc(asTeacher(OWNER_UID), path), { ...snapshot, speak: 'on' })
     );

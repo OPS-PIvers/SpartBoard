@@ -5,6 +5,7 @@ import {
   FLASHCARDS_SPEAK_FEATURE_ID,
   parseLookupInput,
   SPEAK_G2P_VERSION,
+  SPEAK_G2P_VOICES_PENDING,
 } from '../pronunciation/lookup';
 import type {
   FlashcardCardSpeak,
@@ -17,6 +18,7 @@ import {
   clampSpeakAttempts,
   normalizeSpeakAdminDefaults,
   ownSpeakFits,
+  refsFitSpeakDialects,
   resolveSpeakSettings,
   SPEAK_DIALECTS,
   speakLanguageOf,
@@ -73,15 +75,6 @@ export function applySpeakInput(
 const espeakRefs = (speak: FlashcardCardSpeak) =>
   speak.refs.filter((ref) => ref.source !== 'voice');
 
-const sameDialects = (speak: FlashcardCardSpeak, dialects: SpeakDialect[]) => {
-  const refs = espeakRefs(speak);
-  return (
-    speak.refs.length === 0 ||
-    (refs.length === dialects.length &&
-      speak.refs.every((ref) => dialects.includes(ref.dialect)))
-  );
-};
-
 /** A card's references are current for its term, the engine version and the set's dialects. */
 export function cardSpeakCurrent(
   card: FlashcardCard,
@@ -91,10 +84,12 @@ export function cardSpeakCurrent(
   return (
     !!speak &&
     speak.term === card.term &&
-    speak.g2pVersion === SPEAK_G2P_VERSION &&
+    // The connector never reads voices, so a card waiting on them is as current as it can make it.
+    (speak.g2pVersion === SPEAK_G2P_VERSION ||
+      speak.g2pVersion === SPEAK_G2P_VOICES_PENDING) &&
     Array.isArray(speak.refs) &&
     !speak.reasons?.includes('lookup-failed') &&
-    sameDialects(speak, dialects)
+    refsFitSpeakDialects(speak, dialects)
   );
 }
 
@@ -186,7 +181,7 @@ export const countSpeakCards = (cards: FlashcardCard[]): SpeakCounts => {
 export interface SpeakSaveResult {
   set: FlashcardSet;
   /** Present when the teacher has Speak and the language supports it (F21 stamp source). */
-  stamp?: SpeakSettings;
+  stamp?: SpeakSettings & { unclearConfidence: number };
   counts?: SpeakCounts;
 }
 
@@ -233,5 +228,9 @@ export async function prepareSpeakSave(
   const next: FlashcardSet = { ...set, cards };
   if (input || own) next.speak = settings as unknown as Record<string, unknown>;
   else delete next.speak;
-  return { set: next, stamp: settings, counts: countSpeakCards(cards) };
+  return {
+    set: next,
+    stamp: { ...settings, unclearConfidence: defaults.unclearConfidence },
+    counts: countSpeakCards(cards),
+  };
 }

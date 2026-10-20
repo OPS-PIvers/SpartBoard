@@ -8,6 +8,8 @@ import {
   setSpeakGroup,
   setSpeakStrict,
 } from './speakEditorState';
+import { SPEAK_DIALECTS, SPEAK_LANGUAGES } from '@/config/pronunciationGroups';
+import { SPEAK_G2P_VERSION } from '@/utils/pronunciation/g2pVersion';
 
 const base: FlashcardSpeakSettings = {
   dialects: ['es-419'],
@@ -21,7 +23,7 @@ const base: FlashcardSpeakSettings = {
 const readySpeak = (): NonNullable<FlashcardCard['speak']> => ({
   term: 'hola',
   refs: [{ dialect: 'es-419', tokens: ['o', 'l', 'a'], stress: [0] }],
-  g2pVersion: 'v1',
+  g2pVersion: SPEAK_G2P_VERSION,
   status: 'ready',
 });
 
@@ -73,6 +75,58 @@ describe('speakEditorState', () => {
     );
   });
 
+  it('looks up again after an engine change', () => {
+    const old = card({ speak: { ...readySpeak(), g2pVersion: 'old' } });
+    expect(cardNeedsLookup(old, ['es-419'], {})).toBe(true);
+    const pending = card({
+      speak: { ...readySpeak(), g2pVersion: `${SPEAK_G2P_VERSION}/pending` },
+    });
+    expect(cardNeedsLookup(pending, ['es-419'], {})).toBe(true);
+    const voiced = card({
+      speak: {
+        ...readySpeak(),
+        refs: [
+          ...readySpeak().refs,
+          {
+            dialect: 'es-419',
+            tokens: ['o', 'l', 'ɐ'],
+            stress: [0],
+            source: 'voice',
+          },
+        ],
+      },
+    });
+    expect(cardNeedsLookup(voiced, ['es-419'], {})).toBe(false);
+    expect(cardNeedsLookup(voiced, ['es-419', 'es-ES'], {})).toBe(true);
+  });
+
+  it('keeps a card whose other accent failed for a recorded reason', () => {
+    const oneFailed = card({
+      speak: {
+        ...readySpeak(),
+        status: 'needs-review',
+        reasons: ['untokenizable'],
+      },
+    });
+    expect(cardNeedsLookup(oneFailed, ['es-419', 'es-ES'], {})).toBe(false);
+    expect(cardNeedsLookup(oneFailed, ['es-ES'], {})).toBe(true);
+    // A flag on the accent that worked doesn't explain a newly added accent.
+    const flagged = card({
+      speak: {
+        ...readySpeak(),
+        status: 'needs-review',
+        reasons: ['g2p-disagree'],
+      },
+    });
+    expect(cardNeedsLookup(flagged, ['es-419', 'es-ES'], {})).toBe(true);
+  });
+
+  it('relies on no language having more than two accents', () => {
+    for (const language of SPEAK_LANGUAGES) {
+      expect(SPEAK_DIALECTS[language].length).toBeLessThanOrEqual(2);
+    }
+  });
+
   it('keeps a confirmation only when the references are unchanged', () => {
     const previous = {
       ...readySpeak(),
@@ -81,6 +135,19 @@ describe('speakEditorState', () => {
     };
     const same = { ...previous, confirmedAt: undefined };
     expect(keepSpeakConfirmation(previous, same).confirmedAt).toBe(5);
+    const voiced = {
+      ...same,
+      refs: [
+        ...same.refs,
+        {
+          dialect: 'es-419' as const,
+          tokens: ['o', 'l', 'ɐ'],
+          stress: [0],
+          source: 'voice' as const,
+        },
+      ],
+    };
+    expect(keepSpeakConfirmation(previous, voiced).confirmedAt).toBe(5);
     const moved = { ...same, refs: [] };
     expect(keepSpeakConfirmation(previous, moved).confirmedAt).toBeUndefined();
   });

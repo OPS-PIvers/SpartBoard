@@ -3581,7 +3581,6 @@
         "confirm": "Se ve bien",
         "ipaLabel": "Pronunciación (AFI), {{dialect}}",
         "ipaInvalid": "Algunos de estos símbolos no se reconocen.",
-        "stressLabel": "Parte acentuada",
         "checkingCards_one": "Revisando cómo se dice {{count}} tarjeta…",
         "checkingCards_other": "Revisando cómo se dicen {{count}} tarjetas…",
         "hearIt": "Escucharla"

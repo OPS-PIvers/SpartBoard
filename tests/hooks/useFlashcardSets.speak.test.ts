@@ -106,6 +106,7 @@ beforeEach(() => {
   (getDoc as Mock).mockResolvedValue({
     data: () => ({
       attempts: 5,
+      unclearConfidence: 0.3,
       languages: { es: { preset: 'intermediate' } },
     }),
   });
@@ -182,6 +183,7 @@ describe('useFlashcardSets Speak stamp (F21)', () => {
       groups: { 'es-trill': 'require' },
       attempts: 4,
       example: false,
+      unclearConfidence: 0.3,
     };
     expect(getDoc).toHaveBeenCalledWith('admin_settings/flashcardsSpeak');
     expect(opFor('users/teacher-1/flashcard_sets/set-1')?.data).toMatchObject({

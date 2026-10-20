@@ -8871,7 +8871,7 @@ export interface PublicFlashcardSet {
   definitionLanguage: string;
   cards: FlashcardCard[];
   /** Present means Speak is shown. */
-  speak?: FlashcardSpeakSettings;
+  speak?: FlashcardSpeakStudentSettings;
   updatedAt: number;
 }
 
@@ -8897,6 +8897,11 @@ export interface FlashcardSpeakSettings {
   /** "Hear it" shown. */
   example: boolean;
 }
+
+/** What students read: the settings plus the district's "Repeat when unclear" cut-off (0-1), stamped at save. */
+export type FlashcardSpeakStudentSettings = FlashcardSpeakSettings & {
+  unclearConfidence?: number;
+};
 
 export interface FlashcardSpeakReference {
   dialect: SpeakDialect;
@@ -9032,7 +9037,7 @@ export interface FlashcardSession
   checkMode?: FlashcardMode;
   lockedSettings?: FlashcardModeSettings;
   /** Teacher-stamped Speak settings (F21); absent means Speak is hidden. */
-  speak?: FlashcardSpeakSettings & { locked: boolean };
+  speak?: FlashcardSpeakStudentSettings & { locked: boolean };
   /** The teacher turned Speak off for this assignment, so a set save never stamps it. */
   speakOff?: true;
   masteryThreshold?: FlashcardMasteryThreshold;
