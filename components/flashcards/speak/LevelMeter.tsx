@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { cx } from '../playerUtils';
+import { useMicLevel } from './useMicLevel';
 
 const prefersReducedMotion = (): boolean =>
   typeof window !== 'undefined' &&
@@ -37,3 +38,12 @@ export const LevelMeter: React.FC<{
     </div>
   );
 };
+
+/** Reads the stream itself so only the meter re-renders each frame. */
+export const LiveLevelMeter: React.FC<{
+  stream: MediaStream | null;
+  label: string;
+  dark: boolean;
+}> = ({ stream, ...rest }) => (
+  <LevelMeter level={useMicLevel(stream)} {...rest} />
+);

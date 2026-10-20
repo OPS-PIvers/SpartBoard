@@ -35,8 +35,10 @@ export function useMicLevel(stream: MediaStream | null): number {
       analyser.getFloatTimeDomainData(samples);
       let sum = 0;
       for (const sample of samples) sum += sample * sample;
-      // Speech RMS sits around 0.02-0.2, so scale it into a readable bar.
-      setLevel(Math.min(1, Math.sqrt(sum / samples.length) * 6));
+      // Speech RMS sits around 0.02-0.2, so scale it into a readable bar; 5% steps skip no-op renders.
+      setLevel(
+        Math.round(Math.min(1, Math.sqrt(sum / samples.length) * 6) * 20) / 20
+      );
       frame = window.requestAnimationFrame(tick);
     };
     frame = window.requestAnimationFrame(tick);

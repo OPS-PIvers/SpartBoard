@@ -48,7 +48,7 @@ import type { SpeakJudgement } from '@/utils/pronunciation/verdict';
 import type { FlashcardSpeakTally } from '@/utils/flashcardSchedule';
 import { RoundSummary } from './PlayerPrimitives';
 import { cx } from './playerUtils';
-import { LevelMeter } from './speak/LevelMeter';
+import { LevelMeter, LiveLevelMeter } from './speak/LevelMeter';
 import { useMicLevel } from './speak/useMicLevel';
 import { SpeakMarks } from './speak/SpeakMarks';
 import {
@@ -648,7 +648,6 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
     constraints: SPEAK_CONSTRAINTS,
     deps,
   });
-  const level = useMicLevel(capture.phase === 'recording' ? stream : null);
 
   const blockReason: SpeakBlockReason | null = frameBlocked
     ? 'framed'
@@ -1180,8 +1179,8 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
                 >
                   {t('flashcards.speak.player.listening')}
                 </p>
-                <LevelMeter
-                  level={level}
+                <LiveLevelMeter
+                  stream={stream}
                   label={t('flashcards.speak.player.levelLabel')}
                   dark={dark}
                 />
