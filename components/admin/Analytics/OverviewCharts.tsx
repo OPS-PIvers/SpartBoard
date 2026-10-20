@@ -564,7 +564,13 @@ const cohortCellStyle = (cell: RetentionCell): React.CSSProperties => {
     const heat = lo + (HEAT_HIGH[i] - lo) * t;
     return Math.round(255 + (heat - 255) * w);
   });
-  const dark = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2] < 150;
+  const lin = rgb.map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  const lum = 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+  // White text only when it out-contrasts slate-900 (luminance ~0.0089).
+  const dark = 1.05 / (lum + 0.05) > (lum + 0.05) / 0.0589;
   const stripe = dark ? 'rgba(255,255,255,0.35)' : 'rgba(15,23,42,0.14)';
   return {
     backgroundColor: `rgb(${rgb.join(',')})`,
@@ -605,7 +611,8 @@ export const CohortPanel: React.FC<{
     : legacyRetentionRows(cohorts);
   const span = Math.max(0, ...rows.map((r) => r.cells.length));
   const hasPartial = rows.some((r) => r.cells.some((c) => c?.partial));
-  const hasReturn = rows.some((r) => r.fallReturn);
+  const returnYear = rows.find((r) => r.fallReturn)?.fallReturn?.year;
+  const hasReturn = returnYear !== undefined;
   const overall = retention?.fallReturn;
   return (
     <Panel
@@ -616,7 +623,11 @@ export const CohortPanel: React.FC<{
       }
       actions={
         retention && (
-          <div className="flex gap-0.5 text-xs font-semibold" role="group">
+          <div
+            className="flex gap-0.5 text-xs font-semibold"
+            role="group"
+            aria-label="Group cohorts"
+          >
             {COHORT_GROUPS.map((g) => (
               <button
                 {...tourFieldAttr(
@@ -664,7 +675,7 @@ export const CohortPanel: React.FC<{
               ))}
               {hasReturn && (
                 <th className="text-right font-semibold pl-2 whitespace-nowrap">
-                  Back in Sep
+                  Back in Sep {returnYear}
                 </th>
               )}
             </tr>

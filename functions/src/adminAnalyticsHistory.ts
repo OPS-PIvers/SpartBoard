@@ -291,17 +291,19 @@ function retentionRow(
     const full = { n: 0, active: 0 };
     const current = { n: 0, active: 0 };
     let reached = false;
+    let finished = false;
     for (const { uid, month } of members) {
       const target = addSchoolMonths(month, k);
       if (target > currentMonth) continue;
       reached = true;
+      if (target < currentMonth) finished = true;
       if (target < firstHistoryMonth) continue;
       const tally = target === currentMonth ? current : full;
       tally.n++;
       if (activeMonths.get(uid)?.has(target)) tally.active++;
     }
     if (!reached) break;
-    const partial = full.n === 0;
+    const partial = !finished;
     const { n, active } = partial ? current : full;
     cells.push(
       n === 0
