@@ -37,7 +37,7 @@ const fakeWordWav = (): string => {
       data.writeInt16LE(Math.round(v * 32767), 44 + i * 2);
     }
   }
-  const path = join(tmpdir(), 'spartboard-speak-word.wav');
+  const path = join(tmpdir(), `spartboard-speak-word-${process.pid}.wav`);
   writeFileSync(path, data);
   return path;
 };

@@ -81,6 +81,31 @@ describe('createSpeechEndDetector', () => {
     expect(result.at).toBeLessThan(950 + 1100);
   });
 
+  it('ends over classroom noise even when the mic fades in quietly', () => {
+    const result = run([
+      [0.0005, 150],
+      [0.03, 300],
+      [0.15, 500],
+      [0.03, 2000],
+    ]);
+    expect(result.event).toBe('ended');
+    expect(result.at).toBeLessThan(950 + 1100);
+  });
+
+  it('leaves an all-zero take (a suspended audio context) to the time limit', () => {
+    expect(run([[0, 7000]]).event).toBeNull();
+  });
+
+  it('does not let one loud frame after a long timer gap count as speech', () => {
+    const detector = createSpeechEndDetector();
+    detector.push(0.002, 0);
+    detector.push(0.3, 1000);
+    let event = null;
+    for (let at = 1030; at < 6100 && !event; at += 30)
+      event = detector.push(0.002, at);
+    expect(event).toBe('no-speech');
+  });
+
   it('keeps listening while the student is still speaking', () => {
     expect(run([[0.1, 4000]]).event).toBeNull();
   });

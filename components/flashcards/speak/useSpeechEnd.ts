@@ -1,6 +1,7 @@
 import { useEffect, useEffectEvent } from 'react';
 import { audioContextCtor } from './useMicLevel';
 import {
+  SPEECH_END_DEFAULTS,
   createSpeechEndDetector,
   type SpeechEndEvent,
   type SpeechEndOptions,
@@ -13,25 +14,34 @@ const POLL_MS = 30;
 export function useSpeechEnd(
   stream: MediaStream | null,
   onEnd: (event: SpeechEndEvent) => void,
-  options?: SpeechEndOptions
+  options: SpeechEndOptions = SPEECH_END_DEFAULTS
 ): void {
   const fire = useEffectEvent(onEnd);
+  const { endSilenceMs, noSpeechMs, minSpeechMs } = options;
   useEffect(() => {
     const Ctor = audioContextCtor();
     if (!stream || !Ctor) return undefined;
-    let context: AudioContext;
+    let context: AudioContext | null = null;
+    let analyser: AnalyserNode;
+    let source: MediaStreamAudioSourceNode;
     try {
       context = new Ctor();
       void context.resume().catch(() => undefined);
+      analyser = context.createAnalyser();
+      analyser.fftSize = 1024;
+      source = context.createMediaStreamSource(stream);
+      source.connect(analyser);
     } catch {
+      void context?.close().catch(() => undefined);
       return undefined;
     }
-    const analyser = context.createAnalyser();
-    analyser.fftSize = 1024;
-    const source = context.createMediaStreamSource(stream);
-    source.connect(analyser);
+    const opened = context;
     const samples = new Float32Array(analyser.fftSize);
-    const detector = createSpeechEndDetector(options);
+    const detector = createSpeechEndDetector({
+      endSilenceMs,
+      noSpeechMs,
+      minSpeechMs,
+    });
     const timer = window.setInterval(() => {
       analyser.getFloatTimeDomainData(samples);
       let sum = 0;
@@ -47,7 +57,7 @@ export function useSpeechEnd(
     return () => {
       window.clearInterval(timer);
       source.disconnect();
-      void context.close().catch(() => undefined);
+      void opened.close().catch(() => undefined);
     };
-  }, [stream, options]);
+  }, [stream, endSilenceMs, noSpeechMs, minSpeechMs]);
 }
