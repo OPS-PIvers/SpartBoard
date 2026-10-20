@@ -181,6 +181,22 @@ export async function writeTombstone(
   );
 }
 
+/** Ids of this teacher's assignments of a set that are not archived yet. */
+export async function openAssignmentIdsForSet(
+  uid: string,
+  setId: string
+): Promise<string[]> {
+  const snap = await getDocs(
+    query(
+      collection(db, 'users', uid, ASSIGNMENTS_COLLECTION),
+      where('setId', '==', setId)
+    )
+  );
+  return snap.docs
+    .filter((d) => d.data().status !== 'archived')
+    .map((d) => d.id);
+}
+
 // Open means the assignment still exists and is not archived.
 async function hasOpenAssignment(uid: string, ids: unknown): Promise<boolean> {
   if (!Array.isArray(ids) || ids.length === 0) return true;
