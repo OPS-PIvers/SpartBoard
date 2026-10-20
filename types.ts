@@ -10106,6 +10106,8 @@ export type GlobalFeature =
   | 'quiz-import-suggested-targets'
   /** Multi-version test import: versions, FRQ rubrics, balanced dealing, Stop checkpoints (docs/plans/QUIZ_IMPORT_VERSIONS.md). */
   | 'quiz-import-versions'
+  /** Splits a typed PDF with version headings without AI; AND-ed with `quiz-import-versions`. */
+  | 'quiz-import-versions-plain'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */

@@ -24,11 +24,15 @@ import type { PdfCropperDeps } from './pdfFigures';
 import { attachPdfPictures } from './pdfPictures';
 import {
   MAX_DOCUMENT_PAGES,
+  MAX_VERSIONED_DOCUMENT_PAGES,
   assertWithinByteLimitOf,
   assertWithinPageLimit,
   byteLimitFor,
 } from './limits';
 import type { ExtractedQuiz, RemoteImageFetcher } from './types';
+import type { Pixels } from './figureMatch';
+import { splitPlainVersions } from './plainVersions';
+import { assembleTestSet } from './testSetReader';
 import { UNREADABLE_FILE, documentKind, titleFromFileName } from './fileKind';
 
 export * from './types';
@@ -143,6 +147,28 @@ export interface ReadDocumentOptions {
   bmpToPng?: BmpToPng;
   /** Copies pictures an LMS export links to on another site. */
   fetchRemoteImage?: RemoteImageFetcher;
+  /** A typed PDF with version headings splits into versions without AI (QUIZ_IMPORT_VERSIONS V13). */
+  versions?: boolean;
+  /** Decodes a cropped picture so versions can share identical ones (V4). */
+  decodePixels?: (blob: Blob) => Promise<Pixels | null>;
+}
+
+/** A long file is opened for its version headings, but a scanned one stays the AI reader's. */
+function pastPlainLimitSkipsOcr(deps: PdfReaderDeps): PdfReaderDeps {
+  const recognize = deps.recognizePage;
+  if (!recognize) return deps;
+  let pageCount = 0;
+  return {
+    loadPdf: async (file) => {
+      const pdf = await deps.loadPdf(file);
+      pageCount = pdf.numPages;
+      return pdf;
+    },
+    recognizePage: (n) => {
+      assertWithinPageLimit(pageCount);
+      return recognize(n);
+    },
+  };
 }
 
 /**
@@ -295,12 +321,17 @@ export async function readQuizDocument(
   // reader the moment the file opens. Counting the pages that produced lines
   // would undercount: a page whose text layer is empty and that OCR could not
   // recover never reaches `lines` at all.
-  const { lines, pageCount, scannedPages, usedOcr, pictures } = await readPdf(
+  const content = await readPdf(
     file,
-    options.pdf,
-    { maxPages: MAX_DOCUMENT_PAGES, pictures: Boolean(options.pdfCropper) }
+    options.versions ? pastPlainLimitSkipsOcr(options.pdf) : options.pdf,
+    {
+      maxPages: options.versions
+        ? MAX_VERSIONED_DOCUMENT_PAGES
+        : MAX_DOCUMENT_PAGES,
+      pictures: Boolean(options.pdfCropper),
+    }
   );
-  assertWithinPageLimit(pageCount);
+  const { lines, pageCount, scannedPages, usedOcr, pictures } = content;
 
   if (usedOcr) {
     warnings.push(
@@ -311,6 +342,42 @@ export async function readQuizDocument(
       `No text could be read from ${scannedPages.length === 1 ? 'page' : 'pages'} ${scannedPages.join(', ')}.`
     );
   }
+
+  if (options.versions) {
+    const split = splitPlainVersions(
+      content,
+      titleFromFileName(fileName),
+      reader
+    );
+    if (split) {
+      const makeCropper = options.pdfCropper;
+      const testSet = await assembleTestSet(
+        {
+          title: titleFromFileName(fileName),
+          rubrics: split.rubrics,
+          groups: split.groups,
+          figures: [],
+          warnings: [...warnings, ...split.warnings],
+        },
+        split.versions,
+        {
+          fallbackTitle: titleFromFileName(fileName),
+          ...(makeCropper ? { cropper: () => makeCropper(file) } : {}),
+          ...(options.decodePixels
+            ? { decodePixels: options.decodePixels }
+            : {}),
+        }
+      );
+      return {
+        title: testSet.title,
+        questions: [],
+        images: testSet.images,
+        warnings: [],
+        testSet,
+      };
+    }
+  }
+  assertWithinPageLimit(pageCount);
 
   const {
     questions,

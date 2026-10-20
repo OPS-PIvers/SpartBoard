@@ -136,4 +136,39 @@ describe('createQuizImportAdapter with versions', () => {
     const off = await createQuizImportAdapter(deps()).parse(doc);
     expect(off.warnings).not.toContain(VERSIONS_NEED_AI);
   });
+
+  it('splits versions in the plain read only with the plain flag, and offers AI after it', async () => {
+    const testSet = await importedFrq();
+    readTestAndKey.mockResolvedValue({
+      title: testSet.title,
+      readBy: 'plain',
+      questions: [],
+      images: testSet.images,
+      warnings: [],
+      testSet,
+    });
+    await createQuizImportAdapter(deps({ importVersions: true })).parse(doc);
+    expect(readTestAndKey.mock.calls[0][1]).not.toHaveProperty('plainVersions');
+    // The flag means nothing without the versions flag it rides on.
+    await createQuizImportAdapter(deps({ plainVersions: true })).parse(doc);
+    expect(readTestAndKey.mock.calls[1][1]).not.toHaveProperty('plainVersions');
+
+    const plain = await createQuizImportAdapter(
+      deps({
+        importVersions: true,
+        plainVersions: true,
+        aiExtractVersions: vi.fn(),
+      })
+    ).parse({ ...doc, useAi: false });
+    expect(readTestAndKey.mock.calls[2][1]).toMatchObject({
+      plainVersions: true,
+    });
+    expect(plain.note).toBe('Converted without AI.');
+    expect(plain.aiRetry).toBe(true);
+
+    const noAi = await createQuizImportAdapter(
+      deps({ importVersions: true, plainVersions: true, aiExtract: undefined })
+    ).parse(doc);
+    expect(noAi.aiRetry).toBeUndefined();
+  });
 });
