@@ -119,6 +119,7 @@ function mockHooks() {
     deleteSet: vi.fn(),
     publishSet: vi.fn(),
     revokeShare: vi.fn(),
+    fillSpeakVoices: vi.fn(),
   });
   vi.mocked(useFlashcardAssignments).mockReturnValue({
     assignments: [],

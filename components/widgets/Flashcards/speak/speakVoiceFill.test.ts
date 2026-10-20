@@ -88,10 +88,12 @@ describe('startVoiceFill', () => {
   it('reads voices in small batches, a few at a time, then writes them onto the latest copy', async () => {
     const cards = Array.from({ length: 12 }, (_, i) => card(i));
     let stored = makeSet(cards);
-    const write = vi.fn((merge: (s: FlashcardSet) => FlashcardSet) => {
-      stored = merge(stored);
-      return Promise.resolve();
-    });
+    const write = vi.fn(
+      (merge: (s: FlashcardSet) => FlashcardSet, _final: boolean) => {
+        stored = merge(stored);
+        return Promise.resolve();
+      }
+    );
     const { calls, call, answer } = controlledCall();
     startVoiceFill(stored, write, call);
 
