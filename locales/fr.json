@@ -3574,7 +3574,8 @@
           "g2p-disagree": "Nos sources ne sont pas d'accord sur la façon de dire ce mot.",
           "stress-disagree": "Nos sources ne sont pas d'accord sur la partie accentuée.",
           "language-switch": "Ce mot semble être dans une autre langue.",
-          "lookup-failed": "On n'a pas pu vérifier ce mot. On réessaiera à l'enregistrement."
+          "lookup-failed": "On n'a pas pu vérifier ce mot. On réessaiera à l'enregistrement.",
+          "set-too-large": "Cet ensemble est trop grand pour garder la prononciation de chaque carte. Retire quelques cartes et enregistre à nouveau."
         },
         "reviewTitle_one": "{{count}} carte à vérifier",
         "reviewTitle_other": "{{count}} cartes à vérifier",

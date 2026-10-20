@@ -611,6 +611,23 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'blooms-taxonomy.ai-topic': {
+    label: "AI topic box in Bloom's Taxonomy",
+    perWidgetType: true,
+  },
+  'blooms-taxonomy.ai-dismiss': {
+    label: "Dismiss AI result button in Bloom's Taxonomy",
+    perWidgetType: true,
+    destructive: true,
+  },
+  'calendar.start-timer': {
+    label: 'Start countdown to event button in Calendar',
+    perWidgetType: true,
+  },
+  'calendar.connect-google': {
+    label: 'Connect Google Calendar button on the Calendar face',
+    perWidgetType: true,
+  },
   'arts-letters-agenda.reset-checks': {
     label: 'Reset checks button in Arts & Letters Agenda',
     perWidget: true,
@@ -773,6 +790,8 @@ export const TOUR_ANCHORS = {
   'assign-classes.option': {
     label: 'Class checkbox in the Assign dialog classes menu',
     perField: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
     panel: true,
   },
   'assign-classes.select-all': {
@@ -786,6 +805,8 @@ export const TOUR_ANCHORS = {
   'assign-students.trigger': {
     label: 'All students menu button for a class in the Assign dialog',
     perField: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
     panel: true,
   },
   'assign-students.search': {
@@ -800,6 +821,8 @@ export const TOUR_ANCHORS = {
   'assign-students.option': {
     label: 'Student checkbox in the Assign dialog students menu',
     perField: true,
+    keyPattern: 'assign#row-[1-9]\\d*',
+    keyHint: 'assign#row-1 for the first row',
     panel: true,
   },
   'assign-students.all': {
@@ -4574,16 +4597,18 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'library-shell.archive-primary-action': {
-    label: 'Primary action button on an assignment archive row',
+    label:
+      'Primary action button on an assignment row (In Progress or Archive tab)',
     persists: true,
     perField: true,
   },
   'library-shell.archive-menu': {
-    label: 'Kebab menu button on an assignment archive row',
+    label:
+      'Kebab menu button on an assignment row (In Progress or Archive tab)',
     perField: true,
   },
   'library-shell.archive-menu-item': {
-    label: 'Item inside an assignment archive row kebab menu',
+    label: 'Item inside an assignment row kebab menu',
     persists: true,
     perField: true,
     panel: true,
@@ -6682,7 +6707,8 @@ export const TOUR_ANCHORS = {
   },
   'modal.close': { label: 'Close button in a dialog header', panel: true },
   'library-shell.tab': {
-    label: 'Tab in a library shell header',
+    label:
+      'Library header tab: library (Library), active (In Progress), archive (Archive, Completed in Quiz), banks',
     perField: true,
     panel: true,
   },
@@ -14083,6 +14109,63 @@ export const TOUR_ANCHORS = {
     label: 'Share results with PLC item in a quiz assignment row menu',
     perWidgetType: true,
     panel: true,
+  },
+  'quiz-library.archive-copy-link': {
+    label: 'Copy Student Link item in a quiz In Progress row menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.archive-results': {
+    label: 'Results item in a quiz In Progress row menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.archive-share': {
+    label: 'Share item (copies a share link) in a quiz assignment row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-pause': {
+    label: 'Pause item in a live quiz In Progress row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-end': {
+    label: 'End or End share item in a quiz In Progress row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-publish-scores': {
+    label: 'Publish scores item in a quiz Archive (Completed) row menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.archive-unpublish-scores': {
+    label: 'Unpublish scores item in a quiz Archive (Completed) row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-reopen': {
+    label: 'Reopen item in a quiz Archive (Completed) row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-reactivate': {
+    label: 'Reactivate item in an ended view-only quiz share row menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'quiz-library.archive-delete': {
+    label: 'Delete item in a quiz assignment row menu',
+    perWidgetType: true,
+    panel: true,
+    destructive: true,
   },
   // Quiz assignment Settings dialog (from an assignment row menu).
   'quiz-settings-modal.plc-results': {

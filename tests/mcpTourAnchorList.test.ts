@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { TOUR_ANCHORS, type TourAnchorDef } from '@/config/tourAnchors';
@@ -7,6 +7,7 @@ import { TOUR_SURFACES } from '@/config/tourSurfaces';
 import { TOUR_ANCHOR_SURFACES } from '@/config/tourAnchorSurfaces.generated';
 import { surfacePath } from '@/config/tourAnchorRoutes';
 import { anchorKeys } from './helpers/tourAnchorSources';
+import { writeGenerated } from './helpers/writeGenerated';
 import { WIDGET_TYPE_LIST } from '@/functions/src/mcp/widgetTypeList';
 import { TOOLS } from '@/config/tools';
 import { WIDGET_SETTINGS_SCHEMAS } from '@/components/widgets/WidgetRegistry';
@@ -98,10 +99,10 @@ function routesOf(id: string) {
 }
 
 describe('connector tour anchor list', () => {
-  it('matches config/tourAnchors.ts (UPDATE_TOUR_ANCHOR_LIST=1 rewrites it)', () => {
+  it('matches config/tourAnchors.ts (UPDATE_TOUR_ANCHOR_LIST=1 rewrites it)', async () => {
     const list = expected();
     if (process.env.UPDATE_TOUR_ANCHOR_LIST) {
-      writeFileSync(
+      await writeGenerated(
         FILE,
         // Parsed JSON, because an array literal this varied is too complex for the type checker to infer.
         `// Generated from config/tourAnchors.ts by tests/mcpTourAnchorList.test.ts; rerun it with UPDATE_TOUR_ANCHOR_LIST=1.\nexport interface TourAnchorEntry {\n  id: string;\n  label: string;\n  scope: 'board' | 'widget' | 'widget type' | 'field';\n  panel?: true;\n  destructive?: true;\n  persists?: true;\n  sandboxed?: true;\n  requires?: string;\n  keys?: readonly string[];\n  key_pattern?: string;\n  key_hint?: string;\n  cycles?: string;\n  opens_empty?: string;\n  closes?: string;\n  closes_path?: readonly string[];\n  routes?: ReadonlyArray<{\n    surface: string;\n    kind: string;\n    widget_type?: string;\n    url?: string;\n    path?: readonly string[];\n    reveal?: string;\n    opened_by?: readonly string[];\n    needs?: readonly string[];\n  }>;\n}\n\nexport const TOUR_ANCHOR_LIST = JSON.parse(String.raw\`${JSON.stringify(list, null, 2)}\`) as readonly TourAnchorEntry[];\n`
@@ -129,12 +130,12 @@ const TYPES_FILE = resolve(
 const INTERNAL_TOOLS = new Set(['record', 'magic', 'remote']);
 
 describe('connector widget type list', () => {
-  it('matches config/tools.ts (UPDATE_TOUR_ANCHOR_LIST=1 rewrites it)', () => {
+  it('matches config/tools.ts (UPDATE_TOUR_ANCHOR_LIST=1 rewrites it)', async () => {
     const types = TOOLS.map((t) => String(t.type)).filter(
       (t) => !INTERNAL_TOOLS.has(t)
     );
     if (process.env.UPDATE_TOUR_ANCHOR_LIST) {
-      writeFileSync(
+      await writeGenerated(
         TYPES_FILE,
         `// Generated from config/tools.ts by tests/mcpTourAnchorList.test.ts; rerun it with UPDATE_TOUR_ANCHOR_LIST=1.\nexport const WIDGET_TYPE_LIST: readonly string[] = ${JSON.stringify(types, null, 2)};\n`
       );
@@ -210,7 +211,7 @@ describe('connector settings field list', () => {
       list[type] = fieldAnchors(type, await load());
     }
     if (process.env.UPDATE_TOUR_ANCHOR_LIST) {
-      writeFileSync(
+      await writeGenerated(
         FIELDS_FILE,
         `// Generated from the widget settings schemas by tests/mcpTourAnchorList.test.ts; rerun it with UPDATE_TOUR_ANCHOR_LIST=1.\nexport const SETTINGS_FIELD_LIST: Readonly<\n  Record<string, ReadonlyArray<{ anchor: string; label: string; kind?: string }>>\n> = ${JSON.stringify(list, null, 2)};\n`
       );

@@ -21,7 +21,8 @@ export type FlashcardSpeakReason =
   | 'g2p-disagree'
   | 'stress-disagree'
   | 'language-switch'
-  | 'lookup-failed';
+  | 'lookup-failed'
+  | 'set-too-large';
 
 export interface FlashcardCardSpeak {
   term: string;

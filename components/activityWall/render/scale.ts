@@ -10,6 +10,8 @@ export interface WallScale {
   icon: string;
   gap: string;
   pad: string;
+  tight: string;
+  indent: string;
 }
 
 const WIDGET_SCALE: WallScale = {
@@ -20,6 +22,8 @@ const WIDGET_SCALE: WallScale = {
   icon: 'min(20px, 6cqmin)',
   gap: 'min(10px, 2.5cqmin)',
   pad: 'min(10px, 2.5cqmin)',
+  tight: 'min(4px, 1cqmin)',
+  indent: 'min(12px, 3cqmin)',
 };
 
 const GALLERY_SCALE: WallScale = {
@@ -30,6 +34,8 @@ const GALLERY_SCALE: WallScale = {
   icon: 'clamp(18px, 1.6vw, 28px)',
   gap: 'clamp(10px, 1vw, 18px)',
   pad: 'clamp(10px, 1vw, 18px)',
+  tight: '4px',
+  indent: '12px',
 };
 
 const TEACHER_SCALE: WallScale = {
@@ -40,6 +46,8 @@ const TEACHER_SCALE: WallScale = {
   icon: '18px',
   gap: '12px',
   pad: '12px',
+  tight: '4px',
+  indent: '12px',
 };
 
 /** Sizing tokens for a render mode. */

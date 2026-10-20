@@ -9,6 +9,7 @@ import {
   isPastEvent,
   toSeconds,
 } from './agendaUtils';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface CalendarAgendaProps {
   events: CalendarEvent[];
@@ -113,6 +114,7 @@ export const CalendarAgenda: React.FC<CalendarAgendaProps> = ({
                       opacity: past ? 0.45 : 1,
                     }}
                   >
+                    {/* no-tour-anchor: one row per event */}
                     <button
                       type="button"
                       onClick={() => setOpenEvent(event)}
@@ -144,6 +146,7 @@ export const CalendarAgenda: React.FC<CalendarAgendaProps> = ({
                     </button>
                     {canTimer && (
                       <button
+                        {...tourTypeAttr('calendar.start-timer', 'calendar')}
                         type="button"
                         onClick={() => onStartTimer(event)}
                         className="shrink-0 text-slate-400 hover:text-brand-blue-primary transition-colors"

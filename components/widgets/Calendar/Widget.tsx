@@ -23,6 +23,7 @@ import { getLocalIsoDate } from '@/utils/localDate';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 import { useSubShareCalendar } from './useSubShareCalendar';
 import { CalendarAgenda } from './CalendarAgenda';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 /** Parses a time string (e.g. "14:30", "2:30 PM") into seconds since midnight, or -1 if invalid. */
 const parseTimeSeconds = (t: string | undefined): number => {
@@ -479,6 +480,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
                       )}
                       {canStartTimer && (
                         <button
+                          {...tourTypeAttr('calendar.start-timer', 'calendar')}
                           onClick={() => handleStartTimer(event)}
                           className="text-slate-400 hover:text-indigo-500 transition-colors shrink-0"
                           style={{ marginLeft: 'min(4px, 1cqmin)' }}
@@ -515,6 +517,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
             {showConnectCalendar && (
               <div className="h-full flex items-center justify-center">
                 <button
+                  {...tourTypeAttr('calendar.connect-google', 'calendar')}
                   type="button"
                   onClick={() => void handleConnectCalendar()}
                   className="flex flex-col items-center justify-center rounded-xl transition-colors hover:bg-white/5"

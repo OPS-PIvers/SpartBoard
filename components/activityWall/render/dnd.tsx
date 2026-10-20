@@ -4,7 +4,7 @@ import { GripVertical } from 'lucide-react';
 
 // Static (non-absolute) so it sits in its own gutter column and never overlaps card text.
 const gripClass =
-  'flex shrink-0 cursor-grab items-start rounded p-1 text-slate-300 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60';
+  'flex shrink-0 cursor-grab items-start rounded text-slate-300 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60';
 
 type DraggableBindings = ReturnType<typeof useDraggable>;
 
@@ -12,6 +12,7 @@ interface DragHandleProps {
   attributes: DraggableBindings['attributes'];
   listeners: DraggableBindings['listeners'];
   size: string;
+  padding: string;
 }
 
 /** Dedicated grip so the card's own buttons stay clickable and focusable. */
@@ -19,11 +20,13 @@ export const DragHandle: React.FC<DragHandleProps> = ({
   attributes,
   listeners,
   size,
+  padding,
 }) => (
   <button
     type="button"
     aria-label="Drag to move"
     className={gripClass}
+    style={{ padding }}
     {...attributes}
     {...listeners}
   >
@@ -35,6 +38,7 @@ interface DraggableCardProps {
   id: string;
   disabled?: boolean;
   handleSize: string;
+  tight: string;
   children: React.ReactNode;
 }
 
@@ -43,6 +47,7 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
   id,
   disabled,
   handleSize,
+  tight,
   children,
 }) => {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -54,13 +59,14 @@ export const DraggableCard: React.FC<DraggableCardProps> = ({
     <div
       ref={setNodeRef}
       className={`flex items-start ${isDragging ? 'opacity-50' : ''}`}
-      style={{ gap: '4px' }}
+      style={{ gap: tight }}
     >
       {!disabled && (
         <DragHandle
           attributes={attributes}
           listeners={listeners}
           size={handleSize}
+          padding={tight}
         />
       )}
       <div className="min-w-0 flex-1">{children}</div>

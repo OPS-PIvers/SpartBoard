@@ -3574,7 +3574,8 @@
           "g2p-disagree": "Nuestras fuentes no coinciden en cómo se dice esta palabra.",
           "stress-disagree": "Nuestras fuentes no coinciden en qué parte se acentúa.",
           "language-switch": "Esta palabra parece estar en otro idioma.",
-          "lookup-failed": "No pudimos revisar esta palabra. Lo intentaremos de nuevo al guardar."
+          "lookup-failed": "No pudimos revisar esta palabra. Lo intentaremos de nuevo al guardar.",
+          "set-too-large": "Este conjunto es demasiado grande para guardar la pronunciación de cada tarjeta. Quita algunas tarjetas y vuelve a guardar."
         },
         "reviewTitle_one": "{{count}} tarjeta por revisar",
         "reviewTitle_other": "{{count}} tarjetas por revisar",

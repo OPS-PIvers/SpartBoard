@@ -26,31 +26,11 @@ export const SURFACES: TourSurfaceMap = {
       'library-shell.folder-dialog-cancel': 'library-shell.folder-menu-delete',
     },
   },
-  // Owns no anchors (library.shell lists the card first): a hop for openers inside a card's kebab menu.
-  'library.card-menu': {
-    label: 'Library item card menu',
-    kind: 'menu',
-    files: ['components/common/library/LibraryItemCard.tsx'],
-    opensWith: 'library-shell.card-menu#row-1',
-    needs: ['library-item'],
-  },
+  // Every library's In Progress and Archive tabs render these rows, so each widget's face maps the tab.
   'library.assignments': {
-    label: 'Library Active tab (assignment cards)',
-    kind: 'panel',
+    label: 'Assignment rows on a library In Progress or Archive tab',
+    kind: 'shared',
     files: ['components/common/library/AssignmentArchiveCard.tsx'],
-    opensWith: 'library-shell.tab#active',
-    inner: {
-      'library-shell.archive-menu-item': 'library-shell.archive-menu',
-      'quiz-library.archive-settings': 'library-shell.archive-menu',
-      'quiz-library.archive-plc-results': 'library-shell.archive-menu',
-    },
-  },
-  // Owns no anchors (library.assignments lists the card first): the Archive tab, where Results is the primary action.
-  'library.assignments-archive': {
-    label: 'Library Archive tab (ended assignment cards)',
-    kind: 'panel',
-    files: ['components/common/library/AssignmentArchiveCard.tsx'],
-    opensWith: 'library-shell.tab#archive',
   },
   // Shared by every library's Import wizard, so it has no single opener.
   'library.import-wizard': {
@@ -123,11 +103,11 @@ export const SURFACES: TourSurfaceMap = {
       'assign-classes.option': 'assign-classes.trigger',
       'assign-classes.select-all': 'assign-classes.trigger',
       'assign-classes.clear': 'assign-classes.trigger',
-      'assign-students.search': 'assign-students.trigger',
-      'assign-students.group': 'assign-students.trigger',
-      'assign-students.option': 'assign-students.trigger',
-      'assign-students.all': 'assign-students.trigger',
-      'assign-students.clear': 'assign-students.trigger',
+      'assign-students.search': 'assign-students.trigger:assign',
+      'assign-students.group': 'assign-students.trigger:assign',
+      'assign-students.option': 'assign-students.trigger:assign',
+      'assign-students.all': 'assign-students.trigger:assign',
+      'assign-students.clear': 'assign-students.trigger:assign',
       'assign-mods.skip-student': 'assign-mods.open',
       'assign-mods.generate-translation': 'assign-mods.open',
       'assign-mods.remove': 'assign-mods.open',
@@ -151,13 +131,30 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'widget',
     widgetType: 'video-activity',
     needs: ['widget-on-stage'],
-    files: ['components/widgets/VideoActivityWidget/'],
+    files: [
+      'components/widgets/VideoActivityWidget/',
+      'components/widgets/VideoActivityWidget/components/VideoActivityManager.tsx',
+    ],
     inner: {
+      'library-shell.archive-primary-action':
+        'library-shell.tab:video-activity#archive',
       'video-activity.preview-close':
         'library-shell.card-open:video-activity#row-1',
       'video-activity.preview-open-editor':
         'library-shell.card-open:video-activity#row-1',
     },
+  },
+  // Owns no anchors (the face lists the manager first): the In Progress tab, where a live row's primary action is Monitor.
+  'library.video-activity.in-progress': {
+    label: 'Video Activity In Progress tab',
+    kind: 'panel',
+    widgetType: 'video-activity',
+    files: [
+      'components/widgets/VideoActivityWidget/components/VideoActivityManager.tsx',
+    ],
+    opensWith: 'library-shell.tab:video-activity#active',
+    parent: 'library.video-activity',
+    needs: ['widget-on-stage'],
   },
   'library.video-activity.creator': {
     label: 'Video Activity import / create view',
@@ -203,7 +200,7 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'panel',
     files: ['components/widgets/VideoActivityWidget/components/Results.tsx'],
     opensWith: 'library-shell.archive-primary-action:video-activity#row-1',
-    parent: 'library.assignments-archive',
+    parent: 'library.video-activity',
     needs: ['student-data'],
   },
   'library.video-activity.live': {
@@ -214,7 +211,7 @@ export const SURFACES: TourSurfaceMap = {
       'components/widgets/VideoActivityWidget/components/VideoActivityLivePlayer.tsx',
     ],
     opensWith: 'library-shell.archive-primary-action:video-activity#row-1',
-    parent: 'library.assignments',
+    parent: 'library.video-activity.in-progress',
     needs: ['live-session'],
   },
 
@@ -224,6 +221,10 @@ export const SURFACES: TourSurfaceMap = {
     widgetType: 'flashcards',
     needs: ['widget-on-stage'],
     files: ['components/widgets/Flashcards/'],
+    inner: {
+      'library-shell.archive-primary-action':
+        'library-shell.tab:flashcards#archive',
+    },
   },
   'library.flashcards.editor': {
     label: 'Flashcard set editor',
@@ -272,7 +273,7 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'panel',
     files: ['components/widgets/Flashcards/results/'],
     opensWith: 'library-shell.archive-primary-action:flashcards#row-1',
-    parent: 'library.assignments',
+    parent: 'library.flashcards',
     needs: ['student-data'],
   },
   'library.flashcards.publish-scores': {
@@ -342,11 +343,11 @@ export const SURFACES: TourSurfaceMap = {
     needs: ['library-item'],
     inner: {
       'activity-wall-moderation.edit-title':
-        'activity-wall-moderation.edit-start',
+        'activity-wall-moderation.edit-start:activity-wall',
       'activity-wall-moderation.edit-text':
-        'activity-wall-moderation.edit-start',
+        'activity-wall-moderation.edit-start:activity-wall',
       'activity-wall-moderation.edit-save':
-        'activity-wall-moderation.edit-start',
+        'activity-wall-moderation.edit-start:activity-wall',
     },
   },
   'library.activity-wall.share': {
@@ -372,6 +373,7 @@ export const SURFACES: TourSurfaceMap = {
     needs: ['widget-on-stage'],
     files: ['components/widgets/MiniApp/'],
     inner: {
+      'library-shell.card-menu-item': 'library-shell.card-menu:miniApp#row-1',
       'mini-app.preview-close': 'library-shell.card-open:miniApp#row-1',
       'mini-app.preview-open-editor': 'library-shell.card-open:miniApp#row-1',
     },
@@ -381,7 +383,7 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'panel',
     files: ['components/widgets/MiniApp/Widget.tsx'],
     opensWith: 'library-shell.card-menu-item:miniApp#row-1-item-1',
-    parent: 'library.card-menu',
+    parent: 'library.mini-app',
     needs: ['library-item'],
     inner: {
       'mini-app.save-cancel': 'mini-app.toolbar-save:miniApp',
@@ -423,16 +425,16 @@ export const SURFACES: TourSurfaceMap = {
     files: ['components/widgets/MiniApp/components/AssignmentsModal.tsx'],
     opensWith: 'mini-app.toolbar-sessions:miniApp',
     inner: {
-      'mini-app.session-rename-input': 'mini-app.session-rename',
-      'mini-app.session-rename-save': 'mini-app.session-rename',
-      'mini-app.session-end-confirm': 'mini-app.session-end',
+      'mini-app.session-rename-input': 'mini-app.session-rename:miniApp',
+      'mini-app.session-rename-save': 'mini-app.session-rename:miniApp',
+      'mini-app.session-end-confirm': 'mini-app.session-end:miniApp',
     },
   },
   'library.mini-app.submissions': {
     label: 'Mini App submissions dialog',
     kind: 'modal',
     files: ['components/widgets/MiniApp/components/SubmissionsModal.tsx'],
-    opensWith: 'mini-app.session-submissions',
+    opensWith: 'mini-app.session-submissions:miniApp',
     needs: ['student-data'],
   },
   'library.mini-app.save-as-widget': {

@@ -1,7 +1,7 @@
 import React, { useRef, useCallback, useEffect } from 'react';
 import { WidgetData } from '@/types';
 import { widgetRefRegistry, setWidgetOverride } from './widgetRefRegistry';
-import { useDashboard } from '@/context/useDashboard';
+import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { Z_INDEX } from '@/config/zIndex';
 import { getWorldBounds, type Bounds } from '@/utils/zoomPanMath';
 
@@ -62,7 +62,7 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
   groupWidgets,
   zoom,
 }) => {
-  const { updateWidgets } = useDashboard();
+  const { updateWidgets } = useDashboardActions();
   const resizeState = useRef<{
     anchorX: number;
     anchorY: number;

@@ -91,7 +91,7 @@ export const ClassPickerMenu: React.FC<ClassPickerMenuProps> = ({
             </p>
           ) : (
             <div className="max-h-60 overflow-y-auto custom-scrollbar">
-              {rosters.map((r) => {
+              {rosters.map((r, rowIndex) => {
                 const unavailable = Boolean(r.loadError);
                 return (
                   <label
@@ -110,7 +110,11 @@ export const ClassPickerMenu: React.FC<ClassPickerMenuProps> = ({
                       disabled={unavailable}
                       onChange={() => toggle(r.id)}
                       {...(rowAnchor?.(r.id) ??
-                        tourFieldAttr('assign-classes.option', 'assign', r.id))}
+                        tourFieldAttr(
+                          'assign-classes.option',
+                          'assign',
+                          `row-${rowIndex + 1}`
+                        ))}
                       className="h-4 w-4 rounded accent-brand-blue-primary"
                     />
                     <span className="min-w-0 flex-1 truncate">{r.name}</span>

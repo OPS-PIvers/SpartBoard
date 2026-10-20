@@ -1176,3 +1176,58 @@ describe('RandomWidget — groups mode by group count', () => {
     });
   });
 });
+
+describe('RandomWidget double pick while audio is suspended', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('runs a single pick when Randomize is clicked twice before resume resolves', async () => {
+    vi.useFakeTimers();
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockDashboardContext
+    );
+    mockUpdateWidget.mockClear();
+    const resolvers: Array<() => void> = [];
+    const ctx = {
+      state: 'suspended',
+      resume: vi.fn(
+        () =>
+          new Promise<void>((r) => {
+            resolvers.push(r);
+          })
+      ),
+    };
+    (
+      audioUtils.getAudioCtx as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue(ctx);
+    const widget: WidgetData = {
+      id: 'dbl',
+      type: 'random',
+      config: { firstNames: 'Alice\nBob\nCara\nDan', mode: 'single' },
+      x: 0,
+      y: 0,
+      w: 100,
+      h: 100,
+      z: 1,
+      flipped: false,
+    };
+    render(<RandomWidget widget={widget} />);
+    const btn = screen.getAllByRole('button', {
+      name: /^Randomize$|^Picking$/,
+    })[0];
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    await act(async () => {
+      resolvers.forEach((r) => r());
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    const picks = mockUpdateWidget.mock.calls.filter(
+      ([, patch]) => (patch as { config?: RandomConfig }).config?.lastResult
+    );
+    expect(picks).toHaveLength(1);
+  });
+});

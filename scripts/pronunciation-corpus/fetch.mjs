@@ -153,19 +153,24 @@ async function commonsInfo(titles) {
 
 /** Commons HTML metadata to plain text that is safe in a Markdown table cell. */
 function plainText(html) {
-  return html
-    .replace(/<[^>]+>/g, '')
+  let text = html;
+  for (let prev = ''; prev !== text; ) {
+    prev = text;
+    text = text.replace(/<[^>]*>/g, '');
+  }
+  return text
     .replace(/&nbsp;/g, ' ')
     .replace(/&quot;/g, '"')
     .replace(/&#0?39;/g, "'")
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&amp;/g, '&')
+    .replace(/[<>]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-const cell = (s) => String(s).replace(/\|/g, '\\|');
+const cell = (s) => String(s).replace(/[\\|]/g, '\\$&');
 
 async function download(clip) {
   const res = await client.request(clip.url ?? commonsUploadUrl(clip.title));
