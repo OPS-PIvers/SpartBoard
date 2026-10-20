@@ -102,7 +102,7 @@ F-numbers from the 2026-10-19 redirect are kept. **F6 is superseded by §4** (st
   - **One word per card.** A term with whitespace after `parseFlashcardAnswerVariants` (`utils/flashcardMatch.ts`) picks its first variant; a multi-word variant is unavailable.
   - Also unavailable: a reference that failed (#2383 `unrenderable` / `untokenizable`). The card reads "Not available to speak" and is skipped.
   - **Languages:** the mode is offered only when the primary subtag of `termLanguage` is `es`, `de` or `en`. Teachers type `es`, `es-US`, `es-MX` and so on; the presets in `flashcardLanguages.ts:4-12` give `es-US`.
-- **F3 — No recording is kept.** Audio is held in memory for the decode and for "Play my try", then dropped when the card changes.
+- **F3 — No recording is kept.** Audio is held in memory for the decode and for "Play my attempt", then dropped when the card changes.
   - Nothing is uploaded, archived or written to Firestore.
   - `useAudioRecording` is reused for capture only (it writes nothing unless `commit()` is called, `hooks/useAudioRecording.ts`). Its upload path and `RecordingConsentNotice` are not used.
   - **No consent notice** (Paul, 2026-10-19).
@@ -186,7 +186,7 @@ F-numbers from the 2026-10-19 redirect are kept. **F6 is superseded by §4** (st
   - Hide the button when no voice matches.
   - On-device, free, anonymous-safe; ChromeOS ships Google es/de/en voices.
   - A teacher-recorded example stays deferred.
-- **F24 — Play my try.** After each attempt the student can replay their own take from memory, beside "Hear it". Record-and-compare is standard CAPT practice. The blob URL is revoked when the card changes.
+- **F24 — Play my attempt.** After each attempt the student can replay their own take from memory, beside "Hear it". Record-and-compare is standard CAPT practice. The blob URL is revoked when the card changes.
 - **F25 — Capture settings for Speak.**
   - `useAudioRecording` hard-codes 32 kbps Opus (`hooks/useAudioRecording.ts:77-84`), but the Chromebook gate measured the default bitrate. Speak passes a new optional `audioBitsPerSecond: 128000`.
   - It also passes `constraints: { echoCancellation: false, noiseSuppression: false, autoGainControl: true }`, since noise suppression smears consonants.
@@ -339,7 +339,7 @@ A student saying a _different_ word is **Not yet**, not unclear.
    - **At most two marks are emphasised**, chosen by consonant-before-vowel and group order. The rest are visible but quiet.
    - Tapping a mark shows a plain hint from the sound-name table (S5), e.g. "Roll the r: let your tongue flutter." No IPA is shown to students.
    - When a reference has no `letterSpans`, the marks fall back to sound chips with plain names.
-5. "Play my try" (F24), "Try again" (while attempts remain), "Continue".
+5. "Play my attempt" (F24), "Try again" (while attempts remain), "Continue".
 6. Stress feedback is one line ("Stress the second part: ca-**SA**"). It is modest by design, because the evidence for stress feedback is weaker.
 
 ---

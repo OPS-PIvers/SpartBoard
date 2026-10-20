@@ -148,6 +148,11 @@ describe('on-screen copy guard', () => {
       'First-try accuracy',
       '{{count}} first try',
       'Number of takes',
+      'Takes',
+      'Best try',
+      'Try #2',
+      '2nd try',
+      'Takes per student',
     ]) {
       expect(attemptWordingProblem(text), text).toBe(true);
     }
@@ -160,6 +165,11 @@ describe('on-screen copy guard', () => {
       'Each wrong pick takes points away.',
       'Try it as a student',
       'Attempts per card',
+      "What's your take?",
+      'Students first take the pre-test',
+      'Take 3 of the photos',
+      'Swipe takes left',
+      'She tries the new one',
     ]) {
       expect(attemptWordingProblem(text), text).toBe(false);
     }
