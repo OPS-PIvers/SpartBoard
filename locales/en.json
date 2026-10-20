@@ -4714,7 +4714,8 @@
           "g2p-disagree": "Our sources disagree on how to say this word.",
           "stress-disagree": "Our sources disagree on which part is stressed.",
           "language-switch": "This word looks like it's in a different language.",
-          "lookup-failed": "We couldn't check this word. We'll try again when you save."
+          "lookup-failed": "We couldn't check this word. We'll try again when you save.",
+          "set-too-large": "This set is too big to keep a pronunciation for every card. Remove some cards and save again."
         },
         "reviewTitle_one": "{{count}} card to check",
         "reviewTitle_other": "{{count}} cards to check",
