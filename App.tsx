@@ -449,6 +449,16 @@ const SpeakPlayerDevHarness = import.meta.env.DEV
     )
   : null;
 
+// Also built into auth-bypass (E2E) builds for tests/e2e/flashcards-speak.spec.ts.
+const FlashcardsSpeakFlowDevHarness =
+  import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
+    ? lazy(() =>
+        import('./components/dev/FlashcardsSpeakFlowDevHarness').then(
+          (module) => ({ default: module.FlashcardsSpeakFlowDevHarness })
+        )
+      )
+    : null;
+
 const GlViewsDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/GlViewsDevHarness').then((module) => ({
@@ -1281,6 +1291,18 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <SpeakPlayerDevHarness />
+      </Suspense>
+    );
+  }
+
+  if (
+    FlashcardsSpeakFlowDevHarness &&
+    (import.meta.env.DEV || isAuthBypass) &&
+    pathname === '/flashcards-speak-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <FlashcardsSpeakFlowDevHarness />
       </Suspense>
     );
   }
