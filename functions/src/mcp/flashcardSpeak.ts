@@ -18,6 +18,7 @@ import {
   clampSpeakAttempts,
   normalizeSpeakAdminDefaults,
   ownSpeakFits,
+  refsFitSpeakDialects,
   resolveSpeakSettings,
   SPEAK_DIALECTS,
   speakLanguageOf,
@@ -74,17 +75,6 @@ export function applySpeakInput(
 const espeakRefs = (speak: FlashcardCardSpeak) =>
   speak.refs.filter((ref) => ref.source !== 'voice');
 
-// Reasons only a dialect with no reference produces.
-const NO_REF_REASONS = ['unrenderable', 'untokenizable', 'multi-word'];
-
-/** Mirrors refsFitDialects (components/widgets/Flashcards/speak/speakEditorState.ts). */
-const sameDialects = (speak: FlashcardCardSpeak, dialects: SpeakDialect[]) =>
-  speak.refs.every((ref) => dialects.includes(ref.dialect)) &&
-  (speak.refs.length === 0 ||
-    dialects.every((d) => espeakRefs(speak).some((ref) => ref.dialect === d)) ||
-    // A language has at most two accents, so a recorded failure explains the missing one.
-    (speak.reasons ?? []).some((r) => NO_REF_REASONS.includes(r)));
-
 /** A card's references are current for its term, the engine version and the set's dialects. */
 export function cardSpeakCurrent(
   card: FlashcardCard,
@@ -99,7 +89,7 @@ export function cardSpeakCurrent(
       speak.g2pVersion === SPEAK_G2P_VOICES_PENDING) &&
     Array.isArray(speak.refs) &&
     !speak.reasons?.includes('lookup-failed') &&
-    sameDialects(speak, dialects)
+    refsFitSpeakDialects(speak, dialects)
   );
 }
 

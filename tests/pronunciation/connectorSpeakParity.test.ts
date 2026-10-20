@@ -13,13 +13,12 @@ import {
   SPEAK_GROUP_IDS,
   SPEAK_PRESET_IDS,
   normalizeSpeakAdminDefaults,
+  refsFitSpeakDialects,
   resolveSpeakSettings,
   speakPresetSettings,
 } from '@/functions/src/mcp/flashcardSpeakSettings';
 import type { FlashcardCardSpeak, FlashcardSpeakSettings } from '@/types';
 import { refsFitDialects } from '@/components/widgets/Flashcards/speak/speakEditorState';
-import { cardSpeakCurrent } from '@/functions/src/mcp/flashcardSpeak';
-import { SPEAK_G2P_VERSION } from '@/functions/src/pronunciation/g2pVersion';
 
 describe('connector Speak settings match the client', () => {
   it('copies the dialects, group ids and presets exactly', () => {
@@ -124,17 +123,14 @@ describe('connector Speak settings match the client', () => {
       const speak: FlashcardCardSpeak = {
         term: 'hola',
         refs,
-        g2pVersion: SPEAK_G2P_VERSION,
+        g2pVersion: 'v',
         status: refs.length > 0 ? 'ready' : 'unavailable',
         ...(reasons ? { reasons } : {}),
       };
       for (const dialects of accentSets) {
-        expect(
-          cardSpeakCurrent(
-            { id: 'c', term: 'hola', definition: 'd', speak } as never,
-            dialects
-          )
-        ).toBe(refsFitDialects(speak, dialects));
+        expect(refsFitSpeakDialects(speak, dialects)).toBe(
+          refsFitDialects(speak, dialects)
+        );
       }
     }
   });

@@ -1,5 +1,9 @@
 // Pure Flashcards Speak settings for the connector (S10); no Firebase imports so root parity tests can load it.
-import type { SpeakDialect, SpeakLanguage } from '../pronunciation/types';
+import type {
+  FlashcardCardSpeak,
+  SpeakDialect,
+  SpeakLanguage,
+} from '../pronunciation/types';
 
 export type SpeakGroupSetting = 'follow' | 'forgive' | 'require';
 export type SpeakPresetId = 'beginner' | 'intermediate' | 'advanced';
@@ -259,3 +263,19 @@ export const ownSpeakFits = (
     dialects.every((d) => SPEAK_DIALECTS[language].includes(d as SpeakDialect))
   );
 };
+
+// Reasons only a dialect with no reference produces.
+const NO_REF_REASONS = ['unrenderable', 'untokenizable', 'multi-word'];
+
+/** Mirrors refsFitDialects (components/widgets/Flashcards/speak/speakEditorState.ts); voice refs ride along with their dialect's espeak ref. */
+export const refsFitSpeakDialects = (
+  speak: FlashcardCardSpeak,
+  dialects: readonly SpeakDialect[]
+): boolean =>
+  speak.refs.every((ref) => dialects.includes(ref.dialect)) &&
+  (speak.refs.length === 0 ||
+    dialects.every((d) =>
+      speak.refs.some((ref) => ref.dialect === d && ref.source !== 'voice')
+    ) ||
+    // A language has at most two accents, so a recorded failure explains the missing one.
+    (speak.reasons ?? []).some((r) => NO_REF_REASONS.includes(r)));
