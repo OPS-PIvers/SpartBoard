@@ -2773,6 +2773,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-results.student-attempt': {
+    label: 'Attempt picker in a student report in Quiz results',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-results.student-print': {
     label: 'Print report button in a student report in Quiz results',
     perWidgetType: true,

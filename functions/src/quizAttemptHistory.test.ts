@@ -16,6 +16,7 @@ vi.mock('firebase-functions/logger', () => ({
 }));
 
 import {
+  applyAttemptGradeWrite,
   applyAttemptWrite,
   attemptActionFor,
   attemptNumberOf,
@@ -348,5 +349,66 @@ describe('applyAttemptWrite', () => {
     await apply(stub, write(undefined, done()));
     expect(stub.has(`${RESPONSE}/attempts/1`)).toBe(false);
     expect(stub.has(SCORES)).toBe(false);
+  });
+});
+
+describe('applyAttemptGradeWrite', () => {
+  const COPY = `${RESPONSE}/attempts/1`;
+
+  it('rescores an earlier attempt when the teacher grades its copy', async () => {
+    const stub = seed();
+    const first = done({ answers: [{ questionId: 'q1', answer: 'B' }] });
+    await apply(stub, write(undefined, first));
+    await apply(stub, write(first, reset(), T + 1));
+    const before = stub.get(COPY);
+    expect(before?.closed).toBe(true);
+    const after = { ...before, grading: { q1: { points: 2 } } };
+    stub.store.set(COPY, after);
+    await applyAttemptGradeWrite(stub.db as unknown as Db, {
+      sessionId: 'qs1',
+      responseKey: 'u1',
+      n: 1,
+      before,
+      after,
+    });
+    expect(stub.get(SCORES)?.attempts).toHaveLength(1);
+  });
+
+  it('ignores open copies and writes that leave grading alone', async () => {
+    const stub = seed({
+      [SCORES]: { studentUid: 'u1', attempts: [] },
+    });
+    const open = { n: 1, studentUid: 'u1', answers: [], grading: {} };
+    await applyAttemptGradeWrite(stub.db as unknown as Db, {
+      sessionId: 'qs1',
+      responseKey: 'u1',
+      n: 1,
+      before: open,
+      after: { ...open, grading: { q1: { points: 1 } } },
+    });
+    const closed = { ...open, closed: true };
+    await applyAttemptGradeWrite(stub.db as unknown as Db, {
+      sessionId: 'qs1',
+      responseKey: 'u1',
+      n: 1,
+      before: closed,
+      after: { ...closed },
+    });
+    expect(stub.get(SCORES)?.attempts).toEqual([]);
+  });
+
+  it('never lets a late live event overwrite a closed copy', async () => {
+    const stub = seed();
+    const first = done();
+    await apply(stub, write(undefined, first));
+    await apply(stub, write(first, reset(), T + 1));
+    const graded = { ...stub.get(COPY), grading: { q1: { points: 1 } } };
+    stub.store.set(COPY, graded);
+    stub.store.set(RESPONSE, first);
+    await applyAttemptWrite(
+      stub.db as unknown as Db,
+      write(done({ status: 'in-progress' }), first, T + 5)
+    );
+    expect(stub.get(COPY)?.grading).toEqual({ q1: { points: 1 } });
   });
 });

@@ -180,6 +180,8 @@ async function saveAttempt(
     // A late event for a response already removed must not leave an orphan copy.
     if (!live.exists) return 'skipped';
     const prev: Doc | undefined = existing.data();
+    // A closed copy is frozen; only a teacher grade on it changes it afterwards.
+    if (prev?.closed === true) return 'newer';
     if (typeof prev?.eventAt === 'number' && prev.eventAt > w.eventAt)
       return 'newer';
     tx.set(attemptRef, {
@@ -260,6 +262,68 @@ async function moveRemovedAttempts(
       );
     }
     await list.ref.delete();
+  }
+}
+
+export interface AttemptGradeWrite {
+  sessionId: string;
+  responseKey: string;
+  n: number;
+  before: Doc | undefined;
+  after: Doc | undefined;
+}
+
+/** A teacher grade on an earlier attempt's copy rescores that attempt's entry. */
+export async function applyAttemptGradeWrite(
+  db: Firestore,
+  w: AttemptGradeWrite
+): Promise<void> {
+  const { before, after } = w;
+  if (!before || !after || after.closed !== true) return;
+  if (stableStringify(before.grading) === stableStringify(after.grading))
+    return;
+  try {
+    const ctx = await loadSessionContext(db, 'quiz', w.sessionId);
+    if (!ctx) return;
+    const copyRef = responseRef(db, w.sessionId, w.responseKey)
+      .collection(QUIZ_ATTEMPTS_SUBCOLLECTION)
+      .doc(String(w.n));
+    const listRef = scoresRef(db, w.sessionId, w.responseKey);
+    await db.runTransaction(async (tx) => {
+      const [copySnap, list] = await Promise.all([
+        tx.get(copyRef),
+        tx.get(listRef),
+      ]);
+      // Score the copy as it is now, so out-of-order events settle on the latest grade.
+      const fresh: Doc | undefined = copySnap.data();
+      // No list means the response was removed or never scored.
+      if (!fresh || !list.exists) return;
+      const studentUid =
+        typeof fresh.studentUid === 'string' ? fresh.studentUid : '';
+      // A stored (published) score would mask the new grade.
+      const score = ctx.score(studentUid, {
+        ...fresh,
+        score: null,
+        status: 'completed',
+      });
+      if (!score) return;
+      const entries: unknown = list.data()?.attempts;
+      tx.set(listRef, {
+        ...list.data(),
+        attempts: mergeAttempts(
+          Array.isArray(entries) ? (entries as IndexAttempt[]) : [],
+          { ...score, attemptNumber: w.n }
+        ),
+        updatedAt: Date.now(),
+      });
+    });
+  } catch (err) {
+    logger.error('quizAttemptHistory: grade rescore failed', {
+      sessionId: w.sessionId,
+      responseKey: w.responseKey,
+      n: w.n,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 

@@ -4931,13 +4931,17 @@ service cloud.firestore {
           allow write: if false;
         }
 
-        // Each finished attempt's copy; only the server writes it. Students see theirs through a callable.
+        // Each finished attempt's copy; the server writes it and the session teacher or an admin may grade an earlier (closed) one.
         match /attempts/{attemptId} {
           allow read: if signedIn() && (
             authUid() == sessionTeacherUid() || isAdmin() ||
             isSubMonitor(sessionData())
           );
-          allow write: if false;
+          allow update: if signedIn() && (authUid() == sessionTeacherUid() || isAdmin()) &&
+            existing().get('closed', false) == true &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['grading']) &&
+            isMap('grading');
+          allow create, delete: if false;
         }
       }
 

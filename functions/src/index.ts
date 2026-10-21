@@ -264,6 +264,7 @@ export {
   gradeIndexPlcConfig,
   gradeIndexDistrictConfig,
   gradeIndexRecompute,
+  quizAttemptGradeWrite,
 } from './gradebook/gradeIndexTriggers';
 
 // ── Slim, PII-free discovery mirror (onWrite of a PLC root keeps

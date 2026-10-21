@@ -591,6 +591,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-results.question-sort': ['quiz.results'],
     'quiz-results.question-toggle': ['quiz.results'],
     'quiz-results.student-print-answers': ['quiz.results'],
+    'quiz-results.student-attempt': ['quiz.results'],
     'quiz-results.student-print': ['quiz.results'],
     'quiz-results.students-select-all': ['quiz.results'],
     'quiz-results.students-sort': ['quiz.results'],

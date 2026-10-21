@@ -11751,6 +11751,33 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-results.student-attempt",
+    "label": "Attempt picker in a student report in Quiz results",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "opened_by": [
+          "quiz-library.archive-results:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-results.student-print",
     "label": "Print report button in a student report in Quiz results",
     "scope": "widget type",

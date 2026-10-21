@@ -163,6 +163,25 @@ function quizCompleted(
   };
 }
 
+/** Saved earlier attempts for the harness attempt picker: student 1001 missed both the first time. */
+export function makeQuizAttemptCopies(
+  responseKey: string
+): (Partial<QuizResponse> & { n: number; closed?: boolean })[] {
+  if (responseKey !== 'pin-Period 3-1001') return [];
+  return [
+    {
+      n: 1,
+      closed: true,
+      studentUid: responseKey,
+      submittedAt: NOW - 3_600_000,
+      answers: [
+        { questionId: QUIZ_Q1_ID, answer: '1/4', answeredAt: NOW - 3_700_000 },
+        { questionId: QUIZ_Q2_ID, answer: '4/8', answeredAt: NOW - 3_650_000 },
+      ],
+    },
+  ];
+}
+
 export function makeQuizResponses(): QuizResponse[] {
   return [
     // High score — both correct.
