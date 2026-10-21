@@ -185,7 +185,10 @@ export function makeQuizAttemptCopies(
 export function makeQuizResponses(): QuizResponse[] {
   return [
     // High score — both correct.
-    quizCompleted('pin-Period 3-1001', '1001', '3/4', '1/2'),
+    {
+      ...quizCompleted('pin-Period 3-1001', '1001', '3/4', '1/2'),
+      completedAttempts: 2,
+    },
     // Mid score — first correct, second wrong.
     quizCompleted('pin-Period 3-1002', '1002', '3/4', '2/4'),
     // Low score — both wrong, plus a tab-switch warning.

@@ -24,7 +24,7 @@ A retake resets the one response doc per student (`hooks/useQuizSession.ts`, the
 2. Teacher view: an "Attempt" row in the student's open report in Quiz Results lists each attempt with its score; grading on earlier attempts writes `grading` on the closed copy (rules: session teacher, closed copies, `grading` only) and `quizAttemptGradeWrite` rescores its `attemptScores` entry. A closed copy is otherwise frozen.
 3. Final score setting (D9).
 4. Student view: the same "Attempt" row on the student results screen, once a student has two or more attempts. `getMyQuizAttemptsV1` checks the response is the caller's, follows the quiz's results setting (score only leaves out answers and grades; hidden or locked returns nothing) and the teacher's `quiz-attempt-history` flag, and grades each closed copy against the key. The answer key shown is the live response's; handwriting and recordings of earlier attempts are not shown.
-5. Exports: Attempts column, an every-attempt option for CSV, sheet and print; the PLC sheet's Update sheet refreshes a student whose attempt changed.
+5. Exports: a solo Sheets export adds an "Attempts" column after PIN and an "Every attempt" tab (one row per finished attempt, "Attempt" column). PLC sheets keep their column layout; the assignment saves `exportedAttempts` with `exportedResponseIds`, and Re-export rebuilds the teacher's rows when an exported student has a newer attempt. Print gets an "Every attempt" switch that prints earlier attempts before the latest, headed "Attempt n". The CSV builder has no button in the app, so it is unchanged.
 
 Slices 2-5 sit behind one admin preview flag, `quiz-attempt-history`.
 

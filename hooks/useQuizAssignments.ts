@@ -429,7 +429,9 @@ export interface UseQuizAssignmentsResult {
    */
   setAssignmentExportedResponseIds: (
     assignmentId: string,
-    responseIds: ResponseDocKey[]
+    responseIds: ResponseDocKey[],
+    /** Finished attempts per key, saved with the ids when given. */
+    attempts?: Record<string, number>
   ) => Promise<void>;
   /** Publish this assignment as a shareable link. Returns the /share/assignment/{id} URL. */
   shareAssignment: (
@@ -2317,7 +2319,7 @@ export const useQuizAssignments = (
   const setAssignmentExportedResponseIds = useCallback<
     UseQuizAssignmentsResult['setAssignmentExportedResponseIds']
   >(
-    async (assignmentId, responseIds) => {
+    async (assignmentId, responseIds, attempts) => {
       if (!userId) throw new Error('Not authenticated');
       await updateDoc(
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
@@ -2325,6 +2327,7 @@ export const useQuizAssignments = (
           // Cast to plain string[] at the Firestore boundary — the brand
           // is application-level only, the wire format is `string[]`.
           exportedResponseIds: responseIds as string[],
+          ...(attempts ? { exportedAttempts: attempts } : {}),
           updatedAt: Date.now(),
         }
       );

@@ -1526,3 +1526,83 @@ describe('QuizDriveService — answer-text columns', () => {
     );
   });
 });
+
+describe('QuizDriveService.exportResultsToSheet — attempt history', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('adds an Attempts column and an Every attempt tab on a solo sheet', async () => {
+    const fetchSpy = queueFetchResponses([
+      {
+        json: () =>
+          Promise.resolve({
+            spreadsheetUrl: 'https://docs.google.com/spreadsheets/d/abc',
+          }),
+      },
+    ]);
+    const latest = makeResponse({ pin: '01', completedAttempts: 2 });
+    const first = makeResponse({ pin: '01', completedAttempts: 1 });
+    await new QuizDriveService('t').exportResultsToSheet(
+      'Title',
+      [latest],
+      [makeQuestion('q1')],
+      {
+        attempts: {
+          countFor: (r) => String(r.completedAttempts),
+          everyAttempt: [first, latest],
+        },
+      }
+    );
+    const calls = (fetchSpy as unknown as { mock: { calls: unknown[][] } }).mock
+      .calls as Array<[string, RequestInit]>;
+    const sheets = parseBody(calls[0][1]).sheets as Array<{
+      properties: { title: string };
+      data: Array<{
+        rowData: Array<{
+          values: Array<{ userEnteredValue: { stringValue: string } }>;
+        }>;
+      }>;
+    }>;
+    const rows = (i: number) =>
+      sheets[i].data[0].rowData.map((r) =>
+        r.values.map((v) => v.userEnteredValue.stringValue)
+      );
+    expect(sheets.map((s) => s.properties.title)).toEqual([
+      'Results',
+      'Every attempt',
+    ]);
+    expect(rows(0)[0].slice(4, 7)).toEqual(['PIN', 'Attempts', 'Status']);
+    expect(rows(0)[1][5]).toBe('2');
+    expect(rows(1)[0][5]).toBe('Attempt');
+    expect(
+      rows(1)
+        .slice(1)
+        .map((r) => r[5])
+    ).toEqual(['1', '2']);
+  });
+
+  it('keeps the PLC column layout', async () => {
+    const service = new QuizDriveService('t');
+    const append = vi
+      .spyOn(
+        service as unknown as {
+          appendToExistingSheet: (...a: unknown[]) => Promise<string>;
+        },
+        'appendToExistingSheet'
+      )
+      .mockResolvedValue('url');
+    await service.exportResultsToSheet(
+      'Title',
+      [makeResponse({ pin: '01', completedAttempts: 2 })],
+      [makeQuestion('q1')],
+      {
+        plcMode: true,
+        plcSheetUrl: 'https://docs.google.com/spreadsheets/d/x',
+        attempts: { countFor: () => '2', everyAttempt: [] },
+      }
+    );
+    const layouts = append.mock.calls[0][1] as { headers: string[] }[];
+    expect(layouts[0].headers).not.toContain('Attempts');
+  });
+});
