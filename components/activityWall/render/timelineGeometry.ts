@@ -266,7 +266,8 @@ export const timelineTicks = (
     for (let key = first; key <= to + 1e-9; key += step) {
       const rounded = step >= 1 ? Math.round(key) : Math.round(key * 12) / 12;
       // There is no year zero; the 1 BCE / 1 CE boundary goes unlabelled.
-      if (step >= 1 && rounded === 0) continue;
+      if (step >= 1 ? rounded === 0 : Math.floor(rounded + 1e-9) === 0)
+        continue;
       const x = keyToX(rounded);
       if (x - lastX < minGap) continue;
       ticks.push({ x, label: tickLabel(rounded, step) });

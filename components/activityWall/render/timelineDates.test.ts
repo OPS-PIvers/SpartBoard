@@ -17,6 +17,11 @@ describe('timeline dates', () => {
       { year: -44, month: 3, day: 15 },
       { year: -12000 },
       { year: 1 },
+      { year: 79, month: 8 },
+      { year: -44, month: 6 },
+      { year: -1, month: 1 },
+      { year: -10000, month: 2 },
+      { year: -10000, month: 6, day: 1 },
     ];
     for (const date of dates) {
       expect(parseWallDate(formatWallDate(date))).toEqual(date);
@@ -29,6 +34,7 @@ describe('timeline dates', () => {
     );
     expect(formatWallDate({ year: -500 })).toBe('500 BCE');
     expect(formatWallDate({ year: -12000 })).toBe('12,000 BCE');
+    expect(formatWallDate({ year: 79 })).toBe('79 CE');
   });
 
   it('reads older free-text labels where it can', () => {
@@ -48,6 +54,9 @@ describe('timeline dates', () => {
       day: 4,
     });
     expect(parseWallDate('Early 1800s')).toBeNull();
+    expect(parseWallDate('May 5')).toBeNull();
+    expect(parseWallDate('7')).toBeNull();
+    expect(parseWallDate('1990s')).toEqual({ year: 1990 });
     expect(parseWallDate('Before the war')).toBeNull();
     expect(parseWallDate('February 30, 1900')).toBeNull();
     expect(parseWallDate(undefined)).toBeNull();

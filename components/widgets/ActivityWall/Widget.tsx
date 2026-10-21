@@ -200,7 +200,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     inShare ? undefined : user?.uid,
     activeEntry,
     saveActivity,
-    canAccessFeature('activity-wall-timeline-dates')
+    canAccessFeature('activity-wall-timeline-dates') || undefined
   );
   const session = inShare ? shared.session : ownSession;
   // In a share the posts came along in the share's names file, which only the

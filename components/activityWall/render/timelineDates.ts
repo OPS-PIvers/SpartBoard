@@ -52,9 +52,13 @@ export const daysInMonth = (year: number, month: number): number => {
 const withCommas = (n: number) =>
   n >= 10000 ? n.toLocaleString('en-US') : String(n);
 
-/** Year as students read it: "1865", "44 BCE". */
+/** Year as students read it: "1865", "44 BCE", "79 CE" (short CE years name the era so they read as years). */
 export const formatYear = (year: number): string =>
-  year < 0 ? `${withCommas(-year)} BCE` : withCommas(year);
+  year < 0
+    ? `${withCommas(-year)} BCE`
+    : year < 1000
+      ? `${year} CE`
+      : withCommas(year);
 
 /** Display text, which is also what the post stores: "1865", "April 1865", "April 14, 1865", "44 BCE". */
 export const formatWallDate = (date: WallDate): string => {
@@ -114,6 +118,8 @@ const yearFrom = (text: string): number | null => {
   if (!match) return null;
   const value = Number(match[1].replace(/,/g, ''));
   if (value < 1) return null;
+  // A bare one- or two-digit number ("7", "May 5") is a step or a day, not a year.
+  if (value < 100 && !match[2] && !match[3]) return null;
   const bce = Boolean(match[3]) && /^b/i.test(match[3]);
   if (bce) return value <= MAX_BCE_YEAR ? -value : null;
   return value <= MAX_CE_YEAR ? value : null;
@@ -129,7 +135,11 @@ export const parseWallDate = (label: string | undefined): WallDate | null => {
   const plain = yearFrom(text);
   if (plain !== null) return { year: plain };
 
-  const words = text.replace(/,/g, ' ').split(' ').filter(Boolean);
+  // Commas inside numbers ("12,000") stay; commas between words become spaces.
+  const words = text
+    .replace(/,(?!\d{3}\b)/g, ' ')
+    .split(' ')
+    .filter(Boolean);
   const monthAt = words.findIndex((w) =>
     MONTH_LOOKUP.has(w.toLowerCase().replace(/\.$/, ''))
   );
@@ -138,15 +148,17 @@ export const parseWallDate = (label: string | undefined): WallDate | null => {
     words[monthAt].toLowerCase().replace(/\.$/, '')
   ) as number;
   const rest = words.filter((_, i) => i !== monthAt);
-  // "April 14 1865 BCE" or "14 April 1865": an optional day, then the year.
-  const dayText = rest.length > 1 && /^\d{1,2}$/.test(rest[0]) ? rest[0] : '';
-  const yearText = (dayText ? rest.slice(1) : rest).join(' ');
-  const year = yearFrom(yearText);
-  if (year === null) return null;
-  if (!dayText) return { year, month };
-  const day = Number(dayText);
-  if (day < 1 || day > daysInMonth(year, month)) return null;
-  return { year, month, day };
+  // "April 14, 1865", "14 April 1865" or "June 44 BCE": a day only when what follows is still a year.
+  if (rest.length > 1 && /^\d{1,2}$/.test(rest[0])) {
+    const year = yearFrom(rest.slice(1).join(' '));
+    const day = Number(rest[0]);
+    if (year !== null)
+      return day >= 1 && day <= daysInMonth(year, month)
+        ? { year, month, day }
+        : null;
+  }
+  const year = yearFrom(rest.join(' '));
+  return year === null ? null : { year, month };
 };
 
 /** Position on the axis in years; BCE counts back from zero so "500 BCE" sits on the 500 tick. */

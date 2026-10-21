@@ -95,4 +95,38 @@ describe('timeline geometry', () => {
       expect(ticks[i].x - ticks[i - 1].x).toBeGreaterThanOrEqual(60);
     }
   });
+
+  it('holds up across thousands of random timelines', () => {
+    let seed = 7;
+    const rand = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+    for (let run = 0; run < 2000; run += 1) {
+      const count = Math.floor(rand() * 40);
+      const span = 10 ** Math.floor(rand() * 5);
+      const items: TimelineInput[] = Array.from({ length: count }, (_, i) => ({
+        id: String(i),
+        key: rand() < 0.1 ? null : Math.round((rand() - 0.3) * span * 12) / 12,
+      })).sort((a, b) => (a.key ?? Infinity) - (b.key ?? Infinity));
+      const input = {
+        ...base,
+        items,
+        lanesPerSide: 1 + Math.floor(rand() * 3),
+      };
+      const scale = fitTimelineScale(input, 300 + rand() * 1500);
+      const geometry = layoutTimeline({ ...input, pxPerYear: scale });
+      expect(overlaps(geometry, base.cardWidth)).toBe(false);
+      expect(Number.isFinite(geometry.width)).toBe(true);
+      const dated = geometry.placements.filter((p) => p.dated);
+      for (let i = 1; i < dated.length; i += 1) {
+        expect(dated[i].dotX).toBeGreaterThanOrEqual(dated[i - 1].dotX);
+      }
+      const ticks = timelineTicks(geometry, 60, base.cardWidth);
+      for (let i = 1; i < ticks.length; i += 1) {
+        expect(ticks[i].x - ticks[i - 1].x).toBeGreaterThanOrEqual(60);
+      }
+      expect(ticks.some((t) => /^0\b|\b0$/.test(t.label))).toBe(false);
+    }
+  });
 });

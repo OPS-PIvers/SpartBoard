@@ -103,7 +103,7 @@ export const useActivityWallSession = (
   uid: string | undefined,
   entry: ActivityWallLibraryEntry | null,
   saveActivity: (entry: ActivityWallLibraryEntry) => Promise<void>,
-  timelineDates = false
+  timelineDates?: boolean
 ): UseActivityWallSessionResult => {
   const sessionId = uid && entry ? activityWallSessionId(uid, entry.id) : null;
 

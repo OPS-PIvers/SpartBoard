@@ -281,7 +281,9 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
       const middle = node.scrollLeft + node.clientWidth / 2;
       pendingCenter.current = geometry.xToKey(middle);
     }
-    setZoom(clamp(next, minZoom, MAX_ZOOM));
+    const clamped = clamp(next, minZoom, MAX_ZOOM);
+    if (clamped === zoom) pendingCenter.current = null;
+    setZoom(clamped);
   };
 
   const { cardW, cardH, gap, axisGap, area, pad, font, toolbar } = metrics;
@@ -396,6 +398,7 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
           {ticks.map((tick) => (
             <span
               key={tick.x}
+              aria-hidden="true"
               className="pointer-events-none absolute -translate-x-1/2 whitespace-nowrap font-semibold text-white/80"
               style={{
                 left: tick.x,
@@ -504,6 +507,7 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
         >
           <div
             role="dialog"
+            aria-modal="true"
             aria-label={open.label ?? 'Post'}
             className="relative max-h-full w-full overflow-y-auto"
             style={{ maxWidth: Math.max(cardW * 2, 320) }}

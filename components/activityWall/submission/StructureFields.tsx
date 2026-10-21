@@ -117,6 +117,7 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
       : 0;
     return (
       <fieldset>
+        <legend className="sr-only">Date</legend>
         <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)_minmax(0,1.4fr)_minmax(0,0.8fr)] gap-2">
           <div>
             <label className={labelClass} htmlFor="aw-year">
@@ -199,6 +200,7 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
         {dateError && (
           <p
             id="aw-date-error"
+            role="alert"
             className="mt-1 text-sm font-medium text-red-700"
           >
             {dateError}
