@@ -15,6 +15,12 @@ import { SubmissionTypePicker } from './SubmissionTypePicker';
 import { StructureFields, type StructureValue } from './StructureFields';
 import { FileField, LinkField, TextField, WordField } from './ContentFields';
 import { isUploadType } from './uploadLimits';
+import {
+  fieldsFromDate,
+  formatWallDate,
+  parseWallDate,
+  validateDateFields,
+} from '@/components/activityWall/render/timelineDates';
 import type { MapPin } from './MapPinPicker';
 import {
   EMPTY_DRAFT,
@@ -56,6 +62,7 @@ const structureFromPlacement = (
     rowId: rowId ?? session.tableRows?.[0]?.id ?? '',
     colId: colId ?? session.tableCols?.[0]?.id ?? '',
     label,
+    date: fieldsFromDate(parseWallDate(label)),
   };
 };
 
@@ -143,12 +150,27 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
     return next;
   };
 
-  const valid = draftValid(session, draft, isEditing);
+  const dated = session.layout === 'timeline' && session.timelineDates === true;
+  // An undated post being edited may stay undated; new posts need a year.
+  const keepUndated = isEditing && !structure.date.year.trim();
+  const dateCheck =
+    dated && !keepUndated ? validateDateFields(structure.date) : null;
+  const dateError =
+    dateCheck && 'error' in dateCheck && structure.date.year.trim()
+      ? dateCheck.error
+      : undefined;
+  const valid =
+    draftValid(session, draft, isEditing) &&
+    (!dateCheck || 'date' in dateCheck);
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (busy || !valid) return;
-    onSubmit({ ...draft, label: structure.label }, resolvedPlacement());
+    const label =
+      dateCheck && 'date' in dateCheck
+        ? formatWallDate(dateCheck.date)
+        : structure.label;
+    onSubmit({ ...draft, label }, resolvedPlacement());
   };
 
   const heading = isEditing
@@ -252,6 +274,7 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
             <StructureFields
               session={session}
               value={structure}
+              dateError={dateError}
               onChange={(patch) =>
                 setStructure((prev) => ({ ...prev, ...patch }))
               }

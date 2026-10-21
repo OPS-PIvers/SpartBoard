@@ -440,6 +440,16 @@ const QuizVersionImportDevHarness = import.meta.env.DEV
     )
   : null;
 
+const ActivityWallTimelineDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/ActivityWallTimelineDevHarness').then(
+        (module) => ({
+          default: module.ActivityWallTimelineDevHarness,
+        })
+      )
+    )
+  : null;
+
 const AssignStepperDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/AssignStepperDevHarness').then((module) => ({
@@ -1192,6 +1202,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <SessionViewsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: Activity Wall timeline, list and dated axis, against fixtures.
+  if (
+    import.meta.env.DEV &&
+    ActivityWallTimelineDevHarness &&
+    pathname === '/activity-wall-timeline-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <ActivityWallTimelineDevHarness />
       </Suspense>
     );
   }
