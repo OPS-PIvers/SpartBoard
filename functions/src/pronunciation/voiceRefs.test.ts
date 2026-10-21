@@ -123,6 +123,26 @@ describe('voice references in the lookup', () => {
     });
   });
 
+  it('keeps word ends on a phrase reading that lines up sound for sound', async () => {
+    const out = await computeSpeakReferences(
+      {
+        language: 'es',
+        dialects: ['es-419'],
+        terms: [{ cardId: 'c1', term: 'la mesa' }],
+      },
+      undefined,
+      {
+        voices: reader({
+          'es-US-Neural2-A': ['l', 'a', 'm', 'e', 'z', 'a'],
+          'es-US-Neural2-B': ['l', 'a', 'm', 'e', 's'],
+        }),
+      }
+    );
+    const voices = out.cards.c1.refs.filter((r) => r.source === 'voice');
+    expect(voices[0].wordEnds).toEqual([1]);
+    expect(voices[1].wordEnds).toBeUndefined();
+  });
+
   it('drops stress when the reading has another vowel count', async () => {
     const out = await computeSpeakReferences(
       {

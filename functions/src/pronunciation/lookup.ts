@@ -149,11 +149,13 @@ function lookupDialect(
   if (override !== undefined) {
     // A teacher's IPA is authoritative: no cross-check and no flags.
     // Dictionary notation (`/ˈʃʏtsə/`, syllable dots) is accepted; ʏ maps to y as on the espeak path.
-    chunks = override
+    const parts = override
       .replace(/[/[\].]/g, '')
       .replaceAll('ʏ', 'y')
       .trim()
       .split(/\s+/u);
+    // Spaces that don't line up with the words carry no word boundaries.
+    chunks = parts.length === words.length ? parts : [parts.join('')];
   } else {
     let ipa: string;
     try {
@@ -180,7 +182,7 @@ function lookupDialect(
   }
   let stress: number[] = [];
   if (override !== undefined) {
-    if (toks.length === 1) stress = deriveStress(language, toks[0]).stress;
+    if (words.length === 1) stress = deriveStress(language, toks[0]).stress;
   } else {
     toks.forEach((tok, i) => {
       if (tok.languageSwitches.length > 0) reasons.push('language-switch');
@@ -298,10 +300,16 @@ async function addVoiceReferences(
     }
     const { base } = reads[i];
     const reading = voiceReference(base, result.value);
-    const ref =
-      reading && base.text !== undefined
-        ? { ...reading, text: base.text }
-        : reading;
+    // Word ends carry over only when the reading lines up sound for sound.
+    const wordEnds =
+      reading && base.wordEnds && reading.tokens.length === base.tokens.length
+        ? { wordEnds: base.wordEnds }
+        : {};
+    const ref = reading && {
+      ...reading,
+      ...(base.text !== undefined ? { text: base.text } : {}),
+      ...wordEnds,
+    };
     if (!ref || seen.has(readingKey(ref))) return;
     seen.add(readingKey(ref));
     refs.push(ref);

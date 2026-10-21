@@ -9,6 +9,8 @@ describe('spokenVariants', () => {
     ['el/la mesero/a', ['el mesero', 'la mesera']],
     ['los/las chicos/as', ['los chicos', 'las chicas']],
     ['el/la profesor/a', ['el profesor', 'la profesora']],
+    ['la flor/es', ['la flor', 'la flores']],
+    ['el papel/es', ['el papel', 'el papeles']],
     ['un/una amigo/a', ['un amigo', 'una amiga']],
     ['Le traigo...', ['Le traigo']],
     ['¿Podría tener...?', ['¿Podría tener']],
@@ -30,12 +32,20 @@ describe('spokenVariants', () => {
     expect(spokenVariants('a / b / c / d / e / f').texts).toHaveLength(4);
   });
 
-  it('crosses slash words whose option counts differ', () => {
-    expect(spokenVariants('el/la buen/buena/gran día').texts).toHaveLength(4);
+  it('pairs slash words with different option counts by position', () => {
+    expect(spokenVariants('el/la buen/buena/gran día').texts).toEqual([
+      'el buen día',
+      'la buena día',
+      'la gran día',
+    ]);
+  });
+
+  it('counts digits as words', () => {
+    expect(spokenVariants('1 2 3 4 5').tooManyWords).toBe(true);
   });
 
   it('ignores a term with nothing to say', () => {
-    expect(spokenVariants('42 / ?!')).toEqual({
+    expect(spokenVariants('?! / …')).toEqual({
       texts: [],
       tooManyWords: false,
     });

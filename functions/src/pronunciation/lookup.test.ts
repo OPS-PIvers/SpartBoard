@@ -429,8 +429,22 @@ describe('review fixes', () => {
     });
   });
 
-  it('refuses a term with no letters to say', async () => {
+  it('treats a number espeak reads as several words as multi-word', async () => {
     expect(await lookup('en', '42')).toMatchObject({
+      status: 'unavailable',
+      reasons: ['multi-word'],
+    });
+  });
+
+  it('ignores spaces in a one-word override', async () => {
+    const card = await lookup('es', 'perro', { 'es-419': 'ˈpe ro' });
+    expect(card.refs[0]).toMatchObject({ tokens: ['p', 'e', 'r', 'o'] });
+    expect(card.refs[0].wordEnds).toBeUndefined();
+    expect(card.refs[0].stress).toEqual([0]);
+  });
+
+  it('refuses a term with nothing to say', async () => {
+    expect(await lookup('en', '?!')).toMatchObject({
       status: 'unavailable',
       reasons: ['untokenizable'],
     });

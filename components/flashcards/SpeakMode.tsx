@@ -538,7 +538,8 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
   const card = cards[index];
   const refs = card ? cardRefs(card, settings.dialects) : [];
   const word = card ? spokenWord(card) : '';
-  const phrase = /\s/u.test(word);
+  const phrase =
+    /\s/u.test(word) || refs.some((ref) => /\s/u.test(ref.text ?? ''));
   const hearDialect =
     phase.kind === 'result' && phase.judgement.dialect
       ? phase.judgement.dialect
