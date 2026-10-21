@@ -338,3 +338,4 @@
 {"widgetType":"url","criterionId":"S1","paul":1,"judge":1,"script":null,"rubricVersion":"1.1.0","gradedAt":"2026-10-20T14:17:19.285Z","runId":"grade-url-2026-10-20","deckId":"widget-2026-10-20T14-08-36-265Z"}
 {"widgetType":"url","criterionId":"V1","paul":2,"judge":2,"script":null,"rubricVersion":"1.1.0","gradedAt":"2026-10-20T14:18:15.275Z","runId":"grade-url-2026-10-20","deckId":"widget-2026-10-20T14-08-36-265Z"}
 {"widgetType":"checklist","criterionId":"S1","paul":1,"judge":1,"script":null,"rubricVersion":"1.1.0","gradedAt":"2026-10-21T14:53:04.218Z","runId":"grade-2026-10-21-s1","deckId":"criterion-2026-10-21T14-21-49-369Z"}
+{"widgetType":"schedule","criterionId":"S3","paul":1,"judge":1,"script":null,"rubricVersion":"1.1.0","gradedAt":"2026-10-21T14:37:42.576Z","runId":"grade-s3-schedule-1021","deckId":"criterion-2026-10-21T14-22-40-054Z"}

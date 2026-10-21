@@ -19,6 +19,7 @@ import {
   neverResolvingPromise,
 } from '@/utils/chunkLoadError';
 import type { WidgetSettingsSchema } from '@/components/settings/schema/types';
+import { LIBRARY_WIDGET_SIZE } from '@/config/widgetDefaults';
 
 // Component type definitions to ensure type safety
 type SettingsComponentProps = {
@@ -587,8 +588,8 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
     skipScaling: true,
   },
   miniApp: {
-    baseWidth: 500,
-    baseHeight: 600,
+    baseWidth: LIBRARY_WIDGET_SIZE.w,
+    baseHeight: LIBRARY_WIDGET_SIZE.h,
     canSpread: true,
     skipScaling: true,
   },
@@ -650,15 +651,15 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
     padding: 0,
   },
   quiz: {
-    baseWidth: 620,
-    baseHeight: 560,
+    baseWidth: LIBRARY_WIDGET_SIZE.w,
+    baseHeight: LIBRARY_WIDGET_SIZE.h,
     canSpread: true,
     skipScaling: true,
     padding: 0,
   },
   review: {
-    baseWidth: 620,
-    baseHeight: 560,
+    baseWidth: LIBRARY_WIDGET_SIZE.w,
+    baseHeight: LIBRARY_WIDGET_SIZE.h,
     canSpread: true,
     skipScaling: true,
     padding: 0,
@@ -813,22 +814,22 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
     padding: 0,
   },
   'video-activity': {
-    baseWidth: 640,
-    baseHeight: 560,
+    baseWidth: LIBRARY_WIDGET_SIZE.w,
+    baseHeight: LIBRARY_WIDGET_SIZE.h,
     canSpread: true,
     skipScaling: true,
     padding: 0,
   },
   'guided-learning': {
-    baseWidth: 720,
-    baseHeight: 520,
+    baseWidth: LIBRARY_WIDGET_SIZE.w,
+    baseHeight: LIBRARY_WIDGET_SIZE.h,
     canSpread: true,
     skipScaling: true,
     padding: 0,
   },
   flashcards: {
-    baseWidth: 720,
-    baseHeight: 520,
+    baseWidth: LIBRARY_WIDGET_SIZE.w,
+    baseHeight: LIBRARY_WIDGET_SIZE.h,
     canSpread: true,
     skipScaling: true,
     padding: 0,
@@ -876,8 +877,8 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
     padding: 0,
   },
   projects: {
-    baseWidth: 620,
-    baseHeight: 560,
+    baseWidth: LIBRARY_WIDGET_SIZE.w,
+    baseHeight: LIBRARY_WIDGET_SIZE.h,
     canSpread: true,
     skipScaling: true,
     padding: 0,
