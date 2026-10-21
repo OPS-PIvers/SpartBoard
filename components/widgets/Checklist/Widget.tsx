@@ -278,7 +278,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                 ))}
           </div>
 
-          {/* Action buttons — fixed footer outside scroll area, always visible */}
+          {/* Action buttons: fixed footer outside the scroll area, hidden on small cards */}
           <div
             className="flex [@container_(max-width:219px)_or_(max-height:199px)]:hidden"
             style={{
