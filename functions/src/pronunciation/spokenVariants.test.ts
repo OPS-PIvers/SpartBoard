@@ -27,6 +27,7 @@ describe('spokenVariants', () => {
     ['de/a', ['de', 'a']],
     ['en/a', ['en', 'a']],
     ['nos/os', ['nos', 'os']],
+    ['les/os', ['les', 'os']],
     ['un/a amigo/a', ['un amigo', 'una amiga']],
     ['lo/a', ['lo', 'la']],
     ['los/as alumnos/as', ['los alumnos', 'las alumnas']],
@@ -39,7 +40,11 @@ describe('spokenVariants', () => {
     ['la especialidad (de la casa)', ['la especialidad']],
     ['Quisiera / Me gustaría', ['Quisiera', 'Me gustaría']],
   ])('%s', (term, texts) => {
-    expect(spokenVariants(term).texts).toEqual(texts);
+    expect(spokenVariants(term, 'es').texts).toEqual(texts);
+  });
+
+  it('reads a short slash part as a word outside Spanish', () => {
+    expect(spokenVariants('an/a', 'en').texts).toEqual(['an', 'a']);
   });
 
   it('drops variants over four words and says so', () => {
