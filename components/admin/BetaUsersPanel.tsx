@@ -17,17 +17,18 @@ export const BetaUsersPanel: React.FC<BetaUsersPanelProps> = ({
   showMessage,
   variant = 'card',
 }) => {
-  const addBetaUser = (email: string) => {
+  const addBetaUser = (email: string): boolean => {
     const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail) return;
+    if (!trimmedEmail) return true;
     if (!EMAIL_RE.test(trimmedEmail)) {
       showMessage('error', 'Please enter a valid email address.');
-      return;
+      return false;
     }
     // Case-insensitive so a legacy mixed-case entry is not added twice.
     if (!betaUsers.some((e) => e.toLowerCase() === trimmedEmail)) {
       onChange([...betaUsers, trimmedEmail]);
     }
+    return true;
   };
 
   const containerClass = variant === 'card' ? 'mb-3' : 'p-4 bg-blue-50/50';
@@ -69,8 +70,8 @@ export const BetaUsersPanel: React.FC<BetaUsersPanelProps> = ({
             className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
-                addBetaUser((e.target as HTMLInputElement).value);
-                (e.target as HTMLInputElement).value = '';
+                const target = e.target as HTMLInputElement;
+                if (addBetaUser(target.value)) target.value = '';
               }
             }}
           />
@@ -78,8 +79,7 @@ export const BetaUsersPanel: React.FC<BetaUsersPanelProps> = ({
             onClick={(e) => {
               const input = e.currentTarget
                 .previousElementSibling as HTMLInputElement;
-              addBetaUser(input.value);
-              input.value = '';
+              if (addBetaUser(input.value)) input.value = '';
             }}
             className="px-3 py-2 bg-brand-blue-primary text-white rounded-lg hover:bg-brand-blue-dark transition-colors"
             aria-label="Add beta user"
