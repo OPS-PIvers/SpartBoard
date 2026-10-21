@@ -729,17 +729,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'plc-notes-side-panels': {
-    label: 'Notes and Docs side panels',
-    icon: StickyNote,
-    description:
-      'Action items beside group notes and linked Google Docs; the notes list folds away.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'plc-docs-toolbar': {
     label: 'Google Docs toolbar in group docs',
     icon: StickyNote,
