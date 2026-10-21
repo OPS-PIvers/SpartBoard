@@ -224,6 +224,14 @@
           "after": 3
         }
       }
+    },
+    {
+      "pr": 4501,
+      "widgetType": "checklist",
+      "dimension": "layout",
+      "openedAt": "2026-10-21T18:35:00Z",
+      "outcome": "open",
+      "changes": {}
     }
   ]
 }
