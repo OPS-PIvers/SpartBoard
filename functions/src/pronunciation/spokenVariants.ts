@@ -11,7 +11,7 @@ export interface SpokenVariants {
 }
 
 const SWAPPED_ENDING = /^[ao]s?$/u;
-const WORD_ENDING = /[ao]s?$/u;
+const WORD_ENDING = /[aeo]s?$/u;
 const VOWEL_END = /[aeiouáéíóú]$/u;
 const plain = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '');
 
@@ -23,7 +23,7 @@ function withEnding(first: string, part: string): string {
       return first.slice(0, -k) + part;
     }
   }
-  // "mesero/a", "amigo/os", "chicos/as" swap the ending; "este/a" swaps its last vowel.
+  // "mesero/a", "amigo/os", "este/os", "chicos/as" swap the ending; "este/a" swaps its last vowel.
   if (SWAPPED_ENDING.test(part) && WORD_ENDING.test(first)) {
     return first.replace(WORD_ENDING, part);
   }
@@ -40,6 +40,12 @@ function withEnding(first: string, part: string): string {
   return stem + part;
 }
 
+// "os" after "ese" is an ending even though the words are about as long.
+const isEnding = (first: string, part: string): boolean =>
+  part.length <= 3 &&
+  (first.length > part.length + 1 ||
+    (SWAPPED_ENDING.test(part) && first.length > part.length));
+
 // "el/la" are whole words; a short part after a longer word is an ending. "¡Bienvenido/a!" keeps its marks on every option.
 function slashOptions(word: string): string[] {
   const [, lead, core, trail] =
@@ -55,9 +61,7 @@ function slashOptions(word: string): string[] {
   return [
     first,
     ...rest.map((part) =>
-      part.length > 3 || first.length <= part.length + 1
-        ? part
-        : withEnding(first, part)
+      isEnding(first, part) ? withEnding(first, part) : part
     ),
   ].map((option) => lead + option + trail);
 }

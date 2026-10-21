@@ -20,6 +20,8 @@ describe('spokenVariants', () => {
     ['un/una amigo/a', ['un amigo', 'una amiga']],
     ['amigo/a/os/as', ['amigo', 'amiga', 'amigos', 'amigas']],
     ['chicos/a', ['chicos', 'chica']],
+    ['este/a/os/as', ['este', 'esta', 'estos', 'estas']],
+    ['ese/a/os/as', ['ese', 'esa', 'esos', 'esas']],
     ['¡Bienvenido/a!', ['¡Bienvenido!', '¡Bienvenida!']],
     ['Encantado/a.', ['Encantado.', 'Encantada.']],
     ['¿Son chicos/as?', ['¿Son chicos?', '¿Son chicas?']],
