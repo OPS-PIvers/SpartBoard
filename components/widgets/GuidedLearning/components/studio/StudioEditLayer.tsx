@@ -86,8 +86,6 @@ interface StudioEditLayerProps {
   onEditCallout: (id: string) => void;
   /** Inline text editing is open; pointer input goes to the callout fields. */
   editing: boolean;
-  /** `gl-callout-editing`: callout hover outline, handles and anchor dot. */
-  calloutEditing?: boolean;
   /** The selected step's callout (not its region) is selected. */
   calloutSelected?: boolean;
   /** The Studio's delete-step action, with its undo toast. */
@@ -178,7 +176,6 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
   onCalloutFocus,
   onEditCallout,
   editing,
-  calloutEditing = false,
   calloutSelected = false,
   onDeleteStep,
   beginGesture,
@@ -268,8 +265,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
     c.x >= r.left && c.x <= r.right && c.y >= r.top && c.y <= r.bottom;
 
   // The selected callout's box in container px, kept current as it wraps, moves or restyles.
-  const measureId =
-    calloutEditing && selected && stepHasCallout(selected) ? selected.id : null;
+  const measureId = selected && stepHasCallout(selected) ? selected.id : null;
   const calloutKind = selected
     ? `${selected.interactionType}:${selected.showOverlay ?? ''}`
     : '';

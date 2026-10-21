@@ -54,13 +54,12 @@ vi.mock('@/hooks/useSessionViewCount', () => ({
   useSessionViewCount: () => ({ count: 0 }),
 }));
 
-const mockFeatures = new Set<string>();
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1', displayName: 'Test Teacher' },
     canSeeShareTracking: vi.fn(() => false),
     canAccessQuizMediaResponse: vi.fn(() => false),
-    canAccessFeature: vi.fn((id: string) => mockFeatures.has(id)),
+    canAccessFeature: vi.fn(() => false),
   }),
 }));
 
@@ -127,7 +126,6 @@ function makeQuizMeta(overrides: Partial<QuizMetadata> = {}): QuizMetadata {
 
 describe('QuizManager assign stepper', () => {
   afterEach(() => {
-    mockFeatures.clear();
     mockPlcs = [];
   });
 
@@ -270,7 +268,6 @@ describe('QuizManager assign stepper', () => {
   });
 
   it('offers no Study Resource choice and assigns without a work kind', async () => {
-    mockFeatures.add('study-resources');
     const onAssign = vi.fn();
     const dialog = await openStepper(onAssign);
     expect(

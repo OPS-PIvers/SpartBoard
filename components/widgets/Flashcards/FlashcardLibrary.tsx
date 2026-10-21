@@ -360,8 +360,6 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
     />
   );
 
-  // Folder view on: sets drag into folders and the path bar; there is no manual order to keep.
-  const dragOn = view.folderView != null;
   const renderSetCard = (
     set: FlashcardSet,
     index: number,
@@ -433,7 +431,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
       ]}
       onClick={() => onEdit(set)}
       viewMode={view.state.viewMode}
-      sortable={dragOn}
+      sortable
       meta={set}
     />
   );
@@ -509,10 +507,9 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
         <LibraryGrid
           items={view.visibleItems}
           getId={(set) => set.id}
-          dragDisabled={!dragOn}
-          reorderLocked={dragOn}
+          reorderLocked
           reorderLockedReason="Drag into a folder"
-          useExternalDndContext={dragOn}
+          useExternalDndContext
           layout={view.state.viewMode}
           emptyState={
             <ScaledEmptyState
@@ -539,22 +536,18 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
 
   return (
     <>
-      {dragOn ? (
-        <LibraryDndContext
-          itemIds={view.visibleItems.map((set) => set.id)}
-          onDropOnFolder={handleDropOnFolder}
-          renderOverlay={(id) => {
-            const set = sets.find((s) => s.id === id);
-            return set ? renderSetCard(set, 0, true) : null;
-          }}
-          folderView={view.folderView}
-          folderActions={folders}
-        >
-          {shell}
-        </LibraryDndContext>
-      ) : (
-        shell
-      )}
+      <LibraryDndContext
+        itemIds={view.visibleItems.map((set) => set.id)}
+        onDropOnFolder={handleDropOnFolder}
+        renderOverlay={(id) => {
+          const set = sets.find((s) => s.id === id);
+          return set ? renderSetCard(set, 0, true) : null;
+        }}
+        folderView={view.folderView}
+        folderActions={folders}
+      >
+        {shell}
+      </LibraryDndContext>
 
       {folderTarget && (
         <FolderPickerPopover

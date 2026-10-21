@@ -226,6 +226,23 @@
       }
     },
     {
+      "pr": 4501,
+      "widgetType": "checklist",
+      "dimension": "layout",
+      "openedAt": "2026-10-21T18:35:00Z",
+      "outcome": "open",
+      "changes": {
+        "S1": {
+          "before": 1,
+          "after": 2
+        },
+        "S3": {
+          "before": 1,
+          "after": 2
+        }
+      }
+    },
+    {
       "pr": 4502,
       "widgetType": "schedule",
       "dimension": "layout",

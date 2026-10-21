@@ -323,8 +323,7 @@ beforeEach(() => {
   h.loadDraft.mockReset();
   vi.useFakeTimers();
   h.reset();
-  // Self-heal is a preview flag; its own tests turn it on.
-  h.canAccess.mockImplementation((id: string) => id !== 'live-tour-self-heal');
+  h.canAccess.mockImplementation(() => true);
   h.user = null;
   h.permissions = [];
   h.dockOpens = false;
@@ -2889,7 +2888,10 @@ describe('LiveTourRunner cleared stage', () => {
       stageSet([{ ...diceStep, action: 'click' }], { widgets: ['dice'] })
     );
     expect(hidden()).toEqual(['mine', 'other']);
-    expect(h.actions.addTourWidget).toHaveBeenCalledWith('dice');
+    expect(h.actions.addTourWidget).toHaveBeenCalledWith(
+      'dice',
+      expect.anything()
+    );
     expect(h.actions.addWidget).not.toHaveBeenCalled();
     expect(getTourWidgetPatches().get('mine')).toEqual({ hidden: true });
     // Hiding is render-only: the saved widget is untouched.
@@ -2905,8 +2907,7 @@ describe('LiveTourRunner cleared stage', () => {
     ).toBeInTheDocument();
   });
 
-  it('with self-heal on, lays out a tour with no recorded layouts around its first widget', async () => {
-    h.canAccess.mockReturnValue(true);
+  it('lays out a tour with no recorded layouts around its first widget', async () => {
     await startStage(
       stageSet([{ ...diceStep, action: 'click' }], {
         widgets: ['clock', 'dice'],

@@ -19,6 +19,7 @@ vi.mock('lucide-react', () => ({
   Circle: () => <div data-testid="circle" />,
   CheckCircle2: () => <div data-testid="check-circle-2" />,
   ListPlus: () => <div data-testid="list-plus" />,
+  Plus: () => <div />,
   Type: () => <div />,
   Users: () => <div />,
   RefreshCw: () => <div />,
@@ -32,6 +33,10 @@ vi.mock('lucide-react', () => ({
 const gate = vi.hoisted(() => ({ enabled: false }));
 vi.mock('@/hooks/useRosterGroupsGate', () => ({
   useRosterGroupsGate: () => gate.enabled,
+}));
+const board = vi.hoisted(() => ({ readOnly: false }));
+vi.mock('@/context/dashboardCanvasStore', () => ({
+  useIsActiveBoardReadOnly: () => board.readOnly,
 }));
 
 const mockUpdateWidget = vi.fn();
@@ -131,10 +136,25 @@ describe('ChecklistWidget', () => {
 
   it('renders empty state message when no items', () => {
     render(<ChecklistWidget widget={mockWidget} />);
-    expect(screen.getByText('No Tasks')).toBeInTheDocument();
+    expect(screen.getByText('No tasks yet')).toBeInTheDocument();
+    expect(screen.getByText('Open settings to add tasks.')).toBeInTheDocument();
+  });
+
+  it('opens settings from the empty state button', () => {
+    render(<ChecklistWidget widget={mockWidget} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add tasks' }));
+    expect(mockUpdateWidget).toHaveBeenCalledWith(mockWidget.id, {
+      flipped: true,
+    });
+  });
+
+  it('hides the empty state button on a read-only board', () => {
+    board.readOnly = true;
+    render(<ChecklistWidget widget={mockWidget} />);
     expect(
-      screen.getByText('Flip to add your class tasks.')
-    ).toBeInTheDocument();
+      screen.queryByRole('button', { name: 'Add tasks' })
+    ).not.toBeInTheDocument();
+    board.readOnly = false;
   });
 
   it('renders items in manual mode', () => {

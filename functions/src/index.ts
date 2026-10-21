@@ -160,6 +160,7 @@ export { resolveFlashcardFlagV1 } from './flashcardFlags';
 
 // ── Flashcards Speak reference lookup (docs/multilingual-pronunciation-engine.md S3) ─
 export { lookupSpeakReferencesV1 } from './pronunciation/lookup';
+export { listSpeakWordsToCheckV1 } from './pronunciation/wordsToCheck';
 
 // ── Video Activity answer key (server-graded; key kept off session docs) ────
 export {
@@ -169,6 +170,7 @@ export {
 
 // ── Quiz score on submit (server-graded against a teacher-private key) ─────
 export { scoreQuizOnSubmitV1 } from './quizScoreOnSubmit';
+export { getMyQuizAttemptsV1 } from './getMyQuizAttempts';
 
 // ── Review self-paced game (server-graded per answer; QUIZ_REVIEW_SPLIT.md D31) ─
 export { checkQuizGameAnswerV1 } from './checkQuizGameAnswer';

@@ -3,10 +3,28 @@
 import React from 'react';
 import { buildBuildingIndexEntry } from '@/components/widgets/GuidedLearning/utils/buildingIndexEntry';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import { GuidedLearningManager } from '@/components/widgets/GuidedLearning/components/GuidedLearningManager';
 import type { GuidedLearningSet, GuidedLearningSetMetadata } from '@/types';
+
+vi.mock('@/components/common/library/lastLibraryLocation', () => ({
+  readLastLibraryLocation: () => Promise.resolve(null),
+  saveLastLibraryLocation: vi.fn(),
+  resetLastLibraryLocationCache: vi.fn(),
+}));
+
+vi.mock('@/hooks/useLibraryPlacements', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/hooks/useLibraryPlacements')>();
+  const placements = {
+    byKey: new Map(),
+    loading: false,
+    place: vi.fn(),
+    unplace: vi.fn(),
+  };
+  return { ...actual, useLibraryPlacements: () => placements };
+});
 
 vi.mock('@/hooks/useFolders', () => ({
   useFolders: () => ({
@@ -88,12 +106,18 @@ describe('GuidedLearningManager — thumbnails', () => {
       />
     );
     await screen.findByText('Personal Set');
-    const imgs = Array.from(container.querySelectorAll('img'));
-    const srcs = imgs.map((img) => img.getAttribute('src'));
-    expect(srcs).toContain(`${DRIVE}=w400`);
+    const collect = () =>
+      Array.from(container.querySelectorAll('img')).map((img) => img);
+    const personalImgs = collect();
+    const personalSrcs = personalImgs.map((img) => img.getAttribute('src'));
+    expect(personalSrcs).toContain(`${DRIVE}=w400`);
+    fireEvent.click(screen.getAllByText('From your building')[0]);
+    await screen.findByText('Building Lesson');
+    const buildingImgs = collect();
+    const srcs = buildingImgs.map((img) => img.getAttribute('src'));
     expect(srcs).toContain(THUMB);
     expect(srcs).not.toContain(SLIDE);
-    for (const img of imgs) {
+    for (const img of [...personalImgs, ...buildingImgs]) {
       expect(img.getAttribute('loading')).toBe('lazy');
       expect(img.getAttribute('decoding')).toBe('async');
     }

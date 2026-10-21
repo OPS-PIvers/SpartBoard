@@ -3664,7 +3664,20 @@
         "unclearConfidence": "Répéter quand c'est flou",
         "unclearConfidenceHelp": "Plus la valeur est haute, plus on demande aux élèves de redire le mot quand le son est flou.",
         "save": "Enregistrer",
-        "saved": "Enregistré"
+        "saved": "Enregistré",
+        "wordsToCheck": {
+          "title": "Mots à vérifier",
+          "intro": "Les mots que la plupart des élèves ratent dans Speak, dans tous les devoirs. Écoutez et dites chacun pour vérifier la notation.",
+          "rule": "Un mot apparaît quand au moins 5 élèves l'ont essayé et qu'au moins 60 % l'ont raté lors de leur dernière série.",
+          "refresh": "Actualiser",
+          "empty": "Aucun mot à vérifier pour l'instant.",
+          "failed": "Impossible de charger les mots. Actualisez pour les charger à nouveau.",
+          "missed": "{{missed}} sur {{students}} ratés",
+          "assignments_one": "{{count}} devoir",
+          "assignments_other": "{{count}} devoirs",
+          "sayIt": "Le dire",
+          "truncated": "Seuls les 1 000 devoirs Speak les plus récents ont été vérifiés."
+        }
       }
     }
   },

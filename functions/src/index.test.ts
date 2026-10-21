@@ -3739,6 +3739,7 @@ describe('index barrel — deployed export set', () => {
     // Org-admin media review & compliance delete
     'listQuizMediaForOrgAdmin',
     'lookupSpeakReferencesV1',
+    'listSpeakWordsToCheckV1',
     'deleteQuizMediaForOrgAdmin',
     // Admin analytics endpoint
     'adminAnalytics',
@@ -3778,6 +3779,7 @@ describe('index barrel — deployed export set', () => {
     'scrubVideoActivitySessionKeyV1',
     // Quiz score on submit
     'scoreQuizOnSubmitV1',
+    'getMyQuizAttemptsV1',
     // Review self-paced game
     'checkQuizGameAnswerV1',
     // Organizations

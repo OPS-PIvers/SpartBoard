@@ -15,6 +15,24 @@ import { useMiniAppSync } from './hooks/useMiniAppSync';
 import type { AssignmentMode, MiniAppItem, WidgetData } from '@/types';
 
 const loadKey = vi.fn();
+vi.mock('@/hooks/useLibraryPlacements', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/hooks/useLibraryPlacements')>();
+  const placements = {
+    byKey: new Map(),
+    loading: false,
+    place: vi.fn(),
+    unplace: vi.fn(),
+  };
+  return { ...actual, useLibraryPlacements: () => placements };
+});
+
+vi.mock('@/components/common/library/lastLibraryLocation', () => ({
+  readLastLibraryLocation: () => Promise.resolve(null),
+  saveLastLibraryLocation: vi.fn(),
+  resetLastLibraryLocationCache: vi.fn(),
+}));
+
 vi.mock('@/utils/miniAppResults', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/utils/miniAppResults')>()),
   loadMiniAppKey: (...args: unknown[]) => loadKey(...args) as unknown,

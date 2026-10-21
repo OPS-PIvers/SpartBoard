@@ -6706,6 +6706,8 @@ export interface QuizAssignment
    * time.
    */
   exportedResponseIds?: string[];
+  /** Finished attempts per exported response key when the PLC sheet was last written (attempt history). */
+  exportedAttempts?: Record<string, number>;
   /**
    * Synchronized-quiz linkage. Present iff the assignment was created
    * from a synced library quiz; mirrored from the source quiz's
@@ -10120,7 +10122,6 @@ export type GlobalFeature =
   | 'gl-live-tours'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
-  | 'live-tour-self-heal'
   /** Per-period start/pause and windows on assignments shared by several classes. */
   | 'per-period-access'
   /** Flag free-response answers so an anonymized copy appears on the PLC page for norming. */
@@ -10129,12 +10130,8 @@ export type GlobalFeature =
   | 'standards-from-question-text'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
   | 'quiz-results-tools'
-  /** Guided Learning Studio: select, resize, restyle and edit callouts on the canvas. */
-  | 'gl-callout-editing'
   /** Per-student "Slide N of M · active X ago" on Guided Learning results and the Assignments hub. */
   | 'gl-student-progress'
-  /** PLC notes as an always-editable rich text editor with a formatting toolbar (still stored as Markdown). */
-  | 'plc-notes-rich-editor'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
   | 'paper-handwritten-responses'
   /** Claude connector: teachers connect Claude to their library (docs/plans/CLAUDE_CONNECTOR.md). */
@@ -10152,8 +10149,6 @@ export type GlobalFeature =
   | 'quiz-rubric-visibility'
   /** AP-style scoring-guide rubrics with example responses, beside levels rubrics. */
   | 'rubric-scoring-guides'
-  /** Projects board: tapping a group name opens that group's student view. */
-  | 'projects-group-view'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
@@ -10177,12 +10172,8 @@ export type GlobalFeature =
   | 'ocr'
   /** Transcript and drafted notes from a meeting recording; AND-ed with `gemini-functions`. */
   | 'plc-meeting-ai-notes'
-  /** Assign dialogs: mark a session Work (submitted, graded) or Resource (study only) (docs/plans/STUDENT_LANDING_V2.md D27). */
-  | 'study-resources'
   /** Sparty the mascot in tours, first-time setup and the Help Center (docs/plans/shipped/SPARTY.md). */
   | 'sparty'
-  /** Group Notes & Docs: notes list and Action items as swapping side panels, with action items on linked Google Docs. */
-  | 'plc-notes-side-panels'
   /** Group Notes & Docs: embedded Google Docs keep Google's menus and toolbar. */
   | 'plc-docs-toolbar'
   /** Team action items sync to the assignee's Google Tasks (docs/plans/GOOGLE_TASKS_ACTION_ITEMS.md). */
@@ -10191,14 +10182,10 @@ export type GlobalFeature =
   | 'plc-goal-coach'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
-  /** Widget libraries open on folders with a path bar, Recent view and drag filing (docs/plans/LIBRARY_FOLDERS.md D26). */
-  | 'library-folder-view'
   /** Push scores into a SpartBoard-made Schoology gradebook column (docs/plans/SCHOOLOGY_TOOL_COLUMNS.md D11). */
   | 'schoology-tool-columns'
   /** A what's-new button under a widget whose changelog entry carries a note for that widget type. */
   | 'widget-whats-new'
-  /** Guided Learning Studio: a pinned Welcome card in the slide strip, with an optional welcome image. */
-  | 'gl-welcome-card'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
   /** Quiz live monitor declutter (#4023): footer buttons, Close all, no More actions menu for assessments. */

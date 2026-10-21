@@ -633,6 +633,10 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'checklist.open-settings': {
+    label: 'Add tasks button on an empty Checklist',
+    perWidget: true,
+  },
   'checklist.remove-completed': {
     label: 'Remove completed items button in Checklist',
     perWidget: true,
@@ -2398,6 +2402,11 @@ export const TOUR_ANCHORS = {
   'quiz-print.results-report-choice': {
     label: 'Report choice cards (radio group) in the Quiz widget',
     perField: true,
+    panel: true,
+  },
+  'quiz-print.results-every-attempt': {
+    label: 'Every attempt switch in the results print in the Quiz widget',
+    perWidgetType: true,
     panel: true,
   },
   'quiz-print.results-select-all': {
@@ -5264,15 +5273,9 @@ export const TOUR_ANCHORS = {
   'plc-notes.title': {
     label: 'Title field in the PLC notes tab',
   },
-  'plc-notes.body-mode': {
-    label: 'Body mode button in the PLC notes tab',
-  },
   'plc-notes.note-delete': {
     label: 'Note delete button in the PLC notes tab',
     destructive: true,
-  },
-  'plc-notes.body': {
-    label: 'Body text box in the PLC notes tab',
   },
   'plc-notes.rollup-toggle': {
     label: 'Rollup toggle button in the PLC notes tab',

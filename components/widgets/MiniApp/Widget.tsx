@@ -498,11 +498,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const defaultWorkKind = resultsWork
     ? 'work'
     : resolveWorkKind('mini-app', null);
-  const workKindSetting: WorkKindSetting | undefined = canAccessFeature(
-    'study-resources'
-  )
-    ? { default: defaultWorkKind }
-    : undefined;
+  const workKindSetting: WorkKindSetting = { default: defaultWorkKind };
   const [assignmentName, setAssignmentName] = useState('');
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [createdSessionId, setCreatedSessionId] = useState<string | null>(null);

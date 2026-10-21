@@ -18,7 +18,7 @@ import {
 export interface SourceFoldersOptions {
   userId: string | undefined;
   widget: PlacementWidget;
-  /** The folder view flag; off = no source folders and no placements. */
+  /** False = no source folders and no placements. */
   enabled: boolean;
   /** Source keys of every item the teacher can see but doesn't own. */
   sourceKeys: readonly string[];
