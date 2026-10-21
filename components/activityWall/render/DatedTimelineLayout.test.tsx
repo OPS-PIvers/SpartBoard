@@ -108,4 +108,77 @@ describe('DatedTimelineLayout', () => {
     expect(screen.getByText('Civil War')).toBeInTheDocument();
     expect(screen.queryByText('Broken')).not.toBeInTheDocument();
   });
+
+  it('gives each group its own lane and collects posts in no group', () => {
+    render(
+      <LayoutRouter
+        session={makeSession({
+          layout: 'timeline',
+          timelineDates: true,
+          timelineGroups: [
+            { id: 'dakota', label: 'Dakota' },
+            { id: 'settlers', label: 'Settlers' },
+          ],
+        })}
+        mode="gallery"
+        showNames
+        submissions={[
+          makeSubmission({ id: 'a', label: '1862', sectionId: 'settlers' }),
+          makeSubmission({ id: 'b', label: '1851', sectionId: 'dakota' }),
+          makeSubmission({ id: 'c', label: '1858', sectionId: 'gone' }),
+        ]}
+      />
+    );
+    const lane = (name: string) =>
+      Array.from(
+        screen
+          .getByRole('list', { name: `${name}: posts in date order` })
+          .querySelectorAll('[data-testid^="aw-timeline-card-"]')
+      ).map((el) => el.getAttribute('data-testid'));
+    expect(lane('Dakota')).toEqual(['aw-timeline-card-b']);
+    expect(lane('Settlers')).toEqual(['aw-timeline-card-a']);
+    expect(lane('No group')).toEqual(['aw-timeline-card-c']);
+  });
+
+  it('hides every date and lets the teacher show them again', () => {
+    const onToggle = vi.fn();
+    render(
+      <LayoutRouter
+        session={makeSession({
+          layout: 'timeline',
+          timelineDates: true,
+          timelineDatesHidden: true,
+        })}
+        mode="widget"
+        showNames
+        submissions={[
+          makeSubmission({ id: 'a', label: '1862', title: 'Treaty' }),
+          makeSubmission({ id: 'b', label: '1776', title: 'Declaration' }),
+        ]}
+        onToggleTimelineDates={onToggle}
+      />
+    );
+    expect(screen.queryByText('1862')).not.toBeInTheDocument();
+    expect(screen.queryByText('1776')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Open post: Treaty' })
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Show dates' }));
+    expect(onToggle).toHaveBeenCalledWith(false);
+  });
+
+  it('shows no dates toggle outside the teacher widget', () => {
+    render(
+      <LayoutRouter
+        session={makeSession({ layout: 'timeline', timelineDates: true })}
+        mode="student"
+        showNames
+        submissions={submissions}
+        onToggleTimelineDates={vi.fn()}
+      />
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Hide dates' })
+    ).not.toBeInTheDocument();
+  });
 });

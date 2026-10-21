@@ -2483,6 +2483,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "activity-wall.timeline-dates",
+    "label": "Hide or show dates button on an Activity Wall timeline",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "library.activity-wall",
+        "kind": "widget",
+        "widget_type": "activity-wall",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "activity-wall.moderate",
     "label": "Moderate posts button in Activity Wall",
     "scope": "widget",

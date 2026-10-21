@@ -2487,6 +2487,10 @@ export interface ActivityWallLibraryEntry {
   tableCols?: ActivityWallSection[];
   /** Dated timeline only: teacher-named time periods shaded on the axis. */
   timePeriods?: ActivityWallPeriod[];
+  /** Dated timeline only: one lane per group; posts pick one by `sectionId`. */
+  timelineGroups?: ActivityWallSection[];
+  /** Dated timeline only: the teacher hid every date so students judge order first. */
+  timelineDatesHidden?: boolean;
   mapCenter?: { lat: number; lng: number; zoom: number };
   allowedTypes?: Record<
     Exclude<ActivityWallSubmissionType, 'text' | 'word'>,
@@ -2632,6 +2636,10 @@ export interface ActivityWallSession extends SessionWorkKindFields {
   timelineDates?: boolean;
   /** Dated timeline only: teacher-named time periods, mirrored from the library entry. */
   timePeriods?: ActivityWallPeriod[];
+  /** Dated timeline only: group lanes, mirrored from the library entry. */
+  timelineGroups?: ActivityWallSection[];
+  /** Dated timeline only: dates hidden by the teacher, mirrored from the library entry. */
+  timelineDatesHidden?: boolean;
 }
 
 /**
