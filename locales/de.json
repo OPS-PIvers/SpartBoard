@@ -3448,6 +3448,7 @@
     "speak": {
       "player": {
         "prompt": "Sprich dieses Wort",
+        "promptPhrase": "Sprich diese Wörter",
         "record": "Sprechen starten",
         "stop": "Stopp",
         "listening": "Ich höre zu…",
@@ -3478,6 +3479,7 @@
         "notYet": "Noch nicht",
         "notYetBody": "Schau dir die markierten Buchstaben an und versuche es noch einmal.",
         "outOfTries": "Noch nicht. Wir kommen auf dieses Wort zurück.",
+        "outOfTriesPhrase": "Noch nicht. Wir kommen auf diese Wörter zurück.",
         "unclear": "Ich konnte dich nicht hören",
         "unclearBody": "Versuche es noch einmal etwas näher am Mikrofon.",
         "stress": "Betone diesen Teil: {{syllables}}",
@@ -3569,7 +3571,7 @@
           "unavailable": "Nicht verfügbar"
         },
         "reasons": {
-          "multi-word": "Speak funktioniert mit einem Wort pro Karte.",
+          "multi-word": "Speak funktioniert mit bis zu 4 Wörtern pro Karte.",
           "unrenderable": "Wir konnten nicht herausfinden, wie man dieses Wort spricht.",
           "untokenizable": "Wir konnten nicht herausfinden, wie man dieses Wort spricht.",
           "g2p-disagree": "Unsere Quellen sind sich uneinig, wie man dieses Wort spricht.",

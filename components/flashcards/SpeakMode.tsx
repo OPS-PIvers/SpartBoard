@@ -69,13 +69,14 @@ import {
   cardRefs,
   judgeTake,
   judgedRef,
+  refText,
   letterSegments,
   speakMarks,
   spokenWord,
   stressSyllables,
 } from './speak/speakJudge';
 
-// A single word fits well inside 8 seconds; the hook stops the take at the limit.
+// A phrase of up to four words fits well inside 8 seconds; the hook stops the take at the limit.
 const SPEAK_RECORDING: RecordingConfig = {
   prepSeconds: 0,
   limitSeconds: 8,
@@ -563,6 +564,8 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
   const card = cards[index];
   const refs = card ? cardRefs(card, settings.dialects) : [];
   const word = card ? spokenWord(card) : '';
+  const phrase =
+    /\s/u.test(word) || refs.some((ref) => /\s/u.test(ref.text ?? ''));
   const hearDialect =
     phase.kind === 'result' && phase.judgement.dialect
       ? phase.judgement.dialect
@@ -772,7 +775,18 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
     }
     audioRef.current?.pause();
     stopHearRef.current?.();
-    stopHearRef.current = hearIt(word, hearDialect).stop;
+    // A looked-up variant, never the raw term with its slashes or blanks.
+    const heard = !card
+      ? word
+      : refText(
+          card,
+          phase.kind === 'result'
+            ? judgedRef(refs, phase.judgement)
+            : (refs.find(
+                (ref) => ref.dialect === hearDialect && ref.source !== 'voice'
+              ) ?? refs[0])
+        );
+    stopHearRef.current = hearIt(heard, hearDialect).stop;
   };
 
   const advance = (byTimer: boolean) => {
@@ -893,11 +907,14 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
   const judgement = phase.kind === 'result' ? phase.judgement : null;
   const matchedRef = judgement ? judgedRef(refs, judgement) : undefined;
   const marks = judgement ? speakMarks(judgement, language) : [];
-  const segments = judgement ? letterSegments(word, matchedRef, marks) : null;
+  const matchedText = refText(card, matchedRef);
+  const segments = judgement
+    ? letterSegments(matchedText, matchedRef, marks)
+    : null;
   const syllables =
     judgement &&
     (judgement.stress === 'error' || judgement.stress === 'forgiven')
-      ? stressSyllables(word, matchedRef)
+      ? stressSyllables(matchedText, matchedRef)
       : null;
 
   const hearButton = canHear && (
@@ -1058,7 +1075,9 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
                 : accepted
                   ? 'flashcards.speak.verdict.accepted'
                   : phase.decided
-                    ? 'flashcards.speak.verdict.outOfTries'
+                    ? phrase
+                      ? 'flashcards.speak.verdict.outOfTriesPhrase'
+                      : 'flashcards.speak.verdict.outOfTries'
                     : 'flashcards.speak.verdict.notYet'
             )}
           </p>
@@ -1133,7 +1152,12 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
             )}
             style={{ fontSize: 'min(11px, 2.8cqmin)' }}
           >
-            {t('flashcards.speak.player.prompt')} · {index + 1}/{cards.length}
+            {t(
+              phrase
+                ? 'flashcards.speak.player.promptPhrase'
+                : 'flashcards.speak.player.prompt'
+            )}{' '}
+            · {index + 1}/{cards.length}
           </div>
           <h2
             lang={language}

@@ -3448,6 +3448,7 @@
     "speak": {
       "player": {
         "prompt": "Di esta palabra",
+        "promptPhrase": "Di estas palabras",
         "record": "Empezar a hablar",
         "stop": "Detener",
         "listening": "Escuchando…",
@@ -3478,6 +3479,7 @@
         "notYet": "Aún no",
         "notYetBody": "Mira las letras marcadas e inténtalo de nuevo.",
         "outOfTries": "Aún no. Volveremos a esta palabra.",
+        "outOfTriesPhrase": "Aún no. Volveremos a estas palabras.",
         "unclear": "No te pudimos escuchar",
         "unclearBody": "Inténtalo de nuevo un poco más cerca del micrófono.",
         "stress": "Acentúa esta parte: {{syllables}}",
@@ -3569,7 +3571,7 @@
           "unavailable": "No disponible"
         },
         "reasons": {
-          "multi-word": "Speak funciona con una palabra por tarjeta.",
+          "multi-word": "Speak funciona con hasta 4 palabras por tarjeta.",
           "unrenderable": "No pudimos saber cómo se dice esta palabra.",
           "untokenizable": "No pudimos saber cómo se dice esta palabra.",
           "g2p-disagree": "Nuestras fuentes no coinciden en cómo se dice esta palabra.",

@@ -8917,6 +8917,10 @@ export interface FlashcardSpeakReference {
   letterSpans?: number[];
   /** Absent means espeak; voice refs are a Cloud TTS voice's reading and carry no letterSpans. */
   source?: 'espeak' | 'voice';
+  /** What was looked up, when it isn't the term's first variant ("el guía" for "el/la guía"). */
+  text?: string;
+  /** 0-based indices of tokens that end a word inside a phrase, so word-final sound rules apply there too. */
+  wordEnds?: number[];
 }
 
 export type FlashcardSpeakStatus = 'ready' | 'needs-review' | 'unavailable';

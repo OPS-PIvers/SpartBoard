@@ -4588,6 +4588,7 @@
     "speak": {
       "player": {
         "prompt": "Say this word",
+        "promptPhrase": "Say these words",
         "record": "Start speaking",
         "stop": "Stop",
         "listening": "Listening…",
@@ -4618,6 +4619,7 @@
         "notYet": "Not yet",
         "notYetBody": "Look at the marked letters and try again.",
         "outOfTries": "Not yet. We'll come back to this word.",
+        "outOfTriesPhrase": "Not yet. We'll come back to these words.",
         "unclear": "Couldn't hear you",
         "unclearBody": "Try again a little closer to the microphone.",
         "stress": "Stress this part: {{syllables}}",
@@ -4709,7 +4711,7 @@
           "unavailable": "Not available"
         },
         "reasons": {
-          "multi-word": "Speak works with one word per card.",
+          "multi-word": "Speak works with up to 4 words per card.",
           "unrenderable": "We couldn't work out how to say this word.",
           "untokenizable": "We couldn't work out how to say this word.",
           "g2p-disagree": "Our sources disagree on how to say this word.",
