@@ -305,3 +305,100 @@ export const dateSortKey = (date: WallDate): number => {
   }
   return key;
 };
+
+/** A post's date, or its start and end when it covers a stretch of time. */
+export interface WallSpan {
+  start: WallDate;
+  end?: WallDate;
+}
+
+/** Where a date's stretch starts on the axis: the start of its day, month, year, decade or century. */
+export const dateStartKey = (date: WallDate): number => {
+  const span = wallDateSpan(date);
+  if (span) return span[0];
+  let key = date.year;
+  if (date.month) {
+    const within = date.day
+      ? (date.day - 1) / daysInMonth(date.year, date.month)
+      : 0;
+    key += (date.month - 1 + within) / 12;
+  }
+  return key;
+};
+
+/** Where a date's stretch ends on the axis: the end of its day, month, year, decade or century. */
+export const dateEndKey = (date: WallDate): number => {
+  const span = wallDateSpan(date);
+  if (span) return span[1];
+  if (!date.month) return date.year + 1;
+  if (!date.day) return date.year + date.month / 12;
+  return dateStartKey(date) + 1 / 12 / daysInMonth(date.year, date.month);
+};
+
+/** The stretch a post covers on the axis, or null for a single exact or approximate date. */
+export const wallSpanRange = (span: WallSpan): [number, number] | null =>
+  span.end
+    ? [dateStartKey(span.start), dateEndKey(span.end)]
+    : wallDateSpan(span.start);
+
+/** "1939 – 1945" or "August 17 – September 26, 1862"; a single date reads as before. */
+export const formatWallSpan = ({ start, end }: WallSpan): string => {
+  if (!end) return formatWallDate(start);
+  if (start.year === end.year && start.month && end.month) {
+    const month = MONTH_NAMES[start.month - 1];
+    const head = start.day ? `${month} ${start.day}` : month;
+    return `${head} – ${formatWallDate(end)}`;
+  }
+  return `${formatWallDate(start)} – ${formatWallDate(end)}`;
+};
+
+const SPAN_SPLIT = /\s+(?:–|—|-|to)\s+/i;
+const YEAR_RANGE = /^(\d{3,4})\s*[–-]\s*(\d{2,4})$/;
+
+const isRange = (start: WallDate, end: WallDate) =>
+  !start.precision && !end.precision && dateStartKey(end) > dateStartKey(start);
+
+/** Reads a stored label as a single date or a start and end; null when it has no readable date. */
+export const parseWallSpan = (label: string | undefined): WallSpan | null => {
+  const text = (label ?? '').trim().replace(/\s+/g, ' ');
+  const parts = text.split(SPAN_SPLIT);
+  let firstPart: WallDate | null = null;
+  if (parts.length === 2) {
+    const end = parseWallDate(parts[1]);
+    // "August 17 – September 26, 1862": the start borrows the end's year.
+    const start =
+      parseWallDate(parts[0]) ??
+      (end && !end.precision
+        ? parseWallDate(`${parts[0]}, ${formatYear(end.year)}`)
+        : null);
+    if (start && end && isRange(start, end)) return { start, end };
+    firstPart = start;
+  }
+  const years = YEAR_RANGE.exec(text);
+  const single = parseWallDate(text);
+  if (years && !single?.precision) {
+    const from = years[1];
+    // "1939-45" ends in 1945.
+    const to = Number(from.slice(0, from.length - years[2].length) + years[2]);
+    if (to > Number(from))
+      return { start: { year: Number(from) }, end: { year: to } };
+  }
+  // A reversed or half-readable range still sits at its first date.
+  const fallback = single ?? firstPart;
+  return fallback ? { start: fallback } : null;
+};
+
+/** Checks the start and optional end fields; the error names which one is wrong. */
+export const validateSpanFields = (
+  start: WallDateFields,
+  end: WallDateFields | null
+): { span: WallSpan } | { error: string; field: 'start' | 'end' } => {
+  const first = validateDateFields(start);
+  if ('error' in first) return { error: first.error, field: 'start' };
+  if (!end) return { span: { start: first.date } };
+  const last = validateDateFields({ ...end, precision: 'exact' });
+  if ('error' in last) return { error: last.error, field: 'end' };
+  if (!isRange(first.date, last.date))
+    return { error: 'End date must be after the start date.', field: 'end' };
+  return { span: { start: first.date, end: last.date } };
+};

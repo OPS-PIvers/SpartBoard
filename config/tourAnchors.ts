@@ -9028,6 +9028,31 @@ export const TOUR_ANCHORS = {
     label: 'Add column or row button in the Activity Wall editor',
     panel: true,
   },
+  'activity-wall-editor.period-name': {
+    label: 'Time period name box in the Activity Wall editor',
+    perField: true,
+    panel: true,
+  },
+  'activity-wall-editor.period-from': {
+    label: 'Time period start box in the Activity Wall editor',
+    perField: true,
+    panel: true,
+  },
+  'activity-wall-editor.period-to': {
+    label: 'Time period end box in the Activity Wall editor',
+    perField: true,
+    panel: true,
+  },
+  'activity-wall-editor.period-remove': {
+    label: 'Remove time period button in the Activity Wall editor',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'activity-wall-editor.period-add': {
+    label: 'Add time period button in the Activity Wall editor',
+    panel: true,
+  },
   'activity-wall-editor.map-start': {
     label: 'Map start view picker in the Activity Wall editor',
     panel: true,

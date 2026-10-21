@@ -40406,6 +40406,102 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "activity-wall-editor.period-name",
+    "label": "Time period name box in the Activity Wall editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.activity-wall.editor",
+        "kind": "modal",
+        "path": [
+          "activity-wall.empty-open-library",
+          "library-shell.new:activity-wall"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "activity-wall-editor.period-from",
+    "label": "Time period start box in the Activity Wall editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.activity-wall.editor",
+        "kind": "modal",
+        "path": [
+          "activity-wall.empty-open-library",
+          "library-shell.new:activity-wall"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "activity-wall-editor.period-to",
+    "label": "Time period end box in the Activity Wall editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.activity-wall.editor",
+        "kind": "modal",
+        "path": [
+          "activity-wall.empty-open-library",
+          "library-shell.new:activity-wall"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "activity-wall-editor.period-remove",
+    "label": "Remove time period button in the Activity Wall editor",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "library.activity-wall.editor",
+        "kind": "modal",
+        "path": [
+          "activity-wall.empty-open-library",
+          "library-shell.new:activity-wall"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "activity-wall-editor.period-add",
+    "label": "Add time period button in the Activity Wall editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.activity-wall.editor",
+        "kind": "modal",
+        "path": [
+          "activity-wall.empty-open-library",
+          "library-shell.new:activity-wall"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "activity-wall-editor.map-start",
     "label": "Map start view picker in the Activity Wall editor",
     "scope": "board",

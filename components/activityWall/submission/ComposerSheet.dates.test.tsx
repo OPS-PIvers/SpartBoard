@@ -109,4 +109,55 @@ describe('ComposerSheet dated timeline', () => {
       expect.anything()
     );
   });
+
+  it('saves a range once an end date is added', () => {
+    const onSubmit = renderSheet();
+    fireEvent.change(screen.getByLabelText('Your response'), {
+      target: { value: 'Civil War' },
+    });
+    fireEvent.change(screen.getByLabelText('Year'), {
+      target: { value: '1861' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add end date' }));
+    const endYear = screen.getAllByLabelText('Year')[1];
+    fireEvent.change(endYear, { target: { value: '1860' } });
+    expect(
+      screen.getByText('End date must be after the start date.')
+    ).toBeInTheDocument();
+    fireEvent.change(endYear, { target: { value: '1865' } });
+    fireEvent.click(screen.getByRole('button', { name: /post/i }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ label: '1861 – 1865' }),
+      expect.anything()
+    );
+  });
+
+  it('drops the end date when the start becomes approximate', () => {
+    renderSheet();
+    fireEvent.click(screen.getByRole('button', { name: 'Add end date' }));
+    expect(screen.getAllByLabelText('Year')).toHaveLength(2);
+    fireEvent.change(screen.getByLabelText('Accuracy'), {
+      target: { value: 'about' },
+    });
+    expect(screen.getAllByLabelText('Year')).toHaveLength(1);
+    expect(
+      screen.queryByRole('button', { name: 'Add end date' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('posts a single date when the end date is left blank', () => {
+    const onSubmit = renderSheet();
+    fireEvent.change(screen.getByLabelText('Your response'), {
+      target: { value: 'Fort Sumter' },
+    });
+    fireEvent.change(screen.getByLabelText('Year'), {
+      target: { value: '1861' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add end date' }));
+    fireEvent.click(screen.getByRole('button', { name: /post/i }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ label: '1861' }),
+      expect.anything()
+    );
+  });
 });

@@ -30,6 +30,8 @@ export interface TimelineGeometryInput {
   gap: number;
   pad: number;
   lanesPerSide: number;
+  /** Extra dates the axis must reach and keep to scale: range ends and period edges. */
+  anchors?: number[];
 }
 
 /** An empty stretch drawn shorter than its true length, marked on the axis. */
@@ -113,8 +115,12 @@ export const layoutTimeline = ({
   gap,
   pad,
   lanesPerSide,
+  anchors = [],
 }: TimelineGeometryInput): TimelineGeometry => {
-  const range = datedRange(items);
+  const range = datedRange([
+    ...items,
+    ...anchors.map((key, i) => ({ id: `anchor-${i}`, key })),
+  ]);
   const minKey = range?.min ?? 0;
   const originX = pad + cardWidth / 2;
   const lanes = Math.max(1, lanesPerSide);
@@ -159,9 +165,12 @@ export const layoutTimeline = ({
   // True scale everywhere except the outlier gaps chosen from the data, each drawn as a marked break.
   const breakWidth = Math.max(cardWidth * 0.35, 56);
   const distinct = [
-    ...new Set(
-      items.map((item) => item.key).filter((key): key is number => key !== null)
-    ),
+    ...new Set([
+      ...items
+        .map((item) => item.key)
+        .filter((key): key is number => key !== null),
+      ...anchors,
+    ]),
   ].sort((a, b) => a - b);
   const broken = outlierGaps(distinct);
   const knots: { key: number; x: number }[] = [];
@@ -236,6 +245,10 @@ export const layoutTimeline = ({
     place(item.id, dotX, true);
     datedEnd = Math.max(datedEnd, dotX);
   }
+
+  // Range ends and period edges can reach past the last post.
+  if (knots.length > 0)
+    datedEnd = Math.max(datedEnd, knots[knots.length - 1].x);
 
   const undated = items.filter((item) => item.key === null);
   let undatedStart: number | null = null;
