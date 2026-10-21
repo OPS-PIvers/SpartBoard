@@ -94,11 +94,14 @@ const write = (
 /** Mirrors the event into the store first, as Firestore would. */
 async function apply(
   stub: ReturnType<typeof seed>,
-  w: AttemptWrite
+  w: AttemptWrite,
+  historyOn = true
 ): Promise<void> {
   if (w.after) stub.store.set(RESPONSE, w.after);
   else stub.store.delete(RESPONSE);
-  await applyAttemptWrite(stub.db as unknown as Db, w);
+  await applyAttemptWrite(stub.db as unknown as Db, w, () =>
+    Promise.resolve(historyOn)
+  );
 }
 
 describe('attemptActionFor', () => {
@@ -283,6 +286,16 @@ describe('applyAttemptWrite', () => {
     expect(stub.get(RESPONSE)?.grading).toBe(DELETE);
   });
 
+  it('keeps grades on the live doc when the teacher lacks attempt history', async () => {
+    const grading = { q1: { points: 1 } };
+    const stub = seed();
+    const graded = done({ grading });
+    await apply(stub, write(undefined, graded), false);
+    await apply(stub, write(graded, reset({ grading })), false);
+    expect(stub.get(`${RESPONSE}/attempts/1`)?.grading).toEqual(grading);
+    expect(stub.get(RESPONSE)?.grading).toEqual(grading);
+  });
+
   it('leaves grades alone when the doc moved on before the event arrived', async () => {
     const grading = { q1: { points: 1 } };
     const stub = seed();
@@ -291,7 +304,8 @@ describe('applyAttemptWrite', () => {
     stub.store.set(RESPONSE, next);
     await applyAttemptWrite(
       stub.db as unknown as Db,
-      write(graded, reset({ grading }))
+      write(graded, reset({ grading })),
+      () => Promise.resolve(true)
     );
     expect(stub.get(RESPONSE)?.grading).toEqual(grading);
   });
