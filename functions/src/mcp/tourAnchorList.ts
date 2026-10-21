@@ -21981,50 +21981,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "plc-notes.body-mode",
-    "label": "Body mode button in the PLC notes tab",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.notes",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc:plcs",
-          "plc-dashboard.section-tab:plc#docs"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
     "id": "plc-notes.note-delete",
     "label": "Note delete button in the PLC notes tab",
     "scope": "board",
     "destructive": true,
-    "routes": [
-      {
-        "surface": "plc.notes",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc:plcs",
-          "plc-dashboard.section-tab:plc#docs"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-notes.body",
-    "label": "Body text box in the PLC notes tab",
-    "scope": "board",
     "routes": [
       {
         "surface": "plc.notes",
