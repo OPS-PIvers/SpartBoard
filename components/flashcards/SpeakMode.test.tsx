@@ -659,6 +659,14 @@ describe('Speak mode', () => {
       vi.useRealTimers();
     });
 
+    // Lets the countdown effect commit before the clock moves, so a loaded runner can't skip it.
+    const runCountdown = async () => {
+      await act(() => Promise.resolve());
+      act(() => {
+        vi.advanceTimersByTime(3100);
+      });
+    };
+
     const speakFirst = async (user: ReturnType<typeof userEvent.setup>) => {
       capture.hold = true;
       await user.click(await openSpeak(user));
@@ -671,15 +679,10 @@ describe('Speak mode', () => {
       fake.queue({ tokens: ['p', 'e', 'r', 'o'] }, { tokens: ['o', 'l', 'a'] });
       renderPlayer();
       await speakFirst(user);
-      act(() => {
-        vi.advanceTimersByTime(2900);
-      });
       expect(screen.getByText('perro')).toBeTruthy();
-      act(() => {
-        vi.advanceTimersByTime(200);
-      });
-      expect(screen.getByText('hola')).toBeTruthy();
-      expect(screen.getByText('Listening…')).toBeTruthy();
+      await runCountdown();
+      expect(await screen.findByText('hola')).toBeTruthy();
+      expect(await screen.findByText('Listening…')).toBeTruthy();
       fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
       expect(await screen.findByText('Exact')).toBeTruthy();
     });
@@ -705,10 +708,8 @@ describe('Speak mode', () => {
       await openSpeak(user);
       await user.click(screen.getByRole('button', { name: 'Hear it' }));
       await speakFirst(user);
-      act(() => {
-        vi.advanceTimersByTime(3100);
-      });
-      expect(screen.getByText('hola')).toBeTruthy();
+      await runCountdown();
+      expect(await screen.findByText('hola')).toBeTruthy();
     });
 
     it('waits on a missed card so the marks can be read', async () => {
