@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "schedule",
   "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-21T18:29:00.559Z",
+  "gradedAt": "2026-10-21T19:31:41.625Z",
   "stale": false,
   "criteria": {
     "I5": {
@@ -34,45 +34,44 @@
       "stale": false
     },
     "S2": {
-      "score": 2,
+      "score": 3,
       "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2,
-        "paul": 2
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/norming-1/screenshots/schedule/default__typical.png",
-          "scripts/widget-grader/out/norming-1/screenshots/schedule/large-1400x900__typical.png",
-          "scripts/widget-grader/out/norming-1/screenshots/schedule/large-1400x900__stress.png"
+          "scripts/widget-grader/out/loop-schedule-2026-10-21-after/screenshots/schedule/default__typical.png",
+          "scripts/widget-grader/out/loop-schedule-2026-10-21-after/screenshots/schedule/large-1400x900__typical.png",
+          "scripts/widget-grader/out/loop-schedule-2026-10-21-after/screenshots/schedule/large-1400x900__stress.png"
         ],
-        "runId": "norming-1"
+        "runId": "loop-schedule-2026-10-21-after"
       },
-      "note": "We’re missing other states like lines vs cards",
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:32:20.945Z",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-21T19:31:06.192Z",
       "stale": false
     },
     "S3": {
-      "score": 1,
+      "score": 3,
       "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 1,
-        "paul": 1
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/grade-s3-schedule-1021/screenshots/schedule/widest-aspect__typical.png",
-          "scripts/widget-grader/out/grade-s3-schedule-1021/screenshots/schedule/widest-aspect__stress.png",
-          "scripts/widget-grader/out/grade-s3-schedule-1021/screenshots/schedule/tallest-aspect__typical.png",
-          "scripts/widget-grader/out/grade-s3-schedule-1021/screenshots/schedule/tallest-aspect__stress.png"
+          "scripts/widget-grader/out/loop-schedule-2026-10-21-after/screenshots/schedule/widest-aspect__typical.png",
+          "scripts/widget-grader/out/loop-schedule-2026-10-21-after/screenshots/schedule/widest-aspect__stress.png",
+          "scripts/widget-grader/out/loop-schedule-2026-10-21-after/screenshots/schedule/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/loop-schedule-2026-10-21-after/screenshots/schedule/tallest-aspect__stress.png"
         ],
-        "runId": "grade-s3-schedule-1021"
+        "runId": "loop-schedule-2026-10-21-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-21T14:37:42.576Z",
+      "gradedAt": "2026-10-21T19:31:27.002Z",
       "stale": false
     },
     "S4": {
@@ -642,28 +641,28 @@
       "evidence": {
         "runId": "loop-schedule-2026-10-21-after"
       },
-      "gradedAt": "2026-10-21T18:29:00.559Z"
+      "gradedAt": "2026-10-21T19:31:41.625Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
         "runId": "loop-schedule-2026-10-21-after"
       },
-      "gradedAt": "2026-10-21T18:29:00.559Z"
+      "gradedAt": "2026-10-21T19:31:41.625Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
         "runId": "loop-schedule-2026-10-21-after"
       },
-      "gradedAt": "2026-10-21T18:29:00.559Z"
+      "gradedAt": "2026-10-21T19:31:41.625Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
         "runId": "loop-schedule-2026-10-21-after"
       },
-      "gradedAt": "2026-10-21T18:29:00.559Z"
+      "gradedAt": "2026-10-21T19:31:41.625Z"
     }
   }
 }

@@ -248,7 +248,16 @@
       "dimension": "layout",
       "openedAt": "2026-10-21T18:35:00Z",
       "outcome": "open",
-      "changes": {}
+      "changes": {
+        "S2": {
+          "before": 2,
+          "after": 3
+        },
+        "S3": {
+          "before": 1,
+          "after": 3
+        }
+      }
     }
   ]
 }
