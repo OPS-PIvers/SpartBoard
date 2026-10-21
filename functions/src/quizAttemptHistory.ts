@@ -11,7 +11,7 @@ type Doc = Record<string, unknown>;
 
 export const QUIZ_ATTEMPTS_SUBCOLLECTION = 'attempts';
 export const QUIZ_ATTEMPT_SCORES_COLLECTION = 'attemptScores';
-// An archive written this close to the delete is the removal's own; older ones belong to an earlier occupant.
+// An archive this close to the delete (either way, for clock skew) is the removal's own; older ones belong to an earlier occupant.
 const ARCHIVE_MATCH_MS = 10 * 60_000;
 
 /** Response fields an attempt copy keeps; everything else is live-session state. */
@@ -62,7 +62,7 @@ export type AttemptAction =
   | { kind: 'retake'; data: Doc; n: number }
   | { kind: 'removed' };
 
-const isCompleted = (d: Doc | undefined): d is Doc => d?.status === 'completed';
+const isCompleted = (d: Doc | undefined): boolean => d?.status === 'completed';
 
 /** The attempt number a completed response holds; legacy docs count as attempt 1. */
 export function attemptNumberOf(d: Doc): number {
@@ -87,7 +87,7 @@ export function attemptActionFor(w: AttemptWrite): AttemptAction {
       : { kind: 'none' };
   }
   // A teacher reopen keeps the answers and sets `unlocked`; only a real retake resets.
-  if (isCompleted(before) && after.unlocked !== true) {
+  if (before && isCompleted(before) && after.unlocked !== true) {
     return { kind: 'retake', data: before, n: attemptNumberOf(before) };
   }
   return { kind: 'none' };
@@ -116,35 +116,81 @@ const scoresRef = (db: Firestore, sessionId: string, responseKey: string) =>
     .collection(QUIZ_ATTEMPT_SCORES_COLLECTION)
     .doc(responseKey);
 
-/** Writes attempt n's copy and its score entry unless a later event already did. */
+export interface CopyStamp {
+  n: number;
+  closed: boolean;
+  submittedAt: unknown;
+}
+
+/** Which copy an attempt belongs to; legacy docs whose count lags reuse a closed number, so they move past it. */
+export function pickAttemptNumber(
+  copies: CopyStamp[],
+  n: number,
+  submittedAt: unknown
+): number {
+  if (submittedAt != null) {
+    const same = copies.find(
+      (c) => stableStringify(c.submittedAt) === stableStringify(submittedAt)
+    );
+    if (same) return same.n;
+  }
+  const at = copies.find((c) => c.n === n);
+  if (!at || !at.closed) return n;
+  const top = copies.reduce((a, b) => (b.n > a.n ? b : a));
+  return top.closed ? top.n + 1 : top.n;
+}
+
+export type SaveResult = 'written' | 'newer' | 'skipped';
+
+/** Writes an attempt's copy and score entry unless a later event already did; a retake also closes the copy. */
 async function saveAttempt(
   db: Firestore,
   w: AttemptWrite,
   data: Doc,
-  n: number
-): Promise<boolean> {
+  n: number,
+  close: boolean
+): Promise<SaveResult> {
   const ctx = await loadSessionContext(db, 'quiz', w.sessionId);
   // Review games and resource sessions are not graded attempts.
-  if (!ctx) return false;
+  if (!ctx) return 'skipped';
   const studentUid = typeof data.studentUid === 'string' ? data.studentUid : '';
   const score = ctx.score(studentUid, data);
-  const attemptRef = responseRef(db, w.sessionId, w.responseKey)
+  const liveRef = responseRef(db, w.sessionId, w.responseKey);
+  const copies = (
+    await liveRef.collection(QUIZ_ATTEMPTS_SUBCOLLECTION).get()
+  ).docs.map((d): CopyStamp => {
+    const c = d.data() ?? {};
+    return {
+      n: Number(c.n) || Number(d.id) || 0,
+      closed: c.closed === true,
+      submittedAt: c.submittedAt,
+    };
+  });
+  const target = pickAttemptNumber(copies, n, data.submittedAt);
+  const attemptRef = liveRef
     .collection(QUIZ_ATTEMPTS_SUBCOLLECTION)
-    .doc(String(n));
+    .doc(String(target));
   const listRef = scoresRef(db, w.sessionId, w.responseKey);
   return db.runTransaction(async (tx) => {
-    const [existing, list] = await Promise.all([
+    const [live, existing, list] = await Promise.all([
+      tx.get(liveRef),
       tx.get(attemptRef),
       tx.get(listRef),
     ]);
-    const prevAt: unknown = existing.data()?.eventAt;
-    if (typeof prevAt === 'number' && prevAt > w.eventAt) return false;
-    tx.set(attemptRef, attemptCopy(data, n, w.eventAt));
+    // A late event for a response already removed must not leave an orphan copy.
+    if (!live.exists) return 'skipped';
+    const prev: Doc | undefined = existing.data();
+    if (typeof prev?.eventAt === 'number' && prev.eventAt > w.eventAt)
+      return 'newer';
+    tx.set(attemptRef, {
+      ...attemptCopy(data, target, w.eventAt),
+      ...(close || prev?.closed === true ? { closed: true } : {}),
+    });
     if (score) {
-      const prev: unknown = list.data()?.attempts;
+      const entries: unknown = list.data()?.attempts;
       const attempts = mergeAttempts(
-        Array.isArray(prev) ? (prev as IndexAttempt[]) : [],
-        { ...score, attemptNumber: n }
+        Array.isArray(entries) ? (entries as IndexAttempt[]) : [],
+        { ...score, attemptNumber: target }
       );
       tx.set(listRef, {
         sessionId: w.sessionId,
@@ -153,7 +199,7 @@ async function saveAttempt(
         updatedAt: w.eventAt,
       });
     }
-    return true;
+    return 'written';
   });
 }
 
@@ -194,7 +240,7 @@ async function moveRemovedAttempts(
       .get()
   ).docs
     .map((d) => ({ d, at: Number(d.data()?.archivedAt) || 0 }))
-    .filter((a) => a.at >= w.eventAt - ARCHIVE_MATCH_MS)
+    .filter((a) => Math.abs(a.at - w.eventAt) <= ARCHIVE_MATCH_MS)
     .sort((a, b) => b.at - a.at)[0]?.d;
   for (const d of attempts.docs) {
     if (archive) {
@@ -228,11 +274,14 @@ export async function applyAttemptWrite(
       case 'none':
         return;
       case 'copy':
-        await saveAttempt(db, w, action.data, action.n);
+        await saveAttempt(db, w, action.data, action.n, false);
         return;
       case 'retake':
-        await saveAttempt(db, w, action.data, action.n);
-        await clearCarriedGrades(db, w, action.data);
+        // Grades leave the live doc only once a copy holds them.
+        if (
+          (await saveAttempt(db, w, action.data, action.n, true)) !== 'skipped'
+        )
+          await clearCarriedGrades(db, w, action.data);
         return;
       case 'removed':
         await moveRemovedAttempts(db, w);

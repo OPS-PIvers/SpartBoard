@@ -32,7 +32,9 @@ const STUDENT_UID = 'student-attempts';
 const OTHER_STUDENT_UID = 'other-student-attempts';
 const ADMIN_EMAIL = 'admin-attempts@orono.k12.mn.us';
 const SESSION = 'session-attempts';
+const EXPIRED = 'session-attempts-expired';
 const FUTURE = 4_000_000_000_000;
+const PAST = 1_000_000_000_000;
 
 const ATTEMPT = `quiz_sessions/${SESSION}/responses/${STUDENT_UID}/attempts/1`;
 const SCORES = `quiz_sessions/${SESSION}/attemptScores/${STUDENT_UID}`;
@@ -96,6 +98,23 @@ beforeAll(async () => {
       subMonitorUids: [SUB_UID],
       subMonitorUntil: FUTURE,
     });
+    await setDoc(doc(db, `quiz_sessions/${EXPIRED}`), {
+      id: EXPIRED,
+      teacherUid: TEACHER_UID,
+      status: 'active',
+      classIds: [],
+      quizId: 'q1',
+      subMonitorUids: [SUB_UID],
+      subMonitorUntil: PAST,
+    });
+    await setDoc(
+      doc(db, `quiz_sessions/${EXPIRED}/responses/${STUDENT_UID}/attempts/1`),
+      { n: 1, studentUid: STUDENT_UID, answers: [] }
+    );
+    await setDoc(
+      doc(db, `quiz_sessions/${EXPIRED}/attemptScores/${STUDENT_UID}`),
+      { studentUid: STUDENT_UID, attempts: [] }
+    );
     await setDoc(doc(db, `quiz_sessions/${SESSION}/responses/${STUDENT_UID}`), {
       studentUid: STUDENT_UID,
       status: 'joined',
@@ -129,6 +148,25 @@ describe('quiz attempt copies', () => {
         collection(
           staff(TEACHER_UID),
           `quiz_sessions/${SESSION}/responses/${STUDENT_UID}/attempts`
+        )
+      )
+    );
+  });
+
+  it('hides them from a sub monitor whose share has expired', async () => {
+    await assertFails(
+      getDoc(
+        doc(
+          staff(SUB_UID),
+          `quiz_sessions/${EXPIRED}/responses/${STUDENT_UID}/attempts/1`
+        )
+      )
+    );
+    await assertFails(
+      getDoc(
+        doc(
+          staff(SUB_UID),
+          `quiz_sessions/${EXPIRED}/attemptScores/${STUDENT_UID}`
         )
       )
     );

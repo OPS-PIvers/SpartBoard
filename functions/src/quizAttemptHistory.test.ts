@@ -19,6 +19,7 @@ import {
   applyAttemptWrite,
   attemptActionFor,
   attemptNumberOf,
+  pickAttemptNumber,
   type AttemptWrite,
 } from './quizAttemptHistory';
 import { makeStubFirestore, type StubData } from './testing/stubFirestore';
@@ -156,6 +157,32 @@ describe('attemptActionFor', () => {
   });
 });
 
+describe('pickAttemptNumber', () => {
+  const c = (n: number, closed: boolean, submittedAt: number) => ({
+    n,
+    closed,
+    submittedAt,
+  });
+
+  it('uses the doc count when that copy is free or still open', () => {
+    expect(pickAttemptNumber([], 1, T)).toBe(1);
+    expect(pickAttemptNumber([c(1, false, T - 5)], 1, T)).toBe(1);
+  });
+
+  it('finds an attempt it already copied by turned-in time', () => {
+    expect(
+      pickAttemptNumber([c(1, true, T), c(2, false, T + 9)], 1, T + 9)
+    ).toBe(2);
+  });
+
+  it('moves past a closed copy when a legacy count lags', () => {
+    expect(pickAttemptNumber([c(1, true, T)], 1, T + 9)).toBe(2);
+    expect(
+      pickAttemptNumber([c(1, true, T), c(2, false, T + 5)], 1, T + 9)
+    ).toBe(2);
+  });
+});
+
 describe('applyAttemptWrite', () => {
   it('saves the copy and a scored entry when an attempt is turned in', async () => {
     const stub = seed();
@@ -194,6 +221,43 @@ describe('applyAttemptWrite', () => {
       { n: 1, at: T, points: 2, max: 2, state: 'scored' },
       { n: 2, at: T + 10, points: 0, max: 2, state: 'scored' },
     ]);
+  });
+
+  it('keeps a legacy attempt whose count never advanced', async () => {
+    const stub = seed();
+    const first = done({ completedAttempts: 0 });
+    await apply(stub, write(undefined, first));
+    await apply(stub, write(first, reset({ completedAttempts: 0 }), T + 1));
+    const second = done({
+      completedAttempts: 1,
+      submittedAt: T + 10,
+      answers: [{ questionId: 'q1', answer: 'B' }],
+    });
+    await apply(stub, write(reset({ completedAttempts: 0 }), second, T + 10));
+    await apply(
+      stub,
+      write(second, { ...second, grading: { q1: { points: 0 } } }, T + 20)
+    );
+    expect(stub.get(`${RESPONSE}/attempts/1`)).toMatchObject({
+      closed: true,
+      answers: [{ questionId: 'q1', answer: 'A' }],
+    });
+    expect(stub.get(`${RESPONSE}/attempts/2`)).toMatchObject({
+      n: 2,
+      grading: { q1: { points: 0 } },
+    });
+    expect(stub.has(`${RESPONSE}/attempts/3`)).toBe(false);
+    expect(stub.get(SCORES)?.attempts).toHaveLength(2);
+  });
+
+  it('keeps grades on the live doc when no copy could be made', async () => {
+    const grading = { q1: { points: 1 } };
+    const stub = seed({
+      'quiz_sessions/qs1': { ...session, widgetKind: 'review' },
+    });
+    const graded = done({ grading });
+    await apply(stub, write(graded, reset({ grading })));
+    expect(stub.get(RESPONSE)?.grading).toEqual(grading);
   });
 
   it('does not let a late event overwrite a newer copy', async () => {
@@ -268,6 +332,13 @@ describe('applyAttemptWrite', () => {
     expect(
       stub.has('quiz_sessions/qs1/archived_responses/u1__1/attempts/1')
     ).toBe(false);
+  });
+
+  it('writes nothing for a late event about a removed response', async () => {
+    const stub = seed();
+    await applyAttemptWrite(stub.db as unknown as Db, write(undefined, done()));
+    expect(stub.has(`${RESPONSE}/attempts/1`)).toBe(false);
+    expect(stub.has(SCORES)).toBe(false);
   });
 
   it('skips Review game sessions', async () => {

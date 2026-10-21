@@ -618,7 +618,10 @@ describe('Mini App results (MINI_APP_RESULTS.md D13)', () => {
 
 describe('kill switch', () => {
   it('leaves everything untouched while admin_settings/gradebook_index is off', async () => {
-    const stub = seed({ 'admin_settings/gradebook_index': { enabled: false } });
+    const stub = seed({
+      'admin_settings/gradebook_index': { enabled: false },
+      'quiz_sessions/qs1/responses/u1': completed(),
+    });
     vi.mocked(admin.firestore).mockReturnValue(stub.db as never);
     await (gradeIndexQuizResponse as unknown as Handler)({
       params: { sessionId: 'qs1', docId: 'u1' },
