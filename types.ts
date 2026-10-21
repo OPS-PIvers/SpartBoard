@@ -10120,7 +10120,6 @@ export type GlobalFeature =
   | 'gl-live-tours'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
-  | 'live-tour-self-heal'
   /** Per-period start/pause and windows on assignments shared by several classes. */
   | 'per-period-access'
   /** Flag free-response answers so an anonymized copy appears on the PLC page for norming. */
