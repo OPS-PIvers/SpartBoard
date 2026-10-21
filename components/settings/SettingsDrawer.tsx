@@ -2,6 +2,7 @@ import React, {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -241,9 +242,20 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
   const dragRef = useRef<{ start: number; size: number } | null>(null);
   const keyCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const pendingKeyWidthRef = useRef<number | null>(null);
+  const onWidthCommitRef = useRef(onWidthCommit);
+  useLayoutEffect(() => {
+    onWidthCommitRef.current = onWidthCommit;
+  });
+
+  // Closing inside the debounce window still saves the keyboard-resized width.
   useEffect(
     () => () => {
       if (keyCommitTimerRef.current) clearTimeout(keyCommitTimerRef.current);
+      if (pendingKeyWidthRef.current !== null) {
+        onWidthCommitRef.current(pendingKeyWidthRef.current);
+        pendingKeyWidthRef.current = null;
+      }
     },
     []
   );
@@ -300,8 +312,10 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
     e.stopPropagation();
     const next = commit(size + delta);
     if (keyCommitTimerRef.current) clearTimeout(keyCommitTimerRef.current);
+    pendingKeyWidthRef.current = next;
     keyCommitTimerRef.current = setTimeout(() => {
       keyCommitTimerRef.current = null;
+      pendingKeyWidthRef.current = null;
       onWidthCommit(next);
     }, 250);
   };
