@@ -165,7 +165,7 @@ describe('Studio properties panel', () => {
     const placement = screen.getByTestId('gl-studio-callout-placement');
     expect(within(placement).getByText('Automatic')).toBeInTheDocument();
     expect(
-      within(placement).queryByRole('button', { name: 'Reset to auto' })
+      within(placement).queryByRole('button', { name: /Reset/ })
     ).toBeNull();
   });
 
@@ -177,7 +177,7 @@ describe('Studio properties panel', () => {
     const placement = screen.getByTestId('gl-studio-callout-placement');
     expect(within(placement).getByText('Placed by you')).toBeInTheDocument();
     fireEvent.click(
-      within(placement).getByRole('button', { name: 'Reset to auto' })
+      within(placement).getByRole('button', { name: 'Reset all' })
     );
     expect(within(placement).getByText('Automatic')).toBeInTheDocument();
     const saved = await closeAndGetSaved(handles);
@@ -196,7 +196,7 @@ describe('Studio properties panel', () => {
       within(placement).getByText('Automatic, prefers above (older setting)')
     ).toBeInTheDocument();
     fireEvent.click(
-      within(placement).getByRole('button', { name: 'Reset to auto' })
+      within(placement).getByRole('button', { name: 'Reset all' })
     );
     const saved = await closeAndGetSaved(handles);
     expect(saved.steps[0].tooltipPosition).toBeUndefined();

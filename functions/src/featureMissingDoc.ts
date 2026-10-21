@@ -19,7 +19,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'plc-norming-flags',
   'standards-from-question-text',
   'quiz-results-tools',
-  'gl-callout-editing',
   'gl-student-progress',
   'paper-handwritten-responses',
   'claude-connector',

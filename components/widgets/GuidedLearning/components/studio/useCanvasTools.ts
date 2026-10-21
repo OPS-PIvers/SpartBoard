@@ -57,8 +57,7 @@ function inlineField(
 /** Tool state, canvas viewport and shortcut rows for the Studio canvas. */
 export function useCanvasTools(
   state: GuidedLearningEditorController,
-  preset: DevicePreset,
-  { calloutEditing = false }: { calloutEditing?: boolean } = {}
+  preset: DevicePreset
 ) {
   const { t } = useTranslation();
   const dialog = useContext(DialogContext);
@@ -110,10 +109,7 @@ export function useCanvasTools(
   );
   const selected = slideSteps.find((s) => s.id === selectedStepId) ?? null;
   const calloutSelected =
-    calloutEditing &&
-    calloutFocused &&
-    selected !== null &&
-    stepHasCallout(selected);
+    calloutFocused && selected !== null && stepHasCallout(selected);
   const slideUrl = imageUrls[currentImageIndex] ?? '';
   const canBlur = slideUrl !== '' && imageKinds[currentImageIndex] !== 'video';
   const onGeometry = useCallback(
@@ -557,7 +553,6 @@ export function useCanvasTools(
     rows,
     typeRows,
     calloutSelected,
-    calloutEditing,
     deleteFocusedVertex,
     viewport,
     shape,
