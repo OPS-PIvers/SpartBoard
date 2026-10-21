@@ -3676,7 +3676,22 @@
           "assignments_one": "{{count}} Aufgabe",
           "assignments_other": "{{count}} Aufgaben",
           "sayIt": "Sprechen",
-          "truncated": "Nur die 1.000 neuesten Speak-Aufgaben wurden geprüft."
+          "truncated": "Nur die 1.000 neuesten Speak-Aufgaben wurden geprüft.",
+          "fix": "Korrigieren",
+          "soundsLike": "Schreib, wie es klingt",
+          "add": "Hinzufügen",
+          "recordHint": "Oder öffne Sprechen, sprich das Wort und tippe auf So wie ich es gesagt habe speichern.",
+          "alsoAccepted": "Ebenfalls akzeptiert",
+          "acceptedSpelling": "Klingt wie „{{spelling}}“",
+          "acceptedRecording": "Aufnahme, {{date}}",
+          "remove": "Entfernen",
+          "skip": "Dieses Wort in Speak für alle Klassen überspringen",
+          "saveFix": "Korrektur speichern",
+          "fixed": "Korrigiert",
+          "skipped": "Übersprungen",
+          "saveHowISaid": "So wie ich es gesagt habe speichern",
+          "savedHowISaid": "Gespeichert",
+          "unreadable": "Diese Schreibweise konnte nicht gelesen werden. Schreib es anders."
         }
       }
     }

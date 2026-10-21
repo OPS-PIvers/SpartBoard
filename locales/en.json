@@ -4816,7 +4816,22 @@
           "assignments_one": "{{count}} assignment",
           "assignments_other": "{{count}} assignments",
           "sayIt": "Say it",
-          "truncated": "Only the 1,000 newest Speak assignments were checked."
+          "truncated": "Only the 1,000 newest Speak assignments were checked.",
+          "fix": "Fix",
+          "skip": "Skip this word in Speak for every class",
+          "saveFix": "Save fix",
+          "fixed": "Fixed",
+          "soundsLike": "Type how it sounds",
+          "add": "Add",
+          "recordHint": "Or open Say it, say the word, and press Save how I said it.",
+          "alsoAccepted": "Also accepted",
+          "acceptedSpelling": "Sounds like “{{spelling}}”",
+          "acceptedRecording": "Recording, {{date}}",
+          "remove": "Remove",
+          "saveHowISaid": "Save how I said it",
+          "skipped": "Skipped",
+          "savedHowISaid": "Saved",
+          "unreadable": "Couldn't read that spelling. Try typing it another way."
         }
       }
     }
