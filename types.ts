@@ -10121,8 +10121,6 @@ export type GlobalFeature =
   | 'live-tour-self-heal'
   /** Per-period start/pause and windows on assignments shared by several classes. */
   | 'per-period-access'
-  /** PLC Home v2: tile dashboard with a spotlight, meeting cadence and assign-from-library. */
-  | 'plc-home-v2'
   /** Flag free-response answers so an anonymized copy appears on the PLC page for norming. */
   | 'plc-norming-flags'
   /** Standard codes typed in or imported with a question text become Learning targets tags. */

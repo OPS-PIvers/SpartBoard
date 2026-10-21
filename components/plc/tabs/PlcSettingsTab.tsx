@@ -183,9 +183,7 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
         </div>
       )}
 
-      {isPlcTeam && canAccessFeature('plc-home-v2') && (
-        <PlcMeetingCadenceSection plc={plc} />
-      )}
+      {isPlcTeam && <PlcMeetingCadenceSection plc={plc} />}
 
       {isPlcTeam && canAccessFeature('plc-norming-flags') && (
         <PlcNormingLevelsSection plc={plc} />

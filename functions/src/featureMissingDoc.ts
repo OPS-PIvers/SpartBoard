@@ -17,7 +17,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'live-tour-editing-v2',
   'live-tour-self-heal',
   'per-period-access',
-  'plc-home-v2',
   'plc-norming-flags',
   'standards-from-question-text',
   'quiz-results-tools',

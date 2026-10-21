@@ -110,10 +110,6 @@ Each item names the plan it came from; the plan holds the detail.
 
 - [ ] Flip admin_settings/plc_delegated_printing (Rollouts switch) to Public in prod after Paul tests it live, per the flag-release convention. (S)
 
-#### `docs/plans/shipped/PLC_HOME_V2.md`
-
-- [ ] Flip plc-home-v2 GlobalFeature to Public after Paul runs it in prod (Admin Settings > Access > Previews). (S)
-
 #### `docs/plans/shipped/PLC_NORMING_FLAGS.md`
 
 - [ ] Paul tests the feature in prod on his own account and flips 'plc-norming-flags' from admin/preview to Public in Admin Settings > Access > Previews. (S)

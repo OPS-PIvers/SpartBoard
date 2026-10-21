@@ -48,12 +48,10 @@ vi.mock('@/context/useDashboard', () => ({
 }));
 
 let mockCanAccessPaper = true;
-let mockHomeV2 = false;
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'uid-alice' },
-    canAccessFeature: (id: string) =>
-      id === 'plc-home-v2' ? mockHomeV2 : mockCanAccessPaper,
+    canAccessFeature: () => mockCanAccessPaper,
     getAssignmentMode: () => 'submissions',
   }),
 }));
@@ -275,7 +273,6 @@ function makeEntry(overrides: Partial<PlcQuizEntry> = {}): PlcQuizEntry {
 function setDefaults() {
   mockCanEdit = true;
   mockCanAccessPaper = true;
-  mockHomeV2 = false;
   mockBoardWidgets = [];
   addWidget.mockClear();
   updateWidget.mockClear();
@@ -650,16 +647,7 @@ describe('PlcAssessmentList', () => {
     expect(openSharePicker).toHaveBeenCalled();
   });
 
-  it('offers Assign from my library only behind the Home v2 flag', () => {
-    const { unmount } = render(
-      <PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />
-    );
-    expect(
-      screen.queryByRole('button', { name: 'Assign from my library' })
-    ).toBeNull();
-    unmount();
-
-    mockHomeV2 = true;
+  it('offers Assign from my library to editors', () => {
     render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
     fireEvent.click(
       screen.getByRole('button', { name: 'Assign from my library' })
@@ -672,7 +660,6 @@ describe('PlcAssessmentList', () => {
 
   it('hides every editor action for viewers', () => {
     mockCanEdit = false;
-    mockHomeV2 = true;
     render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
     expect(screen.queryByText('Assign to my classes')).toBeNull();
     expect(
