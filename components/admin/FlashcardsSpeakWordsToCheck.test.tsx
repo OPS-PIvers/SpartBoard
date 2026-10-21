@@ -3,6 +3,12 @@ import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('@/config/firebase', () => ({ db: {}, functions: {} }));
 vi.mock('firebase/functions', () => ({ httpsCallable: vi.fn() }));
+vi.mock('firebase/firestore', () => ({
+  doc: vi.fn(),
+  onSnapshot: vi.fn(() => () => undefined),
+  setDoc: vi.fn(),
+  deleteField: vi.fn(),
+}));
 vi.mock('@/components/flashcards/FlashcardPlayer', () => ({
   FlashcardPlayer: (props: {
     cards: { term: string }[];
@@ -49,10 +55,98 @@ const RESULT: SpeakWordsToCheckResult = {
   ],
 };
 
+const REF = {
+  dialect: 'es-419' as const,
+  tokens: ['p', 'e', 'ɾ', 'o'],
+  stress: [0],
+  source: 'voice' as const,
+};
+
+describe('FlashcardsSpeakWordsToCheck fixes', () => {
+  it('reads a sounds-like spelling and saves it as an accepted reading', async () => {
+    const saveFix = vi.fn(() => Promise.resolve());
+    const readSpelling = vi.fn(() => Promise.resolve([REF]));
+    render(
+      <FlashcardsSpeakWordsToCheck
+        load={() => Promise.resolve(RESULT)}
+        fixesOverride={{}}
+        saveFix={saveFix}
+        readSpelling={readSpelling}
+      />
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /^fix$/i }));
+    fireEvent.change(screen.getByLabelText(/type how it sounds/i), {
+      target: { value: 'pero' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^add$/i }));
+    expect(await screen.findByText('Sounds like “pero”')).toBeInTheDocument();
+    expect(readSpelling).toHaveBeenCalledWith('es', 'pero');
+    fireEvent.click(screen.getByRole('button', { name: /save fix/i }));
+    await waitFor(() => expect(saveFix).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText('Saved')).toBeInTheDocument();
+    expect(saveFix).toHaveBeenCalledWith(
+      'es:perro',
+      expect.objectContaining({
+        language: 'es',
+        term: 'perro',
+        skip: false,
+        accepted: [expect.objectContaining({ kind: 'spelling', refs: [REF] })],
+      })
+    );
+  });
+
+  it('says so when the spelling cannot be read', async () => {
+    render(
+      <FlashcardsSpeakWordsToCheck
+        load={() => Promise.resolve(RESULT)}
+        fixesOverride={{}}
+        saveFix={vi.fn()}
+        readSpelling={() => Promise.resolve(null)}
+      />
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /^fix$/i }));
+    fireEvent.change(screen.getByLabelText(/type how it sounds/i), {
+      target: { value: 'two words' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^add$/i }));
+    expect(
+      await screen.findByText(/couldn't read that spelling/i)
+    ).toBeInTheDocument();
+  });
+
+  it('removes the word from the fixes when nothing is left', async () => {
+    const saveFix = vi.fn(() => Promise.resolve());
+    render(
+      <FlashcardsSpeakWordsToCheck
+        load={() => Promise.resolve(RESULT)}
+        fixesOverride={{
+          'es:perro': {
+            language: 'es',
+            term: 'perro',
+            skip: true,
+            accepted: [],
+            updatedAt: 1,
+          },
+        }}
+        saveFix={saveFix}
+        readSpelling={vi.fn()}
+      />
+    );
+    expect(await screen.findByText('Skipped')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^fix$/i }));
+    fireEvent.click(screen.getByLabelText(/skip this word/i));
+    fireEvent.click(screen.getByRole('button', { name: /save fix/i }));
+    await waitFor(() => expect(saveFix).toHaveBeenCalledWith('es:perro', null));
+  });
+});
+
 describe('FlashcardsSpeakWordsToCheck', () => {
   it('lists pooled words with counts and opens a Speak-only practice', async () => {
     render(
-      <FlashcardsSpeakWordsToCheck load={() => Promise.resolve(RESULT)} />
+      <FlashcardsSpeakWordsToCheck
+        load={() => Promise.resolve(RESULT)}
+        fixesOverride={{}}
+      />
     );
     expect(await screen.findByText('perro')).toBeInTheDocument();
     expect(screen.getByText('9 of 12 missed')).toBeInTheDocument();
@@ -69,6 +163,7 @@ describe('FlashcardsSpeakWordsToCheck', () => {
     render(
       <FlashcardsSpeakWordsToCheck
         load={() => Promise.resolve({ ...RESULT, words: [] })}
+        fixesOverride={{}}
       />
     );
     expect(
@@ -82,7 +177,7 @@ describe('FlashcardsSpeakWordsToCheck', () => {
       .mockRejectedValueOnce(new Error('denied'))
       .mockResolvedValueOnce(RESULT);
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    render(<FlashcardsSpeakWordsToCheck load={load} />);
+    render(<FlashcardsSpeakWordsToCheck load={load} fixesOverride={{}} />);
     expect(
       await screen.findByText(/couldn't load the words/i)
     ).toBeInTheDocument();

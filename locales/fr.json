@@ -3676,7 +3676,22 @@
           "assignments_one": "{{count}} devoir",
           "assignments_other": "{{count}} devoirs",
           "sayIt": "Le dire",
-          "truncated": "Seuls les 1 000 devoirs Speak les plus récents ont été vérifiés."
+          "truncated": "Seuls les 1 000 devoirs Speak les plus récents ont été vérifiés.",
+          "fix": "Corriger",
+          "soundsLike": "Écrivez comment ça se prononce",
+          "add": "Ajouter",
+          "recordHint": "Ou ouvrez Le dire, dites le mot et appuyez sur Enregistrer ma prononciation.",
+          "alsoAccepted": "Aussi accepté",
+          "acceptedSpelling": "Se prononce « {{spelling}} »",
+          "acceptedRecording": "Enregistrement, {{date}}",
+          "remove": "Retirer",
+          "skip": "Ignorer ce mot dans Speak pour toutes les classes",
+          "saveFix": "Enregistrer la correction",
+          "fixed": "Corrigé",
+          "skipped": "Ignoré",
+          "saveHowISaid": "Enregistrer ma prononciation",
+          "savedHowISaid": "Enregistré",
+          "unreadable": "Impossible de lire cette écriture. Essayez de l'écrire autrement."
         }
       }
     }

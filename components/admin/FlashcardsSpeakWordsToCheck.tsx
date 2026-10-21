@@ -9,10 +9,24 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { httpsCallable } from 'firebase/functions';
-import { Loader2, Mic, RefreshCw, Volume2 } from 'lucide-react';
+import { Loader2, Mic, RefreshCw, Volume2, Wrench } from 'lucide-react';
+import { FlashcardsSpeakWordFix } from './FlashcardsSpeakWordFix';
+import {
+  readSpeakSpelling,
+  saveSpeakWordFix,
+  type ReadSpeakSpelling,
+  type SaveSpeakWordFix,
+} from './speakWordFixStore';
+import { useSpeakWordFixes } from '@/hooks/useSpeakWordFixes';
+import {
+  MAX_ACCEPTED_PER_WORD,
+  type SpeakWordFix,
+  type SpeakWordFixes,
+} from '@/utils/pronunciation/wordFixes';
 import { functions } from '@/config/firebase';
 import type {
   FlashcardCard,
+  FlashcardSpeakReference,
   FlashcardSpeakStudentSettings,
   SpeakLanguage,
 } from '@/types';
@@ -74,9 +88,16 @@ const voicesSnapshot = () =>
 
 const WordTryModal: React.FC<{
   word: SpeakWordToCheck;
+  fixes: SpeakWordFixes;
+  onSaveHeard: (refs: FlashcardSpeakReference[]) => Promise<void>;
   onClose: () => void;
-}> = ({ word, onClose }) => {
+}> = ({ word, fixes, onSaveHeard, onClose }) => {
   const [adapter] = useState(() => new MemoryFlashcardAdapter());
+  // A skipped word still opens here, so an admin can check it before turning Speak back on.
+  const ownFix = fixes[word.key];
+  const playFixes = ownFix?.skip
+    ? { ...fixes, [word.key]: { ...ownFix, skip: false } }
+    : fixes;
   return (
     <Modal
       isOpen
@@ -98,6 +119,8 @@ const WordTryModal: React.FC<{
             adapter={adapter}
             speak={{ ...word.settings, example: true, locked: true }}
             allowedModes={['speak']}
+            speakFixes={playFixes}
+            onSaveHeard={(_cardId, refs) => onSaveHeard(refs)}
           />
         </Suspense>
       </div>
@@ -105,15 +128,43 @@ const WordTryModal: React.FC<{
   );
 };
 
+// A word's fix entry as it would be saved, or null when there is nothing left to fix.
+const fixEntry = (
+  word: SpeakWordToCheck,
+  draft: Pick<SpeakWordFix, 'accepted' | 'skip'>
+): SpeakWordFix | null =>
+  draft.skip || draft.accepted.length > 0
+    ? {
+        language: word.language,
+        term: word.term,
+        skip: draft.skip,
+        accepted: draft.accepted.slice(-MAX_ACCEPTED_PER_WORD),
+        updatedAt: Date.now(),
+      }
+    : null;
+
 export const FlashcardsSpeakWordsToCheck: React.FC<{
   load?: LoadSpeakWordsToCheck;
-}> = ({ load = callList }) => {
+  /** Tests pass these; the panel otherwise reads and writes admin_settings. */
+  fixesOverride?: SpeakWordFixes;
+  saveFix?: SaveSpeakWordFix;
+  readSpelling?: ReadSpeakSpelling;
+}> = ({
+  load = callList,
+  fixesOverride,
+  saveFix = saveSpeakWordFix,
+  readSpelling = readSpeakSpelling,
+}) => {
+  const liveFixes = useSpeakWordFixes(fixesOverride === undefined);
+  const fixes = fixesOverride ?? liveFixes;
   const { t } = useTranslation();
   const [result, setResult] = useState<SpeakWordsToCheckResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [trying, setTrying] = useState<SpeakWordToCheck | null>(null);
+  const [fixing, setFixing] = useState<string | null>(null);
+  const [savedKey, setSavedKey] = useState<string | null>(null);
   // Chrome fills the voice list in after load, so Hear it re-checks when it changes.
   useSyncExternalStore(subscribeVoices, voicesSnapshot, () => 0);
 
@@ -227,6 +278,13 @@ export const FlashcardsSpeakWordsToCheck: React.FC<{
                       .join(' · ')}
                   </div>
                 </div>
+                {fixes[word.key] && (
+                  <span className="text-xs font-bold text-slate-500">
+                    {fixes[word.key].skip
+                      ? t('flashcards.speak.admin.wordsToCheck.skipped')
+                      : t('flashcards.speak.admin.wordsToCheck.fixed')}
+                  </span>
+                )}
                 <span className="text-sm font-black tabular-nums text-rose-700">
                   {t('flashcards.speak.admin.wordsToCheck.missed', {
                     missed: word.missed,
@@ -261,7 +319,40 @@ export const FlashcardsSpeakWordsToCheck: React.FC<{
                     <Mic className="h-3.5 w-3.5" aria-hidden />
                     {t('flashcards.speak.admin.wordsToCheck.sayIt')}
                   </button>
+                  <button
+                    type="button"
+                    aria-expanded={fixing === word.key}
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'flashcards',
+                      'speak-words-to-check-fix'
+                    )}
+                    onClick={() => {
+                      setSavedKey(null);
+                      setFixing((k) => (k === word.key ? null : word.key));
+                    }}
+                    className={smallButton}
+                  >
+                    <Wrench className="h-3.5 w-3.5" aria-hidden />
+                    {t('flashcards.speak.admin.wordsToCheck.fix')}
+                  </button>
                 </span>
+                {fixing === word.key && (
+                  <FlashcardsSpeakWordFix
+                    key={fixes[word.key]?.updatedAt ?? 0}
+                    dialect={dialect}
+                    saved={fixes[word.key] ?? { accepted: [], skip: false }}
+                    readSpelling={(spelling) =>
+                      readSpelling(word.language, spelling)
+                    }
+                    justSaved={savedKey === word.key}
+                    onSave={async (draft) => {
+                      setSavedKey(null);
+                      await saveFix(word.key, fixEntry(word, draft));
+                      setSavedKey(word.key);
+                    }}
+                  />
+                )}
               </li>
             );
           })}
@@ -274,7 +365,31 @@ export const FlashcardsSpeakWordsToCheck: React.FC<{
         </p>
       )}
 
-      {trying && <WordTryModal word={trying} onClose={() => setTrying(null)} />}
+      {trying && (
+        <WordTryModal
+          word={trying}
+          fixes={fixes}
+          onClose={() => setTrying(null)}
+          onSaveHeard={(refs) => {
+            const saved = fixes[trying.key];
+            return saveFix(
+              trying.key,
+              fixEntry(trying, {
+                skip: saved?.skip ?? false,
+                accepted: [
+                  ...(saved?.accepted ?? []),
+                  {
+                    id: `r${Date.now().toString(36)}`,
+                    kind: 'recording',
+                    refs,
+                    addedAt: Date.now(),
+                  },
+                ],
+              })
+            );
+          }}
+        />
+      )}
     </section>
   );
 };

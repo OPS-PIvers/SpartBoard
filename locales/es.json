@@ -3676,7 +3676,22 @@
           "assignments_one": "{{count}} tarea",
           "assignments_other": "{{count}} tareas",
           "sayIt": "Decirla",
-          "truncated": "Solo se revisaron las 1000 tareas de Speak más recientes."
+          "truncated": "Solo se revisaron las 1000 tareas de Speak más recientes.",
+          "fix": "Corregir",
+          "soundsLike": "Escribe cómo suena",
+          "add": "Agregar",
+          "recordHint": "O abre Decirla, di la palabra y pulsa Guardar cómo la dije.",
+          "alsoAccepted": "También se acepta",
+          "acceptedSpelling": "Suena como “{{spelling}}”",
+          "acceptedRecording": "Grabación, {{date}}",
+          "remove": "Quitar",
+          "skip": "Omitir esta palabra en Speak para todas las clases",
+          "saveFix": "Guardar corrección",
+          "fixed": "Corregida",
+          "skipped": "Omitida",
+          "saveHowISaid": "Guardar cómo la dije",
+          "savedHowISaid": "Guardado",
+          "unreadable": "No se pudo leer esa escritura. Prueba a escribirla de otra forma."
         }
       }
     }

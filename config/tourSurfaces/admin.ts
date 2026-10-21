@@ -347,6 +347,7 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       'components/admin/FlashcardsSpeakConfigurationPanel.tsx',
       'components/admin/FlashcardsSpeakWordsToCheck.tsx',
+      'components/admin/FlashcardsSpeakWordFix.tsx',
     ],
     opensWith: 'admin.widgets.configure:admin#flashcards',
     needs: ['admin'],
