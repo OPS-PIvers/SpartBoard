@@ -698,6 +698,35 @@ describe('Speak mode', () => {
       expect(screen.getByText('hola')).toBeTruthy();
     });
 
+    it('still counts down after Hear it was used before speaking', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      fake.queue({ tokens: ['p', 'e', 'r', 'o'] });
+      renderPlayer({ speak: stamp({ example: true }) });
+      await openSpeak(user);
+      await user.click(screen.getByRole('button', { name: 'Hear it' }));
+      await speakFirst(user);
+      act(() => {
+        vi.advanceTimersByTime(3100);
+      });
+      expect(screen.getByText('hola')).toBeTruthy();
+    });
+
+    it('waits on a missed card so the marks can be read', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      fake.queue({ tokens: ['p', 'a', 'r', 'o'] });
+      renderPlayer({ speak: stamp({ attempts: 1 }) });
+      capture.hold = true;
+      await user.click(await openSpeak(user));
+      act(() => speechEnd.onEnd?.('ended'));
+      expect(
+        await screen.findByText("Not yet. We'll come back to this word.")
+      ).toBeTruthy();
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(screen.getByText('perro')).toBeTruthy();
+    });
+
     it('stays put when the student turns it off', async () => {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       fake.queue({ tokens: ['p', 'e', 'r', 'o'] });

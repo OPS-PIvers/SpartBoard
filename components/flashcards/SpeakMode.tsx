@@ -613,6 +613,8 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
       if (pass) setPassed((count) => count + 1);
       else setFailed((count) => count + 1);
     }
+    // Taps before this result don't hold its countdown.
+    setHeld(false);
     setPhase({ kind: 'result', judgement, decided, passed: pass });
     focusSoon(actionRef);
   };
@@ -781,7 +783,14 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
   const next = () => advance(false);
 
   const decidedResult = phase.kind === 'result' && phase.decided;
-  const counting = autoContinue && decidedResult && !held && !paused;
+  // Only a passed card moves on by itself; a missed one waits so the marks get read.
+  const counting =
+    autoContinue &&
+    decidedResult &&
+    phase.kind === 'result' &&
+    phase.passed &&
+    !held &&
+    !paused;
 
   const continueByTimer = useEffectEvent(() => advance(true));
 
@@ -920,19 +929,14 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
       onClick={next}
       aria-keyshortcuts="Enter"
       data-speak-continue=""
-      className={cx(
-        counting
-          ? primaryButton.replace('bg-rose-600 ', 'bg-rose-300 ')
-          : primaryButton,
-        'relative isolate overflow-hidden'
-      )}
+      className={cx(primaryButton, 'relative isolate overflow-hidden')}
       style={buttonStyle}
     >
       {counting && (
         <span
           key={index}
           aria-hidden="true"
-          className="absolute inset-0 -z-10 origin-right bg-rose-600"
+          className="absolute inset-0 -z-10 origin-right bg-rose-800"
           style={{
             animation: `speak-drain ${AUTO_CONTINUE_MS}ms linear forwards`,
           }}
