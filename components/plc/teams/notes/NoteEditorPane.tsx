@@ -536,7 +536,6 @@ export const NoteEditorPane: React.FC<NoteEditorPaneProps> = ({
     if (section.heading !== null && section.heading === actionSection) {
       extras.push(actionList);
     }
-    const hasBlocks = extras.length > 0;
     const content = editable ? (
       <div onFocusCapture={() => setFocused(index)}>
         <PlcNoteRichEditor
