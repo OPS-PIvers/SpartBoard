@@ -275,6 +275,32 @@ describe('createVoiceReader', () => {
     expect(runModel).not.toHaveBeenCalled();
   });
 
+  it('waits for every voice in flight before running the model', async () => {
+    let finishSlow: (bytes: Uint8Array | null) => void = () => {};
+    const slow = new Promise<Uint8Array | null>((done) => (finishSlow = done));
+    const runModel = vi.fn(() =>
+      Promise.resolve({
+        data: new Float32Array(PRONUNCIATION_MODEL.vocabSize),
+        frames: 1,
+        size: PRONUNCIATION_MODEL.vocabSize,
+      })
+    );
+    const r = createVoiceReader({
+      synthesize: (voice) =>
+        voice === 'slow'
+          ? slow
+          : Promise.resolve(wav('es-ES-Neural2-A_perro.wav')),
+      runModel,
+    });
+    const fast = r.read('fast', 'perro');
+    const late = r.read('slow', 'perro');
+    await new Promise((done) => setTimeout(done, 10));
+    expect(runModel).not.toHaveBeenCalled();
+    finishSlow(null);
+    await Promise.all([fast, late]);
+    expect(runModel).toHaveBeenCalledTimes(1);
+  });
+
   const modelPath = resolve(
     os.homedir(),
     `.cache/spartboard-pronunciation/${PRONUNCIATION_MODEL.id}.onnx`
