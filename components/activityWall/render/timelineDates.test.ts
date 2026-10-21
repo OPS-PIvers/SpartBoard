@@ -4,8 +4,13 @@ import {
   fieldsFromDate,
   formatWallDate,
   parseWallDate,
+  formatWallSpan,
+  parseWallSpan,
   validateDateFields,
+  validateSpanFields,
+  wallSpanRange,
   type WallDate,
+  type WallSpan,
 } from './timelineDates';
 
 describe('timeline dates', () => {
@@ -174,5 +179,51 @@ describe('timeline dates', () => {
       { year: 1777 },
     ].map(dateSortKey);
     expect([...keys].sort((a, b) => a - b)).toEqual(keys);
+  });
+
+  it('reads, writes and checks date ranges', () => {
+    const spans: WallSpan[] = [
+      { start: { year: 1939 }, end: { year: 1945 } },
+      {
+        start: { year: 1862, month: 8, day: 17 },
+        end: { year: 1862, month: 9, day: 26 },
+      },
+      { start: { year: 1862, month: 8 }, end: { year: 1863, month: 1 } },
+      { start: { year: -264 }, end: { year: -146 } },
+      { start: { year: 1450, precision: 'about' } },
+    ];
+    for (const span of spans) {
+      expect(parseWallSpan(formatWallSpan(span))).toEqual(span);
+    }
+    expect(formatWallSpan(spans[1])).toBe('August 17 – September 26, 1862');
+    expect(parseWallSpan('1939-45')).toEqual(spans[0]);
+    expect(parseWallSpan('1861 to 1865')).toEqual({
+      start: { year: 1861 },
+      end: { year: 1865 },
+    });
+    expect(parseWallSpan('1900–1909')).toEqual({
+      start: { year: 1900, precision: 'decade' },
+    });
+    expect(parseWallSpan('1865 – 1861')).toEqual({ start: { year: 1865 } });
+    expect(wallSpanRange(spans[0])).toEqual([1939, 1946]);
+
+    const fields = {
+      year: '1865',
+      era: 'CE' as const,
+      month: '',
+      day: '',
+      precision: 'exact' as const,
+    };
+    expect(validateSpanFields(fields, { ...fields, year: '1861' })).toEqual({
+      error: 'End date must be after the start date.',
+      field: 'end',
+    });
+    expect(validateSpanFields(fields, { ...fields, year: '' })).toEqual({
+      error: 'Enter a year.',
+      field: 'end',
+    });
+    expect(validateSpanFields(fields, { ...fields, year: '1870' })).toEqual({
+      span: { start: { year: 1865 }, end: { year: 1870 } },
+    });
   });
 });

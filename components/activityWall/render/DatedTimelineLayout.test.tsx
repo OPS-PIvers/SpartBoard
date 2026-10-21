@@ -80,4 +80,32 @@ describe('DatedTimelineLayout', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close post' }));
     expect(screen.queryByRole('dialog')).toBeNull();
   });
+
+  it('sorts a range by its start and names the teacher time periods', () => {
+    render(
+      <LayoutRouter
+        session={makeSession({
+          layout: 'timeline',
+          timelineDates: true,
+          timePeriods: [
+            { id: 'war', label: 'Civil War', from: '1861', to: '1865' },
+            { id: 'bad', label: 'Broken', from: 'soon', to: '1900' },
+          ],
+        })}
+        mode="gallery"
+        showNames
+        submissions={[
+          makeSubmission({ id: 'after', label: '1870', submittedAt: 1 }),
+          makeSubmission({
+            id: 'range',
+            label: 'April 12, 1861 – April 9, 1865',
+            submittedAt: 2,
+          }),
+        ]}
+      />
+    );
+    expect(cardOrder()).toEqual(['range', 'after']);
+    expect(screen.getByText('Civil War')).toBeInTheDocument();
+    expect(screen.queryByText('Broken')).not.toBeInTheDocument();
+  });
 });

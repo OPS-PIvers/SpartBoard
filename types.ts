@@ -2370,6 +2370,14 @@ export interface ActivityWallSection {
   label: string;
 }
 
+/** A named stretch of time a teacher shades on a dated timeline; `from`/`to` are date labels. */
+export interface ActivityWallPeriod {
+  id: string;
+  label: string;
+  from: string;
+  to: string;
+}
+
 export interface ActivityWallLinkPreview {
   title?: string;
   description?: string;
@@ -2477,6 +2485,8 @@ export interface ActivityWallLibraryEntry {
   sections?: ActivityWallSection[];
   tableRows?: ActivityWallSection[];
   tableCols?: ActivityWallSection[];
+  /** Dated timeline only: teacher-named time periods shaded on the axis. */
+  timePeriods?: ActivityWallPeriod[];
   mapCenter?: { lat: number; lng: number; zoom: number };
   allowedTypes?: Record<
     Exclude<ActivityWallSubmissionType, 'text' | 'word'>,
@@ -2620,6 +2630,8 @@ export interface ActivityWallSession extends SessionWorkKindFields {
   allowCommentResponses?: boolean;
   /** Timeline layout only: posts carry a validated date and sit on a dated axis. */
   timelineDates?: boolean;
+  /** Dated timeline only: teacher-named time periods, mirrored from the library entry. */
+  timePeriods?: ActivityWallPeriod[];
 }
 
 /**

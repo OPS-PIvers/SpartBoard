@@ -350,6 +350,7 @@ export function mirrorSessionFromEntry(
   if (entry.tableRows) session.tableRows = entry.tableRows;
   if (entry.tableCols) session.tableCols = entry.tableCols;
   if (entry.mapCenter) session.mapCenter = entry.mapCenter;
+  if (entry.timePeriods) session.timePeriods = entry.timePeriods;
 
   return session;
 }

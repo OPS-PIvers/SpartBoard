@@ -1,7 +1,7 @@
 /**
  * ActivityWallTimelineDevHarness — DEV-only fixtures for the Activity Wall timeline,
  * old list next to the dated axis at several sizes. Mounted at /activity-wall-timeline-dev.
- * `?view=composer` shows the post composer with the date pickers; `?posts=60` pads the wall for load checks.
+ * `?view=editor` shows the time periods list; `?view=composer` shows the post composer with the date pickers; `?posts=60` pads the wall for load checks.
  */
 
 import React from 'react';
@@ -12,6 +12,8 @@ import {
   makeSubmission,
 } from '@/components/activityWall/render/fixtures';
 import { ComposerSheet } from '@/components/activityWall/submission/ComposerSheet';
+import { SectionsEditor } from '@/components/widgets/ActivityWall/editor/SectionsEditor';
+import type { WallStructure } from '@/components/widgets/ActivityWall/editor/constants';
 
 const photo = () => `${window.location.origin}/apple-touch-icon.png`;
 
@@ -108,6 +110,14 @@ const posts = (): ActivityWallSubmission[] => [
     submittedAt: 12,
   }),
   makeSubmission({
+    id: 'ww2',
+    title: 'World War II',
+    content: 'War across Europe, Asia and the Pacific.',
+    label: 'September 1, 1939 – September 2, 1945',
+    participantLabel: 'Ruth K.',
+    submittedAt: 13,
+  }),
+  makeSubmission({
     id: 'industrial',
     title: 'Factories spread',
     content: 'Steam-powered mills change how people work.',
@@ -141,11 +151,41 @@ const legacySession = makeSession({
   title: 'Final product: multi-sided timeline',
   layout: 'timeline',
 });
+const TIME_PERIODS = [
+  {
+    id: 'industrial',
+    label: 'Industrial Revolution',
+    from: '1760',
+    to: '1840',
+  },
+  { id: 'cold-war', label: 'Cold War', from: '1947', to: '1991' },
+];
+
 const datedSession = makeSession({
   title: 'Final product: multi-sided timeline',
   layout: 'timeline',
   timelineDates: true,
+  timePeriods: TIME_PERIODS,
 });
+
+const PeriodsEditorPreview: React.FC = () => {
+  const [value, setValue] = React.useState<WallStructure>({
+    timePeriods: [
+      ...TIME_PERIODS,
+      { id: 'draft', label: 'Reconstruction', from: '1877', to: '1865' },
+    ],
+  });
+  return (
+    <div className="mx-auto max-w-2xl rounded-2xl bg-white p-6">
+      <SectionsEditor
+        layout="timeline"
+        timelineDates
+        value={value}
+        onChange={(patch) => setValue((prev) => ({ ...prev, ...patch }))}
+      />
+    </div>
+  );
+};
 const WHITE_CARDS = { background: 'rgba(255,255,255,1)', color: '#0f172a' };
 
 const Frame: React.FC<{
@@ -169,6 +209,14 @@ export const ActivityWallTimelineDevHarness: React.FC = () => {
   const params = new URLSearchParams(window.location.search);
   const view = params.get('view');
   const submissions = padded(Number(params.get('posts')) || 0);
+
+  if (view === 'editor') {
+    return (
+      <div className="h-screen bg-slate-100 p-6">
+        <PeriodsEditorPreview />
+      </div>
+    );
+  }
 
   if (view === 'composer') {
     return (
