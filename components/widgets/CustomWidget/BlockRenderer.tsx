@@ -392,6 +392,7 @@ function ButtonBlock({
   const btnClass = styleMap[config.style ?? 'primary'];
   return (
     <div className="w-full h-full flex items-center justify-center p-1">
+      {/* no-tour-anchor: block in a teacher-built custom widget, content varies per widget */}
       <button
         className={`rounded transition-colors font-medium flex items-center gap-1 ${btnClass}`}
         style={{
@@ -467,6 +468,7 @@ function CounterBlock({
         </div>
       )}
       <div className="flex flex-wrap items-center justify-center gap-1">
+        {/* no-tour-anchor: block in a teacher-built custom widget, content varies per widget */}
         <button
           className="bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors"
           style={{
@@ -487,6 +489,7 @@ function CounterBlock({
         >
           {blockState.value}
         </div>
+        {/* no-tour-anchor: block in a teacher-built custom widget, content varies per widget */}
         <button
           className="bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors"
           style={{
@@ -545,6 +548,7 @@ function ToggleBlock({
           {config.label}
         </div>
       )}
+      {/* no-tour-anchor: block in a teacher-built custom widget, content varies per widget */}
       <button
         onClick={handleToggle}
         className="relative rounded-full transition-colors duration-200"
@@ -581,7 +585,7 @@ function StarsBlock({
     <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden p-1">
       <div className="flex flex-wrap justify-center gap-0.5">
         {Array.from({ length: maxStars }, (_, i) => (
-          // eslint-disable-next-line no-restricted-syntax -- a star rating is one button per star
+          // eslint-disable-next-line no-restricted-syntax -- a star rating is one button per star; no-tour-anchor: block in a teacher-built custom widget, content varies per widget
           <button
             key={i}
             onClick={() => {
@@ -638,6 +642,7 @@ function TextInputBlock({
           {config.label}
         </div>
       )}
+      {/* no-tour-anchor: block in a teacher-built custom widget, content varies per widget */}
       <input
         type="text"
         value={inputValue}
@@ -650,6 +655,7 @@ function TextInputBlock({
           padding: 'min(4px, 1.5cqmin) min(8px, 2.5cqmin)',
         }}
       />
+      {/* no-tour-anchor: block in a teacher-built custom widget, content varies per widget */}
       <button
         onClick={handleSubmit}
         className="bg-brand-blue-primary hover:bg-brand-blue-light text-white rounded transition-colors self-end"
@@ -711,6 +717,7 @@ function PollBlock({
           const pct =
             totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
           return (
+            // no-tour-anchor: block in a teacher-built custom widget, content varies per widget
             <button
               key={i}
               onClick={() => handleVote(i)}
@@ -795,6 +802,7 @@ function MultipleChoiceBlock({
             }
           }
           return (
+            // no-tour-anchor: block in a teacher-built custom widget, content varies per widget
             <button
               key={i}
               onClick={() => handleSelect(i)}
@@ -871,6 +879,7 @@ function MatchPairBlock({
     <div className="w-full h-full flex gap-1 p-1 overflow-hidden">
       <div className="flex-1 flex flex-col gap-0.5 justify-center">
         {config.leftItems.map((item, i) => (
+          // no-tour-anchor: block in a teacher-built custom widget, content varies per widget
           <button
             key={i}
             onClick={() => handleLeftClick(i)}
@@ -892,6 +901,7 @@ function MatchPairBlock({
       </div>
       <div className="flex-1 flex flex-col gap-0.5 justify-center">
         {config.rightItems.map((item, i) => (
+          // no-tour-anchor: block in a teacher-built custom widget, content varies per widget
           <button
             key={i}
             onClick={() => handleRightClick(i)}
@@ -931,6 +941,7 @@ function HotspotBlock({
         />
       )}
       {config.spots.map((spot, i) => (
+        // no-tour-anchor: block in a teacher-built custom widget, content varies per widget
         <button
           key={i}
           onClick={() =>
@@ -1005,6 +1016,7 @@ function SortBinBlock({
       {/* Item chips */}
       <div className="flex flex-wrap gap-0.5">
         {unsortedItems.map(({ item, i }) => (
+          // no-tour-anchor: block in a teacher-built custom widget, content varies per widget
           <button
             key={i}
             onClick={() => handleItemClick(i)}
@@ -1029,6 +1041,7 @@ function SortBinBlock({
             .filter(([, bIdx]) => bIdx === bi)
             .map(([iIdx]) => config.items[Number(iIdx)]);
           return (
+            // no-tour-anchor: block in a teacher-built custom widget, content varies per widget
             <button
               key={bi}
               onClick={() => handleBinClick(bi)}
@@ -1174,6 +1187,7 @@ function TimerBlock({
       {showControls && (
         <div className="flex gap-1">
           {!isRunning ? (
+            // no-tour-anchor: block in a teacher-built custom widget, content varies per widget
             <button
               onClick={handleStart}
               disabled={remaining <= 0}
@@ -1192,6 +1206,7 @@ function TimerBlock({
               Start
             </button>
           ) : (
+            // no-tour-anchor: block in a teacher-built custom widget, content varies per widget
             <button
               onClick={handleStop}
               className="bg-yellow-700 hover:bg-yellow-600 text-white rounded transition-colors flex items-center gap-1"
@@ -1209,6 +1224,7 @@ function TimerBlock({
               Pause
             </button>
           )}
+          {/* no-tour-anchor: block in a teacher-built custom widget, content varies per widget */}
           <button
             onClick={handleReset}
             className="bg-slate-600 hover:bg-slate-500 text-white rounded transition-colors flex items-center gap-1"
@@ -1296,6 +1312,7 @@ function ChecklistBlock({
   return (
     <div className="w-full h-full flex flex-col gap-0.5 p-1 overflow-auto justify-center">
       {config.items.map((item, i) => (
+        // no-tour-anchor: block in a teacher-built custom widget, content varies per widget
         <button
           key={i}
           onClick={() => handleCheck(i)}
