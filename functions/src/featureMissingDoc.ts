@@ -39,7 +39,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'blooms-ai',
   'plc-meeting-ai-notes',
   'sparty',
-  'plc-notes-side-panels',
   'google-tasks-sync',
   'plc-goal-coach',
   'embed-reload',

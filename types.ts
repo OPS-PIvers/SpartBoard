@@ -10174,8 +10174,6 @@ export type GlobalFeature =
   | 'plc-meeting-ai-notes'
   /** Sparty the mascot in tours, first-time setup and the Help Center (docs/plans/shipped/SPARTY.md). */
   | 'sparty'
-  /** Group Notes & Docs: notes list and Action items as swapping side panels, with action items on linked Google Docs. */
-  | 'plc-notes-side-panels'
   /** Group Notes & Docs: embedded Google Docs keep Google's menus and toolbar. */
   | 'plc-docs-toolbar'
   /** Team action items sync to the assignee's Google Tasks (docs/plans/GOOGLE_TASKS_ACTION_ITEMS.md). */

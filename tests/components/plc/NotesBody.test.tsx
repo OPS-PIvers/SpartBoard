@@ -413,6 +413,9 @@ describe('NotesBody with the collaborative editor enabled', () => {
   it('routes action-item edits into the CRDT', () => {
     render(<NotesBody plc={plc} />);
 
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Show action items' })[0]
+    );
     fireEvent.click(screen.getByTestId('action-items'));
 
     expect(setActionItemsMock).toHaveBeenCalledTimes(1);
@@ -538,7 +541,9 @@ describe('NotesBody with notes and docs in one list', () => {
     docs = [pacingDoc];
     render(<NotesBody plc={plc} />);
     fireEvent.click(screen.getByText('Pacing guide'));
-    expect(screen.getByTitle('Pacing guide').tagName).toBe('IFRAME');
+    expect(
+      screen.getAllByTitle('Pacing guide').map((el) => el.tagName)
+    ).toContain('IFRAME');
   });
 
   it('offers a meeting note, a blank note and a Google Doc from New', () => {
