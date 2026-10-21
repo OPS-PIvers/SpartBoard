@@ -332,7 +332,7 @@ function lookupCard(
     dialects: [...input.dialects],
     ...(card.ipaOverride ? { ipaOverride: card.ipaOverride } : {}),
   };
-  const { texts, tooManyWords } = spokenVariants(card.term);
+  const { texts, tooManyWords } = spokenVariants(card.term, input.language);
   const fitting = texts.filter((text) => text.length <= MAX_WORD_LENGTH);
   if (fitting.length === 0) {
     return {

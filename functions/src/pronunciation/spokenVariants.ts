@@ -42,16 +42,31 @@ function withEnding(first: string, part: string): string {
   return stem + part;
 }
 
-// "os" after "ese" is an ending even though the words are about as long; "de/a" and "nos/os" are two words.
-const isEnding = (first: string, part: string): boolean =>
+// Short words a slash part can stand beside without being an ending ("de/a", "nos/os").
+const WHOLE_WORDS = new Set([
+  'de',
+  'en',
+  'se',
+  'te',
+  'me',
+  'le',
+  'les',
+  'nos',
+  'os',
+  'vos',
+]);
+
+// "os" after "ese", "a" after "un", "as" after "los" are endings even though the words are about as long.
+const isEnding = (first: string, part: string, spanish: boolean): boolean =>
   part.length <= 3 &&
   (first.length > part.length + 1 ||
-    (/^[ao]s$/u.test(part) &&
+    (spanish &&
+      SWAPPED_ENDING.test(part) &&
       first.length > part.length &&
-      /[aeo]$/u.test(first)));
+      !WHOLE_WORDS.has(first.toLowerCase())));
 
 // "el/la" are whole words; a short part after a longer word is an ending. "¡Bienvenido/a!" keeps its marks on every option.
-function slashOptions(word: string): string[] {
+function slashOptions(word: string, spanish: boolean): string[] {
   const [, lead, core, trail] =
     /^([^\p{L}\p{N}]*)(.*?)([^\p{L}\p{N}]*)$/su.exec(word) ?? [
       '',
@@ -65,14 +80,14 @@ function slashOptions(word: string): string[] {
   return [
     first,
     ...rest.map((part) =>
-      isEnding(first, part) ? withEnding(first, part) : part
+      isEnding(first, part, spanish) ? withEnding(first, part) : part
     ),
   ].map((option) => lead + option + trail);
 }
 
 // Slash words pair up by position ("el/la mesero/a" is el mesero, la mesera); a shorter list repeats its last option.
-function expandSlashes(text: string): string[] {
-  const words = text.split(' ').map(slashOptions);
+function expandSlashes(text: string, spanish: boolean): string[] {
+  const words = text.split(' ').map((word) => slashOptions(word, spanish));
   const longest = Math.max(...words.map((o) => o.length));
   return Array.from({ length: longest }, (_, i) =>
     words.map((o) => o[Math.min(i, o.length - 1)]).join(' ')
@@ -83,7 +98,11 @@ const isWord = (w: string) => /[\p{L}\p{N}]/u.test(w);
 const wordCount = (text: string) => text.split(' ').filter(isWord).length;
 
 /** The texts Speak looks up for a term, in the order the term lists them. */
-export function spokenVariants(term: string): SpokenVariants {
+export function spokenVariants(
+  term: string,
+  language?: string
+): SpokenVariants {
+  const spanish = language === 'es';
   const texts: string[] = [];
   let tooManyWords = false;
   for (const variant of parseFlashcardAnswerVariants(term)) {
@@ -93,7 +112,7 @@ export function spokenVariants(term: string): SpokenVariants {
       .split(/\s+/u)
       .filter(isWord)
       .join(' ');
-    for (const text of expandSlashes(cleaned)) {
+    for (const text of expandSlashes(cleaned, spanish)) {
       const words = wordCount(text);
       if (words === 0) continue;
       if (words > MAX_SPOKEN_WORDS) {
