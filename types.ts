@@ -10121,8 +10121,6 @@ export type GlobalFeature =
   | 'live-tour-self-heal'
   /** Per-period start/pause and windows on assignments shared by several classes. */
   | 'per-period-access'
-  /** PLC Home v2: tile dashboard with a spotlight, meeting cadence and assign-from-library. */
-  | 'plc-home-v2'
   /** Flag free-response answers so an anonymized copy appears on the PLC page for norming. */
   | 'plc-norming-flags'
   /** Standard codes typed in or imported with a question text become Learning targets tags. */
@@ -10192,8 +10190,6 @@ export type GlobalFeature =
   | 'embed-reload'
   /** Widget libraries open on folders with a path bar, Recent view and drag filing (docs/plans/LIBRARY_FOLDERS.md D26). */
   | 'library-folder-view'
-  /** Team invite boxes suggest staff emails from the org directory as you type. */
-  | 'team-email-suggest'
   /** Push scores into a SpartBoard-made Schoology gradebook column (docs/plans/SCHOOLOGY_TOOL_COLUMNS.md D11). */
   | 'schoology-tool-columns'
   /** A what's-new button under a widget whose changelog entry carries a note for that widget type. */
@@ -10202,8 +10198,6 @@ export type GlobalFeature =
   | 'gl-welcome-card'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
-  /** Mini App editor: Edit with AI revises the current app's code from an instruction. */
-  | 'mini-app-ai-edit'
   /** Quiz live monitor declutter (#4023): footer buttons, Close all, no More actions menu for assessments. */
   | 'quiz-monitor-declutter'
   | 'quiz-banks-in-library'

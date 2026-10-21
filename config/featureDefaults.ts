@@ -25,7 +25,6 @@ import {
   Library,
   Link2,
   ListChecks,
-  AtSign,
   Mic,
   MousePointerClick,
   Music2,
@@ -664,17 +663,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // PLC Home v2 tile dashboard. Admin-only until Paul has run a PLC on it in prod.
-  'plc-home-v2': {
-    label: 'PLC Home dashboard',
-    icon: LayoutDashboard,
-    description: 'Tile-based PLC Home.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // PLC norming flags: anonymized answer copies on the PLC page. Admin-only until Paul has tried it.
   'plc-norming-flags': {
     label: 'PLC norming flags',
@@ -1134,16 +1122,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'team-email-suggest': {
-    label: 'Team invite email suggestions',
-    icon: AtSign,
-    description: 'Invite boxes on team pages suggest staff emails as you type.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // SpartBoard creates the Schoology gradebook column (SCHOOLOGY_TOOL_COLUMNS.md D11).
   'schoology-tool-columns': {
     label: 'Schoology gradebook columns',
@@ -1183,17 +1161,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Mini App results',
     icon: ListChecks,
     description: 'Graded mini app submissions with attempt limits.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'miniApp',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'mini-app-ai-edit': {
-    label: 'Mini Apps: Edit with AI',
-    icon: Wand2,
-    description: 'Revises an existing mini app from an instruction.',
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'miniApp',

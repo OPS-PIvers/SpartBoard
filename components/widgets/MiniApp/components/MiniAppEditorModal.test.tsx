@@ -75,35 +75,12 @@ describe('MiniAppEditorModal editor gate', () => {
 });
 
 describe('MiniAppEditorModal Edit with AI', () => {
-  it('stays Draft with AI without the edit flag', () => {
-    setup(AI);
-    expect(
-      screen.getByRole('button', { name: /Draft with AI/ })
-    ).toBeInTheDocument();
-  });
-
-  it('shows no Undo AI change after a draft without the edit flag', async () => {
-    vi.mocked(generateMiniAppCode).mockResolvedValue({
-      title: 'Spinner',
-      html: '<html>new</html>',
-    });
-    setup(AI);
-    fireEvent.click(screen.getByRole('button', { name: /Draft with AI/ }));
-    fireEvent.change(screen.getByLabelText('Describe your mini-app'), {
-      target: { value: 'a spinner' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Draft app/ }));
-
-    await waitFor(() => expect(codeBox()).toHaveValue('<html>new</html>'));
-    expect(screen.queryByRole('button', { name: /Undo AI change/ })).toBeNull();
-  });
-
   it('revises the current code, keeps the title and can undo', async () => {
     vi.mocked(editMiniAppCode).mockResolvedValue({
       title: 'Something else',
       html: '<html><body>v2</body></html>',
     });
-    setup([...AI, 'mini-app-ai-edit']);
+    setup(AI);
     fireEvent.click(screen.getByRole('button', { name: /Edit with AI/ }));
     fireEvent.change(screen.getByLabelText('Describe the change'), {
       target: { value: 'make it blue' },
@@ -127,7 +104,7 @@ describe('MiniAppEditorModal Edit with AI', () => {
       title: 'Spinner',
       html: '<html>new</html>',
     });
-    setup([...AI, 'mini-app-ai-edit']);
+    setup(AI);
     fireEvent.click(screen.getByRole('button', { name: /Edit with AI/ }));
     fireEvent.click(screen.getByRole('radio', { name: /Start over/ }));
     fireEvent.change(screen.getByLabelText('Describe your mini-app'), {

@@ -1168,9 +1168,8 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
     </button>
   ) : null;
 
-  // Home v2 drops quick-create, so the library assign flow lives here behind the same flag.
-  const canAssignFromLibrary = canEdit && canAccessFeature('plc-home-v2');
-  const assignFromLibraryButton = canAssignFromLibrary ? (
+  // Home has no quick-create, so the library assign flow lives here.
+  const assignFromLibraryButton = canEdit ? (
     <button
       {...tourAttr('plc-assessments.library-assign')}
       type="button"
