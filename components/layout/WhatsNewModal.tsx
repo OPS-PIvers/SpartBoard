@@ -1,11 +1,4 @@
-import React, {
-  useContext,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ChevronDown,
@@ -25,7 +18,6 @@ import {
   useChangelog,
   writeLastSeenVersion,
 } from '@/hooks/useChangelog';
-import { AuthContext } from '@/context/AuthContextValue';
 import { requestStartTour } from '@/components/tours/tourState';
 import { useHasLiveTour } from '@/components/tours/useTourOffers';
 import { tourAttr } from '@/config/tourAnchors';
@@ -271,9 +263,6 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
   const { t } = useTranslation();
   const { entries, loading, error, latestVersion, entriesSinceCurrent } =
     useChangelog();
-  // Read directly: the update banner can mount this outside AuthProvider.
-  const liveTours =
-    useContext(AuthContext)?.canAccessFeature('gl-live-tours') ?? false;
   const showTour = (setId: string) => {
     onClose();
     requestStartTour({ setId });
@@ -387,11 +376,7 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
         {!loading &&
           !error &&
           visibleEntries.map((entry) => (
-            <Entry
-              key={entry.version}
-              entry={entry}
-              onShowTour={liveTours ? showTour : undefined}
-            />
+            <Entry key={entry.version} entry={entry} onShowTour={showTour} />
           ))}
       </div>
     </Modal>

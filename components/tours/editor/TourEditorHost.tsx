@@ -28,7 +28,7 @@ export const TourEditorHost: React.FC = () => {
   const { t } = useTranslation();
   const { isAdmin, canAccessFeature } = useAuth();
   const { addToast } = useDashboardActions();
-  const allowed = isAdmin === true && canAccessFeature('gl-live-tours');
+  const allowed = isAdmin === true;
   const opening = useRef(false);
 
   const onEdit = useEffectEvent((e: Event) => {

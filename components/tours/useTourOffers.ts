@@ -48,10 +48,6 @@ export const guideSetIds = (
       : []
   );
 
-/** The gate, read without useAuth so settings surfaces still render outside AuthProvider. */
-export const useLiveToursEnabled = (): boolean =>
-  useContext(AuthContext)?.canAccessFeature('gl-live-tours') ?? false;
-
 /** The teacher's widget gate, read without useAuth for the same reason. */
 export const useCanUseWidget = ():
   ((type: WidgetType) => boolean) | undefined =>
@@ -62,7 +58,7 @@ export const useLiveTourSet = (
   items: readonly HelpResourceItem[]
 ): string | null => useFirstLiveSet(guideSetIds(items));
 
-/** Whether this building set has a live tour, once known; false without the flag. */
+/** Whether this building set has a live tour, once known. */
 export const useHasLiveTour = (setId: string | undefined): boolean =>
   useFirstLiveSet(setId ? [setId] : []) !== null;
 
@@ -85,12 +81,11 @@ export function useFirstRunnableTour(
 
 const EMPTY_IDS: ReadonlySet<string> = new Set();
 
-/** The subset of these building sets with a runnable published tour; empty while disabled. */
+/** The subset of these building sets with a runnable published tour. */
 export function useRunnableTourIds(
-  ids: readonly string[],
-  enabled: boolean
+  ids: readonly string[]
 ): ReadonlySet<string> {
-  const idsKey = enabled ? [...ids].sort().join(',') : '';
+  const idsKey = [...ids].sort().join(',');
   const subscribe = useCallback(
     (onChange: () => void) =>
       idsKey ? watchTours(idsKey.split(','), onChange) : () => undefined,
@@ -105,7 +100,7 @@ export function useRunnableTourIds(
 }
 
 function useFirstLiveSet(ids: readonly string[]): string | null {
-  return useFirstRunnableTour(ids, useLiveToursEnabled());
+  return useFirstRunnableTour(ids, true);
 }
 
 const offeredKey = (type: WidgetType) => `spart_tour_offered_${type}`;
