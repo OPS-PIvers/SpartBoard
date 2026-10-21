@@ -11720,6 +11720,35 @@ export const TOUR_ANCHORS = {
     label: 'Class to switch to in Classes',
     perField: true,
   },
+  'classes-widget.editor-back': {
+    label: 'Back button in the Classes roster editor',
+    perWidgetType: true,
+  },
+  'classes-widget.editor-name': {
+    label: 'Class name box in the Classes roster editor',
+    perWidgetType: true,
+  },
+  'classes-widget.editor-save': {
+    label: 'Save button in the Classes roster editor',
+    perWidgetType: true,
+  },
+  'classes-widget.editor-add-last-name': {
+    label: 'Add Last Name column button in the Classes roster editor',
+    perWidgetType: true,
+  },
+  'classes-widget.editor-add-pin': {
+    label: 'Add Quiz PIN column button in the Classes roster editor',
+    perWidgetType: true,
+  },
+  'classes-widget.editor-remove-last-name': {
+    label: 'Remove Last Name column button in the Classes roster editor',
+    perWidgetType: true,
+    destructive: true,
+  },
+  'classes-widget.editor-hide-pin': {
+    label: 'Hide Quiz PIN column button in the Classes roster editor',
+    perWidgetType: true,
+  },
   'url.open-link': {
     label: 'Link button in Links',
     perField: true,
