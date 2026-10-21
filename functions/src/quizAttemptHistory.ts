@@ -4,6 +4,7 @@ import * as logger from 'firebase-functions/logger';
 import './functionsInit';
 import { loadSessionContext, stableStringify } from './gradebook/gradeIndex';
 import { mergeAttempts } from './gradebook/gradeRowMath';
+import { isGlobalFeatureGranted } from './quizMediaArchive';
 import type { IndexAttempt } from './gradebook/types';
 
 type Firestore = admin.firestore.Firestore;
@@ -327,10 +328,33 @@ export async function applyAttemptGradeWrite(
   }
 }
 
+/** Whether the session's teacher has attempt history, which is what lets them see grades moved off the live doc. */
+async function teacherHasAttemptHistory(
+  db: Firestore,
+  sessionId: string
+): Promise<boolean> {
+  const teacherUid: unknown = (
+    await db.collection('quiz_sessions').doc(sessionId).get()
+  ).data()?.teacherUid;
+  if (typeof teacherUid !== 'string' || !teacherUid) return false;
+  let email: string | null = null;
+  try {
+    const user = await admin.auth().getUser(teacherUid);
+    email = user.emailVerified ? (user.email ?? null) : null;
+  } catch {
+    email = null;
+  }
+  return isGlobalFeatureGranted(db, 'quiz-attempt-history', email, teacherUid);
+}
+
 /** Response trigger body; failures are logged so the grade index step still runs. */
 export async function applyAttemptWrite(
   db: Firestore,
-  w: AttemptWrite
+  w: AttemptWrite,
+  historyOn: (
+    db: Firestore,
+    sessionId: string
+  ) => Promise<boolean> = teacherHasAttemptHistory
 ): Promise<void> {
   const action = attemptActionFor(w);
   try {
@@ -341,9 +365,11 @@ export async function applyAttemptWrite(
         await saveAttempt(db, w, action.data, action.n, false);
         return;
       case 'retake':
-        // Grades leave the live doc only once a copy holds them.
+        // Grades leave the live doc only once a copy holds them and the teacher can see that copy.
         if (
-          (await saveAttempt(db, w, action.data, action.n, true)) !== 'skipped'
+          (await saveAttempt(db, w, action.data, action.n, true)) !==
+            'skipped' &&
+          (await historyOn(db, w.sessionId))
         )
           await clearCarriedGrades(db, w, action.data);
         return;
