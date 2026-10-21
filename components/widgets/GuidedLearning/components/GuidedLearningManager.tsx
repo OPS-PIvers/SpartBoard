@@ -75,10 +75,7 @@ import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { buildMoveToFolderAction } from '@/components/common/library/folderMenuAction';
 import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
-import {
-  useFolderLibraryView,
-  useLibraryFolderViewEnabled,
-} from '@/components/common/library/useFolderLibraryView';
+import { useFolderLibraryView } from '@/components/common/library/useFolderLibraryView';
 import { useSourceFolders } from '@/components/common/library/useSourceFolders';
 import { isSourceFolderId } from '@/components/common/library/sourceFolders';
 import { latestAssignedAt } from '@/components/common/library/folderView';
@@ -88,7 +85,6 @@ import { BulkActionBar } from '@/components/common/library/BulkActionBar';
 import { LibraryPreviewPane } from '@/components/common/library/LibraryPreviewPane';
 import {
   countItemsByFolder,
-  filterSourcedEntriesByFolder,
   ROOT_FOLDER_COUNT_KEY,
 } from '@/components/common/library/folderFilters';
 import { useFolders } from '@/hooks/useFolders';
@@ -576,7 +572,6 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     /** Set for a building set, which is filed by placement instead of moved. */
     sourceKey?: string;
   } | null>(null);
-  const folderViewEnabled = useLibraryFolderViewEnabled();
   const buildingSourceKeys = useMemo(
     () =>
       buildingSets
@@ -588,7 +583,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const sourceFolders = useSourceFolders({
     userId,
     widget: 'guided_learning',
-    enabled: folderViewEnabled,
+    enabled: true,
     sourceKeys: buildingSourceKeys,
     ownFolders: folderState.folders,
   });
@@ -662,7 +657,6 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       getFolderId: entryFolderId,
       getRecentAt: entryRecentAt,
       itemNoun: SET_NOUN,
-      legacyFilter: filterSourcedEntriesByFolder,
     },
     initialSort: LIBRARY_INITIAL_SORT,
     // Phase 2 redesign: the library is list-only (monitor row idiom).
@@ -830,9 +824,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   // would be blocked (e.g. sort !== 'manual'). Drops on a folder tile move the
   // item; drops on another card reorder (only honored when manual reorder is
   // active — see `handleReorderDrop` below).
-  const enableCardDrag =
-    (Boolean(userId) || reorderDragActive) &&
-    (!selectionMode || view.folderView != null);
+  const enableCardDrag = Boolean(userId) || reorderDragActive;
 
   const handleReorderDrop = useCallback(
     (orderedIds: string[]) => {
@@ -1096,7 +1088,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
           )
         );
       }
-      if (folderViewEnabled && !entry.helpCenter) {
+      if (!entry.helpCenter) {
         secondary.push(
           buildMoveToFolderAction({
             onOpenPicker: () =>
@@ -1217,9 +1209,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
             : undefined
         }
         sortable={
-          (isPersonal || (folderViewEnabled && !entry.helpCenter)) &&
-          enableCardDrag &&
-          !selectionMode
+          (isPersonal || !entry.helpCenter) && enableCardDrag && !selectionMode
         }
         viewMode={view.state.viewMode}
         meta={entry}

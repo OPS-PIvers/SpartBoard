@@ -3739,6 +3739,7 @@ describe('index barrel — deployed export set', () => {
     // Org-admin media review & compliance delete
     'listQuizMediaForOrgAdmin',
     'lookupSpeakReferencesV1',
+    'listSpeakWordsToCheckV1',
     'deleteQuizMediaForOrgAdmin',
     // Admin analytics endpoint
     'adminAnalytics',

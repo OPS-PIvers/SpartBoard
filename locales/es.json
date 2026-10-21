@@ -3664,7 +3664,20 @@
         "unclearConfidence": "Repetir cuando no se entiende",
         "unclearConfidenceHelp": "Un valor más alto pide a los estudiantes repetir la palabra más a menudo cuando el sonido no se entiende bien.",
         "save": "Guardar",
-        "saved": "Guardado"
+        "saved": "Guardado",
+        "wordsToCheck": {
+          "title": "Palabras para revisar",
+          "intro": "Palabras que la mayoría de los estudiantes fallan en Speak, en todas las tareas. Escucha y di cada una para revisar la calificación.",
+          "rule": "Una palabra aparece cuando 5 o más estudiantes la intentaron y al menos el 60% la falló en su última ronda.",
+          "refresh": "Actualizar",
+          "empty": "Todavía no hay palabras para revisar.",
+          "failed": "No se pudieron cargar las palabras. Actualiza para cargarlas de nuevo.",
+          "missed": "{{missed}} de {{students}} fallaron",
+          "assignments_one": "{{count}} tarea",
+          "assignments_other": "{{count}} tareas",
+          "sayIt": "Decirla",
+          "truncated": "Solo se revisaron las 1000 tareas de Speak más recientes."
+        }
       }
     }
   },

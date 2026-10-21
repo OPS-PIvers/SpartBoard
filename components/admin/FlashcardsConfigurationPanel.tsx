@@ -2,6 +2,7 @@ import React from 'react';
 import { Layers } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { FlashcardsSpeakConfigurationPanel } from './FlashcardsSpeakConfigurationPanel';
+import { FlashcardsSpeakWordsToCheck } from './FlashcardsSpeakWordsToCheck';
 
 interface FlashcardsConfigurationPanelProps {
   config: Record<string, unknown>;
@@ -31,7 +32,10 @@ export const FlashcardsConfigurationPanel: React.FC<
         </div>
       </section>
       {canAccessFeature('flashcards-speak') && (
-        <FlashcardsSpeakConfigurationPanel />
+        <>
+          <FlashcardsSpeakConfigurationPanel />
+          <FlashcardsSpeakWordsToCheck />
+        </>
       )}
     </div>
   );

@@ -1,7 +1,6 @@
-import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { AuthContext } from '@/context/AuthContextValue';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { LibraryFolder } from '@/types';
-import { filterByFolder, type HasFolderId } from './folderFilters';
+import type { HasFolderId } from './folderFilters';
 import {
   ROOT_LOCATION,
   buildFolderIndex,
@@ -26,16 +25,6 @@ import {
 import type { UseLibraryViewOptions, UseLibraryViewResult } from './types';
 import { useLibraryView } from './useLibraryView';
 
-export const LIBRARY_FOLDER_VIEW_FEATURE = 'library-folder-view';
-
-/** The `library-folder-view` preview flag, read without requiring an AuthProvider. */
-export function useLibraryFolderViewEnabled(override?: boolean): boolean {
-  const auth = useContext(AuthContext);
-  return (
-    override ?? auth?.canAccessFeature(LIBRARY_FOLDER_VIEW_FEATURE) ?? false
-  );
-}
-
 const OUTSIDE_FOLDER_REASON = 'Open a folder to reorder.';
 
 export interface FolderViewOptions<TItem> {
@@ -50,22 +39,20 @@ export interface FolderViewOptions<TItem> {
   /** Defaults to `updatedAt ?? createdAt`. Pass the later of that and the last assign time. */
   getRecentAt?: (item: TItem) => number | null | undefined;
   itemNoun: ItemNoun;
-  /** Legacy (flag off) folder filter; defaults to `filterByFolder`. */
-  legacyFilter?: (items: TItem[], selectedFolderId: string | null) => TItem[];
   /** Folders of items listed outside `items` (e.g. teammates' banks), counted in folder totals. */
   extraItemFolderIds?: readonly (string | null)[];
   /** Folder of an item listed outside `items`, for drag moves and Undo. */
   extraFolderIdOf?: (itemId: string) => string | null;
-  /** Overrides the feature flag (tests and fixtures). */
+  /** False when a host library owns folder navigation (defaults to true). */
   enabled?: boolean;
 }
 
 export interface UseFolderLibraryViewResult<
   TItem,
 > extends UseLibraryViewResult<TItem> {
-  /** Null while the flag is off: callers render today's filter view. */
+  /** Null when `enabled` is false. */
   folderView: LibraryFolderViewModel | null;
-  /** Legacy selection, or the open folder in the folder view (null at the top level). */
+  /** The open folder (null at the top level). */
   selectedFolderId: string | null;
   onSelectFolder: (folderId: string | null) => void;
   /** Back to the top level without saving it as the last folder; safe to call during render. */
@@ -100,14 +87,9 @@ export function useFolderLibraryView<TItem>(
     getRecentAt = defaultRecentAt,
     extraItemFolderIds,
     extraFolderIdOf,
-    legacyFilter = filterByFolder as (
-      list: TItem[],
-      selected: string | null
-    ) => TItem[],
   } = fv;
-  const enabled = useLibraryFolderViewEnabled(fv.enabled);
+  const enabled = fv.enabled ?? true;
 
-  const [legacySelected, setLegacySelected] = useState<string | null>(null);
   const [location, setLocation] = useState<LibraryLocation>(ROOT_LOCATION);
   const [searchScope, setSearchScope] = useState<'folder' | 'all'>('folder');
   const [pendingRestore, setPendingRestore] = useState<string | null>(null);
@@ -121,7 +103,6 @@ export function useFolderLibraryView<TItem>(
   const [prevUserId, setPrevUserId] = useState(userId);
   if (prevUserId !== userId) {
     setPrevUserId(userId);
-    setLegacySelected(null);
     setLocation(ROOT_LOCATION);
     setPendingRestore(null);
     setNavigated(false);
@@ -160,13 +141,6 @@ export function useFolderLibraryView<TItem>(
   ) {
     setLocation(ROOT_LOCATION);
   }
-  if (
-    !foldersLoading &&
-    legacySelected != null &&
-    !index.byId.has(legacySelected)
-  ) {
-    setLegacySelected(null);
-  }
 
   const navigate = useCallback(
     (next: LibraryLocation) => {
@@ -202,20 +176,11 @@ export function useFolderLibraryView<TItem>(
   );
 
   const pool = useMemo(() => {
-    if (!enabled) return legacyFilter(items, legacySelected);
+    if (!enabled) return items;
     if (recentRank) return items.filter((item) => recentRank.has(getId(item)));
     if (subtree) return items.filter((item) => subtree.has(itemFolderId(item)));
     return items;
-  }, [
-    enabled,
-    legacyFilter,
-    items,
-    legacySelected,
-    recentRank,
-    subtree,
-    getId,
-    itemFolderId,
-  ]);
+  }, [enabled, items, recentRank, subtree, getId, itemFolderId]);
 
   const view = useLibraryView<TItem>({ ...viewOptions, items: pool });
   const searchActive = view.state.search.trim() !== '';
@@ -328,17 +293,15 @@ export function useFolderLibraryView<TItem>(
   ]);
 
   const resetToTopLevel = useCallback(() => {
-    setLegacySelected(null);
     setLocation(ROOT_LOCATION);
   }, []);
 
   const outsideFolder = enabled && location.kind !== 'folder';
   const onSelectFolder = useCallback(
     (folderId: string | null) => {
-      if (enabled) navigate({ kind: 'folder', folderId });
-      else setLegacySelected(folderId);
+      navigate({ kind: 'folder', folderId });
     },
-    [enabled, navigate]
+    [navigate]
   );
 
   return {
@@ -350,7 +313,7 @@ export function useFolderLibraryView<TItem>(
       (outsideFolder ? OUTSIDE_FOLDER_REASON : undefined),
     prepareReorder: outsideFolder ? () => false : view.prepareReorder,
     folderView,
-    selectedFolderId: enabled ? openFolderId : legacySelected,
+    selectedFolderId: openFolderId,
     onSelectFolder,
     resetToTopLevel,
   };

@@ -20,24 +20,6 @@ export interface HasFolderId {
   folderId?: string | null;
 }
 
-/** Minimum shape for GuidedLearning-style entries that mix sources. */
-export interface HasFolderIdAndSource extends HasFolderId {
-  source: 'personal' | 'building';
-}
-
-/**
- * Returns only the items whose `folderId` matches `selectedFolderId`. When
- * `selectedFolderId` is `null` the caller hasn't picked a folder, so the full
- * input list is returned unchanged.
- */
-export function filterByFolder<T extends HasFolderId>(
-  items: T[],
-  selectedFolderId: string | null
-): T[] {
-  if (selectedFolderId === null) return items;
-  return items.filter((item) => (item.folderId ?? null) === selectedFolderId);
-}
-
 /**
  * Buckets `items` by `folderId`, using `ROOT_FOLDER_COUNT_KEY` for items
  * without one. The returned shape matches what `FolderSidebar` expects for its
@@ -52,21 +34,4 @@ export function countItemsByFolder<T extends HasFolderId>(
     counts[key] = (counts[key] ?? 0) + 1;
   }
   return counts;
-}
-
-/**
- * GuidedLearning-style filter: folder selection only narrows the personal
- * subset. Building entries are always retained so the toolbar's Source filter
- * can still show a non-empty list when the teacher switches to "Building".
- */
-export function filterSourcedEntriesByFolder<T extends HasFolderIdAndSource>(
-  entries: T[],
-  selectedFolderId: string | null
-): T[] {
-  if (selectedFolderId === null) return entries;
-  return entries.filter(
-    (e) =>
-      e.source === 'building' ||
-      (e.source === 'personal' && (e.folderId ?? null) === selectedFolderId)
-  );
 }
