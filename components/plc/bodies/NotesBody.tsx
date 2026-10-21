@@ -163,7 +163,6 @@ const NotesBodyInner: React.FC<
   const { showConfirm } = useDialog();
   const { addToast } = useDashboard();
   const { user, canAccessFeature } = useAuth();
-  const sidePanels = canAccessFeature('plc-notes-side-panels');
   const docsToolbar = canAccessFeature('plc-docs-toolbar');
   // One side panel is open at a time; opening one folds the other.
   const [openPanel, setOpenPanel] = useState<'list' | 'actions'>('list');
@@ -917,7 +916,7 @@ const NotesBodyInner: React.FC<
       members={members}
       canEdit={!editorReadOnly}
       currentUid={currentUid}
-      panel={sidePanels}
+      panel
       onChange={(next) => {
         if (collab) {
           crdt.setActionItems(next);
@@ -956,7 +955,7 @@ const NotesBodyInner: React.FC<
       })}
     </p>
   );
-  const listOpen = !sidePanels || openPanel === 'list';
+  const listOpen = openPanel === 'list';
 
   const newMenuItems = [
     {
@@ -985,39 +984,25 @@ const NotesBodyInner: React.FC<
     },
   ] as const;
   const notesList = (
-    <aside
-      className={`flex flex-col overflow-hidden ${
-        sidePanels
-          ? 'w-[260px] shrink-0 border-r border-slate-200'
-          : 'bg-white border border-slate-200 rounded-2xl'
-      }`}
-    >
-      <div
-        className={`flex items-center justify-between px-3 border-b gap-1 ${
-          sidePanels
-            ? 'h-14 shrink-0 border-slate-200'
-            : 'py-2.5 border-slate-100'
-        }`}
-      >
+    <aside className="flex flex-col overflow-hidden w-[260px] shrink-0 border-r border-slate-200">
+      <div className="flex items-center justify-between px-3 border-b gap-1 h-14 shrink-0 border-slate-200">
         <h3 className="text-xxs font-bold uppercase tracking-widest text-slate-500">
           {t('plcDashboard.notes.heading', { defaultValue: 'Notes' })}
         </h3>
-        {sidePanels && (
-          <button
-            {...tourAttr('plc-notes.header-show-actions')}
-            type="button"
-            onClick={() => setOpenPanel('actions')}
-            aria-label={t('plcDashboard.notes.sidePanels.showActionItems', {
-              defaultValue: 'Show action items',
-            })}
-            title={t('plcDashboard.notes.sidePanels.showActionItems', {
-              defaultValue: 'Show action items',
-            })}
-            className="ml-auto p-1 text-slate-400 hover:text-brand-blue-primary hover:bg-slate-100 rounded-md transition-colors"
-          >
-            <PanelLeftClose className="w-4 h-4" />
-          </button>
-        )}
+        <button
+          {...tourAttr('plc-notes.header-show-actions')}
+          type="button"
+          onClick={() => setOpenPanel('actions')}
+          aria-label={t('plcDashboard.notes.sidePanels.showActionItems', {
+            defaultValue: 'Show action items',
+          })}
+          title={t('plcDashboard.notes.sidePanels.showActionItems', {
+            defaultValue: 'Show action items',
+          })}
+          className="ml-auto p-1 text-slate-400 hover:text-brand-blue-primary hover:bg-slate-100 rounded-md transition-colors"
+        >
+          <PanelLeftClose className="w-4 h-4" />
+        </button>
         {canEdit && (
           <div ref={newMenuRef} className="relative">
             <button
@@ -1192,22 +1177,12 @@ const NotesBodyInner: React.FC<
   );
 
   const editor = (
-    <main
-      className={`flex flex-col overflow-hidden ${
-        sidePanels
-          ? 'flex-1 min-w-0'
-          : 'bg-white border border-slate-200 rounded-2xl'
-      }`}
-    >
+    <main className="flex flex-col overflow-hidden flex-1 min-w-0">
       {selectedDoc ? (
         <>
           <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-b border-slate-100">
             <FileText className="w-4 h-4 text-brand-blue-primary shrink-0" />
-            <h3
-              className={`min-w-0 truncate text-base font-bold text-slate-900 ${
-                sidePanels ? '' : 'flex-1'
-              }`}
-            >
+            <h3 className="min-w-0 truncate text-base font-bold text-slate-900">
               {selectedDoc.title}
             </h3>
             <a
@@ -1222,7 +1197,7 @@ const NotesBodyInner: React.FC<
                 defaultValue: 'Open in Docs',
               })}
             </a>
-            {sidePanels && <span className="flex-1" />}
+            <span className="flex-1" />
             {canEdit && (
               <button
                 {...tourAttr('plc-notes.doc-delete')}
@@ -1288,14 +1263,11 @@ const NotesBodyInner: React.FC<
               placeholder={t('plcDashboard.notes.titlePlaceholder', {
                 defaultValue: 'Note title',
               })}
-              className={`min-w-0 bg-transparent border-0 focus:ring-0 focus:outline-none text-base font-bold text-slate-900 placeholder:text-slate-300 ${
-                sidePanels ? 'p-0 max-w-full [field-sizing:content]' : 'flex-1'
-              }`}
+              className="min-w-0 bg-transparent border-0 focus:ring-0 focus:outline-none text-base font-bold text-slate-900 placeholder:text-slate-300 p-0 max-w-full [field-sizing:content]"
             />
-            {sidePanels && noteOpenInDocs}
-            {sidePanels && <span className="flex-1" />}
+            {noteOpenInDocs}
+            <span className="flex-1" />
             {!canEdit && recordControl}
-            {!sidePanels && noteOpenInDocs}
             {canEdit && (
               <button
                 {...tourAttr('plc-notes.note-delete')}
@@ -1329,7 +1301,6 @@ const NotesBodyInner: React.FC<
               members={members}
               live={blockLive}
             />
-            {!sidePanels && noteActionItemsList}
             <NoteRecordings
               plcId={plc.id}
               noteTitle={editorTitle}
@@ -1426,16 +1397,6 @@ const NotesBodyInner: React.FC<
       }}
     />
   );
-
-  if (!sidePanels) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-4 h-full min-h-[400px]">
-        {notesList}
-        {editor}
-        {addDocModal}
-      </div>
-    );
-  }
 
   const openItemCount = (
     selectedDoc ? selectedDocActionItems : selectedNote ? editorActionItems : []

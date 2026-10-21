@@ -10126,8 +10126,6 @@ export type GlobalFeature =
   | 'standards-from-question-text'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
   | 'quiz-results-tools'
-  /** Guided Learning Studio: select, resize, restyle and edit callouts on the canvas. */
-  | 'gl-callout-editing'
   /** Per-student "Slide N of M · active X ago" on Guided Learning results and the Assignments hub. */
   | 'gl-student-progress'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
@@ -10172,8 +10170,6 @@ export type GlobalFeature =
   | 'plc-meeting-ai-notes'
   /** Sparty the mascot in tours, first-time setup and the Help Center (docs/plans/shipped/SPARTY.md). */
   | 'sparty'
-  /** Group Notes & Docs: notes list and Action items as swapping side panels, with action items on linked Google Docs. */
-  | 'plc-notes-side-panels'
   /** Group Notes & Docs: embedded Google Docs keep Google's menus and toolbar. */
   | 'plc-docs-toolbar'
   /** Team action items sync to the assignee's Google Tasks (docs/plans/GOOGLE_TASKS_ACTION_ITEMS.md). */

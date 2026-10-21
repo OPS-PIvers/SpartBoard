@@ -81,7 +81,6 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
     closePolygon,
     setCalloutFocused,
     calloutSelected,
-    calloutEditing,
     editingStepId,
     setEditingStepId,
     linkPending,
@@ -168,7 +167,6 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
           onCalloutFocus={setCalloutFocused}
           onEditCallout={setEditingStepId}
           editing={editingStepId !== null}
-          calloutEditing={calloutEditing}
           calloutSelected={calloutSelected}
           onDeleteStep={onDeleteStep}
           beginGesture={beginGesture}
@@ -194,7 +192,6 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
       addStepAt,
       setCalloutFocused,
       calloutSelected,
-      calloutEditing,
       onDeleteStep,
       setEditingStepId,
       editingStepId,
@@ -212,11 +209,10 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
           onChange={updateStep}
           onDone={() => setEditingStepId(null)}
           holdOpen={linkPending}
-          editKeys={calloutEditing}
         />
       ) : null;
     },
-    [steps, updateStep, setEditingStepId, linkPending, calloutEditing]
+    [steps, updateStep, setEditingStepId, linkPending]
   );
 
   const redactPreview = useMemo(

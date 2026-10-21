@@ -302,7 +302,7 @@ describe('Studio edit layer', () => {
     expect(box?.wPct).toBeCloseTo(100 / 7.2);
     expect(box?.hPct).toBeCloseTo(60 / 5.2);
     expect(stepById('rect-1').calloutPin).toBeUndefined();
-    fireEvent.click(screen.getByRole('button', { name: 'Reset to auto' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset position' }));
     expect(stepById('rect-1').calloutBox).toBeUndefined();
   });
 

@@ -26,7 +26,6 @@ import {
   Link2,
   ListChecks,
   Mic,
-  MousePointerClick,
   Music2,
   Printer,
   RefreshCw,
@@ -672,33 +671,11 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Studio callout handles, toolbar and styling. Admin-only until Paul has edited sets with it in prod.
-  'gl-callout-editing': {
-    label: 'Guided Learning callout editing',
-    icon: MousePointerClick,
-    description: 'Resize and restyle Studio callouts.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Per-student slide position on GL results and the hub. Admin-only until Paul has seen it on real class data in prod.
   'gl-student-progress': {
     label: 'Guided Learning student progress',
     icon: Route,
     description: "Shows each student's slide and last activity.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'plc-notes-side-panels': {
-    label: 'Notes and Docs side panels',
-    icon: StickyNote,
-    description:
-      'Action items beside group notes and linked Google Docs; the notes list folds away.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
