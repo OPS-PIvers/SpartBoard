@@ -3676,7 +3676,7 @@
           "assignments_one": "{{count}} tarea",
           "assignments_other": "{{count}} tareas",
           "sayIt": "Decirla",
-          "truncated": "Solo se revisaron las primeras 1000 tareas de Speak."
+          "truncated": "Solo se revisaron las 1000 tareas de Speak más recientes."
         }
       }
     }

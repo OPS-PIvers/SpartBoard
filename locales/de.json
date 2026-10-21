@@ -3676,7 +3676,7 @@
           "assignments_one": "{{count}} Aufgabe",
           "assignments_other": "{{count}} Aufgaben",
           "sayIt": "Sprechen",
-          "truncated": "Nur die ersten 1.000 Speak-Aufgaben wurden geprüft."
+          "truncated": "Nur die 1.000 neuesten Speak-Aufgaben wurden geprüft."
         }
       }
     }

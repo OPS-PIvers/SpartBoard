@@ -53,7 +53,9 @@ const callList: LoadSpeakWordsToCheck = async () =>
   (
     await httpsCallable<Record<string, never>, SpeakWordsToCheckResult>(
       functions,
-      'listSpeakWordsToCheckV1'
+      'listSpeakWordsToCheckV1',
+      // The server may take its full 120 s on a large district.
+      { timeout: 125_000 }
     )({})
   ).data;
 
@@ -177,12 +179,18 @@ export const FlashcardsSpeakWordsToCheck: React.FC<{
         </button>
       </div>
 
+      {failed && result && (
+        <p className="text-sm font-medium text-brand-red-primary">
+          {t('flashcards.speak.admin.wordsToCheck.failed')}
+        </p>
+      )}
+
       {loading && !result ? (
         <div className="flex items-center gap-2 text-sm text-slate-500">
           <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
           {t('common.loading')}
         </div>
-      ) : failed ? (
+      ) : failed && !result ? (
         <p className="text-sm font-medium text-brand-red-primary">
           {t('flashcards.speak.admin.wordsToCheck.failed')}
         </p>

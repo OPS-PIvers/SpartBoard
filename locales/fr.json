@@ -3676,7 +3676,7 @@
           "assignments_one": "{{count}} devoir",
           "assignments_other": "{{count}} devoirs",
           "sayIt": "Le dire",
-          "truncated": "Seuls les 1 000 premiers devoirs Speak ont été vérifiés."
+          "truncated": "Seuls les 1 000 devoirs Speak les plus récents ont été vérifiés."
         }
       }
     }

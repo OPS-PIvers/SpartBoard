@@ -74,6 +74,28 @@ export const speakLanguageOfTerm = (
     : null;
 };
 
+const SPEAK_DIALECTS: Record<SpeakLanguage, readonly string[]> = {
+  es: ['es-419', 'es-ES'],
+  de: ['de-DE'],
+  en: ['en-US'],
+};
+
+/** Keeps a stored stamp playable: known dialects (or the language's first) and a groups map. */
+export const playableSpeakSettings = (
+  raw: Record<string, unknown>,
+  language: SpeakLanguage
+): Record<string, unknown> => {
+  const allowed = SPEAK_DIALECTS[language];
+  const dialects = (Array.isArray(raw.dialects) ? raw.dialects : []).filter(
+    (d): d is string => typeof d === 'string' && allowed.includes(d)
+  );
+  return {
+    ...raw,
+    dialects: dialects.length > 0 ? dialects : [allowed[0]],
+    groups: isRecord(raw.groups) ? raw.groups : {},
+  };
+};
+
 const wordKey = (language: SpeakLanguage, term: string): string =>
   `${language}:${term.normalize('NFC').trim().toLocaleLowerCase(language)}`;
 
@@ -108,7 +130,7 @@ interface WordTally {
   best: { session: SpeakCheckSession; card: SpeakCheckCard; students: number };
 }
 
-/** Pools each student's last round per word; a student in two assignments counts once, by their latest. */
+/** Pools each student's last round per word; a student in two assignments counts once, by the one they used last. */
 export function poolSpeakWordsToCheck(
   sessions: readonly SpeakCheckSession[]
 ): SpeakWordToCheck[] {
@@ -167,7 +189,7 @@ export function poolSpeakWordsToCheck(
       card,
       termLanguage: session.termLanguage,
       definitionLanguage: session.definitionLanguage,
-      settings: session.speak,
+      settings: playableSpeakSettings(session.speak, tally.language),
     });
   }
   return words
@@ -183,10 +205,11 @@ export function poolSpeakWordsToCheck(
 async function loadSpeakSessions(
   db: admin.firestore.Firestore
 ): Promise<{ sessions: SpeakCheckSession[]; truncated: boolean }> {
-  // Every stamped session carries speak.locked; sessions without a stamp never show Speak.
+  // Every stamped session carries speak.locked; past the cap, the newest assignments win.
   const snap = await db
     .collection('flashcard_sessions')
     .where('speak.locked', 'in', [true, false])
+    .orderBy('createdAt', 'desc')
     .limit(MAX_SPEAK_SESSIONS)
     .get();
   const sessions: SpeakCheckSession[] = [];

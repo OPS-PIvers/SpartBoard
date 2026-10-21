@@ -4816,7 +4816,7 @@
           "assignments_one": "{{count}} assignment",
           "assignments_other": "{{count}} assignments",
           "sayIt": "Say it",
-          "truncated": "Only the first 1,000 Speak assignments were checked."
+          "truncated": "Only the 1,000 newest Speak assignments were checked."
         }
       }
     }

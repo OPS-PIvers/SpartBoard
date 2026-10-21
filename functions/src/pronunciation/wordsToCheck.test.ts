@@ -65,16 +65,18 @@ vi.mock('firebase-admin', () => {
         where: (...args: unknown[]) => {
           state.sessionQuery = args;
           return {
-            limit: () => ({
-              get: () =>
-                Promise.resolve({
-                  size: state.sessions.length,
-                  docs: state.sessions.map((s) => ({
-                    id: s.id,
-                    data: () => s.data,
-                    ref: docRef(s),
-                  })),
-                }),
+            orderBy: () => ({
+              limit: () => ({
+                get: () =>
+                  Promise.resolve({
+                    size: state.sessions.length,
+                    docs: state.sessions.map((s) => ({
+                      id: s.id,
+                      data: () => s.data,
+                      ref: docRef(s),
+                    })),
+                  }),
+              }),
             }),
           };
         },
@@ -160,6 +162,17 @@ describe('poolSpeakWordsToCheck', () => {
     expect(words).toHaveLength(1);
     expect(words[0]).toMatchObject({ students: 5, missed: 4, assignments: 2 });
     expect(words[0].card.term).toBe('perro');
+  });
+
+  it('keeps a stored stamp playable', () => {
+    const odd = {
+      ...session('a', ['miss', 'miss', 'miss', 'miss', 'miss']),
+      speak: { dialects: ['xx', 7], groups: 'bad', locked: true },
+    };
+    expect(poolSpeakWordsToCheck([odd])[0].settings).toMatchObject({
+      dialects: ['es-419'],
+      groups: {},
+    });
   });
 
   it('counts a student in two assignments once, by their latest round', () => {
