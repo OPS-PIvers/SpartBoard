@@ -87,6 +87,16 @@ describe('PublishedScoreReview attempt picker', () => {
     });
   });
 
+  it('hides the correct tally on an attempt shown as a score only', async () => {
+    renderReview(
+      () => Promise.resolve({ attempts: [{ n: 1, submittedAt: 1, score: 0 }] }),
+      2
+    );
+    expect(screen.getByText('1 of 1 fully correct')).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: '1 · 0%' }));
+    expect(screen.queryByText(/fully correct/)).toBeNull();
+  });
+
   it('does not ask for attempts after a single attempt', () => {
     const loader = vi.fn<MyQuizAttemptsLoader>();
     renderReview(loader, 1);

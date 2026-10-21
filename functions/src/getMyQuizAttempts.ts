@@ -97,12 +97,23 @@ export async function handleGetMyQuizAttempts(
   const teacherUid =
     typeof session.teacherUid === 'string' ? session.teacherUid : '';
   if (!teacherUid) return none;
-  const { visibility } = resolveServerResultsVisibility(
+  // Mid-retake the earlier attempts stay hidden, as the client's results screen does.
+  if (response.status !== 'completed' || response.resultsLockedOut === true)
+    return none;
+  const { visibility: resolved, source } = resolveServerResultsVisibility(
     session,
     response,
     deps.now()
   );
-  if (visibility === 'none' || response.resultsLockedOut === true) return none;
+  // Score on submit shows the score before any publish, as utils/quizResultsVisibility.ts does.
+  const visibility =
+    resolved === 'none' &&
+    session.showScoreOnSubmit === true &&
+    typeof response.score === 'number' &&
+    source === 'class'
+      ? 'score-only'
+      : resolved;
+  if (visibility === 'none') return none;
   const granted = await isGlobalFeatureGranted(
     deps.db,
     ATTEMPT_HISTORY_FEATURE,

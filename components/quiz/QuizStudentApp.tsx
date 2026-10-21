@@ -5699,7 +5699,7 @@ export const PublishedScoreReview: React.FC<{
                   written-response questions where "fully correct" is a
                   category error. Hide the line on essay-only quizzes; on
                   mixed quizzes it counts only the auto-graded subset. */}
-              {autoGradedCount > 0 && (
+              {autoGradedCount > 0 && (!picked || picked.answers) && (
                 <p className={`mt-2 text-sm ${subtleText}`}>
                   {correctCount} of {autoGradedCount} fully correct
                 </p>

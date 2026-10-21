@@ -158,6 +158,27 @@ describe('handleGetMyQuizAttempts', () => {
     ).toEqual([]);
   });
 
+  it('hides earlier attempts during a retake', async () => {
+    const { attempts } = await call(
+      seed({ [RESPONSE]: { studentUid: 'u1', status: 'in-progress' } })
+    );
+    expect(attempts).toEqual([]);
+  });
+
+  it('shows scores only for a score-on-submit quiz with no publish', async () => {
+    const { attempts } = await call(
+      seed({
+        'quiz_sessions/qs1': session({
+          scoreVisibility: 'none',
+          showScoreOnSubmit: true,
+        }),
+        [RESPONSE]: { studentUid: 'u1', status: 'completed', score: 90 },
+      })
+    );
+    expect(attempts.map((a) => a.score)).toEqual([50, 100]);
+    expect(attempts[0].answers).toBeUndefined();
+  });
+
   it('follows a student override that hides results', async () => {
     const { attempts } = await call(
       seed({
