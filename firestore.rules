@@ -4940,7 +4940,7 @@ service cloud.firestore {
           allow update: if signedIn() && (authUid() == sessionTeacherUid() || isAdmin()) &&
             existing().get('closed', false) == true &&
             incoming().diff(existing()).affectedKeys().hasOnly(['grading']) &&
-            incoming().grading is map;
+            isMap('grading');
           allow create, delete: if false;
         }
       }
