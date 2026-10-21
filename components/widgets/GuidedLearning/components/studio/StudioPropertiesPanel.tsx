@@ -39,8 +39,6 @@ interface StudioPropertiesPanelProps {
   canOfferTour?: boolean;
   /** Saves, closes the Studio and opens the set in the board editor. */
   onEditOnBoard?: () => void;
-  /** `gl-callout-editing`: callout size and colour summary, and Reset all. */
-  calloutEditing?: boolean;
   /** `gl-welcome-card`: the welcome settings live on the pinned card instead. */
   welcomeCard?: boolean;
   /** The pinned Welcome card is selected. */
@@ -103,7 +101,6 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
   canvasRef,
   canOfferTour = false,
   onEditOnBoard,
-  calloutEditing = false,
   welcomeCard = false,
   welcomeSelected = false,
 }) => {
@@ -118,7 +115,6 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
           state={state}
           step={selectedStep}
           onDeleteStep={onDeleteStep}
-          calloutEditing={calloutEditing}
         />
       ) : (
         <ActivitySection
@@ -139,8 +135,7 @@ const StepSection: React.FC<{
   state: GuidedLearningEditorController;
   step: GuidedLearningStep;
   onDeleteStep?: (id: string) => void;
-  calloutEditing: boolean;
-}> = ({ state, step, onDeleteStep, calloutEditing }) => {
+}> = ({ state, step, onDeleteStep }) => {
   const { t } = useTranslation();
   const { steps, imageUrls, updateStep, deleteStep } = state;
   const n = steps.findIndex((s) => s.id === step.id) + 1;
@@ -195,11 +190,7 @@ const StepSection: React.FC<{
         onChange={updateStep}
       />
       <Group title={t('glStudio.targetGroup')}>
-        <StudioRegionControls
-          step={step}
-          onChange={updateStep}
-          calloutEditing={calloutEditing}
-        />
+        <StudioRegionControls step={step} onChange={updateStep} />
       </Group>
       <Group title={t('glStudio.playbackGroup')}>
         <StudioStepPlayback step={step} onChange={updateStep} />

@@ -85,10 +85,6 @@ Each item names the plan it came from; the plan holds the detail.
 
 - [ ] Flip feature_permissions/flashcards from admin to beta (world-language teachers) after Paul's prod check, per Q47. (S)
 
-#### `docs/plans/shipped/GL_CALLOUT_EDITING.md`
-
-- [ ] Flip 'gl-callout-editing' flag to Public in Admin Settings once Paul has used it in prod (per plan's release section). (S)
-
 #### `docs/plans/shipped/GL_STUDIO_GESTURES.md`
 
 - [ ] PR 5: remove the Studio's "Open classic editor" escape hatch and the classic GuidedLearningEditor/GuidedLearningEditorModal from Widget.tsx. (M)

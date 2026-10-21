@@ -662,8 +662,7 @@ const StudioSession: React.FC<
     setCurrentImageIndex(shown.imageIndex);
   }, [steps, setSelectedStepId, setCurrentImageIndex]);
 
-  const calloutEditing = canAccessFeature('gl-callout-editing');
-  const tools = useCanvasTools(editorState, preset, { calloutEditing });
+  const tools = useCanvasTools(editorState, preset);
   const { rows: canvasRows, typeRows, deleteFocusedVertex } = tools;
 
   const selectedIndex = steps.findIndex((s) => s.id === selectedStepId);
@@ -1226,7 +1225,6 @@ const StudioSession: React.FC<
             state={editorState}
             onDeleteStep={deleteStepWithUndo}
             canvasRef={canvasRef}
-            calloutEditing={calloutEditing}
             welcomeCard={welcomeCard}
             welcomeSelected={welcomeShown}
             onEditOnBoard={

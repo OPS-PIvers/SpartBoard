@@ -20,9 +20,7 @@ const STEP: GuidedLearningStep = {
 describe('StudioRegionControls callout style', () => {
   it('summarises width, scale and colour, and Reset all clears placement and size', () => {
     const onChange = vi.fn();
-    render(
-      <StudioRegionControls step={STEP} onChange={onChange} calloutEditing />
-    );
+    render(<StudioRegionControls step={STEP} onChange={onChange} />);
     expect(screen.getByTestId('gl-studio-callout-style')).toHaveTextContent(
       'Width 42% · 1.25× · Light'
     );
@@ -32,13 +30,5 @@ describe('StudioRegionControls callout style', () => {
     expect(next.calloutWidthPct).toBeUndefined();
     expect(next.calloutScale).toBeUndefined();
     expect(next.calloutTone).toBe('light');
-  });
-
-  it('keeps today’s panel with the flag off', () => {
-    render(<StudioRegionControls step={STEP} onChange={vi.fn()} />);
-    expect(screen.queryByTestId('gl-studio-callout-style')).toBeNull();
-    expect(
-      screen.getByRole('button', { name: 'Reset to auto' })
-    ).toBeInTheDocument();
   });
 });
