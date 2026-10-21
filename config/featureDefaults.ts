@@ -4,7 +4,6 @@ import {
   PenLine,
   BarChart,
   BellRing,
-  BookOpen,
   Bot,
   Building2,
   CalendarClock,
@@ -1073,18 +1072,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'look',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Assign dialogs' Submissions Enabled / Study Resource toggle. Off: every session uses its kind default (STUDENT_LANDING_V2 D8).
-  'study-resources': {
-    label: 'Study resources',
-    icon: BookOpen,
-    description:
-      'Mark an assignment as a study resource that students do not submit.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
