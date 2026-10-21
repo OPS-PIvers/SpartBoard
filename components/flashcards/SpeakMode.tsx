@@ -15,12 +15,14 @@ import {
   MicOff,
   Play,
   RotateCcw,
+  Save,
   Square,
   Star,
   Volume2,
 } from 'lucide-react';
 import type {
   FlashcardCard,
+  FlashcardSpeakReference,
   FlashcardSpeakStudentSettings,
   RecordingConfig,
   SpeakLanguage,
@@ -45,6 +47,8 @@ import {
   subscribeVoices,
 } from '@/utils/pronunciation/hearIt';
 import type { SpeakJudgement } from '@/utils/pronunciation/verdict';
+import { heardReferences } from '@/utils/pronunciation/wordFixes';
+import XLSR53_VOCAB from '@/utils/pronunciation/xlsr53EspeakVocab.json';
 import type { FlashcardSpeakTally } from '@/utils/flashcardSchedule';
 import { RoundSummary } from './PlayerPrimitives';
 import { cx } from './playerUtils';
@@ -117,6 +121,11 @@ export interface SpeakModeProps {
   paused?: boolean;
   /** A decided card moves on by itself after a short countdown on Continue. */
   autoContinue?: boolean;
+  /** Admin Say it only: saves what the recognizer heard as another accepted reading. */
+  onSaveHeard?: (
+    cardId: string,
+    refs: FlashcardSpeakReference[]
+  ) => Promise<void>;
 }
 
 type Phase =
@@ -130,6 +139,7 @@ type Phase =
       judgement: SpeakJudgement;
       decided: boolean;
       passed: boolean;
+      heard: string[];
     };
 
 const sizeLabel = (bytes: number): string => `${Math.round(bytes / 1e6)} MB`;
@@ -505,9 +515,13 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
   onRestart,
   paused = false,
   autoContinue = false,
+  onSaveHeard,
 }) => {
   const { t } = useTranslation();
   const recognizer = getRecognizer();
+  const [heardSave, setHeardSave] = useState<
+    'idle' | 'saving' | 'saved' | 'failed'
+  >('idle');
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>({ kind: 'armed' });
   const [attemptsUsed, setAttemptsUsed] = useState(0);
@@ -591,7 +605,7 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
   const focusSoon = (ref: React.RefObject<HTMLButtonElement | null>) =>
     window.requestAnimationFrame(() => ref.current?.focus());
 
-  const decide = (judgement: SpeakJudgement) => {
+  const decide = (judgement: SpeakJudgement, heard: string[] = []) => {
     if (!card) return;
     if (judgement.verdict === 'unclear') {
       const streak = unclearStreak + 1;
@@ -615,7 +629,8 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
     }
     // Taps before this result don't hold its countdown.
     setHeld(false);
-    setPhase({ kind: 'result', judgement, decided, passed: pass });
+    setHeardSave('idle');
+    setPhase({ kind: 'result', judgement, decided, passed: pass, heard });
     focusSoon(actionRef);
   };
 
@@ -660,7 +675,10 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
             tally: {},
           };
         }
-        decide(judgement);
+        decide(
+          judgement,
+          result.tokens.map((token) => token.symbol)
+        );
       })
       .catch((err: unknown) => {
         if (runRef.current !== run) return;
@@ -908,6 +926,36 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
       {t('flashcards.speak.player.playMyTry')}
     </button>
   );
+  const saveHeardButton = (
+    cardId: string,
+    result: Extract<Phase, { kind: 'result' }>
+  ) => {
+    const refs = heardReferences(result.heard, language, XLSR53_VOCAB);
+    if (!refs || !onSaveHeard) return null;
+    return (
+      // no-tour-anchor: admin-only, inside the Words to check practice
+      <button
+        type="button"
+        disabled={heardSave === 'saving' || heardSave === 'saved'}
+        onClick={() => {
+          setHeardSave('saving');
+          onSaveHeard(cardId, refs).then(
+            () => setHeardSave('saved'),
+            () => setHeardSave('failed')
+          );
+        }}
+        className={secondaryButton(dark)}
+        style={buttonStyle}
+      >
+        <Save aria-hidden="true" style={iconStyle} />
+        {heardSave === 'saved'
+          ? t('flashcards.speak.admin.wordsToCheck.savedHowISaid')
+          : heardSave === 'failed'
+            ? t('plcDashboard.members.actionError')
+            : t('flashcards.speak.admin.wordsToCheck.saveHowISaid')}
+      </button>
+    );
+  };
   const tryAgainButton = (
     // no-tour-anchor: student player
     <button
@@ -1053,6 +1101,7 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
             {phase.decided ? continueButton : tryAgainButton}
             {playButton}
             {hearButton}
+            {onSaveHeard && card && saveHeardButton(card.id, phase)}
           </ButtonRow>
         </Panel>
       </div>

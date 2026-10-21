@@ -12,6 +12,24 @@ const dnd = vi.hoisted(() => ({
   onReorder: undefined as ((ids: string[]) => Promise<void> | void) | undefined,
 }));
 
+vi.mock('@/hooks/useLibraryPlacements', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/hooks/useLibraryPlacements')>();
+  const placements = {
+    byKey: new Map(),
+    loading: false,
+    place: vi.fn(),
+    unplace: vi.fn(),
+  };
+  return { ...actual, useLibraryPlacements: () => placements };
+});
+
+vi.mock('@/components/common/library/lastLibraryLocation', () => ({
+  readLastLibraryLocation: () => Promise.resolve(null),
+  saveLastLibraryLocation: vi.fn(),
+  resetLastLibraryLocationCache: vi.fn(),
+}));
+
 vi.mock('@/components/common/library/LibraryDndContext', () => ({
   LibraryDndContext: ({
     onReorder,
@@ -37,9 +55,11 @@ vi.mock('@/hooks/usePlcQuizzes', () => ({
   usePlcQuizzes: () => ({ quizzes: [], loading: false, error: null }),
 }));
 
+const NO_FOLDERS: never[] = [];
+
 vi.mock('@/hooks/useFolders', () => ({
   useFolders: () => ({
-    folders: [],
+    folders: NO_FOLDERS,
     loading: false,
     error: null,
     createFolder: vi.fn(),

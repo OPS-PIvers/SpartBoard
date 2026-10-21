@@ -11,7 +11,6 @@ import type {
 } from '@/types';
 import {
   countItemsByFolder,
-  filterByFolder,
   type HasFolderId,
 } from '@/components/common/library/folderFilters';
 
@@ -266,17 +265,6 @@ export function filterAssessmentRows(
     }
     return true;
   });
-}
-
-/** Keep only rows in `selectedFolderId` (`null` = every row). */
-export function filterRowsByFolder(
-  rows: AssessmentListRow[],
-  selectedFolderId: string | null
-): AssessmentListRow[] {
-  return filterByFolder(
-    rows as (AssessmentListRow & HasFolderId)[],
-    selectedFolderId
-  );
 }
 
 /** Per-folder row counts (+ `root`) for the sidebar badges. */

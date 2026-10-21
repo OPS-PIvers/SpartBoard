@@ -75,10 +75,7 @@ import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { buildMoveToFolderAction } from '@/components/common/library/folderMenuAction';
 import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
-import {
-  useFolderLibraryView,
-  useLibraryFolderViewEnabled,
-} from '@/components/common/library/useFolderLibraryView';
+import { useFolderLibraryView } from '@/components/common/library/useFolderLibraryView';
 import { useSourceFolders } from '@/components/common/library/useSourceFolders';
 import { isSourceFolderId } from '@/components/common/library/sourceFolders';
 import { latestAssignedAt } from '@/components/common/library/folderView';
@@ -88,7 +85,6 @@ import { BulkActionBar } from '@/components/common/library/BulkActionBar';
 import { LibraryPreviewPane } from '@/components/common/library/LibraryPreviewPane';
 import {
   countItemsByFolder,
-  filterSourcedEntriesByFolder,
   ROOT_FOLDER_COUNT_KEY,
 } from '@/components/common/library/folderFilters';
 import { useFolders } from '@/hooks/useFolders';
@@ -106,7 +102,6 @@ import {
   requestRecordTour,
   requestStartTour,
 } from '@/components/tours/tourState';
-import { useLiveToursEnabled } from '@/components/tours/useTourOffers';
 import { useCanRunLiveTour } from '@/components/tours/useCanRunLiveTour';
 import {
   getToursVersion,
@@ -521,15 +516,12 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const { t } = useTranslation();
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
-  const liveTours = useLiveToursEnabled();
   const canRunLiveTour = useCanRunLiveTour();
   // Only a published snapshot runs from the library; the shared watchers read each tour once per page.
-  const liveTourKey = liveTours
-    ? buildingSets
-        .filter((e) => e.hasLiveTour)
-        .map((e) => e.id)
-        .join(',')
-    : '';
+  const liveTourKey = buildingSets
+    .filter((e) => e.hasLiveTour)
+    .map((e) => e.id)
+    .join(',');
   const watchLiveTours = useCallback(
     (onChange: () => void) =>
       liveTourKey
@@ -580,7 +572,6 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     /** Set for a building set, which is filed by placement instead of moved. */
     sourceKey?: string;
   } | null>(null);
-  const folderViewEnabled = useLibraryFolderViewEnabled();
   const buildingSourceKeys = useMemo(
     () =>
       buildingSets
@@ -592,7 +583,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const sourceFolders = useSourceFolders({
     userId,
     widget: 'guided_learning',
-    enabled: folderViewEnabled,
+    enabled: true,
     sourceKeys: buildingSourceKeys,
     ownFolders: folderState.folders,
   });
@@ -652,11 +643,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   // Teachers never see Help Center sets in the library, so their tours don't count.
   const hasTours =
-    liveTours &&
-    (sets.some((s) => s.mode === 'tour') ||
-      buildingSets.some(
-        (e) => e.hasLiveTour && (isAdmin || !isHelpCenterSet(e))
-      ));
+    sets.some((s) => s.mode === 'tour') ||
+    buildingSets.some((e) => e.hasLiveTour && (isAdmin || !isHelpCenterSet(e)));
 
   const view = useFolderLibraryView<LibraryEntry>({
     items: allEntries,
@@ -669,7 +657,6 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       getFolderId: entryFolderId,
       getRecentAt: entryRecentAt,
       itemNoun: SET_NOUN,
-      legacyFilter: filterSourcedEntriesByFolder,
     },
     initialSort: LIBRARY_INITIAL_SORT,
     // Phase 2 redesign: the library is list-only (monitor row idiom).
@@ -688,7 +675,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       { value: TOUR_TYPE, label: 'Live tours' },
       { value: 'activity', label: 'Activities' },
     ],
-    visible: hasTours || (liveTours && activeTypeFilter !== ''),
+    visible: hasTours || activeTypeFilter !== '',
   };
 
   const activeSourceFilter = view.state.filterValues.source ?? '';
@@ -837,9 +824,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   // would be blocked (e.g. sort !== 'manual'). Drops on a folder tile move the
   // item; drops on another card reorder (only honored when manual reorder is
   // active — see `handleReorderDrop` below).
-  const enableCardDrag =
-    (Boolean(userId) || reorderDragActive) &&
-    (!selectionMode || view.folderView != null);
+  const enableCardDrag = Boolean(userId) || reorderDragActive;
 
   const handleReorderDrop = useCallback(
     (orderedIds: string[]) => {
@@ -873,7 +858,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       };
 
   const headerSecondary = [
-    ...(isAdmin && liveTours
+    ...(isAdmin
       ? [{ label: 'Record a tour', icon: Circle, onClick: requestRecordTour }]
       : []),
     ...(aiAuthoring
@@ -918,7 +903,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       entry.source === 'personal'
         ? entry.id.slice('personal:'.length)
         : entry.id.slice('building:'.length);
-    const isTour = liveTours && isTourEntry(entry);
+    const isTour = isTourEntry(entry);
     const badges: LibraryBadge[] = [
       isTour
         ? { label: 'Live tour', tone: 'info' }
@@ -984,7 +969,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
     // A published tour plays live as teachers see it; authors try drafts in the board editor.
     let runLive: LibraryMenuAction | null = null;
-    if (liveTours && entry.buildingEntry?.hasLiveTour) {
+    if (entry.buildingEntry?.hasLiveTour) {
       if (isTourRunnable(rawId) === true) {
         runLive = {
           id: 'run-live',
@@ -1028,7 +1013,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       });
     }
 
-    if (liveTours && isAdmin && entry.mode !== 'tour' && onConvertToLiveTour) {
+    if (isAdmin && entry.mode !== 'tour' && onConvertToLiveTour) {
       secondary.push({
         id: 'convert-to-live-tour',
         label: t('glStudio.convertToLiveTour'),
@@ -1103,7 +1088,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
           )
         );
       }
-      if (folderViewEnabled && !entry.helpCenter) {
+      if (!entry.helpCenter) {
         secondary.push(
           buildMoveToFolderAction({
             onOpenPicker: () =>
@@ -1224,9 +1209,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
             : undefined
         }
         sortable={
-          (isPersonal || (folderViewEnabled && !entry.helpCenter)) &&
-          enableCardDrag &&
-          !selectionMode
+          (isPersonal || !entry.helpCenter) && enableCardDrag && !selectionMode
         }
         viewMode={view.state.viewMode}
         meta={entry}
@@ -1473,7 +1456,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
             </div>
           )}
 
-          {isAdmin && liveTours && activeTypeFilter === TOUR_TYPE && (
+          {isAdmin && activeTypeFilter === TOUR_TYPE && (
             <div
               role="note"
               className="rounded-xl border border-blue-200 bg-blue-50 text-blue-900"

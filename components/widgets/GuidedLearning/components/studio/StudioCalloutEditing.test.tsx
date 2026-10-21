@@ -130,7 +130,7 @@ const Harness: React.FC = () => {
     existingSet: buildSet(),
     existingMeta: null,
   });
-  const tools = useCanvasTools(state, BOARD, { calloutEditing: true });
+  const tools = useCanvasTools(state, BOARD);
   useStudioShortcuts([...tools.typeRows, ...tools.rows], {
     editing: tools.editingStepId !== null,
   });
@@ -199,7 +199,7 @@ afterEach(() => {
   latest.current = null;
 });
 
-describe('Studio callout editing (gl-callout-editing)', () => {
+describe('Studio callout editing', () => {
   const canvas = () => document.querySelector('[data-gl-studio-canvas]');
   // Selects rect-1, then its callout with a click inside the callout box.
   const selectCallout = () => {

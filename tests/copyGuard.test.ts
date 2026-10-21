@@ -153,6 +153,7 @@ describe('on-screen copy guard', () => {
       'Try #2',
       '2nd try',
       'Takes per student',
+      'Most students who tried these missed them.',
     ]) {
       expect(attemptWordingProblem(text), text).toBe(true);
     }
@@ -170,6 +171,7 @@ describe('on-screen copy guard', () => {
       'Take 3 of the photos',
       'Swipe takes left',
       'She tries the new one',
+      'Students tried to sign in',
     ]) {
       expect(attemptWordingProblem(text), text).toBe(false);
     }

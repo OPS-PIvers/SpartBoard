@@ -1804,15 +1804,11 @@ export const DashboardView: React.FC = () => {
       {/* Settings drawer surface (flag-gated inside the host). */}
       <SettingsDrawerHost />
 
-      {canAccessFeature('gl-live-tours') && (
-        <>
-          <LiveTourRunner />
-          <TourStageTransition />
-          <TourOfferWatcher />
-          {isAdmin && <TourRecordingHost />}
-          {isAdmin && <TourEditorHost />}
-        </>
-      )}
+      <LiveTourRunner />
+      <TourStageTransition />
+      <TourOfferWatcher />
+      {isAdmin && <TourRecordingHost />}
+      {isAdmin && <TourEditorHost />}
 
       {/* Only mount Help when open — its body builds the whole shortcut tree. */}
       {helpState.open && (

@@ -14,7 +14,6 @@ import {
   History,
   FileText,
   FileUp,
-  FolderOpen,
   Gauge,
   GraduationCap,
   Flag,
@@ -26,7 +25,6 @@ import {
   Link2,
   ListChecks,
   Mic,
-  MousePointerClick,
   Music2,
   Printer,
   RefreshCw,
@@ -618,34 +616,11 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Guided Learning live tours that walk a teacher through the real app. Admin-only until opened up.
-  'gl-live-tours': {
-    label: 'Guided Learning live tours',
-    icon: Footprints,
-    description: "Walkthroughs on the teacher's own board.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Live tour editing v2 and tour materials. Admin-only until Paul has edited tours with it in prod.
   'live-tour-editing-v2': {
     label: 'Live tour editing v2',
     icon: Footprints,
     description: 'Sandboxed tour replays, step checkpoints and tour materials.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Live tours reopen a closed panel and arrange their own widgets (LIVE_TOUR_ONE_SHOT.md D18).
-  'live-tour-self-heal': {
-    label: 'Live tour self-heal',
-    icon: Footprints,
-    description:
-      'Tours reopen a panel that closed mid-step and lay out their own widgets.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -695,44 +670,11 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Studio callout handles, toolbar and styling. Admin-only until Paul has edited sets with it in prod.
-  'gl-callout-editing': {
-    label: 'Guided Learning callout editing',
-    icon: MousePointerClick,
-    description: 'Resize and restyle Studio callouts.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Per-student slide position on GL results and the hub. Admin-only until Paul has seen it on real class data in prod.
   'gl-student-progress': {
     label: 'Guided Learning student progress',
     icon: Route,
     description: "Shows each student's slide and last activity.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Rich text PLC notes editor. Admin-only until Paul has run a PLC meeting on it in prod.
-  'plc-notes-rich-editor': {
-    label: 'PLC notes rich text editor',
-    icon: StickyNote,
-    description: 'Formatting toolbar in PLC notes.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'plc-notes-side-panels': {
-    label: 'Notes and Docs side panels',
-    icon: StickyNote,
-    description:
-      'Action items beside group notes and linked Google Docs; the notes list folds away.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -850,17 +792,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: History,
     description:
       'Teachers and students can look back at every quiz attempt, and teachers choose which score counts.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Projects board: a group's name opens the view its students see.
-  'projects-group-view': {
-    label: 'Projects group view',
-    icon: Eye,
-    description: "Tap a group on the board to see its students' view.",
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1111,17 +1042,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'library-folder-view': {
-    label: 'Library folders view',
-    icon: FolderOpen,
-    description:
-      'Libraries open on your folders, with a path bar, folder rows and a Recent list.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // SpartBoard creates the Schoology gradebook column (SCHOOLOGY_TOOL_COLUMNS.md D11).
   'schoology-tool-columns': {
     label: 'Schoology gradebook columns',
@@ -1139,17 +1059,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: "Widget what's new",
     icon: Sparkles,
     description: "A What's new button under a widget after its look changes.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Pinned Welcome card in the Guided Learning Studio slide strip, plus a welcome image.
-  'gl-welcome-card': {
-    label: 'Guided Learning welcome card',
-    icon: Sparkles,
-    description: 'A pinned welcome card and image in the Studio.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

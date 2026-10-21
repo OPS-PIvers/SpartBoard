@@ -33,11 +33,7 @@ const ITEMS: Item[] = [
   { id: 'stale', title: 'Gamma', folderId: 'deleted', updatedAt: 0 },
 ];
 
-const render = (
-  enabled: boolean,
-  folders: LibraryFolder[] = FOLDERS,
-  userId = 'teacher'
-) =>
+const render = (folders: LibraryFolder[] = FOLDERS, userId = 'teacher') =>
   renderHook(
     ({ f }) =>
       useFolderLibraryView<Item>({
@@ -51,7 +47,6 @@ const render = (
           foldersLoading: false,
           getId: (i) => i.id,
           itemNoun: ['set', 'sets'],
-          enabled,
         },
       }),
     { initialProps: { f: folders } }
@@ -62,16 +57,8 @@ const ids = (items: Item[]) => items.map((i) => i.id);
 describe('useFolderLibraryView', () => {
   beforeEach(() => resetLastLibraryLocationCache());
 
-  it('keeps the legacy filter when the flag is off', () => {
-    const { result } = render(false);
-    expect(result.current.folderView).toBeNull();
-    expect(ids(result.current.visibleItems)).toHaveLength(4);
-    act(() => result.current.onSelectFolder('unit'));
-    expect(ids(result.current.visibleItems)).toEqual(['unit-1']);
-  });
-
   it('opens at the top level with folder rows and unfiled items', () => {
-    const { result } = render(true);
+    const { result } = render();
     const fv = result.current.folderView;
     expect(fv?.location).toEqual({ kind: 'folder', folderId: null });
     expect(fv?.folderRows.map((r) => [r.folder.id, r.label])).toEqual([
@@ -82,7 +69,7 @@ describe('useFolderLibraryView', () => {
   });
 
   it('shows only direct contents inside a folder, and searches its subtree', () => {
-    const { result } = render(true);
+    const { result } = render();
     act(() => result.current.onSelectFolder('unit'));
     expect(ids(result.current.visibleItems)).toEqual(['unit-1']);
     expect(result.current.folderView?.folderRows).toHaveLength(1);
@@ -106,7 +93,7 @@ describe('useFolderLibraryView', () => {
   });
 
   it('lists everything with paths in All items and locks reorder', () => {
-    const { result } = render(true);
+    const { result } = render();
     act(() => result.current.folderView?.navigate({ kind: 'all' }));
     expect(ids(result.current.visibleItems)).toHaveLength(4);
     expect(result.current.folderView?.pathByItemId.get('unit-1')).toBe('UNIT');
@@ -115,7 +102,7 @@ describe('useFolderLibraryView', () => {
   });
 
   it('lists recent items newest first', () => {
-    const { result } = render(true);
+    const { result } = render();
     act(() => result.current.folderView?.navigate({ kind: 'recent' }));
     expect(ids(result.current.visibleItems)).toEqual([
       'root-1',
@@ -125,13 +112,13 @@ describe('useFolderLibraryView', () => {
   });
 
   it('flags an empty folder', () => {
-    const { result } = render(true, [...FOLDERS, folder('empty', null)]);
+    const { result } = render([...FOLDERS, folder('empty', null)]);
     act(() => result.current.onSelectFolder('empty'));
     expect(result.current.folderView?.emptyFolder).toBe(true);
   });
 
   it('returns to the top level when the open folder is deleted', () => {
-    const { result, rerender } = render(true);
+    const { result, rerender } = render();
     act(() => result.current.onSelectFolder('week'));
     rerender({ f: [FOLDERS[0]] });
     expect(result.current.folderView?.location).toEqual({
@@ -142,7 +129,7 @@ describe('useFolderLibraryView', () => {
 
   it('reopens the last folder for this library', async () => {
     saveLastLibraryLocation('teacher', 'flashcards', 'week');
-    const { result } = render(true);
+    const { result } = render();
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();

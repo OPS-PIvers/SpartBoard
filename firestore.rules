@@ -996,6 +996,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // District Speak word fixes: every student's Speak reads them; admins write (Words to check). Readers normalize the shape.
+    match /admin_settings/flashcardsSpeakWordFixes {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
     // Curated translation languages + org caps — teachers read the language list
     // for the quiz Languages tab; admins edit. Deliberately a SEPARATE doc from
     // quiz_read_aloud, which stays admin-only.

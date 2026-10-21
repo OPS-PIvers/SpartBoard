@@ -103,6 +103,8 @@ export interface BuildResultsSheetDataOptions<
   notAskedQuestionIds?: string[];
   /** Appends one column after the question columns, filled per response before rows are sorted. */
   extraColumn?: { header: string; cell: (response: R) => string };
+  /** Adds one column after "PIN" (quiz attempt history). */
+  attemptColumn?: { header: string; cell: (response: R) => string };
 }
 
 /** Sheets rejects any cell over 50,000 characters. */
@@ -257,6 +259,7 @@ export function buildResultsSheetData<
     'Class Period',
     'Student',
     'PIN',
+    ...(options?.attemptColumn ? [options.attemptColumn.header] : []),
     'Status',
     'Score (%)',
     'Points Earned',
@@ -360,6 +363,7 @@ export function buildResultsSheetData<
       r.classPeriod ?? '',
       resolveStudent(r),
       r.pin ?? '',
+      ...(options?.attemptColumn ? [options.attemptColumn.cell(r)] : []),
       r.status,
       scoreDisplay,
       formatExportPoints(earnedPoints),

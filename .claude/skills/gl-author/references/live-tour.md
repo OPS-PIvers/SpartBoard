@@ -16,8 +16,6 @@ the connector follows `docs/live-tours/AUTHORING.md` (served as
   has tour steps. A personal import keeps the bindings but never runs them.
 - The admin publishes it in the Studio, or tries it first with **Run live
   (draft)** from the library. Test it on https://spartboard-dev.web.app.
-- The `gl-live-tours` preview flag is on for the viewer (admins only until
-  it opens to everyone).
 - Marking it for the Help Center is a Studio toggle after import; the file
   cannot set it. The connector's `create_live_tour` can, with `help_center`.
 - Through the connector, `list_guided_learning` with source `building` and

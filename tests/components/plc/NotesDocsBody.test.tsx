@@ -19,12 +19,15 @@ vi.mock('@/components/plc/bodies/NotesBody', () => ({
   NotesBody: ({
     selectNoteId,
     selectDocId,
+    actionItemsHeading,
   }: {
     selectNoteId?: string | null;
     selectDocId?: string | null;
+    actionItemsHeading?: React.ReactNode;
   }) => (
     <div data-testid="notes-body" data-doc={selectDocId ?? 'none'}>
       {selectNoteId ?? 'none'}
+      {actionItemsHeading}
     </div>
   ),
 }));

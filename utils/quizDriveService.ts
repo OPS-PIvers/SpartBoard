@@ -845,6 +845,12 @@ export class QuizDriveService {
       timeAway?: boolean;
       /** Live video activity questions the class was never asked. */
       notAskedQuestionIds?: string[];
+      /** Quiz attempt history, solo sheets only: an Attempts column and an "Every attempt" tab. */
+      attempts?: {
+        countFor: (response: QuizResponse) => string;
+        /** Every finished attempt as a response; `completedAttempts` is its number. */
+        everyAttempt: QuizResponse[];
+      };
     }
   ): Promise<string> {
     // Quiz's grader threads per-response manual grades through for
@@ -858,9 +864,15 @@ export class QuizDriveService {
         : quizGradeFnWithManualGrades);
     // A caller-supplied grader (Video Activity) keeps its points-only layout.
     const includeAnswerText = !options?.gradeFn;
+    const attempts = options?.plcMode ? undefined : options?.attempts;
     const rowOptions = options?.plcMode
       ? { ...options, timeAway: false }
-      : options;
+      : {
+          ...options,
+          attemptColumn: attempts
+            ? { header: 'Attempts', cell: attempts.countFor }
+            : undefined,
+        };
     const buildRows = (withAnswers: boolean) =>
       buildResultsSheetDataShared<QuizQuestion, QuizResponse>(
         responses,
@@ -944,6 +956,29 @@ export class QuizDriveService {
     }
 
     const allRows = [headers, ...dataRows, ...statsRows];
+    const toRowData = (rows: string[][]) =>
+      rows.map((row) => ({
+        values: row.map((cell) => ({
+          userEnteredValue: { stringValue: cell },
+        })),
+      }));
+    const everyAttempt = attempts
+      ? buildResultsSheetDataShared<QuizQuestion, QuizResponse>(
+          attempts.everyAttempt,
+          questions,
+          gradeFn,
+          {
+            ...rowOptions,
+            ...(includeAnswerText
+              ? { formatAnswer: formatQuizAnswerText }
+              : {}),
+            attemptColumn: {
+              header: 'Attempt',
+              cell: (r) => String(r.completedAttempts ?? 1),
+            },
+          }
+        )
+      : null;
 
     // Create the spreadsheet
     const createRes = await fetch(SHEETS_API_URL, {
@@ -955,17 +990,26 @@ export class QuizDriveService {
           {
             properties: { title: 'Results' },
             data: [
-              {
-                startRow: 0,
-                startColumn: 0,
-                rowData: allRows.map((row) => ({
-                  values: row.map((cell) => ({
-                    userEnteredValue: { stringValue: cell },
-                  })),
-                })),
-              },
+              { startRow: 0, startColumn: 0, rowData: toRowData(allRows) },
             ],
           },
+          ...(everyAttempt
+            ? [
+                {
+                  properties: { title: 'Every attempt' },
+                  data: [
+                    {
+                      startRow: 0,
+                      startColumn: 0,
+                      rowData: toRowData([
+                        everyAttempt.headers,
+                        ...everyAttempt.dataRows,
+                      ]),
+                    },
+                  ],
+                },
+              ]
+            : []),
         ],
       }),
     });
