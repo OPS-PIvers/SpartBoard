@@ -2927,6 +2927,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "checklist.open-settings",
+    "label": "Add tasks button on an empty Checklist",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.checklist.face",
+        "kind": "widget",
+        "widget_type": "checklist",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "checklist.remove-completed",
     "label": "Remove completed items button in Checklist",
     "scope": "widget",
