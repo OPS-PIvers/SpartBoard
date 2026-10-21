@@ -42,7 +42,7 @@ const timelineMetrics = (
   width: number,
   height: number,
   areaHeight: number,
-  hasPeriods: boolean
+  periodRows: number
 ) => {
   const cardW = clamp(Math.min(width * 0.24, height * 0.5), 112, 360);
   const font = {
@@ -55,7 +55,8 @@ const timelineMetrics = (
   const toolbar = font.meta * 2 + pad * 2;
   const axisGap = font.meta * 2.2 + gap;
   // Period names get their own strip above the cards.
-  const periodStrip = hasPeriods ? font.meta * 2 : 0;
+  const periodRow = font.meta * 2;
+  const periodStrip = periodRows * periodRow;
   const area = Math.max((areaHeight || height - toolbar) - periodStrip, 100);
   const perSide = (area - pad * 2) / 2 - axisGap;
   const target = cardW * 0.72;
@@ -72,6 +73,7 @@ const timelineMetrics = (
     area,
     lanes,
     periodStrip,
+    periodRow,
   };
 };
 
@@ -246,29 +248,32 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
     });
   }, [submissions, mode]);
 
-  const periods = useMemo(
-    () =>
-      (session.timePeriods ?? []).flatMap((period) => {
-        const from = parseWallDate(period.from);
-        const to = parseWallDate(period.to);
-        if (!period.label.trim() || !from || !to) return [];
-        const start = dateStartKey(from);
-        const end = dateEndKey(to);
-        return end > start
-          ? [{ id: period.id, label: period.label.trim(), start, end }]
-          : [];
-      }),
-    [session.timePeriods]
-  );
+  const periods = useMemo(() => {
+    const valid = (session.timePeriods ?? []).flatMap((period) => {
+      const from = parseWallDate(period.from);
+      const to = parseWallDate(period.to);
+      if (!period.label.trim() || !from || !to) return [];
+      const start = dateStartKey(from);
+      const end = dateEndKey(to);
+      return end > start
+        ? [{ id: period.id, label: period.label.trim(), start, end }]
+        : [];
+    });
+    // Overlapping periods put their names on separate rows of the strip.
+    const rowEnds: number[] = [];
+    return [...valid]
+      .sort((a, b) => a.start - b.start)
+      .map((period) => {
+        let row = rowEnds.findIndex((end) => end <= period.start);
+        if (row === -1) row = rowEnds.length;
+        rowEnds[row] = period.end;
+        return { ...period, row };
+      });
+  }, [session.timePeriods]);
+  const periodRows = periods.reduce((rows, p) => Math.max(rows, p.row + 1), 0);
   const metrics = useMemo(
-    () =>
-      timelineMetrics(
-        width || 600,
-        height || 360,
-        areaHeight,
-        periods.length > 0
-      ),
-    [width, height, areaHeight, periods.length]
+    () => timelineMetrics(width || 600, height || 360, areaHeight, periodRows),
+    [width, height, areaHeight, periodRows]
   );
   const inputs = useMemo(
     () => items.map((item) => ({ id: item.submission.id, key: item.key })),
@@ -423,7 +428,8 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
                   className="block truncate font-semibold text-white/80"
                   style={{
                     fontSize: font.meta,
-                    lineHeight: `${metrics.periodStrip}px`,
+                    lineHeight: `${metrics.periodRow}px`,
+                    marginTop: period.row * metrics.periodRow,
                     paddingInline: pad / 2,
                   }}
                 >

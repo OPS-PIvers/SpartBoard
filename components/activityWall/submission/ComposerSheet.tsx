@@ -163,7 +163,11 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
   const keepUndated = isEditing && !structure.date.year.trim();
   const dateCheck =
     dated && !keepUndated
-      ? validateSpanFields(structure.date, structure.endDate)
+      ? validateSpanFields(
+          structure.date,
+          // A blank end date counts as no end date.
+          structure.endDate?.year.trim() ? structure.endDate : null
+        )
       : null;
   const failed = dateCheck && 'error' in dateCheck ? dateCheck : null;
   const dateError =

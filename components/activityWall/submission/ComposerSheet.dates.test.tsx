@@ -144,4 +144,20 @@ describe('ComposerSheet dated timeline', () => {
       screen.queryByRole('button', { name: 'Add end date' })
     ).not.toBeInTheDocument();
   });
+
+  it('posts a single date when the end date is left blank', () => {
+    const onSubmit = renderSheet();
+    fireEvent.change(screen.getByLabelText('Your response'), {
+      target: { value: 'Fort Sumter' },
+    });
+    fireEvent.change(screen.getByLabelText('Year'), {
+      target: { value: '1861' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add end date' }));
+    fireEvent.click(screen.getByRole('button', { name: /post/i }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ label: '1861' }),
+      expect.anything()
+    );
+  });
 });
