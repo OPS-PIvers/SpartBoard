@@ -307,6 +307,18 @@ describe('SettingsDrawer resize handle', () => {
     vi.useRealTimers();
   });
 
+  it('saves a keyboard-resized width when the drawer unmounts before the debounce', () => {
+    vi.useFakeTimers();
+    const { props, unmount } = renderDrawer();
+    fireEvent.keyDown(handle(), { key: 'ArrowLeft' });
+    unmount();
+    expect(props.onWidthCommit).toHaveBeenCalledTimes(1);
+    expect(props.onWidthCommit).toHaveBeenCalledWith(416);
+    vi.advanceTimersByTime(250);
+    expect(props.onWidthCommit).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
   it('commits once for a burst of arrow presses (finding 3)', () => {
     vi.useFakeTimers();
     const { props } = renderDrawer();
