@@ -295,7 +295,7 @@ const IconActionButton: React.FC<{
       disabled={action.disabled}
       title={action.disabled ? action.disabledReason : action.label}
       aria-label={action.label}
-      {...tourAttrs}
+      {...(action.anchor ?? tourAttrs)}
       // Hover affordances are only meaningful on an enabled button — gating
       // them behind `enabled:` keeps the disabled state visually inert
       // (Tailwind's `enabled:` variant matches `:not(:disabled)`). Without

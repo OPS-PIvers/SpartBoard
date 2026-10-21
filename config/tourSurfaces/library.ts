@@ -373,7 +373,6 @@ export const SURFACES: TourSurfaceMap = {
     needs: ['widget-on-stage'],
     files: ['components/widgets/MiniApp/'],
     inner: {
-      'library-shell.card-menu-item': 'library-shell.card-menu:miniApp#row-1',
       'mini-app.preview-close': 'library-shell.card-open:miniApp#row-1',
       'mini-app.preview-open-editor': 'library-shell.card-open:miniApp#row-1',
     },
@@ -382,7 +381,7 @@ export const SURFACES: TourSurfaceMap = {
     label: 'Running mini app and its toolbar',
     kind: 'panel',
     files: ['components/widgets/MiniApp/Widget.tsx'],
-    opensWith: 'library-shell.card-menu-item:miniApp#row-1-item-1',
+    opensWith: 'mini-app.card-run:miniApp',
     parent: 'library.mini-app',
     needs: ['library-item'],
     inner: {
