@@ -53024,6 +53024,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "keys": [
       "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
     ]
   },
   {
@@ -53032,6 +53043,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "keys": [
       "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
     ]
   },
   {
@@ -53040,6 +53062,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "keys": [
       "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
     ]
   },
   {
@@ -53048,6 +53081,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "keys": [
       "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
     ]
   },
   {
@@ -53056,6 +53100,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "keys": [
       "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
     ]
   },
   {
@@ -53065,6 +53120,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "destructive": true,
     "keys": [
       "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
     ]
   },
   {
@@ -53073,6 +53139,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "keys": [
       "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
     ]
   },
   {
