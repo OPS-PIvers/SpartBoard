@@ -11,21 +11,49 @@ export interface SpokenVariants {
 }
 
 const SWAPPED_ENDING = /^[ao]s?$/u;
+const VOWEL_END = /[aeiouáéíóú]$/u;
+const plain = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '');
 
-// "mesero/a" and "chicos/as" swap the ending; "profesor/a" and "flor/es" add it; "el/la" are whole words.
+// A gendered or plural ending written after a slash, spelled out as Spanish writes it.
+function withEnding(first: string, part: string): string {
+  // "inglés/esa", "dormilón/ona": the ending restates the word's last letters.
+  for (let k = Math.min(part.length, 3); k >= 2; k--) {
+    if (plain(first.slice(-k)) === plain(part.slice(0, k))) {
+      return first.slice(0, -k) + part;
+    }
+  }
+  // "mesero/a", "chicos/as" swap the ending; "este/a" swaps its last vowel.
+  if (
+    SWAPPED_ENDING.test(part) &&
+    SWAPPED_ENDING.test(first.slice(-part.length))
+  ) {
+    return first.slice(0, -part.length) + part;
+  }
+  if (part.length === 1 && VOWEL_END.test(part) && VOWEL_END.test(first)) {
+    return first.slice(0, -1) + part;
+  }
+  // "profesor/a", "flor/es" add it; "francés/a" drops the accent the longer word no longer needs.
+  const stem = /^[aeiou]/u.test(part)
+    ? first.replace(
+        /([áéíóú])([ns])$/u,
+        (_, v: string, c: string) => plain(v) + c
+      )
+    : first;
+  return stem + part;
+}
+
+// "el/la" are whole words; a short part after a longer word is an ending.
 function slashOptions(word: string): string[] {
   const parts = word.split('/');
   if (parts.length < 2 || parts.some((p) => !/\p{L}/u.test(p))) return [word];
   const [first, ...rest] = parts;
   return [
     first,
-    ...rest.map((part) => {
-      if (part.length > 3 || first.length <= part.length + 1) return part;
-      return SWAPPED_ENDING.test(part) &&
-        SWAPPED_ENDING.test(first.slice(-part.length))
-        ? first.slice(0, -part.length) + part
-        : first + part;
-    }),
+    ...rest.map((part) =>
+      part.length > 3 || first.length <= part.length + 1
+        ? part
+        : withEnding(first, part)
+    ),
   ];
 }
 

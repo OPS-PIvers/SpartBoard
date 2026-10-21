@@ -40,14 +40,20 @@ export interface LookupOutput {
 
 export type SpeakLookupCall = (input: LookupInput) => Promise<LookupOutput>;
 
-export const callLookup: SpeakLookupCall = async (input) => {
-  const call = httpsCallable<LookupInput, LookupOutput>(
-    functions,
-    'lookupSpeakReferencesV1',
-    { timeout: 130_000 }
-  );
-  return (await call(input)).data;
-};
+const lookupCaller =
+  (timeout: number): SpeakLookupCall =>
+  async (input) => {
+    const call = httpsCallable<LookupInput, LookupOutput>(
+      functions,
+      'lookupSpeakReferencesV1',
+      { timeout }
+    );
+    return (await call(input)).data;
+  };
+
+export const callLookup = lookupCaller(130_000);
+// Voice readings can use the callable's whole 540 s; its 420 s voice budget returns first.
+export const callVoiceLookup = lookupCaller(540_000);
 
 // Generous per-card size of a looked-up card, so retried cards don't push the set back over.
 const RETRY_CARD_BYTES = 4096;

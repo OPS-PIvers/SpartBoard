@@ -4,7 +4,7 @@ import type { FlashcardCard, FlashcardCardSpeak, FlashcardSet } from '@/types';
 import { speakLanguageOf } from '@/config/pronunciationGroups';
 import { SPEAK_G2P_VOICES_PENDING } from '@/utils/pronunciation/g2pVersion';
 import { logError } from '@/utils/logError';
-import { callLookup, type SpeakLookupCall } from './lookupSpeakReferences';
+import { callVoiceLookup, type SpeakLookupCall } from './lookupSpeakReferences';
 import { keepSpeakConfirmation, speakForTerm } from './speakEditorState';
 
 export const VOICE_BATCH_SIZE = 5;
@@ -127,14 +127,30 @@ const scheduleWrite = (
   return job.writing;
 };
 
+// Each answer variant is read by every voice, so a card counts once per variant.
+const variantCount = (card: FlashcardCard): number => {
+  const speak = speakForTerm(card);
+  const espeak = speak?.refs.filter((ref) => ref.source !== 'voice').length;
+  return Math.max(
+    1,
+    Math.ceil((espeak ?? 0) / Math.max(1, speak?.dialects?.length ?? 1))
+  );
+};
+
 const takeBatch = (job: Job): FlashcardCard[] => {
   const first = job.queue.shift();
   if (!first) return [];
   const dialects = JSON.stringify(speakForTerm(first)?.dialects);
   const batch = [first];
-  for (let i = 0; i < job.queue.length && batch.length < VOICE_BATCH_SIZE;) {
-    if (JSON.stringify(speakForTerm(job.queue[i])?.dialects) === dialects) {
+  let weight = variantCount(first);
+  for (let i = 0; i < job.queue.length && weight < VOICE_BATCH_SIZE;) {
+    const next = job.queue[i];
+    if (
+      JSON.stringify(speakForTerm(next)?.dialects) === dialects &&
+      weight + variantCount(next) <= VOICE_BATCH_SIZE
+    ) {
       batch.push(...job.queue.splice(i, 1));
+      weight += variantCount(next);
     } else {
       i++;
     }
@@ -197,7 +213,7 @@ async function finish(setId: string, job: Job): Promise<void> {
 export function startVoiceFill(
   set: Pick<FlashcardSet, 'id' | 'cards' | 'termLanguage'>,
   write: VoiceFillWrite,
-  call: SpeakLookupCall = callLookup
+  call: SpeakLookupCall = callVoiceLookup
 ): void {
   const language = speakLanguageOf(set.termLanguage);
   if (!language) return;
@@ -233,7 +249,9 @@ export function startVoiceFill(
   jobs.set(set.id, job);
   progress.set(set.id, { done: job.done, total: job.total });
   notify();
-  const batches = Math.ceil(job.queue.length / VOICE_BATCH_SIZE);
+  const batches = Math.ceil(
+    job.queue.reduce((n, card) => n + variantCount(card), 0) / VOICE_BATCH_SIZE
+  );
   while (job.running < Math.min(VOICE_PARALLEL_CALLS, batches)) {
     job.running++;
     void runWorker(set.id, job).finally(() => void finish(set.id, job));

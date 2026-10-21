@@ -717,10 +717,17 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
     if (!canHear || !hearDialect) return;
     audioRef.current?.pause();
     stopHearRef.current?.();
-    const heard =
-      phase.kind === 'result' && card
-        ? refText(card, judgedRef(refs, phase.judgement))
-        : word;
+    // A looked-up variant, never the raw term with its slashes or blanks.
+    const heard = !card
+      ? word
+      : refText(
+          card,
+          phase.kind === 'result'
+            ? judgedRef(refs, phase.judgement)
+            : (refs.find(
+                (ref) => ref.dialect === hearDialect && ref.source !== 'voice'
+              ) ?? refs[0])
+        );
     stopHearRef.current = hearIt(heard, hearDialect).stop;
   };
 
