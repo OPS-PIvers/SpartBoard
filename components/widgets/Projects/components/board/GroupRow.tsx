@@ -36,7 +36,7 @@ interface GroupRowProps {
   expanded: boolean;
   onToggleExpand: () => void;
   /** Opens the group's student view; the chevron alone then toggles the details. */
-  onOpenGroup?: () => void;
+  onOpenGroup: () => void;
   busyKeys: ReadonlySet<string>;
   openCellKey: string | null;
   onOpenCell: (groupId: string, stepId: string, anchor: HTMLElement) => void;
@@ -113,7 +113,7 @@ export const GroupRow: React.FC<GroupRowProps> = ({
           />
           {readOnly || !runId ? (
             nameChip
-          ) : onOpenGroup ? (
+          ) : (
             <span
               className="flex min-w-0 items-center"
               style={{ gap: 'min(3px, 0.8cqmin)' }}
@@ -147,26 +147,6 @@ export const GroupRow: React.FC<GroupRowProps> = ({
                 />
               </button>
             </span>
-          ) : (
-            <button
-              type="button"
-              onClick={onToggleExpand}
-              {...tourTypeAttr('projects.group-expand', 'projects')}
-              aria-expanded={expanded}
-              title={expanded ? 'Hide details' : 'Show members and work'}
-              className="flex min-w-0 items-center rounded-md text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
-              style={{ gap: 'min(3px, 0.8cqmin)' }}
-            >
-              {nameChip}
-              <ChevronRight
-                aria-hidden
-                className={`shrink-0 text-slate-400 transition-transform ${expanded ? 'rotate-90' : ''}`}
-                style={{
-                  width: 'min(14px, 3.4cqmin)',
-                  height: 'min(14px, 3.4cqmin)',
-                }}
-              />
-            </button>
           )}
         </th>
 

@@ -128,7 +128,6 @@ describe('ProjectsWidget', () => {
     });
     (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       user: { uid: 'teacher-1' },
-      canAccessFeature: () => false,
     });
     (useProjectGrades as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       gradesByGroupId: {},
@@ -573,7 +572,7 @@ describe('ProjectsWidget', () => {
     render(<ProjectsWidget widget={widget()} />);
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'Group 1', expanded: false })
+      screen.getByRole('button', { name: 'Show members and work for Group 1' })
     );
     expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Poster doc' })).toHaveAttribute(
@@ -584,19 +583,12 @@ describe('ProjectsWidget', () => {
       screen.getByText("Teacher set 'Research' to Done")
     ).toBeInTheDocument();
     fireEvent.click(
-      screen.getByRole('button', { name: 'Group 1', expanded: true })
+      screen.getByRole('button', { name: 'Hide members and work for Group 1' })
     );
     expect(screen.queryByText('Ada Lovelace')).not.toBeInTheDocument();
   });
 
-  describe('with the group view flag on', () => {
-    beforeEach(() => {
-      (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-        user: { uid: 'teacher-1' },
-        canAccessFeature: (id: string) => id === 'projects-group-view',
-      });
-    });
-
+  describe('group student view', () => {
     it("opens the group's student view from its name", async () => {
       (
         useProjectGroupWork as unknown as ReturnType<typeof vi.fn>
