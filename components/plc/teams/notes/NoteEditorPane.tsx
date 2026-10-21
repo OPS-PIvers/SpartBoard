@@ -68,7 +68,6 @@ export interface NoteEditorPaneProps {
   uid: string;
   canEdit: boolean;
   collab: boolean;
-  richEditor: boolean;
   members: PlcMember[];
   template: MeetingNoteTemplateSection[];
   assessments: PlcCommonAssessment[];
@@ -340,7 +339,6 @@ export const NoteEditorPane: React.FC<NoteEditorPaneProps> = ({
   uid,
   canEdit,
   collab,
-  richEditor,
   members,
   template,
   assessments,
@@ -541,45 +539,19 @@ export const NoteEditorPane: React.FC<NoteEditorPaneProps> = ({
     const hasBlocks = extras.length > 0;
     const content = editable ? (
       <div onFocusCapture={() => setFocused(index)}>
-        {richEditor ? (
-          <PlcNoteRichEditor
-            value={section.content}
-            onChange={(next) =>
-              draft.setBody(replaceSectionContent(draft.body, index, next))
-            }
-            readOnly={false}
-            showToolbar={focused === index}
-            bodyAnchor={tourFieldAttr(
-              'teams.notes.section-body',
-              'teams-notes',
-              String(index)
-            )}
-          />
-        ) : (
-          <textarea
-            value={section.content}
-            onChange={(e) =>
-              draft.setBody(
-                replaceSectionContent(draft.body, index, e.target.value)
-              )
-            }
-            rows={1}
-            {...tourFieldAttr(
-              'teams.notes.section-body',
-              'teams-notes',
-              String(index)
-            )}
-            placeholder={
-              hasBlocks || section.heading === null
-                ? undefined
-                : t('plcDashboard.notes.bodyPlaceholder', {
-                    defaultValue: 'Write your notes… (markdown supported)',
-                  })
-            }
-            aria-label={section.heading ?? note.title}
-            className="block w-full resize-none border-0 bg-transparent p-0 text-sm leading-relaxed text-slate-700 [field-sizing:content] placeholder:text-slate-300 focus:outline-none focus:ring-0"
-          />
-        )}
+        <PlcNoteRichEditor
+          value={section.content}
+          onChange={(next) =>
+            draft.setBody(replaceSectionContent(draft.body, index, next))
+          }
+          readOnly={false}
+          showToolbar={focused === index}
+          bodyAnchor={tourFieldAttr(
+            'teams.notes.section-body',
+            'teams-notes',
+            String(index)
+          )}
+        />
       </div>
     ) : section.content.trim() ? (
       <div className="text-sm leading-relaxed text-slate-700">
