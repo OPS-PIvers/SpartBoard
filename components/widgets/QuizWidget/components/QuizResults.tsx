@@ -883,6 +883,16 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       : graderLive && graderCopy
         ? [attemptAsResponse(graderLive, graderCopy)]
         : null;
+  // The attempt's copy is gone (student removed), so the grader has nothing to show.
+  if (
+    showGrader &&
+    graderAttempt !== null &&
+    graderCopies !== null &&
+    !graderCopy
+  ) {
+    setShowGrader(false);
+    setGraderTarget(undefined);
+  }
   const attemptGradeRef = (responseKey: string) => {
     if (!session?.id || graderAttempt === null) {
       throw new Error('Cannot save grade: no attempt in scope.');
@@ -2754,9 +2764,11 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           teacherUid={user.uid}
           resolveTakeUrl={showMediaGrading ? resolveTakeUrl : undefined}
           sessionId={session.id}
-          paperPrivate={paperPrivate}
-          resolvePaperCrop={resolvePaperCrop}
-          paperActions={paperActions}
+          paperPrivate={graderAttempt === null ? paperPrivate : undefined}
+          resolvePaperCrop={
+            graderAttempt === null ? resolvePaperCrop : undefined
+          }
+          paperActions={graderAttempt === null ? paperActions : undefined}
           onConnectDrive={() => void connectDrive()}
           onSaveGrade={saveGraderGrade}
           onSaveBackTranslation={saveBackTranslation}

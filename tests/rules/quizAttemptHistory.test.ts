@@ -4,7 +4,7 @@
 // Contract: attempt copies and attempt scores are server-written. The session
 // teacher, admins and the session's sub monitor read them; the student who made
 // the attempts, other teachers and other students read nothing. The only client
-// write is the session teacher grading an earlier (closed) attempt's copy.
+// write is the session teacher or an admin grading an earlier (closed) attempt's copy.
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -198,9 +198,14 @@ describe('quiz attempt copies', () => {
     await assertFails(deleteDoc(doc(staff('admin-uid', ADMIN_EMAIL), ATTEMPT)));
   });
 
-  it('lets only the session teacher grade an earlier attempt', async () => {
+  it('lets only the session teacher or an admin grade an earlier attempt', async () => {
     const grade = { 'grading.q1': { points: 1 } };
     await assertSucceeds(updateDoc(doc(staff(TEACHER_UID), CLOSED), grade));
+    await assertSucceeds(
+      updateDoc(doc(staff('admin-uid', ADMIN_EMAIL), CLOSED), {
+        'grading.q1': { points: 0 },
+      })
+    );
     await assertFails(updateDoc(doc(staff(TEACHER_UID), ATTEMPT), grade));
     await assertFails(
       updateDoc(doc(staff(TEACHER_UID), CLOSED), {

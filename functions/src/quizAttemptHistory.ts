@@ -285,15 +285,28 @@ export async function applyAttemptGradeWrite(
   try {
     const ctx = await loadSessionContext(db, 'quiz', w.sessionId);
     if (!ctx) return;
-    const studentUid =
-      typeof after.studentUid === 'string' ? after.studentUid : '';
-    const score = ctx.score(studentUid, { ...after, status: 'completed' });
-    if (!score) return;
+    const copyRef = responseRef(db, w.sessionId, w.responseKey)
+      .collection(QUIZ_ATTEMPTS_SUBCOLLECTION)
+      .doc(String(w.n));
     const listRef = scoresRef(db, w.sessionId, w.responseKey);
     await db.runTransaction(async (tx) => {
-      const list = await tx.get(listRef);
+      const [copySnap, list] = await Promise.all([
+        tx.get(copyRef),
+        tx.get(listRef),
+      ]);
+      // Score the copy as it is now, so out-of-order events settle on the latest grade.
+      const fresh: Doc | undefined = copySnap.data();
       // No list means the response was removed or never scored.
-      if (!list.exists) return;
+      if (!fresh || !list.exists) return;
+      const studentUid =
+        typeof fresh.studentUid === 'string' ? fresh.studentUid : '';
+      // A stored (published) score would mask the new grade.
+      const score = ctx.score(studentUid, {
+        ...fresh,
+        score: null,
+        status: 'completed',
+      });
+      if (!score) return;
       const entries: unknown = list.data()?.attempts;
       tx.set(listRef, {
         ...list.data(),
