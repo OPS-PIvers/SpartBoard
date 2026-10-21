@@ -42,13 +42,31 @@ function withEnding(first: string, part: string): string {
   return stem + part;
 }
 
-// "os" after "ese" is an ending even though the words are about as long; "de/a" and "nos/os" are two words.
+// Short words a slash part can stand beside without being an ending ("de/a", "nos/os").
+const WHOLE_WORDS = new Set([
+  'a',
+  'o',
+  'e',
+  'u',
+  'y',
+  'de',
+  'en',
+  'se',
+  'te',
+  'me',
+  'le',
+  'nos',
+  'os',
+  'vos',
+]);
+
+// "os" after "ese", "a" after "un", "as" after "los" are endings even though the words are about as long.
 const isEnding = (first: string, part: string): boolean =>
   part.length <= 3 &&
   (first.length > part.length + 1 ||
-    (/^[ao]s$/u.test(part) &&
+    (SWAPPED_ENDING.test(part) &&
       first.length > part.length &&
-      /[aeo]$/u.test(first)));
+      !WHOLE_WORDS.has(first.toLowerCase())));
 
 // "el/la" are whole words; a short part after a longer word is an ending. "¡Bienvenido/a!" keeps its marks on every option.
 function slashOptions(word: string): string[] {
