@@ -174,6 +174,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'flashcards-check.show-first': ['library.flashcards.assign'],
     'assign-when.mode-option': ['library.assign-stepper'],
     'assign-rule.toggle': ['library.assign-stepper', 'library.mini-app.assign'],
+    'assign-rule.final-score': ['library.assign-stepper'],
     'assign-rule.number': ['library.assign-stepper'],
     'assign-settings.toggle': ['library.assign-behavior'],
     'assign-quiz-behavior.toggle': ['library.assign-behavior'],

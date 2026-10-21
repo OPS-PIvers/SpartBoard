@@ -4846,6 +4846,8 @@ export interface QuizBehaviorSettings {
   sessionOptions: QuizSessionOptions;
   /** null = unlimited; positive int = hard cap. */
   attemptLimit: number | null;
+  /** Which attempt's score counts; saved as the Gradebook column's `attemptPolicy`. Absent = latest. */
+  finalScore?: 'latest' | 'highest' | 'average';
 }
 
 /**
@@ -10145,6 +10147,7 @@ export type GlobalFeature =
   | 'quiz-student-view'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
+  | 'quiz-attempt-history'
   /** Quiz rubrics are hidden from students unless the teacher shows them per question. */
   | 'quiz-rubric-visibility'
   /** AP-style scoring-guide rubrics with example responses, beside levels rubrics. */

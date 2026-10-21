@@ -15,6 +15,7 @@ import {
   DEFAULT_GRADEBOOK_SETTINGS,
   GRADEBOOK_COLLECTIONS,
   PLC_GRADEBOOK_META_ID,
+  type GradeAttempt,
   type GradebookClassStateDoc,
   type GradebookColumnConfig,
   type GradebookKind,
@@ -86,6 +87,23 @@ function marksQuery(uid: string, sessionId: string) {
   );
 }
 
+function attemptScoresRef(sessionId: string) {
+  return collection(db, 'quiz_sessions', sessionId, 'attemptScores');
+}
+
+/** Saved attempt scores by student, from `quiz_sessions/{s}/attemptScores` docs. */
+function toAttemptMap(
+  docs: { data: () => Record<string, unknown> }[]
+): Map<string, GradeAttempt[]> {
+  const out = new Map<string, GradeAttempt[]>();
+  for (const d of docs) {
+    const { studentUid, attempts } = d.data();
+    if (typeof studentUid === 'string' && studentUid && Array.isArray(attempts))
+      out.set(studentUid, attempts as GradeAttempt[]);
+  }
+  return out;
+}
+
 function rosterIdsOf(marks: ReadonlyMap<string, GradebookMark>): string[] {
   const ids = new Set<string>();
   for (const m of marks.values()) for (const r of m.rosterIds ?? []) ids.add(r);
@@ -95,14 +113,20 @@ function rosterIdsOf(marks: ReadonlyMap<string, GradebookMark>): string[] {
 /** One-shot read for push paths that run outside a Results view. Null unless the gradebook flag is on and the caller owns the session. */
 export async function loadFinalScoreOverlay(
   target: FinalScoreOverlayTarget & { uid: string | null | undefined },
-  gradebookOn: boolean
+  gradebookOn: boolean,
+  attemptHistoryOn = false
 ): Promise<FinalScoreOverlay | null> {
   const { uid, sessionId, teacherUid, kind } = target;
-  if (!gradebookOn || !uid || !sessionId || teacherUid !== uid) return null;
+  const historyOn = attemptHistoryOn && kind === 'quiz';
+  if (!(gradebookOn || historyOn) || !uid || !sessionId || teacherUid !== uid)
+    return null;
   try {
-    const [marksSnap, columnSnap] = await Promise.all([
+    const [marksSnap, columnSnap, attemptsSnap] = await Promise.all([
       getDocs(marksQuery(uid, sessionId)),
-      getDoc(doc(db, GRADEBOOK_COLLECTIONS.columns, sessionId)),
+      getDoc(doc(db, GRADEBOOK_COLLECTIONS.columns, sessionId)).catch(
+        () => null
+      ),
+      historyOn ? getDocs(attemptScoresRef(sessionId)) : null,
     ]);
     const marks = new Map<string, GradebookMark>();
     marksSnap.forEach((d) => {
@@ -115,13 +139,14 @@ export async function loadFinalScoreOverlay(
       sessionId,
       ownerUid: uid,
       marks,
-      column: columnSnap.exists()
+      column: columnSnap?.exists()
         ? (columnSnap.data() as GradebookColumnConfig)
         : null,
       flagDefs: settings.flags,
       autoFlags: settings.autoFlags,
       dueAt: target.dueAt ?? null,
       closeAt: target.closeAt ?? null,
+      ...(attemptsSnap ? { attempts: toAttemptMap(attemptsSnap.docs) } : {}),
     };
   } catch (err) {
     logError('loadFinalScoreOverlay', err, { sessionId, kind });
@@ -136,9 +161,14 @@ export function useFinalScoreOverlay(
   const { user, canAccessFeature } = useAuth();
   const uid = user?.uid ?? null;
   const { kind, sessionId, teacherUid } = target;
+  const historyOn = kind === 'quiz' && canAccessFeature('quiz-attempt-history');
   const active =
-    canAccessFeature('gradebook') && !!uid && !!sessionId && teacherUid === uid;
+    (canAccessFeature('gradebook') || historyOn) &&
+    !!uid &&
+    !!sessionId &&
+    teacherUid === uid;
   const key = active ? `${uid}|${sessionId}` : null;
+  const attemptsKey = key && historyOn ? key : null;
 
   const [marksState, setMarksState] = useState<{
     key: string;
@@ -147,6 +177,10 @@ export function useFinalScoreOverlay(
   const [columnState, setColumnState] = useState<{
     key: string;
     column: GradebookColumnConfig | null;
+  } | null>(null);
+  const [attemptsState, setAttemptsState] = useState<{
+    key: string;
+    attempts: Map<string, GradeAttempt[]>;
   } | null>(null);
   const [settingsState, setSettingsState] = useState<{
     key: string;
@@ -182,6 +216,19 @@ export function useFinalScoreOverlay(
     };
   }, [key, uid, sessionId]);
 
+  useEffect(() => {
+    if (!attemptsKey || !sessionId) return;
+    return onSnapshot(
+      attemptScoresRef(sessionId),
+      (snap) =>
+        setAttemptsState({
+          key: attemptsKey,
+          attempts: toAttemptMap(snap.docs),
+        }),
+      (err) => logError('useFinalScoreOverlay.attempts', err, { sessionId })
+    );
+  }, [attemptsKey, sessionId]);
+
   const marks = marksState?.key === key ? marksState.marks : null;
   const rosterKey = marks ? rosterIdsOf(marks).join(',') : '';
   const settingsKey = key ? `${key}|${rosterKey}` : null;
@@ -204,6 +251,10 @@ export function useFinalScoreOverlay(
   }, [settingsKey, uid, rosterKey, sessionId]);
 
   const column = columnState?.key === key ? columnState.column : null;
+  const attempts =
+    attemptsKey && attemptsState?.key === attemptsKey
+      ? attemptsState.attempts
+      : null;
   const settings =
     settingsState?.key === settingsKey ? settingsState.settings : DEFAULT_PICK;
   const dueAt = target.dueAt ?? null;
@@ -221,6 +272,18 @@ export function useFinalScoreOverlay(
       autoFlags: settings.autoFlags,
       dueAt,
       closeAt,
+      ...(attempts ? { attempts } : {}),
     };
-  }, [key, uid, sessionId, marks, column, settings, kind, dueAt, closeAt]);
+  }, [
+    key,
+    uid,
+    sessionId,
+    marks,
+    column,
+    settings,
+    kind,
+    dueAt,
+    closeAt,
+    attempts,
+  ]);
 }

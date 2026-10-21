@@ -117,6 +117,7 @@ import { DrilldownNameList } from './results/DrilldownNameList';
 import { useFinalScoreOverlay } from '@/hooks/gradebook/useFinalScoreOverlay';
 import {
   applyFinalScoresToEntries,
+  attemptPolicyApplies,
   finalPillPct,
   finalScoreFor,
   type FinalScoreOverlay,
@@ -4061,7 +4062,10 @@ const StudentsScreen: React.FC<{
                   overlayNow
                 )
               : null;
-          const finalPct = finalPillPct(final);
+          const finalPct = finalPillPct(
+            final,
+            !!r.studentUid && attemptPolicyApplies(finalOverlay, r.studentUid)
+          );
           const finalPoints =
             final?.source === 'override' &&
             final.points !== null &&

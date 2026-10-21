@@ -1,6 +1,8 @@
 import {
+  DEFAULT_ATTEMPT_POLICY,
   resolveFinalScore,
   type FinalScore,
+  type GradeAttempt,
   type GradeIndexRow,
   type GradeState,
   type GradebookColumnConfig,
@@ -20,6 +22,8 @@ export interface FinalScoreOverlay {
   autoFlags: boolean;
   dueAt: number | null;
   closeAt: number | null;
+  /** Every saved attempt's score by student (quiz attempt history); absent means current attempt only. */
+  attempts?: ReadonlyMap<string, readonly GradeAttempt[]>;
 }
 
 /** One student's live score as a Results view computes it; `max` is the view's own denominator. */
@@ -30,7 +34,7 @@ export interface LiveRawScore {
   submittedAt: number | null;
 }
 
-/** Results views see only the current attempt, so a highest/average policy reads as latest here. */
+/** Without saved attempts a Results view sees only the current one, so highest/average reads as latest. */
 export function liveRow(
   overlay: FinalScoreOverlay,
   studentUid: string,
@@ -57,7 +61,7 @@ export function liveRow(
     openAt: null,
     closeAt: overlay.closeAt,
     createdAt: 0,
-    attempts: [],
+    attempts: [...(overlay.attempts?.get(studentUid) ?? [])],
     targetEvidence: [],
     published: false,
     assigned: true,
@@ -79,10 +83,26 @@ export function finalScoreFor(
   );
 }
 
+/** True when highest/average could pick a score other than the student's latest. */
+export function attemptPolicyApplies(
+  overlay: FinalScoreOverlay | null,
+  studentUid: string
+): boolean {
+  const policy = overlay?.column?.attemptPolicy ?? DEFAULT_ATTEMPT_POLICY;
+  if (!overlay || policy === 'latest') return false;
+  const scored = (overlay.attempts?.get(studentUid) ?? []).filter(
+    (a) => a.state === 'scored'
+  );
+  return scored.length > 1;
+}
+
 /** True when the overlay could change any student's score; false keeps every consumer on its legacy path. */
 export function overlayHasEdits(overlay: FinalScoreOverlay | null): boolean {
   if (!overlay) return false;
   if (overlay.column?.maxPointsOverride != null) return true;
+  for (const uid of overlay.attempts?.keys() ?? []) {
+    if (attemptPolicyApplies(overlay, uid)) return true;
+  }
   for (const mark of overlay.marks.values()) {
     if (mark.override || mark.flags.length > 0) return true;
   }
@@ -113,6 +133,22 @@ export function applyFinalScoresToEntries<E extends GradeEntry>(
     }
     const final = finalScoreFor(overlay, entry.pseudonymUid, raw, now);
     if (final.status === 'excluded') {
+      changed = true;
+      continue;
+    }
+    const policyPct =
+      final.source === 'raw' &&
+      attemptPolicyApplies(overlay, entry.pseudonymUid) &&
+      final.rawPoints !== null &&
+      final.max
+        ? (final.rawPoints / final.max) * 100
+        : null;
+    if (policyPct !== null) {
+      const pointsEarned = Math.max(
+        0,
+        Math.min(maxPoints, Math.round((policyPct / 100) * maxPoints))
+      );
+      out.push({ ...entry, pointsEarned });
       changed = true;
       continue;
     }
@@ -153,10 +189,12 @@ export function finalScoreLabel(
   }
 }
 
-/** Percent the Results pill shows under D9, or null to keep the view's own score. */
-export function finalPillPct(final: FinalScore | null): number | null {
-  if (!final || final.status !== 'scored' || final.source === 'raw') {
-    return null;
-  }
+/** Percent the Results pill shows under D9, or null to keep the view's own score; `policy` marks a highest/average pick. */
+export function finalPillPct(
+  final: FinalScore | null,
+  policy = false
+): number | null {
+  if (!final || final.status !== 'scored') return null;
+  if (final.source === 'raw' && !policy) return null;
   return final.pct;
 }

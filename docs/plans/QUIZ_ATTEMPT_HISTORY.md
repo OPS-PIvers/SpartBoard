@@ -16,7 +16,7 @@ A retake resets the one response doc per student (`hooks/useQuizSession.ts`, the
 - **D6. A retake moves the last attempt's teacher grades onto its copy** and deletes `grading` from the live doc, only when a copy exists and only while the doc is still in that retake (same `completedAttempts`, not completed, grades unchanged).
 - **D7. A removed student's attempts move under their new `archived_responses` doc** (one written within 10 minutes of the delete); otherwise they are deleted, so a reused PIN key starts fresh.
 - **D8. The step runs inside the existing `gradeIndexQuizResponse` trigger** to avoid another invocation on every answer save.
-- **D9. Final score setting**: "Final score: Latest / Highest / Average" (Paul's wording), a row in the Assign stepper's attempts step when more than one attempt is allowed. It writes `gradebook_columns/{sessionId}.attemptPolicy`, the setting the Gradebook already has; the Gradebook menu label "Retakes" becomes "Final score" (anchor `gradebook.column.retakes` stays). Quiz Results and its Classroom and Schoology pushes feed `attemptScores` into `liveRow` in `utils/gradebook/finalScoreOverlay.ts`.
+- **D9. Final score setting**: "Final score: Latest / Highest / Average" (Paul's wording), a row in the Assign stepper's attempts step when more than one attempt is allowed. It writes `gradebook_columns/{sessionId}.attemptPolicy`, the setting the Gradebook already has; the Gradebook menu label "Retakes" becomes "Final score" (anchor `gradebook.column.retakes` stays). Quiz Results and its Classroom and Schoology pushes feed `attemptScores` into `liveRow` in `utils/gradebook/finalScoreOverlay.ts`; with the flag on, Quiz Results applies the choice even where the Gradebook flag is off.
 
 ## Slices
 

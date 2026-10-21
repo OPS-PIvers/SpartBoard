@@ -329,12 +329,8 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
           {/* Mini Apps always count each student's best attempt (MINI_APP_RESULTS.md D8). */}
           {column.kind !== 'mini-app' && (
             <>
-              <label
-                htmlFor={`${ids}-policy`}
-                className={LABEL}
-                title="Which score counts when a student retakes it"
-              >
-                Retakes
+              <label htmlFor={`${ids}-policy`} className={LABEL}>
+                Final score
               </label>
               <Select
                 id={`${ids}-policy`}
@@ -346,9 +342,9 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
                   }).catch(fail)
                 }
               >
-                <option value="latest">Use latest</option>
-                <option value="highest">Use highest</option>
-                <option value="average">Average them</option>
+                <option value="latest">Latest</option>
+                <option value="highest">Highest</option>
+                <option value="average">Average</option>
               </Select>
             </>
           )}
