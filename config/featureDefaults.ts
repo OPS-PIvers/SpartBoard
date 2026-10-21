@@ -1202,17 +1202,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'mini-app-ai-edit': {
-    label: 'Mini Apps: Edit with AI',
-    icon: Wand2,
-    description: 'Revises an existing mini app from an instruction.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'miniApp',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'quiz-monitor-declutter': {
     label: 'Quiz live monitor cleanup',
     icon: LayoutDashboard,
