@@ -28,6 +28,7 @@ import {
 } from './gradeProjection';
 import { GRADE_INDEX } from './gradeIndex';
 import type { IndexRow, GradeKind } from './types';
+import { applyAttemptWrite } from '../quizAttemptHistory';
 
 type Doc = Record<string, unknown>;
 
@@ -39,6 +40,7 @@ interface Change {
 interface WriteEvent {
   params: Record<string, string>;
   data?: Change;
+  time?: string;
 }
 
 const TRIGGER_OPTS = { memory: '256MiB' as const, maxInstances: 20 };
@@ -120,7 +122,31 @@ const sessionTrigger = (kind: GradeKind) =>
     (event) => handleSessionWrite(kind, event as unknown as WriteEvent)
   );
 
-export const gradeIndexQuizResponse = studentDocTrigger('quiz');
+/** Quiz responses also feed the attempt history, which runs whether or not the index is on. */
+export async function handleQuizResponseWrite(
+  event: WriteEvent
+): Promise<void> {
+  const { sessionId, docId } = event.params;
+  const parsed = event.time ? Date.parse(event.time) : NaN;
+  await Promise.all([
+    applyAttemptWrite(admin.firestore(), {
+      sessionId,
+      responseKey: docId,
+      before: dataOf(event.data?.before),
+      after: dataOf(event.data?.after),
+      eventAt: Number.isFinite(parsed) ? parsed : Date.now(),
+    }),
+    handleStudentDocWrite('quiz', event),
+  ]);
+}
+
+export const gradeIndexQuizResponse = onDocumentWritten(
+  {
+    ...TRIGGER_OPTS,
+    document: `${SESSION_COLLECTION.quiz}/{sessionId}/${STUDENT_SUBCOLLECTION.quiz}/{docId}`,
+  },
+  (event) => handleQuizResponseWrite(event as unknown as WriteEvent)
+);
 export const gradeIndexVideoResponse = studentDocTrigger('video-activity');
 export const gradeIndexGuidedLearningResponse =
   studentDocTrigger('guided-learning');

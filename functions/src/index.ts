@@ -234,6 +234,7 @@ export {
 export { recomputePlcAssessments } from './recomputePlcAssessments';
 
 // Gradebook grade index and student projection (docs/plans/GRADEBOOK.md D10, D37); off until admin_settings/gradebook_index.enabled.
+// gradeIndexQuizResponse also keeps quiz attempt history, which is always on (docs/plans/QUIZ_ATTEMPT_HISTORY.md).
 export {
   gradeIndexQuizResponse,
   gradeIndexVideoResponse,
