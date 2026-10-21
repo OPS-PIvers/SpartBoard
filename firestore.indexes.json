@@ -1,6 +1,25 @@
 {
   "indexes": [
     {
+      "collectionGroup": "flashcard_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "speak.locked",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "DESCENDING"
+        }
+      ],
+      "density": "SPARSE_ALL"
+    },
+    {
       "collectionGroup": "shared_boards",
       "queryScope": "COLLECTION",
       "fields": [
