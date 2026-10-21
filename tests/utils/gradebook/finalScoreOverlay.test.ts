@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyFinalScoresToEntries,
+  attemptPolicyApplies,
+  finalPillPct,
   finalScoreFor,
   finalScoreLabel,
   overlayHasEdits,
@@ -9,6 +11,8 @@ import {
 } from '@/utils/gradebook/finalScoreOverlay';
 import {
   DEFAULT_GRADEBOOK_FLAGS,
+  type AttemptPolicy,
+  type GradeAttempt,
   type GradebookColumnConfig,
   type GradebookMark,
 } from '@/utils/gradebook/gradebookCore';
@@ -140,6 +144,76 @@ describe('finalScoreFor', () => {
     const f = finalScoreFor(o, 'a', scored(6, 10), NOW);
     expect(f.flags).toEqual([{ id: 'late', auto: true }]);
     expect(f.source).toBe('raw');
+  });
+});
+
+describe('final score across attempts', () => {
+  const column = (attemptPolicy: AttemptPolicy): GradebookColumnConfig => ({
+    kind: 'quiz',
+    sessionId: 's1',
+    ownerUid: 't1',
+    editorUids: [],
+    category: null,
+    countsTowardOverall: true,
+    maxPointsOverride: null,
+    attemptPolicy,
+    targets: [],
+    hiddenInRosterIds: [],
+    updatedAt: 1,
+  });
+  const attempt = (at: number, points: number): GradeAttempt => ({
+    at,
+    points,
+    max: 10,
+    state: 'scored',
+  });
+  const withAttempts = (policy: AttemptPolicy): FinalScoreOverlay => ({
+    ...overlay([], column(policy)),
+    attempts: new Map([
+      ['a', [attempt(1, 4), attempt(2, 8)]],
+      ['b', [attempt(1, 5)]],
+    ]),
+  });
+
+  it('pushes the average or highest of every attempt', () => {
+    const latestFirst = { a: scored(4, 10), b: scored(5, 10) };
+    const raw = (uid: string) =>
+      latestFirst[uid as keyof typeof latestFirst] ?? null;
+    const avg = applyFinalScoresToEntries(
+      [
+        { pseudonymUid: 'a', pointsEarned: 4 },
+        { pseudonymUid: 'b', pointsEarned: 5 },
+      ],
+      10,
+      withAttempts('average'),
+      raw,
+      NOW
+    );
+    expect(avg).toEqual([
+      { pseudonymUid: 'a', pointsEarned: 6 },
+      { pseudonymUid: 'b', pointsEarned: 5 },
+    ]);
+    const high = applyFinalScoresToEntries(
+      [{ pseudonymUid: 'a', pointsEarned: 4 }],
+      20,
+      withAttempts('highest'),
+      raw,
+      NOW
+    );
+    expect(high).toEqual([{ pseudonymUid: 'a', pointsEarned: 16 }]);
+  });
+
+  it('leaves latest, and students with one attempt, on the legacy path', () => {
+    expect(overlayHasEdits(withAttempts('latest'))).toBe(false);
+    expect(attemptPolicyApplies(withAttempts('average'), 'b')).toBe(false);
+    expect(attemptPolicyApplies(withAttempts('average'), 'a')).toBe(true);
+  });
+
+  it('shows the policy score on the Results pill', () => {
+    const o = withAttempts('average');
+    const final = finalScoreFor(o, 'a', scored(4, 10), NOW);
+    expect(finalPillPct(final)).toBeNull();
+    expect(finalPillPct(final, true)).toBeCloseTo(60);
   });
 });
 

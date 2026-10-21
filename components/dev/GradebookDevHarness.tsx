@@ -16,6 +16,10 @@ import type { GradebookSource } from '@/hooks/useGradebookSource';
 import { GradebookProvider } from '@/components/gradebook/GradebookProvider';
 import { GradebookPage } from '@/components/gradebook/GradebookPage';
 import { parseGradebookPath } from '@/utils/gradebookPath';
+import {
+  DashboardContext,
+  type DashboardContextValue,
+} from '@/context/DashboardContextValue';
 
 const NOW = new Date(2026, 9, 8, 12).getTime();
 const day = (m: number, d: number): number =>
@@ -265,6 +269,13 @@ const INITIAL_MARKS: GradebookMark[] = [
   updatedAt: NOW,
 }));
 
+// The header popover's push button reads rosters from the dashboard.
+const dashboardStub = {
+  rosters: ROSTERS,
+  activeRosterId: ROSTERS[0].id,
+  addToast: () => undefined,
+} as unknown as DashboardContextValue;
+
 export const GradebookDevHarness: React.FC = () => {
   const [rows] = useState(buildRows);
   const [marks, setMarks] = useState<GradebookMark[]>(INITIAL_MARKS);
@@ -360,7 +371,7 @@ export const GradebookDevHarness: React.FC = () => {
   };
 
   return (
-    <>
+    <DashboardContext.Provider value={dashboardStub}>
       <GradebookProvider
         uid="mock-user-id"
         source={source}
@@ -389,6 +400,6 @@ export const GradebookDevHarness: React.FC = () => {
           )}
         </div>
       )}
-    </>
+    </DashboardContext.Provider>
   );
 };

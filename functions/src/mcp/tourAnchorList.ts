@@ -3377,6 +3377,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-rule.final-score",
+    "label": "Final score option in the Assign dialog quiz steps",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-rule.number",
     "label": "Setting number box in the Assign dialog quiz steps",
     "scope": "field",

@@ -116,6 +116,7 @@ import {
   type ClassroomGradeEntry,
 } from '@/utils/classroomGradePush';
 import { loadFinalScoreOverlay } from '@/hooks/gradebook/useFinalScoreOverlay';
+import { saveAttemptPolicy } from '@/hooks/gradebook/useGradebookColumnWrites';
 import { applyFinalScoresToEntries } from '@/utils/gradebook/finalScoreOverlay';
 import { quizLiveRaw } from '@/utils/gradebook/liveRawScores';
 import type { FibGradingContext } from '@/utils/quizFibAnswers';
@@ -2643,6 +2644,24 @@ const TeacherQuizWidget: React.FC<{
                   : {}),
               }
             );
+            const finalScore = behavior.finalScore ?? 'latest';
+            if (
+              finalScore !== 'latest' &&
+              attemptLimit !== 1 &&
+              canAccessFeature('quiz-attempt-history') &&
+              user?.uid
+            ) {
+              saveAttemptPolicy(
+                user.uid,
+                assignmentId,
+                'quiz',
+                finalScore
+              ).catch((err: unknown) =>
+                logError('QuizWidget.assignment.finalScore', err, {
+                  assignmentId,
+                })
+              );
+            }
             if (assessmentAssign) {
               saveLastAssignSettings({
                 sessionMode: mode,
@@ -3763,7 +3782,8 @@ const TeacherQuizWidget: React.FC<{
                   teacherUid: user?.uid,
                   uid: user?.uid,
                 },
-                canAccessFeature('gradebook')
+                canAccessFeature('gradebook'),
+                canAccessFeature('quiz-attempt-history')
               );
               const withFinal = (
                 entries: ClassroomGradeEntry[],

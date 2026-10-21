@@ -746,6 +746,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'assign-rule.final-score': {
+    label: 'Final score option in the Assign dialog quiz steps',
+    perField: true,
+    panel: true,
+  },
   'assign-rule.number': {
     label: 'Setting number box in the Assign dialog quiz steps',
     perField: true,
