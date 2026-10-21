@@ -183,6 +183,9 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
         content={
           <ScaledEmptyState
             icon={mode === 'manual' ? ListPlus : Users}
+            iconClassName="text-slate-400"
+            titleClassName="text-slate-600"
+            subtitleClassName="text-slate-500"
             title={mode === 'manual' ? 'No Tasks' : 'Roster Empty'}
             subtitle={
               mode === 'manual'
@@ -277,8 +280,8 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
 
           {/* Action buttons — fixed footer outside scroll area, always visible */}
           <div
+            className="flex [@container_(max-width:219px)_or_(max-height:199px)]:hidden"
             style={{
-              display: 'flex',
               justifyContent: 'center',
               gap: 'min(8px, 1.8cqmin)',
               padding: 'min(6px, 1.5cqmin) min(12px, 2.5cqmin)',
@@ -290,8 +293,8 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
               title="Reset Checks"
               className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-indigo-600 uppercase tracking-wider hover:bg-indigo-50 transition-all active:scale-95 shadow-indigo-500/5"
               style={{
-                padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
-                fontSize: 'min(10px, 2.8cqmin)',
+                padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                fontSize: 'max(10px, min(12px, 2.8cqmin))',
               }}
             >
               reset checked
@@ -307,8 +310,8 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                 title="Remove Completed"
                 className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-rose-500 uppercase tracking-wider hover:bg-rose-50 transition-all active:scale-95"
                 style={{
-                  padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
-                  fontSize: 'min(10px, 2.8cqmin)',
+                  padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                  fontSize: 'max(10px, min(12px, 2.8cqmin))',
                 }}
               >
                 delete checked
