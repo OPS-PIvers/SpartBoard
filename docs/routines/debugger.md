@@ -639,6 +639,12 @@
 | 2026-10-20 | State & Data | `olfConverter.bump` counted unknown element types in a plain `{}`, so types named `constructor`/`toString` produced garbage strings and `__proto__` was lost in `skipped`. Counts own keys via `Object.hasOwn` + `defineProperty`. (contained). | [#4428](https://github.com/OPS-PIvers/SpartBoard/pull/4428) |
 | 2026-10-20 | Admin & Config | `InviteAcceptance` let a previous user's in-flight claim set status after the signed-in user changed (stale error or redirect). Added the `currentUidRef` guard `PlcInviteAcceptance` already has. (contained). | [#4429](https://github.com/OPS-PIvers/SpartBoard/pull/4429) |
 | 2026-10-20 | Build & Tooling | `draft-changelog-entry.js` regexes missed `feat!:` / `fix(scope)!:` so breaking changes were skipped from the draft. Extracted `classifyCommit`/`stripCommitPrefix` accepting an optional `!`. (contained, dev tool). | [#4430](https://github.com/OPS-PIvers/SpartBoard/pull/4430) |
+| 2026-10-21 | Baseline | `pnpm run validate` green on `dev-paul` at `178d8372` (root 1915 files / 20618 tests, functions 3620 tests). Only open PR at dispatch was the unrelated unifier log (#4467). Worktrees symlinked `node_modules`; subagents ran scoped checks only and the orchestrator ran validate + build sequentially per branch. | — |
+| 2026-10-21 | Widgets | Randomizer `moveNameToGroup`, `handleRotate` and `mergeLockedWithFresh` changed `names` but left the parallel `studentIds` stale, so Send to Projects and save-back used wrong students. Helpers now move name+id members; rotate extracted to `rotateGroups`. (contained). | [#4472](https://github.com/OPS-PIvers/SpartBoard/pull/4472) |
+| 2026-10-21 | Dashboard & Layout | `SettingsDrawer` unmount cleared the 250 ms arrow-key resize debounce without saving, losing the width if the drawer closed inside the window. Cleanup now flushes via a latest-value ref. (contained). | [#4471](https://github.com/OPS-PIvers/SpartBoard/pull/4471) |
+| 2026-10-21 | State & Data | Clean: read merge/sync utils, normalizers, grading and scheduling utils, gradebook, collection/folder hooks; no reproducible bug. | — |
+| 2026-10-21 | Admin & Config | `BetaUsersPanel` cleared the input on Enter/Add even when the email was rejected as invalid. `addBetaUser` now returns a boolean and callers clear only on success. (contained). | [#4470](https://github.com/OPS-PIvers/SpartBoard/pull/4470) |
+| 2026-10-21 | Build & Tooling | Clean: read test-count/merge/rules scripts, `ssrfGuard`, `fetchImportImage` and its callers; no reproducible bug. | — |
 
 
 ## Backlog
@@ -1015,6 +1021,13 @@
 | State & Data | `utils/questionBanks.ts` `bankTargetIndex` and `utils/quizTranslationPublish.ts` `targetedLocaleCounts` use the same plain-object `counts[k] = (counts[k] ?? 0) + 1` pattern as #4428, but keys are generated ids / language codes (hardening only). `csvImport` columnIndex and `teamUpdates` leads checked: not reproducible. Many `useEffect` hooks without cancel flags (`useBankSources`, `useFlashcard*`, `useGradebook*`) unaudited. (2026-10-20) |
 | Admin & Config | `InviteAcceptance` `resolveInviteOrgId` timeout is not covered by the `isCurrent` guard (minor). Not inspected: `DeactivatedScreen`, `SignInPage`, `NewUserSetup`, `components/admin`. (2026-10-20) |
 | Build & Tooling | Unchanged leads: `retryStragglers` needs-consent starvation (500+, product call), `sync-lunch-menus.fetchWeek` no retry on thrown network errors, `parseGeminiJson` `[1]` case, `plcBuildingGroups` backfill, AI router and callable input validation not examined. (2026-10-20) |
+| Widgets | Randomizer "Send to Projects" silently skips groups whose `studentIds` were dropped (e.g. a name returned from the tray); needs a roster name-to-id map. Spotted 2026-10-21. | 2026-10-21 | open |
+| Widgets | `MiniApp/Widget.tsx` ~L173 awaits `navigator.clipboard.writeText` with no catch (also bare `void` copy buttons in Poll, Quiz JoinCodeScreen, NextUp settings). Unhandled rejection class. Spotted 2026-10-21. | 2026-10-21 | open |
+| Widgets | `Countdown/Widget.tsx` loops day by day for `calculatedDays`/`gridData` with no upper bound on a far-future `eventDate`; a six-digit year might freeze the widget. Unconfirmed. | 2026-10-21 | open (unconfirmed) |
+| Dashboard & Layout | `ToastContainer` reads full `useDashboard()` and re-renders on every commit; fix needs a small toast store (architectural, low value). `TabAwayClock` divides by `limitMs` (NaN at 0, unreachable). | 2026-10-21 | open (low) |
+| Admin & Config | `HexColorField` calls `onChange` on every valid blur even when unchanged (redundant write); `BetaUsersPanel` lacks a duplicate-email test. | 2026-10-21 | open (low) |
+| State & Data | `gradingPeriods.ts` `inPeriod` uses local date vs UTC-midnight date-only `dueAt` (dead code today); `perClassDueDates` uses `in` on a plain object; `useStudentAssignments` ~L673 `.slice(0, 30)` drops class ids for PIN students in more than 30 classes; `stableStringify` serializes Date/Map/Set as `{}`. | 2026-10-21 | open (latent) |
+| Build & Tooling | `ssrfGuard` does not unwrap IPv4-translated `::ffff:0:a.b.c.d` (unreachable via DNS); `mergeVitestReports` falls back to `startTime` 0. | 2026-10-21 | open (low) |
 
 
 ## Notes & Gotchas
@@ -1424,6 +1437,7 @@
 - 2026-10-20: **`git stash` is shared across all worktrees.** Three of five subagents used `stash push/pop` for fail-before checks and popped each other's stashes (lost edits recovered from the agents' own reports and `git fsck --lost-found`). Dispatch prompts must say: never use `git stash`; use `git checkout <base> -- <file>` then `git checkout HEAD -- <file>`.
 - 2026-10-20: the husky hook on subagent commits did not catch a `no-restricted-imports` (relative `../` import in tests), a `require-await`, an `unbound-method`, a `no-unsafe-return` or two prettier misses; the merged-tree gate caught all of them. `validate` chains with `&&`, so a lint failure hides format/test results: re-run after fixing. Gate the merged tree once on a temporary integration branch.
 - 2026-10-20: a fresh container can lack `functions/node_modules` packages (`@echogarden/espeak-ng-emscripten`), failing 3 pronunciation tests; run `pnpm install` in `functions/` before reading the baseline as red.
+- Run count: **104** | Last run: **2026-10-21**
 - Run count: **103** | Last run: **2026-10-20**
 - Run count: **102** | Last run: **2026-10-19**
 - Run count: **101** | Last run: **2026-10-18**
