@@ -16,6 +16,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   getAssignmentPseudonymV1: 'read',
   getClassLinkRosterV1: 'read',
   getGoogleTasksSyncStatusV1: 'read',
+  getMyQuizAttemptsV1: 'read',
   getGradebookRosterV1: 'read',
   getOrgUserActivity: 'read',
   getPaperWrittenCropV1: 'read',

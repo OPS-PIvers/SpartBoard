@@ -88,6 +88,8 @@ export interface SessionContext {
   session: Doc;
   meta: SessionMeta;
   score: (studentUid: string, perStudent: Doc) => RowScore | null;
+  /** Quiz sessions only: the key and per-student answer lookups. */
+  quiz?: QuizContext;
 }
 
 /** A doc key the index can't tie to a stable student (anonymous PIN joins). */
@@ -139,6 +141,7 @@ export async function loadSessionContext(
       session: s,
       meta: parseSessionMeta(kind, sessionId, s, assignment),
       score: (_uid, response) => scoreQuizResponse(s, response, ctx),
+      quiz: ctx,
     };
   }
 

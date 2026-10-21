@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '@/config/firebase';
 import type { QuizResponse } from '@/types';
 import { logError } from '@/utils/logError';
 
@@ -79,4 +80,87 @@ export function useQuizResponseAttempts(
   if (!enabled || !sessionId || !responseKey) return null;
   if (override) return override(sessionId, responseKey);
   return state?.key === key ? state.copies : null;
+}
+
+/** One earlier attempt as `getMyQuizAttemptsV1` returns it to its student. */
+export interface MyQuizAttempt {
+  n: number;
+  submittedAt: number | null;
+  score: number | null;
+  answers?: { questionId: string; answer: string; isCorrect?: boolean }[];
+  grading?: QuizResponse['grading'];
+  servedQuestionIds?: string[];
+}
+
+export type MyQuizAttemptsLoader = (req: {
+  sessionId: string;
+  responseKey: string;
+}) => Promise<{ attempts: MyQuizAttempt[] }>;
+
+const callMyQuizAttempts: MyQuizAttemptsLoader = async (req) =>
+  (
+    await httpsCallable<typeof req, { attempts: MyQuizAttempt[] }>(
+      functions,
+      'getMyQuizAttemptsV1'
+    )(req)
+  ).data;
+
+/** Lets a dev harness or test supply a student's earlier attempts. */
+export const MyQuizAttemptsLoaderContext =
+  createContext<MyQuizAttemptsLoader>(callMyQuizAttempts);
+
+/** A student's own earlier attempts as their results settings allow; [] when none or off. */
+export function useMyQuizAttempts(
+  sessionId: string,
+  responseKey: string | undefined,
+  /** Changes whenever the server's answer could (new attempt, results setting). */
+  refreshKey: string | null
+): MyQuizAttempt[] {
+  const load = useContext(MyQuizAttemptsLoaderContext);
+  const key =
+    responseKey && refreshKey
+      ? `${sessionId}/${responseKey}/${refreshKey}`
+      : null;
+  const [state, setState] = useState<{
+    key: string;
+    attempts: MyQuizAttempt[];
+  } | null>(null);
+
+  useEffect(() => {
+    if (!key || !responseKey) return;
+    let live = true;
+    load({ sessionId, responseKey })
+      .then((res) => {
+        if (live)
+          setState({
+            key,
+            attempts: Array.isArray(res?.attempts) ? res.attempts : [],
+          });
+      })
+      .catch((err: unknown) => {
+        logError('useMyQuizAttempts', err, { sessionId, responseKey });
+      });
+    return () => {
+      live = false;
+    };
+  }, [key, load, sessionId, responseKey]);
+
+  return state && state.key === key ? state.attempts : [];
+}
+
+/** The student's live response with an earlier attempt's answers and grades in place. */
+export function myAttemptAsResponse<R extends QuizResponse>(
+  live: R,
+  attempt: MyQuizAttempt
+): R {
+  return {
+    ...live,
+    status: 'completed',
+    answers: (attempt.answers ?? []).map((a) => ({ ...a, answeredAt: 0 })),
+    grading: attempt.grading,
+    score: attempt.score,
+    submittedAt: attempt.submittedAt,
+    servedQuestionIds: attempt.servedQuestionIds,
+    artifactArchive: undefined,
+  };
 }
