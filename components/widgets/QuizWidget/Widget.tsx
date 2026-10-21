@@ -302,12 +302,10 @@ const TeacherQuizWidget: React.FC<{
   const canImportVersions =
     canImportDocuments && canAccessFeature('quiz-import-versions');
   const config = widget.config as QuizConfig;
-  const reviewSplit = canAccessFeature('quiz-review-split');
   const isReview = variant === 'review';
   // The assign stepper is Assessment Mode only and saves last-used rules (plan D12).
   const assessmentAssign = !isReview;
-  // Only tag new docs while the split is on, so flag-off data is unchanged (D2).
-  const kindTag = reviewSplit ? { widgetKind: variant } : {};
+  const kindTag = { widgetKind: variant };
   const { save: saveLastAssignSettings } = useLastQuizAssignSettings(
     user?.uid,
     assessmentAssign
@@ -621,13 +619,10 @@ const TeacherQuizWidget: React.FC<{
   }, [quizzes, assignments]);
   const { groups: syncedGroups } = useSyncedQuizGroupsByIds(syncGroupIds);
 
-  // D3: with the split on, each widget's archive lists only its own kind.
+  // D3: each widget's archive lists only its own kind.
   const kindAssignments = useMemo(
-    () =>
-      reviewSplit
-        ? assignments.filter((a) => getAssignmentWidgetKind(a) === variant)
-        : assignments,
-    [assignments, reviewSplit, variant]
+    () => assignments.filter((a) => getAssignmentWidgetKind(a) === variant),
+    [assignments, variant]
   );
 
   // Ephemeral modal state for per-assignment settings editing.
@@ -1309,11 +1304,9 @@ const TeacherQuizWidget: React.FC<{
     setView,
   ]);
 
-  // D9: a Quiz-kind session under the split has no scoreboard sync, reveal or podium.
+  // D9: a Quiz-kind session has no scoreboard sync, reveal or podium.
   const liveAssessmentOnly =
-    reviewSplit &&
-    !!liveSession &&
-    getAssignmentWidgetKind(liveSession) === 'quiz';
+    !!liveSession && getAssignmentWidgetKind(liveSession) === 'quiz';
   const scoreboardSyncOn =
     (config.liveScoreboardEnabled ?? false) && !liveAssessmentOnly;
 
@@ -1977,9 +1970,9 @@ const TeacherQuizWidget: React.FC<{
             ? (ids) => setAssignmentExportedResponseIds(activeAssignmentId, ids)
             : undefined
         }
-        variant={isReview && reviewSplit ? 'review' : 'quiz'}
+        variant={isReview ? 'review' : 'quiz'}
         studentResultsActions={
-          activeAssignmentId && !(isReview && reviewSplit)
+          activeAssignmentId && !isReview
             ? {
                 publish: (keys, visibility, expiresAt, protection) =>
                   publishResultsForStudents(
@@ -2175,9 +2168,7 @@ const TeacherQuizWidget: React.FC<{
       <QuizManager
         variant={variant}
         onStartReview={
-          isReview && reviewSplit
-            ? (meta) => void reviewLaunch.open(meta)
-            : undefined
+          isReview ? (meta) => void reviewLaunch.open(meta) : undefined
         }
         userId={user?.uid}
         widgetId={widget.id}
@@ -3231,7 +3222,7 @@ const TeacherQuizWidget: React.FC<{
           });
         }}
         onArchiveEditSettings={
-          isReview && reviewSplit
+          isReview
             ? undefined
             : (a) => {
                 setEditingAssignment(a);

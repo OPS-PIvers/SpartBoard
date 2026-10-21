@@ -97,8 +97,6 @@ interface PaneProps {
   aiEnabled: boolean;
   /** Question-bank access; omitted when banks are unavailable. */
   bankApi?: QuizEditorBankApi;
-  /** Drives the advisory's shuffle-no-op line; owned by the modal. */
-  shuffleQuestionsEnabled?: boolean;
   /** Rendered at the top of the pane (bank editor's targets strip). */
   titleSlot?: React.ReactNode;
   /** Bank-level tags every question inherits; rows render them muted. */
@@ -175,7 +173,6 @@ const quizContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.state.sections === next.state.sections &&
   prev.state.selectedId === next.state.selectedId &&
   prev.state.checkedIds === next.state.checkedIds &&
-  prev.shuffleQuestionsEnabled === next.shuffleQuestionsEnabled &&
   prev.titleSlot === next.titleSlot &&
   prev.inheritedTargets === next.inheritedTargets &&
   prev.onAddAnswerKey === next.onAddAnswerKey &&
@@ -186,7 +183,6 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
   state,
   aiEnabled,
   bankApi,
-  shuffleQuestionsEnabled,
   titleSlot,
   inheritedTargets,
   onAddAnswerKey,
@@ -331,10 +327,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
         {/* Advisory, not validation: it never blocks a save and never shares
             the error styling. */}
         {mediaResponseAllowed && (
-          <QuizAuthoringAdvisory
-            questions={questions}
-            shuffleQuestionsEnabled={shuffleQuestionsEnabled}
-          />
+          <QuizAuthoringAdvisory questions={questions} />
         )}
       </div>
 

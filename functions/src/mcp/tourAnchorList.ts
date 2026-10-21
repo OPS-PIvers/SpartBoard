@@ -4571,19 +4571,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "assign-quiz-behavior.mode",
-    "label": "Session mode card in the Quiz assign settings",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-behavior",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
     "id": "assign-quiz-behavior.gamification",
     "label": "Gamification section header in the Quiz assign settings",
     "scope": "board",
@@ -6028,28 +6015,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-editor.tab-stimuli",
     "label": "Stimuli editor tab in the Quiz editor",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:quiz",
-          "library-shell.new-menu-item:quiz#item-1"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-editor.tab-settings",
-    "label": "Settings editor tab in the Quiz editor",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -19944,7 +19909,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "keys": [
-      "plc#copy-paste",
       "plc#focus-mode",
       "plc#shuffle-answers",
       "plc#shuffle-questions"
@@ -21657,18 +21621,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "needs": [
           "plc"
         ]
-      }
-    ]
-  },
-  {
-    "id": "plc-assign.quiz-mode",
-    "label": "Quiz mode button in the PLC assign dialog",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-config",
-        "kind": "modal"
       }
     ]
   },

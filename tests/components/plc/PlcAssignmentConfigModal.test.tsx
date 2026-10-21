@@ -2,8 +2,8 @@
  * Tests for PlcAssignmentConfigModal — Stream B task B3.
  *
  * Key assertions:
- *   - Renders mode selector (quiz only), AssignmentSettingsToggleGroup,
- *     AssignClassPicker, and a due-date input.
+ *   - Renders last-used assign settings inline (quiz) or
+ *     AssignmentSettingsToggleGroup (VA), AssignClassPicker, and a due-date input.
  *   - On confirm, createAssignment receives:
  *       • settings.plc set (has id matching plc.id)
  *       • dueAt set when a date is entered
@@ -38,6 +38,7 @@ import type { Plc, ClassRoster } from '@/types';
 import type { AssignmentQuizRef } from '@/hooks/useQuizAssignments';
 import type { AssignmentActivityRef } from '@/hooks/useVideoActivityAssignments';
 import { useDashboard } from '@/context/useDashboard';
+import { getQuizAssignPrefill } from '@/utils/quizBehavior';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -189,7 +190,7 @@ describe('PlcAssignmentConfigModal (quiz kind)', () => {
     });
   });
 
-  it('renders a mode selector for quiz kind', () => {
+  it('renders the inline assign settings and no mode selector for quiz kind (D12)', () => {
     render(
       <PlcAssignmentConfigModal
         plc={fakePlc}
@@ -199,16 +200,12 @@ describe('PlcAssignmentConfigModal (quiz kind)', () => {
         onClose={vi.fn()}
       />
     );
-    // Expect mode buttons: Teacher-paced, Auto-paced, Assessment Mode
     expect(
-      screen.getByRole('radio', { name: /teacher-paced/i })
+      screen.getByTestId('quiz-assign-settings-inline')
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('radio', { name: /auto-paced/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('radio', { name: /assessment mode/i })
-    ).toBeInTheDocument();
+      screen.queryByRole('radio', { name: /teacher-paced/i })
+    ).not.toBeInTheDocument();
   });
 
   it('renders a due date input', () => {
@@ -792,24 +789,7 @@ describe('PlcAssignmentConfigModal (quiz kind — Task 10 slimmed, quizBehavior 
     ).not.toBeInTheDocument();
   });
 
-  it('renders the behavior summary when quizBehavior is provided', () => {
-    render(
-      <PlcAssignmentConfigModal
-        plc={fakePlc}
-        kind="quiz"
-        quizRef={fakeQuizRef}
-        quizBehavior={fakeBehavior}
-        isOpen
-        onClose={vi.fn()}
-      />
-    );
-    const summaryEl = screen.getByTestId('plc-config-behavior-summary');
-    expect(summaryEl).toBeInTheDocument();
-    expect(summaryEl.textContent).toMatch(/assessment mode/i);
-    expect(summaryEl.textContent).toMatch(/3 attempts/i);
-  });
-
-  it('sources sessionMode/sessionOptions/attemptLimit from quizBehavior on submit', async () => {
+  it("assigns with the teacher's last-used settings, not quizBehavior (D12)", async () => {
     const onClose = vi.fn();
     render(
       <PlcAssignmentConfigModal
@@ -836,11 +816,10 @@ describe('PlcAssignmentConfigModal (quiz kind — Task 10 slimmed, quizBehavior 
       unknown,
       Record<string, unknown>,
     ];
+    const prefill = getQuizAssignPrefill(null);
     expect(settings.sessionMode).toBe('student');
-    expect(settings.attemptLimit).toBe(3);
-    expect(
-      (settings.sessionOptions as Record<string, unknown>).showResultToStudent
-    ).toBe(true);
+    expect(settings.attemptLimit).toBe(prefill.attemptLimit);
+    expect(settings.sessionOptions).toEqual(prefill.sessionOptions);
 
     // The synced group minted for peers must carry the same behavior, or
     // teammates who pull before the first edit get DEFAULT behavior.

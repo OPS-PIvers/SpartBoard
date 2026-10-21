@@ -3195,10 +3195,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [user, globalPermissions, resolvePermissionAccess, isAdmin, userTier]
   );
 
-  // Plan D7: Review needs its widget permission AND the `quiz-review-split` flag.
   const canAccessWidget = useCallback(
     (widgetType: WidgetType, customBuildings?: string[]): boolean =>
-      (widgetType !== 'review' || canAccessFeature('quiz-review-split')) &&
       (widgetType !== 'routineGuide' || canAccessFeature('routine-guide')) &&
       canAccessWidgetPermission(widgetType, customBuildings),
     [canAccessFeature, canAccessWidgetPermission]

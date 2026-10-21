@@ -1,24 +1,17 @@
 /**
  * QuizBehaviorSettingsPanel — reusable behavior settings UI for Quiz.
  *
- * Renders the mode selector (Teacher-paced / Auto-progress / Assessment Mode),
- * the AssignmentSettingsToggleGroup (integrity / feedback / randomization
- * toggles + attempt limit), and the gamification CollapsibleSection.
+ * Renders the AssignmentSettingsToggleGroup (integrity / feedback /
+ * randomization toggles + attempt limit) and the gamification
+ * CollapsibleSection. The session mode is fixed by the caller.
  *
  * Driven by the structured `QuizBehaviorSettings` shape. All edits call
  * `onChange` with a new `QuizBehaviorSettings` value — the parent owns state.
- *
- * Extracted from `QuizAssignmentSettingsModal` so the same UI can be
- * mounted inside the quiz editor (Task 7+).
  */
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import type {
-  QuizBehaviorSettings,
-  QuizSessionMode,
-  QuizSessionOptions,
-} from '@/types';
+import type { QuizBehaviorSettings, QuizSessionOptions } from '@/types';
 import {
   DEFAULT_QUIZ_HAND_RAISE_MODE,
   type QuizHandRaiseMode,
@@ -28,8 +21,6 @@ import { tourTypeAttr } from '@/config/tourAnchors';
 import { AssignmentSettingsToggleGroup } from './AssignmentSettingsToggleGroup';
 import { CollapsibleSection } from './CollapsibleSection';
 import { ToggleRow } from './AssignmentSettingsToggleGroup';
-import type { AssignModeOption } from './types';
-import { SESSION_MODES } from './sessionModes';
 import { QUIZ_STUDENT_MODE_LABEL } from '@/utils/quizBehavior';
 import { QuizTimeLimitRow } from './QuizTimeLimitRow';
 import { useQuizRuleGates } from './assignStepper/QuizRuleStepGates';
@@ -38,22 +29,18 @@ import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 /**
  * Which options the panel shows:
- * - `full`: mode picker and gamification (assign and editor with the split off).
- * - `live`: no mode picker, gamification kept (a launched assignment's mode is fixed).
- * - `quiz`: assessment only; no mode picker, board reveal or gamification (split on, D8/D9).
+ * - `live`: gamification kept (a launched assignment's mode is fixed).
+ * - `quiz`: assessment only; no board reveal or gamification (D8/D9).
  * - `review`: reserved for the Review launch; behaves as `live` until that lands.
  */
-export type QuizBehaviorPanelVariant = 'full' | 'live' | 'quiz' | 'review';
+export type QuizBehaviorPanelVariant = 'live' | 'quiz' | 'review';
 
 export interface QuizBehaviorSettingsPanelProps {
   value: QuizBehaviorSettings;
   onChange: (next: QuizBehaviorSettings) => void;
-  /**
-   * When true, the mode selector buttons are disabled (e.g. live assignment).
-   * Default false.
-   */
+  /** When true, the toggles are disabled (e.g. live assignment). Default false. */
   modeLocked?: boolean;
-  /** Which options show; defaults to `full`. */
+  /** Which options show; defaults to `live`. */
   variant?: QuizBehaviorPanelVariant;
   /** Shows the "Read aloud" toggle; the host resolves the 'quiz-read-aloud' gate. */
   readAloudAvailable?: boolean;
@@ -69,14 +56,13 @@ export const QuizBehaviorSettingsPanel: React.FC<
   value,
   onChange,
   modeLocked = false,
-  variant = 'full',
+  variant = 'live',
   readAloudAvailable = false,
   handRaiseMode = DEFAULT_QUIZ_HAND_RAISE_MODE,
   hasManualGrading = false,
 }) => {
   const { t } = useTranslation();
   const assessmentOnly = variant === 'quiz';
-  const hideModeSelector = variant !== 'full';
   const gates = useQuizRuleGates();
   const { tabAwayTimerOn, scoreOnSubmitOn } = gates;
   const timeLimitOn =
@@ -85,75 +71,8 @@ export const QuizBehaviorSettingsPanel: React.FC<
     onChange(patchQuizSessionOptions(value, next));
   const scoreOnSubmit =
     !hasManualGrading && value.sessionOptions.showScoreOnSubmit === true;
-  const modes: AssignModeOption[] = SESSION_MODES.map((m) => ({
-    ...m,
-    ...(m.id === 'student' ? { label: QUIZ_STUDENT_MODE_LABEL } : {}),
-    disabled: modeLocked,
-  }));
-
-  const handleModeChange = (id: string) => {
-    if (modeLocked) return;
-    onChange({ ...value, sessionMode: id as QuizSessionMode });
-  };
-
   return (
     <>
-      {/* Mode selector */}
-      {!hideModeSelector && (
-        <div className="space-y-3">
-          <p className="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest">
-            Session Mode
-          </p>
-          <div className="grid gap-2">
-            {modes.map((mode) => {
-              const Icon = mode.icon;
-              const selected = mode.id === value.sessionMode;
-              return (
-                <button
-                  key={mode.id}
-                  type="button"
-                  onClick={() => handleModeChange(mode.id)}
-                  disabled={mode.disabled}
-                  aria-pressed={selected}
-                  {...tourFieldAttr(
-                    'assign-quiz-behavior.mode',
-                    'assign',
-                    mode.id
-                  )}
-                  className={`w-full text-left p-3 rounded-xl border-2 transition-all flex items-start gap-3 group ${
-                    selected
-                      ? 'border-brand-blue-primary bg-brand-blue-lighter/30'
-                      : 'border-slate-200 hover:border-brand-blue-primary hover:bg-brand-blue-lighter/20'
-                  } ${mode.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  {Icon && (
-                    <div
-                      className={`p-2 rounded-lg transition-colors shrink-0 ${
-                        selected
-                          ? 'bg-brand-blue-primary text-white'
-                          : 'bg-slate-100 text-brand-blue-primary'
-                      }`}
-                    >
-                      <Icon size={18} />
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="font-black text-sm text-slate-800 leading-tight">
-                      {mode.label}
-                    </p>
-                    {mode.description && (
-                      <p className="text-xs text-slate-500 mt-0.5 leading-snug">
-                        {mode.description}
-                      </p>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Toggle group: integrity / feedback / randomization + gamification */}
       <AssignmentSettingsToggleGroup
         modeLocked={modeLocked}

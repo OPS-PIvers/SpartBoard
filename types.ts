@@ -5050,7 +5050,7 @@ export interface QuizSession
   plcLinkedAt?: number;
   status: QuizSessionStatus;
   sessionMode: QuizSessionMode;
-  /** Owning widget, written on create while `quiz-review-split` is on. */
+  /** Owning widget, written on create. */
   widgetKind?: QuizWidgetKind;
   /** -1 = lobby/waiting room, 0+ = currently displayed question index */
   currentQuestionIndex: number;
@@ -6645,7 +6645,7 @@ export interface QuizAssignment
     PeriodAccessSessionFields {
   /** Assignment UUID — also the sessionId. */
   id: string;
-  /** Owning widget, written on create while `quiz-review-split` is on. */
+  /** Owning widget, written on create. */
   widgetKind?: QuizWidgetKind;
   /**
    * FIB answer keys translated at assign time, `{ [questionId]: { [locale]: string[] } }`.
@@ -10155,8 +10155,6 @@ export type GlobalFeature =
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
   | 'student-gradebook'
-  /** Quiz keeps assessment only; live review games move to the Review widget. */
-  | 'quiz-review-split'
   /** Quiz assign/edit: an overall time limit per attempt with a student countdown. */
   | 'quiz-time-limit'
   /** Routine Guide widget, the instructional routines redesign. */
