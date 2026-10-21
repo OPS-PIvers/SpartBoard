@@ -95,7 +95,15 @@ export const SpeakPlayerDevHarness: React.FC = () => {
   const [setup] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     const fake = createFakeRecognizer(readState(params.get('state')));
-    fake.queue(TAKES[params.get('take') ?? 'exact'] ?? TAKES.exact);
+    const take = params.get('take') ?? 'exact';
+    // An exact run says every card right, so the next-card listening can be walked through.
+    if (take === 'exact')
+      fake.queue(
+        TAKES.exact,
+        { tokens: ['k', 'a', 's', 'a'] },
+        { tokens: ['o', 'l', 'a'] }
+      );
+    else fake.queue(TAKES[take] ?? TAKES.exact);
     setRecognizerForTests(fake);
     return {
       width: Number(params.get('w')) || 900,

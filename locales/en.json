@@ -4598,6 +4598,7 @@
         "playMyTry": "Play my attempt",
         "tryAgain": "Try again",
         "continue": "Continue",
+        "autoContinue": "Automatically continue to next card",
         "skip": "Skip",
         "round": "Round {{round}}",
         "mastered": "{{mastered}}/{{total}} said well",

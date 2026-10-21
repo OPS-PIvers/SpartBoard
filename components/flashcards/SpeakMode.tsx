@@ -96,6 +96,7 @@ const MIC_CHECK_WORD: Record<SpeakLanguage, string> = {
   en: 'hello',
 };
 const HEARD_LEVEL = 0.15;
+const AUTO_CONTINUE_MS = 3000;
 
 export interface SpeakModeProps {
   cards: FlashcardCard[];
@@ -118,6 +119,8 @@ export interface SpeakModeProps {
   onRestart?: () => void;
   /** Keyboard shortcuts pause while the settings drawer is open. */
   paused?: boolean;
+  /** A decided card moves on by itself after a short countdown on Continue. */
+  autoContinue?: boolean;
   /** Admin Say it only: saves what the recognizer heard as another accepted reading. */
   onSaveHeard?: (
     cardId: string,
@@ -511,6 +514,7 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
   onNextRound,
   onRestart,
   paused = false,
+  autoContinue = false,
   onSaveHeard,
 }) => {
   const { t } = useTranslation();
@@ -531,7 +535,15 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
   const [retried, setRetried] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [, setVoicesVersion] = useState(0);
+  // Once the mic has given a take, each next card starts listening on its own.
+  const [micWorked, setMicWorked] = useState(false);
+  const [autoTake, setAutoTake] = useState(false);
+  // Any other tap on a result holds the countdown, so the student can look and listen.
+  const [held, setHeld] = useState(false);
   const runRef = useRef(0);
+  const discardRef = useRef(false);
+  // A held Enter that repeats onto Stop must not end the take Continue just opened.
+  const stopArmedRef = useRef(true);
   const takeUrlRef = useRef<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const stopHearRef = useRef<(() => void) | null>(null);
@@ -615,6 +627,8 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
       if (pass) setPassed((count) => count + 1);
       else setFailed((count) => count + 1);
     }
+    // Taps before this result don't hold its countdown.
+    setHeld(false);
     setHeardSave('idle');
     setPhase({ kind: 'result', judgement, decided, passed: pass, heard });
     focusSoon(actionRef);
@@ -622,9 +636,20 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
 
   const onTakeReady = (take: AudioTake) => {
     if (!card) return;
+    setAutoTake(false);
+    setStream(null);
+    if (discardRef.current) {
+      // An auto take the student never spoke into goes back to the Start speaking button.
+      discardRef.current = false;
+      setPhase({ kind: 'armed' });
+      return;
+    }
+    setMicWorked(true);
+    // The browser may only now remember the answer the student gave its prompt.
+    if (permission !== 'granted')
+      void micPermission().then((value) => setPermission(value));
     const run = runRef.current;
     replaceTake(take);
-    setStream(null);
     setPhase({ kind: 'checking' });
     void recognizer
       .recognize(take.blob)
@@ -688,7 +713,10 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
     capture.phase === 'recording' || capture.phase === 'requesting-permission';
 
   // The student just speaks; the take ends itself, and Stop stays for anyone who wants it.
-  useSpeechEnd(capture.phase === 'recording' ? stream : null, capture.stop);
+  useSpeechEnd(capture.phase === 'recording' ? stream : null, (event) => {
+    if (event === 'no-speech' && autoTake) discardRef.current = true;
+    capture.stop();
+  });
 
   const startTake = () => {
     if (blockReason || recording || phase.kind === 'checking') return;
@@ -697,16 +725,19 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
       setPhase({ kind: 'permission' });
       return;
     }
+    discardRef.current = false;
+    setAutoTake(false);
     setPhase({ kind: 'armed' });
     void capture.start();
   };
 
   const toggleRecording = () => {
-    if (capture.phase === 'recording') capture.stop();
-    else startTake();
+    if (capture.phase !== 'recording') startTake();
+    else if (!autoTake || stopArmedRef.current) capture.stop();
   };
 
   const allowMic = () => {
+    discardRef.current = false;
     setAsked(true);
     setPhase({ kind: 'armed' });
     void capture.start();
@@ -721,6 +752,7 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
 
   const playTake = () => {
     if (!takeUrlRef.current) return;
+    setHeld(true);
     stopHearRef.current?.();
     audioRef.current?.pause();
     const audio = new Audio(takeUrlRef.current);
@@ -730,13 +762,22 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
 
   const playExample = () => {
     if (!canHear || !hearDialect) return;
+    // No recorder exists yet to cancel, so the example would be recorded once it opens.
+    if (capture.phase === 'requesting-permission') return;
+    setHeld(true);
+    if (autoTake && capture.phase === 'recording') {
+      // Echo cancellation is off, so the example would land in the take; drop the take instead.
+      discardRef.current = true;
+      capture.stop();
+    }
     audioRef.current?.pause();
     stopHearRef.current?.();
     stopHearRef.current = hearIt(word, hearDialect).stop;
   };
 
-  const next = () => {
+  const advance = (byTimer: boolean) => {
     runRef.current += 1;
+    setHeld(false);
     replaceTake(null);
     stopHearRef.current?.();
     setAttemptsUsed(0);
@@ -746,10 +787,36 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
     else {
       setIndex((current) => current + 1);
       focusSoon(micButtonRef);
+      // Listen on the next card, but only with a remembered permission so nothing prompts per card.
+      if (micWorked && permission === 'granted' && !blockReason && !paused) {
+        discardRef.current = false;
+        // No key is down when the countdown moves on, so Stop works straight away.
+        stopArmedRef.current = byTimer;
+        setAutoTake(true);
+        void capture.start();
+      }
     }
   };
 
+  const next = () => advance(false);
+
   const decidedResult = phase.kind === 'result' && phase.decided;
+  // Only a passed card moves on by itself; a missed one waits so the marks get read.
+  const counting =
+    autoContinue &&
+    decidedResult &&
+    phase.kind === 'result' &&
+    phase.passed &&
+    !held &&
+    !paused;
+
+  const continueByTimer = useEffectEvent(() => advance(true));
+
+  useEffect(() => {
+    if (!counting) return undefined;
+    const timer = window.setTimeout(continueByTimer, AUTO_CONTINUE_MS);
+    return () => window.clearTimeout(timer);
+  }, [counting, index]);
 
   const onKey = useEffectEvent((event: KeyboardEvent) => {
     if (paused || summary || blockReason || isTypingTarget(event.target))
@@ -768,7 +835,11 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
     } else if (key === 'r' && !recordingNow && takeUrlRef.current) {
       event.preventDefault();
       playTake();
-    } else if (key === 'h' && !recordingNow && canHear) {
+    } else if (
+      key === 'h' &&
+      (!recording || (autoTake && recordingNow)) &&
+      canHear
+    ) {
       event.preventDefault();
       playExample();
     }
@@ -776,8 +847,17 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
 
   useEffect(() => {
     const listener = (event: KeyboardEvent) => onKey(event);
+    const armStop = () => {
+      stopArmedRef.current = true;
+    };
     window.addEventListener('keydown', listener);
-    return () => window.removeEventListener('keydown', listener);
+    window.addEventListener('keyup', armStop);
+    window.addEventListener('pointerdown', armStop, true);
+    return () => {
+      window.removeEventListener('keydown', listener);
+      window.removeEventListener('keyup', armStop);
+      window.removeEventListener('pointerdown', armStop, true);
+    };
   }, []);
 
   if (summary) {
@@ -896,9 +976,20 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
       type="button"
       onClick={next}
       aria-keyshortcuts="Enter"
-      className={primaryButton}
+      data-speak-continue=""
+      className={cx(primaryButton, 'relative isolate overflow-hidden')}
       style={buttonStyle}
     >
+      {counting && (
+        <span
+          key={index}
+          aria-hidden="true"
+          className="absolute inset-0 -z-10 origin-right bg-rose-800"
+          style={{
+            animation: `speak-drain ${AUTO_CONTINUE_MS}ms linear forwards`,
+          }}
+        />
+      )}
       {t('flashcards.speak.player.continue')}
     </button>
   );
@@ -937,68 +1028,83 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
     const accepted = judgement.verdict === 'accepted';
     const exact = judgement.verdict === 'exact';
     return (
-      <Panel dark={dark} tone={phase.passed ? 'emerald' : 'rose'} role="status">
-        <p
-          className="inline-flex items-center font-black"
-          style={{ gap: 'min(6px, 1.4cqmin)', fontSize: 'min(16px, 4cqmin)' }}
+      <div
+        className="w-full"
+        onPointerDownCapture={(event) => {
+          if (
+            event.target instanceof Element &&
+            !event.target.closest('[data-speak-continue]')
+          )
+            setHeld(true);
+        }}
+      >
+        <Panel
+          dark={dark}
+          tone={phase.passed ? 'emerald' : 'rose'}
+          role="status"
         >
-          {phase.passed ? (
-            <Check aria-hidden="true" style={iconStyle} />
-          ) : (
-            <RotateCcw aria-hidden="true" style={iconStyle} />
-          )}
-          {t(
-            exact
-              ? 'flashcards.speak.verdict.exact'
-              : accepted
-                ? 'flashcards.speak.verdict.accepted'
-                : phase.decided
-                  ? 'flashcards.speak.verdict.outOfTries'
-                  : 'flashcards.speak.verdict.notYet'
-          )}
-        </p>
-        {(exact || accepted || !phase.decided) && (
-          <PanelBody dark={dark}>
+          <p
+            className="inline-flex items-center font-black"
+            style={{ gap: 'min(6px, 1.4cqmin)', fontSize: 'min(16px, 4cqmin)' }}
+          >
+            {phase.passed ? (
+              <Check aria-hidden="true" style={iconStyle} />
+            ) : (
+              <RotateCcw aria-hidden="true" style={iconStyle} />
+            )}
             {t(
               exact
-                ? 'flashcards.speak.verdict.exactBody'
+                ? 'flashcards.speak.verdict.exact'
                 : accepted
-                  ? 'flashcards.speak.verdict.acceptedBody'
-                  : 'flashcards.speak.verdict.notYetBody'
+                  ? 'flashcards.speak.verdict.accepted'
+                  : phase.decided
+                    ? 'flashcards.speak.verdict.outOfTries'
+                    : 'flashcards.speak.verdict.notYet'
             )}
-          </PanelBody>
-        )}
-        {accepted && judgement.forgivenGroups.length > 0 && (
-          <ul
-            className="font-bold"
-            style={{
-              marginTop: 'min(4px, 1cqmin)',
-              fontSize: 'min(13px, 3.4cqmin)',
-            }}
-          >
-            {judgement.forgivenGroups.map((id) => (
-              <li key={id}>{t(`flashcards.speak.groups.${id}`)}</li>
-            ))}
-          </ul>
-        )}
-        {marks.length > 0 && (
-          <div style={{ marginTop: 'min(12px, 3cqmin)' }}>
-            <SpeakMarks
-              segments={segments}
-              marks={marks}
-              language={language}
-              dark={dark}
-            />
-          </div>
-        )}
-        {stressLine}
-        <ButtonRow>
-          {phase.decided ? continueButton : tryAgainButton}
-          {playButton}
-          {hearButton}
-          {onSaveHeard && card && saveHeardButton(card.id, phase)}
-        </ButtonRow>
-      </Panel>
+          </p>
+          {(exact || accepted || !phase.decided) && (
+            <PanelBody dark={dark}>
+              {t(
+                exact
+                  ? 'flashcards.speak.verdict.exactBody'
+                  : accepted
+                    ? 'flashcards.speak.verdict.acceptedBody'
+                    : 'flashcards.speak.verdict.notYetBody'
+              )}
+            </PanelBody>
+          )}
+          {accepted && judgement.forgivenGroups.length > 0 && (
+            <ul
+              className="font-bold"
+              style={{
+                marginTop: 'min(4px, 1cqmin)',
+                fontSize: 'min(13px, 3.4cqmin)',
+              }}
+            >
+              {judgement.forgivenGroups.map((id) => (
+                <li key={id}>{t(`flashcards.speak.groups.${id}`)}</li>
+              ))}
+            </ul>
+          )}
+          {marks.length > 0 && (
+            <div style={{ marginTop: 'min(12px, 3cqmin)' }}>
+              <SpeakMarks
+                segments={segments}
+                marks={marks}
+                language={language}
+                dark={dark}
+              />
+            </div>
+          )}
+          {stressLine}
+          <ButtonRow>
+            {phase.decided ? continueButton : tryAgainButton}
+            {playButton}
+            {hearButton}
+            {onSaveHeard && card && saveHeardButton(card.id, phase)}
+          </ButtonRow>
+        </Panel>
+      </div>
     );
   };
 
@@ -1073,7 +1179,10 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
             // no-tour-anchor: student player
             <button
               type="button"
-              onClick={() => onStar(card.id)}
+              onClick={() => {
+                setHeld(true);
+                onStar(card.id);
+              }}
               aria-label={t(
                 isStarred
                   ? 'flashcards.cards.favoriteRemove'
@@ -1197,9 +1306,10 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
               onClick={toggleRecording}
               aria-keyshortcuts="Space"
               title={t('flashcards.speak.player.keys')}
-              disabled={capture.phase === 'requesting-permission'}
+              // aria-disabled keeps focus here while the mic opens; startTake ignores the press.
+              aria-disabled={capture.phase === 'requesting-permission'}
               className={cx(
-                'inline-flex items-center rounded-full font-black text-white shadow-lg transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300 disabled:opacity-60',
+                'inline-flex items-center rounded-full font-black text-white shadow-lg transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300 aria-disabled:opacity-60',
                 capture.phase === 'recording'
                   ? 'bg-slate-900 hover:bg-slate-800'
                   : 'bg-rose-600 shadow-rose-600/20 hover:bg-rose-700'
@@ -1243,9 +1353,10 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
                   label={t('flashcards.speak.player.levelLabel')}
                   dark={dark}
                 />
+                {autoTake && hearButton}
               </>
             )}
-            {(hearButton || playButton) && capture.phase !== 'recording' && (
+            {(hearButton || playButton) && !recording && (
               <div
                 className="flex flex-wrap items-center justify-center"
                 style={{ gap: 'min(9px, 2cqmin)' }}

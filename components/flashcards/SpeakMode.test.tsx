@@ -1,5 +1,11 @@
 import React from 'react';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
@@ -20,6 +26,12 @@ import {
 const capture = vi.hoisted(() => ({
   fail: null as TakeMicState | null,
   options: null as UseAudioRecordingOptions | null,
+  // When set, a take stays open until stop(), like a real recorder.
+  hold: false,
+  starts: 0,
+}));
+const speechEnd = vi.hoisted(() => ({
+  onEnd: null as ((event: 'ended' | 'no-speech') => void) | null,
 }));
 const mic = vi.hoisted(() => ({
   permission: 'granted',
@@ -36,6 +48,14 @@ vi.mock('@/hooks/useAudioRecording', async (importOriginal) => {
       capture.options = options;
       const [phase, setPhase] = useState<string>('armed');
       const [micState, setMicState] = useState<TakeMicState | null>(null);
+      // Like the real hook, the take goes to the latest render's onTakeReady.
+      const deliver = () =>
+        capture.options?.onTakeReady?.({
+          blob: new Blob(['take'], { type: 'audio/webm' }),
+          mimeType: 'audio/webm',
+          durationMs: 900,
+          micState: 'on',
+        });
       return {
         phase,
         micState,
@@ -45,21 +65,25 @@ vi.mock('@/hooks/useAudioRecording', async (importOriginal) => {
         recordSecondsLeft: null,
         wrapUpWarning: false,
         arm: () => setPhase('armed'),
-        start: () => {
+        start: async () => {
+          capture.starts += 1;
           if (capture.fail) {
             setMicState(capture.fail);
             setPhase('capture-unavailable');
-          } else {
-            options.onTakeReady?.({
-              blob: new Blob(['take'], { type: 'audio/webm' }),
-              mimeType: 'audio/webm',
-              durationMs: 900,
-              micState: 'on',
-            });
+            return;
           }
-          return Promise.resolve();
+          if (capture.hold) {
+            setPhase('recording');
+            return;
+          }
+          await Promise.resolve();
+          deliver();
         },
-        stop: () => undefined,
+        stop: () => {
+          if (!capture.hold) return;
+          setPhase('armed');
+          deliver();
+        },
         discard: () => undefined,
         commit: () => null,
         reset: () => undefined,
@@ -68,6 +92,25 @@ vi.mock('@/hooks/useAudioRecording', async (importOriginal) => {
     },
   };
 });
+
+const hear = vi.hoisted(() => ({ played: 0 }));
+vi.mock('@/utils/pronunciation/hearIt', () => ({
+  hearIt: () => {
+    hear.played += 1;
+    return { stop: () => undefined };
+  },
+  hearItVoice: () => ({}) as SpeechSynthesisVoice,
+  subscribeVoices: () => () => undefined,
+}));
+
+vi.mock('./speak/useSpeechEnd', () => ({
+  useSpeechEnd: (
+    stream: MediaStream | null,
+    onEnd: (event: 'ended' | 'no-speech') => void
+  ) => {
+    speechEnd.onEnd = onEnd;
+  },
+}));
 
 vi.mock('./speak/micAccess', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./speak/micAccess')>();
@@ -152,6 +195,10 @@ describe('Speak mode', () => {
     localStorage.clear();
     capture.fail = null;
     capture.options = null;
+    capture.hold = false;
+    capture.starts = 0;
+    speechEnd.onEnd = null;
+    hear.played = 0;
     mic.permission = 'granted';
     mic.frameAllows = true;
     fake = createFakeRecognizer();
@@ -485,5 +532,219 @@ describe('Speak mode', () => {
     fake.queue({ tokens: ['p', 'e', 'r', 'o'] });
     await user.click(await openSpeak(user));
     expect(await screen.findByText('Exact')).toBeTruthy();
+  });
+  describe('listening on the next card', () => {
+    const speakFirstCard = async (user: ReturnType<typeof userEvent.setup>) => {
+      capture.hold = true;
+      await user.click(await openSpeak(user));
+      expect(screen.getByText('Listening…')).toBeTruthy();
+      act(() => speechEnd.onEnd?.('ended'));
+      expect(await screen.findByText('Exact')).toBeTruthy();
+    };
+
+    it('waits for a tap on the first card, then listens on its own after Continue', async () => {
+      const user = userEvent.setup();
+      const adapter = renderPlayer();
+      fake.queue({ tokens: ['p', 'e', 'r', 'o'] }, { tokens: ['o', 'l', 'a'] });
+      await openSpeak(user);
+      expect(capture.starts).toBe(0);
+      await speakFirstCard(user);
+      expect(capture.starts).toBe(1);
+
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+      expect(screen.getByText('hola')).toBeTruthy();
+      expect(capture.starts).toBe(2);
+      expect(screen.getByText('Listening…')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Stop' })).toBeTruthy();
+
+      act(() => speechEnd.onEnd?.('ended'));
+      expect(await screen.findByText('Exact')).toBeTruthy();
+      expect(adapter.load().speak?.hola).toMatchObject({ s: 1, tries: 1 });
+      expect(adapter.load().speak?.perro).toMatchObject({ s: 1, tries: 1 });
+    });
+
+    it('goes back to Start speaking when nobody speaks, without an unclear take', async () => {
+      const user = userEvent.setup();
+      fake.queue({ tokens: ['p', 'e', 'r', 'o'] });
+      renderPlayer();
+      await speakFirstCard(user);
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+      expect(screen.getByText('Listening…')).toBeTruthy();
+      const heard = fake.heard;
+
+      act(() => speechEnd.onEnd?.('no-speech'));
+      expect(
+        await screen.findByRole('button', { name: 'Start speaking' })
+      ).toBeTruthy();
+      expect(screen.queryByText("Couldn't hear you")).toBeNull();
+      expect(fake.heard).toBe(heard);
+      expect(screen.getByRole('img', { name: 'Attempt 1 of 2' })).toBeTruthy();
+    });
+
+    it('still says it could not hear a take the student started', async () => {
+      const user = userEvent.setup();
+      fake.queue({ tokens: [] });
+      renderPlayer();
+      capture.hold = true;
+      await user.click(await openSpeak(user));
+      act(() => speechEnd.onEnd?.('no-speech'));
+      expect(await screen.findByText("Couldn't hear you")).toBeTruthy();
+    });
+
+    it('drops the listening take when the student asks to hear the word', async () => {
+      const user = userEvent.setup();
+      fake.queue({ tokens: ['p', 'e', 'r', 'o'] });
+      renderPlayer({ speak: stamp({ example: true }) });
+      await speakFirstCard(user);
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+      const heard = fake.heard;
+
+      await user.click(screen.getByRole('button', { name: 'Hear it' }));
+      expect(hear.played).toBe(1);
+      expect(
+        await screen.findByRole('button', { name: 'Start speaking' })
+      ).toBeTruthy();
+      expect(fake.heard).toBe(heard);
+    });
+
+    it('ignores a Stop that lands before the key that pressed Continue is let go', async () => {
+      const user = userEvent.setup();
+      fake.queue({ tokens: ['p', 'e', 'r', 'o'] }, { tokens: ['o', 'l', 'a'] });
+      renderPlayer();
+      await speakFirstCard(user);
+      act(() => (document.activeElement as HTMLElement | null)?.blur());
+      fireEvent.keyDown(window, { key: 'Enter' });
+      const stop = await screen.findByRole('button', { name: 'Stop' });
+      fireEvent.click(stop);
+      expect(screen.getByText('Listening…')).toBeTruthy();
+
+      fireEvent.keyUp(window, { key: 'Enter' });
+      fireEvent.click(stop);
+      expect(await screen.findByText('Exact')).toBeTruthy();
+    });
+
+    it('waits for the browser to remember the mic before listening on its own', async () => {
+      const user = userEvent.setup();
+      mic.permission = 'prompt';
+      fake.queue({ tokens: ['p', 'e', 'r', 'o'] });
+      renderPlayer();
+      capture.hold = true;
+      await user.click(await openSpeak(user));
+      await user.click(
+        screen.getByRole('button', { name: 'Turn on microphone' })
+      );
+      act(() => speechEnd.onEnd?.('ended'));
+      expect(await screen.findByText('Exact')).toBeTruthy();
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+      expect(capture.starts).toBe(1);
+      expect(
+        screen.getByRole('button', { name: 'Start speaking' })
+      ).toBeTruthy();
+    });
+
+    it('does not listen on its own after the last card', async () => {
+      const user = userEvent.setup();
+      fake.queue({ tokens: ['o', 'l', 'a'] });
+      renderPlayer({ cards: [hola] });
+      await speakFirstCard(user);
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+      expect(capture.starts).toBe(1);
+    });
+  });
+  describe('moving on by itself', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    // Lets the countdown effect commit before the clock moves, so a loaded runner can't skip it.
+    const runCountdown = async () => {
+      await act(() => Promise.resolve());
+      act(() => {
+        vi.advanceTimersByTime(3100);
+      });
+    };
+
+    const speakFirst = async (user: ReturnType<typeof userEvent.setup>) => {
+      capture.hold = true;
+      await user.click(await openSpeak(user));
+      act(() => speechEnd.onEnd?.('ended'));
+      expect(await screen.findByText('Exact')).toBeTruthy();
+    };
+
+    it('goes to the next card and listens once the countdown ends', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      fake.queue({ tokens: ['p', 'e', 'r', 'o'] }, { tokens: ['o', 'l', 'a'] });
+      renderPlayer();
+      await speakFirst(user);
+      expect(screen.getByText('perro')).toBeTruthy();
+      await runCountdown();
+      expect(await screen.findByText('hola')).toBeTruthy();
+      expect(await screen.findByText('Listening…')).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
+      expect(await screen.findByText('Exact')).toBeTruthy();
+    });
+
+    it('holds the countdown when the student taps the result', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      fake.queue({ tokens: ['p', 'e', 'r', 'o'] });
+      renderPlayer();
+      await speakFirst(user);
+      await user.click(screen.getByText('You said it just right.'));
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(screen.getByText('perro')).toBeTruthy();
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+      expect(screen.getByText('hola')).toBeTruthy();
+    });
+
+    it('still counts down after Hear it was used before speaking', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      fake.queue({ tokens: ['p', 'e', 'r', 'o'] });
+      renderPlayer({ speak: stamp({ example: true }) });
+      await openSpeak(user);
+      await user.click(screen.getByRole('button', { name: 'Hear it' }));
+      await speakFirst(user);
+      await runCountdown();
+      expect(await screen.findByText('hola')).toBeTruthy();
+    });
+
+    it('waits on a missed card so the marks can be read', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      fake.queue({ tokens: ['p', 'a', 'r', 'o'] });
+      renderPlayer({ speak: stamp({ attempts: 1 }) });
+      capture.hold = true;
+      await user.click(await openSpeak(user));
+      act(() => speechEnd.onEnd?.('ended'));
+      expect(
+        await screen.findByText("Not yet. We'll come back to this word.")
+      ).toBeTruthy();
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(screen.getByText('perro')).toBeTruthy();
+    });
+
+    it('stays put when the student turns it off', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      fake.queue({ tokens: ['p', 'e', 'r', 'o'] });
+      renderPlayer();
+      await openSpeak(user);
+      await user.click(screen.getByRole('button', { name: 'Study settings' }));
+      fireEvent.click(
+        screen.getByRole('checkbox', {
+          name: 'Automatically continue to next card',
+        })
+      );
+      await user.click(screen.getByRole('button', { name: 'Study settings' }));
+      await speakFirst(user);
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(screen.getByText('perro')).toBeTruthy();
+    });
   });
 });
