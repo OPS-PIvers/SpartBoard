@@ -1158,17 +1158,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Pinned Welcome card in the Guided Learning Studio slide strip, plus a welcome image.
-  'gl-welcome-card': {
-    label: 'Guided Learning welcome card',
-    icon: Sparkles,
-    description: 'A pinned welcome card and image in the Studio.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Inert while Mini App assignments are view-only in Organization settings.
   'mini-app-results': {
     label: 'Mini App results',

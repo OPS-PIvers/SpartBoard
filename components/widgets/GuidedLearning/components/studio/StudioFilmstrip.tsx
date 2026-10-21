@@ -252,8 +252,7 @@ interface FilmstripBodyProps extends FilmstripState {
   collapsed: boolean;
   onToggleCollapsed?: () => void;
   onCopyForClaude?: (index: number) => void;
-  /** `gl-welcome-card`: the pinned Welcome card is shown, and whether it is selected. */
-  welcomeCard: boolean;
+  /** Whether the pinned Welcome card is selected. */
   welcomeSelected: boolean;
   onSelectWelcome?: () => void;
 }
@@ -291,7 +290,6 @@ const FilmstripBody = React.memo(function FilmstripBody({
   welcomeEnabled,
   setWelcomeEnabled,
   welcomeImageUrl,
-  welcomeCard,
   welcomeSelected,
   onSelectWelcome,
 }: FilmstripBodyProps) {
@@ -478,7 +476,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
         )}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3 custom-scrollbar">
-        {welcomeCard && onSelectWelcome && (
+        {onSelectWelcome && (
           <StudioWelcomeCard
             enabled={welcomeEnabled}
             imageUrl={welcomeImageUrl}
@@ -580,7 +578,7 @@ interface StudioFilmstripProps {
   onCopyForClaude?: (index: number) => void;
   /** Picks a slide; the Studio passes one that also leaves the Welcome card. */
   onSelectSlide?: (index: number) => void;
-  /** Shows the pinned Welcome card; absent without `gl-welcome-card`. */
+  /** Shows the pinned Welcome card. */
   onSelectWelcome?: () => void;
   welcomeSelected?: boolean;
 }
@@ -647,7 +645,6 @@ export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({
       welcomeEnabled={state.welcomeEnabled}
       setWelcomeEnabled={state.setWelcomeEnabled}
       welcomeImageUrl={state.welcomeImageUrl}
-      welcomeCard={!!onSelectWelcome}
       welcomeSelected={welcomeSelected}
       onSelectWelcome={onSelectWelcome}
     />
