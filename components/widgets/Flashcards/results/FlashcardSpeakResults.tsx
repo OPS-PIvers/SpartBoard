@@ -168,7 +168,7 @@ export const FlashcardSpeakResults: React.FC<FlashcardSpeakResultsProps> = ({
 
       {wordsToCheck.length > 0 && (
         <ResultsSection title="Words to check" count={wordsToCheck.length}>
-          <SectionEmpty message="Most students who tried these missed them. Check the card's pronunciation." />
+          <SectionEmpty message="Most students who attempted these missed them. Check the card's pronunciation." />
           {wordsToCheck.map((word) => (
             <SessionRow
               key={word.card.id}

@@ -4788,7 +4788,7 @@
         "classMissed": "Sounds missed most",
         "classForgiven": "Sounds let go most",
         "wordsToCheck": "Words to check",
-        "wordsToCheckHelp": "Most students who tried these missed them. Check the card's pronunciation.",
+        "wordsToCheckHelp": "Most students who attempted these missed them. Check the card's pronunciation.",
         "empty": "No one has practiced aloud yet."
       },
       "admin": {
