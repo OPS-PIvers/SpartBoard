@@ -28,7 +28,10 @@ import {
 } from './gradeProjection';
 import { GRADE_INDEX } from './gradeIndex';
 import type { IndexRow, GradeKind } from './types';
-import { applyAttemptWrite } from '../quizAttemptHistory';
+import {
+  applyAttemptGradeWrite,
+  applyAttemptWrite,
+} from '../quizAttemptHistory';
 
 type Doc = Record<string, unknown>;
 
@@ -146,6 +149,25 @@ export const gradeIndexQuizResponse = onDocumentWritten(
     document: `${SESSION_COLLECTION.quiz}/{sessionId}/${STUDENT_SUBCOLLECTION.quiz}/{docId}`,
   },
   (event) => handleQuizResponseWrite(event as unknown as WriteEvent)
+);
+// A teacher grade on an earlier quiz attempt's copy; runs whether or not the index is on.
+export const quizAttemptGradeWrite = onDocumentWritten(
+  {
+    ...TRIGGER_OPTS,
+    document: `${SESSION_COLLECTION.quiz}/{sessionId}/${STUDENT_SUBCOLLECTION.quiz}/{docId}/attempts/{n}`,
+  },
+  (event) => {
+    const { sessionId, docId, n } = (
+      event as unknown as { params: Record<string, string> }
+    ).params;
+    return applyAttemptGradeWrite(admin.firestore(), {
+      sessionId,
+      responseKey: docId,
+      n: Number(n),
+      before: dataOf(event.data?.before),
+      after: dataOf(event.data?.after),
+    });
+  }
 );
 export const gradeIndexVideoResponse = studentDocTrigger('video-activity');
 export const gradeIndexGuidedLearningResponse =

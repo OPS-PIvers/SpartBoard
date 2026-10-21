@@ -21,7 +21,7 @@ A retake resets the one response doc per student (`hooks/useQuizSession.ts`, the
 ## Slices
 
 1. Save attempts: D1-D8, rules with read and write tests. No UI.
-2. Teacher view: "Attempt 2 of 2" menu on the Results row; grading on earlier attempts (teacher may update only `grading` on a copy, and the scores entry follows).
+2. Teacher view: an "Attempt" row in the student's open report in Quiz Results lists each attempt with its score; grading on earlier attempts writes `grading` on the closed copy (rules: session teacher, closed copies, `grading` only) and `quizAttemptGradeWrite` rescores its `attemptScores` entry. A closed copy is otherwise frozen.
 3. Final score setting (D9).
 4. Student view: the same menu on the student results screen, via the callable.
 5. Exports: Attempts column, an every-attempt option for CSV, sheet and print; the PLC sheet's Update sheet refreshes a student whose attempt changed.

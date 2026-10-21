@@ -3849,6 +3849,7 @@ describe('index barrel — deployed export set', () => {
     'gradeIndexPlcConfig',
     'gradeIndexDistrictConfig',
     'gradeIndexRecompute',
+    'quizAttemptGradeWrite',
     'migratePlcs',
     'mirrorPlcIndex',
     'createBuildingGroupV1',

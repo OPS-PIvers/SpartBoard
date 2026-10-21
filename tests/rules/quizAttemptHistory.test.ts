@@ -3,7 +3,8 @@
 //
 // Contract: attempt copies and attempt scores are server-written. The session
 // teacher, admins and the session's sub monitor read them; the student who made
-// the attempts, other teachers and other students read nothing, and nobody writes.
+// the attempts, other teachers and other students read nothing. The only client
+// write is the session teacher grading an earlier (closed) attempt's copy.
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -38,6 +39,7 @@ const PAST = 1_000_000_000_000;
 
 const ATTEMPT = `quiz_sessions/${SESSION}/responses/${STUDENT_UID}/attempts/1`;
 const SCORES = `quiz_sessions/${SESSION}/attemptScores/${STUDENT_UID}`;
+const CLOSED = `quiz_sessions/${SESSION}/responses/${STUDENT_UID}/attempts/2`;
 
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
@@ -127,6 +129,13 @@ beforeAll(async () => {
       studentUid: STUDENT_UID,
       answers: [{ questionId: 'q1', answer: 'A' }],
     });
+    await setDoc(doc(db, CLOSED), {
+      n: 2,
+      closed: true,
+      studentUid: STUDENT_UID,
+      answers: [{ questionId: 'q1', answer: 'B' }],
+      grading: {},
+    });
     await setDoc(doc(db, SCORES), {
       studentUid: STUDENT_UID,
       attempts: [{ n: 1, at: 1, points: 2, max: 2, state: 'scored' }],
@@ -179,14 +188,31 @@ describe('quiz attempt copies', () => {
     await assertFails(getDoc(doc(staff(OTHER_TEACHER_UID), ATTEMPT)));
   });
 
-  it('refuses every client write, the teacher included', async () => {
-    const forged = { n: 2, studentUid: STUDENT_UID, answers: [] };
-    const second = `quiz_sessions/${SESSION}/responses/${STUDENT_UID}/attempts/2`;
+  it('refuses every other client write, the teacher included', async () => {
+    const forged = { n: 3, studentUid: STUDENT_UID, answers: [] };
+    const second = `quiz_sessions/${SESSION}/responses/${STUDENT_UID}/attempts/3`;
     await assertFails(setDoc(doc(student(STUDENT_UID), second), forged));
     await assertFails(setDoc(doc(staff(TEACHER_UID), second), forged));
     await assertFails(updateDoc(doc(staff(TEACHER_UID), ATTEMPT), { n: 3 }));
     await assertFails(deleteDoc(doc(staff(TEACHER_UID), ATTEMPT)));
     await assertFails(deleteDoc(doc(staff('admin-uid', ADMIN_EMAIL), ATTEMPT)));
+  });
+
+  it('lets only the session teacher grade an earlier attempt', async () => {
+    const grade = { 'grading.q1': { points: 1 } };
+    await assertSucceeds(updateDoc(doc(staff(TEACHER_UID), CLOSED), grade));
+    await assertFails(updateDoc(doc(staff(TEACHER_UID), ATTEMPT), grade));
+    await assertFails(
+      updateDoc(doc(staff(TEACHER_UID), CLOSED), {
+        answers: [{ questionId: 'q1', answer: 'A' }],
+      })
+    );
+    await assertFails(
+      updateDoc(doc(staff(TEACHER_UID), CLOSED), { closed: false })
+    );
+    await assertFails(updateDoc(doc(staff(SUB_UID), CLOSED), grade));
+    await assertFails(updateDoc(doc(staff(OTHER_TEACHER_UID), CLOSED), grade));
+    await assertFails(updateDoc(doc(student(STUDENT_UID), CLOSED), grade));
   });
 });
 

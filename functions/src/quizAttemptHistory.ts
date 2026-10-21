@@ -180,6 +180,8 @@ async function saveAttempt(
     // A late event for a response already removed must not leave an orphan copy.
     if (!live.exists) return 'skipped';
     const prev: Doc | undefined = existing.data();
+    // A closed copy is frozen; only a teacher grade on it changes it afterwards.
+    if (prev?.closed === true) return 'newer';
     if (typeof prev?.eventAt === 'number' && prev.eventAt > w.eventAt)
       return 'newer';
     tx.set(attemptRef, {
@@ -260,6 +262,55 @@ async function moveRemovedAttempts(
       );
     }
     await list.ref.delete();
+  }
+}
+
+export interface AttemptGradeWrite {
+  sessionId: string;
+  responseKey: string;
+  n: number;
+  before: Doc | undefined;
+  after: Doc | undefined;
+}
+
+/** A teacher grade on an earlier attempt's copy rescores that attempt's entry. */
+export async function applyAttemptGradeWrite(
+  db: Firestore,
+  w: AttemptGradeWrite
+): Promise<void> {
+  const { before, after } = w;
+  if (!before || !after || after.closed !== true) return;
+  if (stableStringify(before.grading) === stableStringify(after.grading))
+    return;
+  try {
+    const ctx = await loadSessionContext(db, 'quiz', w.sessionId);
+    if (!ctx) return;
+    const studentUid =
+      typeof after.studentUid === 'string' ? after.studentUid : '';
+    const score = ctx.score(studentUid, { ...after, status: 'completed' });
+    if (!score) return;
+    const listRef = scoresRef(db, w.sessionId, w.responseKey);
+    await db.runTransaction(async (tx) => {
+      const list = await tx.get(listRef);
+      // No list means the response was removed or never scored.
+      if (!list.exists) return;
+      const entries: unknown = list.data()?.attempts;
+      tx.set(listRef, {
+        ...list.data(),
+        attempts: mergeAttempts(
+          Array.isArray(entries) ? (entries as IndexAttempt[]) : [],
+          { ...score, attemptNumber: w.n }
+        ),
+        updatedAt: Date.now(),
+      });
+    });
+  } catch (err) {
+    logger.error('quizAttemptHistory: grade rescore failed', {
+      sessionId: w.sessionId,
+      responseKey: w.responseKey,
+      n: w.n,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 

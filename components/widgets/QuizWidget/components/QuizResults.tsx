@@ -123,6 +123,10 @@ import {
   type FinalScoreOverlay,
 } from '@/utils/gradebook/finalScoreOverlay';
 import { quizLiveRaw } from '@/utils/gradebook/liveRawScores';
+import {
+  attemptAsResponse,
+  useQuizResponseAttempts,
+} from '@/hooks/useQuizResponseAttempts';
 import { FinalScoreNote } from '@/components/gradebook/FinalScoreNote';
 import { StudentAnswerLine } from './results/StudentAnswerLine';
 import {
@@ -399,7 +403,12 @@ const writeStudentView = (
   }
 };
 
-type GraderTarget = { questionId: string; responseKey: string };
+type GraderTarget = {
+  questionId: string;
+  responseKey: string;
+  /** An earlier attempt's number; grades then go to its saved copy. */
+  attempt?: number;
+};
 
 export const QuizResults: React.FC<QuizResultsProps> = (props) => {
   const selection = useStudentResultsSelectionState();
@@ -853,6 +862,68 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     },
     [session?.id]
   );
+
+  // Grading an earlier attempt reads and writes its saved copy instead of the live response.
+  const graderAttempt = graderTarget?.attempt ?? null;
+  const graderCopies = useQuizResponseAttempts(
+    session?.id,
+    graderAttempt !== null ? graderTarget?.responseKey : null,
+    graderAttempt !== null
+  );
+  const graderCopy = graderCopies?.find((c) => c.n === graderAttempt) ?? null;
+  const graderLive =
+    graderAttempt !== null
+      ? (responses.find(
+          (r) => getResponseDocKey(r) === graderTarget?.responseKey
+        ) ?? null)
+      : null;
+  const graderResponses =
+    graderAttempt === null
+      ? responses
+      : graderLive && graderCopy
+        ? [attemptAsResponse(graderLive, graderCopy)]
+        : null;
+  const attemptGradeRef = (responseKey: string) => {
+    if (!session?.id || graderAttempt === null) {
+      throw new Error('Cannot save grade: no attempt in scope.');
+    }
+    return doc(
+      db,
+      QUIZ_SESSIONS_COLLECTION,
+      session.id,
+      RESPONSES_COLLECTION,
+      responseKey,
+      'attempts',
+      String(graderAttempt)
+    );
+  };
+  const saveGraderGrade = async (
+    responseKey: string,
+    gradingKeyStr: string,
+    grade: import('@/types').WrittenAnswerGrade
+  ) => {
+    if (graderAttempt === null) {
+      return saveWrittenGrade(responseKey, gradingKeyStr, grade);
+    }
+    await updateDoc(
+      attemptGradeRef(responseKey),
+      new FieldPath('grading', gradingKeyStr),
+      grade
+    );
+  };
+  const clearGraderGrade = async (
+    responseKey: string,
+    gradingKeyStr: string
+  ) => {
+    if (graderAttempt === null) {
+      return clearWrittenGrade(responseKey, gradingKeyStr);
+    }
+    await updateDoc(
+      attemptGradeRef(responseKey),
+      new FieldPath('grading', gradingKeyStr),
+      deleteField()
+    );
+  };
 
   // Per-period filtering — uses classPeriod set on each response at join time.
   const [periodFilter, setPeriodFilter] = useState<string>('all');
@@ -2646,10 +2717,10 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         />
       )}
 
-      {showGrader && session?.id && user?.uid && (
+      {showGrader && session?.id && user?.uid && graderResponses && (
         <FreeResponseGrader
           quiz={quiz}
-          responses={responses}
+          responses={graderResponses}
           displayNameByResponseKey={
             hideNames ? maskedNameByResponseKey : displayNameByResponseKey
           }
@@ -2687,9 +2758,9 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           resolvePaperCrop={resolvePaperCrop}
           paperActions={paperActions}
           onConnectDrive={() => void connectDrive()}
-          onSaveGrade={saveWrittenGrade}
+          onSaveGrade={saveGraderGrade}
           onSaveBackTranslation={saveBackTranslation}
-          onClearGrade={clearWrittenGrade}
+          onClearGrade={clearGraderGrade}
           overridesBySourcedId={overridesBySourcedId}
           targetRefKeyByStudentUid={targetRefKeyByStudentUid}
           graderMode={quizGraderMode}
@@ -3615,10 +3686,12 @@ const StudentDrilldownPanel: React.FC<{
   /** Opens the print modal; absent keeps the one-checkbox report. */
   onPrintStudents?: (responseKeys: string[]) => void;
   showFeedback: boolean;
+  /** The session whose saved attempts the attempt picker lists. */
+  sessionId?: string;
 }> = ({
   id,
   quizTitle,
-  response,
+  response: liveResponse,
   displayName,
   questions,
   fibGrading,
@@ -3629,8 +3702,44 @@ const StudentDrilldownPanel: React.FC<{
   addToast,
   onPrintStudents,
   showFeedback,
+  sessionId,
 }) => {
   const [includeAnswers, setIncludeAnswers] = useState(true);
+  const { canAccessFeature } = useAuth();
+  const liveKey = getResponseDocKey(liveResponse) as string;
+  const copies = useQuizResponseAttempts(
+    sessionId,
+    liveKey,
+    canAccessFeature('quiz-attempt-history')
+  );
+  const earlier = useMemo(
+    () => (copies ?? []).filter((c) => c.closed === true),
+    [copies]
+  );
+  const [pickedAttempt, setPickedAttempt] = useState<number | null>(null);
+  const picked = earlier.find((c) => c.n === pickedAttempt) ?? null;
+  const response = useMemo(
+    (): QuizResponse =>
+      picked ? attemptAsResponse(liveResponse, picked) : liveResponse,
+    [picked, liveResponse]
+  );
+  const attemptOptions = useMemo((): (readonly [string, string])[] => {
+    if (earlier.length === 0) return [];
+    const label = (n: number, r: QuizResponse): string => {
+      const raw = quizLiveRaw(r, questions, fibGrading);
+      return raw.points !== null && raw.max
+        ? `${n} · ${Math.round((raw.points / raw.max) * 100)}%`
+        : String(n);
+    };
+    const currentN = Math.max(...earlier.map((c) => c.n)) + 1;
+    return [
+      ...earlier.map(
+        (c) =>
+          [String(c.n), label(c.n, attemptAsResponse(liveResponse, c))] as const
+      ),
+      ['current', label(currentN, liveResponse)] as const,
+    ];
+  }, [earlier, liveResponse, questions, fibGrading]);
   const drilldown = useMemo(
     () =>
       computeStudentDrilldown(
@@ -3679,6 +3788,23 @@ const StudentDrilldownPanel: React.FC<{
       }}
     >
       {resultsControl}
+      {attemptOptions.length > 0 && (
+        <div
+          className="flex flex-wrap items-center font-sans text-brand-gray-dark"
+          style={{ ...SMALL_TEXT, gap: 'min(6px, 1.5cqmin)' }}
+        >
+          <span className="font-semibold">Attempt</span>
+          <SegmentedToggle
+            label="Attempt"
+            value={picked ? String(picked.n) : 'current'}
+            options={attemptOptions}
+            onChange={(v) =>
+              setPickedAttempt(v === 'current' ? null : Number(v))
+            }
+            anchor={() => tourTypeAttr('quiz-results.student-attempt', 'quiz')}
+          />
+        </div>
+      )}
       {drilldown.lines.length === 0 ? (
         <p className="font-sans text-brand-gray-primary" style={SMALL_TEXT}>
           No questions served to this student yet.
@@ -3704,6 +3830,7 @@ const StudentDrilldownPanel: React.FC<{
                         onOpenGrader({
                           questionId: line.questionId,
                           responseKey,
+                          ...(picked ? { attempt: picked.n } : {}),
                         })
                     : undefined
                 }
@@ -4524,6 +4651,7 @@ const StudentsScreen: React.FC<{
                   addToast={addToast}
                   onPrintStudents={onPrintStudents}
                   showFeedback={showStudentFeedback}
+                  sessionId={session?.id}
                   resultsControl={
                     resultsActions ? (
                       <StudentResultsControl
