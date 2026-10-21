@@ -3,7 +3,6 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { WhatsNewModal } from '@/components/layout/WhatsNewModal';
 import type { ChangelogEntry } from '@/hooks/useChangelog';
-import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 import { TOUR_START_EVENT } from '@/components/tours/tourState';
 
 // The shape returned by useChangelog — typed explicitly so the mock factory
@@ -383,20 +382,15 @@ describe('WhatsNewModal — disclosure', () => {
 describe('WhatsNewModal — live tour entries', () => {
   const tourEntry: ChangelogEntry = { ...detailsOnlyEntry, tourSetId: 'set-1' };
 
-  const renderWithAuth = (canTour: boolean, onClose = vi.fn()) => {
+  const renderWithAuth = (onClose = vi.fn()) => {
     useChangelogMock.mockReturnValue(baseHookReturn([tourEntry]));
-    const auth = {
-      canAccessFeature: (id: string) => canTour && id === 'gl-live-tours',
-    } as unknown as AuthContextType;
     render(
-      <AuthContext.Provider value={auth}>
-        <WhatsNewModal
-          isOpen
-          onClose={onClose}
-          mode="browse"
-          currentVersion={tourEntry.version}
-        />
-      </AuthContext.Provider>
+      <WhatsNewModal
+        isOpen
+        onClose={onClose}
+        mode="browse"
+        currentVersion={tourEntry.version}
+      />
     );
     return onClose;
   };
@@ -413,7 +407,7 @@ describe('WhatsNewModal — live tour entries', () => {
     const user = userEvent.setup();
     const started = vi.fn();
     window.addEventListener(TOUR_START_EVENT, started);
-    const onClose = renderWithAuth(true);
+    const onClose = renderWithAuth();
     await user.click(await screen.findByRole('button', { name: 'Show me' }));
     expect(onClose).toHaveBeenCalled();
     expect(
@@ -422,17 +416,9 @@ describe('WhatsNewModal — live tour entries', () => {
     window.removeEventListener(TOUR_START_EVENT, started);
   });
 
-  it('hides Show me without live tours', () => {
-    renderWithAuth(false);
-    expect(
-      screen.queryByRole('button', { name: 'Show me' })
-    ).not.toBeInTheDocument();
-    expect(tours.watch).not.toHaveBeenCalled();
-  });
-
   it('hides Show me when the set has no published tour', async () => {
     tours.runnable.mockReturnValue(false);
-    renderWithAuth(true);
+    renderWithAuth();
     await waitFor(() => expect(tours.watch).toHaveBeenCalled());
     await act(async () => {
       await Promise.resolve();

@@ -185,13 +185,13 @@ afterEach(() => {
 });
 
 describe('Studio start hub', () => {
-  it('shows the always-available targets on an empty set, and nothing gated without its flag', () => {
+  it('shows the always-available targets on an empty set, and nothing AI-gated without its flag', () => {
     renderStudio(emptySet());
     expect(screen.getByTestId('gl-studio-hub')).toBeInTheDocument();
     expect(target('upload')).toHaveTextContent('Upload or drop');
     expect(target('paste')).toBeEnabled();
     expect(target('capture')).toBeInTheDocument();
-    expect(target('record')).toBeNull();
+    expect(target('record')).toBeInTheDocument();
     expect(target('ai')).toBeNull();
     expect(target('import')).toBeNull();
   });
@@ -203,26 +203,18 @@ describe('Studio start hub', () => {
   });
 
   describe('Record a tour', () => {
-    it('needs both admin and gl-live-tours', () => {
-      auth.features = new Set(['gl-live-tours']);
+    it('needs admin', () => {
       auth.isAdmin = false;
       const { unmount } = renderStudio();
       expect(target('record')).toBeNull();
       unmount();
 
       auth.isAdmin = true;
-      auth.features = new Set();
-      const second = renderStudio();
-      expect(target('record')).toBeNull();
-      second.unmount();
-
-      auth.features = new Set(['gl-live-tours']);
       renderStudio();
       expect(target('record')).toHaveTextContent('Record a tour');
     });
 
     it('closes the Studio, then starts the recorder', async () => {
-      auth.features = new Set(['gl-live-tours']);
       const started = vi.fn();
       window.addEventListener(TOUR_RECORD_EVENT, started);
       renderStudio();
@@ -240,7 +232,7 @@ describe('Studio start hub', () => {
       expect(target('ai')).toBeNull();
       first.unmount();
 
-      auth.features = new Set(['gl-live-tours', 'guided-learning-ai']);
+      auth.features = new Set(['guided-learning-ai']);
       const second = renderStudio(emptySet());
       expect(target('ai')).toBeNull();
       second.unmount();

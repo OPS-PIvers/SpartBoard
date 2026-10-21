@@ -46,8 +46,7 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
   mode,
   onChange,
 }) => {
-  const { user, canAccessFeature } = useAuth();
-  const liveTours = canAccessFeature('gl-live-tours');
+  const { user } = useAuth();
   const {
     sets,
     buildingSets,
@@ -82,7 +81,7 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
       const full = await loadBuildingSet(setId);
       if (!full) onError('This activity was deleted. Pick another one.');
       // Tours are edited on the board; Admin Settings closes to show it.
-      else if (isLiveTourSet(full) && liveTours) requestEditTour({ setId });
+      else if (isLiveTourSet(full)) requestEditTour({ setId });
       else openEditor({ ...full, isBuilding: true });
     } catch (err) {
       onError(err instanceof Error ? err.message : String(err));

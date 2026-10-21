@@ -53,19 +53,16 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
   fill,
 }) => {
   const { t } = useTranslation();
-  const { canAccessFeature, isAdmin } = useAuth();
+  const { isAdmin } = useAuth();
   const [state, setState] = useState<GlState>({ status: 'loading' });
-  const liveTours = canAccessFeature('gl-live-tours');
   const canRunLive = useCanRunLiveTour();
-  const hasTour =
-    useFirstRunnableTour([setId], !fill && canRunLive && liveTours) !== null;
+  const hasTour = useFirstRunnableTour([setId], !fill && canRunLive) !== null;
   // Admins can open a tour that was never published in the editor; teachers never see it.
   const draftOnly =
     !hasTour &&
     !!isAdmin &&
     !fill &&
     canRunLive &&
-    liveTours &&
     isTourRunnable(setId) === false;
 
   useEffect(() => {
@@ -101,9 +98,7 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
   }
 
   const offBoardTour =
-    liveTours &&
-    !canRunLive &&
-    (state.set.hasLiveTour ?? tourStepsOf(state.set).length > 0);
+    !canRunLive && (state.set.hasLiveTour ?? tourStepsOf(state.set).length > 0);
   if (offBoardTour) {
     return (
       <div

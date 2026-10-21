@@ -106,7 +106,6 @@ import {
   requestRecordTour,
   requestStartTour,
 } from '@/components/tours/tourState';
-import { useLiveToursEnabled } from '@/components/tours/useTourOffers';
 import { useCanRunLiveTour } from '@/components/tours/useCanRunLiveTour';
 import {
   getToursVersion,
@@ -521,15 +520,12 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const { t } = useTranslation();
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
-  const liveTours = useLiveToursEnabled();
   const canRunLiveTour = useCanRunLiveTour();
   // Only a published snapshot runs from the library; the shared watchers read each tour once per page.
-  const liveTourKey = liveTours
-    ? buildingSets
-        .filter((e) => e.hasLiveTour)
-        .map((e) => e.id)
-        .join(',')
-    : '';
+  const liveTourKey = buildingSets
+    .filter((e) => e.hasLiveTour)
+    .map((e) => e.id)
+    .join(',');
   const watchLiveTours = useCallback(
     (onChange: () => void) =>
       liveTourKey
@@ -652,11 +648,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   // Teachers never see Help Center sets in the library, so their tours don't count.
   const hasTours =
-    liveTours &&
-    (sets.some((s) => s.mode === 'tour') ||
-      buildingSets.some(
-        (e) => e.hasLiveTour && (isAdmin || !isHelpCenterSet(e))
-      ));
+    sets.some((s) => s.mode === 'tour') ||
+    buildingSets.some((e) => e.hasLiveTour && (isAdmin || !isHelpCenterSet(e)));
 
   const view = useFolderLibraryView<LibraryEntry>({
     items: allEntries,
@@ -688,7 +681,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       { value: TOUR_TYPE, label: 'Live tours' },
       { value: 'activity', label: 'Activities' },
     ],
-    visible: hasTours || (liveTours && activeTypeFilter !== ''),
+    visible: hasTours || activeTypeFilter !== '',
   };
 
   const activeSourceFilter = view.state.filterValues.source ?? '';
@@ -873,7 +866,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       };
 
   const headerSecondary = [
-    ...(isAdmin && liveTours
+    ...(isAdmin
       ? [{ label: 'Record a tour', icon: Circle, onClick: requestRecordTour }]
       : []),
     ...(aiAuthoring
@@ -918,7 +911,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       entry.source === 'personal'
         ? entry.id.slice('personal:'.length)
         : entry.id.slice('building:'.length);
-    const isTour = liveTours && isTourEntry(entry);
+    const isTour = isTourEntry(entry);
     const badges: LibraryBadge[] = [
       isTour
         ? { label: 'Live tour', tone: 'info' }
@@ -984,7 +977,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
     // A published tour plays live as teachers see it; authors try drafts in the board editor.
     let runLive: LibraryMenuAction | null = null;
-    if (liveTours && entry.buildingEntry?.hasLiveTour) {
+    if (entry.buildingEntry?.hasLiveTour) {
       if (isTourRunnable(rawId) === true) {
         runLive = {
           id: 'run-live',
@@ -1028,7 +1021,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       });
     }
 
-    if (liveTours && isAdmin && entry.mode !== 'tour' && onConvertToLiveTour) {
+    if (isAdmin && entry.mode !== 'tour' && onConvertToLiveTour) {
       secondary.push({
         id: 'convert-to-live-tour',
         label: t('glStudio.convertToLiveTour'),
@@ -1473,7 +1466,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
             </div>
           )}
 
-          {isAdmin && liveTours && activeTypeFilter === TOUR_TYPE && (
+          {isAdmin && activeTypeFilter === TOUR_TYPE && (
             <div
               role="note"
               className="rounded-xl border border-blue-200 bg-blue-50 text-blue-900"

@@ -10116,8 +10116,6 @@ export type GlobalFeature =
   | 'quiz-stimulus-quotes'
   /** Desmos calculator stimulus on quiz questions. */
   | 'quiz-calculator-stimulus'
-  /** Guided Learning live tours in the teacher app and their launch points. */
-  | 'gl-live-tours'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   | 'live-tour-self-heal'

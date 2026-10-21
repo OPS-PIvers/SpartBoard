@@ -95,12 +95,10 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/plans/shipped/GUIDED_LEARNING_STUDIO.md`
 
-- [ ] Paul plays each surface (widget, Manager preview, Help viewer, student app) end to end on prod and flips gl-live-tours from admin to Public in Admin Settings > Access. (S)
 - [ ] Write public/changelog.json entries once each flag opens (per CLAUDE.md, not at merge). (S)
 
 #### `docs/plans/shipped/LIVE_TOURS_V2.md`
 
-- [ ] Paul flips gl-live-tours flag to Public after prod testing. (S)
 
 #### `docs/plans/shipped/PER_PERIOD_ASSIGNMENT_ACCESS.md`
 

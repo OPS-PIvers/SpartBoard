@@ -222,8 +222,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const { user, isAdmin, getAssignmentMode, canAccessFeature, appSettings } =
     useAuth();
   const gradebookOn = canAccessFeature('gradebook');
-  const canEditToursOnBoard =
-    isAdmin === true && canAccessFeature('gl-live-tours');
+  const canEditToursOnBoard = isAdmin === true;
   const canUseAi =
     canAccessFeature('gemini-functions') &&
     canAccessFeature('guided-learning-ai');
@@ -1172,8 +1171,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const importSaveInFlightRef = useRef(false);
   const importWizardClosedRef = useRef(false);
   // Admins with live tours can import straight into the building library; null follows the file.
-  const canImportToBuilding =
-    isAdmin === true && canAccessFeature('gl-live-tours');
+  const canImportToBuilding = isAdmin === true;
   const [importDestination, setImportDestination] =
     useState<ImportDestination | null>(null);
   const importDestinationFor = (set: GuidedLearningSet): ImportDestination =>

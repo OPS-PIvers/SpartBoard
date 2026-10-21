@@ -645,11 +645,7 @@ describe('GuidedLearningStudio', () => {
     const editButton = () =>
       screen.queryByRole('button', { name: 'Edit on the board' });
 
-    it('is offered only for a building tour set, behind the live tours flag', () => {
-      renderStudio({ set: tourSet() });
-      expect(editButton()).toBeNull();
-      cleanup();
-      features.add('gl-live-tours');
+    it('is offered only for a building tour set', () => {
       renderStudio({ set: tourSet(false) });
       expect(editButton()).toBeNull();
       cleanup();
@@ -661,7 +657,6 @@ describe('GuidedLearningStudio', () => {
     });
 
     it('saves, closes the Studio and opens the set in the board editor', async () => {
-      features.add('gl-live-tours');
       const requested = vi.fn();
       const onEdit = (e: Event) => {
         requested((e as CustomEvent<unknown>).detail);

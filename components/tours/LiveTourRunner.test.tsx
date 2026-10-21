@@ -827,13 +827,6 @@ describe('LiveTourRunner', () => {
     expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
   });
 
-  it('ignores start requests without the flag', async () => {
-    h.canAccess.mockReturnValue(false);
-    await start(makeSet([{ anchor: 'sidebar.boards', action: 'click' }]));
-    expect(h.loadTour).not.toHaveBeenCalled();
-    expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
-  });
-
   it('toasts when the set has no tour steps', async () => {
     await start(makeSet([]));
     expect(h.actions.addToast).toHaveBeenCalledWith(

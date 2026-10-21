@@ -474,7 +474,7 @@ const StudioSession: React.FC<
     canRedo,
     clipboardStepCount,
   } = editorState;
-  const liveTours = !!set.isBuilding && canAccessFeature('gl-live-tours');
+  const liveTours = !!set.isBuilding;
 
   const selectStepAt = useCallback(
     (index: number) => {
@@ -803,7 +803,7 @@ const StudioSession: React.FC<
     !readOnly &&
     canAccessFeature('gemini-functions') &&
     canAccessFeature('guided-learning-ai');
-  const canRecordTour = isAdmin === true && canAccessFeature('gl-live-tours');
+  const canRecordTour = isAdmin === true;
 
   const canvasDrop = useFileDrop(
     (files) => void editorState.uploadFromFiles(files),

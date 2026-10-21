@@ -2,7 +2,6 @@ import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningSet } from '@/types';
-import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 import { TOUR_EDIT_EVENT } from '@/components/tours/editor/tourEditStore';
 import { TOUR_RECORD_EVENT } from '@/components/tours/tourState';
 import {
@@ -284,26 +283,11 @@ describe('TourHealthPanel', () => {
     });
   });
 
-  it('starts a recording from Record a tour, only with live tours on', async () => {
+  it('starts a recording from Record a tour', async () => {
     h.sets = [];
-    const { unmount } = render(<TourHealthPanel />);
-    await screen.findByText('No Guided Learning set has live-tour steps yet.');
-    expect(screen.queryByRole('button', { name: 'Record a tour' })).toBeNull();
-    unmount();
-
     const onRecord = vi.fn();
     window.addEventListener(TOUR_RECORD_EVENT, onRecord);
-    render(
-      <AuthContext.Provider
-        value={
-          {
-            canAccessFeature: (id: string) => id === 'gl-live-tours',
-          } as unknown as AuthContextType
-        }
-      >
-        <TourHealthPanel />
-      </AuthContext.Provider>
-    );
+    render(<TourHealthPanel />);
     fireEvent.click(
       await screen.findByRole('button', { name: 'Record a tour' })
     );

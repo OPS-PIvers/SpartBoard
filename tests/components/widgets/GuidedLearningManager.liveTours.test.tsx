@@ -85,16 +85,12 @@ const personalTour: GuidedLearningSetMetadata = {
   updatedAt: 2,
 };
 
-const renderManager = (
-  liveTours: boolean,
-  isAdmin = true,
-  extras: Extras = {}
-) =>
+const renderManager = (isAdmin = true, extras: Extras = {}) =>
   render(
     <AuthContext.Provider
       value={
         {
-          canAccessFeature: (id: string) => liveTours && id === 'gl-live-tours',
+          canAccessFeature: () => false,
           canSeeShareTracking: () => false,
         } as unknown as React.ContextType<typeof AuthContext>
       }
@@ -161,19 +157,15 @@ afterEach(() => {
 describe('GuidedLearningManager live tours', () => {
   it('offers Record a tour to admins with live tours', async () => {
     const record = listen(TOUR_RECORD_EVENT);
-    renderManager(true);
+    renderManager();
     fireEvent.click(
       await screen.findByRole('button', { name: 'Record a tour' })
     );
     expect(record).toHaveBeenCalledTimes(1);
   });
 
-  it('hides Record a tour without the flag or for non-admins', async () => {
+  it('hides Record a tour from non-admins', async () => {
     renderManager(false);
-    await screen.findByText('Boards walkthrough');
-    expect(screen.queryByRole('button', { name: 'Record a tour' })).toBeNull();
-    cleanup();
-    renderManager(true, false);
     await screen.findByText('Boards walkthrough');
     expect(screen.queryByRole('button', { name: 'Record a tour' })).toBeNull();
   });
@@ -181,7 +173,7 @@ describe('GuidedLearningManager live tours', () => {
   it('runs a published tour on the board from its menu', async () => {
     runnable.set('live-1', true);
     const start = listen(TOUR_START_EVENT);
-    renderManager(true, false);
+    renderManager(false);
     await cardMenu('Boards walkthrough');
     fireEvent.click(
       await screen.findByRole('menuitem', { name: /Run live on my board/ })
@@ -192,7 +184,7 @@ describe('GuidedLearningManager live tours', () => {
   });
 
   it('does not offer Run live for a set without live steps', async () => {
-    renderManager(true);
+    renderManager();
     await cardMenu('Plain set');
     expect(
       screen.queryByRole('menuitem', { name: /Run live on my board/ })
@@ -208,24 +200,24 @@ describe('GuidedLearningManager live tours', () => {
       expect(screen.queryByRole('menuitem', { name: /Run live/ })).toBeNull();
     };
     runnable.set('live-1', false);
-    renderManager(true, false);
+    renderManager(false);
     await noRunLive();
     cleanup();
     runnable.delete('live-1');
-    renderManager(true, false);
+    renderManager(false);
     await noRunLive();
   });
 
   it('offers authors no draft run of an unpublished tour', async () => {
     runnable.set('live-1', false);
-    renderManager(true, true);
+    renderManager();
     await cardMenu('Boards walkthrough');
     expect(await screen.findByRole('menuitem', { name: 'Edit' })).toBeTruthy();
     expect(screen.queryByRole('menuitem', { name: /Run live/ })).toBeNull();
   });
 
   it('badges tours and filters the library by type', async () => {
-    renderManager(true, false);
+    renderManager(false);
     const tourCard = await screen.findByText('Boards walkthrough');
     expect(screen.getAllByText('Live tour')).toHaveLength(1);
     expect(screen.getByText('Guided')).toBeInTheDocument();
@@ -242,30 +234,23 @@ describe('GuidedLearningManager live tours', () => {
     expect(screen.getByText('Plain set')).toBeInTheDocument();
   });
 
-  it('shows only the mode label and no type filter without the flag', async () => {
-    renderManager(false);
-    await screen.findByText('Boards walkthrough');
-    expect(screen.getAllByText('Live tour')).toHaveLength(1);
-    expect(screen.queryByLabelText('Type')).toBeNull();
-  });
-
   it('shows authors whether a building tour is published or a draft', async () => {
     runnable.set('live-1', false);
-    renderManager(true, true);
+    renderManager();
     expect(await screen.findByText('Draft')).toBeInTheDocument();
     cleanup();
     runnable.set('live-1', true);
-    renderManager(true, true);
+    renderManager();
     expect(await screen.findByText('Published')).toBeInTheDocument();
     cleanup();
-    renderManager(true, false);
+    renderManager(false);
     await screen.findByText('Boards walkthrough');
     expect(screen.queryByText('Published')).toBeNull();
   });
 
   it('files a personal tour under Live tours and offers to copy it to the building', async () => {
     const copy = vi.fn();
-    renderManager(true, true, {
+    renderManager(true, {
       sets: [personalTour],
       onCopyTourToBuilding: copy,
     });
@@ -288,7 +273,7 @@ describe('GuidedLearningManager live tours', () => {
       ...buildingSet('help-1', 'Help Center tour', true),
       helpCenter: true,
     };
-    renderManager(true, true, { extraBuilding: [helpTour] });
+    renderManager(true, { extraBuilding: [helpTour] });
     await screen.findByText('Boards walkthrough');
     expect(screen.queryByText('Help Center tour')).toBeNull();
     fireEvent.change(screen.getByLabelText('Type'), {
@@ -302,7 +287,7 @@ describe('GuidedLearningManager live tours', () => {
     board.canRun = true;
     runnable.set('live-1', true);
     const start = listen(TOUR_START_EVENT);
-    renderManager(true, false);
+    renderManager(false);
     fireEvent.click(await screen.findByRole('button', { name: 'Play live' }));
     expect((start.mock.calls[0][0] as CustomEvent).detail).toEqual({
       setId: 'live-1',
@@ -319,14 +304,14 @@ describe('GuidedLearningManager live tours', () => {
   it('does not play an unpublished tour live', async () => {
     board.canRun = true;
     runnable.set('live-1', false);
-    renderManager(true, true);
+    renderManager();
     await screen.findByText('Boards walkthrough');
     expect(screen.queryByRole('button', { name: /live/ })).toBeNull();
   });
 
   it('keeps Play as slides off a board', async () => {
     runnable.set('live-1', true);
-    renderManager(true, false);
+    renderManager(false);
     await screen.findByText('Boards walkthrough');
     expect(screen.queryByRole('button', { name: 'Play live' })).toBeNull();
   });
