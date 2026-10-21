@@ -717,17 +717,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Rich text PLC notes editor. Admin-only until Paul has run a PLC meeting on it in prod.
-  'plc-notes-rich-editor': {
-    label: 'PLC notes rich text editor',
-    icon: StickyNote,
-    description: 'Formatting toolbar in PLC notes.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'plc-notes-side-panels': {
     label: 'Notes and Docs side panels',
     icon: StickyNote,

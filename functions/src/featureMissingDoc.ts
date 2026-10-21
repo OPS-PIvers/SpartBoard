@@ -22,7 +22,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-results-tools',
   'gl-callout-editing',
   'gl-student-progress',
-  'plc-notes-rich-editor',
   'paper-handwritten-responses',
   'claude-connector',
   'claude-connector-guided-learning',
