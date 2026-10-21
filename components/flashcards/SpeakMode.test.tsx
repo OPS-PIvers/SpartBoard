@@ -651,4 +651,70 @@ describe('Speak mode', () => {
       expect(capture.starts).toBe(1);
     });
   });
+  describe('moving on by itself', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const speakFirst = async (user: ReturnType<typeof userEvent.setup>) => {
+      capture.hold = true;
+      await user.click(await openSpeak(user));
+      act(() => speechEnd.onEnd?.('ended'));
+      expect(await screen.findByText('Exact')).toBeTruthy();
+    };
+
+    it('goes to the next card and listens once the countdown ends', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      fake.queue({ tokens: ['p', 'e', 'r', 'o'] }, { tokens: ['o', 'l', 'a'] });
+      renderPlayer();
+      await speakFirst(user);
+      act(() => {
+        vi.advanceTimersByTime(2900);
+      });
+      expect(screen.getByText('perro')).toBeTruthy();
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(screen.getByText('hola')).toBeTruthy();
+      expect(screen.getByText('Listening…')).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Stop' }));
+      expect(await screen.findByText('Exact')).toBeTruthy();
+    });
+
+    it('holds the countdown when the student taps the result', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      fake.queue({ tokens: ['p', 'e', 'r', 'o'] });
+      renderPlayer();
+      await speakFirst(user);
+      await user.click(screen.getByText('You said it just right.'));
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(screen.getByText('perro')).toBeTruthy();
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+      expect(screen.getByText('hola')).toBeTruthy();
+    });
+
+    it('stays put when the student turns it off', async () => {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      fake.queue({ tokens: ['p', 'e', 'r', 'o'] });
+      renderPlayer();
+      await openSpeak(user);
+      await user.click(screen.getByRole('button', { name: 'Study settings' }));
+      fireEvent.click(
+        screen.getByRole('checkbox', {
+          name: 'Automatically continue to next card',
+        })
+      );
+      await user.click(screen.getByRole('button', { name: 'Study settings' }));
+      await speakFirst(user);
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(screen.getByText('perro')).toBeTruthy();
+    });
+  });
 });

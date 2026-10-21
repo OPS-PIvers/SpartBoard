@@ -3458,6 +3458,7 @@
         "playMyTry": "Réécouter ma tentative",
         "tryAgain": "Réessayer",
         "continue": "Continuer",
+        "autoContinue": "Passer automatiquement à la carte suivante",
         "skip": "Passer",
         "round": "Série {{round}}",
         "mastered": "{{mastered}}/{{total}} bien dites",

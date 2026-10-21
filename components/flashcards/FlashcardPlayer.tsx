@@ -74,6 +74,7 @@ export type FlashcardPlayerSpeak = FlashcardSpeakStudentSettings & {
 interface SpeakPrefs {
   attempts?: number;
   example?: boolean;
+  autoContinue?: boolean;
 }
 
 export interface FlashcardCheckSubmission {
@@ -826,6 +827,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                 onNextRound={nextRound}
                 onRestart={onRestart}
                 paused={settingsOpen}
+                autoContinue={speakPrefs.autoContinue ?? true}
               />
             </Suspense>
           )
@@ -1047,6 +1049,15 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                   dark={dark}
                   onChange={(example) =>
                     setSpeakPrefs((prefs) => ({ ...prefs, example }))
+                  }
+                />
+                {/* no-tour-anchor: student player setting */}
+                <ToggleSetting
+                  label={t('flashcards.speak.player.autoContinue')}
+                  checked={speakPrefs.autoContinue ?? true}
+                  dark={dark}
+                  onChange={(autoContinue) =>
+                    setSpeakPrefs((prefs) => ({ ...prefs, autoContinue }))
                   }
                 />
               </SettingsGroup>

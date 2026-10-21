@@ -3458,6 +3458,7 @@
         "playMyTry": "Meinen Versuch abspielen",
         "tryAgain": "Nochmal versuchen",
         "continue": "Weiter",
+        "autoContinue": "Automatisch zur nächsten Karte",
         "skip": "Überspringen",
         "round": "Runde {{round}}",
         "mastered": "{{mastered}}/{{total}} gut gesprochen",

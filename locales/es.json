@@ -3458,6 +3458,7 @@
         "playMyTry": "Escuchar mi intento",
         "tryAgain": "Intentar de nuevo",
         "continue": "Continuar",
+        "autoContinue": "Pasar a la siguiente tarjeta automáticamente",
         "skip": "Omitir",
         "round": "Ronda {{round}}",
         "mastered": "{{mastered}}/{{total}} dichas bien",
