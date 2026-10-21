@@ -197,11 +197,17 @@ const pairMatches = (
   target: string,
   spoken: string,
   position: number,
-  last: number
+  finals: ReadonlySet<number>
 ) =>
   pair.target === target &&
   pair.spoken === spoken &&
-  (!pair.final || position === last);
+  (!pair.final || finals.has(position));
+
+/** 1-based positions where word-final rules apply: the last sound, and each word's last sound in a phrase. */
+export const wordFinalPositions = (
+  length: number,
+  wordEnds: readonly number[] = []
+): ReadonlySet<number> => new Set([length, ...wordEnds.map((i) => i + 1)]);
 
 type PairKind = 'tolerated' | 'forgiven' | 'required' | null;
 
@@ -211,17 +217,17 @@ function pairKind(
   target: string,
   spoken: string | null,
   position: number,
-  last: number
+  finals: ReadonlySet<number>
 ): PairKind {
   if (spoken === null) return null;
   if (
     RECOGNIZER_TOLERANCE[language].some((p) =>
-      pairMatches(p, target, spoken, position, last)
+      pairMatches(p, target, spoken, position, finals)
     )
   )
     return 'tolerated';
   const group = PRONUNCIATION_GROUPS[language].find((g) =>
-    g.pairs.some((p) => pairMatches(p, target, spoken, position, last))
+    g.pairs.some((p) => pairMatches(p, target, spoken, position, finals))
   );
   if (!group) return null;
   return effective[group.id] === 'forgive' ? 'forgiven' : 'required';
@@ -256,9 +262,10 @@ export function decideSounds(
   readings: readonly (readonly SoundReading[])[],
   language: SpeakLanguage,
   effective: Readonly<Record<string, 'forgive' | 'require'>>,
-  variants: ReadonlySet<string> = nativeVariants(language)
+  variants: ReadonlySet<string> = nativeVariants(language),
+  wordEnds: readonly number[] = []
 ): AlignmentEntry[] {
-  const last = tokens.length;
+  const finals = wordFinalPositions(tokens.length, wordEnds);
   return tokens.map((target, i) => {
     const position = i + 1;
     const open = readings[i].filter(
@@ -282,7 +289,7 @@ export function decideSounds(
           target,
           r.spoken,
           position,
-          last
+          finals
         );
         if (!kind) continue;
         const cut =
@@ -315,7 +322,7 @@ export function decideSounds(
         target,
         r.spoken,
         position,
-        last
+        finals
       );
       const rank = kind === 'tolerated' ? 3 : kind === 'forgiven' ? 2 : 0;
       if (rank && rank * 100 + r.lead > charitableRank) {

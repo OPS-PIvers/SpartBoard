@@ -4,13 +4,13 @@ import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
 import '../functionsInit';
 import { ALLOWED_ORIGINS } from '../classlinkShared';
-import { parseFlashcardAnswerVariants } from '../flashcardMatch';
 import { assertViewAsAllowed } from '../viewAsGuard';
 import { cmudictStress, disagreesWithCmudict, lookupCmudict } from './cmudict';
 import { loadPhonemizer, type Phonemizer } from './espeak';
 import { SPEAK_G2P_VERSION, SPEAK_G2P_VOICES_PENDING } from './g2pVersion';
 import { computeLetterSpans } from './letterSpans';
 import { normalizeEspeakIpa } from './normalize';
+import { firstVariant, spokenVariants } from './spokenVariants';
 import {
   deriveStress,
   spanishSpellingStress,
@@ -42,7 +42,7 @@ export const DEFAULT_VOICE_BUDGET_MS = 420_000;
 export const MAX_LOOKUP_TERMS = 500;
 const MAX_TERM_LENGTH = 500;
 const MAX_IPA_LENGTH = 200;
-// Longer than any real single word; also bounds the span aligner's work per card.
+// Longer than any real phrase of a few words; also bounds the span aligner's work per card.
 const MAX_WORD_LENGTH = 64;
 
 const DIALECTS: Record<SpeakLanguage, readonly SpeakDialect[]> = {
@@ -140,57 +140,108 @@ function lookupDialect(
   phonemizer: Phonemizer,
   language: SpeakLanguage,
   dialect: SpeakDialect,
-  word: string,
+  text: string,
   override: string | undefined
 ): DialectResult {
   const reasons: FlashcardSpeakReason[] = [];
-  let tok: ReturnType<typeof tokenizeIpa>;
-  let stress: number[];
+  const words = text.split(' ');
+  let chunks: string[];
   if (override !== undefined) {
     // A teacher's IPA is authoritative: no cross-check and no flags.
     // Dictionary notation (`/ˈʃʏtsə/`, syllable dots) is accepted; ʏ maps to y as on the espeak path.
-    tok = tokenizeIpa(override.replace(/[/[\].]/g, '').replaceAll('ʏ', 'y'));
-    if (!tok.ok) return { reasons: [failureReason(tok)] };
-    stress = deriveStress(language, tok).stress;
+    chunks = override
+      .replace(/[/[\].]/g, '')
+      .replaceAll('ʏ', 'y')
+      .trim()
+      .split(/\s+/u);
   } else {
     let ipa: string;
     try {
       // espeak drops a separate combining accent, so it hears NFC; spans still index the original text.
       ipa = normalizeEspeakIpa(
-        phonemizer.phonemize(dialect, word.normalize('NFC')),
+        phonemizer.phonemize(dialect, text.normalize('NFC')),
         language
       );
     } catch (err) {
       logger.warn('[speakLookup] espeak failed', { dialect, err: String(err) });
       return { reasons: ['lookup-failed'] };
     }
-    // espeak read it as several words (`hello,world`, `42`).
-    if (/\s/u.test(ipa)) return { reasons: ['multi-word'] };
-    tok = tokenizeIpa(ipa);
-    if (!tok.ok) return { reasons: [failureReason(tok)] };
-    if (tok.languageSwitches.length > 0) reasons.push('language-switch');
-    const derived = deriveStress(
-      language,
-      tok,
-      crossCheckFor(language, word.normalize('NFC'), tok, ipa, reasons)
-    );
-    if (derived.flagged) reasons.push('stress-disagree');
-    stress = derived.stress;
+    chunks = ipa.split(/\s+/u);
+    // espeak read a word as several (`hello,world`, `42`).
+    if (chunks.length !== words.length) {
+      return { reasons: [words.length === 1 ? 'multi-word' : 'untokenizable'] };
+    }
   }
-  const letterSpans = computeLetterSpans(word, tok.tokens, language);
+  const toks: TokenizeSuccess[] = [];
+  for (const chunk of chunks) {
+    const tok = tokenizeIpa(chunk);
+    if (!tok.ok) return { reasons: [failureReason(tok)] };
+    toks.push(tok);
+  }
+  let stress: number[] = [];
+  if (override !== undefined) {
+    if (toks.length === 1) stress = deriveStress(language, toks[0]).stress;
+  } else {
+    toks.forEach((tok, i) => {
+      if (tok.languageSwitches.length > 0) reasons.push('language-switch');
+      const crossCheck = crossCheckFor(
+        language,
+        words[i].normalize('NFC'),
+        tok,
+        chunks[i],
+        reasons
+      );
+      // A phrase isn't stress-judged: each of its words carries a stress of its own.
+      if (toks.length > 1) return;
+      const derived = deriveStress(language, tok, crossCheck);
+      if (derived.flagged) reasons.push('stress-disagree');
+      stress = derived.stress;
+    });
+  }
+  const tokens = toks.flatMap((tok) => tok.tokens);
+  const wordEnds: number[] = [];
+  let at = 0;
+  for (const tok of toks.slice(0, -1)) {
+    at += tok.tokens.length;
+    wordEnds.push(at - 1);
+  }
+  const letterSpans = phraseLetterSpans(words, toks, language);
   return {
     ref: {
       dialect,
-      tokens: tok.tokens,
+      tokens,
       stress,
       ...(letterSpans ? { letterSpans } : {}),
+      ...(wordEnds.length > 0 ? { wordEnds } : {}),
     },
-    reasons,
+    reasons: [...new Set(reasons)],
   };
 }
 
-const spokenWord = (term: string) =>
-  parseFlashcardAnswerVariants(term)[0] ?? '';
+// Each word's spans, shifted to where the word starts in the phrase; null unless every word aligns.
+function phraseLetterSpans(
+  words: readonly string[],
+  toks: readonly TokenizeSuccess[],
+  language: SpeakLanguage
+): number[] | null {
+  if (words.length === 1) {
+    return computeLetterSpans(
+      words[0],
+      toks.flatMap((tok) => tok.tokens),
+      language
+    );
+  }
+  if (toks.length !== words.length) return null;
+  const spans: number[] = [];
+  let offset = 0;
+  for (let i = 0; i < words.length; i++) {
+    const own = computeLetterSpans(words[i], toks[i].tokens, language);
+    if (!own) return null;
+    spans.push(...own.map((edge) => edge + offset));
+    offset += words[i].length + 1;
+  }
+  return spans;
+}
 
 interface VoiceRun {
   reader: VoiceReader;
@@ -207,19 +258,25 @@ async function addVoiceReferences(
 ): Promise<FlashcardCardSpeak> {
   // A teacher's IPA is authoritative, so an overridden dialect gets no voice readings.
   const bases = speak.refs.filter((ref) => !card.ipaOverride?.[ref.dialect]);
-  const voices = PRONUNCIATION_VOICES[language].filter((voice) =>
-    bases.some((ref) => ref.dialect === voiceDialect(voice))
+  const first = firstVariant(card.term);
+  const reads = PRONUNCIATION_VOICES[language].flatMap((voice) =>
+    bases
+      .filter((base) => base.dialect === voiceDialect(voice))
+      .map((base) => ({ base, voice }))
   );
-  if (voices.length === 0) return speak;
+  if (reads.length === 0) return speak;
   if (run.stopped || Date.now() >= run.deadline) {
     return { ...speak, g2pVersion: SPEAK_G2P_VOICES_PENDING };
   }
-  const word = spokenWord(card.term).normalize('NFC');
   const results = await Promise.allSettled(
-    voices.map((voice) => run.reader.read(voice, word))
+    reads.map(({ base, voice }) =>
+      run.reader.read(voice, (base.text ?? first).normalize('NFC'))
+    )
   );
   const refs = [...speak.refs];
-  const seen = new Set(refs.map((ref) => ref.tokens.join(' ')));
+  const readingKey = (ref: FlashcardSpeakReference) =>
+    `${ref.text ?? ''}\u0000${ref.tokens.join(' ')}`;
+  const seen = new Set(refs.map(readingKey));
   let complete = true;
   results.forEach((result, i) => {
     if (result.status === 'rejected') {
@@ -233,16 +290,20 @@ async function addVoiceReferences(
         run.stopped = true;
       } else {
         logger.warn('[speakLookup] voice failed', {
-          voice: voices[i],
+          voice: reads[i].voice,
           err: String(result.reason),
         });
       }
       return;
     }
-    const base = bases.find((ref) => ref.dialect === voiceDialect(voices[i]));
-    const ref = base && voiceReference(base, result.value);
-    if (!ref || seen.has(ref.tokens.join(' '))) return;
-    seen.add(ref.tokens.join(' '));
+    const { base } = reads[i];
+    const reading = voiceReference(base, result.value);
+    const ref =
+      reading && base.text !== undefined
+        ? { ...reading, text: base.text }
+        : reading;
+    if (!ref || seen.has(readingKey(ref))) return;
+    seen.add(readingKey(ref));
     refs.push(ref);
   });
   return {
@@ -263,35 +324,37 @@ function lookupCard(
     dialects: [...input.dialects],
     ...(card.ipaOverride ? { ipaOverride: card.ipaOverride } : {}),
   };
-  const word = spokenWord(card.term);
-  if (!word || word.length > MAX_WORD_LENGTH) {
+  const { texts, tooManyWords } = spokenVariants(card.term);
+  const fitting = texts.filter((text) => text.length <= MAX_WORD_LENGTH);
+  if (fitting.length === 0) {
     return {
       ...base,
       refs: [],
       status: 'unavailable',
-      reasons: ['untokenizable'],
+      reasons: [
+        tooManyWords && texts.length === 0 ? 'multi-word' : 'untokenizable',
+      ],
     };
   }
-  if (/\s/u.test(word)) {
-    return {
-      ...base,
-      refs: [],
-      status: 'unavailable',
-      reasons: ['multi-word'],
-    };
-  }
+  const first = firstVariant(card.term);
   const refs: FlashcardSpeakReference[] = [];
   const reasons = new Set<FlashcardSpeakReason>();
   for (const dialect of input.dialects) {
-    const result = lookupDialect(
-      phonemizer,
-      input.language,
-      dialect,
-      word,
-      card.ipaOverride?.[dialect]
-    );
-    if (result.ref) refs.push(result.ref);
-    result.reasons.forEach((r) => reasons.add(r));
+    const override = card.ipaOverride?.[dialect];
+    // A teacher's IPA stands for the card in that accent, so its other variants aren't looked up there.
+    for (const text of override === undefined ? fitting : fitting.slice(0, 1)) {
+      const result = lookupDialect(
+        phonemizer,
+        input.language,
+        dialect,
+        text,
+        override
+      );
+      if (result.ref) {
+        refs.push(text === first ? result.ref : { ...result.ref, text });
+      }
+      result.reasons.forEach((r) => reasons.add(r));
+    }
   }
   const status =
     refs.length === 0

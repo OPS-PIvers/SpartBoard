@@ -3,8 +3,10 @@ import type { FlashcardCard, FlashcardSpeakReference } from '@/types';
 import type { SpeakJudgement } from '@/utils/pronunciation/verdict';
 import {
   cardRefs,
+  judgedRef,
   judgeTake,
   letterSegments,
+  refText,
   speakMarks,
   spokenWord,
   stressSyllables,
@@ -140,5 +142,31 @@ describe('speakJudge', () => {
       { text: 'sa', stressed: true },
     ]);
     expect(stressSyllables('casa', { ...casa, stress: [] })).toBeNull();
+  });
+});
+
+describe('phrase variants', () => {
+  const guia: FlashcardCard = {
+    id: 'guia',
+    term: 'el/la guía',
+    definition: 'guide',
+  };
+  const el: FlashcardSpeakReference = {
+    dialect: 'es-419',
+    tokens: ['e', 'l', 'ɣ', 'i', 'a'],
+    stress: [],
+    text: 'el guía',
+  };
+  const la: FlashcardSpeakReference = { ...el, text: 'la guía' };
+
+  it('marks letters on the variant the student said', () => {
+    const judgement = { dialect: 'es-419', text: 'la guía' } as SpeakJudgement;
+    const ref = judgedRef([el, la], judgement);
+    expect(ref).toBe(la);
+    expect(refText(guia, ref)).toBe('la guía');
+  });
+
+  it('falls back to the first variant for a reference without text', () => {
+    expect(refText(card(), perroRef)).toBe('perro');
   });
 });

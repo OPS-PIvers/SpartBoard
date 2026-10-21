@@ -99,7 +99,8 @@ F-numbers from the 2026-10-19 redirect are kept. **F6 is superseded by §4** (st
   - **Not** in the widget's Present player (`Widget.tsx:543-561`, `allowedModes={['flashcards']}`).
   - **Not in Check.** `functions/src/flashcardCheck.ts:15` keeps its own three-mode type, unchanged.
 - **F2 — What is spoken.** The **term** side, in the set's `termLanguage`.
-  - **One word per card.** A term with whitespace after `parseFlashcardAnswerVariants` (`utils/flashcardMatch.ts`) picks its first variant; a multi-word variant is unavailable.
+  - **Up to four words per card** (Paul, 2026-10-21; first shipped as one word). Every answer variant is looked up (`functions/src/pronunciation/spokenVariants.ts`), up to four of them: `el/la guía` gives _el guía_ and _la guía_, `el/la mesero/a` gives _el mesero_ and _la mesera_, a trailing `...` blank is skipped, and a variant over four words is dropped. A variant other than the first is stored on its reference as `text`.
+  - **Phrases** are phonemized whole, so espeak keeps connected speech (_la cama ðoβle_), then split per word for letter spans and `wordEnds`, where word-final group pairs also apply. A phrase is not stress-judged (`stress: []`).
   - Also unavailable: a reference that failed (#2383 `unrenderable` / `untokenizable`). The card reads "Not available to speak" and is skipped.
   - **Languages:** the mode is offered only when the primary subtag of `termLanguage` is `es`, `de` or `en`. Teachers type `es`, `es-US`, `es-MX` and so on; the presets in `flashcardLanguages.ts:4-12` give `es-US`.
 - **F3 — No recording is kept.** Audio is held in memory for the decode and for "Play my attempt", then dropped when the card changes.
@@ -571,7 +572,7 @@ S7 adds `recordSpeak(cardId, passed, accuracy, tries, tally)` to the adapter int
 - **Worst case** (`break-ui`):
   - a 500-card set;
   - a 40-letter German compound;
-  - a term with an article (_der Hund_, multi-word, so unavailable);
+  - a term with an article (_der Hund_, a two-word phrase) and one over four words (unavailable);
   - every card unavailable;
   - `es-MX` / `es` / `ES-us` tags;
   - a 10-attempt setting;
