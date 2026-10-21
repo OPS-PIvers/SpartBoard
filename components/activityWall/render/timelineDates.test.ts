@@ -22,6 +22,15 @@ describe('timeline dates', () => {
       { year: -1, month: 1 },
       { year: -10000, month: 2 },
       { year: -10000, month: 6, day: 1 },
+      { year: 1450, precision: 'about' },
+      { year: -44, precision: 'about' },
+      { year: 1990, precision: 'decade' },
+      { year: 1900, precision: 'decade' },
+      { year: 470, precision: 'decade' },
+      { year: 19, precision: 'century' },
+      { year: 1, precision: 'century' },
+      { year: -5, precision: 'century' },
+      { year: -11, precision: 'century' },
     ];
     for (const date of dates) {
       expect(parseWallDate(formatWallDate(date))).toEqual(date);
@@ -39,9 +48,16 @@ describe('timeline dates', () => {
 
   it('reads older free-text labels where it can', () => {
     expect(parseWallDate('1956')).toEqual({ year: 1956 });
-    expect(parseWallDate('1800s')).toEqual({ year: 1800 });
+    expect(parseWallDate('1800s')).toEqual({ year: 19, precision: 'century' });
     expect(parseWallDate('500 BC')).toEqual({ year: -500 });
-    expect(parseWallDate('c. 1450')).toEqual({ year: 1450 });
+    expect(parseWallDate('c. 1450')).toEqual({
+      year: 1450,
+      precision: 'about',
+    });
+    expect(parseWallDate('5th century BC')).toEqual({
+      year: -5,
+      precision: 'century',
+    });
     expect(parseWallDate('AD 79')).toEqual({ year: 79 });
     expect(parseWallDate('March 4, 1865')).toEqual({
       year: 1865,
@@ -56,14 +72,41 @@ describe('timeline dates', () => {
     expect(parseWallDate('Early 1800s')).toBeNull();
     expect(parseWallDate('May 5')).toBeNull();
     expect(parseWallDate('7')).toBeNull();
-    expect(parseWallDate('1990s')).toEqual({ year: 1990 });
+    expect(parseWallDate('1990s')).toEqual({ year: 1990, precision: 'decade' });
+    expect(parseWallDate('Civil War')).toBeNull();
     expect(parseWallDate('Before the war')).toBeNull();
     expect(parseWallDate('February 30, 1900')).toBeNull();
     expect(parseWallDate(undefined)).toBeNull();
   });
 
+  it('places the ways students write dates in a timeline assignment', () => {
+    const cases: [string, string][] = [
+      ['1851:', '1851'],
+      ['Aug. 17, 1862', 'August 17, 1862'],
+      ['Sept 23, 1862', 'September 23, 1862'],
+      ['12/26/1862', 'December 26, 1862'],
+      ['8/1862', 'August 1862'],
+      ['1862-1863', '1862'],
+      ['Summer 1862', 'c. 1862'],
+      ['circa 1862', 'c. 1862'],
+      ['~1862', 'c. 1862'],
+      ['Aug 18-22, 1862', 'August 18, 1862'],
+    ];
+    for (const [label, formatted] of cases) {
+      const date = parseWallDate(label);
+      expect(date && formatWallDate(date)).toBe(formatted);
+    }
+    expect(parseWallDate('13/1/1862')).toBeNull();
+  });
+
   it('validates the composer fields', () => {
-    const base = { year: '', era: 'CE' as const, month: '', day: '' };
+    const base = {
+      year: '',
+      era: 'CE' as const,
+      month: '',
+      day: '',
+      precision: 'exact' as const,
+    };
     expect(validateDateFields(base)).toEqual({ error: 'Enter a year.' });
     expect(validateDateFields({ ...base, year: '19a4' })).toEqual({
       error: 'Use numbers only for the year.',
@@ -86,11 +129,35 @@ describe('timeline dates', () => {
       era: 'BCE',
       month: '3',
       day: '',
+      precision: 'exact',
     });
+    expect(
+      validateDateFields({ ...base, year: '1994', precision: 'decade' })
+    ).toEqual({ date: { year: 1990, precision: 'decade' } });
+    expect(
+      validateDateFields({ ...base, year: '1850', precision: 'century' })
+    ).toEqual({ date: { year: 19, precision: 'century' } });
+    expect(
+      validateDateFields({
+        ...base,
+        year: '450',
+        era: 'BCE',
+        precision: 'century',
+      })
+    ).toEqual({ date: { year: -5, precision: 'century' } });
+    // A century edits as its middle year and saves back to the same century.
+    for (const date of [
+      { year: 19, precision: 'century' as const },
+      { year: -5, precision: 'century' as const },
+      { year: 1, precision: 'century' as const },
+    ]) {
+      expect(validateDateFields(fieldsFromDate(date))).toEqual({ date });
+    }
   });
 
   it('sorts chronologically across eras and within a year', () => {
     const keys = [
+      { year: -6, precision: 'century' as const },
       { year: -500 },
       { year: -44, month: 3, day: 15 },
       { year: 1776, month: 7, day: 4 },

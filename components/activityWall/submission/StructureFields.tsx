@@ -4,6 +4,7 @@ import {
   MONTH_NAMES,
   daysInMonth,
   type WallDateFields,
+  type WallDatePrecision,
 } from '@/components/activityWall/render/timelineDates';
 
 const selectClass =
@@ -118,7 +119,7 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
     return (
       <fieldset>
         <legend className="sr-only">Date</legend>
-        <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)_minmax(0,1.4fr)_minmax(0,0.8fr)] gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <div>
             <label className={labelClass} htmlFor="aw-year">
               Year
@@ -144,13 +145,50 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
               className={selectClass}
               value={date.era}
               onChange={(event) =>
-                setDate({ era: event.target.value === 'BCE' ? 'BCE' : 'CE' })
+                setDate(
+                  event.target.value === 'BCE'
+                    ? {
+                        era: 'BCE',
+                        precision:
+                          date.precision === 'decade'
+                            ? 'about'
+                            : date.precision,
+                      }
+                    : { era: 'CE' }
+                )
               }
             >
               <option value="CE">CE</option>
               <option value="BCE">BCE</option>
             </select>
           </div>
+          <div>
+            <label className={labelClass} htmlFor="aw-precision">
+              Accuracy
+            </label>
+            <select
+              id="aw-precision"
+              className={selectClass}
+              value={date.precision}
+              onChange={(event) => {
+                const precision = event.target.value as WallDatePrecision;
+                setDate(
+                  precision === 'exact'
+                    ? { precision }
+                    : { precision, month: '', day: '' }
+                );
+              }}
+            >
+              <option value="exact">Exact</option>
+              <option value="about">About</option>
+              <option value="decade" disabled={date.era === 'BCE'}>
+                Decade
+              </option>
+              <option value="century">Century</option>
+            </select>
+          </div>
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-2">
           <div>
             <label className={labelClass} htmlFor="aw-month">
               Month
@@ -159,6 +197,7 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
               id="aw-month"
               className={selectClass}
               value={date.month}
+              disabled={date.precision !== 'exact'}
               onChange={(event) =>
                 setDate({
                   month: event.target.value,
@@ -182,7 +221,7 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
               id="aw-day"
               className={selectClass}
               value={date.day}
-              disabled={!date.month}
+              disabled={!date.month || date.precision !== 'exact'}
               onChange={(event) => setDate({ day: event.target.value })}
             >
               <option value="">Any</option>

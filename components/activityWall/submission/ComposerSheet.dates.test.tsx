@@ -66,6 +66,25 @@ describe('ComposerSheet dated timeline', () => {
     );
   });
 
+  it('saves an approximate date and turns off month and day', () => {
+    const onSubmit = renderSheet();
+    fireEvent.change(screen.getByLabelText('Your response'), {
+      target: { value: 'Printing press' },
+    });
+    fireEvent.change(screen.getByLabelText('Year'), {
+      target: { value: '1450' },
+    });
+    fireEvent.change(screen.getByLabelText('Accuracy'), {
+      target: { value: 'about' },
+    });
+    expect(screen.getByLabelText('Month')).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: /post/i }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ label: 'c. 1450' }),
+      expect.anything()
+    );
+  });
+
   it('starts an edit from the date already saved', () => {
     renderSheet(
       vi.fn(),

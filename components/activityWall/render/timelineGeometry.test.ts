@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
-  fitTimelineScale,
+  breakLabel,
+  fitZoomLevel,
   layoutTimeline,
   timelineTicks,
   type TimelineInput,
@@ -30,7 +31,7 @@ describe('timeline geometry', () => {
       { id: 'b', key: 1900 },
       { id: 'c', key: 2000 },
     ];
-    const geometry = layoutTimeline({ ...base, items, pxPerYear: 10 });
+    const geometry = layoutTimeline({ ...base, items, pxPerYear: 5 });
     const xs = geometry.placements.map((p) => p.dotX);
     expect(xs).toEqual([...xs].sort((a, b) => a - b));
     expect(geometry.placements.map((p) => p.side)).toEqual([
@@ -38,7 +39,7 @@ describe('timeline geometry', () => {
       'below',
       'above',
     ]);
-    expect(xs[1] - xs[0]).toBeCloseTo(1000);
+    expect(xs[1] - xs[0]).toBeCloseTo(500);
   });
 
   it('never overlaps cards, even for crowded or equal dates', () => {
@@ -66,15 +67,29 @@ describe('timeline geometry', () => {
     );
   });
 
-  it('fit scale keeps everything in the viewport when it can', () => {
+  it('shrinks long empty gaps into a marked break and keeps true scale elsewhere', () => {
     const items: TimelineInput[] = [
       { id: 'a', key: 1440 },
       { id: 'b', key: 1944 },
       { id: 'c', key: 1956 },
     ];
-    const scale = fitTimelineScale({ ...base, items }, 1000);
+    const geometry = layoutTimeline({ ...base, items, pxPerYear: 10 });
+    expect(geometry.breaks).toHaveLength(1);
+    expect(geometry.breaks[0].years).toBe(504);
+    expect(breakLabel(geometry.breaks[0].years)).toBe('504 years');
+    const [, b, c] = geometry.placements;
+    expect(c.dotX - b.dotX).toBeCloseTo(120);
+  });
+
+  it('fit level keeps the layout in the viewport when it can', () => {
+    const items: TimelineInput[] = [
+      { id: 'a', key: 1440 },
+      { id: 'b', key: 1944 },
+      { id: 'c', key: 1956 },
+    ];
+    const level = fitZoomLevel({ ...base, items }, 1000, 1, -8, 12);
     expect(
-      layoutTimeline({ ...base, items, pxPerYear: scale }).width
+      layoutTimeline({ ...base, items, pxPerYear: 2 ** level }).width
     ).toBeLessThanOrEqual(1000);
   });
 
@@ -87,7 +102,7 @@ describe('timeline geometry', () => {
       ],
       pxPerYear: 1,
     });
-    const ticks = timelineTicks(geometry, 60, base.cardWidth);
+    const ticks = timelineTicks(geometry, 1, 60, base.cardWidth);
     expect(ticks.length).toBeGreaterThan(2);
     expect(ticks.some((t) => t.label === '0')).toBe(false);
     expect(ticks.some((t) => t.label.endsWith('BCE'))).toBe(true);
@@ -114,15 +129,28 @@ describe('timeline geometry', () => {
         items,
         lanesPerSide: 1 + Math.floor(rand() * 3),
       };
-      const scale = fitTimelineScale(input, 300 + rand() * 1500);
+      const viewport = 300 + rand() * 1500;
+      const baseScale = 1 / span;
+      const level = fitZoomLevel(input, viewport, baseScale, -8, 12);
+      const scale = baseScale * 2 ** level;
       const geometry = layoutTimeline({ ...input, pxPerYear: scale });
+      // Honest scale: consecutive markers are either true-scale apart or separated by a break.
+      const knots = geometry.knots;
+      for (let i = 1; i < knots.length; i += 1) {
+        const trueGap = (knots[i].key - knots[i - 1].key) * scale;
+        const drawn = knots[i].x - knots[i - 1].x;
+        const broken = geometry.breaks.some(
+          (b) => b.fromX >= knots[i - 1].x && b.toX <= knots[i].x
+        );
+        if (!broken) expect(Math.abs(drawn - trueGap)).toBeLessThan(1);
+      }
       expect(overlaps(geometry, base.cardWidth)).toBe(false);
       expect(Number.isFinite(geometry.width)).toBe(true);
       const dated = geometry.placements.filter((p) => p.dated);
       for (let i = 1; i < dated.length; i += 1) {
         expect(dated[i].dotX).toBeGreaterThanOrEqual(dated[i - 1].dotX);
       }
-      const ticks = timelineTicks(geometry, 60, base.cardWidth);
+      const ticks = timelineTicks(geometry, scale, 60, base.cardWidth);
       for (let i = 1; i < ticks.length; i += 1) {
         expect(ticks[i].x - ticks[i - 1].x).toBeGreaterThanOrEqual(60);
       }

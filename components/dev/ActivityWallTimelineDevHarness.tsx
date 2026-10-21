@@ -1,7 +1,7 @@
 /**
  * ActivityWallTimelineDevHarness — DEV-only fixtures for the Activity Wall timeline,
  * old list next to the dated axis at several sizes. Mounted at /activity-wall-timeline-dev.
- * `?view=composer` shows the post composer with the date pickers.
+ * `?view=composer` shows the post composer with the date pickers; `?posts=60` pads the wall for load checks.
  */
 
 import React from 'react';
@@ -38,7 +38,7 @@ const posts = (): ActivityWallSubmission[] => [
     id: 'press',
     title: 'Printing press',
     content: 'Gutenberg prints the first books with movable type in Mainz.',
-    label: '1440',
+    label: 'c. 1440',
     participantLabel: 'Maya R.',
     submittedAt: 3,
   }),
@@ -92,6 +92,22 @@ const posts = (): ActivityWallSubmission[] => [
     submittedAt: 9,
   }),
   makeSubmission({
+    id: 'athens',
+    title: 'Athenian democracy',
+    content: 'Citizens of Athens vote directly on laws in the assembly.',
+    label: '5th century BCE',
+    participantLabel: 'Mia T.',
+    submittedAt: 11,
+  }),
+  makeSubmission({
+    id: 'civil-rights',
+    title: 'Civil rights movement',
+    content: 'Marches, sit-ins and new federal laws end legal segregation.',
+    label: '1960s',
+    participantLabel: 'Omar H.',
+    submittedAt: 12,
+  }),
+  makeSubmission({
     id: 'industrial',
     title: 'Factories spread',
     content: 'Steam-powered mills change how people work.',
@@ -100,6 +116,26 @@ const posts = (): ActivityWallSubmission[] => [
     submittedAt: 10,
   }),
 ];
+
+const MONTHS = ['January', 'March', 'May', 'August', 'October', 'December'];
+
+const padded = (count: number): ActivityWallSubmission[] => {
+  const base = posts();
+  const extra = Array.from(
+    { length: Math.max(0, count - base.length) },
+    (_, i) =>
+      makeSubmission({
+        id: `extra-${i}`,
+        title: `Event ${i + 1}`,
+        content:
+          'A short note on why this event mattered to the people involved.',
+        label: `${MONTHS[i % MONTHS.length]} ${1850 + ((i * 7) % 25)}`,
+        participantLabel: `Student ${i + 1}`,
+        submittedAt: 100 + i,
+      })
+  );
+  return [...base, ...extra];
+};
 
 const legacySession = makeSession({
   title: 'Final product: multi-sided timeline',
@@ -130,8 +166,9 @@ const Frame: React.FC<{
 );
 
 export const ActivityWallTimelineDevHarness: React.FC = () => {
-  const view = new URLSearchParams(window.location.search).get('view');
-  const submissions = posts();
+  const params = new URLSearchParams(window.location.search);
+  const view = params.get('view');
+  const submissions = padded(Number(params.get('posts')) || 0);
 
   if (view === 'composer') {
     return (

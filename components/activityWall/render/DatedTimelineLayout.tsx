@@ -13,16 +13,18 @@ import { SubmissionCard } from './SubmissionCard';
 import { useWallCardStyle } from './imageSize';
 import { visibleSubmissions } from './scale';
 import { isSafeHttpUrl, useMediaUrl } from './useMediaUrl';
-import { dateSortKey, parseWallDate } from './timelineDates';
+import { dateSortKey, parseWallDate, wallDateSpan } from './timelineDates';
 import {
+  breakLabel,
   fitPxPerYear,
-  fitTimelineScale,
+  fitZoomLevel,
   layoutTimeline,
   timelineTicks,
   type TimelinePlacement,
 } from './timelineGeometry';
 import type { WallRenderMode, WallRenderProps } from './types';
 
+const MIN_ZOOM = -8;
 const MAX_ZOOM = 12;
 
 const clamp = (value: number, min: number, max: number) =>
@@ -30,14 +32,14 @@ const clamp = (value: number, min: number, max: number) =>
 
 /** Pixel sizes for one container size; every length follows the card width so the timeline scales as a whole. */
 const timelineMetrics = (width: number, height: number, areaHeight: number) => {
-  const cardW = clamp(Math.min(width * 0.24, height * 0.5), 112, 280);
+  const cardW = clamp(Math.min(width * 0.24, height * 0.5), 112, 360);
   const font = {
-    meta: clamp(cardW * 0.058, 10, 15),
-    title: clamp(cardW * 0.075, 12, 20),
-    body: clamp(cardW * 0.064, 11, 17),
+    meta: clamp(cardW * 0.058, 10, 20),
+    title: clamp(cardW * 0.075, 12, 27),
+    body: clamp(cardW * 0.064, 11, 22),
   };
-  const pad = clamp(cardW * 0.05, 6, 14);
-  const gap = clamp(cardW * 0.05, 6, 14);
+  const pad = clamp(cardW * 0.05, 6, 18);
+  const gap = clamp(cardW * 0.05, 6, 18);
   const toolbar = font.meta * 2 + pad * 2;
   const axisGap = font.meta * 2.2 + gap;
   const area = Math.max(areaHeight || height - toolbar, 100);
@@ -201,7 +203,7 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
   const items = useMemo(() => {
     const visible = visibleSubmissions(submissions, mode).map((submission) => {
       const date = parseWallDate(submission.label);
-      return { submission, key: date ? dateSortKey(date) : null };
+      return { submission, date, key: date ? dateSortKey(date) : null };
     });
     return visible.sort((a, b) => {
       if (a.key !== null && b.key !== null && a.key !== b.key)
@@ -219,9 +221,16 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
     () => items.map((item) => ({ id: item.submission.id, key: item.key })),
     [items]
   );
-  const fitScale = useMemo(
+  const trueScale = fitPxPerYear(
+    inputs,
+    width || 600,
+    metrics.cardW,
+    metrics.pad
+  );
+  // Every level is true scale; long empty gaps become marked breaks. Opens on the level that fits.
+  const fitZoom = useMemo(
     () =>
-      fitTimelineScale(
+      fitZoomLevel(
         {
           items: inputs,
           cardWidth: metrics.cardW,
@@ -229,20 +238,14 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
           pad: metrics.pad,
           lanesPerSide: metrics.lanes,
         },
-        width || 600
+        width || 600,
+        trueScale,
+        MIN_ZOOM,
+        MAX_ZOOM
       ),
-    [inputs, metrics, width]
+    [inputs, metrics, width, trueScale]
   );
-  const trueScale = fitPxPerYear(
-    inputs,
-    width || 600,
-    metrics.cardW,
-    metrics.pad
-  );
-  // Zoom 0 is true scale across the whole span; below it the axis widens between crowded dates.
-  const minZoom = Math.min(0, Math.floor(Math.log2(fitScale / trueScale)));
-  // Opens on the view that fits every card; zooming in moves toward true scale.
-  const zoom = Math.max(zoomChoice ?? minZoom, minZoom);
+  const zoom = zoomChoice ?? fitZoom;
   const pxPerYear = trueScale * 2 ** zoom;
   const geometry = useMemo(
     () =>
@@ -257,11 +260,16 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
     [inputs, pxPerYear, metrics]
   );
   const ticks = useMemo(
-    () => timelineTicks(geometry, metrics.font.meta * 6, metrics.cardW),
-    [geometry, metrics]
+    () =>
+      timelineTicks(geometry, pxPerYear, metrics.font.meta * 6, metrics.cardW),
+    [geometry, pxPerYear, metrics]
   );
   const byId = useMemo(
     () => new Map(items.map((item) => [item.submission.id, item.submission])),
+    [items]
+  );
+  const dateById = useMemo(
+    () => new Map(items.map((item) => [item.submission.id, item.date])),
     [items]
   );
   const open = openId ? byId.get(openId) : undefined;
@@ -281,7 +289,7 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
       const middle = node.scrollLeft + node.clientWidth / 2;
       pendingCenter.current = geometry.xToKey(middle);
     }
-    const clamped = clamp(next, minZoom, MAX_ZOOM);
+    const clamped = clamp(next, MIN_ZOOM, MAX_ZOOM);
     if (clamped === zoom) pendingCenter.current = null;
     setZoom(clamped);
   };
@@ -299,6 +307,14 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
       ? geometry.width - pad
       : geometry.datedEnd + cardW / 2;
   const hasDated = geometry.placements.some((p) => p.dated);
+  // The solid axis runs between breaks; each break draws its own zigzag.
+  const axisRuns: [number, number][] = [];
+  let runStart = axisStart;
+  for (const b of geometry.breaks) {
+    axisRuns.push([runStart, b.fromX]);
+    runStart = b.toX;
+  }
+  axisRuns.push([runStart, axisEnd]);
 
   const toolButton =
     'flex items-center justify-center rounded-md p-1 text-white/80 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-30';
@@ -328,17 +344,43 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
             width={geometry.width}
             height={area}
           >
-            {hasDated && (
-              <line
-                x1={axisStart}
-                x2={axisEnd}
-                y1={axisY}
-                y2={axisY}
-                stroke="currentColor"
-                strokeOpacity={0.7}
-                strokeWidth={2}
-              />
-            )}
+            {hasDated &&
+              axisRuns.map(([from, to]) => (
+                <line
+                  key={from}
+                  x1={from}
+                  x2={to}
+                  y1={axisY}
+                  y2={axisY}
+                  stroke="currentColor"
+                  strokeOpacity={0.7}
+                  strokeWidth={2}
+                />
+              ))}
+            {geometry.breaks.map((b) => {
+              const h = dot * 1.6;
+              const mid = (b.fromX + b.toX) / 2;
+              const zig = [
+                [mid - h * 1.5, 0],
+                [mid - h * 0.75, -h],
+                [mid, h],
+                [mid + h * 0.75, -h],
+                [mid + h * 1.5, 0],
+              ]
+                .map(([x, dy]) => `${x},${axisY + dy}`)
+                .join(' ');
+              return (
+                <polyline
+                  key={b.fromX}
+                  points={`${b.fromX},${axisY} ${zig} ${b.toX},${axisY}`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeOpacity={0.7}
+                  strokeWidth={2}
+                  strokeLinejoin="round"
+                />
+              );
+            })}
             {geometry.undatedStart !== null && (
               <line
                 x1={geometry.undatedStart}
@@ -382,17 +424,42 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
                 />
               );
             })}
-            {geometry.placements.map((p) => (
-              <circle
-                key={p.id}
-                cx={p.dotX}
-                cy={axisY}
-                r={dot}
-                fill={p.dated ? 'currentColor' : 'none'}
-                stroke="currentColor"
-                strokeWidth={2}
-              />
-            ))}
+            {geometry.placements.map((p) => {
+              const date = dateById.get(p.id);
+              const span = date ? wallDateSpan(date) : null;
+              if (!span) return null;
+              const from = geometry.keyToX(span[0]);
+              const to = geometry.keyToX(span[1]);
+              return (
+                <rect
+                  key={`span-${p.id}`}
+                  x={from}
+                  y={axisY - dot}
+                  width={Math.max(to - from, dot * 2)}
+                  height={dot * 2}
+                  rx={dot}
+                  fill="currentColor"
+                  fillOpacity={0.3}
+                />
+              );
+            })}
+            {geometry.placements.map((p) => {
+              const about = dateById.get(p.id)?.precision === 'about';
+              return (
+                <circle
+                  key={p.id}
+                  cx={p.dotX}
+                  cy={axisY}
+                  r={dot}
+                  fill={p.dated && !about ? 'currentColor' : 'none'}
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeDasharray={
+                    about ? `${dot * 0.8} ${dot * 0.6}` : undefined
+                  }
+                />
+              );
+            })}
           </svg>
 
           {ticks.map((tick) => (
@@ -409,6 +476,19 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
               {tick.label}
             </span>
           ))}
+          {geometry.breaks.map((b) => (
+            <span
+              key={b.fromX}
+              className="pointer-events-none absolute -translate-x-1/2 whitespace-nowrap font-semibold italic text-white/70"
+              style={{
+                left: (b.fromX + b.toX) / 2,
+                top: axisY + dot + 4,
+                fontSize: font.meta,
+              }}
+            >
+              {breakLabel(b.years)}
+            </span>
+          ))}
           {geometry.undatedStart !== null && (
             <span
               className="pointer-events-none absolute whitespace-nowrap font-semibold text-white/70"
@@ -422,37 +502,57 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
             </span>
           )}
 
-          {geometry.placements.map((p) => {
-            const submission = byId.get(p.id);
-            if (!submission) return null;
-            return (
-              <button
-                key={p.id}
-                type="button"
-                // no-tour-anchor: one per student post; tours point at the wall, not a post
-                onClick={() => setOpenId(p.id)}
-                aria-label={`Open post: ${submission.label ?? 'No date'}${submission.title ? `, ${submission.title}` : ''}`}
-                data-testid={`aw-timeline-card-${p.id}`}
-                className="absolute flex flex-col overflow-hidden rounded-lg border border-white/15 bg-slate-900/80 text-left text-white shadow-lg transition hover:border-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-                style={{
-                  left: p.cardX,
-                  top: cardTop(p),
-                  width: cardW,
-                  height: cardH,
-                  padding: pad,
-                  gap: pad / 2,
-                  ...cardStyle,
-                }}
-              >
-                <CardPreview
-                  submission={submission}
-                  metrics={metrics}
-                  mode={mode}
-                  showNames={showNames}
-                />
-              </button>
-            );
-          })}
+          <ol aria-label="Posts in date order" className="contents">
+            {geometry.placements.map((p, index) => {
+              const submission = byId.get(p.id);
+              if (!submission) return null;
+              return (
+                <li key={p.id} className="contents">
+                  <button
+                    type="button"
+                    // no-tour-anchor: one per student post; tours point at the wall, not a post
+                    onClick={() => setOpenId(p.id)}
+                    onKeyDown={(event) => {
+                      const step =
+                        event.key === 'ArrowRight'
+                          ? 1
+                          : event.key === 'ArrowLeft'
+                            ? -1
+                            : 0;
+                      const cards =
+                        scrollRef.current?.querySelectorAll<HTMLElement>(
+                          '[data-timeline-card]'
+                        );
+                      const next = cards?.[index + step];
+                      if (!step || !next) return;
+                      event.preventDefault();
+                      next.focus();
+                    }}
+                    aria-label={`Open post: ${submission.label ?? 'No date'}${submission.title ? `, ${submission.title}` : ''}`}
+                    data-testid={`aw-timeline-card-${p.id}`}
+                    data-timeline-card
+                    className="absolute flex flex-col overflow-hidden rounded-lg border border-white/15 bg-slate-900/80 text-left text-white shadow-lg transition hover:border-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                    style={{
+                      left: p.cardX,
+                      top: cardTop(p),
+                      width: cardW,
+                      height: cardH,
+                      padding: pad,
+                      gap: pad / 2,
+                      ...cardStyle,
+                    }}
+                  >
+                    <CardPreview
+                      submission={submission}
+                      metrics={metrics}
+                      mode={mode}
+                      showNames={showNames}
+                    />
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
         </div>
       </div>
 
@@ -466,7 +566,7 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
             // no-tour-anchor: view-only zoom inside the wall, no tour walks to it
             className={toolButton}
             onClick={() => changeZoom(zoom - 1)}
-            disabled={zoom <= minZoom}
+            disabled={zoom <= MIN_ZOOM}
             aria-label="Zoom out"
             title="Zoom out"
           >

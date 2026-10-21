@@ -1,8 +1,15 @@
-/** A timeline date: `year` is negative for BCE (no year zero); month and day are optional. */
+/** How exactly a post's date is known; exact dates may carry a month and day. */
+export type WallDatePrecision = 'exact' | 'about' | 'decade' | 'century';
+
+/**
+ * A timeline date. `year` is negative for BCE (no year zero). A decade stores its first year
+ * (CE only); a century stores its signed ordinal (19 is the 1800s, -5 the 5th century BCE).
+ */
 export interface WallDate {
   year: number;
   month?: number;
   day?: number;
+  precision?: Exclude<WallDatePrecision, 'exact'>;
 }
 
 export type WallEra = 'CE' | 'BCE';
@@ -13,6 +20,7 @@ export interface WallDateFields {
   era: WallEra;
   month: string;
   day: string;
+  precision: WallDatePrecision;
 }
 
 export const MAX_CE_YEAR = 9999;
@@ -38,6 +46,7 @@ export const EMPTY_DATE_FIELDS: WallDateFields = {
   era: 'CE',
   month: '',
   day: '',
+  precision: 'exact',
 };
 
 const isLeap = (year: number) =>
@@ -60,8 +69,26 @@ export const formatYear = (year: number): string =>
       ? `${year} CE`
       : withCommas(year);
 
-/** Display text, which is also what the post stores: "1865", "April 1865", "April 14, 1865", "44 BCE". */
+const ordinal = (n: number): string => {
+  const tens = n % 100;
+  if (tens >= 11 && tens <= 13) return `${n}th`;
+  return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`;
+};
+
+/** Display text, which is also what the post stores: "April 14, 1865", "c. 1450", "1990s", "5th century BCE". */
 export const formatWallDate = (date: WallDate): string => {
+  if (date.precision === 'about') return `c. ${formatYear(date.year)}`;
+  if (date.precision === 'decade') {
+    const end = date.year + 9;
+    const era = date.year < 1000 ? ' CE' : '';
+    return date.year % 100 === 0
+      ? `${date.year}–${end}${era}`
+      : `${date.year}s${era}`;
+  }
+  if (date.precision === 'century') {
+    const name = `${ordinal(Math.abs(date.year))} century`;
+    return date.year < 0 ? `${name} BCE` : name;
+  }
   const year = formatYear(date.year);
   if (!date.month) return year;
   const month = MONTH_NAMES[date.month - 1];
@@ -80,6 +107,19 @@ export const validateDateFields = (
   if (value < 1 || value > max)
     return { error: `Enter a year from 1 to ${max.toLocaleString('en-US')}.` };
   const year = fields.era === 'BCE' ? -value : value;
+  // Decades are CE only; the picker disables the option for BCE.
+  const precision =
+    fields.precision === 'decade' && year < 0 ? 'about' : fields.precision;
+  if (precision === 'about') return { date: { year, precision } };
+  if (precision === 'decade')
+    return { date: { year: Math.floor(value / 10) * 10, precision } };
+  if (precision === 'century') {
+    const number =
+      year < 0
+        ? Math.floor((value - 1) / 100) + 1
+        : Math.floor(value / 100) + 1;
+    return { date: { year: year < 0 ? -number : number, precision } };
+  }
   if (!fields.month) return { date: { year } };
   const month = Number(fields.month);
   if (!fields.day) return { date: { year, month } };
@@ -90,15 +130,23 @@ export const validateDateFields = (
 };
 
 /** Composer fields for an existing date, so editing starts from what was saved. */
-export const fieldsFromDate = (date: WallDate | null): WallDateFields =>
-  date
-    ? {
-        year: String(Math.abs(date.year)),
-        era: date.year < 0 ? 'BCE' : 'CE',
-        month: date.month ? String(date.month) : '',
-        day: date.day ? String(date.day) : '',
-      }
-    : EMPTY_DATE_FIELDS;
+export const fieldsFromDate = (date: WallDate | null): WallDateFields => {
+  if (!date) return EMPTY_DATE_FIELDS;
+  const century = date.precision === 'century';
+  // A century edits as its middle year: the 19th century shows 1850.
+  const signed = century
+    ? date.year < 0
+      ? -(-date.year * 100 - 50)
+      : (date.year - 1) * 100 + 50
+    : date.year;
+  return {
+    year: String(Math.abs(signed)),
+    era: signed < 0 ? 'BCE' : 'CE',
+    month: date.month ? String(date.month) : '',
+    day: date.day ? String(date.day) : '',
+    precision: date.precision ?? 'exact',
+  };
+};
 
 const MONTH_LOOKUP = new Map<string, number>(
   MONTH_NAMES.flatMap((name, i) => [
@@ -106,23 +154,52 @@ const MONTH_LOOKUP = new Map<string, number>(
     [name.slice(0, 3).toLowerCase(), i + 1] as const,
   ])
 );
+MONTH_LOOKUP.set('sept', 9);
 
-const YEAR_PART =
-  /^(?:c\.?|ca\.?|circa|about|around)?\s*(\d{1,3}(?:,\d{3})+|\d{1,6})\s*('?s)?\s*(bce|bc|b\.c\.e?\.?|ce|ad|a\.d\.)?$/i;
+const ERA = '(bce|bc|b\\.c\\.e?\\.?|ce|ad|a\\.d\\.)';
+const YEAR_PART = new RegExp(
+  `^(\\d{1,3}(?:,\\d{3})+|\\d{1,6})\\s*('?s)?\\s*${ERA}?$`,
+  'i'
+);
 const LEADING_AD = /^(?:ad|a\.d\.)\s+(\d{1,4})$/i;
+const ABOUT =
+  /^(?:circa|ca\.?|c\.?|about|around|~|(?:early|mid|late|spring|summer|fall|autumn|winter)(?:\s+of)?)\s*(.+)$/i;
+const NUMERIC = /^(\d{1,2})\/(?:(\d{1,2})\/)?(\d{3,4})$/;
+const CENTURY = new RegExp(
+  `^(?:the\\s+)?(\\d{1,2})(?:st|nd|rd|th)\\s+century(?:\\s+${ERA})?$`,
+  'i'
+);
+const DECADE_RANGE = /^(\d{1,4})\s*[–-]\s*(\d{1,4})(?:\s*(?:ce|ad))?$/i;
+const isBce = (era: string | undefined) =>
+  Boolean(era) && /^b/i.test(era ?? '');
 
-const yearFrom = (text: string): number | null => {
+/** A year-only date: "1865", "500 BC", "1990s", "1800s", "AD 79". */
+const yearDateFrom = (text: string): WallDate | null => {
   const ad = LEADING_AD.exec(text);
-  if (ad) return Number(ad[1]) || null;
+  if (ad) return Number(ad[1]) ? { year: Number(ad[1]) } : null;
   const match = YEAR_PART.exec(text);
   if (!match) return null;
   const value = Number(match[1].replace(/,/g, ''));
   if (value < 1) return null;
   // A bare one- or two-digit number ("7", "May 5") is a step or a day, not a year.
   if (value < 100 && !match[2] && !match[3]) return null;
-  const bce = Boolean(match[3]) && /^b/i.test(match[3]);
-  if (bce) return value <= MAX_BCE_YEAR ? -value : null;
-  return value <= MAX_CE_YEAR ? value : null;
+  const bce = isBce(match[3]);
+  if (value > (bce ? MAX_BCE_YEAR : MAX_CE_YEAR)) return null;
+  if (match[2] && value % 100 === 0) {
+    // "1800s" is the 19th century; "500s BCE" the 6th century BCE.
+    const number = value / 100 + 1;
+    return { year: bce ? -number : number, precision: 'century' };
+  }
+  if (match[2] && value % 10 === 0)
+    return bce
+      ? { year: -value, precision: 'about' }
+      : { year: value, precision: 'decade' };
+  return { year: bce ? -value : value };
+};
+
+const yearFrom = (text: string): number | null => {
+  const date = yearDateFrom(text);
+  return date && !date.precision ? date.year : null;
 };
 
 /**
@@ -130,13 +207,48 @@ const yearFrom = (text: string): number | null => {
  * best effort for older free-text ones ("1800s", "500 BC", "March 4, 1865"); null when undated.
  */
 export const parseWallDate = (label: string | undefined): WallDate | null => {
-  const text = (label ?? '').trim().replace(/\s+/g, ' ');
+  const text = (label ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/\s*[:;,–-]$/, '');
   if (!text) return null;
-  const plain = yearFrom(text);
-  if (plain !== null) return { year: plain };
+  const numeric = NUMERIC.exec(text);
+  if (numeric) {
+    const [month, day, year] = [numeric[1], numeric[2], numeric[3]].map(Number);
+    if (month < 1 || month > 12 || year < 100) return null;
+    if (!day) return { year, month };
+    return day >= 1 && day <= daysInMonth(year, month)
+      ? { year, month, day }
+      : null;
+  }
+  const about = ABOUT.exec(text);
+  if (about) {
+    const date = yearDateFrom(about[1]);
+    return date && !date.precision
+      ? { year: date.year, precision: 'about' }
+      : null;
+  }
+  const century = CENTURY.exec(text);
+  if (century) {
+    const number = Number(century[1]);
+    if (number < 1) return null;
+    return { year: isBce(century[2]) ? -number : number, precision: 'century' };
+  }
+  const range = DECADE_RANGE.exec(text);
+  if (range) {
+    const start = Number(range[1]);
+    const end = Number(range[2]);
+    if (start % 10 === 0 && end === start + 9)
+      return { year: start, precision: 'decade' };
+    // Any other year range sits at its first year until spans arrive.
+    return start >= 100 && end > start ? { year: start } : null;
+  }
+  const plain = yearDateFrom(text);
+  if (plain) return plain;
 
   // Commas inside numbers ("12,000") stay; commas between words become spaces.
   const words = text
+    .replace(/\b(\d{1,2})\s*[–-]\s*\d{1,2}\b/, '$1')
     .replace(/,(?!\d{3}\b)/g, ' ')
     .split(' ')
     .filter(Boolean);
@@ -161,8 +273,22 @@ export const parseWallDate = (label: string | undefined): WallDate | null => {
   return year === null ? null : { year, month };
 };
 
+/** The stretch of years a decade or century covers, in axis units; null for a single date. */
+export const wallDateSpan = (date: WallDate): [number, number] | null => {
+  if (date.precision === 'decade') return [date.year, date.year + 10];
+  if (date.precision === 'century') {
+    const n = Math.abs(date.year);
+    return date.year < 0
+      ? [-n * 100, -(n - 1) * 100]
+      : [(n - 1) * 100, n * 100];
+  }
+  return null;
+};
+
 /** Position on the axis in years; BCE counts back from zero so "500 BCE" sits on the 500 tick. */
 export const dateSortKey = (date: WallDate): number => {
+  const span = wallDateSpan(date);
+  if (span) return (span[0] + span[1]) / 2;
   let key = date.year;
   if (date.month) {
     const days = daysInMonth(date.year, date.month);
