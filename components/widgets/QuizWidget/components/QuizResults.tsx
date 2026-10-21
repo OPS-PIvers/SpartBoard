@@ -46,6 +46,7 @@ import {
   QuizData,
   QuizQuestion,
   QuizConfig,
+  QuizSessionSection,
   isFreeResponseType,
   type QuizWidgetKind,
 } from '@/types';
@@ -902,7 +903,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     graderAttempt === null
       ? responses
       : graderLive && graderCopy
-        ? [attemptAsResponse(graderLive, graderCopy)]
+        ? [attemptAsResponse(graderLive, graderCopy, session?.sections)]
         : null;
   // The attempt's copy is gone (student removed), so the grader has nothing to show.
   if (
@@ -1210,7 +1211,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       printSessionId,
       retakers,
       (r) => getResponseDocKey(r),
-      attemptSource
+      attemptSource,
+      session?.sections
     )
       .then((every) => {
         if (!live) return;
@@ -1495,12 +1497,20 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       !responses.some(hasEarlierAttempts)
     )
       return undefined;
-    const every = await loadEveryAttempt(
-      session.id,
-      responses,
-      (r) => getResponseDocKey(r),
-      attemptSource
-    );
+    let every: Map<string, QuizResponse[]>;
+    try {
+      every = await loadEveryAttempt(
+        session.id,
+        responses,
+        (r) => getResponseDocKey(r),
+        attemptSource,
+        session.sections
+      );
+    } catch (err) {
+      // The export still goes out, just without the attempt columns.
+      logError('QuizResults.exportAttempts', err);
+      return undefined;
+    }
     return {
       countFor: (r: QuizResponse) =>
         String(r.completedAttempts ?? (r.status === 'completed' ? 1 : 0)),
@@ -1728,6 +1738,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       const was = exportedAttempts[getResponseDocKey(r)];
       return (
         was !== undefined &&
+        was >= 1 &&
         r.status === 'completed' &&
         (r.completedAttempts ?? 1) > was
       );
@@ -3822,6 +3833,8 @@ const StudentDrilldownPanel: React.FC<{
   showFeedback: boolean;
   /** The session whose saved attempts the attempt picker lists. */
   sessionId?: string;
+  /** The session's sections, so an earlier attempt's choose-N picks are its own. */
+  sections?: readonly QuizSessionSection[];
 }> = ({
   id,
   quizTitle,
@@ -3837,6 +3850,7 @@ const StudentDrilldownPanel: React.FC<{
   onPrintStudents,
   showFeedback,
   sessionId,
+  sections,
 }) => {
   const [includeAnswers, setIncludeAnswers] = useState(true);
   const { canAccessFeature } = useAuth();
@@ -3854,8 +3868,8 @@ const StudentDrilldownPanel: React.FC<{
   const picked = earlier.find((c) => c.n === pickedAttempt) ?? null;
   const response = useMemo(
     (): QuizResponse =>
-      picked ? attemptAsResponse(liveResponse, picked) : liveResponse,
-    [picked, liveResponse]
+      picked ? attemptAsResponse(liveResponse, picked, sections) : liveResponse,
+    [picked, liveResponse, sections]
   );
   const attemptOptions = useMemo((): (readonly [string, string])[] => {
     if (earlier.length === 0) return [];
@@ -3869,11 +3883,14 @@ const StudentDrilldownPanel: React.FC<{
     return [
       ...earlier.map(
         (c) =>
-          [String(c.n), label(c.n, attemptAsResponse(liveResponse, c))] as const
+          [
+            String(c.n),
+            label(c.n, attemptAsResponse(liveResponse, c, sections)),
+          ] as const
       ),
       ['current', label(currentN, liveResponse)] as const,
     ];
-  }, [earlier, liveResponse, questions, fibGrading]);
+  }, [earlier, liveResponse, questions, fibGrading, sections]);
   const drilldown = useMemo(
     () =>
       computeStudentDrilldown(
@@ -4786,6 +4803,7 @@ const StudentsScreen: React.FC<{
                   onPrintStudents={onPrintStudents}
                   showFeedback={showStudentFeedback}
                   sessionId={session?.id}
+                  sections={session?.sections}
                   resultsControl={
                     resultsActions ? (
                       <StudentResultsControl

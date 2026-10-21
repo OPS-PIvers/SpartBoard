@@ -2,8 +2,9 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { collection, getDocs, onSnapshot } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
-import type { QuizResponse } from '@/types';
+import type { QuizResponse, QuizSessionSection } from '@/types';
 import { logError } from '@/utils/logError';
+import { notChosenQuestionIds } from '@/utils/quizSections';
 
 /** A server-saved copy of one finished attempt (docs/plans/QUIZ_ATTEMPT_HISTORY.md D1). */
 export type QuizAttemptCopy = Partial<QuizResponse> & {
@@ -14,16 +15,28 @@ export type QuizAttemptCopy = Partial<QuizResponse> & {
 /** An earlier attempt read as a finished response; its own grades replace the live ones. */
 export function attemptAsResponse(
   live: QuizResponse,
-  copy: QuizAttemptCopy
+  copy: QuizAttemptCopy,
+  sections?: readonly QuizSessionSection[]
 ): QuizResponse {
+  const asCompleted = {
+    answers: copy.answers ?? [],
+    servedQuestionIds: copy.servedQuestionIds,
+    status: 'completed',
+  };
+  const notChosen = notChosenQuestionIds(asCompleted, sections);
   return {
     ...live,
+    ...asCompleted,
     status: 'completed',
-    answers: copy.answers ?? [],
     grading: copy.grading,
     score: copy.score ?? null,
     submittedAt: copy.submittedAt ?? null,
-    servedQuestionIds: copy.servedQuestionIds,
+    _notChosen: notChosen.length > 0 ? notChosen : undefined,
+    tabSwitchWarnings: copy.tabSwitchWarnings,
+    tabExits: copy.tabExits,
+    autoSubmitted: copy.autoSubmitted,
+    timeUp: copy.timeUp,
+    attemptStartedAt: copy.attemptStartedAt,
   };
 }
 
@@ -39,7 +52,8 @@ export async function loadEveryAttempt(
   responses: readonly QuizResponse[],
   keyOf: (response: QuizResponse) => string,
   /** A dev harness's copies, used instead of Firestore. */
-  source?: QuizAttemptSource | null
+  source?: QuizAttemptSource | null,
+  sections?: readonly QuizSessionSection[]
 ): Promise<Map<string, QuizResponse[]>> {
   const out = new Map<string, QuizResponse[]>();
   await Promise.all(
@@ -74,7 +88,7 @@ export async function loadEveryAttempt(
         .filter((c) => c.closed === true && typeof c.n === 'number')
         .sort((a, b) => a.n - b.n)
         .map((c) => ({
-          ...attemptAsResponse(live, c),
+          ...attemptAsResponse(live, c, sections),
           completedAttempts: c.n,
         }));
       out.set(key, [...earlier, latest]);

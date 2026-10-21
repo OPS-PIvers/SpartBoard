@@ -4,6 +4,7 @@ import type { QuizResponse } from '@/types';
 vi.mock('@/config/firebase', () => ({ db: {}, functions: {} }));
 
 import {
+  attemptAsResponse,
   hasEarlierAttempts,
   loadEveryAttempt,
   type QuizAttemptSource,
@@ -43,5 +44,31 @@ describe('loadEveryAttempt', () => {
       [1, 'completed'],
       [2, 'in-progress'],
     ]);
+  });
+});
+
+describe('attemptAsResponse', () => {
+  it("uses the copy's own choose-N picks and tab exits, not the live attempt's", () => {
+    const sections = [
+      { id: 's1', title: 'A', chooseCount: 1, questionIds: ['q1', 'q2'] },
+    ];
+    const r = attemptAsResponse(
+      live({
+        answers: [{ questionId: 'q2', answer: 'x' }],
+        _notChosen: ['q1'],
+        tabSwitchWarnings: 4,
+        autoSubmitted: true,
+      } as Partial<QuizResponse>),
+      {
+        n: 1,
+        closed: true,
+        answers: [{ questionId: 'q1', answer: 'y' }],
+        tabSwitchWarnings: 0,
+      } as never,
+      sections
+    );
+    expect(r._notChosen).toEqual(['q2']);
+    expect(r.tabSwitchWarnings).toBe(0);
+    expect(r.autoSubmitted).toBeUndefined();
   });
 });
