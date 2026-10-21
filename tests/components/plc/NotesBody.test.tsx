@@ -24,13 +24,10 @@ vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ addToast: vi.fn() }),
 }));
 
-let richEditorAccess = false;
-
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'me' },
-    canAccessFeature: (id: string) =>
-      id === 'plc-notes-rich-editor' && richEditorAccess,
+    canAccessFeature: () => false,
   }),
 }));
 
@@ -203,14 +200,12 @@ function noteAt(
   };
 }
 
-const BODY_PLACEHOLDER = 'Write your notes… (markdown supported)';
-
-// Notes open rendered, so switch to the markdown box first when needed.
-const bodyBox = () => {
-  if (!screen.queryByPlaceholderText(BODY_PLACEHOLDER)) {
-    fireEvent.click(screen.getByLabelText('Edit note'));
-  }
-  return screen.getByPlaceholderText<HTMLTextAreaElement>(BODY_PLACEHOLDER);
+const bodyBox = () => screen.getByRole('textbox', { name: 'Note' });
+const bodyText = () => bodyBox().textContent;
+const typeBody = (text: string) => {
+  const box = bodyBox();
+  box.textContent = text;
+  fireEvent.input(box);
 };
 
 beforeEach(() => {
@@ -220,7 +215,6 @@ beforeEach(() => {
   setBodyMock.mockClear();
   setActionItemsMock.mockClear();
   collabEnabled = false;
-  richEditorAccess = false;
   docs = [];
   getOrCreateDocUrlMock.mockClear();
   recorderStart.mockClear();
@@ -233,25 +227,13 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('NotesBody concurrent editing (legacy save path)', () => {
-  it('opens an empty note ready to type', () => {
-    notes = [noteAt('', 1000, 1)];
-    render(<NotesBody plc={plc} />);
-    expect(screen.getByPlaceholderText(BODY_PLACEHOLDER)).toBeTruthy();
-  });
-
-  it('opens a note rendered, not as raw markdown', () => {
-    render(<NotesBody plc={plc} />);
-    expect(screen.queryByPlaceholderText(BODY_PLACEHOLDER)).toBeNull();
-    expect(screen.getByLabelText('Edit note')).toBeTruthy();
-  });
-
+describe('NotesBody concurrent editing', () => {
   it('keeps text typed while a save is in flight when a teammate edit lands', () => {
     const { rerender } = render(<NotesBody plc={plc} />);
-    expect(bodyBox().value).toBe('Hello');
+    expect(bodyText()).toBe('Hello');
 
     // Local edit, then let the debounce dispatch the write.
-    fireEvent.change(bodyBox(), { target: { value: 'Hello world' } });
+    typeBody('Hello world');
     act(() => {
       vi.advanceTimersByTime(600);
     });
@@ -262,27 +244,27 @@ describe('NotesBody concurrent editing (legacy save path)', () => {
     notes = [noteAt('Hello there', 2000, 2)];
     rerender(<NotesBody plc={plc} />);
 
-    expect(bodyBox().value).toBe('Hello world');
+    expect(bodyText()).toBe('Hello world');
   });
 
   it('keeps unsaved text when a teammate edit lands mid-typing', () => {
     const { rerender } = render(<NotesBody plc={plc} />);
 
-    fireEvent.change(bodyBox(), { target: { value: 'Hello draft' } });
+    typeBody('Hello draft');
     notes = [noteAt('Hello there', 2000, 2)];
     rerender(<NotesBody plc={plc} />);
 
-    expect(bodyBox().value).toBe('Hello draft');
+    expect(bodyText()).toBe('Hello draft');
   });
 
   it('still pulls in a teammate edit when the draft has no unsaved work', () => {
     const { rerender } = render(<NotesBody plc={plc} />);
-    expect(bodyBox().value).toBe('Hello');
+    expect(bodyText()).toBe('Hello');
 
     notes = [noteAt('Hello there', 2000, 2)];
     rerender(<NotesBody plc={plc} />);
 
-    expect(bodyBox().value).toBe('Hello there');
+    expect(bodyText()).toBe('Hello there');
   });
 
   it('keeps auto-pull alive on a note selected while a save was in flight', async () => {
@@ -296,9 +278,9 @@ describe('NotesBody concurrent editing (legacy save path)', () => {
     ];
     const { rerender } = render(<NotesBody plc={plc} />);
 
-    fireEvent.change(bodyBox(), { target: { value: 'Hello world' } });
+    typeBody('Hello world');
     fireEvent.click(screen.getByText('Other'));
-    expect(bodyBox().value).toBe('Second');
+    expect(bodyText()).toBe('Second');
 
     // The first note's write now lands, after the selection already moved.
     await act(async () => {
@@ -312,13 +294,13 @@ describe('NotesBody concurrent editing (legacy save path)', () => {
     ];
     rerender(<NotesBody plc={plc} />);
 
-    expect(bodyBox().value).toBe('Second, edited by a teammate');
+    expect(bodyText()).toBe('Second, edited by a teammate');
   });
 
   it('resumes auto-pull once the local edit has been saved', async () => {
     const { rerender } = render(<NotesBody plc={plc} />);
 
-    fireEvent.change(bodyBox(), { target: { value: 'Hello world' } });
+    typeBody('Hello world');
     await act(async () => {
       vi.advanceTimersByTime(600);
       await Promise.resolve();
@@ -327,12 +309,12 @@ describe('NotesBody concurrent editing (legacy save path)', () => {
     // Our own write echoes back as canonical — draft is clean again.
     notes = [noteAt('Hello world', 2000, 2)];
     rerender(<NotesBody plc={plc} />);
-    expect(bodyBox().value).toBe('Hello world');
+    expect(bodyText()).toBe('Hello world');
 
     // A later teammate edit is now safe to absorb.
     notes = [noteAt('Hello world and more', 3000, 3)];
     rerender(<NotesBody plc={plc} />);
-    expect(bodyBox().value).toBe('Hello world and more');
+    expect(bodyText()).toBe('Hello world and more');
   });
 });
 
@@ -357,7 +339,7 @@ describe('NotesBody saves in a row', () => {
     fireEvent.change(titleBox(), { target: { value: 'Tech Tips Planning' } });
     await flushSaves();
     // Typing resumes before the echo of the title save arrives.
-    fireEvent.change(bodyBox(), { target: { value: 'Once a week' } });
+    typeBody('Once a week');
     notes = [noteAt('', 2000, 1, 'n1', 'Tech Tips Planning')];
     rerender(<NotesBody plc={plc} />);
     await flushSaves();
@@ -377,7 +359,7 @@ describe('NotesBody saves in a row', () => {
 
     fireEvent.change(titleBox(), { target: { value: 'Tech Tips Planning' } });
     await flushSaves();
-    fireEvent.change(bodyBox(), { target: { value: 'Once a week' } });
+    typeBody('Once a week');
     await flushSaves();
     expect(updateNoteMock).toHaveBeenCalledTimes(1);
 
@@ -404,7 +386,7 @@ describe('NotesBody with the collaborative editor enabled', () => {
   it('routes typing into the CRDT instead of a debounced save', () => {
     render(<NotesBody plc={plc} />);
 
-    fireEvent.change(bodyBox(), { target: { value: 'Hello world' } });
+    typeBody('Hello world');
     act(() => {
       vi.advanceTimersByTime(2000);
     });
@@ -416,7 +398,7 @@ describe('NotesBody with the collaborative editor enabled', () => {
 
   it('renders the merged text coming back from the CRDT', () => {
     const { rerender } = render(<NotesBody plc={plc} />);
-    expect(bodyBox().value).toBe('Hello');
+    expect(bodyText()).toBe('Hello');
 
     crdtContent = {
       title: 'Shared note',
@@ -425,7 +407,7 @@ describe('NotesBody with the collaborative editor enabled', () => {
     };
     rerender(<NotesBody plc={plc} />);
 
-    expect(bodyBox().value).toBe('Hello from both of us');
+    expect(bodyText()).toBe('Hello from both of us');
   });
 
   it('routes action-item edits into the CRDT', () => {
@@ -442,32 +424,29 @@ describe('NotesBody with the collaborative editor enabled', () => {
     render(<NotesBody plc={plc} />);
 
     // Not the empty CRDT doc — the note as Firestore already has it.
-    expect(bodyBox().value).toBe('Hello');
-    expect(bodyBox().readOnly).toBe(true);
+    expect(bodyText()).toBe('Hello');
+    expect(bodyBox().getAttribute('contenteditable')).toBe('false');
   });
 
   it('ignores edits attempted before the snapshot has loaded', () => {
     crdtStatus = 'loading';
     render(<NotesBody plc={plc} />);
 
-    fireEvent.change(bodyBox(), { target: { value: 'too early' } });
+    typeBody('too early');
 
     expect(setBodyMock).not.toHaveBeenCalled();
     expect(updateNoteMock).not.toHaveBeenCalled();
   });
 });
 
-describe('NotesBody with the rich text editor flag', () => {
+describe('NotesBody rich text editor', () => {
   beforeEach(() => {
-    richEditorAccess = true;
     notes = [noteAt('## Agenda\n- **Tech** tips\nplain line', 1000, 1)];
   });
 
-  const richBox = () => screen.getByRole('textbox', { name: 'Note' });
-
   it('opens straight into formatted, editable text with no preview toggle', () => {
     render(<NotesBody plc={plc} />);
-    const box = richBox();
+    const box = bodyBox();
     expect(box.getAttribute('contenteditable')).toBe('true');
     expect(box.querySelector('h2')?.textContent).toBe('Agenda');
     expect(box.querySelector('li strong')?.textContent).toBe('Tech');
@@ -477,7 +456,7 @@ describe('NotesBody with the rich text editor flag', () => {
 
   it('saves edits back as Markdown', () => {
     render(<NotesBody plc={plc} />);
-    const box = richBox();
+    const box = bodyBox();
     const p = box.querySelector('p');
     if (!p) throw new Error('missing paragraph');
     p.textContent = 'edited line';
@@ -502,7 +481,6 @@ describe('NotesBody with the rich text editor flag', () => {
 
   it('keeps the rich editor when collaboration is on and writes through it', () => {
     collabEnabled = true;
-    richEditorAccess = true;
     crdtContent = { title: 'Shared note', body: 'Hello', actionItems: [] };
     render(<NotesBody plc={plc} />);
     expect(screen.getByRole('toolbar', { name: 'Formatting' })).toBeTruthy();
@@ -518,7 +496,6 @@ describe('NotesBody with the rich text editor flag', () => {
 
 describe('NotesBody meeting recording', () => {
   it('puts Record in the rich editor toolbar', () => {
-    richEditorAccess = true;
     render(<NotesBody plc={plc} />);
     const toolbar = screen.getByRole('toolbar');
     expect(

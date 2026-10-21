@@ -4,7 +4,6 @@ import {
   PenLine,
   BarChart,
   BellRing,
-  BookOpen,
   Bot,
   Building2,
   CalendarClock,
@@ -706,17 +705,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Rich text PLC notes editor. Admin-only until Paul has run a PLC meeting on it in prod.
-  'plc-notes-rich-editor': {
-    label: 'PLC notes rich text editor',
-    icon: StickyNote,
-    description: 'Formatting toolbar in PLC notes.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'plc-notes-side-panels': {
     label: 'Notes and Docs side panels',
     icon: StickyNote,
@@ -1065,18 +1053,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Assign dialogs' Submissions Enabled / Study Resource toggle. Off: every session uses its kind default (STUDENT_LANDING_V2 D8).
-  'study-resources': {
-    label: 'Study resources',
-    icon: BookOpen,
-    description:
-      'Mark an assignment as a study resource that students do not submit.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Server also requires gemini-functions and a saved doc (enforceAiFeatureAccess, missingDocAllowed: false).
   'plc-meeting-ai-notes': {
     label: 'AI meeting notes',
@@ -1140,17 +1116,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: "Widget what's new",
     icon: Sparkles,
     description: "A What's new button under a widget after its look changes.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Pinned Welcome card in the Guided Learning Studio slide strip, plus a welcome image.
-  'gl-welcome-card': {
-    label: 'Guided Learning welcome card',
-    icon: Sparkles,
-    description: 'A pinned welcome card and image in the Studio.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

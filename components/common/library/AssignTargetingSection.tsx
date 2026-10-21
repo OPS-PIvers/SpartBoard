@@ -123,7 +123,7 @@ export interface AssignTargetingSectionProps {
   periodAccess?: AssignPeriodAccessContext;
   /** False hides "All classes / Each class" where only one window can be saved. */
   availabilityEachClass?: boolean;
-  /** `study-resources` on: adds the Submissions Enabled / Study Resource choice to Availability, preset to the kind's default. */
+  /** Adds the Submissions Enabled / Study Resource choice to Availability, preset to the kind's default. */
   workKind?: WorkKindSetting;
   /** The host renders its own When step, so Schedule and Availability are hidden. */
   scheduleHidden?: boolean;

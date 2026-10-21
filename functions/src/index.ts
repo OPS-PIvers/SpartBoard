@@ -169,6 +169,7 @@ export {
 
 // ── Quiz score on submit (server-graded against a teacher-private key) ─────
 export { scoreQuizOnSubmitV1 } from './quizScoreOnSubmit';
+export { getMyQuizAttemptsV1 } from './getMyQuizAttempts';
 
 // ── Review self-paced game (server-graded per answer; QUIZ_REVIEW_SPLIT.md D31) ─
 export { checkQuizGameAnswerV1 } from './checkQuizGameAnswer';

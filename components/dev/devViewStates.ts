@@ -87,5 +87,7 @@ export const STUDENT_QUIZ_STATES = [
   'sq-stop-part',
   'sq-stop-wait',
   'sq-stop-open',
+  'sq-attempts',
+  'sq-attempts-live',
 ] as const;
 export type StudentQuizStateKey = (typeof STUDENT_QUIZ_STATES)[number];

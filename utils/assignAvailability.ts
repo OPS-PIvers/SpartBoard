@@ -33,7 +33,7 @@ export interface AssignAvailability {
   noEnd?: boolean;
 }
 
-/** Present when `study-resources` is on: the kind's default, and whether the teacher may change it. */
+/** The kind's default, and whether the teacher may change it. */
 export interface WorkKindSetting {
   default: WorkKind;
   locked?: boolean;
@@ -242,7 +242,7 @@ export function applyAvailability(
     /** The checked classes. */
     rosters: readonly PeriodRoster[];
     bellWindow: BellWindowFn | undefined;
-    /** The host's `study-resources` setting; absent saves no work kind. */
+    /** The host's work kind setting; absent saves no work kind. */
     workKind?: WorkKindSetting;
     now?: Date;
   }
