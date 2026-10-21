@@ -812,9 +812,7 @@ export const LiveTourRunner: React.FC = () => {
     const { dashboard: d } = latest.current;
     // Without recorded layouts, the tour arranges its own widgets (D10).
     const { set, steps } =
-      !opts.edit &&
-      latest.current.canAccessFeature('live-tour-self-heal') &&
-      needsAutoStage(rawSet)
+      !opts.edit && needsAutoStage(rawSet)
         ? stageTour(rawSet, rawSteps)
         : { set: rawSet, steps: rawSteps };
     healTried.current.clear();
@@ -1555,8 +1553,7 @@ export const LiveTourRunner: React.FC = () => {
     !tour?.test &&
     !tour?.edit &&
     anchor.status === 'missing' &&
-    !!binding?.anchor &&
-    canAccessFeature('live-tour-self-heal')
+    !!binding?.anchor
       ? stepKey
       : null;
   const healAnchorScope = useEffectEvent(() => ({

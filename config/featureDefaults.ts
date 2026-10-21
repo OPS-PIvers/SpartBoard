@@ -4,7 +4,6 @@ import {
   PenLine,
   BarChart,
   BellRing,
-  BookOpen,
   Bot,
   Building2,
   CalendarClock,
@@ -630,18 +629,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Live tours reopen a closed panel and arrange their own widgets (LIVE_TOUR_ONE_SHOT.md D18).
-  'live-tour-self-heal': {
-    label: 'Live tour self-heal',
-    icon: Footprints,
-    description:
-      'Tours reopen a panel that closed mid-step and lay out their own widgets.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Per-period start/pause on shared assignments. Admin-only until Paul has run a class on it.
   'per-period-access': {
     label: 'Start and pause each class period',
@@ -701,17 +688,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Guided Learning student progress',
     icon: Route,
     description: "Shows each student's slide and last activity.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Rich text PLC notes editor. Admin-only until Paul has run a PLC meeting on it in prod.
-  'plc-notes-rich-editor': {
-    label: 'PLC notes rich text editor',
-    icon: StickyNote,
-    description: 'Formatting toolbar in PLC notes.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -840,17 +816,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: History,
     description:
       'Teachers and students can look back at every quiz attempt, and teachers choose which score counts.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Projects board: a group's name opens the view its students see.
-  'projects-group-view': {
-    label: 'Projects group view',
-    icon: Eye,
-    description: "Tap a group on the board to see its students' view.",
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1066,18 +1031,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Assign dialogs' Submissions Enabled / Study Resource toggle. Off: every session uses its kind default (STUDENT_LANDING_V2 D8).
-  'study-resources': {
-    label: 'Study resources',
-    icon: BookOpen,
-    description:
-      'Mark an assignment as a study resource that students do not submit.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Server also requires gemini-functions and a saved doc (enforceAiFeatureAccess, missingDocAllowed: false).
   'plc-meeting-ai-notes': {
     label: 'AI meeting notes',
@@ -1141,17 +1094,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: "Widget what's new",
     icon: Sparkles,
     description: "A What's new button under a widget after its look changes.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Pinned Welcome card in the Guided Learning Studio slide strip, plus a welcome image.
-  'gl-welcome-card': {
-    label: 'Guided Learning welcome card',
-    icon: Sparkles,
-    description: 'A pinned welcome card and image in the Studio.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

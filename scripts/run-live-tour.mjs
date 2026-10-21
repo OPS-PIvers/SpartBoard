@@ -82,7 +82,7 @@ page.on('filechooser', (chooser) =>
 );
 
 await page.goto(base);
-// Extra preview flags to play the tour with, such as live-tour-self-heal.
+// Extra preview flags to play the tour with, for flagged features.
 const flags = Object.fromEntries(
   ['live-tour-editing-v2', ...(flag('flags')?.split(',') ?? [])]
     .filter(Boolean)
