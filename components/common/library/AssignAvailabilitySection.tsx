@@ -289,7 +289,7 @@ export const AssignAvailabilitySection: React.FC<{
   /** Each class keeps one Opens for all classes, where only one open time can be saved. */
   sharedOpens?: boolean;
   cqScaled?: boolean;
-  /** `study-resources` on: the kind this assignment saves as. */
+  /** The kind this assignment saves as. */
   workKind?: WorkKind;
   /** Set when the teacher may switch; also receives the availability that fits the new kind. */
   onWorkKindChange?: (next: WorkKind, availability: AssignAvailability) => void;

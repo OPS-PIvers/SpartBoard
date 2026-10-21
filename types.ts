@@ -10177,8 +10177,6 @@ export type GlobalFeature =
   | 'ocr'
   /** Transcript and drafted notes from a meeting recording; AND-ed with `gemini-functions`. */
   | 'plc-meeting-ai-notes'
-  /** Assign dialogs: mark a session Work (submitted, graded) or Resource (study only) (docs/plans/STUDENT_LANDING_V2.md D27). */
-  | 'study-resources'
   /** Sparty the mascot in tours, first-time setup and the Help Center (docs/plans/shipped/SPARTY.md). */
   | 'sparty'
   /** Group Notes & Docs: notes list and Action items as swapping side panels, with action items on linked Google Docs. */
