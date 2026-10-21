@@ -73,7 +73,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
   const collapsed = config.boardCollapsed ?? config.showStatus === false;
 
   const { updateWidget, rosters, addToast, activeDashboard } = useDashboard();
-  const { user, canAccessFeature } = useAuth();
+  const { user } = useAuth();
   const shared = useSubShareProject(projectId);
   const readOnly = shared.active;
   // A substitute can read neither the project nor its run, so in a share the
@@ -134,9 +134,8 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
   const dense =
     visibleGroups.length > DENSE_GROUPS || steps.length > DENSE_STEPS;
   const watchAllWork = !readOnly && visibleGroups.length <= DOT_GROUP_LIMIT;
-  const groupView = !readOnly && canAccessFeature('projects-group-view');
   const viewGroup =
-    groupView && viewGroupId
+    !readOnly && viewGroupId
       ? live.groups.find((g) => g.id === viewGroupId)
       : undefined;
 
@@ -403,9 +402,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
                     id === group.id ? null : group.id
                   )
                 }
-                onOpenGroup={
-                  groupView ? () => setViewGroupId(group.id) : undefined
-                }
+                onOpenGroup={() => setViewGroupId(group.id)}
                 busyKeys={busyKeys}
                 openCellKey={
                   openCell ? cellKey(openCell.groupId, openCell.stepId) : null

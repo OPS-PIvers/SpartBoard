@@ -10149,8 +10149,6 @@ export type GlobalFeature =
   | 'quiz-rubric-visibility'
   /** AP-style scoring-guide rubrics with example responses, beside levels rubrics. */
   | 'rubric-scoring-guides'
-  /** Projects board: tapping a group name opens that group's student view. */
-  | 'projects-group-view'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */

@@ -833,17 +833,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Projects board: a group's name opens the view its students see.
-  'projects-group-view': {
-    label: 'Projects group view',
-    icon: Eye,
-    description: "Tap a group on the board to see its students' view.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Gradebook route and its data layer (docs/plans/GRADEBOOK.md D5).
   gradebook: {
     label: 'Gradebook',
