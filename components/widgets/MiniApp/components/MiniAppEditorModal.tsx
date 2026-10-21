@@ -74,7 +74,6 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
   const editorOn = resultsOn || canAccessFeature('mini-app-results');
   const aiOn =
     canAccessFeature('gemini-functions') && canAccessFeature('mini-app-ai');
-  const aiEditOn = aiOn && canAccessFeature('mini-app-ai-edit');
 
   // --- Snapshot originals ---
   const originalTitle = app?.title ?? '';
@@ -110,7 +109,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
   const [aiMode, setAiMode] = useState<'edit' | 'draft'>('edit');
   // The code before the last AI change, until the teacher types or undoes it.
   const [beforeAi, setBeforeAi] = useState<string | null>(null);
-  const canEditWithAi = aiEditOn && html.trim() !== '';
+  const canEditWithAi = aiOn && html.trim() !== '';
   const editing = canEditWithAi && aiMode === 'edit';
 
   // --- Reset state when app prop identity changes ---
@@ -251,7 +250,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
         ? await editMiniAppCode(html, fullPrompt)
         : await generateMiniAppCode(fullPrompt, 'mini-app');
       if (!editing || !title.trim()) setTitle(result.title);
-      if (aiEditOn) setBeforeAi(html);
+      setBeforeAi(html);
       setHtml(result.html);
       if (editorOn) setView('preview');
       setShowPromptInput(false);

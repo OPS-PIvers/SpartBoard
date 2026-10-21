@@ -10200,8 +10200,6 @@ export type GlobalFeature =
   | 'gl-welcome-card'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
-  /** Mini App editor: Edit with AI revises the current app's code from an instruction. */
-  | 'mini-app-ai-edit'
   /** Quiz live monitor declutter (#4023): footer buttons, Close all, no More actions menu for assessments. */
   | 'quiz-monitor-declutter'
   | 'quiz-banks-in-library'
