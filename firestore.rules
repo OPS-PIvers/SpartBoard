@@ -4930,6 +4930,24 @@ service cloud.firestore {
           allow read: if signedIn() && authUid() == sessionTeacherUid();
           allow write: if false;
         }
+
+        // Each finished attempt's copy; only the server writes it. Students see theirs through a callable.
+        match /attempts/{attemptId} {
+          allow read: if signedIn() && (
+            authUid() == sessionTeacherUid() || isAdmin() ||
+            isSubMonitor(sessionData())
+          );
+          allow write: if false;
+        }
+      }
+
+      // Per-attempt scores beside the response, since students can read their response before release.
+      match /attemptScores/{responseKey} {
+        allow read: if signedIn() && (
+          authUid() == sessionTeacherUid() || isAdmin() ||
+          isSubMonitor(sessionData())
+        );
+        allow write: if false;
       }
 
       // Question content for per-period sessions, readable by a student only

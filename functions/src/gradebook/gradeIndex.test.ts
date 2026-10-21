@@ -635,7 +635,11 @@ describe('kill switch', () => {
       },
     });
     await runGradeIndexRecompute(stub.db as never);
-    expect(stub.writes).toEqual([]);
+    // Attempt history is not part of the index and runs regardless.
+    const history = (path: string) =>
+      path.includes('/attempts/') || path.includes('/attemptScores/');
+    expect(stub.writes.filter((w) => !history(w.path))).toEqual([]);
+    expect(stub.has('quiz_sessions/qs1/responses/u1/attempts/1')).toBe(true);
   });
 
   it('runs the triggers once it is on', async () => {
