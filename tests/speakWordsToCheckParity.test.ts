@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as client from '@/utils/flashcardResults';
-import * as server from '@/functions/src/pronunciation/wordsToCheck';
+import * as server from '@/functions/src/pronunciation/wordsToCheckPool';
 
 describe('Speak words to check cut-offs', () => {
   it('match between Study results and the admin list', () => {

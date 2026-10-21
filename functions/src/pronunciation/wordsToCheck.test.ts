@@ -24,7 +24,7 @@ const state = vi.hoisted(() => ({
     content?: Record<string, unknown>;
     progress: { id: string; data: Record<string, unknown> }[];
   }[],
-  sessionQuery: null,
+  sessionQuery: [] as unknown[],
 }));
 
 vi.mock('../quizMediaArchive', () => ({
