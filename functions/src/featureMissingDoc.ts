@@ -47,7 +47,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'google-tasks-sync',
   'plc-goal-coach',
   'embed-reload',
-  'library-folder-view',
   'schoology-tool-columns',
   'widget-whats-new',
   'gl-welcome-card',

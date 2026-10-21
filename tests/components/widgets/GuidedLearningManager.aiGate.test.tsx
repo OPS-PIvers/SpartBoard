@@ -4,6 +4,24 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { GuidedLearningManager } from '@/components/widgets/GuidedLearning/components/GuidedLearningManager';
 import { AuthContext } from '@/context/AuthContextValue';
 
+vi.mock('@/components/common/library/lastLibraryLocation', () => ({
+  readLastLibraryLocation: () => Promise.resolve(null),
+  saveLastLibraryLocation: vi.fn(),
+  resetLastLibraryLocationCache: vi.fn(),
+}));
+
+vi.mock('@/hooks/useLibraryPlacements', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/hooks/useLibraryPlacements')>();
+  const placements = {
+    byKey: new Map(),
+    loading: false,
+    place: vi.fn(),
+    unplace: vi.fn(),
+  };
+  return { ...actual, useLibraryPlacements: () => placements };
+});
+
 vi.mock('@/hooks/useFolders', () => ({
   useFolders: () => ({
     folders: [],

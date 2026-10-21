@@ -16,6 +16,24 @@ import {
 import type { GuidedLearningSet, GuidedLearningSetMetadata } from '@/types';
 import { toBuildingIndexEntry } from '@/tests/helpers/glBuildingIndexEntry';
 
+vi.mock('@/components/common/library/lastLibraryLocation', () => ({
+  readLastLibraryLocation: () => Promise.resolve(null),
+  saveLastLibraryLocation: vi.fn(),
+  resetLastLibraryLocationCache: vi.fn(),
+}));
+
+vi.mock('@/hooks/useLibraryPlacements', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/hooks/useLibraryPlacements')>();
+  const placements = {
+    byKey: new Map(),
+    loading: false,
+    place: vi.fn(),
+    unplace: vi.fn(),
+  };
+  return { ...actual, useLibraryPlacements: () => placements };
+});
+
 vi.mock('@/hooks/useFolders', () => ({
   useFolders: () => ({
     folders: [],
@@ -85,7 +103,7 @@ const personalTour: GuidedLearningSetMetadata = {
   updatedAt: 2,
 };
 
-const renderManager = (
+const renderLibrary = (
   liveTours: boolean,
   isAdmin = true,
   extras: Extras = {}
@@ -157,6 +175,19 @@ afterEach(() => {
   runnable.clear();
   board.canRun = false;
 });
+
+// Building sets sit in the pinned building folder, so open it when a test needs them.
+const renderManager = (
+  liveTours: boolean,
+  isAdmin = true,
+  extras: Extras = {}
+) => {
+  const result = renderLibrary(liveTours, isAdmin, extras);
+  if (!extras.sets) {
+    fireEvent.click(screen.getAllByText('From your building')[0]);
+  }
+  return result;
+};
 
 describe('GuidedLearningManager live tours', () => {
   it('offers Record a tour to admins with live tours', async () => {
