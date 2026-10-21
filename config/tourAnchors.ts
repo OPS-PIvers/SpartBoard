@@ -1091,11 +1091,6 @@ export const TOUR_ANCHORS = {
     label: 'Edit settings button in the Assign window',
     panel: true,
   },
-  'assign-quiz-behavior.mode': {
-    label: 'Session mode card in the Quiz assign settings',
-    perField: true,
-    panel: true,
-  },
   'assign-quiz-behavior.gamification': {
     label: 'Gamification section header in the Quiz assign settings',
     panel: true,
@@ -1443,11 +1438,6 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.tab-stimuli': {
     label: 'Stimuli editor tab in the Quiz editor',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-editor.tab-settings': {
-    label: 'Settings editor tab in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
@@ -5200,11 +5190,6 @@ export const TOUR_ANCHORS = {
   'plc-assessments.suggested-folder': {
     label: 'Suggested folder button in the PLC assessments tab',
     perField: true,
-  },
-  'plc-assign.quiz-mode': {
-    label: 'Quiz mode button in the PLC assign dialog',
-    perField: true,
-    panel: true,
   },
   'plc-members.role': {
     label: 'Role select in the PLC members tab',

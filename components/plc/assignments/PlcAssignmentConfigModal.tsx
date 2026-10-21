@@ -10,11 +10,8 @@
  * discriminated-union prop so TypeScript guarantees the right ref type
  * for each kind.
  *
- * For the quiz kind, behavior settings (mode, toggles, gamification,
- * attemptLimit) are sourced from the optional `quizBehavior` prop (Task 10).
- * When provided, the mode picker and settings toggles are replaced with a
- * read-only behavior summary. When not provided (backward compat), the legacy
- * mode picker + toggles are rendered.
+ * For the quiz kind, assignment settings start from the teacher's last-used
+ * settings and are editable inline (D12 of QUIZ_REVIEW_SPLIT.md).
  *
  * Writes:
  *   - createAssignment (quiz: useQuizAssignments; VA: useVideoActivityAssignments)
@@ -50,11 +47,7 @@ import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTarget
 import { getPlcMemberEmails } from '@/utils/plc';
 import { logError } from '@/utils/logError';
 import { dueInputsToEpoch, DEFAULT_DUE_TIME } from '@/utils/localDate';
-import {
-  formatBehaviorSummary,
-  getQuizAssignPrefill,
-  QUIZ_STUDENT_MODE_LABEL,
-} from '@/utils/quizBehavior';
+import { getQuizAssignPrefill } from '@/utils/quizBehavior';
 import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
 import { QuizAssignSettingsInline } from '@/components/common/library/QuizAssignSettingsInline';
 import { formatVideoActivityBehaviorSummary } from '@/utils/videoActivityBehavior';
@@ -64,8 +57,6 @@ import type {
   QuizAssignmentSettings,
   QuizBehaviorSettings,
   QuizData,
-  QuizSessionMode,
-  QuizSessionOptions,
   VideoActivityAssignmentSettings,
   VideoActivityBehaviorSettings,
   VideoActivitySessionSettings,
@@ -93,12 +84,7 @@ type PlcAssignmentConfigModalProps = {
       /** The authored quiz, so bank slots seed the synced group and resolve at assign. */
       quizData?: QuizData;
       activityRef?: never;
-      /**
-       * Task 10: when provided, the mode picker + settings toggles are
-       * replaced with a read-only behavior summary. Source from
-       * `getQuizBehavior(savedMeta)` in the caller (PlcAuthorQuizModal).
-       * When omitted, the legacy mode picker + toggles render as before.
-       */
+      /** Saved quiz behavior, copied onto the synced group. */
       quizBehavior?: QuizBehaviorSettings;
       vaBehavior?: never;
     }
@@ -122,20 +108,6 @@ type PlcAssignmentConfigModalProps = {
 // Default session options
 // ---------------------------------------------------------------------------
 
-const DEFAULT_QUIZ_SESSION_OPTIONS: QuizSessionOptions = {
-  tabWarningsEnabled: true,
-  blockCopyPaste: false,
-  showResultToStudent: false,
-  showCorrectAnswerToStudent: false,
-  showCorrectOnBoard: false,
-  speedBonusEnabled: false,
-  streakBonusEnabled: false,
-  showPodiumBetweenQuestions: false,
-  soundEffectsEnabled: false,
-  shuffleQuestions: false,
-  shuffleAnswerOptions: true,
-};
-
 const DEFAULT_VA_SESSION_OPTIONS: VideoActivitySessionOptions = {
   tabWarningsEnabled: true,
   showResultToStudent: false,
@@ -148,12 +120,6 @@ const DEFAULT_VA_SESSION_SETTINGS: VideoActivitySessionSettings = {
   requireCorrectAnswer: false,
   allowSkipping: true,
 };
-
-const DEFAULT_QUIZ_MODES: { id: QuizSessionMode; label: string }[] = [
-  { id: 'teacher', label: 'Teacher-paced' },
-  { id: 'auto', label: 'Auto-paced' },
-  { id: 'student', label: QUIZ_STUDENT_MODE_LABEL },
-];
 
 // ---------------------------------------------------------------------------
 // Component
@@ -174,12 +140,11 @@ export const PlcAssignmentConfigModal: React.FC<
   onClose,
 }) => {
   const { t } = useTranslation();
-  const { user, getAssignmentMode, canAccessFeature } = useAuth();
-  // D12: with the split on, settings come from the teacher's last-used, editable inline.
-  const reviewSplit = kind === 'quiz' && canAccessFeature('quiz-review-split');
+  const { user, getAssignmentMode } = useAuth();
+  // D12: settings come from the teacher's last-used, editable inline.
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
     user?.uid,
-    reviewSplit
+    kind === 'quiz'
   );
   const [editedAssignSettings, setEditedAssignSettings] =
     useState<QuizBehaviorSettings | null>(null);
@@ -203,16 +168,11 @@ export const PlcAssignmentConfigModal: React.FC<
   );
 
   // --- Form state ---
-  const [quizMode, setQuizMode] = useState<QuizSessionMode>('student');
   const [picker, setPicker] =
     useState<AssignClassPickerValue>(makeEmptyPickerValue);
-  const [quizOptions, setQuizOptions] = useState<BaseSessionOptions>(
-    DEFAULT_QUIZ_SESSION_OPTIONS
-  );
   const [vaOptions, setVaOptions] = useState<BaseSessionOptions>(
     DEFAULT_VA_SESSION_OPTIONS
   );
-  const [attemptLimit, setAttemptLimit] = useState<number | null>(1);
   const [teacherName, setTeacherName] = useState(user?.displayName ?? '');
   const [dueAtInput, setDueAtInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -285,34 +245,10 @@ export const PlcAssignmentConfigModal: React.FC<
           // Non-fatal — assignment proceeds without sync group
         }
 
-        // Task 10: when quizBehavior is provided, source settings from it
-        // (behavior lives on the quiz). Otherwise fall back to the legacy
-        // form-driven controls (quizMode / quizOptions / attemptLimit).
-        let effectiveSessionMode: QuizSessionMode;
-        let effectiveSessionOptions: QuizSessionOptions;
-        let effectiveAttemptLimit: number | null;
-        if (reviewSplit) {
-          effectiveSessionMode = 'student';
-          effectiveSessionOptions = splitAssignSettings.sessionOptions;
-          effectiveAttemptLimit = splitAssignSettings.attemptLimit;
-        } else if (quizBehavior) {
-          effectiveSessionMode = 'student';
-          effectiveSessionOptions = quizBehavior.sessionOptions;
-          effectiveAttemptLimit = quizBehavior.attemptLimit;
-        } else {
-          // Backward-compat guard: today the only live quiz caller
-          // (PlcAuthorQuizModal) always supplies quizBehavior, but this
-          // branch preserves correct behavior for any future caller that
-          // opens this modal for a quiz without providing quizBehavior.
-          effectiveSessionMode = quizMode;
-          effectiveSessionOptions = { ...quizOptions };
-          effectiveAttemptLimit = attemptLimit;
-        }
-
         const settings: QuizAssignmentSettings = {
-          sessionMode: effectiveSessionMode,
-          sessionOptions: effectiveSessionOptions,
-          attemptLimit: effectiveAttemptLimit,
+          sessionMode: 'student',
+          sessionOptions: splitAssignSettings.sessionOptions,
+          attemptLimit: splitAssignSettings.attemptLimit,
           teacherName: teacherName.trim() || undefined,
           periodName: derived.periodNames[0],
           periodNames: derived.periodNames,
@@ -472,12 +408,8 @@ export const PlcAssignmentConfigModal: React.FC<
     activityRef,
     quizBehavior,
     vaBehavior,
-    reviewSplit,
     splitAssignSettings,
-    quizMode,
-    quizOptions,
     vaOptions,
-    attemptLimit,
     teacherName,
     parsedDueAt,
     assignmentMode,
@@ -567,105 +499,12 @@ export const PlcAssignmentConfigModal: React.FC<
             />
           </div>
 
-          {/* Quiz-specific: behavior summary (Task 10) or legacy mode selector */}
-          {reviewSplit ? (
+          {/* Quiz: last-used settings, editable inline */}
+          {kind === 'quiz' ? (
             <QuizAssignSettingsInline
               value={splitAssignSettings}
               onChange={setEditedAssignSettings}
             />
-          ) : kind === 'quiz' && quizBehavior ? (
-            /* Slimmed path: read-only behavior summary from quiz settings */
-            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
-                  {t('plcDashboard.assignmentConfig.behaviorLabel', {
-                    defaultValue: 'Behavior',
-                  })}
-                </p>
-                <span className="text-xxs text-slate-400">
-                  {t('plcDashboard.assignmentConfig.behaviorEditHint', {
-                    defaultValue: 'Edit in the quiz editor',
-                  })}
-                </span>
-              </div>
-              <p
-                data-testid="plc-config-behavior-summary"
-                className="text-sm text-slate-600 leading-snug"
-              >
-                {formatBehaviorSummary({
-                  ...quizBehavior,
-                  sessionMode: 'student',
-                })}
-              </p>
-            </div>
-          ) : kind === 'quiz' ? (
-            /* Legacy path: mode selector + settings toggles */
-            <>
-              <div>
-                <p className="text-sm font-medium text-slate-700 mb-2">
-                  {t('plcDashboard.assignmentConfig.modeLabel', {
-                    defaultValue: 'Session mode',
-                  })}
-                </p>
-                <div
-                  role="radiogroup"
-                  aria-label={t('plcDashboard.assignmentConfig.modeLabel', {
-                    defaultValue: 'Session mode',
-                  })}
-                  className="flex gap-2 flex-wrap"
-                >
-                  {DEFAULT_QUIZ_MODES.map((m) => (
-                    <button
-                      {...tourFieldAttr('plc-assign.quiz-mode', 'plc', m.id)}
-                      key={m.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={quizMode === m.id}
-                      onClick={() => setQuizMode(m.id)}
-                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                        quizMode === m.id
-                          ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
-                          : 'bg-white text-slate-700 border-slate-200 hover:border-brand-blue-primary/50'
-                      }`}
-                    >
-                      {t(`plcDashboard.assignmentConfig.mode.${m.id}`, {
-                        defaultValue: m.label,
-                      })}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <AssignmentSettingsToggleGroup
-                options={quizOptions}
-                onOptionsChange={setQuizOptions}
-                attemptLimit={attemptLimit}
-                onAttemptLimitChange={setAttemptLimit}
-                shuffleQuestionsAvailable={false}
-                showCopyPasteToggle
-                anchors={{
-                  focusMode: tourFieldAttr(
-                    'plc-assign.option-toggle',
-                    'plc',
-                    'focus-mode'
-                  ),
-                  copyPaste: tourFieldAttr(
-                    'plc-assign.option-toggle',
-                    'plc',
-                    'copy-paste'
-                  ),
-                  shuffleQuestions: tourFieldAttr(
-                    'plc-assign.option-toggle',
-                    'plc',
-                    'shuffle-questions'
-                  ),
-                  shuffleAnswerOptions: tourFieldAttr(
-                    'plc-assign.option-toggle',
-                    'plc',
-                    'shuffle-answers'
-                  ),
-                }}
-              />
-            </>
           ) : vaBehavior ? (
             /* VA slimmed path (Task 10 parity): read-only behavior summary */
             <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">

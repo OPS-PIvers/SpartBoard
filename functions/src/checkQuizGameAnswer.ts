@@ -11,11 +11,9 @@ import { assertViewAsAllowed } from './viewAsGuard';
 const SESSIONS = 'quiz_sessions';
 const MAX_ID_LENGTH = 128;
 const MAX_ANSWER_LENGTH = 5000;
-export const QUIZ_REVIEW_SPLIT_FEATURE = 'quiz-review-split';
 /** Answers sent just before the clock ran out or the teacher paused still count. */
 export const GAME_CLOCK_GRACE_MS = 2_000;
 const MAX_SPEED_BONUS_PCT = 50;
-const FLAG_CACHE_MS = 60_000;
 
 /** HttpsError details reasons the student engine branches on. */
 export const GAME_REFUSAL = {
@@ -66,14 +64,6 @@ export interface CheckQuizGameAnswerResult {
   /** Raw key answer; the device formats it for display. */
   correctAnswer: string;
   firstTry: boolean;
-}
-
-export interface CheckQuizGameAnswerDeps {
-  /** Whether the session teacher has the quiz-review-split flag. */
-  isFlagOn?: (
-    db: admin.firestore.Firestore,
-    teacherUid: string
-  ) => Promise<boolean>;
 }
 
 const isId = (value: unknown): value is string =>
@@ -207,37 +197,11 @@ export function speedBonusPct(
   return Math.round(((limitMs - elapsed) / limitMs) * MAX_SPEED_BONUS_PCT);
 }
 
-const flagCache = new Map<string, { on: boolean; at: number }>();
-
-/** Server twin of canAccessFeature('quiz-review-split') for the session teacher. */
-async function teacherHasFlag(
-  db: admin.firestore.Firestore,
-  teacherUid: string
-): Promise<boolean> {
-  const cached = flagCache.get(teacherUid);
-  if (cached && Date.now() - cached.at < FLAG_CACHE_MS) return cached.on;
-  const email = await admin
-    .auth()
-    .getUser(teacherUid)
-    .then((u) => u.email ?? null)
-    .catch(() => null);
-  const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
-  const on = await isGlobalFeatureGranted(
-    db,
-    QUIZ_REVIEW_SPLIT_FEATURE,
-    email,
-    teacherUid
-  ).catch(() => false);
-  flagCache.set(teacherUid, { on, at: Date.now() });
-  return on;
-}
-
 export async function handleCheckQuizGameAnswer(
   db: admin.firestore.Firestore,
   callerUid: string | null,
   rawInput: unknown,
-  nowMs = Date.now(),
-  deps: CheckQuizGameAnswerDeps = {}
+  nowMs = Date.now()
 ): Promise<CheckQuizGameAnswerResult> {
   if (!callerUid) throw new HttpsError('unauthenticated', 'Sign in required.');
   const input = parseCheckQuizGameAnswerInput(rawInput);
@@ -260,12 +224,6 @@ export async function handleCheckQuizGameAnswer(
     throw new HttpsError('failed-precondition', 'This game has no teacher.');
   if (responseSnap.empty)
     throw new HttpsError('permission-denied', 'Join the game first.');
-  const flagOn = await (deps.isFlagOn ?? teacherHasFlag)(db, teacherUid);
-  if (!flagOn)
-    throw new HttpsError(
-      'permission-denied',
-      'Review games are not available for this class.'
-    );
   const clock = gameClockRefusal(session, nowMs);
   if (clock)
     throw new HttpsError('failed-precondition', 'The game is not running.', {

@@ -1,27 +1,7 @@
 /**
- * Tests for QuizEditorModal — Task 7: Questions/Settings tab.
- *
- * Key assertions:
- *   - Editor renders a "Questions" and a "Settings" toggle in the chrome.
- *   - Switching to "Settings" renders the QuizBehaviorSettingsPanel
- *     (asserted via a mode button being present).
- *   - Switching back to "Questions" renders the question list.
- *   - Editing a behavior control and saving calls onSave with the updated
- *     behavior as the 2nd argument.
- *   - Saving without touching settings calls onSave with DEFAULT_QUIZ_BEHAVIOR
- *     (or the seeded behavior from the `behavior` prop).
- *   - When a `behavior` prop is provided, it seeds the panel.
- *   - Behavior changes flip isDirty (Save button is enabled).
- *
- * Mocking strategy:
- *   - useAuth: returns a stub user without gemini access.
- *   - EditorWorkspace: renders the contextPane + detailPane + a Save button
- *     that calls onSave; accepts isDirty for assertions.
- *   - useQuizEditorState: use real hook (it's pure; no firebase deps).
- *   - QuizEditorContextPane / QuizEditorDetailPane: use real components
- *     but they don't need deep render — EditorWorkspace mock renders contextPane.
- *   - QuizBehaviorSettingsPanel: NOT mocked — we render the real panel
- *     and assert on its output.
+ * Tests for QuizEditorModal tabs and the behavior pass-through (D10).
+ * Settings live on the assignment, so the editor has no Settings tab and
+ * hands the seeded behavior back to onSave unchanged.
  */
 
 import React from 'react';
@@ -144,210 +124,12 @@ const fakeQuiz2: QuizData = {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('QuizEditorModal — Questions/Settings tab', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('renders a "Questions" tab button in the context pane', () => {
-    render(
-      <QuizEditorModal
-        isOpen
-        quiz={fakeQuiz}
-        onClose={vi.fn()}
-        onSave={vi.fn()}
-      />
-    );
-    expect(
-      screen.getByRole('button', { name: /questions/i })
-    ).toBeInTheDocument();
-  });
-
-  it('renders a "Settings" tab button in the context pane', () => {
-    render(
-      <QuizEditorModal
-        isOpen
-        quiz={fakeQuiz}
-        onClose={vi.fn()}
-        onSave={vi.fn()}
-      />
-    );
-    expect(
-      screen.getByRole('button', { name: /settings/i })
-    ).toBeInTheDocument();
-  });
-
-  it('shows the question list by default (Questions tab active)', () => {
-    render(
-      <QuizEditorModal
-        isOpen
-        quiz={fakeQuiz}
-        onClose={vi.fn()}
-        onSave={vi.fn()}
-      />
-    );
-    // The real QuizEditorContextPane renders the question list.
-    // "Questions (1)" heading should be visible.
-    expect(screen.getByText(/Questions \(1\)/)).toBeInTheDocument();
-  });
-
-  it('switching to Settings tab renders the behavior panel (mode buttons)', () => {
-    render(
-      <QuizEditorModal
-        isOpen
-        quiz={fakeQuiz}
-        onClose={vi.fn()}
-        onSave={vi.fn()}
-      />
-    );
-    fireEvent.click(screen.getByRole('button', { name: /settings/i }));
-    // QuizBehaviorSettingsPanel renders Teacher-paced / Auto-progress / Assessment Mode
-    expect(screen.getByText('Teacher-paced')).toBeInTheDocument();
-    expect(screen.getByText('Assessment Mode')).toBeInTheDocument();
-  });
-
-  it('switching back to Questions hides the behavior panel', () => {
-    render(
-      <QuizEditorModal
-        isOpen
-        quiz={fakeQuiz}
-        onClose={vi.fn()}
-        onSave={vi.fn()}
-      />
-    );
-    // Switch to Settings then back to Questions using the tab buttons.
-    // getAllByRole + [0] selects the first match which is the tab button,
-    // not the "Questions (N)" heading in the list.
-    fireEvent.click(screen.getByRole('button', { name: /^settings$/i }));
-    fireEvent.click(screen.getAllByRole('button', { name: /^questions$/i })[0]);
-    expect(screen.queryByText('Teacher-paced')).not.toBeInTheDocument();
-  });
-
-  it('saving without changing settings calls onSave with DEFAULT_QUIZ_BEHAVIOR as 2nd arg', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    render(
-      <QuizEditorModal
-        isOpen
-        quiz={fakeQuiz}
-        onClose={vi.fn()}
-        onSave={onSave}
-      />
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Save Quiz' }));
-    await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
-    const [_updatedQuiz, behavior] = onSave.mock.calls[0];
-    expect(behavior).toMatchObject({
-      sessionMode: DEFAULT_QUIZ_BEHAVIOR.sessionMode,
-    });
-  });
-
-  it('when a behavior prop is provided, it seeds the panel', () => {
-    const customBehavior: QuizBehaviorSettings = {
-      ...DEFAULT_QUIZ_BEHAVIOR,
-      sessionMode: 'teacher',
-    };
-    render(
-      <QuizEditorModal
-        isOpen
-        quiz={fakeQuiz}
-        onClose={vi.fn()}
-        onSave={vi.fn()}
-        behavior={customBehavior}
-      />
-    );
-    fireEvent.click(screen.getByRole('button', { name: /settings/i }));
-    const teacherPacedBtn = screen.getByRole('button', {
-      name: /teacher-paced/i,
-    });
-    expect(teacherPacedBtn).toHaveAttribute('aria-pressed', 'true');
-  });
-
-  it('editing a behavior control and saving passes updated behavior as 2nd arg', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    render(
-      <QuizEditorModal
-        isOpen
-        quiz={fakeQuiz}
-        onClose={vi.fn()}
-        onSave={onSave}
-      />
-    );
-    // Switch to settings and change mode to 'teacher'
-    fireEvent.click(screen.getByRole('button', { name: /settings/i }));
-    fireEvent.click(screen.getByRole('button', { name: /teacher-paced/i }));
-
-    // Save
-    fireEvent.click(screen.getByRole('button', { name: 'Save Quiz' }));
-    await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
-    const [, behavior] = onSave.mock.calls[0];
-    expect(behavior).toMatchObject({ sessionMode: 'teacher' });
-  });
-
-  it('changing behavior marks the editor as dirty', () => {
-    render(
-      <QuizEditorModal
-        isOpen
-        quiz={fakeQuiz}
-        onClose={vi.fn()}
-        onSave={vi.fn()}
-      />
-    );
-    const workspace = screen.getByTestId('editor-workspace');
-    expect(workspace).toHaveAttribute('data-is-dirty', 'false');
-
-    fireEvent.click(screen.getByRole('button', { name: /settings/i }));
-    fireEvent.click(screen.getByRole('button', { name: /teacher-paced/i }));
-    expect(workspace).toHaveAttribute('data-is-dirty', 'true');
-  });
-
-  it('reusing the modal for a different quiz resets originalBehavior — no false dirty', () => {
-    // Quiz A has a custom behavior (teacher mode).
-    const customBehavior: QuizBehaviorSettings = {
-      ...DEFAULT_QUIZ_BEHAVIOR,
-      sessionMode: 'teacher',
-    };
-
-    const { rerender } = render(
-      <QuizEditorModal
-        isOpen
-        quiz={fakeQuiz}
-        onClose={vi.fn()}
-        onSave={vi.fn()}
-        behavior={customBehavior}
-      />
-    );
-
-    // Rerender with quiz B and DEFAULT behavior (no behavior prop = default).
-    rerender(
-      <QuizEditorModal
-        isOpen
-        quiz={fakeQuiz2}
-        onClose={vi.fn()}
-        onSave={vi.fn()}
-      />
-    );
-
-    // After switching to a new quiz, the editor should NOT be dirty:
-    // both behavior and originalBehavior should be DEFAULT_QUIZ_BEHAVIOR.
-    const workspace = screen.getByTestId('editor-workspace');
-    expect(workspace).toHaveAttribute('data-is-dirty', 'false');
-
-    // The Settings panel should reflect DEFAULT behavior (Assessment Mode).
-    fireEvent.click(screen.getByRole('button', { name: /settings/i }));
-    const assessmentBtn = screen.getByRole('button', {
-      name: /assessment mode/i,
-    });
-    expect(assessmentBtn).toHaveAttribute('aria-pressed', 'true');
-  });
-});
-
-describe('QuizEditorModal with quiz-review-split on (D10)', () => {
-  const splitAuth = (readAloud: boolean) =>
+describe('QuizEditorModal tabs and behavior (D10)', () => {
+  const authWith = (readAloud: boolean) =>
     vi.mocked(useAuth).mockReturnValue({
       user: { uid: 'uid-test', displayName: 'Test Teacher' },
       canAccessFeature: vi.fn(
-        (id: string) =>
-          id === 'quiz-review-split' || (readAloud && id === 'quiz-read-aloud')
+        (id: string) => readAloud && id === 'quiz-read-aloud'
       ),
       canAccessQuizMediaResponse: vi.fn(() => false),
     } as unknown as ReturnType<typeof useAuth>);
@@ -356,8 +138,8 @@ describe('QuizEditorModal with quiz-review-split on (D10)', () => {
     vi.clearAllMocks();
   });
 
-  it('has no Settings tab', () => {
-    splitAuth(false);
+  it('has Questions and Stimuli tabs and no Settings tab', () => {
+    authWith(false);
     render(
       <QuizEditorModal
         isOpen
@@ -369,10 +151,29 @@ describe('QuizEditorModal with quiz-review-split on (D10)', () => {
     expect(screen.getByRole('button', { name: /^questions$/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /^stimuli$/i })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^settings$/i })).toBeNull();
+    expect(
+      screen.getAllByText('What is photosynthesis?').length
+    ).toBeGreaterThan(0);
   });
 
-  it("saves the quiz's existing behavior unchanged so flag-off teammates keep it", async () => {
-    splitAuth(false);
+  it('saves DEFAULT_QUIZ_BEHAVIOR when no behavior is seeded', async () => {
+    authWith(false);
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      <QuizEditorModal
+        isOpen
+        quiz={fakeQuiz}
+        onClose={vi.fn()}
+        onSave={onSave}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save Quiz' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
+    expect(onSave.mock.calls[0][1]).toEqual(DEFAULT_QUIZ_BEHAVIOR);
+  });
+
+  it("saves the quiz's existing behavior unchanged", async () => {
+    authWith(false);
     const saved: QuizBehaviorSettings = {
       ...DEFAULT_QUIZ_BEHAVIOR,
       sessionMode: 'teacher',
@@ -388,13 +189,46 @@ describe('QuizEditorModal with quiz-review-split on (D10)', () => {
         behavior={saved}
       />
     );
+    expect(screen.getByTestId('editor-workspace')).toHaveAttribute(
+      'data-is-dirty',
+      'false'
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Save Quiz' }));
     await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
     expect(onSave.mock.calls[0][1]).toEqual(saved);
   });
 
-  it('moves the read-aloud language picker to the Languages tab', () => {
-    splitAuth(true);
+  it('reseeds behavior when the modal is reused for a different quiz', async () => {
+    authWith(false);
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const { rerender } = render(
+      <QuizEditorModal
+        isOpen
+        quiz={fakeQuiz}
+        onClose={vi.fn()}
+        onSave={onSave}
+        behavior={{ ...DEFAULT_QUIZ_BEHAVIOR, sessionMode: 'teacher' }}
+      />
+    );
+    rerender(
+      <QuizEditorModal
+        isOpen
+        quiz={fakeQuiz2}
+        onClose={vi.fn()}
+        onSave={onSave}
+      />
+    );
+    expect(screen.getByTestId('editor-workspace')).toHaveAttribute(
+      'data-is-dirty',
+      'false'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save Quiz' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
+    expect(onSave.mock.calls[0][1]).toEqual(DEFAULT_QUIZ_BEHAVIOR);
+  });
+
+  it('puts the read-aloud language picker on the Languages tab', () => {
+    authWith(true);
     render(
       <QuizEditorModal
         isOpen

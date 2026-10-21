@@ -7,7 +7,7 @@ Help content for the Review widget (docs/plans/QUIZ_REVIEW_SPLIT.md, D30). Agent
 1. Paste `review-help-article.md` into a Google Doc and share it with the district.
 2. Admin Settings > Help Center > Add help item: Embed, the Doc's link, category "Quizzes & activities", widget **Review** only.
 
-Tag it with Review and nothing else. Teachers without the `quiz-review-split` preview never see an item tagged only with Review.
+Tag it with Review and nothing else.
 
 ## Live tour
 

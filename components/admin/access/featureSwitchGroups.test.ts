@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { audienceSummary, groupFeatureSwitches } from './featureSwitchGroups';
 import { widgetSubFeatures } from './accessSearch';
+import {
+  ALL_GLOBAL_FEATURES,
+  FEATURE_DEFAULTS,
+} from '@/config/featureDefaults';
 import type { GlobalFeature } from '@/types';
 
 describe('groupFeatureSwitches', () => {
@@ -57,9 +61,14 @@ describe('widgetSubFeatures', () => {
   });
 
   it('never graduates a retire flag', () => {
-    expect(
-      widgetSubFeatures('quiz', new Set(['quiz-review-split']))
-    ).not.toContain('quiz-review-split');
+    const retire = ALL_GLOBAL_FEATURES.find(
+      (id) =>
+        FEATURE_DEFAULTS[id].afterLaunch === 'retire' &&
+        FEATURE_DEFAULTS[id].widget !== undefined
+    );
+    if (!retire) return;
+    const widget = FEATURE_DEFAULTS[retire].widget ?? '';
+    expect(widgetSubFeatures(widget, new Set([retire]))).not.toContain(retire);
   });
 });
 

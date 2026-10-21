@@ -13,16 +13,7 @@ const defaultValue: QuizBehaviorSettings = {
 };
 
 describe('QuizBehaviorSettingsPanel', () => {
-  it('renders all three mode option cards', () => {
-    render(
-      <QuizBehaviorSettingsPanel value={defaultValue} onChange={vi.fn()} />
-    );
-    expect(screen.getByText('Teacher-paced')).toBeInTheDocument();
-    expect(screen.getByText('Auto-progress')).toBeInTheDocument();
-    expect(screen.getByText('Assessment Mode')).toBeInTheDocument();
-  });
-
-  it('variant quiz hides the mode picker, board reveal and gamification (D8/D9)', () => {
+  it('variant quiz hides board reveal and gamification (D8/D9)', () => {
     render(
       <QuizBehaviorSettingsPanel
         variant="quiz"
@@ -44,7 +35,7 @@ describe('QuizBehaviorSettingsPanel', () => {
     ).not.toBeDisabled();
   });
 
-  it('variant live hides only the mode picker', () => {
+  it('variant live keeps gamification and has no mode picker', () => {
     render(
       <QuizBehaviorSettingsPanel
         variant="live"
@@ -146,16 +137,6 @@ describe('QuizBehaviorSettingsPanel', () => {
       <QuizBehaviorSettingsPanel value={defaultValue} onChange={vi.fn()} />
     );
     expect(screen.getByText('Gamification')).toBeInTheDocument();
-  });
-
-  it('clicking "Assessment Mode" calls onChange with sessionMode: student', () => {
-    const onChange = vi.fn();
-    render(
-      <QuizBehaviorSettingsPanel value={defaultValue} onChange={onChange} />
-    );
-    fireEvent.click(screen.getByRole('button', { name: /assessment mode/i }));
-    expect(onChange).toHaveBeenCalledOnce();
-    expect(onChange.mock.calls[0][0]).toMatchObject({ sessionMode: 'student' });
   });
 
   it('toggling a sessionOption calls onChange with the updated sessionOptions', () => {
@@ -279,22 +260,6 @@ describe('QuizBehaviorSettingsPanel', () => {
     expect(
       screen.queryByText('Warnings before auto-submit')
     ).not.toBeInTheDocument();
-  });
-
-  it('when modeLocked, all mode buttons are disabled', () => {
-    render(
-      <QuizBehaviorSettingsPanel
-        value={defaultValue}
-        onChange={vi.fn()}
-        modeLocked
-      />
-    );
-    const teacherBtn = screen.getByRole('button', { name: /teacher-paced/i });
-    const autoBtn = screen.getByRole('button', { name: /auto-progress/i });
-    const selfBtn = screen.getByRole('button', { name: /assessment mode/i });
-    expect(teacherBtn).toBeDisabled();
-    expect(autoBtn).toBeDisabled();
-    expect(selfBtn).toBeDisabled();
   });
 
   it('hides the Read aloud toggle unless readAloudAvailable is set', () => {
