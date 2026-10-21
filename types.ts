@@ -10133,8 +10133,6 @@ export type GlobalFeature =
   | 'gl-callout-editing'
   /** Per-student "Slide N of M · active X ago" on Guided Learning results and the Assignments hub. */
   | 'gl-student-progress'
-  /** PLC notes as an always-editable rich text editor with a formatting toolbar (still stored as Markdown). */
-  | 'plc-notes-rich-editor'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
   | 'paper-handwritten-responses'
   /** Claude connector: teachers connect Claude to their library (docs/plans/CLAUDE_CONNECTOR.md). */
@@ -10177,8 +10175,6 @@ export type GlobalFeature =
   | 'ocr'
   /** Transcript and drafted notes from a meeting recording; AND-ed with `gemini-functions`. */
   | 'plc-meeting-ai-notes'
-  /** Assign dialogs: mark a session Work (submitted, graded) or Resource (study only) (docs/plans/STUDENT_LANDING_V2.md D27). */
-  | 'study-resources'
   /** Sparty the mascot in tours, first-time setup and the Help Center (docs/plans/shipped/SPARTY.md). */
   | 'sparty'
   /** Group Notes & Docs: embedded Google Docs keep Google's menus and toolbar. */
@@ -10195,8 +10191,6 @@ export type GlobalFeature =
   | 'schoology-tool-columns'
   /** A what's-new button under a widget whose changelog entry carries a note for that widget type. */
   | 'widget-whats-new'
-  /** Guided Learning Studio: a pinned Welcome card in the slide strip, with an optional welcome image. */
-  | 'gl-welcome-card'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
   /** Quiz live monitor declutter (#4023): footer buttons, Close all, no More actions menu for assessments. */

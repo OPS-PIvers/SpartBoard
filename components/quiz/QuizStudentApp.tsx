@@ -214,6 +214,10 @@ import { usePreviewMode } from '@/hooks/usePreviewMode';
 import { ResultsWatermark } from './ResultsWatermark';
 import { ResultsTabWarningModal } from './ResultsTabWarningModal';
 import { useResultsTabWarnings } from '@/hooks/useResultsTabWarnings';
+import {
+  myAttemptAsResponse,
+  useMyQuizAttempts,
+} from '@/hooks/useQuizResponseAttempts';
 import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
 import { getEffectiveTabAwayRule } from '@/utils/tabAwayLimit';
 import { TabAwayClock } from '@/components/common/TabAwayClock';
@@ -5308,7 +5312,7 @@ export const PublishedScoreReview: React.FC<{
   loadPaperCrop?: GetPaperWrittenCropCall;
 }> = ({
   session,
-  myResponse,
+  myResponse: liveResponse,
   visibility,
   revealedAnswers,
   revealedRubricExamples,
@@ -5318,11 +5322,41 @@ export const PublishedScoreReview: React.FC<{
   embedded = false,
   watermarkNameOverride,
   override,
-  drawIds,
+  drawIds: liveDrawIds,
   loadPaperCrop,
 }) => {
   const protection = protectionProp ?? session.protection;
   const { t } = useTranslation();
+  const liveAttemptN = liveResponse.completedAttempts ?? 0;
+  const myAttempts = useMyQuizAttempts(
+    session.id,
+    liveResponse._responseKey,
+    liveAttemptN >= 2 ? `${liveAttemptN}:${visibility}` : null
+  );
+  const [pickedAttempt, setPickedAttempt] = useState<number | null>(null);
+  const picked = myAttempts.find((a) => a.n === pickedAttempt) ?? null;
+  const myResponse = picked
+    ? myAttemptAsResponse(liveResponse, picked)
+    : liveResponse;
+  const drawIds = picked ? picked.servedQuestionIds : liveDrawIds;
+  const attemptLabel = (n: number, score: number | null | undefined) =>
+    typeof score === 'number' ? `${n} · ${score}%` : String(n);
+  const attemptOptions =
+    myAttempts.length > 0
+      ? [
+          ...myAttempts.map((a) => ({
+            n: a.n,
+            label: attemptLabel(a.n, a.score),
+          })),
+          {
+            n: null,
+            label: attemptLabel(
+              Math.max(liveAttemptN, myAttempts[myAttempts.length - 1].n + 1),
+              liveResponse.score
+            ),
+          },
+        ]
+      : [];
   // Async / self-paced assignments (e.g. a Google Classroom attachment) review
   // their results on a LIGHT surface — matching the add-on + brand spec; a LIVE
   // teacher-paced quiz that has ended keeps the dark, immersive treatment.
@@ -5438,7 +5472,7 @@ export const PublishedScoreReview: React.FC<{
 
   const writtenMode = session.writtenReturnMode ?? DEFAULT_WRITTEN_RETURN_MODE;
   // Client mirror of the callable's D38 check, so a denied request is never sent.
-  const mayRequestCrop = showResponses && writtenMode !== 'typed';
+  const mayRequestCrop = showResponses && writtenMode !== 'typed' && !picked;
   const paperReviewFor = (
     ans: (typeof myResponse.answers)[number] | undefined,
     questionNumber: number
@@ -5612,6 +5646,43 @@ export const PublishedScoreReview: React.FC<{
           )}
         </header>
 
+        {attemptOptions.length > 0 && (
+          <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
+            <span className={`text-sm font-semibold ${prepText}`}>Attempt</span>
+            <div
+              role="group"
+              aria-label="Attempt"
+              className={`inline-flex overflow-hidden rounded-lg border ${neutralBorder}`}
+            >
+              {attemptOptions.map((opt, i) => {
+                const on = opt.n === (picked?.n ?? null);
+                return (
+                  // no-tour-anchor: student results screen; live tours walk teachers.
+                  <button
+                    key={opt.n ?? 'current'}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setPickedAttempt(opt.n)}
+                    className={`px-3 py-1.5 text-sm font-semibold transition-colors ${
+                      i > 0 ? `border-l ${neutralBorder}` : ''
+                    } ${
+                      on
+                        ? light
+                          ? 'bg-brand-blue-lighter text-brand-blue-dark'
+                          : 'bg-slate-600 text-white'
+                        : light
+                          ? 'bg-white text-slate-600 hover:text-slate-900'
+                          : 'bg-slate-800 text-slate-300 hover:text-white'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Score card — present at every visibility level. */}
         <section
           className={`mb-6 rounded-2xl border p-6 text-center ${scoreCardCls}`}
@@ -5628,7 +5699,7 @@ export const PublishedScoreReview: React.FC<{
                   written-response questions where "fully correct" is a
                   category error. Hide the line on essay-only quizzes; on
                   mixed quizzes it counts only the auto-graded subset. */}
-              {autoGradedCount > 0 && (
+              {autoGradedCount > 0 && (!picked || picked.answers) && (
                 <p className={`mt-2 text-sm ${subtleText}`}>
                   {correctCount} of {autoGradedCount} fully correct
                 </p>

@@ -107,20 +107,8 @@ afterEach(() => {
 });
 
 describe('GuidedLearningStudio Welcome card', () => {
-  it('stays hidden without the flag, leaving the welcome fields in activity settings', () => {
-    renderStudio();
-    expect(screen.queryByTestId('gl-studio-welcome-card')).toBeNull();
-    expect(
-      screen.getByRole('checkbox', { name: /Show a welcome screen/ })
-    ).toBeTruthy();
-  });
-
   it('pins a Welcome card that opens the welcome editor and preview', () => {
-    features.add('gl-welcome-card');
     renderStudio();
-    expect(
-      screen.queryByRole('checkbox', { name: /Show a welcome screen/ })
-    ).toBeNull();
     const card = screen.getByRole('button', { name: 'Welcome off' });
     fireEvent.click(card);
     expect(screen.getByTestId('gl-studio-welcome-section')).toBeTruthy();
@@ -135,7 +123,6 @@ describe('GuidedLearningStudio Welcome card', () => {
   });
 
   it('switches the welcome on from the card', () => {
-    features.add('gl-welcome-card');
     renderStudio();
     const toggle = screen.getByTestId('gl-studio-welcome-toggle');
     expect(toggle.getAttribute('aria-checked')).toBe('false');
@@ -145,7 +132,6 @@ describe('GuidedLearningStudio Welcome card', () => {
   });
 
   it('leaves the Welcome card when a slide is picked', () => {
-    features.add('gl-welcome-card');
     renderStudio();
     fireEvent.click(screen.getByRole('button', { name: 'Welcome off' }));
     fireEvent.click(screen.getAllByRole('button', { name: /Slide 1/ })[0]);

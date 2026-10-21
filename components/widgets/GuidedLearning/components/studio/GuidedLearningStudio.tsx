@@ -496,7 +496,6 @@ const StudioSession: React.FC<
     }
   }
 
-  const welcomeCard = canAccessFeature('gl-welcome-card');
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   // Picking a step or moving to another slide leaves the Welcome card.
   const [welcomeFrom, setWelcomeFrom] = useState({
@@ -511,7 +510,7 @@ const StudioSession: React.FC<
     if (selectedStepId !== null || welcomeFrom.slide !== currentImageIndex)
       setWelcomeOpen(false);
   }
-  const welcomeShown = welcomeCard && welcomeOpen && selectedStepId === null;
+  const welcomeShown = welcomeOpen && selectedStepId === null;
   const selectWelcome = useCallback(() => {
     setSelectedStepId(null);
     setWelcomeOpen(true);
@@ -1136,8 +1135,8 @@ const StudioSession: React.FC<
           collapsed={filmstripCollapsed}
           onToggleCollapsed={() => setFilmstripCollapsed((v) => !v)}
           onCopyForClaude={canCopyForClaude ? copySlideForClaude : undefined}
-          onSelectSlide={welcomeCard ? selectSlide : undefined}
-          onSelectWelcome={welcomeCard ? selectWelcome : undefined}
+          onSelectSlide={selectSlide}
+          onSelectWelcome={selectWelcome}
           welcomeSelected={welcomeShown}
         />
         <div className="flex min-h-0 min-w-0 flex-col">
@@ -1227,7 +1226,6 @@ const StudioSession: React.FC<
             onDeleteStep={deleteStepWithUndo}
             canvasRef={canvasRef}
             calloutEditing={calloutEditing}
-            welcomeCard={welcomeCard}
             welcomeSelected={welcomeShown}
             onEditOnBoard={
               liveTours && isAdmin === true && !readOnly

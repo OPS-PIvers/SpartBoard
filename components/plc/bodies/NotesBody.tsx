@@ -11,11 +11,9 @@ import {
   CalendarClock,
   ChevronDown,
   ExternalLink,
-  Eye,
   FileText,
   Loader2,
   PanelLeftClose,
-  Pencil,
   Plus,
   StickyNote,
   Trash2,
@@ -37,7 +35,7 @@ import { useCanEditPlcContent } from '@/context/usePlcContext';
 import { PlcNoteVersionConflictError, usePlcNotes } from '@/hooks/usePlcNotes';
 import { usePlcNoteCollabSettings } from '@/hooks/usePlcNoteCollabSettings';
 import { usePlcNoteCrdt } from '@/hooks/usePlcNoteCrdt';
-import { noteBody, noteTitle } from '@/utils/plcNoteCrdt';
+import { noteTitle } from '@/utils/plcNoteCrdt';
 import {
   captureCaret,
   restoreCaret,
@@ -46,7 +44,6 @@ import {
 import { usePlcSoftDelete } from '@/hooks/usePlcTrash';
 import { logError } from '@/utils/logError';
 import { getPlcMembers } from '@/utils/plc';
-import { NotesMarkdown } from './notesMarkdown';
 import { PlcNoteRichEditor } from './PlcNoteRichEditor';
 import { buildMeetingNoteTemplate } from './notesTemplate';
 import { PlcViewerReadOnlyBadge } from '@/components/plc/viewer/PlcViewerReadOnlyBadge';
@@ -132,10 +129,6 @@ function formatDate(ms: number): string {
   }
 }
 
-// Notes open formatted; an empty one opens ready to type.
-const openModeFor = (body: string): 'edit' | 'preview' =>
-  body.trim() ? 'preview' : 'edit';
-
 /**
  * Two-pane shared notebook for the PLC — the native structured meeting-notes
  * surface (Decision 2.5/2.5b), wired live into the Notes & Docs section.
@@ -170,7 +163,6 @@ const NotesBodyInner: React.FC<
   const { showConfirm } = useDialog();
   const { addToast } = useDashboard();
   const { user, canAccessFeature } = useAuth();
-  const richEditorFlag = canAccessFeature('plc-notes-rich-editor');
   const docsToolbar = canAccessFeature('plc-docs-toolbar');
   // One side panel is open at a time; opening one folds the other.
   const [openPanel, setOpenPanel] = useState<'list' | 'actions'>('list');
@@ -211,8 +203,6 @@ const NotesBodyInner: React.FC<
   const [draftTitle, setDraftTitle] = useState('');
   const [draftBody, setDraftBody] = useState('');
   const [draftActionItems, setDraftActionItems] = useState<PlcActionItem[]>([]);
-  // Body view mode: notes open rendered; the pencil switches to the raw markdown.
-  const [bodyMode, setBodyMode] = useState<'edit' | 'preview'>('preview');
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Accumulates patches from rapid edits across fields so a same-window
   // title→body sequence doesn't drop the title patch. Reset on flush /
@@ -302,7 +292,6 @@ const NotesBodyInner: React.FC<
       setSelectedId(first.id);
       // eslint-disable-next-line react-hooks/refs -- seedDraft resets the baseline while adjusting state
       seedDraft(first);
-      setBodyMode(openModeFor(first.body));
     }
   }
 
@@ -322,7 +311,6 @@ const NotesBodyInner: React.FC<
       setSelectedId(note.id);
       // eslint-disable-next-line react-hooks/refs -- seedDraft resets the baseline while adjusting state
       seedDraft(note);
-      setBodyMode(openModeFor(note.body));
       setOpenPanel('actions');
     }
   }
@@ -358,13 +346,9 @@ const NotesBodyInner: React.FC<
   // on the legacy read-only path — they have nothing to publish.
   const collabSettings = usePlcNoteCollabSettings();
   const collab = collabSettings.enabled && canEdit && !!selectedId;
-  const richEditor = richEditorFlag;
-
   const titleFieldRef = useRef<HTMLInputElement>(null);
-  const bodyFieldRef = useRef<HTMLTextAreaElement>(null);
   const pendingCaretRef = useRef<{
     title: CapturedCaret | null;
-    body: CapturedCaret | null;
   } | null>(null);
 
   const crdt = usePlcNoteCrdt({
@@ -374,7 +358,6 @@ const NotesBodyInner: React.FC<
     onBeforeRemoteApply: (yDoc) => {
       pendingCaretRef.current = {
         title: captureCaret(noteTitle(yDoc), titleFieldRef.current),
-        body: captureCaret(noteBody(yDoc), bodyFieldRef.current),
       };
     },
   });
@@ -387,19 +370,7 @@ const NotesBodyInner: React.FC<
     if (!pending || !yDoc) return;
     pendingCaretRef.current = null;
     restoreCaret(noteTitle(yDoc), titleFieldRef.current, pending.title);
-    restoreCaret(noteBody(yDoc), bodyFieldRef.current, pending.body);
   }, [crdt.content, crdt.doc]);
-
-  // Browsers without field-sizing (Firefox, Safari) size the markdown box here.
-  useLayoutEffect(() => {
-    const el = bodyFieldRef.current;
-    if (!el || globalThis.CSS?.supports?.('field-sizing', 'content')) return;
-    const scroller = el.parentElement;
-    const top = scroller?.scrollTop ?? 0;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
-    if (scroller) scroller.scrollTop = top;
-  }, [draftBody, crdt.content.body, bodyMode, selectedId]);
 
   // When the selection changes (different note picked OR teammate edited
   // the active one), seed the draft fields from the canonical note. We also
@@ -674,9 +645,6 @@ const NotesBodyInner: React.FC<
       setSelectedId(id);
       seedDraft({ title, body });
       setSyncedSnapshot(null);
-      // Meeting notes open in preview so the structured template is legible at
-      // a glance; freeform notes open in edit to start typing immediately.
-      setBodyMode(kind === 'meeting' ? 'preview' : 'edit');
     } catch (err) {
       logError('NotesBody.createNote', err, { plcId: plc.id, kind });
       addToast(
@@ -754,7 +722,6 @@ const NotesBodyInner: React.FC<
       lastEditedAt: note.lastEditedAt,
       version: note.version,
     });
-    setBodyMode(openModeFor(note.body));
   };
 
   const handleSelectDoc = (id: string) => {
@@ -1300,41 +1267,7 @@ const NotesBodyInner: React.FC<
             />
             {noteOpenInDocs}
             <span className="flex-1" />
-            {(!richEditor || !canEdit) && recordControl}
-            {!richEditor && (
-              <button
-                {...tourAttr('plc-notes.body-mode')}
-                type="button"
-                onClick={() =>
-                  setBodyMode((m) => (m === 'edit' ? 'preview' : 'edit'))
-                }
-                className="p-2 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/40 rounded-lg transition-colors shrink-0"
-                aria-label={
-                  bodyMode === 'edit'
-                    ? t('plcDashboard.notes.previewMarkdown', {
-                        defaultValue: 'Preview formatted note',
-                      })
-                    : t('plcDashboard.notes.editMarkdown', {
-                        defaultValue: 'Edit note',
-                      })
-                }
-                title={
-                  bodyMode === 'edit'
-                    ? t('plcDashboard.notes.previewMarkdown', {
-                        defaultValue: 'Preview formatted note',
-                      })
-                    : t('plcDashboard.notes.editMarkdown', {
-                        defaultValue: 'Edit note',
-                      })
-                }
-              >
-                {bodyMode === 'edit' ? (
-                  <Eye className="w-4 h-4" />
-                ) : (
-                  <Pencil className="w-4 h-4" />
-                )}
-              </button>
-            )}
+            {!canEdit && recordControl}
             {canEdit && (
               <button
                 {...tourAttr('plc-notes.note-delete')}
@@ -1354,40 +1287,14 @@ const NotesBodyInner: React.FC<
           </div>
           {/* Body, action items and recordings scroll together as one page. */}
           <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pb-4">
-            {richEditor ? (
-              <PlcNoteRichEditor
-                key={selectedNote.id}
-                value={editorBody}
-                onChange={handleBodyChange}
-                readOnly={editorReadOnly}
-                showToolbar={canEdit}
-                toolbarEnd={recordControl}
-              />
-            ) : bodyMode === 'edit' ? (
-              <textarea
-                {...tourAttr('plc-notes.body')}
-                ref={bodyFieldRef}
-                value={editorBody}
-                readOnly={editorReadOnly}
-                onChange={(e) => handleBodyChange(e.target.value)}
-                placeholder={t('plcDashboard.notes.bodyPlaceholder', {
-                  defaultValue: 'Write your notes… (markdown supported)',
-                })}
-                className="block min-h-[12rem] w-full p-4 bg-transparent border-0 resize-none [field-sizing:content] focus:ring-0 focus:outline-none text-sm text-slate-700 leading-relaxed font-mono"
-              />
-            ) : (
-              <div className="min-h-[12rem] w-full p-4">
-                {editorBody.trim() ? (
-                  <NotesMarkdown body={editorBody} />
-                ) : (
-                  <p className="text-sm text-slate-400 italic">
-                    {t('plcDashboard.notes.emptyPreview', {
-                      defaultValue: 'Nothing to preview yet.',
-                    })}
-                  </p>
-                )}
-              </div>
-            )}
+            <PlcNoteRichEditor
+              key={selectedNote.id}
+              value={editorBody}
+              onChange={handleBodyChange}
+              readOnly={editorReadOnly}
+              showToolbar={canEdit}
+              toolbarEnd={recordControl}
+            />
             <NoteBlocksReadOnly
               body={editorBody}
               blocks={noteBlocks}
