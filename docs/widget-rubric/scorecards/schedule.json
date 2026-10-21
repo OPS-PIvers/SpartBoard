@@ -1,8 +1,8 @@
 {
   "$schema": "../scorecard.schema.json",
   "widgetType": "schedule",
-  "rubricVersion": "1.0.0",
-  "gradedAt": "2026-10-06T03:13:32.259Z",
+  "rubricVersion": "1.1.0",
+  "gradedAt": "2026-10-21T14:38:16.663Z",
   "stale": false,
   "criteria": {
     "I5": {
@@ -64,15 +64,15 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/norming-1/screenshots/schedule/widest-aspect__typical.png",
-          "scripts/widget-grader/out/norming-1/screenshots/schedule/widest-aspect__stress.png",
-          "scripts/widget-grader/out/norming-1/screenshots/schedule/tallest-aspect__typical.png",
-          "scripts/widget-grader/out/norming-1/screenshots/schedule/tallest-aspect__stress.png"
+          "scripts/widget-grader/out/grade-s3-schedule-1021/screenshots/schedule/widest-aspect__typical.png",
+          "scripts/widget-grader/out/grade-s3-schedule-1021/screenshots/schedule/widest-aspect__stress.png",
+          "scripts/widget-grader/out/grade-s3-schedule-1021/screenshots/schedule/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/grade-s3-schedule-1021/screenshots/schedule/tallest-aspect__stress.png"
         ],
-        "runId": "norming-1"
+        "runId": "grade-s3-schedule-1021"
       },
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:34:59.938Z",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-21T14:37:42.576Z",
       "stale": false
     },
     "S4": {
@@ -640,30 +640,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "grade-s3-schedule-1021"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-21T14:38:16.663Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "grade-s3-schedule-1021"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-21T14:38:16.663Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "grade-s3-schedule-1021"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-21T14:38:16.663Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "grade-s3-schedule-1021"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-21T14:38:16.663Z"
     }
   }
 }
