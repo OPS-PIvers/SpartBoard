@@ -498,7 +498,7 @@ describe('buildResultsPrintHtml — students and pages', () => {
     const html = buildResultsPrintHtml(
       job([
         student({ key: 'k1', attempt: 2 }),
-        student({ key: 'k1#1', attempt: 1 }),
+        student({ key: 'k1#1', baseKey: 'k1', attempt: 1 }),
         student({ key: 'k2', period: 'Period 2', sortName: 'B' }),
       ]),
       opts()

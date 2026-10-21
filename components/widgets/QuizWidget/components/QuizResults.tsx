@@ -127,6 +127,7 @@ import {
 import { quizLiveRaw } from '@/utils/gradebook/liveRawScores';
 import {
   attemptAsResponse,
+  hasEarlierAttempts,
   loadEveryAttempt,
   QuizAttemptSourceContext,
   useQuizResponseAttempts,
@@ -1202,9 +1203,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   > | null>(null);
   const loadPrintAttempts = useEffectEvent(() => {
     if (!printSessionId) return () => undefined;
-    const retakers = filteredResponses.filter(
-      (r) => (r.completedAttempts ?? 0) >= 2
-    );
+    const retakers = filteredResponses.filter(hasEarlierAttempts);
     if (retakers.length === 0) return () => undefined;
     let live = true;
     loadEveryAttempt(
@@ -1493,7 +1492,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       exportsToSharedSheet ||
       !session?.id ||
       !attemptHistoryOn ||
-      !responses.some((r) => (r.completedAttempts ?? 0) >= 2)
+      !responses.some(hasEarlierAttempts)
     )
       return undefined;
     const every = await loadEveryAttempt(
@@ -1505,7 +1504,10 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     return {
       countFor: (r: QuizResponse) =>
         String(r.completedAttempts ?? (r.status === 'completed' ? 1 : 0)),
-      everyAttempt: [...every.values()].flat(),
+      // Finished attempts only; a retake in progress stays on the Results tab.
+      everyAttempt: [...every.values()]
+        .flat()
+        .filter((r) => r.status === 'completed'),
     };
   };
 
@@ -2839,7 +2841,10 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           earlierAttempts={
             attemptHistoryOn ? (printAttempts ?? undefined) : undefined
           }
-          onClose={() => setPrintSelection(undefined)}
+          onClose={() => {
+            setPrintSelection(undefined);
+            setPrintAttempts(null);
+          }}
           onError={(message) => addToast(message, 'error')}
         />
       )}

@@ -27,6 +27,12 @@ export function attemptAsResponse(
   };
 }
 
+/** True when a response has a finished attempt before its current one (a retake in progress counts). */
+export function hasEarlierAttempts(r: QuizResponse): boolean {
+  const done = r.completedAttempts ?? (r.status === 'completed' ? 1 : 0);
+  return r.status === 'completed' ? done >= 2 : done >= 1;
+}
+
 /** Every finished attempt of each response, oldest first, the latest being the live doc; for exports and print. */
 export async function loadEveryAttempt(
   sessionId: string,
@@ -46,7 +52,7 @@ export async function loadEveryAttempt(
         completedAttempts:
           live.status === 'completed' ? Math.max(done, 1) : done + 1,
       };
-      if ((live.completedAttempts ?? 0) < 2) {
+      if (!hasEarlierAttempts(live)) {
         out.set(key, [latest]);
         return;
       }

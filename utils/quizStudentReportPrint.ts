@@ -188,6 +188,8 @@ export interface ResultsPrintStudent {
   paperWritten?: Readonly<Record<string, PaperWrittenPrint>>;
   /** Which attempt this copy shows, when every attempt is printed. */
   attempt?: number;
+  /** An earlier attempt's copy: the student's own key, for sorting and counting. */
+  baseKey?: string;
 }
 
 /** One handwritten paper answer as the print sees it. */
@@ -215,6 +217,7 @@ const byKey = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 export function sortResultsPrintStudents<
   T extends Pick<ResultsPrintStudent, 'period' | 'sortName' | 'key'> & {
     attempt?: number;
+    baseKey?: string;
   },
 >(students: readonly T[], periodOrder: readonly string[]): T[] {
   const rank = (period: string | null) => {
@@ -229,7 +232,7 @@ export function sortResultsPrintStudents<
       a.sortName.localeCompare(b.sortName, undefined, {
         sensitivity: 'base',
       }) ||
-      byKey(a.key.split('#')[0], b.key.split('#')[0]) ||
+      byKey(a.baseKey ?? a.key, b.baseKey ?? b.key) ||
       (a.attempt ?? 0) - (b.attempt ?? 0) ||
       byKey(a.key, b.key)
   );
@@ -701,7 +704,7 @@ export function buildResultsPrintHtml(
   const seen = new Set<string>();
   const counts = new Map<string | null, number>();
   for (const s of students) {
-    const base = s.key.split('#')[0];
+    const base = s.baseKey ?? s.key;
     if (seen.has(base)) continue;
     seen.add(base);
     counts.set(s.period, (counts.get(s.period) ?? 0) + 1);

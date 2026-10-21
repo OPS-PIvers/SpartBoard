@@ -349,7 +349,10 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
               student: {
                 ...row.student,
                 key: `${row.student.key}#${r.completedAttempts ?? 0}`,
+                baseKey: row.student.key,
                 status: r.status,
+                targets: [],
+                lettered: false,
                 attempt: r.completedAttempts ?? undefined,
                 drilldown: computeStudentDrilldown(quiz.questions, r, gradeFn, {
                   rubricFor: (q) => rubricFor(r, q),
@@ -359,8 +362,11 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
             })
           );
           if (earlier.length === 0) return [row];
+          const done = row.response.completedAttempts ?? 0;
           const latestN =
-            (row.response.completedAttempts ?? 0) || earlier.length + 1;
+            row.response.status === 'completed'
+              ? Math.max(done, earlier.length + 1)
+              : done + 1;
           return [
             ...earlier,
             { ...row, student: { ...row.student, attempt: latestN } },
