@@ -633,6 +633,10 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'checklist.open-settings': {
+    label: 'Add tasks button on an empty Checklist',
+    perWidget: true,
+  },
   'checklist.remove-completed': {
     label: 'Remove completed items button in Checklist',
     perWidget: true,
