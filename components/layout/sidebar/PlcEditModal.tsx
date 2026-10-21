@@ -42,7 +42,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
   onCreate,
 }) => {
   const { t } = useTranslation();
-  const { user, canAccessFeature, orgId } = useAuth();
+  const { user, orgId } = useAuth();
   const { showConfirm, showAlert } = useDialog();
   const { renamePlc, removeMember } = usePlcs();
   const { sentInvites, sendInvite, revokeInvite } = usePlcInvitations();
@@ -69,8 +69,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
       )
     : [];
 
-  const suggestOrgId =
-    plc && canAccessFeature('team-email-suggest') ? (plc.orgId ?? orgId) : null;
+  const suggestOrgId = plc ? (plc.orgId ?? orgId) : null;
   const suggestExclude = new Set([
     ...memberList.map((m) => m.email).filter(Boolean),
     ...outstanding.map((inv) => inv.inviteeEmailLower),

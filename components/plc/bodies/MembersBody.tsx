@@ -79,10 +79,8 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
   compact = false,
 }) => {
   const { t } = useTranslation();
-  const { user, canAccessFeature, orgId } = useAuth();
-  const suggestOrgId = canAccessFeature('team-email-suggest')
-    ? (plc.orgId ?? orgId)
-    : null;
+  const { user, orgId } = useAuth();
+  const suggestOrgId = plc.orgId ?? orgId;
   const { showConfirm } = useDialog();
   const { removeMember, setMemberRole, transferLead, leavePlc } = usePlcs({
     enabled: !compact,
