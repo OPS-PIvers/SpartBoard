@@ -1,8 +1,8 @@
 {
   "$schema": "../scorecard.schema.json",
   "widgetType": "schedule",
-  "rubricVersion": "1.0.0",
-  "gradedAt": "2026-10-06T03:13:32.259Z",
+  "rubricVersion": "1.1.0",
+  "gradedAt": "2026-10-21T14:22:47.236Z",
   "stale": false,
   "criteria": {
     "I5": {
@@ -640,30 +640,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "grade-s3-schedule-1021"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-21T14:22:47.236Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "grade-s3-schedule-1021"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-21T14:22:47.236Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "grade-s3-schedule-1021"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-21T14:22:47.236Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "grade-s3-schedule-1021"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-21T14:22:47.236Z"
     }
   }
 }
