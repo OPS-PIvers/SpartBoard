@@ -3,6 +3,7 @@ import { Student, ClassRoster } from '@/types';
 import { Save, AlertTriangle } from 'lucide-react';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import { useRosterEditorState } from '@/components/classes/useRosterEditorState';
 
 interface EditorProps {
@@ -51,6 +52,7 @@ export const RosterEditor: React.FC<EditorProps> = ({
       header={
         <div className="flex justify-between items-center p-3">
           <button
+            {...tourTypeAttr('classes-widget.editor-back', 'classes')}
             onClick={onBack}
             className="text-xs text-slate-500 hover:text-blue-600 uppercase tracking-wider font-bold"
           >
@@ -58,12 +60,14 @@ export const RosterEditor: React.FC<EditorProps> = ({
           </button>
           <div className="flex gap-2 items-center flex-1 ml-4 justify-end">
             <input
+              {...tourTypeAttr('classes-widget.editor-name', 'classes')}
               className="border-b-2 border-slate-200 focus:border-blue-500 bg-transparent px-1 py-0.5 outline-none text-slate-800 placeholder-slate-400 min-w-0 text-sm font-bold"
               placeholder="Class Name"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
             <button
+              {...tourTypeAttr('classes-widget.editor-save', 'classes')}
               onClick={handleSave}
               className="bg-green-600 text-white px-3 py-1.5 rounded-lg flex gap-1 items-center text-xs font-bold hover:bg-green-700 shadow-sm transition-colors"
             >
@@ -99,6 +103,10 @@ export const RosterEditor: React.FC<EditorProps> = ({
                 <div className="flex gap-2">
                   {!showLastNames && (
                     <button
+                      {...tourTypeAttr(
+                        'classes-widget.editor-add-last-name',
+                        'classes'
+                      )}
                       onClick={handleToggleToLastNames}
                       className="text-xxs text-blue-600 hover:text-blue-700 font-black uppercase tracking-wider"
                     >
@@ -107,6 +115,10 @@ export const RosterEditor: React.FC<EditorProps> = ({
                   )}
                   {!showPins && (
                     <button
+                      {...tourTypeAttr(
+                        'classes-widget.editor-add-pin',
+                        'classes'
+                      )}
                       onClick={() => setShowPins(true)}
                       className="text-xxs text-violet-600 hover:text-violet-700 font-black uppercase tracking-wider"
                     >
@@ -115,6 +127,7 @@ export const RosterEditor: React.FC<EditorProps> = ({
                   )}
                 </div>
               </div>
+              {/* no-tour-anchor: holds student names and PINs */}
               <textarea
                 className="flex-1 border border-slate-200 focus:border-blue-400 p-3 rounded-xl resize-none text-xs font-mono focus:ring-2 focus:ring-blue-100 outline-none transition-all custom-scrollbar bg-slate-50/30 min-h-0"
                 value={firsts}
@@ -133,12 +146,17 @@ export const RosterEditor: React.FC<EditorProps> = ({
                     Last Names
                   </SettingsLabel>
                   <button
+                    {...tourTypeAttr(
+                      'classes-widget.editor-remove-last-name',
+                      'classes'
+                    )}
                     onClick={handleToggleToSingleField}
                     className="text-xxs text-slate-400 hover:text-red-500 font-black uppercase tracking-wider transition-colors"
                   >
                     Remove
                   </button>
                 </div>
+                {/* no-tour-anchor: holds student names and PINs */}
                 <textarea
                   className="flex-1 border border-slate-200 focus:border-blue-400 p-3 rounded-xl resize-none text-xs font-mono focus:ring-2 focus:ring-blue-100 outline-none transition-all custom-scrollbar bg-slate-50/30 min-h-0"
                   value={lasts}
@@ -154,12 +172,17 @@ export const RosterEditor: React.FC<EditorProps> = ({
                     Quiz PIN
                   </SettingsLabel>
                   <button
+                    {...tourTypeAttr(
+                      'classes-widget.editor-hide-pin',
+                      'classes'
+                    )}
                     onClick={() => setShowPins(false)}
                     className="text-xxs text-slate-400 hover:text-red-500 font-black uppercase tracking-wider transition-colors"
                   >
                     Hide
                   </button>
                 </div>
+                {/* no-tour-anchor: holds student names and PINs */}
                 <textarea
                   className="flex-1 border border-slate-200 focus:border-violet-400 p-3 rounded-xl resize-none text-xs font-mono focus:ring-2 focus:ring-violet-100 outline-none transition-all custom-scrollbar bg-slate-50/30 min-h-0"
                   value={pins}

@@ -3,12 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-10-16_
+_Last audited: 2026-10-21_
 _Last action: 2026-05-01_
 
 ---
 
 ## Audit Log
+
+_2026-10-21: Wednesday weekly audit (E1), light pass. `Object.assign({}` in `DashboardContext.tsx`: 0. `as WidgetConfig` (non-test): 6; `as unknown as` (non-test): 193. Top hooks by `useState`/`useRef` count: `useQuizSession` 27, `useVideoActivitySession` 24, `useMeetingRecorder` 24, `useWhiteboardRecording` 23, `useAudioRecording` 23. Nested-ternary and passthrough-prop scans not re-run. 0 new issues._
 
 _2026-10-16: Friday weekly audit (E1), light pass. `Object.assign({}` in `DashboardContext.tsx`: 0. `as WidgetConfig` (non-test): 6 sites; `as unknown as` (non-test): 210 sites. Hooks with >5 `useState`/`useRef` calls: 36 (top: `useVideoActivitySession` 24, `useMeetingRecorder` 24, `useWhiteboardRecording` 23, `useQuizSession` 23, `useAudioRecording` 23). Nested-ternary and passthrough-prop scans not re-run. 0 new issues; `useWhiteboardRecording` (23) is not yet tracked individually and sits under the existing hook-density LOW family._
 

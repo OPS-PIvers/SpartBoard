@@ -53019,6 +53019,140 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "classes-widget.editor-back",
+    "label": "Back button in the Classes roster editor",
+    "scope": "widget type",
+    "keys": [
+      "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes-widget.editor-name",
+    "label": "Class name box in the Classes roster editor",
+    "scope": "widget type",
+    "keys": [
+      "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes-widget.editor-save",
+    "label": "Save button in the Classes roster editor",
+    "scope": "widget type",
+    "keys": [
+      "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes-widget.editor-add-last-name",
+    "label": "Add Last Name column button in the Classes roster editor",
+    "scope": "widget type",
+    "keys": [
+      "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes-widget.editor-add-pin",
+    "label": "Add Quiz PIN column button in the Classes roster editor",
+    "scope": "widget type",
+    "keys": [
+      "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes-widget.editor-remove-last-name",
+    "label": "Remove Last Name column button in the Classes roster editor",
+    "scope": "widget type",
+    "destructive": true,
+    "keys": [
+      "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes-widget.editor-hide-pin",
+    "label": "Hide Quiz PIN column button in the Classes roster editor",
+    "scope": "widget type",
+    "keys": [
+      "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "url.open-link",
     "label": "Link button in Links",
     "scope": "field",
