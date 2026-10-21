@@ -665,17 +665,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // PLC Home v2 tile dashboard. Admin-only until Paul has run a PLC on it in prod.
-  'plc-home-v2': {
-    label: 'PLC Home dashboard',
-    icon: LayoutDashboard,
-    description: 'Tile-based PLC Home.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // PLC norming flags: anonymized answer copies on the PLC page. Admin-only until Paul has tried it.
   'plc-norming-flags': {
     label: 'PLC norming flags',
