@@ -232,7 +232,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
   const rowStyle =
     lines && !isActive
       ? {
-          flex: '0 0 auto',
+          flex: '1 0 auto',
           minHeight: scheduleSize(18, 72),
           backgroundColor: 'transparent',
           borderTop:
@@ -241,7 +241,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
               : `1px solid color-mix(in srgb, ${fontColor} 14%, transparent)`,
         }
       : {
-          flex: '0 0 auto',
+          flex: '1 0 auto',
           minHeight: scheduleSize(18, 72),
           backgroundColor: bgColor,
           // Active rows get a thicker accent border; width set inline so it can use
@@ -320,7 +320,10 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
             }}
           />
         )}
-        <div className="flex flex-col items-start justify-center min-w-0 flex-1 min-h-0">
+        <div
+          className="flex flex-row flex-wrap items-baseline content-center justify-start min-w-0 flex-1 min-h-0"
+          style={{ columnGap: scheduleSize(3, 16) }}
+        >
           {showCountdown ? (
             <CountdownDisplay
               remainingSeconds={countdownRemaining}
@@ -329,7 +332,7 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
             />
           ) : (
             <span
-              className={`font-black leading-none whitespace-nowrap ${item.done ? 'text-slate-400' : 'text-indigo-400'}`}
+              className={`font-black leading-none whitespace-nowrap shrink-0 ${item.done ? 'text-slate-400' : 'text-indigo-400'}`}
               style={{
                 fontSize: scheduleSize(6 * textScale, 24 * textScale),
                 color: !item.done ? fontColor : undefined,
@@ -339,13 +342,14 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
             </span>
           )}
           <span
-            className={`font-black leading-tight w-full text-left ${
+            className={`font-black leading-tight text-left min-w-0 ${
               isExpanded
                 ? 'break-words overflow-y-auto no-scrollbar'
                 : 'truncate'
             } ${item.done ? 'text-slate-400 line-through' : 'text-slate-700'}`}
             style={{
               fontSize: scheduleSize(10 * textScale, 36 * textScale),
+              flex: '1 1 8em',
               color: !item.done ? fontColor : undefined,
               // Cap the expanded row so a pathologically long title scrolls
               // inside the row rather than pushing every other event off-screen.
