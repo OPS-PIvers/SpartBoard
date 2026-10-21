@@ -135,6 +135,7 @@ export interface LibraryIconAction {
   tone?: 'primary' | 'secondary';
   disabled?: boolean;
   disabledReason?: string;
+  anchor?: TourAnchorAttrs;
 }
 
 /** A badge chip shown on library cards. */

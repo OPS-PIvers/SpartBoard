@@ -13695,6 +13695,10 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'mini-app.card-run': {
+    label: 'Run app button on a Mini App card (row icon or card menu item)',
+    perWidgetType: true,
+  },
   'mini-app.card-save-library': {
     label: 'Save to my library item in a Mini App card menu',
     perWidgetType: true,

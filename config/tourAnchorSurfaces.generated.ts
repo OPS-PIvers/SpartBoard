@@ -3302,6 +3302,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'mini-app.ai-close': ['library.mini-app.editor'],
     'mini-app.ai-generate': ['library.mini-app.editor'],
     'mini-app.ai-attach-drive': ['library.mini-app.editor'],
+    'mini-app.card-run': ['library.mini-app'],
     'mini-app.card-save-library': ['library.mini-app'],
     'video-activity.editor-folder': ['library.video-activity.editor'],
     'video-activity.editor-ai-close': ['library.video-activity.editor'],

@@ -755,6 +755,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             label: 'Run app',
             icon: Play,
             onClick: () => onRun(app),
+            anchor: tourTypeAttr('mini-app.card-run', 'miniApp'),
           },
           {
             id: 'assignments',
@@ -841,6 +842,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
                   icon: Play,
                   tone: 'primary',
                   onClick: () => onRun(app),
+                  anchor: tourTypeAttr('mini-app.card-run', 'miniApp'),
                 },
                 ...(readOnly
                   ? []
@@ -894,6 +896,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             label: 'Run app',
             icon: Play,
             onClick: () => onRun(app),
+            anchor: tourTypeAttr('mini-app.card-run', 'miniApp'),
           },
           {
             id: 'assignments',
@@ -979,6 +982,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
                   icon: Play,
                   tone: 'primary',
                   onClick: () => onRun(app),
+                  anchor: tourTypeAttr('mini-app.card-run', 'miniApp'),
                 },
                 ...(readOnly
                   ? []

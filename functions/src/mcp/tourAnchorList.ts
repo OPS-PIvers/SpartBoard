@@ -42778,8 +42778,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-student-link:miniApp"
         ],
         "reveal": "mini-app.toolbar-student-link:miniApp",
@@ -42803,8 +42802,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-student-link:miniApp"
         ],
         "reveal": "mini-app.toolbar-student-link:miniApp",
@@ -42853,8 +42851,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-student-link:miniApp"
         ],
         "reveal": "mini-app.toolbar-student-link:miniApp",
@@ -42877,8 +42874,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1"
+          "mini-app.card-run:miniApp"
         ],
         "needs": [
           "library-item",
@@ -42899,8 +42895,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1"
+          "mini-app.card-run:miniApp"
         ],
         "needs": [
           "library-item",
@@ -42922,8 +42917,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1"
+          "mini-app.card-run:miniApp"
         ],
         "needs": [
           "library-item",
@@ -42946,8 +42940,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1"
+          "mini-app.card-run:miniApp"
         ],
         "needs": [
           "library-item",
@@ -42969,8 +42962,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1"
+          "mini-app.card-run:miniApp"
         ],
         "needs": [
           "library-item",
@@ -42991,8 +42983,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1"
+          "mini-app.card-run:miniApp"
         ],
         "needs": [
           "library-item",
@@ -43014,8 +43005,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-save:miniApp"
         ],
         "reveal": "mini-app.toolbar-save:miniApp",
@@ -43039,8 +43029,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-save:miniApp"
         ],
         "reveal": "mini-app.toolbar-save:miniApp",
@@ -43066,8 +43055,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-save:miniApp"
         ],
         "reveal": "mini-app.toolbar-save:miniApp",
@@ -43261,8 +43249,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp"
         ],
         "needs": [
@@ -43282,8 +43269,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp",
           "mini-app.session-rename:miniApp"
         ],
@@ -43306,8 +43292,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp",
           "mini-app.session-rename:miniApp"
         ],
@@ -43329,8 +43314,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp"
         ],
         "needs": [
@@ -43350,8 +43334,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp"
         ],
         "needs": [
@@ -43371,8 +43354,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp"
         ],
         "needs": [
@@ -43392,8 +43374,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp"
         ],
         "needs": [
@@ -43415,8 +43396,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp",
           "mini-app.session-end:miniApp"
         ],
@@ -43440,8 +43420,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp"
         ],
         "needs": [
@@ -43464,8 +43443,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.submissions",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp",
           "mini-app.session-submissions:miniApp"
         ],
@@ -43487,8 +43465,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.submissions",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp",
           "mini-app.session-submissions:miniApp"
         ],
@@ -43513,8 +43490,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.save-as-widget",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-save-as-widget:miniApp"
         ],
         "needs": [
@@ -43537,8 +43513,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.save-as-widget",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-save-as-widget:miniApp"
         ],
         "needs": [
@@ -43558,8 +43533,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.save-as-widget",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-save-as-widget:miniApp"
         ],
         "needs": [
@@ -43579,8 +43553,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.save-as-widget",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-save-as-widget:miniApp"
         ],
         "needs": [
@@ -43603,8 +43576,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.save-as-widget",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-save-as-widget:miniApp"
         ],
         "needs": [
@@ -43628,8 +43600,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.save-as-widget",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-save-as-widget:miniApp"
         ],
         "needs": [
@@ -61677,6 +61648,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "mini-app.draft-with-ai:miniApp"
         ],
         "reveal": "mini-app.draft-with-ai:miniApp",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mini-app.card-run",
+    "label": "Run app button on a Mini App card (row icon or card menu item)",
+    "scope": "widget type",
+    "keys": [
+      "miniApp"
+    ],
+    "routes": [
+      {
+        "surface": "library.mini-app",
+        "kind": "widget",
+        "widget_type": "miniApp",
+        "path": [],
         "needs": [
           "widget-on-stage"
         ]
