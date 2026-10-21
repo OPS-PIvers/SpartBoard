@@ -92,8 +92,6 @@ const MIC_CHECK_WORD: Record<SpeakLanguage, string> = {
   en: 'hello',
 };
 const HEARD_LEVEL = 0.15;
-// A held Enter that repeats onto the Stop button must not end the take Continue just opened.
-const AUTO_STOP_GUARD_MS = 500;
 
 export interface SpeakModeProps {
   cards: FlashcardCard[];
@@ -524,7 +522,8 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
   const [autoTake, setAutoTake] = useState(false);
   const runRef = useRef(0);
   const discardRef = useRef(false);
-  const autoStartedAtRef = useRef(0);
+  // A held Enter that repeats onto Stop must not end the take Continue just opened.
+  const stopArmedRef = useRef(true);
   const takeUrlRef = useRef<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const stopHearRef = useRef<(() => void) | null>(null);
@@ -623,6 +622,9 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
       return;
     }
     setMicWorked(true);
+    // The browser may only now remember the answer the student gave its prompt.
+    if (permission !== 'granted')
+      void micPermission().then((value) => setPermission(value));
     const run = runRef.current;
     replaceTake(take);
     setPhase({ kind: 'checking' });
@@ -697,6 +699,7 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
       setPhase({ kind: 'permission' });
       return;
     }
+    discardRef.current = false;
     setAutoTake(false);
     setPhase({ kind: 'armed' });
     void capture.start();
@@ -704,14 +707,11 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
 
   const toggleRecording = () => {
     if (capture.phase !== 'recording') startTake();
-    else if (
-      !autoTake ||
-      performance.now() - autoStartedAtRef.current >= AUTO_STOP_GUARD_MS
-    )
-      capture.stop();
+    else if (!autoTake || stopArmedRef.current) capture.stop();
   };
 
   const allowMic = () => {
+    discardRef.current = false;
     setAsked(true);
     setPhase({ kind: 'armed' });
     void capture.start();
@@ -735,7 +735,9 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
 
   const playExample = () => {
     if (!canHear || !hearDialect) return;
-    if (autoTake && recording) {
+    // No recorder exists yet to cancel, so the example would be recorded once it opens.
+    if (capture.phase === 'requesting-permission') return;
+    if (autoTake && capture.phase === 'recording') {
       // Echo cancellation is off, so the example would land in the take; drop the take instead.
       discardRef.current = true;
       capture.stop();
@@ -757,9 +759,10 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
       setIndex((current) => current + 1);
       focusSoon(micButtonRef);
       // Continue is the tap the browser needs, so the next card listens without another click.
-      if (micWorked && !blockReason && !paused) {
+      // Only a remembered permission, so a browser that asks every time isn't prompting per card.
+      if (micWorked && permission === 'granted' && !blockReason && !paused) {
         discardRef.current = false;
-        autoStartedAtRef.current = performance.now();
+        stopArmedRef.current = false;
         setAutoTake(true);
         void capture.start();
       }
@@ -785,7 +788,11 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
     } else if (key === 'r' && !recordingNow && takeUrlRef.current) {
       event.preventDefault();
       playTake();
-    } else if (key === 'h' && (!recordingNow || autoTake) && canHear) {
+    } else if (
+      key === 'h' &&
+      (!recording || (autoTake && recordingNow)) &&
+      canHear
+    ) {
       event.preventDefault();
       playExample();
     }
@@ -793,8 +800,17 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
 
   useEffect(() => {
     const listener = (event: KeyboardEvent) => onKey(event);
+    const armStop = () => {
+      stopArmedRef.current = true;
+    };
     window.addEventListener('keydown', listener);
-    return () => window.removeEventListener('keydown', listener);
+    window.addEventListener('keyup', armStop);
+    window.addEventListener('pointerdown', armStop, true);
+    return () => {
+      window.removeEventListener('keydown', listener);
+      window.removeEventListener('keyup', armStop);
+      window.removeEventListener('pointerdown', armStop, true);
+    };
   }, []);
 
   if (summary) {
@@ -1183,9 +1199,10 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
               onClick={toggleRecording}
               aria-keyshortcuts="Space"
               title={t('flashcards.speak.player.keys')}
-              disabled={capture.phase === 'requesting-permission'}
+              // aria-disabled keeps focus here while the mic opens; startTake ignores the press.
+              aria-disabled={capture.phase === 'requesting-permission'}
               className={cx(
-                'inline-flex items-center rounded-full font-black text-white shadow-lg transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300 disabled:opacity-60',
+                'inline-flex items-center rounded-full font-black text-white shadow-lg transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-300 aria-disabled:opacity-60',
                 capture.phase === 'recording'
                   ? 'bg-slate-900 hover:bg-slate-800'
                   : 'bg-rose-600 shadow-rose-600/20 hover:bg-rose-700'
@@ -1232,7 +1249,7 @@ const SpeakPractice: React.FC<SpeakModeProps> = ({
                 {autoTake && hearButton}
               </>
             )}
-            {(hearButton || playButton) && capture.phase !== 'recording' && (
+            {(hearButton || playButton) && !recording && (
               <div
                 className="flex flex-wrap items-center justify-center"
                 style={{ gap: 'min(9px, 2cqmin)' }}

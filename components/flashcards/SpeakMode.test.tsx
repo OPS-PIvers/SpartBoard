@@ -1,5 +1,11 @@
 import React from 'react';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
@@ -601,20 +607,39 @@ describe('Speak mode', () => {
       expect(fake.heard).toBe(heard);
     });
 
-    it('ignores a Stop that lands right as the card starts listening', async () => {
+    it('ignores a Stop that lands before the key that pressed Continue is let go', async () => {
       const user = userEvent.setup();
       fake.queue({ tokens: ['p', 'e', 'r', 'o'] }, { tokens: ['o', 'l', 'a'] });
       renderPlayer();
       await speakFirstCard(user);
-      const now = vi.spyOn(performance, 'now').mockReturnValue(1000);
-      await user.click(screen.getByRole('button', { name: 'Continue' }));
-      await user.click(screen.getByRole('button', { name: 'Stop' }));
+      act(() => (document.activeElement as HTMLElement | null)?.blur());
+      fireEvent.keyDown(window, { key: 'Enter' });
+      const stop = await screen.findByRole('button', { name: 'Stop' });
+      fireEvent.click(stop);
       expect(screen.getByText('Listening…')).toBeTruthy();
 
-      now.mockReturnValue(2000);
-      await user.click(screen.getByRole('button', { name: 'Stop' }));
+      fireEvent.keyUp(window, { key: 'Enter' });
+      fireEvent.click(stop);
       expect(await screen.findByText('Exact')).toBeTruthy();
-      now.mockRestore();
+    });
+
+    it('waits for the browser to remember the mic before listening on its own', async () => {
+      const user = userEvent.setup();
+      mic.permission = 'prompt';
+      fake.queue({ tokens: ['p', 'e', 'r', 'o'] });
+      renderPlayer();
+      capture.hold = true;
+      await user.click(await openSpeak(user));
+      await user.click(
+        screen.getByRole('button', { name: 'Turn on microphone' })
+      );
+      act(() => speechEnd.onEnd?.('ended'));
+      expect(await screen.findByText('Exact')).toBeTruthy();
+      await user.click(screen.getByRole('button', { name: 'Continue' }));
+      expect(capture.starts).toBe(1);
+      expect(
+        screen.getByRole('button', { name: 'Start speaking' })
+      ).toBeTruthy();
     });
 
     it('does not listen on its own after the last card', async () => {
