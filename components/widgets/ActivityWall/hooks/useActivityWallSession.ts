@@ -102,13 +102,17 @@ export const clearWallSubmissions = async (
 export const useActivityWallSession = (
   uid: string | undefined,
   entry: ActivityWallLibraryEntry | null,
-  saveActivity: (entry: ActivityWallLibraryEntry) => Promise<void>
+  saveActivity: (entry: ActivityWallLibraryEntry) => Promise<void>,
+  timelineDates = false
 ): UseActivityWallSessionResult => {
   const sessionId = uid && entry ? activityWallSessionId(uid, entry.id) : null;
 
   const session = useMemo<ActivityWallSession | null>(
-    () => (uid && entry ? mirrorSessionFromEntry(entry, uid) : null),
-    [entry, uid]
+    () =>
+      uid && entry
+        ? mirrorSessionFromEntry(entry, uid, { timelineDates })
+        : null,
+    [entry, uid, timelineDates]
   );
 
   const [state, setState] = useState<{

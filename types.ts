@@ -2618,6 +2618,8 @@ export interface ActivityWallSession extends SessionWorkKindFields {
   allowLikes?: boolean;
   allowComments?: boolean;
   allowCommentResponses?: boolean;
+  /** Timeline layout only: posts carry a validated date and sit on a dated axis. */
+  timelineDates?: boolean;
 }
 
 /**
@@ -10197,6 +10199,8 @@ export type GlobalFeature =
   | 'quiz-submit-for-student'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
   | 'lunch-count-redesign'
+  /** Activity Wall timeline on a dated axis, with a year/date picker on posts. */
+  | 'activity-wall-timeline-dates'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak';
 

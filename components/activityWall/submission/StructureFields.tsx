@@ -1,5 +1,10 @@
 import React from 'react';
 import type { ActivityWallSection, ActivityWallSession } from '@/types';
+import {
+  MONTH_NAMES,
+  daysInMonth,
+  type WallDateFields,
+} from '@/components/activityWall/render/timelineDates';
 
 const selectClass =
   'w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary';
@@ -10,12 +15,16 @@ export interface StructureValue {
   rowId: string;
   colId: string;
   label: string;
+  /** Dated timelines only: the year/era/month/day pickers. */
+  date: WallDateFields;
 }
 
 interface StructureFieldsProps {
   session: ActivityWallSession;
   value: StructureValue;
   onChange: (patch: Partial<StructureValue>) => void;
+  /** Shown under the date pickers once the student has typed a year. */
+  dateError?: string;
 }
 
 const options = (items: ActivityWallSection[] | undefined) => items ?? [];
@@ -25,6 +34,7 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
   session,
   value,
   onChange,
+  dateError,
 }) => {
   if (session.layout === 'columns') {
     const sections = options(session.sections);
@@ -91,6 +101,110 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
           </select>
         </div>
       </div>
+    );
+  }
+
+  if (session.layout === 'timeline' && session.timelineDates) {
+    const { date } = value;
+    const setDate = (patch: Partial<WallDateFields>) =>
+      onChange({ date: { ...date, ...patch } });
+    const yearNumber = Number(date.year.replace(/,/g, '')) || 2000;
+    const dayCount = date.month
+      ? daysInMonth(
+          date.era === 'BCE' ? -yearNumber : yearNumber,
+          Number(date.month)
+        )
+      : 0;
+    return (
+      <fieldset>
+        <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)_minmax(0,1.4fr)_minmax(0,0.8fr)] gap-2">
+          <div>
+            <label className={labelClass} htmlFor="aw-year">
+              Year
+            </label>
+            <input
+              id="aw-year"
+              className={selectClass}
+              value={date.year}
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={7}
+              aria-invalid={Boolean(dateError)}
+              aria-describedby={dateError ? 'aw-date-error' : undefined}
+              onChange={(event) => setDate({ year: event.target.value })}
+            />
+          </div>
+          <div>
+            <label className={labelClass} htmlFor="aw-era">
+              Era
+            </label>
+            <select
+              id="aw-era"
+              className={selectClass}
+              value={date.era}
+              onChange={(event) =>
+                setDate({ era: event.target.value === 'BCE' ? 'BCE' : 'CE' })
+              }
+            >
+              <option value="CE">CE</option>
+              <option value="BCE">BCE</option>
+            </select>
+          </div>
+          <div>
+            <label className={labelClass} htmlFor="aw-month">
+              Month
+            </label>
+            <select
+              id="aw-month"
+              className={selectClass}
+              value={date.month}
+              onChange={(event) =>
+                setDate({
+                  month: event.target.value,
+                  day: event.target.value ? date.day : '',
+                })
+              }
+            >
+              <option value="">Any</option>
+              {MONTH_NAMES.map((name, index) => (
+                <option key={name} value={String(index + 1)}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass} htmlFor="aw-day">
+              Day
+            </label>
+            <select
+              id="aw-day"
+              className={selectClass}
+              value={date.day}
+              disabled={!date.month}
+              onChange={(event) => setDate({ day: event.target.value })}
+            >
+              <option value="">Any</option>
+              {Array.from(
+                { length: Math.max(dayCount, Number(date.day) || 0) },
+                (_, i) => (
+                  <option key={i + 1} value={String(i + 1)}>
+                    {i + 1}
+                  </option>
+                )
+              )}
+            </select>
+          </div>
+        </div>
+        {dateError && (
+          <p
+            id="aw-date-error"
+            className="mt-1 text-sm font-medium text-red-700"
+          >
+            {dateError}
+          </p>
+        )}
+      </fieldset>
     );
   }
 
