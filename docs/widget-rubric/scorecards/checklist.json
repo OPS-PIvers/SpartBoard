@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "checklist",
   "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-16T04:15:42.905Z",
+  "gradedAt": "2026-10-21T14:53:36.247Z",
   "stale": false,
   "criteria": {
     "S6": {
@@ -35,23 +35,23 @@
       "stale": false
     },
     "S1": {
-      "score": 0,
+      "score": 1,
       "source": "paul",
       "candidates": {
-        "script": 0,
-        "judge": 0,
-        "paul": 0
+        "script": null,
+        "judge": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/norming-1/screenshots/checklist/envelope-min__empty.png",
-          "scripts/widget-grader/out/norming-1/screenshots/checklist/envelope-min__typical.png",
-          "scripts/widget-grader/out/norming-1/screenshots/checklist/envelope-min__stress.png"
+          "scripts/widget-grader/out/grade-2026-10-21-s1/screenshots/checklist/envelope-min__empty.png",
+          "scripts/widget-grader/out/grade-2026-10-21-s1/screenshots/checklist/envelope-min__typical.png",
+          "scripts/widget-grader/out/grade-2026-10-21-s1/screenshots/checklist/envelope-min__stress.png"
         ],
-        "runId": "norming-1"
+        "runId": "grade-2026-10-21-s1"
       },
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:28:28.807Z",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-21T14:53:04.218Z",
       "stale": false
     },
     "S2": {
@@ -638,30 +638,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "loop-checklist-2026-10-16-after"
+        "runId": "grade-2026-10-21-s1"
       },
-      "gradedAt": "2026-10-16T04:15:42.905Z"
+      "gradedAt": "2026-10-21T14:53:36.247Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "loop-checklist-2026-10-16-after"
+        "runId": "grade-2026-10-21-s1"
       },
-      "gradedAt": "2026-10-16T04:15:42.905Z"
+      "gradedAt": "2026-10-21T14:53:36.247Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "loop-checklist-2026-10-16-after"
+        "runId": "grade-2026-10-21-s1"
       },
-      "gradedAt": "2026-10-16T04:15:42.905Z"
+      "gradedAt": "2026-10-21T14:53:36.247Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "loop-checklist-2026-10-16-after"
+        "runId": "grade-2026-10-21-s1"
       },
-      "gradedAt": "2026-10-16T04:15:42.905Z"
+      "gradedAt": "2026-10-21T14:53:36.247Z"
     }
   }
 }
