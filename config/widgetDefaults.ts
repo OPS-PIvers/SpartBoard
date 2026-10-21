@@ -63,8 +63,8 @@ export const WIDGET_STRETCH_BEHAVIOR: Partial<
 
 export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
   url: {
-    w: 220,
-    h: 180,
+    w: 240,
+    h: 260,
     config: {
       urls: [],
     } satisfies import('@/types').UrlWidgetConfig,
@@ -119,8 +119,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     },
   },
   checklist: {
-    w: 280,
-    h: 300,
+    w: 300,
+    h: 380,
     config: {
       items: [],
       mode: 'manual',
@@ -165,8 +165,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     },
   },
   drawing: {
-    w: 400,
-    h: 350,
+    w: 560,
+    h: 440,
     config: {
       paths: [],
       width: 4,
@@ -184,13 +184,13 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     } satisfies QRConfig,
   },
   embed: {
-    w: 480,
-    h: 350,
+    w: 640,
+    h: 480,
     config: { url: '', mode: 'url', html: '', refreshInterval: 0 },
   },
   poll: {
-    w: 300,
-    h: 250,
+    w: 320,
+    h: 320,
     config: {
       questions: [
         {
@@ -230,7 +230,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
   },
   scoreboard: {
     w: 320,
-    h: 200,
+    h: 260,
     config: {
       teams: [
         { id: 'team-a', name: 'Team A', score: 0, color: 'bg-blue-500' },
@@ -266,8 +266,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     },
   },
   schedule: {
-    w: 300,
-    h: 350,
+    w: 340,
+    h: 420,
     config: {
       items: [
         { time: '08:00', task: 'Morning Meeting' },
@@ -293,8 +293,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     },
   },
   lunchCount: {
-    w: 600,
-    h: 400,
+    w: 720,
+    h: 520,
     config: {
       schoolSite: 'schumann-elementary',
       isManualMode: false,
@@ -686,8 +686,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     },
   },
   'blooms-taxonomy': {
-    w: 450,
-    h: 550,
+    w: 520,
+    h: 500,
     config: {} satisfies BloomsTaxonomyConfig,
   },
   'blooms-detail': {
@@ -699,8 +699,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     } satisfies BloomsDetailConfig,
   },
   'need-do-put-then': {
-    w: 340,
-    h: 320,
+    w: 400,
+    h: 460,
     config: {
       needItems: DEFAULT_NEED_ITEMS,
       doItems: DEFAULT_DO_ITEMS,
@@ -714,8 +714,8 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     } satisfies NeedDoPutThenConfig,
   },
   stations: {
-    w: 600,
-    h: 420,
+    w: 720,
+    h: 520,
     config: {
       stations: [],
       assignments: {},
