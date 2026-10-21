@@ -172,7 +172,7 @@
       "widgetType": "lunchCount",
       "dimension": "layout",
       "openedAt": "2026-10-18T22:45:00Z",
-      "outcome": "open",
+      "outcome": "accepted",
       "changes": {
         "I5": {
           "before": null,
@@ -185,7 +185,7 @@
       "widgetType": "time-tool",
       "dimension": "layout",
       "openedAt": "2026-10-18T22:45:00Z",
-      "outcome": "open",
+      "outcome": "accepted",
       "changes": {}
     },
     {
@@ -193,7 +193,7 @@
       "widgetType": "embed",
       "dimension": "interaction",
       "openedAt": "2026-10-20T04:20:00Z",
-      "outcome": "open",
+      "outcome": "changed",
       "changes": {}
     },
     {
@@ -201,7 +201,7 @@
       "widgetType": "url",
       "dimension": "layout",
       "openedAt": "2026-10-20T04:30:00Z",
-      "outcome": "open",
+      "outcome": "accepted",
       "changes": {
         "S3": {
           "before": 2,
@@ -224,6 +224,14 @@
           "after": 3
         }
       }
+    },
+    {
+      "pr": null,
+      "widgetType": "checklist",
+      "dimension": "layout",
+      "openedAt": "2026-10-21T04:20:00Z",
+      "outcome": "open",
+      "changes": {}
     }
   ]
 }
