@@ -339,7 +339,8 @@ async function teacherHasAttemptHistory(
   if (typeof teacherUid !== 'string' || !teacherUid) return false;
   let email: string | null = null;
   try {
-    email = (await admin.auth().getUser(teacherUid)).email ?? null;
+    const user = await admin.auth().getUser(teacherUid);
+    email = user.emailVerified ? (user.email ?? null) : null;
   } catch {
     email = null;
   }
