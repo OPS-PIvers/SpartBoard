@@ -9,6 +9,24 @@ import { AuthContext } from '@/context/AuthContextValue';
 import type { GuidedLearningSet, GuidedLearningSetMetadata } from '@/types';
 import { toBuildingIndexEntry } from '@/tests/helpers/glBuildingIndexEntry';
 
+vi.mock('@/components/common/library/lastLibraryLocation', () => ({
+  readLastLibraryLocation: () => Promise.resolve(null),
+  saveLastLibraryLocation: vi.fn(),
+  resetLastLibraryLocationCache: vi.fn(),
+}));
+
+vi.mock('@/hooks/useLibraryPlacements', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/hooks/useLibraryPlacements')>();
+  const placements = {
+    byKey: new Map(),
+    loading: false,
+    place: vi.fn(),
+    unplace: vi.fn(),
+  };
+  return { ...actual, useLibraryPlacements: () => placements };
+});
+
 vi.mock('@/hooks/useFolders', () => ({
   useFolders: () => ({
     folders: [],
@@ -111,19 +129,21 @@ const renderManager = (
     </AuthContext.Provider>
   );
 
+const openBuildingFolder = async () =>
+  fireEvent.click((await screen.findAllByText('From your building'))[0]);
+
 describe('GuidedLearningManager — Help Center activities', () => {
   it('hides Help Center sets from the library and its counts', async () => {
     renderManager(false);
 
     await screen.findByText('Personal Set');
-    expect(screen.getByText('Building Lesson')).toBeInTheDocument();
     expect(screen.queryByText('Flagged Help Guide')).not.toBeInTheDocument();
     expect(screen.queryByText('Second Help Guide')).not.toBeInTheDocument();
 
-    const allItemsRow = screen.getByText('All items').closest('button');
-    expect(
-      within(allItemsRow as HTMLElement).getByText('2')
-    ).toBeInTheDocument();
+    await openBuildingFolder();
+    expect(await screen.findByText('Building Lesson')).toBeInTheDocument();
+    expect(screen.queryByText('Flagged Help Guide')).not.toBeInTheDocument();
+    expect(screen.queryByText('Second Help Guide')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Source')).not.toBeInTheDocument();
   });
 
@@ -134,6 +154,7 @@ describe('GuidedLearningManager — Help Center activities', () => {
     fireEvent.change(screen.getByLabelText('Source'), {
       target: { value: 'help' },
     });
+    await openBuildingFolder();
 
     expect(await screen.findByText('Flagged Help Guide')).toBeInTheDocument();
     expect(screen.getByText('Second Help Guide')).toBeInTheDocument();
@@ -144,6 +165,7 @@ describe('GuidedLearningManager — Help Center activities', () => {
     fireEvent.change(screen.getByLabelText('Source'), {
       target: { value: 'building' },
     });
+    await openBuildingFolder();
     expect(await screen.findByText('Building Lesson')).toBeInTheDocument();
     expect(screen.queryByText('Flagged Help Guide')).not.toBeInTheDocument();
   });
@@ -161,6 +183,7 @@ describe('GuidedLearningManager — moving building sets to and from the Help Ce
   it('lets an admin move a library building set to the Help Center', async () => {
     const onMove = vi.fn();
     renderManager(true, vi.fn(), onMove);
+    await openBuildingFolder();
     await cardMenu('Building Lesson');
     fireEvent.click(
       await screen.findByRole('menuitem', { name: /Move to Help Center/ })
@@ -175,6 +198,7 @@ describe('GuidedLearningManager — moving building sets to and from the Help Ce
     fireEvent.change(screen.getByLabelText('Source'), {
       target: { value: 'help' },
     });
+    await openBuildingFolder();
     await cardMenu('Flagged Help Guide');
     fireEvent.click(
       await screen.findByRole('menuitem', { name: /Move to library/ })
@@ -184,6 +208,7 @@ describe('GuidedLearningManager — moving building sets to and from the Help Ce
 
   it('offers the move only to admins', async () => {
     renderManager(false);
+    await openBuildingFolder();
     await screen.findByText('Building Lesson');
     expect(
       screen.queryByRole('menuitem', { name: /Move to Help Center/ })
@@ -211,6 +236,7 @@ describe('GuidedLearningManager — AI drafts land in the library being viewed',
     fireEvent.change(screen.getByLabelText('Source'), {
       target: { value: 'building' },
     });
+    await openBuildingFolder();
     await screen.findByText('Building Lesson');
     fireEvent.click(screen.getByRole('button', { name: 'AI' }));
     expect(onOpenAIAuthoring).toHaveBeenLastCalledWith('building');

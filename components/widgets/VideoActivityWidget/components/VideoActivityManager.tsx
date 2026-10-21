@@ -910,8 +910,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     />
   );
 
-  const useExternalDnd =
-    Boolean(userId) && (!selectionMode || libraryView.folderView != null);
+  const useExternalDnd = Boolean(userId);
   const cardDragEnabled =
     useExternalDnd || (Boolean(onReorderActivities) && !selectionMode);
 

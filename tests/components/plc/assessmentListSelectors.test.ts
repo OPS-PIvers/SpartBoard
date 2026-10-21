@@ -9,7 +9,6 @@ import {
   buildAssessmentRows,
   countRowsByFolder,
   filterAssessmentRows,
-  filterRowsByFolder,
   hasTeamAverage,
   reorderRows,
   sortQuestions,
@@ -412,19 +411,6 @@ describe('folder inheritance', () => {
       memberUids: ['u1'],
     });
     expect(rows[0].folderId).toBe('lib-folder');
-  });
-
-  it('filterRowsByFolder keeps only matching rows; null keeps all', () => {
-    const rows = buildAssessmentRows({
-      assessments: [
-        makeAssessment({ id: 'a', folderId: 'f1', syncGroupId: 'g-a' }),
-      ],
-      aggregates: [],
-      libraryEntries: [makeEntry({ syncGroupId: 'g-lib', folderId: null })],
-      memberUids: ['u1'],
-    });
-    expect(filterRowsByFolder(rows, 'f1').map((r) => r.id)).toEqual(['a']);
-    expect(filterRowsByFolder(rows, null)).toHaveLength(2);
   });
 
   it('countRowsByFolder buckets by folderId with root for unfoldered rows', () => {

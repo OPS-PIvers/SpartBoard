@@ -37,7 +37,6 @@ import { useFolders, type UseFoldersResult } from '@/hooks/useFolders';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
-import { useLibraryFolderViewEnabled } from '@/components/common/library/useFolderLibraryView';
 import { useSourceFolders } from '@/components/common/library/useSourceFolders';
 import { isSourceFolderId } from '@/components/common/library/sourceFolders';
 import { visibleTeammateBanks } from './teammateBankRows';
@@ -181,7 +180,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   const folderItemCounts = useMemo(() => countItemsByFolder(banks), [banks]);
 
   // Teammates' banks live in "From your PLCs" until filed (D21-D24).
-  const folderViewEnabled = useLibraryFolderViewEnabled() && !libraryFolders;
+  const folderViewEnabled = !libraryFolders;
   const teammateBanks = useMemo(
     () =>
       sharedBankSources.flatMap((source) =>
@@ -555,7 +554,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       </div>
     );
 
-  // Legacy view lists teammates' banks below the library; the folder view files them as rows.
+  // Without the folder view (hosted in the quiz library), teammates' banks list below the library.
   const showSharedBanks = !libraryView.folderView;
   const sharedRows = visibleTeammateBanks(
     teammateBanks.map((t) => ({ ...t, title: t.source.title })),
