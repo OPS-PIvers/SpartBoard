@@ -49,7 +49,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'plc-goal-coach',
   'embed-reload',
   'library-folder-view',
-  'team-email-suggest',
   'schoology-tool-columns',
   'widget-whats-new',
   'gl-welcome-card',
