@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, onSnapshot } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import type { QuizResponse } from '@/types';
@@ -25,6 +25,56 @@ export function attemptAsResponse(
     submittedAt: copy.submittedAt ?? null,
     servedQuestionIds: copy.servedQuestionIds,
   };
+}
+
+/** Every finished attempt of each response, oldest first, the latest being the live doc; for exports and print. */
+export async function loadEveryAttempt(
+  sessionId: string,
+  responses: readonly QuizResponse[],
+  keyOf: (response: QuizResponse) => string,
+  /** A dev harness's copies, used instead of Firestore. */
+  source?: QuizAttemptSource | null
+): Promise<Map<string, QuizResponse[]>> {
+  const out = new Map<string, QuizResponse[]>();
+  await Promise.all(
+    responses.map(async (live) => {
+      const key = keyOf(live);
+      const done =
+        live.completedAttempts ?? (live.status === 'completed' ? 1 : 0);
+      const latest = {
+        ...live,
+        completedAttempts:
+          live.status === 'completed' ? Math.max(done, 1) : done + 1,
+      };
+      if ((live.completedAttempts ?? 0) < 2) {
+        out.set(key, [latest]);
+        return;
+      }
+      const copies = source
+        ? (source(sessionId, key) ?? [])
+        : (
+            await getDocs(
+              collection(
+                db,
+                'quiz_sessions',
+                sessionId,
+                'responses',
+                key,
+                'attempts'
+              )
+            )
+          ).docs.map((d) => d.data() as QuizAttemptCopy);
+      const earlier = copies
+        .filter((c) => c.closed === true && typeof c.n === 'number')
+        .sort((a, b) => a.n - b.n)
+        .map((c) => ({
+          ...attemptAsResponse(live, c),
+          completedAttempts: c.n,
+        }));
+      out.set(key, [...earlier, latest]);
+    })
+  );
+  return out;
 }
 
 export type QuizAttemptSource = (

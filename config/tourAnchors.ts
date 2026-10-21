@@ -2400,6 +2400,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-print.results-every-attempt': {
+    label: 'Every attempt switch in the results print in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-print.results-select-all': {
     label: 'Select all / Select none in the Quiz widget',
     perWidgetType: true,

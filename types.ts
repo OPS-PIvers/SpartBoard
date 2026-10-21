@@ -6706,6 +6706,8 @@ export interface QuizAssignment
    * time.
    */
   exportedResponseIds?: string[];
+  /** Finished attempts per exported response key when the PLC sheet was last written (attempt history). */
+  exportedAttempts?: Record<string, number>;
   /**
    * Synchronized-quiz linkage. Present iff the assignment was created
    * from a synced library quiz; mirrored from the source quiz's

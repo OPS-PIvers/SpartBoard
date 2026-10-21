@@ -10,6 +10,8 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
+  useEffectEvent,
+  useContext,
 } from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { TabExitsPopover } from '@/components/common/TabExitsPopover';
@@ -125,6 +127,8 @@ import {
 import { quizLiveRaw } from '@/utils/gradebook/liveRawScores';
 import {
   attemptAsResponse,
+  loadEveryAttempt,
+  QuizAttemptSourceContext,
   useQuizResponseAttempts,
 } from '@/hooks/useQuizResponseAttempts';
 import { FinalScoreNote } from '@/components/gradebook/FinalScoreNote';
@@ -319,7 +323,12 @@ interface QuizResultsProps {
    * — the implementation re-casts to `string[]` at the Firestore write
    * boundary (the wire format hasn't changed).
    */
-  onExportedResponseIdsSaved?: (ids: ResponseDocKey[]) => Promise<void> | void;
+  onExportedResponseIdsSaved?: (
+    ids: ResponseDocKey[],
+    attempts?: Record<string, number>
+  ) => Promise<void> | void;
+  /** Finished attempts per key when the PLC sheet was last written. */
+  initialExportedAttempts?: Record<string, number> | null;
   /**
    * Per-student rubric overrides from the active assignment doc
    * (`assignment.overridesBySourcedId`), passed through to the written-
@@ -437,6 +446,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   plcSheetUrl: assignmentPlcSheetUrl,
   onExportUrlSaved,
   initialExportedResponseIds,
+  initialExportedAttempts,
   onExportedResponseIdsSaved,
   overridesBySourcedId,
   localizedFibAnswers = null,
@@ -557,6 +567,16 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       (initialExportedResponseIds ?? []) as ResponseDocKey[]
     );
   }
+  const [exportedAttempts, setExportedAttempts] = useState(
+    initialExportedAttempts ?? null
+  );
+  const [lastInitialExportedAttempts, setLastInitialExportedAttempts] =
+    useState(initialExportedAttempts);
+  if (initialExportedAttempts !== lastInitialExportedAttempts) {
+    setLastInitialExportedAttempts(initialExportedAttempts);
+    setExportedAttempts(initialExportedAttempts ?? null);
+  }
+  const attemptHistoryOn = canAccessFeature('quiz-attempt-history');
   const [updatingSheet, setUpdatingSheet] = useState(false);
   const [exportError, setExportError] = useState<ExportErrorState | null>(null);
   const [showGrader, setShowGrader] = useState(false);
@@ -1173,6 +1193,47 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     },
     [namesLoading, addToast]
   );
+  const attemptSource = useContext(QuizAttemptSourceContext);
+  const printOpen = printSelection !== undefined;
+  const printSessionId = session?.id;
+  const [printAttempts, setPrintAttempts] = useState<ReadonlyMap<
+    string,
+    QuizResponse[]
+  > | null>(null);
+  const loadPrintAttempts = useEffectEvent(() => {
+    if (!printSessionId) return () => undefined;
+    const retakers = filteredResponses.filter(
+      (r) => (r.completedAttempts ?? 0) >= 2
+    );
+    if (retakers.length === 0) return () => undefined;
+    let live = true;
+    loadEveryAttempt(
+      printSessionId,
+      retakers,
+      (r) => getResponseDocKey(r),
+      attemptSource
+    )
+      .then((every) => {
+        if (!live) return;
+        const earlier = new Map<string, QuizResponse[]>();
+        for (const [key, list] of every) {
+          if (list.length > 1) earlier.set(key, list.slice(0, -1));
+        }
+        setPrintAttempts(earlier);
+      })
+      .catch((err: unknown) =>
+        logError('QuizResults.loadPrintAttempts', err, {
+          sessionId: printSessionId,
+        })
+      );
+    return () => {
+      live = false;
+    };
+  });
+  useEffect(() => {
+    if (!printOpen || !attemptHistoryOn) return;
+    return loadPrintAttempts();
+  }, [printOpen, attemptHistoryOn]);
   const printGradeFn = useMemo(
     () => makeQuestionGradeFn(fibGrading),
     [fibGrading]
@@ -1426,6 +1487,28 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     config.plcMode && plcSheetCandidate ? plcSheetCandidate : null;
   const exportsToSharedSheet = !!sharedSheetUrl;
 
+  // Solo sheets only; a PLC sheet keeps its column layout.
+  const exportAttempts = async () => {
+    if (
+      exportsToSharedSheet ||
+      !session?.id ||
+      !attemptHistoryOn ||
+      !responses.some((r) => (r.completedAttempts ?? 0) >= 2)
+    )
+      return undefined;
+    const every = await loadEveryAttempt(
+      session.id,
+      responses,
+      (r) => getResponseDocKey(r),
+      attemptSource
+    );
+    return {
+      countFor: (r: QuizResponse) =>
+        String(r.completedAttempts ?? (r.status === 'completed' ? 1 : 0)),
+      everyAttempt: [...every.values()].flat(),
+    };
+  };
+
   const handleExport = async () => {
     if (
       outward.active &&
@@ -1467,6 +1550,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         plcSheetUrl: sharedSheetUrl ?? undefined,
         fibGrading,
         timeAway: canAccessFeature('tab-away-timer'),
+        attempts: await exportAttempts(),
       };
       let url: string;
       try {
@@ -1499,6 +1583,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       // button can later append only the rows that come in afterwards.
       const exportedIds = responses.map((r) => getResponseDocKey(r));
       setExportedResponseIds(exportedIds);
+      const exportedAttemptMap = attemptSnapshot();
+      if (exportedAttemptMap) setExportedAttempts(exportedAttemptMap);
       if (onExportUrlSaved) {
         // Fire-and-forget: lower-stakes than the exported-IDs persist
         // below. Worst case the button reverts to EXPORT on next remount.
@@ -1515,7 +1601,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         // and UPDATE SHEET re-appends already-exported rows. Surface a
         // warning toast and don't claim success.
         try {
-          await onExportedResponseIdsSaved(exportedIds);
+          await onExportedResponseIdsSaved(exportedIds, exportedAttemptMap);
         } catch (persistErr) {
           console.error(
             '[QuizResults] failed to persist exportedResponseIds to assignment doc',
@@ -1623,6 +1709,29 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     }
   };
 
+  // Finished attempts per key, saved with each PLC sheet write so a retake can force a rebuild.
+  const attemptSnapshot = (): Record<string, number> | undefined =>
+    attemptHistoryOn
+      ? Object.fromEntries(
+          responses.map((r) => [
+            getResponseDocKey(r),
+            r.completedAttempts ?? (r.status === 'completed' ? 1 : 0),
+          ])
+        )
+      : undefined;
+  // Exported students who have finished a newer attempt since; their sheet rows are stale.
+  const retakenSinceExport = useMemo(() => {
+    if (!attemptHistoryOn || !exportUrl || !exportedAttempts) return 0;
+    return responses.filter((r) => {
+      const was = exportedAttempts[getResponseDocKey(r)];
+      return (
+        was !== undefined &&
+        r.status === 'completed' &&
+        (r.completedAttempts ?? 1) > was
+      );
+    }).length;
+  }, [attemptHistoryOn, exportUrl, exportedAttempts, responses]);
+
   const newResponsesToAppend = useMemo(() => {
     if (!exportUrl) return [];
     const exportedSet = new Set(exportedResponseIds);
@@ -1677,7 +1786,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       // the canonical URL. This branches on newResponsesToAppend.length —
       // empty delta = rebuild, non-empty delta = append. Re-export Sheet
       // is gated on `exportsToSharedSheet` upstream (`canShowUpdateSheet`).
-      const isFullRebuild = newResponsesToAppend.length === 0;
+      const isFullRebuild =
+        newResponsesToAppend.length === 0 || retakenSinceExport > 0;
       const exportOpts = {
         pinToName: exportPinToName,
         byStudentUid,
@@ -1755,12 +1865,14 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       // BEFORE the append, so post-append the union is every response.
       const allIds = responses.map((r) => getResponseDocKey(r));
       setExportedResponseIds(allIds);
+      const allAttempts = attemptSnapshot();
+      if (allAttempts) setExportedAttempts(allAttempts);
       if (onExportedResponseIdsSaved) {
         // Await: same rationale as handleExport — fire-and-forget here
         // would let UPDATE SHEET silently re-append duplicate rows on
         // the next session if the persist fails.
         try {
-          await onExportedResponseIdsSaved(allIds);
+          await onExportedResponseIdsSaved(allIds, allAttempts);
         } catch (persistErr) {
           console.error(
             '[QuizResults] failed to persist exportedResponseIds after update',
@@ -1988,9 +2100,11 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   const sheetRefresh = canShowUpdateSheet
     ? {
         label:
-          newResponsesToAppend.length === 0
-            ? 'Re-export sheet (rebuild from scratch)'
-            : `Re-export sheet (${newResponsesToAppend.length} new responses to append)`,
+          retakenSinceExport > 0
+            ? `Re-export sheet (rebuild: ${retakenSinceExport} ${retakenSinceExport === 1 ? 'student has' : 'students have'} a newer attempt)`
+            : newResponsesToAppend.length === 0
+              ? 'Re-export sheet (rebuild from scratch)'
+              : `Re-export sheet (${newResponsesToAppend.length} new responses to append)`,
         busy: updatingSheet,
         run: () => void handleUpdateSheet(),
       }
@@ -2722,6 +2836,9 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           sessionId={session?.id}
           writtenReturnMode={session?.writtenReturnMode}
           resolvePaperCrop={resolvePaperCrop}
+          earlierAttempts={
+            attemptHistoryOn ? (printAttempts ?? undefined) : undefined
+          }
           onClose={() => setPrintSelection(undefined)}
           onError={(message) => addToast(message, 'error')}
         />
