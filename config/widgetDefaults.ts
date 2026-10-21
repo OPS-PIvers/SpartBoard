@@ -61,6 +61,9 @@ export const WIDGET_STRETCH_BEHAVIOR: Partial<
   smartNotebook: 'fill',
 };
 
+// Widgets that open into the library shell; wide enough for the full folder panel and a one-line toolbar.
+export const LIBRARY_WIDGET_SIZE = { w: 1180, h: 700 } as const;
+
 export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
   url: {
     w: 220,
@@ -336,8 +339,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     },
   },
   miniApp: {
-    w: 500,
-    h: 600,
+    ...LIBRARY_WIDGET_SIZE,
     config: {
       activeApp: null,
     },
@@ -400,8 +402,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     config: { activePdfId: null, activePdfUrl: null, activePdfName: null },
   },
   quiz: {
-    w: 620,
-    h: 560,
+    ...LIBRARY_WIDGET_SIZE,
     config: {
       view: 'manager',
       managerTab: 'library',
@@ -418,8 +419,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     },
   },
   review: {
-    w: 620,
-    h: 560,
+    ...LIBRARY_WIDGET_SIZE,
     config: {
       view: 'manager',
       managerTab: 'library',
@@ -637,8 +637,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     config: {},
   },
   'video-activity': {
-    w: 640,
-    h: 560,
+    ...LIBRARY_WIDGET_SIZE,
     config: {
       view: 'manager',
       selectedActivityId: null,
@@ -650,8 +649,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     },
   },
   'guided-learning': {
-    w: 720,
-    h: 520,
+    ...LIBRARY_WIDGET_SIZE,
     config: {
       view: 'library',
       playerSetId: null,
@@ -659,8 +657,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     },
   },
   flashcards: {
-    w: 720,
-    h: 520,
+    ...LIBRARY_WIDGET_SIZE,
     config: {
       view: 'library',
       presentShowFirst: 'term',
@@ -727,10 +724,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
     } satisfies StationsConfig,
   },
   projects: {
-    // Sized for the library manager, matching quiz: below 560px wide the
-    // folder panel collapses to a rail.
-    w: 620,
-    h: 560,
+    ...LIBRARY_WIDGET_SIZE,
     config: {
       view: 'manager',
       managerTab: 'library',
