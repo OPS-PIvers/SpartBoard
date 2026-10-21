@@ -846,7 +846,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                 onRestart={onRestart}
                 onSaveHeard={onSaveHeard}
                 paused={settingsOpen}
-                autoContinue={speakPrefs.autoContinue ?? true}
+                autoContinue={!onSaveHeard && (speakPrefs.autoContinue ?? true)}
               />
             </Suspense>
           )
