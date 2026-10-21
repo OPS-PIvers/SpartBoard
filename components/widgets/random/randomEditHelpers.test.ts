@@ -4,6 +4,7 @@ import {
   toggleLockedName,
   clearLockedNames,
   moveNameToGroup,
+  rotateGroups,
   mergeLockedWithFresh,
   shuffleWithLocks,
   findGroupIdForName,
@@ -168,5 +169,47 @@ describe('shuffleWithLocks', () => {
     const next = shuffleWithLocks(current, []);
     expect(next).toHaveLength(4);
     expect([...next].sort()).toEqual([...current].sort());
+  });
+});
+
+describe('studentIds stay parallel to names', () => {
+  const groups = (): RandomGroup[] => [
+    { id: 'a', names: ['Ann', 'Bo'], studentIds: ['s1', 's2'] },
+    { id: 'b', names: ['Cy', 'Di'], studentIds: ['s3', 's4'] },
+  ];
+
+  it('moveNameToGroup carries the id with the name', () => {
+    const next = moveNameToGroup(groups(), 'Bo', 'b');
+    expect(next[0]).toMatchObject({ names: ['Ann'], studentIds: ['s1'] });
+    expect(next[1]).toMatchObject({
+      names: ['Cy', 'Di', 'Bo'],
+      studentIds: ['s3', 's4', 's2'],
+    });
+  });
+
+  it('rotateGroups moves ids with names and skips locked members', () => {
+    const next = rotateGroups(groups(), ['Ann']);
+    expect(next[0]).toMatchObject({
+      names: ['Ann', 'Cy', 'Di'],
+      studentIds: ['s1', 's3', 's4'],
+    });
+    expect(next[1]).toMatchObject({
+      names: ['Bo'],
+      studentIds: ['s2'],
+    });
+  });
+
+  it('mergeLockedWithFresh takes the fresh groups ids too', () => {
+    const fresh: RandomGroup[] = [
+      { names: ['Cy'], studentIds: ['s3'] },
+      { names: ['Di', 'Bo'], studentIds: ['s4', 's2'] },
+    ];
+    const next = mergeLockedWithFresh({
+      currentGroups: groups(),
+      lockedNames: ['Ann'],
+      freshGroups: fresh,
+    });
+    expect(next[0].studentIds).toEqual(['s1', 's3']);
+    expect(next[1].studentIds).toEqual(['s4', 's2']);
   });
 });
