@@ -48,7 +48,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'library-folder-view',
   'schoology-tool-columns',
   'widget-whats-new',
-  'gl-welcome-card',
   'mini-app-results',
   'quiz-monitor-declutter',
   'quiz-banks-in-library',

@@ -10193,8 +10193,6 @@ export type GlobalFeature =
   | 'schoology-tool-columns'
   /** A what's-new button under a widget whose changelog entry carries a note for that widget type. */
   | 'widget-whats-new'
-  /** Guided Learning Studio: a pinned Welcome card in the slide strip, with an optional welcome image. */
-  | 'gl-welcome-card'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
   /** Quiz live monitor declutter (#4023): footer buttons, Close all, no More actions menu for assessments. */
