@@ -4,18 +4,21 @@ import { hexToRgba } from '@/utils/styles';
 import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { rosterGroupMemberIds } from '@/utils/rosterGroups';
 import { ChecklistConfig, WidgetData, DEFAULT_GLOBAL_STYLE } from '@/types';
-import { ListPlus, Users } from 'lucide-react';
+import { ListPlus, Plus, Users } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { WidgetLayout } from '../WidgetLayout';
 import { ChecklistCard } from './components/ChecklistCard';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 import { tourAttr } from '@/config/tourAnchors';
+import { useIsActiveBoardReadOnly } from '@/context/dashboardCanvasStore';
+import { markSettingsOpenedLocally } from '@/components/settings/settingsOpenSignal';
 
 export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget, rosters, activeRosterId, activeDashboard } =
     useDashboard();
+  const isActiveBoardReadOnly = useIsActiveBoardReadOnly();
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const config = widget.config as ChecklistConfig;
   const {
@@ -186,11 +189,39 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
             iconClassName="text-slate-400"
             titleClassName="text-slate-600"
             subtitleClassName="text-slate-500"
-            title={mode === 'manual' ? 'No Tasks' : 'Roster Empty'}
+            title={mode === 'manual' ? 'No tasks yet' : 'No students yet'}
             subtitle={
               mode === 'manual'
-                ? 'Flip to add your class tasks.'
-                : 'Flip to enter your student names.'
+                ? 'Open settings to add tasks.'
+                : 'Open settings to add student names.'
+            }
+            action={
+              widget.isLocked || isActiveBoardReadOnly ? undefined : (
+                <button
+                  type="button"
+                  {...tourAttr('checklist.open-settings', widget.id, widget.type)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    markSettingsOpenedLocally(widget.id);
+                    updateWidget(widget.id, { flipped: true });
+                  }}
+                  className="flex items-center bg-brand-blue-primary text-white rounded-full font-bold hover:bg-brand-blue-dark transition-colors"
+                  style={{
+                    gap: 'min(8px, 2cqmin)',
+                    padding: 'max(6px, min(8px, 2cqmin)) max(12px, min(16px, 4cqmin))',
+                    fontSize: 'max(11px, min(14px, 3.5cqmin))',
+                  }}
+                >
+                  <Plus
+                    aria-hidden="true"
+                    style={{
+                      width: 'max(12px, min(14px, 3.5cqmin))',
+                      height: 'max(12px, min(14px, 3.5cqmin))',
+                    }}
+                  />
+                  {mode === 'manual' ? 'Add tasks' : 'Add students'}
+                </button>
+              )
             }
           />
         }

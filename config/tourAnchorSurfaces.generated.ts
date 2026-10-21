@@ -149,6 +149,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'calendar.start-timer': ['widgets.calendar.face'],
     'calendar.connect-google': ['widgets.calendar.face'],
     'arts-letters-agenda.reset-checks': ['widgets.arts-letters-agenda.face'],
+    'checklist.open-settings': ['widgets.checklist.face'],
     'checklist.remove-completed': ['widgets.checklist.face'],
     'quiz.start': ['quiz.monitor'],
     'quiz.next-question': ['quiz.monitor'],
