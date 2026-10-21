@@ -199,7 +199,11 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
               widget.isLocked || isActiveBoardReadOnly ? undefined : (
                 <button
                   type="button"
-                  {...tourAttr('checklist.open-settings', widget.id, widget.type)}
+                  {...tourAttr(
+                    'checklist.open-settings',
+                    widget.id,
+                    widget.type
+                  )}
                   onClick={(e) => {
                     e.stopPropagation();
                     markSettingsOpenedLocally(widget.id);
@@ -208,7 +212,8 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                   className="flex items-center bg-brand-blue-primary text-white rounded-full font-bold hover:bg-brand-blue-dark transition-colors"
                   style={{
                     gap: 'min(8px, 2cqmin)',
-                    padding: 'max(6px, min(8px, 2cqmin)) max(12px, min(16px, 4cqmin))',
+                    padding:
+                      'max(6px, min(8px, 2cqmin)) max(12px, min(16px, 4cqmin))',
                     fontSize: 'max(11px, min(14px, 3.5cqmin))',
                   }}
                 >
