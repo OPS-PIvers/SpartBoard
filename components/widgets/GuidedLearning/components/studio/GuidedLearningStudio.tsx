@@ -474,7 +474,7 @@ const StudioSession: React.FC<
     canRedo,
     clipboardStepCount,
   } = editorState;
-  const liveTours = !!set.isBuilding && canAccessFeature('gl-live-tours');
+  const liveTours = !!set.isBuilding;
 
   const selectStepAt = useCallback(
     (index: number) => {
@@ -661,8 +661,7 @@ const StudioSession: React.FC<
     setCurrentImageIndex(shown.imageIndex);
   }, [steps, setSelectedStepId, setCurrentImageIndex]);
 
-  const calloutEditing = canAccessFeature('gl-callout-editing');
-  const tools = useCanvasTools(editorState, preset, { calloutEditing });
+  const tools = useCanvasTools(editorState, preset);
   const { rows: canvasRows, typeRows, deleteFocusedVertex } = tools;
 
   const selectedIndex = steps.findIndex((s) => s.id === selectedStepId);
@@ -802,7 +801,7 @@ const StudioSession: React.FC<
     !readOnly &&
     canAccessFeature('gemini-functions') &&
     canAccessFeature('guided-learning-ai');
-  const canRecordTour = isAdmin === true && canAccessFeature('gl-live-tours');
+  const canRecordTour = isAdmin === true;
 
   const canvasDrop = useFileDrop(
     (files) => void editorState.uploadFromFiles(files),
@@ -1225,7 +1224,6 @@ const StudioSession: React.FC<
             state={editorState}
             onDeleteStep={deleteStepWithUndo}
             canvasRef={canvasRef}
-            calloutEditing={calloutEditing}
             welcomeSelected={welcomeShown}
             onEditOnBoard={
               liveTours && isAdmin === true && !readOnly

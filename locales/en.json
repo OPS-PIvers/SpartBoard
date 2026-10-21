@@ -4599,6 +4599,7 @@
         "playMyTry": "Play my attempt",
         "tryAgain": "Try again",
         "continue": "Continue",
+        "autoContinue": "Automatically continue to next card",
         "skip": "Skip",
         "round": "Round {{round}}",
         "mastered": "{{mastered}}/{{total}} said well",
@@ -4790,7 +4791,7 @@
         "classMissed": "Sounds missed most",
         "classForgiven": "Sounds let go most",
         "wordsToCheck": "Words to check",
-        "wordsToCheckHelp": "Most students who tried these missed them. Check the card's pronunciation.",
+        "wordsToCheckHelp": "Most students who attempted these missed them. Check the card's pronunciation.",
         "empty": "No one has practiced aloud yet."
       },
       "admin": {
@@ -4806,7 +4807,35 @@
         "unclearConfidence": "Repeat when unclear",
         "unclearConfidenceHelp": "Higher asks students to say the word again more often when the sound is unclear.",
         "save": "Save",
-        "saved": "Saved"
+        "saved": "Saved",
+        "wordsToCheck": {
+          "title": "Words to check",
+          "intro": "Words most students miss in Speak, across every assignment. Hear each one and say it to check the scoring.",
+          "rule": "A word shows up when 5 or more students attempted it and at least 60% missed it on their latest round.",
+          "refresh": "Refresh",
+          "empty": "No words to check yet.",
+          "failed": "Couldn't load the words. Refresh to load them again.",
+          "missed": "{{missed}} of {{students}} missed",
+          "assignments_one": "{{count}} assignment",
+          "assignments_other": "{{count}} assignments",
+          "sayIt": "Say it",
+          "truncated": "Only the 1,000 newest Speak assignments were checked.",
+          "fix": "Fix",
+          "skip": "Skip this word in Speak for every class",
+          "saveFix": "Save fix",
+          "fixed": "Fixed",
+          "soundsLike": "Type how it sounds",
+          "add": "Add",
+          "recordHint": "Or open Say it, say the word, and press Save how I said it.",
+          "alsoAccepted": "Also accepted",
+          "acceptedSpelling": "Sounds like “{{spelling}}”",
+          "acceptedRecording": "Recording, {{date}}",
+          "remove": "Remove",
+          "saveHowISaid": "Save how I said it",
+          "skipped": "Skipped",
+          "savedHowISaid": "Saved",
+          "unreadable": "Couldn't read that spelling. Try typing it another way."
+        }
       }
     }
   },

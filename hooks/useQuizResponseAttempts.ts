@@ -1,9 +1,10 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, onSnapshot } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
-import type { QuizResponse } from '@/types';
+import type { QuizResponse, QuizSessionSection } from '@/types';
 import { logError } from '@/utils/logError';
+import { notChosenQuestionIds } from '@/utils/quizSections';
 
 /** A server-saved copy of one finished attempt (docs/plans/QUIZ_ATTEMPT_HISTORY.md D1). */
 export type QuizAttemptCopy = Partial<QuizResponse> & {
@@ -14,17 +15,86 @@ export type QuizAttemptCopy = Partial<QuizResponse> & {
 /** An earlier attempt read as a finished response; its own grades replace the live ones. */
 export function attemptAsResponse(
   live: QuizResponse,
-  copy: QuizAttemptCopy
+  copy: QuizAttemptCopy,
+  sections?: readonly QuizSessionSection[]
 ): QuizResponse {
+  const asCompleted = {
+    answers: copy.answers ?? [],
+    servedQuestionIds: copy.servedQuestionIds,
+    status: 'completed',
+  };
+  const notChosen = notChosenQuestionIds(asCompleted, sections);
   return {
     ...live,
+    ...asCompleted,
     status: 'completed',
-    answers: copy.answers ?? [],
     grading: copy.grading,
     score: copy.score ?? null,
     submittedAt: copy.submittedAt ?? null,
-    servedQuestionIds: copy.servedQuestionIds,
+    _notChosen: notChosen.length > 0 ? notChosen : undefined,
+    tabSwitchWarnings: copy.tabSwitchWarnings,
+    tabExits: copy.tabExits,
+    autoSubmitted: copy.autoSubmitted,
+    timeUp: copy.timeUp,
+    attemptStartedAt: copy.attemptStartedAt,
   };
+}
+
+/** True when a response has a finished attempt before its current one (a retake in progress counts). */
+export function hasEarlierAttempts(r: QuizResponse): boolean {
+  const done = r.completedAttempts ?? (r.status === 'completed' ? 1 : 0);
+  return r.status === 'completed' ? done >= 2 : done >= 1;
+}
+
+/** Every finished attempt of each response, oldest first, the latest being the live doc; for exports and print. */
+export async function loadEveryAttempt(
+  sessionId: string,
+  responses: readonly QuizResponse[],
+  keyOf: (response: QuizResponse) => string,
+  /** A dev harness's copies, used instead of Firestore. */
+  source?: QuizAttemptSource | null,
+  sections?: readonly QuizSessionSection[]
+): Promise<Map<string, QuizResponse[]>> {
+  const out = new Map<string, QuizResponse[]>();
+  await Promise.all(
+    responses.map(async (live) => {
+      const key = keyOf(live);
+      const done =
+        live.completedAttempts ?? (live.status === 'completed' ? 1 : 0);
+      const latest = {
+        ...live,
+        completedAttempts:
+          live.status === 'completed' ? Math.max(done, 1) : done + 1,
+      };
+      if (!hasEarlierAttempts(live)) {
+        out.set(key, [latest]);
+        return;
+      }
+      const copies = source
+        ? (source(sessionId, key) ?? [])
+        : (
+            await getDocs(
+              collection(
+                db,
+                'quiz_sessions',
+                sessionId,
+                'responses',
+                key,
+                'attempts'
+              )
+            )
+          ).docs.map((d) => d.data() as QuizAttemptCopy);
+      const earlier = copies
+        .filter((c) => c.closed === true && typeof c.n === 'number')
+        .sort((a, b) => a.n - b.n)
+        .map((c) => ({
+          ...attemptAsResponse(live, c, sections),
+          completedAttempts: c.n,
+        }));
+      out.set(key, [...earlier, latest]);
+    })
+  );
+  return out;
 }
 
 export type QuizAttemptSource = (

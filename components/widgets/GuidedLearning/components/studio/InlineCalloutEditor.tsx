@@ -11,8 +11,6 @@ interface InlineCalloutEditorProps {
   onDone: () => void;
   /** Keeps editing open while focus is away on purpose (the link prompt). */
   holdOpen?: boolean;
-  /** `gl-callout-editing`: Enter in the title moves to the body, Ctrl/⌘+Enter finishes. */
-  editKeys?: boolean;
 }
 
 // Grows with its content where supported; `rows` covers the rest.
@@ -30,7 +28,6 @@ export const InlineCalloutEditor: React.FC<InlineCalloutEditorProps> = ({
   onChange,
   onDone,
   holdOpen = false,
-  editKeys = false,
 }) => {
   const { t } = useTranslation();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -44,7 +41,7 @@ export const InlineCalloutEditor: React.FC<InlineCalloutEditorProps> = ({
   }, []);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (!editKeys || e.key !== 'Enter' || e.nativeEvent.isComposing) return;
+    if (e.key !== 'Enter' || e.nativeEvent.isComposing) return;
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
       onDone();

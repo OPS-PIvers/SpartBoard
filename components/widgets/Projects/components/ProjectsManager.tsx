@@ -825,9 +825,7 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
               getId={GET_ID}
               renderCard={renderProjectCard}
               onReorder={handleReorderDrop}
-              dragDisabled={
-                !userId || (selectionMode && view.folderView == null)
-              }
+              dragDisabled={!userId}
               reorderLocked={reorderDragActive ? view.reorderLocked : false}
               reorderLockedReason={
                 reorderDragActive ? view.reorderLockedReason : undefined

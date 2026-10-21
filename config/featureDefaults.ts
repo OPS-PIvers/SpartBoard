@@ -14,7 +14,6 @@ import {
   History,
   FileText,
   FileUp,
-  FolderOpen,
   Gauge,
   GraduationCap,
   Flag,
@@ -26,7 +25,6 @@ import {
   Link2,
   ListChecks,
   Mic,
-  MousePointerClick,
   Music2,
   Printer,
   RefreshCw,
@@ -618,17 +616,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Guided Learning live tours that walk a teacher through the real app. Admin-only until opened up.
-  'gl-live-tours': {
-    label: 'Guided Learning live tours',
-    icon: Footprints,
-    description: "Walkthroughs on the teacher's own board.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Live tour editing v2 and tour materials. Admin-only until Paul has edited tours with it in prod.
   'live-tour-editing-v2': {
     label: 'Live tour editing v2',
@@ -683,33 +670,11 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Studio callout handles, toolbar and styling. Admin-only until Paul has edited sets with it in prod.
-  'gl-callout-editing': {
-    label: 'Guided Learning callout editing',
-    icon: MousePointerClick,
-    description: 'Resize and restyle Studio callouts.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Per-student slide position on GL results and the hub. Admin-only until Paul has seen it on real class data in prod.
   'gl-student-progress': {
     label: 'Guided Learning student progress',
     icon: Route,
     description: "Shows each student's slide and last activity.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'plc-notes-side-panels': {
-    label: 'Notes and Docs side panels',
-    icon: StickyNote,
-    description:
-      'Action items beside group notes and linked Google Docs; the notes list folds away.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1073,17 +1038,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'embed',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'library-folder-view': {
-    label: 'Library folders view',
-    icon: FolderOpen,
-    description:
-      'Libraries open on your folders, with a path bar, folder rows and a Recent list.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

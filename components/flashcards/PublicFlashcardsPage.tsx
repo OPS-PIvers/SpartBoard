@@ -6,6 +6,7 @@ import { db } from '@/config/firebase';
 import type { PublicFlashcardSet } from '@/types';
 import { LocalFlashcardAdapter } from './adapters';
 import { FlashcardPlayer } from './FlashcardPlayer';
+import { useSpeakWordFixes } from '@/hooks/useSpeakWordFixes';
 
 type PublicSetState =
   | { kind: 'loading' }
@@ -55,6 +56,7 @@ const PublicFlashcardsReady: React.FC<{
 }> = ({ shareId, set, embedded }) => {
   const { t } = useTranslation();
   const adapter = useMemo(() => new LocalFlashcardAdapter(shareId), [shareId]);
+  const speakFixes = useSpeakWordFixes(Boolean(set.speak));
 
   useEffect(() => {
     document.title = t('flashcards.public.pageTitle', { title: set.title });
@@ -92,6 +94,7 @@ const PublicFlashcardsReady: React.FC<{
           adapter={adapter}
           seed={shareId}
           speak={set.speak}
+          speakFixes={speakFixes}
           framed={embedded}
         />
       </main>

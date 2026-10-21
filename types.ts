@@ -6706,6 +6706,8 @@ export interface QuizAssignment
    * time.
    */
   exportedResponseIds?: string[];
+  /** Finished attempts per exported response key when the PLC sheet was last written (attempt history). */
+  exportedAttempts?: Record<string, number>;
   /**
    * Synchronized-quiz linkage. Present iff the assignment was created
    * from a synced library quiz; mirrored from the source quiz's
@@ -10120,8 +10122,6 @@ export type GlobalFeature =
   | 'quiz-stimulus-quotes'
   /** Desmos calculator stimulus on quiz questions. */
   | 'quiz-calculator-stimulus'
-  /** Guided Learning live tours in the teacher app and their launch points. */
-  | 'gl-live-tours'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   /** Per-period start/pause and windows on assignments shared by several classes. */
@@ -10132,8 +10132,6 @@ export type GlobalFeature =
   | 'standards-from-question-text'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
   | 'quiz-results-tools'
-  /** Guided Learning Studio: select, resize, restyle and edit callouts on the canvas. */
-  | 'gl-callout-editing'
   /** Per-student "Slide N of M · active X ago" on Guided Learning results and the Assignments hub. */
   | 'gl-student-progress'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
@@ -10178,8 +10176,6 @@ export type GlobalFeature =
   | 'plc-meeting-ai-notes'
   /** Sparty the mascot in tours, first-time setup and the Help Center (docs/plans/shipped/SPARTY.md). */
   | 'sparty'
-  /** Group Notes & Docs: notes list and Action items as swapping side panels, with action items on linked Google Docs. */
-  | 'plc-notes-side-panels'
   /** Group Notes & Docs: embedded Google Docs keep Google's menus and toolbar. */
   | 'plc-docs-toolbar'
   /** Team action items sync to the assignee's Google Tasks (docs/plans/GOOGLE_TASKS_ACTION_ITEMS.md). */
@@ -10188,8 +10184,6 @@ export type GlobalFeature =
   | 'plc-goal-coach'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
-  /** Widget libraries open on folders with a path bar, Recent view and drag filing (docs/plans/LIBRARY_FOLDERS.md D26). */
-  | 'library-folder-view'
   /** Push scores into a SpartBoard-made Schoology gradebook column (docs/plans/SCHOOLOGY_TOOL_COLUMNS.md D11). */
   | 'schoology-tool-columns'
   /** A what's-new button under a widget whose changelog entry carries a note for that widget type. */

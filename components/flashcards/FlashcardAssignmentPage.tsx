@@ -45,6 +45,7 @@ import {
   FlashcardPlayer,
   type FlashcardCheckSubmission,
 } from './FlashcardPlayer';
+import { useSpeakWordFixes } from '@/hooks/useSpeakWordFixes';
 import {
   deriveFlashcardStudentView,
   initialProgressListen,
@@ -191,6 +192,7 @@ const TrackedPlayer: React.FC<{
     }
   };
 
+  const speakFixes = useSpeakWordFixes(!isCheck && Boolean(session.speak));
   const player = (
     <FlashcardPlayer
       key={tracked.resetCount}
@@ -200,6 +202,7 @@ const TrackedPlayer: React.FC<{
       adapter={adapter}
       seed={`${session.id}:${studentUid}`}
       speak={isCheck ? undefined : session.speak}
+      speakFixes={speakFixes}
       framed={framed}
       lockedSettings={isCheck ? session.lockedSettings : undefined}
       check={
@@ -258,6 +261,9 @@ const UntrackedPlayer: React.FC<{
         progress ? sanitizeFlashcardStudyState(progress) : undefined
       )
   );
+  const speakFixes = useSpeakWordFixes(
+    session.kind !== 'check' && Boolean(session.speak)
+  );
   return (
     <FlashcardPlayer
       cards={session.cards}
@@ -266,6 +272,7 @@ const UntrackedPlayer: React.FC<{
       adapter={adapter}
       seed={`${session.id}:${studentUid}`}
       speak={session.kind === 'check' ? undefined : session.speak}
+      speakFixes={speakFixes}
       framed={framed}
     />
   );

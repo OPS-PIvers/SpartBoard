@@ -32,11 +32,16 @@ import {
 } from '@/utils/flashcardSchedule';
 import { speakLanguageOf } from '@/config/pronunciationGroups';
 import {
+  applySpeakWordFixes,
+  type SpeakWordFixes,
+} from '@/utils/pronunciation/wordFixes';
+import {
   SPEAK_ATTEMPTS_MAX,
   SPEAK_ATTEMPTS_MIN,
   clampSpeakAttempts,
 } from '@/config/flashcardsSpeakAdmin';
 import type { FlashcardProgressAdapter } from './adapters';
+import type { SpeakModeProps } from './SpeakMode';
 import { FlashcardsMode } from './FlashcardsMode';
 import { WriteMode } from './WriteMode';
 import { TestMode } from './TestMode';
@@ -74,6 +79,7 @@ export type FlashcardPlayerSpeak = FlashcardSpeakStudentSettings & {
 interface SpeakPrefs {
   attempts?: number;
   example?: boolean;
+  autoContinue?: boolean;
 }
 
 export interface FlashcardCheckSubmission {
@@ -116,6 +122,10 @@ export interface FlashcardPlayerProps {
   check?: FlashcardPlayerCheck;
   allowedModes?: FlashcardMode[];
   speak?: FlashcardPlayerSpeak;
+  /** District word fixes (utils/pronunciation/wordFixes.ts), applied to Speak only. */
+  speakFixes?: SpeakWordFixes;
+  /** Admin Say it only: offers to save what the recognizer heard as an accepted reading. */
+  onSaveHeard?: SpeakModeProps['onSaveHeard'];
   /** The page runs inside a frame, which may block the microphone (F12). */
   framed?: boolean;
   theme?: 'light' | 'present';
@@ -135,8 +145,12 @@ const modes: Array<{
   { id: 'speak', labelKey: 'flashcards.modes.speak', icon: Mic },
 ];
 
+// A district word fix changes a card's Speak status or readings, so it rebuilds the queues too.
+const deckEntrySignature = (card: FlashcardCard): string =>
+  `${card.id}:${card.term}:${card.definition}:${card.speak?.status ?? ''}:${card.speak?.refs.map((ref) => ref.tokens.join(' ')).join('|') ?? ''}`;
+
 export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
-  cards,
+  cards: deckCards,
   termLanguage,
   definitionLanguage,
   adapter,
@@ -145,6 +159,8 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
   check,
   allowedModes: requestedModes = ['flashcards', 'write', 'test', 'speak'],
   speak,
+  speakFixes,
+  onSaveHeard,
   framed = false,
   theme = 'light',
   seed = 'flashcards',
@@ -158,6 +174,13 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     speak && !check && requestedModes.includes('speak')
       ? speakLanguageOf(termLanguage)
       : null;
+  const cards = useMemo(
+    () =>
+      speakLanguage && speakFixes
+        ? applySpeakWordFixes(deckCards, speakLanguage, speakFixes)
+        : deckCards,
+    [deckCards, speakFixes, speakLanguage]
+  );
   // Without a stamp and a supported language there is no Speak tab and no Speak state (F21).
   const allowedModes = check
     ? [check.mode]
@@ -187,9 +210,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [speakPrefs, setSpeakPrefs] = useState<SpeakPrefs>({});
   const [deckSignature, setDeckSignature] = useState(() =>
-    cards
-      .map((card) => `${card.id}:${card.term}:${card.definition}`)
-      .join('\u0000')
+    cards.map(deckEntrySignature).join('\u0000')
   );
   const speakQueueFor = (
     study: FlashcardStudyState,
@@ -232,9 +253,7 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     };
   });
 
-  const currentDeckSignature = cards
-    .map((card) => `${card.id}:${card.term}:${card.definition}`)
-    .join('\u0000');
+  const currentDeckSignature = cards.map(deckEntrySignature).join('\u0000');
   if (deckSignature !== currentDeckSignature) {
     setDeckSignature(currentDeckSignature);
     const queue = buildFlashcardRoundQueue({
@@ -825,7 +844,9 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                 onStar={star}
                 onNextRound={nextRound}
                 onRestart={onRestart}
+                onSaveHeard={onSaveHeard}
                 paused={settingsOpen}
+                autoContinue={!onSaveHeard && (speakPrefs.autoContinue ?? true)}
               />
             </Suspense>
           )
@@ -1047,6 +1068,15 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
                   dark={dark}
                   onChange={(example) =>
                     setSpeakPrefs((prefs) => ({ ...prefs, example }))
+                  }
+                />
+                {/* no-tour-anchor: student player setting */}
+                <ToggleSetting
+                  label={t('flashcards.speak.player.autoContinue')}
+                  checked={speakPrefs.autoContinue ?? true}
+                  dark={dark}
+                  onChange={(autoContinue) =>
+                    setSpeakPrefs((prefs) => ({ ...prefs, autoContinue }))
                   }
                 />
               </SettingsGroup>

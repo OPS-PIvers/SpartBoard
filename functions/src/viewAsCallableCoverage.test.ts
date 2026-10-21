@@ -26,6 +26,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   getTeammatePrintContextV1: 'read',
   getViewAsDriveTokenV1: 'read',
   listQuizMediaForOrgAdmin: 'read',
+  listSpeakWordsToCheckV1: 'read',
   lookupSpeakReferencesV1: 'read',
   ltiResolveNamesForAssignmentV1: 'read',
   ltiSuggestClassLinkMatchV1: 'read',

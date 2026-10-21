@@ -7,7 +7,6 @@ import { TOUR_START_EVENT } from '@/components/tours/tourState';
 import { HelpResourceViewer } from './HelpResourceViewer';
 
 const h = vi.hoisted(() => ({
-  canTour: true,
   canRunLive: true,
   published: true,
   isAdmin: false,
@@ -35,7 +34,6 @@ vi.mock('@/hooks/useHelpResources', () => ({
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
-    canAccessFeature: (id: string) => h.canTour && id === 'gl-live-tours',
     isAdmin: h.isAdmin,
   }),
 }));
@@ -66,7 +64,6 @@ const set = (withTour: boolean) =>
   }) as unknown as GuidedLearningSet;
 
 beforeEach(() => {
-  h.canTour = true;
   h.canRunLive = true;
   h.published = true;
   h.isAdmin = false;
@@ -110,16 +107,6 @@ describe('HelpResourceViewer live tours', () => {
     expect(
       (edited.mock.calls[0][0] as CustomEvent<{ setId: string }>).detail
     ).toEqual({ setId: 'set-1' });
-  });
-
-  it('hides Show me live without the flag', async () => {
-    h.canTour = false;
-    h.loadBuildingSet.mockResolvedValue(set(true));
-    render(<HelpResourceViewer item={item} onBack={vi.fn()} />);
-    expect(await screen.findByText('player')).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Show me live' })
-    ).not.toBeInTheDocument();
   });
 
   it('lists the steps instead of the player where a tour cannot run live', async () => {

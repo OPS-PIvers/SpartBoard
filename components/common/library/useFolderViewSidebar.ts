@@ -1,5 +1,4 @@
 import { use, useContext } from 'react';
-import { AuthContext } from '@/context/AuthContextValue';
 import { DashboardActionsContext } from '@/context/dashboardCanvasStore';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { logError } from '@/utils/logError';
@@ -16,7 +15,7 @@ interface FolderViewSidebarOptions extends Omit<
   ) => Promise<void>;
 }
 
-/** FolderSidebar props for folder colours and the delete dialog, behind the library-folder-view flag. */
+/** FolderSidebar props for folder colours and the delete dialog. */
 export function useFolderViewSidebar({
   setFolderColor,
   ...deleteConfig
@@ -24,14 +23,10 @@ export function useFolderViewSidebar({
   FolderSidebarProps,
   'onSetFolderColor' | 'folderDelete'
 > {
-  // Read softly so library tests that render without AuthProvider see the flag off.
-  const enabled =
-    useContext(AuthContext)?.canAccessFeature('library-folder-view') ?? false;
   // PLC pages render outside DashboardProvider, where there is nowhere to toast.
   const addToast =
     useContext(DashboardActionsContext)?.addToast ??
     use(DashboardContext)?.addToast;
-  if (!enabled) return {};
   return {
     onSetFolderColor: setFolderColor,
     folderDelete: {

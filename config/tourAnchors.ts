@@ -633,6 +633,10 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'checklist.open-settings': {
+    label: 'Add tasks button on an empty Checklist',
+    perWidget: true,
+  },
   'checklist.remove-completed': {
     label: 'Remove completed items button in Checklist',
     perWidget: true,
@@ -2398,6 +2402,11 @@ export const TOUR_ANCHORS = {
   'quiz-print.results-report-choice': {
     label: 'Report choice cards (radio group) in the Quiz widget',
     perField: true,
+    panel: true,
+  },
+  'quiz-print.results-every-attempt': {
+    label: 'Every attempt switch in the results print in the Quiz widget',
+    perWidgetType: true,
     panel: true,
   },
   'quiz-print.results-select-all': {

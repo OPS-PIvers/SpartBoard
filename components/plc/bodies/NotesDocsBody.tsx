@@ -42,10 +42,9 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
   noteId = null,
 }) => {
   const { t } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
+  const { user } = useAuth();
   const { addToast } = useDashboard();
   const canEdit = useCanEditPlcContent();
-  const sidePanels = canAccessFeature('plc-notes-side-panels');
   const [rollupOpen, setRollupOpen] = useState(false);
   const [selectNoteId, setSelectNoteId] = useState<string | null>(noteId);
   const [selectDocId, setSelectDocId] = useState<string | null>(null);
@@ -55,15 +54,12 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
   const { todos, loading: todosLoading, archiveTodos } = usePlcTodos(plc.id);
 
   const { docs } = usePlcDocs(plc.id);
-  // Linked docs carry action items only once the side panels are on.
-  const docGroups = sidePanels
-    ? docs
-        .map((d) => ({
-          doc: d,
-          items: (d.actionItems ?? []).filter((i) => !i.done),
-        }))
-        .filter((g) => g.items.length > 0)
-    : [];
+  const docGroups = docs
+    .map((d) => ({
+      doc: d,
+      items: (d.actionItems ?? []).filter((i) => !i.done),
+    }))
+    .filter((g) => g.items.length > 0);
   const openCount =
     countOpenActionItems(notes) +
     docGroups.reduce((n, g) => n + g.items.length, 0);
@@ -130,16 +126,12 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
   };
 
   const rollupMenu = openCount > 0 && (
-    <div className={sidePanels ? 'relative' : 'relative ml-auto'}>
+    <div className="relative">
       <button
         {...tourAttr('plc-notes.rollup-toggle')}
         type="button"
         onClick={() => setRollupOpen((v) => !v)}
-        className={
-          sidePanels
-            ? 'inline-flex items-center gap-1 -mx-1 px-1 py-0.5 rounded text-xxs font-bold uppercase tracking-widest text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors'
-            : 'inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-white text-slate-600 border border-slate-200 hover:bg-slate-100 transition-colors'
-        }
+        className="inline-flex items-center gap-1 -mx-1 px-1 py-0.5 rounded text-xxs font-bold uppercase tracking-widest text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
       >
         {t('plcDashboard.notes.actionItems.openCount', {
           defaultValue: 'Open action items ({{count}})',
@@ -149,7 +141,7 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
       </button>
       {rollupOpen && (
         <div
-          className={`absolute ${sidePanels ? 'left-0' : 'right-0'} top-full mt-1 z-20 w-72 max-h-80 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg custom-scrollbar`}
+          className={`absolute left-0 top-full mt-1 z-20 w-72 max-h-80 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg custom-scrollbar`}
         >
           {docGroups.map(({ doc: d, items }) => (
             <button
@@ -206,25 +198,10 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
   );
 
   return (
-    <div
-      className={`flex flex-col h-full overflow-hidden ${sidePanels ? '' : 'gap-4'}`}
-    >
-      {/* Open action items rollup */}
-      <div
-        className={`flex items-center justify-between gap-2 shrink-0 flex-wrap ${
-          sidePanels || openCount === 0 ? 'hidden' : ''
-        }`}
-      >
-        {!sidePanels && rollupMenu}
-      </div>
-
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Legacy to-do import banner */}
       {canEdit && !todosLoading && todos.length > 0 && (
-        <div
-          className={`shrink-0 flex items-center justify-between gap-3 px-4 py-2.5 bg-brand-blue-lighter/40 border-brand-blue-light/40 ${
-            sidePanels ? 'border-b' : 'border rounded-xl'
-          }`}
-        >
+        <div className="shrink-0 flex items-center justify-between gap-3 px-4 py-2.5 bg-brand-blue-lighter/40 border-brand-blue-light/40 border-b">
           <span className="text-xs font-semibold text-slate-700">
             {t('plcDashboard.notes.importTodos.banner', {
               defaultValue:

@@ -1966,9 +1966,15 @@ const TeacherQuizWidget: React.FC<{
         initialExportedResponseIds={
           activeAssignment?.exportedResponseIds ?? null
         }
+        initialExportedAttempts={activeAssignment?.exportedAttempts ?? null}
         onExportedResponseIdsSaved={
           activeAssignmentId
-            ? (ids) => setAssignmentExportedResponseIds(activeAssignmentId, ids)
+            ? (ids, attempts) =>
+                setAssignmentExportedResponseIds(
+                  activeAssignmentId,
+                  ids,
+                  attempts
+                )
             : undefined
         }
         variant={isReview ? 'review' : 'quiz'}

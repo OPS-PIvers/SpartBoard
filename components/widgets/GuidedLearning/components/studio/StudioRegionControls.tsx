@@ -25,8 +25,6 @@ interface StudioRegionControlsProps {
   step: GuidedLearningStep;
   /** `field` names a continuous edit so it coalesces; false makes its own undo entry. */
   onChange: (step: GuidedLearningStep, field?: string | false) => void;
-  /** `gl-callout-editing`: size and colour summary, and Reset all. */
-  calloutEditing?: boolean;
 }
 
 const SHAPES: readonly StudioShape[] = ['point', 'rect', 'ellipse', 'polygon'];
@@ -36,7 +34,6 @@ const LEGACY_SIDES = ['above', 'below', 'left', 'right'] as const;
 export const StudioRegionControls: React.FC<StudioRegionControlsProps> = ({
   step,
   onChange,
-  calloutEditing = false,
 }) => {
   const { t } = useTranslation();
   const current: StudioShape = step.region?.shape ?? 'point';
@@ -50,7 +47,7 @@ export const StudioRegionControls: React.FC<StudioRegionControlsProps> = ({
             side: t(`glStudio.calloutSide_${legacySide}`),
           })
         : t('glStudio.calloutAuto');
-  const styled = calloutEditing && stepHasCallout(step);
+  const styled = stepHasCallout(step);
   const box = step.calloutBox;
   const sized =
     !!box ||

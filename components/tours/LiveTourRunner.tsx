@@ -969,14 +969,8 @@ export const LiveTourRunner: React.FC = () => {
   beginRef.current = begin;
 
   const launch = (req: TourStartRequest, opts: LaunchOptions = {}) => {
-    const { canAccessFeature: can, dashboard: d, t: tr } = latest.current;
-    if (
-      !req?.setId ||
-      !can('gl-live-tours') ||
-      startingRef.current ||
-      isTourRunning()
-    )
-      return;
+    const { dashboard: d, t: tr } = latest.current;
+    if (!req?.setId || startingRef.current || isTourRunning()) return;
     startingRef.current = true;
     setResumeOffer(null);
     // A failed launch drops any saved run, so it does not come back later.
@@ -1240,8 +1234,7 @@ export const LiveTourRunner: React.FC = () => {
     !!editTarget && editTarget.set.steps.length > 0 && tour === null;
   const startEdit = useEffectEvent(() => {
     const req = getTourEdit();
-    if (!req || startingRef.current || !canAccessFeature('gl-live-tours'))
-      return;
+    if (!req || startingRef.current) return;
     const steps = liveTourStepsOf(req.set);
     if (steps.length === 0) return;
     const selected = Math.min(req.selected, steps.length - 1);
@@ -1365,11 +1358,7 @@ export const LiveTourRunner: React.FC = () => {
   // A teacher's own picked item takes real writes, so only a run without one autopilots sandboxed saves.
   const inSandbox = !!tour?.sandboxed && sandbox.passthrough.size === 0;
   const running = tour?.phase === 'running';
-  const offeringResume =
-    !tour &&
-    resumeOffer !== null &&
-    !!activeDashboard &&
-    canAccessFeature('gl-live-tours');
+  const offeringResume = !tour && resumeOffer !== null && !!activeDashboard;
   // The editor keeps Escape for its own controls, except to stop a fast-forward.
   const escapable =
     (tour !== null && (!tour.edit || jumping)) || offeringResume;

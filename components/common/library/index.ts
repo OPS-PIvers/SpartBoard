@@ -90,13 +90,8 @@ export type {
   FolderPanelMode,
   LibraryFolderPanelContextValue,
 } from './LibraryFolderPanelContext';
-export {
-  ROOT_FOLDER_COUNT_KEY,
-  filterByFolder,
-  countItemsByFolder,
-  filterSourcedEntriesByFolder,
-} from './folderFilters';
-export type { HasFolderId, HasFolderIdAndSource } from './folderFilters';
+export { ROOT_FOLDER_COUNT_KEY, countItemsByFolder } from './folderFilters';
+export type { HasFolderId } from './folderFilters';
 
 export type {
   LibraryTab,

@@ -2927,6 +2927,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "checklist.open-settings",
+    "label": "Add tasks button on an empty Checklist",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.checklist.face",
+        "kind": "widget",
+        "widget_type": "checklist",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "checklist.remove-completed",
     "label": "Remove completed items button in Checklist",
     "scope": "widget",
@@ -10034,6 +10050,31 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Report choice cards (radio group) in the Quiz widget",
     "scope": "field",
     "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.results.print",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.print:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-print.results-every-attempt",
+    "label": "Every attempt switch in the results print in the Quiz widget",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results.print",

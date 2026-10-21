@@ -5,6 +5,40 @@ import { describe, expect, it, vi } from 'vitest';
 import { MiniAppManager } from './MiniAppManager';
 import { GlobalMiniAppItem, MiniAppItem } from '@/types';
 
+vi.mock('@/hooks/useFolders', () => {
+  const state = {
+    folders: [],
+    loading: false,
+    error: null,
+    createFolder: vi.fn(),
+    renameFolder: vi.fn(),
+    moveFolder: vi.fn(),
+    deleteFolder: vi.fn(),
+    moveItem: vi.fn(),
+    setFolderColor: vi.fn(),
+    reorderEntries: vi.fn(),
+  };
+  return { useFolders: () => state };
+});
+
+vi.mock('@/hooks/useLibraryPlacements', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/hooks/useLibraryPlacements')>();
+  const placements = {
+    byKey: new Map(),
+    loading: false,
+    place: vi.fn(),
+    unplace: vi.fn(),
+  };
+  return { ...actual, useLibraryPlacements: () => placements };
+});
+
+vi.mock('@/components/common/library/lastLibraryLocation', () => ({
+  readLastLibraryLocation: () => Promise.resolve(null),
+  saveLastLibraryLocation: vi.fn(),
+  resetLastLibraryLocationCache: vi.fn(),
+}));
+
 const miniApp: MiniAppItem = {
   id: 'mini-app-1',
   title: 'Class Poll',
@@ -66,10 +100,8 @@ describe('MiniAppManager assign controls', () => {
       />
     );
 
-    // Switch the toolbar Source filter to Global so only the global card is
-    // visible — this is the view we actually want to exercise.
-    const sourceSelect = screen.getByRole('combobox', { name: 'Source' });
-    await user.selectOptions(sourceSelect, 'global');
+    // Open the district folder so only the global card is visible.
+    await user.click(screen.getAllByText('From the district')[0]);
 
     // Global-only view: the personal mini-app should no longer be in the DOM.
     expect(screen.queryByText('Class Poll')).toBeInTheDocument(); // global + personal share the same title
