@@ -151,7 +151,10 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
   };
 
   const dated = session.layout === 'timeline' && session.timelineDates === true;
-  const dateCheck = dated ? validateDateFields(structure.date) : null;
+  // An undated post being edited may stay undated; new posts need a year.
+  const keepUndated = isEditing && !structure.date.year.trim();
+  const dateCheck =
+    dated && !keepUndated ? validateDateFields(structure.date) : null;
   const dateError =
     dateCheck && 'error' in dateCheck && structure.date.year.trim()
       ? dateCheck.error

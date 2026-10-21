@@ -124,6 +124,7 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
             <label className={labelClass} htmlFor="aw-year">
               Year
             </label>
+            {/* no-tour-anchor: student post form, not part of any teacher tour */}
             <input
               id="aw-year"
               className={selectClass}
@@ -140,6 +141,7 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
             <label className={labelClass} htmlFor="aw-era">
               Era
             </label>
+            {/* no-tour-anchor: student post form, not part of any teacher tour */}
             <select
               id="aw-era"
               className={selectClass}
@@ -166,6 +168,7 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
             <label className={labelClass} htmlFor="aw-precision">
               Accuracy
             </label>
+            {/* no-tour-anchor: student post form, not part of any teacher tour */}
             <select
               id="aw-precision"
               className={selectClass}
@@ -193,6 +196,7 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
             <label className={labelClass} htmlFor="aw-month">
               Month
             </label>
+            {/* no-tour-anchor: student post form, not part of any teacher tour */}
             <select
               id="aw-month"
               className={selectClass}
@@ -217,6 +221,7 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
             <label className={labelClass} htmlFor="aw-day">
               Day
             </label>
+            {/* no-tour-anchor: student post form, not part of any teacher tour */}
             <select
               id="aw-day"
               className={selectClass}

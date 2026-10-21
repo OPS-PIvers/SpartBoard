@@ -31,6 +31,8 @@ describe('timeline dates', () => {
       { year: 1, precision: 'century' },
       { year: -5, precision: 'century' },
       { year: -11, precision: 'century' },
+      { year: 100, precision: 'century' },
+      { year: -10000, precision: 'century' },
     ];
     for (const date of dates) {
       expect(parseWallDate(formatWallDate(date))).toEqual(date);
@@ -69,7 +71,10 @@ describe('timeline dates', () => {
       month: 3,
       day: 4,
     });
-    expect(parseWallDate('Early 1800s')).toBeNull();
+    expect(parseWallDate('Early 1800s')).toEqual({
+      year: 19,
+      precision: 'century',
+    });
     expect(parseWallDate('May 5')).toBeNull();
     expect(parseWallDate('7')).toBeNull();
     expect(parseWallDate('1990s')).toEqual({ year: 1990, precision: 'decade' });
@@ -91,6 +96,7 @@ describe('timeline dates', () => {
       ['circa 1862', 'c. 1862'],
       ['~1862', 'c. 1862'],
       ['Aug 18-22, 1862', 'August 18, 1862'],
+      ['1939-45', '1939'],
     ];
     for (const [label, formatted] of cases) {
       const date = parseWallDate(label);
@@ -145,6 +151,9 @@ describe('timeline dates', () => {
         precision: 'century',
       })
     ).toEqual({ date: { year: -5, precision: 'century' } });
+    expect(
+      validateDateFields({ ...base, year: '5', precision: 'decade' })
+    ).toEqual({ date: { year: 5, precision: 'about' } });
     // A century edits as its middle year and saves back to the same century.
     for (const date of [
       { year: 19, precision: 'century' as const },

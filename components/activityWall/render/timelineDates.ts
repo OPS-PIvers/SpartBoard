@@ -109,7 +109,9 @@ export const validateDateFields = (
   const year = fields.era === 'BCE' ? -value : value;
   // Decades are CE only; the picker disables the option for BCE.
   const precision =
-    fields.precision === 'decade' && year < 0 ? 'about' : fields.precision;
+    fields.precision === 'decade' && (year < 0 || value < 10)
+      ? 'about'
+      : fields.precision;
   if (precision === 'about') return { date: { year, precision } };
   if (precision === 'decade')
     return { date: { year: Math.floor(value / 10) * 10, precision } };
@@ -166,7 +168,7 @@ const ABOUT =
   /^(?:circa|ca\.?|c\.?|about|around|~|(?:early|mid|late|spring|summer|fall|autumn|winter)(?:\s+of)?)\s*(.+)$/i;
 const NUMERIC = /^(\d{1,2})\/(?:(\d{1,2})\/)?(\d{3,4})$/;
 const CENTURY = new RegExp(
-  `^(?:the\\s+)?(\\d{1,2})(?:st|nd|rd|th)\\s+century(?:\\s+${ERA})?$`,
+  `^(?:the\\s+)?(\\d{1,5})(?:st|nd|rd|th)\\s+century(?:\\s+${ERA})?$`,
   'i'
 );
 const DECADE_RANGE = /^(\d{1,4})\s*[–-]\s*(\d{1,4})(?:\s*(?:ce|ad))?$/i;
@@ -224,9 +226,9 @@ export const parseWallDate = (label: string | undefined): WallDate | null => {
   const about = ABOUT.exec(text);
   if (about) {
     const date = yearDateFrom(about[1]);
-    return date && !date.precision
-      ? { year: date.year, precision: 'about' }
-      : null;
+    if (!date) return null;
+    // "Early 1800s" keeps its century; a plain year becomes approximate.
+    return date.precision ? date : { year: date.year, precision: 'about' };
   }
   const century = CENTURY.exec(text);
   if (century) {
@@ -237,7 +239,13 @@ export const parseWallDate = (label: string | undefined): WallDate | null => {
   const range = DECADE_RANGE.exec(text);
   if (range) {
     const start = Number(range[1]);
-    const end = Number(range[2]);
+    // "1939-45" ends in 1945.
+    const end =
+      range[2].length < range[1].length
+        ? Number(
+            range[1].slice(0, range[1].length - range[2].length) + range[2]
+          )
+        : Number(range[2]);
     if (start % 10 === 0 && end === start + 9)
       return { year: start, precision: 'decade' };
     // Any other year range sits at its first year until spans arrive.

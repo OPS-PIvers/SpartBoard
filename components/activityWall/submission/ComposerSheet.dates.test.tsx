@@ -94,4 +94,19 @@ describe('ComposerSheet dated timeline', () => {
     expect(screen.getByLabelText('Month')).toHaveValue('6');
     expect(screen.getByLabelText('Day')).toHaveValue('6');
   });
+
+  it('lets an older undated post be edited without adding a date', () => {
+    const onSubmit = renderSheet(
+      vi.fn(),
+      makeSubmission({ label: 'Fall of Rome', content: 'Rome falls' })
+    );
+    fireEvent.change(screen.getByLabelText('Your response'), {
+      target: { value: 'Rome falls in the west' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ label: 'Fall of Rome' }),
+      expect.anything()
+    );
+  });
 });
