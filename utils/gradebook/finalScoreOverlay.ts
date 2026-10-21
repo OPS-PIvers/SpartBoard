@@ -139,9 +139,8 @@ export function applyFinalScoresToEntries<E extends GradeEntry>(
     const policyPct =
       final.source === 'raw' &&
       attemptPolicyApplies(overlay, entry.pseudonymUid) &&
-      final.rawPoints !== null &&
-      final.max
-        ? (final.rawPoints / final.max) * 100
+      final.status === 'scored'
+        ? final.pct
         : null;
     if (policyPct !== null) {
       const pointsEarned = Math.max(

@@ -98,8 +98,12 @@ function toAttemptMap(
   const out = new Map<string, GradeAttempt[]>();
   for (const d of docs) {
     const { studentUid, attempts } = d.data();
+    // A PIN student who rejoined under another key has two docs; count both.
     if (typeof studentUid === 'string' && studentUid && Array.isArray(attempts))
-      out.set(studentUid, attempts as GradeAttempt[]);
+      out.set(studentUid, [
+        ...(out.get(studentUid) ?? []),
+        ...(attempts as GradeAttempt[]),
+      ]);
   }
   return out;
 }

@@ -45,7 +45,7 @@ export function defaultColumnConfig(
   };
 }
 
-/** The column doc, or null when none exists; a missing doc fails the owner read rule, so errors read as null. */
+/** The column doc, or null when none exists; a missing doc fails the owner read rule, so only permission-denied reads as null. */
 async function readColumn(
   sessionId: string
 ): Promise<GradebookColumnConfig | null> {
@@ -54,16 +54,23 @@ async function readColumn(
       doc(db, GRADEBOOK_COLLECTIONS.columns, sessionId)
     );
     return snap.exists() ? (snap.data() as GradebookColumnConfig) : null;
-  } catch {
-    return null;
+  } catch (err) {
+    if ((err as { code?: unknown }).code === 'permission-denied') return null;
+    throw err;
   }
 }
 
-/** Which attempt counts for a session, as the Gradebook column holds it. */
+/** Which attempt counts for a session, as the Gradebook column holds it; null when the read failed. */
 export async function loadAttemptPolicy(
   sessionId: string
-): Promise<AttemptPolicy> {
-  return (await readColumn(sessionId))?.attemptPolicy ?? DEFAULT_ATTEMPT_POLICY;
+): Promise<AttemptPolicy | null> {
+  try {
+    return (
+      (await readColumn(sessionId))?.attemptPolicy ?? DEFAULT_ATTEMPT_POLICY
+    );
+  } catch {
+    return null;
+  }
 }
 
 /** Saves the Final score choice from the Assign dialog onto the session's Gradebook column. */

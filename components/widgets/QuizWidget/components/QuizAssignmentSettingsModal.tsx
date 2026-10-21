@@ -56,7 +56,6 @@ import {
   saveAttemptPolicy,
 } from '@/hooks/gradebook/useGradebookColumnWrites';
 import type { AttemptPolicy } from '@/utils/gradebook/gradebookCore';
-import { logError } from '@/utils/logError';
 
 interface QuizAssignmentSettingsModalProps {
   assignment: QuizAssignment;
@@ -262,18 +261,14 @@ export const QuizAssignmentSettingsModal: React.FC<
     try {
       await onSave(patch);
       const picked = behavior.finalScore;
+      // Until the saved choice has loaded, any explicit pick is written.
       if (
         finalScoreOn &&
         user?.uid &&
         picked !== undefined &&
-        picked !== (savedPolicy ?? 'latest')
+        picked !== savedPolicy
       ) {
-        await saveAttemptPolicy(user.uid, assignment.id, 'quiz', picked).catch(
-          (err: unknown) =>
-            logError('QuizAssignmentSettingsModal.finalScore', err, {
-              assignmentId: assignment.id,
-            })
-        );
+        await saveAttemptPolicy(user.uid, assignment.id, 'quiz', picked);
       }
       onClose();
     } catch (err) {
