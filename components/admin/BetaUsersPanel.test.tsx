@@ -29,4 +29,28 @@ describe('BetaUsersPanel', () => {
 
     expect(onChange).toHaveBeenCalledWith(['teacher@school.org']);
   });
+
+  it('keeps an invalid email in the field so the admin can fix the typo', () => {
+    const onChange = vi.fn();
+    const showMessage = vi.fn();
+    render(
+      <BetaUsersPanel
+        betaUsers={[]}
+        onChange={onChange}
+        showMessage={showMessage}
+      />
+    );
+
+    const input =
+      screen.getByPlaceholderText<HTMLInputElement>('user@example.com');
+    fireEvent.change(input, { target: { value: 'teacher@school' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(showMessage).toHaveBeenCalledWith('error', expect.any(String));
+    expect(onChange).not.toHaveBeenCalled();
+    expect(input.value).toBe('teacher@school');
+
+    fireEvent.click(screen.getByLabelText('Add beta user'));
+    expect(input.value).toBe('teacher@school');
+  });
 });
