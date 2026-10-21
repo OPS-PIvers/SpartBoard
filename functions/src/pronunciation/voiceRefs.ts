@@ -200,17 +200,28 @@ export function createVoiceReader(deps: VoiceReaderDeps = {}): VoiceReader {
   const runModel = deps.runModel ?? runPinnedModel;
   const cache =
     deps.synthesize || deps.runModel ? new Map<string, string[]>() : readings;
+  // A model run blocks the event loop, so in-flight TTS calls would hit their deadline unread.
+  const synthesizing = new Set<Promise<unknown>>();
   return {
     async read(voice, word) {
       const key = `${PRONUNCIATION_MODEL.md5Prefix}\u0000${voice}\u0000${word}`;
       const hit = cache.get(key);
       if (hit) return hit;
-      const wav = await synthesize(voice, word);
+      const call = synthesize(voice, word);
+      synthesizing.add(call);
+      let wav: Uint8Array | null;
+      try {
+        wav = await call;
+      } finally {
+        synthesizing.delete(call);
+      }
       const pcm = wav ? parseLinear16Wav(wav) : null;
       let tokens: string[] = [];
       if (pcm) {
         const input = normalizeForWav2Vec2(trimSilence(pcm));
         if (input.length >= MIN_INPUT_SAMPLES) {
+          while (synthesizing.size > 0)
+            await Promise.allSettled([...synthesizing]);
           const { data, frames, size } = await runModel(input);
           tokens = greedyCtcSymbols(
             data,
