@@ -2,16 +2,40 @@ import { RandomGroup } from '@/types';
 
 export const UNASSIGNED_ZONE_ID = '__unassigned__';
 
+type Member = { name: string; id?: string };
+
+/** Members of a group, pairing each name with its student id when `studentIds` is parallel. */
+function membersOf(group: RandomGroup): Member[] {
+  const ids =
+    group.studentIds?.length === group.names.length
+      ? group.studentIds
+      : undefined;
+  return group.names.map((name, i) => ({ name, id: ids?.[i] }));
+}
+
+/** Rebuild a group from members; `studentIds` is kept only when every member has one. */
+function withMembers(group: RandomGroup, members: Member[]): RandomGroup {
+  const next: RandomGroup = { ...group, names: members.map((m) => m.name) };
+  delete next.studentIds;
+  if (members.length > 0 && members.every((m) => m.id !== undefined)) {
+    next.studentIds = members.map((m) => m.id as string);
+  }
+  return next;
+}
+
 /** Append a name to a group, deduping (drag from same group → no-op). */
-function appendToGroup(group: RandomGroup, name: string): RandomGroup {
-  if (group.names.includes(name)) return group;
-  return { ...group, names: [...group.names, name] };
+function appendToGroup(group: RandomGroup, member: Member): RandomGroup {
+  if (group.names.includes(member.name)) return group;
+  return withMembers(group, [...membersOf(group), member]);
 }
 
 /** Remove a name from a group's `names` array. */
 function removeFromGroup(group: RandomGroup, name: string): RandomGroup {
   if (!group.names.includes(name)) return group;
-  return { ...group, names: group.names.filter((n) => n !== name) };
+  return withMembers(
+    group,
+    membersOf(group).filter((m) => m.name !== name)
+  );
 }
 
 /** Find the group id that currently holds `name`, or null if unassigned. */
@@ -37,10 +61,13 @@ export function moveNameToGroup(
   name: string,
   targetGroupId: string
 ): RandomGroup[] {
+  const member = groups.flatMap(membersOf).find((m) => m.name === name) ?? {
+    name,
+  };
   const cleaned = groups.map((g) => removeFromGroup(g, name));
   if (targetGroupId === UNASSIGNED_ZONE_ID) return cleaned;
   return cleaned.map((g) =>
-    g.id === targetGroupId ? appendToGroup(g, name) : g
+    g.id === targetGroupId ? appendToGroup(g, member) : g
   );
 }
 
@@ -92,13 +119,13 @@ export function mergeLockedWithFresh({
 }: RebalanceArgs): RandomGroup[] {
   const lockedSet = new Set(lockedNames);
   return currentGroups.map((g, i) => {
-    const kept = g.names.filter((n) => lockedSet.has(n));
-    const fresh = freshGroups[i]?.names ?? [];
+    const kept = membersOf(g).filter((m) => lockedSet.has(m.name));
+    const fresh = freshGroups[i] ? membersOf(freshGroups[i]) : [];
     // Dedupe: if a fresh name somehow matches a locked name (shouldn't,
     // since the caller excludes locked from the pool) keep the locked-side
     // appearance.
-    const deduped = fresh.filter((n) => !kept.includes(n));
-    return { ...g, names: [...kept, ...deduped] };
+    const deduped = fresh.filter((m) => !kept.some((k) => k.name === m.name));
+    return withMembers(g, [...kept, ...deduped]);
   });
 }
 
@@ -141,4 +168,20 @@ export function collectGroupNames(groups: RandomGroup[]): string[] {
   const out: string[] = [];
   for (const g of groups) out.push(...g.names);
   return out;
+}
+
+/** Move each group's unlocked members one group forward (wrapping), keeping `studentIds` in step. */
+export function rotateGroups(
+  groups: RandomGroup[],
+  lockedNames: string[]
+): RandomGroup[] {
+  const lockedSet = new Set(lockedNames);
+  const n = groups.length;
+  return groups.map((g, i) => {
+    const kept = membersOf(g).filter((m) => lockedSet.has(m.name));
+    const incoming = membersOf(groups[(i - 1 + n) % n]).filter(
+      (m) => !lockedSet.has(m.name)
+    );
+    return withMembers(g, [...kept, ...incoming]);
+  });
 }
