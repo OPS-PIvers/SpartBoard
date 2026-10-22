@@ -22,6 +22,7 @@ import {
   type MeetingStripProps,
 } from '@/components/plc/teams/data/DataOverviewSections';
 import { useDateFormat } from '@/components/plc/teams/data/format';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface PlcHomeTool {
   id: string;
@@ -59,7 +60,10 @@ const LatestAssessment: React.FC<{
       <SectionHead
         title={t('plcHome.latest', { defaultValue: 'Latest assessment' })}
       >
-        <TextLink onClick={onOpenDataOverview}>
+        <TextLink
+          onClick={onOpenDataOverview}
+          {...tourAttr('teams.home.see-item-analysis')}
+        >
           {t('plcHome.seeItemAnalysis', {
             defaultValue: 'See item analysis',
           })}
@@ -67,6 +71,7 @@ const LatestAssessment: React.FC<{
       </SectionHead>
       <button
         type="button"
+        {...tourAttr('teams.home.latest-assessment')}
         onClick={() => onOpenAssessment(featured.assessmentId)}
         className="block text-left text-base font-bold text-slate-800 hover:text-brand-blue-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
       >
@@ -117,6 +122,7 @@ const ToolsRow: React.FC<{ tools: readonly PlcHomeTool[] }> = ({ tools }) => (
         <button
           type="button"
           onClick={onOpen}
+          {...tourFieldAttr('teams.home.tool', 'teams-home', id)}
           className="group flex w-full min-w-0 items-start gap-3 rounded text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
         >
           <Icon
