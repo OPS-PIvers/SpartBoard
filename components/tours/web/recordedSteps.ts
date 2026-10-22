@@ -4,9 +4,10 @@ import type {
   WebTourAction,
   WebTourLocator,
   WebTourPicture,
+  WebTourStableAttrs,
 } from '@/types';
 import type { RecordedWebStep } from './recorderProtocol';
-import { scrubCapturedText, toUrlPattern } from './studentData';
+import { scrubCapturedText, toHrefPattern, toUrlPattern } from './studentData';
 
 const VERB: Record<WebTourAction, string> = {
   observe: 'Look at',
@@ -33,13 +34,22 @@ export function draftLabel(
 }
 
 // The extension already scrubbed these; the page does it again rather than trust it.
-const scrubLocator = (l: WebTourLocator): WebTourLocator => {
+export const scrubLocator = (l: WebTourLocator): WebTourLocator => {
   const out: WebTourLocator = { ...l };
-  for (const key of ['name', 'text'] as const) {
+  for (const key of ['name', 'text', 'heading', 'pageTitle'] as const) {
     const v = scrubCapturedText(l[key]);
     if (v) out[key] = v;
     else delete out[key];
   }
+  const attrs: WebTourStableAttrs = {};
+  for (const key of ['testId', 'ariaLabel', 'name'] as const) {
+    const v = scrubCapturedText(l.attrs?.[key]);
+    if (v) attrs[key] = v;
+  }
+  const href = l.attrs?.href ? toHrefPattern(l.attrs.href) : null;
+  if (href) attrs.href = href;
+  if (Object.keys(attrs).length) out.attrs = attrs;
+  else delete out.attrs;
   if (out.frames)
     out.frames = out.frames.map((f) => ({
       ...f,

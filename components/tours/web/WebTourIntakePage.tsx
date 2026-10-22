@@ -9,6 +9,7 @@ import React, {
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { logError } from '@/utils/logError';
+import { EXTENSION_PROTOCOL_VERSION } from './extensionProtocol';
 import {
   INTAKE_PORT,
   parseIntakePortMessage,
@@ -94,10 +95,18 @@ const Intake: React.FC<{ phase: Phase }> = ({ phase }) => {
     else if (phase === 'denied') post({ type: 'intake/denied' });
     else if (phase === 'ready') {
       try {
-        post({ type: 'intake/ready', drafts: await intakeDrafts() });
+        post({
+          type: 'intake/ready',
+          drafts: await intakeDrafts(),
+          protocol: EXTENSION_PROTOCOL_VERSION,
+        });
       } catch (err) {
         logError('web tour intake drafts', err);
-        post({ type: 'intake/ready', drafts: [] });
+        post({
+          type: 'intake/ready',
+          drafts: [],
+          protocol: EXTENSION_PROTOCOL_VERSION,
+        });
       }
     }
   });

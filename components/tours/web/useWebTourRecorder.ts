@@ -6,6 +6,7 @@ import {
   useState,
 } from 'react';
 import { logError } from '@/utils/logError';
+import { EXTENSION_PROTOCOL_VERSION } from './extensionProtocol';
 import {
   parseRecorderPortMessage,
   RECORDER_PORT,
@@ -177,6 +178,12 @@ export function useWebTourRecorder({
             }
             post({ type: 'recorder/ack', setId, stepId: step.id });
           });
+        });
+        // Says which clues this page reviews before any step arrives.
+        post({
+          type: 'recorder/hello',
+          setId,
+          protocol: EXTENSION_PROTOCOL_VERSION,
         });
         post({ type: 'recorder/attach', setId, title });
       };

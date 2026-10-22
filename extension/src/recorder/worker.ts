@@ -1,6 +1,7 @@
 import {
   isRecordedStep,
   parseRecorderPageMessage,
+  stepForPage,
   type RecordedWebStep,
 } from '@/components/tours/web/recorderProtocol';
 import { toUrlPattern } from '@/components/tours/web/studentData';
@@ -403,10 +404,28 @@ async function shoot(
   }
 }
 
-const post = (setId: string, msg: object) =>
+// The protocol each editor said it reviews; one that never said gets only the clues every page reviews.
+const pageProtocols = new WeakMap<chrome.runtime.Port, number>();
+
+const stepMessage = (
+  port: chrome.runtime.Port,
+  type: 'recorder/step' | 'recorder/repicked',
+  setId: string,
+  step: RecordedWebStep
+) => ({
+  type,
+  setId,
+  step: stepForPage(step, pageProtocols.get(port) ?? 0),
+});
+
+const postStep = (
+  setId: string,
+  type: 'recorder/step' | 'recorder/repicked',
+  step: RecordedWebStep
+) =>
   ports.get(setId)?.forEach((p) => {
     try {
-      p.postMessage(msg);
+      p.postMessage(stepMessage(p, type, setId, step));
     } catch {
       // A closed editor just misses it; the outbox re-sends on attach.
     }
@@ -423,7 +442,7 @@ async function send(setId: string, steps: RecordedWebStep[]): Promise<boolean> {
     () => false
   );
   if (!stored) return false;
-  for (const step of steps) post(setId, { type: 'recorder/step', setId, step });
+  for (const step of steps) postStep(setId, 'recorder/step', step);
   notifyPanel();
   return true;
 }
@@ -455,11 +474,7 @@ async function sendFix(
   );
   if (!stored) return false;
   await session.remove(PICK_KEY);
-  post(pick.setId, {
-    type: 'recorder/repicked',
-    setId: pick.setId,
-    step: fixed,
-  });
+  postStep(pick.setId, 'recorder/repicked', fixed);
   notifyPanel();
   return true;
 }
@@ -479,9 +494,14 @@ async function ack(setId: string, stepId: string): Promise<void> {
 export function handleRecorderPort(port: chrome.runtime.Port): void {
   let attached: string | null = null;
   port.onMessage.addListener((raw) => {
+    const msg = parseRecorderPageMessage(raw);
+    if (!msg) return;
+    // Recorded before the attach that follows it, so no step goes out first.
+    if (msg.type === 'recorder/hello') {
+      pageProtocols.set(port, msg.protocol);
+      return;
+    }
     void (async () => {
-      const msg = parseRecorderPageMessage(raw);
-      if (!msg) return;
       if ((await getChromeProfile()) !== 'staff') {
         port.disconnect();
         return;
@@ -496,13 +516,11 @@ export function handleRecorderPort(port: chrome.runtime.Port): void {
         titles.set(msg.setId, msg.title);
         port.postMessage({ type: 'recorder/attached', setId: msg.setId });
         for (const step of (await readOutbox())[msg.setId] ?? [])
-          port.postMessage({ type: 'recorder/step', setId: msg.setId, step });
+          port.postMessage(stepMessage(port, 'recorder/step', msg.setId, step));
         for (const step of (await readBox(FIXES_KEY))[msg.setId] ?? [])
-          port.postMessage({
-            type: 'recorder/repicked',
-            setId: msg.setId,
-            step,
-          });
+          port.postMessage(
+            stepMessage(port, 'recorder/repicked', msg.setId, step)
+          );
         notifyPanel();
       } else if (msg.type === 'recorder/ack' && msg.setId === attached) {
         await ack(msg.setId, msg.stepId);

@@ -91,6 +91,23 @@ describe('intake', () => {
     expect(tabs.remove).toHaveBeenCalledWith(9);
   });
 
+  it('sends the newer clues only to an intake tab that said it reviews them', async () => {
+    const rich: RecordedWebStep = {
+      ...step('s1'),
+      locator: { name: 's1', heading: 'Home', attrs: { href: '/x' } },
+    };
+    const intake = createIntake([ORIGIN], () => undefined);
+    await intake.save({ kind: 'append', setId: 'd1' }, 'T', [rich]);
+    const old = fakePort();
+    intake.handlePort(old.port);
+    await old.reply({ type: 'intake/ready', drafts: [] });
+    expect(old.posted[0].steps).toEqual([{ ...rich, locator: { name: 's1' } }]);
+    const current = fakePort();
+    intake.handlePort(current.port);
+    await current.reply({ type: 'intake/ready', drafts: [], protocol: 4 });
+    expect(current.posted[0].steps).toEqual([rich]);
+  });
+
   it('keeps a failed job until Try again, and brings the tab forward to sign in', async () => {
     const intake = createIntake([ORIGIN], () => undefined);
     const jobId = await intake.save({ kind: 'append', setId: 'd2' }, 'Two', [

@@ -1,7 +1,6 @@
 import type { OverlayAction } from '../overlay/overlayState';
 import type { FrameReport } from './frameScript';
 
-const CLUES = ['role', 'text', 'css'];
 const ACTIONS: readonly OverlayAction[] = ['next', 'back', 'exit'];
 
 /** A frame's report, checked field by field since the frame runs beside an untrusted page. */
@@ -12,9 +11,7 @@ export function isFrameReport(msg: unknown): msg is FrameReport {
   if (m.type === 'wt:lost' || m.type === 'wt:acted') return true;
   return (
     m.type === 'wt:found' &&
-    typeof m.clue === 'string' &&
-    CLUES.includes(m.clue) &&
-    typeof m.tied === 'boolean' &&
+    typeof m.weak === 'boolean' &&
     typeof m.url === 'string'
   );
 }

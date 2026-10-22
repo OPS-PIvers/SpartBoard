@@ -42,7 +42,7 @@ describe('frame seeker', () => {
     expect(reports[0]).toMatchObject({
       type: 'wt:found',
       token: 't1',
-      clue: 'role',
+      weak: false,
     });
     expect(globalThis.__sbWebTourFrame?.target?.el.tagName).toBe('BUTTON');
   });

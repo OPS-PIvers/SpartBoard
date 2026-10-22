@@ -8310,7 +8310,27 @@ export interface WebTourLocator {
   frames?: WebTourFrame[];
   /** Viewport box when recorded, as fractions 0-1; breaks ties, never matches alone. */
   box?: { x: number; y: number; w: number; h: number };
+  /** Nearest heading or field label text above the control. */
+  heading?: string;
+  /** The page's `document.title` when recorded; context only, never scored. */
+  pageTitle?: string;
+  attrs?: WebTourStableAttrs;
 }
+
+/** Attributes sites keep stable across builds; `href` is a path with ids as `*`. */
+export interface WebTourStableAttrs {
+  testId?: string;
+  ariaLabel?: string;
+  name?: string;
+  href?: string;
+}
+
+export const WEB_TOUR_ATTR_KEYS = [
+  'testId',
+  'ariaLabel',
+  'name',
+  'href',
+] as const;
 
 /** A web step's picture in web_tour_pictures/{setId}/; read through the Storage SDK, never a download URL. */
 export interface WebTourPicture {

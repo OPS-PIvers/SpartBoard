@@ -47,6 +47,41 @@ describe('captureTarget', () => {
     const got = captureTarget(document.querySelector('button')!);
     expect(got.locator.name).toBe('Message ••• •••');
   });
+
+  it('records the nearest heading, page title and stable attributes, scrubbed', () => {
+    const title = document.title;
+    document.title = 'Student 2045831 | Schoology';
+    html(
+      '<section><h2>Grades for jane.doe@orono.k12.mn.us</h2><div>' +
+        '<a href="/students/2045831/grades?tab=1" data-testid="open-grades" aria-label="Open 2045831" name="go">Open</a>' +
+        '<button data-testid="row-2045831" name="r-99812">Edit</button></div></section>'
+    );
+    const link = captureTarget(document.querySelector('a')!);
+    expect(link.locator).toMatchObject({
+      heading: 'Grades for •••',
+      pageTitle: 'Student ••• | Schoology',
+      attrs: {
+        testId: 'open-grades',
+        ariaLabel: 'Open •••',
+        name: 'go',
+        href: '/students/*/grades',
+      },
+    });
+    // A per-record test id or field name is never kept.
+    const button = captureTarget(document.querySelector('button')!);
+    expect(button.locator.attrs).toBeUndefined();
+    expect(JSON.stringify([link, button])).not.toMatch(/2045831|jane\.doe/);
+    expect(JSON.stringify([link, button])).not.toContain('<');
+    document.title = title;
+  });
+
+  it('takes a menu or dialog label when no heading comes first', () => {
+    html(
+      '<div role="menu" aria-label="Extensions"><div role="menuitem">Apps Script</div></div>'
+    );
+    const got = captureTarget(document.querySelector('[role=menuitem]')!);
+    expect(got.locator.heading).toBe('Extensions');
+  });
 });
 
 describe('shortCssPath', () => {

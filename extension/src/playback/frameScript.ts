@@ -1,4 +1,4 @@
-import { locate, type LocatorClue, type WebLocatorClues } from './locate';
+import { locate, type WebLocatorClues } from './locate';
 import type { WebStepAction } from './progress';
 
 /** Messages the service worker sends to every frame of a playing tab. */
@@ -16,8 +16,8 @@ export type FrameReport =
   | {
       type: 'wt:found';
       token: string;
-      clue: LocatorClue;
-      tied: boolean;
+      /** Scored close to another element (C2). */
+      weak: boolean;
       url: string;
     }
   | { type: 'wt:lost'; token: string }
@@ -124,8 +124,7 @@ export function installFrameSeeker(
     send({
       type: 'wt:found',
       token: seek.token,
-      clue: hit.clue,
-      tied: hit.tied,
+      weak: hit.weak,
       url: doc.location?.href ?? '',
     });
   };

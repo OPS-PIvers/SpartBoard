@@ -1,7 +1,9 @@
-import type {
-  GuidedLearningSet,
-  GuidedLearningStep,
-  WebTourBinding,
+import {
+  WEB_TOUR_ATTR_KEYS,
+  type GuidedLearningSet,
+  type GuidedLearningStep,
+  type WebTourBinding,
+  type WebTourStableAttrs,
 } from '@/types';
 import type { NameMatcher } from '@/components/widgets/GuidedLearning/components/recorder/redaction';
 import {
@@ -20,6 +22,9 @@ export type ReviewField =
   | 'name'
   | 'pageText'
   | 'css'
+  | 'heading'
+  | 'pageTitle'
+  | `attr:${keyof WebTourStableAttrs}`
   | `frame:${number}`;
 
 export interface ReviewEntry {
@@ -44,6 +49,12 @@ export function reviewEntries(
     ['name', web?.locator.name],
     ['pageText', web?.locator.text],
     ['css', web?.locator.css],
+    ['heading', web?.locator.heading],
+    ['pageTitle', web?.locator.pageTitle],
+    ...WEB_TOUR_ATTR_KEYS.map((k): [ReviewField, string | undefined] => [
+      `attr:${k}`,
+      web?.locator.attrs?.[k],
+    ]),
     ...(web?.locator.frames ?? []).map(
       (f, i) => [frameField(i), f.urlPattern] as [ReviewField, string]
     ),
@@ -58,7 +69,7 @@ export function reviewEntries(
 }
 
 const isUrlField = (field: ReviewField) =>
-  field === 'url' || field.startsWith('frame:');
+  field === 'url' || field === 'attr:href' || field.startsWith('frame:');
 
 /** The field's value with every hit hidden: `*` in addresses, the redaction mark elsewhere. */
 export function hideHits(entry: ReviewEntry): string {
@@ -92,9 +103,18 @@ export function setReviewField(
     );
     return { ...step, web: { ...web, locator: { ...web.locator, frames } } };
   }
-  const key: 'role' | 'name' | 'text' | 'css' =
-    field === 'pageText' ? 'text' : (field as 'role' | 'name' | 'css');
   const locator = { ...web.locator };
+  if (field.startsWith('attr:')) {
+    const attr = field.slice('attr:'.length) as keyof WebTourStableAttrs;
+    const attrs = { ...locator.attrs };
+    if (value === undefined) delete attrs[attr];
+    else attrs[attr] = value;
+    if (Object.keys(attrs).length) locator.attrs = attrs;
+    else delete locator.attrs;
+    return { ...step, web: { ...web, locator } };
+  }
+  type TextKey = 'role' | 'name' | 'text' | 'css' | 'heading' | 'pageTitle';
+  const key: TextKey = field === 'pageText' ? 'text' : (field as TextKey);
   if (value === undefined) delete locator[key];
   else locator[key] = value;
   return { ...step, web: { ...web, locator } };

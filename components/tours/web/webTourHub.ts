@@ -1,4 +1,9 @@
-import type { GuidedLearningStep, WebTourLocator } from '@/types';
+import {
+  WEB_TOUR_ATTR_KEYS,
+  type GuidedLearningStep,
+  type WebTourLocator,
+  type WebTourStableAttrs,
+} from '@/types';
 import type { WebTourStep } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import { logError } from '@/utils/logError';
 import {
@@ -27,11 +32,27 @@ export const isHandoffPattern = (v: string): boolean =>
 
 const unit = (v: number) => Number.isFinite(v) && v >= -1 && v <= 2;
 
-function handoffLocator(locator: WebTourLocator): WebTourLocator {
+// An extension before protocol 4 rejects a locator with the newer clues, so they go only to one that scores them.
+function handoffLocator(
+  locator: WebTourLocator,
+  scored: boolean
+): WebTourLocator {
   const out: WebTourLocator = {};
   for (const key of ['role', 'name', 'text', 'css'] as const) {
     const clue = locator[key];
     if (clue) out[key] = clue.slice(0, MAX_CLUE);
+  }
+  if (scored) {
+    for (const key of ['heading', 'pageTitle'] as const) {
+      const clue = locator[key];
+      if (clue) out[key] = clue.slice(0, MAX_CLUE);
+    }
+    const attrs: WebTourStableAttrs = {};
+    for (const key of WEB_TOUR_ATTR_KEYS) {
+      const clue = locator.attrs?.[key];
+      if (clue) attrs[key] = clue.slice(0, MAX_CLUE);
+    }
+    if (Object.keys(attrs).length) out.attrs = attrs;
   }
   if (locator.frames) {
     out.frames = locator.frames
@@ -154,7 +175,8 @@ export function buildHandoff(
   version: number,
   title: string,
   steps: readonly HubStep[],
-  pictures: ReadonlyMap<string, LoadedPicture>
+  pictures: ReadonlyMap<string, LoadedPicture>,
+  scored = false
 ): WebTourStartTour {
   let total = 0;
   return {
@@ -175,7 +197,7 @@ export function buildHandoff(
         id: step.id,
         label: (step.label ?? '').slice(0, MAX_TEXT),
         text: (step.text ?? '').slice(0, MAX_TEXT),
-        web: { urlPattern, action, locator: handoffLocator(locator) },
+        web: { urlPattern, action, locator: handoffLocator(locator, scored) },
         ...(pic && fits
           ? { picture: { mime: pic.mime, data, w: pic.w, h: pic.h } }
           : {}),

@@ -1,5 +1,6 @@
 import {
   parseWebTourPortMessage,
+  progressForPage,
   WEB_TOUR_PORT,
   type WebTourProgressMessage,
 } from '@/components/tours/web/extensionProtocol';
@@ -30,10 +31,14 @@ const origins = __SPART_ORIGINS__;
 
 // Pages following a tour's progress, by set id; a restarted worker loses them and the page reconnects.
 const watchers = new Map<string, Set<chrome.runtime.Port>>();
+// The protocol each watching page reads; a page from before protocol 4 never says.
+const watcherProtocols = new WeakMap<chrome.runtime.Port, number>();
+const toPage = (port: chrome.runtime.Port, msg: WebTourProgressMessage) =>
+  port.postMessage(progressForPage(msg, watcherProtocols.get(port) ?? 0));
 const post = (setId: string, msg: WebTourProgressMessage) => {
   for (const port of watchers.get(setId) ?? []) {
     try {
-      port.postMessage(msg);
+      toPage(port, msg);
     } catch {
       watchers.get(setId)?.delete(port);
     }
@@ -94,12 +99,13 @@ chrome.runtime.onConnectExternal.addListener((port) => {
         port.disconnect();
         return;
       }
+      watcherProtocols.set(port, msg.protocol ?? 0);
       const set = watchers.get(msg.setId) ?? new Set();
       set.add(port);
       watchers.set(msg.setId, set);
       // A page that reconnects after the worker idled catches up on the step it missed.
       return playback.replay(msg.setId).then((missed) => {
-        for (const m of missed) port.postMessage(m);
+        for (const m of missed) toPage(port, m);
       });
     });
   });

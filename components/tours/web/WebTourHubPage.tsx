@@ -34,6 +34,7 @@ import {
   type ExtensionStatus,
   type WebTourPortEvent,
 } from './extensionClient';
+import { SCORED_MATCH_PROTOCOL } from './extensionProtocol';
 import {
   buildHandoff,
   loadPictures,
@@ -229,6 +230,8 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
   }, [setId]);
 
   const playable = extension !== null && canPlayWebTours(extension);
+  const extensionProtocol =
+    extension?.kind === 'ready' ? extension.protocol : 0;
   const storeId = extensionId();
   const tour = load.kind === 'ready' ? load.tour : null;
 
@@ -275,14 +278,19 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
   });
   useEffect(() => {
     if (!playable) return;
-    const stop = watchWebTour(setId, onPortEvent, onPortGone);
+    const stop = watchWebTour(
+      setId,
+      onPortEvent,
+      onPortGone,
+      extensionProtocol
+    );
     return () => {
       if (reconnectTimer.current !== null) {
         window.clearTimeout(reconnectTimer.current);
       }
       stop();
     };
-  }, [playable, setId, reconnects, watchEpoch]);
+  }, [playable, setId, reconnects, watchEpoch, extensionProtocol]);
 
   useEffect(() => {
     const leave = () => {
@@ -327,7 +335,8 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
       tour.version,
       tour.title,
       tour.steps,
-      pictures ?? new Map()
+      pictures ?? new Map(),
+      extensionProtocol >= SCORED_MATCH_PROTOCOL
     );
     const result = await startWebTour(handoff, url, stepIndex);
     if (!result.ok) {

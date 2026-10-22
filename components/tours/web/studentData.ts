@@ -260,3 +260,26 @@ export function toUrlPattern(rawUrl: string): string | null {
     : '';
   return `${url.origin}${wildcardPath(url.pathname)}${query}${hash}`;
 }
+
+const LOCAL_BASE = 'https://relative.invalid';
+/** Longest link pattern a locator carries, origin included; the recorder protocol refuses longer. */
+export const MAX_HREF_PATTERN = 400;
+
+/** A link's path with ids as `*`, no query or hash; origin kept only for another site. Null for non-http(s) links or past the cap. */
+export function toHrefPattern(
+  rawHref: string,
+  pageUrl: string = LOCAL_BASE
+): string | null {
+  let url: URL;
+  let page: URL;
+  try {
+    page = new URL(pageUrl);
+    url = new URL(rawHref, page);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
+  const path = wildcardPath(url.pathname);
+  const pattern = url.origin === page.origin ? path : `${url.origin}${path}`;
+  return pattern.length <= MAX_HREF_PATTERN ? pattern : null;
+}

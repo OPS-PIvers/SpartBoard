@@ -18,7 +18,7 @@ export interface TourRun {
   misses: string[];
   /** Set on web tour runs (T10). */
   surface?: 'web';
-  /** Web tour steps found only by a weaker clue, as `stepId:clue`. */
+  /** Web tour steps found weakly, as `stepId:text|css` (older extensions) or `stepId:score` (C2). */
   weak?: string[];
 }
 
@@ -156,7 +156,9 @@ export function startTourRunLog(
       const weakOf = (w: string) => w.slice(0, w.lastIndexOf(':')) === stepId;
       const oldWeak = (run.weak ?? []).find(weakOf);
       const nextWeak =
-        match === 'text' || match === 'css' ? `${stepId}:${match}` : undefined;
+        match === 'text' || match === 'css' || match === 'score'
+          ? `${stepId}:${match}`
+          : undefined;
       if ((match === 'none') === hasMiss && oldWeak === nextWeak) return;
       let misses = run.misses.filter((id) => id !== stepId);
       if (match === 'none' && misses.length < MAX_RUN_MISSES) {

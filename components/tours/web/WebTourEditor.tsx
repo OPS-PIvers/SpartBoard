@@ -61,8 +61,8 @@ import {
   type TourPublishStatus,
 } from '@/components/tours/tourSnapshot';
 import { isWebTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
-import { isHardHit } from './studentData';
-import { toWebStep } from './recordedSteps';
+import { isHardHit, toUrlPattern } from './studentData';
+import { scrubLocator, toWebStep } from './recordedSteps';
 import { uploadRecordedPicture } from './intakeSave';
 import type { RecordedWebStep } from './recorderProtocol';
 import { useWebTourRecorder, type RecorderLink } from './useWebTourRecorder';
@@ -96,6 +96,12 @@ const FIELD_LABEL: Record<string, string> = {
   name: 'Control name',
   pageText: 'Text on the control',
   css: 'Page position',
+  heading: 'Nearby heading',
+  pageTitle: 'Page title',
+  'attr:testId': 'Control id',
+  'attr:ariaLabel': 'Control label',
+  'attr:name': 'Field name',
+  'attr:href': 'Link address',
 };
 
 const fieldLabel = (field: ReviewField) =>
@@ -109,6 +115,12 @@ const REMOVABLE: ReadonlySet<ReviewField> = new Set([
   'name',
   'pageText',
   'css',
+  'heading',
+  'pageTitle',
+  'attr:testId',
+  'attr:ariaLabel',
+  'attr:name',
+  'attr:href',
 ]);
 
 const ACTION_LABEL: Record<WebTourAction, string> = {
@@ -796,8 +808,8 @@ export const WebTourEditor: React.FC<{
     if (deleted.current) throw new Error('Tour deleted');
     const web = {
       ...target.web,
-      urlPattern: recorded.urlPattern,
-      locator: recorded.locator,
+      urlPattern: toUrlPattern(recorded.urlPattern) ?? '*',
+      locator: scrubLocator(recorded.locator),
       ...(picture ? { picture } : {}),
     };
     await saveNow({

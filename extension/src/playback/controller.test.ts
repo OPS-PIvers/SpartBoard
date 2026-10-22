@@ -127,8 +127,7 @@ describe('playback controller', () => {
     await c.frameReport(7, 0, {
       type: 'wt:found',
       token: seek.msg.token as string,
-      clue: 'role',
-      tied: false,
+      weak: false,
       url: '',
     });
     expect(h.lastRender()).toMatchObject({
@@ -161,8 +160,7 @@ describe('playback controller', () => {
     await c.frameReport(7, 0, {
       type: 'wt:found',
       token: seek.msg.token as string,
-      clue: 'text',
-      tied: false,
+      weak: true,
       url: '',
     });
     expect(await c.replay('set1')).toEqual([
@@ -171,7 +169,7 @@ describe('playback controller', () => {
         setId: 'set1',
         stepIndex: 0,
         stepId: 'a',
-        match: 'text',
+        match: 'score',
       },
     ]);
     expect(await c.replay('other')).toEqual([]);
@@ -185,8 +183,7 @@ describe('playback controller', () => {
     await c.frameReport(7, 0, {
       type: 'wt:found',
       token: 'stale',
-      clue: 'role',
-      tied: false,
+      weak: false,
       url: '',
     });
     expect(h.lastRender()).toMatchObject({ status: 'seeking' });
@@ -248,8 +245,7 @@ describe('playback controller', () => {
     await c.frameReport(7, 4, {
       type: 'wt:found',
       token: seek.msg.token as string,
-      clue: 'text',
-      tied: false,
+      weak: true,
       url: '',
     });
     expect(h.injected.at(-1)).toEqual({ frameIds: [4], overlay: true });
@@ -343,21 +339,20 @@ describe('playback controller, review fixes', () => {
     const c = createPlaybackController(h.host);
     await c.start(parsed());
     await c.committed(7, 0, 'https://a.example/home');
-    const found = async (clue: 'role' | 'text') =>
+    const found = async (weak: boolean) =>
       c.frameReport(7, 0, {
         type: 'wt:found',
         token: h.lastSeek().msg.token as string,
-        clue,
-        tied: false,
+        weak,
         url: '',
       });
-    await found('role');
+    await found(false);
     await c.overlayAction(7, 0, 'next');
     await c.committed(7, 0, 'https://a.example/course/1');
-    await found('text');
+    await found(true);
     await c.overlayAction(7, 0, 'back');
     await c.committed(7, 0, 'https://a.example/home');
-    await found('role');
+    await found(false);
     expect(h.posts.at(-1)).toEqual({
       type: 'web-tour/step',
       setId: 'set1',
@@ -464,8 +459,7 @@ describe('playback controller, review fixes', () => {
     await c.frameReport(7, 4, {
       type: 'wt:found',
       token: seek.msg.token as string,
-      clue: 'role',
-      tied: false,
+      weak: false,
       url: '',
     });
     await c.committed(7, 4, 'https://b.example/x');

@@ -1,5 +1,10 @@
-import type { WebTourAction, WebTourLocator } from '@/types';
-import { MAX_CAPTURED_TEXT } from './studentData';
+import {
+  WEB_TOUR_ATTR_KEYS,
+  type WebTourAction,
+  type WebTourLocator,
+} from '@/types';
+import { MAX_CAPTURED_TEXT, MAX_HREF_PATTERN } from './studentData';
+import { SCORED_MATCH_PROTOCOL } from './extensionProtocol';
 
 /** Port the web-step editor opens to the extension to receive recorded steps. */
 export const RECORDER_PORT = 'web-tour-recorder';
@@ -45,12 +50,24 @@ const isBox = (v: unknown) =>
   v === undefined ||
   (isObj(v) && isNum(v.x) && isNum(v.y) && isNum(v.w) && isNum(v.h));
 
+const isAttrs = (v: unknown) =>
+  v === undefined ||
+  (isObj(v) &&
+    Object.entries(v).every(
+      ([k, a]) =>
+        (WEB_TOUR_ATTR_KEYS as readonly string[]).includes(k) &&
+        isStr(a, MAX_HREF_PATTERN)
+    ));
+
 export const isLocator = (v: unknown): v is WebTourLocator =>
   isObj(v) &&
   optStr(v.role, 40) &&
   optStr(v.name, MAX_CAPTURED_TEXT) &&
   optStr(v.text, MAX_CAPTURED_TEXT) &&
   optStr(v.css, 400) &&
+  optStr(v.heading, MAX_CAPTURED_TEXT) &&
+  optStr(v.pageTitle, MAX_CAPTURED_TEXT) &&
+  isAttrs(v.attrs) &&
   isFrames(v.frames) &&
   isBox(v.box);
 
@@ -77,6 +94,16 @@ export const isRecordedStep = (v: unknown): v is RecordedWebStep =>
       v.picture.dataUrl.startsWith('data:image/jpeg;base64,') &&
       isNum(v.picture.w) &&
       isNum(v.picture.h)));
+
+/** The step as a page speaking `protocol` can review: older pages never get the clues their review can't show. */
+export function stepForPage(
+  step: RecordedWebStep,
+  protocol: number
+): RecordedWebStep {
+  if (protocol >= SCORED_MATCH_PROTOCOL) return step;
+  const { heading: _h, pageTitle: _t, attrs: _a, ...locator } = step.locator;
+  return { ...step, locator };
+}
 
 /** What the extension posts on the recorder port. */
 export type RecorderPortMessage =
@@ -108,7 +135,12 @@ export type RecorderPageMessage =
   | { type: 'recorder/attach'; setId: string; title: string }
   | { type: 'recorder/ack'; setId: string; stepId: string }
   /** Puts the side panel in pick mode: the next click replaces this step's target and picture. */
-  | { type: 'recorder/repick'; setId: string; stepId: string };
+  | { type: 'recorder/repick'; setId: string; stepId: string }
+  /** Sent before attach: the protocol this page reviews; older extensions ignore it. */
+  | { type: 'recorder/hello'; setId: string; protocol: number };
+
+const isProtocol = (v: unknown): v is number =>
+  Number.isInteger(v) && (v as number) >= 0 && (v as number) <= 1000;
 
 const hasKeys = (m: Record<string, unknown>, keys: readonly string[]) =>
   Object.keys(m).length === keys.length && keys.every((k) => k in m);
@@ -124,6 +156,12 @@ export function parseRecorderPageMessage(
     isStr(msg.title, 200)
   )
     return { type: msg.type, setId: msg.setId, title: msg.title };
+  if (
+    msg.type === 'recorder/hello' &&
+    hasKeys(msg, ['type', 'setId', 'protocol']) &&
+    isProtocol(msg.protocol)
+  )
+    return { type: msg.type, setId: msg.setId, protocol: msg.protocol };
   if (
     (msg.type === 'recorder/ack' || msg.type === 'recorder/repick') &&
     hasKeys(msg, ['type', 'setId', 'stepId']) &&
@@ -190,7 +228,8 @@ export function parseIntakePortMessage(msg: unknown): IntakePortMessage | null {
 
 /** What the intake tab posts back to the extension. */
 export type IntakePageMessage =
-  | { type: 'intake/ready'; drafts: IntakeDraft[] }
+  /** `protocol` is the one this page reviews; absent from pages before protocol 4. */
+  | { type: 'intake/ready'; drafts: IntakeDraft[]; protocol?: number }
   | { type: 'intake/signin' }
   | { type: 'intake/denied' }
   | { type: 'intake/created'; jobId: string; setId: string }
@@ -217,6 +256,7 @@ export function parseIntakePageMessage(msg: unknown): IntakePageMessage | null {
     return {
       type: msg.type,
       drafts: msg.drafts.map((d) => ({ setId: d.setId, title: d.title })),
+      ...(isProtocol(msg.protocol) ? { protocol: msg.protocol } : {}),
     };
   if (!isStr(msg.jobId, 64) || !JOB_ID.test(msg.jobId)) return null;
   if (msg.type === 'intake/failed') return { type: msg.type, jobId: msg.jobId };
