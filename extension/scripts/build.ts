@@ -27,6 +27,11 @@ const ENTRIES: { entry: string; fileName: string; format: 'es' | 'iife' }[] = [
     format: 'es',
   },
   { entry: 'src/overlay/index.ts', fileName: 'overlay.js', format: 'iife' },
+  {
+    entry: 'src/playback/frameEntry.ts',
+    fileName: 'locator.js',
+    format: 'iife',
+  },
 ];
 
 const configFor = (

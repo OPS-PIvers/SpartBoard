@@ -4,7 +4,12 @@ import type { OverlayRect } from './overlayState';
 
 const same = (a: OverlayRect | null, b: OverlayRect | null) =>
   a === b ||
-  (!!a && !!b && a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height);
+  (!!a &&
+    !!b &&
+    a.x === b.x &&
+    a.y === b.y &&
+    a.width === b.width &&
+    a.height === b.height);
 
 /** The element the locator matched in this frame, shared through the content scripts' isolated world. */
 export const sharedTarget = (): Element | null =>
@@ -14,10 +19,7 @@ export const sharedTarget = (): Element | null =>
 export function useTargetRect(active: boolean): OverlayRect | null {
   const [rect, setRect] = useState<OverlayRect | null>(null);
   useEffect(() => {
-    if (!active) {
-      setRect(null);
-      return;
-    }
+    if (!active) return;
     let raf = 0;
     let scrolled: Element | null = null;
     let last: OverlayRect | null = null;
@@ -28,14 +30,16 @@ export function useTargetRect(active: boolean): OverlayRect | null {
         el.scrollIntoView({ block: 'center', inline: 'nearest' });
       }
       const r = el?.getBoundingClientRect();
-      const next = r ? { x: r.x, y: r.y, width: r.width, height: r.height } : null;
+      const next = r
+        ? { x: r.x, y: r.y, width: r.width, height: r.height }
+        : null;
       if (!same(next, last)) {
         last = next;
         setRect(next);
       }
       raf = requestAnimationFrame(tick);
     };
-    tick();
+    raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [active]);
   return active ? rect : null;

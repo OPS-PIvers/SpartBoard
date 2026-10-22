@@ -17,14 +17,28 @@ interface ExternalRuntime {
 }
 
 const runtime = (): ExternalRuntime | null =>
-  (globalThis as { chrome?: { runtime?: ExternalRuntime } }).chrome?.runtime ?? null;
+  (globalThis as { chrome?: { runtime?: ExternalRuntime } }).chrome?.runtime ??
+  null;
 
-const readId = () => {
+const envId =
+  (import.meta.env as Record<string, string | undefined>)
+    .VITE_SPART_EXTENSION_ID ?? '';
+
+const readId = (): string => {
   try {
-    return localStorage.getItem(ID_KEY) ?? import.meta.env.VITE_SPART_EXTENSION_ID ?? '';
+    return localStorage.getItem(ID_KEY) ?? envId;
   } catch {
-    return import.meta.env.VITE_SPART_EXTENSION_ID ?? '';
+    return envId;
   }
+};
+
+// The extension opens only https pages, so a localhost harness plays the deployed dev site's fixture unless ?site= names another.
+const siteOrigin = () => {
+  const named = new URLSearchParams(window.location.search).get('site');
+  if (named?.startsWith('https://')) return named.replace(/\/+$/, '');
+  return window.location.protocol === 'https:'
+    ? window.location.origin
+    : 'https://spartboard-dev.web.app';
 };
 
 const btn =
@@ -35,7 +49,10 @@ export const WebTourPlaybackDevHarness: React.FC = () => {
   const [stepIndex, setStepIndex] = useState(0);
   const [log, setLog] = useState<string[]>([]);
   const port = useRef<ExternalPort | null>(null);
-  const add = (line: string) => setLog((l) => [`${new Date().toLocaleTimeString()} ${line}`, ...l].slice(0, 100));
+  const add = (line: string) =>
+    setLog((l) =>
+      [`${new Date().toLocaleTimeString()} ${line}`, ...l].slice(0, 100)
+    );
 
   const send = (msg: unknown, label: string) => {
     const rt = runtime();
@@ -44,7 +61,9 @@ export const WebTourPlaybackDevHarness: React.FC = () => {
       return;
     }
     rt.sendMessage(id, msg, (reply) => {
-      add(`${label}: ${rt.lastError ? `error ${rt.lastError.message}` : JSON.stringify(reply)}`);
+      add(
+        `${label}: ${rt.lastError ? `error ${rt.lastError.message}` : JSON.stringify(reply)}`
+      );
     });
   };
 
@@ -76,16 +95,31 @@ export const WebTourPlaybackDevHarness: React.FC = () => {
       <main className="mx-auto flex max-w-3xl flex-col gap-4 p-6 pb-16">
         <h1 className="text-xl font-bold">Web tour playback harness</h1>
         <p className="text-sm text-slate-600">
-          Plays the fixture tour on <a className="underline" href={WEB_TOUR_FIXTURE_PATH}>the fixture site</a> through the
-          installed dev extension. Steps cover an in-app route change, a control that appears late, a tie broken by
-          position, a frame, a full page load and the picture fallback.
+          Plays the fixture tour on{' '}
+          <a
+            className="underline"
+            href={`${siteOrigin()}${WEB_TOUR_FIXTURE_PATH}`}
+          >
+            the fixture site
+          </a>{' '}
+          through the installed dev extension. Steps cover an in-app route
+          change, a control that appears late, a tie broken by position, a
+          frame, a full page load and the picture fallback.
         </p>
         <label className="flex flex-col gap-1 text-sm">
           Extension id
-          <input value={id} onChange={(e) => saveId(e.target.value.trim())} className="rounded border border-slate-300 px-2 py-1 font-mono" />
+          <input
+            value={id}
+            onChange={(e) => saveId(e.target.value.trim())}
+            className="rounded border border-slate-300 px-2 py-1 font-mono"
+          />
         </label>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className={btn} onClick={() => send({ type: 'ping' }, 'ping')}>
+          <button
+            type="button"
+            className={btn}
+            onClick={() => send({ type: 'ping' }, 'ping')}
+          >
             Ping
           </button>
           <button type="button" className={btn} onClick={watch}>
@@ -107,7 +141,7 @@ export const WebTourPlaybackDevHarness: React.FC = () => {
             className={btn}
             onClick={() => {
               watch();
-              send(fixtureTourStart(window.location.origin, stepIndex), 'start');
+              send(fixtureTourStart(siteOrigin(), stepIndex), 'start');
             }}
           >
             Play fixture tour

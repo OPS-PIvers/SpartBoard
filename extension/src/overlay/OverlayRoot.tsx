@@ -36,7 +36,9 @@ interface Props {
   onAction: (action: OverlayAction) => void;
 }
 
-const Picture: React.FC<{ picture: NonNullable<OverlayState['picture']> }> = ({ picture }) => {
+const Picture: React.FC<{ picture: NonNullable<OverlayState['picture']> }> = ({
+  picture,
+}) => {
   const { t } = useTranslation();
   return (
     <img
@@ -57,7 +59,12 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({ state, onAction }) => {
   const lit = state.status === 'shown' && state.targetHere;
   const rect = useTargetRect(lit);
   const view = { w: window.innerWidth, h: window.innerHeight };
-  const tip = placeTip(rect, view);
+  // A target inside a frame is lit there; the tip waits low on the screen so it doesn't cover the frame.
+  const away = state.status === 'shown' && !state.targetHere;
+  const placed = placeTip(rect, view);
+  const tip = away
+    ? { ...placed, top: Math.max(GUTTER, view.h - TIP_H - GUTTER * 4) }
+    : placed;
   const done = state.status === 'done';
   // The tip's height isn't known during render; the arrow only needs the side it leaves from.
   const tether = rect
@@ -100,18 +107,25 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({ state, onAction }) => {
       >
         {!done && <p className="text-sm text-slate-700">{state.text}</p>}
         {state.status === 'wrong-page' && (
-          <p data-testid="web-tour-other-page" className="mt-2 text-sm font-semibold text-slate-700">
+          <p
+            data-testid="web-tour-other-page"
+            className="mt-2 text-sm font-semibold text-slate-700"
+          >
             {t('tours.webOtherPage')}
           </p>
         )}
         {state.status === 'fallback' && (
-          <p data-testid="web-tour-find-it" className="mt-2 text-sm font-semibold text-slate-700">
+          <p
+            data-testid="web-tour-find-it"
+            className="mt-2 text-sm font-semibold text-slate-700"
+          >
             {t('tours.webFindIt')}
           </p>
         )}
-        {state.picture && (state.status === 'fallback' || state.status === 'wrong-page') && (
-          <Picture picture={state.picture} />
-        )}
+        {state.picture &&
+          (state.status === 'fallback' || state.status === 'wrong-page') && (
+            <Picture picture={state.picture} />
+          )}
       </TourTip>
     </>
   );
@@ -119,8 +133,9 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({ state, onAction }) => {
 
 /** A frame that holds the target: only the spotlight, since the bar and tip live in the top frame. */
 const TargetOverlay: React.FC<{ state: OverlayState }> = ({ state }) => {
-  const rect = useTargetRect(state.status === 'shown' && state.targetHere);
-  return rect ? <TourSpotlight rect={rect} breathe={!state.observe} /> : null;
+  const lit = state.status === 'shown' && state.targetHere;
+  const rect = useTargetRect(lit);
+  return lit ? <TourSpotlight rect={rect} breathe={!state.observe} /> : null;
 };
 
 /** The SpartBoard tour overlay drawn over a web page: no Autopilot, nothing stored on the site. */

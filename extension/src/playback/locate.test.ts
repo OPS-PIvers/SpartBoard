@@ -6,6 +6,7 @@ const place = (el: Element | null, x: number, y: number, w = 40, h = 20) => {
   if (el) rects.set(el, new DOMRect(x, y, w, h));
 };
 
+// eslint-disable-next-line @typescript-eslint/unbound-method -- restored onto the prototype after the suite
 const orig = Element.prototype.getBoundingClientRect;
 Element.prototype.getBoundingClientRect = function (this: Element) {
   return rects.get(this) ?? new DOMRect(0, 0, 0, 0);
@@ -41,19 +42,34 @@ describe('locate', () => {
     html(`<div class="x">Add</div><button id="b">Add</button>`);
     place(document.querySelector('.x'), 0, 0);
     place(document.getElementById('b'), 100, 0);
-    const hit = locate(document, { role: 'button', name: 'Add', text: 'Add', css: '.x' });
+    const hit = locate(document, {
+      role: 'button',
+      name: 'Add',
+      text: 'Add',
+      css: '.x',
+    });
     expect(hit?.el.id).toBe('b');
     expect(hit?.clue).toBe('role');
     expect(hit?.tied).toBe(false);
   });
 
   it('falls back to the innermost text match, then the CSS path', () => {
-    html(`<div id="w"><span id="t">Materials</span></div><i id="c" class="icon"></i>`);
+    html(
+      `<div id="w"><span id="t">Materials</span></div><i id="c" class="icon"></i>`
+    );
     place(document.getElementById('w'), 0, 0);
     place(document.getElementById('t'), 0, 0);
     place(document.getElementById('c'), 0, 50);
-    expect(locate(document, { role: 'button', name: 'Materials', text: 'Materials' })?.el.id).toBe('t');
-    const css = locate(document, { role: 'button', name: 'Nope', text: 'Nope', css: 'i.icon' });
+    expect(
+      locate(document, { role: 'button', name: 'Materials', text: 'Materials' })
+        ?.el.id
+    ).toBe('t');
+    const css = locate(document, {
+      role: 'button',
+      name: 'Nope',
+      text: 'Nope',
+      css: 'i.icon',
+    });
     expect(css?.el.id).toBe('c');
     expect(css?.clue).toBe('css');
   });
@@ -68,7 +84,11 @@ describe('locate', () => {
     html(`<button id="l">Edit</button><button id="r">Edit</button>`);
     place(document.getElementById('l'), 0, 0);
     place(document.getElementById('r'), 900, 0);
-    const hit = locate(document, { role: 'button', name: 'Edit', box: { x: 0.88, y: 0, w: 0.04, h: 0.02 } });
+    const hit = locate(document, {
+      role: 'button',
+      name: 'Edit',
+      box: { x: 0.88, y: 0, w: 0.04, h: 0.02 },
+    });
     expect(hit?.el.id).toBe('r');
     expect(hit?.tied).toBe(true);
   });
@@ -77,16 +97,22 @@ describe('locate', () => {
     html(`<button id="l">Edit</button><button id="r">Edit</button>`);
     place(document.getElementById('l'), 0, 0);
     place(document.getElementById('r'), 900, 0);
-    expect(locate(document, { box: { x: 0, y: 0, w: 0.04, h: 0.02 } })).toBeNull();
+    expect(
+      locate(document, { box: { x: 0, y: 0, w: 0.04, h: 0.02 } })
+    ).toBeNull();
     expect(locate(document, { role: 'button', name: 'Edit' })).toBeNull();
   });
 
   it('finds targets inside open shadow roots', () => {
     html(`<div id="host"></div>`);
-    const root = document.getElementById('host')!.attachShadow({ mode: 'open' });
+    const root = document
+      .getElementById('host')!
+      .attachShadow({ mode: 'open' });
     root.innerHTML = `<button id="in">Submit</button>`;
     place(root.getElementById('in'), 5, 5);
-    expect(locate(document, { role: 'button', name: 'Submit' })?.el.id).toBe('in');
+    expect(locate(document, { role: 'button', name: 'Submit' })?.el.id).toBe(
+      'in'
+    );
   });
 
   it('ignores an invalid CSS path', () => {

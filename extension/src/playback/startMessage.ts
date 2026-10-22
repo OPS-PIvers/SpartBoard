@@ -1,6 +1,7 @@
-import type {
-  WebTourPictureBytes,
-  WebTourStartMessage,
+import {
+  MAX_PICTURE_TOTAL_CHARS,
+  type WebTourPictureBytes,
+  type WebTourStartMessage,
 } from '@/components/tours/web/extensionProtocol';
 import type { PlaybackTour } from './progress';
 
@@ -11,9 +12,6 @@ export interface ParsedStart {
   pictures: Record<string, WebTourPictureBytes>;
 }
 
-/** Room left in the 10 MB session store for pictures, in base64 characters. */
-const MAX_PICTURE_TOTAL = 8 * 1024 * 1024;
-
 /** Turns a checked `web-tour/start` message into what playback keeps. */
 export function toPlayback(msg: WebTourStartMessage): ParsedStart {
   const pictures: Record<string, WebTourPictureBytes> = {};
@@ -22,7 +20,10 @@ export function toPlayback(msg: WebTourStartMessage): ParsedStart {
     const { frames = [], ...clues } = s.web.locator;
     let hasPicture = false;
     // Past the store's room a step simply has no picture fallback.
-    if (s.picture && pictureChars + s.picture.data.length <= MAX_PICTURE_TOTAL) {
+    if (
+      s.picture &&
+      pictureChars + s.picture.data.length <= MAX_PICTURE_TOTAL_CHARS
+    ) {
       pictures[s.id] = s.picture;
       pictureChars += s.picture.data.length;
       hasPicture = true;

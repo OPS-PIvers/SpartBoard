@@ -3,12 +3,23 @@ import type { WebStepAction } from './progress';
 
 /** Messages the service worker sends to every frame of a playing tab. */
 export type FrameCommand =
-  | { type: 'wt:seek'; token: string; clues: WebLocatorClues; action: WebStepAction }
+  | {
+      type: 'wt:seek';
+      token: string;
+      clues: WebLocatorClues;
+      action: WebStepAction;
+    }
   | { type: 'wt:stop' };
 
 /** Messages a frame reports back. */
 export type FrameReport =
-  | { type: 'wt:found'; token: string; clue: LocatorClue; tied: boolean; url: string }
+  | {
+      type: 'wt:found';
+      token: string;
+      clue: LocatorClue;
+      tied: boolean;
+      url: string;
+    }
   | { type: 'wt:lost'; token: string }
   | { type: 'wt:acted'; token: string };
 
@@ -19,7 +30,6 @@ export interface FrameTarget {
 }
 
 declare global {
-  // eslint-disable-next-line no-var
   var __sbWebTourFrame: { target: FrameTarget | null } | undefined;
 }
 

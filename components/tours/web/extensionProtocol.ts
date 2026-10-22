@@ -94,9 +94,7 @@ export interface ExtensionErrorReply {
 }
 
 export type ExtensionReply =
-  | PingReply
-  | WebTourStartReply
-  | ExtensionErrorReply;
+  PingReply | WebTourStartReply | ExtensionErrorReply;
 
 interface MessageSpec {
   /** Refused unless the Chrome profile is a staff account (D3). */
@@ -189,6 +187,8 @@ const MAX_TEXT = 4000;
 const MAX_CLUE = 500;
 /** 2 MB of bytes as base64. */
 export const MAX_PICTURE_CHARS = Math.ceil((2 * 1024 * 1024) / 3) * 4;
+/** Pictures past this many base64 characters in one tour are dropped (the extension's 10 MB session store). */
+export const MAX_PICTURE_TOTAL_CHARS = 8 * 1024 * 1024;
 const PICTURE_MIMES: readonly WebTourPictureBytes['mime'][] = [
   'image/png',
   'image/jpeg',
@@ -229,7 +229,7 @@ function parseLocator(v: unknown): WebTourLocator | null {
   const out: WebTourLocator = {};
   for (const key of ['role', 'name', 'text', 'css'] as const) {
     if (!optStr(v[key], MAX_CLUE)) return null;
-    if (v[key]) out[key] = v[key] as string;
+    if (v[key]) out[key] = v[key];
   }
   if (v.frames !== undefined) {
     const frames = parseFrames(v.frames);
@@ -266,7 +266,10 @@ function parsePicture(v: unknown): WebTourPictureBytes | null {
 
 /** The tour in a `web-tour/start` message, checked field by field; null if anything is off. */
 export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
-  if (!isPlainObject(raw) || !onlyKeys(raw, ['setId', 'version', 'title', 'steps'])) {
+  if (
+    !isPlainObject(raw) ||
+    !onlyKeys(raw, ['setId', 'version', 'title', 'steps'])
+  ) {
     return null;
   }
   const { setId, version, title, steps } = raw;
@@ -278,13 +281,19 @@ export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
   const ids = new Set<string>();
   const out: WebTourStartStep[] = [];
   for (const s of steps) {
-    if (!isPlainObject(s) || !onlyKeys(s, ['id', 'label', 'text', 'web', 'picture'])) {
+    if (
+      !isPlainObject(s) ||
+      !onlyKeys(s, ['id', 'label', 'text', 'web', 'picture'])
+    ) {
       return null;
     }
     if (!str(s.id, 200) || !s.id || ids.has(s.id)) return null;
     if (!optStr(s.label, MAX_TEXT) || !optStr(s.text, MAX_TEXT)) return null;
     const web = s.web;
-    if (!isPlainObject(web) || !onlyKeys(web, ['urlPattern', 'action', 'locator'])) {
+    if (
+      !isPlainObject(web) ||
+      !onlyKeys(web, ['urlPattern', 'action', 'locator'])
+    ) {
       return null;
     }
     const action = WEB_ACTIONS.find((a) => a === web.action);
@@ -294,8 +303,8 @@ export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
       id: s.id,
       web: { urlPattern: web.urlPattern, action, locator },
     };
-    if (s.label !== undefined) step.label = s.label as string;
-    if (s.text !== undefined) step.text = s.text as string;
+    if (s.label !== undefined) step.label = s.label;
+    if (s.text !== undefined) step.text = s.text;
     if (s.picture !== undefined) {
       const picture = parsePicture(s.picture);
       if (!picture) return null;
@@ -308,7 +317,9 @@ export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
 }
 
 /** A message a page sends on the `web-tour` port, or null. */
-export function parseWebTourPortMessage(raw: unknown): WebTourWatchMessage | null {
+export function parseWebTourPortMessage(
+  raw: unknown
+): WebTourWatchMessage | null {
   if (!isPlainObject(raw) || !onlyKeys(raw, ['type', 'setId'])) return null;
   if (raw.type !== 'web-tour/watch' || !str(raw.setId, 200) || !raw.setId) {
     return null;

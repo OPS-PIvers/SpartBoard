@@ -21,8 +21,7 @@ export interface HostFrame {
 }
 
 export type OverlayMessage =
-  | { type: 'overlay/render'; state: OverlayState }
-  | { type: 'overlay/unmount' };
+  { type: 'overlay/render'; state: OverlayState } | { type: 'overlay/unmount' };
 
 export type ProgressPost = WebTourProgressMessage;
 
@@ -32,7 +31,11 @@ export interface PlaybackHost {
   frames(tabId: number): Promise<HostFrame[]>;
   /** Injects the locator script into frames (and the overlay into those listed), idempotently. */
   inject(tabId: number, frameIds: number[], overlay: boolean): Promise<void>;
-  sendToFrame(tabId: number, frameId: number, msg: FrameCommand | OverlayMessage): void;
+  sendToFrame(
+    tabId: number,
+    frameId: number,
+    msg: FrameCommand | OverlayMessage
+  ): void;
   load<T>(key: string): Promise<T | undefined>;
   save(entries: Record<string, unknown>): Promise<void>;
   remove(keys: string[]): Promise<void>;
@@ -69,20 +72,30 @@ export function framesForStep(
   const byId = new Map(frames.map((f) => [f.frameId, f]));
   const chain = (f: HostFrame): HostFrame[] => {
     const out: HostFrame[] = [];
-    for (let c: HostFrame | undefined = f; c && c.frameId !== 0; c = byId.get(c.parentFrameId)) {
+    for (
+      let c: HostFrame | undefined = f;
+      c && c.frameId !== 0;
+      c = byId.get(c.parentFrameId)
+    ) {
       out.unshift(c);
     }
     return out;
   };
   const hits = frames.filter((f) => {
     const c = chain(f);
-    return c.length === path.length && c.every((cf, i) => matchesUrlPattern(path[i].urlPattern, cf.url));
+    return (
+      c.length === path.length &&
+      c.every((cf, i) => matchesUrlPattern(path[i].urlPattern, cf.url))
+    );
   });
   if (hits.length <= 1) return hits.map((f) => f.frameId);
   // Several sibling frames match: prefer the one at the recorded position among its matching siblings.
   const last = path[path.length - 1].index;
   const preferred = hits[Math.min(Math.max(last, 0), hits.length - 1)];
-  return [preferred.frameId, ...hits.filter((f) => f !== preferred).map((f) => f.frameId)];
+  return [
+    preferred.frameId,
+    ...hits.filter((f) => f !== preferred).map((f) => f.frameId),
+  ];
 }
 
 export function createPlaybackController(host: PlaybackHost) {
@@ -110,8 +123,11 @@ export function createPlaybackController(host: PlaybackHost) {
   async function picture(rec: TabRecord): Promise<WebTourPictureBytes | null> {
     const step = rec.state.tour.steps[rec.state.index];
     if (!step?.hasPicture) return null;
-    if (rec.state.status !== 'fallback' && rec.state.status !== 'wrong-page') return null;
-    return (await host.load<WebTourPictureBytes>(picKey(rec.tabId, step.id))) ?? null;
+    if (rec.state.status !== 'fallback' && rec.state.status !== 'wrong-page')
+      return null;
+    return (
+      (await host.load<WebTourPictureBytes>(picKey(rec.tabId, step.id))) ?? null
+    );
   }
 
   async function render(rec: TabRecord) {
@@ -120,7 +136,9 @@ export function createPlaybackController(host: PlaybackHost) {
     if (state.status === 'exited' || !step) {
       host.sendToFrame(rec.tabId, 0, { type: 'overlay/unmount' });
       if (rec.targetFrameId !== null && rec.targetFrameId !== 0) {
-        host.sendToFrame(rec.tabId, rec.targetFrameId, { type: 'overlay/unmount' });
+        host.sendToFrame(rec.tabId, rec.targetFrameId, {
+          type: 'overlay/unmount',
+        });
       }
       return;
     }
@@ -135,9 +153,18 @@ export function createPlaybackController(host: PlaybackHost) {
     };
     host.sendToFrame(rec.tabId, 0, {
       type: 'overlay/render',
-      state: { ...base, role: 'top', targetHere: shownIn === 0, picture: await picture(rec) },
+      state: {
+        ...base,
+        role: 'top',
+        targetHere: shownIn === 0,
+        picture: await picture(rec),
+      },
     });
-    if (rec.litFrameId !== null && rec.litFrameId !== 0 && rec.litFrameId !== shownIn) {
+    if (
+      rec.litFrameId !== null &&
+      rec.litFrameId !== 0 &&
+      rec.litFrameId !== shownIn
+    ) {
       host.sendToFrame(rec.tabId, rec.litFrameId, { type: 'overlay/unmount' });
     }
     rec.litFrameId = shownIn;
@@ -158,14 +185,28 @@ export function createPlaybackController(host: PlaybackHost) {
       const match = how === undefined || how === 'picture' ? 'none' : how;
       if (rec.posted[step.id] !== match) {
         rec.posted = { ...rec.posted, [step.id]: match };
-        host.post(setId, { type: 'web-tour/step', setId, stepIndex: state.index, stepId: step.id, match });
+        host.post(setId, {
+          type: 'web-tour/step',
+          setId,
+          stepIndex: state.index,
+          stepId: step.id,
+          match,
+        });
       }
     }
     if (state.status === 'done' && before.status !== 'done') {
       host.post(setId, { type: 'web-tour/done', setId });
     }
-    if (state.status === 'exited' && before.status !== 'exited' && before.status !== 'done') {
-      host.post(setId, { type: 'web-tour/exit', setId, stepIndex: state.index });
+    if (
+      state.status === 'exited' &&
+      before.status !== 'exited' &&
+      before.status !== 'done'
+    ) {
+      host.post(setId, {
+        type: 'web-tour/exit',
+        setId,
+        stepIndex: state.index,
+      });
     }
   }
 
@@ -196,15 +237,21 @@ export function createPlaybackController(host: PlaybackHost) {
     host.setTimer(FALLBACK_MS, () => {
       void serial(rec.tabId, async () => {
         const now = await load(rec.tabId);
-        if (now && now.token === token) await dispatch(now, { type: 'timeout' });
+        if (now && now.token === token)
+          await dispatch(now, { type: 'timeout' });
       });
     });
   }
 
-  async function dispatch(rec: TabRecord, event: PlaybackEvent, frameId: number | null = null) {
+  async function dispatch(
+    rec: TabRecord,
+    event: PlaybackEvent,
+    frameId: number | null = null
+  ) {
     const before = rec.state;
     rec.state = reducePlayback(before, event);
-    if (event.type === 'found' && rec.state.status === 'shown') rec.targetFrameId = frameId;
+    if (event.type === 'found' && rec.state.status === 'shown')
+      rec.targetFrameId = frameId;
     postProgress(rec, before);
     const moved =
       rec.state.index !== before.index ||
@@ -237,10 +284,18 @@ export function createPlaybackController(host: PlaybackHost) {
     /** Opens the tour's first page in a new tab and starts playing there. */
     async start(parsed: ParsedStart): Promise<number> {
       const tabId = await host.openTab(parsed.tour.startUrl);
-      const state = startPlayback(parsed.tour, parsed.tour.startUrl, host.now());
+      const state = startPlayback(
+        parsed.tour,
+        parsed.tour.startUrl,
+        host.now()
+      );
       const rec: TabRecord = {
         tabId,
-        state: { ...state, index: parsed.stepIndex, furthest: parsed.stepIndex },
+        state: {
+          ...state,
+          index: parsed.stepIndex,
+          furthest: parsed.stepIndex,
+        },
         token: '',
         seq: 0,
         targetFrameId: null,
@@ -250,7 +305,10 @@ export function createPlaybackController(host: PlaybackHost) {
       };
       await host.save(
         Object.fromEntries(
-          Object.entries(parsed.pictures).map(([id, pic]) => [picKey(tabId, id), pic])
+          Object.entries(parsed.pictures).map(([id, pic]) => [
+            picKey(tabId, id),
+            pic,
+          ])
         )
       );
       await store(rec);
@@ -261,62 +319,93 @@ export function createPlaybackController(host: PlaybackHost) {
     /** A new document committed in a frame of the tab (navigation, reload or a new frame). */
     committed: (tabId: number, frameId: number, url: string) =>
       serial(tabId, async () => {
-      const rec = await load(tabId);
-      if (!rec) return;
-      await host.inject(tabId, [frameId], frameId === 0);
-      if (frameId === 0) {
-        rec.url = url;
-        await dispatch(rec, { type: 'page', url });
-      } else if (rec.state.status === 'seeking') {
-        // A frame added after the seek started gets the current step too.
-        await seek(rec);
-        await render(rec);
-        await store(rec);
-      }
-    }),
+        const rec = await load(tabId);
+        if (!rec) return;
+        await host.inject(tabId, [frameId], frameId === 0);
+        if (frameId === 0) {
+          rec.url = url;
+          await dispatch(rec, { type: 'page', url });
+        } else if (rec.state.status === 'seeking') {
+          // A frame added after the seek started gets the current step too.
+          await seek(rec);
+          await render(rec);
+          await store(rec);
+        }
+      }),
 
     /** A single-page app changed its address without loading a new document. */
     historyChanged: (tabId: number, frameId: number, url: string) =>
       serial(tabId, async () => {
-      if (frameId !== 0) return;
-      const rec = await load(tabId);
-      if (!rec || url === rec.url) return;
-      rec.url = url;
-      await dispatch(rec, { type: 'page', url });
-    }),
+        if (frameId !== 0) return;
+        const rec = await load(tabId);
+        if (!rec || url === rec.url) return;
+        rec.url = url;
+        await dispatch(rec, { type: 'page', url });
+      }),
 
     frameReport: (tabId: number, frameId: number, report: FrameReport) =>
       serial(tabId, async () => {
-      const rec = await load(tabId);
-      if (!rec || report.token !== rec.token) return;
-      if (report.type === 'wt:found') {
-        if (rec.state.status === 'shown' && rec.targetFrameId !== frameId) return;
-        // The spotlight is drawn inside the frame that holds the target.
-        if (frameId !== 0) await host.inject(tabId, [frameId], true);
-        await dispatch(rec, { type: 'found', clue: report.clue }, frameId);
-      } else if (frameId === rec.targetFrameId) {
-        await dispatch(rec, { type: report.type === 'wt:lost' ? 'lost' : 'acted' });
-      }
-    }),
+        const rec = await load(tabId);
+        if (!rec || report.token !== rec.token) return;
+        if (report.type === 'wt:found') {
+          if (rec.state.status === 'shown' && rec.targetFrameId !== frameId)
+            return;
+          // The spotlight is drawn inside the frame that holds the target.
+          if (frameId !== 0) await host.inject(tabId, [frameId], true);
+          await dispatch(rec, { type: 'found', clue: report.clue }, frameId);
+        } else if (frameId === rec.targetFrameId) {
+          await dispatch(rec, {
+            type: report.type === 'wt:lost' ? 'lost' : 'acted',
+          });
+        }
+      }),
 
     overlayAction: (tabId: number, frameId: number, action: OverlayAction) =>
       serial(tabId, async () => {
-      if (frameId !== 0) return;
-      const rec = await load(tabId);
-      if (!rec) return;
-      await dispatch(rec, { type: action });
-    }),
+        if (frameId !== 0) return;
+        const rec = await load(tabId);
+        if (!rec) return;
+        await dispatch(rec, { type: action });
+      }),
 
     tabClosed: (tabId: number) =>
       serial(tabId, async () => {
-      const rec = await load(tabId);
-      if (!rec) return;
-      const setId = rec.state.tour.id;
-      if (rec.state.status !== 'done' && rec.state.status !== 'exited') {
-        host.post(setId, { type: 'web-tour/closed', setId, stepIndex: rec.state.index });
+        const rec = await load(tabId);
+        if (!rec) return;
+        const setId = rec.state.tour.id;
+        if (rec.state.status !== 'done' && rec.state.status !== 'exited') {
+          host.post(setId, {
+            type: 'web-tour/closed',
+            setId,
+            stepIndex: rec.state.index,
+          });
+        }
+        await forget(rec);
+      }),
+
+    /** What a page that starts watching mid-tour has missed: the current step's latest match, or done. */
+    async replay(setId: string): Promise<ProgressPost[]> {
+      const out: ProgressPost[] = [];
+      for (const tabId of (await host.load<number[]>(TABS_KEY)) ?? []) {
+        const rec = await load(tabId);
+        if (!rec || rec.state.tour.id !== setId) continue;
+        const { state } = rec;
+        const step = state.tour.steps[state.index];
+        const match = step ? rec.posted[step.id] : undefined;
+        if (state.status === 'done') {
+          out.push({ type: 'web-tour/done', setId });
+        } else if (step && match) {
+          out.push({
+            type: 'web-tour/step',
+            setId,
+            stepIndex: state.index,
+            stepId: step.id,
+            match,
+          });
+        }
       }
-      await forget(rec);
-    }),
+      return out;
+    },
 
     async isPlaying(tabId: number): Promise<boolean> {
       return (await load(tabId)) !== undefined;

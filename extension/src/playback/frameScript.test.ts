@@ -1,9 +1,16 @@
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
-import { installFrameSeeker, isFrameCommand, type FrameReport } from './frameScript';
+import {
+  installFrameSeeker,
+  isFrameCommand,
+  type FrameReport,
+} from './frameScript';
 
+// eslint-disable-next-line @typescript-eslint/unbound-method -- restored onto the prototype after the suite
 const orig = Element.prototype.getBoundingClientRect;
 Element.prototype.getBoundingClientRect = function () {
-  return this.isConnected && this.tagName === 'BUTTON' ? new DOMRect(10, 10, 50, 20) : new DOMRect();
+  return this.isConnected && this.tagName === 'BUTTON'
+    ? new DOMRect(10, 10, 50, 20)
+    : new DOMRect();
 };
 
 afterEach(() => {
@@ -12,7 +19,12 @@ afterEach(() => {
   globalThis.__sbWebTourFrame = undefined;
 });
 
-const seek = { type: 'wt:seek' as const, token: 't1', clues: { role: 'button', name: 'Load more' }, action: 'click' as const };
+const seek = {
+  type: 'wt:seek' as const,
+  token: 't1',
+  clues: { role: 'button', name: 'Load more' },
+  action: 'click' as const,
+};
 
 afterAll(() => {
   Element.prototype.getBoundingClientRect = orig;
@@ -27,7 +39,11 @@ describe('frame seeker', () => {
     expect(reports).toEqual([]);
     document.body.innerHTML = '<button>Load more</button>';
     await vi.advanceTimersByTimeAsync(300);
-    expect(reports[0]).toMatchObject({ type: 'wt:found', token: 't1', clue: 'role' });
+    expect(reports[0]).toMatchObject({
+      type: 'wt:found',
+      token: 't1',
+      clue: 'role',
+    });
     expect(globalThis.__sbWebTourFrame?.target?.el.tagName).toBe('BUTTON');
   });
 
@@ -62,4 +78,3 @@ describe('frame seeker', () => {
     expect(isFrameCommand(null)).toBe(false);
   });
 });
-
