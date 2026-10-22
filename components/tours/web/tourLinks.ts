@@ -24,3 +24,6 @@ export function webTourSite(set: {
   const host = pattern ? /^https:\/\/([^/?#:]+)/.exec(pattern)?.[1] : null;
   return host && !host.includes('*') ? host : null;
 }
+
+/** The board's query parameter that opens a web tour draft in the editor. */
+export const EDIT_WEB_TOUR_PARAM = 'edit-web-tour';

@@ -7,7 +7,14 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Circle, MapPin, Send, Square, Trash2 } from 'lucide-react';
+import {
+  Circle,
+  ExternalLink,
+  MapPin,
+  Send,
+  Square,
+  Trash2,
+} from 'lucide-react';
 import {
   chromeMuted,
   focusRing,
@@ -164,11 +171,73 @@ const StepCard: React.FC<{
   );
 };
 
+const IntakeNotice: React.FC<{
+  intake: RecorderStatus['intake'];
+  onOpen: () => Promise<void>;
+}> = ({ intake, onOpen }) => {
+  if (intake.phase === 'signin')
+    return (
+      <p role="status" className="text-amber-800">
+        Sign in to SpartBoard in the tab that opened.
+      </p>
+    );
+  if (intake.phase === 'denied')
+    return (
+      <p role="alert" className="text-brand-red-primary">
+        {"This account can't save web tours."}
+      </p>
+    );
+  if (intake.failed)
+    return (
+      <div className="flex items-center justify-between gap-2">
+        <p role="alert" className="text-brand-red-primary">
+          {"Steps couldn't be saved."}
+        </p>
+        <button
+          type="button"
+          className={secondaryBtn}
+          onClick={() => void send({ type: 'rec/intakeRetry' })}
+        >
+          Try again
+        </button>
+      </div>
+    );
+  if (intake.pending > 0)
+    return (
+      <p role="status" className={chromeMuted}>
+        Saving {intake.pending} {intake.pending === 1 ? 'step' : 'steps'}...
+      </p>
+    );
+  if (!intake.saved) return null;
+  return (
+    <div className={`flex flex-col items-start gap-2 p-3 ${card}`}>
+      <p role="status" className="min-w-0 max-w-full break-words">
+        Saved to{' '}
+        <span className="font-semibold">
+          {intake.saved.title || 'Untitled tour'}
+        </span>
+      </p>
+      <button
+        type="button"
+        className={`${secondaryBtn} inline-flex items-center gap-1.5`}
+        onClick={() => void onOpen()}
+      >
+        <ExternalLink className="h-4 w-4" aria-hidden="true" />
+        Open in SpartBoard
+      </button>
+    </div>
+  );
+};
+
 export const SidePanel: React.FC = () => {
   const [status, setStatus] = useState<RecorderStatus | null>(null);
   const [steps, setSteps] = useState<PanelStep[] | null>(null);
   const [fix, setFix] = useState<PanelStep | null>(null);
-  const [target, setTarget] = useState<string>('');
+  // The Send form: where the steps go ('new', 'editor:<id>' or 'draft:<id>') and a new tour's title.
+  const [sending, setSending] = useState<{
+    dest: string;
+    title: string;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const picking = useRef<RecorderPick | null>(null);
@@ -288,7 +357,10 @@ export const SidePanel: React.FC = () => {
   }, [refresh]);
 
   const tours = status?.tours ?? [];
-  const chosen = tours.find((t) => t.setId === target) ?? tours[0];
+  const intake = status?.intake;
+  const editorIds = new Set(tours.map((t) => t.setId));
+  // A draft open in an editor takes steps through that editor, so the editor's saves don't drop them.
+  const drafts = (intake?.drafts ?? []).filter((d) => !editorIds.has(d.setId));
   const recording = status?.recordingTabId != null;
   const staff = status?.profile === 'staff';
   const pick = status?.pick ?? null;
@@ -309,33 +381,91 @@ export const SidePanel: React.FC = () => {
 
   const stopRecording = () => send({ type: 'rec/stop' });
 
+  const openSend = async () => {
+    setError('');
+    const [tab] = await chrome.tabs
+      .query({ active: true, currentWindow: true })
+      .catch(() => []);
+    const first = tours[0];
+    setSending({
+      dest: first ? `editor:${first.setId}` : 'new',
+      title: (tab?.title ?? '').slice(0, 200),
+    });
+    // The draft list comes from a SpartBoard tab; opened now so it's ready by Save.
+    if (!first) void send({ type: 'rec/intakeOpen' });
+  };
+
+  const chooseDest = (dest: string) => {
+    setSending((f) => (f ? { ...f, dest } : f));
+    if (!dest.startsWith('editor:')) void send({ type: 'rec/intakeOpen' });
+  };
+
+  const closeSend = () => {
+    setSending(null);
+    void send({ type: 'rec/intakeIdle' });
+  };
+
   const sendSteps = async () => {
-    if (!chosen || list.length === 0 || list.some((s) => s.pending)) return;
+    if (!sending || list.length === 0 || list.some((s) => s.pending)) return;
+    const { dest, title } = sending;
     setBusy(true);
     setError('');
     try {
+      let jobId: string | undefined;
       // Steps captured while sending stay in the list; only sent ones leave it.
       for (let i = 0; i < list.length; i += SEND_BATCH) {
         const out = await Promise.all(
           list.slice(i, i + SEND_BATCH).map(toRecorded)
         );
-        const ok = await send<boolean>({
-          type: 'rec/send',
-          setId: chosen.setId,
-          steps: out,
-        });
-        if (!ok) {
-          setError('The web tour is no longer open in SpartBoard.');
-          return;
+        if (dest.startsWith('editor:')) {
+          const ok = await send<boolean>({
+            type: 'rec/send',
+            setId: dest.slice('editor:'.length),
+            steps: out,
+          });
+          if (!ok) {
+            setError('The web tour is no longer open in SpartBoard.');
+            return;
+          }
+        } else {
+          const draftId = dest.startsWith('draft:')
+            ? dest.slice('draft:'.length)
+            : null;
+          const job = await send<string | null>({
+            type: 'rec/intakeSave',
+            target: draftId
+              ? { kind: 'append', setId: draftId }
+              : { kind: 'new', title: title.trim() },
+            title: draftId
+              ? (drafts.find((d) => d.setId === draftId)?.title ?? '')
+              : title.trim() || 'Untitled web tour',
+            steps: out,
+            ...(jobId ? { jobId } : {}),
+          });
+          if (!job) {
+            setError("Steps couldn't be sent. Try again.");
+            return;
+          }
+          jobId = job;
         }
         const sent = new Set(out.map((o) => o.id));
         setSteps((all) => (all ?? []).filter((x) => !sent.has(x.capture.id)));
       }
+      setSending(null);
     } catch {
       setError("Steps couldn't be sent. Try again.");
     } finally {
       setBusy(false);
     }
+  };
+
+  const openSaved = async () => {
+    const saved = intake?.saved;
+    if (!saved) return;
+    const url = new URL(saved.origin);
+    url.searchParams.set('edit-web-tour', saved.setId);
+    await chrome.tabs.create({ url: url.toString() });
+    await send({ type: 'rec/intakeIdle' });
   };
 
   const sendFix = async () => {
@@ -442,33 +572,6 @@ export const SidePanel: React.FC = () => {
           </section>
         ) : (
           <>
-            {tours.length === 0 ? (
-              <p className="text-slate-700">
-                Open a web tour in SpartBoard and press Record steps.
-              </p>
-            ) : tours.length === 1 ? (
-              <p className="text-slate-700">
-                Sending to{' '}
-                <span className="font-semibold text-slate-900">
-                  {chosen?.title || 'Untitled tour'}
-                </span>
-              </p>
-            ) : (
-              <label className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
-                Sending to
-                <select
-                  className={`rounded-lg px-2 py-1.5 text-sm font-normal ${inputLight}`}
-                  value={chosen?.setId}
-                  onChange={(e) => setTarget(e.target.value)}
-                >
-                  {tours.map((t) => (
-                    <option key={t.setId} value={t.setId}>
-                      {t.title || 'Untitled tour'}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
             {recording ? (
               <button
                 type="button"
@@ -525,29 +628,86 @@ export const SidePanel: React.FC = () => {
                     />
                   ))}
                 </ol>
-                <div className="sticky bottom-0 -mx-4 flex items-center justify-end gap-2 border-t border-slate-200 bg-white px-4 py-3">
-                  <button
-                    type="button"
-                    className={`${secondaryBtn} ${disabledLook}`}
-                    disabled={busy}
-                    onClick={() => setSteps([])}
-                  >
-                    Discard
-                  </button>
-                  <button
-                    type="button"
-                    disabled={!chosen || busy || list.some((s) => s.pending)}
-                    className={`${primaryBtn} inline-flex items-center gap-1.5 ${disabledLook}`}
-                    onClick={() => void sendSteps()}
-                  >
-                    <Send className="h-4 w-4" aria-hidden="true" />
-                    {busy
-                      ? 'Sending...'
-                      : `Send ${list.length} ${list.length === 1 ? 'step' : 'steps'}`}
-                  </button>
+                <div className="sticky bottom-0 -mx-4 flex flex-col gap-3 border-t border-slate-200 bg-white px-4 py-3">
+                  {sending && (
+                    <>
+                      <label className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
+                        Save to
+                        <select
+                          className={`rounded-lg px-2 py-1.5 text-sm font-normal ${inputLight}`}
+                          value={sending.dest}
+                          disabled={busy}
+                          onChange={(e) => chooseDest(e.target.value)}
+                        >
+                          <option value="new">New tour</option>
+                          {tours.map((t) => (
+                            <option key={t.setId} value={`editor:${t.setId}`}>
+                              {t.title || 'Untitled tour'}
+                            </option>
+                          ))}
+                          {drafts.map((d) => (
+                            <option key={d.setId} value={`draft:${d.setId}`}>
+                              {d.title || 'Untitled tour'}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      {sending.dest === 'new' && (
+                        <label className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
+                          Title
+                          <input
+                            className={`rounded-lg px-2 py-1.5 text-sm font-normal ${inputLight}`}
+                            value={sending.title}
+                            maxLength={200}
+                            disabled={busy}
+                            onChange={(e) =>
+                              setSending((f) =>
+                                f ? { ...f, title: e.target.value } : f
+                              )
+                            }
+                          />
+                        </label>
+                      )}
+                    </>
+                  )}
+                  <div className="flex items-center justify-end gap-2">
+                    {sending ? (
+                      <button
+                        type="button"
+                        className={`${secondaryBtn} ${disabledLook}`}
+                        disabled={busy}
+                        onClick={closeSend}
+                      >
+                        Cancel
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className={`${secondaryBtn} ${disabledLook}`}
+                        disabled={busy}
+                        onClick={() => setSteps([])}
+                      >
+                        Discard
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={busy || list.some((s) => s.pending)}
+                      className={`${primaryBtn} inline-flex items-center gap-1.5 ${disabledLook}`}
+                      onClick={() => void (sending ? sendSteps() : openSend())}
+                    >
+                      <Send className="h-4 w-4" aria-hidden="true" />
+                      {busy
+                        ? 'Sending...'
+                        : sending
+                          ? 'Save'
+                          : `Send ${list.length} ${list.length === 1 ? 'step' : 'steps'}`}
+                    </button>
+                  </div>
                 </div>
               </>
             )}
+            {intake && <IntakeNotice intake={intake} onOpen={openSaved} />}
             {status.unsaved > 0 && (
               <p className={chromeMuted}>
                 {status.unsaved} sent{' '}

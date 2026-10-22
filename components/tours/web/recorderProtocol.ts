@@ -133,3 +133,104 @@ export function parseRecorderPageMessage(
     return { type: msg.type, setId: msg.setId, stepId: msg.stepId };
   return null;
 }
+
+/** Port a SpartBoard intake tab opens to the extension, so steps recorded with no editor open can be saved (U17). */
+export const INTAKE_PORT = 'web-tour-intake';
+
+/** Where an intake job's steps go: a new draft with this title, or the end of an existing draft. */
+export type IntakeTarget =
+  { kind: 'new'; title: string } | { kind: 'append'; setId: string };
+
+export interface IntakeDraft {
+  setId: string;
+  title: string;
+}
+
+const JOB_ID = /^[A-Za-z0-9_-]{1,64}$/;
+const MAX_INTAKE_STEPS = 10;
+const MAX_DRAFTS = 200;
+
+const isTarget = (v: unknown): v is IntakeTarget =>
+  isObj(v) &&
+  ((v.kind === 'new' && isStr(v.title, 200)) ||
+    (v.kind === 'append' && isStr(v.setId, 128) && STEP_ID.test(v.setId)));
+
+/** What the extension posts to the intake tab. */
+export type IntakePortMessage =
+  | {
+      type: 'intake/save';
+      jobId: string;
+      target: IntakeTarget;
+      steps: RecordedWebStep[];
+    }
+  | { type: 'intake/listDrafts' };
+
+/** The extension's intake message, or null when it isn't one or its fields are wrong. */
+export function parseIntakePortMessage(msg: unknown): IntakePortMessage | null {
+  if (!isObj(msg)) return null;
+  if (msg.type === 'intake/listDrafts' && Object.keys(msg).length === 1)
+    return { type: msg.type };
+  if (
+    msg.type === 'intake/save' &&
+    isStr(msg.jobId, 64) &&
+    JOB_ID.test(msg.jobId) &&
+    isTarget(msg.target) &&
+    Array.isArray(msg.steps) &&
+    msg.steps.length <= MAX_INTAKE_STEPS &&
+    msg.steps.every(isRecordedStep)
+  )
+    return {
+      type: msg.type,
+      jobId: msg.jobId,
+      target: msg.target,
+      steps: msg.steps,
+    };
+  return null;
+}
+
+/** What the intake tab posts back to the extension. */
+export type IntakePageMessage =
+  | { type: 'intake/ready'; drafts: IntakeDraft[] }
+  | { type: 'intake/signin' }
+  | { type: 'intake/denied' }
+  | { type: 'intake/created'; jobId: string; setId: string }
+  | { type: 'intake/ack'; jobId: string; stepId: string }
+  | { type: 'intake/failed'; jobId: string };
+
+const isDraft = (v: unknown): v is IntakeDraft =>
+  isObj(v) &&
+  isStr(v.setId, 128) &&
+  STEP_ID.test(v.setId) &&
+  isStr(v.title, 200);
+
+/** The intake tab's message, or null when it isn't one or its fields are wrong. */
+export function parseIntakePageMessage(msg: unknown): IntakePageMessage | null {
+  if (!isObj(msg)) return null;
+  if (msg.type === 'intake/signin' || msg.type === 'intake/denied')
+    return { type: msg.type };
+  if (
+    msg.type === 'intake/ready' &&
+    Array.isArray(msg.drafts) &&
+    msg.drafts.length <= MAX_DRAFTS &&
+    msg.drafts.every(isDraft)
+  )
+    return {
+      type: msg.type,
+      drafts: msg.drafts.map((d) => ({ setId: d.setId, title: d.title })),
+    };
+  if (!isStr(msg.jobId, 64) || !JOB_ID.test(msg.jobId)) return null;
+  if (msg.type === 'intake/failed') return { type: msg.type, jobId: msg.jobId };
+  if (
+    msg.type === 'intake/created' &&
+    isStr(msg.setId, 128) &&
+    STEP_ID.test(msg.setId)
+  )
+    return { type: msg.type, jobId: msg.jobId, setId: msg.setId };
+  if (
+    msg.type === 'intake/ack' &&
+    isStr(msg.stepId, 64) &&
+    STEP_ID.test(msg.stepId)
+  )
+    return { type: msg.type, jobId: msg.jobId, stepId: msg.stepId };
+  return null;
+}

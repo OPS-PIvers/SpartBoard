@@ -43,6 +43,7 @@ import { TourStageTransition } from '@/components/tours/TourStageTransition';
 import { TourRecordingHost } from '@/components/widgets/GuidedLearning/components/recorder/TourRecordingHost';
 import { TourEditorHost } from '@/components/tours/editor/TourEditorHost';
 import { TOUR_EDIT_EVENT } from '@/components/tours/editor/tourEditStore';
+import { EDIT_WEB_TOUR_PARAM } from '@/components/tours/web/tourLinks';
 import { TOUR_START_EVENT } from '@/components/tours/tourState';
 import { TourOfferWatcher } from '@/components/tours/useTourOffers';
 import { useDockPosition } from '@/components/tours/tourFrame';
@@ -106,6 +107,14 @@ const Sidebar = React.lazy(() =>
 const Dock = React.lazy(() =>
   import('./Dock').then((m) => ({ default: m.Dock }))
 );
+// Loaded only when the side panel's Open in SpartBoard link names a web tour draft.
+const WebTourEditorHost = React.lazy(() =>
+  import('@/components/tours/web/WebTourEditorHost').then((m) => ({
+    default: m.WebTourEditorHost,
+  }))
+);
+const opensWebTour = () =>
+  new URLSearchParams(window.location.search).has(EDIT_WEB_TOUR_PARAM);
 
 const EMPTY_STUDENTS: LiveStudent[] = [];
 
@@ -496,6 +505,8 @@ export const DashboardView: React.FC = () => {
   }, [rescueWidgets]); // rescueWidgets is stable ([] deps), so listener is registered once
 
   const { canAccessFeature, isAdmin } = useAuth();
+  // Latched: the host takes the parameter off the address once it opens the editor.
+  const [webTourLink] = React.useState(opensWebTour);
   useWallBoardAccessCleanup(
     canAccessFeature('shared-board-live-walls') ? (user?.uid ?? null) : null
   );
@@ -1828,6 +1839,13 @@ export const DashboardView: React.FC = () => {
       <TourOfferWatcher />
       {isAdmin && <TourRecordingHost />}
       {isAdmin && <TourEditorHost />}
+      {isAdmin && canAccessFeature('web-tours') && webTourLink && (
+        <LazyChunkErrorBoundary>
+          <React.Suspense fallback={null}>
+            <WebTourEditorHost />
+          </React.Suspense>
+        </LazyChunkErrorBoundary>
+      )}
 
       {/* Only mount Help when open — its body builds the whole shortcut tree. */}
       {helpState.open && (

@@ -5,8 +5,15 @@ import {
 } from '@/components/tours/web/extensionProtocol';
 import { createExternalHandler } from './handler';
 import { getChromeProfile } from './profile';
-import { RECORDER_PORT } from '@/components/tours/web/recorderProtocol';
-import { handleRecorderPort, installRecorder } from './recorder/worker';
+import {
+  INTAKE_PORT,
+  RECORDER_PORT,
+} from '@/components/tours/web/recorderProtocol';
+import {
+  handleIntakePort,
+  handleRecorderPort,
+  installRecorder,
+} from './recorder/worker';
 import { isTrustedSender } from './sender';
 import { chromeHost, PLAYBACK_ALARM } from './playback/chromeHost';
 import { createPlaybackController } from './playback/controller';
@@ -54,7 +61,7 @@ chrome.runtime.onMessageExternal.addListener(
   }
 );
 
-installRecorder();
+installRecorder(origins);
 
 chrome.runtime.onConnectExternal.addListener((port) => {
   if (
@@ -62,6 +69,13 @@ chrome.runtime.onConnectExternal.addListener((port) => {
     isTrustedSender(port.sender ?? {}, origins)
   ) {
     handleRecorderPort(port);
+    return;
+  }
+  if (
+    port.name === INTAKE_PORT &&
+    isTrustedSender(port.sender ?? {}, origins)
+  ) {
+    handleIntakePort(port);
     return;
   }
   if (
