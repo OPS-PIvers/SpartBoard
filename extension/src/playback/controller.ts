@@ -70,6 +70,7 @@ const picKey = (tabId: number, stepId: string) => `wt:pic:${tabId}:${stepId}`;
 const TABS_KEY = 'wt:tabs';
 // Not a real tab id: the queue that keeps two starts from racing.
 const START_QUEUE = -1;
+const TABS_QUEUE = -2;
 /** The session store holds 10 MB; one tour's record and pictures stay under this. */
 export const SESSION_BUDGET = 9 * 1024 * 1024;
 const MAX_TITLE = 200;
@@ -127,12 +128,13 @@ export function createPlaybackController(host: PlaybackHost) {
   const load = (tabId: number) => host.load<TabRecord>(tabKey(tabId));
   const store = (rec: TabRecord) => host.save({ [tabKey(rec.tabId)]: rec });
 
-  async function trackTab(tabId: number, add: boolean) {
-    const tabs = new Set((await host.load<number[]>(TABS_KEY)) ?? []);
-    if (add) tabs.add(tabId);
-    else tabs.delete(tabId);
-    await host.save({ [TABS_KEY]: [...tabs] });
-  }
+  const trackTab = (tabId: number, add: boolean) =>
+    serial(TABS_QUEUE, async () => {
+      const tabs = new Set((await host.load<number[]>(TABS_KEY)) ?? []);
+      if (add) tabs.add(tabId);
+      else tabs.delete(tabId);
+      await host.save({ [TABS_KEY]: [...tabs] });
+    });
 
   async function picture(rec: TabRecord): Promise<WebTourPictureBytes | null> {
     const step = rec.state.tour.steps[rec.state.index];
