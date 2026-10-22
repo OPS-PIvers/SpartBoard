@@ -144,6 +144,18 @@ describe('publishWebTour', () => {
     expect(h.writes).toEqual([]);
   });
 
+  it('runs the gate on the loaded draft and writes nothing when it throws', async () => {
+    h.docs.set('building_web_tours/w1', draft([pic('a.png')]));
+    const check = vi.fn(() => {
+      throw new Error('unchecked step');
+    });
+    await expect(publishWebTour('w1', 'admin-uid', check)).rejects.toThrow(
+      'unchecked step'
+    );
+    expect(check).toHaveBeenCalledWith(expect.objectContaining({ id: 'w1' }));
+    expect(h.writes).toEqual([]);
+  });
+
   it('fails when there is no draft', async () => {
     await expect(publishWebTour('w1', 'admin-uid')).rejects.toThrow();
   });

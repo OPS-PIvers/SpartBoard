@@ -147,10 +147,13 @@ export async function loadWebTourPicture(path: string): Promise<ArrayBuffer> {
 /** Publishes the saved draft as the staff-only snapshot, then deletes pictures only the previous one used. */
 export async function publishWebTour(
   setId: string,
-  uid: string
+  uid: string,
+  check?: (draft: GuidedLearningSet) => void
 ): Promise<void> {
   const draft = await loadWebTourDraft(setId);
   if (!draft) throw new Error('Web tour draft not found');
+  // The caller's publish gate runs on the exact draft being published; a throw aborts.
+  check?.(draft);
   const previous = await getDoc(snapshotRef(setId));
   if (previous.exists() && previous.get('surface') !== 'web') {
     throw new Error('A SpartBoard tour already uses this id');
