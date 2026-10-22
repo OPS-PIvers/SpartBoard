@@ -27,6 +27,13 @@ service firebase.storage {
               request.auth.token.viewAs.get('ro', true) == false);
     }
 
+    // A verified district staff address (firestore.rules isVerifiedDistrictEmail()); @students addresses never match.
+    function isVerifiedDistrictEmail() {
+      return request.auth != null &&
+             request.auth.token.get('email_verified', false) == true &&
+             request.auth.token.get('email', '').lower().matches('^[^@]+@orono[.]k12[.]mn[.]us$');
+    }
+
     // Helper function to check if a user can read a specific admin background
     function canReadAdminBackground(backgroundId) {
       let background = firestore.get(/databases/(default)/documents/admin_backgrounds/$(backgroundId));
@@ -431,6 +438,17 @@ service firebase.storage {
             /databases/(default)/documents/project_runs/$(runId)
           ).data.get('acceptingUpdates', false) == true));
       allow delete: if viewAsWriteOk() && (isAdmin() || pjOwnsRun() || pjIsGroupMember());
+    }
+
+    // Web tour step pictures (CHROME_EXTENSION.md T6): district staff and admins get through the SDK, admins list and write.
+    match /web_tour_pictures/{setId}/{fileName} {
+      allow get: if (isVerifiedDistrictEmail() && viewAsReadOk()) || isAdmin();
+      allow list, delete: if isAdmin();
+      // Create only: a live tour's picture is never replaced in place, so changes go through publish.
+      allow create: if isAdmin() &&
+        request.resource.size <= 5 * 1024 * 1024 &&
+        request.resource.contentType is string &&
+        request.resource.contentType.matches('image/(png|jpeg|webp)');
     }
 
     // On-device pronunciation model (F27): anyone may download it, even signed out;

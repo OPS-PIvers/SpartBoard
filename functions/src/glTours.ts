@@ -143,9 +143,15 @@ export const glTourSnapshots = onDocumentWritten(
     const { setId } = event.params;
     if (CONTROL_IDS.has(setId)) return;
     const db = admin.firestore();
-    // A deleted set takes its published tour with it.
+    // A deleted set takes its published tour with it, never a web tour that shares the id.
     if (event.data && !event.data.after.exists) {
-      await db.collection(GL_TOURS_COLLECTION).doc(setId).delete();
+      const ref = db.collection(GL_TOURS_COLLECTION).doc(setId);
+      const snap = await ref.get();
+      if (
+        (snap.data() as { surface?: unknown } | undefined)?.surface !== 'web'
+      ) {
+        await ref.delete();
+      }
     }
     await ensureGlToursSeeded(db);
   }
