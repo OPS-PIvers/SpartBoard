@@ -629,8 +629,8 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
 
   it("shows the host's wall read-only once the host opens it to the board", async () => {
     sessionDocData = {
-      'activity_wall_sessions/host-1_wall-1': {
-        ...hostSession,
+      'activity_wall_sessions/host-1_wall-1': hostSession,
+      'activity_wall_sessions/host-1_wall-1/boardAccess/boards': {
         boardShareIds: ['share-1'],
       },
     };
@@ -672,6 +672,8 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
         id: 'collab-1_wall-1',
         teacherUid: 'collab-1',
         title: 'Collaborator wall',
+      },
+      'activity_wall_sessions/collab-1_wall-1/boardAccess/boards': {
         boardShareIds: ['share-1'],
       },
     };
@@ -693,23 +695,60 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
     );
   });
 
-  it("lists the board on the owner's session so members can read it", async () => {
+  it("lists the board in the owner's private access doc so members can read it", async () => {
     mockLibraryEntries.current = [makeEntry()];
     sessionDocData = {
-      'activity_wall_sessions/teacher-1_wall-1': {
-        ...hostSession,
+      'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards': {
         boardShareIds: ['old-share'],
       },
     };
     renderWidget();
 
     await waitFor(() =>
+      expect(mockSetDoc).toHaveBeenCalledWith(
+        expect.objectContaining({
+          __path: 'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards',
+        }),
+        { boardShareIds: ['share-1', 'old-share'] },
+        { merge: true }
+      )
+    );
+    // The session doc students read only learns that access changed.
+    await waitFor(() =>
       expect(mockUpdateDoc).toHaveBeenCalledWith(
         expect.objectContaining({
           __path: 'activity_wall_sessions/teacher-1_wall-1',
         }),
-        { boardShareIds: ['share-1', 'old-share'] }
+        { boardAccessAt: expect.any(Number) as number }
       )
+    );
+    const sessionWrites = mockSetDoc.mock.calls.filter(
+      ([ref]) =>
+        (ref as { __path: string }).__path ===
+        'activity_wall_sessions/teacher-1_wall-1'
+    );
+    for (const [, payload] of sessionWrites) {
+      expect(JSON.stringify(payload)).not.toContain('share-1');
+    }
+  });
+
+  it('never evicts a live board when the list is full', async () => {
+    mockLibraryEntries.current = [makeEntry()];
+    mockGetDoc.mockResolvedValue({ exists: () => true, data: () => ({}) });
+    sessionDocData = {
+      'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards': {
+        boardShareIds: ['a', 'b', 'c'],
+      },
+    };
+    renderWidget();
+    await screen.findByText('Warm Up');
+    await waitFor(() => expect(mockGetDoc).toHaveBeenCalledTimes(3));
+    expect(mockSetDoc).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        __path: 'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards',
+      }),
+      expect.anything(),
+      expect.anything()
     );
   });
 
@@ -740,8 +779,7 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
   it("doesn't rewrite the list when the board is already on it", async () => {
     mockLibraryEntries.current = [makeEntry()];
     sessionDocData = {
-      'activity_wall_sessions/teacher-1_wall-1': {
-        ...hostSession,
+      'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards': {
         boardShareIds: ['other-board', 'share-1'],
       },
     };
@@ -770,7 +808,7 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
     await waitFor(() =>
       expect(mockUpdateDoc).toHaveBeenCalledWith(
         expect.objectContaining({
-          __path: 'activity_wall_sessions/teacher-1_wall-1',
+          __path: 'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards',
         }),
         { boardShareIds: { __arrayRemove: ['share-1'] } }
       )

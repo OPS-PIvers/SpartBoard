@@ -10,6 +10,7 @@ import type {
 } from '@/types';
 import { normalizeActivityWallSubmission } from '@/utils/activityWallNormalize';
 import { activityWallSessionId } from '@/utils/activityWallLinks';
+import { wallBoardAccessDoc } from './useActivityWallSession';
 
 export interface LinkedBoardActivityWall {
   /** True once the owner has opened this wall to the board's members. */
@@ -57,10 +58,7 @@ const entryFromSession = (
   allowCommentResponses: session.allowCommentResponses,
 });
 
-/**
- * Reads `ownerUid`'s wall when its session lists `shareId` in `boardShareIds`;
- * pass nulls to stay idle. Only approved posts are readable to board members.
- */
+/** `ownerUid`'s wall and approved posts, once the owner lets `shareId` read it; nulls stay idle. */
 export function useLinkedBoardActivityWall(
   ownerUid: string | null,
   activityId: string | null,
@@ -96,11 +94,31 @@ export function useLinkedBoardActivityWall(
     sessionState && sessionState.sessionId === sessionId
       ? sessionState.session
       : null;
+  // Re-read on every owner change: a denied read means this board isn't listed (yet).
+  const accessKey =
+    session && sessionId ? `${sessionId}|${session.boardAccessAt ?? 0}` : null;
+  const [accessState, setAccessState] = useState<{
+    key: string;
+    listed: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!accessKey || !sessionId || !shareId) return undefined;
+    return onSnapshot(
+      wallBoardAccessDoc(sessionId),
+      (snap) => {
+        const ids: unknown = snap.data()?.boardShareIds;
+        setAccessState({
+          key: accessKey,
+          listed: Array.isArray(ids) && ids.includes(shareId),
+        });
+      },
+      () => setAccessState({ key: accessKey, listed: false })
+    );
+  }, [accessKey, sessionId, shareId]);
+
   const listed =
-    !!session &&
-    !!shareId &&
-    Array.isArray(session.boardShareIds) &&
-    session.boardShareIds.includes(shareId);
+    !!session && accessState?.key === accessKey && accessState.listed;
   const postsSessionId = listed ? sessionId : null;
   const isPhotoWall = session?.mode === 'photo';
 

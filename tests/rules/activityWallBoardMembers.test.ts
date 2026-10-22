@@ -1,5 +1,5 @@
 // Rules for board members reading an Activity Wall on a Synced or View-Only board:
-// the wall owner lists the board's /shared_boards id in `boardShareIds`, and members
+// the wall owner lists the board's /shared_boards id in `boardAccess/boards`, and members
 // of that share may read the wall's approved posts, nothing else.
 //
 // Requires a running Firestore emulator. Invoke via:
@@ -7,7 +7,7 @@
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   initializeTestEnvironment,
   assertSucceeds,
@@ -86,7 +86,7 @@ const session = (ownerUid: string, boardShareIds?: unknown) => ({
   identificationMode: 'name',
   allowGuests: false,
   updatedAt: 1_000_000,
-  ...(boardShareIds === undefined ? {} : { boardShareIds }),
+  ...(boardShareIds === undefined ? {} : { __boardShareIds: boardShareIds }),
 });
 
 const post = (status: 'approved' | 'pending') => ({
@@ -123,8 +123,16 @@ const seed = async (
     for (const [id, data] of Object.entries(shares)) {
       await setDoc(doc(db, `shared_boards/${id}`), data);
     }
-    for (const [id, data] of Object.entries(sessions)) {
+    for (const [id, { __boardShareIds, ...data }] of Object.entries(sessions)) {
       await setDoc(doc(db, `activity_wall_sessions/${id}`), data);
+      if (__boardShareIds !== undefined) {
+        await setDoc(
+          doc(db, `activity_wall_sessions/${id}/boardAccess/boards`),
+          {
+            boardShareIds: __boardShareIds,
+          }
+        );
+      }
       await setDoc(
         doc(db, `activity_wall_sessions/${id}/submissions/approved-1`),
         post('approved')
@@ -301,19 +309,67 @@ describe('board members cannot write the owner wall', () => {
     );
   });
 
-  it('only the owner can change boardShareIds', async () => {
+  it('only the owner can change the board access list', async () => {
     await seed({ [HOST_SESSION]: session(HOST_UID, []) });
+    const path = `activity_wall_sessions/${HOST_SESSION}/boardAccess/boards`;
     await assertFails(
-      updateDoc(
-        doc(asTeacher(VIEWER_UID), `activity_wall_sessions/${HOST_SESSION}`),
-        { boardShareIds: [SHARE_ID] }
+      setDoc(doc(asTeacher(VIEWER_UID), path), { boardShareIds: [SHARE_ID] })
+    );
+    await assertFails(
+      setDoc(
+        doc(
+          asTeacher(HOST_UID),
+          `activity_wall_sessions/${HOST_SESSION}/boardAccess/other`
+        ),
+        {
+          boardShareIds: [SHARE_ID],
+        }
       )
     );
     await assertSucceeds(
-      updateDoc(
-        doc(asTeacher(HOST_UID), `activity_wall_sessions/${HOST_SESSION}`),
-        { boardShareIds: [SHARE_ID] }
+      setDoc(doc(asTeacher(HOST_UID), path), { boardShareIds: [SHARE_ID] })
+    );
+  });
+});
+
+describe('the board access list stays private', () => {
+  const path = `activity_wall_sessions/${HOST_SESSION}/boardAccess/boards`;
+
+  it('the owner and board members read it', async () => {
+    await seed({ [HOST_SESSION]: session(HOST_UID, [SHARE_ID]) });
+    await assertSucceeds(getDoc(doc(asTeacher(HOST_UID), path)));
+    await assertSucceeds(getDoc(doc(asTeacher(VIEWER_UID), path)));
+  });
+
+  it('students, guests and outsiders cannot read it', async () => {
+    await seed({ [HOST_SESSION]: session(HOST_UID, [SHARE_ID]) });
+    await assertFails(getDoc(doc(asStudentRole('class-student'), path)));
+    await assertFails(getDoc(doc(asAnonymous('guest-uid'), path)));
+    await assertFails(getDoc(doc(asTeacher(OUTSIDER_UID), path)));
+  });
+
+  it('the session doc students read carries no share ids', async () => {
+    await seed({ [HOST_SESSION]: session(HOST_UID, [SHARE_ID]) });
+    const snap = await getDoc(
+      doc(
+        asStudentRole('class-student'),
+        `activity_wall_sessions/${HOST_SESSION}`
       )
     );
+    expect(JSON.stringify(snap.data())).not.toContain(SHARE_ID);
+  });
+});
+
+describe('only teachers can self-join a board share', () => {
+  const join = (db: ReturnType<typeof asTeacher>, uid: string) =>
+    updateDoc(doc(db, `shared_boards/${SHARE_ID}`), {
+      [`participants.${uid}`]: participant('collaborator'),
+    });
+
+  it('a teacher can join, a student or guest cannot', async () => {
+    await seed({});
+    await assertSucceeds(join(asTeacher('new-teacher'), 'new-teacher'));
+    await assertFails(join(asStudentRole('class-student'), 'class-student'));
+    await assertFails(join(asAnonymous('guest-uid'), 'guest-uid'));
   });
 });

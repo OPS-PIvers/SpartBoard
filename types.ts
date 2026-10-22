@@ -2589,8 +2589,8 @@ export interface ActivityWallSession extends SessionWorkKindFields {
   id: string;
   activityId: string;
   teacherUid: string;
-  /** Synced or View-Only board shares (max 3) whose members may read this wall's approved posts. */
-  boardShareIds?: string[];
+  /** Bumped when the owner changes which board shares may read the wall (ids live in `boardAccess/boards`). */
+  boardAccessAt?: number;
   title: string;
   prompt: string;
   mode: ActivityWallMode;
