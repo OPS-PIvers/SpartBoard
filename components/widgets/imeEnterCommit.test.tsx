@@ -23,7 +23,7 @@ describe('IME composition Enter does not commit', () => {
     const onCommit = vi.fn();
     render(
       <AgendaRow
-        id={'do-now' as never}
+        id="do-now"
         label="Do Now"
         description=""
         isDone={false}
