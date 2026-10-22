@@ -56,6 +56,10 @@ import {
   type WebTourPictureType,
 } from '@/components/tours/webTours';
 import { usePublishedTour } from '@/components/tours/publishedTours';
+import {
+  tourPublishStatus,
+  type TourPublishStatus,
+} from '@/components/tours/tourSnapshot';
 import { isWebTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import { isHardHit } from './studentData';
 import { pictureBlob, toWebStep } from './recordedSteps';
@@ -647,20 +651,21 @@ const PublishCheck: React.FC<{
 
 const PublishState: React.FC<{
   loaded: boolean;
-  live: { publishedAt: number } | null;
-  editedAt: number;
-}> = ({ loaded, live, editedAt }) => {
+  status: TourPublishStatus;
+}> = ({ loaded, status }) => {
   if (!loaded) return null;
-  const label = !live
-    ? 'Draft'
-    : editedAt > live.publishedAt
-      ? 'Changed since publish'
-      : 'Published';
-  const tone = !live
-    ? 'bg-slate-100 text-slate-700'
-    : label === 'Published'
-      ? 'bg-emerald-100 text-emerald-800'
-      : 'bg-amber-100 text-amber-800';
+  const label =
+    status === 'draft'
+      ? 'Draft'
+      : status === 'changed'
+        ? 'Changed since publish'
+        : 'Published';
+  const tone =
+    status === 'draft'
+      ? 'bg-slate-100 text-slate-700'
+      : label === 'Published'
+        ? 'bg-emerald-100 text-emerald-800'
+        : 'bg-amber-100 text-amber-800';
   return (
     <span
       className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${tone}`}
@@ -691,7 +696,6 @@ export const WebTourEditor: React.FC<{
     initial.steps[0]?.id ?? null
   );
   const [blurring, setBlurring] = useState(false);
-  const [editedAt, setEditedAt] = useState(initial.updatedAt ?? 0);
   const [check, setCheck] = useState<{
     hidden: HiddenText[];
     askPictures: boolean;
@@ -727,7 +731,6 @@ export const WebTourEditor: React.FC<{
     const next = update(latest.current);
     latest.current = next;
     dirty.current = true;
-    setEditedAt(Date.now());
     setSet(next);
   };
 
@@ -769,7 +772,6 @@ export const WebTourEditor: React.FC<{
   const saveNow = async (next: GuidedLearningSet) => {
     latest.current = next;
     setSet(next);
-    setEditedAt(Date.now());
     await saveWebTourDraft(next);
   };
 
@@ -957,7 +959,10 @@ export const WebTourEditor: React.FC<{
         }}
         {...tourAttr('web-tour-editor.title')}
       />
-      <PublishState loaded={published.loaded} live={live} editedAt={editedAt} />
+      <PublishState
+        loaded={published.loaded}
+        status={tourPublishStatus(set, live)}
+      />
       <button
         type="button"
         disabled={!live}
