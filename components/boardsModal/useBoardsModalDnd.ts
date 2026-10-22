@@ -16,7 +16,10 @@ import {
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useTranslation } from 'react-i18next';
-import { useConfirmLinkedBoardRemoval } from '@/hooks/useConfirmLinkedBoardRemoval';
+import {
+  useConfirmLinkedBoardRemoval,
+  useConfirmLinkedCollectionMove,
+} from '@/hooks/useConfirmLinkedBoardRemoval';
 import { useDashboard } from '@/context/useDashboard';
 import { logError } from '@/utils/logError';
 import { placeRelative } from '@/utils/reorderIds';
@@ -148,6 +151,7 @@ export const useBoardsModalDnd = ({
   } = useDashboard();
   const { t } = useTranslation();
   const confirmLinkedRemoval = useConfirmLinkedBoardRemoval();
+  const confirmLinkedCollectionMove = useConfirmLinkedCollectionMove();
   // e.g. 'board:abc' or 'collection:xyz' — drives the DragOverlay preview.
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(
@@ -215,6 +219,9 @@ export const useBoardsModalDnd = ({
               return;
             await moveBoardToCollection(active.id, destination);
           } else {
+            if (!(await confirmLinkedCollectionMove(active.id, destination))) {
+              return;
+            }
             await moveCollection(active.id, destination);
           }
           return;
@@ -258,6 +265,7 @@ export const useBoardsModalDnd = ({
     [
       resolveDrop,
       confirmLinkedRemoval,
+      confirmLinkedCollectionMove,
       moveBoardToCollection,
       moveCollection,
       reorderDashboards,

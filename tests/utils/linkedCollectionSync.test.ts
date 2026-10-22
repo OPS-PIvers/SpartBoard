@@ -5,6 +5,12 @@ import {
   linkedTreeCollectionIds,
   planLocalSync,
   planRemoteSync,
+  linkedSubtreeKeys,
+  sectionReparents,
+  sectionsAfterMove,
+  sectionsAfterRemove,
+  subtreeSectionKeys,
+  withDeletedSections,
 } from '@/utils/linkedCollectionSync';
 import type { Collection, Dashboard, LinkedCollection } from '@/types';
 
@@ -140,7 +146,7 @@ describe('planRemoteSync', () => {
       }),
       root,
       collections: [root, mon],
-      dashboards: [board('a', 'mon', live('s1'))],
+      dashboards: [board('a', 'mon', { ...live('s1'), name: 'A' })],
     });
     expect(plan).toEqual({
       metadata: null,
@@ -149,7 +155,59 @@ describe('planRemoteSync', () => {
       missingEntries: [],
       removalCandidates: [],
       moves: [],
+      staleSections: [],
+      renames: [],
     });
+  });
+
+  it('takes a board name the link changed', () => {
+    const plan = planRemoteSync({
+      link: link({
+        boards: [{ shareId: 's1', name: 'Day 1', order: 0 }],
+      }),
+      root,
+      collections: [root],
+      dashboards: [board('a', 'week', { ...live('s1'), name: 'Old' })],
+    });
+    expect(plan.renames).toEqual([{ boardId: 'a', name: 'Day 1' }]);
+  });
+
+  it('removes sub-collections the link records as deleted, deepest first, never unlisted new ones', () => {
+    const inner = col('inner', 'mon', { linkedSectionId: 'S-inner' });
+    const fresh = col('fresh', 'week');
+    const plan = planRemoteSync({
+      link: link({ sections: [], deletedSections: ['S-mon', 'S-inner'] }),
+      root,
+      collections: [root, mon, inner, fresh],
+      dashboards: [],
+    });
+    expect(plan.staleSections.map((c) => c.id)).toEqual(['inner', 'mon']);
+  });
+
+  it('never re-creates a deleted section an old client listed again', () => {
+    const plan = planRemoteSync({
+      link: link({
+        sections: [{ id: 'S-x', name: 'X', parentId: null, order: 0 }],
+        deletedSections: ['S-x'],
+      }),
+      root,
+      collections: [root],
+      dashboards: [],
+    });
+    expect(plan.createSections).toEqual([]);
+  });
+
+  it('does not re-create a sub-collection this teacher moved out', () => {
+    const movedOut = col('mon', null, { linkedSectionId: 'S-mon' });
+    const plan = planRemoteSync({
+      link: link({
+        sections: [{ id: 'S-mon', name: 'Monday', parentId: null, order: 0 }],
+      }),
+      root,
+      collections: [root, movedOut],
+      dashboards: [],
+    });
+    expect(plan.createSections).toEqual([]);
   });
 
   it('creates new sections parents first and renames existing ones', () => {
@@ -330,5 +388,108 @@ describe('planLocalSync', () => {
       dashboards: [],
     });
     expect(plan.newSections).toEqual([]);
+  });
+});
+
+describe('sub-collection list edits', () => {
+  const sections = [
+    { id: 'A', name: 'A', parentId: null, order: 0 },
+    { id: 'B', name: 'B', parentId: 'A', order: 0 },
+    { id: 'C', name: 'C', parentId: null, order: 1 },
+  ];
+  const boards = [
+    { shareId: 's1', name: 'One', order: 0, sectionId: 'A' },
+    { shareId: 's2', name: 'Two', order: 1, sectionId: 'B' },
+    { shareId: 's3', name: 'Three', order: 2 },
+  ];
+
+  it('deleting a sub-collection hands its boards and children to its parent and records it', () => {
+    const next = sectionsAfterRemove({ sections, boards }, new Set(['A']));
+    expect(next.sections).toEqual([
+      { id: 'B', name: 'B', parentId: null, order: 0 },
+      { id: 'C', name: 'C', parentId: null, order: 1 },
+    ]);
+    expect(next.boards).toEqual([
+      { shareId: 's1', name: 'One', order: 0 },
+      { shareId: 's2', name: 'Two', order: 1, sectionId: 'B' },
+      { shareId: 's3', name: 'Three', order: 2 },
+    ]);
+    expect(next.deletedSections).toEqual(['A']);
+  });
+
+  it('deleting a nested sub-collection hands its boards to the one above, read from the link', () => {
+    const next = sectionsAfterRemove({ sections, boards }, new Set(['B']));
+    expect(next.boards[1]).toEqual({
+      shareId: 's2',
+      name: 'Two',
+      order: 1,
+      sectionId: 'A',
+    });
+  });
+
+  it('deleting a parent and child together hands boards to what stays above both', () => {
+    const next = sectionsAfterRemove(
+      { sections, boards, deletedSections: ['old'] },
+      linkedSubtreeKeys(sections, 'A')
+    );
+    expect(next.sections).toEqual([sections[2]]);
+    expect(next.boards.every((b) => !b.sectionId)).toBe(true);
+    expect(next.deletedSections).toEqual(['old', 'A', 'B']);
+  });
+
+  it('keeps the deleted list to the newest 200', () => {
+    const many = Array.from({ length: 200 }, (_, i) => `k${i}`);
+    const next = withDeletedSections(many, ['new']);
+    expect(next).toHaveLength(200);
+    expect(next[0]).toBe('k1');
+    expect(next[199]).toBe('new');
+  });
+
+  it('places listed sections under the parent the link names, including one created this pass', () => {
+    const tue = col('tue', 'week', { linkedSectionId: 'S-tue' });
+    const moves = sectionReparents({
+      link: {
+        sections: [
+          { id: 'S-new', name: 'New', parentId: null, order: 0 },
+          { id: 'S-tue', name: 'tue', parentId: 'S-new', order: 0 },
+          { id: 'S-mon', name: 'Monday', parentId: null, order: 1 },
+        ],
+      },
+      rootId: 'week',
+      keyToLocal: new Map([
+        ['S-new', 'created-now'],
+        ['S-tue', 'tue'],
+        ['S-mon', 'mon'],
+      ]),
+      collections: [root, mon, tue],
+    });
+    expect(moves).toEqual([{ collectionId: 'tue', parentId: 'created-now' }]);
+  });
+
+  it('a deleted section never lists again from local adds', () => {
+    const plan = planLocalSync({
+      link: link({ sections: [], deletedSections: ['S-mon'] }),
+      root,
+      collections: [root, mon],
+      dashboards: [],
+    });
+    expect(plan.newSections).toEqual([]);
+  });
+
+  it('moving a sub-collection puts it last under its new parent', () => {
+    expect(sectionsAfterMove(sections, 'C', 'A')).toEqual([
+      sections[0],
+      sections[1],
+      { id: 'C', name: 'C', parentId: 'A', order: 1 },
+    ]);
+    expect(sectionsAfterMove(sections, 'missing', null)).toBeNull();
+  });
+
+  it('collects the keys of a subtree', () => {
+    const inner = col('inner', 'mon', { linkedSectionId: 'S-inner' });
+    expect([...subtreeSectionKeys('mon', [root, mon, inner])].sort()).toEqual([
+      'S-inner',
+      'S-mon',
+    ]);
   });
 });

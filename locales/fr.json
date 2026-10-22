@@ -1625,6 +1625,7 @@
     "deleteBoardConfirm": "Supprimer ce Tableau ?",
     "removeSharedBoardConfirm": "Retirer ce tableau pour tout le monde dans la collection partagée ?",
     "removeSharedBoardConfirmLabel": "Retirer",
+    "removeSharedCollectionConfirm": "Retirer cette collection et ses tableaux pour tout le monde dans la collection partagée ?",
     "deleteCollectionConfirm": "Supprimer cette Collection ? Les Tableaux qu'elle contient seront déplacés vers le niveau parent.",
     "unpinBoard": "Désépingler le Tableau",
     "dragToMove": "Glisser pour déplacer",

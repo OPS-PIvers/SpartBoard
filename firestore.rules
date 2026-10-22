@@ -1789,6 +1789,8 @@ service cloud.firestore {
           && isList('boards') && incoming().boards.size() <= 200
           && (!('sections' in incoming())
               || (isList('sections') && incoming().sections.size() <= 200))
+          && incoming().get('deletedSections', []) is list
+          && incoming().get('deletedSections', []).size() <= 200
           && isMap('participants') && incoming().participants.size() <= 50
           && incoming().get('removed', {}) is map && incoming().get('removed', {}).size() <= 200
           && incoming().get('ended', false) is bool;
@@ -1814,7 +1816,7 @@ service cloud.firestore {
       // Synced collaborator: the collection's look and board list, while the share is live.
       allow update: if lcTeacher() && existing().mode == 'synced' && lcLive()
         && existing().participants.get(authUid(), {}).get('role', '') == 'collaborator'
-        && changedOnly(['name', 'color', 'icon', 'boards', 'sections', 'updatedAt', 'updatedBy'])
+        && changedOnly(['name', 'color', 'icon', 'boards', 'sections', 'deletedSections', 'updatedAt', 'updatedBy'])
         && incoming().updatedBy == authUid() && lcShape();
 
       // Self-join, only with the role the mode grants (a View-Only link never makes an editor).

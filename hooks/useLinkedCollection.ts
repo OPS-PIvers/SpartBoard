@@ -41,7 +41,10 @@ export interface CreateLinkedCollectionInput {
 
 /** Fields a Synced collaborator (or the host) may change. */
 export type LinkedCollectionPatch = Partial<
-  Pick<LinkedCollection, 'name' | 'color' | 'icon' | 'boards' | 'sections'>
+  Pick<
+    LinkedCollection,
+    'name' | 'color' | 'icon' | 'boards' | 'sections' | 'deletedSections'
+  >
 >;
 
 type Listener = (

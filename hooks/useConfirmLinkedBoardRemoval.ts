@@ -31,3 +31,31 @@ export const useConfirmLinkedBoardRemoval = () => {
     [t, showConfirm, countLinkedBoardRemovals]
   );
 };
+
+/** Resolves true when moving the collection removes no boards for everyone, or the teacher confirms it. */
+export const useConfirmLinkedCollectionMove = () => {
+  const { t } = useTranslation();
+  const { showConfirm } = useDialog();
+  const { countLinkedCollectionMoveRemovals } = useDashboard();
+  return useCallback(
+    async (
+      collectionId: string,
+      destination: string | null
+    ): Promise<boolean> => {
+      if (countLinkedCollectionMoveRemovals(collectionId, destination) === 0) {
+        return true;
+      }
+      const label = t('boardsModal.removeSharedBoardConfirmLabel', {
+        defaultValue: 'Remove',
+      });
+      return showConfirm(
+        t('boardsModal.removeSharedCollectionConfirm', {
+          defaultValue:
+            'Remove this collection and its boards for everyone in the shared collection?',
+        }),
+        { title: label, variant: 'danger', confirmLabel: label }
+      );
+    },
+    [t, showConfirm, countLinkedCollectionMoveRemovals]
+  );
+};

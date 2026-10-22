@@ -11626,6 +11626,8 @@ export interface LinkedCollection {
   icon?: string;
   boards: LinkedCollectionBoard[];
   sections?: LinkedCollectionSection[];
+  /** Section ids deleted or moved out, newest last (cap 200), so no member lists them again. */
+  deletedSections?: string[];
   participants: Record<string, LinkedCollectionParticipant>;
   createdAt: number;
   updatedAt: number;
