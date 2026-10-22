@@ -483,6 +483,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "arts-letters-agenda#fontColor",
       "arts-letters-agenda#fontFamily",
       "arts-letters-agenda#textSizePreset",
+      "arts-letters-agenda#version",
       "blending-board#managedNotice",
       "blooms-taxonomy#enabledCategories",
       "breathing#cardColor",
@@ -780,6 +781,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "requires": "settings-open",
     "keys": [
       "activity-wall#content",
+      "arts-letters-agenda#content",
       "blending-board#content",
       "blooms-taxonomy#content",
       "breathing#content",
