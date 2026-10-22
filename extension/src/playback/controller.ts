@@ -62,6 +62,8 @@ interface TabRecord {
   seekAt: number;
   /** Last match posted per step, so an unchanged repeat isn't posted again. */
   posted: Record<string, LocatorClue | 'none'>;
+  /** Step index of the last step post, so a revisit found by the same clue still moves the hub's marker. */
+  postedIndex: number;
 }
 
 export const FALLBACK_MS = 4000;
@@ -192,22 +194,49 @@ export function createPlaybackController(host: PlaybackHost) {
     }
   }
 
+  function postStep(
+    rec: TabRecord,
+    index: number,
+    match: LocatorClue | 'none'
+  ) {
+    const setId = rec.state.tour.id;
+    const step = rec.state.tour.steps[index];
+    if (!step) return;
+    rec.posted = { ...rec.posted, [step.id]: match };
+    rec.postedIndex = index;
+    host.post(setId, {
+      type: 'web-tour/step',
+      setId,
+      stepIndex: index,
+      stepId: step.id,
+      match,
+    });
+  }
+
+  /** A step left while still on the wrong page counts as a miss, so a broken page pattern shows in tour health. */
+  function postWrongPageMiss(rec: TabRecord, before: PlaybackState) {
+    const step = before.tour.steps[before.index];
+    if (before.status !== 'wrong-page' || !step) return;
+    if (before.matched[step.id] !== undefined || step.id in rec.posted) return;
+    postStep(rec, before.index, 'none');
+  }
+
   function postProgress(rec: TabRecord, before: PlaybackState) {
     const { state } = rec;
     const setId = state.tour.id;
     const step = state.tour.steps[state.index];
+    if (
+      state.index !== before.index ||
+      state.status === 'exited' ||
+      state.status === 'done'
+    ) {
+      postWrongPageMiss(rec, before);
+    }
     if (state.status === 'shown' || state.status === 'fallback') {
       const how = state.matched[step.id];
       const match = how === undefined || how === 'picture' ? 'none' : how;
-      if (rec.posted[step.id] !== match) {
-        rec.posted = { ...rec.posted, [step.id]: match };
-        host.post(setId, {
-          type: 'web-tour/step',
-          setId,
-          stepIndex: state.index,
-          stepId: step.id,
-          match,
-        });
+      if (rec.posted[step.id] !== match || rec.postedIndex !== state.index) {
+        postStep(rec, state.index, match);
       }
     }
     if (state.status === 'done' && before.status !== 'done') {
@@ -372,6 +401,7 @@ export function createPlaybackController(host: PlaybackHost) {
         url: 'about:blank',
         seekAt: 0,
         posted: {},
+        postedIndex: -1,
       };
       let room = SESSION_BUDGET - JSON.stringify(rec).length;
       const pictures: Record<string, WebTourPictureBytes> = {};
@@ -476,6 +506,7 @@ export function createPlaybackController(host: PlaybackHost) {
         if (!rec) return;
         const setId = rec.state.tour.id;
         if (rec.state.status !== 'done' && rec.state.status !== 'exited') {
+          postWrongPageMiss(rec, rec.state);
           host.post(setId, {
             type: 'web-tour/closed',
             setId,
