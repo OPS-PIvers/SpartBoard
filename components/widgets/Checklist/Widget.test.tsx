@@ -34,6 +34,10 @@ const gate = vi.hoisted(() => ({ enabled: false }));
 vi.mock('@/hooks/useRosterGroupsGate', () => ({
   useRosterGroupsGate: () => gate.enabled,
 }));
+const flags = vi.hoisted(() => ({ smallCard: true }));
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: () => flags.smallCard }),
+}));
 const board = vi.hoisted(() => ({ readOnly: false }));
 vi.mock('@/context/dashboardCanvasStore', () => ({
   useIsActiveBoardReadOnly: () => board.readOnly,
@@ -138,6 +142,16 @@ describe('ChecklistWidget', () => {
     render(<ChecklistWidget widget={mockWidget} />);
     expect(screen.getByText('No tasks yet')).toBeInTheDocument();
     expect(screen.getByText('Open settings to add tasks.')).toBeInTheDocument();
+  });
+
+  it('keeps the old empty state without the small-card preview', () => {
+    flags.smallCard = false;
+    render(<ChecklistWidget widget={mockWidget} />);
+    expect(screen.getByText('No Tasks')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Add tasks' })
+    ).not.toBeInTheDocument();
+    flags.smallCard = true;
   });
 
   it('opens settings from the empty state button', () => {

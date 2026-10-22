@@ -50,6 +50,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-calculator-stimulus',
   'lunch-count-redesign',
   'activity-wall-timeline-dates',
+  'checklist-small-card',
 ];
 
 /** Plan D7: admins pass a default-off flag (preview, or admin-default like `guided-learning-ai`) that has no saved doc yet. */
