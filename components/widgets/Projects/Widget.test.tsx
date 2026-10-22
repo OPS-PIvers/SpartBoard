@@ -109,6 +109,38 @@ const mockRun = (overrides: Record<string, unknown> = {}) =>
     ...overrides,
   });
 
+const boardItemMock = vi.hoisted(() => {
+  const state: {
+    status: 'off' | 'pending' | 'foreign' | 'none';
+    item: { ownerUid: string; payload: unknown } | null;
+  } = { status: 'off', item: null };
+  return {
+    shareId: null as string | null,
+    state,
+    published: [] as {
+      itemId?: string | null;
+      version?: string | null;
+      build?: () => Promise<unknown>;
+    }[],
+  };
+});
+vi.mock('@/hooks/useSharedBoardItem', () => ({
+  useSharedBoardItem: () => boardItemMock.state,
+  useSharedBoardItemPublisher: (args: {
+    itemId?: string | null;
+    version?: string | null;
+    build?: () => Promise<unknown>;
+  }) => {
+    boardItemMock.published.push(args);
+  },
+}));
+
+beforeEach(() => {
+  boardItemMock.shareId = null;
+  boardItemMock.state = { status: 'off', item: null };
+  boardItemMock.published = [];
+});
+
 describe('ProjectsWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -758,6 +790,74 @@ describe('ProjectsWidget', () => {
       expect(
         screen.getByText('This project had no groups yet when it was shared.')
       ).toBeInTheDocument();
+    });
+  });
+
+  describe('on a Synced or View-Only board', () => {
+    const hostTracker = {
+      run: {
+        id: 'host-1_project-1',
+        projectId: 'project-1',
+        title: 'Host poster',
+        steps: [{ id: 'step-1', title: 'Research' }],
+      },
+      groups: [
+        {
+          id: 'hg1',
+          name: 'Host group',
+          classId: 'class-a',
+          order: 0,
+          stepStates: { 'step-1': 'done' },
+        },
+      ],
+    };
+
+    it("draws another member's tracker read-only, with no listener on the viewer's run", () => {
+      mockRun({ run: null, groups: [] });
+      boardItemMock.state = {
+        status: 'foreign',
+        item: { ownerUid: 'host-1', payload: hostTracker },
+      };
+      render(<ProjectsWidget widget={widget()} />);
+
+      expect(screen.getByText('Host poster')).toBeInTheDocument();
+      expect(
+        screen.getByLabelText('Host group, Research, Done')
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Host group, Research, Done' })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Back to the project library' })
+      ).not.toBeInTheDocument();
+      expect(useProjectRun).toHaveBeenCalledWith(
+        'teacher-1',
+        undefined,
+        'teacher-1'
+      );
+    });
+
+    it("waits for the board's copy before drawing anything", () => {
+      mockRun({ run: null, groups: [] });
+      boardItemMock.state = { status: 'pending', item: null };
+      render(<ProjectsWidget widget={widget()} />);
+
+      expect(screen.getByLabelText('Loading this project')).toBeInTheDocument();
+    });
+
+    it("publishes the owner's tracker without members or work links", async () => {
+      render(<ProjectsWidget widget={widget()} />);
+
+      const last = boardItemMock.published.at(-1);
+      expect(last?.itemId).toBe('project-1');
+      const payload = (await last?.build?.()) as {
+        groups: Record<string, unknown>[];
+      };
+      expect(payload.groups.length).toBeGreaterThan(0);
+      for (const g of payload.groups) {
+        expect(g).not.toHaveProperty('memberUids');
+        expect(g).not.toHaveProperty('workLinks');
+      }
     });
   });
 });

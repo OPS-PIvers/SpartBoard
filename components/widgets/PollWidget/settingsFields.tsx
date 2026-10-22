@@ -9,6 +9,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { RosterGroupSelect } from '@/components/common/RosterGroupSelect';
 import { rosterGroupMemberIds } from '@/utils/rosterGroups';
+import { useBoardLinkedShareId } from '@/context/boardLinkedShare';
 import { useAuth } from '@/context/useAuth';
 import { WidgetData, PollConfig, PollQuestion } from '@/types';
 import { useDialog } from '@/context/useDialog';
@@ -63,6 +64,7 @@ export const PollSettings: React.FC<{
   const { updateWidget, addToast, rosters, activeRosterId } = useDashboard();
   const { showConfirm } = useDialog();
   const { canAccessFeature, user } = useAuth();
+  const boardShareId = useBoardLinkedShareId();
   const config = useMemo(
     () => (widget.config || {}) as PollConfig,
     [widget.config]
@@ -111,7 +113,12 @@ export const PollSettings: React.FC<{
         reserved && !config.joinCode
           ? { ...config, joinCode: reserved }
           : config;
-      const next = await startPollSession(base, user.uid, mode);
+      const next = await startPollSession(
+        base,
+        user.uid,
+        mode,
+        canAccessFeature('shared-board-live-walls')
+      );
       applyConfig(next);
     } catch (err) {
       // Surface the failure rather than leaving the teacher with a
@@ -757,6 +764,12 @@ export const PollSettings: React.FC<{
             <Button
               variant="secondary"
               onClick={() => void handleStopClick()}
+              // A colleague's session on a shared board is theirs to stop.
+              disabled={
+                !!boardShareId &&
+                !!config.activePollSessionOwnerUid &&
+                config.activePollSessionOwnerUid !== user?.uid
+              }
               icon={<Square className="w-3.5 h-3.5" />}
               {...tourAttr(
                 'widget-settings.poll.stop-voting',

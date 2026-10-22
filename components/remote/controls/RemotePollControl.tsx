@@ -10,6 +10,7 @@ import {
   Square,
 } from 'lucide-react';
 import { WidgetData, PollConfig } from '@/types';
+import { useBoardLinkedShareId } from '@/context/boardLinkedShare';
 import { useAuth } from '@/context/useAuth';
 import { buildPollJoinUrl } from '@/utils/pollCode';
 import { withPollQuestions, withQuestionAt } from '@/utils/pollQuestions';
@@ -47,6 +48,14 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
   const { user, canAccessFeature } = useAuth();
   const config = widget.config as PollConfig;
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
+  // A colleague's live session on a shared board: show its tallies, leave running it to them.
+  const sessionOwnerUid = config.activePollSessionOwnerUid ?? null;
+  const boardShareId = useBoardLinkedShareId();
+  const foreignSession =
+    !!boardShareId &&
+    !!config.activePollSessionId &&
+    !!sessionOwnerUid &&
+    sessionOwnerUid !== user?.uid;
 
   const applyConfig = useCallback(
     (next: PollConfig) => updateWidget(widget.id, { config: next }),
@@ -64,7 +73,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
     goToQuestion,
   } = usePollSession({
     config,
-    teacherUid: user?.uid,
+    teacherUid: foreignSession ? (sessionOwnerUid ?? undefined) : user?.uid,
     onConfigChange: applyConfig,
   });
 
@@ -116,7 +125,14 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
     if (!user) return;
     setShowResumePopover(false);
     try {
-      applyConfig(await startPollSession(config, user.uid, mode));
+      applyConfig(
+        await startPollSession(
+          config,
+          user.uid,
+          mode,
+          canAccessFeature('shared-board-live-walls')
+        )
+      );
     } catch (err) {
       // On a flaky phone connection the session write can fail; surface it in
       // logs rather than silently leaving the teacher thinking voting started.
@@ -162,7 +178,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
           {showNavigation && (
             <button
               onClick={() => goToQuestion(currentQuestionIndex - 1)}
-              disabled={!canGoPrev}
+              disabled={!canGoPrev || foreignSession}
               style={{ touchAction: 'manipulation' }}
               className="touch-manipulation shrink-0 p-2 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-30 text-white transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60"
               aria-label="Previous question"
@@ -176,7 +192,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
           {showNavigation && (
             <button
               onClick={() => goToQuestion(currentQuestionIndex + 1)}
-              disabled={!canGoNext}
+              disabled={!canGoNext || foreignSession}
               style={{ touchAction: 'manipulation' }}
               className="touch-manipulation shrink-0 p-2 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-30 text-white transition-all active:scale-95 focus-visible:ring-2 focus-visible:ring-blue-400/60"
               aria-label="Next question"
@@ -192,8 +208,9 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
         {isLive ? (
           <button
             onClick={() => void handleStopClick()}
+            disabled={foreignSession}
             style={{ touchAction: 'manipulation' }}
-            className="touch-manipulation flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-black text-lg shadow-lg transition-all active:scale-95 bg-red-500 hover:bg-red-600 text-white"
+            className="touch-manipulation flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-black text-lg shadow-lg transition-all active:scale-95 disabled:opacity-40 bg-red-500 hover:bg-red-600 text-white"
             aria-label="Stop voting"
           >
             <Square className="w-6 h-6" /> Stop Voting

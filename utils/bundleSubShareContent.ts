@@ -232,34 +232,44 @@ async function bundleProject(
   const runId = runIdFor(hostUid, projectId);
   const snap = await getDoc(doc(db, RUNS_COLLECTION, runId));
   if (!snap.exists()) throw new Error('project run not started');
-  const data = snap.data();
   const groupSnap = await getDocs(
     collection(db, RUNS_COLLECTION, runId, 'groups')
   );
-  // Field by field, not a spread: a group carries `memberUids` and work links
-  // the tracker never draws, and `content/` is broadly readable.
-  const groups: SubShareProjectGroupView[] = groupSnap.docs.map((groupDoc) => {
-    const group = groupDoc.data() as ProjectGroup;
-    return {
-      id: groupDoc.id,
+  return projectShareView(
+    { ...(snap.data() as Partial<ProjectRun>), id: snap.id },
+    projectId,
+    groupSnap.docs.map(
+      (groupDoc) => ({ ...groupDoc.data(), id: groupDoc.id }) as ProjectGroup
+    )
+  );
+}
+
+/** Only what the read-only tracker draws, for a sub share or a shared board's live copy. */
+export function projectShareView(
+  run: Partial<ProjectRun> & { id: string },
+  projectId: string,
+  groups: ProjectGroup[]
+): SubShareProjectPayload {
+  return {
+    run: {
+      id: run.id,
+      projectId: run.projectId ?? projectId,
+      title: run.title ?? 'Project',
+      steps: run.steps ?? [],
+      ...(run.classNames && typeof run.classNames === 'object'
+        ? { classNames: run.classNames }
+        : {}),
+    },
+    // Field by field, not a spread: a group carries `memberUids` and work links
+    // the tracker never draws, and `content/` is broadly readable.
+    groups: groups.map((group): SubShareProjectGroupView => ({
+      id: group.id,
       name: group.name ?? 'Group',
       classId: group.classId ?? '',
       order: group.order ?? 0,
       stepStates: group.stepStates ?? {},
       ...(typeof group.color === 'string' ? { color: group.color } : {}),
-    };
-  });
-  return {
-    run: {
-      id: snap.id,
-      projectId: (data.projectId as string) ?? projectId,
-      title: (data.title as string) ?? 'Project',
-      steps: (data.steps as ProjectRun['steps']) ?? [],
-      ...(data.classNames && typeof data.classNames === 'object'
-        ? { classNames: data.classNames as Record<string, string> }
-        : {}),
-    },
-    groups,
+    })),
   };
 }
 
@@ -340,25 +350,33 @@ function presentedFlashcardSetIds(board: Dashboard): string[] {
   return ids;
 }
 
-async function bundleFlashcardSet(
-  hostUid: string,
-  setId: string
-): Promise<SubShareFlashcardPayload> {
-  const snap = await getDoc(doc(db, 'users', hostUid, 'flashcard_sets', setId));
-  if (!snap.exists()) throw new Error('flashcard set not found');
-  const data = snap.data() as Partial<FlashcardSet>;
+/** Only what the player draws, for a sub share or a shared board's live copy. */
+export function flashcardSetShareView(
+  id: string,
+  data: Partial<FlashcardSet>
+): SubShareFlashcardSetView {
   // Field by field, not a spread: the raw doc carries `publicShareId`, a link
   // anyone holding the share could then open, and `content/` is broadly
   // readable.
-  const set: SubShareFlashcardSetView = {
-    id: snap.id,
+  return {
+    id,
     title: data.title ?? 'Untitled set',
     termLanguage: data.termLanguage ?? 'en',
     definitionLanguage: data.definitionLanguage ?? 'en',
     cards: data.cards ?? [],
     ...(data.description ? { description: data.description } : {}),
   };
-  return { set };
+}
+
+async function bundleFlashcardSet(
+  hostUid: string,
+  setId: string
+): Promise<SubShareFlashcardPayload> {
+  const snap = await getDoc(doc(db, 'users', hostUid, 'flashcard_sets', setId));
+  if (!snap.exists()) throw new Error('flashcard set not found');
+  return {
+    set: flashcardSetShareView(snap.id, snap.data()),
+  };
 }
 
 /**

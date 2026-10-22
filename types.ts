@@ -2299,6 +2299,8 @@ export interface PollConfig {
    * mints a fresh id instead.
    */
   lastPollSessionId?: string | null;
+  /** Who started the live session, so other members of a shared board read its votes. */
+  activePollSessionOwnerUid?: string | null;
   /** Legacy single-question shape — read through `getPollQuestions` only. */
   question?: string;
   /** Legacy single-question shape — read through `getPollQuestions` only. */
@@ -4012,6 +4014,8 @@ export interface PlacedNotebookAsset {
 
 export interface SmartNotebookConfig {
   activeNotebookId: string | null;
+  /** Whose library the open notebook is in, so other members of a shared board can find it. */
+  activeNotebookOwnerUid?: string | null;
   storageLimitMb?: number;
   /**
    * Appearance fields, surfaced as `styleKeys` in
@@ -9267,6 +9271,8 @@ export interface FlashcardsConfig {
   /** Assignment whose teacher results are open in the `results` view. */
   activeAssignmentId?: string;
   presentSetId?: string;
+  /** Whose library the presented set is in, so other members of a shared board can find it. */
+  presentSetOwnerUid?: string | null;
   presentShowFirst: FlashcardSide;
   presentShuffle: boolean;
   lastRosterIdsBySetId?: Record<string, string[]>;
@@ -9476,6 +9482,8 @@ export interface ProjectsConfig {
   managerTab?: 'library' | 'active' | 'archive';
   /** The project open in board view. Not a binding — the manager retargets it. */
   projectId?: string;
+  /** Whose library the open project is in, so other members of a shared board can find it. */
+  projectOwnerUid?: string | null;
   /** Legacy D27 toggle; `false` still reads as collapsed until `boardCollapsed` is written. */
   showStatus?: boolean;
   /** D37 — board drawn as one segmented bar per group. Per board, not an appearance key. */
