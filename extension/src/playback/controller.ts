@@ -504,8 +504,9 @@ export function createPlaybackController(host: PlaybackHost) {
       for (const tabId of (await host.load<number[]>(TABS_KEY)) ?? []) {
         await serial(tabId, async () => {
           const rec = await load(tabId);
+          if (!rec) return trackTab(tabId, false);
           if (
-            rec?.state.status === 'seeking' &&
+            rec.state.status === 'seeking' &&
             rec.seekAt > 0 &&
             host.now() - rec.seekAt >= FALLBACK_MS
           ) {

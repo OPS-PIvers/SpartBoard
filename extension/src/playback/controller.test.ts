@@ -405,6 +405,15 @@ describe('playback controller, review fixes', () => {
     expect(h.lastRender()).toMatchObject({ status: 'fallback' });
   });
 
+  it('prunes a tab id whose record is already gone', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    h.store.set('wt:tabs', [7, 99]);
+    await c.sweep();
+    expect(h.store.get('wt:tabs')).toEqual([7]);
+  });
+
   it('lets go of the tab once the learner leaves a finished tour', async () => {
     const h = fakeHost();
     const c = createPlaybackController(h.host);
