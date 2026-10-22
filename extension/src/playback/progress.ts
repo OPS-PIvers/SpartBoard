@@ -104,7 +104,10 @@ export function reducePlayback(
   state: PlaybackState,
   event: PlaybackEvent
 ): PlaybackState {
-  if (finished(state) && event.type !== 'back') return state;
+  if (state.status === 'exited') return state;
+  if (state.status === 'done' && event.type !== 'back' && event.type !== 'exit') {
+    return state;
+  }
   const step = state.tour.steps[state.index];
   switch (event.type) {
     case 'page': {
