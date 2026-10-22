@@ -60,6 +60,49 @@ describe('frame seeker', () => {
     expect(reports.at(-1)).toEqual({ type: 'wt:lost', token: 't1' });
   });
 
+  // jsdom can't make trusted events, so the target's handlers are called directly.
+  const trusted = (type: string, button = 0) =>
+    Object.create(MouseEvent.prototype, {
+      isTrusted: { value: true },
+      type: { value: type },
+      button: { value: button },
+    }) as MouseEvent;
+  const handlersFor = (run: (cmd: typeof seek) => void) => {
+    const handlers = new Map<string, EventListener>();
+    const spy = vi
+      .spyOn(EventTarget.prototype, 'addEventListener')
+      .mockImplementation((type, cb) => {
+        handlers.set(type, cb as EventListener);
+      });
+    run(seek);
+    spy.mockRestore();
+    return handlers;
+  };
+
+  it('advances a click step on mousedown, for menus that open before the click', () => {
+    document.body.innerHTML = '<button>Load more</button>';
+    const reports: FrameReport[] = [];
+    const handlers = handlersFor(
+      installFrameSeeker(document, (r) => reports.push(r))
+    );
+    expect([...handlers.keys()]).toEqual(['pointerdown', 'mousedown', 'click']);
+    handlers.get('mousedown')!(trusted('mousedown'));
+    expect(reports.filter((r) => r.type === 'wt:acted')).toHaveLength(1);
+  });
+
+  it('reports one press once and ignores other buttons', () => {
+    document.body.innerHTML = '<button>Load more</button>';
+    const reports: FrameReport[] = [];
+    const handlers = handlersFor(
+      installFrameSeeker(document, (r) => reports.push(r))
+    );
+    handlers.get('mousedown')!(trusted('mousedown', 2));
+    expect(reports.some((r) => r.type === 'wt:acted')).toBe(false);
+    for (const type of ['pointerdown', 'mousedown', 'click'])
+      handlers.get(type)!(trusted(type));
+    expect(reports.filter((r) => r.type === 'wt:acted')).toHaveLength(1);
+  });
+
   it('stops watching on stop', async () => {
     vi.useFakeTimers();
     const reports: FrameReport[] = [];

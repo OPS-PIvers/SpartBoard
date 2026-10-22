@@ -92,45 +92,76 @@ export function isShown(el: Element): boolean {
 const INTERACTIVE =
   'a[href],button,input,select,textarea,summary,[role],[tabindex],[onclick],[contenteditable="true"]';
 
-/** Every element in the document and its open shadow roots that matches the selector. */
-function queryDeep(root: Document | ShadowRoot, selector: string): Element[] {
-  const out: Element[] = [];
+/** The document and every open shadow root inside it, found in one walk. */
+function rootsOf(doc: Document): (Document | ShadowRoot)[] {
+  const out: (Document | ShadowRoot)[] = [];
   const visit = (node: Document | ShadowRoot) => {
-    out.push(...node.querySelectorAll(selector));
+    out.push(node);
     for (const el of node.querySelectorAll('*')) {
       if (el.shadowRoot) visit(el.shadowRoot);
     }
   };
-  visit(root);
+  visit(doc);
   return out;
 }
 
-function byRole(doc: Document, role: string, name: string): Element[] {
+const queryAll = (roots: (Document | ShadowRoot)[], selector: string) =>
+  roots.flatMap((root) => [...root.querySelectorAll(selector)]);
+
+function byRole(
+  roots: (Document | ShadowRoot)[],
+  role: string,
+  name: string
+): Element[] {
   const want = normalizeText(name);
-  return queryDeep(doc, INTERACTIVE).filter(
+  return queryAll(roots, INTERACTIVE).filter(
     (el) => roleOf(el) === role && accessibleName(el) === want
   );
 }
 
 /** The innermost elements whose own text is the wanted text, so a wrapper doesn't win over its button. */
-function byText(doc: Document, text: string): Element[] {
+function byText(
+  doc: Document,
+  roots: (Document | ShadowRoot)[],
+  text: string
+): Element[] {
   const want = normalizeText(text);
   if (!want) return [];
   const inBody = (el: Element) =>
     el.getRootNode() !== doc || (el !== doc.body && !!doc.body?.contains(el));
-  const hits = queryDeep(doc, '*').filter(
-    (el) =>
-      inBody(el) &&
-      el.tagName !== 'SCRIPT' &&
-      el.tagName !== 'STYLE' &&
-      normalizeText(el.textContent ?? '') === want
-  );
-  return hits.filter((el) => !hits.some((h) => h !== el && el.contains(h)));
+  // Climb only from text that could be part of the wanted text, instead of reading every element's text.
+  const hits = new Set<Element>();
+  const seen = new Set<Element>();
+  for (const root of roots) {
+    const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const own = normalizeText(node.nodeValue ?? '');
+      if (!own || !want.includes(own)) continue;
+      for (
+        let el = node.parentElement;
+        el && !seen.has(el);
+        el = el.parentElement
+      ) {
+        seen.add(el);
+        const full = normalizeText(el.textContent ?? '');
+        if (full.length > want.length) break;
+        if (
+          full === want &&
+          el.tagName !== 'SCRIPT' &&
+          el.tagName !== 'STYLE' &&
+          inBody(el)
+        )
+          hits.add(el);
+      }
+    }
+  }
+  const list = [...hits];
+  return list.filter((el) => !list.some((h) => h !== el && el.contains(h)));
 }
 
-function byCss(doc: Document, css: string): Element[] {
+function byCss(roots: (Document | ShadowRoot)[], css: string): Element[] {
   try {
-    return queryDeep(doc, css);
+    return queryAll(roots, css);
   } catch {
     return [];
   }
@@ -168,18 +199,19 @@ export function locate(
   doc: Document,
   clues: WebLocatorClues
 ): LocatorMatch | null {
+  const roots = rootsOf(doc);
   const layers: [LocatorClue, () => Element[]][] = [];
   if (clues.role && clues.name) {
     const { role, name } = clues;
-    layers.push(['role', () => byRole(doc, role, name)]);
+    layers.push(['role', () => byRole(roots, role, name)]);
   }
   if (clues.text) {
     const { text } = clues;
-    layers.push(['text', () => byText(doc, text)]);
+    layers.push(['text', () => byText(doc, roots, text)]);
   }
   if (clues.css) {
     const { css } = clues;
-    layers.push(['css', () => byCss(doc, css)]);
+    layers.push(['css', () => byCss(roots, css)]);
   }
   for (const [clue, find] of layers) {
     const hit = pick(find(), clues.box);

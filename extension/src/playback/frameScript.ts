@@ -35,7 +35,8 @@ declare global {
 
 const ACT_EVENTS: Record<WebStepAction, string[]> = {
   observe: [],
-  click: ['click'],
+  // The recorder captures on pointerdown, and some menus (Google Docs) open on mousedown.
+  click: ['pointerdown', 'mousedown', 'click'],
   type: ['change', 'input'],
   select: ['change', 'input'],
 };
@@ -78,11 +79,16 @@ export function installFrameSeeker(
 
   const attach = (el: Element, token: string, action: WebStepAction) => {
     let settle: ReturnType<typeof setTimeout> | null = null;
+    let pressed = false;
     const onAct = (e: Event) => {
       if (!e.isTrusted) return;
+      if (e instanceof MouseEvent && e.button !== 0) return;
       if (settle) clearTimeout(settle);
       settle = null;
       if (e.type !== 'input') {
+        // One press fires pointerdown, mousedown and click; report it once.
+        if (action === 'click' && pressed) return;
+        pressed = true;
         send({ type: 'wt:acted', token });
         return;
       }
