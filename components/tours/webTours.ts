@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore';
 import { deleteObject, getBytes, ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '@/config/firebase';
-import type { GuidedLearningSet } from '@/types';
+import type { GuidedLearningSet, GuidedLearningStep } from '@/types';
 import { normalizeGuidedLearningSet } from '@/components/widgets/GuidedLearning/utils/setMigration';
 import { assertGuidedLearningDocFits } from '@/utils/firestoreDocSize';
 import { logError } from '@/utils/logError';
@@ -148,28 +148,44 @@ export async function duplicateWebTourDraft(
     title: `${set.title} (Copy)`,
     helpCenter: set.helpCenter,
   };
-  copy.steps = await Promise.all(
-    set.steps.map(async (step) => {
-      const picture = step.web?.picture;
-      if (!step.web || !picture) return step;
-      const ext = picture.path.slice(picture.path.lastIndexOf('.') + 1);
-      const type = (Object.keys(PICTURE_TYPES) as WebTourPictureType[]).find(
-        (k) => PICTURE_TYPES[k] === ext
-      );
-      // A picture outside the set's own folder can't be copied, so the copy goes without it.
-      if (!type || !isWebTourPicturePath(set.id, picture.path)) {
-        return { ...step, web: { ...step.web, picture: undefined } };
-      }
-      const bytes = await loadWebTourPicture(picture.path);
-      const path = await uploadWebTourPicture(
-        copy.id,
-        new Blob([bytes], { type }),
-        type
-      );
-      return { ...step, web: { ...step.web, picture: { ...picture, path } } };
-    })
-  );
-  await saveWebTourDraft(copy);
+  const uploaded: string[] = [];
+  try {
+    // Every upload settles first, so a failure can't leave one finishing after the cleanup.
+    const steps = await Promise.allSettled(
+      set.steps.map(async (step) => {
+        const picture = step.web?.picture;
+        if (!step.web || !picture) return step;
+        const ext = picture.path.slice(picture.path.lastIndexOf('.') + 1);
+        const type = (Object.keys(PICTURE_TYPES) as WebTourPictureType[]).find(
+          (k) => PICTURE_TYPES[k] === ext
+        );
+        // A picture outside the set's own folder can't be copied, so the copy goes without it.
+        if (!type || !isWebTourPicturePath(set.id, picture.path)) {
+          return { ...step, web: { ...step.web, picture: undefined } };
+        }
+        const bytes = await loadWebTourPicture(picture.path);
+        const path = await uploadWebTourPicture(
+          copy.id,
+          new Blob([bytes], { type }),
+          type
+        );
+        uploaded.push(path);
+        return { ...step, web: { ...step.web, picture: { ...picture, path } } };
+      })
+    );
+    const failed = steps.find((r) => r.status === 'rejected');
+    if (failed) throw failed.reason;
+    copy.steps = steps.map(
+      (r) => (r as PromiseFulfilledResult<GuidedLearningStep>).value
+    );
+    await saveWebTourDraft(copy);
+  } catch (err) {
+    // No draft means no delete trigger, so remove the pictures already copied.
+    await Promise.allSettled(
+      uploaded.map((p) => deleteObject(ref(storage, p)))
+    );
+    throw err;
+  }
   return copy;
 }
 
