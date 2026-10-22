@@ -439,6 +439,7 @@ const PlayControls: React.FC<{
           // no-tour-anchor: the tour page runs outside the board, where live tours can't run
           <button
             type="button"
+            disabled={!picturesReady}
             onClick={() => onStart(resumeAt, false)}
             className={button}
           >
