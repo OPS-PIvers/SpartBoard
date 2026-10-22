@@ -123,7 +123,8 @@ export const linkedBoardFromShare = (
     order: number;
   }
 ): Dashboard => ({
-  id: crypto.randomUUID(),
+  // Same id in every tab and device, so the board is imported once.
+  id: `linked-${entry.shareId}`,
   name: safeName(entry.name, safeName(snap.name, opts.fallbackName)),
   background: snap.background,
   widgets: snap.widgets ?? [],

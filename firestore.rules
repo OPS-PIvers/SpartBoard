@@ -1405,8 +1405,10 @@ service cloud.firestore {
       // email_verified is REQUIRED on the @orono branch, same reason as isAdmin() above -
       // otherwise an unverified email/password account could self-report an
       // @orono.k12.mn.us address it doesn't own.
+      // A missing doc reads as missing, so a fixed-id share can be created only if absent (two tabs).
       allow get: if signedIn() && (
-        existing().get('intendedMode', null) != 'substitute'
+        resource == null
+        || existing().get('intendedMode', null) != 'substitute'
         || existing().get('originalAuthor', null) == authUid()
         || isAdmin()
         || (

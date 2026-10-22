@@ -159,7 +159,12 @@ export interface DashboardContextValue {
   createNewDashboard: (
     name: string,
     data?: Dashboard,
-    options?: { collectionId?: string | null; silent?: boolean }
+    /** `keepId` saves `data.id` as is (a shared-collection board's fixed id). */
+    options?: {
+      collectionId?: string | null;
+      silent?: boolean;
+      keepId?: boolean;
+    }
   ) => Promise<string | undefined>;
   saveCurrentDashboard: () => Promise<void>;
   deleteDashboard: (id: string) => Promise<void>;

@@ -170,8 +170,12 @@ class MockSharedStore {
     return MockSharedStore.instance;
   }
 
-  add(dashboard: Dashboard | Record<string, unknown>): string {
-    const id = 'share-' + Date.now();
+  add(
+    dashboard: Dashboard | Record<string, unknown>,
+    fixedId?: string
+  ): string {
+    if (fixedId && this.shared.has(fixedId)) return fixedId;
+    const id = fixedId ?? 'share-' + Date.now();
     const data = { ...(dashboard as Record<string, unknown>), id };
     this.shared.set(id, data);
     this.persist(id, data);
@@ -484,19 +488,24 @@ export const useFirestore = (userId: string | null) => {
        */
       plcId?: string,
       /** The `/linked_collections` link this board share belongs to. */
-      linkedCollectionId?: string
+      linkedCollectionId?: string,
+      /** Fixed share id: written only if no share has it yet, so two tabs share a board once. */
+      shareId?: string
     ): Promise<string> => {
       assertViewAsCanWrite();
       if (isAuthBypass) {
         // Stash the host display name on the mock doc under the same field
         // the live path uses so loadSharedDashboard's mapping works in bypass.
-        return mockSharedStore.add({
-          ...dashboard,
-          ...(hostDisplayName ? { originalAuthorName: hostDisplayName } : {}),
-          ...(intendedMode ? { intendedMode } : {}),
-          ...(plcId ? { plcId } : {}),
-          ...(linkedCollectionId ? { linkedCollectionId } : {}),
-        });
+        return mockSharedStore.add(
+          {
+            ...dashboard,
+            ...(hostDisplayName ? { originalAuthorName: hostDisplayName } : {}),
+            ...(intendedMode ? { intendedMode } : {}),
+            ...(plcId ? { plcId } : {}),
+            ...(linkedCollectionId ? { linkedCollectionId } : {}),
+          },
+          shareId
+        );
       }
 
       const shareRef = collection(db, 'shared_boards');
@@ -512,7 +521,7 @@ export const useFirestore = (userId: string | null) => {
         ...data
       } = dashboard;
 
-      const docRef = await addDoc(shareRef, {
+      const payload = {
         ...data,
         sharedAt: Date.now(),
         originalAuthor: userId,
@@ -523,7 +532,15 @@ export const useFirestore = (userId: string | null) => {
         participants: {},
         updatedAt: Date.now(),
         updatedBy: userId,
-      });
+      };
+      if (shareId) {
+        const ref = doc(shareRef, shareId);
+        await runTransaction(db, async (tx) => {
+          if (!(await tx.get(ref)).exists()) tx.set(ref, payload);
+        });
+        return shareId;
+      }
+      const docRef = await addDoc(shareRef, payload);
       return docRef.id;
     },
     [userId]

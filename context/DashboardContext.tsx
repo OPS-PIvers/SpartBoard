@@ -119,10 +119,12 @@ import {
 import { migrateBoardForCollections } from '@/utils/collectionsMigration';
 import { pickInitialBoard } from '@/utils/pickInitialBoard';
 import { LINKED_COLLECTION_SHARE_PREFIX } from '@/utils/linkedCollectionImport';
-import { linkedTreeCollectionIds } from '@/utils/linkedCollectionSync';
+import {
+  linkedBoardShareId,
+  linkedTreeCollectionIds,
+} from '@/utils/linkedCollectionSync';
 import {
   useLinkedCollectionSync,
-  type BoardDestination,
   type BoardLinkFields,
 } from '@/hooks/useLinkedCollectionSync';
 import { sanitizeBoardSnapshot } from '@/utils/dashboardSanitize';
@@ -4497,7 +4499,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     async (
       name: string,
       data?: Dashboard,
-      options?: { collectionId?: string | null; silent?: boolean }
+      options?: {
+        collectionId?: string | null;
+        silent?: boolean;
+        keepId?: boolean;
+      }
     ): Promise<string | undefined> => {
       if (!user) {
         if (!options?.silent)
@@ -4518,7 +4524,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const newDb: Dashboard = data
         ? {
             ...data,
-            id: crypto.randomUUID(),
+            id: options?.keepId ? data.id : crypto.randomUUID(),
             name,
             order: data.order ?? maxOrder + 1,
             collectionId,
@@ -4607,7 +4613,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             input.mode,
             hostName,
             undefined,
-            linkId
+            linkId,
+            linkedBoardShareId(linkId, board.id)
           );
           shareIdByBoard.set(board.id, shareId);
         })
@@ -5612,13 +5619,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         mode,
         linkedSyncDisplayName,
         undefined,
-        linkId
+        linkId,
+        linkedBoardShareId(linkId, board.id)
       ),
     [shareDashboardFirestore, linkedSyncDisplayName]
   );
   const linkedSyncCreateBoard = useCallback(
     (data: Dashboard, collectionId: string) =>
-      createNewDashboard(data.name, data, { collectionId, silent: true }),
+      createNewDashboard(data.name, data, {
+        collectionId,
+        silent: true,
+        keepId: true,
+      }),
     [createNewDashboard]
   );
   const linkedSyncDeleteBoard = useCallback(
@@ -5632,6 +5644,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     [handleDeleteDashboard, updateActiveId]
   );
+  const linkedSyncUid = user?.uid;
   const linkedSyncSetBoardLink = useCallback(
     async (boardId: string, link: BoardLinkFields | null) => {
       const target = dashboardsRef.current.find((x) => x.id === boardId);
@@ -5645,15 +5658,28 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setDashboards((prev) =>
         prev.map((x) => (x.id === boardId ? { ...x, ...fields } : x))
       );
-      // Linkage fields only: the board may have no save baseline.
-      await updateDashboardFields(
-        { ...target, ...fields },
-        Object.fromEntries(
-          Object.entries(fields).map(([k, v]) => [k, v ?? deleteField()])
-        )
+      const patch = Object.fromEntries(
+        Object.entries(fields).map(([k, v]) => [k, v ?? deleteField()])
       );
+      if (link || isAuthBypass || isViewAsTab || !linkedSyncUid) {
+        // Linkage fields only: the board may have no save baseline.
+        await updateDashboardFields({ ...target, ...fields }, patch);
+        return;
+      }
+      // Clearing never re-creates a board another tab just deleted.
+      try {
+        await updateDoc(
+          doc(db, 'users', linkedSyncUid, 'dashboards', boardId),
+          {
+            ...patch,
+            updatedAt: Date.now(),
+          }
+        );
+      } catch (err) {
+        if ((err as { code?: unknown } | null)?.code !== 'not-found') throw err;
+      }
     },
-    [updateDashboardFields]
+    [updateDashboardFields, linkedSyncUid]
   );
   const linkedSyncMoveBoard = useCallback(
     (boardId: string, collectionId: string) =>
@@ -5667,7 +5693,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   } = useLinkedCollectionSync({
     // Optional call: many useAuth test doubles leave canAccessFeature out.
     enabled:
-      canAccessFeature?.('collection-sync-sharing') === true && !isViewAsTab,
+      canAccessFeature?.('collection-sync-sharing') === true &&
+      !isViewAsTab &&
+      !loading,
     uid: user?.uid ?? null,
     displayName: linkedSyncDisplayName,
     collections,
@@ -5685,35 +5713,21 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     moveBoard: linkedSyncMoveBoard,
   });
 
-  /** Leaves a shared collection's board list first; a removal for everyone was confirmed in the UI (D4). */
-  const runAfterLinkedLeave = useCallback(
-    async (
-      boardIds: string[],
-      destination: BoardDestination,
-      change: () => Promise<void>
-    ) => {
-      const done = await beforeBoardsLeave(boardIds, destination);
-      try {
-        await change();
-      } finally {
-        done();
-      }
-    },
-    [beforeBoardsLeave]
-  );
-
+  // A removal for everyone was confirmed in the UI (D4); the shared list follows the delete or move.
   const deleteDashboard = useCallback(
     async (id: string) => {
+      let finish: (landed: boolean) => Promise<void>;
       try {
-        await runAfterLinkedLeave([id], { kind: 'delete' }, () =>
-          deleteDashboardRaw(id)
-        );
+        finish = await beforeBoardsLeave([id], { kind: 'delete' });
       } catch (err) {
         logError('DashboardContext.deleteDashboard.linked', err, { id });
         addToast('Delete failed', 'error');
+        return;
       }
+      await deleteDashboardRaw(id);
+      await finish(true);
     },
-    [runAfterLinkedLeave, deleteDashboardRaw, addToast]
+    [beforeBoardsLeave, deleteDashboardRaw, addToast]
   );
 
   const moveBoardToCollection = useCallback(
@@ -5726,18 +5740,25 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!prev || (prev.collectionId ?? null) === collectionId) {
         return moveBoardToCollectionRaw(boardId, collectionId, options);
       }
+      let finish: (landed: boolean) => Promise<void>;
       try {
-        await runAfterLinkedLeave(
-          [boardId],
-          { kind: 'move', collectionId },
-          () => moveBoardToCollectionRaw(boardId, collectionId, options)
-        );
+        finish = await beforeBoardsLeave([boardId], {
+          kind: 'move',
+          collectionId,
+        });
       } catch (err) {
         if (!options?.silent) addToast('Failed to move board', 'error');
         throw err;
       }
+      let landed = false;
+      try {
+        await moveBoardToCollectionRaw(boardId, collectionId, options);
+        landed = true;
+      } finally {
+        await finish(landed);
+      }
     },
-    [runAfterLinkedLeave, moveBoardToCollectionRaw, addToast]
+    [beforeBoardsLeave, moveBoardToCollectionRaw, addToast]
   );
 
   // Renames and recolors reach the shared collection when this teacher can edit it.

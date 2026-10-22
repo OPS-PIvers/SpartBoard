@@ -452,12 +452,18 @@ describe('useLinkedCollectionSync', () => {
       const deps = makeDeps({ dashboards, collections: [root, mon] });
       const { result } = renderHook(() => useLinkedCollectionSync(deps));
       await emit(listedLink());
+      let finish: ((landed: boolean) => Promise<void>) | undefined;
       await act(async () => {
-        const done = await result.current.beforeBoardsLeave(['a', 'b'], {
+        finish = await result.current.beforeBoardsLeave(['a', 'b'], {
           kind: 'move',
           collectionId: null,
         });
-        done();
+      });
+      // The move lands before the list changes, so no tab sees an unlinked board inside.
+      expect(linkDoc.boards).toHaveLength(2);
+      expect(deps.setBoardLink).not.toHaveBeenCalled();
+      await act(async () => {
+        await finish?.(true);
       });
       expect(linkDoc.boards).toEqual([]);
       expect(deps.leaveSharedBoard).toHaveBeenCalledWith('s1');
@@ -472,7 +478,9 @@ describe('useLinkedCollectionSync', () => {
       const { result } = renderHook(() => useLinkedCollectionSync(deps));
       await emit(listedLink());
       await act(async () => {
-        (await result.current.beforeBoardsLeave(['a'], { kind: 'delete' }))();
+        await (
+          await result.current.beforeBoardsLeave(['a'], { kind: 'delete' })
+        )(true);
       });
       expect(linkDoc.boards.map((b) => b.shareId)).toEqual(['s2']);
       expect(deps.leaveSharedBoard).toHaveBeenCalledWith('s1');
@@ -484,12 +492,12 @@ describe('useLinkedCollectionSync', () => {
       const { result } = renderHook(() => useLinkedCollectionSync(deps));
       await emit(listedLink());
       await act(async () => {
-        (
+        await (
           await result.current.beforeBoardsLeave(['a'], {
             kind: 'move',
             collectionId: 'mon',
           })
-        )();
+        )(true);
       });
       expect(linkDoc.boards[0]).toEqual({
         shareId: 's1',
@@ -525,5 +533,114 @@ describe('useLinkedCollectionSync', () => {
       deps.linkedCollectionApi.updateLinkedCollection
     ).toHaveBeenCalledWith('L1', 'me', { name: 'Week 3' });
     expect(linkDoc.sections?.[0].name).toBe('Mon');
+  });
+
+  it('keeps a move-out board listed when the move fails', async () => {
+    shares.set('s1', share('s1'));
+    linkDoc = makeLink({ boards: [{ shareId: 's1', name: 'A', order: 0 }] });
+    const deps = makeDeps({
+      dashboards: [board('a', 'week', live('s1', 'collaborator'))],
+    });
+    const { result } = renderHook(() => useLinkedCollectionSync(deps));
+    await emit(linkDoc);
+    await act(async () => {
+      await (
+        await result.current.beforeBoardsLeave(['a'], {
+          kind: 'move',
+          collectionId: null,
+        })
+      )(false);
+    });
+    expect(linkDoc.boards).toHaveLength(1);
+    expect(deps.leaveSharedBoard).not.toHaveBeenCalled();
+  });
+
+  it('removes an imported copy whose share is already gone', async () => {
+    const deps = makeDeps({
+      dashboards: [board('linked-s1', 'week', live('s1', 'collaborator'))],
+    });
+    renderHook(() => useLinkedCollectionSync(deps));
+    await emit(makeLink({ boards: [] }));
+    await waitFor(() =>
+      expect(deps.deleteBoard).toHaveBeenCalledWith('linked-s1')
+    );
+  });
+
+  it('keeps a board shared on its own whose share ended, as a plain board', async () => {
+    const deps = makeDeps({
+      dashboards: [
+        board('mine', 'week', {
+          ...live('solo', 'collaborator'),
+          linkedShareEnded: true,
+        }),
+      ],
+    });
+    renderHook(() => useLinkedCollectionSync(deps));
+    await emit(makeLink({ boards: [] }));
+    await waitFor(() =>
+      expect(deps.setBoardLink).toHaveBeenCalledWith('mine', null)
+    );
+    expect(deps.deleteBoard).not.toHaveBeenCalled();
+  });
+
+  it('removes an open copy that already learned its share ended (D4)', async () => {
+    const deps = makeDeps({
+      dashboards: [
+        board('linked-s1', 'week', {
+          ...live('s1', 'collaborator'),
+          linkedShareEnded: true,
+        }),
+      ],
+    });
+    renderHook(() => useLinkedCollectionSync(deps));
+    await emit(makeLink({ boards: [] }));
+    await waitFor(() =>
+      expect(deps.deleteBoard).toHaveBeenCalledWith('linked-s1')
+    );
+    expect(deps.shareBoard).not.toHaveBeenCalled();
+  });
+
+  it('imports with the fixed local id so two tabs make one board', async () => {
+    shares.set('s1', share('s1'));
+    const deps = makeDeps();
+    renderHook(() => useLinkedCollectionSync(deps));
+    await emit(makeLink({ boards: [{ shareId: 's1', name: 'A', order: 0 }] }));
+    await waitFor(() => expect(deps.createBoard).toHaveBeenCalled());
+    expect(vi.mocked(deps.createBoard).mock.calls[0][0].id).toBe('linked-s1');
+  });
+
+  it('unlists and ends the share of a board deleted while it was being listed', async () => {
+    let dashboards = [board('fresh', 'week')];
+    const deps = makeDeps();
+    let release: () => void = () => undefined;
+    vi.mocked(deps.shareBoard).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = () => resolve('new-share');
+        })
+    );
+    const { result, rerender } = renderHook(
+      (p: { dashboards: Dashboard[] }) =>
+        useLinkedCollectionSync({ ...deps, dashboards: p.dashboards }),
+      { initialProps: { dashboards } }
+    );
+    await emit(makeLink());
+    await waitFor(() => expect(deps.shareBoard).toHaveBeenCalled());
+    await act(async () => {
+      await (
+        await result.current.beforeBoardsLeave(['fresh'], { kind: 'delete' })
+      )(true);
+    });
+    dashboards = [];
+    rerender({ dashboards });
+    await act(async () => {
+      release();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    await waitFor(() =>
+      expect(deps.stopSharingBoard).toHaveBeenCalledWith('new-share')
+    );
+    expect(linkDoc.boards).toEqual([]);
+    expect(deps.setBoardLink).not.toHaveBeenCalled();
   });
 });

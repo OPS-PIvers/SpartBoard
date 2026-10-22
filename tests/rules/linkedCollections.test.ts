@@ -12,6 +12,7 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
+  runTransaction,
   setDoc,
   getDoc,
   updateDoc,
@@ -936,6 +937,31 @@ describe('membership sync', () => {
         updatedAt: 2000,
         updatedBy: COLLAB_UID,
       })
+    );
+  });
+
+  it('a member creates a board share at a fixed id only if none exists yet (two tabs)', async () => {
+    const db = asCollab();
+    const fixed = shareRef(db, `${SYNCED_ID}_board-1`);
+    const createIfAbsent = () =>
+      runTransaction(db, async (tx) => {
+        if (!(await tx.get(fixed)).exists()) {
+          tx.set(fixed, newShare(COLLAB_UID, 'synced', SYNCED_ID));
+        }
+      });
+    await assertSucceeds(createIfAbsent());
+    await assertSucceeds(createIfAbsent());
+  });
+
+  it('reading a share id nobody has used shows it missing, and signed-out callers still cannot read', async () => {
+    const snap = await assertSucceeds(
+      getDoc(shareRef(asStranger(), 'never-made'))
+    );
+    if (snap.exists()) throw new Error('expected a missing doc');
+    await assertFails(
+      getDoc(
+        shareRef(testEnv.unauthenticatedContext().firestore(), 'never-made')
+      )
     );
   });
 });

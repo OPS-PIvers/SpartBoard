@@ -190,6 +190,7 @@ export const useLinkedCollectionImport = () => {
               const boardId = await createNewDashboard(data.name, data, {
                 collectionId: localSection ?? rootId,
                 silent: true,
+                keepId: true,
               });
               if (!boardId) throw new Error('Board was not saved');
               try {

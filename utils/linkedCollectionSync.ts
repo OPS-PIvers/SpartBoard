@@ -25,6 +25,23 @@ export const isLiveLinkedRoot = (c: Collection): boolean =>
 export const liveShareIdOf = (d: Dashboard): string | undefined =>
   d.linkedShareId && !d.linkedShareEnded ? d.linkedShareId : undefined;
 
+/** Local id of the board mirroring a listed share: the same in every tab, so two tabs import it once. */
+export const linkedBoardLocalId = (shareId: string): string =>
+  `linked-${shareId}`;
+
+/** Share id for a board in a shared collection: the same in every tab, so two tabs share it once. */
+export const linkedBoardShareId = (linkId: string, boardId: string): string =>
+  `${linkId}_${boardId}`;
+
+/** True when the board's own id ties it to that share, so it is safe to remove with the share gone. */
+export const boardBelongsToShare = (
+  board: Pick<Dashboard, 'id'>,
+  shareId: string,
+  linkId: string
+): boolean =>
+  board.id === linkedBoardLocalId(shareId) ||
+  shareId === linkedBoardShareId(linkId, board.id);
+
 /** The live linked collections this teacher has. */
 export const liveLinkedRoots = (collections: Collection[]): Collection[] =>
   collections.filter(isLiveLinkedRoot);
@@ -78,7 +95,7 @@ export interface RemoteSyncPlan {
   }[];
   /** Listed boards with no live local copy anywhere. */
   missingEntries: LinkedCollectionBoard[];
-  /** Live linked boards in this collection that the link no longer lists. */
+  /** Linked boards in this collection (live or ended) that the link no longer lists. */
   removalCandidates: Dashboard[];
   /** Listed boards that sit in a different local sub-collection than the link says. */
   moves: { boardId: string; collectionId: string }[];
@@ -134,10 +151,13 @@ export function planRemoteSync(input: {
 
   const missingEntries = entries.filter((e) => !liveLocal.has(e.shareId));
 
-  const removalCandidates = dashboards.filter((d) => {
-    const shareId = liveShareIdOf(d);
-    return !!shareId && tree.has(d.collectionId ?? '') && !listed.has(shareId);
-  });
+  // Ended copies count too: an open board learns its share ended before the link drops it.
+  const removalCandidates = dashboards.filter(
+    (d) =>
+      !!d.linkedShareId &&
+      tree.has(d.collectionId ?? '') &&
+      !listed.has(d.linkedShareId)
+  );
 
   const moves: RemoteSyncPlan['moves'] = [];
   for (const entry of entries) {
@@ -164,7 +184,7 @@ export function planRemoteSync(input: {
 export interface LocalSyncPlan {
   /** Local sub-collections the link doesn't list yet. */
   newSections: LinkedCollectionSection[];
-  /** Boards in the collection with no live share: new, moved in or duplicated. */
+  /** Boards in the collection with no share: new, moved in or duplicated. */
   boardsToShare: { board: Dashboard; sectionId?: string }[];
 }
 
@@ -220,8 +240,9 @@ export function planLocalSync(input: {
     }
   }
 
+  // Boards with any linkage, ended included, are settled by the remote side first.
   const boardsToShare = dashboards
-    .filter((d) => tree.has(d.collectionId ?? '') && !liveShareIdOf(d))
+    .filter((d) => tree.has(d.collectionId ?? '') && !d.linkedShareId)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     .map((board) => {
       const sectionId = keyOf(board.collectionId);

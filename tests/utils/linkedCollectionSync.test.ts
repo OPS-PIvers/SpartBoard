@@ -275,16 +275,24 @@ describe('planLocalSync', () => {
     ]);
   });
 
-  it('re-lists a board whose share ended', () => {
-    const plan = planLocalSync({
-      link: link(),
-      root,
-      collections: [root],
-      dashboards: [
-        board('a', 'week', { ...live('s1'), linkedShareEnded: true }),
-      ],
-    });
-    expect(plan.boardsToShare.map(({ board: b }) => b.id)).toEqual(['a']);
+  it('leaves a board whose share ended to the remote side', () => {
+    const ended = board('a', 'week', { ...live('s1'), linkedShareEnded: true });
+    expect(
+      planLocalSync({
+        link: link(),
+        root,
+        collections: [root],
+        dashboards: [ended],
+      }).boardsToShare
+    ).toEqual([]);
+    expect(
+      planRemoteSync({
+        link: link(),
+        root,
+        collections: [root],
+        dashboards: [ended],
+      }).removalCandidates.map((d) => d.id)
+    ).toEqual(['a']);
   });
 
   it('adds new local sub-collections, parents first, keyed by their own id', () => {

@@ -21,6 +21,7 @@ import {
   subscribeLinkedCollectionImports,
 } from '@/utils/linkedCollectionImportLock';
 import {
+  boardBelongsToShare,
   canEditLinkedCollection,
   collectionTreeIds,
   isLinkMember,
@@ -138,6 +139,8 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
   const notOurs = useRef(new Set<string>());
   /** Shares this teacher deleted locally; not re-imported this session. */
   const deletedLocally = useRef(new Set<string>());
+  /** Boards this teacher deleted this session. */
+  const deletedBoards = useRef(new Set<string>());
 
   const importsVersion = useSyncExternalStore(
     subscribeLinkedCollectionImports,
@@ -164,11 +167,16 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
       (c) => isLiveLinkedRoot(c) && c.linkedCollectionId === linkId
     );
     if (!root) return null;
-    const keyToLocal = new Map<string, string>(createdSections.current);
     const tree = collectionTreeIds(root.id, d.collections);
+    const keyToLocal = new Map<string, string>();
     for (const c of d.collections) {
-      if (tree.has(c.id) && c.id !== root.id)
-        keyToLocal.set(sectionKey(c), c.id);
+      if (!tree.has(c.id) || c.id === root.id) continue;
+      keyToLocal.set(sectionKey(c), c.id);
+      // Loaded now; dropping it lets a later delete of that sub-collection show.
+      createdSections.current.delete(sectionKey(c));
+    }
+    for (const [key, id] of createdSections.current) {
+      if (!keyToLocal.has(key)) keyToLocal.set(key, id);
     }
     return { d, uid: d.uid, link, root, keyToLocal };
   }, []);
@@ -232,7 +240,7 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
     ) => {
       const { d, link } = ctx;
       for (const board of candidates) {
-        const shareId = liveShareIdOf(board);
+        const shareId = board.linkedShareId;
         if (
           !shareId ||
           pendingAdds.current.has(shareId) ||
@@ -245,6 +253,7 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
         try {
           snap = await d.loadSharedBoard(shareId);
         } catch {
+          notOurs.current.add(shareId);
           continue;
         }
         if (snap && snap.linkedCollectionId !== link.linkId) {
@@ -253,9 +262,10 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
         }
         leaving.current.add(board.id);
         try {
-          if (!snap && board.linkedShareRole === 'owner') {
-            // Our own board whose share is already gone: keep it as a plain board.
+          if (!snap && !boardBelongsToShare(board, shareId, link.linkId)) {
+            // A board shared on its own whose share ended: keep it as this teacher's board.
             await d.setBoardLink(board.id, null);
+            leaving.current.delete(board.id);
             continue;
           }
           await d.deleteBoard(board.id);
@@ -424,13 +434,38 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
         await undo();
         return;
       }
+      // A board deleted while it was being listed leaves the list again rather than coming back.
+      const gone = shared.filter(
+        (s) =>
+          deletedBoards.current.has(s.board.id) ||
+          !depsRef.current.dashboards.some((b) => b.id === s.board.id)
+      );
       for (const s of shared) {
+        if (gone.includes(s)) continue;
         await d.setBoardLink(s.board.id, {
           linkedShareId: s.shareId,
           linkedShareRole: 'owner',
           linkedShareHostName: d.displayName,
           linkedShareEnded: false,
         });
+      }
+      if (gone.length > 0) {
+        const goneIds = new Set(gone.map((s) => s.shareId));
+        gone.forEach((s) => deletedLocally.current.add(s.shareId));
+        await d.linkedCollectionApi
+          .editLinkedCollection(link.linkId, uid, (current) =>
+            canEditLinkedCollection(current, uid)
+              ? {
+                  boards: current.boards.filter((b) => !goneIds.has(b.shareId)),
+                }
+              : null
+          )
+          .catch((err: unknown) =>
+            logError('useLinkedCollectionSync.unlistGone', err, { linkId })
+          );
+        for (const s of gone) {
+          await d.stopSharingBoard(s.shareId).catch(() => undefined);
+        }
       }
     },
     [contextFor, importMissing]
@@ -555,82 +590,115 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
     [removalTargets]
   );
 
-  /** Runs before a delete or move: updates the shared list and detaches boards that leave it. Call the result once the change is done. */
+  /** Applies board-list edits, grouped by link. */
+  const editEntries = useCallback(
+    async (uid: string, targets: RemovalTarget[]) => {
+      const byLink = new Map<string, RemovalTarget[]>();
+      for (const t of targets) {
+        byLink.set(t.linkId, [...(byLink.get(t.linkId) ?? []), t]);
+      }
+      for (const [linkId, list] of byLink) {
+        const changes = new Map(list.map((t) => [t.shareId, t.change]));
+        await depsRef.current.linkedCollectionApi.editLinkedCollection(
+          linkId,
+          uid,
+          (current) => {
+            if (!canEditLinkedCollection(current, uid)) return null;
+            const boards = current.boards.flatMap((b) => {
+              const change = changes.get(b.shareId);
+              if (!change) return [b];
+              if (change.kind === 'remove') return [];
+              const { sectionId: _old, ...rest } = b;
+              return [
+                change.sectionId
+                  ? { ...rest, sectionId: change.sectionId }
+                  : rest,
+              ];
+            });
+            return { boards };
+          }
+        );
+      }
+    },
+    []
+  );
+
+  /**
+   * Before a delete or move: edits the shared list where that must land first.
+   * Call the result once the change is done, saying whether it landed.
+   */
   const beforeBoardsLeave = useCallback(
     async (
       boardIds: string[],
       destination: BoardDestination
-    ): Promise<() => void> => {
-      const noop = () => undefined;
+    ): Promise<(landed: boolean) => Promise<void>> => {
+      const noop = () => Promise.resolve();
       const d = depsRef.current;
       if (!d.enabled || !d.uid) return noop;
       const uid = d.uid;
       if (destination.kind === 'delete') {
-        // A board deleted locally from a shared collection isn't brought back by sync.
         for (const id of boardIds) {
+          deletedBoards.current.add(id);
           const board = d.dashboards.find((b) => b.id === id);
-          const shareId = board && liveShareIdOf(board);
-          if (shareId && linkedRootOf(board, d.collections)) {
+          const shareId = board?.linkedShareId;
+          // A board deleted locally from a shared collection isn't brought back by sync.
+          if (board && shareId && linkedRootOf(board, d.collections)) {
             deletedLocally.current.add(shareId);
           }
         }
       }
       const targets = removalTargets(boardIds, destination);
       if (targets.length === 0) return noop;
-      const byLink = new Map<string, RemovalTarget[]>();
-      for (const t of targets) {
-        byLink.set(t.linkId, [...(byLink.get(t.linkId) ?? []), t]);
-        if (t.change.kind === 'remove') leaving.current.add(t.board.id);
-      }
+      const removes = targets.filter((t) => t.change.kind === 'remove');
+      removes.forEach((t) => leaving.current.add(t.board.id));
+      // A delete leaves the list first. A move out lands first, so no tab ever sees an unlinked board inside the collection.
+      const first =
+        destination.kind === 'delete'
+          ? targets
+          : targets.filter((t) => t.change.kind === 'move');
+      const later = destination.kind === 'delete' ? [] : removes;
       try {
-        for (const [linkId, list] of byLink) {
-          const changes = new Map(list.map((t) => [t.shareId, t.change]));
-          await d.linkedCollectionApi.editLinkedCollection(
-            linkId,
-            uid,
-            (current) => {
-              if (!canEditLinkedCollection(current, uid)) return null;
-              const boards = current.boards.flatMap((b) => {
-                const change = changes.get(b.shareId);
-                if (!change) return [b];
-                if (change.kind === 'remove') return [];
-                const { sectionId: _old, ...rest } = b;
-                return [
-                  change.sectionId
-                    ? { ...rest, sectionId: change.sectionId }
-                    : rest,
-                ];
-              });
-              return { boards };
-            }
-          );
-        }
+        if (first.length > 0) await editEntries(uid, first);
       } catch (err) {
-        targets.forEach((t) => leaving.current.delete(t.board.id));
+        removes.forEach((t) => leaving.current.delete(t.board.id));
         throw err;
       }
-      for (const t of targets) {
-        if (t.change.kind !== 'remove') continue;
-        sharedAs.current.delete(t.board.id);
+      return async (landed: boolean) => {
         try {
-          if (t.board.linkedShareRole === 'owner') {
-            await d.stopSharingBoard(t.shareId);
-          } else {
-            await d.leaveSharedBoard(t.shareId);
+          if (!landed) return;
+          if (later.length > 0) {
+            try {
+              await editEntries(uid, later);
+            } catch (err) {
+              // Still listed, so leave it linked: it keeps syncing from its new place.
+              logError('useLinkedCollectionSync.unlist', err, {});
+              return;
+            }
           }
-          // A moved-out board stays with this teacher as their own board.
-          if (destination.kind === 'move')
-            await d.setBoardLink(t.board.id, null);
-        } catch (err) {
-          logError('useLinkedCollectionSync.detach', err, {
-            shareId: t.shareId,
-          });
+          for (const t of removes) {
+            sharedAs.current.delete(t.board.id);
+            try {
+              if (t.board.linkedShareRole === 'owner') {
+                await d.stopSharingBoard(t.shareId);
+              } else {
+                await d.leaveSharedBoard(t.shareId);
+              }
+              // A moved-out board stays with this teacher as their own board.
+              if (destination.kind === 'move') {
+                await d.setBoardLink(t.board.id, null);
+              }
+            } catch (err) {
+              logError('useLinkedCollectionSync.detach', err, {
+                shareId: t.shareId,
+              });
+            }
+          }
+        } finally {
+          removes.forEach((t) => leaving.current.delete(t.board.id));
         }
-      }
-      // Until the move lands the detached board still sits in the collection; keep sync off it till then.
-      return () => targets.forEach((t) => leaving.current.delete(t.board.id));
+      };
     },
-    [removalTargets]
+    [removalTargets, editEntries]
   );
 
   /** After a local rename or recolor: carries it to the shared collection when this teacher can edit it. */
