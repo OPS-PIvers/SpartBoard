@@ -1,15 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockGetDocs, mockGetDoc, mockUpdateDoc } = vi.hoisted(() => ({
+const { mockGetDocs, mockGetDoc, mockUpdate, mockCommit } = vi.hoisted(() => ({
   mockGetDocs: vi.fn(),
   mockGetDoc: vi.fn(),
-  mockUpdateDoc: vi.fn(),
+  mockUpdate: vi.fn(),
+  mockCommit: vi.fn(),
 }));
 
 vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
 
 vi.mock('firebase/firestore', () => ({
   arrayRemove: vi.fn((...ids: unknown[]) => ({ __arrayRemove: ids })),
+  deleteField: vi.fn(() => '__deleteField'),
   collection: vi.fn((_db: unknown, path: string) => path),
   doc: vi.fn((parent: { __path: string }, ...segments: string[]) => ({
     __path: [parent.__path, ...segments].join('/'),
@@ -17,8 +19,8 @@ vi.mock('firebase/firestore', () => ({
   getDoc: mockGetDoc,
   getDocs: mockGetDocs,
   query: vi.fn((...args: unknown[]) => args),
-  updateDoc: mockUpdateDoc,
   where: vi.fn((...args: unknown[]) => args),
+  writeBatch: vi.fn(() => ({ update: mockUpdate, commit: mockCommit })),
 }));
 
 import { closeWallsToBoard } from './activityWallBoardAccess';
@@ -42,7 +44,7 @@ beforeEach(() => {
           : undefined,
     })
   );
-  mockUpdateDoc.mockResolvedValue(undefined);
+  mockCommit.mockResolvedValue(undefined);
 });
 
 describe('closeWallsToBoard', () => {
@@ -62,14 +64,15 @@ describe('closeWallsToBoard', () => {
 
     await closeWallsToBoard('teacher-1', 'share-1', new Set(['kept']));
 
-    expect(mockUpdateDoc).toHaveBeenCalledTimes(2);
-    expect(mockUpdateDoc).toHaveBeenCalledWith(
+    expect(mockCommit).toHaveBeenCalledTimes(1);
+    expect(mockUpdate).toHaveBeenCalledWith(
       {
         __path: 'activity_wall_sessions/teacher-1_removed/boardAccess/boards',
       },
       { boardShareIds: { __arrayRemove: ['share-1/host-1'] } }
     );
-    expect(mockUpdateDoc).toHaveBeenCalledWith(
+    // Other boards still list it, so members are told to re-check.
+    expect(mockUpdate).toHaveBeenCalledWith(
       { __path: 'activity_wall_sessions/teacher-1_removed' },
       { boardAccessAt: expect.any(Number) as number }
     );
@@ -86,6 +89,11 @@ describe('closeWallsToBoard', () => {
 
     await closeWallsToBoard('teacher-1', 'share-1', new Set());
 
-    expect(mockUpdateDoc).toHaveBeenCalledTimes(4);
+    expect(mockCommit).toHaveBeenCalledTimes(2);
+    // No board lists them any more, so they drop out of the next cleanup query.
+    expect(mockUpdate).toHaveBeenCalledWith(
+      { __path: 'activity_wall_sessions/teacher-1_a' },
+      { boardAccessAt: '__deleteField' }
+    );
   });
 });

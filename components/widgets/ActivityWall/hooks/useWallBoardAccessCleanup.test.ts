@@ -75,6 +75,24 @@ describe('useWallBoardAccessCleanup', () => {
     );
   });
 
+  it('closes at once when the teacher moves to another board before it settles', async () => {
+    state.current.widgets = [wall('w1', 'wall-a')];
+    const { rerender } = renderHook(() =>
+      useWallBoardAccessCleanup('teacher-1')
+    );
+    await act(() => vi.advanceTimersByTimeAsync(3000));
+    mockClose.mockClear();
+    state.current.widgets = [];
+    rerender();
+    state.current = { shareId: null, widgets: [] };
+    rerender();
+
+    expect(mockClose).toHaveBeenCalledTimes(1);
+    expect(mockClose).toHaveBeenCalledWith('teacher-1', 'share-1', new Set());
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    expect(mockClose).toHaveBeenCalledTimes(1);
+  });
+
   it('does nothing off a shared board or without a teacher', async () => {
     state.current.shareId = null;
     renderHook(() => useWallBoardAccessCleanup('teacher-1'));

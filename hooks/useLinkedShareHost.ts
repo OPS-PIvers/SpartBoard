@@ -6,13 +6,20 @@ import { db } from '@/config/firebase';
 
 interface ShareInfo {
   hostUid: string | null;
-  /** Display names by uid: the host's and each participant's that has one. */
+  /** Display names by uid: the host's and each participant's that has one (never an email). */
   names: Record<string, string>;
 }
 
 const EMPTY_INFO: ShareInfo = { hostUid: null, names: {} };
 
 const infoByShareId = new Map<string, Promise<ShareInfo>>();
+const reread = new Set<string>();
+
+// Names fall back to the email when an account has no display name; never show one on a board.
+const displayable = (name: unknown): string | null =>
+  typeof name === 'string' && name.trim() && !name.includes('@')
+    ? name.trim()
+    : null;
 
 const readShareInfo = (data: Record<string, unknown> | undefined) => {
   const author = data?.originalAuthor;
@@ -21,15 +28,14 @@ const readShareInfo = (data: Record<string, unknown> | undefined) => {
   const participants = data?.participants;
   if (participants && typeof participants === 'object') {
     for (const [uid, entry] of Object.entries(participants)) {
-      const name: unknown = (entry as { displayName?: unknown } | null)
-        ?.displayName;
-      if (typeof name === 'string' && name.trim()) names[uid] = name.trim();
+      const name = displayable(
+        (entry as { displayName?: unknown } | null)?.displayName
+      );
+      if (name) names[uid] = name;
     }
   }
-  const hostName = data?.originalAuthorName;
-  if (hostUid && typeof hostName === 'string' && hostName.trim()) {
-    names[hostUid] = hostName.trim();
-  }
+  const hostName = displayable(data?.originalAuthorName);
+  if (hostUid && hostName) names[hostUid] = hostName;
   return { hostUid, names };
 };
 
@@ -85,8 +91,11 @@ export function useLinkedShareMemberName(
     let cancelled = false;
     void (async () => {
       let info = await loadShareInfo(shareId);
-      // Someone who joined after the share was first read: read it again once.
-      if (!(uid in info.names)) info = await loadShareInfo(shareId, true);
+      // Someone who joined after the share was first read: read it again, once per session.
+      if (!(uid in info.names) && !reread.has(key)) {
+        reread.add(key);
+        info = await loadShareInfo(shareId, true);
+      }
       if (!cancelled) setResolved({ key, name: info.names[uid] ?? null });
     })();
     return () => {

@@ -3,12 +3,13 @@
 import {
   arrayRemove,
   collection,
+  deleteField,
   doc,
   getDoc,
   getDocs,
   query,
-  updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 
@@ -38,17 +39,21 @@ export const closeWallsToBoard = async (
       const access = await getDoc(accessRef);
       const ids: unknown = access.data()?.boardShareIds;
       // Entries are "shareId" or, once pinned to the host, "shareId/hostUid".
-      const listed = Array.isArray(ids)
-        ? ids.filter(
-            (id): id is string =>
-              typeof id === 'string' &&
-              (id === boardShareId || id.startsWith(`${boardShareId}/`))
-          )
-        : [];
+      const all: unknown[] = Array.isArray(ids) ? ids : [];
+      const listed = all.filter(
+        (id): id is string =>
+          typeof id === 'string' &&
+          (id === boardShareId || id.startsWith(`${boardShareId}/`))
+      );
       if (listed.length === 0) return;
-      await updateDoc(accessRef, { boardShareIds: arrayRemove(...listed) });
-      // Tells the board's members to re-check access.
-      await updateDoc(session.ref, { boardAccessAt: Date.now() });
+      const batch = writeBatch(db);
+      batch.update(accessRef, { boardShareIds: arrayRemove(...listed) });
+      // Changing boardAccessAt tells members to re-check; clearing it drops a closed wall from this query.
+      batch.update(session.ref, {
+        boardAccessAt:
+          listed.length === all.length ? deleteField() : Date.now(),
+      });
+      await batch.commit();
     })
   );
 };

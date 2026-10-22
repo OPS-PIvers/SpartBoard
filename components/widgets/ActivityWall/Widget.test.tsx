@@ -659,6 +659,8 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
   });
 
   it("names the wall's owner for the board's other members", async () => {
+    // A share id no earlier test has read, so the name lookup isn't cached.
+    mockLinkedShareId.current = 'share-named';
     mockGetDoc.mockResolvedValue({
       data: () => ({
         originalAuthor: 'host-1',
@@ -668,12 +670,33 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
     sessionDocData = {
       'activity_wall_sessions/host-1_wall-1': hostSession,
       'activity_wall_sessions/host-1_wall-1/boardAccess/boards': {
-        boardShareIds: ['share-1'],
+        boardShareIds: ['share-named'],
       },
     };
     renderWidget();
 
     expect(await screen.findByText('Shared by Paul Ivers')).toBeInTheDocument();
+  });
+
+  it('never shows an email as the owner name', async () => {
+    mockLinkedShareId.current = 'share-email';
+    mockGetDoc.mockResolvedValue({
+      data: () => ({
+        originalAuthor: 'host-1',
+        originalAuthorName: 'paul.ivers@example.com',
+      }),
+    });
+    sessionDocData = {
+      'activity_wall_sessions/host-1_wall-1': hostSession,
+      'activity_wall_sessions/host-1_wall-1/boardAccess/boards': {
+        boardShareIds: ['share-email'],
+      },
+    };
+    renderWidget();
+
+    expect(await screen.findByText('Host wall')).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(screen.queryByText(/^Shared by/)).toBeNull();
   });
 
   it("doesn't label the owner's own wall", async () => {
