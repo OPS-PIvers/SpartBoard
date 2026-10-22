@@ -4,6 +4,7 @@ import * as logger from 'firebase-functions/logger';
 import './functionsInit';
 import {
   GRADE_INDEX,
+  isGradeIndexEnabled,
   loadSessionContext,
   markSessionDirty,
   stableStringify,
@@ -295,6 +296,8 @@ export async function applyAttemptGradeWrite(
       .collection(QUIZ_ATTEMPTS_SUBCOLLECTION)
       .doc(String(w.n));
     const listRef = scoresRef(db, w.sessionId, w.responseKey);
+    // The index kill switch also covers this row write; the score list doesn't depend on it.
+    const indexOn = await isGradeIndexEnabled(db);
     const rowRescored = await db.runTransaction(async (tx) => {
       const [copySnap, list] = await Promise.all([
         tx.get(copyRef),
@@ -307,9 +310,10 @@ export async function applyAttemptGradeWrite(
       const studentUid =
         typeof fresh.studentUid === 'string' ? fresh.studentUid : '';
       // The Gradebook row keeps its own attempt list, so it takes the same rescore.
-      const indexRef = studentUid
-        ? db.collection(GRADE_INDEX).doc(rowId(w.sessionId, studentUid))
-        : null;
+      const indexRef =
+        indexOn && studentUid
+          ? db.collection(GRADE_INDEX).doc(rowId(w.sessionId, studentUid))
+          : null;
       const indexSnap = indexRef ? await tx.get(indexRef) : null;
       // A stored (published) score would mask the new grade.
       const score = ctx.score(studentUid, {
