@@ -61,6 +61,7 @@ export interface BoardLinkFields {
   linkedShareId: string;
   linkedShareRole: DashboardShareRole;
   linkedShareHostName?: string;
+  linkedShareHostUid?: string;
   linkedShareEnded: false;
 }
 
@@ -585,6 +586,7 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
           linkedShareId: s.shareId,
           linkedShareRole: 'owner',
           linkedShareHostName: d.displayName,
+          linkedShareHostUid: uid,
           linkedShareEnded: false,
         });
       }

@@ -23,6 +23,7 @@ const {
   mockGetDoc,
   mockLibraryEntries,
   mockLinkedShareId,
+  mockRecordedHost,
   mockReadOnly,
   mockSaveSharedWall,
   editorProps,
@@ -40,6 +41,7 @@ const {
   mockGetDoc: vi.fn().mockResolvedValue({ data: () => undefined }),
   mockLibraryEntries: { current: [] as ActivityWallLibraryEntry[] },
   mockLinkedShareId: { current: null as string | null },
+  mockRecordedHost: { current: null as string | null },
   mockReadOnly: { current: false },
   mockSaveSharedWall: vi.fn(),
   editorProps: { current: null as Record<string, unknown> | null },
@@ -60,6 +62,7 @@ vi.mock('@/context/dashboardCanvasStore', () => ({
   }),
   useIsActiveBoardReadOnly: () => mockReadOnly.current,
   useActiveBoardLinkedShareId: () => mockLinkedShareId.current,
+  useActiveBoardLinkedShareHostUid: () => mockRecordedHost.current,
   useGlobalStyle: () => ({ fontFamily: 'sans' }),
 }));
 
@@ -189,6 +192,7 @@ beforeEach(() => {
   sessionDocData = {};
   mockLibraryEntries.current = [makeEntry()];
   mockLinkedShareId.current = null;
+  mockRecordedHost.current = null;
   mockReadOnly.current = false;
   editorProps.current = null;
   mockSaveSharedWall.mockResolvedValue(undefined);
@@ -947,6 +951,48 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
     for (const [, payload] of sessionWrites) {
       expect(JSON.stringify(payload)).not.toContain('share-1');
     }
+  });
+
+  it("doesn't list the board when the share doc names a different host than recorded", async () => {
+    mockRecordedHost.current = 'recorded-host';
+    mockLibraryEntries.current = [makeEntry()];
+    sessionDocData = {
+      'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards': {
+        boardShareIds: [],
+      },
+    };
+    renderWidget();
+    await screen.findByText('Warm Up');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(mockSetDoc).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        __path: 'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards',
+      }),
+      expect.anything(),
+      expect.anything()
+    );
+  });
+
+  it('lists the board pinned to the recorded host when the share doc agrees', async () => {
+    mockRecordedHost.current = 'host-1';
+    mockLibraryEntries.current = [makeEntry()];
+    sessionDocData = {
+      'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards': {
+        boardShareIds: [],
+      },
+    };
+    renderWidget();
+
+    await waitFor(() =>
+      expect(mockSetDoc).toHaveBeenCalledWith(
+        expect.objectContaining({
+          __path: 'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards',
+        }),
+        { boardShareIds: ['share-1/host-1'] },
+        { merge: true }
+      )
+    );
   });
 
   it('never evicts a live board when the list is full', async () => {
