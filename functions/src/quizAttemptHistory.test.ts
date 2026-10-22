@@ -388,6 +388,29 @@ describe('applyAttemptGradeWrite', () => {
     expect(stub.get(SCORES)?.attempts).toHaveLength(1);
   });
 
+  it('rescores the Gradebook row’s copy of an earlier attempt too', async () => {
+    const ROW = 'grade_index/qs1__u1';
+    const stub = seed({
+      [ROW]: {
+        attempts: [{ n: 1, at: T, points: 0, max: 2, state: 'awaiting-grade' }],
+      },
+    });
+    const first = done({ answers: [{ questionId: 'q1', answer: 'B' }] });
+    await apply(stub, write(undefined, first));
+    await apply(stub, write(first, reset(), T + 1));
+    const before = stub.get(COPY);
+    const after = { ...before, grading: { q1: { points: 2 } } };
+    stub.store.set(COPY, after);
+    await applyAttemptGradeWrite(stub.db as unknown as Db, {
+      sessionId: 'qs1',
+      responseKey: 'u1',
+      n: 1,
+      before,
+      after,
+    });
+    expect(stub.get(ROW)?.attempts).toEqual(stub.get(SCORES)?.attempts);
+  });
+
   it('ignores open copies and writes that leave grading alone', async () => {
     const stub = seed({
       [SCORES]: { studentUid: 'u1', attempts: [] },

@@ -2,8 +2,12 @@
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import './functionsInit';
-import { loadSessionContext, stableStringify } from './gradebook/gradeIndex';
-import { mergeAttempts } from './gradebook/gradeRowMath';
+import {
+  GRADE_INDEX,
+  loadSessionContext,
+  stableStringify,
+} from './gradebook/gradeIndex';
+import { mergeAttempts, rowId } from './gradebook/gradeRowMath';
 import { isGlobalFeatureGranted } from './quizMediaArchive';
 import type { IndexAttempt } from './gradebook/types';
 
@@ -301,6 +305,11 @@ export async function applyAttemptGradeWrite(
       if (!fresh || !list.exists) return;
       const studentUid =
         typeof fresh.studentUid === 'string' ? fresh.studentUid : '';
+      // The Gradebook row keeps its own attempt list, so it takes the same rescore.
+      const indexRef = studentUid
+        ? db.collection(GRADE_INDEX).doc(rowId(w.sessionId, studentUid))
+        : null;
+      const indexSnap = indexRef ? await tx.get(indexRef) : null;
       // A stored (published) score would mask the new grade.
       const score = ctx.score(studentUid, {
         ...fresh,
@@ -308,15 +317,27 @@ export async function applyAttemptGradeWrite(
         status: 'completed',
       });
       if (!score) return;
+      const rescored = { ...score, attemptNumber: w.n };
+      const now = Date.now();
       const entries: unknown = list.data()?.attempts;
       tx.set(listRef, {
         ...list.data(),
         attempts: mergeAttempts(
           Array.isArray(entries) ? (entries as IndexAttempt[]) : [],
-          { ...score, attemptNumber: w.n }
+          rescored
         ),
-        updatedAt: Date.now(),
+        updatedAt: now,
       });
+      if (indexRef && indexSnap?.exists) {
+        const rowAttempts: unknown = indexSnap.data()?.attempts;
+        tx.update(indexRef, {
+          attempts: mergeAttempts(
+            Array.isArray(rowAttempts) ? (rowAttempts as IndexAttempt[]) : [],
+            rescored
+          ),
+          updatedAt: now,
+        });
+      }
     });
   } catch (err) {
     logger.error('quizAttemptHistory: grade rescore failed', {
