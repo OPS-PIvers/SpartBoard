@@ -1392,6 +1392,10 @@ service cloud.firestore {
     // user may append only themselves to participants; intendedMode immutable after
     // create (the recipient flow trusts it to skip the picker).
     match /shared_boards/{shareId} {
+      function sbLinkHostOf(link) {
+        return link.hostUid == authUid()
+          && existing().get('originalAuthor', '') in link.participants;
+      }
       // GET (single doc, `resource` fully bound). Substitute shares carry org-internal
       // routing/Drive-grant metadata, so reads are limited to host, admins, and
       // @orono.k12.mn.us callers AND not past expiresAt for the email branch - otherwise
@@ -1529,7 +1533,8 @@ service cloud.firestore {
       // view via /subs without importing, so a self-join would be a phantom.
       allow update: if signedIn() &&
         existing().get('intendedMode', null) != 'substitute' &&
-        // A View-Only link only ever makes a viewer.
+        // A View-Only link only ever makes a viewer; a Copy link makes no member.
+        existing().get('intendedMode', null) != 'copy' &&
         (existing().get('intendedMode', null) != 'view-only'
           || incoming().participants[authUid()].get('role', '') == 'viewer') &&
         !(authUid() in existing().get('participants', {})) &&
@@ -1548,12 +1553,13 @@ service cloud.firestore {
         changedOnly(['participants']);
 
       // The host of the shared collection a board belongs to may end it (Stop sharing),
-      // including boards a collaborator added (docs/plans/COLLECTION_SHARING.md step 5).
+      // including boards a current collaborator added (docs/plans/COLLECTION_SHARING.md
+      // step 5). The author must still be a member: a host can't add members, so a link
+      // re-created at an orphaned id never covers another teacher's board.
       allow delete: if signedIn() && (
         existing().get('originalAuthor', null) == authUid() || isAdmin()
         || (existing().get('linkedCollectionId', null) is string
-            && get(/databases/$(database)/documents/linked_collections/$(existing().linkedCollectionId))
-              .data.hostUid == authUid())
+            && sbLinkHostOf(get(/databases/$(database)/documents/linked_collections/$(existing().linkedCollectionId)).data))
       );
     }
 
@@ -1742,6 +1748,7 @@ service cloud.firestore {
           && (!('sections' in incoming())
               || (isList('sections') && incoming().sections.size() <= 200))
           && isMap('participants') && incoming().participants.size() <= 50
+          && incoming().get('removed', {}) is map && incoming().get('removed', {}).size() <= 200
           && incoming().get('ended', false) is bool;
       }
       function lcLive() { return existing().get('ended', false) == false; }
@@ -1754,9 +1761,13 @@ service cloud.firestore {
         && incoming().participants.size() == 0 && incoming().get('ended', false) == false
         && lcShape();
 
-      // Host: everything but who hosts, the mode and createdAt; kicking and ending included.
+      // Host: everything but who hosts, the mode and createdAt. Members are only ever
+      // removed here (never added), so a link can't claim another teacher's boards.
       allow update: if lcTeacher() && existing().hostUid == authUid()
-        && unchanged('hostUid') && unchanged('mode') && unchanged('createdAt') && lcShape();
+        && unchanged('hostUid') && unchanged('mode') && unchanged('createdAt')
+        && (lcLive() || incoming().ended == true)
+        && incoming().participants.keys().hasOnly(existing().participants.keys())
+        && lcShape();
 
       // Synced collaborator: the collection's look and board list, while the share is live.
       allow update: if lcTeacher() && existing().mode == 'synced' && lcLive()
@@ -1767,12 +1778,15 @@ service cloud.firestore {
       // Self-join, only with the role the mode grants (a View-Only link never makes an editor).
       allow update: if lcTeacher() && lcLive()
         && !(authUid() in existing().participants)
+        && !(authUid() in existing().get('removed', {}))
         && changedOnly(['participants'])
         && incoming().participants.diff(existing().participants).affectedKeys().hasOnly([authUid()])
         && incoming().participants[authUid()].keys().hasOnly(['role', 'name', 'joinedAt'])
         && incoming().participants[authUid()].role
           == (existing().mode == 'synced' ? 'collaborator' : 'viewer')
         && incoming().participants[authUid()].get('name', '') is string
+        && incoming().participants[authUid()].get('name', '').size() <= 100
+        && incoming().participants[authUid()].joinedAt is number
         && lcShape();
 
       // Self-leave.

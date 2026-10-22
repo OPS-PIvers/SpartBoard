@@ -200,6 +200,15 @@ describe('create', () => {
     );
   });
 
+  it('cannot create an already-ended link', async () => {
+    await assertFails(
+      setDoc(ref(asHost(), 'new-link'), {
+        ...linkDoc({ ended: true }),
+        participants: {},
+      })
+    );
+  });
+
   it('cannot create with an empty name', async () => {
     await assertFails(
       setDoc(ref(asHost(), 'new-link'), {
@@ -252,8 +261,50 @@ describe('host updates', () => {
     );
   });
 
+  it('host can remove a member and keep them out', async () => {
+    await assertSucceeds(
+      updateDoc(ref(asHost(), SYNCED_ID), {
+        [`participants.${COLLAB_UID}`]: deleteField(),
+        [`removed.${COLLAB_UID}`]: 2000,
+      })
+    );
+    await assertFails(
+      updateDoc(ref(asCollab(), SYNCED_ID), {
+        [`participants.${COLLAB_UID}`]: {
+          role: 'collaborator',
+          joinedAt: 3000,
+        },
+      })
+    );
+  });
+
+  it('host cannot add a member', async () => {
+    await assertFails(
+      updateDoc(ref(asHost(), SYNCED_ID), {
+        [`participants.${STRANGER_UID}`]: {
+          role: 'collaborator',
+          joinedAt: 2000,
+        },
+      })
+    );
+  });
+
   it('host can end the share', async () => {
     await assertSucceeds(updateDoc(ref(asHost(), SYNCED_ID), { ended: true }));
+  });
+
+  it('host cannot reopen an ended link', async () => {
+    await assertFails(updateDoc(ref(asHost(), ENDED_ID), { ended: false }));
+  });
+
+  it('host cannot change createdAt', async () => {
+    await assertFails(updateDoc(ref(asHost(), SYNCED_ID), { createdAt: 5 }));
+  });
+
+  it('host cannot replace participants with a non-map', async () => {
+    await assertFails(
+      updateDoc(ref(asHost(), SYNCED_ID), { participants: ['x'] })
+    );
   });
 
   it('host cannot change the mode', async () => {
@@ -329,6 +380,20 @@ describe('collaborator updates', () => {
     );
   });
 
+  it('a collaborator-role entry on a View-Only link still cannot edit', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(ref(ctx.firestore(), VIEW_ID), {
+        [`participants.${COLLAB_UID}`]: { role: 'collaborator', joinedAt: 1 },
+      });
+    });
+    await assertFails(
+      updateDoc(ref(asCollab(), VIEW_ID), {
+        name: 'Renamed',
+        updatedBy: COLLAB_UID,
+      })
+    );
+  });
+
   it('a viewer cannot edit', async () => {
     await assertFails(
       updateDoc(ref(asViewer(), VIEW_ID), {
@@ -387,6 +452,61 @@ describe('self-join and self-leave', () => {
           role: 'collaborator',
           joinedAt: 2000,
           admin: true,
+        },
+      })
+    );
+  });
+
+  it('joining with a name over 100 characters is denied', async () => {
+    await assertFails(
+      updateDoc(ref(asStranger(), SYNCED_ID), {
+        [`participants.${STRANGER_UID}`]: {
+          role: 'collaborator',
+          name: 'x'.repeat(101),
+          joinedAt: 2000,
+        },
+      })
+    );
+  });
+
+  it('joining with a non-string name is denied', async () => {
+    await assertFails(
+      updateDoc(ref(asStranger(), SYNCED_ID), {
+        [`participants.${STRANGER_UID}`]: {
+          role: 'collaborator',
+          name: 42,
+          joinedAt: 2000,
+        },
+      })
+    );
+  });
+
+  it('joining a link that already has 50 members is denied', async () => {
+    const participants = Object.fromEntries(
+      Array.from({ length: 50 }, (_, i) => [
+        `member-${i}`,
+        { role: 'collaborator', joinedAt: 1 },
+      ])
+    );
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(ref(ctx.firestore(), SYNCED_ID), { participants });
+    });
+    await assertFails(
+      updateDoc(ref(asStranger(), SYNCED_ID), {
+        [`participants.${STRANGER_UID}`]: {
+          role: 'collaborator',
+          joinedAt: 2000,
+        },
+      })
+    );
+  });
+
+  it('joining with a non-number joinedAt is denied', async () => {
+    await assertFails(
+      updateDoc(ref(asStranger(), SYNCED_ID), {
+        [`participants.${STRANGER_UID}`]: {
+          role: 'collaborator',
+          joinedAt: ['x'.repeat(1000)],
         },
       })
     );
@@ -511,11 +631,37 @@ describe('shared_boards in a linked collection', () => {
         doc(ctx.firestore(), 'linked_collections/stranger-link'),
         linkDoc({ hostUid: STRANGER_UID })
       );
-      await setDoc(
-        boardRef(ctx.firestore()),
-        boardDoc({ linkedCollectionId: SYNCED_ID })
-      );
     });
+    await assertFails(deleteDoc(boardRef(asStranger())));
+  });
+
+  it('the host cannot end a board whose author has left the link', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(ref(ctx.firestore(), SYNCED_ID), {
+        [`participants.${COLLAB_UID}`]: deleteField(),
+      });
+    });
+    await assertFails(deleteDoc(boardRef(asHost())));
+  });
+
+  it('re-creating an orphaned link id does not reach its boards', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await deleteDoc(ref(ctx.firestore(), SYNCED_ID));
+    });
+    await assertSucceeds(
+      setDoc(ref(asStranger(), SYNCED_ID), {
+        ...linkDoc({ hostUid: STRANGER_UID, updatedBy: STRANGER_UID }),
+        participants: {},
+      })
+    );
+    await assertFails(
+      updateDoc(ref(asStranger(), SYNCED_ID), {
+        [`participants.${COLLAB_UID}`]: {
+          role: 'collaborator',
+          joinedAt: 1,
+        },
+      })
+    );
     await assertFails(deleteDoc(boardRef(asStranger())));
   });
 
