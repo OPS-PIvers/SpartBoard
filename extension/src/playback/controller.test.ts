@@ -382,6 +382,29 @@ describe('playback controller, review fixes', () => {
     });
   });
 
+  it('does not count a step left before its page was opened', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    await c.committed(7, 0, 'https://a.example/home');
+    await c.overlayAction(7, 0, 'next');
+    expect(h.lastRender()).toMatchObject({ status: 'wrong-page' });
+    await c.overlayAction(7, 0, 'exit');
+    expect(h.posts.some((p) => p.type === 'web-tour/step')).toBe(false);
+  });
+
+  it('counts the wrong-page step as a miss when another tour starts', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    await c.committed(7, 0, 'https://a.example/login');
+    await c.start(parsed());
+    expect(h.posts.map((p) => p.type)).toEqual([
+      'web-tour/step',
+      'web-tour/exit',
+    ]);
+  });
+
   it('counts the wrong-page step as a miss when the tab closes', async () => {
     const h = fakeHost();
     const c = createPlaybackController(h.host);

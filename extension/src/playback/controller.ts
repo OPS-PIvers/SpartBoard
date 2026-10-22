@@ -64,6 +64,8 @@ interface TabRecord {
   posted: Record<string, LocatorClue | 'none'>;
   /** Step index of the last step post, so a revisit found by the same clue still moves the hub's marker. */
   postedIndex: number;
+  /** Step index on which a page actually loaded and didn't match, so only a real wrong page counts as a miss. */
+  wrongPageIndex?: number;
 }
 
 export const FALLBACK_MS = 4000;
@@ -217,6 +219,7 @@ export function createPlaybackController(host: PlaybackHost) {
   function postWrongPageMiss(rec: TabRecord, before: PlaybackState) {
     const step = before.tour.steps[before.index];
     if (before.status !== 'wrong-page' || !step) return;
+    if (rec.wrongPageIndex !== before.index) return;
     if (before.matched[step.id] !== undefined || step.id in rec.posted) return;
     postStep(rec, before.index, 'none');
   }
@@ -319,6 +322,8 @@ export function createPlaybackController(host: PlaybackHost) {
     if (event.type === 'found' && rec.state.status === 'shown')
       rec.targetFrameId = frameId;
     postProgress(rec, before);
+    if (event.type === 'page' && rec.state.status === 'wrong-page')
+      rec.wrongPageIndex = rec.state.index;
     const moved =
       rec.state.index !== before.index ||
       (rec.state.status === 'seeking' && before.status !== 'seeking') ||
@@ -369,6 +374,7 @@ export function createPlaybackController(host: PlaybackHost) {
         if (!rec) return;
         if (rec.state.status !== 'done') {
           const setId = rec.state.tour.id;
+          postWrongPageMiss(rec, rec.state);
           host.post(setId, {
             type: 'web-tour/exit',
             setId,
