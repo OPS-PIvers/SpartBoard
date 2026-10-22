@@ -313,6 +313,7 @@ export { expireSubShares } from './expireSubShares';
 export { launchSubAssignmentV1 } from './subLaunchAssignment';
 export { controlSubAssignmentV1 } from './subControlAssignment';
 export { expireActivityWallShares } from './expireActivityWallShares';
+export { saveSharedActivityWallV1 } from './sharedActivityWallEdit';
 export { finalizeIdleQuizAttempts } from './finalizeIdleQuizAttempts';
 export {
   exchangeGoogleAuthCode,

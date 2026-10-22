@@ -540,6 +540,10 @@ export const TOUR_ANCHORS = {
     label: 'Open wall library button in Activity Wall',
     perWidget: true,
   },
+  'activity-wall.edit-shared': {
+    label: "Edit wall button on a colleague's Activity Wall",
+    perWidget: true,
+  },
   'time-tool.start-pause': {
     label: 'Start or pause button in Timer/Stopwatch',
     perWidget: true,

@@ -2480,6 +2480,8 @@ export interface ActivityWallLibraryEntry {
    * roster metadata; stored for reverse lookup and future migration.
    */
   rosterIds?: string[];
+  /** Shared-board colleagues' own classes by uid; they count only while the owner targets classes. */
+  memberClassIds?: Record<string, string[]>;
   createdAt: number;
   updatedAt: number;
   /** Padlet-lite redesign (P1-1) — all optional so legacy docs still parse. */
@@ -2630,6 +2632,8 @@ export interface ActivityWallSession extends SessionWorkKindFields {
   allowStudentDelete?: boolean;
   acceptingResponses?: boolean;
   classIds?: string[];
+  /** Colleagues' classes by uid (see ActivityWallLibraryEntry); `classIds` already includes them. */
+  memberClassIds?: Record<string, string[]>;
   rosterIds?: string[];
   /** Computed at mirror time from `allowGuests` (see `mirrorSessionFromEntry`). */
   driveVisibility?: 'domain' | 'anyone';

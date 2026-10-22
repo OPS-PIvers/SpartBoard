@@ -293,6 +293,24 @@ export function buildDefaultWall(
   };
 }
 
+/** The owner's classes plus colleagues' classes, which count only once the owner targets classes. */
+export function effectiveWallClassIds(
+  entry: Pick<
+    ActivityWallLibraryEntry,
+    'classId' | 'classIds' | 'memberClassIds'
+  >
+): string[] {
+  const own = entry.classIds?.length
+    ? entry.classIds
+    : entry.classId
+      ? [entry.classId]
+      : [];
+  if (own.length === 0) return [];
+  return [
+    ...new Set([...own, ...Object.values(entry.memberClassIds ?? {}).flat()]),
+  ];
+}
+
 /**
  * Pure projection of a library entry into the session doc the widget mirrors
  * to `activity_wall_sessions/{uid}_{activityId}` on every active-wall change.
@@ -344,7 +362,10 @@ export function mirrorSessionFromEntry(
   if (options.timelineDates !== undefined)
     session.timelineDates = options.timelineDates && layout === 'timeline';
   if (entry.classId) session.classId = entry.classId;
-  if (entry.classIds) session.classIds = entry.classIds;
+  const classIds = effectiveWallClassIds(entry);
+  if (entry.classIds || classIds.length > 0)
+    session.classIds = classIds.length > 0 ? classIds : entry.classIds;
+  if (entry.memberClassIds) session.memberClassIds = entry.memberClassIds;
   if (entry.rosterIds) session.rosterIds = entry.rosterIds;
   if (entry.sections) session.sections = entry.sections;
   if (entry.tableRows) session.tableRows = entry.tableRows;

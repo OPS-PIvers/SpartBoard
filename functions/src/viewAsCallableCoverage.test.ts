@@ -65,6 +65,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   releaseGuidedLearningMediaV1: 'write',
   resolveFlashcardFlagV1: 'write',
   resolvePlcMeetingNotesDraftV1: 'write',
+  saveSharedActivityWallV1: 'write',
   revokeGoogleRefreshToken: 'write',
   revokeMcpGrantV1: 'write',
   revokeSpotifyAuth: 'write',

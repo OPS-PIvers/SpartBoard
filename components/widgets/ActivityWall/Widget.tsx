@@ -10,6 +10,7 @@ import {
   LayoutGrid,
   LibraryBig,
   MoreHorizontal,
+  Pencil,
   QrCode,
   Share2,
   ShieldCheck,
@@ -66,6 +67,12 @@ import { ModerationDrawer } from './ModerationDrawer';
 import { ActivityWallShareModal } from './ShareModal';
 import { useActivityWallSession } from './hooks/useActivityWallSession';
 import { useLinkedBoardActivityWall } from './hooks/useLinkedBoardActivityWall';
+import {
+  diffSharedWallEdit,
+  saveSharedActivityWall,
+  sharedWallClassLock,
+} from './sharedWallEdit';
+import { normalizeActivityWallLibraryEntry } from '@/utils/activityWallNormalize';
 import { useSubShareActivityWall } from './useSubShareActivityWall';
 import { useLegacyActivityWallMigration } from './hooks/useLegacyActivityWallMigration';
 import { tourAttr } from '@/config/tourAnchors';
@@ -166,6 +173,33 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const ownerName = useLinkedShareMemberName(
     linked.active ? boardShareId : null,
     linked.active ? foreignOwnerUid : null
+  );
+  // A Synced colleague edits the owner's wall through the server, which re-checks the share.
+  const canEditLinked =
+    canAccessFeature('shared-board-live-walls') &&
+    linked.active &&
+    !isActiveBoardReadOnly &&
+    !!foreignOwnerUid &&
+    !!boardShareId;
+  const [sharedEditBase, setSharedEditBase] =
+    useState<ActivityWallLibraryEntry | null>(null);
+  const saveLinkedEdit = useCallback(
+    async (next: ActivityWallLibraryEntry) => {
+      if (!sharedEditBase || !foreignOwnerUid || !boardShareId || !user) return;
+      const diff = diffSharedWallEdit(
+        normalizeActivityWallLibraryEntry(sharedEditBase.id, sharedEditBase),
+        next,
+        user.uid
+      );
+      if (Object.keys(diff.changes).length === 0 && !diff.myClassIds) return;
+      await saveSharedActivityWall({
+        shareId: boardShareId,
+        ownerUid: foreignOwnerUid,
+        activityId: sharedEditBase.id,
+        ...diff,
+      });
+    },
+    [boardShareId, foreignOwnerUid, sharedEditBase, user]
   );
 
   const activeEntry: ActivityWallLibraryEntry | null = inSubShare
@@ -752,6 +786,19 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           )}
         </div>
       )}
+      {canEditLinked && linked.editEntry && (
+        <button
+          type="button"
+          {...tourAttr('activity-wall.edit-shared', widget.id, widget.type)}
+          onClick={() => setSharedEditBase(linked.editEntry)}
+          aria-label="Edit wall"
+          title="Edit wall"
+          className={`${toolbarButtonClass} shrink-0`}
+          style={iconButtonSize}
+        >
+          <Pencil style={{ width: '55%', height: '55%' }} />
+        </button>
+      )}
     </div>
   );
 
@@ -937,6 +984,19 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             setActiveEntry(entry.id);
             setLibraryOpen(false);
           }}
+        />
+      )}
+
+      {canEditLinked && sharedEditBase && (
+        <WallEditorModal
+          open
+          entry={sharedEditBase}
+          widgetId={widget.id}
+          widgetType={widget.type}
+          onClose={() => setSharedEditBase(null)}
+          onSaved={() => setSharedEditBase(null)}
+          save={saveLinkedEdit}
+          classLock={sharedWallClassLock(sharedEditBase, user?.uid ?? '')}
         />
       )}
 
