@@ -51768,6 +51768,66 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "share-collection.mode-synced",
+    "label": "Synced option in the collection share dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.share-collection",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-share"
+        ],
+        "needs": [
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "share-collection.mode-view-only",
+    "label": "View-Only option in the collection share dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.share-collection",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-share"
+        ],
+        "needs": [
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "share-collection.mode-copy",
+    "label": "Make a copy option in the collection share dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.share-collection",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-share"
+        ],
+        "needs": [
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
     "id": "share-collection.share-with-sub",
     "label": "Share with a sub option in the collection share dialog",
     "scope": "board",
