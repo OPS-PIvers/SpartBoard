@@ -5,11 +5,9 @@ import {
 } from '@/context/dashboardCanvasStore';
 import { useAuth } from '@/context/useAuth';
 import { Button } from '@/components/common/Button';
-import { SegmentedControl } from '@/components/common/SegmentedControl';
 import {
   ArtsLettersAgendaConfig,
   ArtsLettersAgendaPartId,
-  ArtsLettersAgendaVersion,
   WidgetData,
 } from '@/types';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
@@ -17,7 +15,7 @@ import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 import { tourAttr } from '@/config/tourAnchors';
 import { WidgetLayout } from '../WidgetLayout';
 import { AgendaRow } from './components/AgendaRow';
-import { listsDiffer, partsForVersion, resolveAgendaPartLists } from './utils';
+import { partsForVersion, resolveAgendaPartLists } from './utils';
 
 const DEFAULTS = WIDGET_DEFAULTS['arts-letters-agenda']
   .config as Required<ArtsLettersAgendaConfig>;
@@ -73,14 +71,6 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
     [adminConfig, selectedBuildings]
   );
   const parts = partsForVersion(lists, version);
-  const canSwitch = listsDiffer(lists.simple, lists.detailed);
-
-  const changeVersion = useCallback(
-    (next: ArtsLettersAgendaVersion) => {
-      updateWidget(widget.id, { config: { ...config, version: next } });
-    },
-    [updateWidget, widget.id, config]
-  );
 
   const anyDone = parts.some((p) => completed[p.id]);
   const sm = resolveTextPresetMultiplier(textSizePreset, 1);
@@ -115,7 +105,7 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
           </h2>
           <div
             role="list"
-            className={`flex-1 overflow-hidden flex flex-col ${parts.length <= 4 ? '[@container(min-aspect-ratio:2.4)]:flex-row' : ''}`}
+            className={`flex-1 overflow-y-auto flex flex-col pb-2 ${parts.length <= 4 ? '[@container(min-aspect-ratio:2.4)]:flex-row' : ''}`}
             style={{
               padding: 'min(10px, 2.2cqmin) max(18px, 2.5cqmin) 0',
               gap: 'min(8px, 2cqmin)',
@@ -125,9 +115,9 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
               <div
                 key={part.id}
                 role="listitem"
+                className="[@container(min-height:220px)]:min-h-[min(64px,22cqh)]"
                 style={{
                   flex: 1,
-                  minHeight: 0,
                   minWidth: 0,
                   containerType: 'size',
                 }}
@@ -156,23 +146,6 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
             }}
           >
             <div className="flex flex-wrap items-center justify-center gap-2 [@container(max-height:149px)]:hidden">
-              {canSwitch && (
-                <SegmentedControl
-                  value={version}
-                  onChange={changeVersion}
-                  ariaLabel="Agenda version"
-                  role="radiogroup"
-                  anchor={tourAttr(
-                    'arts-letters-agenda.toggle-version',
-                    widget.id,
-                    widget.type
-                  )}
-                  options={[
-                    { value: 'simple', label: 'Simple' },
-                    { value: 'detailed', label: 'Detailed' },
-                  ]}
-                />
-              )}
               <Button
                 {...tourAttr(
                   'arts-letters-agenda.reset-checks',

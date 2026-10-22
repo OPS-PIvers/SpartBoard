@@ -2926,22 +2926,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "arts-letters-agenda.toggle-version",
-    "label": "Simple and Detailed switch in Arts & Letters Agenda",
-    "scope": "widget",
-    "routes": [
-      {
-        "surface": "widgets.arts-letters-agenda.face",
-        "kind": "widget",
-        "widget_type": "arts-letters-agenda",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "arts-letters-agenda.reset-checks",
     "label": "Reset checks button in Arts & Letters Agenda",
     "scope": "widget",
@@ -30712,6 +30696,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         ]
       },
       {
+        "surface": "admin.widgets.config.arts-letters-agenda",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#arts-letters-agenda"
+        ],
+        "needs": [
+          "admin"
+        ]
+      },
+      {
         "surface": "admin.widgets.config.blending-board",
         "kind": "modal",
         "path": [
@@ -31668,6 +31664,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "weather"
     ],
     "routes": [
+      {
+        "surface": "admin.widgets.config.arts-letters-agenda",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#arts-letters-agenda"
+        ],
+        "needs": [
+          "admin"
+        ]
+      },
       {
         "surface": "admin.widgets.config.checklist",
         "kind": "modal",

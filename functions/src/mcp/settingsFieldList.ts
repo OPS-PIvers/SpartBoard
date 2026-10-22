@@ -1471,6 +1471,15 @@ export const SETTINGS_FIELD_LIST: Readonly<
   ],
   'arts-letters-agenda': [
     {
+      anchor: 'settings.group:arts-letters-agenda#content',
+      label: 'Content',
+    },
+    {
+      anchor: 'settings.field:arts-letters-agenda#version',
+      label: 'Version',
+      kind: 'custom',
+    },
+    {
       anchor: 'settings.field:arts-letters-agenda#textSizePreset',
       label: 'Text size',
       kind: 'textSizePreset',

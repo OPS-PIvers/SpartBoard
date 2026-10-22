@@ -149,7 +149,6 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'blooms-taxonomy.ai-dismiss': ['widgets.blooms-taxonomy.face'],
     'calendar.start-timer': ['widgets.calendar.face'],
     'calendar.connect-google': ['widgets.calendar.face'],
-    'arts-letters-agenda.toggle-version': ['widgets.arts-letters-agenda.face'],
     'arts-letters-agenda.reset-checks': ['widgets.arts-letters-agenda.face'],
     'checklist.open-settings': ['widgets.checklist.face'],
     'checklist.remove-completed': ['widgets.checklist.face'],

@@ -1423,6 +1423,12 @@
       "assignmentArchive": "View archive",
       "managerView": "Reset to manager view"
     },
+    "arts-letters-agenda": {
+      "version": "Version",
+      "simple": "Simple",
+      "detailed": "Detailed",
+      "sameLists": "Detailed matches Simple until your school sets its own list."
+    },
     "breathing": {
       "pattern": "Pattern",
       "boxBreathing": "Box Breathing",

@@ -151,7 +151,7 @@ describe('ArtsLettersAgendaWidget', () => {
     ).toBeDisabled();
   });
 
-  it('shows the admin Simple list by default and the Detailed list after switching', () => {
+  it('shows the admin Simple list by default and the Detailed list when Detailed is chosen', () => {
     withLists({
       simpleParts: [
         { id: 'launch', label: 'Launch' },
@@ -167,10 +167,6 @@ describe('ArtsLettersAgendaWidget', () => {
     });
     const { rerender } = renderWidget();
     expect(screen.getAllByRole('listitem')).toHaveLength(3);
-    fireEvent.click(screen.getByRole('radio', { name: 'Detailed' }));
-    expect(mockUpdateWidget).toHaveBeenCalledWith('agenda-1', {
-      config: { version: 'detailed' },
-    });
     rerender(
       <ArtsLettersAgendaWidget widget={makeWidget({ version: 'detailed' })} />
     );
@@ -180,7 +176,24 @@ describe('ArtsLettersAgendaWidget', () => {
     expect(rows[3]).toHaveTextContent('Share out');
   });
 
-  it('hides the switch when both lists are the same', () => {
+  it('lets teachers add details to every Detailed box', () => {
+    withLists({
+      detailedParts: [
+        { id: 'a', label: 'Warm up' },
+        { id: 'b', label: 'Practice' },
+      ],
+    });
+    renderWidget({ version: 'detailed' });
+    const field = screen.getByLabelText('Practice details');
+    fireEvent.change(field, { target: { value: 'Pages 4 to 6' } });
+    fireEvent.blur(field);
+    expect(mockUpdateWidget).toHaveBeenCalledWith('agenda-1', {
+      config: { version: 'detailed', descriptions: { b: 'Pages 4 to 6' } },
+    });
+  });
+
+  it('has no Simple and Detailed switch on the widget face', () => {
+    withLists({ detailedParts: [{ id: 'a', label: 'Warm up' }] });
     renderWidget();
     expect(screen.queryByRole('radio', { name: 'Detailed' })).toBeNull();
   });
