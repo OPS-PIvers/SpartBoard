@@ -160,4 +160,68 @@ describe('ComposerSheet dated timeline', () => {
       expect.anything()
     );
   });
+
+  it('places the post in the group the student picks', () => {
+    const onSubmit = vi.fn();
+    render(
+      <ComposerSheet
+        session={makeSession({
+          layout: 'timeline',
+          timelineDates: true,
+          timelineGroups: [
+            { id: 'dakota', label: 'Dakota' },
+            { id: 'settlers', label: 'Settlers' },
+          ],
+        })}
+        onSubmit={onSubmit}
+        onClose={vi.fn()}
+        busy={false}
+        progress={null}
+        error={null}
+      />
+    );
+    fireEvent.change(screen.getByLabelText('Your response'), {
+      target: { value: 'Treaty of Traverse des Sioux' },
+    });
+    fireEvent.change(screen.getByLabelText('Year'), {
+      target: { value: '1851' },
+    });
+    expect(screen.getByLabelText('Group')).toHaveValue('dakota');
+    fireEvent.change(screen.getByLabelText('Group'), {
+      target: { value: 'settlers' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /post/i }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ label: '1851' }),
+      expect.objectContaining({ sectionId: 'settlers' })
+    );
+  });
+
+  it('shows no group picker on a timeline without groups', () => {
+    renderSheet();
+    expect(screen.queryByLabelText('Group')).not.toBeInTheDocument();
+  });
+
+  it('keeps an edited post out of every group until one is picked', () => {
+    const onSubmit = vi.fn();
+    render(
+      <ComposerSheet
+        session={makeSession({
+          layout: 'timeline',
+          timelineDates: true,
+          timelineGroups: [{ id: 'dakota', label: 'Dakota' }],
+        })}
+        editing={makeSubmission({ id: 'old', label: '1851', content: 'Old' })}
+        onSubmit={onSubmit}
+        onClose={vi.fn()}
+        busy={false}
+        progress={null}
+        error={null}
+      />
+    );
+    expect(screen.getByLabelText('Group')).toHaveValue('');
+    fireEvent.click(screen.getByRole('button', { name: /save|post/i }));
+    const placement = onSubmit.mock.calls[0][1] as { sectionId?: string };
+    expect(placement.sectionId).toBeUndefined();
+  });
 });

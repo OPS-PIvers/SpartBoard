@@ -471,6 +471,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
               PNG, JPG or WebP
             </span>
           </button>
+          {/* no-tour-anchor: hidden file input opened by its visible upload button */}
           <input
             ref={fileRef}
             type="file"

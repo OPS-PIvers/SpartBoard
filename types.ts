@@ -2487,6 +2487,10 @@ export interface ActivityWallLibraryEntry {
   tableCols?: ActivityWallSection[];
   /** Dated timeline only: teacher-named time periods shaded on the axis. */
   timePeriods?: ActivityWallPeriod[];
+  /** Dated timeline only: one lane per group; posts pick one by `sectionId`. */
+  timelineGroups?: ActivityWallSection[];
+  /** Dated timeline only: the teacher hid every date so students judge order first. */
+  timelineDatesHidden?: boolean;
   mapCenter?: { lat: number; lng: number; zoom: number };
   allowedTypes?: Record<
     Exclude<ActivityWallSubmissionType, 'text' | 'word'>,
@@ -2632,6 +2636,10 @@ export interface ActivityWallSession extends SessionWorkKindFields {
   timelineDates?: boolean;
   /** Dated timeline only: teacher-named time periods, mirrored from the library entry. */
   timePeriods?: ActivityWallPeriod[];
+  /** Dated timeline only: group lanes, mirrored from the library entry. */
+  timelineGroups?: ActivityWallSection[];
+  /** Dated timeline only: dates hidden by the teacher, mirrored from the library entry. */
+  timelineDatesHidden?: boolean;
 }
 
 /**
@@ -4190,6 +4198,8 @@ export interface QuizQuestion {
   maxWords?: number;
   /** Free Response only. When set, Submit is disabled outside the word range. */
   enforceWordLimit?: boolean;
+  /** Free Response only. True turns off the browser's spelling and grammar underlines in the answer. */
+  noSpellCheck?: boolean;
   /** Free Response only. Size of the lined box on paper answer sheets. */
   paperBoxSize?: PaperBoxSize;
   /**
@@ -4899,6 +4909,8 @@ export interface QuizPublicQuestion {
   maxWords?: number;
   /** Free Response only: when set, Submit is disabled outside the word range */
   enforceWordLimit?: boolean;
+  /** Free Response only: turns off the browser's spelling and grammar underlines */
+  noSpellCheck?: boolean;
   /** Free Response only: max points the teacher can award. */
   points?: number;
   /**
@@ -7101,6 +7113,7 @@ export type VideoActivityQuestion = Omit<
   | 'maxWords'
   | 'minWords'
   | 'enforceWordLimit'
+  | 'noSpellCheck'
   | 'paperBoxSize'
 > & {
   type: VideoActivityQuestionType;
@@ -8297,6 +8310,14 @@ export interface WebTourBinding {
   locator: WebTourLocator;
   action: WebTourAction;
   picture?: WebTourPicture;
+  /** The admin's "checked for student data" tick; `sig` fingerprints what it covered, so an edit clears it. */
+  checked?: WebTourStudentDataCheck;
+}
+
+export interface WebTourStudentDataCheck {
+  by: string;
+  at: number;
+  sig: string;
 }
 
 export interface GuidedLearningTourBinding {
@@ -10210,6 +10231,8 @@ export type GlobalFeature =
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
   | 'quiz-attempt-history'
+  /** Per-question "Spell check" switch on quiz Free Response questions. */
+  | 'quiz-spell-check-toggle'
   /** Quiz rubrics are hidden from students unless the teacher shows them per question. */
   | 'quiz-rubric-visibility'
   /** AP-style scoring-guide rubrics with example responses, beside levels rubrics. */

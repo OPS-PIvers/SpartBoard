@@ -133,6 +133,7 @@ export const AudioInteraction: React.FC<Props> = ({
               </p>
             )}
           </div>
+          {/* no-tour-anchor: student player overlay, not on the teacher board during a tour */}
           <button
             onClick={togglePlay}
             className={`rounded-full bg-brand-blue-primary hover:bg-brand-blue-dark flex items-center justify-center flex-shrink-0 transition-all active:scale-90 ${focusRing}`}

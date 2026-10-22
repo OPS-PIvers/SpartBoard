@@ -10,4 +10,5 @@ export interface WallStructure {
   tableCols?: ActivityWallSection[];
   mapCenter?: { lat: number; lng: number; zoom: number };
   timePeriods?: ActivityWallPeriod[];
+  timelineGroups?: ActivityWallSection[];
 }

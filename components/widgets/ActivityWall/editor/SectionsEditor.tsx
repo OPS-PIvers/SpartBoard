@@ -305,10 +305,20 @@ export const SectionsEditor: React.FC<SectionsEditorProps> = ({
 
   if (layout === 'timeline') {
     return timelineDates ? (
-      <TimePeriodsList
-        items={value.timePeriods ?? []}
-        onChange={(timePeriods) => onChange({ timePeriods })}
-      />
+      <div className="space-y-5">
+        <LabelledList
+          legend="Groups"
+          itemNoun="Group"
+          hint="Each group gets its own row on the timeline. Students pick one when they post."
+          addLabel="Add group"
+          items={value.timelineGroups ?? []}
+          onChange={(timelineGroups) => onChange({ timelineGroups })}
+        />
+        <TimePeriodsList
+          items={value.timePeriods ?? []}
+          onChange={(timePeriods) => onChange({ timePeriods })}
+        />
+      </div>
     ) : null;
   }
 

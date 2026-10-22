@@ -80,6 +80,7 @@ export const StudioWelcomePanel: React.FC<{ state: WelcomeState }> = ({
         <span className="text-xs font-bold text-slate-600">
           {t('glStudio.welcomeImage')}
         </span>
+        {/* no-tour-anchor: hidden file input opened by its visible upload button */}
         <input
           ref={inputRef}
           type="file"

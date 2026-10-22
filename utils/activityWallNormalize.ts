@@ -351,6 +351,9 @@ export function mirrorSessionFromEntry(
   if (entry.tableCols) session.tableCols = entry.tableCols;
   if (entry.mapCenter) session.mapCenter = entry.mapCenter;
   if (entry.timePeriods) session.timePeriods = entry.timePeriods;
+  if (entry.timelineGroups) session.timelineGroups = entry.timelineGroups;
+  if (entry.timelineDatesHidden !== undefined)
+    session.timelineDatesHidden = entry.timelineDatesHidden;
 
   return session;
 }

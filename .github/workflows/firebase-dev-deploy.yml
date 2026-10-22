@@ -31,6 +31,7 @@ env:
   VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
   VITE_PEXELS_API_KEY: ${{ secrets.VITE_PEXELS_API_KEY }}
   VITE_SPOTIFY_CLIENT_ID: ${{ secrets.VITE_SPOTIFY_CLIENT_ID }}
+  VITE_SPART_EXTENSION_ID: ${{ vars.SPART_EXTENSION_ID_DEV }}
   DEV_PROJECT_ID: spartboard-dev
   DEV_WEB_APP_ID: '1:258543092004:web:63b9aa080a08cd83c973b1'
   DEV_WIF_PROVIDER: projects/258543092004/locations/global/workloadIdentityPools/github/providers/spartboard-repo

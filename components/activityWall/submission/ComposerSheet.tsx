@@ -62,11 +62,20 @@ const spanFields = (label: string | undefined) => {
 const structureFromPlacement = (
   session: ActivityWallSession,
   placement: WallPlacement,
-  label: string
+  label: string,
+  editing: boolean
 ): StructureValue => {
   const [rowId, colId] = placement.cellKey?.split('|') ?? [];
   return {
-    sectionId: placement.sectionId ?? session.sections?.[0]?.id ?? '',
+    sectionId:
+      placement.sectionId ??
+      (session.layout === 'timeline'
+        ? // An edited post keeps "No group" until the student picks one.
+          editing
+          ? ''
+          : session.timelineGroups?.[0]?.id
+        : session.sections?.[0]?.id) ??
+      '',
     rowId: rowId ?? session.tableRows?.[0]?.id ?? '',
     colId: colId ?? session.tableCols?.[0]?.id ?? '',
     label,
@@ -90,7 +99,7 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
     editing ? draftFromPost(editing) : EMPTY_DRAFT
   );
   const [structure, setStructure] = useState<StructureValue>(() =>
-    structureFromPlacement(session, seedPlacement, draft.label)
+    structureFromPlacement(session, seedPlacement, draft.label, !!editing)
   );
   const [pin, setPin] = useState<MapPin | null>(() =>
     typeof seedPlacement.lat === 'number' &&
@@ -143,6 +152,14 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
   const resolvedPlacement = (): WallPlacement => {
     const next: WallPlacement = {};
     if (session.layout === 'columns' && structure.sectionId)
+      next.sectionId = structure.sectionId;
+    // Timeline groups only exist on dated walls that set them up.
+    if (
+      session.layout === 'timeline' &&
+      session.timelineDates &&
+      session.timelineGroups?.length &&
+      structure.sectionId
+    )
       next.sectionId = structure.sectionId;
     if (session.layout === 'table' && structure.rowId && structure.colId)
       next.cellKey = `${structure.rowId}|${structure.colId}`;

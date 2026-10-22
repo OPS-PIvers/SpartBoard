@@ -243,6 +243,23 @@
       }
     },
     {
+      "pr": 4502,
+      "widgetType": "schedule",
+      "dimension": "layout",
+      "openedAt": "2026-10-21T18:35:00Z",
+      "outcome": "accepted",
+      "changes": {
+        "S2": {
+          "before": 2,
+          "after": 3
+        },
+        "S3": {
+          "before": 1,
+          "after": 3
+        }
+      }
+    },
+    {
       "pr": 4533,
       "widgetType": "countdown",
       "dimension": "layout",

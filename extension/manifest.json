@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "SpartBoard",
   "version": "0.1.0",
-  "description": "Live tours of district websites, started from SpartBoard.",
+  "description": "Live tours of websites, started from SpartBoard.",
   "minimum_chrome_version": "116",
   "icons": {
     "128": "icon-128.png"
@@ -21,6 +21,12 @@
     "identity.email"
   ],
   "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_title": "Record a SpartBoard web tour"
+  },
+  "side_panel": {
+    "default_path": "sidepanel/index.html"
+  },
   "externally_connectable": {
     "matches": [
       "https://spartboard.web.app/*",

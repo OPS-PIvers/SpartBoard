@@ -180,6 +180,7 @@ export const QuestionInteraction: React.FC<Props> = ({
             {q.type === 'multiple-choice' && (
               <div className="space-y-2">
                 {(q.choices ?? []).map((choice) => (
+                  // no-tour-anchor: student player overlay, not on the teacher board during a tour
                   <button
                     key={choice}
                     onClick={() => setSelectedMC(choice)}
@@ -303,6 +304,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                       className="flex flex-col"
                       style={{ gap: 'min(2px, 0.5cqmin)' }}
                     >
+                      {/* no-tour-anchor: student player overlay, not on the teacher board during a tour */}
                       <button
                         disabled={idx === 0}
                         onClick={() => {
@@ -318,6 +320,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                       >
                         ▲
                       </button>
+                      {/* no-tour-anchor: student player overlay, not on the teacher board during a tour */}
                       <button
                         disabled={idx === sortingOrder.length - 1}
                         onClick={() => {
@@ -339,6 +342,7 @@ export const QuestionInteraction: React.FC<Props> = ({
               </div>
             )}
 
+            {/* no-tour-anchor: student player overlay, not on the teacher board during a tour */}
             <button
               onClick={handleSubmit}
               disabled={!canSubmit}
@@ -384,6 +388,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                   </p>
                 )}
                 {allowChange && (
+                  // no-tour-anchor: student player overlay, not on the teacher board during a tour
                   <button
                     type="button"
                     onClick={() => {
@@ -449,6 +454,7 @@ export const QuestionInteraction: React.FC<Props> = ({
                 )}
               </>
             )}
+            {/* no-tour-anchor: student player overlay, not on the teacher board during a tour */}
             <button
               onClick={onContinue}
               className={`${primaryBtn} flex items-center mx-auto transition-all active:scale-95`}
@@ -478,6 +484,7 @@ export const QuestionInteraction: React.FC<Props> = ({
               paddingTop: 'min(10px, 2.5cqmin)',
             }}
           >
+            {/* no-tour-anchor: student player overlay, not on the teacher board during a tour */}
             <button
               type="button"
               aria-expanded={revealed}

@@ -1096,6 +1096,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Rollout switch for blocking the right-click menu — every student page reads it; admins flip it.
+    match /admin_settings/student_context_menu {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
     // Admin audit log — admin-only read; create-only (append-only so an admin
     // can't edit/delete their own trail). Written by GlobalPermissionsManager on
     // sensitive settings changes. timestamp is set server-side via
@@ -1320,13 +1326,14 @@ service cloud.firestore {
       allow create, delete: if isAdmin();
       // The read gate rests on surface, so a republish never changes it.
       allow update: if isAdmin() && incoming().get('surface', 'spartboard') == existing().get('surface', 'spartboard');
-      // Each teacher's latest run of the tour (P7-6): write-only, admins read.
+      // Each teacher's latest run of the tour (P7-6): write-only, admins read. Web tour runs add surface and weak (T10).
       match /runs/{uid} {
         function validRun(d) {
-          return d.keys().hasOnly(['v', 'startedAt', 'furthest', 'done', 'exit', 'misses']) &&
+          return d.keys().hasOnly(['v', 'startedAt', 'furthest', 'done', 'exit', 'misses', 'surface', 'weak']) &&
             d.v is int && d.startedAt is int && d.done is bool && optInt(d, 'exit') &&
             d.furthest is int && d.furthest >= 0 && d.furthest <= 500 &&
-            d.misses is list && d.misses.size() <= 50;
+            d.misses is list && d.misses.size() <= 50 &&
+            d.get('surface', 'web') == 'web' && d.get('weak', []) is list && d.get('weak', []).size() <= 50;
         }
         allow read: if isAdmin();
         allow create, update: if staff() && uid == authUid() && validRun(incoming());

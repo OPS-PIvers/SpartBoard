@@ -496,6 +496,7 @@ const StepMediaUpload: React.FC<{
 
   return (
     <div className="mt-1.5">
+      {/* no-tour-anchor: hidden file input opened by its visible upload button */}
       <input
         ref={inputRef}
         type="file"

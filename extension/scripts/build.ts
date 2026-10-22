@@ -27,6 +27,21 @@ const ENTRIES: { entry: string; fileName: string; format: 'es' | 'iife' }[] = [
     format: 'es',
   },
   { entry: 'src/overlay/index.ts', fileName: 'overlay.js', format: 'iife' },
+  {
+    entry: 'src/recorder/contentRecorder.ts',
+    fileName: 'recorder.js',
+    format: 'iife',
+  },
+  {
+    entry: 'src/sidepanel/main.tsx',
+    fileName: 'sidepanel/sidepanel.js',
+    format: 'iife',
+  },
+  {
+    entry: 'src/playback/frameEntry.ts',
+    fileName: 'locator.js',
+    format: 'iife',
+  },
 ];
 
 const configFor = (
@@ -78,6 +93,10 @@ async function buildListing(listing: ListingId, zip: boolean) {
   writeFileSync(
     path.join(outDir, 'manifest.json'),
     `${JSON.stringify(manifestFor(base, listing), null, 2)}\n`
+  );
+  copyFileSync(
+    path.join(extDir, 'src/sidepanel/index.html'),
+    path.join(outDir, 'sidepanel/index.html')
   );
   copyFileSync(
     path.join(repoRoot, 'public/icon-128.png'),

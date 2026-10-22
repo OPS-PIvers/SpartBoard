@@ -364,6 +364,7 @@ const MediaField: React.FC<{
           className={inputClass}
         />
       </Field>
+      {/* no-tour-anchor: hidden file input opened by its visible upload button */}
       <input
         ref={inputRef}
         type="file"

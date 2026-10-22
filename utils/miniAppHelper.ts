@@ -146,7 +146,34 @@ export const miniAppHelperSource = (): string => HELPER_SOURCE;
 
 /** Puts the helper first in the document's head so the app's own scripts can call it. */
 export function injectMiniAppHelper(html: string): string {
-  const tag = `<script data-spart-helper="${MINI_APP_HELPER_VERSION}">${HELPER_SOURCE}</script>`;
+  return injectIntoHead(
+    html,
+    `<script data-spart-helper="${MINI_APP_HELPER_VERSION}">${HELPER_SOURCE}</script>`
+  );
+}
+
+export const MSG_BLOCK_CONTEXT_MENU = 'SPART_MINIAPP_BLOCK_CONTEXT_MENU';
+
+const CONTEXT_MENU_GUARD_SOURCE = `(function () {
+  var blocked = false;
+  window.addEventListener('message', function (e) {
+    if (e.source !== window.parent || !e.data || e.data.type !== '${MSG_BLOCK_CONTEXT_MENU}') return;
+    blocked = e.data.enabled === true;
+  });
+  document.addEventListener('contextmenu', function (e) {
+    if (blocked) e.preventDefault();
+  }, true);
+})();`;
+
+/** Adds the listener the parent page switches on to block the right-click menu inside the app. */
+export function injectContextMenuGuard(html: string): string {
+  return injectIntoHead(
+    html,
+    `<script data-spart-menu-guard="1">${CONTEXT_MENU_GUARD_SOURCE}</script>`
+  );
+}
+
+function injectIntoHead(html: string, tag: string): string {
   const anchor =
     /<head\b[^>]*>/i.exec(html) ??
     /<html\b[^>]*>/i.exec(html) ??

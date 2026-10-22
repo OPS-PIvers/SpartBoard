@@ -6,15 +6,23 @@ const valid = {
   text: 'Click Grades.',
   current: 1,
   total: 3,
-  rect: { x: 10, y: 20, width: 100, height: 30 },
+  status: 'shown',
+  role: 'top',
+  targetHere: true,
+  observe: false,
+  picture: null,
 };
 
 describe('parseOverlayState', () => {
-  it('accepts a valid state, with or without a target', () => {
+  it('accepts a valid state, with or without a picture', () => {
     expect(parseOverlayState(valid)).toEqual(valid);
-    expect(parseOverlayState({ ...valid, rect: null })).toEqual({
+    const picture = { mime: 'image/png', data: 'AAAA', w: 10, h: 10 };
+    expect(
+      parseOverlayState({ ...valid, status: 'fallback', picture })
+    ).toEqual({
       ...valid,
-      rect: null,
+      status: 'fallback',
+      picture,
     });
   });
 
@@ -26,9 +34,19 @@ describe('parseOverlayState', () => {
     ['a fractional step', { ...valid, current: 1.5 }],
     ['a non-string title', { ...valid, title: 3 }],
     ['an oversized text', { ...valid, text: 'x'.repeat(4001) }],
-    ['a rect with an extra key', { ...valid, rect: { ...valid.rect, z: 1 } }],
-    ['a negative rect size', { ...valid, rect: { ...valid.rect, width: -1 } }],
-    ['a NaN rect', { ...valid, rect: { ...valid.rect, x: Number.NaN } }],
+    ['an unknown status', { ...valid, status: 'exited' }],
+    ['an unknown role', { ...valid, role: 'side' }],
+    [
+      'an svg picture',
+      {
+        ...valid,
+        picture: { mime: 'image/svg+xml', data: 'AAAA', w: 1, h: 1 },
+      },
+    ],
+    [
+      'picture data that is not base64',
+      { ...valid, picture: { mime: 'image/png', data: '"><img>', w: 1, h: 1 } },
+    ],
   ])('refuses %s', (_, raw) => {
     expect(parseOverlayState(raw)).toBeNull();
   });

@@ -646,6 +646,7 @@ export function toPublicQuestion(
     ) {
       base.enforceWordLimit = true;
     }
+    if (q.noSpellCheck === true) base.noSpellCheck = true;
     if (q.points && q.points > 0) base.points = q.points;
     const hideRubric =
       options?.hideRubricUnlessShown === true &&

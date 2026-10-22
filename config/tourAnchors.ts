@@ -523,6 +523,10 @@ export const TOUR_ANCHORS = {
     sandboxed: true,
     perWidget: true,
   },
+  'activity-wall.timeline-dates': {
+    label: 'Hide or show dates button on an Activity Wall timeline',
+    perWidget: true,
+  },
   'activity-wall.moderate': {
     label: 'Moderate posts button in Activity Wall',
     perWidget: true,
@@ -1705,6 +1709,11 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.word-enforce': {
     label: 'Enforce limit toggle in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.spell-check': {
+    label: 'Spell check toggle in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
@@ -6897,6 +6906,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'admin.help-center.web-tour-copy-link': {
+    label: 'Copy link button for a web tour in tour health',
+    perField: true,
+    panel: true,
+  },
   'admin.help-center.unmapped-copy': {
     label: 'Copy all button for unmapped anchors',
     panel: true,
@@ -10250,6 +10264,22 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'gl-manager.show-older': { label: 'Show older assignments button' },
+  'web-tours.new': {
+    label: 'New web tour button in the Guided Learning library (admins)',
+  },
+  'web-tour-editor.title': { label: 'Title field in the web tour editor' },
+  'web-tour-editor.record': {
+    label: 'Record steps button in the web tour editor',
+  },
+  'web-tour-editor.publish': {
+    label: 'Publish tour button in the web tour editor',
+    persists: true,
+  },
+  'web-tour-editor.delete': {
+    label: 'Delete web tour button in the web tour editor',
+    destructive: true,
+    persists: true,
+  },
   'gl-manager.select-mode': {
     label: 'Select mode toggle in the Guided Learning library',
   },

@@ -382,4 +382,26 @@ describe('WallEditorModal', () => {
       expect.objectContaining({ label: 'The war', from: '1861', to: '1865' }),
     ]);
   });
+
+  it('saves named groups on a dated timeline and drops blank ones', async () => {
+    renderModal();
+    fireEvent.click(screen.getByRole('button', { name: /Timeline/ }));
+    fireEvent.change(screen.getByLabelText('Title'), {
+      target: { value: 'Dakota War' },
+    });
+    fireEvent.change(screen.getByLabelText('Prompt'), {
+      target: { value: 'Add an event.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add group' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add group' }));
+    fireEvent.change(screen.getByLabelText('Group 1 label'), {
+      target: { value: ' Dakota ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save wall' }));
+    await waitFor(() => expect(mockSaveActivity).toHaveBeenCalledTimes(1));
+    const saved = mockSaveActivity.mock.calls[0][0] as ActivityWallLibraryEntry;
+    expect(saved.timelineGroups).toEqual([
+      expect.objectContaining({ label: 'Dakota' }),
+    ]);
+  });
 });
