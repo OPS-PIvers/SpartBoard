@@ -15,7 +15,7 @@ describe('parseExtensionMessage', () => {
   });
 
   it('marks unknown types unsupported so newer pages degrade (D6)', () => {
-    expect(parseExtensionMessage({ type: 'web-tour/start' })).toEqual({
+    expect(parseExtensionMessage({ type: 'focus/start' })).toEqual({
       kind: 'unsupported',
     });
     expect(parseExtensionMessage({ type: 'toString' })).toEqual({

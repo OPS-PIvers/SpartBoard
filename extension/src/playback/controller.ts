@@ -6,7 +6,12 @@ import {
   type PlaybackEvent,
   type PlaybackState,
 } from './progress';
-import type { ParsedStart, WebTourPictureBytes } from './startMessage';
+import type {
+  WebTourPictureBytes,
+  WebTourProgressMessage,
+} from '@/components/tours/web/extensionProtocol';
+import type { OverlayAction, OverlayState } from '../overlay/overlayState';
+import type { ParsedStart } from './startMessage';
 import { matchesUrlPattern } from './urlPattern';
 
 export interface HostFrame {
@@ -15,31 +20,11 @@ export interface HostFrame {
   url: string;
 }
 
-/** What the overlay in the top frame draws. */
-export interface OverlayView {
-  type: 'wt:render';
-  title: string;
-  index: number;
-  total: number;
-  label: string;
-  text: string;
-  status: PlaybackState['status'];
-  action: PlaybackState['tour']['steps'][number]['action'];
-  /** The target is in this frame, so this overlay draws the spotlight and tethers the tip. */
-  targetHere: boolean;
-  /** Only sent to the top frame, and only when the step shows its picture. */
-  picture: WebTourPictureBytes | null;
-  /** Only the top frame draws the bar and tip; a target frame draws just the spotlight. */
-  role: 'top' | 'target';
-}
+export type OverlayMessage =
+  | { type: 'overlay/render'; state: OverlayState }
+  | { type: 'overlay/unmount' };
 
-export type OverlayCommand = { type: 'wt:ui'; action: 'next' | 'back' | 'exit' };
-
-export type ProgressPost =
-  | { type: 'web-tour/step'; setId: string; stepIndex: number; stepId: string; match: LocatorClue | 'none' }
-  | { type: 'web-tour/done'; setId: string }
-  | { type: 'web-tour/exit'; setId: string; stepIndex: number }
-  | { type: 'web-tour/closed'; setId: string; stepIndex: number };
+export type ProgressPost = WebTourProgressMessage;
 
 /** The Chrome APIs playback needs, so the controller runs against a fake in tests. */
 export interface PlaybackHost {
@@ -47,7 +32,7 @@ export interface PlaybackHost {
   frames(tabId: number): Promise<HostFrame[]>;
   /** Injects the locator script into frames (and the overlay into those listed), idempotently. */
   inject(tabId: number, frameIds: number[], overlay: boolean): Promise<void>;
-  sendToFrame(tabId: number, frameId: number, msg: FrameCommand | OverlayView | { type: 'wt:clear' }): void;
+  sendToFrame(tabId: number, frameId: number, msg: FrameCommand | OverlayMessage): void;
   load<T>(key: string): Promise<T | undefined>;
   save(entries: Record<string, unknown>): Promise<void>;
   remove(keys: string[]): Promise<void>;
@@ -63,6 +48,8 @@ interface TabRecord {
   token: string;
   seq: number;
   targetFrameId: number | null;
+  /** A subframe whose overlay currently draws the spotlight, so it can be cleared when the target moves. */
+  litFrameId: number | null;
   url: string;
   /** Last match posted per step, so an unchanged repeat isn't posted again. */
   posted: Record<string, LocatorClue | 'none'>;
@@ -131,31 +118,34 @@ export function createPlaybackController(host: PlaybackHost) {
     const { state } = rec;
     const step = state.tour.steps[state.index];
     if (state.status === 'exited' || !step) {
-      host.sendToFrame(rec.tabId, 0, { type: 'wt:clear' });
+      host.sendToFrame(rec.tabId, 0, { type: 'overlay/unmount' });
       if (rec.targetFrameId !== null && rec.targetFrameId !== 0) {
-        host.sendToFrame(rec.tabId, rec.targetFrameId, { type: 'wt:clear' });
+        host.sendToFrame(rec.tabId, rec.targetFrameId, { type: 'overlay/unmount' });
       }
       return;
     }
     const shownIn = state.status === 'shown' ? rec.targetFrameId : null;
     const base = {
-      type: 'wt:render' as const,
-      title: state.tour.title,
-      index: state.index,
-      total: state.tour.steps.length,
-      label: step.title,
+      title: step.title,
       text: step.text,
+      current: state.index + 1,
+      total: state.tour.steps.length,
       status: state.status,
-      action: step.action,
+      observe: step.action === 'observe',
     };
     host.sendToFrame(rec.tabId, 0, {
-      ...base,
-      role: 'top',
-      targetHere: shownIn === 0,
-      picture: await picture(rec),
+      type: 'overlay/render',
+      state: { ...base, role: 'top', targetHere: shownIn === 0, picture: await picture(rec) },
     });
+    if (rec.litFrameId !== null && rec.litFrameId !== 0 && rec.litFrameId !== shownIn) {
+      host.sendToFrame(rec.tabId, rec.litFrameId, { type: 'overlay/unmount' });
+    }
+    rec.litFrameId = shownIn;
     if (shownIn !== null && shownIn !== 0) {
-      host.sendToFrame(rec.tabId, shownIn, { ...base, role: 'target', targetHere: true, picture: null });
+      host.sendToFrame(rec.tabId, shownIn, {
+        type: 'overlay/render',
+        state: { ...base, role: 'target', targetHere: true, picture: null },
+      });
     }
   }
 
@@ -254,6 +244,7 @@ export function createPlaybackController(host: PlaybackHost) {
         token: '',
         seq: 0,
         targetFrameId: null,
+        litFrameId: null,
         url: parsed.tour.startUrl,
         posted: {},
       };
@@ -308,12 +299,12 @@ export function createPlaybackController(host: PlaybackHost) {
       }
     }),
 
-    overlayCommand: (tabId: number, frameId: number, cmd: OverlayCommand) =>
+    overlayAction: (tabId: number, frameId: number, action: OverlayAction) =>
       serial(tabId, async () => {
       if (frameId !== 0) return;
       const rec = await load(tabId);
       if (!rec) return;
-      await dispatch(rec, { type: cmd.action });
+      await dispatch(rec, { type: action });
     }),
 
     tabClosed: (tabId: number) =>
