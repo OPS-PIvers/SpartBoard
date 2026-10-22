@@ -92,4 +92,60 @@ describe('parseTourRun', () => {
     expect(parseTourRun({ v: 'x', furthest: 0, misses: [] })).toBeNull();
     expect(parseTourRun(null)).toBeNull();
   });
+
+  it('keeps the latest clue per web step as a miss or weak match', () => {
+    const write = writer();
+    const log = startTourRunLog(
+      'set',
+      'uid',
+      { v: 3, furthest: 0, surface: 'web' },
+      write,
+      0
+    );
+    expect(write.mock.calls[0][0]).toMatchObject({ surface: 'web', weak: [] });
+    log.match('a', 'none');
+    log.match('b', 'text');
+    vi.advanceTimersByTime(0);
+    expect(write.mock.calls.at(-1)?.[0]).toMatchObject({
+      misses: ['a'],
+      weak: ['b:text'],
+    });
+    log.match('a', 'role');
+    log.match('b', 'css');
+    vi.advanceTimersByTime(0);
+    expect(write.mock.calls.at(-1)?.[0]).toMatchObject({
+      misses: [],
+      weak: ['b:css'],
+    });
+    const calls = write.mock.calls.length;
+    log.match('b', 'css');
+    vi.advanceTimersByTime(0);
+    expect(write).toHaveBeenCalledTimes(calls);
+  });
+
+  it('never adds weak matches to a board tour run', () => {
+    const write = writer();
+    const log = startTourRunLog('set', 'uid', { v: 1, furthest: 0 }, write, 0);
+    log.match('b', 'text');
+    log.end({ done: true });
+    expect(write.mock.calls.at(-1)?.[0]).not.toHaveProperty('weak');
+    expect(write.mock.calls.at(-1)?.[0]).not.toHaveProperty('surface');
+  });
+});
+
+describe('parseTourRun web fields', () => {
+  it('reads surface and weak, dropping non-strings', () => {
+    expect(
+      parseTourRun({
+        v: 1,
+        furthest: 0,
+        misses: [],
+        surface: 'web',
+        weak: ['a:css', 3],
+      })
+    ).toMatchObject({ surface: 'web', weak: ['a:css'] });
+    expect(parseTourRun({ v: 1, furthest: 0, misses: [] })).not.toHaveProperty(
+      'surface'
+    );
+  });
 });

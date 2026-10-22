@@ -4309,6 +4309,26 @@
         "rebound": "Réassociée",
         "needsHuman": "Demande une personne"
       }
+    },
+    "web": {
+      "title": "Visites web",
+      "intro": "Vérifie les parcours réels des visites sur d'autres sites web.",
+      "empty": "Aucune visite web pour l'instant.",
+      "loadFailed": "Impossible de charger les visites web.",
+      "notPublished": "Non publiée",
+      "colPage": "Page",
+      "state": {
+        "ok": "OK",
+        "weak": "Correspondance faible",
+        "missed": "Introuvable"
+      },
+      "reason": {
+        "missed": "Image affichée dans {{misses}} parcours réels sur {{runs}}",
+        "weak": "Trouvé seulement par un indice plus faible dans {{weak}} parcours réels sur {{runs}}"
+      },
+      "copyLink": "Copier le lien",
+      "linkCopied": "Copié",
+      "copyLinkFor": "Copier le lien vers {{title}}"
     }
   },
   "tourPicker": {
@@ -4408,5 +4428,30 @@
     "startingPage": {
       "loadFailed": "La page de départ ne s'est pas chargée."
     }
+  },
+  "webTourHub": {
+    "eyebrow": "Visite web",
+    "untitled": "Visite sans titre",
+    "untitledStep": "Étape sans titre",
+    "summary_one": "Sur {{site}} · {{count}} étape",
+    "summary_other": "Sur {{site}} · {{count}} étapes",
+    "checking": "Recherche de l'extension SpartBoard...",
+    "start": "Commencer la visite",
+    "startOver": "Recommencer",
+    "resume": "Reprendre à l'étape {{number}}",
+    "playing": "La visite est ouverte dans un autre onglet. Votre progression s'affiche ici.",
+    "closed": "L'onglet de la visite a été fermé.",
+    "exited": "Vous avez quitté la visite.",
+    "done": "Vous avez terminé cette visite.",
+    "startFailed": "La visite n'a pas pu démarrer. Réessayez.",
+    "noExtension": "Demandez à votre équipe informatique d'ajouter l'extension SpartBoard pour Chrome afin que cette visite indique chaque étape sur le site. En attendant, suivez les images ci-dessous.",
+    "wrongProfile": "Cette visite ne fonctionne que dans un profil Chrome connecté avec votre compte du personnel d'Orono. En attendant, suivez les images ci-dessous.",
+    "oldExtension": "Votre extension SpartBoard doit être mise à jour pour cette visite. En attendant, suivez les images ci-dessous.",
+    "openSite": "Ouvrir {{site}}",
+    "currentStep": "Étape en cours",
+    "stepDone": "Terminé",
+    "pictureAlt": "Image de l'étape {{number}}",
+    "unavailableTitle": "Cette visite n'est pas disponible",
+    "unavailableBody": "Le lien est peut-être erroné ou la visite a été supprimée. Demandez un nouveau lien à la personne qui l'a partagé."
   }
 }

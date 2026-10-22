@@ -5359,6 +5359,26 @@
         "rebound": "Rebound",
         "needsHuman": "Needs a person"
       }
+    },
+    "web": {
+      "title": "Web tours",
+      "intro": "Checks real runs of tours on other websites.",
+      "empty": "No web tours yet.",
+      "loadFailed": "Couldn't load web tours.",
+      "notPublished": "Not published",
+      "colPage": "Page",
+      "state": {
+        "ok": "OK",
+        "weak": "Weak match",
+        "missed": "Not found"
+      },
+      "reason": {
+        "missed": "Showed the picture in {{misses}} of {{runs}} real runs",
+        "weak": "Found only by a weaker clue in {{weak}} of {{runs}} real runs"
+      },
+      "copyLink": "Copy link",
+      "linkCopied": "Copied",
+      "copyLinkFor": "Copy link to {{title}}"
     }
   },
   "tourPicker": {
@@ -5458,5 +5478,30 @@
     "startingPage": {
       "loadFailed": "The starting page didn't load."
     }
+  },
+  "webTourHub": {
+    "eyebrow": "Web tour",
+    "untitled": "Untitled tour",
+    "untitledStep": "Untitled step",
+    "summary_one": "On {{site}} · {{count}} step",
+    "summary_other": "On {{site}} · {{count}} steps",
+    "checking": "Checking for the SpartBoard extension...",
+    "start": "Start tour",
+    "startOver": "Start over",
+    "resume": "Resume at step {{number}}",
+    "playing": "The tour is open in another tab. Your progress shows here.",
+    "closed": "The tour's tab was closed.",
+    "exited": "You left the tour.",
+    "done": "You finished this tour.",
+    "startFailed": "The tour couldn't start. Try again.",
+    "noExtension": "Ask your tech team to add the SpartBoard Chrome extension so this tour can point to each step on the site. For now, follow the pictures below.",
+    "wrongProfile": "This tour plays only in a Chrome profile signed in with your Orono staff account. For now, follow the pictures below.",
+    "oldExtension": "Your SpartBoard extension needs an update to play this tour. For now, follow the pictures below.",
+    "openSite": "Open {{site}}",
+    "currentStep": "Current step",
+    "stepDone": "Done",
+    "pictureAlt": "Picture of step {{number}}",
+    "unavailableTitle": "This tour isn't available",
+    "unavailableBody": "The link may be wrong, or the tour was removed. Ask whoever shared it for a new link."
   }
 }

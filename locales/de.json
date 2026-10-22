@@ -4309,6 +4309,26 @@
         "rebound": "Neu verknüpft",
         "needsHuman": "Braucht eine Person"
       }
+    },
+    "web": {
+      "title": "Web-Touren",
+      "intro": "Prüft echte Durchläufe von Touren auf anderen Websites.",
+      "empty": "Noch keine Web-Touren.",
+      "loadFailed": "Web-Touren konnten nicht geladen werden.",
+      "notPublished": "Nicht veröffentlicht",
+      "colPage": "Seite",
+      "state": {
+        "ok": "OK",
+        "weak": "Schwache Übereinstimmung",
+        "missed": "Nicht gefunden"
+      },
+      "reason": {
+        "missed": "Bild in {{misses}} von {{runs}} echten Durchläufen gezeigt",
+        "weak": "Nur über einen schwächeren Hinweis gefunden in {{weak}} von {{runs}} echten Durchläufen"
+      },
+      "copyLink": "Link kopieren",
+      "linkCopied": "Kopiert",
+      "copyLinkFor": "Link zu {{title}} kopieren"
     }
   },
   "tourPicker": {
@@ -4408,5 +4428,30 @@
     "startingPage": {
       "loadFailed": "Die Startseite wurde nicht geladen."
     }
+  },
+  "webTourHub": {
+    "eyebrow": "Web-Tour",
+    "untitled": "Tour ohne Titel",
+    "untitledStep": "Schritt ohne Titel",
+    "summary_one": "Auf {{site}} · {{count}} Schritt",
+    "summary_other": "Auf {{site}} · {{count}} Schritte",
+    "checking": "Suche nach der SpartBoard-Erweiterung...",
+    "start": "Tour starten",
+    "startOver": "Neu beginnen",
+    "resume": "Bei Schritt {{number}} fortsetzen",
+    "playing": "Die Tour ist in einem anderen Tab geöffnet. Ihr Fortschritt erscheint hier.",
+    "closed": "Der Tab der Tour wurde geschlossen.",
+    "exited": "Sie haben die Tour verlassen.",
+    "done": "Sie haben diese Tour abgeschlossen.",
+    "startFailed": "Die Tour konnte nicht starten. Versuchen Sie es erneut.",
+    "noExtension": "Bitten Sie Ihr Technikteam, die SpartBoard-Erweiterung für Chrome hinzuzufügen, damit diese Tour jeden Schritt auf der Website zeigt. Folgen Sie bis dahin den Bildern unten.",
+    "wrongProfile": "Diese Tour läuft nur in einem Chrome-Profil, das mit Ihrem Orono-Personalkonto angemeldet ist. Folgen Sie bis dahin den Bildern unten.",
+    "oldExtension": "Ihre SpartBoard-Erweiterung braucht ein Update für diese Tour. Folgen Sie bis dahin den Bildern unten.",
+    "openSite": "{{site}} öffnen",
+    "currentStep": "Aktueller Schritt",
+    "stepDone": "Erledigt",
+    "pictureAlt": "Bild von Schritt {{number}}",
+    "unavailableTitle": "Diese Tour ist nicht verfügbar",
+    "unavailableBody": "Der Link ist vielleicht falsch oder die Tour wurde entfernt. Bitten Sie die Person, die ihn geteilt hat, um einen neuen Link."
   }
 }

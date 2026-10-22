@@ -38,6 +38,7 @@ import {
   type TourHealthState,
 } from '@/components/tours/tourHealth';
 import { UnmappedAnchorsSection } from './UnmappedAnchorsSection';
+import { WebTourHealthSection } from './WebTourHealthSection';
 import { requestEditTour } from '@/components/tours/editor/tourEditStore';
 import {
   isLiveTourSet,
@@ -375,6 +376,8 @@ const TourHealthPanel: React.FC = () => {
           </section>
         );
       })}
+
+      <WebTourHealthSection />
 
       {studio && (
         <Suspense fallback={null}>
