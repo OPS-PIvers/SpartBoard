@@ -83,6 +83,12 @@ const ssoResponse = (uid: string) => ({
   completedAttempts: 0,
 });
 
+// Video-activity joins write no status (its create rule allowlists join fields).
+const joinFor = (collection: string, r: Record<string, unknown>) =>
+  collection === 'video_activity_sessions'
+    ? Object.fromEntries(Object.entries(r).filter(([k]) => k !== 'status'))
+    : r;
+
 // Stamp variants: false blocks PIN joins; true and absent (legacy) allow them.
 const STAMPS: { name: string; stamp: Record<string, boolean> }[] = [
   { name: 'closed', stamp: { allowAnonymousJoin: false } },
@@ -122,7 +128,7 @@ describe.each([
     await assertFails(
       setDoc(
         doc(asAnon(), `${collection}/closed/responses/${PIN_KEY}`),
-        pinResponse(ANON_UID)
+        joinFor(collection, pinResponse(ANON_UID))
       )
     );
   });
@@ -131,13 +137,13 @@ describe.each([
     await assertSucceeds(
       setDoc(
         doc(asAnon(), `${collection}/open/responses/${PIN_KEY}`),
-        pinResponse(ANON_UID)
+        joinFor(collection, pinResponse(ANON_UID))
       )
     );
     await assertSucceeds(
       setDoc(
         doc(asAnon(), `${collection}/legacy/responses/${PIN_KEY}`),
-        pinResponse(ANON_UID)
+        joinFor(collection, pinResponse(ANON_UID))
       )
     );
   });
@@ -146,7 +152,7 @@ describe.each([
     await assertSucceeds(
       setDoc(
         doc(asStudent(), `${collection}/closed-class/responses/${STUDENT_UID}`),
-        ssoResponse(STUDENT_UID)
+        joinFor(collection, ssoResponse(STUDENT_UID))
       )
     );
   });
