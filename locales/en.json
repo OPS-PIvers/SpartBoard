@@ -5100,7 +5100,10 @@
       "kind_guided-learning": "Guided learning",
       "kind_mini-app": "Mini app",
       "kind_activity-wall": "Activity wall"
-    }
+    },
+    "webFindIt": "Look for this on the page.",
+    "webOtherPage": "This step is on another page. Open it to continue.",
+    "webPictureAlt": "Picture of this step"
   },
   "glPlayer": {
     "modeChip": {

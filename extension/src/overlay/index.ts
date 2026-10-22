@@ -35,7 +35,7 @@ if (!scope[LOADED]) {
         chrome.runtime
           .sendMessage({ type: 'overlay/action', action })
           .catch(() => {
-            // No listener until playback lands (slice 6).
+            // The service worker is restarting; the learner can press again.
           });
       });
       overlay.render(parsed);

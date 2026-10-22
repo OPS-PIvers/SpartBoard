@@ -4050,7 +4050,10 @@
       "kind_guided-learning": "Geführtes Lernen",
       "kind_mini-app": "Mini-App",
       "kind_activity-wall": "Aktivitätswand"
-    }
+    },
+    "webFindIt": "Suchen Sie dies auf der Seite.",
+    "webOtherPage": "Dieser Schritt ist auf einer anderen Seite. Öffnen Sie sie, um fortzufahren.",
+    "webPictureAlt": "Bild dieses Schritts"
   },
   "glPlayer": {
     "modeChip": {
