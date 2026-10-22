@@ -47,6 +47,7 @@ import {
   Download,
   Upload,
   Circle,
+  Globe,
   Footprints,
   LifeBuoy,
   MousePointerClick,
@@ -61,6 +62,7 @@ import type {
   GuidedLearningSetMetadata,
 } from '@/types';
 import { thumbnailUrl } from '@/utils/guidedLearningMedia';
+import { logError } from '@/utils/logError';
 import { HELP_CENTER_SOURCE, isHelpCenterSet } from '../utils/helpCenterSets';
 import { LibraryShell } from '@/components/common/library/LibraryShell';
 import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
@@ -116,6 +118,11 @@ import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 const LazyWebToursSection = lazy(() =>
   import('@/components/tours/web/WebToursSection').then((m) => ({
     default: m.WebToursSection,
+  }))
+);
+const LazyWebTourEditor = lazy(() =>
+  import('@/components/tours/web/WebTourEditor').then((m) => ({
+    default: m.WebTourEditor,
   }))
 );
 const LazyGuidedLearningPlayer = lazy(() =>
@@ -540,6 +547,20 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const aiAuthoring =
     !!auth?.canAccessFeature('gemini-functions') &&
     !!auth?.canAccessFeature('guided-learning-ai');
+  const canCreateWebTour = isAdmin && !!auth?.canAccessFeature('web-tours');
+  const [openWebTour, setOpenWebTour] = useState<GuidedLearningSet | null>(
+    null
+  );
+  const createWebTour = async () => {
+    try {
+      const { createWebTourDraft } =
+        await import('@/components/tours/webTours');
+      setOpenWebTour(await createWebTourDraft());
+    } catch (err) {
+      logError('GuidedLearningManager.createWebTour', err);
+      onError?.('The web tour could not be created.');
+    }
+  };
   const [tab, setTab] = React.useState<LibraryTab>('library');
 
   // ─── Bulk selection (Step 8) ────────────────────────────────────────────
@@ -866,7 +887,30 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   const headerSecondary = [
     ...(isAdmin
-      ? [{ label: 'Record a tour', icon: Circle, onClick: requestRecordTour }]
+      ? [
+          {
+            label: 'Record a tour',
+            icon: Circle,
+            onClick: requestRecordTour,
+            // With web tours on, the button asks which kind of tour to record.
+            menuItems: canCreateWebTour
+              ? [
+                  {
+                    id: 'spartboard',
+                    label: 'SpartBoard tour',
+                    icon: Circle,
+                    onClick: requestRecordTour,
+                  },
+                  {
+                    id: 'web',
+                    label: 'Web tour',
+                    icon: Globe,
+                    onClick: () => void createWebTour(),
+                  },
+                ]
+              : undefined,
+          },
+        ]
       : []),
     ...(aiAuthoring
       ? [
@@ -1805,6 +1849,14 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       {tab === 'library' && renderLibraryTab()}
       {tab === 'active' && renderAssignmentTab('active')}
       {tab === 'archive' && renderAssignmentTab('archive')}
+      {openWebTour && (
+        <Suspense fallback={null}>
+          <LazyWebTourEditor
+            initial={openWebTour}
+            onClose={() => setOpenWebTour(null)}
+          />
+        </Suspense>
+      )}
     </LibraryShell>
   );
 

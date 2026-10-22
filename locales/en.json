@@ -5298,6 +5298,8 @@
     "loading": "Loading tours...",
     "intro": "Checks published tours against the anchor registry.",
     "recordTour": "Record a tour",
+    "recordWebTour": "Record a web tour",
+    "recordWebTourFailed": "The web tour couldn't be created.",
     "checkLive": "Check live",
     "empty": "No Guided Learning set has live-tour steps yet.",
     "untitledSet": "Untitled set",

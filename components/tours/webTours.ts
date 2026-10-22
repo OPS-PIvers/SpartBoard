@@ -16,6 +16,7 @@ import { normalizeGuidedLearningSet } from '@/components/widgets/GuidedLearning/
 import { assertGuidedLearningDocFits } from '@/utils/firestoreDocSize';
 import { logError } from '@/utils/logError';
 import { buildTourContent, GL_TOURS_COLLECTION } from './tourSnapshot';
+import { newWebTour } from './web/recordedSteps';
 
 // Web tour storage (docs/plans/CHROME_EXTENSION.md T6): admin-only drafts, staff-only snapshots and pictures.
 export const WEB_TOURS_COLLECTION = 'building_web_tours';
@@ -74,6 +75,13 @@ export async function saveWebTourDraft(set: GuidedLearningSet): Promise<void> {
   const data = { ...stored(set), surface: 'web' };
   assertGuidedLearningDocFits(`${WEB_TOURS_COLLECTION}/${set.id}`, data);
   await setDoc(draftRef(set.id), data);
+}
+
+/** Saves a blank web tour draft so the editor can open on it. */
+export async function createWebTourDraft(): Promise<GuidedLearningSet> {
+  const set = newWebTour();
+  await saveWebTourDraft(set);
+  return set;
 }
 
 /** The saved draft, or null when there is none. */

@@ -4248,6 +4248,8 @@
     "loading": "Cargando recorridos...",
     "intro": "Compara los recorridos publicados con el registro de anclajes.",
     "recordTour": "Grabar un recorrido",
+    "recordWebTour": "Grabar un recorrido web",
+    "recordWebTourFailed": "No se pudo crear el recorrido web.",
     "checkLive": "Comprobar en vivo",
     "empty": "Ningún conjunto de Guided Learning tiene pasos de recorrido en vivo todavía.",
     "untitledSet": "Conjunto sin título",
