@@ -31666,18 +31666,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ],
     "routes": [
       {
-        "surface": "admin.widgets.config.arts-letters-agenda",
-        "kind": "modal",
-        "path": [
-          "sidebar.admin-settings",
-          "admin.settings.tab:admin#widgets",
-          "admin.widgets.configure:admin#arts-letters-agenda"
-        ],
-        "needs": [
-          "admin"
-        ]
-      },
-      {
         "surface": "admin.widgets.config.checklist",
         "kind": "modal",
         "path": [
