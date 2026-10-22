@@ -65,6 +65,9 @@ function subscribe(onChange: () => void): () => void {
 
 const getSnapshot = (): StudentContextMenuBlockState => state;
 
+/** True once the root student guard has started the listener on this page. */
+export const isStudentContextMenuBlockWatched = (): boolean => started;
+
 /** Starts the listener; mounted once by the root student guard. */
 export function useStudentContextMenuBlock(): StudentContextMenuBlockState {
   return useSyncExternalStore(subscribe, getSnapshot, () => INITIAL);

@@ -7113,6 +7113,7 @@ export type VideoActivityQuestion = Omit<
   | 'maxWords'
   | 'minWords'
   | 'enforceWordLimit'
+  | 'noSpellCheck'
   | 'paperBoxSize'
 > & {
   type: VideoActivityQuestionType;

@@ -1106,6 +1106,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   // Reset written-specific fields when switching off written types
                   placeholder: isWritten ? q.placeholder : undefined,
                   maxWords: isWritten ? q.maxWords : undefined,
+                  noSpellCheck: isWritten ? q.noSpellCheck : undefined,
                   rubricId: isWritten ? q.rubricId : undefined,
                   rubricSnapshot: isWritten ? q.rubricSnapshot : undefined,
                   rubricVisibleToStudents: isWritten

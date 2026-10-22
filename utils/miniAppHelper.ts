@@ -155,7 +155,7 @@ export function injectMiniAppHelper(html: string): string {
 export const MSG_BLOCK_CONTEXT_MENU = 'SPART_MINIAPP_BLOCK_CONTEXT_MENU';
 
 const CONTEXT_MENU_GUARD_SOURCE = `(function () {
-  var blocked = true;
+  var blocked = false;
   window.addEventListener('message', function (e) {
     if (e.source !== window.parent || !e.data || e.data.type !== '${MSG_BLOCK_CONTEXT_MENU}') return;
     blocked = e.data.enabled === true;
@@ -165,7 +165,7 @@ const CONTEXT_MENU_GUARD_SOURCE = `(function () {
   }, true);
 })();`;
 
-/** Blocks the right-click menu inside the app; the parent page can switch it off and on again. */
+/** Adds the listener the parent page switches on to block the right-click menu inside the app. */
 export function injectContextMenuGuard(html: string): string {
   return injectIntoHead(
     html,

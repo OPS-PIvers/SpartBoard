@@ -81,7 +81,10 @@ import {
   injectMiniAppHelper,
   type MiniAppInitPayload,
 } from '@/utils/miniAppHelper';
-import { useObservedStudentContextMenuBlock } from '@/hooks/useStudentContextMenuBlock';
+import {
+  isStudentContextMenuBlockWatched,
+  useObservedStudentContextMenuBlock,
+} from '@/hooks/useStudentContextMenuBlock';
 import { submitErrorCode, submitMiniAppResult } from '@/utils/miniAppResults';
 import {
   initialMiniAppView,
@@ -445,8 +448,8 @@ const AppViewer: React.FC<{
   // Results v2 (MINI_APP_RESULTS.md): every write goes through submitMiniAppResultV1.
   const isV2 = session.resultsVersion === 2 && !isViewOnly;
   const { enabled: blockContextMenu } = useObservedStudentContextMenuBlock();
-  // Latched at mount so a later switch flip never reloads the app mid-work.
-  const [menuGuardInjected] = useState(() => blockContextMenu);
+  // Fixed at mount so the switch loading or flipping later never reloads the app mid-work.
+  const [menuGuardInjected] = useState(isStudentContextMenuBlockWatched);
   const attemptLimit =
     typeof session.attemptLimit === 'number' ? session.attemptLimit : null;
   const attemptsLeft =

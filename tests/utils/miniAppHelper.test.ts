@@ -255,12 +255,12 @@ describe('context menu guard', () => {
       })
     );
 
-  it('blocks the menu until the host switches it off', () => {
+  it('blocks the menu only while the host has it switched on', () => {
     runGuard();
-    expect(rightClick()).toBe(false);
-    fromParent(false);
     expect(rightClick()).toBe(true);
     fromParent(true);
     expect(rightClick()).toBe(false);
+    fromParent(false);
+    expect(rightClick()).toBe(true);
   });
 });
