@@ -1,7 +1,12 @@
+import { fileURLToPath } from 'node:url';
 import type { Config } from 'tailwindcss';
 import rootConfig from '../../tailwind.config.js';
 
-const root = new URL('../../', import.meta.url).pathname;
+// URL.pathname is /C:/... on Windows, which matches no files; globs also need forward slashes.
+const root = fileURLToPath(new URL('../../', import.meta.url)).replace(
+  /\\/g,
+  '/'
+);
 
 // The app's theme, scanned only over the overlay and the tour components it reuses.
 export default {
