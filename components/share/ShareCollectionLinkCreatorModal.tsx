@@ -7,6 +7,7 @@ import { type FC, useState, useId, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Folder, UserCheck } from 'lucide-react';
 import type { Collection, Dashboard } from '@/types';
+import type { CopyShareTree } from '@/hooks/useSharedCollection';
 import { useDashboard } from '@/context/useDashboard';
 import { logError } from '@/utils/logError';
 import { tourAttr } from '@/config/tourAnchors';
@@ -14,8 +15,10 @@ import { tourAttr } from '@/config/tourAnchors';
 interface ShareCollectionLinkCreatorModalProps {
   isOpen: boolean;
   collection: Collection | null;
-  /** Boards currently in the Collection. Frozen at modal open. */
+  /** Boards in the Collection and its sub-collections, in walk order. */
   boards: Dashboard[];
+  /** Where each board sits among the sub-collections. */
+  tree?: CopyShareTree;
   onClose: () => void;
   /** Opens ShareWithSubModal. */
   onShareWithSub?: () => void;
@@ -25,7 +28,7 @@ type CopyState = 'unknown' | 'copied' | 'failed';
 
 export const ShareCollectionLinkCreatorModal: FC<
   ShareCollectionLinkCreatorModalProps
-> = ({ isOpen, collection, boards, onClose, onShareWithSub }) => {
+> = ({ isOpen, collection, boards, tree, onClose, onShareWithSub }) => {
   const { t } = useTranslation();
   const { shareCollection, addToast } = useDashboard();
   const [shareUrl, setShareUrl] = useState<string | null>(null);
@@ -43,7 +46,7 @@ export const ShareCollectionLinkCreatorModal: FC<
     try {
       let shareId: string;
       try {
-        shareId = await shareCollection({ collection, boards });
+        shareId = await shareCollection({ collection, boards, tree });
       } catch (err) {
         logError('ShareCollectionLinkCreatorModal.create', err, {
           collectionId: collection.id,
@@ -73,7 +76,7 @@ export const ShareCollectionLinkCreatorModal: FC<
     } finally {
       setBusy(false);
     }
-  }, [collection, boards, shareCollection, addToast, t]);
+  }, [collection, boards, tree, shareCollection, addToast, t]);
 
   if (!isOpen || !collection) return null;
 

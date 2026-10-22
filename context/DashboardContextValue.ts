@@ -26,6 +26,7 @@ import type { UseCollectionsResult } from '@/hooks/useCollections';
 import type {
   LoadSharedCollectionResult,
   SubShareTree,
+  CopyShareTree,
 } from '@/hooks/useSharedCollection';
 import type { SubShareBundle } from '@/utils/bundleSubShareContent';
 
@@ -409,6 +410,8 @@ export interface DashboardContextValue {
   shareCollection: (input: {
     collection: Collection;
     boards: Dashboard[];
+    /** The sub-collection tree, so the copy rebuilds it (COLLECTION_SHARING D1). */
+    tree?: CopyShareTree;
   }) => Promise<string>;
   /**
    * Create a sub share of a Collection — or of a single Board, written as a

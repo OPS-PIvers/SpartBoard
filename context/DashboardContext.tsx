@@ -130,6 +130,7 @@ import {
 import { reconcileExpiredSubShares } from '@/hooks/useReconcileExpiredSubShares';
 import { logError } from '@/utils/logError';
 import { mergeSubsetOrder } from '@/utils/reorderIds';
+import { planCopyImportTree } from '@/utils/sharedCollectionTree';
 import { useRosters } from '@/hooks/useRosters';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDriveReconnected } from '@/hooks/useDriveReconnected';
@@ -137,6 +138,7 @@ import { useCollections } from '@/hooks/useCollections';
 import {
   useSharedCollection,
   type SubShareTree,
+  type CopyShareTree,
 } from '@/hooks/useSharedCollection';
 import type { SubShareBundle } from '@/utils/bundleSubShareContent';
 import { authError, setDriveAuthErrorHandler } from '@/utils/driveAuthErrors';
@@ -4500,6 +4502,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     async (input: {
       collection: Collection;
       boards: Dashboard[];
+      tree?: CopyShareTree;
     }): Promise<string> => {
       if (!user) throw new Error('Not authenticated');
       return sharedCollectionApi.shareCollection({
@@ -4815,6 +4818,42 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           null // root — recipient can move it later
         );
 
+        // Rebuild sub-collections, each under its parent (D1). One that fails
+        // leaves its boards in the root rather than losing them.
+        const tree = planCopyImportTree(meta);
+        const collectionFor = new Map<string, string>();
+        const childIdsByParent = new Map<string, string[]>();
+        for (const child of tree.children) {
+          const parent =
+            (child.parentId ? collectionFor.get(child.parentId) : undefined) ??
+            newCollectionId;
+          try {
+            const id = await collectionsApi.createCollection(
+              child.name,
+              parent,
+              child.color ? { color: child.color } : undefined
+            );
+            collectionFor.set(child.id, id);
+            childIdsByParent.set(parent, [
+              ...(childIdsByParent.get(parent) ?? []),
+              id,
+            ]);
+          } catch (err) {
+            logError('DashboardContext.importSharedCollection.child', err, {
+              shareId,
+            });
+          }
+        }
+        await Promise.all(
+          [...childIdsByParent].map(([parent, ids]) =>
+            collectionsApi.reorderSiblings(parent, ids).catch((err) =>
+              logError('DashboardContext.importSharedCollection.order', err, {
+                shareId,
+              })
+            )
+          )
+        );
+
         // Capture maxOrder ONCE before the parallel fan-out so each board
         // gets a deterministic, non-colliding order value.
         const baseOrder = dashboards.reduce(
@@ -4837,7 +4876,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 id: crypto.randomUUID(),
                 order: baseOrder + idx + 1,
               },
-              { collectionId: newCollectionId, silent: true }
+              {
+                collectionId:
+                  collectionFor.get(tree.sectionOf.get(b.id) ?? '') ??
+                  newCollectionId,
+                silent: true,
+              }
             )
           )
         );

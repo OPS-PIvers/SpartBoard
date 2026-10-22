@@ -11635,6 +11635,8 @@ export interface SharedCollectionSection {
   id: string;
   name: string;
   color?: string;
+  /** Parent section id; absent on the root and on shares written before D1. */
+  parentId?: string;
 }
 
 /** A shared Board's name, section and place in the walk order. */
