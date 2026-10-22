@@ -1598,6 +1598,7 @@
   "boardsModal": {
     "title": "Tableros y Colecciones",
     "close": "Cerrar",
+    "backToBoard": "Volver al tablero",
     "searchPlaceholder": "Buscar Tableros y Colecciones",
     "newBoard": "Nuevo Tablero",
     "newBoardPrompt": "Nombre del Tablero",

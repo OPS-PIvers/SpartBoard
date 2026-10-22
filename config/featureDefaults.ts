@@ -18,6 +18,7 @@ import {
   FileUp,
   Gauge,
   Globe,
+  ArrowLeft,
   GraduationCap,
   Flag,
   Footprints,
@@ -733,6 +734,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'integrations',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Top-left back arrow on Boards & Collections, Gradebook and Admin Settings.
+  'full-page-back-arrow': {
+    label: 'Back arrow on full pages',
+    icon: ArrowLeft,
+    description:
+      'Boards & Collections, Gradebook and Admin Settings close with a back arrow at the top left.',
+    stage: 'preview',
+    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

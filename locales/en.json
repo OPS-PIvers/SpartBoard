@@ -2717,6 +2717,7 @@
   "boardsModal": {
     "title": "Boards & Collections",
     "close": "Close",
+    "backToBoard": "Back to board",
     "searchPlaceholder": "Search Boards & Collections",
     "newBoard": "New Board",
     "newBoardPrompt": "Board name",
