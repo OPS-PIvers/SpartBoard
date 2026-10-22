@@ -7,6 +7,7 @@ import type { ActivityWallLibraryEntry, WidgetData } from '@/types';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
 import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import { subShareContextValue } from '@/tests/helpers/subShareContext';
+import { BoardLinkedShareContext } from '@/context/boardLinkedShare';
 
 const {
   mockAddWidget,
@@ -812,6 +813,29 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
         }),
         { boardShareIds: { __arrayRemove: ['share-1'] } }
       )
+    );
+  });
+
+  it("uses its own board's share, not the active board's, when mounted hidden", async () => {
+    mockLibraryEntries.current = [makeEntry()];
+    sessionDocData = {
+      'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards': {
+        boardShareIds: [],
+      },
+    };
+    render(
+      <BoardLinkedShareContext value={null}>
+        <ActivityWallWidget widget={baseWidget} />
+      </BoardLinkedShareContext>
+    );
+    await screen.findByText('Warm Up');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(mockSetDoc).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        __path: 'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards',
+      }),
+      expect.anything(),
+      expect.anything()
     );
   });
 });

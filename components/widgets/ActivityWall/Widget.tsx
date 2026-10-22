@@ -29,8 +29,8 @@ import {
   updatePost,
   type PostDraft,
 } from '@/components/activityWall/submission/submitPost';
+import { useBoardLinkedShareId } from '@/context/boardLinkedShare';
 import {
-  useActiveBoardLinkedShareId,
   useDashboardActions,
   useGlobalStyle,
   useIsActiveBoardReadOnly,
@@ -139,7 +139,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   // On a Synced or View-Only board the wall may be in another member's library.
-  const boardShareId = useActiveBoardLinkedShareId();
+  const boardShareId = useBoardLinkedShareId();
   const stampedOwner = config.activeActivityOwnerUid ?? null;
   const needsShareHost =
     !inSubShare &&

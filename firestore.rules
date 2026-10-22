@@ -6043,17 +6043,6 @@ service cloud.firestore {
                (awStudentAudienceOk() &&
                 awParentSession().get('studentsCanSeePosts', true) != false);
       }
-      // Engagement (likes/comments) reads are an unfiltered collection listen
-      // (useWallEngagement.ts has no per-post `where`, by design), so the list-query rule
-      // can only depend on session-level state: a rule referencing resource.data here
-      // would make the ENTIRE listen unsafe and Firestore denies the whole query (rules
-      // aren't filters). So the moderation boundary holds at CREATE time instead: a
-      // like/comment may never attach to a submission still pending review, for ANY caller
-      // including the owner - otherwise that unreviewed post's content reaches the whole
-      // class through this same unfiltered listen the instant anyone engages with it.
-      // submissionId must also reference a real, approved post: every legitimate caller
-      // supplies the id of a post it is rendering, so this costs no real usage while
-      // closing a fabricated-id create.
       // Teacher on a Synced/View-Only board that shows this wall: the owner lists the board's
       // share in boardAccess/boards (max 3), and both the owner and the caller belong to that share.
       // The ids stay out of the session doc, which the wall's students and guests can read.
@@ -6075,6 +6064,17 @@ service cloud.firestore {
         allow get: if signedIn() && (awIsOwner() || (docId == 'boards' && awBoardMemberOk()));
         allow create, update, delete: if signedIn() && notAnon() && docId == 'boards' && awIsOwner();
       }
+      // Engagement (likes/comments) reads are an unfiltered collection listen
+      // (useWallEngagement.ts has no per-post `where`, by design), so the list-query rule
+      // can only depend on session-level state: a rule referencing resource.data here
+      // would make the ENTIRE listen unsafe and Firestore denies the whole query (rules
+      // aren't filters). So the moderation boundary holds at CREATE time instead: a
+      // like/comment may never attach to a submission still pending review, for ANY caller
+      // including the owner - otherwise that unreviewed post's content reaches the whole
+      // class through this same unfiltered listen the instant anyone engages with it.
+      // submissionId must also reference a real, approved post: every legitimate caller
+      // supplies the id of a post it is rendering, so this costs no real usage while
+      // closing a fabricated-id create.
       function awEngagementSubmissionOk(refSubmissionId) {
         let ref = /databases/$(database)/documents/activity_wall_sessions/$(sessionId)/submissions/$(refSubmissionId);
         return exists(ref) && get(ref).data.get('status', 'approved') == 'approved';
