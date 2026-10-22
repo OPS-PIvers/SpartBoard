@@ -36,6 +36,8 @@ export const placementSourceOf = (
   sourceKey: string
 ): PlacementSource | null => {
   const head = sourceKey.split(':', 1)[0];
+  // Web tours ("web:<setId>") are building-wide, so they file and unfile like building sets.
+  if (head === 'web') return 'building';
   return head === 'building' || head === 'global' || head === 'plcbank'
     ? head
     : null;

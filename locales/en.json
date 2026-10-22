@@ -4302,7 +4302,8 @@
         "other": "Other",
         "tours": "Live tours"
       },
-      "liveTourBadge": "Live tour"
+      "liveTourBadge": "Live tour",
+      "webTourBadge": "Web tour"
     },
     "shortcuts": {
       "open-help": "Open Help",
@@ -5496,7 +5497,8 @@
     "exited": "You left the tour.",
     "done": "You finished this tour.",
     "startFailed": "The tour couldn't start. Try again.",
-    "noExtension": "Ask your tech team to add the SpartBoard Chrome extension so this tour can point to each step on the site. For now, follow the pictures below.",
+    "noExtension": "Add the SpartBoard Chrome extension so this tour can point to each step on the site. For now, follow the pictures below.",
+    "getExtension": "Get the SpartBoard extension",
     "wrongProfile": "This tour plays only in a Chrome profile signed in with your Orono staff account. For now, follow the pictures below.",
     "oldExtension": "Your SpartBoard extension needs an update to play this tour. For now, follow the pictures below.",
     "openSite": "Open {{site}}",

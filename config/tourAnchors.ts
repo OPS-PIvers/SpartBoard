@@ -6831,6 +6831,9 @@ export const TOUR_ANCHORS = {
     label: 'Back button in the resource viewer',
     panel: true,
   },
+  'help-center.viewer.open-web-tour': {
+    label: 'Open in a new tab button for a web tour in a Help Center guide',
+  },
   'help-center.viewer.fullscreen': {
     label: 'Fullscreen toggle button in the resource viewer',
     panel: true,
@@ -10273,9 +10276,6 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'gl-manager.show-older': { label: 'Show older assignments button' },
-  'web-tours.new': {
-    label: 'New web tour button in the Guided Learning library (admins)',
-  },
   'web-tour-editor.title': { label: 'Title field in the web tour editor' },
   'web-tour-editor.record': {
     label: 'Record steps button in the web tour editor',

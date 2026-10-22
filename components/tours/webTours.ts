@@ -6,6 +6,7 @@ import {
   getDocs,
   onSnapshot,
   setDoc,
+  updateDoc,
   type DocumentData,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
@@ -72,7 +73,7 @@ export function webTourPicturePaths(
 
 /** Saves a web tour draft. Admins only (rules). */
 export async function saveWebTourDraft(set: GuidedLearningSet): Promise<void> {
-  const data = { ...stored(set), surface: 'web' };
+  const data = { ...stored(set), surface: 'web', updatedAt: Date.now() };
   assertGuidedLearningDocFits(`${WEB_TOURS_COLLECTION}/${set.id}`, data);
   await setDoc(draftRef(set.id), data);
 }
@@ -128,6 +129,48 @@ export function watchWebTourDrafts(
 /** Deletes the draft; the server then removes its snapshot and pictures. */
 export async function deleteWebTourDraft(setId: string): Promise<void> {
   await deleteDoc(draftRef(setId));
+}
+
+/** Files the tour under the Help Center or back in the library, without counting as an edit. */
+export async function setWebTourHelpCenter(
+  setId: string,
+  helpCenter: boolean
+): Promise<void> {
+  await updateDoc(draftRef(setId), { helpCenter });
+}
+
+/** Saves a copy of the draft under a new id, with its own copies of the pictures; never published. */
+export async function duplicateWebTourDraft(
+  set: GuidedLearningSet
+): Promise<GuidedLearningSet> {
+  const copy: GuidedLearningSet = {
+    ...newWebTour(),
+    title: `${set.title} (Copy)`,
+    helpCenter: set.helpCenter,
+  };
+  copy.steps = await Promise.all(
+    set.steps.map(async (step) => {
+      const picture = step.web?.picture;
+      if (!step.web || !picture) return step;
+      const ext = picture.path.slice(picture.path.lastIndexOf('.') + 1);
+      const type = (Object.keys(PICTURE_TYPES) as WebTourPictureType[]).find(
+        (k) => PICTURE_TYPES[k] === ext
+      );
+      // A picture outside the set's own folder can't be copied, so the copy goes without it.
+      if (!type || !isWebTourPicturePath(set.id, picture.path)) {
+        return { ...step, web: { ...step.web, picture: undefined } };
+      }
+      const bytes = await loadWebTourPicture(picture.path);
+      const path = await uploadWebTourPicture(
+        copy.id,
+        new Blob([bytes], { type }),
+        type
+      );
+      return { ...step, web: { ...step.web, picture: { ...picture, path } } };
+    })
+  );
+  await saveWebTourDraft(copy);
+  return copy;
 }
 
 /** Uploads one step picture under a new random name and returns its Storage path (never a download URL). */

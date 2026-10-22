@@ -3169,7 +3169,8 @@
         "other": "Sonstiges",
         "tours": "Live-Touren"
       },
-      "liveTourBadge": "Live-Tour"
+      "liveTourBadge": "Live-Tour",
+      "webTourBadge": "Web-Tour"
     },
     "shortcuts": {
       "open-help": "Hilfe öffnen",
@@ -4446,7 +4447,8 @@
     "exited": "Sie haben die Tour verlassen.",
     "done": "Sie haben diese Tour abgeschlossen.",
     "startFailed": "Die Tour konnte nicht starten. Versuchen Sie es erneut.",
-    "noExtension": "Bitten Sie Ihr Technikteam, die SpartBoard-Erweiterung für Chrome hinzuzufügen, damit diese Tour jeden Schritt auf der Website zeigt. Folgen Sie bis dahin den Bildern unten.",
+    "noExtension": "Fügen Sie die SpartBoard-Erweiterung für Chrome hinzu, damit diese Tour jeden Schritt auf der Website zeigt. Folgen Sie bis dahin den Bildern unten.",
+    "getExtension": "SpartBoard-Erweiterung holen",
     "wrongProfile": "Diese Tour läuft nur in einem Chrome-Profil, das mit Ihrem Orono-Personalkonto angemeldet ist. Folgen Sie bis dahin den Bildern unten.",
     "oldExtension": "Ihre SpartBoard-Erweiterung braucht ein Update für diese Tour. Folgen Sie bis dahin den Bildern unten.",
     "openSite": "{{site}} öffnen",
