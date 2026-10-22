@@ -26,6 +26,7 @@ import {
 import { logError } from '@/utils/logError';
 import {
   canPlayWebTours,
+  extensionId,
   pingExtension,
   startWebTour,
   watchWebTour,
@@ -228,6 +229,7 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
   }, [setId]);
 
   const playable = extension !== null && canPlayWebTours(extension);
+  const storeId = extensionId();
   const tour = load.kind === 'ready' ? load.tour : null;
 
   const onPortEvent = useEffectEvent((event: WebTourPortEvent) => {
@@ -388,15 +390,29 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
                     ? t('webTourHub.oldExtension')
                     : t('webTourHub.wrongProfile')}
               </p>
-              <a
-                href={tour.startUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-sm font-semibold text-brand-blue-primary hover:underline"
-              >
-                {t('webTourHub.openSite', { site })}
-                <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
-              </a>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                {extension.kind === 'none' && storeId && (
+                  // no-tour-anchor: the /tour page is outside the board, where live tours never run
+                  <a
+                    href={`https://chromewebstore.google.com/detail/${storeId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white hover:bg-brand-blue-dark"
+                  >
+                    {t('webTourHub.getExtension')}
+                    <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+                  </a>
+                )}
+                <a
+                  href={tour.startUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-brand-blue-primary hover:underline"
+                >
+                  {t('webTourHub.openSite', { site })}
+                  <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+                </a>
+              </div>
             </div>
           )}
         </div>

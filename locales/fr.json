@@ -3176,7 +3176,8 @@
         "other": "Autres",
         "tours": "Visites guidées"
       },
-      "liveTourBadge": "Visite guidée"
+      "liveTourBadge": "Visite guidée",
+      "webTourBadge": "Visite web"
     },
     "shortcuts": {
       "open-help": "Ouvrir l'aide",
@@ -4453,7 +4454,8 @@
     "exited": "Vous avez quitté la visite.",
     "done": "Vous avez terminé cette visite.",
     "startFailed": "La visite n'a pas pu démarrer. Réessayez.",
-    "noExtension": "Demandez à votre équipe informatique d'ajouter l'extension SpartBoard pour Chrome afin que cette visite indique chaque étape sur le site. En attendant, suivez les images ci-dessous.",
+    "noExtension": "Ajoutez l'extension SpartBoard pour Chrome afin que cette visite indique chaque étape sur le site. En attendant, suivez les images ci-dessous.",
+    "getExtension": "Obtenir l'extension SpartBoard",
     "wrongProfile": "Cette visite ne fonctionne que dans un profil Chrome connecté avec votre compte du personnel d'Orono. En attendant, suivez les images ci-dessous.",
     "oldExtension": "Votre extension SpartBoard doit être mise à jour pour cette visite. En attendant, suivez les images ci-dessous.",
     "openSite": "Ouvrir {{site}}",

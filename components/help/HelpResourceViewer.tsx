@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   ExternalLink,
   Footprints,
+  Globe,
   Loader2,
   Maximize2,
   Minimize2,
@@ -30,6 +31,8 @@ import { tourAttr } from '@/config/tourAnchors';
 import { tourStepsOf } from '@/components/tours/tourSession';
 import { TourStepList } from '@/components/tours/TourStepList';
 import { useCanRunLiveTour } from '@/components/tours/useCanRunLiveTour';
+import { useWebTourSites } from '@/components/tours/web/useWebTourSites';
+import { buildTourUrl } from '@/components/tours/web/tourLinks';
 
 // Lazy so the Help modal never pulls the Guided Learning player for teachers who only read embeds.
 const GuidedLearningPlayer = lazy(() =>
@@ -211,6 +214,11 @@ export const HelpResourceViewer: React.FC<HelpResourceViewerProps> = ({
   onBack,
 }) => {
   const { t } = useTranslation();
+  const webSetId =
+    item.kind === 'guided-learning' && item.setId ? item.setId : null;
+  const isWebTour = useWebTourSites(webSetId ? [webSetId] : []).has(
+    webSetId ?? ''
+  );
   const backRef = useRef<HTMLButtonElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -300,7 +308,18 @@ export const HelpResourceViewer: React.FC<HelpResourceViewerProps> = ({
           isFullscreen ? 'relative h-full w-full bg-slate-900' : 'min-w-0'
         }
       >
-        {item.kind === 'guided-learning' ? (
+        {isWebTour && webSetId ? (
+          <a
+            href={buildTourUrl(webSetId)}
+            target="_blank"
+            rel="noopener noreferrer"
+            {...tourAttr('help-center.viewer.open-web-tour')}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white hover:bg-brand-blue-dark"
+          >
+            <Globe className="w-4 h-4" aria-hidden="true" />
+            {t('helpCenter.guides.openExternal')}
+          </a>
+        ) : item.kind === 'guided-learning' ? (
           item.setId ? (
             <GuidedLearningViewer
               key={item.setId}

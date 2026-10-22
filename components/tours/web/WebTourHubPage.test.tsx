@@ -139,11 +139,12 @@ describe('WebTourHubPage', () => {
   });
 
   it('shows the steps and a site link without the extension', async () => {
+    vi.stubEnv('VITE_SPART_EXTENSION_ID', '');
     render(<WebTourHubPage />);
     expect(await screen.findByText('Post a Schoology update')).toBeTruthy();
     expect(
       await screen.findByText(
-        'Ask your tech team to add the SpartBoard Chrome extension so this tour can point to each step on the site. For now, follow the pictures below.'
+        'Add the SpartBoard Chrome extension so this tour can point to each step on the site. For now, follow the pictures below.'
       )
     ).toBeTruthy();
     expect(screen.getByText('Open the course')).toBeTruthy();
@@ -151,6 +152,18 @@ describe('WebTourHubPage', () => {
       'https://app.schoology.com/home'
     );
     expect(screen.queryByText('Start tour')).toBeNull();
+  });
+
+  it('offers the extension from its store listing when it is missing', async () => {
+    vi.stubEnv('VITE_SPART_EXTENSION_ID', 'abcdefghijklmnopabcdefghijklmnop');
+    render(<WebTourHubPage />);
+    const get = await screen.findByRole('link', {
+      name: 'Get the SpartBoard extension',
+    });
+    expect(get.getAttribute('href')).toBe(
+      'https://chromewebstore.google.com/detail/abcdefghijklmnopabcdefghijklmnop'
+    );
+    vi.unstubAllEnvs();
   });
 
   it('tells a non-staff Chrome profile why the tour will not play', async () => {

@@ -3176,7 +3176,8 @@
         "other": "Otros",
         "tours": "Recorridos en vivo"
       },
-      "liveTourBadge": "Recorrido en vivo"
+      "liveTourBadge": "Recorrido en vivo",
+      "webTourBadge": "Recorrido web"
     },
     "shortcuts": {
       "open-help": "Abrir la ayuda",
@@ -4453,7 +4454,8 @@
     "exited": "Saliste del recorrido.",
     "done": "Terminaste este recorrido.",
     "startFailed": "No se pudo iniciar el recorrido. Inténtalo de nuevo.",
-    "noExtension": "Pide a tu equipo de tecnología que agregue la extensión de SpartBoard para Chrome para que este recorrido señale cada paso en el sitio. Por ahora, sigue las imágenes de abajo.",
+    "noExtension": "Agrega la extensión de SpartBoard para Chrome para que este recorrido señale cada paso en el sitio. Por ahora, sigue las imágenes de abajo.",
+    "getExtension": "Obtener la extensión de SpartBoard",
     "wrongProfile": "Este recorrido solo funciona en un perfil de Chrome con tu cuenta de personal de Orono. Por ahora, sigue las imágenes de abajo.",
     "oldExtension": "Tu extensión de SpartBoard necesita una actualización para este recorrido. Por ahora, sigue las imágenes de abajo.",
     "openSite": "Abrir {{site}}",

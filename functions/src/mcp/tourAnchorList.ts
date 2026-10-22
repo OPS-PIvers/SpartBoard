@@ -29736,6 +29736,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "help-center.viewer.open-web-tour",
+    "label": "Open in a new tab button for a web tour in a Help Center guide",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.help-viewer",
+        "kind": "panel",
+        "path": [
+          "board-actions.help",
+          "help-center.tab:help#guides",
+          "help-center.guides.item:help"
+        ]
+      }
+    ]
+  },
+  {
     "id": "help-center.viewer.fullscreen",
     "label": "Fullscreen toggle button in the resource viewer",
     "scope": "board",
@@ -46327,25 +46343,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "web-tours.new",
-    "label": "New web tour button in the Guided Learning library (admins)",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "board.web-tours",
-        "kind": "panel",
-        "widget_type": "guided-learning",
-        "path": [
-          "library-shell.filter:guided-learning#row-1"
-        ],
-        "needs": [
-          "widget-on-stage",
-          "admin"
-        ]
-      }
-    ]
-  },
-  {
     "id": "web-tour-editor.title",
     "label": "Title field in the web tour editor",
     "scope": "board",
@@ -46355,8 +46352,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.filter:guided-learning#row-1",
-          "web-tours.new"
+          "library-shell.secondary-menu-item"
         ],
         "needs": [
           "widget-on-stage",
@@ -46375,8 +46371,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.filter:guided-learning#row-1",
-          "web-tours.new"
+          "library-shell.secondary-menu-item"
         ],
         "needs": [
           "widget-on-stage",
@@ -46396,8 +46391,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.filter:guided-learning#row-1",
-          "web-tours.new"
+          "library-shell.secondary-menu-item"
         ],
         "needs": [
           "widget-on-stage",
@@ -46418,8 +46412,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.filter:guided-learning#row-1",
-          "web-tours.new"
+          "library-shell.secondary-menu-item"
         ],
         "needs": [
           "widget-on-stage",
