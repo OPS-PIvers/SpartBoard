@@ -55,6 +55,12 @@ import {
 } from './glTools';
 import { registerCreateGuidedLearning } from './glCreate';
 import { ADMIN_ONLY_TOOLS, registerLiveTourTools } from './glLiveTour';
+import {
+  WEB_TOUR_TOOLS,
+  isWebTourRevision,
+  registerWebTourTools,
+  restoreWebTourRevision,
+} from './webTourTools';
 import { isAdmin } from './glTools';
 import { registerMeetingTools } from './meetingTools';
 import { registerStandardsTools } from './standardsTools';
@@ -655,6 +661,8 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         if (itemType === 'rubric') return restoreRubricRevision(ctx, rev);
         if (itemType === 'activity_wall') return restoreWallRevision(ctx, rev);
         if (itemType === 'mini_app') return restoreMiniAppRevision(ctx, rev);
+        if (itemType === 'guided_learning' && isWebTourRevision(rev))
+          return restoreWebTourRevision(ctx, rev);
         if (itemType === 'guided_learning')
           return restoreGuidedLearningRevision(ctx, rev);
         if (itemType !== 'flashcard_set') {
@@ -688,6 +696,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   registerGuidedLearningTools(server, ctx);
   registerCreateGuidedLearning(server, ctx);
   registerLiveTourTools(server, ctx);
+  registerWebTourTools(server, ctx);
   registerMeetingTools(server, ctx);
   registerStandardsTools(server, ctx);
 }
@@ -707,7 +716,7 @@ export async function hiddenToolsFor(
     miniAppResultsOn(ctx).catch(() => false),
   ]);
   return new Set([
-    ...(admin ? [] : ADMIN_ONLY_TOOLS),
+    ...(admin ? [] : [...ADMIN_ONLY_TOOLS, ...WEB_TOUR_TOOLS]),
     ...(resultsOn ? [] : RESULTS_ONLY_TOOLS),
   ]);
 }

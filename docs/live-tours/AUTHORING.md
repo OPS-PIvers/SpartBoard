@@ -170,6 +170,10 @@ When the admin has played the tour or left notes ("finish the tour", "I played i
 5. Dry-run, then save with `update_live_tour`, passing `resolved_notes` with each note you dealt with: the step id, or `"tour"` for the tour's own note.
 6. Hand back what changed in a few lines, and any note you left open with the reason. Open notes stay for the next pass.
 
+## Web tours
+
+A web tour plays on another website through the SpartBoard Chrome extension. An admin records it; Claude can only finish its words. Find it with `list_web_tours`, read it with `get_web_tour`, look at each step with `get_web_tour_step_picture`, then save new titles and tips with `update_web_tour_text`. Write each tip for what the picture shows, in the same voice as a live tour. Claude can't change where a step points, re-record, reorder or publish: hand those back to the admin, who publishes in SpartBoard.
+
 ## Examples
 
 Each example is the body of a `create_live_tour` call without its title. The test dry-runs them.
