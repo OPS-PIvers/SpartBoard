@@ -29739,6 +29739,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "help-center.viewer.open-web-tour",
     "label": "Open in a new tab button for a web tour in a Help Center guide",
     "scope": "board",
+    "panel": true,
     "routes": [
       {
         "surface": "board.help-viewer",

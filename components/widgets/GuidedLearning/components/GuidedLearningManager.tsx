@@ -108,6 +108,7 @@ import {
   requestStartTour,
 } from '@/components/tours/tourState';
 import { useCanRunLiveTour } from '@/components/tours/useCanRunLiveTour';
+import { tourPublishStatus } from '@/components/tours/tourSnapshot';
 import {
   getToursVersion,
   isTourRunnable,
@@ -1048,7 +1049,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       badges.push(
         !snapshot
           ? { label: 'Draft', tone: 'neutral' }
-          : (set.updatedAt ?? 0) > snapshot.publishedAt
+          : tourPublishStatus(set, snapshot) === 'changed'
             ? { label: 'Changed since publish', tone: 'warn' }
             : { label: 'Published', tone: 'success' }
       );

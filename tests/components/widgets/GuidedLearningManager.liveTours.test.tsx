@@ -49,7 +49,7 @@ vi.mock('@/hooks/useFolders', () => ({
 
 const runnable = vi.hoisted(() => new Map<string, boolean | undefined>());
 const snapshots = vi.hoisted(
-  () => new Map<string, { publishedAt: number; set: { surface: 'web' } }>()
+  () => new Map<string, { publishedAt: number; set: GuidedLearningSet }>()
 );
 vi.mock('@/components/tours/publishedTours', () => ({
   watchTours: () => () => undefined,
@@ -455,11 +455,18 @@ describe('GuidedLearningManager live tours', () => {
     it('lists web tours as cards with their site and publish state', async () => {
       webDrafts.list = [
         webTour('w-draft', 'Docs draft'),
-        webTour('w-live', 'Docs published'),
-        webTour('w-changed', 'Docs changed', { updatedAt: 50 }),
+        // A save after publishing that changed nothing still reads as published.
+        webTour('w-live', 'Docs published', { updatedAt: 50 }),
+        webTour('w-changed', 'Docs changed'),
       ];
-      snapshots.set('w-live', { publishedAt: 10, set: { surface: 'web' } });
-      snapshots.set('w-changed', { publishedAt: 10, set: { surface: 'web' } });
+      snapshots.set('w-live', {
+        publishedAt: 10,
+        set: webTour('w-live', 'Docs published'),
+      });
+      snapshots.set('w-changed', {
+        publishedAt: 10,
+        set: webTour('w-changed', 'Docs before the change'),
+      });
       renderManager(true, { features: ['web-tours'] });
       showTours();
       const card = async (title: string) => {

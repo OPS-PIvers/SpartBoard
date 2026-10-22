@@ -71,11 +71,21 @@ export function webTourPicturePaths(
   return out;
 }
 
-/** Saves a web tour draft. Admins only (rules). */
-export async function saveWebTourDraft(set: GuidedLearningSet): Promise<void> {
-  const data = { ...stored(set), surface: 'web', updatedAt: Date.now() };
+/** Saves a web tour draft, leaving its Help Center filing to setWebTourHelpCenter. Admins only (rules). */
+export async function saveWebTourDraft(
+  set: GuidedLearningSet,
+  { withHelpCenter = false }: { withHelpCenter?: boolean } = {}
+): Promise<void> {
+  const { helpCenter, ...rest } = stored(set);
+  const data = {
+    ...rest,
+    ...(withHelpCenter && helpCenter !== undefined ? { helpCenter } : {}),
+    surface: 'web',
+    updatedAt: Date.now(),
+  };
   assertGuidedLearningDocFits(`${WEB_TOURS_COLLECTION}/${set.id}`, data);
-  await setDoc(draftRef(set.id), data);
+  // Merged, so an editor open elsewhere never undoes a move to or from the Help Center.
+  await setDoc(draftRef(set.id), data, { merge: true });
 }
 
 /** Saves a blank web tour draft so the editor can open on it. */
@@ -178,7 +188,7 @@ export async function duplicateWebTourDraft(
     copy.steps = steps.map(
       (r) => (r as PromiseFulfilledResult<GuidedLearningStep>).value
     );
-    await saveWebTourDraft(copy);
+    await saveWebTourDraft(copy, { withHelpCenter: true });
   } catch (err) {
     // No draft means no delete trigger, so remove the pictures already copied.
     await Promise.allSettled(

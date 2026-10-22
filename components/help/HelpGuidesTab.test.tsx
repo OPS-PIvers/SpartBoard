@@ -25,6 +25,7 @@ const glMocks = vi.hoisted(() => ({
   published: new Set<string>(),
   canRunLive: true,
   webTours: new Map<string, string>(),
+  loading: new Set<string>(),
   features: new Set<string>(),
   loadBuildingSet: vi.fn(),
   playerProps: [] as { teacherMode?: boolean; setTitle: string }[],
@@ -52,7 +53,7 @@ vi.mock('@/components/tours/publishedTours', () => ({
   readPublishedTour: (id: string) => {
     const site = glMocks.webTours.get(id);
     return {
-      loaded: true,
+      loaded: !glMocks.loading.has(id),
       tour:
         site === undefined
           ? null
@@ -159,6 +160,7 @@ describe('HelpGuidesTab', () => {
     glMocks.published = new Set();
     glMocks.canRunLive = true;
     glMocks.webTours = new Map();
+    glMocks.loading = new Set();
     glMocks.features = new Set();
     helpState.items = [
       makeItem({ id: 'v1', title: 'Welcome video' }),
@@ -272,6 +274,23 @@ describe('HelpGuidesTab', () => {
     );
     render(<HelpGuidesTab query="" />);
     expect(screen.queryByText('Apps Script in Docs')).toBeNull();
+  });
+
+  it('holds back a guide from staff without web tours until its tour has loaded', () => {
+    glMocks.loading = new Set(['maybe-web']);
+    helpState.items.push(
+      makeItem({
+        id: 'w2',
+        kind: 'guided-learning',
+        title: 'Still loading',
+        url: null,
+        embedType: null,
+        setId: 'maybe-web',
+      })
+    );
+    render(<HelpGuidesTab query="" />);
+    expect(screen.queryByText('Still loading')).toBeNull();
+    expect(screen.getByText('Welcome video')).toBeTruthy();
   });
 
   const tourItem = () =>

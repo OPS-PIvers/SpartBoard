@@ -216,7 +216,7 @@ export const HelpResourceViewer: React.FC<HelpResourceViewerProps> = ({
   const { t } = useTranslation();
   const webSetId =
     item.kind === 'guided-learning' && item.setId ? item.setId : null;
-  const isWebTour = useWebTourSites(webSetId ? [webSetId] : []).has(
+  const isWebTour = useWebTourSites(webSetId ? [webSetId] : []).sites.has(
     webSetId ?? ''
   );
   const backRef = useRef<HTMLButtonElement>(null);

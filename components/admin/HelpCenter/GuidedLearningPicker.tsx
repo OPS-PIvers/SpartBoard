@@ -20,6 +20,7 @@ import { isLiveTourSet } from '@/components/widgets/GuidedLearning/utils/liveTou
 import { requestEditTour } from '@/components/tours/editor/tourEditStore';
 import { openAssignmentIdsForSet } from '@/utils/guidedLearningFileRelease';
 import { watchWebTourDrafts } from '@/components/tours/webTours';
+import { useWebTourSites } from '@/components/tours/web/useWebTourSites';
 
 const GuidedLearningStudio = lazy(() =>
   import('@/components/widgets/GuidedLearning/components/studio/GuidedLearningStudio').then(
@@ -85,8 +86,14 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
   const helpCenter = visible.filter(isHelpCenterSet);
   const building = visible.filter((set) => !isHelpCenterSet(set));
   const personal = sets.filter((set) => matches(set.title, search));
+  // Only published web tours can be linked; staff can't open a draft.
+  const { sites: publishedWeb } = useWebTourSites(
+    (webTours ?? []).map((set) => set.id)
+  );
   const web = webToursOn
-    ? (webTours ?? []).filter((set) => matches(set.title, search))
+    ? (webTours ?? []).filter(
+        (set) => publishedWeb.has(set.id) && matches(set.title, search)
+      )
     : [];
 
   const openEditor = (set: GuidedLearningSet) => {
@@ -214,7 +221,7 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
       ? [
           {
             heading: 'Web tours',
-            empty: 'No web tours.',
+            empty: 'No published web tours.',
             rows: web.map((set) => ({
               id: set.id,
               title: set.title || 'Untitled web tour',

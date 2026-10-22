@@ -98,7 +98,7 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
     includeHidden: false,
   });
   // A guide can link a web tour; it opens on its own page, and only for staff with web tours on.
-  const webSites = useWebTourSites(
+  const { sites: webSites, loading: webLoading } = useWebTourSites(
     allItems.flatMap((item) =>
       item.kind === 'guided-learning' &&
       item.setId &&
@@ -112,9 +112,14 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
       ? webSites.get(item.setId)
       : undefined;
   const webToursOn = canAccessFeature('web-tours');
+  // Held back while loading, so a web tour guide never shows as a plain activity first.
   const items = webToursOn
     ? allItems
-    : allItems.filter((item) => webSiteOf(item) === undefined);
+    : allItems.filter(
+        (item) =>
+          webSiteOf(item) === undefined &&
+          !(item.kind === 'guided-learning' && webLoading.has(item.setId ?? ''))
+      );
   // A shared link names one resource; open it once the list has loaded.
   const [pendingItemId, setPendingItemId] = useState(itemId);
   const [trackedItemId, setTrackedItemId] = useState(itemId);

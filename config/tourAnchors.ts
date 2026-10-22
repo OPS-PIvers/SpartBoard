@@ -6833,6 +6833,7 @@ export const TOUR_ANCHORS = {
   },
   'help-center.viewer.open-web-tour': {
     label: 'Open in a new tab button for a web tour in a Help Center guide',
+    panel: true,
   },
   'help-center.viewer.fullscreen': {
     label: 'Fullscreen toggle button in the resource viewer',
