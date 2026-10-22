@@ -38,6 +38,7 @@ import { useFolderPanelMode } from './LibraryFolderPanelContext';
 import { folderColorSwatch } from './folderColors';
 import { FolderColorPicker } from './FolderColorPicker';
 import { isSourceFolderId } from './sourceFolders';
+import { folderDropIndex, type FolderDropHint } from './folderView';
 
 export interface FolderTreeProps {
   /** Flat folder list — the tree shape is derived from `parentId`. */
@@ -89,34 +90,15 @@ export interface FolderTreeProps {
 
 const INDENT_PX = 14;
 
-interface FolderDragHint {
-  folderId: string;
-  place: 'before' | 'after';
-}
-
 interface FolderDragState {
   draggingId: string | null;
   setDraggingId: (id: string | null) => void;
-  hint: FolderDragHint | null;
-  setHint: (hint: FolderDragHint | null) => void;
+  hint: FolderDropHint | null;
+  setHint: (hint: FolderDropHint | null) => void;
 }
 
 // Owned by the top-level tree so nested subtrees share one drag.
 const FolderDragContext = createContext<FolderDragState | null>(null);
-
-/** Target slot among siblings after dropping `fromId` before or after `overId`. */
-function folderDropIndex(
-  siblingIds: readonly string[],
-  fromId: string,
-  hint: FolderDragHint
-): number | null {
-  const from = siblingIds.indexOf(fromId);
-  const over = siblingIds.indexOf(hint.folderId);
-  if (from < 0 || over < 0) return null;
-  let to = hint.place === 'after' ? over + 1 : over;
-  if (from < to) to -= 1;
-  return to === from ? null : to;
-}
 
 /**
  * Inline rename input — one ref per render, auto-focused + selected on mount.
@@ -667,7 +649,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
 }) => {
   const parentDrag = useContext(FolderDragContext);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [hint, setHint] = useState<FolderDragHint | null>(null);
+  const [hint, setHint] = useState<FolderDropHint | null>(null);
   const ownDrag = useMemo<FolderDragState>(
     () => ({ draggingId, setDraggingId, hint, setHint }),
     [draggingId, hint]

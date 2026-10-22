@@ -1,11 +1,23 @@
 import { createContext, useContext } from 'react';
 import type { LibraryFolder } from '@/types';
 import type {
+  FolderDropHint,
   FolderIndex,
   FolderTotals,
   ItemNoun,
   LibraryLocation,
 } from './folderView';
+
+/** Dragging folder rows to reorder them among the open folder's subfolders. */
+export interface FolderRowReorder {
+  draggingId: string | null;
+  hint: FolderDropHint | null;
+  start: (folderId: string) => void;
+  over: (hint: FolderDropHint) => void;
+  leave: (folderId: string) => void;
+  drop: () => void;
+  end: () => void;
+}
 
 export interface LibraryFolderRow {
   folder: LibraryFolder;
@@ -29,6 +41,8 @@ export interface LibraryFolderViewModel {
   folderIdOf: (itemId: string) => string | null;
   /** True when an open folder has no subfolders and no items. */
   emptyFolder: boolean;
+  /** Null when folder rows can't be dragged to reorder. */
+  folderReorder: FolderRowReorder | null;
 }
 
 export const LibraryFolderViewContext =

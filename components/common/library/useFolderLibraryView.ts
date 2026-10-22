@@ -5,6 +5,7 @@ import type { HasFolderId } from './folderFilters';
 import {
   ROOT_LOCATION,
   buildFolderIndex,
+  folderDropIndex,
   effectiveFolderId,
   folderPath,
   folderPathLabel,
@@ -15,9 +16,12 @@ import {
   pickRecent,
   sortFolders,
   subtreeFolderIds,
+  type FolderDropHint,
   type ItemNoun,
   type LibraryLocation,
 } from './folderView';
+import { isSourceFolderId } from './sourceFolders';
+import { logError } from '@/utils/logError';
 import type { LibraryFolderViewModel } from './LibraryFolderViewContext';
 import {
   readLastLibraryLocation,
@@ -47,6 +51,11 @@ export interface FolderViewOptions<TItem> {
   extraFolderIdOf?: (itemId: string) => string | null;
   /** False when a host library owns folder navigation (defaults to true). */
   enabled?: boolean;
+  /** Writes a new sibling order; with the reorder flag on, folder rows become draggable. */
+  reorderSiblings?: (
+    parentId: string | null,
+    orderedIds: string[]
+  ) => Promise<void>;
 }
 
 export interface UseFolderLibraryViewResult<
@@ -89,6 +98,7 @@ export function useFolderLibraryView<TItem>(
     getRecentAt = defaultRecentAt,
     extraItemFolderIds,
     extraFolderIdOf,
+    reorderSiblings,
   } = fv;
   const enabled = fv.enabled ?? true;
 
@@ -235,6 +245,9 @@ export function useFolderLibraryView<TItem>(
     useContext(AuthContext)?.canAccessFeature('library-folder-reorder') ===
     true;
   const sort = manualFolderOrder ? MANUAL_FOLDER_SORT : view.state.sort;
+  const [draggingFolderId, setDraggingFolderId] = useState<string | null>(null);
+  const [dropHint, setDropHint] = useState<FolderDropHint | null>(null);
+  const canReorderRows = manualFolderOrder && reorderSiblings != null;
   const folderView = useMemo<LibraryFolderViewModel | null>(() => {
     if (!enabled) return null;
     const showRows = location.kind === 'folder' && !searchActive;
@@ -260,6 +273,52 @@ export function useFolderLibraryView<TItem>(
         );
       }
     }
+    const reorderIds = folderRows
+      .map((r) => r.folder.id)
+      .filter((id) => !isSourceFolderId(id));
+    const folderReorder =
+      canReorderRows && reorderIds.length > 1
+        ? {
+            draggingId: draggingFolderId,
+            hint: dropHint,
+            start: (folderId: string) => {
+              if (reorderIds.includes(folderId)) setDraggingFolderId(folderId);
+            },
+            over: (hint: FolderDropHint) => {
+              if (
+                draggingFolderId == null ||
+                hint.folderId === draggingFolderId ||
+                !reorderIds.includes(hint.folderId)
+              )
+                return;
+              if (
+                dropHint?.folderId !== hint.folderId ||
+                dropHint.place !== hint.place
+              )
+                setDropHint(hint);
+            },
+            leave: (folderId: string) => {
+              if (dropHint?.folderId === folderId) setDropHint(null);
+            },
+            drop: () => {
+              const fromId = draggingFolderId;
+              setDraggingFolderId(null);
+              setDropHint(null);
+              if (!fromId || !dropHint || !reorderSiblings) return;
+              const to = folderDropIndex(reorderIds, fromId, dropHint);
+              if (to == null) return;
+              const next = reorderIds.filter((id) => id !== fromId);
+              next.splice(to, 0, fromId);
+              reorderSiblings(openFolderId, next).catch((err: unknown) =>
+                logError('useFolderLibraryView.reorderFolders', err)
+              );
+            },
+            end: () => {
+              setDraggingFolderId(null);
+              setDropHint(null);
+            },
+          }
+        : null;
     return {
       location,
       navigate,
@@ -279,8 +338,13 @@ export function useFolderLibraryView<TItem>(
         folderRows.length === 0 &&
         visibleItems.length === 0 &&
         (totals.get(openFolderId)?.items ?? 0) === 0,
+      folderReorder,
     };
   }, [
+    canReorderRows,
+    draggingFolderId,
+    dropHint,
+    reorderSiblings,
     enabled,
     location,
     searchActive,

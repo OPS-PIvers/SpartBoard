@@ -183,6 +183,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
       userId,
       folders: folders.folders,
       foldersLoading: folders.loading,
+      reorderSiblings: folders.reorderSiblings,
       getId: getSetId,
       getRecentAt: recentAt,
       itemNoun: SET_NOUN,

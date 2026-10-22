@@ -727,6 +727,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       userId,
       folders: sourceFolders.folders,
       foldersLoading: folderState.loading,
+      reorderSiblings: folderState.reorderSiblings,
       getId: LIBRARY_GET_ID,
       getFolderId: entryFolderId,
       getRecentAt: entryRecentAt,

@@ -492,6 +492,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       userId,
       folders: sourceFolders.folders,
       foldersLoading: folderState.loading,
+      reorderSiblings: folderState.reorderSiblings,
       getId: getRowId,
       getFolderId: getFolderIdOfRow,
       getRecentAt: rowRecentAt,

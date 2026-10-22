@@ -17,9 +17,11 @@ import {
   type LibraryLocation,
 } from './folderView';
 import type {
+  FolderRowReorder,
   LibraryFolderRow,
   LibraryFolderViewModel,
 } from './LibraryFolderViewContext';
+import { isSourceFolderId } from './sourceFolders';
 
 export const LIBRARY_ROOT_LABEL = 'Library';
 
@@ -169,7 +171,9 @@ export const FolderRowButton: React.FC<{
   row: LibraryFolderRow;
   viewMode: LibraryViewMode;
   onOpen: () => void;
-}> = ({ row, viewMode, onOpen }) => {
+  /** Drag this row among its sibling folder rows to reorder them. */
+  reorder?: FolderRowReorder | null;
+}> = ({ row, viewMode, onOpen, reorder }) => {
   const isList = viewMode === 'list';
   const swatch = folderColorSwatch(row.folder.color);
   const drag = useLibraryDrag();
@@ -181,8 +185,61 @@ export const FolderRowButton: React.FC<{
     disabled: !drag.enabled,
   });
   const renaming = drag.renamingFolderId === row.folder.id;
+  const folderId = row.folder.id;
+  const canDrag = reorder != null && !renaming && !isSourceFolderId(folderId);
+  const hintPlace =
+    reorder?.draggingId != null &&
+    reorder.draggingId !== folderId &&
+    reorder.hint?.folderId === folderId
+      ? reorder.hint.place
+      : null;
+  const reorderProps: React.HTMLAttributes<HTMLElement> & {
+    draggable?: boolean;
+  } = canDrag
+    ? {
+        draggable: true,
+        onDragStart: (e) => {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', row.folder.name);
+          reorder.start(folderId);
+        },
+        onDragEnd: () => reorder.end(),
+        onDragOver: (e) => {
+          if (reorder.draggingId == null || reorder.draggingId === folderId)
+            return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          const rect = e.currentTarget.getBoundingClientRect();
+          const before = isList
+            ? e.clientY < rect.top + rect.height / 2
+            : e.clientX < rect.left + rect.width / 2;
+          reorder.over({ folderId, place: before ? 'before' : 'after' });
+        },
+        onDragLeave: (e) => {
+          if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+          reorder.leave(folderId);
+        },
+        onDrop: (e) => {
+          if (reorder.draggingId == null) return;
+          e.preventDefault();
+          reorder.drop();
+        },
+      }
+    : {};
+  const hintLine = hintPlace ? (
+    <span
+      aria-hidden
+      className={`pointer-events-none absolute rounded-full bg-brand-blue-primary ${
+        isList
+          ? `inset-x-0 h-0.5 ${hintPlace === 'before' ? 'top-0' : 'bottom-0'}`
+          : `inset-y-0 w-0.5 ${hintPlace === 'before' ? '-left-1.5' : '-right-1.5'}`
+      }`}
+    />
+  ) : null;
   const nameSize = isList ? 'min(14px, 4.5cqmin)' : 'min(15px, 4.8cqmin)';
-  const className = `flex w-full items-center text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary/40 ${
+  const className = `relative flex w-full items-center text-left transition-colors ${
+    reorder?.draggingId === row.folder.id ? 'opacity-50' : ''
+  } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary/40 ${
     isOver
       ? 'bg-brand-blue-lighter/40 ring-2 ring-inset ring-brand-blue-primary'
       : isList
@@ -191,6 +248,7 @@ export const FolderRowButton: React.FC<{
   }`;
   const content = (
     <>
+      {hintLine}
       {/* Lines the folder icon up with item rows, which keep room for a drag grip. */}
       {isList && !lock.dragDisabled && !compactRow && (
         <span aria-hidden className="h-8 w-6 shrink-0" />
@@ -270,6 +328,7 @@ export const FolderRowButton: React.FC<{
       ref={setNodeRef}
       type="button"
       onClick={onOpen}
+      {...reorderProps}
       {...tourAttr('library-shell.folder-row')}
       data-testid="library-folder-row"
       className={className}
@@ -357,6 +416,7 @@ export const FolderViewHeader: React.FC<{
               key={row.folder.id}
               row={row}
               viewMode={viewMode}
+              reorder={model.folderReorder}
               onOpen={() =>
                 model.navigate({ kind: 'folder', folderId: row.folder.id })
               }

@@ -835,6 +835,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
       userId: user?.uid,
       folders: folderState.folders,
       foldersLoading: folderState.loading,
+      reorderSiblings: folderState.reorderSiblings,
       getId: ROW_ID,
       itemNoun: ASSESSMENT_NOUN,
     },
