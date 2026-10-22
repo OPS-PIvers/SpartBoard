@@ -3,10 +3,9 @@ import type { GuidedLearningSet } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { tourAttr } from '@/config/tourAnchors';
 import {
-  saveWebTourDraft,
+  createWebTourDraft,
   watchWebTourDrafts,
 } from '@/components/tours/webTours';
-import { newWebTour } from './recordedSteps';
 import { publishBlockers } from './webStepReview';
 import { WebTourEditor } from './WebTourEditor';
 
@@ -32,10 +31,8 @@ export const WebToursSection: React.FC = () => {
   if (!enabled) return null;
 
   const create = async () => {
-    const set = newWebTour();
     try {
-      await saveWebTourDraft(set);
-      setOpen(set);
+      setOpen(await createWebTourDraft());
     } catch {
       setError(true);
     }

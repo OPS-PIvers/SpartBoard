@@ -340,21 +340,58 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
               className="flex items-center shrink-0"
               style={{ gap: 'min(8px, 2cqmin)' }}
             >
-              {secondaryActions?.map((action, i) =>
-                renderActionButton(
-                  action,
-                  'secondary',
-                  labelsHidden,
-                  `secondary-${i}`,
-                  '',
-                  false,
-                  tourFieldAttr(
-                    'library-shell.secondary-action',
-                    widgetType ?? 'library',
-                    `row-${i + 1}`
+              {secondaryActions?.map((action, i) => {
+                const anchor = tourFieldAttr(
+                  'library-shell.secondary-action',
+                  widgetType ?? 'library',
+                  `row-${i + 1}`
+                );
+                return action.menuItems?.length ? (
+                  <OverflowMenu
+                    key={`secondary-${i}`}
+                    items={action.menuItems}
+                    ariaLabel={action.label}
+                    triggerTitle={labelsHidden ? action.label : undefined}
+                    triggerProps={anchor}
+                    tourId="library-shell.secondary-menu-item"
+                    tourScope={widgetType ?? 'library'}
+                    triggerClassName="gap-1.5 rounded-xl font-bold shadow-sm active:scale-95 bg-white/15 hover:bg-white/25 text-white border border-white/30"
+                    triggerStyle={{
+                      paddingInline: labelsHidden ? '0' : 'min(14px, 3cqmin)',
+                      paddingBlock: 'min(8px, 1.8cqmin)',
+                      fontSize: 'min(14px, 4cqmin)',
+                      minWidth: labelsHidden ? 'min(36px, 10cqmin)' : undefined,
+                      height: labelsHidden ? 'min(36px, 10cqmin)' : undefined,
+                    }}
+                    triggerContent={
+                      <>
+                        {action.icon && (
+                          <action.icon
+                            style={{
+                              width: 'min(16px, 4.5cqmin)',
+                              height: 'min(16px, 4.5cqmin)',
+                            }}
+                            className="shrink-0"
+                          />
+                        )}
+                        {!labelsHidden && (
+                          <span className="truncate">{action.label}</span>
+                        )}
+                      </>
+                    }
+                  />
+                ) : (
+                  renderActionButton(
+                    action,
+                    'secondary',
+                    labelsHidden,
+                    `secondary-${i}`,
+                    '',
+                    false,
+                    anchor
                   )
-                )
-              )}
+                );
+              })}
               {primaryAction &&
                 (primaryAction.menuItems?.length ? (
                   <OverflowMenu

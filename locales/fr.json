@@ -4248,6 +4248,8 @@
     "loading": "Chargement des visites...",
     "intro": "Vérifie les visites publiées par rapport au registre des ancres.",
     "recordTour": "Enregistrer une visite",
+    "recordWebTour": "Enregistrer une visite web",
+    "recordWebTourFailed": "La visite web n'a pas pu être créée.",
     "checkLive": "Vérifier en direct",
     "empty": "Aucun ensemble Guided Learning n'a encore d'étapes de visite en direct.",
     "untitledSet": "Ensemble sans titre",

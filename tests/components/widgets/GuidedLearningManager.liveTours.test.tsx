@@ -59,6 +59,20 @@ vi.mock('@/components/tours/useCanRunLiveTour', () => ({
   useCanRunLiveTour: () => board.canRun,
 }));
 
+const createWebTourDraft = vi.fn(() =>
+  Promise.resolve({ id: 'web-1', title: 'Untitled web tour' })
+);
+vi.mock('@/components/tours/webTours', () => ({
+  createWebTourDraft: () => createWebTourDraft(),
+  watchWebTourDrafts: () => () => undefined,
+}));
+
+vi.mock('@/components/tours/web/WebTourEditor', () => ({
+  WebTourEditor: ({ initial }: { initial: { title: string } }) => (
+    <div>Editing {initial.title}</div>
+  ),
+}));
+
 vi.mock('@/hooks/useSessionViewCount', () => ({
   useSessionViewCount: () => ({ count: 0 }),
 }));
@@ -90,6 +104,7 @@ interface Extras {
   sets?: GuidedLearningSetMetadata[];
   extraBuilding?: GuidedLearningSet[];
   onCopyTourToBuilding?: (setId: string, driveFileId: string) => void;
+  features?: string[];
 }
 
 const personalTour: GuidedLearningSetMetadata = {
@@ -108,7 +123,8 @@ const renderLibrary = (isAdmin = true, extras: Extras = {}) =>
     <AuthContext.Provider
       value={
         {
-          canAccessFeature: () => false,
+          canAccessFeature: (id: string) =>
+            extras.features?.includes(id) ?? false,
           canSeeShareTracking: () => false,
         } as unknown as React.ContextType<typeof AuthContext>
       }
@@ -189,6 +205,23 @@ describe('GuidedLearningManager live tours', () => {
       await screen.findByRole('button', { name: 'Record a tour' })
     );
     expect(record).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks which kind of tour to record when web tours are on', async () => {
+    const record = listen(TOUR_RECORD_EVENT);
+    renderManager(true, { features: ['web-tours'] });
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Record a tour' })
+    );
+    fireEvent.click(screen.getByRole('menuitem', { name: 'SpartBoard tour' }));
+    expect(record).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Record a tour' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Web tour' }));
+    expect(
+      await screen.findByText('Editing Untitled web tour')
+    ).toBeInTheDocument();
+    expect(createWebTourDraft).toHaveBeenCalledTimes(1);
   });
 
   it('hides Record a tour from non-admins', async () => {

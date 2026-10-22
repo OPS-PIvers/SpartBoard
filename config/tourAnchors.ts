@@ -6762,6 +6762,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'library-shell.secondary-menu-item': {
+    label: 'Item in a library shell secondary button menu',
+    perField: true,
+    panel: true,
+  },
   'library-shell.new-menu-item': {
     label: 'Item in the library shell primary button menu',
     perField: true,
@@ -6895,6 +6900,10 @@ export const TOUR_ANCHORS = {
   },
   'admin.help-center.record-tour': {
     label: 'Record tour button in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.record-web-tour': {
+    label: 'Record web tour button in Help Center admin',
     panel: true,
   },
   'admin.help-center.check-live': {
