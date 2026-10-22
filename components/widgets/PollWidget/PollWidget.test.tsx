@@ -1235,6 +1235,7 @@ describe('PollSettings', () => {
   });
 
   it("leaves a colleague's live session for them to stop", () => {
+    vi.mocked(useActiveBoardLinkedShareId).mockReturnValue('share-1');
     const widget: WidgetData = {
       id: 'poll-1',
       type: 'poll',
@@ -1258,6 +1259,32 @@ describe('PollSettings', () => {
     expect(stop).toBeDisabled();
     fireEvent.click(stop);
     expect(mockSetDoc).not.toHaveBeenCalled();
+  });
+
+  it("keeps Stop on a copied board that still names a colleague's session", () => {
+    vi.mocked(useActiveBoardLinkedShareId).mockReturnValue(null);
+    render(
+      <PollSettings
+        widget={{
+          id: 'poll-1',
+          type: 'poll',
+          w: 2,
+          h: 2,
+          x: 0,
+          y: 0,
+          z: 1,
+          flipped: false,
+          config: {
+            question: 'Pick one',
+            options: [{ id: 'opt-1', label: 'A', votes: 0 }],
+            activePollSessionId: 'sess-9',
+            activePollSessionOwnerUid: 'host-1',
+          },
+        }}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /stop voting/i })).toBeEnabled();
   });
 
   it('locks option editing while a session is live', () => {

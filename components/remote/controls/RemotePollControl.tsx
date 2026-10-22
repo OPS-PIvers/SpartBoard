@@ -10,6 +10,7 @@ import {
   Square,
 } from 'lucide-react';
 import { WidgetData, PollConfig } from '@/types';
+import { useBoardLinkedShareId } from '@/context/boardLinkedShare';
 import { useAuth } from '@/context/useAuth';
 import { buildPollJoinUrl } from '@/utils/pollCode';
 import { withPollQuestions, withQuestionAt } from '@/utils/pollQuestions';
@@ -49,7 +50,9 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
   // A colleague's live session on a shared board: show its tallies, leave running it to them.
   const sessionOwnerUid = config.activePollSessionOwnerUid ?? null;
+  const boardShareId = useBoardLinkedShareId();
   const foreignSession =
+    !!boardShareId &&
     !!config.activePollSessionId &&
     !!sessionOwnerUid &&
     sessionOwnerUid !== user?.uid;

@@ -9,6 +9,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { RosterGroupSelect } from '@/components/common/RosterGroupSelect';
 import { rosterGroupMemberIds } from '@/utils/rosterGroups';
+import { useBoardLinkedShareId } from '@/context/boardLinkedShare';
 import { useAuth } from '@/context/useAuth';
 import { WidgetData, PollConfig, PollQuestion } from '@/types';
 import { useDialog } from '@/context/useDialog';
@@ -63,6 +64,7 @@ export const PollSettings: React.FC<{
   const { updateWidget, addToast, rosters, activeRosterId } = useDashboard();
   const { showConfirm } = useDialog();
   const { canAccessFeature, user } = useAuth();
+  const boardShareId = useBoardLinkedShareId();
   const config = useMemo(
     () => (widget.config || {}) as PollConfig,
     [widget.config]
@@ -764,6 +766,7 @@ export const PollSettings: React.FC<{
               onClick={() => void handleStopClick()}
               // A colleague's session on a shared board is theirs to stop.
               disabled={
+                !!boardShareId &&
                 !!config.activePollSessionOwnerUid &&
                 config.activePollSessionOwnerUid !== user?.uid
               }
