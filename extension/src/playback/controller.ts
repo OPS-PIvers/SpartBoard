@@ -68,6 +68,8 @@ export const FALLBACK_MS = 4000;
 const tabKey = (tabId: number) => `wt:tab:${tabId}`;
 const picKey = (tabId: number, stepId: string) => `wt:pic:${tabId}:${stepId}`;
 const TABS_KEY = 'wt:tabs';
+// Not a real tab id: the queue that keeps two starts from racing.
+const START_QUEUE = -1;
 /** The session store holds 10 MB; one tour's record and pictures stay under this. */
 export const SESSION_BUDGET = 9 * 1024 * 1024;
 const MAX_TITLE = 200;
@@ -99,13 +101,15 @@ export function framesForStep(
     );
   });
   if (hits.length <= 1) return hits.map((f) => f.frameId);
-  // Several sibling frames match: prefer the one at the recorded position among its matching siblings.
-  const last = path[path.length - 1].index;
-  const preferred = hits[Math.min(Math.max(last, 0), hits.length - 1)];
-  return [
-    preferred.frameId,
-    ...hits.filter((f) => f !== preferred).map((f) => f.frameId),
-  ];
+  // Several frames match: prefer chains whose frames sit at the recorded positions among their parents' frames.
+  const position = (f: HostFrame) =>
+    frames.filter((o) => o.parentFrameId === f.parentFrameId).indexOf(f);
+  const score = (f: HostFrame) =>
+    (chain(f) ?? []).filter((cf, i) => position(cf) === path[i].index).length;
+  return hits
+    .map((f) => ({ f, s: score(f) }))
+    .sort((a, b) => b.s - a.s)
+    .map(({ f }) => f.frameId);
 }
 
 export function createPlaybackController(host: PlaybackHost) {
@@ -327,73 +331,77 @@ export function createPlaybackController(host: PlaybackHost) {
     await trackTab(rec.tabId, false);
   }
 
+  async function startNow(parsed: ParsedStart): Promise<number> {
+    for (const other of (await host.load<number[]>(TABS_KEY)) ?? []) {
+      await serial(other, async () => {
+        const rec = await load(other);
+        if (!rec) return;
+        if (rec.state.status !== 'done') {
+          const setId = rec.state.tour.id;
+          host.post(setId, {
+            type: 'web-tour/exit',
+            setId,
+            stepIndex: rec.state.index,
+          });
+        }
+        await stopTab(rec);
+      });
+    }
+    // The record is saved before the page loads, so its first commit always finds it.
+    const tabId = await host.openTab('about:blank');
+    return serial(tabId, async () => {
+      const state = startPlayback(
+        parsed.tour,
+        parsed.tour.startUrl,
+        host.now()
+      );
+      const rec: TabRecord = {
+        tabId,
+        state: {
+          ...state,
+          index: parsed.stepIndex,
+          furthest: parsed.stepIndex,
+          status: 'seeking',
+        },
+        token: '',
+        seq: 0,
+        targetFrameId: null,
+        litFrameId: null,
+        url: 'about:blank',
+        seekAt: 0,
+        posted: {},
+      };
+      let room = SESSION_BUDGET - JSON.stringify(rec).length;
+      const pictures: Record<string, WebTourPictureBytes> = {};
+      for (const [id, pic] of Object.entries(parsed.pictures)) {
+        const size = pic.data.length + 200;
+        if (size > room) continue;
+        pictures[picKey(tabId, id)] = pic;
+        room -= size;
+      }
+      const kept = new Set(Object.keys(pictures));
+      rec.state.tour.steps = rec.state.tour.steps.map((s) => ({
+        ...s,
+        hasPicture: kept.has(picKey(tabId, s.id)),
+      }));
+      try {
+        await host.save(pictures);
+        await store(rec);
+        await trackTab(tabId, true);
+      } catch (err) {
+        await forget(rec).catch(() => undefined);
+        await host.closeTab(tabId).catch(() => undefined);
+        throw err;
+      }
+      await host.navigate(tabId, parsed.tour.startUrl);
+      return tabId;
+    });
+  }
+
   return {
     /** Opens the tour's first page in a new tab and starts playing there; one tour plays at a time. */
-    async start(parsed: ParsedStart): Promise<number> {
-      for (const other of (await host.load<number[]>(TABS_KEY)) ?? []) {
-        await serial(other, async () => {
-          const rec = await load(other);
-          if (!rec) return;
-          if (rec.state.status !== 'done') {
-            const setId = rec.state.tour.id;
-            host.post(setId, {
-              type: 'web-tour/exit',
-              setId,
-              stepIndex: rec.state.index,
-            });
-          }
-          await stopTab(rec);
-        });
-      }
-      // The record is saved before the page loads, so its first commit always finds it.
-      const tabId = await host.openTab('about:blank');
-      return serial(tabId, async () => {
-        const state = startPlayback(
-          parsed.tour,
-          parsed.tour.startUrl,
-          host.now()
-        );
-        const rec: TabRecord = {
-          tabId,
-          state: {
-            ...state,
-            index: parsed.stepIndex,
-            furthest: parsed.stepIndex,
-            status: 'seeking',
-          },
-          token: '',
-          seq: 0,
-          targetFrameId: null,
-          litFrameId: null,
-          url: 'about:blank',
-          seekAt: 0,
-          posted: {},
-        };
-        let room = SESSION_BUDGET - JSON.stringify(rec).length;
-        const pictures: Record<string, WebTourPictureBytes> = {};
-        for (const [id, pic] of Object.entries(parsed.pictures)) {
-          const size = pic.data.length + 200;
-          if (size > room) continue;
-          pictures[picKey(tabId, id)] = pic;
-          room -= size;
-        }
-        const kept = new Set(Object.keys(pictures));
-        rec.state.tour.steps = rec.state.tour.steps.map((s) => ({
-          ...s,
-          hasPicture: kept.has(picKey(tabId, s.id)),
-        }));
-        try {
-          await host.save(pictures);
-          await store(rec);
-          await trackTab(tabId, true);
-        } catch (err) {
-          await forget(rec).catch(() => undefined);
-          await host.closeTab(tabId).catch(() => undefined);
-          throw err;
-        }
-        await host.navigate(tabId, parsed.tour.startUrl);
-        return tabId;
-      });
+    start(parsed: ParsedStart): Promise<number> {
+      return serial(START_QUEUE, () => startNow(parsed));
     },
 
     /** A new document committed in a frame of the tab (navigation, reload or a new frame). */

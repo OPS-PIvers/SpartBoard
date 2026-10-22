@@ -125,6 +125,23 @@ describe('locate', () => {
     expect(locate(document, { text: 'Grades' })?.el.id).toBe('in');
   });
 
+  it('names shadow-root fields by labels in the same shadow root', () => {
+    html(`<div id="host"></div>`);
+    const root = document
+      .getElementById('host')!
+      .attachShadow({ mode: 'open' });
+    root.innerHTML = `<label for="c">Comment</label><input id="c">
+      <span id="n">Notes</span><textarea id="t" aria-labelledby="n"></textarea>`;
+    place(root.getElementById('c'), 5, 5);
+    place(root.getElementById('t'), 5, 40);
+    expect(locate(document, { role: 'textbox', name: 'Comment' })?.el.id).toBe(
+      'c'
+    );
+    expect(locate(document, { role: 'textbox', name: 'Notes' })?.el.id).toBe(
+      't'
+    );
+  });
+
   it('ignores an invalid CSS path', () => {
     html(`<button>x</button>`);
     expect(locate(document, { css: '##bad' })).toBeNull();

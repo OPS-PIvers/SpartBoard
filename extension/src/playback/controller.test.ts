@@ -327,6 +327,17 @@ describe('playback controller, review fixes', () => {
     });
   });
 
+  it('keeps one tour when two starts arrive together', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    const [first, second] = await Promise.all([
+      c.start(parsed()),
+      c.start(parsed()),
+    ]);
+    expect(await c.isPlaying(first)).toBe(false);
+    expect(await c.isPlaying(second)).toBe(true);
+  });
+
   it('drops pictures that would overflow the session store', async () => {
     const h = fakeHost();
     const c = createPlaybackController(h.host);
@@ -462,5 +473,16 @@ describe('framesForStep', () => {
     expect(
       framesForStep(frames, [{ urlPattern: 'https://z.example/', index: 0 }])
     ).toEqual([]);
+  });
+  it('reads the recorded index among the parent frame, not among the matches', () => {
+    const withAd: HostFrame[] = [
+      { frameId: 0, parentFrameId: -1, url: 'https://a.example/' },
+      { frameId: 4, parentFrameId: 0, url: 'https://ads.example/' },
+      { frameId: 5, parentFrameId: 0, url: 'https://b.example/x' },
+      { frameId: 6, parentFrameId: 0, url: 'https://b.example/x' },
+    ];
+    expect(
+      framesForStep(withAd, [{ urlPattern: 'https://b.example/x', index: 1 }])
+    ).toEqual([5, 6]);
   });
 });

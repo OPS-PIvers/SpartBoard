@@ -46,8 +46,6 @@ export type PlaybackEvent =
   | { type: 'back'; url?: string }
   | { type: 'exit' };
 
-const MAX_MATCHED = 50;
-
 export function startPlayback(
   tour: PlaybackTour,
   url: string,
@@ -95,12 +93,6 @@ function record(
   if (!id) return state.matched;
   // A clue found later beats an earlier picture-only miss for the same step.
   if (state.matched[id] && how === 'picture') return state.matched;
-  if (
-    !(id in state.matched) &&
-    Object.keys(state.matched).length >= MAX_MATCHED
-  ) {
-    return state.matched;
-  }
   return { ...state.matched, [id]: how };
 }
 

@@ -36,9 +36,12 @@ declare global {
 const ACT_EVENTS: Record<WebStepAction, string[]> = {
   observe: [],
   click: ['click'],
-  type: ['change'],
-  select: ['change'],
+  type: ['change', 'input'],
+  select: ['change', 'input'],
 };
+
+// Typing counts as done once the learner pauses, so one keystroke doesn't skip ahead.
+const INPUT_SETTLE_MS = 1200;
 
 const RESEEK_MS = 250;
 
@@ -74,13 +77,24 @@ export function installFrameSeeker(
   };
 
   const attach = (el: Element, token: string, action: WebStepAction) => {
+    let settle: ReturnType<typeof setTimeout> | null = null;
     const onAct = (e: Event) => {
       if (!e.isTrusted) return;
-      send({ type: 'wt:acted', token });
+      if (settle) clearTimeout(settle);
+      settle = null;
+      if (e.type !== 'input') {
+        send({ type: 'wt:acted', token });
+        return;
+      }
+      settle = setTimeout(() => {
+        settle = null;
+        send({ type: 'wt:acted', token });
+      }, INPUT_SETTLE_MS);
     };
     const events = ACT_EVENTS[action];
     for (const name of events) el.addEventListener(name, onAct, true);
     detach = () => {
+      if (settle) clearTimeout(settle);
       for (const name of events) el.removeEventListener(name, onAct, true);
     };
     shared.target = { token, el };

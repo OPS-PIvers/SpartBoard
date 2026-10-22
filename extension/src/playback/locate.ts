@@ -43,12 +43,21 @@ export function roleOf(el: Element): string | null {
 export const normalizeText = (s: string) =>
   s.replace(/\s+/g, ' ').trim().toLowerCase();
 
+/** Ids resolve in the element's own tree first, so labels inside a shadow root are found. */
+function byIdNear(el: Element, id: string): Element | null {
+  const root = el.getRootNode();
+  const near = root instanceof ShadowRoot ? root.getElementById(id) : null;
+  return near ?? el.ownerDocument.getElementById(id);
+}
+
 function labelFor(el: Element): string {
   const id = el.getAttribute('id');
   if (!id) return '';
-  const label = el.ownerDocument.querySelector(
-    `label[for="${CSS.escape(id)}"]`
-  );
+  const selector = `label[for="${CSS.escape(id)}"]`;
+  const root = el.getRootNode();
+  const label =
+    (root instanceof ShadowRoot ? root.querySelector(selector) : null) ??
+    el.ownerDocument.querySelector(selector);
   return label?.textContent ?? '';
 }
 
@@ -59,7 +68,7 @@ export function accessibleName(el: Element): string {
   if (labelledBy) {
     const text = labelledBy
       .split(/\s+/)
-      .map((id) => el.ownerDocument.getElementById(id)?.textContent ?? '')
+      .map((id) => byIdNear(el, id)?.textContent ?? '')
       .join(' ');
     if (text.trim()) return normalizeText(text);
   }

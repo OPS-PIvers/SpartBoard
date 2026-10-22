@@ -79,6 +79,21 @@ describe('playback progress', () => {
     expect(missedSteps(s)).toEqual([]);
   });
 
+  it('records how every step was found, however long the tour', () => {
+    const long: PlaybackTour = {
+      ...tour,
+      steps: Array.from({ length: 60 }, (_, i) =>
+        step(`s${i}`, 'https://a.example/home')
+      ),
+    };
+    let s = startPlayback(long, 'https://a.example/home', 0);
+    for (let i = 0; i < 60; i++) {
+      s = reducePlayback(s, { type: 'found', clue: 'text' });
+      s = reducePlayback(s, { type: 'acted' });
+    }
+    expect(s.matched.s59).toBe('text');
+  });
+
   it('goes back, and back from done reopens the last step', () => {
     let s = startPlayback(tour, 'https://a.example/home', 0);
     expect(reducePlayback(s, { type: 'back' }).index).toBe(0);
