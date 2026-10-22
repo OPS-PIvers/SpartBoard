@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import type { Collection } from '@/types';
 import {
   linkedCollectionLayout,
   planCopyImportTree,
+  touchesLiveCollectionShare,
 } from '@/utils/sharedCollectionTree';
 
 describe('planCopyImportTree', () => {
@@ -80,5 +82,41 @@ describe('linkedCollectionLayout', () => {
       { shareId: 's-intro', name: 'Intro', order: 0 },
       { shareId: 's-m1', name: 'M1', order: 1, sectionId: 'mon' },
     ]);
+  });
+});
+
+describe('touchesLiveCollectionShare', () => {
+  const coll = (
+    id: string,
+    parentCollectionId: string | null,
+    extra: Partial<Collection> = {}
+  ): Collection => ({
+    id,
+    name: id,
+    parentCollectionId,
+    order: 0,
+    createdAt: 0,
+    ...extra,
+  });
+  const live = {
+    linkedCollectionId: 'l',
+    linkedCollectionRole: 'owner' as const,
+  };
+
+  it('is false when nothing around it is shared live', () => {
+    const all = [coll('a', null), coll('b', 'a'), coll('c', 'b')];
+    expect(touchesLiveCollectionShare(all[1], all)).toBe(false);
+  });
+
+  it('sees a live parent and a live sub-collection', () => {
+    const parentLive = [coll('a', null, live), coll('b', 'a')];
+    expect(touchesLiveCollectionShare(parentLive[1], parentLive)).toBe(true);
+    const childLive = [coll('a', null), coll('b', 'a'), coll('c', 'b', live)];
+    expect(touchesLiveCollectionShare(childLive[0], childLive)).toBe(true);
+  });
+
+  it('ignores an ended share', () => {
+    const all = [coll('a', null, { ...live, linkedCollectionEnded: true })];
+    expect(touchesLiveCollectionShare(all[0], all)).toBe(false);
   });
 });

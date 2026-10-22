@@ -135,7 +135,11 @@ import {
   linkedCollectionLayout,
   planCopyImportTree,
 } from '@/utils/sharedCollectionTree';
-import { useLinkedCollection } from '@/hooks/useLinkedCollection';
+import {
+  LINKED_COLLECTION_MAX_BOARDS,
+  LINKED_COLLECTION_MAX_SECTIONS,
+  useLinkedCollection,
+} from '@/hooks/useLinkedCollection';
 import { useRosters } from '@/hooks/useRosters';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDriveReconnected } from '@/hooks/useDriveReconnected';
@@ -4531,8 +4535,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (input.boards.some((b) => b.linkedShareId && !b.linkedShareEnded)) {
         throw new Error('A board in this collection is already shared live');
       }
-      // Board shares are stamped with the link id before the link doc exists,
-      // so a recipient never sees a link whose boards are still being written.
+      if (
+        input.boards.length > LINKED_COLLECTION_MAX_BOARDS ||
+        input.tree.sections.length - 1 > LINKED_COLLECTION_MAX_SECTIONS
+      ) {
+        throw new Error('This collection is too big to share live');
+      }
+      // Stamped on each board share before the link doc exists, so no recipient sees a half-made link.
       const linkId = crypto.randomUUID();
       const hostName = user.displayName ?? user.email ?? undefined;
       const shareIdByBoard = new Map<string, string>();
@@ -4551,8 +4560,32 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const failed = results.find(
         (r): r is PromiseRejectedResult => r.status === 'rejected'
       );
+
+      const linkFields = (shareId: string) => ({
+        linkedShareId: shareId,
+        linkedShareRole: 'owner' as const,
+        linkedShareHostName: hostName,
+        linkedShareEnded: false,
+      });
+      const boardIds = new Set(input.boards.map((b) => b.id));
       try {
         if (failed) throw failed.reason;
+        setDashboards((prev) =>
+          prev.map((d) => {
+            const shareId = shareIdByBoard.get(d.id);
+            return shareId ? { ...d, ...linkFields(shareId) } : d;
+          })
+        );
+        // Linkage fields only, as in handleShareDashboard: most of these boards have no save baseline.
+        await Promise.all(
+          input.boards.map((board) => {
+            const shareId = shareIdByBoard.get(board.id) ?? '';
+            return updateDashboardFields(
+              { ...board, ...linkFields(shareId) },
+              linkFields(shareId)
+            );
+          })
+        );
         const layout = linkedCollectionLayout(input.tree, shareIdByBoard);
         await linkedCollectionApi.createLinkedCollection({
           linkId,
@@ -4565,43 +4598,34 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           ...layout,
         });
       } catch (err) {
-        await Promise.allSettled(
-          [...shareIdByBoard.values()].map((id) => stopSharingBoard(id))
+        setDashboards((prev) =>
+          prev.map((d) =>
+            boardIds.has(d.id)
+              ? {
+                  ...d,
+                  linkedShareId: undefined,
+                  linkedShareRole: undefined,
+                  linkedShareHostName: undefined,
+                  linkedShareEnded: undefined,
+                }
+              : d
+          )
         );
+        await Promise.allSettled([
+          ...input.boards.map((board) =>
+            updateDashboardFields(board, {
+              linkedShareId: deleteField(),
+              linkedShareRole: deleteField(),
+              linkedShareHostName: deleteField(),
+              linkedShareEnded: deleteField(),
+            })
+          ),
+          ...[...shareIdByBoard.values()].map((id) => stopSharingBoard(id)),
+        ]);
         throw err;
       }
 
-      const linkFields = (shareId: string) => ({
-        linkedShareId: shareId,
-        linkedShareRole: 'owner' as const,
-        linkedShareHostName: hostName,
-        linkedShareEnded: false,
-      });
-      setDashboards((prev) =>
-        prev.map((d) => {
-          const shareId = shareIdByBoard.get(d.id);
-          return shareId ? { ...d, ...linkFields(shareId) } : d;
-        })
-      );
-      // Only the linkage fields are written, as in handleShareDashboard: most of
-      // these boards aren't active and have no save baseline.
-      await Promise.all(
-        input.boards.map(async (board) => {
-          const shareId = shareIdByBoard.get(board.id);
-          if (!shareId) return;
-          try {
-            await updateDashboardFields(
-              { ...board, ...linkFields(shareId) },
-              linkFields(shareId)
-            );
-          } catch (err) {
-            logError('DashboardContext.shareLinkedCollection.tag', err, {
-              boardId: board.id,
-            });
-          }
-        })
-      );
-      // The link already works for recipients, so a failed tag is logged, not thrown.
+      // The link already works for recipients, so a failed tag here is logged, not thrown.
       try {
         await collectionsApi.setCollectionLink(input.collection.id, {
           linkedCollectionId: linkId,
@@ -4872,6 +4896,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     return sharedCollectionApi.listHostSubShares(user.uid);
   }, [user, sharedCollectionApi]);
 
+  const deleteImportedCollections = useCallback(
+    async (ids: string[]): Promise<void> => {
+      if (isAuthBypass) {
+        await Promise.all(
+          ids.map((id) => collectionsApi.deleteCollection(id, 'delete-all'))
+        );
+        return;
+      }
+      if (!user) return;
+      const batch = writeBatch(db);
+      for (const id of ids) {
+        batch.delete(doc(db, 'users', user.uid, 'collections', id));
+      }
+      await batch.commit();
+    },
+    [user, collectionsApi]
+  );
+
   const importSharedCollection = useCallback(
     async (
       shareId: string
@@ -4929,8 +4971,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           null // root — recipient can move it later
         );
 
-        // Rebuild sub-collections, each under its parent (D1). One that fails
-        // leaves its boards in the root rather than losing them.
+        // Rebuild sub-collections (D1); boards of one that fails land in the root.
         const tree = planCopyImportTree(meta);
         const collectionFor = new Map<string, string>();
         const childIdsByParent = new Map<string, string[]>();
@@ -5028,10 +5069,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           // All boards failed — delete the empty Collection rather than
           // leaving a labeled-but-empty shell in the recipient's tree.
           try {
-            await collectionsApi.deleteCollection(
+            // By id: deleteCollection reads collections state that predates this import.
+            await deleteImportedCollections([
+              ...collectionFor.values(),
               newCollectionId,
-              'delete-all'
-            );
+            ]);
           } catch (cleanupErr) {
             logError(
               'DashboardContext.importSharedCollection.cleanup',
@@ -5068,6 +5110,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       sharedCollectionApi,
       collectionsApi,
       createNewDashboard,
+      deleteImportedCollections,
     ]
   );
 

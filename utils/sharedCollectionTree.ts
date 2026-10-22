@@ -108,3 +108,37 @@ export function linkedCollectionLayout(
   }
   return { sections, boards };
 }
+
+const isLive = (c: Collection) =>
+  !!c.linkedCollectionId && !c.linkedCollectionEnded;
+
+/** True when the collection, a parent or a sub-collection is already in a live share. */
+export function touchesLiveCollectionShare(
+  collection: Collection,
+  collections: Collection[]
+): boolean {
+  const byId = new Map(collections.map((c) => [c.id, c]));
+  const seen = new Set<string>();
+  for (
+    let c: Collection | undefined = collection;
+    c && !seen.has(c.id);
+    c = c.parentCollectionId ? byId.get(c.parentCollectionId) : undefined
+  ) {
+    seen.add(c.id);
+    if (isLive(c)) return true;
+  }
+  const queue = [collection.id];
+  const visited = new Set(queue);
+  while (queue.length > 0) {
+    const parentId = queue.shift();
+    for (const child of collections) {
+      if (child.parentCollectionId !== parentId || visited.has(child.id)) {
+        continue;
+      }
+      if (isLive(child)) return true;
+      visited.add(child.id);
+      queue.push(child.id);
+    }
+  }
+  return false;
+}

@@ -97,6 +97,8 @@ vi.mock('@/hooks/useCollections', () => ({
 
 vi.mock('@/hooks/useLinkedCollection', () => ({
   useLinkedCollection: () => ({ createLinkedCollection: createLinkMock }),
+  LINKED_COLLECTION_MAX_BOARDS: 200,
+  LINKED_COLLECTION_MAX_SECTIONS: 200,
 }));
 
 vi.mock('@/hooks/useSharedCollection', () => ({
@@ -298,6 +300,45 @@ describe('shareLinkedCollection', () => {
     ).rejects.toThrow('rules');
     expect(stopSharingBoardMock).toHaveBeenCalledWith('share-1');
     expect(setCollectionLinkMock).not.toHaveBeenCalled();
+    // The host's board goes back to an ordinary board.
+    await waitFor(() =>
+      expect(current(ctx).dashboards[0].linkedShareId).toBeUndefined()
+    );
+  });
+
+  it('still returns the link when only the collection tag fails', async () => {
+    const boards = [board('b1', 'week')];
+    setCollectionLinkMock.mockRejectedValueOnce(new Error('offline'));
+    const ctx = await setup(boards);
+
+    let linkId = '';
+    await act(async () => {
+      linkId = await current(ctx).shareLinkedCollection({
+        collection: week,
+        boards,
+        tree,
+        mode: 'synced',
+      });
+    });
+    expect(linkId).not.toBe('');
+    expect(stopSharingBoardMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses a collection over the board cap before writing anything', async () => {
+    const boards = Array.from({ length: 201 }, (_, i) =>
+      board(`b${String(i)}`, 'week')
+    );
+    const ctx = await setup(boards);
+
+    await expect(
+      current(ctx).shareLinkedCollection({
+        collection: week,
+        boards,
+        tree,
+        mode: 'synced',
+      })
+    ).rejects.toThrow();
+    expect(shareDashboardMock).not.toHaveBeenCalled();
   });
 
   it('refuses a collection holding a board that is already shared live', async () => {

@@ -18,7 +18,7 @@ import type { Collection, Dashboard, LinkedCollectionMode } from '@/types';
 import type { CopyShareTree } from '@/hooks/useSharedCollection';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
-import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
+import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 import { ModeOption } from './ShareModeOption';
 import { logError } from '@/utils/logError';
 import { tourAttr } from '@/config/tourAnchors';
@@ -30,6 +30,8 @@ interface ShareCollectionLinkCreatorModalProps {
   boards: Dashboard[];
   /** Where each board sits among the sub-collections. */
   tree?: CopyShareTree;
+  /** The collection, a parent or a sub-collection is already in a live share. */
+  inLiveShare?: boolean;
   onClose: () => void;
   /** Opens ShareWithSubModal. */
   onShareWithSub?: () => void;
@@ -40,7 +42,15 @@ type ShareMode = LinkedCollectionMode | 'copy';
 
 export const ShareCollectionLinkCreatorModal: FC<
   ShareCollectionLinkCreatorModalProps
-> = ({ isOpen, collection, boards, tree, onClose, onShareWithSub }) => {
+> = ({
+  isOpen,
+  collection,
+  boards,
+  tree,
+  inLiveShare = false,
+  onClose,
+  onShareWithSub,
+}) => {
   const { t } = useTranslation();
   const { shareCollection, shareLinkedCollection, addToast } = useDashboard();
   const { canAccessFeature } = useAuth();
@@ -51,11 +61,17 @@ export const ShareCollectionLinkCreatorModal: FC<
   const [busy, setBusy] = useState(false);
   const headingId = useId();
 
-  // A collection already in a live share (or someone else's) only offers a copy.
+  const flagOn = canAccessFeature('collection-sync-sharing');
+  const linkedLive =
+    !!collection?.linkedCollectionId && !collection.linkedCollectionEnded;
+  // Already in a live share, view-as, or no tree: only a copy is offered.
   const liveSharing =
-    canAccessFeature('collection-sync-sharing') &&
-    !(collection?.linkedCollectionId && !collection.linkedCollectionEnded);
+    flagOn && !linkedLive && !inLiveShare && !outward.active && !!tree;
   const effectiveMode: ShareMode = liveSharing ? mode : 'copy';
+  const existingLiveUrl =
+    flagOn && linkedLive && collection.linkedCollectionRole === 'owner'
+      ? `${window.location.origin}/share/collection/${collection.linkedCollectionId}`
+      : null;
 
   const handleCreate = useCallback(async () => {
     if (!collection) return;
@@ -72,14 +88,6 @@ export const ShareCollectionLinkCreatorModal: FC<
         );
         return;
       }
-      if (
-        outward.active &&
-        !(await outward.confirm(
-          'Share collection',
-          VIEW_AS_WRITES.shareCollection
-        ))
-      )
-        return;
     }
     setBusy(true);
     // try/finally guarantees `setBusy(false)` runs even if a future
@@ -92,14 +100,16 @@ export const ShareCollectionLinkCreatorModal: FC<
         if (effectiveMode === 'copy') {
           const shareId = await shareCollection({ collection, boards, tree });
           url = `${window.location.origin}/share-collection/${shareId}`;
-        } else {
+        } else if (tree) {
           const linkId = await shareLinkedCollection({
             collection,
             boards,
-            tree: tree ?? { sections: [], boardEntries: [] },
+            tree,
             mode: effectiveMode,
           });
           url = `${window.location.origin}/share/collection/${linkId}`;
+        } else {
+          return;
         }
       } catch (err) {
         logError('ShareCollectionLinkCreatorModal.create', err, {
@@ -135,7 +145,6 @@ export const ShareCollectionLinkCreatorModal: FC<
     boards,
     tree,
     effectiveMode,
-    outward,
     shareCollection,
     shareLinkedCollection,
     addToast,
@@ -174,6 +183,26 @@ export const ShareCollectionLinkCreatorModal: FC<
                   'Sharing {{count}} board(s) from this Collection.',
               })}
             </p>
+            {existingLiveUrl && (
+              <div className="space-y-1">
+                <p className="text-xs text-slate-500">
+                  {t('shareCollection.linkReady', {
+                    defaultValue: 'Share link ready.',
+                  })}
+                </p>
+                <input
+                  type="text"
+                  readOnly
+                  {...tourAttr('share-collection.url')}
+                  value={existingLiveUrl}
+                  aria-label={t('shareCollection.urlLabel', {
+                    defaultValue: 'Share collection URL',
+                  })}
+                  className="w-full px-2 py-1.5 text-xs font-mono bg-slate-50 border border-slate-200 rounded select-all"
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+              </div>
+            )}
             {liveSharing ? (
               <div className="space-y-3">
                 <ModeOption
@@ -272,10 +301,7 @@ export const ShareCollectionLinkCreatorModal: FC<
               <button
                 type="button"
                 onClick={() => void handleCreate()}
-                disabled={busy || (effectiveMode !== 'copy' && outward.locked)}
-                title={
-                  effectiveMode !== 'copy' ? outward.lockedTitle : undefined
-                }
+                disabled={busy}
                 {...tourAttr('share-collection.create')}
                 className="px-3 py-1.5 text-sm font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark disabled:opacity-50"
               >

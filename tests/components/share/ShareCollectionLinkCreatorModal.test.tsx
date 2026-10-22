@@ -15,14 +15,9 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ canAccessFeature }),
 }));
 
+const viewAs = { active: false };
 vi.mock('@/hooks/useViewAsOutward', () => ({
-  useViewAsOutward: () => ({
-    active: false,
-    locked: false,
-    lockedTitle: undefined,
-    confirm: () => Promise.resolve(true),
-  }),
-  VIEW_AS_WRITES: { shareCollection: [] },
+  useViewAsOutward: () => viewAs,
 }));
 
 const collection = (): Collection => ({
@@ -55,6 +50,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   useDashboardMock.mockReturnValue(baseMockReturn);
   canAccessFeature.mockReturnValue(false);
+  viewAs.active = false;
   // Stub clipboard for the auto-copy path
   writeText.mockResolvedValue(undefined);
   Object.assign(navigator, { clipboard: { writeText } });
@@ -197,6 +193,7 @@ describe('ShareCollectionLinkCreatorModal', () => {
           isOpen
           collection={collection()}
           boards={[board('b1')]}
+          tree={tree}
           onClose={vi.fn()}
         />
       );
@@ -331,6 +328,53 @@ describe('ShareCollectionLinkCreatorModal', () => {
       );
       expect(screen.queryByText('Synced')).toBeNull();
       expect(screen.getByText('They get their own copy to edit.')).toBeTruthy();
+    });
+    it('only offers a copy in a view-as tab', () => {
+      viewAs.active = true;
+      render(
+        <ShareCollectionLinkCreatorModal
+          isOpen
+          collection={collection()}
+          boards={[board('b1')]}
+          tree={tree}
+          onClose={vi.fn()}
+        />
+      );
+      expect(screen.queryByText('Synced')).toBeNull();
+    });
+
+    it('only offers a copy when a parent or sub-collection is shared live', () => {
+      render(
+        <ShareCollectionLinkCreatorModal
+          isOpen
+          collection={collection()}
+          boards={[board('b1')]}
+          tree={tree}
+          inLiveShare
+          onClose={vi.fn()}
+        />
+      );
+      expect(screen.queryByText('Synced')).toBeNull();
+    });
+
+    it('shows the host the live link it already made', () => {
+      render(
+        <ShareCollectionLinkCreatorModal
+          isOpen
+          collection={{
+            ...collection(),
+            linkedCollectionId: 'link-7',
+            linkedCollectionRole: 'owner',
+          }}
+          boards={[board('b1')]}
+          tree={tree}
+          onClose={vi.fn()}
+        />
+      );
+      expect(
+        screen.getByLabelText<HTMLInputElement>('Share collection URL').value
+      ).toContain('/share/collection/link-7');
+      expect(screen.queryByText('Synced')).toBeNull();
     });
   });
 });
