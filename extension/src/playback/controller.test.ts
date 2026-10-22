@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createPlaybackController,
   framesForStep,
+  SESSION_BUDGET,
   type HostFrame,
   type PlaybackHost,
   type ProgressPost,
@@ -19,8 +20,24 @@ function fakeHost(
   const posts: ProgressPost[] = [];
   const timers: (() => void)[] = [];
   const injected: { frameIds: number[]; overlay: boolean }[] = [];
+  const opened: string[] = [];
+  const navigated: { tabId: number; url: string; saved: boolean }[] = [];
+  const clock = { now: 1000 };
+  let nextTab = 7;
+  let backstops = 0;
   const host: PlaybackHost = {
-    openTab: () => Promise.resolve(7),
+    openTab: (url) => {
+      opened.push(url);
+      return Promise.resolve(nextTab++);
+    },
+    navigate: (tabId, url) => {
+      navigated.push({ tabId, url, saved: store.has(`wt:tab:${tabId}`) });
+      return Promise.resolve();
+    },
+    closeTab: () => Promise.resolve(),
+    backstop: () => {
+      backstops += 1;
+    },
     frames: () => Promise.resolve(frames),
     inject: (_t, frameIds, overlay) => {
       injected.push({ frameIds, overlay });
@@ -38,7 +55,7 @@ function fakeHost(
     },
     post: (_s, msg) => posts.push(msg),
     setTimer: (_ms, cb) => timers.push(cb),
-    now: () => 1000,
+    now: () => clock.now,
   };
   const lastSeek = () =>
     [...sent].reverse().find((s) => s.msg.type === 'wt:seek')!;
@@ -49,7 +66,20 @@ function fakeHost(
         .find((s) => s.frameId === frameId && s.msg.type === 'overlay/render')!
         .msg as unknown as { state: Record<string, unknown> }
     ).state;
-  return { host, store, sent, posts, timers, injected, lastSeek, lastRender };
+  return {
+    host,
+    store,
+    sent,
+    posts,
+    timers,
+    injected,
+    opened,
+    navigated,
+    clock,
+    lastSeek,
+    lastRender,
+    backstops: () => backstops,
+  };
 }
 
 const parsed = (): ParsedStart => ({
@@ -267,6 +297,136 @@ describe('playback controller', () => {
       stepIndex: 0,
     });
     expect(await c.isPlaying(7)).toBe(false);
+  });
+});
+
+describe('playback controller, review fixes', () => {
+  it('saves the tour before the page loads, so its first commit finds it', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    expect(h.opened).toEqual(['about:blank']);
+    expect(h.navigated).toEqual([
+      { tabId: 7, url: 'https://a.example/home', saved: true },
+    ]);
+    await c.committed(7, 0, 'about:blank');
+    expect(h.injected).toEqual([]);
+  });
+
+  it('plays one tour at a time', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    await c.committed(7, 0, 'https://a.example/home');
+    expect(await c.start(parsed())).toBe(8);
+    expect(await c.isPlaying(7)).toBe(false);
+    expect(h.posts).toContainEqual({
+      type: 'web-tour/exit',
+      setId: 'set1',
+      stepIndex: 0,
+    });
+  });
+
+  it('drops pictures that would overflow the session store', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    const p = parsed();
+    p.pictures.b = {
+      mime: 'image/png',
+      data: 'A'.repeat(SESSION_BUDGET),
+      w: 1,
+      h: 1,
+    };
+    await c.start(p);
+    expect([...h.store.keys()].some((k) => k.startsWith('wt:pic'))).toBe(false);
+  });
+
+  it('hands a late frame the running seek without restarting it', async () => {
+    const frames: HostFrame[] = [
+      { frameId: 0, parentFrameId: -1, url: 'https://a.example/home' },
+    ];
+    const h = fakeHost(frames);
+    const c = createPlaybackController(h.host);
+    const p = parsed();
+    p.tour.steps[0].frames = [{ urlPattern: 'https://b.example/*', index: 0 }];
+    await c.start(p);
+    await c.committed(7, 0, 'https://a.example/home');
+    const token = h.lastSeek().msg.token;
+    const timers = h.timers.length;
+    frames.push({ frameId: 5, parentFrameId: 0, url: 'https://b.example/x' });
+    await c.committed(7, 5, 'https://b.example/x');
+    expect(h.lastSeek()).toMatchObject({ frameId: 5, msg: { token } });
+    expect(h.timers.length).toBe(timers);
+  });
+
+  it('seeks again when the frame holding the target reloads', async () => {
+    const frames: HostFrame[] = [
+      { frameId: 0, parentFrameId: -1, url: 'https://a.example/home' },
+      { frameId: 4, parentFrameId: 0, url: 'https://b.example/x' },
+    ];
+    const h = fakeHost(frames);
+    const c = createPlaybackController(h.host);
+    const p = parsed();
+    p.tour.steps[0].frames = [{ urlPattern: 'https://b.example/*', index: 0 }];
+    await c.start(p);
+    await c.committed(7, 0, 'https://a.example/home');
+    const seek = h.lastSeek();
+    await c.frameReport(7, 4, {
+      type: 'wt:found',
+      token: seek.msg.token as string,
+      clue: 'role',
+      tied: false,
+      url: '',
+    });
+    await c.committed(7, 4, 'https://b.example/x');
+    expect(h.lastRender()).toMatchObject({ status: 'seeking' });
+    expect(h.lastSeek().msg.token).not.toBe(seek.msg.token);
+  });
+
+  it('says the next step is on another page instead of searching', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    await c.committed(7, 0, 'https://a.example/home');
+    await c.overlayAction(7, 0, 'next');
+    expect(h.lastRender()).toMatchObject({ current: 2, status: 'wrong-page' });
+  });
+
+  it('times out a seek after a worker restart lost its timer', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    await c.committed(7, 0, 'https://a.example/home');
+    expect(h.backstops()).toBeGreaterThan(0);
+    await c.sweep();
+    expect(h.lastRender()).toMatchObject({ status: 'seeking' });
+    h.clock.now += 5000;
+    await c.sweep();
+    expect(h.lastRender()).toMatchObject({ status: 'fallback' });
+  });
+
+  it('lets go of the tab once the learner leaves a finished tour', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start({ ...parsed(), stepIndex: 1 });
+    await c.committed(7, 0, 'https://a.example/course/1');
+    await c.overlayAction(7, 0, 'next');
+    await c.historyChanged(7, 0, 'https://a.example/course/2');
+    expect(await c.isPlaying(7)).toBe(true);
+    const injections = h.injected.length;
+    await c.committed(7, 0, 'https://other.example/');
+    expect(await c.isPlaying(7)).toBe(false);
+    expect(h.injected.length).toBe(injections);
+  });
+
+  it('cuts a long step title to what the overlay accepts', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    const p = parsed();
+    p.tour.steps[0].title = 'x'.repeat(500);
+    await c.start(p);
+    await c.committed(7, 0, 'https://a.example/home');
+    expect((h.lastRender().title as string).length).toBe(200);
   });
 });
 

@@ -1,5 +1,7 @@
 import type { PlaybackHost } from './controller';
 
+export const PLAYBACK_ALARM = 'web-tour-sweep';
+
 /** The real Chrome APIs behind playback; the files are the content-script bundles the build writes. */
 export function chromeHost(post: PlaybackHost['post']): PlaybackHost {
   return {
@@ -8,6 +10,10 @@ export function chromeHost(post: PlaybackHost['post']): PlaybackHost {
       if (tab.id === undefined) throw new Error('tab has no id');
       return tab.id;
     },
+    navigate: async (tabId, url) => {
+      await chrome.tabs.update(tabId, { url });
+    },
+    closeTab: (tabId) => chrome.tabs.remove(tabId),
     frames: async (tabId) =>
       ((await chrome.webNavigation.getAllFrames({ tabId })) ?? []).map((f) => ({
         frameId: f.frameId,
@@ -37,6 +43,9 @@ export function chromeHost(post: PlaybackHost['post']): PlaybackHost {
     post,
     setTimer: (ms, cb) => {
       setTimeout(cb, ms);
+    },
+    backstop: () => {
+      void chrome.alarms.create(PLAYBACK_ALARM, { delayInMinutes: 0.5 });
     },
     now: () => Date.now(),
   };

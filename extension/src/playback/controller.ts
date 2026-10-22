@@ -28,6 +28,8 @@ export type ProgressPost = WebTourProgressMessage;
 /** The Chrome APIs playback needs, so the controller runs against a fake in tests. */
 export interface PlaybackHost {
   openTab(url: string): Promise<number>;
+  navigate(tabId: number, url: string): Promise<void>;
+  closeTab(tabId: number): Promise<void>;
   frames(tabId: number): Promise<HostFrame[]>;
   /** Injects the locator script into frames (and the overlay into those listed), idempotently. */
   inject(tabId: number, frameIds: number[], overlay: boolean): Promise<void>;
@@ -41,6 +43,8 @@ export interface PlaybackHost {
   remove(keys: string[]): Promise<void>;
   post(setId: string, msg: ProgressPost): void;
   setTimer(ms: number, cb: () => void): void;
+  /** A wake-up that survives a worker restart, after which `sweep` re-checks timeouts. */
+  backstop(): void;
   now(): number;
 }
 
@@ -54,6 +58,8 @@ interface TabRecord {
   /** A subframe whose overlay currently draws the spotlight, so it can be cleared when the target moves. */
   litFrameId: number | null;
   url: string;
+  /** When the current seek began, so a restarted worker can still time it out. */
+  seekAt: number;
   /** Last match posted per step, so an unchanged repeat isn't posted again. */
   posted: Record<string, LocatorClue | 'none'>;
 }
@@ -62,6 +68,10 @@ export const FALLBACK_MS = 4000;
 const tabKey = (tabId: number) => `wt:tab:${tabId}`;
 const picKey = (tabId: number, stepId: string) => `wt:pic:${tabId}:${stepId}`;
 const TABS_KEY = 'wt:tabs';
+/** The session store holds 10 MB; one tour's record and pictures stay under this. */
+export const SESSION_BUDGET = 9 * 1024 * 1024;
+const MAX_TITLE = 200;
+const isWebPage = (url: string) => /^https?:\/\//.test(url);
 
 /** The frame ids whose chain of addresses matches the step's recorded frames; empty when none do. */
 export function framesForStep(
@@ -70,20 +80,20 @@ export function framesForStep(
 ): number[] {
   if (path.length === 0) return [0];
   const byId = new Map(frames.map((f) => [f.frameId, f]));
-  const chain = (f: HostFrame): HostFrame[] => {
+  // Null when a parent isn't listed yet, so a partial chain never passes for a shorter path.
+  const chain = (f: HostFrame): HostFrame[] | null => {
     const out: HostFrame[] = [];
-    for (
-      let c: HostFrame | undefined = f;
-      c && c.frameId !== 0;
-      c = byId.get(c.parentFrameId)
-    ) {
+    let c: HostFrame | undefined = f;
+    while (c && c.frameId !== 0) {
       out.unshift(c);
+      c = byId.get(c.parentFrameId);
     }
-    return out;
+    return c ? out : null;
   };
   const hits = frames.filter((f) => {
     const c = chain(f);
     return (
+      c !== null &&
       c.length === path.length &&
       c.every((cf, i) => matchesUrlPattern(path[i].urlPattern, cf.url))
     );
@@ -144,7 +154,7 @@ export function createPlaybackController(host: PlaybackHost) {
     }
     const shownIn = state.status === 'shown' ? rec.targetFrameId : null;
     const base = {
-      title: step.title,
+      title: step.title.slice(0, MAX_TITLE),
       text: step.text,
       current: state.index + 1,
       total: state.tour.steps.length,
@@ -234,6 +244,8 @@ export function createPlaybackController(host: PlaybackHost) {
       });
     }
     const token = rec.token;
+    rec.seekAt = host.now();
+    host.backstop();
     host.setTimer(FALLBACK_MS, () => {
       void serial(rec.tabId, async () => {
         const now = await load(rec.tabId);
@@ -243,13 +255,32 @@ export function createPlaybackController(host: PlaybackHost) {
     });
   }
 
+  /** Hands the current seek to a frame that appeared after it began, without restarting it. */
+  async function seekInNewFrame(rec: TabRecord, frameId: number) {
+    const step = rec.state.tour.steps[rec.state.index];
+    if (!step || !rec.token) return;
+    const frames = await host.frames(rec.tabId);
+    const ids = framesForStep(frames, step.frames);
+    if (ids.length > 0 && !ids.includes(frameId)) return;
+    host.sendToFrame(rec.tabId, frameId, {
+      type: 'wt:seek',
+      token: rec.token,
+      clues: step.clues,
+      action: step.action,
+    });
+  }
+
   async function dispatch(
     rec: TabRecord,
     event: PlaybackEvent,
     frameId: number | null = null
   ) {
     const before = rec.state;
-    rec.state = reducePlayback(before, event);
+    const withUrl: PlaybackEvent =
+      event.type === 'next' || event.type === 'back'
+        ? { ...event, url: rec.url }
+        : event;
+    rec.state = reducePlayback(before, withUrl);
     if (event.type === 'found' && rec.state.status === 'shown')
       rec.targetFrameId = frameId;
     postProgress(rec, before);
@@ -272,6 +303,22 @@ export function createPlaybackController(host: PlaybackHost) {
     }
   }
 
+  async function stopTab(rec: TabRecord) {
+    for (const f of await host.frames(rec.tabId)) {
+      host.sendToFrame(rec.tabId, f.frameId, { type: 'wt:stop' });
+      host.sendToFrame(rec.tabId, f.frameId, { type: 'overlay/unmount' });
+    }
+    await forget(rec);
+  }
+
+  /** A finished tour lets go of the tab once the learner leaves its last page (T8). */
+  const leftFinished = (rec: TabRecord, url: string) => {
+    const last = rec.state.tour.steps[rec.state.tour.steps.length - 1];
+    return (
+      rec.state.status === 'done' && !matchesUrlPattern(last.urlPattern, url)
+    );
+  };
+
   async function forget(rec: TabRecord) {
     await host.remove([
       tabKey(rec.tabId),
@@ -281,54 +328,95 @@ export function createPlaybackController(host: PlaybackHost) {
   }
 
   return {
-    /** Opens the tour's first page in a new tab and starts playing there. */
+    /** Opens the tour's first page in a new tab and starts playing there; one tour plays at a time. */
     async start(parsed: ParsedStart): Promise<number> {
-      const tabId = await host.openTab(parsed.tour.startUrl);
-      const state = startPlayback(
-        parsed.tour,
-        parsed.tour.startUrl,
-        host.now()
-      );
-      const rec: TabRecord = {
-        tabId,
-        state: {
-          ...state,
-          index: parsed.stepIndex,
-          furthest: parsed.stepIndex,
-        },
-        token: '',
-        seq: 0,
-        targetFrameId: null,
-        litFrameId: null,
-        url: parsed.tour.startUrl,
-        posted: {},
-      };
-      await host.save(
-        Object.fromEntries(
-          Object.entries(parsed.pictures).map(([id, pic]) => [
-            picKey(tabId, id),
-            pic,
-          ])
-        )
-      );
-      await store(rec);
-      await trackTab(tabId, true);
-      return tabId;
+      for (const other of (await host.load<number[]>(TABS_KEY)) ?? []) {
+        await serial(other, async () => {
+          const rec = await load(other);
+          if (!rec) return;
+          if (rec.state.status !== 'done') {
+            const setId = rec.state.tour.id;
+            host.post(setId, {
+              type: 'web-tour/exit',
+              setId,
+              stepIndex: rec.state.index,
+            });
+          }
+          await stopTab(rec);
+        });
+      }
+      // The record is saved before the page loads, so its first commit always finds it.
+      const tabId = await host.openTab('about:blank');
+      return serial(tabId, async () => {
+        const state = startPlayback(
+          parsed.tour,
+          parsed.tour.startUrl,
+          host.now()
+        );
+        const rec: TabRecord = {
+          tabId,
+          state: {
+            ...state,
+            index: parsed.stepIndex,
+            furthest: parsed.stepIndex,
+            status: 'seeking',
+          },
+          token: '',
+          seq: 0,
+          targetFrameId: null,
+          litFrameId: null,
+          url: 'about:blank',
+          seekAt: 0,
+          posted: {},
+        };
+        let room = SESSION_BUDGET - JSON.stringify(rec).length;
+        const pictures: Record<string, WebTourPictureBytes> = {};
+        for (const [id, pic] of Object.entries(parsed.pictures)) {
+          const size = pic.data.length + 200;
+          if (size > room) continue;
+          pictures[picKey(tabId, id)] = pic;
+          room -= size;
+        }
+        const kept = new Set(Object.keys(pictures));
+        rec.state.tour.steps = rec.state.tour.steps.map((s) => ({
+          ...s,
+          hasPicture: kept.has(picKey(tabId, s.id)),
+        }));
+        try {
+          await host.save(pictures);
+          await store(rec);
+          await trackTab(tabId, true);
+        } catch (err) {
+          await forget(rec).catch(() => undefined);
+          await host.closeTab(tabId).catch(() => undefined);
+          throw err;
+        }
+        await host.navigate(tabId, parsed.tour.startUrl);
+        return tabId;
+      });
     },
 
     /** A new document committed in a frame of the tab (navigation, reload or a new frame). */
     committed: (tabId: number, frameId: number, url: string) =>
       serial(tabId, async () => {
         const rec = await load(tabId);
-        if (!rec) return;
+        if (!rec || !isWebPage(url)) return;
+        if (frameId === 0 && leftFinished(rec, url)) {
+          await stopTab(rec);
+          return;
+        }
         await host.inject(tabId, [frameId], frameId === 0);
         if (frameId === 0) {
           rec.url = url;
           await dispatch(rec, { type: 'page', url });
-        } else if (rec.state.status === 'seeking') {
-          // A frame added after the seek started gets the current step too.
-          await seek(rec);
-          await render(rec);
+        } else if (frameId === rec.targetFrameId) {
+          // The frame holding the target loaded a new document, so the target is gone.
+          await dispatch(rec, { type: 'lost' });
+        } else if (
+          rec.state.status === 'seeking' ||
+          rec.state.status === 'fallback'
+        ) {
+          await seekInNewFrame(rec, frameId);
           await store(rec);
         }
       }),
@@ -339,6 +427,10 @@ export function createPlaybackController(host: PlaybackHost) {
         if (frameId !== 0) return;
         const rec = await load(tabId);
         if (!rec || url === rec.url) return;
+        if (leftFinished(rec, url)) {
+          await stopTab(rec);
+          return;
+        }
         rec.url = url;
         await dispatch(rec, { type: 'page', url });
       }),
@@ -405,6 +497,22 @@ export function createPlaybackController(host: PlaybackHost) {
         }
       }
       return out;
+    },
+
+    /** Times out seeks whose timer died with a restarted worker. */
+    async sweep() {
+      for (const tabId of (await host.load<number[]>(TABS_KEY)) ?? []) {
+        await serial(tabId, async () => {
+          const rec = await load(tabId);
+          if (
+            rec?.state.status === 'seeking' &&
+            rec.seekAt > 0 &&
+            host.now() - rec.seekAt >= FALLBACK_MS
+          ) {
+            await dispatch(rec, { type: 'timeout' });
+          }
+        });
+      }
     },
 
     async isPlaying(tabId: number): Promise<boolean> {

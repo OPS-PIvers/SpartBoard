@@ -6,7 +6,7 @@ import {
 import { createExternalHandler } from './handler';
 import { getChromeProfile } from './profile';
 import { isTrustedSender } from './sender';
-import { chromeHost } from './playback/chromeHost';
+import { chromeHost, PLAYBACK_ALARM } from './playback/chromeHost';
 import { createPlaybackController } from './playback/controller';
 import {
   isFrameReport,
@@ -110,6 +110,15 @@ chrome.webNavigation.onHistoryStateUpdated.addListener(
     void playback.historyChanged(tabId, frameId, url);
   }
 );
+// Hash-routed apps change only the fragment.
+chrome.webNavigation.onReferenceFragmentUpdated.addListener(
+  ({ tabId, frameId, url }) => {
+    void playback.historyChanged(tabId, frameId, url);
+  }
+);
+chrome.alarms.onAlarm.addListener(({ name }) => {
+  if (name === PLAYBACK_ALARM) void playback.sweep();
+});
 chrome.tabs.onRemoved.addListener((tabId) => {
   void playback.tabClosed(tabId);
 });

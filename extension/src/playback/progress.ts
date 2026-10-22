@@ -42,8 +42,8 @@ export type PlaybackEvent =
   | { type: 'lost' }
   | { type: 'timeout' }
   | { type: 'acted' }
-  | { type: 'next' }
-  | { type: 'back' }
+  | { type: 'next'; url?: string }
+  | { type: 'back'; url?: string }
   | { type: 'exit' };
 
 const MAX_MATCHED = 50;
@@ -152,13 +152,13 @@ export function reducePlayback(
       if (state.status !== 'shown' || step.action === 'observe') return state;
       return enterStep(state, state.index + 1, null);
     case 'next':
-      return enterStep(state, state.index + 1, null);
+      return enterStep(state, state.index + 1, event.url ?? null);
     case 'back':
       if (state.index === 0 && !finished(state)) return state;
       return enterStep(
         { ...state, status: 'seeking' },
         finished(state) ? state.index : state.index - 1,
-        null
+        event.url ?? null
       );
     case 'exit':
       return { ...state, status: 'exited' };
