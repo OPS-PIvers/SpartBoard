@@ -252,7 +252,7 @@ export function handleRecorderPort(port: chrome.runtime.Port): void {
         for (const step of (await readOutbox())[msg.setId] ?? [])
           port.postMessage({ type: 'recorder/step', setId: msg.setId, step });
         notifyPanel();
-      } else if (msg.setId === attached) {
+      } else if (msg.type === 'recorder/ack' && msg.setId === attached) {
         await ack(msg.setId, msg.stepId);
       }
     })();

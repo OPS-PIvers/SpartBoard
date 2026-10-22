@@ -8314,8 +8314,6 @@ export interface WebTourBinding {
   locator: WebTourLocator;
   action: WebTourAction;
   picture?: WebTourPicture;
-  /** The admin's "checked for student data" tick; `sig` fingerprints what it covered, so an edit clears it. */
-  checked?: WebTourStudentDataCheck;
 }
 
 export interface WebTourStudentDataCheck {
@@ -8513,6 +8511,8 @@ export interface GuidedLearningSet {
   hasLiveTour?: boolean;
   /** Tour sets only: 'web' plays on other websites through the Chrome extension; absent = 'spartboard'. */
   surface?: GuidedLearningTourSurface;
+  /** Web tours: the admin confirmed no private data in the pictures; `sig` fingerprints which pictures. */
+  webPicturesChecked?: WebTourStudentDataCheck;
 }
 
 /** A live tour's notes for Claude and last editor playtest, at building_guided_learning/{setId}/review/current; admins only. */

@@ -157,6 +157,41 @@ describe('useWebTourRecorder', () => {
     );
   });
 
+  it('asks to re-pick a step once attached, then saves and acks the new pick', async () => {
+    const onStep = vi.fn(() => Promise.resolve());
+    const onRepicked = vi.fn(() => Promise.resolve());
+    const { result } = renderHook(() =>
+      useWebTourRecorder({ setId: 't1', title: 'Tour', onStep, onRepicked })
+    );
+    act(() => result.current.repick('a'));
+    expect(connect).toHaveBeenCalledTimes(1);
+    act(() => port.emit({ type: 'recorder/attached', setId: 't1' }));
+    expect(port.posted).toContainEqual({
+      type: 'recorder/repick',
+      setId: 't1',
+      stepId: 'a',
+    });
+    act(() =>
+      port.emit({ type: 'recorder/repicked', setId: 't1', step: step('a') })
+    );
+    await waitFor(() =>
+      expect(port.posted).toContainEqual({
+        type: 'recorder/ack',
+        setId: 't1',
+        stepId: 'a',
+      })
+    );
+    expect(onRepicked).toHaveBeenCalledTimes(1);
+    expect(onStep).not.toHaveBeenCalled();
+    // Already attached: a second Fix on site posts straight away.
+    act(() => result.current.repick('b'));
+    expect(port.posted.at(-1)).toEqual({
+      type: 'recorder/repick',
+      setId: 't1',
+      stepId: 'b',
+    });
+  });
+
   it('reports no extension', () => {
     delete (globalThis as { chrome?: unknown }).chrome;
     const { result } = renderHook(() =>

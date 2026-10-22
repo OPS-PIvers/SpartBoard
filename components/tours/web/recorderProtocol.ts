@@ -77,6 +77,8 @@ export const isRecordedStep = (v: unknown): v is RecordedWebStep =>
 export type RecorderPortMessage =
   | { type: 'recorder/attached'; setId: string }
   | { type: 'recorder/step'; setId: string; step: RecordedWebStep }
+  /** Answers `recorder/repick`: the step's new target and picture, under the step's own id. */
+  | { type: 'recorder/repicked'; setId: string; step: RecordedWebStep }
   | { type: 'recorder/stopped'; setId: string };
 
 /** The recorder port message, or null when it isn't one or its fields are wrong. */
@@ -88,15 +90,20 @@ export function parseRecorderPortMessage(
     return Object.keys(msg).length === 2
       ? { type: msg.type, setId: msg.setId }
       : null;
-  if (msg.type === 'recorder/step' && isRecordedStep(msg.step))
-    return { type: 'recorder/step', setId: msg.setId, step: msg.step };
+  if (
+    (msg.type === 'recorder/step' || msg.type === 'recorder/repicked') &&
+    isRecordedStep(msg.step)
+  )
+    return { type: msg.type, setId: msg.setId, step: msg.step };
   return null;
 }
 
 /** What the web-step editor posts on the recorder port. */
 export type RecorderPageMessage =
   | { type: 'recorder/attach'; setId: string; title: string }
-  | { type: 'recorder/ack'; setId: string; stepId: string };
+  | { type: 'recorder/ack'; setId: string; stepId: string }
+  /** Puts the side panel in pick mode: the next click replaces this step's target and picture. */
+  | { type: 'recorder/repick'; setId: string; stepId: string };
 
 const hasKeys = (m: Record<string, unknown>, keys: readonly string[]) =>
   Object.keys(m).length === keys.length && keys.every((k) => k in m);
@@ -113,9 +120,10 @@ export function parseRecorderPageMessage(
   )
     return { type: msg.type, setId: msg.setId, title: msg.title };
   if (
-    msg.type === 'recorder/ack' &&
+    (msg.type === 'recorder/ack' || msg.type === 'recorder/repick') &&
     hasKeys(msg, ['type', 'setId', 'stepId']) &&
-    isStr(msg.stepId, 64)
+    isStr(msg.stepId, 64) &&
+    STEP_ID.test(msg.stepId)
   )
     return { type: msg.type, setId: msg.setId, stepId: msg.stepId };
   return null;
