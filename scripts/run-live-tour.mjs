@@ -37,7 +37,9 @@ if (!view.set_id || !Array.isArray(view.steps)) {
   process.exit(2);
 }
 if (view.surface === 'web' || view.steps.some((s) => s?.web)) {
-  console.error('That is a web tour; it plays on other websites, not the board.');
+  console.error(
+    'That is a web tour; it plays on other websites, not the board.'
+  );
   process.exit(2);
 }
 const out = resolve(

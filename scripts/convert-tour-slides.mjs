@@ -122,10 +122,10 @@ async function run() {
   const setDocs = setSnap.docs
     .filter((d) => d.data()?.surface !== 'web')
     .map((d) => ({
-    id: d.id,
-    data: d.data(),
-    updateTime: d.updateTime,
-  }));
+      id: d.id,
+      data: d.data(),
+      updateTime: d.updateTime,
+    }));
   const snapshotDocs = tourSnap.docs
     // Web tours play through the extension and have no board slides to convert.
     .filter(
