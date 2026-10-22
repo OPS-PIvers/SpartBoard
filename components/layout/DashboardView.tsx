@@ -14,6 +14,8 @@ import { useLiveSession } from '@/hooks/useLiveSession';
 import { deriveLiveSessionState } from '@/utils/liveSessionState';
 import { ImportShareModePicker } from '@/components/share/ImportShareModePicker';
 import { ImportSharedCollectionModal } from '@/components/share/ImportSharedCollectionModal';
+import { ImportLinkedCollectionModal } from '@/components/share/ImportLinkedCollectionModal';
+import { parseLinkedCollectionPath } from '@/utils/linkedCollectionImport';
 import { ShareStatusBanner } from '@/components/share/ShareStatusBanner';
 import { logError } from '@/utils/logError';
 import {
@@ -255,6 +257,13 @@ export const DashboardView: React.FC = () => {
   }
 
   const [panOffset, setPanOffset] = React.useState({ x: 0, y: 0 });
+  const [linkedCollectionLinkId, setLinkedCollectionLinkId] = React.useState(
+    () => parseLinkedCollectionPath(window.location.pathname)
+  );
+  const clearLinkedCollectionLink = React.useCallback(() => {
+    setLinkedCollectionLinkId(null);
+    window.history.replaceState(null, '', '/');
+  }, []);
 
   // Render-body ref sync (no effect) so the pan getter below always reads
   // the latest value without waiting for an effect pass.
@@ -1721,6 +1730,12 @@ export const DashboardView: React.FC = () => {
             // have updated yet when this callback fires.
             if (result.firstBoardId) loadDashboard(result.firstBoardId);
           }}
+        />
+      )}
+      {linkedCollectionLinkId && (
+        <ImportLinkedCollectionModal
+          linkId={linkedCollectionLinkId}
+          onClose={clearLinkedCollectionLink}
         />
       )}
       <BoardActionsFab

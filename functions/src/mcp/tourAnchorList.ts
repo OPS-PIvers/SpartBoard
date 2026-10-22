@@ -52012,6 +52012,49 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "import-linked-collection.close",
+    "label": "Close button in the import shared collection dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.linked-collection-import",
+        "kind": "page",
+        "url": "/share/collection/{linkId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-linked-collection.cancel",
+    "label": "Cancel button in the import shared collection dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.linked-collection-import",
+        "kind": "page",
+        "url": "/share/collection/{linkId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-linked-collection.confirm",
+    "label": "Import button in the import shared collection dialog",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.linked-collection-import",
+        "kind": "page",
+        "url": "/share/collection/{linkId}",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "share-status.chip",
     "label": "Share status chip at the top right of the board",
     "scope": "board",

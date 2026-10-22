@@ -117,6 +117,7 @@ import {
 } from '@/utils/dashboardPII';
 import { migrateBoardForCollections } from '@/utils/collectionsMigration';
 import { pickInitialBoard } from '@/utils/pickInitialBoard';
+import { LINKED_COLLECTION_SHARE_PREFIX } from '@/utils/linkedCollectionImport';
 import { sanitizeBoardSnapshot } from '@/utils/dashboardSanitize';
 import {
   grantedRosters,
@@ -613,6 +614,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     if (path.startsWith('/share/assignment/')) return null;
     if (path.startsWith('/share/video-activity/')) return null;
     if (path.startsWith('/share/rubric/')) return null;
+    if (path.startsWith(LINKED_COLLECTION_SHARE_PREFIX)) return null;
     if (path.startsWith('/share/')) {
       return path.split('/share/')[1] || null;
     }

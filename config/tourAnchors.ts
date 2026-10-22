@@ -11423,6 +11423,19 @@ export const TOUR_ANCHORS = {
     panel: true,
     persists: true,
   },
+  'import-linked-collection.close': {
+    label: 'Close button in the import shared collection dialog',
+    panel: true,
+  },
+  'import-linked-collection.cancel': {
+    label: 'Cancel button in the import shared collection dialog',
+    panel: true,
+  },
+  'import-linked-collection.confirm': {
+    label: 'Import button in the import shared collection dialog',
+    panel: true,
+    persists: true,
+  },
   'share-status.chip': {
     label: 'Share status chip at the top right of the board',
   },

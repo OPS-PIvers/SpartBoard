@@ -547,6 +547,12 @@ export const SURFACES: TourSurfaceMap = {
     files: ['components/share/ImportSharedCollectionModal.tsx'],
     url: '/share-collection/{shareId}',
   },
+  'board.linked-collection-import': {
+    label: 'Import synced or view-only collection',
+    kind: 'page',
+    files: ['components/share/ImportLinkedCollectionModal.tsx'],
+    url: '/share/collection/{linkId}',
+  },
 
   'board.help-center': {
     label: 'Help Center',

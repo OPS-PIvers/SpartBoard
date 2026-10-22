@@ -41,6 +41,11 @@ import {
  */
 export type SharedBoardSnapshot = Dashboard & {
   intendedMode?: SharedBoardIntendedMode;
+  /** `/linked_collections/{id}` the share belongs to, when part of a shared collection. */
+  linkedCollectionId?: string;
+  /** Uid of the teacher who created the share. */
+  originalAuthor?: string;
+  participants?: Record<string, SharedBoardParticipant>;
 };
 
 /**
@@ -273,12 +278,14 @@ function mapSharedDocToDashboard(
       ? rawIntendedMode
       : undefined;
   const base = record as unknown as Dashboard;
+  const { linkedCollectionId: rawLinkId, ...rest } = record;
   return {
-    ...base,
+    ...(rest as unknown as Dashboard),
     widgets: migrateBoardWidgets(base.widgets ?? []),
     id: shareId,
     ...(originalAuthorName ? { linkedShareHostName: originalAuthorName } : {}),
     ...(intendedMode ? { intendedMode } : {}),
+    ...(typeof rawLinkId === 'string' ? { linkedCollectionId: rawLinkId } : {}),
   };
 }
 
