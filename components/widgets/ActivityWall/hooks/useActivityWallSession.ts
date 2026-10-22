@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  arrayRemove,
   collection,
   deleteDoc,
   deleteField,
@@ -47,6 +48,40 @@ export const writeSessionMirror = async (
   await setDoc(doc(db, 'activity_wall_sessions', sessionId), payload, {
     merge: true,
   });
+};
+
+/** Which board shares may read a wall's posts; kept out of the session doc, which students read. */
+export const wallBoardAccessDoc = (sessionId: string) =>
+  doc(db, 'activity_wall_sessions', sessionId, 'boardAccess', 'boards');
+
+/** Stops a board's members reading a wall the board no longer shows. */
+export const removeWallBoardShare = (
+  sessionId: string,
+  boardShareId: string
+): Promise<void> =>
+  updateDoc(wallBoardAccessDoc(sessionId), {
+    boardShareIds: arrayRemove(boardShareId),
+  });
+
+/** The list with `boardShareId` added (max 3, evicting only deleted shares), or null to leave it. */
+export const nextWallBoardShareIds = async (
+  known: string[],
+  boardShareId: string
+): Promise<string[] | null> => {
+  if (known.includes(boardShareId)) return null;
+  let kept = known;
+  if (known.length >= 3) {
+    const alive = await Promise.all(
+      known.map((id) =>
+        getDoc(doc(db, 'shared_boards', id))
+          .then((snap) => snap.exists())
+          .catch(() => true)
+      )
+    );
+    kept = known.filter((_, index) => alive[index]);
+    if (kept.length >= 3) return null;
+  }
+  return [boardShareId, ...kept];
 };
 
 export interface DriveSyncCounts {
@@ -104,7 +139,9 @@ export const useActivityWallSession = (
   uid: string | undefined,
   entry: ActivityWallLibraryEntry | null,
   saveActivity: (entry: ActivityWallLibraryEntry) => Promise<void>,
-  timelineDates?: boolean
+  timelineDates?: boolean,
+  /** A live board share whose members may read this wall's approved posts. */
+  boardShareId?: string | null
 ): UseActivityWallSessionResult => {
   const sessionId = uid && entry ? activityWallSessionId(uid, entry.id) : null;
 
@@ -169,6 +206,63 @@ export const useActivityWallSession = (
     shareInfo.sessionId === sessionId ? shareInfo.latestShareCode : undefined;
   const latestShareId =
     shareInfo.sessionId === sessionId ? shareInfo.latestShareId : undefined;
+
+  const accessSessionId = boardShareId && !sandboxed ? sessionId : null;
+  const [boardAccess, setBoardAccess] = useState<{
+    sessionId: string;
+    ids: string[];
+  } | null>(null);
+  useEffect(() => {
+    if (!accessSessionId) return undefined;
+    return onSnapshot(
+      wallBoardAccessDoc(accessSessionId),
+      (snap) => {
+        const ids: unknown = snap.data()?.boardShareIds;
+        setBoardAccess({
+          sessionId: accessSessionId,
+          ids: Array.isArray(ids)
+            ? ids.filter((id): id is string => typeof id === 'string')
+            : [],
+        });
+      },
+      (err) => {
+        console.error('[ActivityWall] Board access listener failed:', err);
+      }
+    );
+  }, [accessSessionId]);
+
+  // An id already listed is never rewritten, and live shares are never evicted, so open boards can't fight.
+  const knownBoardShareIds =
+    boardAccess && boardAccess.sessionId === accessSessionId
+      ? boardAccess.ids
+      : null;
+  const missingBoardShareKey =
+    accessSessionId &&
+    boardShareId &&
+    knownBoardShareIds &&
+    !knownBoardShareIds.includes(boardShareId)
+      ? JSON.stringify(knownBoardShareIds)
+      : null;
+  useEffect(() => {
+    if (!accessSessionId || !boardShareId || !missingBoardShareKey) return;
+    const known = JSON.parse(missingBoardShareKey) as string[];
+    void nextWallBoardShareIds(known, boardShareId)
+      .then(async (next) => {
+        if (!next) return;
+        await setDoc(
+          wallBoardAccessDoc(accessSessionId),
+          { boardShareIds: next },
+          { merge: true }
+        );
+        // Tells members to re-check access without putting share ids in the session doc.
+        await updateDoc(doc(db, 'activity_wall_sessions', accessSessionId), {
+          boardAccessAt: Date.now(),
+        });
+      })
+      .catch((err) => {
+        console.error('[ActivityWall] Failed to open wall to board:', err);
+      });
+  }, [accessSessionId, boardShareId, missingBoardShareKey]);
 
   // Walls saved before wall-level engagement flags inherit them once from their latest gallery share.
   const seededEntryIdRef = useRef<string | null>(null);

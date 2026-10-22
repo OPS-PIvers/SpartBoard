@@ -7,6 +7,7 @@ import type { ActivityWallLibraryEntry, WidgetData } from '@/types';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
 import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import { subShareContextValue } from '@/tests/helpers/subShareContext';
+import { BoardLinkedShareContext } from '@/context/boardLinkedShare';
 
 const {
   mockAddWidget,
@@ -21,6 +22,7 @@ const {
   mockGetCountFromServer,
   mockGetDoc,
   mockLibraryEntries,
+  mockLinkedShareId,
 } = vi.hoisted(() => ({
   mockAddWidget: vi.fn(),
   mockAddToast: vi.fn(),
@@ -34,6 +36,7 @@ const {
   mockGetCountFromServer: vi.fn(),
   mockGetDoc: vi.fn().mockResolvedValue({ data: () => undefined }),
   mockLibraryEntries: { current: [] as ActivityWallLibraryEntry[] },
+  mockLinkedShareId: { current: null as string | null },
 }));
 
 const routerProps: { current: Record<string, unknown> | null } = {
@@ -50,6 +53,7 @@ vi.mock('@/context/dashboardCanvasStore', () => ({
     updateWidget: mockUpdateWidget,
   }),
   useIsActiveBoardReadOnly: () => false,
+  useActiveBoardLinkedShareId: () => mockLinkedShareId.current,
   useGlobalStyle: () => ({ fontFamily: 'sans' }),
 }));
 
@@ -112,6 +116,7 @@ vi.mock('@/utils/googleOAuthRefresh', () => ({
 vi.mock('@/config/firebase', () => ({ db: {}, functions: {}, storage: {} }));
 
 vi.mock('firebase/firestore', () => ({
+  arrayRemove: vi.fn((...ids: unknown[]) => ({ __arrayRemove: ids })),
   collection: vi.fn((...args: unknown[]) => args.join('/')),
   doc: vi.fn((...args: unknown[]) => ({ __path: args.slice(1).join('/') })),
   onSnapshot: mockOnSnapshot,
@@ -167,6 +172,8 @@ beforeEach(() => {
   snapshotDocs = [];
   sessionDocData = {};
   mockLibraryEntries.current = [makeEntry()];
+  mockLinkedShareId.current = null;
+  mockGetDoc.mockResolvedValue({ data: () => undefined });
   mockSaveActivity.mockResolvedValue(undefined);
   mockDeleteActivity.mockResolvedValue(undefined);
   mockSetDoc.mockResolvedValue(undefined);
@@ -185,7 +192,10 @@ beforeEach(() => {
       } else {
         // Doc ref (session-doc share-info listener).
         const path = (ref as { __path: string }).__path;
-        onNext({ data: () => sessionDocData[path] });
+        onNext({
+          exists: () => path in sessionDocData,
+          data: () => sessionDocData[path],
+        });
       }
       return vi.fn();
     }
@@ -591,5 +601,241 @@ describe('ActivityWallWidget inside a sub share', () => {
 
     expect(await findByText('No wall')).toBeInTheDocument();
     expect(screen.queryByText('Choose a wall')).not.toBeInTheDocument();
+  });
+});
+
+describe('ActivityWallWidget on a Synced or View-Only board', () => {
+  const hostSession = {
+    id: 'host-1_wall-1',
+    activityId: 'wall-1',
+    teacherUid: 'host-1',
+    title: 'Host wall',
+    prompt: 'Share one idea',
+    mode: 'text',
+    moderationEnabled: true,
+    identificationMode: 'anonymous',
+    updatedAt: 5,
+    layout: 'wall',
+    showNames: false,
+    acceptingResponses: true,
+  };
+
+  beforeEach(() => {
+    mockLinkedShareId.current = 'share-1';
+    mockLibraryEntries.current = [];
+    mockGetDoc.mockResolvedValue({
+      data: () => ({ originalAuthor: 'host-1' }),
+    });
+  });
+
+  it("shows the host's wall read-only once the host opens it to the board", async () => {
+    sessionDocData = {
+      'activity_wall_sessions/host-1_wall-1': hostSession,
+      'activity_wall_sessions/host-1_wall-1/boardAccess/boards': {
+        boardShareIds: ['share-1'],
+      },
+    };
+    snapshotDocs = [
+      {
+        id: 'p-1',
+        content: 'Approved idea',
+        submittedAt: 1,
+        status: 'approved',
+      },
+    ];
+    routerProps.current = null;
+    renderWidget();
+
+    expect(await screen.findByText('Host wall')).toBeInTheDocument();
+    await screen.findByTestId('layout-router');
+    expect(lastRouterProps()?.submissions).toHaveLength(1);
+    for (const handler of ['onApprove', 'onDelete', 'onMove', 'onAddAt']) {
+      expect(lastRouterProps()?.[handler]).toBeUndefined();
+    }
+    expect(screen.queryByRole('button', { name: 'Open' })).toBeNull();
+    // The guest never writes a session of their own.
+    expect(mockSetDoc).not.toHaveBeenCalled();
+    expect(mockUpdateDoc).not.toHaveBeenCalled();
+  });
+
+  it('keeps the old empty state until the host lists the board', async () => {
+    sessionDocData = { 'activity_wall_sessions/host-1_wall-1': hostSession };
+    renderWidget();
+
+    expect(await screen.findByText('Choose a wall')).toBeInTheDocument();
+    expect(screen.queryByText('Host wall')).toBeNull();
+  });
+
+  it('uses the stamped owner without looking up the share', async () => {
+    sessionDocData = {
+      'activity_wall_sessions/collab-1_wall-1': {
+        ...hostSession,
+        id: 'collab-1_wall-1',
+        teacherUid: 'collab-1',
+        title: 'Collaborator wall',
+      },
+      'activity_wall_sessions/collab-1_wall-1/boardAccess/boards': {
+        boardShareIds: ['share-1'],
+      },
+    };
+    render(
+      <ActivityWallWidget
+        widget={{
+          ...baseWidget,
+          config: {
+            activeActivityId: 'wall-1',
+            activeActivityOwnerUid: 'collab-1',
+          },
+        }}
+      />
+    );
+
+    expect(await screen.findByText('Collaborator wall')).toBeInTheDocument();
+    expect(mockGetDoc).not.toHaveBeenCalledWith(
+      expect.objectContaining({ __path: 'shared_boards/share-1' })
+    );
+  });
+
+  it("lists the board in the owner's private access doc so members can read it", async () => {
+    mockLibraryEntries.current = [makeEntry()];
+    sessionDocData = {
+      'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards': {
+        boardShareIds: ['old-share'],
+      },
+    };
+    renderWidget();
+
+    await waitFor(() =>
+      expect(mockSetDoc).toHaveBeenCalledWith(
+        expect.objectContaining({
+          __path: 'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards',
+        }),
+        { boardShareIds: ['share-1', 'old-share'] },
+        { merge: true }
+      )
+    );
+    // The session doc students read only learns that access changed.
+    await waitFor(() =>
+      expect(mockUpdateDoc).toHaveBeenCalledWith(
+        expect.objectContaining({
+          __path: 'activity_wall_sessions/teacher-1_wall-1',
+        }),
+        { boardAccessAt: expect.any(Number) as number }
+      )
+    );
+    const sessionWrites = mockSetDoc.mock.calls.filter(
+      ([ref]) =>
+        (ref as { __path: string }).__path ===
+        'activity_wall_sessions/teacher-1_wall-1'
+    );
+    for (const [, payload] of sessionWrites) {
+      expect(JSON.stringify(payload)).not.toContain('share-1');
+    }
+  });
+
+  it('never evicts a live board when the list is full', async () => {
+    mockLibraryEntries.current = [makeEntry()];
+    mockGetDoc.mockResolvedValue({ exists: () => true, data: () => ({}) });
+    sessionDocData = {
+      'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards': {
+        boardShareIds: ['a', 'b', 'c'],
+      },
+    };
+    renderWidget();
+    await screen.findByText('Warm Up');
+    await waitFor(() => expect(mockGetDoc).toHaveBeenCalledTimes(3));
+    expect(mockSetDoc).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        __path: 'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards',
+      }),
+      expect.anything(),
+      expect.anything()
+    );
+  });
+
+  it('stamps the owner when a wall is opened on the board', async () => {
+    mockLinkedShareId.current = null;
+    mockLibraryEntries.current = [makeEntry()];
+    render(<ActivityWallWidget widget={{ ...baseWidget, config: {} }} />);
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Open library' })
+    );
+    await userEvent.click(
+      (
+        await screen.findAllByRole('button', { name: /open on board|warm up/i })
+      )[0]
+    );
+
+    await waitFor(() =>
+      expect(mockUpdateWidget).toHaveBeenCalledWith('widget-1', {
+        config: {
+          activeActivityId: 'wall-1',
+          activeActivityOwnerUid: 'teacher-1',
+        },
+      })
+    );
+  });
+
+  it("doesn't rewrite the list when the board is already on it", async () => {
+    mockLibraryEntries.current = [makeEntry()];
+    sessionDocData = {
+      'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards': {
+        boardShareIds: ['other-board', 'share-1'],
+      },
+    };
+    renderWidget();
+    await screen.findByText('Warm Up');
+    expect(mockUpdateDoc).not.toHaveBeenCalled();
+  });
+
+  it('closes the old wall to the board when the owner switches walls', async () => {
+    mockLibraryEntries.current = [
+      makeEntry(),
+      makeEntry({ id: 'wall-2', title: 'Exit Ticket' }),
+    ];
+    renderWidget();
+    await screen.findByText('Warm Up');
+    // Open each wall in turn; only leaving wall-1 should close it to the board.
+    for (const index of [0, 1]) {
+      await userEvent.click(
+        await screen.findByRole('button', { name: 'Open wall library' })
+      );
+      const buttons = await screen.findAllByRole('button', {
+        name: /open on board/i,
+      });
+      await userEvent.click(buttons[index]);
+    }
+    await waitFor(() =>
+      expect(mockUpdateDoc).toHaveBeenCalledWith(
+        expect.objectContaining({
+          __path: 'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards',
+        }),
+        { boardShareIds: { __arrayRemove: ['share-1'] } }
+      )
+    );
+  });
+
+  it("uses its own board's share, not the active board's, when mounted hidden", async () => {
+    mockLibraryEntries.current = [makeEntry()];
+    sessionDocData = {
+      'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards': {
+        boardShareIds: [],
+      },
+    };
+    render(
+      <BoardLinkedShareContext value={null}>
+        <ActivityWallWidget widget={baseWidget} />
+      </BoardLinkedShareContext>
+    );
+    await screen.findByText('Warm Up');
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(mockSetDoc).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        __path: 'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards',
+      }),
+      expect.anything(),
+      expect.anything()
+    );
   });
 });

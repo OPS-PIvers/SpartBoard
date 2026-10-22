@@ -29,11 +29,13 @@ import {
   updatePost,
   type PostDraft,
 } from '@/components/activityWall/submission/submitPost';
+import { useBoardLinkedShareId } from '@/context/boardLinkedShare';
 import {
   useDashboardActions,
   useGlobalStyle,
   useIsActiveBoardReadOnly,
 } from '@/context/dashboardCanvasStore';
+import { useLinkedShareHost } from '@/hooks/useLinkedShareHost';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useClickOutside } from '@/hooks/useClickOutside';
@@ -59,7 +61,11 @@ import { LAYOUT_OPTIONS } from './editor/layoutOptions';
 import { WallLibraryModal } from './WallLibraryModal';
 import { ModerationDrawer } from './ModerationDrawer';
 import { ActivityWallShareModal } from './ShareModal';
-import { useActivityWallSession } from './hooks/useActivityWallSession';
+import {
+  removeWallBoardShare,
+  useActivityWallSession,
+} from './hooks/useActivityWallSession';
+import { useLinkedBoardActivityWall } from './hooks/useLinkedBoardActivityWall';
 import { useSubShareActivityWall } from './useSubShareActivityWall';
 import { useLegacyActivityWallMigration } from './hooks/useLegacyActivityWallMigration';
 import { tourAttr } from '@/config/tourAnchors';
@@ -118,22 +124,52 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   // substitute reads neither, and the library behind this widget is the
   // substitute's own and empty.
   const shared = useSubShareActivityWall(config.activeActivityId);
-  const inShare = shared.active;
+  const inSubShare = shared.active;
 
   const {
     activities: entries,
     loading: libraryLoading,
     saveActivity,
     deleteActivity,
-  } = useActivityWallLibrary(inShare ? undefined : user?.uid);
+  } = useActivityWallLibrary(inSubShare ? undefined : user?.uid);
 
   const ownEntry = useMemo(
     () => entries.find((entry) => entry.id === config.activeActivityId) ?? null,
     [entries, config.activeActivityId]
   );
-  const activeEntry: ActivityWallLibraryEntry | null = inShare
+
+  // On a Synced or View-Only board the wall may be in another member's library.
+  const boardShareId = useBoardLinkedShareId();
+  const stampedOwner = config.activeActivityOwnerUid ?? null;
+  const needsShareHost =
+    !inSubShare &&
+    !!boardShareId &&
+    !stampedOwner &&
+    !!config.activeActivityId &&
+    !libraryLoading &&
+    !ownEntry;
+  const shareHostUid = useLinkedShareHost(needsShareHost ? boardShareId : null);
+  const foreignOwnerUid =
+    inSubShare || !boardShareId || ownEntry
+      ? null
+      : stampedOwner && stampedOwner !== user?.uid
+        ? stampedOwner
+        : !stampedOwner && shareHostUid !== user?.uid
+          ? shareHostUid
+          : null;
+  const linked = useLinkedBoardActivityWall(
+    foreignOwnerUid,
+    config.activeActivityId ?? null,
+    boardShareId
+  );
+  // Someone else's wall, shown read-only: a sub share or another board member's.
+  const inShare = inSubShare || linked.active;
+
+  const activeEntry: ActivityWallLibraryEntry | null = inSubShare
     ? shared.entry
-    : ownEntry;
+    : linked.active
+      ? linked.entry
+      : ownEntry;
 
   const [editorEntry, setEditorEntry] = useState<
     ActivityWallLibraryEntry | null | undefined
@@ -170,7 +206,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   useLegacyActivityWallMigration({
-    uid: inShare ? undefined : user?.uid,
+    uid: inSubShare ? undefined : user?.uid,
     config,
     widgetId: widget.id,
     libraryLoading,
@@ -201,14 +237,21 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     inShare ? undefined : user?.uid,
     activeEntry,
     saveActivity,
-    canAccessFeature('activity-wall-timeline-dates')
+    canAccessFeature('activity-wall-timeline-dates'),
+    canAccessFeature('shared-board-live-walls') ? boardShareId : null
   );
-  const session = inShare ? shared.session : ownSession;
-  // In a share the posts came along in the share's names file, which only the
-  // named substitutes can read; the teacher's own session is unreadable here.
-  const shownSubmissions = inShare
+  const session = inSubShare
+    ? shared.session
+    : linked.active
+      ? linked.session
+      : ownSession;
+  // In a sub share the posts came along in the share's names file, which only
+  // the named substitutes can read; the teacher's own session is unreadable here.
+  const shownSubmissions = inSubShare
     ? (config.subSharePosts ?? EMPTY_POSTS)
-    : submissions;
+    : linked.active
+      ? linked.posts
+      : submissions;
 
   const isOpenWall = activeEntry?.acceptingResponses !== false;
   const isVisibleWall = activeEntry?.studentsCanSeePosts !== false;
@@ -233,9 +276,20 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
 
   const setActiveEntry = useCallback(
     (entryId: string | null) => {
-      updateWidget(widget.id, { config: { activeActivityId: entryId } });
+      // The wall leaving this board stops being readable by the board's members.
+      if (boardShareId && sessionId && ownEntry && ownEntry.id !== entryId) {
+        void removeWallBoardShare(sessionId, boardShareId).catch((err) => {
+          console.error('[ActivityWall] Failed to close wall to board:', err);
+        });
+      }
+      updateWidget(widget.id, {
+        config: {
+          activeActivityId: entryId,
+          activeActivityOwnerUid: entryId ? (user?.uid ?? null) : null,
+        },
+      });
     },
-    [updateWidget, widget.id]
+    [boardShareId, ownEntry, sessionId, updateWidget, user?.uid, widget.id]
   );
 
   const toggleOpenClosed = useCallback(() => {
@@ -689,7 +743,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     );
 
   const body = !activeEntry ? (
-    inShare ? (
+    inSubShare ? (
       <ScaledEmptyState
         icon={LayoutGrid}
         title="No wall"
@@ -720,12 +774,14 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         }
       />
     )
-  ) : inShare && visibleCount === 0 ? (
+  ) : inSubShare && visibleCount === 0 ? (
     <ScaledEmptyState
       icon={LayoutGrid}
       title="No posts"
       subtitle="This wall had no approved posts when your teacher shared it."
     />
+  ) : inShare && visibleCount === 0 ? (
+    <ScaledEmptyState icon={LayoutGrid} title="No posts yet" />
   ) : !inShare && visibleCount === 0 ? (
     <ScaledEmptyState
       icon={LayoutGrid}

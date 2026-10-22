@@ -1528,10 +1528,10 @@ service cloud.firestore {
         incoming().get('plcId', null) == existing().get('plcId', null) &&
         incoming().get('linkedCollectionId', null) == existing().get('linkedCollectionId', null);
 
-      // Self-join: any authed user may add ONLY their own uid to participants
+      // Self-join: any signed-in teacher (not anonymous, not a student) may add ONLY their own uid to participants
       // (Synced/View-Only importers). Not allowed on substitute shares — subs
       // view via /subs without importing, so a self-join would be a phantom.
-      allow update: if signedIn() &&
+      allow update: if signedIn() && notAnon() && !isStudentRoleUser() &&
         existing().get('intendedMode', null) != 'substitute' &&
         // A View-Only link only ever makes a viewer; a Copy link makes no member.
         existing().get('intendedMode', null) != 'copy' &&
@@ -6043,6 +6043,27 @@ service cloud.firestore {
                (awStudentAudienceOk() &&
                 awParentSession().get('studentsCanSeePosts', true) != false);
       }
+      // Teacher on a Synced/View-Only board that shows this wall: the owner lists the board's
+      // share in boardAccess/boards (max 3), and both the owner and the caller belong to that share.
+      // The ids stay out of the session doc, which the wall's students and guests can read.
+      function awBoardShareOk(shareId) {
+        let sb = get(/databases/$(database)/documents/shared_boards/$(shareId)).data;
+        let members = sb.get('participants', {});
+        return (sb.originalAuthor == authUid() || authUid() in members)
+          && (sessionId.matches(sb.originalAuthor + '_.*')
+              || sessionId.split('_')[0] in members);
+      }
+      function awBoardMemberOk() {
+        let ids = get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)/boardAccess/boards).data.get('boardShareIds', []);
+        return notAnon() && !isStudentRoleUser() && ids is list && ids.size() <= 3
+          && ((ids.size() > 0 && awBoardShareOk(ids[0]))
+              || (ids.size() > 1 && awBoardShareOk(ids[1]))
+              || (ids.size() > 2 && awBoardShareOk(ids[2])));
+      }
+      match /boardAccess/{docId} {
+        allow get: if signedIn() && (awIsOwner() || (docId == 'boards' && awBoardMemberOk()));
+        allow create, update, delete: if signedIn() && notAnon() && docId == 'boards' && awIsOwner();
+      }
       // Engagement (likes/comments) reads are an unfiltered collection listen
       // (useWallEngagement.ts has no per-post `where`, by design), so the list-query rule
       // can only depend on session-level state: a rule referencing resource.data here
@@ -6238,6 +6259,7 @@ service cloud.firestore {
                              (awStudentAudienceOk() &&
                               awSession().get('studentsCanSeePosts', true) != false &&
                               existing().status == 'approved') ||
+                             (existing().status == 'approved' && awBoardMemberOk()) ||
                              existing().authorUid == authUid());
         allow delete: if signedIn() &&
                             (isAdmin() || sessionId.matches(authUid() + '_.*'));

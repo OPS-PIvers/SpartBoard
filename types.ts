@@ -2549,6 +2549,8 @@ export interface ActivityWallConfig {
    */
   activities?: ActivityWallActivity[];
   activeActivityId?: string | null;
+  /** Whose library the active wall is in, so other members of a shared board can find it. */
+  activeActivityOwnerUid?: string | null;
   draftActivity?: ActivityWallActivity;
   /** Photo size on the widget face. */
   imageSize?: 'small' | 'medium' | 'large';
@@ -2587,6 +2589,8 @@ export interface ActivityWallSession extends SessionWorkKindFields {
   id: string;
   activityId: string;
   teacherUid: string;
+  /** Bumped when the owner changes which board shares may read the wall (ids live in `boardAccess/boards`). */
+  boardAccessAt?: number;
   title: string;
   prompt: string;
   mode: ActivityWallMode;
@@ -10291,6 +10295,8 @@ export type GlobalFeature =
   | 'checklist-small-card'
   /** Synced and View-Only collection sharing (docs/plans/COLLECTION_SHARING.md). */
   | 'collection-sync-sharing'
+  /** Members of a shared board see the owner's Activity Wall and its approved posts live. */
+  | 'shared-board-live-walls'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak';
 
