@@ -43,6 +43,8 @@ const stored = (set: GuidedLearningSet): Record<string, unknown> =>
 export function isWebTourPicturePath(setId: string, path: string): boolean {
   const prefix = `${WEB_TOUR_PICTURES_PREFIX}/${setId}/`;
   return (
+    setId.length > 0 &&
+    !setId.includes('/') &&
     path.startsWith(prefix) &&
     path.length > prefix.length &&
     !path.slice(prefix.length).includes('/')
@@ -120,19 +122,18 @@ export async function deleteWebTourDraft(setId: string): Promise<void> {
   await deleteDoc(draftRef(setId));
 }
 
-/** Uploads one step picture and returns its Storage path (never a download URL). */
+/** Uploads one step picture under a new random name and returns its Storage path (never a download URL). */
 export async function uploadWebTourPicture(
   setId: string,
-  fileId: string,
   bytes: Blob,
   contentType: WebTourPictureType
 ): Promise<string> {
   if (bytes.size > WEB_TOUR_PICTURE_MAX_BYTES) {
     throw new Error('Picture is larger than 5 MB');
   }
-  const path = `${WEB_TOUR_PICTURES_PREFIX}/${setId}/${fileId}.${PICTURE_TYPES[contentType]}`;
+  const path = `${WEB_TOUR_PICTURES_PREFIX}/${setId}/${crypto.randomUUID()}.${PICTURE_TYPES[contentType]}`;
   if (!isWebTourPicturePath(setId, path)) {
-    throw new Error('Invalid picture name');
+    throw new Error('Invalid set id');
   }
   await uploadBytes(ref(storage, path), bytes, { contentType });
   return path;
@@ -167,7 +168,10 @@ export async function publishWebTour(
     setId,
     previous.exists() ? (previous.get('set') as { steps?: unknown }) : null
   );
+  // Re-read the draft so a picture saved back into it since the publish started is kept.
+  const latest = await loadWebTourDraft(setId);
   const keep = webTourPicturePaths(setId, draft);
+  webTourPicturePaths(setId, latest).forEach((p) => keep.add(p));
   const stale = [...before].filter((p) => !keep.has(p));
   await Promise.all(
     stale.map((p) =>

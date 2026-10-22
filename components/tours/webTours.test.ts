@@ -4,6 +4,7 @@ const h = vi.hoisted(() => ({
   docs: new Map<string, Record<string, unknown>>(),
   writes: [] as { path: string; data: Record<string, unknown> }[],
   deleted: [] as string[],
+  afterWrite: null as null | (() => void),
 }));
 
 vi.mock('@/config/firebase', () => ({ db: {}, storage: {} }));
@@ -24,6 +25,7 @@ vi.mock('firebase/firestore', () => ({
   setDoc: ({ path }: { path: string }, data: Record<string, unknown>) => {
     h.writes.push({ path, data });
     h.docs.set(path, data);
+    h.afterWrite?.();
     return Promise.resolve();
   },
 }));
@@ -57,6 +59,7 @@ beforeEach(() => {
   h.docs.clear();
   h.writes.length = 0;
   h.deleted.length = 0;
+  h.afterWrite = null;
 });
 
 describe('web tour picture paths', () => {
@@ -81,10 +84,19 @@ describe('web tour picture paths', () => {
     expect([...paths]).toEqual(['web_tour_pictures/w1/a.png']);
   });
 
-  it('refuses an upload id that would leave the set folder', async () => {
+  it('uploads under a random name inside the set folder', async () => {
+    const a = await uploadWebTourPicture('w1', new Blob(['x']), 'image/png');
+    const b = await uploadWebTourPicture('w1', new Blob(['x']), 'image/webp');
+    expect(isWebTourPicturePath('w1', a)).toBe(true);
+    expect(a).toMatch(/\.png$/);
+    expect(b).toMatch(/\.webp$/);
+    expect(a).not.toBe(b);
+  });
+
+  it('refuses a set id that would leave the pictures folder', async () => {
     await expect(
-      uploadWebTourPicture('w1', '../w2/a', new Blob(['x']), 'image/png')
-    ).rejects.toThrow('Invalid picture name');
+      uploadWebTourPicture('w1/x', new Blob(['x']), 'image/png')
+    ).rejects.toThrow('Invalid set id');
   });
 });
 
@@ -111,6 +123,18 @@ describe('publishWebTour', () => {
     );
     await publishWebTour('w1', 'admin-uid');
     expect(h.deleted).toEqual(['web_tour_pictures/w1/old.png']);
+  });
+
+  it('keeps a picture a newer draft saved back while publishing', async () => {
+    h.docs.set('building_guided_learning_tours/w1', {
+      surface: 'web',
+      set: { steps: [pic('old.png')] },
+    });
+    h.docs.set('building_web_tours/w1', draft([pic('new.png')]));
+    h.afterWrite = () =>
+      h.docs.set('building_web_tours/w1', draft([pic('old.png')]));
+    await publishWebTour('w1', 'admin-uid');
+    expect(h.deleted).toEqual([]);
   });
 
   it('refuses to overwrite a SpartBoard tour with the same id', async () => {

@@ -1315,9 +1315,11 @@ service cloud.firestore {
     // A list can't rule out web snapshots, so only district staff list.
     match /building_guided_learning_tours/{setId} {
       function staff() { return signedIn() && notAnon() && !isStudentRoleUser(); }
-      allow get: if staff() && (resource == null || resource.data.get('surface', 'spartboard') != 'web' || isVerifiedDistrictEmail());
+      allow get: if staff() && (resource == null || resource.data.get('surface', 'spartboard') == 'spartboard' || isVerifiedDistrictEmail());
       allow list: if staff() && isVerifiedDistrictEmail();
-      allow write: if isAdmin();
+      allow create, delete: if isAdmin();
+      // The read gate rests on surface, so a republish never changes it.
+      allow update: if isAdmin() && incoming().get('surface', 'spartboard') == existing().get('surface', 'spartboard');
       // Each teacher's latest run of the tour (P7-6): write-only, admins read.
       match /runs/{uid} {
         function validRun(d) {

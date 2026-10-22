@@ -444,7 +444,8 @@ service firebase.storage {
     match /web_tour_pictures/{setId}/{fileName} {
       allow get: if isVerifiedDistrictEmail() && viewAsReadOk();
       allow list, delete: if isAdmin();
-      allow create, update: if isAdmin() &&
+      // Create only: a live tour's picture is never replaced in place, so changes go through publish.
+      allow create: if isAdmin() &&
         request.resource.size <= 5 * 1024 * 1024 &&
         request.resource.contentType is string &&
         request.resource.contentType.matches('image/(png|jpeg|webp)');

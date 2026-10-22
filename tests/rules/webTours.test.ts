@@ -207,9 +207,9 @@ describe('web tour snapshots', () => {
     await assertFails(
       getDocs(collection(asOutsideTeacher().firestore(), TOURS))
     );
-    await assertFails(
-      getDocs(collection(asStudentGoogle().firestore(), TOURS))
-    );
+    for (const ctx of [asStudentGoogle(), asAnon(), asStudentRole()]) {
+      await assertFails(getDocs(collection(ctx.firestore(), TOURS)));
+    }
   });
 
   it('lets only admins publish or remove a web snapshot', async () => {
@@ -225,6 +225,33 @@ describe('web tour snapshots', () => {
       await assertFails(deleteDoc(doc(db, `${TOURS}/w1`)));
     }
     await assertSucceeds(deleteDoc(doc(asAdmin().firestore(), `${TOURS}/w1`)));
+  });
+
+  it('never lets a republish change surface', async () => {
+    const db = asAdmin().firestore();
+    await assertSucceeds(
+      setDoc(doc(db, `${TOURS}/w1`), { ...webSnapshot, publishedAt: 2 })
+    );
+    await assertFails(setDoc(doc(db, `${TOURS}/w1`), boardSnapshot));
+    await assertFails(
+      setDoc(doc(db, `${TOURS}/s1`), { ...boardSnapshot, surface: 'web' })
+    );
+    await assertSucceeds(
+      setDoc(doc(db, `${TOURS}/s1`), { ...boardSnapshot, publishedAt: 2 })
+    );
+  });
+
+  it('hides a snapshot with any surface other than spartboard from non-district accounts', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `${TOURS}/odd`), {
+        ...boardSnapshot,
+        surface: 'other',
+      });
+    });
+    await assertFails(
+      getDoc(doc(asOutsideTeacher().firestore(), `${TOURS}/odd`))
+    );
+    await assertSucceeds(getDoc(doc(asStaff().firestore(), `${TOURS}/odd`)));
   });
 });
 
@@ -264,7 +291,8 @@ describe('web_tour_pictures storage', () => {
       'allow get: if isVerifiedDistrictEmail() && viewAsReadOk();'
     );
     expect(body).toContain('allow list, delete: if isAdmin();');
-    expect(body).toContain('allow create, update: if isAdmin() &&');
+    expect(body).toContain('allow create: if isAdmin() &&');
+    expect(body).not.toContain('update');
     expect(body).toContain('request.resource.size <= 5 * 1024 * 1024');
     expect(body).toContain("contentType.matches('image/(png|jpeg|webp)')");
   });
