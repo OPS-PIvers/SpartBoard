@@ -1,6 +1,8 @@
 import type {
   Collection,
   Dashboard,
+  LinkedCollectionBoard,
+  LinkedCollectionSection,
   SharedCollectionBoardEntry,
   SharedCollectionSection,
 } from '@/types';
@@ -70,4 +72,39 @@ export function planCopyImportTree(share: {
     }
   }
   return { children, sectionOf };
+}
+
+/** The link doc's `sections` and `boards` for a Synced / View-Only share, root boards with no section. */
+export function linkedCollectionLayout(
+  tree: CopyShareTree,
+  shareIdByBoard: Map<string, string>
+): { sections: LinkedCollectionSection[]; boards: LinkedCollectionBoard[] } {
+  const rootId = tree.sections[0]?.id;
+  const siblingCount = new Map<string | null, number>();
+  const sections: LinkedCollectionSection[] = [];
+  for (const section of tree.sections.slice(1)) {
+    const parentId =
+      section.parentId && section.parentId !== rootId ? section.parentId : null;
+    const order = siblingCount.get(parentId) ?? 0;
+    siblingCount.set(parentId, order + 1);
+    sections.push({
+      id: section.id,
+      name: section.name,
+      parentId,
+      order,
+      ...(section.color !== undefined && { color: section.color }),
+    });
+  }
+  const boards: LinkedCollectionBoard[] = [];
+  for (const entry of tree.boardEntries) {
+    const shareId = shareIdByBoard.get(entry.id);
+    if (!shareId) continue;
+    boards.push({
+      shareId,
+      name: entry.name,
+      order: entry.order,
+      ...(entry.sectionId !== rootId && { sectionId: entry.sectionId }),
+    });
+  }
+  return { sections, boards };
 }

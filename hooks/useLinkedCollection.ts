@@ -1,6 +1,6 @@
 // `/linked_collections/{linkId}`: name, board list and members of a Synced / View-Only collection share.
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
   deleteField,
   doc,
@@ -26,6 +26,8 @@ export const LINKED_COLLECTION_MAX_SECTIONS = 200;
 export const LINKED_COLLECTION_MAX_PARTICIPANTS = 50;
 
 export interface CreateLinkedCollectionInput {
+  /** Chosen up front so the board shares can be stamped with it before the link exists. */
+  linkId?: string;
   hostUid: string;
   hostName: string | null;
   mode: LinkedCollectionMode;
@@ -106,7 +108,7 @@ export const useLinkedCollection = () => {
   const createLinkedCollection = useCallback(
     async (input: CreateLinkedCollectionInput): Promise<string> => {
       assertWithinCaps(input);
-      const linkId = crypto.randomUUID();
+      const linkId = input.linkId ?? crypto.randomUUID();
       const now = Date.now();
       const link: LinkedCollection = withoutUndefined({
         linkId,
@@ -247,13 +249,24 @@ export const useLinkedCollection = () => {
     []
   );
 
-  return {
-    createLinkedCollection,
-    loadLinkedCollection,
-    subscribeLinkedCollection,
-    updateLinkedCollection,
-    joinLinkedCollection,
-    leaveLinkedCollection,
-    endLinkedCollection,
-  };
+  return useMemo(
+    () => ({
+      createLinkedCollection,
+      loadLinkedCollection,
+      subscribeLinkedCollection,
+      updateLinkedCollection,
+      joinLinkedCollection,
+      leaveLinkedCollection,
+      endLinkedCollection,
+    }),
+    [
+      createLinkedCollection,
+      loadLinkedCollection,
+      subscribeLinkedCollection,
+      updateLinkedCollection,
+      joinLinkedCollection,
+      leaveLinkedCollection,
+      endLinkedCollection,
+    ]
+  );
 };

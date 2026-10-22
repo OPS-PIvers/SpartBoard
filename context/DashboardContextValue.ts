@@ -15,6 +15,7 @@ import {
   DrawableObject,
   ShapeTool,
   Collection,
+  LinkedCollectionMode,
   CollectionSubstituteShareInput,
   SubstituteShareRoster,
   SharedCollection,
@@ -412,6 +413,13 @@ export interface DashboardContextValue {
     boards: Dashboard[];
     /** The sub-collection tree, so the copy rebuilds it (COLLECTION_SHARING D1). */
     tree?: CopyShareTree;
+  }) => Promise<string>;
+  /** Synced / View-Only collection share: one board share each plus the link doc; returns the link id. */
+  shareLinkedCollection: (input: {
+    collection: Collection;
+    boards: Dashboard[];
+    tree: CopyShareTree;
+    mode: LinkedCollectionMode;
   }) => Promise<string>;
   /**
    * Create a sub share of a Collection — or of a single Board, written as a

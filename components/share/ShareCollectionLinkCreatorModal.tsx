@@ -1,14 +1,25 @@
 /**
- * ShareCollectionLinkCreatorModal — hand a colleague a copy of a Collection;
- * subs go through `ShareWithSubModal`.
+ * ShareCollectionLinkCreatorModal — share a Collection with a colleague as a
+ * copy or, behind `collection-sync-sharing`, Synced / View-Only; subs go
+ * through `ShareWithSubModal`.
  */
 
 import { type FC, useState, useId, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Folder, UserCheck } from 'lucide-react';
-import type { Collection, Dashboard } from '@/types';
+import {
+  Cloud,
+  Copy,
+  Eye,
+  Folder,
+  GraduationCap,
+  UserCheck,
+} from 'lucide-react';
+import type { Collection, Dashboard, LinkedCollectionMode } from '@/types';
 import type { CopyShareTree } from '@/hooks/useSharedCollection';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
+import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
+import { ModeOption } from './ShareModeOption';
 import { logError } from '@/utils/logError';
 import { tourAttr } from '@/config/tourAnchors';
 
@@ -25,32 +36,76 @@ interface ShareCollectionLinkCreatorModalProps {
 }
 
 type CopyState = 'unknown' | 'copied' | 'failed';
+type ShareMode = LinkedCollectionMode | 'copy';
 
 export const ShareCollectionLinkCreatorModal: FC<
   ShareCollectionLinkCreatorModalProps
 > = ({ isOpen, collection, boards, tree, onClose, onShareWithSub }) => {
   const { t } = useTranslation();
-  const { shareCollection, addToast } = useDashboard();
+  const { shareCollection, shareLinkedCollection, addToast } = useDashboard();
+  const { canAccessFeature } = useAuth();
+  const outward = useViewAsOutward();
+  const [mode, setMode] = useState<ShareMode>('synced');
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<CopyState>('unknown');
   const [busy, setBusy] = useState(false);
   const headingId = useId();
 
+  // A collection already in a live share (or someone else's) only offers a copy.
+  const liveSharing =
+    canAccessFeature('collection-sync-sharing') &&
+    !(collection?.linkedCollectionId && !collection.linkedCollectionEnded);
+  const effectiveMode: ShareMode = liveSharing ? mode : 'copy';
+
   const handleCreate = useCallback(async () => {
     if (!collection) return;
+    if (effectiveMode !== 'copy') {
+      const live = boards.find((b) => b.linkedShareId && !b.linkedShareEnded);
+      if (live) {
+        addToast(
+          t('shareCollection.boardAlreadyLive', {
+            name: live.name,
+            defaultValue:
+              '{{name}} is already shared live. Stop sharing it first, or make a copy.',
+          }),
+          'error'
+        );
+        return;
+      }
+      if (
+        outward.active &&
+        !(await outward.confirm(
+          'Share collection',
+          VIEW_AS_WRITES.shareCollection
+        ))
+      )
+        return;
+    }
     setBusy(true);
     // try/finally guarantees `setBusy(false)` runs even if a future
     // refactor adds an early `return` after a throw or an unawaited
     // sub-action raises — without it, the modal would lock into a
     // permanently "Creating…" state for the rest of the session.
     try {
-      let shareId: string;
+      let url: string;
       try {
-        shareId = await shareCollection({ collection, boards, tree });
+        if (effectiveMode === 'copy') {
+          const shareId = await shareCollection({ collection, boards, tree });
+          url = `${window.location.origin}/share-collection/${shareId}`;
+        } else {
+          const linkId = await shareLinkedCollection({
+            collection,
+            boards,
+            tree: tree ?? { sections: [], boardEntries: [] },
+            mode: effectiveMode,
+          });
+          url = `${window.location.origin}/share/collection/${linkId}`;
+        }
       } catch (err) {
         logError('ShareCollectionLinkCreatorModal.create', err, {
           collectionId: collection.id,
           boardCount: boards.length,
+          mode: effectiveMode,
         });
         // `commitBoardBatches` re-throws partial-failure errors with a
         // descriptive cause that's safe to show — surface verbatim so the
@@ -64,7 +119,6 @@ export const ShareCollectionLinkCreatorModal: FC<
         addToast(message, 'error');
         return;
       }
-      const url = `${window.location.origin}/share-collection/${shareId}`;
       setShareUrl(url);
       try {
         await navigator.clipboard.writeText(url);
@@ -76,7 +130,17 @@ export const ShareCollectionLinkCreatorModal: FC<
     } finally {
       setBusy(false);
     }
-  }, [collection, boards, tree, shareCollection, addToast, t]);
+  }, [
+    collection,
+    boards,
+    tree,
+    effectiveMode,
+    outward,
+    shareCollection,
+    shareLinkedCollection,
+    addToast,
+    t,
+  ]);
 
   if (!isOpen || !collection) return null;
 
@@ -110,33 +174,91 @@ export const ShareCollectionLinkCreatorModal: FC<
                   'Sharing {{count}} board(s) from this Collection.',
               })}
             </p>
-            <p className="text-xs text-slate-500">
-              {t('shareCollection.copyModeHint', {
-                defaultValue: 'They get their own copy to edit.',
-              })}
-            </p>
-            {onShareWithSub && (
-              <button
-                type="button"
-                onClick={onShareWithSub}
-                {...tourAttr('share-collection.share-with-sub')}
-                className="w-full flex items-start gap-2 p-3 rounded-lg border border-slate-200 text-left hover:bg-slate-50"
-              >
-                <UserCheck className="w-3.5 h-3.5 mt-0.5 text-slate-800" />
-                <span className="flex-1">
-                  <span className="block text-sm font-bold text-slate-800">
-                    {t('shareCollection.subShare', {
+            {liveSharing ? (
+              <div className="space-y-3">
+                <ModeOption
+                  selected={mode === 'synced'}
+                  title={t('shareCollection.modes.synced.title', {
+                    defaultValue: 'Synced',
+                  })}
+                  body={t('shareCollection.modes.synced.body', {
+                    defaultValue: 'You both edit the same collection.',
+                  })}
+                  Icon={Cloud}
+                  onPick={() => setMode('synced')}
+                  tourId="share-collection.mode-synced"
+                />
+                <ModeOption
+                  selected={mode === 'view-only'}
+                  title={t('shareCollection.modes.viewOnly.title', {
+                    defaultValue: 'View-Only',
+                  })}
+                  body={t('shareCollection.modes.viewOnly.body', {
+                    defaultValue: "They see your changes live but can't edit.",
+                  })}
+                  Icon={Eye}
+                  onPick={() => setMode('view-only')}
+                  tourId="share-collection.mode-view-only"
+                />
+                <ModeOption
+                  selected={mode === 'copy'}
+                  title={t('shareCollection.modes.copy.title', {
+                    defaultValue: 'Make a copy',
+                  })}
+                  body={t('shareCollection.copyModeHint', {
+                    defaultValue: 'They get their own copy to edit.',
+                  })}
+                  Icon={Copy}
+                  onPick={() => setMode('copy')}
+                  tourId="share-collection.mode-copy"
+                />
+                {onShareWithSub && (
+                  <ModeOption
+                    selected={false}
+                    title={t('shareCollection.subShare', {
                       defaultValue: 'Share with a sub',
                     })}
-                  </span>
-                  <span className="block text-xs text-slate-500 mt-0.5">
-                    {t('shareCollection.substituteModeHint', {
+                    body={t('shareCollection.substituteModeHint', {
                       defaultValue:
                         'Shows in the Substitute Portal for the time you set.',
                     })}
-                  </span>
-                </span>
-              </button>
+                    Icon={GraduationCap}
+                    onPick={onShareWithSub}
+                    tourId="share-collection.share-with-sub"
+                  />
+                )}
+              </div>
+            ) : (
+              <>
+                <p className="text-xs text-slate-500">
+                  {t('shareCollection.copyModeHint', {
+                    defaultValue: 'They get their own copy to edit.',
+                  })}
+                </p>
+                {onShareWithSub && (
+                  <button
+                    type="button"
+                    onClick={onShareWithSub}
+                    {...tourAttr('share-collection.share-with-sub')}
+                    className="w-full flex items-start gap-2 p-3 rounded-lg border border-slate-200 text-left hover:bg-slate-50"
+                  >
+                    <UserCheck className="w-3.5 h-3.5 mt-0.5 text-slate-800" />
+                    <span className="flex-1">
+                      <span className="block text-sm font-bold text-slate-800">
+                        {t('shareCollection.subShare', {
+                          defaultValue: 'Share with a sub',
+                        })}
+                      </span>
+                      <span className="block text-xs text-slate-500 mt-0.5">
+                        {t('shareCollection.substituteModeHint', {
+                          defaultValue:
+                            'Shows in the Substitute Portal for the time you set.',
+                        })}
+                      </span>
+                    </span>
+                  </button>
+                )}
+              </>
             )}
             <div className="flex justify-end gap-2 pt-2">
               <button
@@ -150,7 +272,10 @@ export const ShareCollectionLinkCreatorModal: FC<
               <button
                 type="button"
                 onClick={() => void handleCreate()}
-                disabled={busy}
+                disabled={busy || (effectiveMode !== 'copy' && outward.locked)}
+                title={
+                  effectiveMode !== 'copy' ? outward.lockedTitle : undefined
+                }
                 {...tourAttr('share-collection.create')}
                 className="px-3 py-1.5 text-sm font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark disabled:opacity-50"
               >

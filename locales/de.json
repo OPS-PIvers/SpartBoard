@@ -1695,7 +1695,21 @@
     "notFound": "Geteilte Sammlung nicht gefunden oder abgelaufen",
     "empty": "Geteilte Sammlung ist leer",
     "invalidShareUrl": "Ungültiger Freigabelink – fehlende Freigabe-ID.",
-    "substituteImportRejected": "Dieser Link ist für Vertretungen. Öffne ihn im Vertretungsportal."
+    "substituteImportRejected": "Dieser Link ist für Vertretungen. Öffne ihn im Vertretungsportal.",
+    "modes": {
+      "synced": {
+        "title": "Synchronisiert",
+        "body": "Ihr bearbeitet beide dieselbe Sammlung."
+      },
+      "viewOnly": {
+        "title": "Nur ansehen",
+        "body": "Sie sehen deine Änderungen live, können aber nichts bearbeiten."
+      },
+      "copy": {
+        "title": "Kopie erstellen"
+      }
+    },
+    "boardAlreadyLive": "{{name}} wird bereits live geteilt. Beende zuerst das Teilen oder erstelle eine Kopie."
   },
   "importSharedCollection": {
     "title": "Geteilte Sammlung importieren",

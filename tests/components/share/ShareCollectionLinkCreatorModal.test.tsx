@@ -10,6 +10,21 @@ vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => useDashboardMock() as ReturnType<typeof UseDashboardFn>,
 }));
 
+const canAccessFeature = vi.fn((_id: string) => false);
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature }),
+}));
+
+vi.mock('@/hooks/useViewAsOutward', () => ({
+  useViewAsOutward: () => ({
+    active: false,
+    locked: false,
+    lockedTitle: undefined,
+    confirm: () => Promise.resolve(true),
+  }),
+  VIEW_AS_WRITES: { shareCollection: [] },
+}));
+
 const collection = (): Collection => ({
   id: 'c1',
   name: 'Math',
@@ -30,6 +45,7 @@ const board = (id: string): Dashboard => ({
 
 const baseMockReturn = {
   shareCollection: vi.fn(),
+  shareLinkedCollection: vi.fn(),
   addToast: vi.fn(),
 };
 
@@ -38,6 +54,7 @@ const writeText = vi.fn<(text: string) => Promise<void>>();
 beforeEach(() => {
   vi.clearAllMocks();
   useDashboardMock.mockReturnValue(baseMockReturn);
+  canAccessFeature.mockReturnValue(false);
   // Stub clipboard for the auto-copy path
   writeText.mockResolvedValue(undefined);
   Object.assign(navigator, { clipboard: { writeText } });
@@ -160,5 +177,160 @@ describe('ShareCollectionLinkCreatorModal', () => {
     expect(screen.queryByText('Substitute (view-only)')).toBeNull();
     fireEvent.click(screen.getByText('Share with a sub'));
     expect(onShareWithSub).toHaveBeenCalledTimes(1);
+  });
+
+  describe('with collection-sync-sharing on', () => {
+    beforeEach(() => {
+      canAccessFeature.mockImplementation(
+        (id) => id === 'collection-sync-sharing'
+      );
+    });
+
+    const tree = {
+      sections: [{ id: 'c1', name: 'Math' }],
+      boardEntries: [{ id: 'b1', name: 'Board b1', sectionId: 'c1', order: 0 }],
+    };
+
+    it('offers Synced, View-Only and Make a copy, Synced first', () => {
+      render(
+        <ShareCollectionLinkCreatorModal
+          isOpen
+          collection={collection()}
+          boards={[board('b1')]}
+          onClose={vi.fn()}
+        />
+      );
+      expect(
+        screen
+          .getByRole('button', { name: /^Synced/ })
+          .getAttribute('aria-pressed')
+      ).toBe('true');
+      expect(
+        screen.getByText("They see your changes live but can't edit.")
+      ).toBeTruthy();
+      expect(screen.getByText('Make a copy')).toBeTruthy();
+    });
+
+    it('shares Synced as a live link to the collection landing', async () => {
+      const shareLinkedCollection = vi.fn().mockResolvedValue('link-1');
+      useDashboardMock.mockReturnValue({
+        ...baseMockReturn,
+        shareLinkedCollection,
+      });
+      render(
+        <ShareCollectionLinkCreatorModal
+          isOpen
+          collection={collection()}
+          boards={[board('b1')]}
+          tree={tree}
+          onClose={vi.fn()}
+        />
+      );
+
+      await clickCreate();
+
+      expect(shareLinkedCollection).toHaveBeenCalledWith(
+        expect.objectContaining({ mode: 'synced', tree })
+      );
+      expect(baseMockReturn.shareCollection).not.toHaveBeenCalled();
+      const url = screen.getByLabelText<HTMLInputElement>(
+        'Share collection URL'
+      );
+      expect(url.value).toContain('/share/collection/link-1');
+    });
+
+    it('shares View-Only when picked', async () => {
+      const shareLinkedCollection = vi.fn().mockResolvedValue('link-2');
+      useDashboardMock.mockReturnValue({
+        ...baseMockReturn,
+        shareLinkedCollection,
+      });
+      render(
+        <ShareCollectionLinkCreatorModal
+          isOpen
+          collection={collection()}
+          boards={[board('b1')]}
+          tree={tree}
+          onClose={vi.fn()}
+        />
+      );
+      fireEvent.click(screen.getByRole('button', { name: /^View-Only/ }));
+
+      await clickCreate();
+
+      expect(shareLinkedCollection).toHaveBeenCalledWith(
+        expect.objectContaining({ mode: 'view-only' })
+      );
+    });
+
+    it('keeps Make a copy on the copy share, sub-collections included', async () => {
+      const shareCollection = vi.fn().mockResolvedValue('copy-1');
+      useDashboardMock.mockReturnValue({ ...baseMockReturn, shareCollection });
+      render(
+        <ShareCollectionLinkCreatorModal
+          isOpen
+          collection={collection()}
+          boards={[board('b1')]}
+          tree={tree}
+          onClose={vi.fn()}
+        />
+      );
+      fireEvent.click(screen.getByRole('button', { name: /^Make a copy/ }));
+
+      await clickCreate();
+
+      expect(shareCollection).toHaveBeenCalledWith(
+        expect.objectContaining({ tree })
+      );
+      expect(
+        screen.getByLabelText<HTMLInputElement>('Share collection URL').value
+      ).toContain('/share-collection/copy-1');
+    });
+
+    it('refuses a live share while a board is already shared live', async () => {
+      const shareLinkedCollection = vi.fn();
+      const addToast = vi.fn();
+      useDashboardMock.mockReturnValue({
+        ...baseMockReturn,
+        shareLinkedCollection,
+        addToast,
+      });
+      render(
+        <ShareCollectionLinkCreatorModal
+          isOpen
+          collection={collection()}
+          boards={[
+            { ...board('b1'), linkedShareId: 's', linkedShareRole: 'owner' },
+          ]}
+          tree={tree}
+          onClose={vi.fn()}
+        />
+      );
+
+      await clickCreate();
+
+      expect(shareLinkedCollection).not.toHaveBeenCalled();
+      expect(addToast).toHaveBeenCalledWith(
+        expect.stringContaining('Board b1 is already shared live'),
+        'error'
+      );
+    });
+
+    it('only offers a copy for a collection already in a live share', () => {
+      render(
+        <ShareCollectionLinkCreatorModal
+          isOpen
+          collection={{
+            ...collection(),
+            linkedCollectionId: 'link-9',
+            linkedCollectionRole: 'collaborator',
+          }}
+          boards={[board('b1')]}
+          onClose={vi.fn()}
+        />
+      );
+      expect(screen.queryByText('Synced')).toBeNull();
+      expect(screen.getByText('They get their own copy to edit.')).toBeTruthy();
+    });
   });
 });

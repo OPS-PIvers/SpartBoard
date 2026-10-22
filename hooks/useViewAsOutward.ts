@@ -33,6 +33,7 @@ export const VIEW_AS_WRITES = {
     'plcs',
   ],
   shareBoard: ['shared_boards'],
+  shareCollection: ['shared_boards', 'linked_collections'],
   sharePlc: [
     'plcs',
     'synced_quizzes',

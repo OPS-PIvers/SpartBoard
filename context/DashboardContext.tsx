@@ -30,6 +30,7 @@ import {
   SubstituteShareRoster,
   ROOT_COLLECTION_KEY,
   Collection,
+  LinkedCollectionMode,
   CollectionSubstituteShareInput,
 } from '@/types';
 import {
@@ -130,7 +131,11 @@ import {
 import { reconcileExpiredSubShares } from '@/hooks/useReconcileExpiredSubShares';
 import { logError } from '@/utils/logError';
 import { mergeSubsetOrder } from '@/utils/reorderIds';
-import { planCopyImportTree } from '@/utils/sharedCollectionTree';
+import {
+  linkedCollectionLayout,
+  planCopyImportTree,
+} from '@/utils/sharedCollectionTree';
+import { useLinkedCollection } from '@/hooks/useLinkedCollection';
 import { useRosters } from '@/hooks/useRosters';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDriveReconnected } from '@/hooks/useDriveReconnected';
@@ -602,6 +607,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   } = useFirestore(user?.uid ?? null);
 
   const collectionsApi = useCollections(user?.uid);
+  const linkedCollectionApi = useLinkedCollection();
   const { collections } = collectionsApi;
   const sharedCollectionApi = useSharedCollection();
 
@@ -4514,6 +4520,104 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [user, sharedCollectionApi]
   );
 
+  const shareLinkedCollection = useCallback(
+    async (input: {
+      collection: Collection;
+      boards: Dashboard[];
+      tree: CopyShareTree;
+      mode: LinkedCollectionMode;
+    }): Promise<string> => {
+      if (!user) throw new Error('Not authenticated');
+      if (input.boards.some((b) => b.linkedShareId && !b.linkedShareEnded)) {
+        throw new Error('A board in this collection is already shared live');
+      }
+      // Board shares are stamped with the link id before the link doc exists,
+      // so a recipient never sees a link whose boards are still being written.
+      const linkId = crypto.randomUUID();
+      const hostName = user.displayName ?? user.email ?? undefined;
+      const shareIdByBoard = new Map<string, string>();
+      const results = await Promise.allSettled(
+        input.boards.map(async (board) => {
+          const shareId = await shareDashboardFirestore(
+            scrubDashboardPII(withoutTransient(board)),
+            input.mode,
+            hostName,
+            undefined,
+            linkId
+          );
+          shareIdByBoard.set(board.id, shareId);
+        })
+      );
+      const failed = results.find(
+        (r): r is PromiseRejectedResult => r.status === 'rejected'
+      );
+      try {
+        if (failed) throw failed.reason;
+        const layout = linkedCollectionLayout(input.tree, shareIdByBoard);
+        await linkedCollectionApi.createLinkedCollection({
+          linkId,
+          hostUid: user.uid,
+          hostName: hostName ?? null,
+          mode: input.mode,
+          name: input.collection.name,
+          color: input.collection.color,
+          icon: input.collection.icon,
+          ...layout,
+        });
+      } catch (err) {
+        await Promise.allSettled(
+          [...shareIdByBoard.values()].map((id) => stopSharingBoard(id))
+        );
+        throw err;
+      }
+
+      const linkFields = (shareId: string) => ({
+        linkedShareId: shareId,
+        linkedShareRole: 'owner' as const,
+        linkedShareHostName: hostName,
+        linkedShareEnded: false,
+      });
+      setDashboards((prev) =>
+        prev.map((d) => {
+          const shareId = shareIdByBoard.get(d.id);
+          return shareId ? { ...d, ...linkFields(shareId) } : d;
+        })
+      );
+      // Only the linkage fields are written, as in handleShareDashboard: most of
+      // these boards aren't active and have no save baseline.
+      await Promise.all(
+        input.boards.map(async (board) => {
+          const shareId = shareIdByBoard.get(board.id);
+          if (!shareId) return;
+          try {
+            await updateDashboardFields(
+              { ...board, ...linkFields(shareId) },
+              linkFields(shareId)
+            );
+          } catch (err) {
+            logError('DashboardContext.shareLinkedCollection.tag', err, {
+              boardId: board.id,
+            });
+          }
+        })
+      );
+      await collectionsApi.setCollectionLink(input.collection.id, {
+        linkedCollectionId: linkId,
+        linkedCollectionRole: 'owner',
+        linkedCollectionEnded: false,
+      });
+      return linkId;
+    },
+    [
+      user,
+      shareDashboardFirestore,
+      stopSharingBoard,
+      linkedCollectionApi,
+      updateDashboardFields,
+      collectionsApi,
+    ]
+  );
+
   const shareSubstituteCollection = useCallback(
     async (
       input: CollectionSubstituteShareInput &
@@ -7661,6 +7765,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setPendingQuizReveal,
       clearPendingQuizReveal,
       shareCollection,
+      shareLinkedCollection,
       shareSubstituteCollection,
       updateSubstituteCollectionShare,
       extendSubstituteCollectionShare,
@@ -7793,6 +7898,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setPendingQuizReveal,
       clearPendingQuizReveal,
       shareCollection,
+      shareLinkedCollection,
       shareSubstituteCollection,
       sharedCollectionApi.loadSharedCollection,
       sharedCollectionApi.loadSharedCollectionBoards,

@@ -2814,7 +2814,21 @@
     "notFound": "Shared Collection not found or expired",
     "empty": "Shared Collection is empty",
     "invalidShareUrl": "Invalid share link — missing share id.",
-    "substituteImportRejected": "This link is for substitutes. Open it in the Substitute Portal."
+    "substituteImportRejected": "This link is for substitutes. Open it in the Substitute Portal.",
+    "modes": {
+      "synced": {
+        "title": "Synced",
+        "body": "You both edit the same collection."
+      },
+      "viewOnly": {
+        "title": "View-Only",
+        "body": "They see your changes live but can't edit."
+      },
+      "copy": {
+        "title": "Make a copy"
+      }
+    },
+    "boardAlreadyLive": "{{name}} is already shared live. Stop sharing it first, or make a copy."
   },
   "importSharedCollection": {
     "title": "Import shared Collection",
