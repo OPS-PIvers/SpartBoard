@@ -50,6 +50,47 @@ describe('toWebStep', () => {
       frames: [{ urlPattern: 'https://y.example/p/*', index: 0 }],
     });
   });
+
+  it('scrubs the heading, page title and stable attributes again', () => {
+    const step = toWebStep({
+      id: 's4',
+      urlPattern: 'https://x.example/grades',
+      action: 'click',
+      locator: {
+        role: 'link',
+        heading: 'Grades for jane.doe@orono.k12.mn.us',
+        pageTitle: 'Student 2045831 | Schoology',
+        attrs: {
+          testId: 'open-row',
+          ariaLabel: 'Open 2045831',
+          name: '   ',
+          href: '/students/2045831/grades',
+          // @ts-expect-error a key the page never stores
+          onclick: 'x',
+        },
+      },
+    });
+    expect(step.web?.locator).toEqual({
+      role: 'link',
+      heading: 'Grades for •••',
+      pageTitle: 'Student ••• | Schoology',
+      attrs: {
+        testId: 'open-row',
+        ariaLabel: 'Open •••',
+        href: '/students/*/grades',
+      },
+    });
+  });
+
+  it('drops empty stable attributes', () => {
+    const step = toWebStep({
+      id: 's5',
+      urlPattern: 'https://x.example/',
+      action: 'click',
+      locator: { role: 'button', attrs: { ariaLabel: ' ' } },
+    });
+    expect(step.web?.locator).toEqual({ role: 'button' });
+  });
 });
 
 describe('draftLabel', () => {

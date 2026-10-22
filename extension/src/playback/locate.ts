@@ -1,16 +1,15 @@
-import type { WebTourLocator } from '@/types';
+import { WEB_TOUR_ATTR_KEYS, type WebTourLocator } from '@/types';
+import { nearestHeading, stableAttrsOf } from './clues';
 
 /** The clues a frame searches with; frames are matched by the service worker. */
 export type WebLocatorClues = Omit<WebTourLocator, 'frames'>;
 
-/** Which clue found the target, strongest first. */
-export type LocatorClue = 'role' | 'text' | 'css';
-
 export interface LocatorMatch {
   el: Element;
-  clue: LocatorClue;
-  /** More than one element matched that clue, so position picked one. */
-  tied: boolean;
+  /** Cleared the floor but not the margin over the runner-up (C2). */
+  weak: boolean;
+  /** 0-1, the share of the locator's clue weight this element matched. */
+  score: number;
 }
 
 const INPUT_ROLES: Record<string, string> = {
@@ -89,11 +88,11 @@ export function isShown(el: Element): boolean {
     : true;
 }
 
-const INTERACTIVE =
+export const INTERACTIVE =
   'a[href],button,input,select,textarea,summary,[role],[tabindex],[onclick],[contenteditable="true"]';
 
 /** The document and every open shadow root inside it, found in one walk. */
-function rootsOf(doc: Document): (Document | ShadowRoot)[] {
+export function rootsOf(doc: Document): (Document | ShadowRoot)[] {
   const out: (Document | ShadowRoot)[] = [];
   const visit = (node: Document | ShadowRoot) => {
     out.push(node);
@@ -108,19 +107,8 @@ function rootsOf(doc: Document): (Document | ShadowRoot)[] {
 const queryAll = (roots: (Document | ShadowRoot)[], selector: string) =>
   roots.flatMap((root) => [...root.querySelectorAll(selector)]);
 
-function byRole(
-  roots: (Document | ShadowRoot)[],
-  role: string,
-  name: string
-): Element[] {
-  const want = normalizeText(name);
-  return queryAll(roots, INTERACTIVE).filter(
-    (el) => roleOf(el) === role && accessibleName(el) === want
-  );
-}
-
 /** The innermost elements whose own text is the wanted text, so a wrapper doesn't win over its button. */
-function byText(
+export function byText(
   doc: Document,
   roots: (Document | ShadowRoot)[],
   text: string
@@ -159,7 +147,10 @@ function byText(
   return list.filter((el) => !list.some((h) => h !== el && el.contains(h)));
 }
 
-function byCss(roots: (Document | ShadowRoot)[], css: string): Element[] {
+export function byCss(
+  roots: (Document | ShadowRoot)[],
+  css: string
+): Element[] {
   try {
     return queryAll(roots, css);
   } catch {
@@ -167,6 +158,15 @@ function byCss(roots: (Document | ShadowRoot)[], css: string): Element[] {
   }
 }
 
+function matchesCss(el: Element, css: string): boolean {
+  try {
+    return el.matches(css);
+  } catch {
+    return false;
+  }
+}
+
+/** Center-to-center distance from the recorded box, in viewport fractions. */
 function distance(
   el: Element,
   box: NonNullable<WebLocatorClues['box']>
@@ -177,45 +177,239 @@ function distance(
   const r = el.getBoundingClientRect();
   const dx = (r.left + r.width / 2) / w - (box.x + box.w / 2);
   const dy = (r.top + r.height / 2) / h - (box.y + box.h / 2);
-  return dx * dx + dy * dy;
+  return Math.sqrt(dx * dx + dy * dy);
 }
 
-function pick(
-  found: Element[],
-  box: WebLocatorClues['box']
-): { el: Element; tied: boolean } | null {
-  const shown = [...new Set(found)].filter(isShown);
-  if (shown.length === 0) return null;
-  if (shown.length === 1) return { el: shown[0], tied: false };
-  if (!box) return null;
-  const ranked = shown
-    .map((el) => ({ el, d: distance(el, box) }))
-    .sort((a, b) => a.d - b.d);
-  return { el: ranked[0].el, tied: true };
+const bigrams = (s: string): string[] => {
+  const t = s.replace(/\s+/g, '');
+  const out: string[] = [];
+  for (let i = 0; i < t.length - 1; i++) out.push(t.slice(i, i + 2));
+  return out;
+};
+
+// Icon-font glyphs (private-use characters) change with the icon, not the control.
+const withoutGlyphs = (s: string) =>
+  s
+    .replace(/[\p{Co}�]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/** 1 for the same text, at most 0.9 for similar text (letter-pair overlap), 0 for none; icon glyphs are ignored. */
+export function similarity(rawA: string, rawB: string): number {
+  if (rawA && rawA === rawB) return 1;
+  const a = withoutGlyphs(rawA);
+  const b = withoutGlyphs(rawB);
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+  const x = bigrams(a);
+  const y = bigrams(b);
+  if (x.length === 0 || y.length === 0) return 0;
+  const counts = new Map<string, number>();
+  for (const g of x) counts.set(g, (counts.get(g) ?? 0) + 1);
+  let shared = 0;
+  for (const g of y) {
+    const n = counts.get(g) ?? 0;
+    if (n > 0) {
+      shared++;
+      counts.set(g, n - 1);
+    }
+  }
+  return ((2 * shared) / (x.length + y.length)) * 0.9;
 }
 
-/** Role and name, then text, then CSS path; the recorded box only breaks a tie within one clue (T4). */
+/** Per-clue weights, Similo-style: what a site rarely changes counts most. */
+export const CLUE_WEIGHTS = {
+  roleName: 4,
+  name: 2,
+  role: 1,
+  text: 2.5,
+  css: 2,
+  tag: 0.5,
+  testId: 3,
+  ariaLabel: 2,
+  attrName: 2,
+  href: 2.5,
+  heading: 1,
+  box: 1,
+} as const;
+
+/** A winner needs this share of the clue weight. */
+export const SCORE_FLOOR = 0.15;
+/** A lead over the runner-up below this is a weak match. */
+export const SCORE_MARGIN = 0.1;
+/** A lead below this can't tell two elements apart, so nothing is picked. */
+export const SCORE_TIE = 0.02;
+const SIMILAR = 0.7;
+const FUZZY_GATHER = 0.6;
+const MAX_CANDIDATES = 300;
+const BOX_REACH = 0.5;
+
+type AttrKey = (typeof WEB_TOUR_ATTR_KEYS)[number];
+
+const ATTR_WEIGHT: Record<AttrKey, number> = {
+  testId: CLUE_WEIGHTS.testId,
+  ariaLabel: CLUE_WEIGHTS.ariaLabel,
+  name: CLUE_WEIGHTS.attrName,
+  href: CLUE_WEIGHTS.href,
+};
+
+const ATTR_SELECTOR: Record<AttrKey, string> = {
+  testId: '[data-testid],[data-test-id],[data-test],[data-qa]',
+  ariaLabel: '[aria-label]',
+  name: '[name]',
+  href: 'a[href]',
+};
+
+interface Wanted {
+  role?: string;
+  name?: string;
+  text?: string;
+  css?: string;
+  tag?: string;
+  heading?: string;
+  attrs: [AttrKey, string][];
+  box?: WebLocatorClues['box'];
+  total: number;
+}
+
+/** The tag the CSS path ends on, when it names one. */
+const tagOfCss = (css: string): string | undefined => {
+  const last = css.split('>').pop()?.trim() ?? '';
+  const m = /^[a-z][a-z0-9-]*/i.exec(last);
+  return m ? m[0].toUpperCase() : undefined;
+};
+
+const attrValue = (k: AttrKey, v: string) =>
+  k === 'href' ? v : normalizeText(v);
+
+function wantedOf(clues: WebLocatorClues): Wanted {
+  const norm = (s: string | undefined) =>
+    s ? normalizeText(s) || undefined : undefined;
+  const attrs: [AttrKey, string][] = [];
+  for (const k of WEB_TOUR_ATTR_KEYS) {
+    const v = clues.attrs?.[k];
+    if (v) attrs.push([k, attrValue(k, v)]);
+  }
+  const w: Wanted = {
+    role: clues.role || undefined,
+    name: norm(clues.name),
+    text: norm(clues.text),
+    css: clues.css || undefined,
+    tag: clues.css ? tagOfCss(clues.css) : undefined,
+    heading: norm(clues.heading),
+    attrs,
+    box: clues.box,
+    total: 0,
+  };
+  const C = CLUE_WEIGHTS;
+  w.total =
+    (w.role && w.name ? C.roleName : 0) +
+    (w.name ? C.name : 0) +
+    (w.role ? C.role : 0) +
+    (w.text ? C.text : 0) +
+    (w.css ? C.css : 0) +
+    (w.tag ? C.tag : 0) +
+    (w.heading ? C.heading : 0) +
+    (w.box ? C.box : 0) +
+    attrs.reduce((sum, [k]) => sum + ATTR_WEIGHT[k], 0);
+  return w;
+}
+
+interface Scored {
+  el: Element;
+  score: number;
+  /** Matched at least one identifying clue, so position alone never picks it. */
+  identified: boolean;
+}
+
+function scoreOf(el: Element, w: Wanted): Scored {
+  const C = CLUE_WEIGHTS;
+  let got = 0;
+  let identified = false;
+  const role = w.role ? roleOf(el) : null;
+  if (w.name) {
+    const s = similarity(accessibleName(el), w.name);
+    if (w.role && role === w.role && s === 1) got += C.roleName;
+    got += C.name * s;
+    if (s >= SIMILAR) identified = true;
+  }
+  if (w.role && role === w.role) got += C.role;
+  if (w.text) {
+    const s = similarity(normalizeText(el.textContent ?? ''), w.text);
+    got += C.text * s;
+    if (s >= SIMILAR) identified = true;
+  }
+  if (w.css && matchesCss(el, w.css)) {
+    got += C.css;
+    identified = true;
+  }
+  if (w.tag && el.tagName === w.tag) got += C.tag;
+  if (w.attrs.length) {
+    const have = stableAttrsOf(el);
+    for (const [k, v] of w.attrs) {
+      const mine = have[k];
+      if (mine && attrValue(k, mine) === v) {
+        got += ATTR_WEIGHT[k];
+        identified = true;
+      }
+    }
+  }
+  if (w.heading) {
+    got += C.heading * similarity(normalizeText(nearestHeading(el)), w.heading);
+  }
+  if (w.box) {
+    got += C.box * Math.max(0, 1 - distance(el, w.box) / BOX_REACH);
+  }
+  return { el, score: w.total > 0 ? got / w.total : 0, identified };
+}
+
+/** Every shown element some clue points at: role with a similar name, text, CSS path or a stable attribute. */
+function gather(
+  doc: Document,
+  roots: (Document | ShadowRoot)[],
+  w: Wanted
+): Element[] {
+  const found = new Set<Element>();
+  if (w.role && w.name) {
+    const { role, name } = w;
+    for (const el of queryAll(roots, INTERACTIVE)) {
+      if (roleOf(el) !== role) continue;
+      if (similarity(accessibleName(el), name) >= FUZZY_GATHER) found.add(el);
+    }
+  }
+  if (w.text) for (const el of byText(doc, roots, w.text)) found.add(el);
+  if (w.css) for (const el of byCss(roots, w.css)) found.add(el);
+  if (w.attrs.length) {
+    const selector = w.attrs.map(([k]) => ATTR_SELECTOR[k]).join(',');
+    for (const el of queryAll(roots, selector)) {
+      const have = stableAttrsOf(el);
+      const hit = w.attrs.some(([k, v]) => {
+        const mine = have[k];
+        return !!mine && attrValue(k, mine) === v;
+      });
+      if (hit) found.add(el);
+    }
+  }
+  return [...found].filter(isShown).slice(0, MAX_CANDIDATES);
+}
+
+/** Scores every candidate on every recorded clue; the best plays above the floor, and is clear only by the margin (C1, C2). */
 export function locate(
   doc: Document,
   clues: WebLocatorClues
 ): LocatorMatch | null {
-  const roots = rootsOf(doc);
-  const layers: [LocatorClue, () => Element[]][] = [];
-  if (clues.role && clues.name) {
-    const { role, name } = clues;
-    layers.push(['role', () => byRole(roots, role, name)]);
-  }
-  if (clues.text) {
-    const { text } = clues;
-    layers.push(['text', () => byText(doc, roots, text)]);
-  }
-  if (clues.css) {
-    const { css } = clues;
-    layers.push(['css', () => byCss(roots, css)]);
-  }
-  for (const [clue, find] of layers) {
-    const hit = pick(find(), clues.box);
-    if (hit) return { el: hit.el, clue, tied: hit.tied };
-  }
-  return null;
+  const w = wantedOf(clues);
+  if (w.total === 0) return null;
+  const scored = gather(doc, rootsOf(doc), w)
+    .map((el) => scoreOf(el, w))
+    .sort((a, b) => b.score - a.score);
+  const best = scored.find((s) => s.identified);
+  if (!best || best.score < SCORE_FLOOR) return null;
+  // A wrapper of the winner, or a label inside it, is the same control rather than a rival.
+  const rival = scored.find(
+    (s) => s !== best && !s.el.contains(best.el) && !best.el.contains(s.el)
+  );
+  const lead = rival ? best.score - rival.score : best.score;
+  if (lead < SCORE_TIE) return null;
+  return { el: best.el, weak: lead < SCORE_MARGIN, score: best.score };
 }

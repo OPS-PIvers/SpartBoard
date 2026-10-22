@@ -1,4 +1,8 @@
-import type { WebTourAction, WebTourLocator } from '@/types';
+import {
+  WEB_TOUR_ATTR_KEYS,
+  type WebTourAction,
+  type WebTourLocator,
+} from '@/types';
 import { MAX_CAPTURED_TEXT } from './studentData';
 
 /** Port the web-step editor opens to the extension to receive recorded steps. */
@@ -45,12 +49,23 @@ const isBox = (v: unknown) =>
   v === undefined ||
   (isObj(v) && isNum(v.x) && isNum(v.y) && isNum(v.w) && isNum(v.h));
 
+const isAttrs = (v: unknown) =>
+  v === undefined ||
+  (isObj(v) &&
+    Object.entries(v).every(
+      ([k, a]) =>
+        (WEB_TOUR_ATTR_KEYS as readonly string[]).includes(k) && isStr(a, 400)
+    ));
+
 export const isLocator = (v: unknown): v is WebTourLocator =>
   isObj(v) &&
   optStr(v.role, 40) &&
   optStr(v.name, MAX_CAPTURED_TEXT) &&
   optStr(v.text, MAX_CAPTURED_TEXT) &&
   optStr(v.css, 400) &&
+  optStr(v.heading, MAX_CAPTURED_TEXT) &&
+  optStr(v.pageTitle, MAX_CAPTURED_TEXT) &&
+  isAttrs(v.attrs) &&
   isFrames(v.frames) &&
   isBox(v.box);
 

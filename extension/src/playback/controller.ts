@@ -1,6 +1,6 @@
 import type { FrameCommand, FrameReport } from './frameScript';
-import type { LocatorClue } from './locate';
 import {
+  type FoundMatch,
   reducePlayback,
   startPlayback,
   type PlaybackEvent,
@@ -61,7 +61,7 @@ interface TabRecord {
   /** When the current seek began, so a restarted worker can still time it out. */
   seekAt: number;
   /** Last match posted per step, so an unchanged repeat isn't posted again. */
-  posted: Record<string, LocatorClue | 'none'>;
+  posted: Record<string, FoundMatch | 'none'>;
   /** Step index of the last step post, so a revisit found by the same clue still moves the hub's marker. */
   postedIndex: number;
   /** Step index on which a page actually loaded and didn't match, so only a real wrong page counts as a miss. */
@@ -196,11 +196,7 @@ export function createPlaybackController(host: PlaybackHost) {
     }
   }
 
-  function postStep(
-    rec: TabRecord,
-    index: number,
-    match: LocatorClue | 'none'
-  ) {
+  function postStep(rec: TabRecord, index: number, match: FoundMatch | 'none') {
     const setId = rec.state.tour.id;
     const step = rec.state.tour.steps[index];
     if (!step) return;
@@ -490,7 +486,11 @@ export function createPlaybackController(host: PlaybackHost) {
             return;
           // The spotlight is drawn inside the frame that holds the target.
           if (frameId !== 0) await host.inject(tabId, [frameId], true);
-          await dispatch(rec, { type: 'found', clue: report.clue }, frameId);
+          await dispatch(
+            rec,
+            { type: 'found', match: report.weak ? 'score' : 'role' },
+            frameId
+          );
         } else if (frameId === rec.targetFrameId) {
           await dispatch(rec, {
             type: report.type === 'wt:lost' ? 'lost' : 'acted',

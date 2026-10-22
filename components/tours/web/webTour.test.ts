@@ -118,6 +118,18 @@ describe('extension client', () => {
       parsePortEvent(
         {
           type: 'web-tour/step',
+          setId: 's',
+          stepIndex: 1,
+          stepId: 'a',
+          match: 'score',
+        },
+        's'
+      )
+    ).toMatchObject({ match: 'score' });
+    expect(
+      parsePortEvent(
+        {
+          type: 'web-tour/step',
           setId: 'other',
           stepIndex: 1,
           stepId: 'a',
@@ -309,6 +321,40 @@ describe('hub', () => {
     expect(parseWebTourStartTour(handoff)).not.toBeNull();
   });
 
+  it('sends the newer clues only to an extension that scores them', () => {
+    const rich = step('a', 'https://x.test/');
+    rich.web.locator = {
+      role: 'link',
+      name: 'Materials',
+      heading: 'Biology',
+      pageTitle: 'Materials | Schoology',
+      attrs: { href: '/course/*/materials', testId: 'nav' },
+    };
+    const before = buildHandoff('s', 1, 'T', [rich], new Map());
+    expect(before.steps[0].web.locator).toEqual({
+      role: 'link',
+      name: 'Materials',
+    });
+    const scored = buildHandoff('s', 1, 'T', [rich], new Map(), true);
+    expect(scored.steps[0].web.locator).toEqual(rich.web.locator);
+    expect(parseWebTourStartTour(before)).not.toBeNull();
+    expect(parseWebTourStartTour(scored)).not.toBeNull();
+    expect(
+      parseWebTourStartTour({
+        ...scored,
+        steps: [
+          {
+            ...scored.steps[0],
+            web: {
+              ...scored.steps[0].web,
+              locator: { attrs: { onclick: 'x' } },
+            },
+          },
+        ],
+      })
+    ).toBeNull();
+  });
+
   it('encodes bytes as base64', () => {
     expect(toBase64(new Uint8Array([104, 105]))).toBe('aGk=');
   });
@@ -371,6 +417,7 @@ describe('web tour health', () => {
     expect(parseWeak('a:b:text')).toEqual({ stepId: 'a:b', clue: 'text' });
     expect(parseWeak('a:role')).toBeNull();
     expect(parseWeak(':css')).toBeNull();
+    expect(parseWeak('a:score')).toEqual({ stepId: 'a', clue: 'score' });
   });
 
   it('counts only web runs of the current version', () => {
@@ -378,19 +425,22 @@ describe('web tour health', () => {
       [
         run({ misses: ['a'], done: true }),
         run({ weak: ['b:text', 'b:text'] }),
+        run({ weak: ['c:score'] }),
         run({ v: 1, misses: ['b'] }),
         { ...run({ misses: ['b'] }), surface: undefined },
       ],
       2
     );
-    expect(stats.runs).toBe(2);
+    expect(stats.runs).toBe(3);
     expect(stats.done).toBe(1);
     expect(stats.misses.get('a')).toBe(1);
     expect(stats.misses.has('b')).toBe(false);
-    expect(stats.weak.get('b')).toEqual({ text: 1, css: 0 });
+    expect(stats.weak.get('b')).toEqual({ text: 1, css: 0, score: 0 });
+    expect(stats.weak.get('c')).toEqual({ text: 0, css: 0, score: 1 });
     expect(webStepState('a', stats)).toBe('missed');
     expect(webStepState('b', stats)).toBe('weak');
-    expect(webStepState('c', stats)).toBe('ok');
+    expect(webStepState('c', stats)).toBe('weak');
+    expect(webStepState('d', stats)).toBe('ok');
     expect(webStepState('a', null)).toBe('ok');
     expect(worstWebState(['ok', 'weak'])).toBe('weak');
     expect(worstWebState(['weak', 'missed', 'ok'])).toBe('missed');

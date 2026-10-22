@@ -4342,7 +4342,8 @@
       },
       "reason": {
         "missed": "Image affichée dans {{misses}} parcours réels sur {{runs}}",
-        "weak": "Trouvé seulement par un indice plus faible dans {{weak}} parcours réels sur {{runs}}"
+        "weak": "Trouvé seulement par un indice plus faible dans {{weak}} parcours réels sur {{runs}}",
+        "weakScore": "Proche d'une autre commande dans {{weak}} parcours réels sur {{runs}}"
       },
       "copyLink": "Copier le lien",
       "linkCopied": "Copié",

@@ -7,8 +7,7 @@ describe('internal message checks', () => {
       isFrameReport({
         type: 'wt:found',
         token: '1:1',
-        clue: 'role',
-        tied: false,
+        weak: false,
         url: 'https://a.example/',
       })
     ).toBe(true);
@@ -17,8 +16,7 @@ describe('internal message checks', () => {
       isFrameReport({
         type: 'wt:found',
         token: '1:1',
-        clue: 'position',
-        tied: false,
+        weak: 'no',
         url: '',
       })
     ).toBe(false);

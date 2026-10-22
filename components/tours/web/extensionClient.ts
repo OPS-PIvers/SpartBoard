@@ -176,6 +176,7 @@ export function parseWebTourPortEvent(
         match !== 'role' &&
         match !== 'text' &&
         match !== 'css' &&
+        match !== 'score' &&
         match !== 'none'
       ) {
         return null;

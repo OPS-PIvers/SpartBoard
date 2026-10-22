@@ -151,8 +151,11 @@ describe('parseTourRun', () => {
       misses: [],
       weak: ['b:css'],
     });
+    log.match('b', 'score');
+    vi.advanceTimersByTime(0);
+    expect(write.mock.calls.at(-1)?.[0]).toMatchObject({ weak: ['b:score'] });
     const calls = write.mock.calls.length;
-    log.match('b', 'css');
+    log.match('b', 'score');
     vi.advanceTimersByTime(0);
     expect(write).toHaveBeenCalledTimes(calls);
   });

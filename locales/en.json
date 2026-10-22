@@ -5392,7 +5392,8 @@
       },
       "reason": {
         "missed": "Showed the picture in {{misses}} of {{runs}} real runs",
-        "weak": "Found only by a weaker clue in {{weak}} of {{runs}} real runs"
+        "weak": "Found only by a weaker clue in {{weak}} of {{runs}} real runs",
+        "weakScore": "Close to another control in {{weak}} of {{runs}} real runs"
       },
       "copyLink": "Copy link",
       "linkCopied": "Copied",

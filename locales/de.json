@@ -4342,7 +4342,8 @@
       },
       "reason": {
         "missed": "Bild in {{misses}} von {{runs}} echten Durchläufen gezeigt",
-        "weak": "Nur über einen schwächeren Hinweis gefunden in {{weak}} von {{runs}} echten Durchläufen"
+        "weak": "Nur über einen schwächeren Hinweis gefunden in {{weak}} von {{runs}} echten Durchläufen",
+        "weakScore": "Nah an einem anderen Steuerelement in {{weak}} von {{runs}} echten Durchläufen"
       },
       "copyLink": "Link kopieren",
       "linkCopied": "Kopiert",

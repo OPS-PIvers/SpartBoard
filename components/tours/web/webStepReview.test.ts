@@ -95,6 +95,38 @@ describe('hideHits and setReviewField', () => {
     const out = setReviewField(s, 'pageText', undefined);
     expect(out.web?.locator).toEqual({ name: 'Alice', css: 'a' });
   });
+
+  it('reviews and edits the heading, page title and stable attributes', () => {
+    const s = step('a', {
+      locator: {
+        role: 'link',
+        heading: 'Grades for Alice Nguyen',
+        pageTitle: 'Gradebook',
+        attrs: { ariaLabel: 'Open', href: '/students/1234567/grades' },
+      },
+    });
+    const entries = reviewEntries(s, roster);
+    expect(entries.map((e) => e.field).slice(4)).toEqual([
+      'heading',
+      'pageTitle',
+      'attr:ariaLabel',
+      'attr:href',
+    ]);
+    const heading = entries.find((e) => e.field === 'heading');
+    if (!heading) throw new Error('no heading entry');
+    expect(heading.hits[0].kind).toBe('roster-name');
+    const href = entries.find((e) => e.field === 'attr:href');
+    if (!href) throw new Error('no href entry');
+    expect(hideHits(href)).toBe('/students/*/grades');
+    let out = setReviewField(s, 'heading', hideHits(heading));
+    out = setReviewField(out, 'attr:ariaLabel', undefined);
+    expect(out.web?.locator).toMatchObject({
+      heading: 'Grades for •••',
+      attrs: { href: '/students/1234567/grades' },
+    });
+    out = setReviewField(out, 'attr:href', undefined);
+    expect(out.web?.locator).not.toHaveProperty('attrs');
+  });
 });
 
 const pic = (path: string) => ({

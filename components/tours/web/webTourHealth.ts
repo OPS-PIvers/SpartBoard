@@ -1,13 +1,15 @@
 import type { TourRun } from '@/components/tours/tourRuns';
 
-export type WeakClue = 'text' | 'css';
+export type WeakClue = 'text' | 'css' | 'score';
+
+export type WeakCounts = Record<WeakClue, number>;
 
 /** Real runs of the version teachers see now, with misses and weak matches by step id. */
 export interface WebTourFieldStats {
   runs: number;
   done: number;
   misses: Map<string, number>;
-  weak: Map<string, { text: number; css: number }>;
+  weak: Map<string, WeakCounts>;
 }
 
 /** Splits a run's `stepId:clue` entry, or null when it is malformed. */
@@ -17,7 +19,7 @@ export function parseWeak(
   const at = entry.lastIndexOf(':');
   if (at <= 0) return null;
   const clue = entry.slice(at + 1);
-  if (clue !== 'text' && clue !== 'css') return null;
+  if (clue !== 'text' && clue !== 'css' && clue !== 'score') return null;
   return { stepId: entry.slice(0, at), clue };
 }
 
@@ -30,7 +32,7 @@ export function webFieldStatsOf(
     (run) => run.v === version && run.surface === 'web'
   );
   const misses = new Map<string, number>();
-  const weak = new Map<string, { text: number; css: number }>();
+  const weak = new Map<string, WeakCounts>();
   for (const run of current) {
     for (const id of new Set(run.misses)) {
       misses.set(id, (misses.get(id) ?? 0) + 1);
@@ -38,7 +40,11 @@ export function webFieldStatsOf(
     for (const entry of new Set(run.weak ?? [])) {
       const parsed = parseWeak(entry);
       if (!parsed) continue;
-      const counts = weak.get(parsed.stepId) ?? { text: 0, css: 0 };
+      const counts = weak.get(parsed.stepId) ?? {
+        text: 0,
+        css: 0,
+        score: 0,
+      };
       counts[parsed.clue]++;
       weak.set(parsed.stepId, counts);
     }
@@ -53,7 +59,7 @@ export function webFieldStatsOf(
 
 export type WebStepState = 'ok' | 'weak' | 'missed';
 
-/** Missed: the picture showed in a real run; weak: found only by its text or page position in the markup. */
+/** Missed: the picture showed in a real run; weak: found only by its text or page position, or scored close to another control. */
 export function webStepState(
   stepId: string,
   stats: WebTourFieldStats | null
@@ -61,7 +67,7 @@ export function webStepState(
   if (!stats) return 'ok';
   if ((stats.misses.get(stepId) ?? 0) > 0) return 'missed';
   const weak = stats.weak.get(stepId);
-  return weak && weak.text + weak.css > 0 ? 'weak' : 'ok';
+  return weak && weak.text + weak.css + weak.score > 0 ? 'weak' : 'ok';
 }
 
 const RANK: Record<WebStepState, number> = { ok: 0, weak: 1, missed: 2 };

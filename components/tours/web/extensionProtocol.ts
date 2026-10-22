@@ -1,10 +1,19 @@
 // Messages between a SpartBoard page and the Chrome extension (docs/plans/CHROME_EXTENSION.md D3, D6).
 // Pure data and validators: imported by both the page and `extension/`, so no DOM or chrome APIs here.
 
-import type { WebTourAction, WebTourFrame, WebTourLocator } from '@/types';
+import {
+  WEB_TOUR_ATTR_KEYS,
+  type WebTourAction,
+  type WebTourFrame,
+  type WebTourLocator,
+  type WebTourStableAttrs,
+} from '@/types';
 
 /** Bumped additively when a message type is added; the page checks it before using a feature. */
-export const EXTENSION_PROTOCOL_VERSION = 3;
+export const EXTENSION_PROTOCOL_VERSION = 4;
+
+/** Protocol 4: locators may carry `heading`, `pageTitle` and `attrs`, and steps report `score` matches. */
+export const SCORED_MATCH_PROTOCOL = 4;
 
 /** Staff Google accounts; `@students.orono.k12.mn.us` does not match. */
 export const STAFF_EMAIL_DOMAIN = 'orono.k12.mn.us';
@@ -63,14 +72,14 @@ export interface WebTourWatchMessage {
   setId: string;
 }
 
-/** Extension to page on the `web-tour` port; `match` is the clue that found the step, `none` the picture fallback. */
+/** Extension to page on the `web-tour` port: `role` found clearly (or by role and name, before protocol 4), `text`/`css` found only by that clue (before protocol 4), `score` a weak scored match, `none` the picture fallback. */
 export type WebTourProgressMessage =
   | {
       type: 'web-tour/step';
       setId: string;
       stepIndex: number;
       stepId: string;
-      match: 'role' | 'text' | 'css' | 'none';
+      match: 'role' | 'text' | 'css' | 'score' | 'none';
     }
   | { type: 'web-tour/done'; setId: string }
   | { type: 'web-tour/exit'; setId: string; stepIndex: number }
@@ -224,12 +233,40 @@ function parseFrames(v: unknown): WebTourFrame[] | null {
 }
 
 function parseLocator(v: unknown): WebTourLocator | null {
-  const keys = ['role', 'name', 'text', 'css', 'frames', 'box'];
+  const keys = [
+    'role',
+    'name',
+    'text',
+    'css',
+    'frames',
+    'box',
+    'heading',
+    'pageTitle',
+    'attrs',
+  ];
   if (!isPlainObject(v) || !onlyKeys(v, keys)) return null;
   const out: WebTourLocator = {};
-  for (const key of ['role', 'name', 'text', 'css'] as const) {
+  for (const key of [
+    'role',
+    'name',
+    'text',
+    'css',
+    'heading',
+    'pageTitle',
+  ] as const) {
     if (!optStr(v[key], MAX_CLUE)) return null;
     if (v[key]) out[key] = v[key];
+  }
+  if (v.attrs !== undefined) {
+    const a = v.attrs;
+    if (!isPlainObject(a) || !onlyKeys(a, WEB_TOUR_ATTR_KEYS)) return null;
+    const attrs: WebTourStableAttrs = {};
+    for (const key of WEB_TOUR_ATTR_KEYS) {
+      if (!optStr(a[key], MAX_CLUE)) return null;
+      const value = a[key];
+      if (typeof value === 'string' && value) attrs[key] = value;
+    }
+    out.attrs = attrs;
   }
   if (v.frames !== undefined) {
     const frames = parseFrames(v.frames);

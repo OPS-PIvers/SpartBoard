@@ -96,6 +96,12 @@ const FIELD_LABEL: Record<string, string> = {
   name: 'Control name',
   pageText: 'Text on the control',
   css: 'Page position',
+  heading: 'Nearby heading',
+  pageTitle: 'Page title',
+  'attr:testId': 'Control id',
+  'attr:ariaLabel': 'Control label',
+  'attr:name': 'Field name',
+  'attr:href': 'Link address',
 };
 
 const fieldLabel = (field: ReviewField) =>
@@ -109,6 +115,12 @@ const REMOVABLE: ReadonlySet<ReviewField> = new Set([
   'name',
   'pageText',
   'css',
+  'heading',
+  'pageTitle',
+  'attr:testId',
+  'attr:ariaLabel',
+  'attr:name',
+  'attr:href',
 ]);
 
 const ACTION_LABEL: Record<WebTourAction, string> = {

@@ -4342,7 +4342,8 @@
       },
       "reason": {
         "missed": "Mostró la imagen en {{misses}} de {{runs}} usos reales",
-        "weak": "Se encontró solo con una pista más débil en {{weak}} de {{runs}} usos reales"
+        "weak": "Se encontró solo con una pista más débil en {{weak}} de {{runs}} usos reales",
+        "weakScore": "Parecido a otro control en {{weak}} de {{runs}} usos reales"
       },
       "copyLink": "Copiar enlace",
       "linkCopied": "Copiado",

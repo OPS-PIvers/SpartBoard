@@ -274,10 +274,20 @@ export const WebTourHealthSection: React.FC<{
                               })}
                             </span>
                           )}
-                          {stepState === 'weak' && weak && (
+                          {stepState === 'weak' &&
+                            weak &&
+                            weak.text + weak.css > 0 && (
+                              <span className="block text-slate-500">
+                                {t('tourHealth.web.reason.weak', {
+                                  weak: weak.text + weak.css,
+                                  runs: tour.field?.runs ?? 0,
+                                })}
+                              </span>
+                            )}
+                          {stepState === 'weak' && weak && weak.score > 0 && (
                             <span className="block text-slate-500">
-                              {t('tourHealth.web.reason.weak', {
-                                weak: weak.text + weak.css,
+                              {t('tourHealth.web.reason.weakScore', {
+                                weak: weak.score,
                                 runs: tour.field?.runs ?? 0,
                               })}
                             </span>
