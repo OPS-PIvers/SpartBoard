@@ -1571,7 +1571,8 @@ service cloud.firestore {
         // Library collection per kind; '' for anything else.
         function sbItemCollection(kind) {
           return {'quiz': 'quizzes', 'videoActivity': 'video_activities',
-                  'guidedLearning': 'guided_learning'}.get(kind, '');
+                  'guidedLearning': 'guided_learning', 'flashcards': 'flashcard_sets',
+                  'notebook': 'notebooks', 'project': 'projects'}.get(kind, '');
         }
         function sbItemWriteOk() {
           let sb = sbItemShare();

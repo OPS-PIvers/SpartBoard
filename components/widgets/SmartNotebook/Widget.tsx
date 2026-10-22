@@ -53,6 +53,15 @@ import {
 import { Book } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useSubShareNotebook } from './useSubShareNotebook';
+import {
+  useSharedBoardItem,
+  useSharedBoardItemPublisher,
+} from '@/hooks/useSharedBoardItem';
+import {
+  contentVersion,
+  type SharedBoardNotebookPayload,
+} from '@/utils/sharedBoardItems';
+import { useActiveBoardLinkedShareId } from '@/context/dashboardCanvasStore';
 
 import { Library } from './components/Library';
 import { Viewer } from './components/Viewer';
@@ -139,11 +148,37 @@ export const SmartNotebookWidget: React.FC<{
     () => notebooks.find((n) => n.id === activeNotebookId) ?? null,
     [notebooks, activeNotebookId]
   );
-  const activeNotebook = shared.active ? shared.notebook : ownNotebook;
+  // On a Synced or View-Only board the open notebook may be another member's.
+  const ownNotebookView = React.useMemo(
+    () =>
+      ownNotebook && !shared.active
+        ? { ...ownNotebook, pagePaths: [] as string[] }
+        : null,
+    [ownNotebook, shared.active]
+  );
+  useSharedBoardItemPublisher<SharedBoardNotebookPayload>({
+    kind: 'notebook',
+    itemId: isActive ? ownNotebookView?.id : null,
+    title: ownNotebookView?.title ?? '',
+    version: ownNotebookView ? contentVersion(ownNotebookView) : null,
+    build: () => Promise.resolve({ notebook: ownNotebookView as NotebookItem }),
+  });
+  const boardItem = useSharedBoardItem<SharedBoardNotebookPayload>(
+    'notebook',
+    shared.active || ownNotebook ? null : activeNotebookId
+  );
+  const onBoard = boardItem.status === 'foreign';
+  const boardShareId = useActiveBoardLinkedShareId();
+  const activeNotebook = shared.active
+    ? shared.notebook
+    : onBoard
+      ? (boardItem.item?.payload.notebook ?? null)
+      : ownNotebook;
 
   // Side effect: clear stale activeNotebookId from config when its notebook is deleted
   useEffect(() => {
-    if (shared.active) return;
+    // On a shared board the notebook may be another member's, and clearing it would close it for everyone.
+    if (shared.active || boardShareId) return;
     if (activeNotebookId && notebooks.length > 0 && !activeNotebook) {
       updateWidget(widget.id, {
         config: { ...config, activeNotebookId: null },
@@ -157,6 +192,7 @@ export const SmartNotebookWidget: React.FC<{
     updateWidget,
     config,
     shared.active,
+    boardShareId,
   ]);
 
   // Clamp currentPage when the active notebook changes or page count shrinks.
@@ -905,9 +941,13 @@ export const SmartNotebookWidget: React.FC<{
     persistPlacedAssets(removePlacedAssetIn(placedAssets, id));
   };
 
-  // In a sub share the notebook is the teacher's, bundled and read-only: no
-  // editor, no library, and nothing here writes to the substitute's account.
-  if (shared.active) {
+  if (boardItem.status === 'pending') {
+    return <ScaledEmptyState icon={Book} title="Loading notebook…" />;
+  }
+
+  // In a sub share, or another member's notebook on a shared board, it is
+  // read-only: no editor, no library, and nothing here writes to the viewer's account.
+  if (shared.active || onBoard) {
     if (shared.loading) {
       return <ScaledEmptyState icon={Book} title="Loading notebook…" />;
     }

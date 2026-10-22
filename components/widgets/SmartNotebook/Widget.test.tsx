@@ -33,6 +33,42 @@ vi.mock('@/config/firebase', () => ({
   db: {},
 }));
 
+const boardItemMock = vi.hoisted(() => {
+  const state: {
+    status: 'off' | 'pending' | 'foreign' | 'none';
+    item: { ownerUid: string; payload: unknown } | null;
+  } = { status: 'off', item: null };
+  return {
+    shareId: null as string | null,
+    state,
+    published: [] as {
+      itemId?: string | null;
+      version?: string | null;
+      build?: () => Promise<unknown>;
+    }[],
+  };
+});
+vi.mock('@/hooks/useSharedBoardItem', () => ({
+  useSharedBoardItem: () => boardItemMock.state,
+  useSharedBoardItemPublisher: (args: {
+    itemId?: string | null;
+    version?: string | null;
+    build?: () => Promise<unknown>;
+  }) => {
+    boardItemMock.published.push(args);
+  },
+}));
+vi.mock('@/context/dashboardCanvasStore', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/context/dashboardCanvasStore')>()),
+  useActiveBoardLinkedShareId: () => boardItemMock.shareId,
+}));
+
+beforeEach(() => {
+  boardItemMock.shareId = null;
+  boardItemMock.state = { status: 'off', item: null };
+  boardItemMock.published = [];
+});
+
 describe('SmartNotebookWidget', () => {
   const mockUpdateWidget = vi.fn();
   const mockAddToast = vi.fn();
@@ -586,6 +622,77 @@ describe('SmartNotebookWidget', () => {
 
       expect(await screen.findByText('Fractions')).toBeInTheDocument();
       expect(mockUpdateWidget).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('on a Synced or View-Only board', () => {
+    const onBoard = {
+      ...mockWidget,
+      config: { activeNotebookId: 'host-nb', storageLimitMb: 50 },
+    } as WidgetData;
+    const hostNotebook = {
+      id: 'host-nb',
+      title: 'Host fractions',
+      pageUrls: ['https://storage/host1?token=a'],
+      pagePaths: [],
+      assetUrls: [],
+      createdAt: 1,
+    };
+    const ownLibrary = (docs: { id: string; data: () => unknown }[]) =>
+      (firestore.onSnapshot as unknown as Mock).mockImplementation(
+        (_q: unknown, cb: (s: { docs: unknown[] }) => void) => {
+          cb({ docs });
+          return vi.fn();
+        }
+      );
+
+    beforeEach(() => {
+      boardItemMock.shareId = 'share-1';
+    });
+
+    it("shows another member's notebook read-only", () => {
+      ownLibrary([]);
+      boardItemMock.state = {
+        status: 'foreign',
+        item: { ownerUid: 'host-1', payload: { notebook: hostNotebook } },
+      };
+      render(<SmartNotebookWidget widget={onBoard} />);
+
+      expect(screen.getByText('Host fractions')).toBeInTheDocument();
+      expect(
+        screen.queryByTitle('Switch to present mode')
+      ).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Close notebook')).not.toBeInTheDocument();
+      expect(screen.queryByText('Notebooks')).not.toBeInTheDocument();
+    });
+
+    // A colleague's library never holds the owner's notebook, so treating it
+    // as deleted would close it for everyone on the board.
+    it("does not clear a notebook the viewer doesn't own", () => {
+      ownLibrary([{ id: 'other', data: () => ({ title: 'Mine' }) }]);
+      boardItemMock.state = { status: 'none', item: null };
+      render(<SmartNotebookWidget widget={onBoard} />);
+
+      expect(mockUpdateWidget).not.toHaveBeenCalled();
+    });
+
+    it("publishes the owner's open notebook without its Storage paths", async () => {
+      ownLibrary([
+        {
+          id: 'host-nb',
+          data: () => ({ ...hostNotebook, pagePaths: ['users/x/page0.svg'] }),
+        },
+      ]);
+      render(<SmartNotebookWidget widget={onBoard} />);
+
+      const last = boardItemMock.published.at(-1);
+      expect(last).toMatchObject({
+        itemId: 'host-nb',
+        version: expect.any(String) as unknown,
+      });
+      await expect(last?.build?.()).resolves.toMatchObject({
+        notebook: { id: 'host-nb', pagePaths: [] },
+      });
     });
   });
 });

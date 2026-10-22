@@ -24,6 +24,15 @@ import {
 } from '@/hooks/useFlashcardSets';
 import { useFlashcardAssignments } from '@/hooks/useFlashcardAssignments';
 import { useSubShareFlashcards } from './useSubShareFlashcards';
+import {
+  useSharedBoardItem,
+  useSharedBoardItemPublisher,
+} from '@/hooks/useSharedBoardItem';
+import {
+  contentVersion,
+  type SharedBoardFlashcardPayload,
+} from '@/utils/sharedBoardItems';
+import { flashcardSetShareView } from '@/utils/bundleSubShareContent';
 import { SubLaunchPanel } from '@/components/subs/SubLaunchPanel';
 import {
   buildSetAssignmentTargetsPayload,
@@ -181,9 +190,35 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
         : null,
     [config.presentSetId, flashcardSets.sets]
   );
+  // On a Synced or View-Only board the presented set may be another member's.
+  const presenting = !inShare && config.view === 'present';
+  const ownPresentView = useMemo(
+    () =>
+      presenting && ownPresentSet
+        ? flashcardSetShareView(ownPresentSet.id, ownPresentSet)
+        : null,
+    [presenting, ownPresentSet]
+  );
+  useSharedBoardItemPublisher<SharedBoardFlashcardPayload>({
+    kind: 'flashcards',
+    itemId: ownPresentView?.id,
+    title: ownPresentView?.title ?? '',
+    version: ownPresentView ? contentVersion(ownPresentView) : null,
+    build: () =>
+      Promise.resolve({ set: ownPresentView as SubShareFlashcardSetView }),
+  });
+  const boardItem = useSharedBoardItem<SharedBoardFlashcardPayload>(
+    'flashcards',
+    presenting && !ownPresentSet ? config.presentSetId : null
+  );
+  const onBoard = boardItem.status === 'foreign';
+  // A sub share or another member's set: present only, nothing to edit.
+  const readOnly = inShare || onBoard;
   const presentSet: SubShareFlashcardSetView | null = inShare
     ? shared.set
-    : ownPresentSet;
+    : onBoard
+      ? (boardItem.item?.payload.set ?? null)
+      : ownPresentSet;
   // A share opens on the set the teacher was presenting, whatever view they
   // happened to leave the widget on: the library and the results are theirs.
   const view = inShare ? 'present' : (config.view ?? 'library');
@@ -523,6 +558,10 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     return <ScaledEmptyState icon={LogIn} title="Sign in required" />;
   }
 
+  if (boardItem.status === 'pending') {
+    return <ScaledEmptyState icon={Layers} title="Opening…" />;
+  }
+
   // In a share the fall-through below would be the substitute's own library.
   if (inShare && !presentSet) {
     return (
@@ -555,7 +594,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
         shuffle: config.presentShuffle ?? false,
       }}
       onSettingsChange={
-        inShare
+        readOnly
           ? undefined
           : (settings) =>
               updateWidget(widget.id, {
@@ -566,7 +605,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 },
               })
       }
-      onBack={inShare ? undefined : showLibrary}
+      onBack={readOnly ? undefined : showLibrary}
     />
   ) : null;
 
