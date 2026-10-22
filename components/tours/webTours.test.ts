@@ -1,0 +1,126 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const h = vi.hoisted(() => ({
+  docs: new Map<string, Record<string, unknown>>(),
+  writes: [] as { path: string; data: Record<string, unknown> }[],
+  deleted: [] as string[],
+}));
+
+vi.mock('@/config/firebase', () => ({ db: {}, storage: {} }));
+vi.mock('firebase/firestore', () => ({
+  collection: vi.fn(),
+  deleteDoc: vi.fn(),
+  getDocs: vi.fn(),
+  onSnapshot: vi.fn(),
+  doc: (_db: unknown, coll: string, id: string) => ({ path: `${coll}/${id}` }),
+  getDoc: ({ path }: { path: string }) => {
+    const data = h.docs.get(path);
+    return Promise.resolve({
+      exists: () => data !== undefined,
+      data: () => data,
+      get: (field: string) => data?.[field],
+    });
+  },
+  setDoc: ({ path }: { path: string }, data: Record<string, unknown>) => {
+    h.writes.push({ path, data });
+    h.docs.set(path, data);
+    return Promise.resolve();
+  },
+}));
+vi.mock('firebase/storage', () => ({
+  ref: (_s: unknown, path: string) => ({ path }),
+  getBytes: vi.fn(),
+  uploadBytes: vi.fn(() => Promise.resolve()),
+  deleteObject: ({ path }: { path: string }) =>
+    Promise.resolve(void h.deleted.push(path)),
+}));
+
+import {
+  isWebTourPicturePath,
+  publishWebTour,
+  uploadWebTourPicture,
+  webTourPicturePaths,
+} from './webTours';
+
+const pic = (name: string, setId = 'w1') => ({
+  web: { picture: { path: `web_tour_pictures/${setId}/${name}`, w: 1, h: 1 } },
+});
+const draft = (steps: unknown[]) => ({
+  id: 'w1',
+  title: 'Gradebook',
+  mode: 'tour',
+  imageUrls: [],
+  steps,
+});
+
+beforeEach(() => {
+  h.docs.clear();
+  h.writes.length = 0;
+  h.deleted.length = 0;
+});
+
+describe('web tour picture paths', () => {
+  it('accepts only a file directly in the set folder', () => {
+    expect(isWebTourPicturePath('w1', 'web_tour_pictures/w1/a.png')).toBe(true);
+    expect(isWebTourPicturePath('w1', 'web_tour_pictures/w2/a.png')).toBe(
+      false
+    );
+    expect(isWebTourPicturePath('w1', 'web_tour_pictures/w1/x/a.png')).toBe(
+      false
+    );
+    expect(isWebTourPicturePath('w1', 'web_tour_pictures/w1/')).toBe(false);
+    expect(isWebTourPicturePath('w1', 'users/u/hotspot_images/a.png')).toBe(
+      false
+    );
+  });
+
+  it('collects step pictures and ignores other sets and odd shapes', () => {
+    const paths = webTourPicturePaths('w1', {
+      steps: [pic('a.png'), pic('b.png', 'w2'), { web: {} }, null, {}],
+    });
+    expect([...paths]).toEqual(['web_tour_pictures/w1/a.png']);
+  });
+
+  it('refuses an upload id that would leave the set folder', async () => {
+    await expect(
+      uploadWebTourPicture('w1', '../w2/a', new Blob(['x']), 'image/png')
+    ).rejects.toThrow('Invalid picture name');
+  });
+});
+
+describe('publishWebTour', () => {
+  it('writes the snapshot with a top-level web surface', async () => {
+    h.docs.set('building_web_tours/w1', draft([pic('a.png')]));
+    await publishWebTour('w1', 'admin-uid');
+    const write = h.writes.find(
+      (w) => w.path === 'building_guided_learning_tours/w1'
+    );
+    expect(write?.data.surface).toBe('web');
+    expect(write?.data.publishedBy).toBe('admin-uid');
+    expect((write?.data.set as { surface?: string }).surface).toBe('web');
+  });
+
+  it('deletes only pictures the previous snapshot used that the draft dropped', async () => {
+    h.docs.set('building_guided_learning_tours/w1', {
+      surface: 'web',
+      set: { steps: [pic('old.png'), pic('kept.png')] },
+    });
+    h.docs.set(
+      'building_web_tours/w1',
+      draft([pic('kept.png'), pic('new.png')])
+    );
+    await publishWebTour('w1', 'admin-uid');
+    expect(h.deleted).toEqual(['web_tour_pictures/w1/old.png']);
+  });
+
+  it('refuses to overwrite a SpartBoard tour with the same id', async () => {
+    h.docs.set('building_guided_learning_tours/w1', { set: { steps: [] } });
+    h.docs.set('building_web_tours/w1', draft([]));
+    await expect(publishWebTour('w1', 'admin-uid')).rejects.toThrow();
+    expect(h.writes).toEqual([]);
+  });
+
+  it('fails when there is no draft', async () => {
+    await expect(publishWebTour('w1', 'admin-uid')).rejects.toThrow();
+  });
+});

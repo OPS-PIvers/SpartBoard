@@ -1305,10 +1305,18 @@ service cloud.firestore {
       allow read: if signedIn();
     }
 
+    // Web tour drafts (CHROME_EXTENSION.md T6): admins only, never anonymous or student sessions.
+    match /building_web_tours/{setId} {
+      allow read, write: if isAdmin();
+    }
+
     // Published live tours (P7-3): staff read, admins publish; students never run tours.
+    // A web tour (surface 'web') is district staff only; a missing doc stays readable (_meta, unpublished ids).
+    // A list can't rule out web snapshots, so only district staff list.
     match /building_guided_learning_tours/{setId} {
       function staff() { return signedIn() && notAnon() && !isStudentRoleUser(); }
-      allow read: if staff();
+      allow get: if staff() && (resource == null || resource.data.get('surface', 'spartboard') != 'web' || isVerifiedDistrictEmail());
+      allow list: if staff() && isVerifiedDistrictEmail();
       allow write: if isAdmin();
       // Each teacher's latest run of the tour (P7-6): write-only, admins read.
       match /runs/{uid} {

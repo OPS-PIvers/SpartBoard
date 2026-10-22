@@ -102,7 +102,8 @@ describe('building_guided_learning_tours reads', () => {
   it('lets teachers and admins read a tour and the _meta marker', async () => {
     await assertSucceeds(getDoc(doc(asTeacher(), `${TOURS}/s1`)));
     await assertSucceeds(getDoc(doc(asTeacher(), `${TOURS}/_meta`)));
-    await assertSucceeds(getDocs(collection(asTeacher(), TOURS)));
+    // A list can't rule out web snapshots, so only district staff list (CHROME_EXTENSION.md T6).
+    await assertFails(getDocs(collection(asTeacher(), TOURS)));
     await assertSucceeds(getDoc(doc(asAdmin(), `${TOURS}/s1`)));
   });
 

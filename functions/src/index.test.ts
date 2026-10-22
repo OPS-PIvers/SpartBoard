@@ -3880,6 +3880,7 @@ describe('index barrel — deployed export set', () => {
     'gcGuidedLearningMediaSweep',
     'glBuildingIndexMirror',
     'glTourSnapshots',
+    'webTourCleanup',
     'tourAnchorApi',
     'tourAnchorBatchTrigger',
     'tourAnchorSweep',

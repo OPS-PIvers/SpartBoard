@@ -105,6 +105,8 @@ export {
 } from './glBuildingIndex';
 // Published live-tour snapshots: set deletes and the one-time publish of existing tours.
 export { glTourSnapshots } from './glTours';
+// Web tour drafts: a deleted draft removes its published snapshot and pictures.
+export { webTourCleanup } from './webTours';
 export { tourAnchorApi } from './tourAnchorApi';
 export { tourAnchorBatchTrigger } from './tourAnchorBatchTrigger';
 export { tourAnchorSweep } from './tourAnchorSweep';
