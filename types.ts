@@ -6397,6 +6397,8 @@ export interface QuizConfig {
   managerTab?: 'library' | 'banks' | 'active' | 'archive';
   selectedQuizId: string | null;
   selectedQuizTitle: string | null;
+  /** Whose library the open quiz is in, so other members of a shared board can find its copy. */
+  selectedQuizOwnerUid?: string | null;
   /** Assignment currently opened in monitor/results views. */
   activeAssignmentId: string | null;
   /** Session code when a live quiz is running (denormalized from the active assignment for display). */
@@ -7212,6 +7214,8 @@ export interface VideoActivityConfig {
   view: VideoActivityView;
   selectedActivityId: string | null;
   selectedActivityTitle: string | null;
+  /** Whose library the open activity is in, so other members of a shared board can find its copy. */
+  selectedActivityOwnerUid?: string | null;
   /** Session ID for the currently viewed results session. */
   resultsSessionId: string | null;
   /** Default settings for sessions created via this widget */
@@ -8791,6 +8795,8 @@ export interface GuidedLearningConfig {
   view: 'library' | 'editor' | 'player' | 'results';
   /** ID of the set currently loaded in player view */
   playerSetId?: string | null;
+  /** Whose library the player's set is in, so other members of a shared board can find its copy. */
+  playerSetOwnerUid?: string | null;
   /** Session ID when viewing results */
   resultsSessionId?: string | null;
   /** Persisted library grid/list toggle. */

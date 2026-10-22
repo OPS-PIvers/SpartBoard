@@ -64,6 +64,16 @@ import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { writePlcAssignmentIndexEntry } from '@/hooks/usePlcAssignmentIndex';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareVideoActivityWidget } from './SubShareWidget';
+import { SharedBoardVideoActivityView } from './SharedBoardVideoActivityView';
+import {
+  SharedBoardItemGate,
+  type SharedBoardLocal,
+} from '@/components/sharedBoard/SharedBoardItemGate';
+import { useSharedBoardItemPublisher } from '@/hooks/useSharedBoardItem';
+import {
+  sharedBoardVideoActivityPayload,
+  type SharedBoardVideoActivityPayload,
+} from '@/utils/sharedBoardItems';
 import { useAuth } from '@/context/useAuth';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivitySessionTeacher } from '@/hooks/useVideoActivitySession';
@@ -128,9 +138,11 @@ async function copyUrlToClipboard(
   }
 }
 
-const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
-  widget,
-}) => {
+const TeacherVideoActivityWidget: React.FC<{
+  widget: WidgetData;
+  /** Set while the viewer's own library stands in for a colleague's activity on a shared board. */
+  local?: SharedBoardLocal;
+}> = ({ widget, local }) => {
   const { updateWidget, addToast, rosters, updateRoster } = useDashboard();
   const { showConfirm } = useDialog();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
@@ -161,6 +173,26 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     isDriveConnected,
     reorderActivities,
   } = useVideoActivity(user?.uid);
+  // Co-teachers on a shared board read the open activity from this copy.
+  const boardActivity =
+    !local && videoActivityItemView(config)
+      ? activities.find((a) => a.id === config.selectedActivityId)
+      : undefined;
+  useSharedBoardItemPublisher({
+    kind: 'videoActivity',
+    itemId: boardActivity?.id,
+    title: boardActivity?.title ?? '',
+    version: boardActivity ? String(boardActivity.updatedAt) : null,
+    build: async () => {
+      if (!boardActivity) throw new Error('video activity left the board');
+      return sharedBoardVideoActivityPayload(
+        await loadActivityData(boardActivity.driveFileId)
+      );
+    },
+    stampedOwnerUid: config.selectedActivityOwnerUid,
+    stampOwner: (uid) =>
+      updateWidget(widget.id, { config: { selectedActivityOwnerUid: uid } }),
+  });
 
   const { plcs } = usePlcs();
 
@@ -210,7 +242,17 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   const [loadingActivity, setLoadingActivity] = useState(false);
   // A make-up assign waiting for the manager view to open it (D18).
   const [pendingAssign, setPendingAssign] =
-    useState<VideoActivityPendingAssign | null>(null);
+    useState<VideoActivityPendingAssign | null>(() =>
+      local?.assignOnOpen
+        ? {
+            key: `shared-board:${local.assignOnOpen}`,
+            activityId: local.assignOnOpen,
+            keepLastPacing: true,
+            rosterIds: [],
+            targetStudents: [],
+          }
+        : null
+    );
   const [selectedSession, setSelectedSession] =
     useState<VideoActivitySession | null>(null);
   // Monotonically increasing token to guard against rapid Monitor/Results
@@ -950,7 +992,10 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           return sessionId;
         }}
         pendingAssign={pendingAssign}
-        onPendingAssignDone={() => setPendingAssign(null)}
+        onPendingAssignDone={() => {
+          if (pendingAssign?.keepLastPacing) local?.onAssignOpened();
+          setPendingAssign(null);
+        }}
         lastRosterIdsByActivityId={config.lastRosterIdsByActivityId}
         lastClassIdsByActivityId={config.lastClassIdsByActivityId}
         lastClassIdByActivityId={config.lastClassIdByActivityId}
@@ -1467,11 +1512,39 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
  * library: splitting here rather than branching inside keeps the Drive,
  * assignment and live-session listeners from mounting for them at all.
  */
+/** Views that show one activity; on a shared board, a colleague's open activity shows read-only. */
+function videoActivityItemView(config: VideoActivityConfig): string | null {
+  return config.view === 'monitor' || config.view === 'results'
+    ? config.selectedActivityId
+    : null;
+}
+
+const VIDEO_ACTIVITY_LIBRARY_CONFIG = {
+  view: 'manager',
+  selectedActivityId: null,
+  selectedActivityTitle: null,
+  selectedActivityOwnerUid: null,
+  resultsSessionId: null,
+} satisfies Partial<VideoActivityConfig>;
+
 export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) =>
   useInSubShare() ? (
     <SubShareVideoActivityWidget widget={widget} />
   ) : (
-    <TeacherVideoActivityWidget widget={widget} />
+    <SharedBoardItemGate<SharedBoardVideoActivityPayload>
+      widget={widget}
+      kind="videoActivity"
+      itemId={videoActivityItemView(widget.config as VideoActivityConfig)}
+      ownerUid={(widget.config as VideoActivityConfig).selectedActivityOwnerUid}
+      label="video activity"
+      libraryConfig={VIDEO_ACTIVITY_LIBRARY_CONFIG}
+      renderShared={(item, onCopied) => (
+        <SharedBoardVideoActivityView item={item} onCopied={onCopied} />
+      )}
+      renderOwn={(own, local) => (
+        <TeacherVideoActivityWidget widget={own} local={local} />
+      )}
+    />
   );

@@ -538,6 +538,15 @@ async function bundleGuidedLearning(
   // failure: a building set has already returned above.
   if (!loadSet) throw new Error('no Drive reader for guided learning');
   const data = normalizeGuidedLearningSet(await loadSet(meta.driveFileId));
+  return { set: guidedLearningShareView(snap.id, data, meta.title) };
+}
+
+/** A set without the author's uid, raw Storage paths or tour bindings. */
+export function guidedLearningShareView(
+  id: string,
+  data: GuidedLearningSet,
+  fallbackTitle?: string
+): SubShareGuidedLearningView {
   const {
     authorUid: _authorUid,
     imagePaths: _imagePaths,
@@ -546,13 +555,12 @@ async function bundleGuidedLearning(
     steps,
     ...rest
   } = data;
-  const set: SubShareGuidedLearningView = {
+  return {
     ...rest,
-    id: snap.id,
-    title: data.title ?? meta.title ?? 'Guided activity',
+    id,
+    title: data.title ?? fallbackTitle ?? 'Guided activity',
     steps: (steps ?? []).map(stepForSub),
   };
-  return { set };
 }
 
 export async function bundleSubShareContent({

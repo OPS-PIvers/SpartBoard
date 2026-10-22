@@ -120,6 +120,8 @@ export interface VideoActivityPendingAssign {
   rosterIds: string[];
   /** Empty keeps class-wide targeting. */
   targetStudents: StudentTargetRef[];
+  /** Keep the teacher's last pacing rather than the make-up default. */
+  keepLastPacing?: boolean;
 }
 
 export interface VideoActivityManagerProps {
@@ -1533,7 +1535,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           periodAccess={periodAccess}
           plcs={plcs}
           canAssignLive={canAssignLive}
-          lastPacing={activePending ? 'student' : lastPacing.lastUsed}
+          lastPacing={
+            activePending && !activePending.keepLastPacing
+              ? 'student'
+              : lastPacing.lastUsed
+          }
           initialClassIds={pickerValue.rosterIds}
           initialStudents={activePending?.targetStudents}
           error={assignError}

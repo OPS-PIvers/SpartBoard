@@ -64964,6 +64964,31 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "colleague-item.assign",
+    "label": "Assign button on a colleague's item on a shared board",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.shared-board-item",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "colleague-item.back",
+    "label": "Back to the colleague's item after assigning a copy",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.shared-board-item",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "routine-guide.search",
     "label": "Search routines box in the Routine Guide library",
     "scope": "widget type",
