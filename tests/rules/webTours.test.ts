@@ -109,8 +109,20 @@ const boardSnapshot = {
   publishedBy: 'admin-uid',
 };
 
-const picture = (setId = 'w1', name = 'p1.png') =>
+const picture = (setId: string, name: string) =>
   `web_tour_pictures/${setId}/${name}`;
+// Unique object names, seeded right before use: other Storage suites call clearStorage() in parallel.
+let seq = 0;
+const seedPicture = async (): Promise<string> => {
+  seq += 1;
+  const path = picture('w1', `seed-${seq}.png`);
+  await testEnv.withSecurityRulesDisabled(async (ctx) => {
+    await uploadBytes(ref(ctx.storage(), path), new Uint8Array(64), {
+      contentType: 'image/png',
+    });
+  });
+  return path;
+};
 const upload = (ctx: RulesTestContext, path: string) =>
   uploadBytes(ref(ctx.storage(), path), new Uint8Array(64), {
     contentType: 'image/png',
@@ -143,9 +155,6 @@ beforeEach(async () => {
     await setDoc(doc(db, `${TOURS}/w1`), webSnapshot);
     await setDoc(doc(db, `${TOURS}/s1`), boardSnapshot);
     await setDoc(doc(db, `${TOURS}/_meta`), { seededAt: 1 });
-    await uploadBytes(ref(ctx.storage(), picture()), new Uint8Array(64), {
-      contentType: 'image/png',
-    });
   });
 });
 
@@ -257,13 +266,15 @@ describe('web tour snapshots', () => {
 
 describe('web_tour_pictures storage', () => {
   it('lets district staff and admins get a picture', async () => {
-    await assertSucceeds(getBytes(ref(asStaff().storage(), picture())));
-    await assertSucceeds(getBytes(ref(asAdmin().storage(), picture())));
+    const path = await seedPicture();
+    await assertSucceeds(getBytes(ref(asStaff().storage(), path)));
+    await assertSucceeds(getBytes(ref(asAdmin().storage(), path)));
   });
 
   it('denies a picture to everyone else', async () => {
+    const path = await seedPicture();
     for (const ctx of notStaff()) {
-      await assertFails(getBytes(ref(ctx.storage(), picture())));
+      await assertFails(getBytes(ref(ctx.storage(), path)));
     }
   });
 
@@ -274,9 +285,10 @@ describe('web_tour_pictures storage', () => {
   });
 
   it('denies uploads and deletes to non-admins', async () => {
+    const path = await seedPicture();
     for (const ctx of [asStaff(), ...notStaff()]) {
       await assertFails(upload(ctx, picture('w1', 'n.png')));
-      await assertFails(deleteObject(ref(ctx.storage(), picture())));
+      await assertFails(deleteObject(ref(ctx.storage(), path)));
     }
   });
 
