@@ -10052,6 +10052,8 @@ export interface Dashboard {
   linkedShareRole?: DashboardShareRole;
   /** Cached host display name for the share banner. */
   linkedShareHostName?: string;
+  /** The share's host uid, recorded at join; a share doc naming another host is treated as ended. */
+  linkedShareHostUid?: string;
   /** True after the host has revoked the share — guests see a "share ended" indicator. */
   linkedShareEnded?: boolean;
   /**

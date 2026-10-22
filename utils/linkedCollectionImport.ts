@@ -136,5 +136,6 @@ export const linkedBoardFromShare = (
   linkedShareId: entry.shareId,
   linkedShareRole: snap.originalAuthor === opts.uid ? 'owner' : opts.role,
   linkedShareHostName: snap.linkedShareHostName,
+  linkedShareHostUid: snap.linkedShareHostUid,
   linkedShareEnded: false,
 });

@@ -29,7 +29,10 @@ import {
   updatePost,
   type PostDraft,
 } from '@/components/activityWall/submission/submitPost';
-import { useBoardLinkedShareId } from '@/context/boardLinkedShare';
+import {
+  useBoardLinkedShareHostUid,
+  useBoardLinkedShareId,
+} from '@/context/boardLinkedShare';
 import {
   useDashboardActions,
   useGlobalStyle,
@@ -141,7 +144,15 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   // On a Synced or View-Only board the wall may be in another member's library.
   const boardShareId = useBoardLinkedShareId();
   const stampedOwner = config.activeActivityOwnerUid ?? null;
-  const shareHostUid = useLinkedShareHost(inSubShare ? null : boardShareId);
+  // The host recorded at join wins; the live share doc must still exist and agree (boards joined earlier use it alone).
+  const recordedHostUid = useBoardLinkedShareHostUid();
+  const liveHostUid = useLinkedShareHost(inSubShare ? null : boardShareId);
+  const shareHostUid =
+    inSubShare || !liveHostUid
+      ? null
+      : recordedHostUid && recordedHostUid !== liveHostUid
+        ? null
+        : liveHostUid;
   // The owner lists the board as "shareId/hostUid"; rules check the host so a re-created share id grants nothing.
   const boardShareEntry =
     boardShareId && shareHostUid ? `${boardShareId}/${shareHostUid}` : null;
