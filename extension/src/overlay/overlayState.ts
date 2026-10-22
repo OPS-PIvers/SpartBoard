@@ -8,7 +8,8 @@ export interface OverlayRect {
   height: number;
 }
 
-export type OverlayStatus = 'wrong-page' | 'seeking' | 'shown' | 'fallback' | 'done';
+export type OverlayStatus =
+  'wrong-page' | 'seeking' | 'shown' | 'fallback' | 'done';
 
 export interface OverlayState {
   title: string;
@@ -29,8 +30,18 @@ export interface OverlayState {
 export type OverlayAction = 'next' | 'back' | 'exit';
 
 const MAX_TEXT = 4000;
-const STATUSES: readonly OverlayStatus[] = ['wrong-page', 'seeking', 'shown', 'fallback', 'done'];
-const MIMES: readonly WebTourPictureBytes['mime'][] = ['image/png', 'image/jpeg', 'image/webp'];
+const STATUSES: readonly OverlayStatus[] = [
+  'wrong-page',
+  'seeking',
+  'shown',
+  'fallback',
+  'done',
+];
+const MIMES: readonly WebTourPictureBytes['mime'][] = [
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+];
 
 const isText = (v: unknown, max: number): v is string =>
   typeof v === 'string' && v.length <= max;
@@ -44,17 +55,32 @@ const hasExactKeys = (o: object, keys: readonly string[]) => {
 
 function parsePicture(raw: unknown): WebTourPictureBytes | null | undefined {
   if (raw === null) return null;
-  if (typeof raw !== 'object' || !hasExactKeys(raw, ['mime', 'data', 'w', 'h'])) {
+  if (
+    typeof raw !== 'object' ||
+    !hasExactKeys(raw, ['mime', 'data', 'w', 'h'])
+  ) {
     return undefined;
   }
   const { mime, data, w, h } = raw as Record<string, unknown>;
   const m = MIMES.find((x) => x === mime);
-  if (!m || typeof data !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(data)) return undefined;
-  if (typeof w !== 'number' || typeof h !== 'number' || !(w > 0 && h > 0)) return undefined;
+  if (!m || typeof data !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(data))
+    return undefined;
+  if (typeof w !== 'number' || typeof h !== 'number' || !(w > 0 && h > 0))
+    return undefined;
   return { mime: m, data, w, h };
 }
 
-const KEYS = ['title', 'text', 'current', 'total', 'status', 'role', 'targetHere', 'observe', 'picture'];
+const KEYS = [
+  'title',
+  'text',
+  'current',
+  'total',
+  'status',
+  'role',
+  'targetHere',
+  'observe',
+  'picture',
+];
 
 /** The overlay state, or null when the payload doesn't match the schema exactly. */
 export function parseOverlayState(raw: unknown): OverlayState | null {

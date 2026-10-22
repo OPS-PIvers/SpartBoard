@@ -65,13 +65,27 @@ describe('web-tour/start', () => {
       setId: 's',
       version: 1,
       title: 'T',
-      steps: [{ id: 'a', web: { urlPattern: 'https://a.example/', action: 'click', locator: { role: 'button', name: 'Go' } } }],
+      steps: [
+        {
+          id: 'a',
+          web: {
+            urlPattern: 'https://a.example/',
+            action: 'click',
+            locator: { role: 'button', name: 'Go' },
+          },
+        },
+      ],
     },
   };
 
   it('starts playback for a staff profile and replies with the tab', async () => {
     const startWebTour = vi.fn(() => Promise.resolve(12));
-    const handle = createExternalHandler({ origins: [ORIGIN], version: '0.1.0', getProfile: () => Promise.resolve('staff'), startWebTour });
+    const handle = createExternalHandler({
+      origins: [ORIGIN],
+      version: '0.1.0',
+      getProfile: () => Promise.resolve('staff'),
+      startWebTour,
+    });
     await expect(handle(start, top)).resolves.toEqual({ ok: true, tabId: 12 });
     expect(startWebTour).toHaveBeenCalledWith(start);
   });
@@ -79,8 +93,16 @@ describe('web-tour/start', () => {
   it('refuses a student or signed-out profile without opening anything', async () => {
     for (const profile of ['other', 'none'] as const) {
       const startWebTour = vi.fn(() => Promise.resolve(12));
-      const handle = createExternalHandler({ origins: [ORIGIN], version: '0.1.0', getProfile: () => Promise.resolve(profile), startWebTour });
-      await expect(handle(start, top)).resolves.toEqual({ ok: false, error: 'refused' });
+      const handle = createExternalHandler({
+        origins: [ORIGIN],
+        version: '0.1.0',
+        getProfile: () => Promise.resolve(profile),
+        startWebTour,
+      });
+      await expect(handle(start, top)).resolves.toEqual({
+        ok: false,
+        error: 'refused',
+      });
       expect(startWebTour).not.toHaveBeenCalled();
     }
   });

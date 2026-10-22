@@ -46,7 +46,9 @@ export const normalizeText = (s: string) =>
 function labelFor(el: Element): string {
   const id = el.getAttribute('id');
   if (!id) return '';
-  const label = el.ownerDocument.querySelector(`label[for="${CSS.escape(id)}"]`);
+  const label = el.ownerDocument.querySelector(
+    `label[for="${CSS.escape(id)}"]`
+  );
   return label?.textContent ?? '';
 }
 
@@ -122,7 +124,10 @@ function byCss(doc: Document, css: string): Element[] {
   }
 }
 
-function distance(el: Element, box: NonNullable<WebLocatorClues['box']>): number {
+function distance(
+  el: Element,
+  box: NonNullable<WebLocatorClues['box']>
+): number {
   const view = el.ownerDocument.defaultView;
   const w = view?.innerWidth || 1;
   const h = view?.innerHeight || 1;
@@ -147,7 +152,10 @@ function pick(
 }
 
 /** Role and name, then text, then CSS path; the recorded box only breaks a tie within one clue (T4). */
-export function locate(doc: Document, clues: WebLocatorClues): LocatorMatch | null {
+export function locate(
+  doc: Document,
+  clues: WebLocatorClues
+): LocatorMatch | null {
   const layers: [LocatorClue, () => Element[]][] = [];
   if (clues.role && clues.name) {
     const { role, name } = clues;

@@ -17,7 +17,10 @@ export function chromeHost(post: PlaybackHost['post']): PlaybackHost {
     inject: async (tabId, frameIds, overlay) => {
       const files = overlay ? ['locator.js', 'overlay.js'] : ['locator.js'];
       try {
-        await chrome.scripting.executeScript({ target: { tabId, frameIds }, files });
+        await chrome.scripting.executeScript({
+          target: { tabId, frameIds },
+          files,
+        });
       } catch {
         // A frame on a page Chrome won't script (the Web Store, chrome://) just never reports.
       }

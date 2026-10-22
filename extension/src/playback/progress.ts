@@ -24,12 +24,7 @@ export interface PlaybackTour {
 }
 
 export type PlaybackStatus =
-  | 'wrong-page'
-  | 'seeking'
-  | 'shown'
-  | 'fallback'
-  | 'done'
-  | 'exited';
+  'wrong-page' | 'seeking' | 'shown' | 'fallback' | 'done' | 'exited';
 
 export interface PlaybackState {
   tour: PlaybackTour;
@@ -59,7 +54,14 @@ export function startPlayback(
   now: number
 ): PlaybackState {
   return enterStep(
-    { tour, index: 0, furthest: 0, status: 'seeking', matched: {}, startedAt: now },
+    {
+      tour,
+      index: 0,
+      furthest: 0,
+      status: 'seeking',
+      matched: {},
+      startedAt: now,
+    },
     0,
     url
   );
@@ -93,20 +95,28 @@ function record(
   if (!id) return state.matched;
   // A clue found later beats an earlier picture-only miss for the same step.
   if (state.matched[id] && how === 'picture') return state.matched;
-  if (!(id in state.matched) && Object.keys(state.matched).length >= MAX_MATCHED) {
+  if (
+    !(id in state.matched) &&
+    Object.keys(state.matched).length >= MAX_MATCHED
+  ) {
     return state.matched;
   }
   return { ...state.matched, [id]: how };
 }
 
-const finished = (s: PlaybackState) => s.status === 'done' || s.status === 'exited';
+const finished = (s: PlaybackState) =>
+  s.status === 'done' || s.status === 'exited';
 
 export function reducePlayback(
   state: PlaybackState,
   event: PlaybackEvent
 ): PlaybackState {
   if (state.status === 'exited') return state;
-  if (state.status === 'done' && event.type !== 'back' && event.type !== 'exit') {
+  if (
+    state.status === 'done' &&
+    event.type !== 'back' &&
+    event.type !== 'exit'
+  ) {
     return state;
   }
   const step = state.tour.steps[state.index];
@@ -133,7 +143,11 @@ export function reducePlayback(
       return state.status === 'shown' ? { ...state, status: 'seeking' } : state;
     case 'timeout':
       if (state.status !== 'seeking') return state;
-      return { ...state, status: 'fallback', matched: record(state, 'picture') };
+      return {
+        ...state,
+        status: 'fallback',
+        matched: record(state, 'picture'),
+      };
     case 'acted':
       if (state.status !== 'shown' || step.action === 'observe') return state;
       return enterStep(state, state.index + 1, null);

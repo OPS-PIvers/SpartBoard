@@ -7,7 +7,11 @@ import {
   type PlaybackTour,
 } from './progress';
 
-const step = (id: string, urlPattern: string, action: PlaybackStep['action'] = 'click'): PlaybackStep => ({
+const step = (
+  id: string,
+  urlPattern: string,
+  action: PlaybackStep['action'] = 'click'
+): PlaybackStep => ({
   id,
   title: id,
   text: '',
@@ -33,7 +37,9 @@ describe('playback progress', () => {
   it('waits on the wrong page and seeks on the right one', () => {
     let s = startPlayback(tour, 'https://a.example/login', 0);
     expect(s.status).toBe('wrong-page');
-    expect(reducePlayback(s, { type: 'found', clue: 'role' }).status).toBe('wrong-page');
+    expect(reducePlayback(s, { type: 'found', clue: 'role' }).status).toBe(
+      'wrong-page'
+    );
     s = reducePlayback(s, { type: 'page', url: 'https://a.example/home' });
     expect(s.status).toBe('seeking');
   });

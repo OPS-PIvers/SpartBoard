@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { parseExtensionMessage, type WebTourStartMessage } from '@/components/tours/web/extensionProtocol';
+import {
+  parseExtensionMessage,
+  type WebTourStartMessage,
+} from '@/components/tours/web/extensionProtocol';
 import { toPlayback } from './startMessage';
 
 const valid = () => ({
@@ -15,12 +18,27 @@ const valid = () => ({
         id: 'a',
         label: 'Open',
         text: 'Click it',
-        web: { urlPattern: 'https://orono.schoology.com/home', action: 'click', locator: { role: 'button', name: 'Open', box: { x: 0.1, y: 0.1, w: 0.1, h: 0.1 } } },
+        web: {
+          urlPattern: 'https://orono.schoology.com/home',
+          action: 'click',
+          locator: {
+            role: 'button',
+            name: 'Open',
+            box: { x: 0.1, y: 0.1, w: 0.1, h: 0.1 },
+          },
+        },
         picture: { mime: 'image/png', data: 'AAAA', w: 10, h: 10 },
       },
       {
         id: 'b',
-        web: { urlPattern: 'https://orono.schoology.com/course/*', action: 'observe', locator: { text: 'Grades', frames: [{ urlPattern: 'https://x.example/f', index: 0 }] } },
+        web: {
+          urlPattern: 'https://orono.schoology.com/course/*',
+          action: 'observe',
+          locator: {
+            text: 'Grades',
+            frames: [{ urlPattern: 'https://x.example/f', index: 0 }],
+          },
+        },
       },
     ],
   },
@@ -37,41 +55,92 @@ describe('web-tour/start', () => {
     expect(parsed.staffOnly).toBe(true);
     const p = toPlayback(parsed.message as WebTourStartMessage);
     expect(p.stepIndex).toBe(1);
-    expect(p.tour.steps[0]).toMatchObject({ id: 'a', title: 'Open', hasPicture: true, action: 'click', frames: [] });
-    expect(p.tour.steps[1]).toMatchObject({ frames: [{ urlPattern: 'https://x.example/f', index: 0 }], clues: { text: 'Grades' } });
+    expect(p.tour.steps[0]).toMatchObject({
+      id: 'a',
+      title: 'Open',
+      hasPicture: true,
+      action: 'click',
+      frames: [],
+    });
+    expect(p.tour.steps[1]).toMatchObject({
+      frames: [{ urlPattern: 'https://x.example/f', index: 0 }],
+      clues: { text: 'Grades' },
+    });
     expect(p.pictures.a.data).toBe('AAAA');
   });
 
   it('clamps the step index to the tour', () => {
-    const p = toPlayback({ ...(valid() as WebTourStartMessage), stepIndex: 99 });
+    const p = toPlayback({
+      ...(valid() as WebTourStartMessage),
+      stepIndex: 99,
+    });
     expect(p.stepIndex).toBe(1);
   });
 
   it('drops pictures past the session store room', () => {
     const m = valid() as WebTourStartMessage;
     const big = 'A'.repeat(2_000_000);
-    m.tour.steps = Array.from({ length: 6 }, (_, i) => ({ ...m.tour.steps[0], id: `p${i}`, picture: { mime: 'image/png' as const, data: big, w: 1, h: 1 } }));
+    m.tour.steps = Array.from({ length: 6 }, (_, i) => ({
+      ...m.tour.steps[0],
+      id: `p${i}`,
+      picture: { mime: 'image/png' as const, data: big, w: 1, h: 1 },
+    }));
     const p = toPlayback(m);
     expect(Object.keys(p.pictures)).toHaveLength(4);
     expect(p.tour.steps[5].hasPicture).toBe(false);
   });
 
   it('opens only https pages', () => {
-    for (const startUrl of ['javascript:alert(1)', 'http://a.example/', 'data:text/html,x', 'https://u:p@a.example/']) {
+    for (const startUrl of [
+      'javascript:alert(1)',
+      'http://a.example/',
+      'data:text/html,x',
+      'https://u:p@a.example/',
+    ]) {
       expect(parse({ ...valid(), startUrl }).kind).toBe('invalid');
     }
   });
 
   it.each<[string, (m: Msg) => void]>([
-    ['an action the extension would perform', (m) => (m.tour.steps[0].web.action = 'submit')],
+    [
+      'an action the extension would perform',
+      (m) => (m.tour.steps[0].web.action = 'submit'),
+    ],
     ['a repeated step id', (m) => (m.tour.steps[1].id = 'a')],
-    ['an http pattern', (m) => (m.tour.steps[0].web.urlPattern = 'http://a.example/')],
-    ['a non-string clue', (m) => ((m.tour.steps[0].web.locator as Record<string, unknown>).role = 5)],
-    ['an unknown locator key', (m) => ((m.tour.steps[0].web.locator as Record<string, unknown>).xpath = '//a')],
-    ['an svg picture', (m) => (m.tour.steps[0].picture = { mime: 'image/svg+xml', data: 'AAAA', w: 1, h: 1 })],
-    ['picture data that is not base64', (m) => (m.tour.steps[0].picture!.data = '<svg>')],
+    [
+      'an http pattern',
+      (m) => (m.tour.steps[0].web.urlPattern = 'http://a.example/'),
+    ],
+    [
+      'a non-string clue',
+      (m) =>
+        ((m.tour.steps[0].web.locator as Record<string, unknown>).role = 5),
+    ],
+    [
+      'an unknown locator key',
+      (m) =>
+        ((m.tour.steps[0].web.locator as Record<string, unknown>).xpath =
+          '//a'),
+    ],
+    [
+      'an svg picture',
+      (m) =>
+        (m.tour.steps[0].picture = {
+          mime: 'image/svg+xml',
+          data: 'AAAA',
+          w: 1,
+          h: 1,
+        }),
+    ],
+    [
+      'picture data that is not base64',
+      (m) => (m.tour.steps[0].picture!.data = '<svg>'),
+    ],
     ['no steps', (m) => (m.tour.steps = [])],
-    ['an extra step key', (m) => ((m.tour.steps[0] as Record<string, unknown>).html = '<b>')],
+    [
+      'an extra step key',
+      (m) => ((m.tour.steps[0] as Record<string, unknown>).html = '<b>'),
+    ],
     ['a negative step index', (m) => (m.stepIndex = -1)],
   ])('refuses %s', (_, breakIt) => {
     const m = valid();

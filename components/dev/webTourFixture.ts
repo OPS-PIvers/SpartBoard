@@ -49,13 +49,73 @@ export function fixtureTourStart(origin: string, stepIndex = 0) {
       version: 1,
       title: 'Fixture web tour',
       steps: [
-        step('open', 'Open the course', 'Click Open course.', base, 'click', { role: 'button', name: 'Open course' }, 'Open course'),
-        step('grades', 'Grades', 'Grades live here (found by its text).', `${base}/course/*`, 'observe', { role: 'tab', name: 'Grades', text: 'Grades' }),
-        step('edit', 'The right Edit', 'Two Edit buttons; the recorded spot picks the right one.', `${base}/course/*`, 'observe', { role: 'button', name: 'Edit', box: { x: 0.8, y: 0.2, w: 0.1, h: 0.05 } }),
-        step('more', 'Load more', 'This button shows up late. Click it.', `${base}/course/*`, 'click', { role: 'button', name: 'Load more' }, 'Load more'),
-        step('comment', 'Comment', 'Type a comment inside the frame.', `${base}/course/*`, 'type', { role: 'textbox', name: 'Comment', frames: [{ urlPattern: `${base}/frame`, index: 0 }] }),
-        step('next', 'Next page', 'Click Next page to load a new page.', `${base}/course/*`, 'click', { role: 'link', name: 'Next page' }),
-        step('share', 'Share', 'This control is gone, so you see its picture.', `${base}/done`, 'observe', { role: 'button', name: 'Share', css: '#share' }, 'Share'),
+        step(
+          'open',
+          'Open the course',
+          'Click Open course.',
+          base,
+          'click',
+          { role: 'button', name: 'Open course' },
+          'Open course'
+        ),
+        step(
+          'grades',
+          'Grades',
+          'Grades live here (found by its text).',
+          `${base}/course/*`,
+          'observe',
+          { role: 'tab', name: 'Grades', text: 'Grades' }
+        ),
+        step(
+          'edit',
+          'The right Edit',
+          'Two Edit buttons; the recorded spot picks the right one.',
+          `${base}/course/*`,
+          'observe',
+          {
+            role: 'button',
+            name: 'Edit',
+            box: { x: 0.8, y: 0.2, w: 0.1, h: 0.05 },
+          }
+        ),
+        step(
+          'more',
+          'Load more',
+          'This button shows up late. Click it.',
+          `${base}/course/*`,
+          'click',
+          { role: 'button', name: 'Load more' },
+          'Load more'
+        ),
+        step(
+          'comment',
+          'Comment',
+          'Type a comment inside the frame.',
+          `${base}/course/*`,
+          'type',
+          {
+            role: 'textbox',
+            name: 'Comment',
+            frames: [{ urlPattern: `${base}/frame`, index: 0 }],
+          }
+        ),
+        step(
+          'next',
+          'Next page',
+          'Click Next page to load a new page.',
+          `${base}/course/*`,
+          'click',
+          { role: 'link', name: 'Next page' }
+        ),
+        step(
+          'share',
+          'Share',
+          'This control is gone, so you see its picture.',
+          `${base}/done`,
+          'observe',
+          { role: 'button', name: 'Share', css: '#share' },
+          'Share'
+        ),
       ],
     },
   };

@@ -22,8 +22,14 @@ const FixtureFrame: React.FC = () => (
 const Home: React.FC<{ go: (path: string) => void }> = ({ go }) => (
   <>
     <h1 className="text-xl font-bold">Fixture school site</h1>
-    <p className="text-sm text-slate-600">Home page. Courses open without a page load.</p>
-    <button type="button" className={btn} onClick={() => go(`${WEB_TOUR_FIXTURE_PATH}/course/42`)}>
+    <p className="text-sm text-slate-600">
+      Home page. Courses open without a page load.
+    </p>
+    <button
+      type="button"
+      className={btn}
+      onClick={() => go(`${WEB_TOUR_FIXTURE_PATH}/course/42`)}
+    >
       Open course
     </button>
   </>
@@ -69,7 +75,10 @@ const Course: React.FC = () => {
           className="h-24 w-full rounded border border-slate-300"
         />
       )}
-      <a className="text-sm font-semibold text-blue-700 underline" href={`${WEB_TOUR_FIXTURE_PATH}/done`}>
+      <a
+        className="text-sm font-semibold text-blue-700 underline"
+        href={`${WEB_TOUR_FIXTURE_PATH}/done`}
+      >
         Next page
       </a>
     </>
