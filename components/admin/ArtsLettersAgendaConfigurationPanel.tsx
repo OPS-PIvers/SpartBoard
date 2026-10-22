@@ -83,7 +83,7 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
               {...tourFieldAttr(
                 'admin.widget-config.field',
                 'arts-letters-agenda',
-                `${listKey}-${part.id}`
+                `${listKey}-${index}`
               )}
               aria-label={`${title} box ${index + 1}`}
               value={part.label}
@@ -103,7 +103,7 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
               {...tourFieldAttr(
                 'admin.widget-config.field',
                 'arts-letters-agenda',
-                `${listKey}-up-${part.id}`
+                `${listKey}-up-${index}`
               )}
               aria-label={`Move ${part.label} up`}
               disabled={index === 0}
@@ -117,7 +117,7 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
               {...tourFieldAttr(
                 'admin.widget-config.field',
                 'arts-letters-agenda',
-                `${listKey}-down-${part.id}`
+                `${listKey}-down-${index}`
               )}
               aria-label={`Move ${part.label} down`}
               disabled={index === parts.length - 1}
@@ -131,7 +131,7 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
               {...tourFieldAttr(
                 'admin.widget-config.field',
                 'arts-letters-agenda',
-                `${listKey}-remove-${part.id}`
+                `${listKey}-remove-${index}`
               )}
               aria-label={`Remove ${part.label}`}
               disabled={parts.length === 1}
