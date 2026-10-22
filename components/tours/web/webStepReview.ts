@@ -211,16 +211,17 @@ export function publishBlockers(
   return out;
 }
 
-/** Throws unless the set passes the publish gate; every publish path calls this. */
+/** Throws unless the set passes the publish gate, pictures confirmed as they are now; every publish path calls this. */
 export function assertPublishable(
-  set: Pick<GuidedLearningSet, 'steps'> & { title?: string },
+  set: Pick<GuidedLearningSet, 'steps' | 'webPicturesChecked'> & {
+    title?: string;
+  },
   matcher: NameMatcher | null
 ): void {
-  const blockers = publishBlockers(set, matcher);
-  if (blockers.length > 0)
-    throw new Error(
-      `Web tour can't be published: ${blockers.map((b) => b.kind).join(', ')}`
-    );
+  const kinds: string[] = publishBlockers(set, matcher).map((b) => b.kind);
+  if (picturesNeedConfirm(set)) kinds.push('pictures-unchecked');
+  if (kinds.length > 0)
+    throw new Error(`Web tour can't be published: ${kinds.join(', ')}`);
 }
 
 /** A step playback can only find by page position, or not at all: the editor offers Fix on site. */

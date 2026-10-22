@@ -1,6 +1,7 @@
 import { createRoot, type Root } from 'react-dom/client';
 import { createOverlayI18n } from './i18n';
 import { OverlayRoot } from './OverlayRoot';
+import { loadLexend } from '../fonts';
 import type { OverlayAction, OverlayState } from './overlayState';
 
 // A plain div, not a custom element name a page could define and take over.
@@ -62,6 +63,7 @@ export function mountOverlay(
   host.setAttribute('data-tour-ignore', '');
   const shadow = host.attachShadow({ mode: 'closed' });
   adoptCss(shadow, css);
+  loadLexend(doc);
   const container = doc.createElement('div');
   // The host resets every inherited style, so the overlay sets its own font.
   container.className = 'font-sans leading-normal antialiased';

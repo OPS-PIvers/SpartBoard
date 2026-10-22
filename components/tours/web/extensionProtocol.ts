@@ -4,7 +4,7 @@
 import type { WebTourAction, WebTourFrame, WebTourLocator } from '@/types';
 
 /** Bumped additively when a message type is added; the page checks it before using a feature. */
-export const EXTENSION_PROTOCOL_VERSION = 2;
+export const EXTENSION_PROTOCOL_VERSION = 3;
 
 /** Staff Google accounts; `@students.orono.k12.mn.us` does not match. */
 export const STAFF_EMAIL_DOMAIN = 'orono.k12.mn.us';

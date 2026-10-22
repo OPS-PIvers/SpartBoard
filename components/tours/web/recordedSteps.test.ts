@@ -19,6 +19,18 @@ describe('toWebStep', () => {
       },
     });
     expect(step.tour).toBeUndefined();
+    expect(step.text).toBe('');
+  });
+
+  it('keeps the tip typed in the side panel', () => {
+    const step = toWebStep({
+      id: 's3',
+      urlPattern: 'https://docs.google.com/document/d/*/edit',
+      action: 'click',
+      locator: { role: 'menuitem', name: 'Apps Script' },
+      tip: '  Opens in a new tab. ',
+    });
+    expect(step.text).toBe('Opens in a new tab.');
   });
 
   it('scrubs captured text and addresses again on the page side', () => {

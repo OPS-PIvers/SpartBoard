@@ -21,7 +21,16 @@ describe('manifest', () => {
 
   it('ships no always-on content scripts (T8)', () => {
     expect(base).not.toHaveProperty('content_scripts');
-    expect(base).not.toHaveProperty('web_accessible_resources');
+  });
+
+  it('exposes only the bundled fonts to pages, under per-session URLs', () => {
+    expect(base.web_accessible_resources).toEqual([
+      {
+        resources: ['fonts/*.woff2'],
+        matches: ['<all_urls>'],
+        use_dynamic_url: true,
+      },
+    ]);
   });
 
   it('lets only the prod hosts message the prod listing', () => {
