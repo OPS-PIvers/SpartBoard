@@ -534,7 +534,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         }}
         onReorder={
           onReorderSiblings
-            ? (folderId, direction) => {
+            ? (folderId, toIndex) => {
                 const folder = folders.find((f) => f.id === folderId);
                 if (!folder) return;
                 const parentId = folder.parentId ?? null;
@@ -547,9 +547,9 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
                   .sort((a, b) => a.order - b.order)
                   .map((f) => f.id);
                 const from = ids.indexOf(folderId);
-                const to = direction === 'up' ? from - 1 : from + 1;
-                if (from < 0 || to < 0 || to >= ids.length) return;
-                [ids[from], ids[to]] = [ids[to], ids[from]];
+                if (from < 0 || toIndex < 0 || toIndex >= ids.length) return;
+                ids.splice(from, 1);
+                ids.splice(toIndex, 0, folderId);
                 onReorderSiblings(parentId, ids)
                   .then(() => setCommitError(null))
                   .catch((err: unknown) =>

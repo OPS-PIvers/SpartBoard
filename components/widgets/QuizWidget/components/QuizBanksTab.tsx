@@ -247,6 +247,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       userId,
       folders: sourceFolders.folders,
       foldersLoading: folderState.loading,
+      reorderSiblings: folderState.reorderSiblings,
       getId: GET_ID,
       itemNoun: BANK_NOUN,
       extraItemFolderIds: teammateFolderIds,

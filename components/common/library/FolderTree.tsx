@@ -13,7 +13,14 @@
  */
 
 import { isImeComposing } from '@/utils/imeComposing';
-import React, { useMemo, useRef, useEffect } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { tourAttr } from '@/config/tourAnchors';
 import {
   Folder,
@@ -31,6 +38,7 @@ import { useFolderPanelMode } from './LibraryFolderPanelContext';
 import { folderColorSwatch } from './folderColors';
 import { FolderColorPicker } from './FolderColorPicker';
 import { isSourceFolderId } from './sourceFolders';
+import { folderDropIndex, type FolderDropHint } from './folderView';
 
 export interface FolderTreeProps {
   /** Flat folder list — the tree shape is derived from `parentId`. */
@@ -69,8 +77,8 @@ export interface FolderTreeProps {
   onMoveToRoot: (folderId: string) => void;
   /** Set or clear a folder's colour; omit to hide the colour row in the menu. */
   onSetColor?: (folderId: string, color: LibraryFolderColor | null) => void;
-  /** Swap a folder with its sibling above or below; omit to hide Move up and Move down. */
-  onReorder?: (folderId: string, direction: 'up' | 'down') => void;
+  /** Move a folder to a slot among its movable siblings; omit to hide Move up, Move down and drag. */
+  onReorder?: (folderId: string, toIndex: number) => void;
 
   /**
    * When true, each folder row becomes a `useDroppable` target. Must be
@@ -81,6 +89,16 @@ export interface FolderTreeProps {
 }
 
 const INDENT_PX = 14;
+
+interface FolderDragState {
+  draggingId: string | null;
+  setDraggingId: (id: string | null) => void;
+  hint: FolderDropHint | null;
+  setHint: (hint: FolderDropHint | null) => void;
+}
+
+// Owned by the top-level tree so nested subtrees share one drag.
+const FolderDragContext = createContext<FolderDragState | null>(null);
 
 /**
  * Inline rename input — one ref per render, auto-focused + selected on mount.
@@ -168,6 +186,9 @@ interface FolderRowProps {
   onSetColor?: (folderId: string, color: LibraryFolderColor | null) => void;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
+  /** Sibling ids this row can be dragged among; omit to make the row not draggable. */
+  dragSiblings?: readonly string[];
+  onDropFolder?: (folderId: string, toIndex: number) => void;
 }
 
 /**
@@ -196,8 +217,11 @@ const FolderRow: React.FC<FolderRowProps> = ({
   onSetColor,
   onMoveUp,
   onMoveDown,
+  dragSiblings,
+  onDropFolder,
 }) => {
   const panelMode = useFolderPanelMode();
+  const drag = useContext(FolderDragContext);
   const isRail = panelMode === 'rail';
   const iconTint = folderColorSwatch(folder.color)?.icon;
   // Source folders can't be renamed, recoloured, nested into or deleted (D21).
@@ -234,6 +258,57 @@ const FolderRow: React.FC<FolderRowProps> = ({
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
   }, [isMenuOpen, onOpenMenu]);
+
+  const draggable = !isRail && !isRenaming && dragSiblings != null && !!drag;
+  const draggingSibling =
+    drag?.draggingId != null &&
+    drag.draggingId !== folder.id &&
+    (dragSiblings?.includes(drag.draggingId) ?? false);
+  const hintPlace =
+    draggingSibling && drag?.hint?.folderId === folder.id
+      ? drag.hint.place
+      : null;
+  const dragHandlers: React.HTMLAttributes<HTMLDivElement> = draggable
+    ? {
+        draggable: true,
+        onDragStart: (e) => {
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', folder.name);
+          onOpenMenu(null);
+          drag.setDraggingId(folder.id);
+        },
+        onDragEnd: () => {
+          drag.setDraggingId(null);
+          drag.setHint(null);
+        },
+      }
+    : {};
+  const dropHandlers: React.HTMLAttributes<HTMLDivElement> = draggingSibling
+    ? {
+        onDragOver: (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          const rect = e.currentTarget.getBoundingClientRect();
+          const place =
+            e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+          if (hintPlace !== place) drag.setHint({ folderId: folder.id, place });
+        },
+        onDragLeave: (e) => {
+          if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+          if (drag.hint?.folderId === folder.id) drag.setHint(null);
+        },
+        onDrop: (e) => {
+          e.preventDefault();
+          const fromId = drag.draggingId;
+          const hint = drag.hint;
+          drag.setDraggingId(null);
+          drag.setHint(null);
+          if (!fromId || !hint || !dragSiblings || !onDropFolder) return;
+          const to = folderDropIndex(dragSiblings, fromId, hint);
+          if (to != null) onDropFolder(fromId, to);
+        },
+      }
+    : {};
 
   // Rail mode: render a single icon button per folder so the tiny rail is
   // still navigable. Nesting/rename/menu affordances are suppressed; the
@@ -280,7 +355,12 @@ const FolderRow: React.FC<FolderRowProps> = ({
   return (
     <div
       ref={enableDrop ? droppable.setNodeRef : undefined}
+      {...dragHandlers}
+      {...dropHandlers}
+      data-testid={draggable ? 'folder-drag-row' : undefined}
       className={`group relative flex items-center font-medium select-none rounded-lg transition-colors ${
+        drag?.draggingId === folder.id ? 'opacity-50' : ''
+      } ${
         isSelected
           ? 'bg-brand-blue-primary/10 text-brand-blue-dark'
           : 'text-slate-700 hover:bg-slate-100'
@@ -295,6 +375,14 @@ const FolderRow: React.FC<FolderRowProps> = ({
         fontSize: 'min(13px, 4cqmin)',
       }}
     >
+      {hintPlace && (
+        <span
+          aria-hidden="true"
+          className={`pointer-events-none absolute inset-x-1 h-0.5 rounded-full bg-brand-blue-primary ${
+            hintPlace === 'before' ? '-top-px' : '-bottom-px'
+          }`}
+        />
+      )}
       {/* Expand/collapse chevron. */}
       <button
         type="button"
@@ -559,6 +647,13 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
   onReorder,
   enableDrop = false,
 }) => {
+  const parentDrag = useContext(FolderDragContext);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [hint, setHint] = useState<FolderDropHint | null>(null);
+  const ownDrag = useMemo<FolderDragState>(
+    () => ({ draggingId, setDraggingId, hint, setHint }),
+    [draggingId, hint]
+  );
   // Group children by parentId once per render. Sorted input is expected
   // (the hook orders by `order` asc); still, sort defensively.
   const children = useMemo(
@@ -572,8 +667,9 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
   if (children.length === 0) return null;
   // Source folders keep their fixed slots (D21), so only teacher folders move.
   const movable = children.filter((f) => !isSourceFolderId(f.id));
+  const movableIds = movable.map((f) => f.id);
 
-  return (
+  const list = (
     <ul role="group" className="flex flex-col">
       {children.map((folder) => {
         const hasChildren = folders.some((f) => f.parentId === folder.id);
@@ -612,14 +708,20 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
               onSetColor={onSetColor}
               onMoveUp={
                 onReorder && slot > 0
-                  ? () => onReorder(folder.id, 'up')
+                  ? () => onReorder(folder.id, slot - 1)
                   : undefined
               }
               onMoveDown={
                 onReorder && slot >= 0 && slot < movable.length - 1
-                  ? () => onReorder(folder.id, 'down')
+                  ? () => onReorder(folder.id, slot + 1)
                   : undefined
               }
+              dragSiblings={
+                onReorder && slot >= 0 && movable.length > 1
+                  ? movableIds
+                  : undefined
+              }
+              onDropFolder={onReorder}
             />
             {/* Recurse into children when expanded. */}
             {isExpanded && hasChildren && (
@@ -650,6 +752,13 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
         );
       })}
     </ul>
+  );
+  return parentDrag ? (
+    list
+  ) : (
+    <FolderDragContext.Provider value={ownDrag}>
+      {list}
+    </FolderDragContext.Provider>
   );
 };
 

@@ -82,4 +82,44 @@ describe('FolderSidebar folder reordering', () => {
     expect(screen.getByRole('menuitem', { name: 'Move up' })).toBeTruthy();
     expect(screen.queryByRole('menuitem', { name: 'Move down' })).toBeNull();
   });
+
+  it('drops a dragged folder after the folder it is dropped on', () => {
+    const onReorderSiblings = vi.fn().mockResolvedValue(undefined);
+    render(
+      <FolderSidebar
+        widget="quiz"
+        folders={FOLDERS}
+        selectedFolderId={null}
+        onSelectFolder={vi.fn()}
+        onReorderSiblings={onReorderSiblings}
+      />
+    );
+    const rows = screen.getAllByTestId('folder-drag-row');
+    const dataTransfer = {
+      setData: vi.fn(),
+      effectAllowed: '',
+      dropEffect: '',
+    };
+    // Rows render in stored order: Unit 3, Unit 1, Unit 2.
+    fireEvent.dragStart(rows[0], { dataTransfer });
+    fireEvent.dragOver(rows[2], { dataTransfer, clientY: 10 });
+    fireEvent.drop(rows[2], { dataTransfer });
+    expect(onReorderSiblings).toHaveBeenLastCalledWith(null, [
+      'Unit 1',
+      'Unit 2',
+      'Unit 3',
+    ]);
+  });
+
+  it('makes no folder draggable without a reorder handler', () => {
+    render(
+      <FolderSidebar
+        widget="quiz"
+        folders={FOLDERS}
+        selectedFolderId={null}
+        onSelectFolder={vi.fn()}
+      />
+    );
+    expect(screen.queryAllByTestId('folder-drag-row')).toHaveLength(0);
+  });
 });
