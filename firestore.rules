@@ -6364,7 +6364,7 @@ service cloud.firestore {
                              !(existing().get('type', 'text') in ['photo', 'video', 'file', 'link'])) &&
                             (!changed(['content', 'title', 'label']) || changed(['editedAt'])) &&
                             (!changed(['editedAt']) ||
-                             (incoming().editedAt is int &&
+                             (isInt('editedAt') &&
                               incoming().editedAt > existing().get('editedAt', 0))) &&
                             isStr('content') &&
                             incoming().content.size() > 0 &&
