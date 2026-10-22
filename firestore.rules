@@ -996,6 +996,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // District Speak word fixes: every student's Speak reads them; admins write (Words to check). Readers normalize the shape.
+    match /admin_settings/flashcardsSpeakWordFixes {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
     // Curated translation languages + org caps — teachers read the language list
     // for the quiz Languages tab; admins edit. Deliberately a SEPARATE doc from
     // quiz_read_aloud, which stays admin-only.
@@ -4930,6 +4936,28 @@ service cloud.firestore {
           allow read: if signedIn() && authUid() == sessionTeacherUid();
           allow write: if false;
         }
+
+        // Each finished attempt's copy; the server writes it and the session teacher or an admin may grade an earlier (closed) one.
+        match /attempts/{attemptId} {
+          allow read: if signedIn() && (
+            authUid() == sessionTeacherUid() || isAdmin() ||
+            isSubMonitor(sessionData())
+          );
+          allow update: if signedIn() && (authUid() == sessionTeacherUid() || isAdmin()) &&
+            existing().get('closed', false) == true &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['grading']) &&
+            isMap('grading');
+          allow create, delete: if false;
+        }
+      }
+
+      // Per-attempt scores beside the response, since students can read their response before release.
+      match /attemptScores/{responseKey} {
+        allow read: if signedIn() && (
+          authUid() == sessionTeacherUid() || isAdmin() ||
+          isSubMonitor(sessionData())
+        );
+        allow write: if false;
       }
 
       // Question content for per-period sessions, readable by a student only

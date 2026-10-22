@@ -494,6 +494,27 @@ describe('buildResultsPrintHtml — handwritten paper answers', () => {
 });
 
 describe('buildResultsPrintHtml — students and pages', () => {
+  it('prints each attempt in order, headed with its number, counted once', () => {
+    const html = buildResultsPrintHtml(
+      job([
+        student({ key: 'k1', attempt: 2 }),
+        student({ key: 'k1#1', baseKey: 'k1', attempt: 1 }),
+        student({ key: 'k2', period: 'Period 2', sortName: 'B' }),
+      ]),
+      opts()
+    );
+    const div = render(html);
+    const heads = Array.from(div.querySelectorAll('.head .sub')).map(
+      (el) => el.textContent ?? ''
+    );
+    expect(heads[0]).toMatch(/^Attempt 1/);
+    expect(heads[1]).toMatch(/^Attempt 2/);
+    expect(
+      div.querySelector('[data-print-block="separator"] .sep-count')
+        ?.textContent
+    ).toBe('1 student');
+  });
+
   it('sorts by period, then family name, whatever order it was handed', () => {
     const order = sortResultsPrintStudents(
       [

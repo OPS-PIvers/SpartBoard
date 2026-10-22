@@ -29,6 +29,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1' },
     featurePermissions: [],
     selectedBuildings: [],
+    canAccessFeature: () => true,
   }),
 }));
 
@@ -341,5 +342,44 @@ describe('WallEditorModal', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /^Allow comments/ }));
     expect(replies).toBeDisabled();
     expect(replies).not.toBeChecked();
+  });
+
+  it('saves named time periods on a dated timeline and blocks a bad one', async () => {
+    renderModal();
+    fireEvent.click(screen.getByRole('button', { name: /Timeline/ }));
+    fireEvent.change(screen.getByLabelText('Title'), {
+      target: { value: 'Civil War' },
+    });
+    fireEvent.change(screen.getByLabelText('Prompt'), {
+      target: { value: 'Add an event.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add time period' }));
+    fireEvent.change(screen.getByLabelText('Name'), {
+      target: { value: 'The war' },
+    });
+    fireEvent.change(screen.getByLabelText('From'), {
+      target: { value: '1865' },
+    });
+    fireEvent.change(screen.getByLabelText('To'), {
+      target: { value: '1861' },
+    });
+    expect(
+      screen.getByText('End must be after the start.')
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save wall' }));
+    expect(mockSaveActivity).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText('From'), {
+      target: { value: '1861' },
+    });
+    fireEvent.change(screen.getByLabelText('To'), {
+      target: { value: '1865' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save wall' }));
+    await waitFor(() => expect(mockSaveActivity).toHaveBeenCalledTimes(1));
+    const saved = mockSaveActivity.mock.calls[0][0] as ActivityWallLibraryEntry;
+    expect(saved.timePeriods).toEqual([
+      expect.objectContaining({ label: 'The war', from: '1861', to: '1865' }),
+    ]);
   });
 });

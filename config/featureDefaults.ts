@@ -1,10 +1,10 @@
 // Registry of every global feature: runtime defaults plus its admin row (docs/plans/shipped/ADMIN_ACCESS_PAGES.md D5).
 import type React from 'react';
 import {
+  CalendarRange,
   PenLine,
   BarChart,
   BellRing,
-  BookOpen,
   Bot,
   Building2,
   CalendarClock,
@@ -12,23 +12,20 @@ import {
   ClipboardCheck,
   Download,
   Eye,
+  History,
   FileText,
   FileUp,
-  FolderOpen,
   Gauge,
   GraduationCap,
   Flag,
   Footprints,
-  Gamepad2,
   Languages,
   Layers,
   LayoutDashboard,
   Library,
   Link2,
   ListChecks,
-  AtSign,
   Mic,
-  MousePointerClick,
   Music2,
   Printer,
   RefreshCw,
@@ -620,17 +617,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Guided Learning live tours that walk a teacher through the real app. Admin-only until opened up.
-  'gl-live-tours': {
-    label: 'Guided Learning live tours',
-    icon: Footprints,
-    description: "Walkthroughs on the teacher's own board.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Live tour editing v2 and tour materials. Admin-only until Paul has edited tours with it in prod.
   'live-tour-editing-v2': {
     label: 'Live tour editing v2',
@@ -642,34 +628,11 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Live tours reopen a closed panel and arrange their own widgets (LIVE_TOUR_ONE_SHOT.md D18).
-  'live-tour-self-heal': {
-    label: 'Live tour self-heal',
-    icon: Footprints,
-    description:
-      'Tours reopen a panel that closed mid-step and lay out their own widgets.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Per-period start/pause on shared assignments. Admin-only until Paul has run a class on it.
   'per-period-access': {
     label: 'Start and pause each class period',
     icon: CalendarClock,
     description: 'Open and pause each class period.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // PLC Home v2 tile dashboard. Admin-only until Paul has run a PLC on it in prod.
-  'plc-home-v2': {
-    label: 'PLC Home dashboard',
-    icon: LayoutDashboard,
-    description: 'Tile-based PLC Home.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -708,44 +671,11 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Studio callout handles, toolbar and styling. Admin-only until Paul has edited sets with it in prod.
-  'gl-callout-editing': {
-    label: 'Guided Learning callout editing',
-    icon: MousePointerClick,
-    description: 'Resize and restyle Studio callouts.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Per-student slide position on GL results and the hub. Admin-only until Paul has seen it on real class data in prod.
   'gl-student-progress': {
     label: 'Guided Learning student progress',
     icon: Route,
     description: "Shows each student's slide and last activity.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Rich text PLC notes editor. Admin-only until Paul has run a PLC meeting on it in prod.
-  'plc-notes-rich-editor': {
-    label: 'PLC notes rich text editor',
-    icon: StickyNote,
-    description: 'Formatting toolbar in PLC notes.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'plc-notes-side-panels': {
-    label: 'Notes and Docs side panels',
-    icon: StickyNote,
-    description:
-      'Action items beside group notes and linked Google Docs; the notes list folds away.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -857,11 +787,12 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Projects board: a group's name opens the view its students see.
-  'projects-group-view': {
-    label: 'Projects group view',
-    icon: Eye,
-    description: "Tap a group on the board to see its students' view.",
+  // Quiz attempt history and the Final score setting (docs/plans/QUIZ_ATTEMPT_HISTORY.md).
+  'quiz-attempt-history': {
+    label: 'Quiz attempt history',
+    icon: History,
+    description:
+      'Teachers and students can look back at every quiz attempt, and teachers choose which score counts.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -899,17 +830,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'students',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'quiz-review-split': {
-    label: 'Quiz and Review split',
-    icon: Gamepad2,
-    description: 'Quiz keeps assessments; live review games move to Review.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1088,18 +1008,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Assign dialogs' Submissions Enabled / Study Resource toggle. Off: every session uses its kind default (STUDENT_LANDING_V2 D8).
-  'study-resources': {
-    label: 'Study resources',
-    icon: BookOpen,
-    description:
-      'Mark an assignment as a study resource that students do not submit.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Server also requires gemini-functions and a saved doc (enforceAiFeatureAccess, missingDocAllowed: false).
   'plc-meeting-ai-notes': {
     label: 'AI meeting notes',
@@ -1135,27 +1043,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'library-folder-view': {
-    label: 'Library folders view',
-    icon: FolderOpen,
-    description:
-      'Libraries open on your folders, with a path bar, folder rows and a Recent list.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'team-email-suggest': {
-    label: 'Team invite email suggestions',
-    icon: AtSign,
-    description: 'Invite boxes on team pages suggest staff emails as you type.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // SpartBoard creates the Schoology gradebook column (SCHOOLOGY_TOOL_COLUMNS.md D11).
   'schoology-tool-columns': {
     label: 'Schoology gradebook columns',
@@ -1179,33 +1066,11 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Pinned Welcome card in the Guided Learning Studio slide strip, plus a welcome image.
-  'gl-welcome-card': {
-    label: 'Guided Learning welcome card',
-    icon: Sparkles,
-    description: 'A pinned welcome card and image in the Studio.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Inert while Mini App assignments are view-only in Organization settings.
   'mini-app-results': {
     label: 'Mini App results',
     icon: ListChecks,
     description: 'Graded mini app submissions with attempt limits.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'miniApp',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'mini-app-ai-edit': {
-    label: 'Mini Apps: Edit with AI',
-    icon: Wand2,
-    description: 'Revises an existing mini app from an instruction.',
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'miniApp',
@@ -1254,6 +1119,29 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'lunchCount',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'activity-wall-timeline-dates': {
+    label: 'Activity Wall dated timeline',
+    icon: CalendarRange,
+    description: 'Posts get a real date and sit in order on a timeline.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'activity-wall',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'checklist-small-card': {
+    label: 'Checklist small cards',
+    icon: ListChecks,
+    description:
+      'An Add tasks button when empty, and a cleaner footer on small cards.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'checklist',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

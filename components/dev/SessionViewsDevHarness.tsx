@@ -27,6 +27,7 @@ import { SavedWidgetsProvider } from '@/context/SavedWidgetsContext';
 import { DashboardProvider } from '@/context/DashboardContext';
 import { QuizLiveMonitor } from '@/components/widgets/QuizWidget/components/QuizLiveMonitor';
 import { QuizResults } from '@/components/widgets/QuizWidget/components/QuizResults';
+import { QuizAttemptSourceContext } from '@/hooks/useQuizResponseAttempts';
 import { VideoActivityLiveMonitor } from '@/components/widgets/VideoActivityWidget/components/VideoActivityLiveMonitor';
 import { Results as VideoActivityResults } from '@/components/widgets/VideoActivityWidget/components/Results';
 import { PresentScreen } from '@/components/widgets/QuizWidget/components/present/PresentScreen';
@@ -46,6 +47,7 @@ import {
   NOW,
   makeQuizSession,
   makeQuizResponses,
+  makeQuizAttemptCopies,
   makeTimedQuizSession,
   makeTimedQuizResponses,
   makeStopQuizSession,
@@ -287,15 +289,19 @@ const SessionView: React.FC<{
   if (view === 'quiz-results') {
     const responses = state === 'empty' ? [] : makeQuizResponses();
     return (
-      <QuizResults
-        quiz={makeQuizData()}
-        responses={responses}
-        config={makeQuizConfig()}
-        session={makeQuizSession('ended')}
-        onBack={() => undefined}
-        onSubmitStudent={noop}
-        studentResultsActions={HARNESS_RESULTS_ACTIONS}
-      />
+      <QuizAttemptSourceContext.Provider
+        value={(_sessionId, key) => makeQuizAttemptCopies(key)}
+      >
+        <QuizResults
+          quiz={makeQuizData()}
+          responses={responses}
+          config={makeQuizConfig()}
+          session={makeQuizSession('ended')}
+          onBack={() => undefined}
+          onSubmitStudent={noop}
+          studentResultsActions={HARNESS_RESULTS_ACTIONS}
+        />
+      </QuizAttemptSourceContext.Provider>
     );
   }
 

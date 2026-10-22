@@ -186,6 +186,10 @@ export interface ResultsPrintStudent {
   sheet?: SheetReprint;
   /** Handwritten paper answers by question id (docs/plans/shipped/QUIZ_PAPER_HANDWRITTEN_RESPONSES.md D41). */
   paperWritten?: Readonly<Record<string, PaperWrittenPrint>>;
+  /** Which attempt this copy shows, when every attempt is printed. */
+  attempt?: number;
+  /** An earlier attempt's copy: the student's own key, for sorting and counting. */
+  baseKey?: string;
 }
 
 /** One handwritten paper answer as the print sees it. */
@@ -208,8 +212,13 @@ export interface ResultsPrintJob {
 const NO_PERIOD_LABEL = 'No class period';
 
 /** Period order, then family name, then given name (D2a). */
+const byKey = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+
 export function sortResultsPrintStudents<
-  T extends Pick<ResultsPrintStudent, 'period' | 'sortName' | 'key'>,
+  T extends Pick<ResultsPrintStudent, 'period' | 'sortName' | 'key'> & {
+    attempt?: number;
+    baseKey?: string;
+  },
 >(students: readonly T[], periodOrder: readonly string[]): T[] {
   const rank = (period: string | null) => {
     if (period === null) return Number.MAX_SAFE_INTEGER;
@@ -223,7 +232,9 @@ export function sortResultsPrintStudents<
       a.sortName.localeCompare(b.sortName, undefined, {
         sensitivity: 'base',
       }) ||
-      (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)
+      byKey(a.baseKey ?? a.key, b.baseKey ?? b.key) ||
+      (a.attempt ?? 0) - (b.attempt ?? 0) ||
+      byKey(a.key, b.key)
   );
 }
 
@@ -534,7 +545,7 @@ function studentHeader(
           .filter(Boolean)
           .join(' · ')
       )}</p>`;
-  const meta: string[] = [];
+  const meta: string[] = student.attempt ? [`Attempt ${student.attempt}`] : [];
   if (options.showClassDate) {
     if (student.period) meta.push(escapeHtml(student.period));
     meta.push(
@@ -689,9 +700,15 @@ export function buildResultsPrintHtml(
   const students = sortResultsPrintStudents(job.students, job.periodOrder);
   const periods = new Set(students.map((s) => s.period));
   const separate = periods.size > 1;
+  // Counted by student, so every-attempt copies don't inflate the separator.
+  const seen = new Set<string>();
   const counts = new Map<string | null, number>();
-  for (const s of students)
+  for (const s of students) {
+    const base = s.baseKey ?? s.key;
+    if (seen.has(base)) continue;
+    seen.add(base);
     counts.set(s.period, (counts.get(s.period) ?? 0) + 1);
+  }
 
   let lastPeriod: string | null | undefined;
   return students

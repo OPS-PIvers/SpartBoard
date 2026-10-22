@@ -7,6 +7,7 @@ export interface QuizRuleGates {
   tabAwayTimerOn: boolean;
   scoreOnSubmitOn: boolean;
   stimulusQuotesOn?: boolean;
+  finalScoreOn?: boolean;
 }
 
 export interface QuizRuleStepContext extends Partial<QuizRuleGates> {
@@ -33,6 +34,10 @@ export function formatQuizAttemptsValue(
       ? 'Unlimited attempts'
       : `${value.attemptLimit} attempt${value.attemptLimit === 1 ? '' : 's'}`,
   ];
+  if (context.finalScoreOn && value.attemptLimit !== 1) {
+    if (value.finalScore === 'highest') parts.push('highest score');
+    if (value.finalScore === 'average') parts.push('average score');
+  }
   const minutes = context.timeLimitOn
     ? clampQuizTimeLimitMinutes(o.timeLimitMinutes)
     : null;

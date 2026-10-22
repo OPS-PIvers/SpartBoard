@@ -1,21 +1,26 @@
 import React, { useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { hexToRgba } from '@/utils/styles';
 import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { rosterGroupMemberIds } from '@/utils/rosterGroups';
 import { ChecklistConfig, WidgetData, DEFAULT_GLOBAL_STYLE } from '@/types';
-import { ListPlus, Users } from 'lucide-react';
+import { ListPlus, Plus, Users } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { WidgetLayout } from '../WidgetLayout';
 import { ChecklistCard } from './components/ChecklistCard';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 import { tourAttr } from '@/config/tourAnchors';
+import { useIsActiveBoardReadOnly } from '@/context/dashboardCanvasStore';
+import { markSettingsOpenedLocally } from '@/components/settings/settingsOpenSignal';
 
 export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget, rosters, activeRosterId, activeDashboard } =
     useDashboard();
+  const isActiveBoardReadOnly = useIsActiveBoardReadOnly();
+  const smallCard = useAuth().canAccessFeature('checklist-small-card');
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const config = widget.config as ChecklistConfig;
   const {
@@ -175,8 +180,17 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   // Rows stop shrinking at a 44px tap target and the list scrolls instead.
   const rowMinHeight = 'max(44px, 8cqmin)';
   const lines = config.rowStyle === 'lines';
+  const footerButtonSize = smallCard
+    ? {
+        padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+        fontSize: 'max(10px, min(12px, 2.8cqmin))',
+      }
+    : {
+        padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
+        fontSize: 'min(10px, 2.8cqmin)',
+      };
 
-  if (!hasContent) {
+  if (!hasContent && !smallCard) {
     return (
       <WidgetLayout
         padding="p-0"
@@ -188,6 +202,61 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
               mode === 'manual'
                 ? 'Flip to add your class tasks.'
                 : 'Flip to enter your student names.'
+            }
+          />
+        }
+      />
+    );
+  }
+
+  if (!hasContent) {
+    return (
+      <WidgetLayout
+        padding="p-0"
+        content={
+          <ScaledEmptyState
+            icon={mode === 'manual' ? ListPlus : Users}
+            iconClassName="text-slate-400"
+            titleClassName="text-slate-600"
+            subtitleClassName="text-slate-500"
+            title={mode === 'manual' ? 'No tasks yet' : 'No students yet'}
+            subtitle={
+              mode === 'manual'
+                ? 'Open settings to add tasks.'
+                : 'Open settings to add student names.'
+            }
+            action={
+              widget.isLocked || isActiveBoardReadOnly ? undefined : (
+                <button
+                  type="button"
+                  {...tourAttr(
+                    'checklist.open-settings',
+                    widget.id,
+                    widget.type
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    markSettingsOpenedLocally(widget.id);
+                    updateWidget(widget.id, { flipped: true });
+                  }}
+                  className="flex items-center bg-brand-blue-primary text-white rounded-full font-bold hover:bg-brand-blue-dark transition-colors"
+                  style={{
+                    gap: 'min(8px, 2cqmin)',
+                    padding:
+                      'max(6px, min(8px, 2cqmin)) max(12px, min(16px, 4cqmin))',
+                    fontSize: 'max(11px, min(14px, 3.5cqmin))',
+                  }}
+                >
+                  <Plus
+                    aria-hidden="true"
+                    style={{
+                      width: 'max(12px, min(14px, 3.5cqmin))',
+                      height: 'max(12px, min(14px, 3.5cqmin))',
+                    }}
+                  />
+                  {mode === 'manual' ? 'Add tasks' : 'Add students'}
+                </button>
+              )
             }
           />
         }
@@ -275,10 +344,14 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                 ))}
           </div>
 
-          {/* Action buttons — fixed footer outside scroll area, always visible */}
+          {/* Action buttons: fixed footer outside the scroll area, hidden on small cards */}
           <div
+            className={
+              smallCard
+                ? 'flex [@container_(max-width:219px)_or_(max-height:199px)]:hidden'
+                : 'flex'
+            }
             style={{
-              display: 'flex',
               justifyContent: 'center',
               gap: 'min(8px, 1.8cqmin)',
               padding: 'min(6px, 1.5cqmin) min(12px, 2.5cqmin)',
@@ -290,8 +363,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
               title="Reset Checks"
               className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-indigo-600 uppercase tracking-wider hover:bg-indigo-50 transition-all active:scale-95 shadow-indigo-500/5"
               style={{
-                padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
-                fontSize: 'min(10px, 2.8cqmin)',
+                ...footerButtonSize,
               }}
             >
               reset checked
@@ -307,8 +379,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                 title="Remove Completed"
                 className="flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-xl font-black text-rose-500 uppercase tracking-wider hover:bg-rose-50 transition-all active:scale-95"
                 style={{
-                  padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
-                  fontSize: 'min(10px, 2.8cqmin)',
+                  ...footerButtonSize,
                 }}
               >
                 delete checked

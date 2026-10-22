@@ -633,6 +633,10 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'checklist.open-settings': {
+    label: 'Add tasks button on an empty Checklist',
+    perWidget: true,
+  },
   'checklist.remove-completed': {
     label: 'Remove completed items button in Checklist',
     perWidget: true,
@@ -743,6 +747,11 @@ export const TOUR_ANCHORS = {
   },
   'assign-rule.toggle': {
     label: 'Setting switch in the Assign dialog quiz steps',
+    perField: true,
+    panel: true,
+  },
+  'assign-rule.final-score': {
+    label: 'Final score option in the Assign dialog quiz steps',
     perField: true,
     panel: true,
   },
@@ -1089,11 +1098,6 @@ export const TOUR_ANCHORS = {
   },
   'assign-settings.disclosure': {
     label: 'Edit settings button in the Assign window',
-    panel: true,
-  },
-  'assign-quiz-behavior.mode': {
-    label: 'Session mode card in the Quiz assign settings',
-    perField: true,
     panel: true,
   },
   'assign-quiz-behavior.gamification': {
@@ -1443,11 +1447,6 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.tab-stimuli': {
     label: 'Stimuli editor tab in the Quiz editor',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-editor.tab-settings': {
-    label: 'Settings editor tab in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
@@ -2405,6 +2404,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-print.results-every-attempt': {
+    label: 'Every attempt switch in the results print in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-print.results-select-all': {
     label: 'Select all / Select none in the Quiz widget',
     perWidgetType: true,
@@ -2775,6 +2779,11 @@ export const TOUR_ANCHORS = {
   'quiz-results.student-print-answers': {
     label:
       'Include correct answers checkbox in a student report in Quiz results',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-results.student-attempt': {
+    label: 'Attempt picker in a student report in Quiz results',
     perWidgetType: true,
     panel: true,
   },
@@ -5201,11 +5210,6 @@ export const TOUR_ANCHORS = {
     label: 'Suggested folder button in the PLC assessments tab',
     perField: true,
   },
-  'plc-assign.quiz-mode': {
-    label: 'Quiz mode button in the PLC assign dialog',
-    perField: true,
-    panel: true,
-  },
   'plc-members.role': {
     label: 'Role select in the PLC members tab',
     persists: true,
@@ -5269,15 +5273,9 @@ export const TOUR_ANCHORS = {
   'plc-notes.title': {
     label: 'Title field in the PLC notes tab',
   },
-  'plc-notes.body-mode': {
-    label: 'Body mode button in the PLC notes tab',
-  },
   'plc-notes.note-delete': {
     label: 'Note delete button in the PLC notes tab',
     destructive: true,
-  },
-  'plc-notes.body': {
-    label: 'Body text box in the PLC notes tab',
   },
   'plc-notes.rollup-toggle': {
     label: 'Rollup toggle button in the PLC notes tab',
@@ -9030,6 +9028,31 @@ export const TOUR_ANCHORS = {
     label: 'Add column or row button in the Activity Wall editor',
     panel: true,
   },
+  'activity-wall-editor.period-name': {
+    label: 'Time period name box in the Activity Wall editor',
+    perField: true,
+    panel: true,
+  },
+  'activity-wall-editor.period-from': {
+    label: 'Time period start box in the Activity Wall editor',
+    perField: true,
+    panel: true,
+  },
+  'activity-wall-editor.period-to': {
+    label: 'Time period end box in the Activity Wall editor',
+    perField: true,
+    panel: true,
+  },
+  'activity-wall-editor.period-remove': {
+    label: 'Remove time period button in the Activity Wall editor',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'activity-wall-editor.period-add': {
+    label: 'Add time period button in the Activity Wall editor',
+    panel: true,
+  },
   'activity-wall-editor.map-start': {
     label: 'Map start view picker in the Activity Wall editor',
     panel: true,
@@ -11720,6 +11743,35 @@ export const TOUR_ANCHORS = {
     label: 'Class to switch to in Classes',
     perField: true,
   },
+  'classes-widget.editor-back': {
+    label: 'Back button in the Classes roster editor',
+    perWidgetType: true,
+  },
+  'classes-widget.editor-name': {
+    label: 'Class name box in the Classes roster editor',
+    perWidgetType: true,
+  },
+  'classes-widget.editor-save': {
+    label: 'Save button in the Classes roster editor',
+    perWidgetType: true,
+  },
+  'classes-widget.editor-add-last-name': {
+    label: 'Add Last Name column button in the Classes roster editor',
+    perWidgetType: true,
+  },
+  'classes-widget.editor-add-pin': {
+    label: 'Add Quiz PIN column button in the Classes roster editor',
+    perWidgetType: true,
+  },
+  'classes-widget.editor-remove-last-name': {
+    label: 'Remove Last Name column button in the Classes roster editor',
+    perWidgetType: true,
+    destructive: true,
+  },
+  'classes-widget.editor-hide-pin': {
+    label: 'Hide Quiz PIN column button in the Classes roster editor',
+    perWidgetType: true,
+  },
   'url.open-link': {
     label: 'Link button in Links',
     perField: true,
@@ -13675,6 +13727,10 @@ export const TOUR_ANCHORS = {
     label: 'Attach file from Drive button in the Mini App AI generator',
     perWidgetType: true,
     panel: true,
+  },
+  'mini-app.card-run': {
+    label: 'Run app button on a Mini App card (row icon or card menu item)',
+    perWidgetType: true,
   },
   'mini-app.card-save-library': {
     label: 'Save to my library item in a Mini App card menu',

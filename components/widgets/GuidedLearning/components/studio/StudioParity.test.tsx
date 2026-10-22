@@ -220,9 +220,8 @@ describe('Guided Learning Studio parity with the classic editor', () => {
   it('saves the welcome message once the welcome screen is on', async () => {
     const { onSave, onClose } = renderStudio();
     expect(screen.queryByLabelText('Welcome message')).toBeNull();
-    fireEvent.click(
-      screen.getByRole('checkbox', { name: /Show a welcome screen/ })
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Welcome off' }));
+    fireEvent.click(screen.getByTestId('gl-studio-welcome-toggle'));
     fireEvent.change(screen.getByLabelText('Welcome message'), {
       target: { value: 'Welcome to the timer tour.' },
     });

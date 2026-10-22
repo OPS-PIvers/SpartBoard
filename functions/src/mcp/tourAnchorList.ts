@@ -2927,6 +2927,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "checklist.open-settings",
+    "label": "Add tasks button on an empty Checklist",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.checklist.face",
+        "kind": "widget",
+        "widget_type": "checklist",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "checklist.remove-completed",
     "label": "Remove completed items button in Checklist",
     "scope": "widget",
@@ -3373,6 +3389,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "class",
           "widget-on-stage"
         ]
+      }
+    ]
+  },
+  {
+    "id": "assign-rule.final-score",
+    "label": "Final score option in the Assign dialog quiz steps",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -4561,19 +4590,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "assign-settings.disclosure",
     "label": "Edit settings button in the Assign window",
     "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-behavior",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
-    "id": "assign-quiz-behavior.mode",
-    "label": "Session mode card in the Quiz assign settings",
-    "scope": "field",
     "panel": true,
     "routes": [
       {
@@ -6028,28 +6044,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-editor.tab-stimuli",
     "label": "Stimuli editor tab in the Quiz editor",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:quiz",
-          "library-shell.new-menu-item:quiz#item-1"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-editor.tab-settings",
-    "label": "Settings editor tab in the Quiz editor",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -10074,6 +10068,31 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-print.results-every-attempt",
+    "label": "Every attempt switch in the results print in the Quiz widget",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.results.print",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.print:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-print.results-select-all",
     "label": "Select all / Select none in the Quiz widget",
     "scope": "widget type",
@@ -11764,6 +11783,33 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "quiz-results.drill-students:quiz"
         ],
         "reveal": "quiz-results.drill-students:quiz",
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-results.student-attempt",
+    "label": "Attempt picker in a student report in Quiz results",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "opened_by": [
+          "quiz-library.archive-results:quiz"
+        ],
         "needs": [
           "library-item",
           "student-data",
@@ -19944,7 +19990,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "keys": [
-      "plc#copy-paste",
       "plc#focus-mode",
       "plc#shuffle-answers",
       "plc#shuffle-questions"
@@ -21661,18 +21706,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "plc-assign.quiz-mode",
-    "label": "Quiz mode button in the PLC assign dialog",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-config",
-        "kind": "modal"
-      }
-    ]
-  },
-  {
     "id": "plc-members.role",
     "label": "Role select in the PLC members tab",
     "scope": "field",
@@ -21989,50 +22022,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "plc-notes.body-mode",
-    "label": "Body mode button in the PLC notes tab",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.notes",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc:plcs",
-          "plc-dashboard.section-tab:plc#docs"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
     "id": "plc-notes.note-delete",
     "label": "Note delete button in the PLC notes tab",
     "scope": "board",
     "destructive": true,
-    "routes": [
-      {
-        "surface": "plc.notes",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc:plcs",
-          "plc-dashboard.section-tab:plc#docs"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-notes.body",
-    "label": "Body text box in the PLC notes tab",
-    "scope": "board",
     "routes": [
       {
         "surface": "plc.notes",
@@ -40413,6 +40406,102 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "activity-wall-editor.period-name",
+    "label": "Time period name box in the Activity Wall editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.activity-wall.editor",
+        "kind": "modal",
+        "path": [
+          "activity-wall.empty-open-library",
+          "library-shell.new:activity-wall"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "activity-wall-editor.period-from",
+    "label": "Time period start box in the Activity Wall editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.activity-wall.editor",
+        "kind": "modal",
+        "path": [
+          "activity-wall.empty-open-library",
+          "library-shell.new:activity-wall"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "activity-wall-editor.period-to",
+    "label": "Time period end box in the Activity Wall editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.activity-wall.editor",
+        "kind": "modal",
+        "path": [
+          "activity-wall.empty-open-library",
+          "library-shell.new:activity-wall"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "activity-wall-editor.period-remove",
+    "label": "Remove time period button in the Activity Wall editor",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "library.activity-wall.editor",
+        "kind": "modal",
+        "path": [
+          "activity-wall.empty-open-library",
+          "library-shell.new:activity-wall"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "activity-wall-editor.period-add",
+    "label": "Add time period button in the Activity Wall editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.activity-wall.editor",
+        "kind": "modal",
+        "path": [
+          "activity-wall.empty-open-library",
+          "library-shell.new:activity-wall"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "activity-wall-editor.map-start",
     "label": "Map start view picker in the Activity Wall editor",
     "scope": "board",
@@ -42813,8 +42902,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-student-link:miniApp"
         ],
         "reveal": "mini-app.toolbar-student-link:miniApp",
@@ -42838,8 +42926,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-student-link:miniApp"
         ],
         "reveal": "mini-app.toolbar-student-link:miniApp",
@@ -42888,8 +42975,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-student-link:miniApp"
         ],
         "reveal": "mini-app.toolbar-student-link:miniApp",
@@ -42912,8 +42998,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1"
+          "mini-app.card-run:miniApp"
         ],
         "needs": [
           "library-item",
@@ -42934,8 +43019,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1"
+          "mini-app.card-run:miniApp"
         ],
         "needs": [
           "library-item",
@@ -42957,8 +43041,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1"
+          "mini-app.card-run:miniApp"
         ],
         "needs": [
           "library-item",
@@ -42981,8 +43064,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1"
+          "mini-app.card-run:miniApp"
         ],
         "needs": [
           "library-item",
@@ -43004,8 +43086,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1"
+          "mini-app.card-run:miniApp"
         ],
         "needs": [
           "library-item",
@@ -43026,8 +43107,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1"
+          "mini-app.card-run:miniApp"
         ],
         "needs": [
           "library-item",
@@ -43049,8 +43129,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-save:miniApp"
         ],
         "reveal": "mini-app.toolbar-save:miniApp",
@@ -43074,8 +43153,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-save:miniApp"
         ],
         "reveal": "mini-app.toolbar-save:miniApp",
@@ -43101,8 +43179,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.running",
         "kind": "panel",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-save:miniApp"
         ],
         "reveal": "mini-app.toolbar-save:miniApp",
@@ -43296,8 +43373,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp"
         ],
         "needs": [
@@ -43317,8 +43393,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp",
           "mini-app.session-rename:miniApp"
         ],
@@ -43341,8 +43416,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp",
           "mini-app.session-rename:miniApp"
         ],
@@ -43364,8 +43438,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp"
         ],
         "needs": [
@@ -43385,8 +43458,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp"
         ],
         "needs": [
@@ -43406,8 +43478,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp"
         ],
         "needs": [
@@ -43427,8 +43498,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp"
         ],
         "needs": [
@@ -43450,8 +43520,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp",
           "mini-app.session-end:miniApp"
         ],
@@ -43475,8 +43544,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.assignments",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp"
         ],
         "needs": [
@@ -43499,8 +43567,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.submissions",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp",
           "mini-app.session-submissions:miniApp"
         ],
@@ -43522,8 +43589,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.submissions",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-sessions:miniApp",
           "mini-app.session-submissions:miniApp"
         ],
@@ -43548,8 +43614,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.save-as-widget",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-save-as-widget:miniApp"
         ],
         "needs": [
@@ -43572,8 +43637,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.save-as-widget",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-save-as-widget:miniApp"
         ],
         "needs": [
@@ -43593,8 +43657,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.save-as-widget",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-save-as-widget:miniApp"
         ],
         "needs": [
@@ -43614,8 +43677,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.save-as-widget",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-save-as-widget:miniApp"
         ],
         "needs": [
@@ -43638,8 +43700,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.save-as-widget",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-save-as-widget:miniApp"
         ],
         "needs": [
@@ -43663,8 +43724,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.mini-app.save-as-widget",
         "kind": "modal",
         "path": [
-          "library-shell.card-menu:miniApp#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
+          "mini-app.card-run:miniApp",
           "mini-app.toolbar-save-as-widget:miniApp"
         ],
         "needs": [
@@ -53019,6 +53079,140 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "classes-widget.editor-back",
+    "label": "Back button in the Classes roster editor",
+    "scope": "widget type",
+    "keys": [
+      "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes-widget.editor-name",
+    "label": "Class name box in the Classes roster editor",
+    "scope": "widget type",
+    "keys": [
+      "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes-widget.editor-save",
+    "label": "Save button in the Classes roster editor",
+    "scope": "widget type",
+    "keys": [
+      "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes-widget.editor-add-last-name",
+    "label": "Add Last Name column button in the Classes roster editor",
+    "scope": "widget type",
+    "keys": [
+      "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes-widget.editor-add-pin",
+    "label": "Add Quiz PIN column button in the Classes roster editor",
+    "scope": "widget type",
+    "keys": [
+      "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes-widget.editor-remove-last-name",
+    "label": "Remove Last Name column button in the Classes roster editor",
+    "scope": "widget type",
+    "destructive": true,
+    "keys": [
+      "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes-widget.editor-hide-pin",
+    "label": "Hide Quiz PIN column button in the Classes roster editor",
+    "scope": "widget type",
+    "keys": [
+      "classes"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.classes.face",
+        "kind": "widget",
+        "widget_type": "classes",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "url.open-link",
     "label": "Link button in Links",
     "scope": "field",
@@ -61578,6 +61772,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "mini-app.draft-with-ai:miniApp"
         ],
         "reveal": "mini-app.draft-with-ai:miniApp",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mini-app.card-run",
+    "label": "Run app button on a Mini App card (row icon or card menu item)",
+    "scope": "widget type",
+    "keys": [
+      "miniApp"
+    ],
+    "routes": [
+      {
+        "surface": "library.mini-app",
+        "kind": "widget",
+        "widget_type": "miniApp",
+        "path": [],
         "needs": [
           "widget-on-stage"
         ]

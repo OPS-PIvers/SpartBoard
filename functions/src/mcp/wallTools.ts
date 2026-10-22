@@ -179,6 +179,7 @@ export function sessionMirror(
     'tableRows',
     'tableCols',
     'mapCenter',
+    'timePeriods',
   ]) {
     if (entry[k]) session[k] = entry[k];
   }

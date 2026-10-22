@@ -18,6 +18,7 @@ import type {
 import { LayoutPicker } from './LayoutPicker';
 import { LAYOUT_OPTIONS } from './layoutOptions';
 import { SectionsEditor } from './SectionsEditor';
+import { cleanTimePeriods, timePeriodError } from './timePeriods';
 import type { WallStructure } from './constants';
 import { AppearancePicker } from './AppearancePicker';
 import { SubmissionTypesToggles } from './SubmissionTypesToggles';
@@ -61,7 +62,8 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
   onClose,
   onSaved,
 }) => {
-  const { user, featurePermissions, selectedBuildings } = useAuth();
+  const { user, featurePermissions, selectedBuildings, canAccessFeature } =
+    useAuth();
   const { saveActivity } = useActivityWallLibrary(user?.uid);
   const titleId = useId();
   const promptId = useId();
@@ -229,6 +231,18 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
       return;
     }
 
+    const timelineDates =
+      draft.layout === 'timeline' &&
+      canAccessFeature('activity-wall-timeline-dates');
+    const timePeriods = cleanTimePeriods(draft.timePeriods);
+    const periodError = timelineDates
+      ? timePeriods.map(timePeriodError).find(Boolean)
+      : null;
+    if (periodError) {
+      setError(`Time periods: ${periodError}`);
+      return;
+    }
+
     const now = Date.now();
     const next: ActivityWallLibraryEntry = {
       ...draft,
@@ -238,6 +252,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
       sections: trimmedSections,
       tableRows: trimmedRows,
       tableCols: trimmedCols,
+      ...(timelineDates ? { timePeriods } : {}),
       createdAt: draft.createdAt || now,
       updatedAt: now,
     };
@@ -266,6 +281,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
     tableRows: draft.tableRows,
     tableCols: draft.tableCols,
     mapCenter: draft.mapCenter,
+    timePeriods: draft.timePeriods,
   };
 
   return (
@@ -391,6 +407,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
 
           <SectionsEditor
             layout={layout}
+            timelineDates={canAccessFeature('activity-wall-timeline-dates')}
             value={structure}
             onChange={(next) => patch(next)}
           />

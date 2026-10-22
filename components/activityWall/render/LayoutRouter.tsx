@@ -4,6 +4,7 @@ import { WallLayout } from './WallLayout';
 import { ColumnsLayout } from './ColumnsLayout';
 import { TableLayout } from './TableLayout';
 import { TimelineLayout } from './TimelineLayout';
+import { DatedTimelineLayout } from './DatedTimelineLayout';
 import { WordCloudLayout } from './WordCloudLayout';
 import { wallScale } from './scale';
 import type { WallRenderProps } from './types';
@@ -42,7 +43,11 @@ export const LayoutRouter: React.FC<WallRenderProps> = (props) => {
       case 'table':
         return <TableLayout {...props} />;
       case 'timeline':
-        return <TimelineLayout {...props} />;
+        return session.timelineDates ? (
+          <DatedTimelineLayout {...props} />
+        ) : (
+          <TimelineLayout {...props} />
+        );
       case 'wordcloud':
         return <WordCloudLayout {...props} />;
       case 'map':

@@ -2456,10 +2456,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           showKindIcon={banksInLibrary}
           reorderLocked={libraryView.reorderLocked}
           reorderLockedReason={libraryView.reorderLockedReason}
-          enableCardDrag={
-            Boolean(userId) &&
-            (!selectionMode || libraryView.folderView != null)
-          }
+          enableCardDrag={Boolean(userId)}
           viewMode={libraryView.state.viewMode}
           selection={selection}
           selectionMode={selectionMode}

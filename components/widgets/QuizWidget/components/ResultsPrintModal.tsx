@@ -83,6 +83,8 @@ export interface ResultsPrintModalProps {
   writtenReturnMode?: WrittenReturnMode;
   /** Fetches handwriting crops; without it paper written answers print typed only. */
   resolvePaperCrop?: PaperCropResolver;
+  /** Earlier finished attempts by response key, oldest first; offers "Every attempt" when any exist. */
+  earlierAttempts?: ReadonlyMap<string, readonly QuizResponse[]>;
   onClose: () => void;
   onError: (message: string) => void;
 }
@@ -205,9 +207,12 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   sessionId,
   writtenReturnMode,
   resolvePaperCrop,
+  earlierAttempts,
   onClose,
   onError,
 }) => {
+  const [everyAttempt, setEveryAttempt] = useState(false);
+  const hasEarlier = !!earlierAttempts && earlierAttempts.size > 0;
   const [choice, setChoice] = useState<SavedResultsPrintChoice>(() => {
     const saved = loadResultsPrintChoice(
       reportChoice ? 'full-report' : undefined
@@ -333,6 +338,40 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   ]);
 
   const chosen = students.filter((s) => selected.has(s.student.key));
+  // Each student's earlier attempts print ahead of the latest, headed "Attempt n".
+  const printed =
+    !everyAttempt || !earlierAttempts
+      ? chosen
+      : chosen.flatMap((row) => {
+          const earlier = (earlierAttempts.get(row.student.key) ?? []).map(
+            (r) => ({
+              response: r,
+              student: {
+                ...row.student,
+                key: `${row.student.key}#${r.completedAttempts ?? 0}`,
+                baseKey: row.student.key,
+                status: r.status,
+                targets: [],
+                lettered: false,
+                attempt: r.completedAttempts ?? undefined,
+                drilldown: computeStudentDrilldown(quiz.questions, r, gradeFn, {
+                  rubricFor: (q) => rubricFor(r, q),
+                }),
+                sheet: undefined,
+              },
+            })
+          );
+          if (earlier.length === 0) return [row];
+          const done = row.response.completedAttempts ?? 0;
+          const latestN =
+            row.response.status === 'completed'
+              ? Math.max(done, earlier.length + 1)
+              : done + 1;
+          return [
+            ...earlier,
+            { ...row, student: { ...row.student, attempt: latestN } },
+          ];
+        });
   const ungraded = chosen.filter((s) => s.student.drilldown.provisional).length;
   const unfinished = chosen.filter(
     (s) => s.student.status !== 'completed'
@@ -459,7 +498,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
   });
 
   // The board may be projected, so the preview wears the on-screen name (D10).
-  const first = chosen[0];
+  const first = printed[0];
   let previewDoc: string | null = null;
   if (first) {
     const shown = resolveShownName(first.response);
@@ -493,7 +532,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
 
   const handlePrint = () => {
     try {
-      printQuizResults(job(chosen), options);
+      printQuizResults(job(printed), options);
     } catch (err) {
       onError(err instanceof Error ? err.message : 'Could not print.');
     }
@@ -674,7 +713,9 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
           <p className="text-xs text-slate-600">
             {chosen.length === 0
               ? 'Pick at least one student.'
-              : `${plural(chosen.length)}, each starting on a new page`}
+              : printed.length > chosen.length
+                ? `${plural(chosen.length)}, ${printed.length} copies, each starting on a new page`
+                : `${plural(chosen.length)}, each starting on a new page`}
           </p>
           <div className="flex gap-2">
             <button
@@ -824,6 +865,21 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
             </div>
           )}
 
+          {hasEarlier && (
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm text-slate-700">Every attempt</span>
+              <Toggle
+                checked={everyAttempt}
+                onChange={setEveryAttempt}
+                anchor={tourTypeAttr(
+                  'quiz-print.results-every-attempt',
+                  'quiz'
+                )}
+                label="Every attempt"
+                size="sm"
+              />
+            </div>
+          )}
           <div>
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">

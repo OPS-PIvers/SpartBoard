@@ -92,6 +92,57 @@ describe('voice references in the lookup', () => {
     expect(added.every((r) => r.letterSpans === undefined)).toBe(true);
   });
 
+  it('reads each variant with its own voices and names the variant on its readings', async () => {
+    const words: string[] = [];
+    const voices: VoiceReader = {
+      read(voice, word) {
+        words.push(`${voice} ${word}`);
+        return Promise.resolve(
+          voice === 'es-US-Neural2-A' && word === 'la guía'
+            ? ['l', 'a', 'ɡ', 'i', 'a']
+            : []
+        );
+      },
+    };
+    const out = await computeSpeakReferences(
+      {
+        language: 'es',
+        dialects: ['es-419'],
+        terms: [{ cardId: 'c1', term: 'el/la guía' }],
+      },
+      undefined,
+      { voices }
+    );
+    expect(words).toContain('es-US-Neural2-A el guía');
+    expect(words).toContain('es-US-Neural2-A la guía');
+    expect(words.some((w) => w.startsWith('es-ES'))).toBe(false);
+    expect(out.cards.c1.refs.at(-1)).toMatchObject({
+      tokens: ['l', 'a', 'ɡ', 'i', 'a'],
+      source: 'voice',
+      text: 'la guía',
+    });
+  });
+
+  it('keeps word ends on a phrase reading that lines up sound for sound', async () => {
+    const out = await computeSpeakReferences(
+      {
+        language: 'es',
+        dialects: ['es-419'],
+        terms: [{ cardId: 'c1', term: 'la mesa' }],
+      },
+      undefined,
+      {
+        voices: reader({
+          'es-US-Neural2-A': ['l', 'a', 'm', 'e', 'z', 'a'],
+          'es-US-Neural2-B': ['l', 'a', 'm', 'e', 's'],
+        }),
+      }
+    );
+    const voices = out.cards.c1.refs.filter((r) => r.source === 'voice');
+    expect(voices[0].wordEnds).toEqual([1]);
+    expect(voices[1].wordEnds).toBeUndefined();
+  });
+
   it('drops stress when the reading has another vowel count', async () => {
     const out = await computeSpeakReferences(
       {
@@ -129,7 +180,7 @@ describe('voice references in the lookup', () => {
     const out = await computeSpeakReferences(
       es([
         { cardId: 'c1', term: 'gato', ipaOverride: { 'es-ES': 'ɡato' } },
-        { cardId: 'c2', term: 'dos palabras' },
+        { cardId: 'c2', term: 'uno dos tres cuatro cinco' },
       ]),
       undefined,
       { voices }
@@ -182,7 +233,7 @@ describe('voice references in the lookup', () => {
     const out = await computeSpeakReferences(
       es([
         { cardId: 'c1', term: 'perro' },
-        { cardId: 'c2', term: 'dos palabras' },
+        { cardId: 'c2', term: 'uno dos tres cuatro cinco' },
       ]),
       undefined,
       { voices: false }
@@ -273,6 +324,32 @@ describe('createVoiceReader', () => {
     });
     expect(await r.read('en-US-Neural2-A', 'cat')).toEqual([]);
     expect(runModel).not.toHaveBeenCalled();
+  });
+
+  it('waits for every voice in flight before running the model', async () => {
+    let finishSlow: (bytes: Uint8Array | null) => void = () => {};
+    const slow = new Promise<Uint8Array | null>((done) => (finishSlow = done));
+    const runModel = vi.fn(() =>
+      Promise.resolve({
+        data: new Float32Array(PRONUNCIATION_MODEL.vocabSize),
+        frames: 1,
+        size: PRONUNCIATION_MODEL.vocabSize,
+      })
+    );
+    const r = createVoiceReader({
+      synthesize: (voice) =>
+        voice === 'slow'
+          ? slow
+          : Promise.resolve(wav('es-ES-Neural2-A_perro.wav')),
+      runModel,
+    });
+    const fast = r.read('fast', 'perro');
+    const late = r.read('slow', 'perro');
+    await new Promise((done) => setTimeout(done, 10));
+    expect(runModel).not.toHaveBeenCalled();
+    finishSlow(null);
+    await Promise.all([fast, late]);
+    expect(runModel).toHaveBeenCalledTimes(1);
   });
 
   const modelPath = resolve(

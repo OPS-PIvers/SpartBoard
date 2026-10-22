@@ -4865,3 +4865,14 @@ rather than "no data") is also still open.
   - Needs changes:
     - #4403: CI type-check fails with TS2345 at `ModificationsView.tsx:690`. After the i18next 26.5 bump, `t` no longer fits the local `Translate` type. The branch also conflicts with dev-paul in `functions/package.json` and `functions/pnpm-lock.yaml`. It was not auto-fixed because the cause is a dependency bump, not reviewer feedback, and the lockfile needs regenerating.
 - Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. Scoped `vitest related` runs passed for #4427, #4426 and #4425.
+
+## 2026-10-21
+
+- PRs reviewed: #4474 Scale MusicWidget landscape status row gap (css-scaling), #4473 docs(debugger): run 104 log, #4472 fix(random): keep group studentIds in step with names, #4471 fix(settings): save keyboard-resized drawer width when it closes mid-debounce, #4470 fix(admin): keep a rejected beta-user email in the field, #4469 Widget loop: Oct 21 journal, #4467 docs(unifier): run 122 log
+- Comments processed: 0. No PR had review threads or change requests. The only comments were three `claude[bot]` "no issues" summaries (#4474, #4471, #4470), which needed no reply.
+- Fixes pushed: none
+- Reviews posted: 7
+  - Ready: all seven.
+  - #4472: when `studentIds` aren't parallel to `names`, `withMembers` now drops the field instead of keeping it stale, and all readers handle that. Duplicate first names in class mode still match the first student, as before this PR.
+  - #4469: confirm the grader/compare scripts accept the `accepted`/`changed` outcome values in `supervision.json`.
+- Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. CI was green on #4472.

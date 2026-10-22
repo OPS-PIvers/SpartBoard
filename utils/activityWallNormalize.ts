@@ -301,7 +301,8 @@ export function buildDefaultWall(
  */
 export function mirrorSessionFromEntry(
   entry: ActivityWallLibraryEntry,
-  uid: string
+  uid: string,
+  options: { timelineDates?: boolean } = {}
 ): ActivityWallSession {
   const allowGuests =
     entry.allowGuests ??
@@ -339,6 +340,9 @@ export function mirrorSessionFromEntry(
     allowCommentResponses: entry.allowCommentResponses ?? false,
   };
 
+  // Only the widget knows the teacher's preview flag; other mirror writers leave the stored value alone.
+  if (options.timelineDates !== undefined)
+    session.timelineDates = options.timelineDates && layout === 'timeline';
   if (entry.classId) session.classId = entry.classId;
   if (entry.classIds) session.classIds = entry.classIds;
   if (entry.rosterIds) session.rosterIds = entry.rosterIds;
@@ -346,6 +350,7 @@ export function mirrorSessionFromEntry(
   if (entry.tableRows) session.tableRows = entry.tableRows;
   if (entry.tableCols) session.tableCols = entry.tableCols;
   if (entry.mapCenter) session.mapCenter = entry.mapCenter;
+  if (entry.timePeriods) session.timePeriods = entry.timePeriods;
 
   return session;
 }

@@ -6,7 +6,7 @@
  * date, targeting fields, and PLC results sharing (D12).
  */
 
-import React, { useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { ClipboardCheck, Pause, Save, Share2 } from 'lucide-react';
 import type {
   QuizAssignment,
@@ -50,6 +50,12 @@ import { useTranslation } from 'react-i18next';
 import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { tourTypeAttr } from '@/config/tourAnchors';
+import { AuthContext } from '@/context/AuthContextValue';
+import {
+  loadAttemptPolicy,
+  saveAttemptPolicy,
+} from '@/hooks/gradebook/useGradebookColumnWrites';
+import type { AttemptPolicy } from '@/utils/gradebook/gradebookCore';
 
 interface QuizAssignmentSettingsModalProps {
   assignment: QuizAssignment;
@@ -143,6 +149,24 @@ export const QuizAssignmentSettingsModal: React.FC<
     useState<QuizBehaviorSettings>(initialBehavior);
   const { t } = useTranslation();
   const ruleGates = useQuizRuleGates();
+  const user = useContext(AuthContext)?.user;
+  const finalScoreOn = ruleGates.finalScoreOn === true;
+  const [savedPolicy, setSavedPolicy] = useState<AttemptPolicy | null>(null);
+  useEffect(() => {
+    if (!finalScoreOn) return;
+    let cancelled = false;
+    void loadAttemptPolicy(assignment.id).then((p) => {
+      if (!cancelled) setSavedPolicy(p);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [assignment.id, finalScoreOn]);
+  // Until the teacher picks one, the Final score row shows the Gradebook's saved choice.
+  const shownBehavior: QuizBehaviorSettings =
+    behavior.finalScore === undefined && savedPolicy
+      ? { ...behavior, finalScore: savedPolicy }
+      : behavior;
   const perPeriod =
     assignment.accessMode === 'assignment' &&
     Object.keys(assignment.periodAccess ?? {}).length > 0;
@@ -236,6 +260,16 @@ export const QuizAssignmentSettingsModal: React.FC<
     };
     try {
       await onSave(patch);
+      const picked = behavior.finalScore;
+      // Until the saved choice has loaded, any explicit pick is written.
+      if (
+        finalScoreOn &&
+        user?.uid &&
+        picked !== undefined &&
+        picked !== savedPolicy
+      ) {
+        await saveAttemptPolicy(user.uid, assignment.id, 'quiz', picked);
+      }
       onClose();
     } catch (err) {
       if (import.meta.env.DEV)
@@ -328,7 +362,7 @@ export const QuizAssignmentSettingsModal: React.FC<
         steps={[
           whenStep,
           ...quizRuleStepDefs({
-            value: behavior,
+            value: shownBehavior,
             onChange: setBehavior,
             gates: ruleGates,
             handRaiseMode: 'force-off',

@@ -78,7 +78,7 @@ export function toAssessmentBehavior(
   };
 }
 
-/** Plan D11: with the split on, assign opens from the teacher's last-used settings, not the quiz's. */
+/** Plan D11: assign opens from the teacher's last-used settings, not the quiz's. */
 export function getQuizAssignPrefill(
   lastUsed: QuizBehaviorSettings | null
 ): QuizBehaviorSettings {

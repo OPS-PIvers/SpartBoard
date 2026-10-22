@@ -332,6 +332,15 @@ describe('final pairs', () => {
     expect(r.verdict).toBe('wrong');
   });
 
+  it('apply at the end of each word in a phrase (Hund ist)', () => {
+    const tokens = ['h', 'ʊ', 'n', 't', 'ɪ', 's', 't'];
+    const spoken = ['h', 'ʊ', 'n', 'd', 'ɪ', 's', 't'];
+    expect(
+      judge([{ ...ref(tokens, dialect), wordEnds: [3] }], spoken, de).verdict
+    ).toBe('accepted');
+    expect(judge([ref(tokens, dialect)], spoken, de).verdict).toBe('wrong');
+  });
+
   it('en final voicing only at the end', () => {
     const en = {
       language: 'en' as SpeakLanguage,
@@ -344,6 +353,29 @@ describe('final pairs', () => {
     expect(judge([ref(['z', 'uː'], 'en-US')], ['s', 'uː'], en).verdict).toBe(
       'wrong'
     );
+  });
+});
+
+describe('phrase variants', () => {
+  const EL = { ...ref(['e', 'l', 'ɣ', 'i', 'a']), wordEnds: [1] };
+  const LA = { ...EL, tokens: ['l', 'a', 'ɣ', 'i', 'a'], text: 'la guía' };
+
+  it('names the variant the student said', () => {
+    expect(judge([EL, LA], ['l', 'a', 'ɣ', 'i', 'a'])).toMatchObject({
+      verdict: 'exact',
+      text: 'la guía',
+    });
+    expect(judge([EL, LA], ['e', 'l', 'ɣ', 'i', 'a']).text).toBeUndefined();
+  });
+
+  it('moves a voice reading onto the espeak reference of the same variant', () => {
+    const voice = {
+      ...LA,
+      tokens: ['l', 'a', 'ɡ', 'i', 'a'],
+      source: 'voice' as const,
+    };
+    const r = judge([EL, LA, voice], ['l', 'a', 'ɡ', 'i', 'a']);
+    expect(r.text).toBe('la guía');
   });
 });
 

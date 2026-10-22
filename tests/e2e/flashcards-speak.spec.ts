@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Locator } from '@playwright/test';
 
 // A looping fake mic: quiet, a 0.6 s voiced word, then quiet long enough for the take to end itself.
 const fakeWordWav = (): string => {
@@ -54,15 +54,9 @@ test.use({
   },
 });
 
-// No Stop click: the take ends on its own once the word is over.
-const sayCurrentWord = async (page: Page) => {
-  await page.getByRole('button', { name: 'Start speaking' }).click();
-  await expect(page.getByText('Listening…')).toBeVisible();
-  // Exact or Accepted both pass; under the 8 s limit, only the auto-stop can have ended the take.
-  await expect(page.getByText(/^(Exact|Accepted)$/)).toBeVisible({
-    timeout: 7000,
-  });
-};
+// Speak listens on the next card and moves past a pass by itself, so a button seen a moment ago may already be gone.
+const clickIfStillThere = (button: Locator) =>
+  button.click({ timeout: 2000 }).catch(() => undefined);
 
 test('a student practises a Speak set to mastery aloud and the teacher sees it', async ({
   page,
@@ -100,17 +94,30 @@ test('a student practises a Speak set to mastery aloud and the teacher sees it',
   });
   const mastered = page.getByText('2/2 said well');
   const nextRound = page.getByRole('button', { name: /next round/i });
-  const record = page.getByRole('button', { name: 'Start speaking' });
-  for (let take = 0; take < 12; take++) {
+  // Enabled only: while the mic opens the button still reads Start speaking, and a click then would stop the auto take.
+  const record = page.getByRole('button', {
+    name: 'Start speaking',
+    disabled: false,
+  });
+  const listening = page.getByText('Listening…');
+  const continueButton = page.getByRole('button', { name: 'Continue' });
+  for (let step = 0; step < 40; step++) {
     // Wait for whichever comes next instead of sampling a frame that may not have rendered yet.
-    await mastered.or(nextRound).or(record).first().waitFor();
+    await mastered
+      .or(nextRound)
+      .or(listening)
+      .or(continueButton)
+      .or(record)
+      .first()
+      .waitFor();
     if (await mastered.isVisible()) break;
-    if (await nextRound.isVisible()) {
-      await nextRound.click();
-      continue;
-    }
-    await sayCurrentWord(page);
-    await page.getByRole('button', { name: 'Continue' }).click();
+    if (await listening.isVisible()) {
+      // No Stop click: under the 8 s limit, only the auto-stop can have ended the take.
+      await expect(listening).toBeHidden({ timeout: 7000 });
+    } else if (await nextRound.isVisible()) await clickIfStillThere(nextRound);
+    else if (await continueButton.isVisible())
+      await clickIfStillThere(continueButton);
+    else await clickIfStillThere(record);
   }
   await expect(page.getByText('2/2 said well')).toBeVisible();
   // §7: scoring and stress measuring on the main thread never block it for 200 ms; the fake skips the Worker's decode.

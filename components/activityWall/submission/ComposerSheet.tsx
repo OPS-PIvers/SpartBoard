@@ -15,6 +15,12 @@ import { SubmissionTypePicker } from './SubmissionTypePicker';
 import { StructureFields, type StructureValue } from './StructureFields';
 import { FileField, LinkField, TextField, WordField } from './ContentFields';
 import { isUploadType } from './uploadLimits';
+import {
+  fieldsFromDate,
+  formatWallSpan,
+  parseWallSpan,
+  validateSpanFields,
+} from '@/components/activityWall/render/timelineDates';
 import type { MapPin } from './MapPinPicker';
 import {
   EMPTY_DRAFT,
@@ -45,6 +51,14 @@ export interface ComposerSheetProps {
 
 const EMPTY_PLACEMENT: WallPlacement = {};
 
+const spanFields = (label: string | undefined) => {
+  const span = parseWallSpan(label);
+  return {
+    date: fieldsFromDate(span?.start ?? null),
+    endDate: span?.end ? fieldsFromDate(span.end) : null,
+  };
+};
+
 const structureFromPlacement = (
   session: ActivityWallSession,
   placement: WallPlacement,
@@ -56,6 +70,7 @@ const structureFromPlacement = (
     rowId: rowId ?? session.tableRows?.[0]?.id ?? '',
     colId: colId ?? session.tableCols?.[0]?.id ?? '',
     label,
+    ...spanFields(label),
   };
 };
 
@@ -143,12 +158,38 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
     return next;
   };
 
-  const valid = draftValid(session, draft, isEditing);
+  const dated = session.layout === 'timeline' && session.timelineDates === true;
+  // An undated post being edited may stay undated; new posts need a year.
+  const keepUndated = isEditing && !structure.date.year.trim();
+  const dateCheck =
+    dated && !keepUndated
+      ? validateSpanFields(
+          structure.date,
+          // A blank end date counts as no end date.
+          structure.endDate?.year.trim() ? structure.endDate : null
+        )
+      : null;
+  const failed = dateCheck && 'error' in dateCheck ? dateCheck : null;
+  const dateError =
+    failed?.field === 'start' && structure.date.year.trim()
+      ? failed.error
+      : undefined;
+  const endDateError =
+    failed?.field === 'end' && structure.endDate?.year.trim()
+      ? failed.error
+      : undefined;
+  const valid =
+    draftValid(session, draft, isEditing) &&
+    (!dateCheck || 'span' in dateCheck);
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     if (busy || !valid) return;
-    onSubmit({ ...draft, label: structure.label }, resolvedPlacement());
+    const label =
+      dateCheck && 'span' in dateCheck
+        ? formatWallSpan(dateCheck.span)
+        : structure.label;
+    onSubmit({ ...draft, label }, resolvedPlacement());
   };
 
   const heading = isEditing
@@ -252,6 +293,8 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
             <StructureFields
               session={session}
               value={structure}
+              dateError={dateError}
+              endDateError={endDateError}
               onChange={(patch) =>
                 setStructure((prev) => ({ ...prev, ...patch }))
               }

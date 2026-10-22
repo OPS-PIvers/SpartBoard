@@ -77,7 +77,7 @@ const UNCATEGORIZED: HelpCategory = {
 };
 
 export const HelpCenterManager: React.FC = () => {
-  const { user, userRoles, orgId, roleId, canAccessFeature } = useAuth();
+  const { user, userRoles, orgId, roleId } = useAuth();
   const { showConfirm } = useDialog();
   const isSuperAdmin = isSuperAdminActor(
     user?.email,
@@ -142,7 +142,7 @@ export const HelpCenterManager: React.FC = () => {
   );
   const flatByOpens = [...items].sort((a, b) => b.openCount - a.openCount);
   const helpCenterSetIds = helpCenterSetIdsOf(items);
-  const tourSetIds = useLiveTourSetIds(canAccessFeature('gl-live-tours'));
+  const tourSetIds = useLiveTourSetIds();
   // Rows show each linked tour's publish state, so a hidden draft doesn't look ready.
   const linkedTourKey = [...helpCenterSetIds]
     .filter((id) => tourSetIds.has(id))

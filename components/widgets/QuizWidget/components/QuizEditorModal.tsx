@@ -5,9 +5,8 @@
  * folder picker + sortable questions list; right detail pane has the editor
  * for the currently-selected question (type / time / points / answer).
  *
- * A Questions/Settings segmented toggle in the context pane lets teachers
- * configure behavior settings (mode, integrity, gamification) while building
- * the quiz. The behavior is persisted via the `behavior` 2nd arg of `onSave`.
+ * Session settings live on the assignment; the seeded `behavior` passes
+ * through `onSave` untouched.
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
@@ -31,9 +30,6 @@ import type { UseQuestionBanksResult } from '@/hooks/useQuestionBanks';
 import type { BankContent } from '@/utils/questionBanks';
 import { EditorWorkspace } from '@/components/common/EditorWorkspace';
 import { useAuth } from '@/context/useAuth';
-import { useQuizHandRaiseMode } from '@/hooks/useQuizHandRaiseMode';
-import { QuizBehaviorSettingsPanel } from '@/components/common/library/QuizBehaviorSettingsPanel';
-import { quizNeedsManualGrading } from '@/utils/quizScoreOnSubmit';
 import {
   QuizAiOverlay,
   QuizEditorContextPane,
@@ -60,7 +56,6 @@ import {
 const EDITOR_TAB_ANCHORS = {
   questions: tourTypeAttr('quiz-editor.tab-questions', 'quiz'),
   stimuli: tourTypeAttr('quiz-editor.tab-stimuli', 'quiz'),
-  settings: tourTypeAttr('quiz-editor.tab-settings', 'quiz'),
   languages: tourTypeAttr('quiz-editor.tab-languages', 'quiz'),
 } as const;
 
@@ -87,7 +82,7 @@ interface QuizEditorModalProps {
   folderId?: string | null;
   onFolderChange?: (folderId: string | null) => void;
   /**
-   * Seed behavior for the Settings tab. For an existing quiz, pass
+   * Saved behavior passed back through `onSave`. For an existing quiz, pass
    * `getQuizBehavior(meta)`; for a new quiz, omit (defaults to
    * `DEFAULT_QUIZ_BEHAVIOR`).
    */
@@ -213,27 +208,6 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
   return true;
 };
 
-/**
- * Shallow-equal over the union of both objects' keys. Sufficient for
- * session-options objects, whose values are all primitives. Matches the
- * previous `JSON.stringify(a) !== JSON.stringify(b)` dirty-check semantics
- * (explicit `undefined` == absent) without serializing on every keystroke.
- * Tolerates a missing object on either side (legacy Firestore docs may lack
- * sessionOptions despite the type) — the old stringify compare did too.
- */
-const shallowRecordEqual = <T extends object>(
-  a: T | undefined,
-  b: T | undefined
-): boolean => {
-  if (a === b) return true;
-  if (!a || !b) return false;
-  const keys = new Set([...Object.keys(a), ...Object.keys(b)] as (keyof T)[]);
-  for (const key of keys) {
-    if (!Object.is(a[key], b[key])) return false;
-  }
-  return true;
-};
-
 const bankSlotsEqual = (a: QuizBankSlot[], b: QuizBankSlot[]): boolean => {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
@@ -258,16 +232,6 @@ const bankSlotsEqual = (a: QuizBankSlot[], b: QuizBankSlot[]): boolean => {
 const orderEqual = (a: QuizOrderEntry[], b: QuizOrderEntry[]): boolean =>
   a.length === b.length &&
   a.every((e, i) => e.kind === b[i].kind && e.id === b[i].id);
-
-/** Field-by-field QuizBehaviorSettings compare for the isDirty check. */
-const quizBehaviorSettingsEqual = (
-  a: QuizBehaviorSettings,
-  b: QuizBehaviorSettings
-): boolean =>
-  a === b ||
-  (a.sessionMode === b.sessionMode &&
-    a.attemptLimit === b.attemptLimit &&
-    shallowRecordEqual(a.sessionOptions, b.sessionOptions));
 
 export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   isOpen,
@@ -295,11 +259,6 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     aiAllowed ??
     (canAccessFeature('gemini-functions') && canAccessFeature('quiz'));
   const readAloudAvailable = canAccessFeature('quiz-read-aloud');
-  // D10: with the split on, settings live on the assignment; the saved behavior passes through untouched.
-  const settingsTabHidden = canAccessFeature('quiz-review-split');
-  // With the Settings tab gone, the read-aloud language picker lives on Languages.
-  const languageOnLanguagesTab = settingsTabHidden && readAloudAvailable;
-  const handRaiseMode = useQuizHandRaiseMode();
   const [targetPickerOpen, setTargetPickerOpen] = useState(false);
   const [keyFillOpen, setKeyFillOpen] = useState(false);
   const openKeyFill = useCallback(() => setKeyFillOpen(true), [setKeyFillOpen]);
@@ -332,9 +291,8 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     originalSections,
   } = editorState;
 
-  // ─── Behavior settings state ─────────────────────────────────────────────
   const [editorTab, setEditorTab] = useState<
-    'questions' | 'stimuli' | 'settings' | 'languages'
+    'questions' | 'stimuli' | 'languages'
   >('questions');
   const translationAvailable = canAccessFeature('quiz-translation');
   const translationBlockedByBank = (quiz?.bankSlots?.length ?? 0) > 0;
@@ -345,20 +303,12 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   const [behavior, setBehavior] = useState<QuizBehaviorSettings>(
     () => behaviorSeed ?? DEFAULT_QUIZ_BEHAVIOR
   );
-  const [originalBehavior, setOriginalBehavior] =
-    useState<QuizBehaviorSettings>(() => behaviorSeed ?? DEFAULT_QUIZ_BEHAVIOR);
 
-  // Re-seed behavior when the quiz being edited changes (e.g. user closes
-  // editor and opens a different quiz without unmounting the modal). Adjust
-  // state while rendering (see CLAUDE.md), keyed on quiz?.id only so a fresh
-  // behaviorSeed object from a parent re-render doesn't clobber in-progress
-  // edits.
+  // Re-seed on quiz change only, so a fresh behaviorSeed object doesn't churn the save callback.
   const [seededQuizId, setSeededQuizId] = useState(quiz?.id);
   if (seededQuizId !== quiz?.id) {
     setSeededQuizId(quiz?.id);
-    const seed = behaviorSeed ?? DEFAULT_QUIZ_BEHAVIOR;
-    setBehavior(seed);
-    setOriginalBehavior(seed);
+    setBehavior(behaviorSeed ?? DEFAULT_QUIZ_BEHAVIOR);
   }
 
   // Reference equality first — setState produces a new questions array on
@@ -384,8 +334,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
         JSON.stringify(sections) === JSON.stringify(originalSections)
       ) ||
       bankTargetsDirty ||
-      translations.hasUnsavedChanges ||
-      !quizBehaviorSettingsEqual(behavior, originalBehavior),
+      translations.hasUnsavedChanges,
     [
       bankTargetsDirty,
       translations.hasUnsavedChanges,
@@ -403,8 +352,6 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       originalOrder,
       sections,
       originalSections,
-      behavior,
-      originalBehavior,
     ]
   );
 
@@ -425,7 +372,6 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       bankSlots,
       order,
       sections,
-      behavior,
       bankTargetsDirty,
       translations.hasUnsavedChanges,
     ],
@@ -437,7 +383,6 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       bankSlots,
       order,
       sections,
-      behavior,
       bankTargetsDirty,
       translations.hasUnsavedChanges,
     ]
@@ -604,15 +549,12 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
 
   if (!quiz) return null;
 
-  const editorTabs = (
-    ['questions', 'stimuli', 'settings', 'languages'] as const
-  ).filter(
+  const editorTabs = (['questions', 'stimuli', 'languages'] as const).filter(
     (tab) =>
       (!isBank || tab === 'questions' || tab === 'stimuli') &&
-      (tab !== 'settings' || !settingsTabHidden) &&
-      (tab !== 'languages' || translationAvailable || languageOnLanguagesTab)
+      (tab !== 'languages' || translationAvailable || readAloudAvailable)
   );
-  // Access revoked mid-session: fall back rather than render Settings under Languages.
+  // Access revoked mid-session: fall back to Questions.
   const resolvedTab = editorTabs.includes(editorTab) ? editorTab : 'questions';
   const activeTab = resolvedTab;
 
@@ -637,13 +579,13 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       footerExtras={footerExtras}
       contextPane={
         <div className="flex flex-col h-full">
-          {/* Questions / Stimuli / Settings segmented tab toggle */}
+          {/* Questions / Stimuli / Languages segmented tab toggle */}
           <div className="px-4 pt-3 pb-0 border-b border-slate-200 bg-white shrink-0 flex gap-1">
             {editorTabs.map((tab) => {
               const disabled =
                 tab === 'languages' &&
                 translationBlockedByBank &&
-                !languageOnLanguagesTab;
+                !readAloudAvailable;
               return (
                 <button
                   key={tab}
@@ -677,11 +619,6 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               state={editorState}
               aiEnabled={aiEnabled}
               bankApi={isBank ? undefined : bankApi}
-              shuffleQuestionsEnabled={
-                !settingsTabHidden &&
-                behavior.sessionMode === 'student' &&
-                behavior.sessionOptions.shuffleQuestions === true
-              }
               titleSlot={bankTargetsStrip}
               inheritedTargets={isBank ? bankTargets : undefined}
               allowSections={!isBank}
@@ -695,9 +632,9 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               readAloudAvailable={readAloudAvailable}
               calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
             />
-          ) : activeTab === 'languages' ? (
+          ) : (
             <>
-              {languageOnLanguagesTab && (
+              {readAloudAvailable && (
                 <div className="px-5 py-4 bg-white border-b border-slate-200 shrink-0">
                   <QuizLanguageField value={language} onChange={setLanguage} />
                 </div>
@@ -714,19 +651,6 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
                 />
               )}
             </>
-          ) : (
-            <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 px-5 py-5 space-y-5">
-              {readAloudAvailable && (
-                <QuizLanguageField value={language} onChange={setLanguage} />
-              )}
-              <QuizBehaviorSettingsPanel
-                value={behavior}
-                onChange={setBehavior}
-                readAloudAvailable={readAloudAvailable}
-                handRaiseMode={handRaiseMode}
-                hasManualGrading={quizNeedsManualGrading(questions)}
-              />
-            </div>
           )}
         </div>
       }
@@ -748,11 +672,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
               onSelectQuestion={setSelectedTranslationQuestionId}
             />
           ) : null
-        ) : activeTab === 'stimuli' ? null : (
-          <div className="flex items-center justify-center h-full text-slate-400 text-sm px-8 text-center">
-            <p>Defaults for new sessions and assignments.</p>
-          </div>
-        )
+        ) : null
       }
       overlay={
         <>

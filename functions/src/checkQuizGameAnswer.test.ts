@@ -153,18 +153,16 @@ function world(
   return docs;
 }
 
-const flagOn = { isFlagOn: () => Promise.resolve(true) };
 const call = (
   docs: Record<string, Doc>,
   input: Doc,
-  opts: { now?: number; uid?: string | null; flag?: boolean } = {}
+  opts: { now?: number; uid?: string | null } = {}
 ) =>
   handleCheckQuizGameAnswer(
     makeDb(docs),
     opts.uid === undefined ? 'stu' : opts.uid,
     { sessionId: 's1', ...input },
-    opts.now ?? NOW,
-    opts.flag === false ? { isFlagOn: () => Promise.resolve(false) } : flagOn
+    opts.now ?? NOW
   );
 
 const refusal = async (p: Promise<unknown>) => {
@@ -320,18 +318,6 @@ describe('handleCheckQuizGameAnswer', () => {
       ).toBe('failed-precondition');
       expect(docs[RESPONSE].game).toBeUndefined();
     }
-  });
-
-  it('refuses when the teacher does not have the flag', async () => {
-    const docs = world();
-    expect(
-      (
-        await refusal(
-          call(docs, { questionId: 'q1', answer: 'Paris' }, { flag: false })
-        )
-      ).code
-    ).toBe('permission-denied');
-    expect(docs[RESPONSE].game).toBeUndefined();
   });
 
   it('refuses callers who have not joined, and signed-out callers', async () => {

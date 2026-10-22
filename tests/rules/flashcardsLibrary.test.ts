@@ -256,3 +256,67 @@ describe('admin_settings/flashcardsSpeak', () => {
     );
   });
 });
+
+describe('admin_settings/flashcardsSpeakWordFixes', () => {
+  const path = 'admin_settings/flashcardsSpeakWordFixes';
+  const fix = {
+    words: {
+      'es:perro': {
+        language: 'es',
+        term: 'perro',
+        skip: false,
+        accepted: [
+          {
+            id: 'a1',
+            kind: 'spelling',
+            spelling: 'pero',
+            refs: [
+              { dialect: 'es-419', tokens: ['p', 'e', 'ɾ', 'o'], stress: [0] },
+            ],
+            addedAt: 1,
+          },
+        ],
+        updatedAt: 1,
+      },
+    },
+    updatedAt: 1,
+  };
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), path), fix);
+      await setDoc(doc(context.firestore(), `admins/${ADMIN_EMAIL}`), {
+        addedAt: 1,
+      });
+    });
+  });
+
+  it('lets teachers and students read it, and nobody signed out', async () => {
+    await assertSucceeds(getDoc(doc(asTeacher(OTHER_UID), path)));
+    await assertSucceeds(getDoc(doc(asStudent(), path)));
+    // PIN students sign in anonymously.
+    await assertSucceeds(
+      getDoc(
+        doc(
+          testEnv
+            .authenticatedContext('pin-student', {
+              firebase: { sign_in_provider: 'anonymous' },
+            })
+            .firestore(),
+          path
+        )
+      )
+    );
+    await assertFails(
+      getDoc(doc(testEnv.unauthenticatedContext().firestore(), path))
+    );
+  });
+
+  it('lets only an admin write it', async () => {
+    await assertFails(setDoc(doc(asTeacher(OTHER_UID), path), fix));
+    await assertFails(setDoc(doc(asStudent(), path), fix));
+    await assertSucceeds(
+      setDoc(doc(asAdmin(), path), { ...fix, updatedAt: 2 })
+    );
+  });
+});

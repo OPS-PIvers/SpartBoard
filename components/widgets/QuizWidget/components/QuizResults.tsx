@@ -10,6 +10,8 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
+  useEffectEvent,
+  useContext,
 } from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { TabExitsPopover } from '@/components/common/TabExitsPopover';
@@ -44,6 +46,7 @@ import {
   QuizData,
   QuizQuestion,
   QuizConfig,
+  QuizSessionSection,
   isFreeResponseType,
   type QuizWidgetKind,
 } from '@/types';
@@ -117,11 +120,19 @@ import { DrilldownNameList } from './results/DrilldownNameList';
 import { useFinalScoreOverlay } from '@/hooks/gradebook/useFinalScoreOverlay';
 import {
   applyFinalScoresToEntries,
+  attemptPolicyApplies,
   finalPillPct,
   finalScoreFor,
   type FinalScoreOverlay,
 } from '@/utils/gradebook/finalScoreOverlay';
 import { quizLiveRaw } from '@/utils/gradebook/liveRawScores';
+import {
+  attemptAsResponse,
+  hasEarlierAttempts,
+  loadEveryAttempt,
+  QuizAttemptSourceContext,
+  useQuizResponseAttempts,
+} from '@/hooks/useQuizResponseAttempts';
 import { FinalScoreNote } from '@/components/gradebook/FinalScoreNote';
 import { StudentAnswerLine } from './results/StudentAnswerLine';
 import {
@@ -314,7 +325,12 @@ interface QuizResultsProps {
    * — the implementation re-casts to `string[]` at the Firestore write
    * boundary (the wire format hasn't changed).
    */
-  onExportedResponseIdsSaved?: (ids: ResponseDocKey[]) => Promise<void> | void;
+  onExportedResponseIdsSaved?: (
+    ids: ResponseDocKey[],
+    attempts?: Record<string, number>
+  ) => Promise<void> | void;
+  /** Finished attempts per key when the PLC sheet was last written. */
+  initialExportedAttempts?: Record<string, number> | null;
   /**
    * Per-student rubric overrides from the active assignment doc
    * (`assignment.overridesBySourcedId`), passed through to the written-
@@ -398,7 +414,12 @@ const writeStudentView = (
   }
 };
 
-type GraderTarget = { questionId: string; responseKey: string };
+type GraderTarget = {
+  questionId: string;
+  responseKey: string;
+  /** An earlier attempt's number; grades then go to its saved copy. */
+  attempt?: number;
+};
 
 export const QuizResults: React.FC<QuizResultsProps> = (props) => {
   const selection = useStudentResultsSelectionState();
@@ -427,6 +448,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   plcSheetUrl: assignmentPlcSheetUrl,
   onExportUrlSaved,
   initialExportedResponseIds,
+  initialExportedAttempts,
   onExportedResponseIdsSaved,
   overridesBySourcedId,
   localizedFibAnswers = null,
@@ -547,6 +569,16 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       (initialExportedResponseIds ?? []) as ResponseDocKey[]
     );
   }
+  const [exportedAttempts, setExportedAttempts] = useState(
+    initialExportedAttempts ?? null
+  );
+  const [lastInitialExportedAttempts, setLastInitialExportedAttempts] =
+    useState(initialExportedAttempts);
+  if (initialExportedAttempts !== lastInitialExportedAttempts) {
+    setLastInitialExportedAttempts(initialExportedAttempts);
+    setExportedAttempts(initialExportedAttempts ?? null);
+  }
+  const attemptHistoryOn = canAccessFeature('quiz-attempt-history');
   const [updatingSheet, setUpdatingSheet] = useState(false);
   const [exportError, setExportError] = useState<ExportErrorState | null>(null);
   const [showGrader, setShowGrader] = useState(false);
@@ -853,6 +885,78 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     [session?.id]
   );
 
+  // Grading an earlier attempt reads and writes its saved copy instead of the live response.
+  const graderAttempt = graderTarget?.attempt ?? null;
+  const graderCopies = useQuizResponseAttempts(
+    session?.id,
+    graderAttempt !== null ? graderTarget?.responseKey : null,
+    graderAttempt !== null
+  );
+  const graderCopy = graderCopies?.find((c) => c.n === graderAttempt) ?? null;
+  const graderLive =
+    graderAttempt !== null
+      ? (responses.find(
+          (r) => getResponseDocKey(r) === graderTarget?.responseKey
+        ) ?? null)
+      : null;
+  const graderResponses =
+    graderAttempt === null
+      ? responses
+      : graderLive && graderCopy
+        ? [attemptAsResponse(graderLive, graderCopy, session?.sections)]
+        : null;
+  // The attempt's copy is gone (student removed), so the grader has nothing to show.
+  if (
+    showGrader &&
+    graderAttempt !== null &&
+    graderCopies !== null &&
+    !graderCopy
+  ) {
+    setShowGrader(false);
+    setGraderTarget(undefined);
+  }
+  const attemptGradeRef = (responseKey: string) => {
+    if (!session?.id || graderAttempt === null) {
+      throw new Error('Cannot save grade: no attempt in scope.');
+    }
+    return doc(
+      db,
+      QUIZ_SESSIONS_COLLECTION,
+      session.id,
+      RESPONSES_COLLECTION,
+      responseKey,
+      'attempts',
+      String(graderAttempt)
+    );
+  };
+  const saveGraderGrade = async (
+    responseKey: string,
+    gradingKeyStr: string,
+    grade: import('@/types').WrittenAnswerGrade
+  ) => {
+    if (graderAttempt === null) {
+      return saveWrittenGrade(responseKey, gradingKeyStr, grade);
+    }
+    await updateDoc(
+      attemptGradeRef(responseKey),
+      new FieldPath('grading', gradingKeyStr),
+      grade
+    );
+  };
+  const clearGraderGrade = async (
+    responseKey: string,
+    gradingKeyStr: string
+  ) => {
+    if (graderAttempt === null) {
+      return clearWrittenGrade(responseKey, gradingKeyStr);
+    }
+    await updateDoc(
+      attemptGradeRef(responseKey),
+      new FieldPath('grading', gradingKeyStr),
+      deleteField()
+    );
+  };
+
   // Per-period filtering — uses classPeriod set on each response at join time.
   const [periodFilter, setPeriodFilter] = useState<string>('all');
   const availablePeriods = useMemo(() => {
@@ -1091,6 +1195,46 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     },
     [namesLoading, addToast]
   );
+  const attemptSource = useContext(QuizAttemptSourceContext);
+  const printOpen = printSelection !== undefined;
+  const printSessionId = session?.id;
+  const [printAttempts, setPrintAttempts] = useState<ReadonlyMap<
+    string,
+    QuizResponse[]
+  > | null>(null);
+  const loadPrintAttempts = useEffectEvent(() => {
+    if (!printSessionId) return () => undefined;
+    const retakers = filteredResponses.filter(hasEarlierAttempts);
+    if (retakers.length === 0) return () => undefined;
+    let live = true;
+    loadEveryAttempt(
+      printSessionId,
+      retakers,
+      (r) => getResponseDocKey(r),
+      attemptSource,
+      session?.sections
+    )
+      .then((every) => {
+        if (!live) return;
+        const earlier = new Map<string, QuizResponse[]>();
+        for (const [key, list] of every) {
+          if (list.length > 1) earlier.set(key, list.slice(0, -1));
+        }
+        setPrintAttempts(earlier);
+      })
+      .catch((err: unknown) =>
+        logError('QuizResults.loadPrintAttempts', err, {
+          sessionId: printSessionId,
+        })
+      );
+    return () => {
+      live = false;
+    };
+  });
+  useEffect(() => {
+    if (!printOpen || !attemptHistoryOn) return;
+    return loadPrintAttempts();
+  }, [printOpen, attemptHistoryOn]);
   const printGradeFn = useMemo(
     () => makeQuestionGradeFn(fibGrading),
     [fibGrading]
@@ -1344,6 +1488,39 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     config.plcMode && plcSheetCandidate ? plcSheetCandidate : null;
   const exportsToSharedSheet = !!sharedSheetUrl;
 
+  // Solo sheets only; a PLC sheet keeps its column layout.
+  const exportAttempts = async () => {
+    if (
+      exportsToSharedSheet ||
+      !session?.id ||
+      !attemptHistoryOn ||
+      !responses.some(hasEarlierAttempts)
+    )
+      return undefined;
+    let every: Map<string, QuizResponse[]>;
+    try {
+      every = await loadEveryAttempt(
+        session.id,
+        responses,
+        (r) => getResponseDocKey(r),
+        attemptSource,
+        session.sections
+      );
+    } catch (err) {
+      // The export still goes out, just without the attempt columns.
+      logError('QuizResults.exportAttempts', err);
+      return undefined;
+    }
+    return {
+      countFor: (r: QuizResponse) =>
+        String(r.completedAttempts ?? (r.status === 'completed' ? 1 : 0)),
+      // Finished attempts only; a retake in progress stays on the Results tab.
+      everyAttempt: [...every.values()]
+        .flat()
+        .filter((r) => r.status === 'completed'),
+    };
+  };
+
   const handleExport = async () => {
     if (
       outward.active &&
@@ -1385,6 +1562,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         plcSheetUrl: sharedSheetUrl ?? undefined,
         fibGrading,
         timeAway: canAccessFeature('tab-away-timer'),
+        attempts: await exportAttempts(),
       };
       let url: string;
       try {
@@ -1417,6 +1595,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       // button can later append only the rows that come in afterwards.
       const exportedIds = responses.map((r) => getResponseDocKey(r));
       setExportedResponseIds(exportedIds);
+      const exportedAttemptMap = attemptSnapshot();
+      if (exportedAttemptMap) setExportedAttempts(exportedAttemptMap);
       if (onExportUrlSaved) {
         // Fire-and-forget: lower-stakes than the exported-IDs persist
         // below. Worst case the button reverts to EXPORT on next remount.
@@ -1433,7 +1613,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         // and UPDATE SHEET re-appends already-exported rows. Surface a
         // warning toast and don't claim success.
         try {
-          await onExportedResponseIdsSaved(exportedIds);
+          await onExportedResponseIdsSaved(exportedIds, exportedAttemptMap);
         } catch (persistErr) {
           console.error(
             '[QuizResults] failed to persist exportedResponseIds to assignment doc',
@@ -1541,6 +1721,30 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     }
   };
 
+  // Finished attempts per key, saved with each PLC sheet write so a retake can force a rebuild.
+  const attemptSnapshot = (): Record<string, number> | undefined =>
+    attemptHistoryOn
+      ? Object.fromEntries(
+          responses.map((r) => [
+            getResponseDocKey(r),
+            r.completedAttempts ?? (r.status === 'completed' ? 1 : 0),
+          ])
+        )
+      : undefined;
+  // Exported students who have finished a newer attempt since; their sheet rows are stale.
+  const retakenSinceExport = useMemo(() => {
+    if (!attemptHistoryOn || !exportUrl || !exportedAttempts) return 0;
+    return responses.filter((r) => {
+      const was = exportedAttempts[getResponseDocKey(r)];
+      return (
+        was !== undefined &&
+        was >= 1 &&
+        r.status === 'completed' &&
+        (r.completedAttempts ?? 1) > was
+      );
+    }).length;
+  }, [attemptHistoryOn, exportUrl, exportedAttempts, responses]);
+
   const newResponsesToAppend = useMemo(() => {
     if (!exportUrl) return [];
     const exportedSet = new Set(exportedResponseIds);
@@ -1595,7 +1799,8 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       // the canonical URL. This branches on newResponsesToAppend.length —
       // empty delta = rebuild, non-empty delta = append. Re-export Sheet
       // is gated on `exportsToSharedSheet` upstream (`canShowUpdateSheet`).
-      const isFullRebuild = newResponsesToAppend.length === 0;
+      const isFullRebuild =
+        newResponsesToAppend.length === 0 || retakenSinceExport > 0;
       const exportOpts = {
         pinToName: exportPinToName,
         byStudentUid,
@@ -1673,12 +1878,14 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       // BEFORE the append, so post-append the union is every response.
       const allIds = responses.map((r) => getResponseDocKey(r));
       setExportedResponseIds(allIds);
+      const allAttempts = attemptSnapshot();
+      if (allAttempts) setExportedAttempts(allAttempts);
       if (onExportedResponseIdsSaved) {
         // Await: same rationale as handleExport — fire-and-forget here
         // would let UPDATE SHEET silently re-append duplicate rows on
         // the next session if the persist fails.
         try {
-          await onExportedResponseIdsSaved(allIds);
+          await onExportedResponseIdsSaved(allIds, allAttempts);
         } catch (persistErr) {
           console.error(
             '[QuizResults] failed to persist exportedResponseIds after update',
@@ -1906,9 +2113,11 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   const sheetRefresh = canShowUpdateSheet
     ? {
         label:
-          newResponsesToAppend.length === 0
-            ? 'Re-export sheet (rebuild from scratch)'
-            : `Re-export sheet (${newResponsesToAppend.length} new responses to append)`,
+          retakenSinceExport > 0
+            ? `Re-export sheet (rebuild: ${retakenSinceExport} ${retakenSinceExport === 1 ? 'student has' : 'students have'} a newer attempt)`
+            : newResponsesToAppend.length === 0
+              ? 'Re-export sheet (rebuild from scratch)'
+              : `Re-export sheet (${newResponsesToAppend.length} new responses to append)`,
         busy: updatingSheet,
         run: () => void handleUpdateSheet(),
       }
@@ -2640,15 +2849,21 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           sessionId={session?.id}
           writtenReturnMode={session?.writtenReturnMode}
           resolvePaperCrop={resolvePaperCrop}
-          onClose={() => setPrintSelection(undefined)}
+          earlierAttempts={
+            attemptHistoryOn ? (printAttempts ?? undefined) : undefined
+          }
+          onClose={() => {
+            setPrintSelection(undefined);
+            setPrintAttempts(null);
+          }}
           onError={(message) => addToast(message, 'error')}
         />
       )}
 
-      {showGrader && session?.id && user?.uid && (
+      {showGrader && session?.id && user?.uid && graderResponses && (
         <FreeResponseGrader
           quiz={quiz}
-          responses={responses}
+          responses={graderResponses}
           displayNameByResponseKey={
             hideNames ? maskedNameByResponseKey : displayNameByResponseKey
           }
@@ -2682,13 +2897,15 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           teacherUid={user.uid}
           resolveTakeUrl={showMediaGrading ? resolveTakeUrl : undefined}
           sessionId={session.id}
-          paperPrivate={paperPrivate}
-          resolvePaperCrop={resolvePaperCrop}
-          paperActions={paperActions}
+          paperPrivate={graderAttempt === null ? paperPrivate : undefined}
+          resolvePaperCrop={
+            graderAttempt === null ? resolvePaperCrop : undefined
+          }
+          paperActions={graderAttempt === null ? paperActions : undefined}
           onConnectDrive={() => void connectDrive()}
-          onSaveGrade={saveWrittenGrade}
+          onSaveGrade={saveGraderGrade}
           onSaveBackTranslation={saveBackTranslation}
-          onClearGrade={clearWrittenGrade}
+          onClearGrade={clearGraderGrade}
           overridesBySourcedId={overridesBySourcedId}
           targetRefKeyByStudentUid={targetRefKeyByStudentUid}
           graderMode={quizGraderMode}
@@ -3614,10 +3831,14 @@ const StudentDrilldownPanel: React.FC<{
   /** Opens the print modal; absent keeps the one-checkbox report. */
   onPrintStudents?: (responseKeys: string[]) => void;
   showFeedback: boolean;
+  /** The session whose saved attempts the attempt picker lists. */
+  sessionId?: string;
+  /** The session's sections, so an earlier attempt's choose-N picks are its own. */
+  sections?: readonly QuizSessionSection[];
 }> = ({
   id,
   quizTitle,
-  response,
+  response: liveResponse,
   displayName,
   questions,
   fibGrading,
@@ -3628,8 +3849,48 @@ const StudentDrilldownPanel: React.FC<{
   addToast,
   onPrintStudents,
   showFeedback,
+  sessionId,
+  sections,
 }) => {
   const [includeAnswers, setIncludeAnswers] = useState(true);
+  const { canAccessFeature } = useAuth();
+  const liveKey = getResponseDocKey(liveResponse) as string;
+  const copies = useQuizResponseAttempts(
+    sessionId,
+    liveKey,
+    canAccessFeature('quiz-attempt-history')
+  );
+  const earlier = useMemo(
+    () => (copies ?? []).filter((c) => c.closed === true),
+    [copies]
+  );
+  const [pickedAttempt, setPickedAttempt] = useState<number | null>(null);
+  const picked = earlier.find((c) => c.n === pickedAttempt) ?? null;
+  const response = useMemo(
+    (): QuizResponse =>
+      picked ? attemptAsResponse(liveResponse, picked, sections) : liveResponse,
+    [picked, liveResponse, sections]
+  );
+  const attemptOptions = useMemo((): (readonly [string, string])[] => {
+    if (earlier.length === 0) return [];
+    const label = (n: number, r: QuizResponse): string => {
+      const raw = quizLiveRaw(r, questions, fibGrading);
+      return raw.points !== null && raw.max
+        ? `${n} · ${Math.round((raw.points / raw.max) * 100)}%`
+        : String(n);
+    };
+    const currentN = Math.max(...earlier.map((c) => c.n)) + 1;
+    return [
+      ...earlier.map(
+        (c) =>
+          [
+            String(c.n),
+            label(c.n, attemptAsResponse(liveResponse, c, sections)),
+          ] as const
+      ),
+      ['current', label(currentN, liveResponse)] as const,
+    ];
+  }, [earlier, liveResponse, questions, fibGrading, sections]);
   const drilldown = useMemo(
     () =>
       computeStudentDrilldown(
@@ -3678,6 +3939,23 @@ const StudentDrilldownPanel: React.FC<{
       }}
     >
       {resultsControl}
+      {attemptOptions.length > 0 && (
+        <div
+          className="flex flex-wrap items-center font-sans text-brand-gray-dark"
+          style={{ ...SMALL_TEXT, gap: 'min(6px, 1.5cqmin)' }}
+        >
+          <span className="font-semibold">Attempt</span>
+          <SegmentedToggle
+            label="Attempt"
+            value={picked ? String(picked.n) : 'current'}
+            options={attemptOptions}
+            onChange={(v) =>
+              setPickedAttempt(v === 'current' ? null : Number(v))
+            }
+            anchor={() => tourTypeAttr('quiz-results.student-attempt', 'quiz')}
+          />
+        </div>
+      )}
       {drilldown.lines.length === 0 ? (
         <p className="font-sans text-brand-gray-primary" style={SMALL_TEXT}>
           No questions served to this student yet.
@@ -3703,6 +3981,7 @@ const StudentDrilldownPanel: React.FC<{
                         onOpenGrader({
                           questionId: line.questionId,
                           responseKey,
+                          ...(picked ? { attempt: picked.n } : {}),
                         })
                     : undefined
                 }
@@ -4061,7 +4340,10 @@ const StudentsScreen: React.FC<{
                   overlayNow
                 )
               : null;
-          const finalPct = finalPillPct(final);
+          const finalPct = finalPillPct(
+            final,
+            !!r.studentUid && attemptPolicyApplies(finalOverlay, r.studentUid)
+          );
           const finalPoints =
             final?.source === 'override' &&
             final.points !== null &&
@@ -4520,6 +4802,8 @@ const StudentsScreen: React.FC<{
                   addToast={addToast}
                   onPrintStudents={onPrintStudents}
                   showFeedback={showStudentFeedback}
+                  sessionId={session?.id}
+                  sections={session?.sections}
                   resultsControl={
                     resultsActions ? (
                       <StudentResultsControl

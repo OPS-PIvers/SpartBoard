@@ -161,12 +161,9 @@ const buildingIndexSource: SharedSource<BuildingIndexState> = {
   },
 };
 
-/** Building sets with a live tour, read from the shared library index; empty while disabled. */
-export const useLiveTourSetIds = (enabled: boolean): ReadonlySet<string> => {
-  const { buildingSets } = useSharedSubscription(
-    buildingIndexSource,
-    enabled ? 'all' : null
-  );
+/** Building sets with a live tour, read from the shared library index; empty until loaded. */
+export const useLiveTourSetIds = (): ReadonlySet<string> => {
+  const { buildingSets } = useSharedSubscription(buildingIndexSource, 'all');
   return useMemo(
     () => new Set(buildingSets.filter((e) => e.hasLiveTour).map((e) => e.id)),
     [buildingSets]

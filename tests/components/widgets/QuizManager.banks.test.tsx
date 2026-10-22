@@ -6,6 +6,24 @@ import { QuizManager } from '@/components/widgets/QuizWidget/components/QuizMana
 import type { QuestionBankMetadata, QuizConfig } from '@/types';
 import type { BankSource } from '@/hooks/useBankSources';
 
+vi.mock('@/hooks/useLibraryPlacements', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/hooks/useLibraryPlacements')>();
+  const placements = {
+    byKey: new Map(),
+    loading: false,
+    place: vi.fn(),
+    unplace: vi.fn(),
+  };
+  return { ...actual, useLibraryPlacements: () => placements };
+});
+
+vi.mock('@/components/common/library/lastLibraryLocation', () => ({
+  readLastLibraryLocation: () => Promise.resolve(null),
+  saveLastLibraryLocation: vi.fn(),
+  resetLastLibraryLocationCache: vi.fn(),
+}));
+
 vi.mock('@/hooks/usePlcs', () => ({
   usePlcs: () => ({ plcs: [{ id: 'plc-1', name: 'Grade 7 Science' }] }),
 }));
@@ -117,7 +135,7 @@ describe('QuizManager — Banks tab', () => {
     expect(
       screen.getByText(/12 questions · 3 targets · updated/)
     ).toBeInTheDocument();
-    expect(screen.getByText('Shared · Grade 7 Science')).toBeInTheDocument();
+    fireEvent.click(screen.getAllByText('From your PLCs')[0]);
     expect(screen.getByText('Genetics Bank')).toBeInTheDocument();
     expect(
       screen.getByText(/30 questions · Shared by Pat Teacher · Grade 7 Science/)

@@ -116,6 +116,30 @@ describe('startVoiceFill', () => {
     expect(write.mock.calls.at(-1)?.[1]).toBe(true);
   });
 
+  it('counts each answer variant of a card toward the batch', () => {
+    const phrase = (i: number): FlashcardCard => {
+      const speak = pendingSpeak(`t${i}`);
+      return card(i, {
+        ...speak,
+        refs: [
+          ...speak.refs,
+          { ...espeak('otro'), text: 'otro' },
+          { ...espeak('tres'), text: 'tres' },
+        ],
+      });
+    };
+    const { calls, call } = controlledCall();
+    startVoiceFill(
+      makeSet([phrase(0), phrase(1), card(2), card(3)]),
+      vi.fn(),
+      call
+    );
+    expect(calls.map((c) => c.input.terms.map((t) => t.cardId))).toEqual([
+      ['c0', 'c2', 'c3'],
+      ['c1'],
+    ]);
+  });
+
   it('skips a card whose term changed while its voices were read', async () => {
     let stored = makeSet([card(0), card(1)]);
     const write = (merge: (s: FlashcardSet) => FlashcardSet) => {

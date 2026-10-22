@@ -60,7 +60,6 @@ import {
   buildAssessmentRows,
   countRowsByFolder,
   filterAssessmentRows,
-  filterRowsByFolder,
   formatShortDate,
   reorderRows,
   suggestedFolderNames,
@@ -838,7 +837,6 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
       foldersLoading: folderState.loading,
       getId: ROW_ID,
       itemNoun: ASSESSMENT_NOUN,
-      legacyFilter: filterRowsByFolder,
     },
   });
   const selectedFolderId = folderNav.selectedFolderId;
@@ -1137,11 +1135,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
   );
 
   const isEmpty = !loading && !error && rows.length === 0;
-  const isFolderEmpty = folderView
-    ? folderView.emptyFolder
-    : !isEmpty &&
-      selectedFolderId !== null &&
-      filterRowsByFolder(rows, selectedFolderId).length === 0;
+  const isFolderEmpty = folderView?.emptyFolder ?? false;
 
   const shareButton = canEdit ? (
     <button
@@ -1168,9 +1162,8 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
     </button>
   ) : null;
 
-  // Home v2 drops quick-create, so the library assign flow lives here behind the same flag.
-  const canAssignFromLibrary = canEdit && canAccessFeature('plc-home-v2');
-  const assignFromLibraryButton = canAssignFromLibrary ? (
+  // Home has no quick-create, so the library assign flow lives here.
+  const assignFromLibraryButton = canEdit ? (
     <button
       {...tourAttr('plc-assessments.library-assign')}
       type="button"

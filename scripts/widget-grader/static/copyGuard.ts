@@ -71,6 +71,7 @@ const ATTEMPT_NOUN = [
   /\b(?:try|take)\s+(?:count|limit|number)\b/i,
   /\btakes\s+(?:remaining|allowed|used|per)\b/i,
   /^\s*Takes\s*$/,
+  /\b(?:who|students?|they|you)\s+tried\b(?!\s+to\b)/i,
 ];
 
 export const attemptWordingProblem = (text: string): boolean =>

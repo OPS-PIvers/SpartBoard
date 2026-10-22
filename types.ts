@@ -2370,6 +2370,14 @@ export interface ActivityWallSection {
   label: string;
 }
 
+/** A named stretch of time a teacher shades on a dated timeline; `from`/`to` are date labels. */
+export interface ActivityWallPeriod {
+  id: string;
+  label: string;
+  from: string;
+  to: string;
+}
+
 export interface ActivityWallLinkPreview {
   title?: string;
   description?: string;
@@ -2477,6 +2485,8 @@ export interface ActivityWallLibraryEntry {
   sections?: ActivityWallSection[];
   tableRows?: ActivityWallSection[];
   tableCols?: ActivityWallSection[];
+  /** Dated timeline only: teacher-named time periods shaded on the axis. */
+  timePeriods?: ActivityWallPeriod[];
   mapCenter?: { lat: number; lng: number; zoom: number };
   allowedTypes?: Record<
     Exclude<ActivityWallSubmissionType, 'text' | 'word'>,
@@ -2618,6 +2628,10 @@ export interface ActivityWallSession extends SessionWorkKindFields {
   allowLikes?: boolean;
   allowComments?: boolean;
   allowCommentResponses?: boolean;
+  /** Timeline layout only: posts carry a validated date and sit on a dated axis. */
+  timelineDates?: boolean;
+  /** Dated timeline only: teacher-named time periods, mirrored from the library entry. */
+  timePeriods?: ActivityWallPeriod[];
 }
 
 /**
@@ -4846,6 +4860,8 @@ export interface QuizBehaviorSettings {
   sessionOptions: QuizSessionOptions;
   /** null = unlimited; positive int = hard cap. */
   attemptLimit: number | null;
+  /** Which attempt's score counts; saved as the Gradebook column's `attemptPolicy`. Absent = latest. */
+  finalScore?: 'latest' | 'highest' | 'average';
 }
 
 /**
@@ -5050,7 +5066,7 @@ export interface QuizSession
   plcLinkedAt?: number;
   status: QuizSessionStatus;
   sessionMode: QuizSessionMode;
-  /** Owning widget, written on create while `quiz-review-split` is on. */
+  /** Owning widget, written on create. */
   widgetKind?: QuizWidgetKind;
   /** -1 = lobby/waiting room, 0+ = currently displayed question index */
   currentQuestionIndex: number;
@@ -6645,7 +6661,7 @@ export interface QuizAssignment
     PeriodAccessSessionFields {
   /** Assignment UUID — also the sessionId. */
   id: string;
-  /** Owning widget, written on create while `quiz-review-split` is on. */
+  /** Owning widget, written on create. */
   widgetKind?: QuizWidgetKind;
   /**
    * FIB answer keys translated at assign time, `{ [questionId]: { [locale]: string[] } }`.
@@ -6704,6 +6720,8 @@ export interface QuizAssignment
    * time.
    */
   exportedResponseIds?: string[];
+  /** Finished attempts per exported response key when the PLC sheet was last written (attempt history). */
+  exportedAttempts?: Record<string, number>;
   /**
    * Synchronized-quiz linkage. Present iff the assignment was created
    * from a synced library quiz; mirrored from the source quiz's
@@ -8913,6 +8931,10 @@ export interface FlashcardSpeakReference {
   letterSpans?: number[];
   /** Absent means espeak; voice refs are a Cloud TTS voice's reading and carry no letterSpans. */
   source?: 'espeak' | 'voice';
+  /** What was looked up, when it isn't the term's first variant ("el guía" for "el/la guía"). */
+  text?: string;
+  /** 0-based indices of tokens that end a word inside a phrase, so word-final sound rules apply there too. */
+  wordEnds?: number[];
 }
 
 export type FlashcardSpeakStatus = 'ready' | 'needs-review' | 'unavailable';
@@ -10114,27 +10136,18 @@ export type GlobalFeature =
   | 'quiz-stimulus-quotes'
   /** Desmos calculator stimulus on quiz questions. */
   | 'quiz-calculator-stimulus'
-  /** Guided Learning live tours in the teacher app and their launch points. */
-  | 'gl-live-tours'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
-  | 'live-tour-self-heal'
   /** Per-period start/pause and windows on assignments shared by several classes. */
   | 'per-period-access'
-  /** PLC Home v2: tile dashboard with a spotlight, meeting cadence and assign-from-library. */
-  | 'plc-home-v2'
   /** Flag free-response answers so an anonymized copy appears on the PLC page for norming. */
   | 'plc-norming-flags'
   /** Standard codes typed in or imported with a question text become Learning targets tags. */
   | 'standards-from-question-text'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
   | 'quiz-results-tools'
-  /** Guided Learning Studio: select, resize, restyle and edit callouts on the canvas. */
-  | 'gl-callout-editing'
   /** Per-student "Slide N of M · active X ago" on Guided Learning results and the Assignments hub. */
   | 'gl-student-progress'
-  /** PLC notes as an always-editable rich text editor with a formatting toolbar (still stored as Markdown). */
-  | 'plc-notes-rich-editor'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
   | 'paper-handwritten-responses'
   /** Claude connector: teachers connect Claude to their library (docs/plans/CLAUDE_CONNECTOR.md). */
@@ -10147,18 +10160,15 @@ export type GlobalFeature =
   | 'quiz-student-view'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
+  | 'quiz-attempt-history'
   /** Quiz rubrics are hidden from students unless the teacher shows them per question. */
   | 'quiz-rubric-visibility'
   /** AP-style scoring-guide rubrics with example responses, beside levels rubrics. */
   | 'rubric-scoring-guides'
-  /** Projects board: tapping a group name opens that group's student view. */
-  | 'projects-group-view'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
   | 'student-gradebook'
-  /** Quiz keeps assessment only; live review games move to the Review widget. */
-  | 'quiz-review-split'
   /** Quiz assign/edit: an overall time limit per attempt with a student countdown. */
   | 'quiz-time-limit'
   /** Routine Guide widget, the instructional routines redesign. */
@@ -10178,12 +10188,8 @@ export type GlobalFeature =
   | 'ocr'
   /** Transcript and drafted notes from a meeting recording; AND-ed with `gemini-functions`. */
   | 'plc-meeting-ai-notes'
-  /** Assign dialogs: mark a session Work (submitted, graded) or Resource (study only) (docs/plans/STUDENT_LANDING_V2.md D27). */
-  | 'study-resources'
   /** Sparty the mascot in tours, first-time setup and the Help Center (docs/plans/shipped/SPARTY.md). */
   | 'sparty'
-  /** Group Notes & Docs: notes list and Action items as swapping side panels, with action items on linked Google Docs. */
-  | 'plc-notes-side-panels'
   /** Group Notes & Docs: embedded Google Docs keep Google's menus and toolbar. */
   | 'plc-docs-toolbar'
   /** Team action items sync to the assignee's Google Tasks (docs/plans/GOOGLE_TASKS_ACTION_ITEMS.md). */
@@ -10192,20 +10198,12 @@ export type GlobalFeature =
   | 'plc-goal-coach'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
-  /** Widget libraries open on folders with a path bar, Recent view and drag filing (docs/plans/LIBRARY_FOLDERS.md D26). */
-  | 'library-folder-view'
-  /** Team invite boxes suggest staff emails from the org directory as you type. */
-  | 'team-email-suggest'
   /** Push scores into a SpartBoard-made Schoology gradebook column (docs/plans/SCHOOLOGY_TOOL_COLUMNS.md D11). */
   | 'schoology-tool-columns'
   /** A what's-new button under a widget whose changelog entry carries a note for that widget type. */
   | 'widget-whats-new'
-  /** Guided Learning Studio: a pinned Welcome card in the slide strip, with an optional welcome image. */
-  | 'gl-welcome-card'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
-  /** Mini App editor: Edit with AI revises the current app's code from an instruction. */
-  | 'mini-app-ai-edit'
   /** Quiz live monitor declutter (#4023): footer buttons, Close all, no More actions menu for assessments. */
   | 'quiz-monitor-declutter'
   | 'quiz-banks-in-library'
@@ -10213,6 +10211,10 @@ export type GlobalFeature =
   | 'quiz-submit-for-student'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
   | 'lunch-count-redesign'
+  /** Activity Wall timeline on a dated axis, with a year/date picker on posts. */
+  | 'activity-wall-timeline-dates'
+  /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
+  | 'checklist-small-card'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak';
 

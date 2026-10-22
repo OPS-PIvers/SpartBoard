@@ -236,6 +236,16 @@ body.is-dragging-widget video {
   animation: fadeOut 0.5s ease-out forwards;
 }
 
+/* Flashcards Speak: the Continue fill drains left to right while the next card counts down. */
+@keyframes speak-drain {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
 /* Guided Learning player v2: callout fades in with a 6px rise once the camera settles. */
 /* Guided Learning Watch/Try: cursor click ripple and success pulse. */
 @keyframes gl-ripple {

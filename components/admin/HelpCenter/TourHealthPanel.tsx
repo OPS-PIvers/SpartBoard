@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 import type { GuidedLearningSet } from '@/types';
 import { loadBuildingSet, useGuidedLearning } from '@/hooks/useGuidedLearning';
-import { AuthContext } from '@/context/AuthContextValue';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { buildNameMatcher } from '@/components/widgets/GuidedLearning/components/recorder/redaction';
 import { TOOLS } from '@/config/tools';
@@ -132,8 +131,6 @@ const TourHealthPanel: React.FC = () => {
     stepId: string;
   } | null>(null);
 
-  const canRecord =
-    useContext(AuthContext)?.canAccessFeature('gl-live-tours') ?? false;
   const rosters = useContext(DashboardContext)?.rosters;
   const matcher = useMemo(
     () => buildNameMatcher((rosters ?? []).flatMap((r) => r.students)),
@@ -200,17 +197,15 @@ const TourHealthPanel: React.FC = () => {
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-slate-500">{t('tourHealth.intro')}</p>
         <div className="flex shrink-0 items-center gap-2">
-          {canRecord && (
-            <button
-              type="button"
-              onClick={requestRecordTour}
-              {...tourAttr('admin.help-center.record-tour')}
-              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:bg-slate-50"
-            >
-              <Circle className="w-3.5 h-3.5 fill-current" aria-hidden="true" />
-              {t('tourHealth.recordTour')}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={requestRecordTour}
+            {...tourAttr('admin.help-center.record-tour')}
+            className="flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:bg-slate-50"
+          >
+            <Circle className="w-3.5 h-3.5 fill-current" aria-hidden="true" />
+            {t('tourHealth.recordTour')}
+          </button>
           <button
             type="button"
             onClick={checkLive}
@@ -224,14 +219,12 @@ const TourHealthPanel: React.FC = () => {
         </div>
       </div>
 
-      {canRecord && (
-        <UnmappedAnchorsSection
-          titles={titles}
-          onOpenStep={(setId, stepId) => void openStep(setId, stepId)}
-          loadSet={loadBuildingSet}
-          saveSet={saveBuildingSet}
-        />
-      )}
+      <UnmappedAnchorsSection
+        titles={titles}
+        onOpenStep={(setId, stepId) => void openStep(setId, stepId)}
+        loadSet={loadBuildingSet}
+        saveSet={saveBuildingSet}
+      />
 
       {tours.length === 0 && (
         <p className="text-sm text-slate-500">{t('tourHealth.empty')}</p>

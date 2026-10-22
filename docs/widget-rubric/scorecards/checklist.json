@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "checklist",
   "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-16T04:15:42.905Z",
+  "gradedAt": "2026-10-21T18:54:29.682Z",
   "stale": false,
   "criteria": {
     "S6": {
@@ -13,17 +13,17 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-checklist-2026-10-16-after/screenshots/checklist/envelope-min__typical.png",
-          "scripts/widget-grader/out/loop-checklist-2026-10-16-after/screenshots/checklist/envelope-min__stress.png",
-          "scripts/widget-grader/out/loop-checklist-2026-10-16-after/screenshots/checklist/default__stress.png",
-          "scripts/widget-grader/out/loop-checklist-2026-10-16-after/screenshots/checklist/large-1400x900__stress.png",
-          "scripts/widget-grader/out/loop-checklist-2026-10-16-after/screenshots/checklist/maximized-1920x1080__stress.png",
-          "scripts/widget-grader/out/loop-checklist-2026-10-16-after/screenshots/checklist/widest-aspect__stress.png"
+          "scripts/widget-grader/out/loop-checklist-2026-10-21-after/screenshots/checklist/envelope-min__typical.png",
+          "scripts/widget-grader/out/loop-checklist-2026-10-21-after/screenshots/checklist/envelope-min__stress.png",
+          "scripts/widget-grader/out/loop-checklist-2026-10-21-after/screenshots/checklist/default__stress.png",
+          "scripts/widget-grader/out/loop-checklist-2026-10-21-after/screenshots/checklist/large-1400x900__stress.png",
+          "scripts/widget-grader/out/loop-checklist-2026-10-21-after/screenshots/checklist/maximized-1920x1080__stress.png",
+          "scripts/widget-grader/out/loop-checklist-2026-10-21-after/screenshots/checklist/widest-aspect__stress.png"
         ],
-        "runId": "loop-checklist-2026-10-16-after"
+        "runId": "loop-checklist-2026-10-21-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-16T04:15:42.905Z",
+      "gradedAt": "2026-10-21T18:28:57.450Z",
       "stale": false
     },
     "I5": {
@@ -31,27 +31,27 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-16T04:15:42.905Z",
+      "gradedAt": "2026-10-21T18:28:57.450Z",
       "stale": false
     },
     "S1": {
-      "score": 0,
+      "score": 2,
       "source": "paul",
       "candidates": {
-        "script": 0,
-        "judge": 0,
-        "paul": 0
+        "script": null,
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/norming-1/screenshots/checklist/envelope-min__empty.png",
-          "scripts/widget-grader/out/norming-1/screenshots/checklist/envelope-min__typical.png",
-          "scripts/widget-grader/out/norming-1/screenshots/checklist/envelope-min__stress.png"
+          "scripts/widget-grader/out/loop-checklist-2026-10-21-after/screenshots/checklist/envelope-min__empty.png",
+          "scripts/widget-grader/out/loop-checklist-2026-10-21-after/screenshots/checklist/envelope-min__typical.png",
+          "scripts/widget-grader/out/loop-checklist-2026-10-21-after/screenshots/checklist/envelope-min__stress.png"
         ],
-        "runId": "norming-1"
+        "runId": "loop-checklist-2026-10-21-after"
       },
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:28:28.807Z",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-21T18:52:06.181Z",
       "stale": false
     },
     "S2": {
@@ -75,24 +75,24 @@
       "stale": false
     },
     "S3": {
-      "score": 1,
+      "score": 2,
       "source": "paul",
       "candidates": {
         "script": null,
         "judge": 2,
-        "paul": 1
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/norming-1/screenshots/checklist/widest-aspect__typical.png",
-          "scripts/widget-grader/out/norming-1/screenshots/checklist/widest-aspect__stress.png",
-          "scripts/widget-grader/out/norming-1/screenshots/checklist/tallest-aspect__typical.png",
-          "scripts/widget-grader/out/norming-1/screenshots/checklist/tallest-aspect__stress.png"
+          "scripts/widget-grader/out/loop-checklist-2026-10-21-after/screenshots/checklist/widest-aspect__typical.png",
+          "scripts/widget-grader/out/loop-checklist-2026-10-21-after/screenshots/checklist/widest-aspect__stress.png",
+          "scripts/widget-grader/out/loop-checklist-2026-10-21-after/screenshots/checklist/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/loop-checklist-2026-10-21-after/screenshots/checklist/tallest-aspect__stress.png"
         ],
-        "runId": "norming-1"
+        "runId": "loop-checklist-2026-10-21-after"
       },
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T02:35:08.267Z",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-21T18:52:30.510Z",
       "stale": false
     },
     "S4": {
@@ -427,17 +427,18 @@
       "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2,
+        "judge": 1,
         "paul": 1
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__empty.png"
+          "scripts/widget-grader/out/loop-checklist-2026-10-21-after/screenshots/checklist/default__empty.png"
         ],
-        "runId": "norming-1"
+        "runId": "loop-checklist-2026-10-21-after"
       },
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T03:00:57.235Z",
+      "note": "This one still needs \"Flip\" terminology removed. That is legacy code and doesn't account for the new settings drawer.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-21T18:53:11.155Z",
       "stale": false
     },
     "C4": {
@@ -462,17 +463,18 @@
       "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3,
+        "judge": 2,
         "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/norming-1/screenshots/checklist/default__empty.png"
+          "scripts/widget-grader/out/loop-checklist-2026-10-21-after/screenshots/checklist/default__empty.png"
         ],
-        "runId": "norming-1"
+        "runId": "loop-checklist-2026-10-21-after"
       },
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T03:03:00.109Z",
+      "note": "it's more readable, but still doesn't give first-glance help (like by adding a button right there that opens the settings where things can be entered!)",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-21T18:54:04.998Z",
       "stale": false
     },
     "C6": {
@@ -638,30 +640,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "loop-checklist-2026-10-16-after"
+        "runId": "loop-checklist-2026-10-21-after"
       },
-      "gradedAt": "2026-10-16T04:15:42.905Z"
+      "gradedAt": "2026-10-21T18:54:29.682Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "loop-checklist-2026-10-16-after"
+        "runId": "loop-checklist-2026-10-21-after"
       },
-      "gradedAt": "2026-10-16T04:15:42.905Z"
+      "gradedAt": "2026-10-21T18:54:29.682Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "loop-checklist-2026-10-16-after"
+        "runId": "loop-checklist-2026-10-21-after"
       },
-      "gradedAt": "2026-10-16T04:15:42.905Z"
+      "gradedAt": "2026-10-21T18:54:29.682Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "loop-checklist-2026-10-16-after"
+        "runId": "loop-checklist-2026-10-21-after"
       },
-      "gradedAt": "2026-10-16T04:15:42.905Z"
+      "gradedAt": "2026-10-21T18:54:29.682Z"
     }
   }
 }

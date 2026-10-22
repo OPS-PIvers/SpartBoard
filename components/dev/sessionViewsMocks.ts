@@ -163,10 +163,32 @@ function quizCompleted(
   };
 }
 
+/** Saved earlier attempts for the harness attempt picker: student 1001 missed both the first time. */
+export function makeQuizAttemptCopies(
+  responseKey: string
+): (Partial<QuizResponse> & { n: number; closed?: boolean })[] {
+  if (responseKey !== 'pin-Period 3-1001') return [];
+  return [
+    {
+      n: 1,
+      closed: true,
+      studentUid: responseKey,
+      submittedAt: NOW - 3_600_000,
+      answers: [
+        { questionId: QUIZ_Q1_ID, answer: '1/4', answeredAt: NOW - 3_700_000 },
+        { questionId: QUIZ_Q2_ID, answer: '4/8', answeredAt: NOW - 3_650_000 },
+      ],
+    },
+  ];
+}
+
 export function makeQuizResponses(): QuizResponse[] {
   return [
     // High score — both correct.
-    quizCompleted('pin-Period 3-1001', '1001', '3/4', '1/2'),
+    {
+      ...quizCompleted('pin-Period 3-1001', '1001', '3/4', '1/2'),
+      completedAttempts: 2,
+    },
     // Mid score — first correct, second wrong.
     quizCompleted('pin-Period 3-1002', '1002', '3/4', '2/4'),
     // Low score — both wrong, plus a tab-switch warning.

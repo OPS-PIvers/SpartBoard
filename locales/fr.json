@@ -3448,6 +3448,7 @@
     "speak": {
       "player": {
         "prompt": "Dis ce mot",
+        "promptPhrase": "Dis ces mots",
         "record": "Commencer à parler",
         "stop": "Arrêter",
         "listening": "J'écoute…",
@@ -3458,6 +3459,7 @@
         "playMyTry": "Réécouter ma tentative",
         "tryAgain": "Réessayer",
         "continue": "Continuer",
+        "autoContinue": "Passer automatiquement à la carte suivante",
         "skip": "Passer",
         "round": "Série {{round}}",
         "mastered": "{{mastered}}/{{total}} bien dites",
@@ -3477,6 +3479,7 @@
         "notYet": "Pas encore",
         "notYetBody": "Regarde les lettres marquées et réessaie.",
         "outOfTries": "Pas encore. On reviendra sur ce mot.",
+        "outOfTriesPhrase": "Pas encore. On reviendra sur ces mots.",
         "unclear": "Je ne t'ai pas entendu",
         "unclearBody": "Réessaie en te rapprochant un peu du microphone.",
         "stress": "Insiste sur cette partie : {{syllables}}",
@@ -3568,7 +3571,7 @@
           "unavailable": "Indisponible"
         },
         "reasons": {
-          "multi-word": "Speak fonctionne avec un seul mot par carte.",
+          "multi-word": "Speak fonctionne avec 4 mots maximum par carte.",
           "unrenderable": "On n'a pas trouvé comment dire ce mot.",
           "untokenizable": "On n'a pas trouvé comment dire ce mot.",
           "g2p-disagree": "Nos sources ne sont pas d'accord sur la façon de dire ce mot.",
@@ -3664,7 +3667,35 @@
         "unclearConfidence": "Répéter quand c'est flou",
         "unclearConfidenceHelp": "Plus la valeur est haute, plus on demande aux élèves de redire le mot quand le son est flou.",
         "save": "Enregistrer",
-        "saved": "Enregistré"
+        "saved": "Enregistré",
+        "wordsToCheck": {
+          "title": "Mots à vérifier",
+          "intro": "Les mots que la plupart des élèves ratent dans Speak, dans tous les devoirs. Écoutez et dites chacun pour vérifier la notation.",
+          "rule": "Un mot apparaît quand au moins 5 élèves l'ont essayé et qu'au moins 60 % l'ont raté lors de leur dernière série.",
+          "refresh": "Actualiser",
+          "empty": "Aucun mot à vérifier pour l'instant.",
+          "failed": "Impossible de charger les mots. Actualisez pour les charger à nouveau.",
+          "missed": "{{missed}} sur {{students}} ratés",
+          "assignments_one": "{{count}} devoir",
+          "assignments_other": "{{count}} devoirs",
+          "sayIt": "Le dire",
+          "truncated": "Seuls les 1 000 devoirs Speak les plus récents ont été vérifiés.",
+          "fix": "Corriger",
+          "soundsLike": "Écrivez comment ça se prononce",
+          "add": "Ajouter",
+          "recordHint": "Ou ouvrez Le dire, dites le mot et appuyez sur Enregistrer ma prononciation.",
+          "alsoAccepted": "Aussi accepté",
+          "acceptedSpelling": "Se prononce « {{spelling}} »",
+          "acceptedRecording": "Enregistrement, {{date}}",
+          "remove": "Retirer",
+          "skip": "Ignorer ce mot dans Speak pour toutes les classes",
+          "saveFix": "Enregistrer la correction",
+          "fixed": "Corrigé",
+          "skipped": "Ignoré",
+          "saveHowISaid": "Enregistrer ma prononciation",
+          "savedHowISaid": "Enregistré",
+          "unreadable": "Impossible de lire cette écriture. Essayez de l'écrire autrement."
+        }
       }
     }
   },

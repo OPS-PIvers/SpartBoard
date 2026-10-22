@@ -600,8 +600,11 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 {/* Status indicator for wide view */}
                 {isPlayerReady && (
                   <div
-                    className="hidden [@container(orientation:landscape)]:flex items-center gap-2"
-                    style={{ marginTop: 'min(8px, 2cqh)' }}
+                    className="hidden [@container(orientation:landscape)]:flex items-center"
+                    style={{
+                      marginTop: 'min(8px, 2cqh)',
+                      gap: 'min(8px, 2cqh)',
+                    }}
                   >
                     <div
                       className={`rounded-full ${isPlaying ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`}

@@ -3739,6 +3739,7 @@ describe('index barrel — deployed export set', () => {
     // Org-admin media review & compliance delete
     'listQuizMediaForOrgAdmin',
     'lookupSpeakReferencesV1',
+    'listSpeakWordsToCheckV1',
     'deleteQuizMediaForOrgAdmin',
     // Admin analytics endpoint
     'adminAnalytics',
@@ -3778,6 +3779,7 @@ describe('index barrel — deployed export set', () => {
     'scrubVideoActivitySessionKeyV1',
     // Quiz score on submit
     'scoreQuizOnSubmitV1',
+    'getMyQuizAttemptsV1',
     // Review self-paced game
     'checkQuizGameAnswerV1',
     // Organizations
@@ -3849,6 +3851,7 @@ describe('index barrel — deployed export set', () => {
     'gradeIndexPlcConfig',
     'gradeIndexDistrictConfig',
     'gradeIndexRecompute',
+    'quizAttemptGradeWrite',
     'migratePlcs',
     'mirrorPlcIndex',
     'createBuildingGroupV1',
@@ -4313,26 +4316,9 @@ describe('generateWithAI — specificFeatureId accessLevel enforcement', () => {
     );
   });
 
-  it('denies Edit with AI to a non-admin when mini-app-ai-edit has no doc', async () => {
+  it('lets a non-admin use Edit with AI', async () => {
     vi.mocked(admin.firestore).mockReturnValueOnce(
       makeDb({}) as unknown as admin.firestore.Firestore
-    );
-
-    await expect(
-      handler(
-        { ...MINI_APP_DATA, html: '<html>v1</html>' },
-        { auth: NON_ADMIN_AUTH }
-      )
-    ).rejects.toThrow(
-      'Edit with AI is currently restricted to administrators.'
-    );
-  });
-
-  it('lets a non-admin use Edit with AI once mini-app-ai-edit is public', async () => {
-    vi.mocked(admin.firestore).mockReturnValueOnce(
-      makeDb({
-        'mini-app-ai-edit': { enabled: true, accessLevel: 'all' },
-      }) as unknown as admin.firestore.Firestore
     );
 
     const err = await handler(

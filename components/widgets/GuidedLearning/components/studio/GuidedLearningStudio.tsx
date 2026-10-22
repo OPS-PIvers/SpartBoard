@@ -474,7 +474,7 @@ const StudioSession: React.FC<
     canRedo,
     clipboardStepCount,
   } = editorState;
-  const liveTours = !!set.isBuilding && canAccessFeature('gl-live-tours');
+  const liveTours = !!set.isBuilding;
 
   const selectStepAt = useCallback(
     (index: number) => {
@@ -496,7 +496,6 @@ const StudioSession: React.FC<
     }
   }
 
-  const welcomeCard = canAccessFeature('gl-welcome-card');
   const [welcomeOpen, setWelcomeOpen] = useState(false);
   // Picking a step or moving to another slide leaves the Welcome card.
   const [welcomeFrom, setWelcomeFrom] = useState({
@@ -511,7 +510,7 @@ const StudioSession: React.FC<
     if (selectedStepId !== null || welcomeFrom.slide !== currentImageIndex)
       setWelcomeOpen(false);
   }
-  const welcomeShown = welcomeCard && welcomeOpen && selectedStepId === null;
+  const welcomeShown = welcomeOpen && selectedStepId === null;
   const selectWelcome = useCallback(() => {
     setSelectedStepId(null);
     setWelcomeOpen(true);
@@ -662,8 +661,7 @@ const StudioSession: React.FC<
     setCurrentImageIndex(shown.imageIndex);
   }, [steps, setSelectedStepId, setCurrentImageIndex]);
 
-  const calloutEditing = canAccessFeature('gl-callout-editing');
-  const tools = useCanvasTools(editorState, preset, { calloutEditing });
+  const tools = useCanvasTools(editorState, preset);
   const { rows: canvasRows, typeRows, deleteFocusedVertex } = tools;
 
   const selectedIndex = steps.findIndex((s) => s.id === selectedStepId);
@@ -803,7 +801,7 @@ const StudioSession: React.FC<
     !readOnly &&
     canAccessFeature('gemini-functions') &&
     canAccessFeature('guided-learning-ai');
-  const canRecordTour = isAdmin === true && canAccessFeature('gl-live-tours');
+  const canRecordTour = isAdmin === true;
 
   const canvasDrop = useFileDrop(
     (files) => void editorState.uploadFromFiles(files),
@@ -1136,8 +1134,8 @@ const StudioSession: React.FC<
           collapsed={filmstripCollapsed}
           onToggleCollapsed={() => setFilmstripCollapsed((v) => !v)}
           onCopyForClaude={canCopyForClaude ? copySlideForClaude : undefined}
-          onSelectSlide={welcomeCard ? selectSlide : undefined}
-          onSelectWelcome={welcomeCard ? selectWelcome : undefined}
+          onSelectSlide={selectSlide}
+          onSelectWelcome={selectWelcome}
           welcomeSelected={welcomeShown}
         />
         <div className="flex min-h-0 min-w-0 flex-col">
@@ -1226,8 +1224,6 @@ const StudioSession: React.FC<
             state={editorState}
             onDeleteStep={deleteStepWithUndo}
             canvasRef={canvasRef}
-            calloutEditing={calloutEditing}
-            welcomeCard={welcomeCard}
             welcomeSelected={welcomeShown}
             onEditOnBoard={
               liveTours && isAdmin === true && !readOnly

@@ -27,6 +27,12 @@ import {
 export const spokenWord = (card: FlashcardCard): string =>
   parseFlashcardAnswerVariants(card.speak?.term ?? card.term)[0] ?? card.term;
 
+/** What a reference was looked up for: its own `text` (a phrase variant), else the card's first variant. */
+export const refText = (
+  card: FlashcardCard,
+  ref: FlashcardSpeakReference | undefined
+): string => ref?.text ?? spokenWord(card);
+
 /** The card's references for the stamped dialects; every ref when none match. */
 export function cardRefs(
   card: FlashcardCard,
@@ -285,7 +291,10 @@ export const judgedRef = (
 ): FlashcardSpeakReference | undefined =>
   // Marks from a voice reference are already placed on its dialect's espeak reference.
   refs.find(
-    (ref) => ref.dialect === judgement.dialect && ref.source !== 'voice'
+    (ref) =>
+      ref.dialect === judgement.dialect &&
+      ref.text === judgement.text &&
+      ref.source !== 'voice'
   ) ??
   refs.find((ref) => ref.dialect === judgement.dialect) ??
   refs[0];

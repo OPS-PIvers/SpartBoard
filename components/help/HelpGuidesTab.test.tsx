@@ -21,7 +21,6 @@ const helpState = vi.hoisted(() => ({
 }));
 
 const glMocks = vi.hoisted(() => ({
-  liveTours: false,
   tourSetIds: new Set<string>(),
   published: new Set<string>(),
   canRunLive: true,
@@ -68,8 +67,6 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     orgId: 'org-1',
     user: { uid: 'u1' },
-    canAccessFeature: (id: string) =>
-      glMocks.liveTours && id === 'gl-live-tours',
   }),
 }));
 
@@ -93,8 +90,7 @@ vi.mock('@/hooks/useHelpResources', async (importOriginal) => {
 
 vi.mock('@/hooks/useGuidedLearning', () => ({
   loadBuildingSet: glMocks.loadBuildingSet,
-  useLiveTourSetIds: (enabled: boolean) =>
-    enabled ? glMocks.tourSetIds : new Set<string>(),
+  useLiveTourSetIds: () => glMocks.tourSetIds,
 }));
 
 vi.mock(
@@ -140,7 +136,6 @@ describe('HelpGuidesTab', () => {
     firestoreMocks.updateDoc.mockClear();
     glMocks.loadBuildingSet.mockReset();
     glMocks.playerProps.length = 0;
-    glMocks.liveTours = false;
     glMocks.tourSetIds = new Set();
     glMocks.published = new Set();
     glMocks.canRunLive = true;
@@ -195,7 +190,6 @@ describe('HelpGuidesTab', () => {
 
   it('badges live tours and filters to them with the tours chip', async () => {
     const user = userEvent.setup();
-    glMocks.liveTours = true;
     glMocks.tourSetIds = new Set(['tour-set']);
     glMocks.published = new Set(['tour-set']);
     helpState.items.push(
@@ -228,7 +222,6 @@ describe('HelpGuidesTab', () => {
 
   it('starts a live tour straight from its row on a board', async () => {
     const user = userEvent.setup();
-    glMocks.liveTours = true;
     glMocks.tourSetIds = new Set(['tour-set']);
     glMocks.published = new Set(['tour-set']);
     helpState.items.push(tourItem());
@@ -245,7 +238,6 @@ describe('HelpGuidesTab', () => {
 
   it('opens the viewer for a tour row where tours cannot run live', async () => {
     const user = userEvent.setup();
-    glMocks.liveTours = true;
     glMocks.canRunLive = false;
     glMocks.tourSetIds = new Set(['tour-set']);
     glMocks.published = new Set(['tour-set']);
@@ -261,7 +253,6 @@ describe('HelpGuidesTab', () => {
   });
 
   it('starts a live tour from a shared link on a board', () => {
-    glMocks.liveTours = true;
     glMocks.published = new Set(['tour-set']);
     helpState.items.push(tourItem());
     const started = vi.fn();
@@ -275,7 +266,6 @@ describe('HelpGuidesTab', () => {
   });
 
   it('holds a shared tour link until the board is open', () => {
-    glMocks.liveTours = true;
     glMocks.canRunLive = false;
     glMocks.published = new Set(['tour-set']);
     helpState.items.push(tourItem());
@@ -291,7 +281,6 @@ describe('HelpGuidesTab', () => {
   });
 
   it('opens the viewer from a shared link to an unpublished tour', () => {
-    glMocks.liveTours = true;
     glMocks.loadBuildingSet.mockResolvedValue(null);
     helpState.items.push(tourItem());
     const started = vi.fn();
@@ -303,28 +292,10 @@ describe('HelpGuidesTab', () => {
   });
 
   it('does not badge a tour that was never published', () => {
-    glMocks.liveTours = true;
     glMocks.tourSetIds = new Set(['tour-set']);
     helpState.items.push(tourItem());
     render(<HelpGuidesTab query="" />);
     expect(screen.getByText('Boards walkthrough')).toBeInTheDocument();
-    expect(screen.queryByText('Live tour')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Live tours' })).toBeNull();
-  });
-
-  it('shows no tour badge or chip without the flag', () => {
-    glMocks.tourSetIds = new Set(['tour-set']);
-    helpState.items.push(
-      makeItem({
-        id: 'g1',
-        kind: 'guided-learning',
-        title: 'Boards walkthrough',
-        url: null,
-        embedType: null,
-        setId: 'tour-set',
-      })
-    );
-    render(<HelpGuidesTab query="" />);
     expect(screen.queryByText('Live tour')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Live tours' })).toBeNull();
   });

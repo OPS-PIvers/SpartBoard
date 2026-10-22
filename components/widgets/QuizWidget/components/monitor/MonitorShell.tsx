@@ -109,7 +109,7 @@ export interface QuizLiveMonitorProps {
   onBack?: () => void;
   /** Hide the scoreboard-sync setting (contexts with no board behind). */
   hideLiveScoreboard?: boolean;
-  /** Quiz-kind session with the Review split on: no reveal, podium, sounds or scoreboard sync (D9). */
+  /** Quiz-kind session: no reveal, podium, sounds or scoreboard sync (D9). */
   assessmentOnly?: boolean;
   /** M17 E2 F2: the active assignment's per-student accommodation overrides
    *  (teacher's own assignment doc), keyed by `StudentTargetRef` key — used

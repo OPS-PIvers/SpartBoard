@@ -22,6 +22,7 @@ import {
   decideSounds,
   scoreReference,
   scoringCandidates,
+  wordFinalPositions,
   type SpeakLogProbs,
 } from './likelihood';
 
@@ -69,6 +70,8 @@ export interface SpeakJudgement {
   forgivenGroups: string[];
   /** This attempt's F8 delta, keyed by target token. */
   tally: SpeakSoundTally;
+  /** The matched reference's `text`, when it isn't the term's first variant. */
+  text?: string;
 }
 
 const VERDICT_RANK: Record<Exclude<SpeakVerdict, 'unclear'>, number> = {
@@ -98,30 +101,28 @@ export function effectiveGroupSettings(
 const pairMatches = (
   pair: PronunciationPair,
   entry: AlignmentEntry,
-  lastPosition: number
+  finals: ReadonlySet<number>
 ) =>
   pair.target === entry.targetIPA &&
   pair.spoken === entry.spokenIPA &&
-  (!pair.final || entry.position === lastPosition);
+  (!pair.final || finals.has(entry.position));
 
 function classify(
   entry: AlignmentEntry,
   language: SpeakLanguage,
   effective: Record<string, 'forgive' | 'require'>,
-  lastPosition: number
+  finals: ReadonlySet<number>
 ): SpeakJudgeEntry {
   if (entry.status === 'correct') return { ...entry, kind: 'correct' };
   if (entry.status === 'held') return { ...entry, kind: 'held' };
   if (entry.status !== 'substituted') return { ...entry, kind: 'error' };
   if (
-    RECOGNIZER_TOLERANCE[language].some((p) =>
-      pairMatches(p, entry, lastPosition)
-    )
+    RECOGNIZER_TOLERANCE[language].some((p) => pairMatches(p, entry, finals))
   ) {
     return { ...entry, kind: 'tolerated' };
   }
   const group = PRONUNCIATION_GROUPS[language].find((g) =>
-    g.pairs.some((p) => pairMatches(p, entry, lastPosition))
+    g.pairs.some((p) => pairMatches(p, entry, finals))
   );
   if (!group) return { ...entry, kind: 'error' };
   return {
@@ -148,10 +149,18 @@ function judgeDialect(
     ? scoreReference(input.logProbs, ref.tokens, candidates)
     : null;
   const segments = readings
-    ? decideSounds(ref.tokens, readings, input.language, effective)
+    ? decideSounds(
+        ref.tokens,
+        readings,
+        input.language,
+        effective,
+        undefined,
+        ref.wordEnds
+      )
     : alignment;
+  const finals = wordFinalPositions(n, ref.wordEnds);
   const entries = segments.map((e) =>
-    classify(e, input.language, effective, n)
+    classify(e, input.language, effective, finals)
   );
 
   let stress: SpeakJudgement['stress'] = 'not-judged';
@@ -260,7 +269,10 @@ export function judgeSpeech(input: SpeakJudgeInput): SpeakJudgement {
       ? next
       : top
   );
-  return onLetterRef(best.ref, best.result, input.refs);
+  const result = onLetterRef(best.ref, best.result, input.refs);
+  return best.ref.text === undefined
+    ? result
+    : { ...result, text: best.ref.text };
 }
 
 // A voice reference has no letter spans, so its marks move onto the dialect's espeak reference.
@@ -271,7 +283,8 @@ function onLetterRef(
 ): DialectJudgement {
   if (ref.source !== 'voice') return result;
   const letters = refs.find(
-    (r) => r.dialect === ref.dialect && r.source !== 'voice'
+    (r) =>
+      r.dialect === ref.dialect && r.text === ref.text && r.source !== 'voice'
   );
   if (!letters) return result;
   const { alignment } = alignPronunciation(letters.tokens, ref.tokens);

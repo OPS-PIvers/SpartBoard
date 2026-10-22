@@ -30,11 +30,7 @@ import { quizServedQuestionCount } from '@/utils/questionBanks';
 import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
 import { useBankSources } from '@/hooks/useBankSources';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
-import {
-  DEFAULT_QUIZ_BEHAVIOR,
-  getQuizAssignPrefill,
-  getQuizBehavior,
-} from '@/utils/quizBehavior';
+import { getQuizAssignPrefill, getQuizBehavior } from '@/utils/quizBehavior';
 import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
 import { PlcVersionHistoryPanel } from '@/components/plc/versions/PlcVersionHistoryPanel';
 import { PlcSyncConflictPrompt } from '@/components/plc/sync/PlcSyncConflictPrompt';
@@ -89,12 +85,11 @@ export function usePlcQuizActions(
   onCloseDashboard: () => void
 ): PlcQuizActionsApi {
   const { t } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
-  // D11: with the split on, an assign uses this teacher's last-used settings, not the author's.
-  const reviewSplit = canAccessFeature('quiz-review-split');
+  const { user } = useAuth();
+  // D11: an assign uses this teacher's last-used settings, not the author's.
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
     user?.uid,
-    reviewSplit
+    true
   );
   const { addToast, rosters, setPendingAssignmentEdit } = useDashboard();
   const { quizzes: plcQuizzes, mirrorPlcQuizHeader } = usePlcQuizzes(plc.id);
@@ -142,11 +137,6 @@ export function usePlcQuizActions(
   const canEdit = useMemo(
     () => (user ? canEditPlcContent(plc, user.uid) : false),
     [plc, user]
-  );
-
-  const entryById = useMemo(
-    () => new Map(plcQuizzes.map((q) => [q.id, q])),
-    [plcQuizzes]
   );
 
   const personalBySyncGroup = useMemo(() => {
@@ -404,7 +394,6 @@ export function usePlcQuizActions(
 
       setAssignTarget(null);
       setBusyRowId(target.plcQuizId);
-      const entry = entryById.get(target.plcQuizId);
       let savedMeta: Awaited<ReturnType<typeof saveQuiz>> | null = null;
       let joinedGroupId: string | null = null;
       let liveVersion: number | undefined;
@@ -452,18 +441,7 @@ export function usePlcQuizActions(
               : {}),
           },
           {
-            ...(reviewSplit
-              ? getQuizAssignPrefill(lastAssignSettings)
-              : (canonical.behavior ?? {
-                  sessionOptions:
-                    entry?.sessionOptions ??
-                    DEFAULT_QUIZ_BEHAVIOR.sessionOptions,
-                  // null = unlimited (explicit); only an absent value falls back.
-                  attemptLimit:
-                    entry && entry.attemptLimit !== undefined
-                      ? entry.attemptLimit
-                      : DEFAULT_QUIZ_BEHAVIOR.attemptLimit,
-                })),
+            ...getQuizAssignPrefill(lastAssignSettings),
             // Assign always runs in Assessment Mode.
             sessionMode: 'student',
             ...(plcLinkage ? { plc: plcLinkage } : {}),
@@ -546,13 +524,11 @@ export function usePlcQuizActions(
       busyRowId,
       createAssignment,
       deleteQuiz,
-      entryById,
       isDriveConnected,
       plc,
       saveQuiz,
       t,
       user,
-      reviewSplit,
       lastAssignSettings,
       loadBankContentsForQuiz,
       saveDriveSnapshot,

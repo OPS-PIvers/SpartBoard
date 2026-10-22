@@ -12,9 +12,6 @@ vi.mock('@/components/plc/bodies/NotesDocsBody', () => ({
     return <div data-testid="notes-docs-body" />;
   },
 }));
-vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ canAccessFeature: () => true }),
-}));
 vi.mock('@/utils/plcPath', async (orig) => ({
   ...(await orig<object>()),
   spaNavigate: vi.fn(),

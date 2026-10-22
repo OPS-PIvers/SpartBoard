@@ -3448,6 +3448,7 @@
     "speak": {
       "player": {
         "prompt": "Sprich dieses Wort",
+        "promptPhrase": "Sprich diese Wörter",
         "record": "Sprechen starten",
         "stop": "Stopp",
         "listening": "Ich höre zu…",
@@ -3458,6 +3459,7 @@
         "playMyTry": "Meinen Versuch abspielen",
         "tryAgain": "Nochmal versuchen",
         "continue": "Weiter",
+        "autoContinue": "Automatisch zur nächsten Karte",
         "skip": "Überspringen",
         "round": "Runde {{round}}",
         "mastered": "{{mastered}}/{{total}} gut gesprochen",
@@ -3477,6 +3479,7 @@
         "notYet": "Noch nicht",
         "notYetBody": "Schau dir die markierten Buchstaben an und versuche es noch einmal.",
         "outOfTries": "Noch nicht. Wir kommen auf dieses Wort zurück.",
+        "outOfTriesPhrase": "Noch nicht. Wir kommen auf diese Wörter zurück.",
         "unclear": "Ich konnte dich nicht hören",
         "unclearBody": "Versuche es noch einmal etwas näher am Mikrofon.",
         "stress": "Betone diesen Teil: {{syllables}}",
@@ -3568,7 +3571,7 @@
           "unavailable": "Nicht verfügbar"
         },
         "reasons": {
-          "multi-word": "Speak funktioniert mit einem Wort pro Karte.",
+          "multi-word": "Speak funktioniert mit bis zu 4 Wörtern pro Karte.",
           "unrenderable": "Wir konnten nicht herausfinden, wie man dieses Wort spricht.",
           "untokenizable": "Wir konnten nicht herausfinden, wie man dieses Wort spricht.",
           "g2p-disagree": "Unsere Quellen sind sich uneinig, wie man dieses Wort spricht.",
@@ -3664,7 +3667,35 @@
         "unclearConfidence": "Wiederholen, wenn unklar",
         "unclearConfidenceHelp": "Ein höherer Wert lässt die Lernenden das Wort öfter wiederholen, wenn der Laut unklar ist.",
         "save": "Speichern",
-        "saved": "Gespeichert"
+        "saved": "Gespeichert",
+        "wordsToCheck": {
+          "title": "Zu prüfende Wörter",
+          "intro": "Wörter, die die meisten Lernenden in Speak verfehlen, über alle Aufgaben hinweg. Hör dir jedes an und sprich es, um die Bewertung zu prüfen.",
+          "rule": "Ein Wort erscheint, wenn 5 oder mehr Lernende es versucht haben und mindestens 60 % es in ihrer letzten Runde verfehlt haben.",
+          "refresh": "Aktualisieren",
+          "empty": "Noch keine Wörter zu prüfen.",
+          "failed": "Die Wörter konnten nicht geladen werden. Aktualisiere, um sie erneut zu laden.",
+          "missed": "{{missed}} von {{students}} verfehlt",
+          "assignments_one": "{{count}} Aufgabe",
+          "assignments_other": "{{count}} Aufgaben",
+          "sayIt": "Sprechen",
+          "truncated": "Nur die 1.000 neuesten Speak-Aufgaben wurden geprüft.",
+          "fix": "Korrigieren",
+          "soundsLike": "Schreib, wie es klingt",
+          "add": "Hinzufügen",
+          "recordHint": "Oder öffne Sprechen, sprich das Wort und tippe auf So wie ich es gesagt habe speichern.",
+          "alsoAccepted": "Ebenfalls akzeptiert",
+          "acceptedSpelling": "Klingt wie „{{spelling}}“",
+          "acceptedRecording": "Aufnahme, {{date}}",
+          "remove": "Entfernen",
+          "skip": "Dieses Wort in Speak für alle Klassen überspringen",
+          "saveFix": "Korrektur speichern",
+          "fixed": "Korrigiert",
+          "skipped": "Übersprungen",
+          "saveHowISaid": "So wie ich es gesagt habe speichern",
+          "savedHowISaid": "Gespeichert",
+          "unreadable": "Diese Schreibweise konnte nicht gelesen werden. Schreib es anders."
+        }
       }
     }
   },

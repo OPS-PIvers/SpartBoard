@@ -90,14 +90,71 @@ describe('computeSpeakReferences', () => {
     expect(card.refs[0].letterSpans).toEqual([2, 3, 3, 4, 4, 5]);
   });
 
-  it('speaks the first answer variant', async () => {
+  it('looks up every answer variant, naming the ones after the first', async () => {
     const card = await lookup('es', 'casa / hogar');
     expect(card.term).toBe('casa / hogar');
     expect(card.refs[0].tokens).toEqual(['k', 'a', 's', 'a']);
+    expect(card.refs[0].text).toBeUndefined();
+    expect(card.refs.map((ref) => [ref.dialect, ref.text])).toEqual([
+      ['es-419', undefined],
+      ['es-419', 'hogar'],
+      ['es-ES', undefined],
+      ['es-ES', 'hogar'],
+    ]);
   });
 
-  it('marks a multi-word term unavailable', async () => {
-    expect(await lookup('es', 'el perro')).toMatchObject({
+  it('reads a short phrase as one reference with word ends and no stress', async () => {
+    const card = await lookup('es', 'la cama doble');
+    expect(card.status).toBe('ready');
+    const ref = card.refs[0];
+    expect(ref.tokens.join('')).toBe('lakamaðoβle');
+    expect(ref.wordEnds).toEqual([1, 5]);
+    expect(ref.stress).toEqual([]);
+    expect(ref.letterSpans).toHaveLength(ref.tokens.length * 2);
+    expect(ref.letterSpans?.slice(0, 2)).toEqual([0, 1]);
+    expect(ref.letterSpans?.at(-1)).toBe('la cama doble'.length);
+  });
+
+  it('spells out el/la and o/a forms as paired variants', async () => {
+    const card = await lookup('es', 'el/la mesero/a');
+    expect(card.status).toBe('ready');
+    expect(
+      card.refs.filter((r) => r.dialect === 'es-419').map((r) => r.text)
+    ).toEqual(['el mesero', 'la mesera']);
+  });
+
+  it('skips the blank a term marks with an ellipsis', async () => {
+    const card = await lookup('es', '¿Me trae...por favor?');
+    expect(card.status).toBe('ready');
+    expect(card.refs[0].text).toBe('¿Me trae por favor?');
+  });
+
+  it('drops punctuation a blank leaves on its own', async () => {
+    const card = await lookup('es', '¿Podría tener...?');
+    expect(card.status).toBe('ready');
+    expect(card.refs[0].text).toBe('¿Podría tener');
+  });
+
+  it('keeps the variant that fits when an optional part makes another too long', async () => {
+    const card = await lookup('es', 'la especialidad (de la casa)');
+    expect(card.status).toBe('ready');
+    expect(card.refs[0].text).toBe('la especialidad');
+  });
+
+  it('uses a phrase override as given, one reference per accent', async () => {
+    const card = await lookup('es', 'el/la guía', { 'es-419': 'el ˈɣia' });
+    expect(card.refs.filter((r) => r.dialect === 'es-419')).toEqual([
+      expect.objectContaining({
+        tokens: ['e', 'l', 'ɣ', 'i', 'a'],
+        wordEnds: [1],
+        text: 'el guía',
+      }),
+    ]);
+    expect(card.refs.filter((r) => r.dialect === 'es-ES')).toHaveLength(2);
+  });
+
+  it('marks a term of more than four words unavailable', async () => {
+    expect(await lookup('es', 'tengo una reserva a nombre')).toMatchObject({
       refs: [],
       status: 'unavailable',
       reasons: ['multi-word'],
@@ -365,10 +422,31 @@ describe('review fixes', () => {
     expect(card.refs[0].letterSpans?.at(-1)).toBe(nfd.length);
   });
 
-  it('treats a term espeak reads as several words as multi-word', async () => {
+  it('treats a word espeak reads as several words as multi-word', async () => {
+    expect(await lookup('en', 'hello,world')).toMatchObject({
+      status: 'unavailable',
+      reasons: ['multi-word'],
+    });
+  });
+
+  it('treats a number espeak reads as several words as multi-word', async () => {
     expect(await lookup('en', '42')).toMatchObject({
       status: 'unavailable',
       reasons: ['multi-word'],
+    });
+  });
+
+  it('ignores spaces in a one-word override', async () => {
+    const card = await lookup('es', 'perro', { 'es-419': 'ˈpe ro' });
+    expect(card.refs[0]).toMatchObject({ tokens: ['p', 'e', 'r', 'o'] });
+    expect(card.refs[0].wordEnds).toBeUndefined();
+    expect(card.refs[0].stress).toEqual([0]);
+  });
+
+  it('refuses a term with nothing to say', async () => {
+    expect(await lookup('en', '?!')).toMatchObject({
+      status: 'unavailable',
+      reasons: ['untokenizable'],
     });
   });
 

@@ -119,13 +119,11 @@ const tourSet = (id: string, withTour: boolean, stamp?: boolean) =>
 
 const withAuth = (
   ui: React.ReactElement,
-  canTour = true,
   canAccessWidget: (type: string) => boolean = () => true
 ) => (
   <AuthContext.Provider
     value={
       {
-        canAccessFeature: (id: string) => canTour && id === 'gl-live-tours',
         canAccessWidget,
       } as unknown as AuthContextType
     }
@@ -264,21 +262,6 @@ describe('WidgetHelpButton', () => {
     expect(onClose).toHaveBeenCalled();
     window.removeEventListener(TOUR_START_EVENT, started);
   });
-
-  it('never looks up tours without the flag', () => {
-    render(
-      withAuth(
-        <WidgetHelpButton
-          widget={widget}
-          helpItems={[guide('b', 'live', ['clock'])]}
-          onClose={vi.fn()}
-        />,
-        false
-      )
-    );
-    expect(h.watchers.size).toBe(0);
-    expect(h.loadBuildingSet).not.toHaveBeenCalled();
-  });
 });
 
 describe('useHasLiveTour', () => {
@@ -316,7 +299,7 @@ describe('useHasLiveTour', () => {
     } as unknown as GuidedLearningSet;
     h.tours.set('gated', published(gated));
     const noPoll = (type: string) => type !== 'poll';
-    const { unmount } = render(withAuth(<Probe setId="gated" />, true, noPoll));
+    const { unmount } = render(withAuth(<Probe setId="gated" />, noPoll));
     await act(async () => {
       await Promise.resolve();
     });
@@ -327,12 +310,6 @@ describe('useHasLiveTour', () => {
     expect(await screen.findByText('tour')).toBeInTheDocument();
     await expect(checkLiveTour('gated', noPoll)).resolves.toBe(false);
     await expect(checkLiveTour('gated', () => true)).resolves.toBe(true);
-  });
-
-  it('stays off without the flag', () => {
-    render(withAuth(<Probe setId="live" />, false));
-    expect(screen.getByText('no tour')).toBeInTheDocument();
-    expect(h.watchers.size).toBe(0);
   });
 });
 

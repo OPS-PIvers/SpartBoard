@@ -62,6 +62,7 @@ import {
 import {
   toggleLockedName,
   moveNameToGroup,
+  rotateGroups,
   mergeLockedWithFresh,
   shuffleWithLocks,
 } from './randomEditHelpers';
@@ -736,18 +737,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       );
       return;
     }
-    const lockedSet = new Set(lockedNames);
-    const N = groupsFromDisplay.length;
-    // Unlocked members per group, in their current order.
-    const unlockedByGroup = groupsFromDisplay.map((g) =>
-      g.names.filter((n) => !lockedSet.has(n))
-    );
-    // Each group i RECEIVES the unlocked names from group (i-1+N)%N.
-    const rotated = groupsFromDisplay.map((g, i) => {
-      const kept = g.names.filter((n) => lockedSet.has(n));
-      const incoming = unlockedByGroup[(i - 1 + N) % N];
-      return { ...g, names: [...kept, ...incoming] };
-    });
+    const rotated = rotateGroups(groupsFromDisplay, lockedNames);
     // Wrap in a View Transition so chips visibly slide from their old
     // group cards to their new ones (when the browser supports it).
     withViewTransition(() => commitGroups(rotated));
