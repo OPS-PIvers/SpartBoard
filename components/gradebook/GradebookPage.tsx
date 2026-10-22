@@ -1,5 +1,6 @@
 import React from 'react';
-import { ClipboardList, Loader2, X } from 'lucide-react';
+import { ArrowLeft, ClipboardList, Loader2, X } from 'lucide-react';
+import { useAuth } from '@/context/useAuth';
 import { spaNavigate } from '@/utils/plcPath';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
@@ -26,70 +27,87 @@ export const GradebookShell: React.FC<{
   onClose: () => void;
   onKeyDown?: (e: React.KeyboardEvent) => void;
   children: React.ReactNode;
-}> = ({ tab, rosterId, onClose, onKeyDown, children }) => (
-  <div
-    className="fixed inset-0 z-modal flex flex-col overscroll-none bg-slate-50"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="gradebook-title"
-    onKeyDown={onKeyDown}
-  >
-    <header className="flex h-14 shrink-0 items-center gap-3 bg-brand-blue-primary px-4 text-white shadow-sm md:h-16">
-      <ClipboardList
-        className="hidden h-5 w-5 text-white/70 md:block"
-        aria-hidden
-      />
-      <h1
-        id="gradebook-title"
-        className="mr-2 hidden text-base font-bold sm:block md:text-lg"
-      >
-        Gradebook
-      </h1>
-      {rosterId && (
-        <div
-          role="tablist"
-          {...tourAttr('gradebook.tabs')}
-          className="flex gap-0.5 rounded-lg bg-white/15 p-1"
+}> = ({ tab, rosterId, onClose, onKeyDown, children }) => {
+  const backArrow = useAuth().canAccessFeature('full-page-back-arrow');
+  return (
+    <div
+      className="fixed inset-0 z-modal flex flex-col overscroll-none bg-slate-50"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="gradebook-title"
+      onKeyDown={onKeyDown}
+    >
+      <header className="flex h-14 shrink-0 items-center gap-3 bg-brand-blue-primary px-4 text-white shadow-sm md:h-16">
+        {backArrow && (
+          <button
+            type="button"
+            onClick={onClose}
+            {...tourAttr('gradebook.close')}
+            className="-ml-1.5 rounded-lg p-1.5 hover:bg-white/20"
+            aria-label="Back to board"
+            title="Back to board"
+          >
+            <ArrowLeft className="h-5 w-5" aria-hidden />
+          </button>
+        )}
+        <ClipboardList
+          className="hidden h-5 w-5 text-white/70 md:block"
+          aria-hidden
+        />
+        <h1
+          id="gradebook-title"
+          className="mr-2 hidden text-base font-bold sm:block md:text-lg"
         >
-          {(
-            [
-              ['grid', 'Grades'],
-              ['analysis', 'Data analysis'],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={tab === id}
-              onClick={() => spaNavigate(buildGradebookPath(rosterId, id))}
-              {...tourFieldAttr('gradebook.tab', 'gradebook', id)}
-              className={`h-7 rounded-md px-3 text-[13px] font-semibold ${
-                tab === id
-                  ? 'bg-white text-brand-blue-dark shadow-sm'
-                  : 'text-white/85 hover:bg-white/15'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-      <span className="flex-1" />
-      <button
-        type="button"
-        onClick={onClose}
-        {...tourAttr('gradebook.close')}
-        className="rounded-lg p-1.5 hover:bg-white/20"
-        aria-label="Close gradebook"
-        title="Close"
-      >
-        <X className="h-5 w-5" aria-hidden />
-      </button>
-    </header>
-    {children}
-  </div>
-);
+          Gradebook
+        </h1>
+        {rosterId && (
+          <div
+            role="tablist"
+            {...tourAttr('gradebook.tabs')}
+            className="flex gap-0.5 rounded-lg bg-white/15 p-1"
+          >
+            {(
+              [
+                ['grid', 'Grades'],
+                ['analysis', 'Data analysis'],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={tab === id}
+                onClick={() => spaNavigate(buildGradebookPath(rosterId, id))}
+                {...tourFieldAttr('gradebook.tab', 'gradebook', id)}
+                className={`h-7 rounded-md px-3 text-[13px] font-semibold ${
+                  tab === id
+                    ? 'bg-white text-brand-blue-dark shadow-sm'
+                    : 'text-white/85 hover:bg-white/15'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+        <span className="flex-1" />
+        {!backArrow && (
+          <button
+            type="button"
+            onClick={onClose}
+            {...tourAttr('gradebook.close')}
+            className="rounded-lg p-1.5 hover:bg-white/20"
+            aria-label="Close gradebook"
+            title="Close"
+          >
+            <X className="h-5 w-5" aria-hidden />
+          </button>
+        )}
+      </header>
+      {children}
+    </div>
+  );
+};
 
 export const GradebookEmpty: React.FC<{ title: string; body?: string }> = ({
   title,
