@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  arrayRemove,
   collection,
   deleteDoc,
   deleteField,
@@ -48,6 +49,15 @@ export const writeSessionMirror = async (
     merge: true,
   });
 };
+
+/** Stops a board's members reading a wall the board no longer shows. */
+export const removeWallBoardShare = (
+  sessionId: string,
+  boardShareId: string
+): Promise<void> =>
+  updateDoc(doc(db, 'activity_wall_sessions', sessionId), {
+    boardShareIds: arrayRemove(boardShareId),
+  });
 
 export interface DriveSyncCounts {
   failed: number;
@@ -183,17 +193,14 @@ export const useActivityWallSession = (
   const latestShareId =
     shareInfo.sessionId === sessionId ? shareInfo.latestShareId : undefined;
 
-  // Newest first, capped at the 3 the rules check.
+  // Newest first, capped at the 3 the rules check; an id already listed is left in place so two boards can't ping-pong.
   const knownBoardShareIds =
     shareInfo.sessionId === sessionId ? shareInfo.boardShareIds : null;
   const nextBoardShareIds =
-    boardShareId && knownBoardShareIds && knownBoardShareIds[0] !== boardShareId
-      ? JSON.stringify(
-          [
-            boardShareId,
-            ...knownBoardShareIds.filter((id) => id !== boardShareId),
-          ].slice(0, 3)
-        )
+    boardShareId &&
+    knownBoardShareIds &&
+    !knownBoardShareIds.includes(boardShareId)
+      ? JSON.stringify([boardShareId, ...knownBoardShareIds].slice(0, 3))
       : null;
   useEffect(() => {
     if (!sessionId || !nextBoardShareIds || sandboxed) return;

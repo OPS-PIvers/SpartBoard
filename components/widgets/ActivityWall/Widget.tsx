@@ -61,7 +61,10 @@ import { LAYOUT_OPTIONS } from './editor/layoutOptions';
 import { WallLibraryModal } from './WallLibraryModal';
 import { ModerationDrawer } from './ModerationDrawer';
 import { ActivityWallShareModal } from './ShareModal';
-import { useActivityWallSession } from './hooks/useActivityWallSession';
+import {
+  removeWallBoardShare,
+  useActivityWallSession,
+} from './hooks/useActivityWallSession';
 import { useLinkedBoardActivityWall } from './hooks/useLinkedBoardActivityWall';
 import { useSubShareActivityWall } from './useSubShareActivityWall';
 import { useLegacyActivityWallMigration } from './hooks/useLegacyActivityWallMigration';
@@ -273,6 +276,12 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
 
   const setActiveEntry = useCallback(
     (entryId: string | null) => {
+      // The wall leaving this board stops being readable by the board's members.
+      if (boardShareId && sessionId && ownEntry && ownEntry.id !== entryId) {
+        void removeWallBoardShare(sessionId, boardShareId).catch((err) => {
+          console.error('[ActivityWall] Failed to close wall to board:', err);
+        });
+      }
       updateWidget(widget.id, {
         config: {
           activeActivityId: entryId,
@@ -280,7 +289,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         },
       });
     },
-    [updateWidget, user?.uid, widget.id]
+    [boardShareId, ownEntry, sessionId, updateWidget, user?.uid, widget.id]
   );
 
   const toggleOpenClosed = useCallback(() => {

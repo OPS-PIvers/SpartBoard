@@ -115,6 +115,7 @@ vi.mock('@/utils/googleOAuthRefresh', () => ({
 vi.mock('@/config/firebase', () => ({ db: {}, functions: {}, storage: {} }));
 
 vi.mock('firebase/firestore', () => ({
+  arrayRemove: vi.fn((...ids: unknown[]) => ({ __arrayRemove: ids })),
   collection: vi.fn((...args: unknown[]) => args.join('/')),
   doc: vi.fn((...args: unknown[]) => ({ __path: args.slice(1).join('/') })),
   onSnapshot: mockOnSnapshot,
@@ -733,6 +734,46 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
           activeActivityOwnerUid: 'teacher-1',
         },
       })
+    );
+  });
+
+  it("doesn't rewrite the list when the board is already on it", async () => {
+    mockLibraryEntries.current = [makeEntry()];
+    sessionDocData = {
+      'activity_wall_sessions/teacher-1_wall-1': {
+        ...hostSession,
+        boardShareIds: ['other-board', 'share-1'],
+      },
+    };
+    renderWidget();
+    await screen.findByText('Warm Up');
+    expect(mockUpdateDoc).not.toHaveBeenCalled();
+  });
+
+  it('closes the old wall to the board when the owner switches walls', async () => {
+    mockLibraryEntries.current = [
+      makeEntry(),
+      makeEntry({ id: 'wall-2', title: 'Exit Ticket' }),
+    ];
+    renderWidget();
+    await screen.findByText('Warm Up');
+    // Open each wall in turn; only leaving wall-1 should close it to the board.
+    for (const index of [0, 1]) {
+      await userEvent.click(
+        await screen.findByRole('button', { name: 'Open wall library' })
+      );
+      const buttons = await screen.findAllByRole('button', {
+        name: /open on board/i,
+      });
+      await userEvent.click(buttons[index]);
+    }
+    await waitFor(() =>
+      expect(mockUpdateDoc).toHaveBeenCalledWith(
+        expect.objectContaining({
+          __path: 'activity_wall_sessions/teacher-1_wall-1',
+        }),
+        { boardShareIds: { __arrayRemove: ['share-1'] } }
+      )
     );
   });
 });
