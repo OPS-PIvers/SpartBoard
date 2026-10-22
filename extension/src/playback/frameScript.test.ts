@@ -90,7 +90,7 @@ describe('frame seeker', () => {
     expect(reports.filter((r) => r.type === 'wt:acted')).toHaveLength(1);
   });
 
-  it('reports one press once and ignores other buttons', () => {
+  it('reports one press once, a later press again, and ignores other buttons', () => {
     document.body.innerHTML = '<button>Load more</button>';
     const reports: FrameReport[] = [];
     const handlers = handlersFor(
@@ -101,6 +101,12 @@ describe('frame seeker', () => {
     for (const type of ['pointerdown', 'mousedown', 'click'])
       handlers.get(type)!(trusted(type));
     expect(reports.filter((r) => r.type === 'wt:acted')).toHaveLength(1);
+    const now = vi
+      .spyOn(performance, 'now')
+      .mockReturnValue(performance.now() + 2000);
+    handlers.get('click')!(trusted('click'));
+    now.mockRestore();
+    expect(reports.filter((r) => r.type === 'wt:acted')).toHaveLength(2);
   });
 
   it('stops watching on stop', async () => {

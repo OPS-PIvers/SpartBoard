@@ -46,6 +46,9 @@ const INPUT_SETTLE_MS = 1200;
 
 const RESEEK_MS = 250;
 
+// One press fires pointerdown, mousedown and click within this window.
+const PRESS_MS = 1000;
+
 export function isFrameCommand(msg: unknown): msg is FrameCommand {
   if (!msg || typeof msg !== 'object') return false;
   const m = msg as Record<string, unknown>;
@@ -79,16 +82,16 @@ export function installFrameSeeker(
 
   const attach = (el: Element, token: string, action: WebStepAction) => {
     let settle: ReturnType<typeof setTimeout> | null = null;
-    let pressed = false;
+    let pressedAt = -Infinity;
     const onAct = (e: Event) => {
       if (!e.isTrusted) return;
       if (e instanceof MouseEvent && e.button !== 0) return;
       if (settle) clearTimeout(settle);
       settle = null;
       if (e.type !== 'input') {
-        // One press fires pointerdown, mousedown and click; report it once.
-        if (action === 'click' && pressed) return;
-        pressed = true;
+        const now = performance.now();
+        if (action === 'click' && now - pressedAt < PRESS_MS) return;
+        pressedAt = now;
         send({ type: 'wt:acted', token });
         return;
       }
