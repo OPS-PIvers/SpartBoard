@@ -33,7 +33,13 @@ import {
   planLocalSync,
   planRemoteSync,
   sectionKey,
+  linkedSubtreeKeys,
+  sectionReparents,
+  sectionsAfterMove,
+  sectionsAfterRemove,
+  subtreeSectionKeys,
 } from '@/utils/linkedCollectionSync';
+import type { DeleteCollectionMode } from '@/hooks/useCollections';
 import type { SharedBoardSnapshot } from '@/hooks/useFirestore';
 import type { useLinkedCollection } from '@/hooks/useLinkedCollection';
 import type { UseCollectionsResult } from '@/hooks/useCollections';
@@ -70,6 +76,7 @@ export interface LinkedCollectionSyncDeps {
     | 'createCollection'
     | 'setCollectionMetadata'
     | 'setCollectionLink'
+    | 'moveCollection'
     | 'deleteCollection'
   >;
   linkedCollectionApi: Pick<
@@ -108,6 +115,8 @@ export interface LinkedCollectionSyncDeps {
   moveBoard: (boardId: string, collectionId: string) => Promise<void>;
   /** Tells the teacher their shared collection ended. */
   notify?: (message: string) => void;
+  /** Writes a board's name without a toast. */
+  renameBoard: (boardId: string, name: string) => Promise<void>;
 }
 
 /** A delete, or a move to a collection (null = top level). */
@@ -175,19 +184,45 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
   const closing = useRef(new Set<string>());
   /** Root collections this session already closed. */
   const closedRoots = useRef(new Set<string>());
+  /** Local collections being moved, deleted or already deleted by this session. */
+  const settlingCollections = useRef(new Set<string>());
+  /** Link id -> board names its last snapshot listed. */
+  const seenNames = useRef(new Map<string, Map<string, string>>());
+  /** Board id -> a rename this session is listing that no snapshot has shown yet. */
+  const pendingRenames = useRef(
+    new Map<string, { name: string; written: boolean }>()
+  );
 
   const importsVersion = useSyncExternalStore(
     subscribeLinkedCollectionImports,
     linkedCollectionImportsVersion
   );
 
-  const enqueue = useCallback((linkId: string, job: () => Promise<void>) => {
-    const prev = queues.current.get(linkId) ?? Promise.resolve();
-    const next = prev.then(job).catch((err: unknown) => {
-      logError('useLinkedCollectionSync', err, { linkId });
-    });
-    queues.current.set(linkId, next);
-  }, []);
+  /** Runs a job after the link's earlier jobs; the result carries its outcome. */
+  const runQueued = useCallback(
+    <T>(linkId: string, job: () => Promise<T>): Promise<T> => {
+      const prev = queues.current.get(linkId) ?? Promise.resolve();
+      const result = prev.then(job);
+      queues.current.set(
+        linkId,
+        result.then(
+          () => undefined,
+          (err: unknown) => {
+            logError('useLinkedCollectionSync', err, { linkId });
+          }
+        )
+      );
+      return result;
+    },
+    []
+  );
+
+  const enqueue = useCallback(
+    (linkId: string, job: () => Promise<void>) => {
+      runQueued(linkId, job).catch(() => undefined);
+    },
+    [runQueued]
+  );
 
   /** Current state for one link, or null when sync has nothing to do for it. */
   const contextFor = useCallback((linkId: string) => {
@@ -317,8 +352,11 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
     []
   );
 
+  const applyRemoteRef = useRef<
+    ((linkId: string, fresh: boolean, retry?: boolean) => Promise<void>) | null
+  >(null);
   const applyRemote = useCallback(
-    async (linkId: string, fresh: boolean) => {
+    async (linkId: string, fresh: boolean, retry = true): Promise<void> => {
       const ctx = contextFor(linkId);
       if (!ctx) return;
       const { d, link, root, keyToLocal } = ctx;
@@ -354,16 +392,98 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
         createdSections.current.set(section.id, id);
         keyToLocal.set(section.id, id);
       }
+      let unsettled = false;
+      // Fresh state per step: an earlier step may have changed the tree.
+      const api = () => depsRef.current.collectionsApi;
+      for (const { collectionId, parentId } of sectionReparents({
+        link,
+        rootId: root.id,
+        keyToLocal,
+        collections: depsRef.current.collections,
+      })) {
+        if (settlingCollections.current.has(collectionId)) continue;
+        try {
+          await api().moveCollection(collectionId, parentId);
+        } catch (err) {
+          unsettled = true;
+          logError('useLinkedCollectionSync.reparent', err, { linkId });
+        }
+      }
       for (const move of plan.moves) {
         if (leaving.current.has(move.boardId)) continue;
         await d.moveBoard(move.boardId, move.collectionId);
       }
+      const listedNames = new Map(link.boards.map((b) => [b.shareId, b.name]));
+      for (const [boardId, pending] of pendingRenames.current) {
+        const shareId = d.dashboards.find(
+          (b) => b.id === boardId
+        )?.linkedShareId;
+        const shown = shareId && listedNames.get(shareId) === pending.name;
+        // Someone else wrote after our rename landed, so the list is newer than it.
+        if (shown || (pending.written && link.updatedBy !== ctx.uid)) {
+          pendingRenames.current.delete(boardId);
+        }
+      }
+      // Non-editors keep their own names until the list renames that board again.
+      const editor = canEditLinkedCollection(link, ctx.uid);
+      const lastSeen = seenNames.current.get(linkId);
+      seenNames.current.set(linkId, listedNames);
+      for (const { boardId, name } of plan.renames) {
+        const shareId = d.dashboards.find(
+          (b) => b.id === boardId
+        )?.linkedShareId;
+        if (
+          !editor &&
+          (!lastSeen || !shareId || lastSeen.get(shareId) === name)
+        ) {
+          continue;
+        }
+        if (
+          leaving.current.has(boardId) ||
+          pendingRenames.current.has(boardId)
+        ) {
+          continue;
+        }
+        try {
+          await d.renameBoard(boardId, name);
+        } catch (err) {
+          logError('useLinkedCollectionSync.renameBoard', err, { linkId });
+        }
+      }
       await importMissing(ctx, plan.missingEntries);
       // A cached snapshot can predate boards added since; only a server one may remove boards.
-      if (fresh) await removeDropped(ctx, plan.removalCandidates);
+      if (fresh) {
+        await removeDropped(ctx, plan.removalCandidates);
+        // Someone deleted or moved out this sub-collection; the link already moved its boards up.
+        for (const section of plan.staleSections) {
+          if (settlingCollections.current.has(section.id)) continue;
+          if (!depsRef.current.collections.some((c) => c.id === section.id)) {
+            continue;
+          }
+          settlingCollections.current.add(section.id);
+          try {
+            await api().deleteCollection(section.id, 'move-to-parent');
+          } catch (err) {
+            settlingCollections.current.delete(section.id);
+            unsettled = true;
+            logError('useLinkedCollectionSync.deleteSection', err, { linkId });
+          }
+        }
+      }
+      // One more pass once the tree has caught up with this one's changes.
+      if (unsettled && retry) {
+        setTimeout(() => {
+          const again = applyRemoteRef.current;
+          if (again) enqueue(linkId, () => again(linkId, fresh, false));
+        }, 1000);
+      }
     },
-    [contextFor, importMissing, removeDropped]
+    [contextFor, importMissing, removeDropped, enqueue]
   );
+
+  useLayoutEffect(() => {
+    applyRemoteRef.current = applyRemote;
+  });
 
   /** Imports listed boards that are missing and lists what this teacher added. */
   const reconcile = useCallback(
@@ -1047,8 +1167,282 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
     []
   );
 
+  /** The shared collection this teacher can edit that holds a collection (or is it, when `orRoot`). */
+  const editableLinkOf = useCallback(
+    (collectionId: string | null, orRoot = false) => {
+      const d = depsRef.current;
+      if (!d.enabled || !d.uid || !collectionId) return null;
+      const target = d.collections.find((c) => c.id === collectionId);
+      if (!target || (!orRoot && isLiveLinkedRoot(target))) return null;
+      const root = isLiveLinkedRoot(target)
+        ? target
+        : linkedRootOf({ collectionId: target.id }, d.collections);
+      const linkId = root?.linkedCollectionId;
+      const link = linkId ? linksRef.current.get(linkId) : undefined;
+      if (!root || !linkId || !link || !canEditLinkedCollection(link, d.uid)) {
+        return null;
+      }
+      return { d, uid: d.uid, target, root, linkId };
+    },
+    []
+  );
+
+  /** Boards a sub-collection move would take out of the shared collection for everyone. */
+  const collectionMoveRemovals = useCallback(
+    (collectionId: string, destination: string | null) => {
+      const ctx = editableLinkOf(collectionId);
+      if (!ctx) return null;
+      const { d, root } = ctx;
+      if (collectionTreeIds(root.id, d.collections).has(destination ?? '')) {
+        return null;
+      }
+      const inside = collectionTreeIds(collectionId, d.collections);
+      const boardIds = d.dashboards
+        .filter((b) => inside.has(b.collectionId ?? ''))
+        .map((b) => b.id);
+      return { ctx, boardIds };
+    },
+    [editableLinkOf]
+  );
+
+  /** How many boards moving this collection would remove for everyone (for the confirm). */
+  const countCollectionMoveRemovals = useCallback(
+    (collectionId: string, destination: string | null): number => {
+      const out = collectionMoveRemovals(collectionId, destination);
+      return out
+        ? removalTargets(out.boardIds, {
+            kind: 'move',
+            collectionId: destination,
+          }).length
+        : 0;
+    },
+    [collectionMoveRemovals, removalTargets]
+  );
+
+  /** Moves a collection and carries the change to the shared collection it leaves, moves in or joins. */
+  const moveCollectionSynced = useCallback(
+    async (
+      collectionId: string,
+      destination: string | null,
+      move: () => Promise<void>
+    ): Promise<void> => {
+      const d = depsRef.current;
+      const into = editableLinkOf(destination, true);
+      const keysMoving = subtreeSectionKeys(collectionId, d.collections);
+      /** A sub-collection once removed from the destination may be listed there again. */
+      const relist = (linkId: string, uid: string) =>
+        d.linkedCollectionApi.editLinkedCollection(linkId, uid, (current) => {
+          if (!canEditLinkedCollection(current, uid)) return null;
+          const was = current.deletedSections ?? [];
+          const next = was.filter((k) => !keysMoving.has(k));
+          return next.length === was.length ? null : { deletedSections: next };
+        });
+      const out = collectionMoveRemovals(collectionId, destination);
+      if (out) {
+        if (into) {
+          await relist(into.linkId, into.uid).catch((err: unknown) =>
+            logError('useLinkedCollectionSync.relistSection', err, {})
+          );
+        }
+        // Out of the shared collection: its boards leave for everyone, the mover keeps them.
+        const { d, uid, target, linkId } = out.ctx;
+        const moving = collectionTreeIds(collectionId, d.collections);
+        moving.forEach((id) => settlingCollections.current.add(id));
+        try {
+          const finish = await beforeBoardsLeave(out.boardIds, {
+            kind: 'move',
+            collectionId: destination,
+          });
+          let landed = false;
+          try {
+            await move();
+            landed = true;
+          } finally {
+            await finish(landed);
+          }
+          const key = sectionKey(target);
+          const localKeys = subtreeSectionKeys(collectionId, d.collections);
+          await d.linkedCollectionApi
+            .editLinkedCollection(linkId, uid, (current) => {
+              if (!canEditLinkedCollection(current, uid)) return null;
+              const keys = new Set([
+                ...localKeys,
+                ...linkedSubtreeKeys(current.sections ?? [], key),
+              ]);
+              return sectionsAfterRemove(current, keys);
+            })
+            .catch((err: unknown) =>
+              logError('useLinkedCollectionSync.unlistSection', err, { linkId })
+            );
+        } finally {
+          moving.forEach((id) => settlingCollections.current.delete(id));
+        }
+        return;
+      }
+      const from = editableLinkOf(collectionId);
+      if (into && into.root.id !== from?.root.id) {
+        await runQueued(into.linkId, async () => {
+          await relist(into.linkId, into.uid).catch((err: unknown) =>
+            logError('useLinkedCollectionSync.relistSection', err, {})
+          );
+          await move();
+        });
+        return;
+      }
+      // A move into itself or a child is refused by move() before the list changes.
+      if (
+        !from ||
+        into?.root.id !== from.root.id ||
+        collectionTreeIds(collectionId, d.collections).has(destination ?? '')
+      ) {
+        return move();
+      }
+      const { uid, target, root, linkId } = from;
+      const dest = d.collections.find((c) => c.id === destination);
+      const parentKey = dest && dest.id !== root.id ? sectionKey(dest) : null;
+      const key = sectionKey(target);
+      // The list changes first, so other tabs never put it back where it was.
+      await runQueued(linkId, async () => {
+        settlingCollections.current.add(collectionId);
+        try {
+          // Offline or refused, the move still happens here; the next snapshot settles it.
+          await d.linkedCollectionApi
+            .editLinkedCollection(linkId, uid, (current) => {
+              if (!canEditLinkedCollection(current, uid)) return null;
+              const sections = sectionsAfterMove(
+                current.sections ?? [],
+                key,
+                parentKey
+              );
+              return sections ? { sections } : null;
+            })
+            .catch((err: unknown) =>
+              logError('useLinkedCollectionSync.moveSection', err, { linkId })
+            );
+          await move();
+        } finally {
+          settlingCollections.current.delete(collectionId);
+        }
+      });
+    },
+    [collectionMoveRemovals, editableLinkOf, beforeBoardsLeave, runQueued]
+  );
+
+  /** Deletes a collection and, inside a shared collection, for everyone; its boards move to its parent. */
+  const deleteCollectionSynced = useCallback(
+    async (
+      collectionId: string,
+      mode: DeleteCollectionMode,
+      remove: () => Promise<void>
+    ): Promise<void> => {
+      const ctx = editableLinkOf(collectionId);
+      if (!ctx) return remove();
+      const { uid, linkId } = ctx;
+      // The list changes first: a delete that then fails here is finished by the next snapshot.
+      await runQueued(linkId, async () => {
+        // Read now, not at the click: an earlier queued delete may have changed the tree.
+        const d = depsRef.current;
+        const target = d.collections.find((c) => c.id === collectionId);
+        if (!target) return remove();
+        const key = sectionKey(target);
+        const localKeys =
+          mode === 'delete-all'
+            ? subtreeSectionKeys(collectionId, d.collections)
+            : new Set([key]);
+        const ids =
+          mode === 'delete-all'
+            ? collectionTreeIds(collectionId, d.collections)
+            : new Set([collectionId]);
+        ids.forEach((id) => settlingCollections.current.add(id));
+        try {
+          await d.linkedCollectionApi
+            .editLinkedCollection(linkId, uid, (current) => {
+              if (!canEditLinkedCollection(current, uid)) return null;
+              const keys =
+                mode === 'delete-all'
+                  ? new Set([
+                      ...localKeys,
+                      ...linkedSubtreeKeys(current.sections ?? [], key),
+                    ])
+                  : localKeys;
+              return sectionsAfterRemove(current, keys);
+            })
+            .catch((err: unknown) =>
+              logError('useLinkedCollectionSync.deleteSection', err, { linkId })
+            );
+          await remove();
+        } catch (err) {
+          ids.forEach((id) => settlingCollections.current.delete(id));
+          throw err;
+        }
+      });
+    },
+    [editableLinkOf, runQueued]
+  );
+
+  /** Before a local rename lands: keeps snapshots from putting the old name back meanwhile. */
+  const holdBoardName = useCallback((boardId: string, name: string) => {
+    pendingRenames.current.set(boardId, { name, written: false });
+    return () => {
+      if (pendingRenames.current.get(boardId)?.written === false) {
+        pendingRenames.current.delete(boardId);
+      }
+    };
+  }, []);
+
+  /** After a local rename: carries a board's new name to the shared collection when this teacher can edit it. */
+  const pushBoardName = useCallback(async (boardId: string, name: string) => {
+    const d = depsRef.current;
+    const release = () => pendingRenames.current.delete(boardId);
+    if (!d.enabled || !d.uid) return void release();
+    const uid = d.uid;
+    const board = d.dashboards.find((b) => b.id === boardId);
+    const shareId = board && liveShareIdOf(board);
+    const linkId =
+      board && linkedRootOf(board, d.collections)?.linkedCollectionId;
+    const link = linkId ? linksRef.current.get(linkId) : undefined;
+    if (
+      !board ||
+      !shareId ||
+      !linkId ||
+      !link ||
+      !canEditLinkedCollection(link, uid)
+    ) {
+      return void release();
+    }
+    const listedName = safeName(name, board.name);
+    pendingRenames.current.set(boardId, { name: listedName, written: false });
+    try {
+      const listed = await d.linkedCollectionApi.editLinkedCollection(
+        linkId,
+        uid,
+        (current) => {
+          if (!canEditLinkedCollection(current, uid)) return null;
+          const entry = current.boards.find((b) => b.shareId === shareId);
+          if (!entry || entry.name === listedName) return null;
+          return {
+            boards: current.boards.map((b) =>
+              b.shareId === shareId ? { ...b, name: listedName } : b
+            ),
+          };
+        }
+      );
+      const pending = pendingRenames.current.get(boardId);
+      if (!listed) release();
+      else if (pending?.name === listedName) pending.written = true;
+    } catch (err) {
+      release();
+      logError('useLinkedCollectionSync.rename', err, { linkId });
+    }
+  }, []);
+
   return {
     links,
+    countCollectionMoveRemovals,
+    moveCollectionSynced,
+    deleteCollectionSynced,
+    holdBoardName,
+    pushBoardName,
     countRemovedForEveryone,
     beforeBoardsLeave,
     pushCollectionMetadata,

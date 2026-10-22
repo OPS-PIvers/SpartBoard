@@ -6,7 +6,10 @@ import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { DndContext, DragOverlay } from '@dnd-kit/core';
 import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { useDialog } from '@/context/useDialog';
-import { useConfirmLinkedBoardRemoval } from '@/hooks/useConfirmLinkedBoardRemoval';
+import {
+  useConfirmLinkedBoardRemoval,
+  useConfirmLinkedCollectionMove,
+} from '@/hooks/useConfirmLinkedBoardRemoval';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { CollectionTree } from './CollectionTree';
@@ -57,6 +60,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   const { t } = useTranslation();
   const { showPrompt, showConfirm } = useDialog();
   const confirmLinkedRemoval = useConfirmLinkedBoardRemoval();
+  const confirmLinkedCollectionMove = useConfirmLinkedCollectionMove();
   const { isAdmin, canAccessFeature } = useAuth();
   const canShare = canAccessFeature('dashboard-sharing');
   const backArrow = canAccessFeature('full-page-back-arrow');
@@ -457,6 +461,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       if (singleMoveCollectionId) {
         const id = singleMoveCollectionId;
         setSingleMoveCollectionId(null);
+        if (!(await confirmLinkedCollectionMove(id, destId))) return;
         try {
           await moveCollection(id, destId);
           addToast(
@@ -542,6 +547,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       multi,
       dashboards,
       confirmLinkedRemoval,
+      confirmLinkedCollectionMove,
       moveBoardToCollection,
       moveCollection,
       addToast,

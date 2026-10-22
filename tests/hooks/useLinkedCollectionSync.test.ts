@@ -95,6 +95,7 @@ const makeDeps = (
     createCollection: vi.fn().mockResolvedValue('new-col'),
     setCollectionMetadata: vi.fn().mockResolvedValue(undefined),
     setCollectionLink: vi.fn().mockResolvedValue(undefined),
+    moveCollection: vi.fn().mockResolvedValue(undefined),
     deleteCollection: vi.fn().mockResolvedValue(undefined),
   },
   linkedCollectionApi: {
@@ -134,6 +135,7 @@ const makeDeps = (
   setBoardLink: vi.fn().mockResolvedValue(undefined),
   moveBoard: vi.fn().mockResolvedValue(undefined),
   notify: vi.fn(),
+  renameBoard: vi.fn().mockResolvedValue(undefined),
   ...overrides,
 });
 
@@ -670,6 +672,424 @@ describe('useLinkedCollectionSync', () => {
     );
     expect(linkDoc.boards).toEqual([]);
     expect(deps.setBoardLink).not.toHaveBeenCalled();
+  });
+
+  describe('sub-collections and board names', () => {
+    const col = (
+      id: string,
+      parentCollectionId: string,
+      linkedSectionId?: string
+    ): Collection => ({
+      id,
+      name: id,
+      parentCollectionId,
+      order: 0,
+      createdAt: 0,
+      ...(linkedSectionId && { linkedSectionId }),
+    });
+    const mon = col('mon', 'week', 'S-mon');
+    const tue = col('tue', 'week', 'S-tue');
+    const sections = [
+      { id: 'S-mon', name: 'mon', parentId: null, order: 0 },
+      { id: 'S-tue', name: 'tue', parentId: null, order: 1 },
+    ];
+
+    it('takes a board rename from the link', async () => {
+      const deps = makeDeps({
+        dashboards: [
+          board('a', 'week', { ...live('s1', 'collaborator'), name: 'Old' }),
+        ],
+      });
+      renderHook(() => useLinkedCollectionSync(deps));
+      await emit(
+        makeLink({ boards: [{ shareId: 's1', name: 'Day 1', order: 0 }] })
+      );
+      expect(deps.renameBoard).toHaveBeenCalledWith('a', 'Day 1');
+    });
+
+    it('lists a local board rename and does not undo it before the link shows it', async () => {
+      linkDoc = makeLink({
+        boards: [{ shareId: 's1', name: 'Old', order: 0 }],
+      });
+      const deps = makeDeps({
+        dashboards: [
+          board('a', 'week', { ...live('s1', 'collaborator'), name: 'New' }),
+        ],
+      });
+      const edit = vi.mocked(deps.linkedCollectionApi.editLinkedCollection);
+      const { result } = renderHook(() => useLinkedCollectionSync(deps));
+      await emit(linkDoc);
+      vi.mocked(deps.renameBoard).mockClear();
+      // The list write is still in flight when an older snapshot arrives.
+      let release: () => void = () => undefined;
+      edit.mockImplementationOnce(
+        (_id, _uid, fn) =>
+          new Promise((resolve) => {
+            release = () => {
+              const patch = fn(linkDoc);
+              if (patch) linkDoc = { ...linkDoc, ...patch };
+              resolve(!!patch);
+            };
+          })
+      );
+      let pushed: Promise<void> | undefined;
+      act(() => {
+        pushed = result.current.pushBoardName('a', 'New');
+      });
+      await emit(
+        makeLink({ boards: [{ shareId: 's1', name: 'Old', order: 0 }] })
+      );
+      expect(deps.renameBoard).not.toHaveBeenCalled();
+      await act(async () => {
+        release();
+        await pushed;
+      });
+      expect(linkDoc.boards[0].name).toBe('New');
+    });
+
+    it('a viewer never writes a board rename to the list', async () => {
+      linkDoc = makeLink({
+        mode: 'view-only',
+        participants: { me: { role: 'viewer', joinedAt: 1 } },
+        boards: [{ shareId: 's1', name: 'Old', order: 0 }],
+      });
+      const deps = makeDeps({
+        dashboards: [board('a', 'week', live('s1', 'viewer'))],
+      });
+      const { result } = renderHook(() => useLinkedCollectionSync(deps));
+      await emit(linkDoc);
+      await act(async () => {
+        await result.current.pushBoardName('a', 'Mine');
+      });
+      expect(linkDoc.boards[0].name).toBe('Old');
+    });
+
+    it('a viewer keeps their own board name until the host renames that board', async () => {
+      const viewerLink = (name: string) =>
+        makeLink({
+          mode: 'view-only',
+          participants: { me: { role: 'viewer', joinedAt: 1 } },
+          boards: [{ shareId: 's1', name, order: 0 }],
+        });
+      const deps = makeDeps({
+        dashboards: [
+          board('a', 'week', { ...live('s1', 'viewer'), name: 'Mine' }),
+        ],
+      });
+      renderHook(() => useLinkedCollectionSync(deps));
+      await emit(viewerLink('Old'));
+      await emit(viewerLink('Old'));
+      expect(deps.renameBoard).not.toHaveBeenCalled();
+      await emit(viewerLink('Host renamed'));
+      expect(deps.renameBoard).toHaveBeenCalledWith('a', 'Host renamed');
+    });
+
+    it('never lists a move of a sub-collection into its own child', async () => {
+      linkDoc = makeLink({
+        sections: [
+          sections[0],
+          { id: 'S-child', name: 'child', parentId: 'S-mon', order: 0 },
+        ],
+      });
+      const child = col('child', 'mon', 'S-child');
+      const deps = makeDeps({ collections: [root, mon, child] });
+      const { result } = renderHook(() => useLinkedCollectionSync(deps));
+      await emit(linkDoc);
+      const before = linkDoc.sections;
+      const move = vi.fn(() =>
+        Promise.reject(
+          new Error(
+            'Cannot move a collection into one of its own subcollections'
+          )
+        )
+      );
+      await act(async () => {
+        await expect(
+          result.current.moveCollectionSynced('mon', 'child', move)
+        ).rejects.toThrow();
+      });
+      expect(linkDoc.sections).toBe(before);
+    });
+
+    it('still moves and deletes locally when the shared list cannot be written', async () => {
+      linkDoc = makeLink({ sections });
+      const deps = makeDeps({ collections: [root, mon, tue] });
+      const { result } = renderHook(() => useLinkedCollectionSync(deps));
+      await emit(linkDoc);
+      vi.mocked(
+        deps.linkedCollectionApi.editLinkedCollection
+      ).mockRejectedValue(new Error('offline'));
+      const move = vi.fn(() => Promise.resolve());
+      const remove = vi.fn(() => Promise.resolve());
+      await act(async () => {
+        await result.current.moveCollectionSynced('tue', 'mon', move);
+        await result.current.deleteCollectionSynced(
+          'mon',
+          'move-to-parent',
+          remove
+        );
+      });
+      expect(move).toHaveBeenCalled();
+      expect(remove).toHaveBeenCalled();
+    });
+
+    it('deletes a sub-collection the link records as deleted, only on a server snapshot', async () => {
+      const deps = makeDeps({ collections: [root, mon, tue] });
+      renderHook(() => useLinkedCollectionSync(deps));
+      const dropped = makeLink({
+        sections: [sections[1]],
+        deletedSections: ['S-mon'],
+      });
+      await emit(dropped, true);
+      expect(deps.collectionsApi.deleteCollection).not.toHaveBeenCalled();
+      await emit(dropped);
+      await waitFor(() =>
+        expect(deps.collectionsApi.deleteCollection).toHaveBeenCalled()
+      );
+      expect(deps.collectionsApi.deleteCollection).toHaveBeenCalledWith(
+        'mon',
+        'move-to-parent'
+      );
+      expect(deps.collectionsApi.deleteCollection).toHaveBeenCalledTimes(1);
+    });
+
+    it('never deletes a new local sub-collection the link has not listed yet', async () => {
+      const fresh = col('fresh', 'week');
+      const deps = makeDeps({ collections: [root, fresh] });
+      renderHook(() => useLinkedCollectionSync(deps));
+      await emit(makeLink({ sections: [] }));
+      expect(deps.collectionsApi.deleteCollection).not.toHaveBeenCalled();
+    });
+
+    it('keeps a sub-collection that is merely unlisted, and never lists a deleted one again', async () => {
+      const hostSec = col('h1', 'week');
+      linkDoc = makeLink({ sections: [], deletedSections: ['S-mon'] });
+      const deps = makeDeps({ collections: [root, mon, hostSec] });
+      renderHook(() => useLinkedCollectionSync(deps));
+      await emit(linkDoc);
+      await waitFor(() =>
+        expect(linkDoc.sections?.map((x) => x.id)).toEqual(['h1'])
+      );
+      expect(deps.collectionsApi.deleteCollection).toHaveBeenCalledWith(
+        'mon',
+        'move-to-parent'
+      );
+      expect(deps.collectionsApi.deleteCollection).toHaveBeenCalledTimes(1);
+    });
+
+    it('a moved-in sub-collection that was once removed is listed again', async () => {
+      const outside = col('mon', 'elsewhere', 'S-mon');
+      linkDoc = makeLink({
+        sections: [sections[1]],
+        deletedSections: ['S-mon'],
+      });
+      const deps = makeDeps({ collections: [root, outside, tue] });
+      const { result } = renderHook(() => useLinkedCollectionSync(deps));
+      await emit(linkDoc);
+      const move = vi.fn(() => {
+        expect(linkDoc.deletedSections).toEqual([]);
+        return Promise.resolve();
+      });
+      await act(async () => {
+        await result.current.moveCollectionSynced('mon', 'week', move);
+      });
+      expect(move).toHaveBeenCalled();
+    });
+
+    it('holds a rename from before its write starts', async () => {
+      linkDoc = makeLink({
+        boards: [{ shareId: 's1', name: 'Old', order: 0 }],
+      });
+      const deps = makeDeps({
+        dashboards: [
+          board('a', 'week', { ...live('s1', 'collaborator'), name: 'New' }),
+        ],
+      });
+      const { result } = renderHook(() => useLinkedCollectionSync(deps));
+      let release: () => void = () => undefined;
+      act(() => {
+        release = result.current.holdBoardName('a', 'New');
+      });
+      await emit(linkDoc);
+      expect(deps.renameBoard).not.toHaveBeenCalled();
+      act(() => release());
+      await emit(
+        makeLink({ boards: [{ shareId: 's1', name: 'Old', order: 0 }] })
+      );
+      expect(deps.renameBoard).toHaveBeenCalledWith('a', 'Old');
+    });
+
+    it('takes another member’s later rename once ours has landed', async () => {
+      linkDoc = makeLink({
+        boards: [{ shareId: 's1', name: 'Old', order: 0 }],
+      });
+      const deps = makeDeps({
+        dashboards: [
+          board('a', 'week', { ...live('s1', 'collaborator'), name: 'Mine' }),
+        ],
+      });
+      const { result } = renderHook(() => useLinkedCollectionSync(deps));
+      await emit(linkDoc);
+      vi.mocked(deps.renameBoard).mockClear();
+      await act(async () => {
+        await result.current.pushBoardName('a', 'Mine');
+      });
+      // Their write follows ours; we never see our own name listed.
+      await emit(
+        makeLink({
+          boards: [{ shareId: 's1', name: 'Theirs', order: 0 }],
+          updatedBy: 'host',
+        })
+      );
+      expect(deps.renameBoard).toHaveBeenCalledWith('a', 'Theirs');
+    });
+
+    it('deleting a parent and its child together keeps the link consistent', async () => {
+      const inner = col('inner', 'mon', 'S-inner');
+      linkDoc = makeLink({
+        sections: [
+          sections[0],
+          { id: 'S-inner', name: 'inner', parentId: 'S-mon', order: 0 },
+          sections[1],
+        ],
+        boards: [{ shareId: 's1', name: 's1', order: 0, sectionId: 'S-inner' }],
+      });
+      const deps = makeDeps({ collections: [root, mon, inner, tue] });
+      const { result } = renderHook(() => useLinkedCollectionSync(deps));
+      await emit(linkDoc);
+      const remove = vi.fn(() => Promise.resolve());
+      await act(async () => {
+        await Promise.all([
+          result.current.deleteCollectionSynced(
+            'mon',
+            'move-to-parent',
+            remove
+          ),
+          result.current.deleteCollectionSynced(
+            'inner',
+            'move-to-parent',
+            remove
+          ),
+        ]);
+      });
+      expect(linkDoc.sections?.map((x) => x.id)).toEqual(['S-tue']);
+      expect(linkDoc.boards[0].sectionId).toBeUndefined();
+      expect(linkDoc.deletedSections).toEqual(['S-mon', 'S-inner']);
+    });
+
+    it('moves a sub-collection where the link puts it', async () => {
+      const deps = makeDeps({ collections: [root, mon, tue] });
+      renderHook(() => useLinkedCollectionSync(deps));
+      await emit(
+        makeLink({
+          sections: [sections[0], { ...sections[1], parentId: 'S-mon' }],
+        })
+      );
+      expect(deps.collectionsApi.moveCollection).toHaveBeenCalledWith(
+        'tue',
+        'mon'
+      );
+    });
+
+    it('lists a local sub-collection move before making it', async () => {
+      linkDoc = makeLink({ sections });
+      const deps = makeDeps({ collections: [root, mon, tue] });
+      const { result } = renderHook(() => useLinkedCollectionSync(deps));
+      await emit(linkDoc);
+      const move = vi.fn(() => {
+        expect(linkDoc.sections?.[1].parentId).toBe('S-mon');
+        return Promise.resolve();
+      });
+      await act(async () => {
+        await result.current.moveCollectionSynced('tue', 'mon', move);
+      });
+      expect(move).toHaveBeenCalled();
+      expect(linkDoc.sections?.[1]).toMatchObject({
+        id: 'S-tue',
+        parentId: 'S-mon',
+      });
+    });
+
+    it('deleting a sub-collection drops it from the list and hands its boards to the parent', async () => {
+      linkDoc = makeLink({
+        sections,
+        boards: [{ shareId: 's1', name: 's1', order: 0, sectionId: 'S-mon' }],
+      });
+      const deps = makeDeps({
+        collections: [root, mon, tue],
+        dashboards: [board('s1', 'mon', live('s1', 'collaborator'))],
+      });
+      const { result } = renderHook(() => useLinkedCollectionSync(deps));
+      await emit(linkDoc);
+      const remove = vi.fn(() => Promise.resolve());
+      await act(async () => {
+        await result.current.deleteCollectionSynced(
+          'mon',
+          'move-to-parent',
+          remove
+        );
+      });
+      expect(remove).toHaveBeenCalled();
+      expect(linkDoc.sections?.map((s) => s.id)).toEqual(['S-tue']);
+      expect(linkDoc.boards[0].sectionId).toBeUndefined();
+      expect(linkDoc.deletedSections).toEqual(['S-mon']);
+    });
+
+    it('a viewer deletes a sub-collection only on their own copy', async () => {
+      linkDoc = makeLink({
+        mode: 'view-only',
+        participants: { me: { role: 'viewer', joinedAt: 1 } },
+        sections,
+      });
+      const deps = makeDeps({ collections: [root, mon, tue] });
+      const { result } = renderHook(() => useLinkedCollectionSync(deps));
+      await emit(linkDoc);
+      const remove = vi.fn(() => Promise.resolve());
+      await act(async () => {
+        await result.current.deleteCollectionSynced(
+          'mon',
+          'move-to-parent',
+          remove
+        );
+      });
+      expect(remove).toHaveBeenCalled();
+      expect(linkDoc.sections).toHaveLength(2);
+    });
+
+    it('moving a sub-collection out takes its boards out for everyone and keeps them for the mover', async () => {
+      shares.set('s1', share('s1'));
+      linkDoc = makeLink({
+        sections,
+        boards: [
+          { shareId: 's1', name: 's1', order: 0, sectionId: 'S-mon' },
+          { shareId: 's2', name: 's2', order: 1 },
+        ],
+      });
+      const deps = makeDeps({
+        collections: [root, mon, tue],
+        dashboards: [
+          board('s1', 'mon', live('s1', 'collaborator')),
+          board('s2', 'week', live('s2', 'collaborator')),
+        ],
+      });
+      const { result } = renderHook(() => useLinkedCollectionSync(deps));
+      await emit(linkDoc);
+      expect(result.current.countCollectionMoveRemovals('mon', null)).toBe(1);
+      expect(result.current.countCollectionMoveRemovals('mon', 'tue')).toBe(0);
+      const move = vi.fn(() => {
+        // The move lands before the list changes, so no tab sees a dropped board still inside.
+        expect(linkDoc.boards).toHaveLength(2);
+        return Promise.resolve();
+      });
+      await act(async () => {
+        await result.current.moveCollectionSynced('mon', null, move);
+      });
+      expect(linkDoc.boards.map((b) => b.shareId)).toEqual(['s2']);
+      expect(linkDoc.sections?.map((s) => s.id)).toEqual(['S-tue']);
+      expect(deps.leaveSharedBoard).toHaveBeenCalledWith('s1');
+      expect(deps.setBoardLink).toHaveBeenCalledWith('s1', null);
+      expect(linkDoc.deletedSections).toEqual(['S-mon']);
+    });
   });
 });
 

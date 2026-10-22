@@ -295,6 +295,7 @@ export const mockDashboard: DashboardContextValue = {
   countLinkedBoardRemovals: () => 0,
   stopSharingCollection: () => Promise.resolve(),
   leaveSharedCollection: () => Promise.resolve(),
+  countLinkedCollectionMoveRemovals: () => 0,
   shareSubstituteCollection: () => Promise.resolve(''),
   updateSubstituteCollectionShare: () => Promise.resolve(),
   extendSubstituteCollectionShare: () => Promise.resolve(),
