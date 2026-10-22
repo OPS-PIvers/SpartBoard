@@ -48,6 +48,7 @@ export const DASHBOARD_FIELDS = [
   'linkedShareId',
   'linkedShareRole',
   'linkedShareHostName',
+  'linkedShareHostUid',
   'linkedShareEnded',
   // Board ink is persistent state (PR #2820), so it needs the same
   // baseline-and-merge treatment as background/name.

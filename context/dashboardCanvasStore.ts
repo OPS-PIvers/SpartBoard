@@ -292,6 +292,13 @@ export function useActiveBoardLinkedShareId(): string | null {
   );
 }
 
+/** The share host uid the active board recorded when it joined, or null. */
+export function useActiveBoardLinkedShareHostUid(): string | null {
+  return useDashboardCanvasSelector(
+    (s) => s.activeDashboard?.linkedShareHostUid ?? null
+  );
+}
+
 /**
  * Per-instance selector for "is THIS widget the selected one". Returns the
  * boolean `selectedWidgetId === id`, NOT the raw `selectedWidgetId` — so a

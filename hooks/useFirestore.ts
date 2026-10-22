@@ -283,11 +283,16 @@ function mapSharedDocToDashboard(
       : undefined;
   const base = record as unknown as Dashboard;
   const { linkedCollectionId: rawLinkId, ...rest } = record;
+  const hostUid =
+    typeof record.originalAuthor === 'string' && record.originalAuthor
+      ? record.originalAuthor
+      : undefined;
   return {
     ...(rest as unknown as Dashboard),
     widgets: migrateBoardWidgets(base.widgets ?? []),
     id: shareId,
     ...(originalAuthorName ? { linkedShareHostName: originalAuthorName } : {}),
+    ...(hostUid ? { linkedShareHostUid: hostUid } : {}),
     ...(intendedMode ? { intendedMode } : {}),
     ...(typeof rawLinkId === 'string' ? { linkedCollectionId: rawLinkId } : {}),
   };
@@ -517,6 +522,7 @@ export const useFirestore = (userId: string | null) => {
         linkedShareId: _ls,
         linkedShareRole: _lsr,
         linkedShareHostName: _lsh,
+        linkedShareHostUid: _lshu,
         linkedShareEnded: _lse,
         ...data
       } = dashboard;
@@ -598,6 +604,7 @@ export const useFirestore = (userId: string | null) => {
         linkedShareId: _ls,
         linkedShareRole: _lsr,
         linkedShareHostName: _lsh,
+        linkedShareHostUid: _lshu,
         linkedShareEnded: _lse,
         ...data
       } = dashboard;
@@ -647,6 +654,7 @@ export const useFirestore = (userId: string | null) => {
           linkedShareId: _ls,
           linkedShareRole: _lsr,
           linkedShareHostName: _lsh,
+          linkedShareHostUid: _lshu,
           linkedShareEnded: _lse,
           ...patch
         } = dashboard;
@@ -665,6 +673,7 @@ export const useFirestore = (userId: string | null) => {
         linkedShareId: _ls,
         linkedShareRole: _lsr,
         linkedShareHostName: _lsh,
+        linkedShareHostUid: _lshu,
         linkedShareEnded: _lse,
         ...patch
       } = dashboard;
