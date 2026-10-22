@@ -113,6 +113,11 @@ import type { FolderDeleteActions } from '@/components/common/library/FolderSide
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 // Lazy so the preview player chunk loads only when a teacher hits Play preview.
+const LazyWebToursSection = lazy(() =>
+  import('@/components/tours/web/WebToursSection').then((m) => ({
+    default: m.WebToursSection,
+  }))
+);
 const LazyGuidedLearningPlayer = lazy(() =>
   import('./GuidedLearningPlayer').then((m) => ({
     default: m.GuidedLearningPlayer,
@@ -1488,6 +1493,12 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
                 </li>
               </ol>
             </div>
+          )}
+
+          {isAdmin && activeTypeFilter === TOUR_TYPE && (
+            <Suspense fallback={null}>
+              <LazyWebToursSection />
+            </Suspense>
           )}
 
           {selectionMode && selection.count > 0 && (

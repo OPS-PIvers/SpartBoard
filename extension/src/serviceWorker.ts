@@ -1,5 +1,7 @@
 import { createExternalHandler } from './handler';
 import { getChromeProfile } from './profile';
+import { RECORDER_PORT } from '@/components/tours/web/recorderProtocol';
+import { handleRecorderPort, installRecorder } from './recorder/worker';
 import { isTrustedSender } from './sender';
 
 // The listing's exact origins, inlined at build time so a bundle carries only its own.
@@ -24,5 +26,15 @@ chrome.runtime.onMessageExternal.addListener(
   }
 );
 
-// No page ports yet; refuse them until a protocol version defines one.
-chrome.runtime.onConnectExternal.addListener((port) => port.disconnect());
+installRecorder();
+
+// The recorder port is the only page port; anything else is closed at once.
+chrome.runtime.onConnectExternal.addListener((port) => {
+  if (
+    port.name === RECORDER_PORT &&
+    port.sender &&
+    isTrustedSender(port.sender, origins)
+  )
+    handleRecorderPort(port);
+  else port.disconnect();
+});

@@ -8,6 +8,7 @@ export default {
   presets: [rootConfig],
   content: [
     `${root}extension/src/overlay/**/*.{ts,tsx}`,
+    `${root}extension/src/sidepanel/**/*.{ts,tsx}`,
     `${root}components/tours/Tour{Bar,Spotlight,Tip}.tsx`,
     `${root}components/common/lightChrome.ts`,
   ],
