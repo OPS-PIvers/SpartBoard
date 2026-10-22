@@ -151,6 +151,7 @@ beforeEach(async () => {
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
     await setDoc(doc(db, `admins/${ADMIN_EMAIL}`), { addedAt: 1 });
+    await setDoc(doc(db, 'admins/outside-admin@example.com'), { addedAt: 1 });
     await setDoc(doc(db, `${DRAFTS}/w1`), draft);
     await setDoc(doc(db, `${TOURS}/w1`), webSnapshot);
     await setDoc(doc(db, `${TOURS}/s1`), boardSnapshot);
@@ -189,6 +190,16 @@ describe('web tour snapshots', () => {
   it('lets district staff read a web snapshot', async () => {
     await assertSucceeds(getDoc(doc(asStaff().firestore(), `${TOURS}/w1`)));
     await assertSucceeds(getDoc(doc(asAdmin().firestore(), `${TOURS}/w1`)));
+  });
+
+  it('lets an admin outside the district read a web snapshot', async () => {
+    const db = testEnv
+      .authenticatedContext(
+        'outside-admin-uid',
+        google('outside-admin@example.com')
+      )
+      .firestore();
+    await assertSucceeds(getDoc(doc(db, `${TOURS}/w1`)));
   });
 
   it('denies a web snapshot to every account that is not verified district staff', async () => {
@@ -300,7 +311,7 @@ describe('web_tour_pictures storage', () => {
         rules
       )?.[1] ?? '';
     expect(body).toContain(
-      'allow get: if isVerifiedDistrictEmail() && viewAsReadOk();'
+      'allow get: if (isVerifiedDistrictEmail() && viewAsReadOk()) || isAdmin();'
     );
     expect(body).toContain('allow list, delete: if isAdmin();');
     expect(body).toContain('allow create: if isAdmin() &&');

@@ -1315,7 +1315,7 @@ service cloud.firestore {
     // A list can't rule out web snapshots, so only district staff list.
     match /building_guided_learning_tours/{setId} {
       function staff() { return signedIn() && notAnon() && !isStudentRoleUser(); }
-      allow get: if staff() && (resource == null || resource.data.get('surface', 'spartboard') == 'spartboard' || isVerifiedDistrictEmail());
+      allow get: if staff() && (resource == null || existing().get('surface', 'spartboard') == 'spartboard' || isVerifiedDistrictEmail() || isAdmin());
       allow list: if staff() && isVerifiedDistrictEmail();
       allow create, delete: if isAdmin();
       // The read gate rests on surface, so a republish never changes it.

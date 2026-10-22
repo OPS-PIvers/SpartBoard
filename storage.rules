@@ -440,9 +440,9 @@ service firebase.storage {
       allow delete: if viewAsWriteOk() && (isAdmin() || pjOwnsRun() || pjIsGroupMember());
     }
 
-    // Web tour step pictures (CHROME_EXTENSION.md T6): district staff get through the SDK, admins list and write.
+    // Web tour step pictures (CHROME_EXTENSION.md T6): district staff and admins get through the SDK, admins list and write.
     match /web_tour_pictures/{setId}/{fileName} {
-      allow get: if isVerifiedDistrictEmail() && viewAsReadOk();
+      allow get: if (isVerifiedDistrictEmail() && viewAsReadOk()) || isAdmin();
       allow list, delete: if isAdmin();
       // Create only: a live tour's picture is never replaced in place, so changes go through publish.
       allow create: if isAdmin() &&
