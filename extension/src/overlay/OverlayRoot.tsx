@@ -33,6 +33,8 @@ export function placeTip(
 interface Props {
   i18n: I18n;
   state: OverlayState;
+  /** The stylesheet applied; see mountOverlay. */
+  styled: boolean;
   onAction: (action: OverlayAction) => void;
 }
 
@@ -52,7 +54,10 @@ const Picture: React.FC<{ picture: NonNullable<OverlayState['picture']> }> = ({
   );
 };
 
-const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({ state, onAction }) => {
+const TopOverlay: React.FC<Omit<Props, 'i18n' | 'styled'>> = ({
+  state,
+  onAction,
+}) => {
   const { t } = useTranslation();
   const boxRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLDivElement>(null);
@@ -76,7 +81,9 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({ state, onAction }) => {
   const last = state.current === state.total;
   return (
     <>
-      {lit && <TourSpotlight rect={rect} breathe={!state.observe} />}
+      {lit && (
+        <TourSpotlight rect={rect} breathe={!state.observe} clickThrough />
+      )}
       <TourBar
         current={state.current}
         total={state.total}
@@ -135,16 +142,32 @@ const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({ state, onAction }) => {
 const TargetOverlay: React.FC<{ state: OverlayState }> = ({ state }) => {
   const lit = state.status === 'shown' && state.targetHere;
   const rect = useTargetRect(lit);
-  return lit ? <TourSpotlight rect={rect} breathe={!state.observe} /> : null;
+  return lit ? (
+    <TourSpotlight rect={rect} breathe={!state.observe} clickThrough />
+  ) : null;
 };
 
+/** Without its stylesheet the overlay can't draw a spotlight, so a shown step reads as a find-it step. */
+export const unstyledState = (state: OverlayState): OverlayState =>
+  state.status === 'shown'
+    ? { ...state, status: 'fallback', targetHere: false }
+    : state;
+
 /** The SpartBoard tour overlay drawn over a web page: no Autopilot, nothing stored on the site. */
-export const OverlayRoot: React.FC<Props> = ({ i18n, state, onAction }) => (
-  <I18nextProvider i18n={i18n}>
-    {state.role === 'top' ? (
-      <TopOverlay state={state} onAction={onAction} />
-    ) : (
-      <TargetOverlay state={state} />
-    )}
-  </I18nextProvider>
-);
+export const OverlayRoot: React.FC<Props> = ({
+  i18n,
+  state: raw,
+  styled,
+  onAction,
+}) => {
+  const state = styled ? raw : unstyledState(raw);
+  return (
+    <I18nextProvider i18n={i18n}>
+      {state.role === 'top' ? (
+        <TopOverlay state={state} onAction={onAction} />
+      ) : (
+        <TargetOverlay state={state} />
+      )}
+    </I18nextProvider>
+  );
+};

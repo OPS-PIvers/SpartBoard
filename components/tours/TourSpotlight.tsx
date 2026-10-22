@@ -11,6 +11,8 @@ interface TourSpotlightProps {
   pulse?: boolean;
   /** Loops a ring off the cutout, for steps finished by clicking the target. */
   breathe?: boolean;
+  /** The dim lets clicks through, so menus a website opens mid-step stay usable. */
+  clickThrough?: boolean;
 }
 
 const round = (n: number) => Math.round(n * 10) / 10;
@@ -71,6 +73,7 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
   onMisclick,
   pulse = false,
   breathe = false,
+  clickThrough = false,
 }) => {
   // Re-render on resize so the dim keeps covering the whole viewport.
   const [vw, vh] = useSyncExternalStore(onResize, viewportKey, noViewport)
@@ -106,11 +109,19 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
         <path
           d={d}
           fillRule="evenodd"
+          // Same dim as the class, so a missing stylesheet can't paint the page black.
+          fill="rgba(2,6,23,0.55)"
           className="fill-slate-950/55 motion-safe:transition-[d] motion-safe:duration-300"
-          style={{ pointerEvents: 'auto' }}
-          onClick={onMisclick}
-          onWheel={(e) =>
-            passWheelThrough(e.nativeEvent, e.currentTarget.ownerSVGElement)
+          style={{ pointerEvents: clickThrough ? 'none' : 'auto' }}
+          onClick={clickThrough ? undefined : onMisclick}
+          onWheel={
+            clickThrough
+              ? undefined
+              : (e) =>
+                  passWheelThrough(
+                    e.nativeEvent,
+                    e.currentTarget.ownerSVGElement
+                  )
           }
         />
       </svg>
