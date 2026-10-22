@@ -42,6 +42,7 @@ Settled in a design interview with Paul on 2026-10-22, after his first hands-on 
 - **U6. Web tour card actions.** Play (opens `/tour/{setId}`), Edit, Copy link (the `/r/tour-...` short link), Duplicate, Move to folder, Move to Help Center / Move to library, Delete (with the confirm `WebTourEditor` has today). Card badges show Published, Draft or Changed since publish. No Export, no Assign. Check during PR 2 how folders store membership and whether a `building_web_tours` id can sit in them; if not, extend the folder model rather than skipping folders.
 - **U7. Web tours appear in the Help Center.** Overrides CHROME_EXTENSION.md T2/T11. A web tour moved to the Help Center is listed like a live tour, with the site's badge, and opening it goes to its `/tour/{setId}` hub. The snapshot read rule already limits web snapshots to district staff (T6), so students never see them. `useTourOffers`, What's New and tour offers still skip web tours.
 - **U8. No extension: pictures plus install.** A teacher opening a web tour without the extension (or on an old protocol) gets the picture walkthrough `/tour` already renders, with a clear "Get the SpartBoard extension" button. No blocking.
+- **U22. No explainer note on the Live tours filter.** The admin-only "Where live tours live" note in `GuidedLearningManager.tsx` (and its test assertion) is deleted. The cards carry what it said: the Published/Draft badge, Copy to building to run live in the menu, and Move to Help Center (U6). If a personal copy still needs a cue that it can't run live, it gets a card badge, worded in the PR for Paul's OK. No notes or banners on this filter.
 
 ### Editor (SpartBoard side)
 
@@ -82,7 +83,7 @@ Settled in a design interview with Paul on 2026-10-22, after his first hands-on 
 All into `dev-paul`, in order. Each bumps `extension/manifest.json` when it changes the extension.
 
 1. **Playback fixes.** U1, U2, U3, U4. Tests for the advance-on-pointerdown path and the click-through dim; manual check on a Google Doc (Extensions > Apps Script).
-2. **Library merge and cards.** U5, U6, U7, U8. Starts after #4544 merges and builds on its Record a tour menu and `openWebTour` editor state. Removes `WebToursSection` and its `web-tours.new` anchor; registers anchors for new card actions.
+2. **Library merge and cards.** U5, U6, U7, U8, U22. Starts after #4544 merges and builds on its Record a tour menu and `openWebTour` editor state. Removes `WebToursSection` and its `web-tours.new` anchor; registers anchors for new card actions.
 3. **Editor redesign and publish check.** U9, U11, and the SpartBoard half of U10 (the button and the request; the panel's pick mode lands in PR 4). `WebTourEditor` is opened from the library card, the Record a tour menu and Live tour health (#4544); keep its `initial`/`onClose` props so all three keep working.
 4. **Side panel redesign.** U12, U14, U15, U16, and the panel half of U10.
 5. **Create and append from the extension.** U13, U17, U18.
