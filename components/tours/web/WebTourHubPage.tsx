@@ -23,6 +23,7 @@ import {
   pingExtension,
   startWebTour,
   watchWebTour,
+  WEB_TOUR_PROTOCOL,
   type ExtensionStatus,
   type WebTourPortEvent,
 } from './extensionClient';
@@ -60,6 +61,7 @@ type TourLoad =
   { kind: 'loading' } | { kind: 'missing' } | { kind: 'ready'; tour: HubTour };
 
 const MAX_RECONNECTS = 5;
+const MAX_RECONNECT_DELAY_MS = 30_000;
 
 async function loadHubTour(setId: string): Promise<HubTour | null> {
   const published = await loadPublishedTour(setId);
@@ -133,6 +135,8 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
   // Set by an exit, so leaving the page records it while Resume can still continue the run.
   const exitAt = useRef<number | null>(null);
   const log = useRef<TourRunLog | null>(null);
+  // Only a tour this page started is logged, so a reload mid-tour never overwrites the run.
+  const startedHere = useRef(false);
   const failures = useRef(0);
   const reconnectTimer = useRef<number | null>(null);
 
@@ -174,7 +178,12 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
     if (!tour || !eventFitsTour(event, tour.steps)) return;
     failures.current = 0;
     setPlay((prev) => reducePlay(prev, event));
-    if (event.type !== 'web-tour/step' && !log.current) return;
+    if (
+      !log.current &&
+      (event.type !== 'web-tour/step' || !startedHere.current)
+    ) {
+      return;
+    }
     // Created here, not after the start reply, so the first step's clue is never lost.
     const run = (log.current ??= startTourRunLog(setId, uid, {
       v: tour.version,
@@ -195,13 +204,18 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
     }
   });
   const onPortGone = useEffectEvent(() => {
-    if (failures.current < MAX_RECONNECTS) {
-      failures.current++;
-      reconnectTimer.current = window.setTimeout(
-        () => setReconnects((n) => n + 1),
-        2000
-      );
-    }
+    // A tour that is still playing keeps reconnecting, backing off, until it ends.
+    const live = play.kind === 'playing' || play.kind === 'starting';
+    if (!live && failures.current >= MAX_RECONNECTS) return;
+    const delay = Math.min(
+      2000 * 2 ** failures.current,
+      MAX_RECONNECT_DELAY_MS
+    );
+    failures.current++;
+    reconnectTimer.current = window.setTimeout(
+      () => setReconnects((n) => n + 1),
+      delay
+    );
   });
   useEffect(() => {
     if (!playable) return;
@@ -250,6 +264,7 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
     }
     exitAt.current = null;
     failures.current = 0;
+    startedHere.current = true;
     setWatchEpoch((n) => n + 1);
     const handoff = buildHandoff(
       setId,
@@ -317,11 +332,11 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
           ) : (
             <div className="space-y-3">
               <p className="text-sm text-slate-700">
-                {extension.kind === 'ready' && extension.profile === 'other'
-                  ? t('webTourHub.wrongProfile')
-                  : extension.kind === 'ready' && extension.profile === 'staff'
+                {extension.kind === 'none'
+                  ? t('webTourHub.noExtension')
+                  : extension.protocol < WEB_TOUR_PROTOCOL
                     ? t('webTourHub.oldExtension')
-                    : t('webTourHub.noExtension')}
+                    : t('webTourHub.wrongProfile')}
               </p>
               <a
                 href={tour.startUrl}

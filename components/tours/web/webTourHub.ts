@@ -1,4 +1,4 @@
-import type { GuidedLearningStep } from '@/types';
+import type { GuidedLearningStep, WebTourLocator } from '@/types';
 import type { WebTourStep } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import { logError } from '@/utils/logError';
 import {
@@ -18,6 +18,34 @@ import type { WebTourPortEvent } from './extensionClient';
 const MAX_TITLE = 500;
 const MAX_TEXT = 4000;
 const MAX_STEPS = 200;
+const MAX_CLUE = 500;
+const MAX_FRAMES = 10;
+
+/** An address pattern the extension accepts. */
+export const isHandoffPattern = (v: string): boolean =>
+  v.length <= 2048 && v.startsWith('https://');
+
+const unit = (v: number) => Number.isFinite(v) && v >= -1 && v <= 2;
+
+function handoffLocator(locator: WebTourLocator): WebTourLocator {
+  const out: WebTourLocator = {};
+  for (const key of ['role', 'name', 'text', 'css'] as const) {
+    const clue = locator[key];
+    if (clue) out[key] = clue.slice(0, MAX_CLUE);
+  }
+  if (locator.frames) {
+    out.frames = locator.frames
+      .filter(
+        (f) => isHandoffPattern(f.urlPattern) && Number.isInteger(f.index)
+      )
+      .slice(0, MAX_FRAMES);
+  }
+  const box = locator.box;
+  if (box && unit(box.x) && unit(box.y) && unit(box.w) && unit(box.h)) {
+    out.box = { x: box.x, y: box.y, w: box.w, h: box.h };
+  }
+  return out;
+}
 
 export type HubStep = WebTourStep;
 
@@ -136,9 +164,10 @@ export function buildHandoff(
     steps: steps.slice(0, MAX_STEPS).map((step) => {
       const { urlPattern, action, locator } = step.web;
       const pic = pictures.get(step.id);
-      const data = pic ? toBase64(pic.bytes) : '';
+      const sized = !!pic && pic.w > 0 && pic.h > 0;
+      const data = pic && sized ? toBase64(pic.bytes) : '';
       const fits =
-        !!pic &&
+        sized &&
         data.length <= MAX_PICTURE_CHARS &&
         total + data.length <= MAX_PICTURE_TOTAL_CHARS;
       if (fits) total += data.length;
@@ -146,7 +175,7 @@ export function buildHandoff(
         id: step.id,
         label: (step.label ?? '').slice(0, MAX_TEXT),
         text: (step.text ?? '').slice(0, MAX_TEXT),
-        web: { urlPattern, action, locator },
+        web: { urlPattern, action, locator: handoffLocator(locator) },
         ...(pic && fits
           ? { picture: { mime: pic.mime, data, w: pic.w, h: pic.h } }
           : {}),

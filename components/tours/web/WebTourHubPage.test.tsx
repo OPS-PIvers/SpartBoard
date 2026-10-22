@@ -273,8 +273,13 @@ describe('WebTourHubPage', () => {
 
   it('logs a run the extension reports before the start reply, and records an exit on leaving', async () => {
     h.ping = { kind: 'ready', protocol: 2, version: '1', profile: 'staff' };
+    h.start.mockReturnValue(new Promise(() => undefined));
     const { unmount } = render(<WebTourHubPage />);
-    await screen.findByRole('button', { name: /Start tour/ });
+    const start = await screen.findByRole('button', { name: /Start tour/ });
+    await act(async () => {
+      fireEvent.click(start);
+      await Promise.resolve();
+    });
     act(() => {
       h.onEvent?.({
         type: 'web-tour/step',
@@ -299,6 +304,37 @@ describe('WebTourHubPage', () => {
     ).toBeTruthy();
     unmount();
     expect(h.log.end).toHaveBeenCalledWith({ done: false, exit: 0 });
+  });
+
+  it('follows a tour it did not start without writing over its run', async () => {
+    h.ping = { kind: 'ready', protocol: 2, version: '1', profile: 'staff' };
+    render(<WebTourHubPage />);
+    await screen.findByRole('button', { name: /Start tour/ });
+    act(() => {
+      h.onEvent?.({
+        type: 'web-tour/step',
+        setId: 's1',
+        stepIndex: 1,
+        stepId: 'b',
+        match: 'role',
+      });
+    });
+    expect(
+      screen.getByText(
+        'The tour is open in another tab. Your progress shows here.'
+      )
+    ).toBeTruthy();
+    expect(h.startLog).not.toHaveBeenCalled();
+  });
+
+  it('asks for a staff profile when the extension reports no profile', async () => {
+    h.ping = { kind: 'ready', protocol: 2, version: '1', profile: 'none' };
+    render(<WebTourHubPage />);
+    expect(
+      await screen.findByText(
+        'This tour plays only in a Chrome profile signed in with your Orono staff account. For now, follow the pictures below.'
+      )
+    ).toBeTruthy();
   });
 
   it('says so when Resume fails, keeping the progress', async () => {

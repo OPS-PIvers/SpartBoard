@@ -279,6 +279,36 @@ describe('hub', () => {
     expect(handoff).toMatchObject({ setId: 's', version: 5, title: 'T' });
   });
 
+  it('clips locator clues and drops unsized pictures so the extension takes the tour', () => {
+    const long = step('a', 'https://x.test/');
+    long.web.locator = {
+      role: 'button',
+      name: 'n'.repeat(900),
+      css: 'c'.repeat(900),
+      frames: Array.from({ length: 12 }, (_, index) => ({
+        urlPattern: 'https://x.test/frame',
+        index,
+      })),
+      box: { x: 0, y: 0, w: 5, h: 1 },
+    };
+    const handoff = buildHandoff(
+      's',
+      1,
+      'T',
+      [long],
+      new Map([
+        ['a', { mime: 'image/png', bytes: new Uint8Array(PNG), w: 0, h: 5 }],
+      ])
+    );
+    const { locator } = handoff.steps[0].web;
+    expect(locator.name).toHaveLength(500);
+    expect(locator.css).toHaveLength(500);
+    expect(locator.frames).toHaveLength(10);
+    expect(locator).not.toHaveProperty('box');
+    expect(handoff.steps[0]).not.toHaveProperty('picture');
+    expect(parseWebTourStartTour(handoff)).not.toBeNull();
+  });
+
   it('encodes bytes as base64', () => {
     expect(toBase64(new Uint8Array([104, 105]))).toBe('aGk=');
   });
