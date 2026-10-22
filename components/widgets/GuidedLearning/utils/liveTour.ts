@@ -2,7 +2,21 @@ import type {
   GuidedLearningSet,
   GuidedLearningStep,
   GuidedLearningTourThumbnail,
+  WebTourBinding,
 } from '@/types';
+
+export type WebTourStep = GuidedLearningStep & { web: WebTourBinding };
+
+/** A web tour plays on other websites through the Chrome extension; SpartBoard's tour tools skip it. */
+export const isWebTourSet = (
+  set: Pick<GuidedLearningSet, 'surface'> | null | undefined
+): boolean => set?.surface === 'web';
+
+/** A web tour's steps, in authored order; none for a SpartBoard tour. */
+export const webTourStepsOf = (
+  set: Pick<GuidedLearningSet, 'surface' | 'steps'>
+): WebTourStep[] =>
+  isWebTourSet(set) ? set.steps.filter((s): s is WebTourStep => !!s.web) : [];
 
 /** A live tour is a set in tour mode; an anchored step alone does not make one. */
 export const isLiveTourSet = (set: Pick<GuidedLearningSet, 'mode'>): boolean =>

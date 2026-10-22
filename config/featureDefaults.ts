@@ -16,6 +16,7 @@ import {
   FileText,
   FileUp,
   Gauge,
+  Globe,
   GraduationCap,
   Flag,
   Footprints,
@@ -718,6 +719,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     modalLabel: 'Handwritten answers',
     group: 'questions',
     requires: 'paper-answer-sheets',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Web tours played on other websites by the Chrome extension (CHROME_EXTENSION.md T12); gates authoring and /tour/{setId}.
+  'web-tours': {
+    label: 'Web tours',
+    icon: Globe,
+    description:
+      'Live tours on other websites, played by the SpartBoard Chrome extension.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'integrations',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

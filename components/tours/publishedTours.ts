@@ -12,6 +12,7 @@ import {
   TOURS_META_ID,
   type PublishedTour,
 } from './tourSnapshot';
+import { isWebTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import { tourStepsOf, tourWidgetTypes } from './tourSession';
 
 const tourRef = (id: string) => doc(db, GL_TOURS_COLLECTION, id);
@@ -38,14 +39,17 @@ export async function loadPublishedTour(
   return snap.exists() ? parsePublishedTour(setId, snap.data()) : null;
 }
 
-/** The set a launch point may run: its published snapshot, or the saved set until the one-time publish ran. */
+/** The set a launch point may run: its published snapshot, or the saved set until the one-time publish ran; never a web tour. */
 export async function loadRunnableTour(
   setId: string
 ): Promise<GuidedLearningSet | null> {
   const snap = await getDoc(tourRef(setId));
-  if (snap.exists()) return parsePublishedTour(setId, snap.data())?.set ?? null;
-  if ((await getDoc(tourRef(TOURS_META_ID))).exists()) return null;
-  return loadBuildingSet(setId);
+  const set = snap.exists()
+    ? (parsePublishedTour(setId, snap.data())?.set ?? null)
+    : (await getDoc(tourRef(TOURS_META_ID))).exists()
+      ? null
+      : await loadBuildingSet(setId);
+  return set && !isWebTourSet(set) ? set : null;
 }
 
 // Shared, ref-counted doc listeners so every launch point on a page reads one snapshot per tour.
@@ -195,6 +199,7 @@ export function isTourRunnable(
   if (entry.exists) {
     return (
       !!entry.tour &&
+      !isWebTourSet(entry.tour.set) &&
       tourStepsOf(entry.tour.set).length > 0 &&
       canUseTourWidgets(entry.tour.set, canUse)
     );

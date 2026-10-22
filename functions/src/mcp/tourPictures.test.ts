@@ -167,6 +167,20 @@ describe('live tour step pictures', () => {
     expect(h.saveSet).not.toHaveBeenCalled();
   });
 
+  it('refuses a web tour and saves nothing', async () => {
+    h.set = { ...h.set, surface: 'web' };
+    const { ticket } = await issuePictureTicket(ctx, 'tour-1', 1000);
+    await expect(
+      savePictures(
+        db,
+        { ticket, pictures: [{ step_id: 'a', image: png, w: 1, h: 1 }] },
+        2000
+      )
+    ).rejects.toThrow(/web tour/);
+    expect(h.saved).toEqual([]);
+    expect(h.saveSet).not.toHaveBeenCalled();
+  });
+
   it('stops honouring a ticket after its upload limit', async () => {
     const { ticket } = await issuePictureTicket(ctx, 'tour-1', 1000);
     const hash = createHash('sha256').update(ticket).digest('hex');
