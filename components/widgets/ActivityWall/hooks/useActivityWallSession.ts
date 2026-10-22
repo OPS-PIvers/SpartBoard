@@ -57,23 +57,23 @@ export const wallBoardAccessDoc = (sessionId: string) =>
 /** Stops a board's members reading a wall the board no longer shows. */
 export const removeWallBoardShare = (
   sessionId: string,
-  boardShareId: string
+  boardShareEntry: string
 ): Promise<void> =>
   updateDoc(wallBoardAccessDoc(sessionId), {
-    boardShareIds: arrayRemove(boardShareId),
+    boardShareIds: arrayRemove(boardShareEntry),
   });
 
-/** The list with `boardShareId` added (max 3, evicting only deleted shares), or null to leave it. */
+/** The list with `boardShareEntry` ("shareId/hostUid") added (max 3, evicting only deleted shares), or null to leave it. */
 export const nextWallBoardShareIds = async (
   known: string[],
-  boardShareId: string
+  boardShareEntry: string
 ): Promise<string[] | null> => {
-  if (known.includes(boardShareId)) return null;
+  if (known.includes(boardShareEntry)) return null;
   let kept = known;
   if (known.length >= 3) {
     const alive = await Promise.all(
       known.map((id) =>
-        getDoc(doc(db, 'shared_boards', id))
+        getDoc(doc(db, 'shared_boards', id.split('/')[0]))
           .then((snap) => snap.exists())
           .catch(() => true)
       )
@@ -81,7 +81,7 @@ export const nextWallBoardShareIds = async (
     kept = known.filter((_, index) => alive[index]);
     if (kept.length >= 3) return null;
   }
-  return [boardShareId, ...kept];
+  return [boardShareEntry, ...kept];
 };
 
 export interface DriveSyncCounts {
@@ -135,13 +135,85 @@ export const clearWallSubmissions = async (
   }
 };
 
+export type WallPostActions = Pick<
+  UseActivityWallSessionResult,
+  'approve' | 'reject' | 'deletePost' | 'movePost' | 'pinPost' | 'editPost'
+>;
+
+/** Moderation writes on one session's posts, for its owner or a board co-teacher. */
+export const useWallPostActions = (
+  sessionId: string | null
+): WallPostActions => {
+  const writeSubmission = useCallback(
+    async (submissionId: string, patch: Record<string, unknown>) => {
+      if (!sessionId) return;
+      await updateDoc(submissionDoc(sessionId, submissionId), patch);
+    },
+    [sessionId]
+  );
+
+  const approve = useCallback(
+    (submissionId: string) =>
+      writeSubmission(submissionId, { status: 'approved' }),
+    [writeSubmission]
+  );
+
+  const reject = useCallback(
+    async (submissionId: string) => {
+      if (!sessionId) return;
+      await deleteDoc(submissionDoc(sessionId, submissionId));
+    },
+    [sessionId]
+  );
+
+  const deletePost = reject;
+
+  const movePost = useCallback(
+    (submissionId: string, patch: WallMovePatch) => {
+      const write: Record<string, unknown> = {};
+      if ('sectionId' in patch) {
+        write.sectionId =
+          patch.sectionId === null ? deleteField() : patch.sectionId;
+      }
+      if ('cellKey' in patch) {
+        write.cellKey = patch.cellKey === null ? deleteField() : patch.cellKey;
+      }
+      if (typeof patch.order === 'number') write.order = patch.order;
+      if (Object.keys(write).length === 0) return Promise.resolve();
+      return writeSubmission(submissionId, write);
+    },
+    [writeSubmission]
+  );
+
+  const pinPost = useCallback(
+    (submissionId: string, pinned: boolean) =>
+      writeSubmission(submissionId, { pinned }),
+    [writeSubmission]
+  );
+
+  const editPost = useCallback(
+    (submissionId: string, changes: { content?: string; title?: string }) => {
+      const write: Record<string, unknown> = { editedAt: Date.now() };
+      if (typeof changes.content === 'string') write.content = changes.content;
+      if (typeof changes.title === 'string') write.title = changes.title;
+      return writeSubmission(submissionId, write);
+    },
+    [writeSubmission]
+  );
+
+  return useMemo(
+    () => ({ approve, reject, deletePost, movePost, pinPost, editPost }),
+    [approve, reject, deletePost, movePost, pinPost, editPost]
+  );
+};
+
 export const useActivityWallSession = (
   uid: string | undefined,
   entry: ActivityWallLibraryEntry | null,
   saveActivity: (entry: ActivityWallLibraryEntry) => Promise<void>,
   timelineDates?: boolean,
-  /** A live board share whose members may read this wall's approved posts. */
-  boardShareId?: string | null
+  /** "shareId/hostUid" of a live board share whose members may read this wall. */
+  boardShareEntry?: string | null
 ): UseActivityWallSessionResult => {
   const sessionId = uid && entry ? activityWallSessionId(uid, entry.id) : null;
 
@@ -207,7 +279,7 @@ export const useActivityWallSession = (
   const latestShareId =
     shareInfo.sessionId === sessionId ? shareInfo.latestShareId : undefined;
 
-  const accessSessionId = boardShareId && !sandboxed ? sessionId : null;
+  const accessSessionId = boardShareEntry && !sandboxed ? sessionId : null;
   const [boardAccess, setBoardAccess] = useState<{
     sessionId: string;
     ids: string[];
@@ -238,15 +310,15 @@ export const useActivityWallSession = (
       : null;
   const missingBoardShareKey =
     accessSessionId &&
-    boardShareId &&
+    boardShareEntry &&
     knownBoardShareIds &&
-    !knownBoardShareIds.includes(boardShareId)
+    !knownBoardShareIds.includes(boardShareEntry)
       ? JSON.stringify(knownBoardShareIds)
       : null;
   useEffect(() => {
-    if (!accessSessionId || !boardShareId || !missingBoardShareKey) return;
+    if (!accessSessionId || !boardShareEntry || !missingBoardShareKey) return;
     const known = JSON.parse(missingBoardShareKey) as string[];
-    void nextWallBoardShareIds(known, boardShareId)
+    void nextWallBoardShareIds(known, boardShareEntry)
       .then(async (next) => {
         if (!next) return;
         await setDoc(
@@ -262,7 +334,7 @@ export const useActivityWallSession = (
       .catch((err) => {
         console.error('[ActivityWall] Failed to open wall to board:', err);
       });
-  }, [accessSessionId, boardShareId, missingBoardShareKey]);
+  }, [accessSessionId, boardShareEntry, missingBoardShareKey]);
 
   // Walls saved before wall-level engagement flags inherit them once from their latest gallery share.
   const seededEntryIdRef = useRef<string | null>(null);
@@ -344,62 +416,8 @@ export const useActivityWallSession = (
     return { failed, lost, needsConsent };
   }, [submissions]);
 
-  const writeSubmission = useCallback(
-    async (submissionId: string, patch: Record<string, unknown>) => {
-      if (!sessionId) return;
-      await updateDoc(submissionDoc(sessionId, submissionId), patch);
-    },
-    [sessionId]
-  );
-
-  const approve = useCallback(
-    (submissionId: string) =>
-      writeSubmission(submissionId, { status: 'approved' }),
-    [writeSubmission]
-  );
-
-  const reject = useCallback(
-    async (submissionId: string) => {
-      if (!sessionId) return;
-      await deleteDoc(submissionDoc(sessionId, submissionId));
-    },
-    [sessionId]
-  );
-
-  const deletePost = reject;
-
-  const movePost = useCallback(
-    (submissionId: string, patch: WallMovePatch) => {
-      const write: Record<string, unknown> = {};
-      if ('sectionId' in patch) {
-        write.sectionId =
-          patch.sectionId === null ? deleteField() : patch.sectionId;
-      }
-      if ('cellKey' in patch) {
-        write.cellKey = patch.cellKey === null ? deleteField() : patch.cellKey;
-      }
-      if (typeof patch.order === 'number') write.order = patch.order;
-      if (Object.keys(write).length === 0) return Promise.resolve();
-      return writeSubmission(submissionId, write);
-    },
-    [writeSubmission]
-  );
-
-  const pinPost = useCallback(
-    (submissionId: string, pinned: boolean) =>
-      writeSubmission(submissionId, { pinned }),
-    [writeSubmission]
-  );
-
-  const editPost = useCallback(
-    (submissionId: string, changes: { content?: string; title?: string }) => {
-      const write: Record<string, unknown> = { editedAt: Date.now() };
-      if (typeof changes.content === 'string') write.content = changes.content;
-      if (typeof changes.title === 'string') write.title = changes.title;
-      return writeSubmission(submissionId, write);
-    },
-    [writeSubmission]
-  );
+  const { approve, reject, deletePost, movePost, pinPost, editPost } =
+    useWallPostActions(sessionId);
 
   const clearPosts = useCallback(
     async (targetSessionId?: string) => {

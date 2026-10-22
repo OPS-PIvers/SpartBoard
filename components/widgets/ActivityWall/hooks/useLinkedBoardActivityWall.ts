@@ -1,4 +1,4 @@
-// Another teacher's Activity Wall on a Synced or View-Only board, read live and read-only.
+// Another teacher's Activity Wall on a Synced or View-Only board, read live; collaborators also moderate.
 
 import { useEffect, useMemo, useState } from 'react';
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
@@ -10,23 +10,27 @@ import type {
 } from '@/types';
 import { normalizeActivityWallSubmission } from '@/utils/activityWallNormalize';
 import { activityWallSessionId } from '@/utils/activityWallLinks';
-import { wallBoardAccessDoc } from './useActivityWallSession';
+import {
+  useWallPostActions,
+  wallBoardAccessDoc,
+  type WallPostActions,
+} from './useActivityWallSession';
 
 export interface LinkedBoardActivityWall {
   /** True once the owner has opened this wall to the board's members. */
   active: boolean;
   entry: SubShareActivityWallView | null;
   session: ActivityWallSession | null;
+  /** Approved posts, or every post when `moderating`. */
   posts: ActivityWallSubmission[];
+  /** True when this member may moderate and post (a Synced collaborator or the host). */
+  moderating: boolean;
+  sessionId: string | null;
+  pendingCount: number;
+  actions: WallPostActions;
 }
 
 const EMPTY_POSTS: ActivityWallSubmission[] = [];
-const INACTIVE: LinkedBoardActivityWall = {
-  active: false,
-  entry: null,
-  session: null,
-  posts: EMPTY_POSTS,
-};
 
 const entryFromSession = (
   session: ActivityWallSession
@@ -58,11 +62,12 @@ const entryFromSession = (
   allowCommentResponses: session.allowCommentResponses,
 });
 
-/** `ownerUid`'s wall and approved posts, once the owner lets `shareId` read it; nulls stay idle. */
+/** `ownerUid`'s wall and its posts once the owner lets `shareId` read it; approved posts only unless `canModerate`. Nulls stay idle. */
 export function useLinkedBoardActivityWall(
   ownerUid: string | null,
   activityId: string | null,
-  shareId: string | null
+  shareId: string | null,
+  canModerate = false
 ): LinkedBoardActivityWall {
   const sessionId =
     ownerUid && activityId && shareId
@@ -110,7 +115,12 @@ export function useLinkedBoardActivityWall(
         const ids: unknown = snap.data()?.boardShareIds;
         setAccessState({
           key: accessKey,
-          listed: Array.isArray(ids) && ids.includes(shareId),
+          listed:
+            Array.isArray(ids) &&
+            ids.some(
+              (entry) =>
+                typeof entry === 'string' && entry.split('/')[0] === shareId
+            ),
         });
       },
       () => setAccessState({ key: accessKey, listed: false })
@@ -121,22 +131,28 @@ export function useLinkedBoardActivityWall(
     !!session && accessState?.key === accessKey && accessState.listed;
   const postsSessionId = listed ? sessionId : null;
   const isPhotoWall = session?.mode === 'photo';
+  const postsKey = postsSessionId
+    ? `${postsSessionId}:${canModerate ? 'all' : 'approved'}`
+    : null;
 
   const [postsState, setPostsState] = useState<{
-    sessionId: string;
+    key: string;
     posts: ActivityWallSubmission[];
   } | null>(null);
 
   useEffect(() => {
-    if (!postsSessionId) return undefined;
+    if (!postsSessionId || !postsKey) return undefined;
+    const posts = collection(
+      db,
+      'activity_wall_sessions',
+      postsSessionId,
+      'submissions'
+    );
     return onSnapshot(
-      query(
-        collection(db, 'activity_wall_sessions', postsSessionId, 'submissions'),
-        where('status', '==', 'approved')
-      ),
+      canModerate ? posts : query(posts, where('status', '==', 'approved')),
       (snap) => {
         setPostsState({
-          sessionId: postsSessionId,
+          key: postsKey,
           posts: snap.docs.map((docSnap) =>
             normalizeActivityWallSubmission(
               docSnap.id,
@@ -153,18 +169,27 @@ export function useLinkedBoardActivityWall(
         );
       }
     );
-  }, [postsSessionId, isPhotoWall]);
+  }, [postsSessionId, postsKey, canModerate, isPhotoWall]);
 
   const posts =
-    postsState && postsState.sessionId === postsSessionId
-      ? postsState.posts
-      : EMPTY_POSTS;
+    postsState && postsState.key === postsKey ? postsState.posts : EMPTY_POSTS;
+  const active = listed && !!session;
+  const moderating = active && canModerate;
+  const actions = useWallPostActions(moderating ? postsSessionId : null);
 
   return useMemo(
-    () =>
-      listed && session
-        ? { active: true, entry: entryFromSession(session), session, posts }
-        : INACTIVE,
-    [listed, session, posts]
+    () => ({
+      active,
+      entry: active && session ? entryFromSession(session) : null,
+      session: active ? session : null,
+      posts: active ? posts : EMPTY_POSTS,
+      moderating,
+      sessionId: active ? postsSessionId : null,
+      pendingCount: moderating
+        ? posts.filter((post) => post.status === 'pending').length
+        : 0,
+      actions,
+    }),
+    [active, session, posts, moderating, postsSessionId, actions]
   );
 }

@@ -6044,24 +6044,34 @@ service cloud.firestore {
                 awParentSession().get('studentsCanSeePosts', true) != false);
       }
       // Teacher on a Synced/View-Only board that shows this wall: the owner lists the board's
-      // share in boardAccess/boards (max 3), and both the owner and the caller belong to that share.
-      // The ids stay out of the session doc, which the wall's students and guests can read.
-      function awBoardShareOk(shareId) {
-        let sb = get(/databases/$(database)/documents/shared_boards/$(shareId)).data;
+      // share as "shareId/hostUid" in boardAccess/boards (max 3), and both the owner and the
+      // caller belong to it. The ids stay out of the session doc, which students and guests read.
+      // The host pin stops anyone re-creating a deleted share at the same id.
+      // `mod` (approve, hide, pin, move, edit, delete, post) also needs the caller to be the
+      // host or a collaborator on a share that isn't View-Only; members only read approved posts.
+      function awBoardShareOk(entry, mod) {
+        let parts = entry.split('/');
+        let ref = /databases/$(database)/documents/shared_boards/$(parts[0]);
+        let sb = get(ref).data;
         let members = sb.get('participants', {});
-        return (sb.originalAuthor == authUid() || authUid() in members)
+        return exists(ref) && sb.originalAuthor == parts[1]
+          && (sb.originalAuthor == authUid()
+              || (authUid() in members
+                  && (!mod || (members[authUid()].get('role', '') == 'collaborator'
+                               && sb.get('intendedMode', '') != 'view-only'))))
           && (sessionId.matches(sb.originalAuthor + '_.*')
               || sessionId.split('_')[0] in members);
       }
-      function awBoardMemberOk() {
+      // Verified district accounts only (the /subs rule): Synced and View-Only links self-join.
+      function awBoardMemberOk(mod) {
         let ids = get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)/boardAccess/boards).data.get('boardShareIds', []);
-        return notAnon() && !isStudentRoleUser() && ids is list && ids.size() <= 3
-          && ((ids.size() > 0 && awBoardShareOk(ids[0]))
-              || (ids.size() > 1 && awBoardShareOk(ids[1]))
-              || (ids.size() > 2 && awBoardShareOk(ids[2])));
+        return isVerifiedDistrictEmail() && !isStudentRoleUser() && ids is list && ids.size() <= 3
+          && ((ids.size() > 0 && awBoardShareOk(ids[0], mod))
+              || (ids.size() > 1 && awBoardShareOk(ids[1], mod))
+              || (ids.size() > 2 && awBoardShareOk(ids[2], mod)));
       }
       match /boardAccess/{docId} {
-        allow get: if signedIn() && (awIsOwner() || (docId == 'boards' && awBoardMemberOk()));
+        allow get: if signedIn() && (awIsOwner() || (docId == 'boards' && awBoardMemberOk(false)));
         allow create, update, delete: if signedIn() && notAnon() && docId == 'boards' && awIsOwner();
       }
       // Engagement (likes/comments) reads are an unfiltered collection listen
@@ -6222,7 +6232,7 @@ service cloud.firestore {
         // moderation, stamped authorRole 'teacher' so the card is labelled.
         allow create: if signedIn() &&
           notAnon() &&
-          awIsOwner() &&
+          viewAsOk() &&
           awIsPadletSession() &&
           incoming().keys().hasOnly([
             'id', 'activityId', 'content', 'submittedAt', 'status',
@@ -6241,7 +6251,12 @@ service cloud.firestore {
           incoming().authorUid == authUid() &&
           awFieldTypesOk() &&
           awTypeAllowed() &&
-          (!('archiveStatus' in incoming()) || incoming().archiveStatus == 'firebase');
+          (!('archiveStatus' in incoming()) || incoming().archiveStatus == 'firebase') &&
+          // Storage takes uploads only from the owner, so a co-teacher posts text, words and links.
+          (awIsOwner() ||
+           (incoming().get('type', 'text') in ['text', 'word', 'link'] &&
+            !incoming().keys().hasAny(['storagePath', 'fileName', 'mimeType', 'sizeBytes']) &&
+            awBoardMemberOk(true)));
         // Teacher/admins read+delete submissions, EXCEPT a published view-only gallery
         // (publiclyShared) is readable by any authed caller. Delete stays teacher/admin-only.
         // A student can list/get their own posts via where('authorUid','==',uid) even on a
@@ -6259,8 +6274,9 @@ service cloud.firestore {
                              (awStudentAudienceOk() &&
                               awSession().get('studentsCanSeePosts', true) != false &&
                               existing().status == 'approved') ||
-                             (existing().status == 'approved' && awBoardMemberOk()) ||
-                             existing().authorUid == authUid());
+                             existing().authorUid == authUid() ||
+                             awBoardMemberOk(true) ||
+                             (existing().status == 'approved' && awBoardMemberOk(false)));
         allow delete: if signedIn() &&
                             (isAdmin() || sessionId.matches(authUid() + '_.*'));
         // Students may retract their own post while the wall is open and the
@@ -6270,6 +6286,8 @@ service cloud.firestore {
                             existing().get('authorUid', '') == authUid() &&
                             awSession().get('allowStudentDelete', false) == true &&
                             awAcceptingResponses();
+        // Board co-moderator, after the student branches so a stale share can't crowd them out.
+        allow delete: if signedIn() && viewAsOk() && awBoardMemberOk(true);
         // hasOnly() lists every field this doc can ever carry (create-time fields + the
         // Admin-SDK-written archive fields) since request.resource.data on an update is the
         // doc AFTER merge - untouched existing fields (e.g. driveFileId) stay present and
@@ -6333,6 +6351,23 @@ service cloud.firestore {
                              incoming().archiveStatus == 'firebase') &&
                             (!changed(['storagePath']) ||
                              incoming().storagePath.matches('^activity_wall_media/' + sessionId + '/' + submissionId + '/.+'));
+        // Board co-moderator: moderation and content fields only, never archive or authorship
+        // fields; a content edit is stamped, and an upload's or link's content is its pointer.
+        allow update: if signedIn() &&
+                            viewAsOk() &&
+                            changedOnly([
+                              'status', 'pinned', 'sectionId', 'cellKey', 'order',
+                              'lat', 'lng', 'content', 'title', 'label', 'editedAt'
+                            ]) &&
+                            incoming().status in ['approved', 'pending'] &&
+                            (!changed(['content']) ||
+                             (changed(['editedAt']) &&
+                              !(existing().get('type', 'text') in ['photo', 'video', 'file', 'link']))) &&
+                            isStr('content') &&
+                            incoming().content.size() > 0 &&
+                            incoming().content.size() <= 5000 &&
+                            awFieldTypesOk() &&
+                            awBoardMemberOk(true);
       }
 
       // Likes — one per viewer per post ({submissionId}__{uid} doc id), shared
