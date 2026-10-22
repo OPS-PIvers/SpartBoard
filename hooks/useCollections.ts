@@ -41,6 +41,19 @@ import type { Collection } from '@/types';
 const COLLECTIONS_SUBPATH = 'collections';
 const DASHBOARDS_SUBPATH = 'dashboards';
 
+/** Optional fields for a new collection; `order` overrides the next sibling slot. */
+export type CollectionCreateMetadata = Partial<
+  Pick<
+    Collection,
+    | 'color'
+    | 'icon'
+    | 'order'
+    | 'linkedCollectionId'
+    | 'linkedCollectionRole'
+    | 'linkedSectionId'
+  >
+>;
+
 export type DeleteCollectionMode = 'move-to-parent' | 'delete-all';
 
 export type CollectionLinkFields = Required<
@@ -57,7 +70,7 @@ export interface UseCollectionsResult {
   createCollection: (
     name: string,
     parentCollectionId: string | null,
-    metadata?: { color?: string }
+    metadata?: CollectionCreateMetadata
   ) => Promise<string>;
   renameCollection: (collectionId: string, nextName: string) => Promise<void>;
   moveCollection: (
@@ -147,7 +160,7 @@ export const useCollections = (
     async (
       name: string,
       parentCollectionId: string | null,
-      metadata?: { color?: string }
+      metadata?: CollectionCreateMetadata
     ): Promise<string> => {
       if (!userId) throw new Error('Not authenticated');
       const trimmed = name.trim();
@@ -160,10 +173,14 @@ export const useCollections = (
         siblingOrders.length === 0 ? 0 : Math.max(...siblingOrders) + 1;
 
       const now = Date.now();
-      // Only set `color` when explicitly provided so Firestore doesn't store
+      // Only set fields explicitly provided so Firestore doesn't store
       // an `undefined` field (which it rejects on the in-memory path's
       // structural equality checks, and which clutters the doc otherwise).
-      const colorFields = metadata?.color ? { color: metadata.color } : {};
+      const { order: orderOverride, ...rest } = metadata ?? {};
+      const extraFields = Object.fromEntries(
+        Object.entries(rest).filter(([, v]) => v !== undefined && v !== '')
+      ) as CollectionCreateMetadata;
+      const order = orderOverride ?? nextOrder;
 
       // In auth bypass mode, maintain in-memory state only — no Firestore write.
       if (isAuthBypass) {
@@ -172,10 +189,10 @@ export const useCollections = (
           id,
           name: trimmed,
           parentCollectionId,
-          order: nextOrder,
+          order,
           createdAt: now,
           updatedAt: now,
-          ...colorFields,
+          ...extraFields,
         };
         setCollections((prev) => [...prev, newCollection]);
         return id;
@@ -186,10 +203,10 @@ export const useCollections = (
         {
           name: trimmed,
           parentCollectionId,
-          order: nextOrder,
+          order,
           createdAt: now,
           updatedAt: now,
-          ...colorFields,
+          ...extraFields,
         }
       );
       return ref.id;

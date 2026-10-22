@@ -11565,6 +11565,8 @@ export interface Collection {
   linkedCollectionRole?: DashboardShareRole;
   /** The link ended or this teacher left; the boards stay as their own copies. */
   linkedCollectionEnded?: boolean;
+  /** `LinkedCollectionSection.id` this sub-collection mirrors inside a linked collection. */
+  linkedSectionId?: string;
 }
 
 /** Mode of a live collection share; Make a copy stays on `/shared_collections`. */
