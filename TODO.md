@@ -183,6 +183,11 @@ Each item names the plan it came from; the plan holds the detail.
 - [ ] Paul saves the "Video Activity live mode" row once in prod, runs a live session (teacher tab plus a student tab, Present popup autoplay), then sets `video-activity-live` to Public in Admin Settings > Access > Previews and adds the changelog entry. (S)
 - [ ] Offer live mode from sub-launched and Library Assign entry points too; v1 only offers it from the widget's own Assign dialog. (M)
 
+#### `docs/plans/shipped/WEB_TOURS_UX.md`
+
+- [ ] Paul tests the dev extension (0.1.4, `extension\dist\dev`) in real Chrome: record on a website, send about ten steps with pictures to a New tour with no editor open, check the background tab saves them and closes, use Open in SpartBoard, then publish and play the tour. (S)
+- [ ] Set `web-tours` to Public in Admin Settings > Access > Previews once Paul has tested in prod, then add the public changelog entry. (S)
+
 #### `docs/specs/LO12-nexus-widget-connections-spec.md`
 
 - [ ] Candidate 11: Activity Wall → Hotspot Image. (M)
