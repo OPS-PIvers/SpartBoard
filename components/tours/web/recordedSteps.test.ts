@@ -57,6 +57,15 @@ describe('draftLabel', () => {
     expect(draftLabel('type', {})).toBe('Type in');
     expect(draftLabel('select', { text: 'Term' })).toBe('Choose from Term');
   });
+
+  it('drops icon-font glyphs that show as boxes', () => {
+    expect(draftLabel('click', { name: '\uE8B8Connectors\uE5CC' })).toBe(
+      'Click Connectors'
+    );
+    expect(draftLabel('click', { name: '\uE145', text: 'Add' })).toBe(
+      'Click Add'
+    );
+  });
 });
 
 describe('pictureBlob', () => {
