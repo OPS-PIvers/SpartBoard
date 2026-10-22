@@ -306,6 +306,33 @@ describe('shareLinkedCollection', () => {
     );
   });
 
+  it('keeps an ended share on a board when the live share rolls back', async () => {
+    const ended = {
+      ...board('b1', 'week'),
+      linkedShareId: 'old-share',
+      linkedShareRole: 'collaborator' as const,
+      linkedShareEnded: true,
+    };
+    createLinkMock.mockRejectedValueOnce(new Error('rules'));
+    const ctx = await setup([ended]);
+
+    await expect(
+      current(ctx).shareLinkedCollection({
+        collection: week,
+        boards: [ended],
+        tree,
+        mode: 'synced',
+      })
+    ).rejects.toThrow('rules');
+    await waitFor(() =>
+      expect(current(ctx).dashboards[0]).toMatchObject({
+        linkedShareId: 'old-share',
+        linkedShareRole: 'collaborator',
+        linkedShareEnded: true,
+      })
+    );
+  });
+
   it('still returns the link when only the collection tag fails', async () => {
     const boards = [board('b1', 'week')];
     setCollectionLinkMock.mockRejectedValueOnce(new Error('offline'));

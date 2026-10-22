@@ -625,6 +625,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     if (path.startsWith('/share/assignment/')) return null;
     if (path.startsWith('/share/video-activity/')) return null;
     if (path.startsWith('/share/rubric/')) return null;
+    if (path.startsWith('/share/collection/')) return null;
     if (path.startsWith('/share/')) {
       return path.split('/share/')[1] || null;
     }
@@ -4567,7 +4568,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         linkedShareHostName: hostName,
         linkedShareEnded: false,
       });
-      const boardIds = new Set(input.boards.map((b) => b.id));
       try {
         if (failed) throw failed.reason;
         setDashboards((prev) =>
@@ -4598,27 +4598,31 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           ...layout,
         });
       } catch (err) {
+        // Put back each board's earlier linkage (an ended share keeps its state).
+        const before = new Map(input.boards.map((b) => [b.id, b]));
+        const priorLink = (b: Dashboard) => ({
+          linkedShareId: b.linkedShareId,
+          linkedShareRole: b.linkedShareRole,
+          linkedShareHostName: b.linkedShareHostName,
+          linkedShareEnded: b.linkedShareEnded,
+        });
         setDashboards((prev) =>
-          prev.map((d) =>
-            boardIds.has(d.id)
-              ? {
-                  ...d,
-                  linkedShareId: undefined,
-                  linkedShareRole: undefined,
-                  linkedShareHostName: undefined,
-                  linkedShareEnded: undefined,
-                }
-              : d
-          )
+          prev.map((d) => {
+            const orig = before.get(d.id);
+            return orig ? { ...d, ...priorLink(orig) } : d;
+          })
         );
         await Promise.allSettled([
           ...input.boards.map((board) =>
-            updateDashboardFields(board, {
-              linkedShareId: deleteField(),
-              linkedShareRole: deleteField(),
-              linkedShareHostName: deleteField(),
-              linkedShareEnded: deleteField(),
-            })
+            updateDashboardFields(
+              board,
+              Object.fromEntries(
+                Object.entries(priorLink(board)).map(([k, v]) => [
+                  k,
+                  v ?? deleteField(),
+                ])
+              )
+            )
           ),
           ...[...shareIdByBoard.values()].map((id) => stopSharingBoard(id)),
         ]);

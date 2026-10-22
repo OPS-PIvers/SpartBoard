@@ -1,8 +1,4 @@
-/**
- * ShareCollectionLinkCreatorModal — share a Collection with a colleague as a
- * copy or, behind `collection-sync-sharing`, Synced / View-Only; subs go
- * through `ShareWithSubModal`.
- */
+/** Share a Collection as a copy or, behind collection-sync-sharing, Synced / View-Only. */
 
 import { type FC, useState, useId, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
