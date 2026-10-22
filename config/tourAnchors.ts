@@ -11554,6 +11554,14 @@ export const TOUR_ANCHORS = {
     label: 'Move to root item in the library folder menu',
     panel: true,
   },
+  'library-shell.folder-menu-move-up': {
+    label: 'Move up item in the library folder menu',
+    panel: true,
+  },
+  'library-shell.folder-menu-move-down': {
+    label: 'Move down item in the library folder menu',
+    panel: true,
+  },
   'library-shell.folder-menu-delete': {
     label: 'Delete item in the library folder menu',
     panel: true,

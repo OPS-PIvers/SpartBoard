@@ -642,6 +642,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   );
   const folderView = useFolderViewSidebar({
     setFolderColor: folderState.setFolderColor,
+    reorderSiblings: folderState.reorderSiblings,
     noun: { one: 'video activity', many: 'video activities' },
     items: activities,
     ...folderDeleteActions,
