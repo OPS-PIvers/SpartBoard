@@ -329,8 +329,16 @@ export const SURFACES: TourSurfaceMap = {
   'plc.teams.data': {
     label: 'Team Data overview page',
     kind: 'panel',
-    files: [`${P}teams/data/`, `${P}teams/home/`],
+    files: [`${P}teams/data/`],
     opensWith: `${TAB}dataOverview`,
+    parent: 'plc.teams.shell',
+    needs: ['plc'],
+  },
+  'plc.teams.home': {
+    label: 'PLC Home page',
+    kind: 'panel',
+    files: [`${P}teams/home/`],
+    opensWith: `${TAB}home`,
     parent: 'plc.teams.shell',
     needs: ['plc'],
   },

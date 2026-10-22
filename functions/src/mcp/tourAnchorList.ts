@@ -26317,13 +26317,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "routes": [
       {
-        "surface": "plc.teams.data",
+        "surface": "plc.teams.home",
         "kind": "panel",
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.open-plc:plcs",
-          "plc-dashboard.section-tab:plc#dataOverview"
+          "plc-dashboard.section-tab:plc#home"
         ],
         "needs": [
           "plc"
@@ -26337,13 +26337,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "routes": [
       {
-        "surface": "plc.teams.data",
+        "surface": "plc.teams.home",
         "kind": "panel",
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.open-plc:plcs",
-          "plc-dashboard.section-tab:plc#dataOverview"
+          "plc-dashboard.section-tab:plc#home"
         ],
         "needs": [
           "plc"
@@ -26357,13 +26357,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "routes": [
       {
-        "surface": "plc.teams.data",
+        "surface": "plc.teams.home",
         "kind": "panel",
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.open-plc:plcs",
-          "plc-dashboard.section-tab:plc#dataOverview"
+          "plc-dashboard.section-tab:plc#home"
         ],
         "needs": [
           "plc"

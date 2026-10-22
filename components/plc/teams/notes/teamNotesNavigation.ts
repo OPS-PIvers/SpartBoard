@@ -5,7 +5,8 @@ import { buildPlcPath, spaNavigate } from '@/utils/plcPath';
 import type { PlcSectionId } from '@/components/plc/sections';
 
 const SECTION_FOR_PAGE: Partial<Record<TeamPageId, PlcSectionId>> = {
-  dataOverview: 'home',
+  // Lands on Home when the team has no Data overview tab.
+  dataOverview: 'dataOverview',
   hub: 'home',
   programHub: 'home',
   assessments: 'assessments',
