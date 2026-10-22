@@ -127,7 +127,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
         // If Escape came from a portaled zone that is NOT our own modal root,
         // yield to that component. The canonical case: DraggableWindow's
         // title-edit input is portaled to document.body with data-widget-portal=""
-        // on the <input> itself, so t.closest('[data-draggable-window]') returns
+        // on the input element itself, so t.closest('[data-draggable-window]') returns
         // null — the draggable-window check below would miss it entirely.
         const closestPortal = t.closest('[data-widget-portal]');
         if (closestPortal && closestPortal !== portalRootRef.current) return;
@@ -376,6 +376,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
 
         {/* Footer controls */}
         <div className="px-5 py-4 border-t border-slate-200 flex flex-wrap items-center gap-2">
+          {/* no-tour-anchor: hidden file input opened by its visible upload button */}
           <input
             ref={fileInputRef}
             type="file"

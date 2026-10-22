@@ -24,6 +24,7 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | File:line | Control | Why |
 | --------- | ------- | --- |
 | components/widgets/Checklist/settingsFields.tsx:117 | Paste tasks textarea | A real control inside a custom settings field; unclear whether a tour would target it or the field row. |
+| components/widgets/GuidedLearning/components/recorder/ | Tour recorder panel, frame review and session controls | Authoring tool for recording tours; unclear whether a tour would ever walk a teacher through it. |
 
 ## Run log
 
@@ -34,3 +35,4 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | 2026-10-19 | (baseline) | | | | | 801 in 325 files |
 | 2026-10-20 | claude/tour-anchors-2026-10-20 | Widgets (ActivityWall editor, ArtsLettersAgenda, BloomsTaxonomy, Calendar, ConceptWeb, Countdown) | 5 | 16 | 1 | 779 in 313 files |
 | 2026-10-21 | claude/tour-anchors-2026-10-21 | Widgets (Classes roster editor, CustomWidget blocks) | 7 | 21 | 0 | 744 in 310 files |
+| 2026-10-22 | claude/tour-anchors-2026-10-22 | Widgets (Drawing, Guided Learning player, studio and editors) | 0 | 21 | 1 area | 720 in 295 files |

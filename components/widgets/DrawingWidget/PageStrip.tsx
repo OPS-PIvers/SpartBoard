@@ -388,7 +388,7 @@ export const PageStrip: React.FC<PageStripProps> = ({
 
 /**
  * Click-to-edit page title chip. Displays as a text button by default;
- * clicking (or focusing + Enter) swaps in an inline `<input>` bound to the
+ * clicking (or focusing + Enter) swaps in an inline text input bound to the
  * current value. The input commits on Enter or blur, cancels on Escape.
  *
  * Why a self-contained component: the same control appears in two places
@@ -471,6 +471,7 @@ const InlineTitle: React.FC<{
   }
 
   return (
+    // no-tour-anchor: edit state of the anchored page title button
     <input
       ref={inputRef}
       type="text"
