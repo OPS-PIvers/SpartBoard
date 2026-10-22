@@ -4,7 +4,7 @@ Goal: make web tours (tours of other websites, recorded and played by the SpartB
 
 Settled in a design interview with Paul on 2026-10-22, after his first hands-on test of the dev extension on Windows. This plan builds on [CHROME_EXTENSION.md](CHROME_EXTENSION.md) and overrides its T2 (Help Center), T6 last bullet (per-step student-data tick) and T11 (links-only discovery). Everything else there still holds, D3 above all: the extension never reads or writes Firestore.
 
-**Code references** were taken at `dev-paul` `c18c610ba`. Symbol names are authoritative; line numbers are hints.
+**Code references** were taken at `dev-paul` `c18c610ba`. Symbol names are authoritative; line numbers are hints. Open PR #4544 ("Start a web tour from the Record a tour button") lands new entry points first; this plan builds on it (U5, U17, PR order).
 
 ## What Paul hit
 
@@ -21,6 +21,7 @@ Settled in a design interview with Paul on 2026-10-22, after his first hands-on 
 - **Re-seeking on Docs is costly.** A MutationObserver on the whole document re-runs `byText` over every element (`playback/locate.ts:116-129`, `frameScript.ts:124-149`, 250ms debounce).
 - **Library.** `GuidedLearningManager.tsx` renders live tours and activities as `LibraryItemCard`s in `LibraryGrid` (`renderLibraryCard`, ~:905-1225), with folders, bulk select, a preview pane, badges and a full menu. `WebToursSection.tsx` is a plain admin-only `<ul>` mounted above the grid only under the Live tours filter (`GuidedLearningManager.tsx:1500-1504`), with no cards, play, link, menu, folders or delete.
 - **Storage.** Drafts in `building_web_tours/{setId}` (admin only, `firestore.rules:1309-1311`); published snapshots in `building_guided_learning_tours/{setId}` with `surface: 'web'` (`components/tours/webTours.ts:148-188`); pictures in `web_tour_pictures/{setId}/` (`storage.rules:444-452`). Deleting a draft triggers `webTourCleanup` (`functions/src/webTours.ts:29`).
+- **Entry points from #4544.** The library's admin **Record a tour** header button becomes a menu (`LibraryShell` secondary action with `menuItems`) offering **SpartBoard tour** and **Web tour**, wording Paul picked. Web tour calls the new shared `createWebTourDraft()` (`components/tours/webTours.ts`) and opens `WebTourEditor` from the manager (`openWebTour` state), whatever the Type filter. Admin Settings > Help Center > Live tour health gets **Record a web tour** (anchor `admin.help-center.record-web-tour`). Both are behind `web-tours`. New anchor `library-shell.secondary-menu-item`.
 - **Editing today.** Rename and Delete exist only inside `WebTourEditor` (`:489-499`, `:427-456`). Publish success says "Staff can open this tour from its link" but no link is shown. The only Copy link is in Admin Settings > Help Center > Tour health (`WebTourHealthSection.tsx:83-140`).
 - **Recording handshake.** The side panel learns about tours only from `recorder/attach` ports opened by an editor's Record steps button (`useWebTourRecorder.ts:74-148`, `extension/src/recorder/worker.ts:28-29, 58-70, 233-270`). The extension's external handler accepts only `ping` and `web-tour/start` (`extension/src/handler.ts:36-47`). All page-to-extension channels are page-initiated.
 - **Publish gate.** `publishBlockers` (`components/tours/web/webStepReview.ts:164-184`) blocks on text hard hits from `findStudentData` and on any step without a current `checked` tick (`isStepChecked`, signature-based). The scan reads text only, never picture pixels.
@@ -37,7 +38,7 @@ Settled in a design interview with Paul on 2026-10-22, after his first hands-on 
 
 ### Library
 
-- **U5. Web tours join the Live tours list.** One list of tours, both kinds as `LibraryItemCard`s in `LibraryGrid`, with a website badge (the site's host) on web tours. `WebToursSection`'s strip goes away. The list still reads drafts from `building_web_tours` through `watchWebTourDrafts`, merged with live tours in the manager. Admin-only and `web-tours`-gated as now (T12).
+- **U5. Web tours join the Live tours list.** One list of tours, both kinds as `LibraryItemCard`s in `LibraryGrid`, with a website badge (the site's host) on web tours. `WebToursSection`'s strip goes away, including its "New web tour" link: the #4544 Record a tour menu (Web tour) is the library's one way to start a web tour from SpartBoard. The `web-tours.new` anchor is not in `config/tourAnchorsInUse.json`, so it is retired with the strip rather than carried over. The list still reads drafts from `building_web_tours` through `watchWebTourDrafts`, merged with live tours in the manager. Admin-only and `web-tours`-gated as now (T12).
 - **U6. Web tour card actions.** Play (opens `/tour/{setId}`), Edit, Copy link (the `/r/tour-...` short link), Duplicate, Move to folder, Move to Help Center / Move to library, Delete (with the confirm `WebTourEditor` has today). Card badges show Published, Draft or Changed since publish. No Export, no Assign. Check during PR 2 how folders store membership and whether a `building_web_tours` id can sit in them; if not, extend the folder model rather than skipping folders.
 - **U7. Web tours appear in the Help Center.** Overrides CHROME_EXTENSION.md T2/T11. A web tour moved to the Help Center is listed like a live tour, with the site's badge, and opening it goes to its `/tour/{setId}` hub. The snapshot read rule already limits web snapshots to district staff (T6), so students never see them. `useTourOffers`, What's New and tour offers still skip web tours.
 - **U8. No extension: pictures plus install.** A teacher opening a web tour without the extension (or on an old protocol) gets the picture walkthrough `/tour` already renders, with a clear "Get the SpartBoard extension" button. No blocking.
@@ -63,11 +64,12 @@ Settled in a design interview with Paul on 2026-10-22, after his first hands-on 
 
 - **U17. The extension asks SpartBoard to save, through a quiet tab.** D3 stands: the extension still never touches Firestore. Send works like this:
   - If a SpartBoard tab on a listed origin already has an intake port open, the panel's request goes through it.
+  - The intake page creates drafts with `createWebTourDraft()` (from #4544), so every entry point makes the same blank draft.
   - Otherwise the service worker opens a small SpartBoard intake route (e.g. `/web-tour-intake`) in a background tab. The page signs in as usual, checks `isAdmin` and the `web-tours` flag, connects a port, lists the author's drafts for the picker (U13), creates the draft (`newWebTour` + `saveWebTourDraft`) or appends to the chosen one, uploads pictures, acks each step, and closes itself.
   - The panel then shows "Saved" with Open in SpartBoard.
   - If the author isn't signed in to SpartBoard, the intake tab comes to the front on the sign-in screen and the panel says so.
   - New protocol messages and validators go in `components/tours/web/recorderProtocol.ts` and `extensionProtocol.ts`, with a protocol bump (D6). The intake page accepts only steps from its own extension port, never from page messages.
-- **U18. The existing Record steps button stays** as a way to append from an open editor, using the same intake logic.
+- **U18. SpartBoard-side entry points stay.** Record a tour > Web tour (library) and Record a web tour (Live tour health), both from #4544, still create a draft and open the editor, and the editor's Record steps button still appends from SpartBoard. They use the same intake logic as U17.
 
 ### Scope
 
@@ -80,8 +82,8 @@ Settled in a design interview with Paul on 2026-10-22, after his first hands-on 
 All into `dev-paul`, in order. Each bumps `extension/manifest.json` when it changes the extension.
 
 1. **Playback fixes.** U1, U2, U3, U4. Tests for the advance-on-pointerdown path and the click-through dim; manual check on a Google Doc (Extensions > Apps Script).
-2. **Library merge and cards.** U5, U6, U7, U8. Removes `WebToursSection`'s strip; carries over the `web-tours.new` anchor onto the merged "New" control; registers anchors for new card actions.
-3. **Editor redesign and publish check.** U9, U11, and the SpartBoard half of U10 (the button and the request; the panel's pick mode lands in PR 4).
+2. **Library merge and cards.** U5, U6, U7, U8. Starts after #4544 merges and builds on its Record a tour menu and `openWebTour` editor state. Removes `WebToursSection` and its `web-tours.new` anchor; registers anchors for new card actions.
+3. **Editor redesign and publish check.** U9, U11, and the SpartBoard half of U10 (the button and the request; the panel's pick mode lands in PR 4). `WebTourEditor` is opened from the library card, the Record a tour menu and Live tour health (#4544); keep its `initial`/`onClose` props so all three keep working.
 4. **Side panel redesign.** U12, U14, U15, U16, and the panel half of U10.
 5. **Create and append from the extension.** U13, U17, U18.
 
