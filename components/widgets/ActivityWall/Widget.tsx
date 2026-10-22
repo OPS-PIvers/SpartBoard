@@ -367,7 +367,12 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
       setComposerError(null);
       try {
         if (composer.kind === 'edit') {
-          await updatePost(session, composer.post.id, draft, placement);
+          // Rules keep a link post's URL with its owner; a co-teacher edits the rest.
+          const editDraft =
+            linked.moderating && composer.post.type === 'link'
+              ? { ...draft, url: composer.post.content }
+              : draft;
+          await updatePost(session, composer.post.id, editDraft, placement);
           addToast('Post updated.', 'success');
         } else {
           await createPost({
@@ -395,7 +400,15 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         setComposerBusy(false);
       }
     },
-    [addToast, closeComposer, composer, composerBusy, session, user]
+    [
+      addToast,
+      closeComposer,
+      composer,
+      composerBusy,
+      linked.moderating,
+      session,
+      user,
+    ]
   );
 
   const copyStudentLink = useCallback(async () => {
