@@ -11,6 +11,7 @@ import {
   isRecorderInternal,
   PANEL_PORT,
   type FrameRectReply,
+  type FrameRef,
   type RawCapture,
   type RecorderPick,
   type RecorderStatus,
@@ -214,8 +215,8 @@ async function onClick(
   const frames = (await chrome.webNavigation.getAllFrames({ tabId })) ?? [];
   // Only the recorded tab's own screen, still on the clicked page; otherwise no picture.
   const screenshot =
-    tab.active && tab.url === clickedUrl
-      ? await captureBlurred(tab, frames)
+    tab.active && clickedUrl && tab.url === clickedUrl
+      ? await captureBlurred(tab, frames, clickedUrl)
       : null;
   const path = frameId === 0 ? [] : framePath(frames, frameId);
   const placed =
@@ -310,19 +311,54 @@ async function onBlurPick(
 // One picture at a time, so one click's blur is never lifted by another's.
 let shooting: Promise<unknown> = Promise.resolve();
 
-/** The tab's screen with the page blurred and the Recording pill hidden; null when the top frame couldn't be blurred. */
+type Frame = chrome.webNavigation.GetAllFrameResultDetails;
+
+/** The top frame's child frames that hold each unconfirmed frame, by url and sibling index; null when one can't be placed. */
+export function framesToCover(
+  frames: readonly Frame[],
+  unconfirmed: readonly number[]
+): FrameRef[] | null {
+  const byId = new Map(frames.map((f) => [f.frameId, f]));
+  const children = frames
+    .filter((f) => f.parentFrameId === 0)
+    .sort((a, b) => a.frameId - b.frameId);
+  const out = new Map<number, FrameRef>();
+  for (const id of unconfirmed) {
+    let f = byId.get(id);
+    while (f && f.parentFrameId !== 0) f = byId.get(f.parentFrameId);
+    if (!f) return null;
+    const child = f;
+    out.set(child.frameId, {
+      url: child.url,
+      index: children.findIndex((c) => c.frameId === child.frameId),
+    });
+  }
+  return [...out.values()];
+}
+
+/** Whether the recorded tab is still the one showing, on the clicked page. */
+const stillShowing = async (tab: chrome.tabs.Tab, clickedUrl: string) => {
+  const now = await chrome.tabs.get(tab.id ?? -1).catch(() => null);
+  return (
+    !!now?.active && now.url === clickedUrl && now.windowId === tab.windowId
+  );
+};
+
+/** The tab's screen with every frame blurred and the Recording pill hidden; null unless all of it could be blurred. */
 function captureBlurred(
   tab: chrome.tabs.Tab,
-  frames: readonly chrome.webNavigation.GetAllFrameResultDetails[]
+  frames: readonly Frame[],
+  clickedUrl: string
 ): Promise<string | null> {
-  const run = shooting.then(() => shoot(tab, frames));
+  const run = shooting.then(() => shoot(tab, frames, clickedUrl));
   shooting = run.catch(() => undefined);
   return run;
 }
 
 async function shoot(
   tab: chrome.tabs.Tab,
-  frames: readonly chrome.webNavigation.GetAllFrameResultDetails[]
+  frames: readonly Frame[],
+  clickedUrl: string
 ): Promise<string | null> {
   const tabId = tab.id;
   if (tabId === undefined) return null;
@@ -341,11 +377,25 @@ async function shoot(
     )
   );
   try {
-    // Only the blurred picture may exist: no picture when the top frame didn't confirm.
+    // Only the blurred picture may exist: the top frame must confirm, and it blurs any frame that didn't.
     if (ready[targets.findIndex((f) => f.frameId === 0)] !== true) return null;
-    return await chrome.tabs
+    const unconfirmed = targets
+      .filter((f, i) => f.frameId !== 0 && ready[i] !== true)
+      .map((f) => f.frameId);
+    if (unconfirmed.length) {
+      const cover = framesToCover(frames, unconfirmed);
+      if (!cover) return null;
+      const covered: unknown = await ask(tabId, 0, {
+        type: 'rec/cover',
+        frames: cover,
+      });
+      if (covered !== true) return null;
+    }
+    if (!(await stillShowing(tab, clickedUrl))) return null;
+    const image = await chrome.tabs
       .captureVisibleTab(tab.windowId, { format: 'png' })
       .catch(() => null);
+    return image && (await stillShowing(tab, clickedUrl)) ? image : null;
   } finally {
     await Promise.all(
       targets.map((f) => ask(tabId, f.frameId, { type: 'rec/shot' }))
@@ -460,7 +510,8 @@ export function handleRecorderPort(port: chrome.runtime.Port): void {
         await session.set({
           [PICK_KEY]: { setId: msg.setId, stepId: msg.stepId },
         });
-        notifyPanel();
+        // The fix click must record, not pick something to blur.
+        await setBlurPicking(false);
       }
     })();
   });

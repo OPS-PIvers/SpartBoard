@@ -1,5 +1,6 @@
 // Injected into every frame of the tab being recorded, only after the side panel's Record press.
-import { captureTarget, shortCssPath } from './captureTarget';
+import { captureTarget } from './captureTarget';
+import { uniqueSelector } from './pageBlur';
 import { isRecorderInternal, type FrameRectReply } from './messages';
 import { loadLexend } from '../fonts';
 import { createShooter } from './shooter';
@@ -113,7 +114,7 @@ function start(): () => void {
     if (shooter.picking()) {
       e.preventDefault();
       e.stopImmediatePropagation();
-      const selector = shortCssPath(el);
+      const selector = uniqueSelector(el);
       const on = shooter.togglePick(el);
       void chrome.runtime
         .sendMessage({ type: 'rec/blurPick', selector, on })
@@ -134,7 +135,7 @@ function start(): () => void {
   const onMessage = (
     msg: unknown,
     sender: chrome.runtime.MessageSender,
-    reply: (r: FrameRectReply | true) => void
+    reply: (r: FrameRectReply | boolean) => void
   ) => {
     if (sender.id !== chrome.runtime.id || sender.tab) return false;
     if (isRecorderInternal(msg, 'rec/frameRect'))
@@ -144,6 +145,11 @@ function start(): () => void {
       shooter.setPicking(msg.on, msg.picks);
     else if (isRecorderInternal(msg, 'rec/shoot')) {
       void shooter.shoot(msg.blur, msg.picks).then(() => reply(true));
+      return true;
+    } else if (isRecorderInternal(msg, 'rec/cover')) {
+      const els = msg.frames.map((f) => frameElementFor(f.url, f.index));
+      if (els.some((el) => !el)) reply(false);
+      else void shooter.cover(els as Element[]).then(() => reply(true));
       return true;
     } else if (isRecorderInternal(msg, 'rec/shot')) {
       void shooter.done().then(() => reply(true));

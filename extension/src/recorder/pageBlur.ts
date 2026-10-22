@@ -80,6 +80,22 @@ const bigEnough = (el: Element) => {
   return r.width * r.height >= MIN_IMAGE_AREA;
 };
 
+const CELLS =
+  ':scope > th, :scope > td, [role="columnheader"], [role="rowheader"], [role="gridcell"], [role="cell"]';
+
+/** A row of column headings: every cell is a column header (a `th scope="row"` is a row header). */
+const isHeaderRow = (row: Element): boolean => {
+  const cells = Array.from(row.querySelectorAll(CELLS));
+  return (
+    cells.length > 0 &&
+    cells.every((c) =>
+      c.hasAttribute('role')
+        ? c.getAttribute('role') === 'columnheader'
+        : c.tagName === 'TH' && c.getAttribute('scope') !== 'row'
+    )
+  );
+};
+
 /** Elements to blur in one root, plus text nodes whose matches need their own wrapper. */
 function findTargets(
   root: Root,
@@ -122,8 +138,7 @@ function findTargets(
   });
   if (settings.tableRows)
     root.querySelectorAll('tr, [role="row"]').forEach((el) => {
-      if (own(el) || el.closest('thead')) return;
-      if (el.querySelector('th, [role="columnheader"]')) return;
+      if (own(el) || el.closest('thead') || isHeaderRow(el)) return;
       elements.add(el);
     });
   if (settings.images)
@@ -164,26 +179,82 @@ function wrapSpans(
   };
 }
 
-/** Marks every element the admin picked on this page, ignoring selectors that no longer parse. */
+const cssEscape = (s: string) =>
+  typeof CSS !== 'undefined' && CSS.escape
+    ? CSS.escape(s)
+    : s.replace(/[^\w-]/g, '\\$&');
+
+const countOf = (doc: Document, sel: string) => {
+  try {
+    return doc.querySelectorAll(sel).length;
+  } catch {
+    return 0;
+  }
+};
+
+/** A selector that matches only this element right now, lengthened one ancestor at a time until it does. */
+export function uniqueSelector(el: Element): string {
+  const doc = el.ownerDocument;
+  const parts: string[] = [];
+  for (
+    let node: Element | null = el;
+    node && node !== doc.documentElement;
+    node = node.parentElement
+  ) {
+    const id = node.id;
+    if (id && countOf(doc, `#${cssEscape(id)}`) === 1) {
+      parts.unshift(`#${cssEscape(id)}`);
+    } else {
+      const tag = node.tagName.toLowerCase();
+      const parent: Element | null = node.parentElement;
+      const index = parent
+        ? Array.from(parent.children)
+            .filter((c) => c.tagName === node?.tagName)
+            .indexOf(node) + 1
+        : 1;
+      parts.unshift(`${tag}:nth-of-type(${index})`);
+    }
+    const sel = parts.join(' > ');
+    if (countOf(doc, sel) === 1) return sel;
+  }
+  return `html > ${parts.join(' > ')}`;
+}
+
+/** Marks every element each picked selector matches, so a vague one blurs too much rather than too little. */
 export function markPicks(
   doc: Document,
   selectors: readonly string[]
 ): Element[] {
   const out: Element[] = [];
   for (const sel of selectors) {
-    let el: Element | null = null;
+    let found: Element[];
     try {
-      el = doc.querySelector(sel);
+      found = Array.from(doc.querySelectorAll(sel));
     } catch {
       continue;
     }
-    if (el && !own(el)) {
-      el.setAttribute(PICK_ATTR, '');
-      out.push(el);
-    }
+    for (const el of found)
+      if (!own(el)) {
+        el.setAttribute(PICK_ATTR, '');
+        out.push(el);
+      }
   }
   if (out.length) ensureBlurStyle(doc, PICK_ATTR);
   return out;
+}
+
+/** Blurs these elements for one picture; the returned function lifts exactly that. */
+export function blurElements(
+  doc: Document,
+  els: readonly Element[]
+): () => void {
+  const lift = ensureBlurStyle(doc, BLUR_ATTR);
+  const added = els.filter((el) => !el.hasAttribute(BLUR_ATTR));
+  for (const el of added) el.setAttribute(BLUR_ATTR, '');
+  return () => {
+    for (const el of added) el.removeAttribute(BLUR_ATTR);
+    if (!doc.querySelector(`[${BLUR_ATTR}]`)) lift();
+  };
 }
 
 /** Blurs everything the settings and picks cover in this frame; the returned function undoes exactly that. */

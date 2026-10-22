@@ -59,6 +59,12 @@ export interface RecorderStatus {
   blurPicking: boolean;
 }
 
+/** A child frame of the top frame, as the top frame can find its element. */
+export interface FrameRef {
+  url: string;
+  index: number;
+}
+
 export type FrameRectReply =
   { ok: true; x: number; y: number; viewport: Size } | { ok: false };
 
@@ -74,6 +80,8 @@ type InternalSpec = {
   /** Blurs this frame (and hides the pill in the top frame) before a picture. */
   'rec/shoot': { blur: BlurSettings; picks: string[] };
   'rec/shot': Record<string, never>;
+  /** Blurs whole child frames from the top frame when they couldn't blur themselves. */
+  'rec/cover': { frames: FrameRef[] };
   'rec/blurMode': { on: boolean; picks: string[] };
   'rec/setBlurPicking': { on: boolean };
   'rec/blurPick': { selector: string; on: boolean };
@@ -133,6 +141,16 @@ const CHECKS: {
     isStr(m.setId, 128) && isStr(m.stepId, 64) && isRecordedStep(m.step),
   'rec/shoot': (m) => isBlurSettings(m.blur) && isPicks(m.picks),
   'rec/shot': () => true,
+  'rec/cover': (m) =>
+    Array.isArray(m.frames) &&
+    m.frames.length <= 100 &&
+    m.frames.every(
+      (f) =>
+        isObj(f) &&
+        isStr(f.url) &&
+        Number.isInteger(f.index) &&
+        (f.index as number) >= 0
+    ),
   'rec/blurMode': (m) => typeof m.on === 'boolean' && isPicks(m.picks),
   'rec/setBlurPicking': (m) => typeof m.on === 'boolean',
   'rec/blurPick': (m) =>

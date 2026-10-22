@@ -1,6 +1,7 @@
 import type { BlurSettings } from './blurSettings';
 import {
   applyPageBlur,
+  blurElements,
   ensureBlurStyle,
   HOVER_ATTR,
   markPicks,
@@ -17,6 +18,8 @@ export interface Shooter {
   togglePick: (el: Element) => boolean;
   /** Blurs the frame for one picture and resolves once that has painted. */
   shoot: (settings: BlurSettings, picks: readonly string[]) => Promise<void>;
+  /** Also blurs these elements (child frames that couldn't blur themselves) for the same picture. */
+  cover: (els: readonly Element[]) => Promise<void>;
   /** Takes the blur off again after the picture. */
   done: () => Promise<void>;
   dispose: () => void;
@@ -92,6 +95,15 @@ export function createShooter(
         if (picking && wasHovered?.isConnected) setHover(wasHovered);
       };
       await Promise.all([setPill(false), nextPaint(win)]);
+    },
+    cover: async (els) => {
+      const lift = blurElements(doc, els);
+      const prev = undo;
+      undo = () => {
+        lift();
+        prev?.();
+      };
+      await nextPaint(win);
     },
     done: async () => {
       undo?.();

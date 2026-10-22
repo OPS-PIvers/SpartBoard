@@ -69,7 +69,11 @@ const setup = async () => {
     },
     scripting: { executeScript: vi.fn(() => Promise.resolve([])) },
     webNavigation: {
-      getAllFrames: () => Promise.resolve([]),
+      getAllFrames: vi.fn(
+        (): Promise<
+          { frameId: number; parentFrameId: number; url: string }[]
+        > => Promise.resolve([])
+      ),
       onDOMContentLoaded: { addListener: vi.fn() },
     },
   };
@@ -457,6 +461,110 @@ describe('recorder worker', () => {
     await send({ type: 'rec/stop' }, { url: PANEL_URL });
     expect(store['recorder.blurPicks']).toBeUndefined();
     expect(store['recorder.blurPicking']).toBeUndefined();
+  });
+
+  describe('frames that could not blur themselves', () => {
+    const FRAMES = [
+      { frameId: 0, parentFrameId: -1, url: TAB_URL },
+      { frameId: 3, parentFrameId: 0, url: 'https://ads.example/a' },
+      { frameId: 5, parentFrameId: 0, url: 'https://roster.example/r' },
+      { frameId: 9, parentFrameId: 5, url: 'https://inner.example/i' },
+    ];
+    const run = async (coverReply: unknown) => {
+      const ctx = await setup();
+      ctx.chromeFake.webNavigation.getAllFrames.mockResolvedValue(FRAMES);
+      const covers: unknown[] = [];
+      ctx.chromeFake.tabs.sendMessage.mockImplementation(
+        (_tab: unknown, m: unknown, opts: unknown) => {
+          const msg = m as { type: string };
+          const { frameId } = opts as { frameId: number };
+          if (msg.type === 'rec/cover') {
+            covers.push(m);
+            return Promise.resolve(coverReply);
+          }
+          // Frames 3 and 9 have no recorder.
+          if (frameId === 3 || frameId === 9)
+            return Promise.reject(new Error('no receiver'));
+          return Promise.resolve(true);
+        }
+      );
+      await ctx.send({ type: 'rec/start', tabId: 7 }, { url: PANEL_URL });
+      await ctx.send(click, { tab: { id: 7, url: TAB_URL }, frameId: 0 });
+      await vi.waitFor(() =>
+        expect(
+          ctx.panelMessages.some(
+            (m) => (m as { type: string }).type === 'rec/captured'
+          )
+        ).toBe(true)
+      );
+      return { ...ctx, covers };
+    };
+
+    it('blurs each one from the top frame, by its top-level frame, before the picture', async () => {
+      const { chromeFake, covers } = await run(true);
+      expect(covers).toEqual([
+        {
+          type: 'rec/cover',
+          frames: [
+            { url: 'https://ads.example/a', index: 0 },
+            { url: 'https://roster.example/r', index: 1 },
+          ],
+        },
+      ]);
+      expect(chromeFake.tabs.captureVisibleTab).toHaveBeenCalledOnce();
+    });
+
+    it('takes no picture when the top frame cannot cover them', async () => {
+      const { chromeFake, panelMessages } = await run(false);
+      expect(chromeFake.tabs.captureVisibleTab).not.toHaveBeenCalled();
+      const captured = panelMessages.find(
+        (m) => (m as { type: string }).type === 'rec/captured'
+      ) as { capture: { screenshot: unknown } };
+      expect(captured.capture.screenshot).toBeNull();
+    });
+  });
+
+  it('drops the picture when another tab shows up before or during capture', async () => {
+    const { send, chromeFake, panelMessages } = await setup();
+    await send({ type: 'rec/start', tabId: 7 }, { url: PANEL_URL });
+    const shown = { id: 7, windowId: 1, active: true, url: TAB_URL };
+    // The click's own check passes; the tab is in the background by the time it is captured.
+    chromeFake.tabs.get
+      .mockResolvedValueOnce(shown)
+      .mockResolvedValueOnce(shown)
+      .mockResolvedValue({ ...shown, active: false });
+    await send(click, { tab: { id: 7, url: TAB_URL }, frameId: 0 });
+    await vi.waitFor(() =>
+      expect(
+        panelMessages.some(
+          (m) => (m as { type: string }).type === 'rec/captured'
+        )
+      ).toBe(true)
+    );
+    expect(chromeFake.tabs.captureVisibleTab).toHaveBeenCalledOnce();
+    const captured = panelMessages.find(
+      (m) => (m as { type: string }).type === 'rec/captured'
+    ) as { capture: { screenshot: unknown } };
+    expect(captured.capture.screenshot).toBeNull();
+  });
+
+  it('turns Click to blur off when SpartBoard asks to fix a step', async () => {
+    const { worker, send, store } = await setup();
+    const handlers: Listener[] = [];
+    const port = {
+      postMessage: vi.fn(),
+      disconnect: vi.fn(),
+      onMessage: { addListener: (fn: Listener) => handlers.push(fn) },
+      onDisconnect: { addListener: vi.fn() },
+    };
+    worker.handleRecorderPort(port as unknown as chrome.runtime.Port);
+    handlers[0]({ type: 'recorder/attach', setId: 't1', title: 'Tour' });
+    await vi.waitFor(() => expect(port.postMessage).toHaveBeenCalled());
+    await send({ type: 'rec/start', tabId: 7 }, { url: PANEL_URL });
+    await send({ type: 'rec/setBlurPicking', on: true }, { url: PANEL_URL });
+    expect(store['recorder.blurPicking']).toBe(true);
+    handlers[0]({ type: 'recorder/repick', setId: 't1', stepId: 's2' });
+    await vi.waitFor(() => expect(store['recorder.blurPicking']).toBe(false));
   });
 
   it('closes a recorder port when the profile is not staff', async () => {

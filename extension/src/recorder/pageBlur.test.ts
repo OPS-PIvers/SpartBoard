@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BLUR_DEFAULTS, type BlurSettings } from './blurSettings';
-import { applyPageBlur, BLUR_ATTR, PICK_ATTR } from './pageBlur';
+import {
+  applyPageBlur,
+  BLUR_ATTR,
+  markPicks,
+  PICK_ATTR,
+  uniqueSelector,
+} from './pageBlur';
 import { createShooter } from './shooter';
 
 const OFF: BlurSettings = {
@@ -101,6 +107,19 @@ describe('applyPageBlur', () => {
     expect(blurred().map((el) => el.id)).toEqual(['r1', 'r2']);
   });
 
+  it('blurs rows with a row header, skipping only rows of column headers', () => {
+    document.body.innerHTML = `<table>
+      <tr id="cols"><th>Name</th><th>Score</th></tr>
+      <tr id="th-row"><th scope="row">Smith, John</th><td>92</td></tr>
+    </table>
+    <div role="grid">
+      <div role="row" id="grid-head"><span role="columnheader">Name</span></div>
+      <div role="row" id="grid-row"><span role="rowheader">Ada</span><span role="gridcell">90</span></div>
+    </div>`;
+    applyPageBlur(document, { ...OFF, tableRows: true });
+    expect(blurred().map((el) => el.id)).toEqual(['th-row', 'grid-row']);
+  });
+
   it('blurs images only when switched on, skipping icons', () => {
     document.body.innerHTML =
       '<img id="photo" src="a.png"><img id="icon" src="b.png">';
@@ -150,7 +169,38 @@ describe('applyPageBlur', () => {
   });
 });
 
+describe('Click to blur selectors', () => {
+  it('saves a selector that matches only the picked element', () => {
+    document.body.innerHTML = `
+      <table><tbody><tr><td><a>Ada</a></td></tr></tbody></table>
+      <table><tbody><tr><td><a id="x">Bo</a></td></tr><tr><td><a>Cy</a></td></tr></tbody></table>`;
+    const picked = document.querySelectorAll('a')[2];
+    const sel = uniqueSelector(picked);
+    expect(Array.from(document.querySelectorAll(sel))).toEqual([picked]);
+    expect(uniqueSelector(document.getElementById('x')!)).toBe('#x');
+  });
+
+  it('blurs every element a vague saved selector matches', () => {
+    document.body.innerHTML = '<p class="n">Ada</p><p class="n">Bo</p>';
+    markPicks(document, ['p.n']);
+    expect(document.querySelectorAll(`[${PICK_ATTR}]`)).toHaveLength(2);
+  });
+});
+
 describe('createShooter', () => {
+  it('covers frames that could not blur themselves, and lifts that after the picture', async () => {
+    document.body.innerHTML = '<iframe id="f"></iframe>';
+    const shooter = createShooter(document, () => Promise.resolve());
+    await shooter.shoot(OFF, []);
+    const frame = document.getElementById('f')!;
+    await shooter.cover([frame]);
+    expect(frame.hasAttribute(BLUR_ATTR)).toBe(true);
+    expect(styleCount()).toBe(1);
+    await shooter.done();
+    expect(frame.hasAttribute(BLUR_ATTR)).toBe(false);
+    expect(styleCount()).toBe(0);
+  });
+
   it('blurs, hides the pill and waits for paint before resolving, then restores', async () => {
     document.body.innerHTML = '<p id="a">jane@school.org</p>';
     const pill: boolean[] = [];

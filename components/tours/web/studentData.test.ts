@@ -175,6 +175,34 @@ describe('findPageBlurSpans', () => {
     expect(spans('Van Buren, Martin J.')).toEqual(['Van Buren, Martin J.']);
   });
 
+  it('finds names whose words are also months, places or common words', () => {
+    for (const name of [
+      'West, April',
+      'Day, Summer',
+      'Washington, Mary',
+      'Smith, May',
+      'Hall, Art',
+      'North, Grace',
+    ])
+      expect(spans(name)).toEqual([name]);
+  });
+
+  it('finds Mc, O’, Le and all-caps names', () => {
+    for (const name of [
+      'McDonald, Ava',
+      "O'Brien, Liam",
+      'LeBlanc, Mia',
+      'SMITH, JOHN',
+      'Smith, DeShawn',
+    ])
+      expect(spans(name)).toEqual([name]);
+  });
+
+  it('keeps the possible-name warning as narrow as before', () => {
+    expect(findStudentData('McDonald, Ava', null)).toEqual([]);
+    expect(findStudentData('SMITH, JOHN', null)).toEqual([]);
+  });
+
   it('leaves dates, prices and times alone', () => {
     for (const text of [
       'Due October 22, 2026',
@@ -196,6 +224,9 @@ describe('findPageBlurSpans', () => {
       'Orono, Minnesota',
       'However, Students',
       'Spring, Summer',
+      'HOME, HELP',
+      'Paris, France',
+      'Best, Regards',
     ])
       expect(spans(text)).toEqual([]);
   });
