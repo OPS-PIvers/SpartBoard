@@ -10213,6 +10213,8 @@ export type GlobalFeature =
   | 'lunch-count-redesign'
   /** Activity Wall timeline on a dated axis, with a year/date picker on posts. */
   | 'activity-wall-timeline-dates'
+  /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
+  | 'checklist-small-card'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak';
 

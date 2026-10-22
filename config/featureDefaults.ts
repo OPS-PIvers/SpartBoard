@@ -1134,6 +1134,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'checklist-small-card': {
+    label: 'Checklist small cards',
+    icon: ListChecks,
+    description:
+      'An Add tasks button when empty, and a cleaner footer on small cards.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'checklist',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Fail-closed for admins until Paul saves the row (espeak counsel hold, G19).
   'flashcards-speak': {
     label: 'Flashcards: Speak',
