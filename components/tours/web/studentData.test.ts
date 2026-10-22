@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildNameMatcher } from '@/components/widgets/GuidedLearning/components/recorder/redaction';
 import {
+  findPageBlurSpans,
   findStudentData,
   isHardHit,
   MAX_CAPTURED_TEXT,
@@ -170,5 +171,110 @@ describe('toHrefPattern', () => {
     expect(toHrefPattern(far, page)).toBeNull();
     // The page-side re-scrub of a stored pattern uses the same cap.
     expect(toHrefPattern(far)).toBeNull();
+  });
+});
+
+describe('findPageBlurSpans', () => {
+  const ALL = { emails: true, ids: true, lastFirst: true };
+  const spans = (text: string, patterns = ALL) =>
+    findPageBlurSpans(text, patterns).map((s) => text.slice(s.start, s.end));
+
+  it('finds emails', () => {
+    expect(spans('Mail jane.smith@orono.k12.mn.us today')).toEqual([
+      'jane.smith@orono.k12.mn.us',
+    ]);
+  });
+
+  it('finds student ids, phone numbers and uuids', () => {
+    expect(spans('ID 4501234, call (952) 449-8300')).toEqual([
+      '4501234',
+      '(952) 449-8300',
+    ]);
+    expect(spans('Row 1b4e28ba-2fa1-11d2-883f-0016d3cca427')).toEqual([
+      '1b4e28ba-2fa1-11d2-883f-0016d3cca427',
+    ]);
+  });
+
+  it('finds names written Last, First', () => {
+    expect(spans('Smith, Jane')).toEqual(['Smith, Jane']);
+    expect(spans('Van Buren, Martin J.')).toEqual(['Van Buren, Martin J.']);
+  });
+
+  it('finds names whose words are also months, places or common words', () => {
+    for (const name of [
+      'West, April',
+      'Day, Summer',
+      'Washington, Mary',
+      'Smith, May',
+      'Hall, Art',
+      'North, Grace',
+    ])
+      expect(spans(name)).toEqual([name]);
+  });
+
+  it('finds Mc, O’, Le and all-caps names', () => {
+    for (const name of [
+      'McDonald, Ava',
+      "O'Brien, Liam",
+      'LeBlanc, Mia',
+      'SMITH, JOHN',
+      'Smith, DeShawn',
+    ])
+      expect(spans(name)).toEqual([name]);
+  });
+
+  it('keeps the possible-name warning as narrow as before', () => {
+    expect(findStudentData('McDonald, Ava', null)).toEqual([]);
+    expect(findStudentData('SMITH, JOHN', null)).toEqual([]);
+  });
+
+  it('leaves dates, prices and times alone', () => {
+    for (const text of [
+      'Due October 22, 2026',
+      '10/22/2026 at 10:30',
+      '2026-10-22',
+      'Total $1,250.00',
+      'Only $45.99',
+      'Grade 9, Period 3',
+    ])
+      expect(spans(text)).toEqual([]);
+  });
+
+  it('leaves ordinary capitalised phrases alone', () => {
+    for (const text of [
+      'Hello, World',
+      'Monday, October',
+      'Thanks, Everyone',
+      'Settings, Help',
+      'Orono, Minnesota',
+      'However, Students',
+      'Spring, Summer',
+      'HOME, HELP',
+      'Paris, France',
+      'Best, Regards',
+    ])
+      expect(spans(text)).toEqual([]);
+  });
+
+  it('only finds the patterns switched on', () => {
+    const text = 'Smith, Jane jane@school.org 4501234';
+    const only = (on: 'emails' | 'ids' | 'lastFirst') =>
+      spans(text, {
+        emails: on === 'emails',
+        ids: on === 'ids',
+        lastFirst: on === 'lastFirst',
+      });
+    expect(only('emails')).toEqual(['jane@school.org']);
+    expect(only('ids')).toEqual(['4501234']);
+    expect(only('lastFirst')).toEqual(['Smith, Jane']);
+    expect(
+      spans(text, { emails: false, ids: false, lastFirst: false })
+    ).toEqual([]);
+  });
+
+  it('merges overlapping matches', () => {
+    expect(findPageBlurSpans('12345@school.org', ALL)).toEqual([
+      { start: 0, end: 16 },
+    ]);
   });
 });

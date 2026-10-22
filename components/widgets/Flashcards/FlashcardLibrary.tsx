@@ -202,6 +202,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   const folderCounts = useMemo(() => countItemsByFolder(sets), [sets]);
   const folderView = useFolderViewSidebar({
     setFolderColor: folders.setFolderColor,
+    reorderSiblings: folders.reorderSiblings,
     noun: { one: 'flashcard set', many: 'flashcard sets' },
     items: sets,
     ...folderDeleteActions,

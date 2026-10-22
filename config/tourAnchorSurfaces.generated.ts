@@ -2769,6 +2769,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'library-shell.folder-menu-rename': ['library.shell'],
     'library-shell.folder-menu-new-subfolder': ['library.shell'],
     'library-shell.folder-menu-move-to-root': ['library.shell'],
+    'library-shell.folder-menu-move-up': ['library.shell'],
+    'library-shell.folder-menu-move-down': ['library.shell'],
     'library-shell.folder-menu-delete': ['library.shell'],
     'library-shell.folder-dialog-close': ['library.shell'],
     'library-shell.folder-dialog-move-contents': ['library.shell'],

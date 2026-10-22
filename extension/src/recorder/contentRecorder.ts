@@ -1,7 +1,9 @@
 // Injected into every frame of the tab being recorded, only after the side panel's Record press.
 import { captureTarget } from './captureTarget';
+import { uniqueSelector } from './pageBlur';
 import { isRecorderInternal, type FrameRectReply } from './messages';
 import { loadLexend } from '../fonts';
+import { createShooter } from './shooter';
 
 const FLAG = '__spartTourRecorder';
 // The overlay's own hosts never count as clicks on the site.
@@ -98,39 +100,75 @@ const frameRect = (url: string, index: number): FrameRectReply => {
   };
 };
 
+// While Click to blur is on, these never reach the page, so a pick can't follow a link.
+const SWALLOWED = ['pointerup', 'mousedown', 'mouseup', 'click', 'auxclick'];
+
 function start(): () => void {
+  const pill = showPill();
+  const shooter = createShooter(document, pill.setShown);
   const onPointerDown = (e: PointerEvent) => {
     // Only real presses by the admin; the page can't make steps by dispatching events.
     if (!e.isTrusted || e.button !== 0) return;
     const el = e.target instanceof Element ? e.target : null;
     if (!el || el.closest(OWN_HOST)) return;
+    if (shooter.picking()) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      const selector = uniqueSelector(el);
+      const on = shooter.togglePick(el);
+      void chrome.runtime
+        .sendMessage({ type: 'rec/blurPick', selector, on })
+        .catch(() => undefined);
+      return;
+    }
     void chrome.runtime
       .sendMessage({ type: 'rec/click', target: captureTarget(el) })
       .catch(() => undefined);
   };
+  const swallow = (e: Event) => {
+    if (!e.isTrusted || !shooter.picking()) return;
+    const el = e.target instanceof Element ? e.target : null;
+    if (el?.closest(OWN_HOST)) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  };
   const onMessage = (
     msg: unknown,
     sender: chrome.runtime.MessageSender,
-    reply: (r: FrameRectReply | true) => void
+    reply: (r: FrameRectReply | boolean) => void
   ) => {
     if (sender.id !== chrome.runtime.id || sender.tab) return false;
     if (isRecorderInternal(msg, 'rec/frameRect'))
       reply(frameRect(msg.url, msg.index));
     else if (isRecorderInternal(msg, 'rec/stopFrame')) stop();
-    else if (isRecorderInternal(msg, 'rec/pill')) {
-      void pill.setShown(msg.show).then(() => reply(true));
+    else if (isRecorderInternal(msg, 'rec/blurMode'))
+      shooter.setPicking(msg.on, msg.picks);
+    else if (isRecorderInternal(msg, 'rec/shoot')) {
+      void shooter.shoot(msg.blur, msg.picks).then(() => reply(true));
+      return true;
+    } else if (isRecorderInternal(msg, 'rec/cover')) {
+      const els = msg.frames.map((f) => frameElementFor(f.url, f.index));
+      if (els.some((el) => !el)) reply(false);
+      else void shooter.cover(els as Element[]).then(() => reply(true));
+      return true;
+    } else if (isRecorderInternal(msg, 'rec/shot')) {
+      void shooter.done().then(() => reply(true));
       return true;
     }
     return false;
   };
-  const pill = showPill();
   const stop = () => {
     pill.remove();
+    shooter.dispose();
     removeEventListener('pointerdown', onPointerDown, { capture: true });
+    for (const type of SWALLOWED)
+      removeEventListener(type, swallow, { capture: true });
     chrome.runtime.onMessage.removeListener(onMessage);
     if (scope[FLAG] === stop) delete scope[FLAG];
   };
   addEventListener('pointerdown', onPointerDown, { capture: true });
+  for (const type of SWALLOWED)
+    addEventListener(type, swallow, { capture: true });
   chrome.runtime.onMessage.addListener(onMessage);
   return stop;
 }

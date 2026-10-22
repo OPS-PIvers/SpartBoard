@@ -12,23 +12,30 @@ import {
   isRecorderInternal,
   PANEL_PORT,
   type FrameRectReply,
+  type FrameRef,
   type RawCapture,
   type RecorderPick,
   type RecorderStatus,
   type RecorderTour,
 } from './messages';
 import { createIntake, type Intake } from './intake';
+import { MAX_PICKS_PER_PAGE, readBlurSettings } from './blurSettings';
 
 const RECORDING_KEY = 'recorder.tabId';
 const OUTBOX_KEY = 'recorder.outbox';
 // Fixed steps wait here until SpartBoard saves them, like new steps in the outbox.
 const FIXES_KEY = 'recorder.fixes';
 const PICK_KEY = 'recorder.pick';
+// Click to blur picks for this recording, by page url pattern.
+const PICKS_KEY = 'recorder.blurPicks';
+const PICKING_KEY = 'recorder.blurPicking';
 const CONTENT_FILE = 'recorder.js';
 // captureVisibleTab allows two calls a second.
 const MIN_CAPTURE_GAP_MS = 550;
+const FRAME_REPLY_MS = 1000;
 
 type Outbox = Record<string, RecordedWebStep[]>;
+type Picks = Record<string, string[]>;
 
 /** Open SpartBoard web-step editors, by set id. */
 const ports = new Map<string, Set<chrome.runtime.Port>>();
@@ -97,6 +104,7 @@ async function status(): Promise<RecorderStatus> {
       failed: false,
       saved: null,
     },
+    blurPicking: await blurPicking(),
   };
 }
 
@@ -115,6 +123,8 @@ async function startRecording(tabId: number): Promise<boolean> {
   const tab = await chrome.tabs.get(tabId).catch(() => null);
   if (!tab?.url?.startsWith('https:') || !toUrlPattern(tab.url)) return false;
   if (!(await panelOpen())) return false;
+  // Picks belong to one recording.
+  await session.remove([PICKS_KEY, PICKING_KEY]);
   await session.set({ [RECORDING_KEY]: tabId });
   await inject(tabId);
   notifyPanel();
@@ -131,7 +141,7 @@ async function panelOpen(): Promise<boolean> {
 
 async function stopRecording(): Promise<void> {
   const tabId = await recordingTab();
-  await session.remove(RECORDING_KEY);
+  await session.remove([RECORDING_KEY, PICKS_KEY, PICKING_KEY]);
   if (tabId !== null)
     await chrome.tabs
       .sendMessage(tabId, { type: 'rec/stopFrame' })
@@ -203,10 +213,12 @@ async function onClick(
   if (wait > 0) await sleep(wait);
   const tab = await chrome.tabs.get(tabId).catch(() => null);
   if (!tab) return;
+  const frames = (await chrome.webNavigation.getAllFrames({ tabId })) ?? [];
   // Only the recorded tab's own screen, still on the clicked page; otherwise no picture.
   const screenshot =
-    tab.active && tab.url === clickedUrl ? await captureWithoutPill(tab) : null;
-  const frames = (await chrome.webNavigation.getAllFrames({ tabId })) ?? [];
+    tab.active && clickedUrl && tab.url === clickedUrl
+      ? await captureBlurred(tab, frames, clickedUrl)
+      : null;
   const path = frameId === 0 ? [] : framePath(frames, frameId);
   const placed =
     frameId === 0
@@ -235,23 +247,160 @@ async function onClick(
   if (pick && ports.has(pick.setId)) await stopRecording();
 }
 
-const pill = (tabId: number, show: boolean) =>
-  chrome.tabs
-    .sendMessage(tabId, { type: 'rec/pill', show }, { frameId: 0 })
-    .catch(() => undefined);
+const readPicks = async (): Promise<Picks> => {
+  const got = await session.get(PICKS_KEY);
+  const picks = got[PICKS_KEY];
+  return picks && typeof picks === 'object' ? (picks as Picks) : {};
+};
 
-/** The tab's screen with the Recording pill hidden, so it never shows in a step picture. */
-async function captureWithoutPill(
-  tab: chrome.tabs.Tab
+const picksFor = (picks: Picks, url: string | undefined) => {
+  const pattern = url ? toUrlPattern(url) : null;
+  return (pattern && picks[pattern]) || [];
+};
+
+const blurPicking = async (): Promise<boolean> =>
+  (await session.get(PICKING_KEY))[PICKING_KEY] === true;
+
+/** A frame's reply, or null when it has no recorder or doesn't answer in time. */
+const ask = (tabId: number, frameId: number, msg: object) =>
+  Promise.race([
+    chrome.tabs.sendMessage(tabId, msg, { frameId }).catch(() => null),
+    sleep(FRAME_REPLY_MS).then(() => null),
+  ]);
+
+/** Tells frames whether Click to blur is on, with the picks already made on each one's page. */
+async function syncBlurMode(tabId: number, frameIds?: number[]): Promise<void> {
+  const on = await blurPicking();
+  const picks = await readPicks();
+  const frames = (await chrome.webNavigation.getAllFrames({ tabId })) ?? [];
+  await Promise.all(
+    frames
+      .filter((f) => !frameIds || frameIds.includes(f.frameId))
+      .map((f) =>
+        ask(tabId, f.frameId, {
+          type: 'rec/blurMode',
+          on,
+          picks: picksFor(picks, f.url),
+        })
+      )
+  );
+}
+
+async function setBlurPicking(on: boolean): Promise<boolean> {
+  const tabId = await recordingTab();
+  if (tabId === null && on) return false;
+  await session.set({ [PICKING_KEY]: on });
+  if (tabId !== null) await syncBlurMode(tabId);
+  notifyPanel();
+  return true;
+}
+
+async function onBlurPick(
+  selector: string,
+  on: boolean,
+  sender: chrome.runtime.MessageSender
+): Promise<void> {
+  const pattern = sender.url ? toUrlPattern(sender.url) : null;
+  if (!pattern || sender.tab?.id !== (await recordingTab())) return;
+  if (!(await blurPicking())) return;
+  const picks = await readPicks();
+  const kept = (picks[pattern] ?? []).filter((s) => s !== selector);
+  picks[pattern] = (on ? [...kept, selector] : kept).slice(-MAX_PICKS_PER_PAGE);
+  await session.set({ [PICKS_KEY]: picks });
+}
+
+// One picture at a time, so one click's blur is never lifted by another's.
+let shooting: Promise<unknown> = Promise.resolve();
+
+type Frame = chrome.webNavigation.GetAllFrameResultDetails;
+
+/** The top frame's child frames that hold each unconfirmed frame, by url and sibling index; null when one can't be placed. */
+export function framesToCover(
+  frames: readonly Frame[],
+  unconfirmed: readonly number[]
+): FrameRef[] | null {
+  const byId = new Map(frames.map((f) => [f.frameId, f]));
+  const children = frames
+    .filter((f) => f.parentFrameId === 0)
+    .sort((a, b) => a.frameId - b.frameId);
+  const out = new Map<number, FrameRef>();
+  for (const id of unconfirmed) {
+    let f = byId.get(id);
+    while (f && f.parentFrameId !== 0) f = byId.get(f.parentFrameId);
+    if (!f) return null;
+    const child = f;
+    out.set(child.frameId, {
+      url: child.url,
+      index: children.findIndex((c) => c.frameId === child.frameId),
+    });
+  }
+  return [...out.values()];
+}
+
+/** Whether the recorded tab is still the one showing, on the clicked page. */
+const stillShowing = async (tab: chrome.tabs.Tab, clickedUrl: string) => {
+  const now = await chrome.tabs.get(tab.id ?? -1).catch(() => null);
+  return (
+    !!now?.active && now.url === clickedUrl && now.windowId === tab.windowId
+  );
+};
+
+/** The tab's screen with every frame blurred and the Recording pill hidden; null unless all of it could be blurred. */
+function captureBlurred(
+  tab: chrome.tabs.Tab,
+  frames: readonly Frame[],
+  clickedUrl: string
 ): Promise<string | null> {
-  if (tab.id === undefined) return null;
-  await pill(tab.id, false);
+  const run = shooting.then(() => shoot(tab, frames, clickedUrl));
+  shooting = run.catch(() => undefined);
+  return run;
+}
+
+async function shoot(
+  tab: chrome.tabs.Tab,
+  frames: readonly Frame[],
+  clickedUrl: string
+): Promise<string | null> {
+  const tabId = tab.id;
+  if (tabId === undefined) return null;
+  const blur = await readBlurSettings();
+  const picks = await readPicks();
+  const targets = frames.some((f) => f.frameId === 0)
+    ? frames.map((f) => ({ frameId: f.frameId, url: f.url }))
+    : [{ frameId: 0, url: tab.url }];
+  const ready = await Promise.all(
+    targets.map((f) =>
+      ask(tabId, f.frameId, {
+        type: 'rec/shoot',
+        blur,
+        picks: picksFor(picks, f.url),
+      })
+    )
+  );
   try {
-    return await chrome.tabs
+    // Only the blurred picture may exist: the top frame must confirm, and it blurs any frame that didn't.
+    if (ready[targets.findIndex((f) => f.frameId === 0)] !== true) return null;
+    const unconfirmed = targets
+      .filter((f, i) => f.frameId !== 0 && ready[i] !== true)
+      .map((f) => f.frameId);
+    if (unconfirmed.length) {
+      const cover = framesToCover(frames, unconfirmed);
+      if (!cover) return null;
+      const covered: unknown = await ask(tabId, 0, {
+        type: 'rec/cover',
+        frames: cover,
+      });
+      if (covered !== true) return null;
+    }
+    if (!(await stillShowing(tab, clickedUrl))) return null;
+    const image = await chrome.tabs
       .captureVisibleTab(tab.windowId, { format: 'png' })
       .catch(() => null);
+    return image && (await stillShowing(tab, clickedUrl)) ? image : null;
   } finally {
-    await pill(tab.id, true);
+    await Promise.all(
+      targets.map((f) => ask(tabId, f.frameId, { type: 'rec/shot' }))
+    );
   }
 }
 
@@ -379,7 +528,8 @@ export function handleRecorderPort(port: chrome.runtime.Port): void {
         await session.set({
           [PICK_KEY]: { setId: msg.setId, stepId: msg.stepId },
         });
-        notifyPanel();
+        // The fix click must record, not pick something to blur.
+        await setBlurPicking(false);
       }
     })();
   });
@@ -414,6 +564,8 @@ export function installRecorder(origins: readonly string[] = []): void {
     if (sender.tab) {
       if (isRecorderInternal(msg, 'rec/click'))
         void onClick(msg.target, sender);
+      else if (isRecorderInternal(msg, 'rec/blurPick'))
+        void onBlurPick(msg.selector, msg.on, sender);
       return false;
     }
     if (!isPanel(sender)) return false;
@@ -424,6 +576,10 @@ export function installRecorder(origins: readonly string[] = []): void {
     // Recording starts only here: a press in the side panel, never a page message.
     if (isRecorderInternal(msg, 'rec/start')) {
       void startRecording(msg.tabId).then(reply);
+      return true;
+    }
+    if (isRecorderInternal(msg, 'rec/setBlurPicking')) {
+      void setBlurPicking(msg.on).then(reply, () => reply(false));
       return true;
     }
     if (isRecorderInternal(msg, 'rec/stop')) {
@@ -494,7 +650,10 @@ export function installRecorder(origins: readonly string[] = []): void {
   // New documents and frames added later get the click listener again.
   chrome.webNavigation.onDOMContentLoaded.addListener((d) => {
     void recordingTab().then((tabId) => {
-      if (tabId === d.tabId) void inject(d.tabId, [d.frameId]);
+      if (tabId === d.tabId)
+        void inject(d.tabId, [d.frameId]).then(() =>
+          syncBlurMode(d.tabId, [d.frameId])
+        );
     });
   });
   chrome.tabs.onRemoved.addListener((tabId) => {

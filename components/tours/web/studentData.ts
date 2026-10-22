@@ -101,6 +101,85 @@ export function findStudentData(
   return out;
 }
 
+/** Text patterns the recorder blurs on the page before each picture. */
+export interface PageBlurPatterns {
+  emails: boolean;
+  ids: boolean;
+  lastFirst: boolean;
+}
+
+const words = (s: string) => new Set(s.split(' '));
+// Greetings and sign-offs: "Hello, World", "Thanks, Everyone".
+const LEADING = words(
+  'hello hi hey dear thanks thank welcome yes no okay ok please sincerely cheers however also then today tomorrow yesterday'
+);
+// A phrase made only of these is calendar or UI text: "Monday, October", "Settings, Help".
+const COMMON = words(
+  'january february march april may june july august september october november december ' +
+    'monday tuesday wednesday thursday friday saturday sunday spring summer fall winter ' +
+    'home help settings search menu save cancel edit delete new open close more view add remove ' +
+    'share print download upload submit done next back previous best regards wishes ' +
+    'grade grades class classes course courses section unit lesson week period room ' +
+    'teacher teachers student students parent parents assignment assignments quiz test exam ' +
+    'math science english history reading writing art music spanish french health'
+);
+// "City, State" and "City, Country"; states that are common first names are left out.
+const PLACES = words(
+  'alabama alaska arizona arkansas california colorado connecticut delaware florida hawaii idaho ' +
+    'illinois indiana iowa kansas kentucky louisiana maine maryland massachusetts michigan minnesota ' +
+    'mississippi missouri montana nebraska nevada new north ohio oklahoma oregon pennsylvania rhode ' +
+    'south tennessee texas utah vermont washington west wisconsin wyoming ' +
+    'usa canada mexico england france spain italy germany china japan'
+);
+
+const looksLikeName = (match: string): boolean => {
+  const [last, first] = match.split(',').map((p) =>
+    p
+      .trim()
+      .toLowerCase()
+      .split(/[\s-]+/)
+  );
+  const all = [...last, ...first].map((w) => w.replace(/\.$/, ''));
+  if (LEADING.has(last[0]) || PLACES.has(first[0])) return false;
+  return !all.every((w) => COMMON.has(w) || w.length <= 1);
+};
+
+// Wider than LAST_FIRST_RE: McDonald, O'Brien, LeBlanc and all-caps SMITH, JOHN.
+const NAME_WORD = "\\p{Lu}[\\p{L}'’-]*\\p{L}";
+const PAGE_LAST_FIRST_RE = new RegExp(
+  `(?<![\\p{L}])${NAME_WORD}(?:[ -]${NAME_WORD})?, ${NAME_WORD}(?: \\p{Lu}\\.?)?(?![\\p{L}])`,
+  'gu'
+);
+
+/** Spans of `text` to blur in a picture, by the patterns switched on; earliest first, overlaps merged. */
+export function findPageBlurSpans(
+  text: string,
+  patterns: PageBlurPatterns
+): { start: number; end: number }[] {
+  if (!text) return [];
+  const hits = [
+    ...(patterns.emails ? collect(EMAIL_RE, text, 'email') : []),
+    ...(patterns.ids
+      ? [
+          ...collect(UUID_RE, text, 'uuid'),
+          ...collect(ID_RE, text, 'id-number'),
+        ]
+      : []),
+    ...(patterns.lastFirst
+      ? collect(PAGE_LAST_FIRST_RE, text, 'possible-name').filter((h) =>
+          looksLikeName(text.slice(h.start, h.end))
+        )
+      : []),
+  ].sort((a, b) => a.start - b.start || b.end - a.end);
+  const out: { start: number; end: number }[] = [];
+  for (const { start, end } of hits) {
+    const last = out[out.length - 1];
+    if (last && start < last.end) last.end = Math.max(last.end, end);
+    else out.push({ start, end });
+  }
+  return out;
+}
+
 /** Replaces every hit (or only hard ones) with the redaction mark. */
 export function redactStudentData(
   text: string,

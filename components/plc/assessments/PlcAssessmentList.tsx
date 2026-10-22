@@ -860,6 +860,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
   const folderItemCounts = useMemo(() => countRowsByFolder(rows), [rows]);
   const folderSidebarExtras = useFolderViewSidebar({
     setFolderColor: folderState.setFolderColor,
+    reorderSiblings: folderState.reorderSiblings,
     noun: { one: 'assessment', many: 'assessments' },
     items: rows,
   });

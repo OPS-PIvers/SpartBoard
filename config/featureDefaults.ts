@@ -30,6 +30,7 @@ import {
   Library,
   Link2,
   ListChecks,
+  ListOrdered,
   Mic,
   Music2,
   Printer,
@@ -736,6 +737,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'integrations',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Move up and Move down in each library folder's menu.
+  'library-folder-reorder': {
+    label: 'Reorder library folders',
+    icon: ListOrdered,
+    description:
+      'Move up and Move down in each folder menu, in every library and PLC Assessments.',
+    stage: 'preview',
+    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
