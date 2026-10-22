@@ -46233,6 +46233,108 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "web-tours.new",
+    "label": "New web tour button in the Guided Learning library (admins)",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tours",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.filter:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.title",
+    "label": "Title field in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.filter:guided-learning#row-1",
+          "web-tours.new"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.record",
+    "label": "Record steps button in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.filter:guided-learning#row-1",
+          "web-tours.new"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.publish",
+    "label": "Publish tour button in the web tour editor",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.filter:guided-learning#row-1",
+          "web-tours.new"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.delete",
+    "label": "Delete web tour button in the web tour editor",
+    "scope": "board",
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.filter:guided-learning#row-1",
+          "web-tours.new"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "gl-manager.select-mode",
     "label": "Select mode toggle in the Guided Learning library",
     "scope": "board",

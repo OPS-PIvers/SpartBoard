@@ -10250,6 +10250,22 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'gl-manager.show-older': { label: 'Show older assignments button' },
+  'web-tours.new': {
+    label: 'New web tour button in the Guided Learning library (admins)',
+  },
+  'web-tour-editor.title': { label: 'Title field in the web tour editor' },
+  'web-tour-editor.record': {
+    label: 'Record steps button in the web tour editor',
+  },
+  'web-tour-editor.publish': {
+    label: 'Publish tour button in the web tour editor',
+    persists: true,
+  },
+  'web-tour-editor.delete': {
+    label: 'Delete web tour button in the web tour editor',
+    destructive: true,
+    persists: true,
+  },
   'gl-manager.select-mode': {
     label: 'Select mode toggle in the Guided Learning library',
   },

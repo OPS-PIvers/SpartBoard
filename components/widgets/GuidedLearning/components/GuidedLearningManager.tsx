@@ -113,6 +113,11 @@ import type { FolderDeleteActions } from '@/components/common/library/FolderSide
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 // Lazy so the preview player chunk loads only when a teacher hits Play preview.
+const LazyWebToursSection = lazy(() =>
+  import('@/components/tours/web/WebToursSection').then((m) => ({
+    default: m.WebToursSection,
+  }))
+);
 const LazyGuidedLearningPlayer = lazy(() =>
   import('./GuidedLearningPlayer').then((m) => ({
     default: m.GuidedLearningPlayer,
@@ -642,7 +647,9 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   };
 
   // Teachers never see Help Center sets in the library, so their tours don't count.
+  // Admins with web tours always get the filter, since it leads to the Web tours list.
   const hasTours =
+    (isAdmin && !!auth?.canAccessFeature('web-tours')) ||
     sets.some((s) => s.mode === 'tour') ||
     buildingSets.some((e) => e.hasLiveTour && (isAdmin || !isHelpCenterSet(e)));
 
@@ -1488,6 +1495,12 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
                 </li>
               </ol>
             </div>
+          )}
+
+          {isAdmin && activeTypeFilter === TOUR_TYPE && (
+            <Suspense fallback={null}>
+              <LazyWebToursSection />
+            </Suspense>
           )}
 
           {selectionMode && selection.count > 0 && (

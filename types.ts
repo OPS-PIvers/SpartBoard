@@ -8297,6 +8297,14 @@ export interface WebTourBinding {
   locator: WebTourLocator;
   action: WebTourAction;
   picture?: WebTourPicture;
+  /** The admin's "checked for student data" tick; `sig` fingerprints what it covered, so an edit clears it. */
+  checked?: WebTourStudentDataCheck;
+}
+
+export interface WebTourStudentDataCheck {
+  by: string;
+  at: number;
+  sig: string;
 }
 
 export interface GuidedLearningTourBinding {

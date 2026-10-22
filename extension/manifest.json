@@ -21,6 +21,12 @@
     "identity.email"
   ],
   "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_title": "Record a SpartBoard web tour"
+  },
+  "side_panel": {
+    "default_path": "sidepanel/index.html"
+  },
   "externally_connectable": {
     "matches": [
       "https://spartboard.web.app/*",
