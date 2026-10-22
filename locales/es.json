@@ -1725,7 +1725,12 @@
   },
   "collectionMenu": {
     "share": "Compartir Colección…",
-    "saveAsTemplate": "Guardar como Plantilla…"
+    "saveAsTemplate": "Guardar como Plantilla…",
+    "stopSharing": "Dejar de compartir",
+    "stopSharingConfirm": "¿Dejar de compartir esta colección? Los docentes sincronizados conservan su propia copia. Los docentes de solo lectura la pierden.",
+    "leaveShared": "Salir de la colección compartida",
+    "leaveSharedConfirm": "¿Salir de esta colección compartida? Conservas una copia de sus tableros, pero dejarán de actualizarse.",
+    "leaveSharedViewerConfirm": "¿Salir de esta colección compartida? Se quitará de tu cuenta."
   },
   "templatePicker": {
     "title": "Crear desde Plantilla",
@@ -4466,5 +4471,12 @@
     "pictureAlt": "Imagen del paso {{number}}",
     "unavailableTitle": "Este recorrido no está disponible",
     "unavailableBody": "Puede que el enlace esté mal o que el recorrido se haya eliminado. Pide un enlace nuevo a quien lo compartió."
+  },
+  "linkedCollection": {
+    "stopped": "Se dejó de compartir",
+    "left": "Saliste de la colección compartida",
+    "leaveFailed": "No se pudo salir de la colección compartida",
+    "hostStopped": "{{name}} dejó de compartir esta colección.",
+    "hostStoppedNoName": "El anfitrión dejó de compartir esta colección."
   }
 }

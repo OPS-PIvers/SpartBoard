@@ -1725,7 +1725,12 @@
   },
   "collectionMenu": {
     "share": "Partager la Collection…",
-    "saveAsTemplate": "Enregistrer comme Modèle…"
+    "saveAsTemplate": "Enregistrer comme Modèle…",
+    "stopSharing": "Arrêter le partage",
+    "stopSharingConfirm": "Arrêter de partager cette collection ? Les enseignants synchronisés gardent leur propre copie. Les enseignants en lecture seule la perdent.",
+    "leaveShared": "Quitter la collection partagée",
+    "leaveSharedConfirm": "Quitter cette collection partagée ? Vous gardez une copie de ses tableaux, mais ils ne seront plus mis à jour.",
+    "leaveSharedViewerConfirm": "Quitter cette collection partagée ? Elle sera retirée de votre compte."
   },
   "templatePicker": {
     "title": "Créer depuis un Modèle",
@@ -4466,5 +4471,12 @@
     "pictureAlt": "Image de l'étape {{number}}",
     "unavailableTitle": "Cette visite n'est pas disponible",
     "unavailableBody": "Le lien est peut-être erroné ou la visite a été supprimée. Demandez un nouveau lien à la personne qui l'a partagé."
+  },
+  "linkedCollection": {
+    "stopped": "Partage arrêté",
+    "left": "Vous avez quitté la collection partagée",
+    "leaveFailed": "Impossible de quitter la collection partagée",
+    "hostStopped": "{{name}} a arrêté de partager cette collection.",
+    "hostStoppedNoName": "L'hôte a arrêté de partager cette collection."
   }
 }

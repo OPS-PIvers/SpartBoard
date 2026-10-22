@@ -60,6 +60,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   const { isAdmin, canAccessFeature } = useAuth();
   const canShare = canAccessFeature('dashboard-sharing');
   const backArrow = canAccessFeature('full-page-back-arrow');
+  const collectionSync = canAccessFeature('collection-sync-sharing');
   const {
     dashboards,
     activeDashboard,
@@ -68,6 +69,8 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     deleteDashboard,
     moveBoardToCollection,
     countLinkedBoardRemovals,
+    stopSharingCollection,
+    leaveSharedCollection,
     pinBoard,
     unpinBoard,
     renameDashboard,
@@ -764,6 +767,46 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
                 setSubShareTarget({ kind: 'collection', collection: c })
               }
               subShareEndsAt={subShares.endsAtFor(c.id)}
+              liveShareRole={
+                collectionSync &&
+                c.linkedCollectionId &&
+                !c.linkedCollectionEnded
+                  ? c.linkedCollectionRole === 'owner'
+                    ? 'host'
+                    : 'member'
+                  : null
+              }
+              onStopSharing={async () => {
+                const label = t('collectionMenu.stopSharing', {
+                  defaultValue: 'Stop sharing',
+                });
+                const ok = await showConfirm(
+                  t('collectionMenu.stopSharingConfirm', {
+                    defaultValue:
+                      'Stop sharing this collection? Synced teachers keep their own copy. View-only teachers lose it.',
+                  }),
+                  { title: label, variant: 'warning', confirmLabel: label }
+                );
+                if (ok) await stopSharingCollection(c.id);
+              }}
+              onLeaveShared={async () => {
+                const label = t('collectionMenu.leaveShared', {
+                  defaultValue: 'Leave shared collection',
+                });
+                const ok = await showConfirm(
+                  c.linkedCollectionRole === 'viewer'
+                    ? t('collectionMenu.leaveSharedViewerConfirm', {
+                        defaultValue:
+                          'Leave this shared collection? It will be removed from your account.',
+                      })
+                    : t('collectionMenu.leaveSharedConfirm', {
+                        defaultValue:
+                          'Leave this shared collection? You keep a copy of its boards, but they stop updating.',
+                      }),
+                  { title: label, variant: 'warning', confirmLabel: label }
+                );
+                if (ok) await leaveSharedCollection(c.id);
+              }}
               canSaveAsTemplate={Boolean(isAdmin)}
               onSaveAsTemplate={() => setSaveAsCollectionTemplateTarget(c)}
               onRename={async () => {
