@@ -289,7 +289,10 @@ describe('RemoteActivityWallControl', () => {
     );
 
     expect(mockUpdateWidget).toHaveBeenCalledWith('widget-1', {
-      config: { activeActivityId: 'activity-1' },
+      config: {
+        activeActivityId: 'activity-1',
+        activeActivityOwnerUid: 'teacher-1',
+      },
     });
     await waitFor(() =>
       expect(mockSaveActivity).toHaveBeenCalledWith(

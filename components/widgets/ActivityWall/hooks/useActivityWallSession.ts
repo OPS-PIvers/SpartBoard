@@ -104,7 +104,9 @@ export const useActivityWallSession = (
   uid: string | undefined,
   entry: ActivityWallLibraryEntry | null,
   saveActivity: (entry: ActivityWallLibraryEntry) => Promise<void>,
-  timelineDates?: boolean
+  timelineDates?: boolean,
+  /** A live board share whose members may read this wall's approved posts. */
+  boardShareId?: string | null
 ): UseActivityWallSessionResult => {
   const sessionId = uid && entry ? activityWallSessionId(uid, entry.id) : null;
 
@@ -144,7 +146,13 @@ export const useActivityWallSession = (
     sessionId: string | null;
     latestShareCode: string | undefined;
     latestShareId: string | undefined;
-  }>({ sessionId: null, latestShareCode: undefined, latestShareId: undefined });
+    boardShareIds: string[] | null;
+  }>({
+    sessionId: null,
+    latestShareCode: undefined,
+    latestShareId: undefined,
+    boardShareIds: null,
+  });
 
   useEffect(() => {
     if (!sessionId) return;
@@ -156,6 +164,11 @@ export const useActivityWallSession = (
           sessionId,
           latestShareCode: data?.latestShareCode,
           latestShareId: data?.latestShareId,
+          boardShareIds: data
+            ? Array.isArray(data.boardShareIds)
+              ? data.boardShareIds
+              : []
+            : null,
         });
       },
       (err) => {
@@ -169,6 +182,27 @@ export const useActivityWallSession = (
     shareInfo.sessionId === sessionId ? shareInfo.latestShareCode : undefined;
   const latestShareId =
     shareInfo.sessionId === sessionId ? shareInfo.latestShareId : undefined;
+
+  // Newest first, capped at the 3 the rules check.
+  const knownBoardShareIds =
+    shareInfo.sessionId === sessionId ? shareInfo.boardShareIds : null;
+  const nextBoardShareIds =
+    boardShareId && knownBoardShareIds && knownBoardShareIds[0] !== boardShareId
+      ? JSON.stringify(
+          [
+            boardShareId,
+            ...knownBoardShareIds.filter((id) => id !== boardShareId),
+          ].slice(0, 3)
+        )
+      : null;
+  useEffect(() => {
+    if (!sessionId || !nextBoardShareIds || sandboxed) return;
+    void updateDoc(doc(db, 'activity_wall_sessions', sessionId), {
+      boardShareIds: JSON.parse(nextBoardShareIds) as string[],
+    }).catch((err) => {
+      console.error('[ActivityWall] Failed to open wall to board:', err);
+    });
+  }, [sessionId, nextBoardShareIds, sandboxed]);
 
   // Walls saved before wall-level engagement flags inherit them once from their latest gallery share.
   const seededEntryIdRef = useRef<string | null>(null);

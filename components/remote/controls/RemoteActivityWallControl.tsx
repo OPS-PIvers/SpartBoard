@@ -144,7 +144,11 @@ export const RemoteActivityWallControl: React.FC<
     const next = activeActivity ? !isOpen : true;
     if (!activeActivity) {
       updateWidget(widget.id, {
-        config: { ...config, activeActivityId: target.id },
+        config: {
+          ...config,
+          activeActivityId: target.id,
+          activeActivityOwnerUid: user.uid,
+        },
       });
     }
     setActionError(null);

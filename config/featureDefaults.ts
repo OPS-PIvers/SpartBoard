@@ -1198,6 +1198,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Gates the wall owner's side: only a flagged owner lets board members read the wall's posts.
+  'shared-board-live-walls': {
+    label: 'Activity Walls on shared boards',
+    icon: Share2,
+    description:
+      'Colleagues on a Synced or View-Only board see your Activity Wall and its posts.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Fail-closed for admins until Paul saves the row (espeak counsel hold, G19).
   'flashcards-speak': {
     label: 'Flashcards: Speak',
