@@ -49,6 +49,7 @@ const AREA_ROOTS: Record<Area, readonly string[]> = {
     'components/widgets/VideoActivityWidget/',
     'components/widgets/Flashcards/',
     'components/widgets/ActivityWall/',
+    'components/activityWall/render/',
     'components/widgets/MiniApp/',
   ],
   guidedLearning: [

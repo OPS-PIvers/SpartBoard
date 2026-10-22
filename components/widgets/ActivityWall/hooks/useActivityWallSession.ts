@@ -77,6 +77,7 @@ export interface UseActivityWallSessionResult {
   clearPosts: (targetSessionId?: string) => Promise<void>;
   setAcceptingResponses: (accepting: boolean) => Promise<void>;
   setStudentsCanSeePosts: (visible: boolean) => Promise<void>;
+  setTimelineDatesHidden: (hidden: boolean) => Promise<void>;
 }
 
 const submissionsCollection = (sessionId: string) =>
@@ -343,6 +344,20 @@ export const useActivityWallSession = (
     [entry, saveActivity, uid]
   );
 
+  const setTimelineDatesHidden = useCallback(
+    async (hidden: boolean) => {
+      if (!entry || !uid) return;
+      const next = {
+        ...entry,
+        timelineDatesHidden: hidden,
+        updatedAt: Date.now(),
+      };
+      await saveActivity(next);
+      await writeSessionMirror(uid, next);
+    },
+    [entry, saveActivity, uid]
+  );
+
   return {
     sessionId,
     session,
@@ -360,5 +375,6 @@ export const useActivityWallSession = (
     clearPosts,
     setAcceptingResponses,
     setStudentsCanSeePosts,
+    setTimelineDatesHidden,
   };
 };

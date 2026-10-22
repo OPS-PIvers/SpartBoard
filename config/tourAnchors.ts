@@ -523,6 +523,10 @@ export const TOUR_ANCHORS = {
     sandboxed: true,
     perWidget: true,
   },
+  'activity-wall.timeline-dates': {
+    label: 'Hide or show dates button on an Activity Wall timeline',
+    perWidget: true,
+  },
   'activity-wall.moderate': {
     label: 'Moderate posts button in Activity Wall',
     perWidget: true,

@@ -1,7 +1,7 @@
 /**
  * ActivityWallTimelineDevHarness — DEV-only fixtures for the Activity Wall timeline,
  * old list next to the dated axis at several sizes. Mounted at /activity-wall-timeline-dev.
- * `?view=editor` shows the time periods list; `?view=composer` shows the post composer with the date pickers; `?posts=60` pads the wall for load checks.
+ * `?view=editor` shows the groups and time periods lists; `?view=composer` shows the post composer (`&groups=1` adds the group picker); `?view=groups` shows group lanes and hidden dates; `?posts=60` pads the wall for load checks.
  */
 
 import React from 'react';
@@ -168,8 +168,101 @@ const datedSession = makeSession({
   timePeriods: TIME_PERIODS,
 });
 
+const GROUPS = [
+  { id: 'dakota', label: 'Dakota' },
+  { id: 'settlers', label: 'Settlers' },
+  { id: 'government', label: 'US government' },
+];
+
+const groupPost = (
+  id: string,
+  sectionId: string,
+  label: string,
+  title: string,
+  participantLabel: string
+) =>
+  makeSubmission({
+    id,
+    sectionId,
+    label,
+    title,
+    content: 'What happened and why it mattered to this group.',
+    participantLabel,
+  });
+
+const groupPosts = (): ActivityWallSubmission[] => [
+  groupPost(
+    'traverse',
+    'dakota',
+    'July 23, 1851',
+    'Treaty of Traverse des Sioux',
+    'Maya R.'
+  ),
+  groupPost(
+    'reservation',
+    'dakota',
+    '1858',
+    'Land north of the river sold',
+    'Jonah P.'
+  ),
+  groupPost(
+    'war',
+    'dakota',
+    'August 17 – September 26, 1862',
+    'US-Dakota War',
+    'Ava L.'
+  ),
+  groupPost('fort', 'dakota', 'Winter 1862', 'Fort Snelling camp', 'Eli S.'),
+  groupPost('claims', 'settlers', '1853', 'Settlers claim land', 'Noah K.'),
+  groupPost(
+    'statehood',
+    'settlers',
+    'May 11, 1858',
+    'Minnesota statehood',
+    'Lily T.'
+  ),
+  groupPost('acton', 'settlers', 'August 17, 1862', 'Acton killings', 'Sam W.'),
+  groupPost(
+    'annuity',
+    'government',
+    'June 1862',
+    'Annuity payment late',
+    'Zoe M.'
+  ),
+  groupPost(
+    'trials',
+    'government',
+    'November 1862',
+    'Military trials',
+    'Ben H.'
+  ),
+  groupPost(
+    'mankato',
+    'government',
+    'December 26, 1862',
+    'Executions at Mankato',
+    'Ivy C.'
+  ),
+  groupPost('removal', 'government', '1863', 'Removal Act', 'Leo F.'),
+  makeSubmission({
+    id: 'nogroup',
+    label: '1849',
+    title: 'Minnesota Territory formed',
+    content: 'Posted before the teacher added groups.',
+    participantLabel: 'Ana G.',
+  }),
+];
+
+const groupSession = makeSession({
+  title: 'The US-Dakota War of 1862',
+  layout: 'timeline',
+  timelineDates: true,
+  timelineGroups: GROUPS,
+});
+
 const PeriodsEditorPreview: React.FC = () => {
   const [value, setValue] = React.useState<WallStructure>({
+    timelineGroups: GROUPS,
     timePeriods: [
       ...TIME_PERIODS,
       { id: 'draft', label: 'Reconstruction', from: '1877', to: '1865' },
@@ -222,7 +315,7 @@ export const ActivityWallTimelineDevHarness: React.FC = () => {
     return (
       <div className="h-screen bg-slate-100">
         <ComposerSheet
-          session={datedSession}
+          session={params.get('groups') ? groupSession : datedSession}
           editing={undefined}
           onSubmit={() => undefined}
           onClose={() => undefined}
@@ -236,6 +329,48 @@ export const ActivityWallTimelineDevHarness: React.FC = () => {
 
   const noop = () => undefined;
   const actions = { onAddAt: noop, onEdit: noop };
+
+  if (view === 'groups') {
+    const hidden = { ...groupSession, timelineDatesHidden: true };
+    return (
+      <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-100 p-6 pb-12">
+        <div className="space-y-8">
+          <Frame label="Group lanes, large widget" width={1100} height={560}>
+            <LayoutRouter
+              session={groupSession}
+              submissions={groupPosts()}
+              mode="widget"
+              showNames
+              cardStyle={WHITE_CARDS}
+              onToggleTimelineDates={noop}
+              {...actions}
+            />
+          </Frame>
+          <Frame label="Dates hidden" width={1100} height={560}>
+            <LayoutRouter
+              session={hidden}
+              submissions={groupPosts()}
+              mode="widget"
+              showNames
+              cardStyle={WHITE_CARDS}
+              onToggleTimelineDates={noop}
+              {...actions}
+            />
+          </Frame>
+          <Frame label="Group lanes, medium widget" width={720} height={420}>
+            <LayoutRouter
+              session={groupSession}
+              submissions={groupPosts()}
+              mode="widget"
+              showNames
+              onToggleTimelineDates={noop}
+              {...actions}
+            />
+          </Frame>
+        </div>
+      </div>
+    );
+  }
 
   if (view === 'present') {
     return (

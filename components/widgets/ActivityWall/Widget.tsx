@@ -196,6 +196,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     editPost,
     setAcceptingResponses,
     setStudentsCanSeePosts,
+    setTimelineDatesHidden,
   } = useActivityWallSession(
     inShare ? undefined : user?.uid,
     activeEntry,
@@ -773,6 +774,19 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           onPin={inShare ? undefined : (id, pinned) => void pinPost(id, pinned)}
           onMove={inShare ? undefined : (id, patch) => void movePost(id, patch)}
           onEdit={inShare ? undefined : openTeacherEdit}
+          tourWidgetId={widget.id}
+          onToggleTimelineDates={
+            inShare || isActiveBoardReadOnly
+              ? undefined
+              : (hidden) =>
+                  void setTimelineDatesHidden(hidden).catch((err) => {
+                    console.error(
+                      '[ActivityWall] Failed to toggle dates:',
+                      err
+                    );
+                    addToast('Could not change the dates.', 'error');
+                  })
+          }
           onAddAt={
             inShare || isActiveBoardReadOnly ? undefined : openTeacherComposer
           }

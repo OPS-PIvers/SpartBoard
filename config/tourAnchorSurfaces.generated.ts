@@ -123,6 +123,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'breathing.reset': ['widgets.breathing.face'],
     'concept-web.add-node': ['widgets.concept-web.face'],
     'activity-wall.toggle-open': ['library.activity-wall'],
+    'activity-wall.timeline-dates': ['library.activity-wall'],
     'activity-wall.moderate': ['library.activity-wall'],
     'activity-wall.share': ['library.activity-wall'],
     'activity-wall.library': ['library.activity-wall'],
