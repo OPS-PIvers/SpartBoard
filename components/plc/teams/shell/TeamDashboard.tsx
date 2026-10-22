@@ -113,7 +113,8 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
+  const { user, canAccessFeature, globalPermissionsLoaded, isAdmin } =
+    useAuth();
   const { addToast } = useDashboard();
   useGoogleTasksPull(plc.id, canAccessFeature('google-tasks-sync'));
   const uid = user?.uid ?? null;
@@ -140,11 +141,15 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
     targets: hasTargets,
     plcHome,
   });
+  // A Data overview link waits for the flag, or it would be rewritten to Home.
+  const flagPending =
+    requestedSection === 'dataOverview' &&
+    (!globalPermissionsLoaded || isAdmin === null);
   useEffect(() => {
-    if (layoutReady && canonical !== requestedSection) {
+    if (layoutReady && !flagPending && canonical !== requestedSection) {
       spaReplace(buildPlcPath(plc.id, canonical));
     }
-  }, [layoutReady, canonical, requestedSection, plc.id]);
+  }, [layoutReady, flagPending, canonical, requestedSection, plc.id]);
 
   const [overlay, setOverlay] = useState<TeamOverlay>(null);
   const [editorOpen, setEditorOpen] = useState(false);
