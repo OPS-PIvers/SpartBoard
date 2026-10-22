@@ -54,7 +54,8 @@ describe('closeWallsToBoard', () => {
       'activity_wall_sessions/teacher-1_kept/boardAccess/boards': ['share-1'],
       'activity_wall_sessions/teacher-1_removed/boardAccess/boards': [
         'share-2',
-        'share-1',
+        'share-1/host-1',
+        'share-10/host-2',
       ],
       'activity_wall_sessions/teacher-1_other/boardAccess/boards': ['share-2'],
     };
@@ -66,7 +67,7 @@ describe('closeWallsToBoard', () => {
       {
         __path: 'activity_wall_sessions/teacher-1_removed/boardAccess/boards',
       },
-      { boardShareIds: { __arrayRemove: ['share-1'] } }
+      { boardShareIds: { __arrayRemove: ['share-1/host-1'] } }
     );
     expect(mockUpdateDoc).toHaveBeenCalledWith(
       { __path: 'activity_wall_sessions/teacher-1_removed' },

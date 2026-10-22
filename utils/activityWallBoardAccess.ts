@@ -37,8 +37,16 @@ export const closeWallsToBoard = async (
       const accessRef = doc(session.ref, 'boardAccess', 'boards');
       const access = await getDoc(accessRef);
       const ids: unknown = access.data()?.boardShareIds;
-      if (!Array.isArray(ids) || !ids.includes(boardShareId)) return;
-      await updateDoc(accessRef, { boardShareIds: arrayRemove(boardShareId) });
+      // Entries are "shareId" or, once pinned to the host, "shareId/hostUid".
+      const listed = Array.isArray(ids)
+        ? ids.filter(
+            (id): id is string =>
+              typeof id === 'string' &&
+              (id === boardShareId || id.startsWith(`${boardShareId}/`))
+          )
+        : [];
+      if (listed.length === 0) return;
+      await updateDoc(accessRef, { boardShareIds: arrayRemove(...listed) });
       // Tells the board's members to re-check access.
       await updateDoc(session.ref, { boardAccessAt: Date.now() });
     })
