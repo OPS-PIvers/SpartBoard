@@ -65527,6 +65527,48 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "boards-modal.collection-menu-stop-sharing",
+    "label": "Stop sharing item in the collection card menu",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.boards-collection-menu",
+        "kind": "menu",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-edit"
+        ],
+        "needs": [
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boards-modal.collection-menu-leave-shared",
+    "label": "Leave shared collection item in the collection card menu",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.boards-collection-menu",
+        "kind": "menu",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-edit"
+        ],
+        "needs": [
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
     "id": "boards-modal.collection-menu-template",
     "label": "Save as Template item in the collection card menu (admins)",
     "scope": "board",
