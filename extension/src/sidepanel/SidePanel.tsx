@@ -1,6 +1,12 @@
 import type { RecordedWebStep } from '@/components/tours/web/recorderProtocol';
 import { MAX_TIP_CHARS } from '@/components/tours/web/recorderProtocol';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { Circle, MapPin, Send, Square, Trash2 } from 'lucide-react';
 import {
   chromeMuted,
@@ -19,9 +25,10 @@ import {
 } from '../recorder/messages';
 import { BlurBoxes } from '@/components/tours/web/BlurBoxes';
 import { cropScreenshot, finishPicture } from './pictures';
-import { loadUnsent, saveUnsent, type PanelStep } from './unsent';
+import { loadUnsent, saveUnsent, type PanelStep, type Unsent } from './unsent';
 
 const KEEP_ALIVE_MS = 20_000;
+const SAVE_DELAY_MS = 400;
 // Keeps each message well under Chrome's message and session-storage limits.
 const SEND_BATCH = 10;
 
@@ -183,11 +190,28 @@ export const SidePanel: React.FC = () => {
     };
   }, []);
 
-  // Kept until sent or discarded, so closing the panel loses nothing.
+  const [saveFailed, setSaveFailed] = useState(false);
+  const unsent = useRef<Unsent | null>(null);
+  useLayoutEffect(() => {
+    unsent.current = steps === null ? null : { steps, fix };
+  }, [steps, fix]);
+
+  // Kept until sent or discarded; saved after typing pauses, and once more as the panel closes.
   useEffect(() => {
     if (steps === null) return;
-    void saveUnsent({ steps, fix });
+    const timer = setTimeout(
+      () => void saveUnsent({ steps, fix }).then((ok) => setSaveFailed(!ok)),
+      SAVE_DELAY_MS
+    );
+    return () => clearTimeout(timer);
   }, [steps, fix]);
+  useEffect(() => {
+    const flush = () => {
+      if (unsent.current) void saveUnsent(unsent.current);
+    };
+    addEventListener('pagehide', flush);
+    return () => removeEventListener('pagehide', flush);
+  }, []);
 
   useEffect(() => {
     // The worker stops recording when this port closes; reconnect if the worker restarts.
@@ -460,6 +484,11 @@ export const SidePanel: React.FC = () => {
             )}
             {list.length > 0 && (
               <>
+                {saveFailed && (
+                  <p role="status" className="text-amber-800">
+                    {"These steps aren't kept if you close the panel."}
+                  </p>
+                )}
                 <ol className="flex flex-col gap-3">
                   {list.map((s, i) => (
                     <StepCard

@@ -19,6 +19,20 @@ export interface Unsent {
 
 export const UNSENT_KEY = 'recorder.unsent';
 
+// Session storage: unblurred pictures never outlive the browser on disk.
+const store = () => chrome.storage.session;
+
+// Each picture is encoded once, not again on every save.
+const encoded = new WeakMap<Blob, Promise<string>>();
+const dataUrlOf = (blob: Blob) => {
+  let url = encoded.get(blob);
+  if (!url) {
+    url = blobToDataUrl(blob);
+    encoded.set(blob, url);
+  }
+  return url;
+};
+
 interface StoredStep {
   capture: Omit<RawCapture, 'screenshot'>;
   picture: string | null;
@@ -28,7 +42,7 @@ interface StoredStep {
 
 const toStored = async (s: PanelStep): Promise<StoredStep> => ({
   capture: s.capture,
-  picture: s.picture ? await blobToDataUrl(s.picture) : null,
+  picture: s.picture ? await dataUrlOf(s.picture) : null,
   blur: s.blur,
   tip: s.tip,
 });
@@ -51,7 +65,7 @@ const fromStored = async (v: unknown): Promise<PanelStep | null> => {
 /** The steps left unsent when the panel last closed; empty when there are none or they can't be read. */
 export async function loadUnsent(): Promise<Unsent> {
   try {
-    const got = (await chrome.storage.local.get(UNSENT_KEY))[UNSENT_KEY];
+    const got = (await store().get(UNSENT_KEY))[UNSENT_KEY];
     if (!isObj(got)) return { steps: [], fix: null };
     const steps = Array.isArray(got.steps)
       ? (await Promise.all(got.steps.map(fromStored))).filter(
@@ -65,28 +79,30 @@ export async function loadUnsent(): Promise<Unsent> {
 }
 
 // Saves run one at a time, so an older save never lands after a newer one.
-let saving: Promise<void> = Promise.resolve();
+let saving: Promise<boolean> = Promise.resolve(true);
 
-/** Saves the unsent steps; a step whose picture is still decoding waits for the next save. */
-export function saveUnsent(unsent: Unsent): Promise<void> {
+/** Saves the unsent steps, false when storage refused them; a step still decoding waits for the next save. */
+export function saveUnsent(unsent: Unsent): Promise<boolean> {
   saving = saving.then(() => write(unsent));
   return saving;
 }
 
-async function write({ steps, fix }: Unsent): Promise<void> {
+async function write({ steps, fix }: Unsent): Promise<boolean> {
   try {
     const ready = steps.filter((s) => !s.pending);
     if (ready.length === 0 && (!fix || fix.pending)) {
-      await chrome.storage.local.remove(UNSENT_KEY);
-      return;
+      await store().remove(UNSENT_KEY);
+      return true;
     }
-    await chrome.storage.local.set({
+    await store().set({
       [UNSENT_KEY]: {
         steps: await Promise.all(ready.map(toStored)),
         fix: fix && !fix.pending ? await toStored(fix) : null,
       },
     });
+    return true;
   } catch {
     // Full or unavailable storage: the steps stay in the open panel.
+    return false;
   }
 }

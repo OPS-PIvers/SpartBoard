@@ -7,7 +7,7 @@ beforeEach(() => {
   for (const k of Object.keys(store)) delete store[k];
   (globalThis as { chrome?: unknown }).chrome = {
     storage: {
-      local: {
+      session: {
         get: (key: string) => Promise.resolve({ [key]: store[key] }),
         set: (o: Record<string, unknown>) => {
           Object.assign(store, o);
