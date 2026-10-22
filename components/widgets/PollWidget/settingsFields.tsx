@@ -111,7 +111,12 @@ export const PollSettings: React.FC<{
         reserved && !config.joinCode
           ? { ...config, joinCode: reserved }
           : config;
-      const next = await startPollSession(base, user.uid, mode);
+      const next = await startPollSession(
+        base,
+        user.uid,
+        mode,
+        canAccessFeature('shared-board-live-walls')
+      );
       applyConfig(next);
     } catch (err) {
       // Surface the failure rather than leaving the teacher with a

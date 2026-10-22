@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PollWidget, PollSettings } from '.';
 import { useDashboard } from '@/context/useDashboard';
 import {
+  useActiveBoardLinkedShareId,
   useGlobalStyle,
   useDashboardActions,
   type DashboardActions,
@@ -100,6 +101,7 @@ describe('PollWidget', () => {
     vi.mocked(useDashboardActions).mockReturnValue({
       updateWidget: mockUpdateWidget,
     } as unknown as DashboardActions);
+    vi.mocked(useActiveBoardLinkedShareId).mockReturnValue(null);
     (useAuth as Mock).mockReturnValue({
       user: { uid: 'teacher-1' },
       canAccessFeature: vi.fn(() => true),
@@ -449,6 +451,75 @@ describe('PollWidget', () => {
       {},
       'poll_sessions',
       'teacher-1_K3F9Q'
+    );
+  });
+
+  describe('on a Synced or View-Only board', () => {
+    beforeEach(() => {
+      vi.mocked(useActiveBoardLinkedShareId).mockReturnValue('share-1');
+    });
+
+    it("reads the owner's votes and leaves the cursor to the owner", () => {
+      render(
+        <PollWidget
+          widget={multiQuestionWidget({
+            activePollSessionId: 'K3F9Q',
+            activePollSessionOwnerUid: 'host-1',
+          })}
+        />
+      );
+
+      expect(mockCollection).toHaveBeenCalledWith(
+        {},
+        'poll_sessions',
+        'host-1_K3F9Q',
+        'votes'
+      );
+      expect(
+        screen.getByRole('button', { name: /next question/i })
+      ).toBeDisabled();
+      fireEvent.click(screen.getByRole('button', { name: /next question/i }));
+      expect(mockUpdateWidget).not.toHaveBeenCalled();
+      expect(mockSetDoc).not.toHaveBeenCalled();
+    });
+
+    it('reads its own votes when the viewer started the session', () => {
+      render(
+        <PollWidget
+          widget={multiQuestionWidget({
+            activePollSessionId: 'K3F9Q',
+            activePollSessionOwnerUid: 'teacher-1',
+          })}
+        />
+      );
+
+      expect(mockCollection).toHaveBeenCalledWith(
+        {},
+        'poll_sessions',
+        'teacher-1_K3F9Q',
+        'votes'
+      );
+      expect(
+        screen.getByRole('button', { name: /next question/i })
+      ).toBeEnabled();
+    });
+  });
+
+  it("ignores a copied board's owner stamp off a shared board", () => {
+    render(
+      <PollWidget
+        widget={multiQuestionWidget({
+          activePollSessionId: 'K3F9Q',
+          activePollSessionOwnerUid: 'host-1',
+        })}
+      />
+    );
+
+    expect(mockCollection).toHaveBeenCalledWith(
+      {},
+      'poll_sessions',
+      'teacher-1_K3F9Q',
+      'votes'
     );
   });
 
@@ -1060,6 +1131,36 @@ describe('PollSettings', () => {
       );
       expect(started).toBeDefined();
     });
+  });
+
+  it('names the starter on the board when the shared-board preview is on', async () => {
+    const widget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: {
+        question: 'Pick one',
+        options: [{ id: 'opt-1', label: 'A', votes: 0 }],
+      },
+    };
+
+    render(<PollSettings widget={widget} />);
+    fireEvent.click(
+      screen.getByRole('button', { name: /start device voting/i })
+    );
+
+    await waitFor(() =>
+      expect(mockUpdateWidget).toHaveBeenCalledWith('poll-1', {
+        config: expect.objectContaining({
+          activePollSessionOwnerUid: 'teacher-1',
+        }) as unknown,
+      })
+    );
   });
 
   it('offers Resume / Restart when a prior session exists', () => {

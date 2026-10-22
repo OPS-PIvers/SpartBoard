@@ -2299,6 +2299,8 @@ export interface PollConfig {
    * mints a fresh id instead.
    */
   lastPollSessionId?: string | null;
+  /** Who started the live session, so other members of a shared board read its votes. */
+  activePollSessionOwnerUid?: string | null;
   /** Legacy single-question shape — read through `getPollQuestions` only. */
   question?: string;
   /** Legacy single-question shape — read through `getPollQuestions` only. */

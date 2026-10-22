@@ -9,6 +9,7 @@ import {
 import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import {
+  useActiveBoardLinkedShareId,
   useGlobalStyle,
   useDashboardActions,
 } from '@/context/dashboardCanvasStore';
@@ -43,6 +44,14 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // A live session belongs to the teacher's account, so a substitute can
   // neither read its votes nor run it: the widget shows the questions only.
   const inShare = useInSubShare();
+  // On a Synced or View-Only board the live session may be another member's: read its votes, don't steer it.
+  const boardShareId = useActiveBoardLinkedShareId();
+  const sessionOwnerUid = config.activePollSessionOwnerUid ?? null;
+  const foreignSession =
+    !!boardShareId &&
+    !!config.activePollSessionId &&
+    !!sessionOwnerUid &&
+    sessionOwnerUid !== user?.uid;
 
   const applyConfig = useCallback(
     (next: PollConfig) => updateWidget(widget.id, { config: next }),
@@ -62,7 +71,12 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     config,
     // Announcement embeds have no teacher session — tallies come from the
     // announcement subcollection instead.
-    teacherUid: isAnnouncement || inShare ? undefined : user?.uid,
+    teacherUid:
+      isAnnouncement || inShare
+        ? undefined
+        : foreignSession
+          ? (sessionOwnerUid ?? undefined)
+          : user?.uid,
     onConfigChange: applyConfig,
   });
   const isLive = sessionLive && !inShare;
@@ -207,7 +221,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             {showNavigation && (
               <button
                 onClick={() => goToQuestion(currentQuestionIndex - 1)}
-                disabled={!canGoPrev}
+                disabled={!canGoPrev || foreignSession}
                 aria-label="Previous question"
                 className="shrink-0 text-slate-400 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-slate-400 transition-colors"
               >
@@ -228,7 +242,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               <button
                 {...tourAttr('poll.next-question', widget.id, widget.type)}
                 onClick={() => goToQuestion(currentQuestionIndex + 1)}
-                disabled={!canGoNext}
+                disabled={!canGoNext || foreignSession}
                 aria-label="Next question"
                 className="shrink-0 text-slate-400 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-slate-400 transition-colors"
               >
