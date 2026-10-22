@@ -382,6 +382,27 @@ describe('shared_boards — self-join', () => {
     );
   });
 
+  it('a View-Only link CANNOT be joined as collaborator', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `shared_boards/${SHARE_ID}`), {
+        intendedMode: 'view-only',
+      });
+    });
+    await assertFails(
+      updateDoc(doc(asStranger(), `shared_boards/${SHARE_ID}`), {
+        [`participants.${STRANGER_UID}`]: {
+          role: 'collaborator',
+          joinedAt: 2000,
+        },
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(asStranger(), `shared_boards/${SHARE_ID}`), {
+        [`participants.${STRANGER_UID}`]: { role: 'viewer', joinedAt: 2000 },
+      })
+    );
+  });
+
   it('stranger CANNOT add ANOTHER user during self-join', async () => {
     // The diff().affectedKeys().hasOnly([uid]) clause prevents a caller
     // from sneaking unrelated participants into the same write.

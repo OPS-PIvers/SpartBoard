@@ -1529,6 +1529,9 @@ service cloud.firestore {
       // view via /subs without importing, so a self-join would be a phantom.
       allow update: if signedIn() &&
         existing().get('intendedMode', null) != 'substitute' &&
+        // A View-Only link only ever makes a viewer.
+        (existing().get('intendedMode', null) != 'view-only'
+          || incoming().participants[authUid()].get('role', '') == 'viewer') &&
         !(authUid() in existing().get('participants', {})) &&
         authUid() in incoming().get('participants', {}) &&
         incoming().participants.diff(existing().get('participants', {}))
