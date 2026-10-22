@@ -259,7 +259,7 @@ describe('hub', () => {
       steps,
       new Map([
         ['a', big(1.6 * mb)],
-        ['b', big(3 * mb)],
+        ['b', big(6 * mb)],
         ['c', big(1.6 * mb)],
         ['d', big(1.6 * mb)],
         ['e', big(1.6 * mb)],
