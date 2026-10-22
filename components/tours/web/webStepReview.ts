@@ -100,7 +100,7 @@ export function setReviewField(
   return { ...step, web: { ...web, locator } };
 }
 
-// FNV-1a, enough to notice that a checked step changed afterwards.
+// FNV-1a, enough to notice that the pictures changed since they were last confirmed.
 const fnv = (s: string): string => {
   let h = 0x811c9dc5;
   for (let i = 0; i < s.length; i++) {
@@ -110,55 +110,84 @@ const fnv = (s: string): string => {
   return (h >>> 0).toString(36);
 };
 
-/** Fingerprint of everything the student-data tick covers: text, address, clues and picture. */
-export function reviewSignature(step: WebStep): string {
-  const web = step.web;
-  const loc = web?.locator ?? {};
-  // Fixed field order: Firestore doesn't keep map key order.
-  return fnv(
-    JSON.stringify([
-      step.label ?? '',
-      step.text ?? '',
-      web?.urlPattern ?? '',
-      loc.role ?? '',
-      loc.name ?? '',
-      loc.text ?? '',
-      loc.css ?? '',
-      (loc.frames ?? []).map((f) => [f.urlPattern, f.index]),
-      loc.box ? [loc.box.x, loc.box.y, loc.box.w, loc.box.h] : null,
-      web?.picture?.path ?? '',
-    ])
+/** Every step picture path, in step order. */
+export const tourPicturePaths = (
+  set: Pick<GuidedLearningSet, 'steps'>
+): string[] =>
+  (set.steps as WebStep[]).flatMap((s) =>
+    s.web?.picture ? [s.web.picture.path] : []
   );
+
+/** Fingerprint of the tour's pictures; reordering steps keeps it, a new or removed picture changes it. */
+export const picturesSignature = (
+  set: Pick<GuidedLearningSet, 'steps'>
+): string => fnv(JSON.stringify([...tourPicturePaths(set)].sort()));
+
+/** Whether Publish must first ask about the pictures: there are some, and they changed since the last confirm. */
+export const picturesNeedConfirm = (
+  set: Pick<GuidedLearningSet, 'steps' | 'webPicturesChecked'>
+): boolean =>
+  tourPicturePaths(set).length > 0 &&
+  set.webPicturesChecked?.sig !== picturesSignature(set);
+
+/** Records that this admin confirmed the pictures as they are now. */
+export const confirmPictures = (
+  set: GuidedLearningSet,
+  uid: string
+): GuidedLearningSet => ({
+  ...set,
+  webPicturesChecked: { by: uid, at: Date.now(), sig: picturesSignature(set) },
+});
+
+export interface HiddenText {
+  /** 0-based step index, or null for the tour title. */
+  step: number | null;
+  field: ReviewField;
+  before: string;
+  after: string;
 }
 
-/** Whether the admin's tick still covers the step as it is now. */
-export const isStepChecked = (step: WebStep): boolean =>
-  !!step.web?.checked && step.web.checked.sig === reviewSignature(step);
-
-/** Ticks the step as checked by this admin now. */
-export function markStepChecked(step: WebStep, uid: string): WebStep {
-  if (!step.web) return step;
-  return {
-    ...step,
-    web: {
-      ...step.web,
-      checked: { by: uid, at: Date.now(), sig: reviewSignature(step) },
-    },
+/** Hides every hard student-data hit in the title and step text, and lists what changed. */
+export function hideStudentData(
+  set: GuidedLearningSet,
+  matcher: NameMatcher | null
+): { set: GuidedLearningSet; hidden: HiddenText[] } {
+  const hidden: HiddenText[] = [];
+  const hideHard = (entry: ReviewEntry): string | null => {
+    const hard = entry.hits.filter(isHardHit);
+    return hard.length ? hideHits({ ...entry, hits: hard }) : null;
   };
-}
-
-export function clearStepCheck(step: WebStep): WebStep {
-  if (!step.web?.checked) return step;
-  const { checked: _checked, ...web } = step.web;
-  return { ...step, web };
+  let title = set.title;
+  const titleEntry: ReviewEntry = {
+    field: 'label',
+    value: title,
+    hits: findStudentData(title, matcher),
+  };
+  const newTitle = hideHard(titleEntry);
+  if (newTitle !== null) {
+    hidden.push({ step: null, field: 'label', before: title, after: newTitle });
+    title = newTitle;
+  }
+  const steps = (set.steps as WebStep[]).map((step, i) => {
+    let next = step;
+    for (const entry of reviewEntries(step, matcher)) {
+      const after = hideHard(entry);
+      if (after === null) continue;
+      hidden.push({ step: i, field: entry.field, before: entry.value, after });
+      next = setReviewField(next, entry.field, after);
+    }
+    return next;
+  });
+  return hidden.length
+    ? { set: { ...set, title, steps }, hidden }
+    : { set, hidden };
 }
 
 export type PublishBlocker =
   | { kind: 'no-steps' }
   | { kind: 'title-data' }
   | { kind: 'not-web'; stepId: string }
-  | { kind: 'student-data'; stepId: string; field: ReviewField }
-  | { kind: 'unchecked'; stepId: string };
+  | { kind: 'student-data'; stepId: string; field: ReviewField };
 
 /** Why the tour can't be published yet; empty when it can. */
 export function publishBlockers(
@@ -178,7 +207,6 @@ export function publishBlockers(
     for (const entry of reviewEntries(step, matcher))
       if (entry.hits.some(isHardHit))
         out.push({ kind: 'student-data', stepId: step.id, field: entry.field });
-    if (!isStepChecked(step)) out.push({ kind: 'unchecked', stepId: step.id });
   }
   return out;
 }
@@ -194,3 +222,9 @@ export function assertPublishable(
       `Web tour can't be published: ${blockers.map((b) => b.kind).join(', ')}`
     );
 }
+
+/** A step playback can only find by page position, or not at all: the editor offers Fix on site. */
+export const needsFixOnSite = (step: { web?: WebTourBinding }): boolean => {
+  const loc = step.web?.locator;
+  return !loc || (!(loc.role && loc.name) && !loc.text);
+};

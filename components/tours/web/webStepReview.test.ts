@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import type { GuidedLearningStep, WebTourBinding } from '@/types';
+import type {
+  GuidedLearningSet,
+  GuidedLearningStep,
+  WebTourBinding,
+} from '@/types';
 import { buildNameMatcher } from '@/components/widgets/GuidedLearning/components/recorder/redaction';
 import {
   assertPublishable,
+  confirmPictures,
   hideHits,
-  isStepChecked,
-  markStepChecked,
+  hideStudentData,
+  picturesNeedConfirm,
   publishBlockers,
   reviewEntries,
   setReviewField,
@@ -92,82 +97,108 @@ describe('hideHits and setReviewField', () => {
   });
 });
 
-describe('student-data check', () => {
-  it('stops covering a step once it changes', () => {
-    const checked = markStepChecked(step('a', {}), 'admin');
-    expect(isStepChecked(checked)).toBe(true);
-    expect(isStepChecked({ ...checked, text: 'New words' })).toBe(false);
-    expect(isStepChecked(setReviewField(checked, 'css', 'div > a'))).toBe(
-      false
-    );
+const pic = (path: string) => ({
+  picture: { path: `web_tour_pictures/t1/${path}`, w: 1, h: 1 },
+});
+const tourOf = (steps: GuidedLearningStep[], title = 'Grades') =>
+  ({
+    id: 't1',
+    title,
+    imageUrls: [],
+    mode: 'tour',
+    surface: 'web',
+    createdAt: 1,
+    updatedAt: 1,
+    steps,
+  }) as GuidedLearningSet;
+
+describe('picture confirm', () => {
+  it('asks once, and again only when a picture changes', () => {
+    const tour = tourOf([step('a', pic('a.jpg')), step('b', pic('b.jpg'))]);
+    expect(picturesNeedConfirm(tour)).toBe(true);
+    const confirmed = confirmPictures(tour, 'admin');
+    expect(picturesNeedConfirm(confirmed)).toBe(false);
+    // Reordering steps or editing text keeps the confirm.
+    expect(
+      picturesNeedConfirm({
+        ...confirmed,
+        steps: [...confirmed.steps]
+          .reverse()
+          .map((s) => ({ ...s, text: 'New' })),
+      })
+    ).toBe(false);
+    expect(
+      picturesNeedConfirm({
+        ...confirmed,
+        steps: [confirmed.steps[0], step('b', pic('c.jpg'))],
+      })
+    ).toBe(true);
   });
 
-  it('survives a stored copy that reorders the locator keys', () => {
-    const checked = markStepChecked(
-      step('a', {
-        locator: {
-          role: 'link',
-          name: 'Courses',
-          box: { x: 0.1, y: 0.2, w: 0.3, h: 0.4 },
-        },
-      }),
-      'admin'
+  it('never asks about a tour without pictures', () => {
+    expect(picturesNeedConfirm(tourOf([step('a', {})]))).toBe(false);
+  });
+});
+
+describe('hideStudentData', () => {
+  it('hides student names in the title and steps and lists them', () => {
+    const tour = tourOf(
+      [
+        step(
+          'a',
+          { locator: { name: 'Nguyen, Alice' } },
+          { text: 'Find Alice Nguyen' }
+        ),
+        step('b', {}),
+      ],
+      'Alice Nguyen grades'
     );
-    const stored = {
-      ...checked,
-      web: {
-        ...(checked.web as WebTourBinding),
-        locator: {
-          box: { h: 0.4, w: 0.3, x: 0.1, y: 0.2 },
-          name: 'Courses',
-          role: 'link',
-        },
-      },
-    };
-    expect(isStepChecked(stored)).toBe(true);
+    const { set, hidden } = hideStudentData(tour, roster);
+    expect(hidden.map((h) => [h.step, h.field])).toEqual([
+      [null, 'label'],
+      [0, 'text'],
+      [0, 'name'],
+    ]);
+    expect(set.title).not.toContain('Alice');
+    expect(publishBlockers(set, roster)).toEqual([]);
+  });
+
+  it('returns the same set when nothing needs hiding', () => {
+    const tour = tourOf([step('a', {})]);
+    expect(hideStudentData(tour, roster)).toEqual({ set: tour, hidden: [] });
   });
 });
 
 describe('publishBlockers', () => {
-  it('needs steps, web bindings, no student data and a tick on every step', () => {
+  it('needs steps, web bindings and no student data', () => {
     expect(publishBlockers({ steps: [] }, roster)).toEqual([
       { kind: 'no-steps' },
     ]);
     const bad = step('b', { locator: { name: 'Nguyen, Alice' } });
-    expect(
-      publishBlockers(
-        { steps: [step('a', null), markStepChecked(bad, 'u')] },
-        roster
-      )
-    ).toEqual([
+    expect(publishBlockers({ steps: [step('a', null), bad] }, roster)).toEqual([
       { kind: 'not-web', stepId: 'a' },
       { kind: 'student-data', stepId: 'b', field: 'name' },
     ]);
   });
 
-  it('passes a checked tour with no student data, and assertPublishable agrees', () => {
-    const ok = { steps: [markStepChecked(step('a', {}), 'u')] };
+  it('passes a tour with no student data, and assertPublishable agrees', () => {
+    const ok = { steps: [step('a', {})] };
     expect(publishBlockers(ok, roster)).toEqual([]);
     expect(() => assertPublishable(ok, roster)).not.toThrow();
-    expect(() => assertPublishable({ steps: [step('a', {})] }, roster)).toThrow(
-      /unchecked/
-    );
+    expect(() =>
+      assertPublishable(
+        { steps: [step('a', {}, { text: 'Find Alice' })] },
+        roster
+      )
+    ).toThrow(/student-data/);
   });
 
   it('blocks a tour whose title names a student', () => {
-    const s = markStepChecked(step('a', {}), 'u');
     expect(
-      publishBlockers({ title: 'Alice Nguyen grades', steps: [s] }, roster)
+      publishBlockers(
+        { title: 'Alice Nguyen grades', steps: [step('a', {})] },
+        roster
+      )
     ).toEqual([{ kind: 'title-data' }]);
-  });
-
-  it('blocks a step whose tip names a student even when ticked', () => {
-    const s = markStepChecked(
-      step('a', {}, { text: 'Find Alice in the list' }),
-      'u'
-    );
-    expect(publishBlockers({ steps: [s] }, roster)).toEqual([
-      { kind: 'student-data', stepId: 'a', field: 'text' },
-    ]);
   });
 });

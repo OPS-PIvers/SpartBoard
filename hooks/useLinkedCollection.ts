@@ -51,11 +51,32 @@ class MockLinkedCollectionStore {
   private listeners = new Map<string, Set<Listener>>();
 
   get(linkId: string): LinkedCollection | null {
-    return this.links.get(linkId) ?? null;
+    const cached = this.links.get(linkId);
+    if (cached) return cached;
+    // Hydrate from sessionStorage so a link survives navigating to /share/collection/{id} (E2E).
+    try {
+      const raw = sessionStorage.getItem(`mock_linked_collection_${linkId}`);
+      if (raw) {
+        const link = { ...(JSON.parse(raw) as LinkedCollection), linkId };
+        this.links.set(linkId, link);
+        return link;
+      }
+    } catch {
+      /* session storage unavailable: in-memory only */
+    }
+    return null;
   }
 
   set(link: LinkedCollection): void {
     this.links.set(link.linkId, link);
+    try {
+      sessionStorage.setItem(
+        `mock_linked_collection_${link.linkId}`,
+        JSON.stringify(link)
+      );
+    } catch {
+      /* session storage unavailable: in-memory only */
+    }
     this.listeners.get(link.linkId)?.forEach((cb) => cb(link));
   }
 

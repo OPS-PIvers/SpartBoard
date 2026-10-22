@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  arrayRemove,
   collection,
   deleteDoc,
   deleteField,
@@ -53,15 +52,6 @@ export const writeSessionMirror = async (
 /** Which board shares may read a wall's posts; kept out of the session doc, which students read. */
 export const wallBoardAccessDoc = (sessionId: string) =>
   doc(db, 'activity_wall_sessions', sessionId, 'boardAccess', 'boards');
-
-/** Stops a board's members reading a wall the board no longer shows. */
-export const removeWallBoardShare = (
-  sessionId: string,
-  boardShareEntry: string
-): Promise<void> =>
-  updateDoc(wallBoardAccessDoc(sessionId), {
-    boardShareIds: arrayRemove(boardShareEntry),
-  });
 
 /** The list with `boardShareEntry` ("shareId/hostUid") added (max 3, evicting only deleted shares), or null to leave it. */
 export const nextWallBoardShareIds = async (

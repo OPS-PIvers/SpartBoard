@@ -16,6 +16,7 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
+  arrayRemove,
   collection,
   deleteDoc,
   deleteField,
@@ -26,6 +27,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-aw-board-members';
@@ -747,5 +749,59 @@ describe('only teachers can self-join a board share', () => {
     await assertSucceeds(join(asTeacher('new-teacher'), 'new-teacher'));
     await assertFails(join(asStudentRole('class-student'), 'class-student'));
     await assertFails(join(asAnonymous('guest-uid'), 'guest-uid'));
+  });
+});
+
+describe('the owner closes walls to a board', () => {
+  const ownWallsQuery = (db: ReturnType<typeof asTeacher>, uid: string) =>
+    getDocs(
+      query(
+        collection(db, 'activity_wall_sessions'),
+        where('teacherUid', '==', uid),
+        where('boardAccessAt', '>', 0)
+      )
+    );
+
+  it('the owner finds their board-opened walls and removes the share', async () => {
+    await seed({
+      [HOST_SESSION]: { ...session(HOST_UID, [SHARE_ID]), boardAccessAt: 1 },
+    });
+    const db = asTeacher(HOST_UID);
+    const found = await assertSucceeds(ownWallsQuery(db, HOST_UID));
+    expect(found.docs.map((d) => d.id)).toEqual([HOST_SESSION]);
+    // The same batch the client sends.
+    const batch = writeBatch(db);
+    batch.update(
+      doc(db, `activity_wall_sessions/${HOST_SESSION}/boardAccess/boards`),
+      { boardShareIds: arrayRemove(SHARE_ID) }
+    );
+    batch.update(doc(db, `activity_wall_sessions/${HOST_SESSION}`), {
+      boardAccessAt: deleteField(),
+    });
+    await assertSucceeds(batch.commit());
+    // Once closed, the board's members lose the posts.
+    await assertFails(approvedQuery(asTeacher(VIEWER_UID), HOST_SESSION));
+  });
+
+  it("another teacher cannot list or close someone else's walls", async () => {
+    await seed({
+      [HOST_SESSION]: { ...session(HOST_UID, [SHARE_ID]), boardAccessAt: 1 },
+    });
+    const db = asTeacher(COLLAB_UID);
+    await assertFails(ownWallsQuery(db, HOST_UID));
+    await assertFails(
+      getDocs(
+        query(
+          collection(db, 'activity_wall_sessions'),
+          where('boardAccessAt', '>', 0)
+        )
+      )
+    );
+    await assertFails(
+      updateDoc(
+        doc(db, `activity_wall_sessions/${HOST_SESSION}/boardAccess/boards`),
+        { boardShareIds: [] }
+      )
+    );
   });
 });

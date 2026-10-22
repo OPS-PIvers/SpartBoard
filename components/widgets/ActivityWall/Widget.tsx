@@ -35,7 +35,10 @@ import {
   useGlobalStyle,
   useIsActiveBoardReadOnly,
 } from '@/context/dashboardCanvasStore';
-import { useLinkedShareHost } from '@/hooks/useLinkedShareHost';
+import {
+  useLinkedShareHost,
+  useLinkedShareMemberName,
+} from '@/hooks/useLinkedShareHost';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useClickOutside } from '@/hooks/useClickOutside';
@@ -61,10 +64,7 @@ import { LAYOUT_OPTIONS } from './editor/layoutOptions';
 import { WallLibraryModal } from './WallLibraryModal';
 import { ModerationDrawer } from './ModerationDrawer';
 import { ActivityWallShareModal } from './ShareModal';
-import {
-  removeWallBoardShare,
-  useActivityWallSession,
-} from './hooks/useActivityWallSession';
+import { useActivityWallSession } from './hooks/useActivityWallSession';
 import { useLinkedBoardActivityWall } from './hooks/useLinkedBoardActivityWall';
 import { useSubShareActivityWall } from './useSubShareActivityWall';
 import { useLegacyActivityWallMigration } from './hooks/useLegacyActivityWallMigration';
@@ -163,6 +163,10 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const inShare = inSubShare || linked.active;
   // The owner, or a co-teacher on the board, moderates and posts.
   const canModerate = !inShare || linked.moderating;
+  const ownerName = useLinkedShareMemberName(
+    linked.active ? boardShareId : null,
+    linked.active ? foreignOwnerUid : null
+  );
 
   const activeEntry: ActivityWallLibraryEntry | null = inSubShare
     ? shared.entry
@@ -291,12 +295,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
 
   const setActiveEntry = useCallback(
     (entryId: string | null) => {
-      // The wall leaving this board stops being readable by the board's members.
-      if (boardShareEntry && sessionId && ownEntry && ownEntry.id !== entryId) {
-        void removeWallBoardShare(sessionId, boardShareEntry).catch((err) => {
-          console.error('[ActivityWall] Failed to close wall to board:', err);
-        });
-      }
+      // useWallBoardAccessCleanup closes the old wall to the board once no widget shows it.
       updateWidget(widget.id, {
         config: {
           activeActivityId: entryId,
@@ -304,7 +303,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         },
       });
     },
-    [boardShareEntry, ownEntry, sessionId, updateWidget, user?.uid, widget.id]
+    [updateWidget, user?.uid, widget.id]
   );
 
   const toggleOpenClosed = useCallback(() => {
@@ -614,6 +613,14 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         >
           {activeEntry.title || 'Untitled wall'}
         </h2>
+        {ownerName && (
+          <span
+            className="min-w-0 shrink-[2] truncate font-semibold text-slate-300"
+            style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+          >
+            Shared by {ownerName}
+          </span>
+        )}
       </div>
 
       {/* Every control here writes the teacher's wall or launches for them. */}

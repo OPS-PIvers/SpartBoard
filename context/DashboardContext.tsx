@@ -118,6 +118,7 @@ import {
 } from '@/utils/dashboardPII';
 import { migrateBoardForCollections } from '@/utils/collectionsMigration';
 import { pickInitialBoard } from '@/utils/pickInitialBoard';
+import { LINKED_COLLECTION_SHARE_PREFIX } from '@/utils/linkedCollectionImport';
 import { sanitizeBoardSnapshot } from '@/utils/dashboardSanitize';
 import {
   grantedRosters,
@@ -178,6 +179,7 @@ import { seedMaterialsConfig } from '@/utils/materialsPreferences';
 import { isBetaUser } from '@/utils/betaAccess';
 import { AnnotationState } from './DashboardContextValue';
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
+import { closeWallsToBoard } from '@/utils/activityWallBoardAccess';
 import { mergeAnnotationObjects } from '@/utils/annotationMerge';
 import {
   estimateAnnotationBytes,
@@ -593,6 +595,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     setupCompleted,
     lastActiveCollectionId,
     lastBoardIdByCollection,
+    canAccessFeature,
   } = useAuth();
   const { driveService, userDomain } = useGoogleDrive();
   const {
@@ -625,7 +628,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     if (path.startsWith('/share/assignment/')) return null;
     if (path.startsWith('/share/video-activity/')) return null;
     if (path.startsWith('/share/rubric/')) return null;
-    if (path.startsWith('/share/collection/')) return null;
+    if (path.startsWith(LINKED_COLLECTION_SHARE_PREFIX)) return null;
     if (path.startsWith('/share/')) {
       return path.split('/share/')[1] || null;
     }
@@ -4164,6 +4167,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
 
+      // The board's members stop reading this teacher's walls.
+      if (user && canAccessFeature('shared-board-live-walls')) {
+        void closeWallsToBoard(user.uid, shareId, new Set()).catch((err) => {
+          console.error('Failed to close walls to the left board:', err);
+        });
+      }
+
       // Viewer leaving a View-Only board: View-Only is ephemeral end-to-end,
       // so the local copy is removed instead of being kept as a detached
       // editable dashboard. Switch active dashboard away first if needed.
@@ -4228,6 +4238,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       addToast,
       deleteDashboardFirestore,
       updateActiveId,
+      user,
+      canAccessFeature,
     ]
   );
 

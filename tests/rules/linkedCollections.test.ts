@@ -684,3 +684,95 @@ describe('shared_boards in a linked collection', () => {
     );
   });
 });
+
+// Slice 3: the recipient's reads and writes when opening /share/collection/{linkId}.
+describe('import flow', () => {
+  const SYNC_BOARD = 'import-synced-board';
+  const VIEW_BOARD = 'import-view-board';
+  const board = (mode: string, linkId: string) => ({
+    name: 'Day 1',
+    widgets: [],
+    sharedAt: 1000,
+    originalAuthor: HOST_UID,
+    intendedMode: mode,
+    linkedCollectionId: linkId,
+    participants: {},
+    updatedAt: 1000,
+    updatedBy: HOST_UID,
+  });
+  const boardRef = (db: ReturnType<typeof asHost>, id: string) =>
+    doc(db, `shared_boards/${id}`);
+  const joinAs = (uid: string, role: string) => ({
+    [`participants.${uid}`]: { role, name: 'Me', joinedAt: 2000 },
+  });
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(boardRef(db, SYNC_BOARD), board('synced', SYNCED_ID));
+      await setDoc(boardRef(db, VIEW_BOARD), board('view-only', VIEW_ID));
+    });
+  });
+
+  it('a teacher reads the link and its board, joins both, then edits the board', async () => {
+    const db = asStranger();
+    await assertSucceeds(getDoc(ref(db, SYNCED_ID)));
+    await assertSucceeds(getDoc(boardRef(db, SYNC_BOARD)));
+    await assertSucceeds(
+      updateDoc(ref(db, SYNCED_ID), joinAs(STRANGER_UID, 'collaborator'))
+    );
+    await assertSucceeds(
+      updateDoc(boardRef(db, SYNC_BOARD), {
+        [`participants.${STRANGER_UID}`]: {
+          role: 'collaborator',
+          joinedAt: 2000,
+        },
+      })
+    );
+    await assertSucceeds(
+      updateDoc(boardRef(db, SYNC_BOARD), {
+        name: 'Day 1 (edited)',
+        updatedAt: 3000,
+        updatedBy: STRANGER_UID,
+      })
+    );
+  });
+
+  it('a View-Only recipient joins as viewer and cannot edit the board', async () => {
+    const db = asStranger();
+    await assertSucceeds(
+      updateDoc(ref(db, VIEW_ID), joinAs(STRANGER_UID, 'viewer'))
+    );
+    await assertSucceeds(
+      updateDoc(boardRef(db, VIEW_BOARD), {
+        [`participants.${STRANGER_UID}`]: { role: 'viewer', joinedAt: 2000 },
+      })
+    );
+    await assertFails(
+      updateDoc(boardRef(db, VIEW_BOARD), {
+        name: 'Changed',
+        updatedAt: 3000,
+        updatedBy: STRANGER_UID,
+      })
+    );
+  });
+
+  it('a removed member cannot join again', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(ref(ctx.firestore(), SYNCED_ID), {
+        removed: { [STRANGER_UID]: 1500 },
+      });
+    });
+    await assertFails(
+      updateDoc(
+        ref(asStranger(), SYNCED_ID),
+        joinAs(STRANGER_UID, 'collaborator')
+      )
+    );
+  });
+
+  it('a student cannot read the board list or the link', async () => {
+    await assertFails(getDoc(ref(asStudent(), SYNCED_ID)));
+    await assertFails(getDoc(ref(asAnon(), SYNCED_ID)));
+  });
+});

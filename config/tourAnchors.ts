@@ -10277,6 +10277,12 @@ export const TOUR_ANCHORS = {
   },
   'gl-manager.show-older': { label: 'Show older assignments button' },
   'web-tour-editor.title': { label: 'Title field in the web tour editor' },
+  'web-tour-editor.play': {
+    label: 'Play button in the web tour editor header',
+  },
+  'web-tour-editor.copy-link': {
+    label: 'Copy link button in the web tour editor header',
+  },
   'web-tour-editor.record': {
     label: 'Record steps button in the web tour editor',
   },
@@ -11432,6 +11438,19 @@ export const TOUR_ANCHORS = {
   },
   'import-shared-collection.import': {
     label: 'Import Collection button in the import shared collection dialog',
+    panel: true,
+    persists: true,
+  },
+  'import-linked-collection.close': {
+    label: 'Close button in the import shared collection dialog',
+    panel: true,
+  },
+  'import-linked-collection.cancel': {
+    label: 'Cancel button in the import shared collection dialog',
+    panel: true,
+  },
+  'import-linked-collection.confirm': {
+    label: 'Import button in the import shared collection dialog',
     panel: true,
     persists: true,
   },

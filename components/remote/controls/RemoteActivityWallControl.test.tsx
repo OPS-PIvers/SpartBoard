@@ -312,6 +312,40 @@ describe('RemoteActivityWallControl', () => {
     );
   });
 
+  it("can't open or replace a colleague's wall on a shared board", async () => {
+    render(
+      <RemoteActivityWallControl
+        widget={{
+          ...baseWidget,
+          config: {
+            activeActivityId: 'their-wall',
+            activeActivityOwnerUid: 'colleague-1',
+          },
+        }}
+        updateWidget={mockUpdateWidget}
+      />
+    );
+
+    const button = await screen.findByRole('button', { name: /open wall/i });
+    expect(button).toBeDisabled();
+    await userEvent.click(button);
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+    expect(mockSaveActivity).not.toHaveBeenCalled();
+  });
+
+  it("can't replace an unstamped wall that isn't in the teacher's library", async () => {
+    render(
+      <RemoteActivityWallControl
+        widget={{ ...baseWidget, config: { activeActivityId: 'their-wall' } }}
+        updateWidget={mockUpdateWidget}
+      />
+    );
+
+    const button = await screen.findByRole('button', { name: /open wall/i });
+    expect(button).toBeDisabled();
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+
   it('hides the QR affordance when anonymous-join is not permitted', async () => {
     mockCanAccessFeature.mockReturnValue(false);
     snapshotDocs = [];

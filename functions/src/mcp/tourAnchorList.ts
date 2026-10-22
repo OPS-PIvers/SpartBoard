@@ -46362,6 +46362,44 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "web-tour-editor.play",
+    "label": "Play button in the web tour editor header",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.copy-link",
+    "label": "Copy link button in the web tour editor header",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "web-tour-editor.record",
     "label": "Record steps button in the web tour editor",
     "scope": "board",
@@ -52060,6 +52098,49 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "board.share-collection-import",
         "kind": "page",
         "url": "/share-collection/{shareId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-linked-collection.close",
+    "label": "Close button in the import shared collection dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.linked-collection-import",
+        "kind": "page",
+        "url": "/share/collection/{linkId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-linked-collection.cancel",
+    "label": "Cancel button in the import shared collection dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.linked-collection-import",
+        "kind": "page",
+        "url": "/share/collection/{linkId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-linked-collection.confirm",
+    "label": "Import button in the import shared collection dialog",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.linked-collection-import",
+        "kind": "page",
+        "url": "/share/collection/{linkId}",
         "path": []
       }
     ]

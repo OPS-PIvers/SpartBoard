@@ -1,5 +1,20 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { RedactRect } from '@/components/widgets/GuidedLearning/utils/redactImage';
+
+/** An image of a Blob; its object URL is made and revoked in one effect, so a re-run never shows a revoked one. */
+export const BlobImage: React.FC<{
+  blob: Blob;
+  alt: string;
+  className: string;
+}> = ({ blob, alt, className }) => {
+  const img = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    const url = URL.createObjectURL(blob);
+    if (img.current) img.current.src = url;
+    return () => URL.revokeObjectURL(url);
+  }, [blob]);
+  return <img ref={img} alt={alt} className={className} draggable={false} />;
+};
 
 /** Smallest drawn box, in image-%, so a stray click draws nothing. */
 const MIN_PCT = 1;
@@ -13,11 +28,8 @@ export const BlurBoxes: React.FC<{
   onChange: (boxes: RedactRect[]) => void;
   label: string;
 }> = ({ picture, boxes, onChange, label }) => {
-  const url = useMemo(() => URL.createObjectURL(picture), [picture]);
   const [start, setStart] = useState<{ x: number; y: number } | null>(null);
   const [draft, setDraft] = useState<RedactRect | null>(null);
-
-  useEffect(() => () => URL.revokeObjectURL(url), [url]);
 
   const pointAt = (e: React.PointerEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -55,9 +67,8 @@ export const BlurBoxes: React.FC<{
           onChange([...boxes, r]);
       }}
     >
-      {url && (
-        <img src={url} alt="" className="block w-full" draggable={false} />
-      )}
+      <BlobImage blob={picture} alt="" className="block w-full" />
+
       {[...boxes, ...(draft ? [draft] : [])].map((b, i) => (
         <button
           key={i}
