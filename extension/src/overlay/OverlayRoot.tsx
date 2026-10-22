@@ -1,15 +1,18 @@
 import React, { useRef } from 'react';
 import type { i18n as I18n } from 'i18next';
-import { I18nextProvider } from 'react-i18next';
+import { I18nextProvider, useTranslation } from 'react-i18next';
 import { TourBar } from '@/components/tours/TourBar';
 import { TourSpotlight } from '@/components/tours/TourSpotlight';
 import { TourTip } from '@/components/tours/TourTip';
+import { tetherFor } from '@/components/widgets/GuidedLearning/utils/calloutPlacement';
 import type { OverlayAction, OverlayRect, OverlayState } from './overlayState';
+import { useTargetRect } from './targetRect';
 
 const TIP_W = 320;
 const GUTTER = 12;
+const TIP_H = 120;
 
-/** Below the target when it fits, else above, else centred; refined with the real locator in slice 6. */
+/** Below the target when it fits, else above, else centred. */
 export function placeTip(
   rect: OverlayRect | null,
   view: { w: number; h: number }
@@ -33,22 +36,52 @@ interface Props {
   onAction: (action: OverlayAction) => void;
 }
 
-/** The SpartBoard tour overlay drawn over a web page: no Autopilot, nothing stored on the site. */
-export const OverlayRoot: React.FC<Props> = ({ i18n, state, onAction }) => {
+const Picture: React.FC<{ picture: NonNullable<OverlayState['picture']> }> = ({
+  picture,
+}) => {
+  const { t } = useTranslation();
+  return (
+    <img
+      src={`data:${picture.mime};base64,${picture.data}`}
+      width={picture.w}
+      height={picture.h}
+      alt={t('tours.webPictureAlt')}
+      data-testid="web-tour-picture"
+      className="mt-2 h-auto max-h-48 w-full rounded-lg border border-slate-200 object-contain"
+    />
+  );
+};
+
+const TopOverlay: React.FC<Omit<Props, 'i18n'>> = ({ state, onAction }) => {
+  const { t } = useTranslation();
   const boxRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLDivElement>(null);
-  const tip = placeTip(state.rect, {
-    w: window.innerWidth,
-    h: window.innerHeight,
-  });
+  const lit = state.status === 'shown' && state.targetHere;
+  const rect = useTargetRect(lit);
+  const view = { w: window.innerWidth, h: window.innerHeight };
+  // A target inside a frame is lit there; the tip waits low on the screen so it doesn't cover the frame.
+  const away = state.status === 'shown' && !state.targetHere;
+  const placed = placeTip(rect, view);
+  const tip = away
+    ? { ...placed, top: Math.max(GUTTER, view.h - TIP_H - GUTTER * 4) }
+    : placed;
+  const done = state.status === 'done';
+  // The tip's height isn't known during render; the arrow only needs the side it leaves from.
+  const tether = rect
+    ? tetherFor(
+        { x: tip.left, y: tip.top, w: tip.width, h: TIP_H },
+        { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
+      )
+    : null;
+  const last = state.current === state.total;
   return (
-    <I18nextProvider i18n={i18n}>
-      <TourSpotlight rect={state.rect} />
+    <>
+      {lit && <TourSpotlight rect={rect} breathe={!state.observe} />}
       <TourBar
         current={state.current}
         total={state.total}
-        onBack={state.current > 1 ? () => onAction('back') : undefined}
-        onNext={() => onAction('next')}
+        onBack={state.current > 1 || done ? () => onAction('back') : undefined}
+        onNext={() => onAction(done ? 'exit' : 'next')}
         onExit={() => onAction('exit')}
         positionKey={null}
       />
@@ -58,15 +91,60 @@ export const OverlayRoot: React.FC<Props> = ({ i18n, state, onAction }) => {
         left={tip.left}
         top={tip.top}
         width={tip.width}
-        tether={null}
-        plain={false}
+        tether={tether}
+        plain={!rect}
         animate
-        title={state.title}
-        looking={state.rect === null}
+        title={done ? t('tours.completeTitle') : state.title}
+        looking={state.status === 'seeking'}
         status={null}
+        next={
+          done
+            ? { onNext: () => onAction('exit'), last: true }
+            : state.observe || state.status === 'fallback'
+              ? { onNext: () => onAction('next'), last }
+              : undefined
+        }
       >
-        <p className="text-sm text-slate-700">{state.text}</p>
+        {!done && <p className="text-sm text-slate-700">{state.text}</p>}
+        {state.status === 'wrong-page' && (
+          <p
+            data-testid="web-tour-other-page"
+            className="mt-2 text-sm font-semibold text-slate-700"
+          >
+            {t('tours.webOtherPage')}
+          </p>
+        )}
+        {state.status === 'fallback' && (
+          <p
+            data-testid="web-tour-find-it"
+            className="mt-2 text-sm font-semibold text-slate-700"
+          >
+            {t('tours.webFindIt')}
+          </p>
+        )}
+        {state.picture &&
+          (state.status === 'fallback' || state.status === 'wrong-page') && (
+            <Picture picture={state.picture} />
+          )}
       </TourTip>
-    </I18nextProvider>
+    </>
   );
 };
+
+/** A frame that holds the target: only the spotlight, since the bar and tip live in the top frame. */
+const TargetOverlay: React.FC<{ state: OverlayState }> = ({ state }) => {
+  const lit = state.status === 'shown' && state.targetHere;
+  const rect = useTargetRect(lit);
+  return lit ? <TourSpotlight rect={rect} breathe={!state.observe} /> : null;
+};
+
+/** The SpartBoard tour overlay drawn over a web page: no Autopilot, nothing stored on the site. */
+export const OverlayRoot: React.FC<Props> = ({ i18n, state, onAction }) => (
+  <I18nextProvider i18n={i18n}>
+    {state.role === 'top' ? (
+      <TopOverlay state={state} onAction={onAction} />
+    ) : (
+      <TargetOverlay state={state} />
+    )}
+  </I18nextProvider>
+);

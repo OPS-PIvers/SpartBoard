@@ -4050,7 +4050,10 @@
       "kind_guided-learning": "Apprentissage guidé",
       "kind_mini-app": "Mini-app",
       "kind_activity-wall": "Mur d'activités"
-    }
+    },
+    "webFindIt": "Cherchez ceci sur la page.",
+    "webOtherPage": "Cette étape se trouve sur une autre page. Ouvrez-la pour continuer.",
+    "webPictureAlt": "Image de cette étape"
   },
   "glPlayer": {
     "modeChip": {

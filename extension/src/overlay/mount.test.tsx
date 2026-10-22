@@ -6,14 +6,24 @@ import {
   type OverlayHandle,
 } from './mount';
 import { placeTip } from './OverlayRoot';
+import type {} from '../playback/frameScript';
 
 const state = {
   title: 'Open Grades',
   text: '<img src=x onerror=alert(1)>Click Grades.',
   current: 2,
   total: 3,
-  rect: { x: 40, y: 40, width: 120, height: 32 },
+  status: 'shown' as const,
+  role: 'top' as const,
+  targetHere: true,
+  observe: false,
+  picture: null,
 };
+
+const target = document.createElement('button');
+target.getBoundingClientRect = () => new DOMRect(40, 40, 120, 32);
+target.scrollIntoView = () => undefined;
+globalThis.__sbWebTourFrame = { target: { token: 't', el: target } };
 
 let handle: OverlayHandle | null = null;
 let shadow: ShadowRoot | null = null;
@@ -97,6 +107,93 @@ describe('mountOverlay', () => {
     act(() => handle?.unmount());
     handle = null;
     expect(document.querySelector(OVERLAY_HOST_SELECTOR)).toBeNull();
+  });
+});
+
+describe('web tour states', () => {
+  const picture = { mime: 'image/png' as const, data: 'AAAA', w: 10, h: 10 };
+
+  it('shows the picture and a Next button when the target can not be found', () => {
+    captureShadow();
+    const onAction = vi.fn();
+    handle = mountOverlay('', onAction);
+    act(() =>
+      handle?.render({
+        ...state,
+        status: 'fallback',
+        targetHere: false,
+        picture,
+      })
+    );
+    const img = shadow?.querySelector('[data-testid="web-tour-picture"]');
+    expect(img?.getAttribute('src')).toBe('data:image/png;base64,AAAA');
+    expect(
+      shadow?.querySelector('[data-testid="web-tour-find-it"]')
+    ).not.toBeNull();
+    expect(shadow?.querySelector('[data-testid="tour-spotlight"]')).toBeNull();
+    act(() =>
+      (
+        shadow?.querySelector(
+          '[data-testid="tour-tip-next"]'
+        ) as HTMLButtonElement | null
+      )?.click()
+    );
+    expect(onAction).toHaveBeenCalledWith('next');
+  });
+
+  it('says the step is on another page', () => {
+    captureShadow();
+    handle = mountOverlay('', vi.fn());
+    act(() =>
+      handle?.render({
+        ...state,
+        status: 'wrong-page',
+        targetHere: false,
+        picture,
+      })
+    );
+    expect(
+      shadow?.querySelector('[data-testid="web-tour-other-page"]')
+    ).not.toBeNull();
+    expect(
+      shadow?.querySelector('[data-testid="web-tour-picture"]')
+    ).not.toBeNull();
+  });
+
+  it('draws only the spotlight in a frame that holds the target', () => {
+    captureShadow();
+    handle = mountOverlay('', vi.fn());
+    act(() => handle?.render({ ...state, role: 'target' }));
+    expect(
+      shadow?.querySelector('[data-testid="tour-spotlight"]')
+    ).not.toBeNull();
+    expect(shadow?.querySelector('[data-testid="tour-bar"]')).toBeNull();
+    expect(shadow?.querySelector('[data-testid="tour-callout"]')).toBeNull();
+  });
+
+  it('ends the tour from the finished tip', () => {
+    captureShadow();
+    const onAction = vi.fn();
+    handle = mountOverlay('', onAction);
+    act(() =>
+      handle?.render({
+        ...state,
+        current: 3,
+        status: 'done',
+        targetHere: false,
+      })
+    );
+    expect(
+      shadow?.querySelector('[data-testid="tour-callout"]')?.textContent
+    ).toContain('Tour complete');
+    act(() =>
+      (
+        shadow?.querySelector(
+          '[data-testid="tour-tip-next"]'
+        ) as HTMLButtonElement | null
+      )?.click()
+    );
+    expect(onAction).toHaveBeenCalledWith('exit');
   });
 });
 

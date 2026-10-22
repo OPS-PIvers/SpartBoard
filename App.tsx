@@ -349,6 +349,24 @@ const PronunciationDevHarness =
         }))
       )
     : null;
+// Web tour playback harness and its fixture site; also on the spartboard-dev site so a real install can play it.
+const webTourDevBuild =
+  import.meta.env.DEV ||
+  import.meta.env.VITE_FIREBASE_PROJECT_ID === 'spartboard-dev';
+const WebTourPlaybackDevHarness = webTourDevBuild
+  ? lazy(() =>
+      import('./components/dev/WebTourPlaybackDevHarness').then((module) => ({
+        default: module.WebTourPlaybackDevHarness,
+      }))
+    )
+  : null;
+const WebTourFixtureSite = webTourDevBuild
+  ? lazy(() =>
+      import('./components/dev/WebTourFixtureSite').then((module) => ({
+        default: module.WebTourFixtureSite,
+      }))
+    )
+  : null;
 // Also built into auth-bypass (E2E) builds for the library end-padding guard.
 const LibraryManagersDevHarness =
   import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
@@ -1128,6 +1146,26 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <TeamsAdminDefaultsDevHarness />
+      </Suspense>
+    );
+  }
+
+  if (WebTourPlaybackDevHarness && pathname === '/web-tour-playback-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WebTourPlaybackDevHarness />
+      </Suspense>
+    );
+  }
+
+  if (
+    WebTourFixtureSite &&
+    (pathname === '/web-tour-fixture-dev' ||
+      pathname.startsWith('/web-tour-fixture-dev/'))
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WebTourFixtureSite />
       </Suspense>
     );
   }
