@@ -90,6 +90,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
   // client keeps a copy of the tracker under the share.
   const boardItem = useSharedBoardItem<SharedBoardProjectPayload>(
     'project',
+    config.projectOwnerUid,
     shared.active ? null : projectId
   );
   const onBoard = boardItem.status === 'foreign';
@@ -119,6 +120,9 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
     title: ownTracker?.run.title ?? '',
     version: ownTrackerVersion,
     build: () => Promise.resolve(ownTracker as SharedBoardProjectPayload),
+    stampedOwnerUid: config.projectOwnerUid,
+    stampOwner: (uid) =>
+      updateWidget(widget.id, { config: { projectOwnerUid: uid } }),
   });
   const run = shared.active
     ? shared.run

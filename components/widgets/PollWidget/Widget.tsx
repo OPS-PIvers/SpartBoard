@@ -8,8 +8,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import { useBoardLinkedShareId } from '@/context/boardLinkedShare';
 import {
-  useActiveBoardLinkedShareId,
   useGlobalStyle,
   useDashboardActions,
 } from '@/context/dashboardCanvasStore';
@@ -45,7 +45,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // neither read its votes nor run it: the widget shows the questions only.
   const inShare = useInSubShare();
   // On a Synced or View-Only board the live session may be another member's: read its votes, don't steer it.
-  const boardShareId = useActiveBoardLinkedShareId();
+  const boardShareId = useBoardLinkedShareId();
   const sessionOwnerUid = config.activePollSessionOwnerUid ?? null;
   const foreignSession =
     !!boardShareId &&

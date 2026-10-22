@@ -168,6 +168,9 @@ const LIBRARY_COLLECTION: Record<SharedBoardItemKind, string> = {
   quiz: 'quizzes',
   videoActivity: 'video_activities',
   guidedLearning: 'guided_learning',
+  flashcards: 'flashcard_sets',
+  notebook: 'notebooks',
+  project: 'projects',
 };
 
 /** Whether the viewer already holds the linked copy, so Assign never overwrites their edits to it. */

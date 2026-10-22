@@ -210,9 +210,13 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     version: ownPresentVersion,
     build: () =>
       Promise.resolve({ set: ownPresentView as SubShareFlashcardSetView }),
+    stampedOwnerUid: config.presentSetOwnerUid,
+    stampOwner: (uid) =>
+      updateWidget(widget.id, { config: { presentSetOwnerUid: uid } }),
   });
   const boardItem = useSharedBoardItem<SharedBoardFlashcardPayload>(
     'flashcards',
+    config.presentSetOwnerUid,
     presenting && !flashcardSets.loading && !ownPresentSet
       ? config.presentSetId
       : null

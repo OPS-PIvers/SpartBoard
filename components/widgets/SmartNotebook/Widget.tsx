@@ -61,7 +61,7 @@ import {
   contentVersion,
   type SharedBoardNotebookPayload,
 } from '@/utils/sharedBoardItems';
-import { useActiveBoardLinkedShareId } from '@/context/dashboardCanvasStore';
+import { useBoardLinkedShareId } from '@/context/boardLinkedShare';
 
 import { Library } from './components/Library';
 import { Viewer } from './components/Viewer';
@@ -168,13 +168,17 @@ export const SmartNotebookWidget: React.FC<{
     title: ownNotebookView?.title ?? '',
     version: ownNotebookVersion,
     build: () => Promise.resolve({ notebook: ownNotebookView as NotebookItem }),
+    stampedOwnerUid: config.activeNotebookOwnerUid,
+    stampOwner: (uid) =>
+      updateWidget(widget.id, { config: { activeNotebookOwnerUid: uid } }),
   });
   const boardItem = useSharedBoardItem<SharedBoardNotebookPayload>(
     'notebook',
+    config.activeNotebookOwnerUid,
     shared.active || ownNotebook || !libraryLoaded ? null : activeNotebookId
   );
   const onBoard = boardItem.status === 'foreign';
-  const boardShareId = useActiveBoardLinkedShareId();
+  const boardShareId = useBoardLinkedShareId();
   const activeNotebook = shared.active
     ? shared.notebook
     : onBoard
