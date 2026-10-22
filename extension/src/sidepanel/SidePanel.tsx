@@ -12,6 +12,7 @@ import {
   Circle,
   ExternalLink,
   MapPin,
+  MousePointerClick,
   Send,
   Square,
   Trash2,
@@ -32,6 +33,13 @@ import {
   type RecorderPick,
   type RecorderStatus,
 } from '../recorder/messages';
+import {
+  BLUR_CATEGORIES,
+  BLUR_SETTINGS_KEY,
+  readBlurSettings,
+  type BlurCategory,
+  type BlurSettings,
+} from '../recorder/blurSettings';
 import { BlurBoxes } from '@/components/tours/web/BlurBoxes';
 import { cropScreenshot, finishPicture } from './pictures';
 import { loadUnsent, saveUnsent, type PanelStep, type Unsent } from './unsent';
@@ -169,6 +177,67 @@ const StepCard: React.FC<{
         </label>
       )}
     </li>
+  );
+};
+
+/** What the recorder blurs before each picture, and Click to blur while recording. */
+const BlurCard: React.FC<{ recording: boolean; picking: boolean }> = ({
+  recording,
+  picking,
+}) => {
+  const [settings, setSettings] = useState<BlurSettings | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void readBlurSettings().then((s) => {
+      if (!cancelled) setSettings(s);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  if (!settings) return null;
+  const toggle = (key: BlurCategory, on: boolean) => {
+    const next = { ...settings, [key]: on };
+    setSettings(next);
+    void chrome.storage.local
+      .set({ [BLUR_SETTINGS_KEY]: next })
+      .catch(() => undefined);
+  };
+  return (
+    <section className={`flex flex-col gap-2 p-3 ${card}`}>
+      <h2 className="font-semibold">Blur in pictures</h2>
+      <ul className="flex flex-col gap-1.5">
+        {BLUR_CATEGORIES.map(({ key, label }) => (
+          <li key={key}>
+            <label className="flex items-center gap-2 text-slate-700">
+              <input
+                type="checkbox"
+                className={`h-4 w-4 rounded accent-brand-blue-primary ${focusRing}`}
+                checked={settings[key]}
+                onChange={(e) => toggle(key, e.target.checked)}
+              />
+              {label}
+            </label>
+          </li>
+        ))}
+      </ul>
+      <div>
+        <button
+          type="button"
+          className={`${secondaryBtn} inline-flex items-center gap-1.5 ${
+            picking ? 'bg-brand-blue-lighter' : ''
+          } ${disabledLook}`}
+          disabled={!recording}
+          aria-pressed={picking}
+          onClick={() =>
+            void send({ type: 'rec/setBlurPicking', on: !picking })
+          }
+        >
+          <MousePointerClick className="h-4 w-4" aria-hidden="true" />
+          Click to blur
+        </button>
+      </div>
+    </section>
   );
 };
 
@@ -597,6 +666,7 @@ export const SidePanel: React.FC = () => {
                 {error}
               </p>
             )}
+            <BlurCard recording={recording} picking={status.blurPicking} />
             {list.length > 0 && (
               <>
                 {saveFailed && (

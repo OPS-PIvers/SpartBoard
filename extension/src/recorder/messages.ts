@@ -10,6 +10,12 @@ import {
   type RecordedWebStep,
 } from '@/components/tours/web/recorderProtocol';
 import type { CapturedTarget } from './captureTarget';
+import {
+  isBlurSettings,
+  MAX_PICK_SELECTOR,
+  MAX_PICKS_PER_PAGE,
+  type BlurSettings,
+} from './blurSettings';
 import type { IntakeStatus } from './intake';
 import type { Rect, Size } from './geometry';
 
@@ -49,6 +55,14 @@ export interface RecorderStatus {
   /** Steps sent to a tour that hasn't saved them yet. */
   unsaved: number;
   intake: IntakeStatus;
+  /** Click to blur is on: clicks on the page pick elements to blur instead of making steps. */
+  blurPicking: boolean;
+}
+
+/** A child frame of the top frame, as the top frame can find its element. */
+export interface FrameRef {
+  url: string;
+  index: number;
 }
 
 export type FrameRectReply =
@@ -63,7 +77,14 @@ type InternalSpec = {
   'rec/stop': Record<string, never>;
   'rec/send': { setId: string; steps: RecordedWebStep[] };
   'rec/sendFix': RecorderPick & { step: RecordedWebStep };
-  'rec/pill': { show: boolean };
+  /** Blurs this frame (and hides the pill in the top frame) before a picture. */
+  'rec/shoot': { blur: BlurSettings; picks: string[] };
+  'rec/shot': Record<string, never>;
+  /** Blurs whole child frames from the top frame when they couldn't blur themselves. */
+  'rec/cover': { frames: FrameRef[] };
+  'rec/blurMode': { on: boolean; picks: string[] };
+  'rec/setBlurPicking': { on: boolean };
+  'rec/blurPick': { selector: string; on: boolean };
   'rec/intakeOpen': Record<string, never>;
   'rec/intakeSave': {
     target: IntakeTarget;
@@ -96,6 +117,11 @@ const isTarget = (v: unknown): v is CapturedTarget =>
   isNum(v.viewport.w) &&
   isNum(v.viewport.h);
 
+const isPicks = (v: unknown): v is string[] =>
+  Array.isArray(v) &&
+  v.length <= MAX_PICKS_PER_PAGE &&
+  v.every((s) => isStr(s, MAX_PICK_SELECTOR));
+
 const CHECKS: {
   [K in keyof InternalSpec]: (m: Record<string, unknown>) => boolean;
 } = {
@@ -113,7 +139,22 @@ const CHECKS: {
     m.steps.every(isRecordedStep),
   'rec/sendFix': (m) =>
     isStr(m.setId, 128) && isStr(m.stepId, 64) && isRecordedStep(m.step),
-  'rec/pill': (m) => typeof m.show === 'boolean',
+  'rec/shoot': (m) => isBlurSettings(m.blur) && isPicks(m.picks),
+  'rec/shot': () => true,
+  'rec/cover': (m) =>
+    Array.isArray(m.frames) &&
+    m.frames.length <= 100 &&
+    m.frames.every(
+      (f) =>
+        isObj(f) &&
+        isStr(f.url) &&
+        Number.isInteger(f.index) &&
+        (f.index as number) >= 0
+    ),
+  'rec/blurMode': (m) => typeof m.on === 'boolean' && isPicks(m.picks),
+  'rec/setBlurPicking': (m) => typeof m.on === 'boolean',
+  'rec/blurPick': (m) =>
+    isStr(m.selector, MAX_PICK_SELECTOR) && typeof m.on === 'boolean',
   'rec/intakeOpen': () => true,
   'rec/intakeSave': (m) =>
     isObj(m.target) &&
