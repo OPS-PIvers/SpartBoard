@@ -6,6 +6,7 @@ import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { DndContext, DragOverlay } from '@dnd-kit/core';
 import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { useDialog } from '@/context/useDialog';
+import { useConfirmLinkedBoardRemoval } from '@/hooks/useConfirmLinkedBoardRemoval';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { CollectionTree } from './CollectionTree';
@@ -55,6 +56,7 @@ interface BoardsModalProps {
 export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   const { t } = useTranslation();
   const { showPrompt, showConfirm } = useDialog();
+  const confirmLinkedRemoval = useConfirmLinkedBoardRemoval();
   const { isAdmin, canAccessFeature } = useAuth();
   const canShare = canAccessFeature('dashboard-sharing');
   const backArrow = canAccessFeature('full-page-back-arrow');
@@ -65,6 +67,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     createNewDashboard,
     deleteDashboard,
     moveBoardToCollection,
+    countLinkedBoardRemovals,
     pinBoard,
     unpinBoard,
     renameDashboard,
@@ -343,6 +346,8 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       { title: 'Delete', variant: 'danger', confirmLabel: 'Delete' }
     );
     if (!confirmed) return;
+    const boardIds = ids.filter((id) => dashboards.some((d) => d.id === id));
+    if (!(await confirmLinkedRemoval(boardIds, { kind: 'delete' }))) return;
     // deleteDashboard already toasts on failure internally; we let it stay
     // silent on success and rely on the aggregate report below. For
     // deleteCollection (no built-in toasting yet), the aggregate is the only
@@ -366,6 +371,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     );
   }, [
     showConfirm,
+    confirmLinkedRemoval,
     t,
     multi,
     dashboards,
@@ -480,6 +486,13 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
         setSingleMoveTargetId(null);
         const isBoard = dashboards.some((d) => d.id === id);
         if (!isBoard) return;
+        if (
+          !(await confirmLinkedRemoval([id], {
+            kind: 'move',
+            collectionId: destId,
+          }))
+        )
+          return;
         try {
           await moveBoardToCollection(id, destId);
         } catch {
@@ -499,6 +512,13 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
         toastNoBoardsInSelection();
         return;
       }
+      if (
+        !(await confirmLinkedRemoval(ids, {
+          kind: 'move',
+          collectionId: destId,
+        }))
+      )
+        return;
       const results = await Promise.allSettled(
         ids.map((id) => moveBoardToCollection(id, destId, { silent: true }))
       );
@@ -518,6 +538,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       singleMoveTargetId,
       multi,
       dashboards,
+      confirmLinkedRemoval,
       moveBoardToCollection,
       moveCollection,
       addToast,
@@ -708,12 +729,20 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               subShareEndsAt={subShares.endsAtFor(board.id)}
               onSaveAsTemplate={() => setSaveAsTemplateTarget(board)}
               onDelete={async () => {
-                const ok = await showConfirm(
-                  t('boardsModal.deleteBoardConfirm', {
-                    defaultValue: 'Delete this Board?',
-                  }),
-                  { title: 'Delete', variant: 'danger', confirmLabel: 'Delete' }
-                );
+                // A board leaving a shared collection gets the remove-for-everyone confirm instead.
+                const ok =
+                  countLinkedBoardRemovals([board.id], { kind: 'delete' }) > 0
+                    ? await confirmLinkedRemoval([board.id], { kind: 'delete' })
+                    : await showConfirm(
+                        t('boardsModal.deleteBoardConfirm', {
+                          defaultValue: 'Delete this Board?',
+                        }),
+                        {
+                          title: 'Delete',
+                          variant: 'danger',
+                          confirmLabel: 'Delete',
+                        }
+                      );
                 if (ok) await deleteDashboard(board.id);
               }}
             />

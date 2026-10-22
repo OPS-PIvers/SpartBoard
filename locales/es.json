@@ -1623,6 +1623,8 @@
     "delete": "Eliminar",
     "bulkDeleteConfirm": "¿Eliminar {{count}} elemento(s)? Esta acción no se puede deshacer.",
     "deleteBoardConfirm": "¿Eliminar este Tablero?",
+    "removeSharedBoardConfirm": "¿Quitar este tablero para todos en la colección compartida?",
+    "removeSharedBoardConfirmLabel": "Quitar",
     "deleteCollectionConfirm": "¿Eliminar esta Colección? Los Tableros que contiene se moverán al nivel superior.",
     "unpinBoard": "Desanclar Tablero",
     "dragToMove": "Arrastra para mover",

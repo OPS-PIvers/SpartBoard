@@ -7,17 +7,18 @@ import { useFirestore, type SharedBoardSnapshot } from '@/hooks/useFirestore';
 import { useLinkedCollection } from '@/hooks/useLinkedCollection';
 import { logError } from '@/utils/logError';
 import {
+  beginLinkedCollectionImport,
+  endLinkedCollectionImport,
+} from '@/utils/linkedCollectionImportLock';
+import {
+  linkedBoardFromShare,
   orderSectionsParentsFirst,
   safeName,
   safeStyleValue,
   sharedBoardBelongsToLink,
   uniqueLinkedBoards,
 } from '@/utils/linkedCollectionImport';
-import type {
-  Dashboard,
-  LinkedCollection,
-  LinkedCollectionBoard,
-} from '@/types';
+import type { LinkedCollection, LinkedCollectionBoard } from '@/types';
 
 export type LinkedCollectionImportResult =
   | {
@@ -100,6 +101,7 @@ export const useLinkedCollectionImport = () => {
         }
       }
 
+      beginLinkedCollectionImport(link.linkId);
       try {
         // Read and verify every listed share before writing anything locally.
         // Boards already mirrored locally (e.g. imported one by one before) aren't copied twice.
@@ -176,25 +178,15 @@ export const useLinkedCollectionImport = () => {
           const results = await Promise.allSettled(
             batch.map(async ({ entry, snap }, offset) => {
               const ownsBoard = snap.originalAuthor === user.uid;
-              const boardRole = ownsBoard ? 'owner' : role;
               const localSection = entry.sectionId
                 ? sectionToLocal.get(entry.sectionId)
                 : undefined;
-              const data: Dashboard = {
-                id: crypto.randomUUID(),
-                name: safeName(entry.name, safeName(snap.name, rootName)),
-                background: snap.background,
-                widgets: snap.widgets ?? [],
-                globalStyle: snap.globalStyle,
-                settings: snap.settings,
-                isDefault: false,
-                createdAt: Date.now(),
+              const data = linkedBoardFromShare(entry, snap, {
+                uid: user.uid,
+                role,
+                fallbackName: rootName,
                 order: baseOrder + i + offset + 1,
-                linkedShareId: entry.shareId,
-                linkedShareRole: boardRole,
-                linkedShareHostName: snap.linkedShareHostName,
-                linkedShareEnded: false,
-              };
+              });
               const boardId = await createNewDashboard(data.name, data, {
                 collectionId: localSection ?? rootId,
                 silent: true,
@@ -232,6 +224,8 @@ export const useLinkedCollectionImport = () => {
           linkId: link.linkId,
         });
         return { ok: false, reason: 'error' };
+      } finally {
+        endLinkedCollectionImport(link.linkId);
       }
     },
     [
