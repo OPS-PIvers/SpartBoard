@@ -56,6 +56,13 @@ export type CollectionCreateMetadata = Partial<
 
 export type DeleteCollectionMode = 'move-to-parent' | 'delete-all';
 
+export type CollectionLinkFields = Required<
+  Pick<
+    Collection,
+    'linkedCollectionId' | 'linkedCollectionRole' | 'linkedCollectionEnded'
+  >
+>;
+
 export interface UseCollectionsResult {
   collections: Collection[];
   loading: boolean;
@@ -77,6 +84,11 @@ export interface UseCollectionsResult {
   reorderSiblings: (
     parentCollectionId: string | null,
     orderedIds: string[]
+  ) => Promise<void>;
+  /** Record this collection's Synced / View-Only link (COLLECTION_SHARING). */
+  setCollectionLink: (
+    collectionId: string,
+    link: CollectionLinkFields
   ) => Promise<void>;
   setCollectionMetadata: (
     collectionId: string,
@@ -376,6 +388,26 @@ export const useCollections = (
     [userId]
   );
 
+  const setCollectionLink = useCallback(
+    async (collectionId: string, link: CollectionLinkFields): Promise<void> => {
+      if (!userId) throw new Error('Not authenticated');
+      const update = { ...link, updatedAt: Date.now() };
+      if (isAuthBypass) {
+        setCollections((prev) =>
+          prev.map((c) => (c.id === collectionId ? { ...c, ...update } : c))
+        );
+        return;
+      }
+      const batch = writeBatch(db);
+      batch.update(
+        doc(db, 'users', userId, COLLECTIONS_SUBPATH, collectionId),
+        update
+      );
+      await batch.commit();
+    },
+    [userId]
+  );
+
   const setCollectionDefaultBoard = useCallback(
     async (collectionId: string, boardId: string | null): Promise<void> => {
       if (!userId) throw new Error('Not authenticated');
@@ -591,6 +623,7 @@ export const useCollections = (
       deleteCollection,
       reorderSiblings,
       setCollectionMetadata,
+      setCollectionLink,
       setCollectionDefaultBoard,
     }),
     [
@@ -603,6 +636,7 @@ export const useCollections = (
       deleteCollection,
       reorderSiblings,
       setCollectionMetadata,
+      setCollectionLink,
       setCollectionDefaultBoard,
     ]
   );

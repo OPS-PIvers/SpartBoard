@@ -11361,6 +11361,18 @@ export const TOUR_ANCHORS = {
     label: 'Copy button for the sub share link',
     panel: true,
   },
+  'share-collection.mode-synced': {
+    label: 'Synced option in the collection share dialog',
+    panel: true,
+  },
+  'share-collection.mode-view-only': {
+    label: 'View-Only option in the collection share dialog',
+    panel: true,
+  },
+  'share-collection.mode-copy': {
+    label: 'Make a copy option in the collection share dialog',
+    panel: true,
+  },
   'share-collection.share-with-sub': {
     label: 'Share with a sub option in the collection share dialog',
     panel: true,

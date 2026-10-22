@@ -21,6 +21,10 @@ import { CollectionCardDragPreview } from './CollectionCard';
 import { ShareLinkCreatorModal } from '@/components/share/ShareLinkCreatorModal';
 import { ShareCollectionLinkCreatorModal } from '@/components/share/ShareCollectionLinkCreatorModal';
 import {
+  shareCollectionTree,
+  touchesLiveCollectionShare,
+} from '@/utils/sharedCollectionTree';
+import {
   ShareWithSubModal,
   type SubShareTarget,
 } from '@/components/share/ShareWithSubModal';
@@ -812,8 +816,14 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
         <ShareCollectionLinkCreatorModal
           isOpen
           collection={shareCollectionTarget}
-          boards={dashboards.filter(
-            (d) => (d.collectionId ?? null) === shareCollectionTarget.id
+          {...shareCollectionTree(
+            shareCollectionTarget,
+            collections,
+            dashboards
+          )}
+          inLiveShare={touchesLiveCollectionShare(
+            shareCollectionTarget,
+            collections
           )}
           onClose={() => setShareCollectionTarget(null)}
           onShareWithSub={() => {

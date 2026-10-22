@@ -141,6 +141,7 @@ export const mockDashboard: DashboardContextValue = {
     deleteCollection: () => Promise.resolve(),
     reorderSiblings: () => Promise.resolve(),
     setCollectionMetadata: () => Promise.resolve(),
+    setCollectionLink: () => Promise.resolve(),
     setCollectionDefaultBoard: () => Promise.resolve(),
   },
   dashboards: [],
@@ -290,6 +291,7 @@ export const mockDashboard: DashboardContextValue = {
   },
   // Collection sharing system mocks
   shareCollection: () => Promise.resolve(''),
+  shareLinkedCollection: () => Promise.resolve(''),
   shareSubstituteCollection: () => Promise.resolve(''),
   updateSubstituteCollectionShare: () => Promise.resolve(),
   extendSubstituteCollectionShare: () => Promise.resolve(),

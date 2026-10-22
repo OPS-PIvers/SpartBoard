@@ -1695,7 +1695,13 @@
     "notFound": "Colección compartida no encontrada o expirada",
     "empty": "La Colección compartida está vacía",
     "invalidShareUrl": "Enlace de compartición inválido — falta el ID de recurso compartido.",
-    "substituteImportRejected": "Este enlace es para sustitutos. Ábrelo en el Portal de sustitutos."
+    "substituteImportRejected": "Este enlace es para sustitutos. Ábrelo en el Portal de sustitutos.",
+    "modeSynced": "Sincronizado",
+    "modeSyncedHint": "Ambos editan la misma colección.",
+    "modeViewOnly": "Solo lectura",
+    "modeViewOnlyHint": "Ven tus cambios en vivo, pero no pueden editar.",
+    "modeCopyTitle": "Hacer una copia",
+    "boardAlreadyLive": "{{name}} ya se comparte en vivo. Deja de compartirlo primero o haz una copia."
   },
   "importSharedCollection": {
     "title": "Importar Colección compartida",

@@ -70,6 +70,15 @@ describe('flattenSharedCollection', () => {
     expect(tree.boards.find((b) => b.id === 't1')?.sectionId).toBe('tue');
   });
 
+  it('records each sub-collection under its parent, root without one', () => {
+    const tree = flattenSharedCollection(week, collections, boards);
+    expect(tree.sections.map((s) => s.parentId)).toEqual([
+      undefined,
+      'week',
+      'week',
+    ]);
+  });
+
   it('carries the board names the sub will see', () => {
     const tree = flattenSharedCollection(week, collections, boards);
     expect(tree.boards.find((b) => b.id === 'm1')?.name).toBe('Board m1');
