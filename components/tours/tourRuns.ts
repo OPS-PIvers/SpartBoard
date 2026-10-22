@@ -73,7 +73,7 @@ export async function loadTourRuns(setId: string): Promise<TourRun[]> {
   });
 }
 
-const writeTourRun = (setId: string, uid: string, run: TourRun) =>
+export const writeTourRun = (setId: string, uid: string, run: TourRun) =>
   isConfigured ? setDoc(doc(runsRef(setId), uid), run) : Promise.resolve();
 
 export interface TourRunLog {
@@ -91,18 +91,23 @@ export interface TourRunLog {
 export function startTourRunLog(
   setId: string,
   uid: string,
-  start: Pick<TourRun, 'v' | 'furthest' | 'surface'>,
+  // `from` continues a saved run of the same version instead of starting empty.
+  start: Pick<TourRun, 'v' | 'furthest' | 'surface'> & { from?: TourRun },
   write: (run: TourRun) => Promise<void> = (run) =>
     writeTourRun(setId, uid, run),
   intervalMs = TOUR_RUN_WRITE_INTERVAL_MS
 ): TourRunLog {
+  const v = Number.isFinite(start.v) ? Math.trunc(start.v) : 0;
+  const from = start.from?.v === v && !start.from.done ? start.from : null;
   let run: TourRun = {
-    v: Number.isFinite(start.v) ? Math.trunc(start.v) : 0,
-    startedAt: Date.now(),
-    furthest: stepIndex(start.furthest),
+    v,
+    startedAt: from?.startedAt ?? Date.now(),
+    furthest: Math.max(from?.furthest ?? 0, stepIndex(start.furthest)),
     done: false,
-    misses: [],
-    ...(start.surface === 'web' ? { surface: 'web' as const, weak: [] } : {}),
+    misses: from?.misses ?? [],
+    ...(start.surface === 'web'
+      ? { surface: 'web' as const, weak: from?.weak ?? [] }
+      : {}),
   };
   let dirty = true;
   let ended = false;

@@ -16,7 +16,13 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { loadPublishedTour } from '@/components/tours/publishedTours';
-import { startTourRunLog, type TourRunLog } from '@/components/tours/tourRuns';
+import {
+  parseTourRun,
+  startTourRunLog,
+  writeTourRun,
+  type TourRun,
+  type TourRunLog,
+} from '@/components/tours/tourRuns';
 import { logError } from '@/utils/logError';
 import {
   canPlayWebTours,
@@ -61,7 +67,57 @@ type TourLoad =
   { kind: 'loading' } | { kind: 'missing' } | { kind: 'ready'; tour: HubTour };
 
 const MAX_RECONNECTS = 5;
-const MAX_RECONNECT_DELAY_MS = 30_000;
+const RECONNECT_DELAY_MS = 2000;
+
+// The run as last written, kept for this tab so a reload continues it instead of overwriting it.
+const savedRunKey = (setId: string, uid: string) =>
+  `spart:web-tour-run:${setId}:${uid}`;
+
+function readSavedRun(setId: string, uid: string, v: number): TourRun | null {
+  try {
+    const raw = window.sessionStorage.getItem(savedRunKey(setId, uid));
+    const run = raw ? parseTourRun(JSON.parse(raw)) : null;
+    return run && run.v === v && !run.done && run.exit === undefined
+      ? run
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveRun(setId: string, uid: string, run: TourRun) {
+  try {
+    const key = savedRunKey(setId, uid);
+    if (run.done || run.exit !== undefined) {
+      window.sessionStorage.removeItem(key);
+    } else {
+      window.sessionStorage.setItem(key, JSON.stringify(run));
+    }
+  } catch {
+    // Without session storage a reload starts a new run.
+  }
+}
+
+const openRunLog = (
+  setId: string,
+  uid: string,
+  v: number,
+  furthest: number
+): TourRunLog =>
+  startTourRunLog(
+    setId,
+    uid,
+    {
+      v,
+      furthest,
+      surface: 'web',
+      from: readSavedRun(setId, uid, v) ?? undefined,
+    },
+    (run) => {
+      saveRun(setId, uid, run);
+      return writeTourRun(setId, uid, run);
+    }
+  );
 
 async function loadHubTour(setId: string): Promise<HubTour | null> {
   const published = await loadPublishedTour(setId);
@@ -135,7 +191,7 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
   // Set by an exit, so leaving the page records it while Resume can still continue the run.
   const exitAt = useRef<number | null>(null);
   const log = useRef<TourRunLog | null>(null);
-  // Only a tour this page started is logged, so a reload mid-tour never overwrites the run.
+  // Set once this page starts or continues a run; a tour it only follows is not logged.
   const startedHere = useRef(false);
   const failures = useRef(0);
   const reconnectTimer = useRef<number | null>(null);
@@ -178,18 +234,20 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
     if (!tour || !eventFitsTour(event, tour.steps)) return;
     failures.current = 0;
     setPlay((prev) => reducePlay(prev, event));
-    if (
-      !log.current &&
-      (event.type !== 'web-tour/step' || !startedHere.current)
-    ) {
+    // A reloaded page continues the run this tab saved; otherwise only its own start logs.
+    const resumable =
+      startedHere.current || !!readSavedRun(setId, uid, tour.version);
+    if (!log.current && (event.type !== 'web-tour/step' || !resumable)) {
       return;
     }
+    startedHere.current = true;
     // Created here, not after the start reply, so the first step's clue is never lost.
-    const run = (log.current ??= startTourRunLog(setId, uid, {
-      v: tour.version,
-      furthest: event.type === 'web-tour/step' ? event.stepIndex : 0,
-      surface: 'web',
-    }));
+    const run = (log.current ??= openRunLog(
+      setId,
+      uid,
+      tour.version,
+      event.type === 'web-tour/step' ? event.stepIndex : 0
+    ));
     if (event.type === 'web-tour/step') {
       exitAt.current = null;
       run.update({ furthest: event.stepIndex });
@@ -204,17 +262,13 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
     }
   });
   const onPortGone = useEffectEvent(() => {
-    // A tour that is still playing keeps reconnecting, backing off, until it ends.
+    // A tour that is still playing keeps reconnecting until it ends, so its last event isn't missed.
     const live = play.kind === 'playing' || play.kind === 'starting';
     if (!live && failures.current >= MAX_RECONNECTS) return;
-    const delay = Math.min(
-      2000 * 2 ** failures.current,
-      MAX_RECONNECT_DELAY_MS
-    );
     failures.current++;
     reconnectTimer.current = window.setTimeout(
       () => setReconnects((n) => n + 1),
-      delay
+      RECONNECT_DELAY_MS
     );
   });
   useEffect(() => {
@@ -285,11 +339,7 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
       );
       return;
     }
-    log.current ??= startTourRunLog(setId, uid, {
-      v: tour.version,
-      furthest: stepIndex,
-      surface: 'web',
-    });
+    log.current ??= openRunLog(setId, uid, tour.version, stepIndex);
     setPlay((prev) =>
       prev.kind === 'starting'
         ? {

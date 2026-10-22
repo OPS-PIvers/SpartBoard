@@ -69,6 +69,40 @@ describe('startTourRunLog', () => {
     expect(write.mock.calls[1][0]).toMatchObject({ furthest: 500, exit: 500 });
   });
 
+  it('continues a saved run of the same version, and ignores a finished or older one', () => {
+    const write = writer();
+    const saved = {
+      v: 3,
+      startedAt: 5,
+      furthest: 2,
+      done: false,
+      misses: ['a'],
+      surface: 'web' as const,
+      weak: ['b:text'],
+    };
+    startTourRunLog(
+      'set',
+      'uid',
+      { v: 3, furthest: 1, surface: 'web', from: saved },
+      write
+    );
+    expect(write.mock.calls[0][0]).toEqual(saved);
+    startTourRunLog(
+      'set',
+      'uid',
+      { v: 4, furthest: 0, surface: 'web', from: saved },
+      write
+    );
+    expect(write.mock.calls[1][0]).toMatchObject({ misses: [], weak: [] });
+    startTourRunLog(
+      'set',
+      'uid',
+      { v: 3, furthest: 0, surface: 'web', from: { ...saved, done: true } },
+      write
+    );
+    expect(write.mock.calls[2][0]).toMatchObject({ misses: [], furthest: 0 });
+  });
+
   it('stops adding misses at the rules cap', () => {
     const write = writer();
     const log = startTourRunLog('set', 'uid', { v: 1, furthest: 0 }, write);

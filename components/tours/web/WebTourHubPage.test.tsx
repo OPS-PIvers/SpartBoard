@@ -49,7 +49,8 @@ vi.mock('@/components/auth/SignInPage', () => ({
 vi.mock('@/components/tours/publishedTours', () => ({
   loadPublishedTour: () => Promise.resolve(h.published),
 }));
-vi.mock('@/components/tours/tourRuns', () => ({
+vi.mock('@/components/tours/tourRuns', async (orig) => ({
+  ...(await orig<typeof import('@/components/tours/tourRuns')>()),
   startTourRunLog: (...args: unknown[]) => {
     h.startLog(...args);
     return h.log;
@@ -111,6 +112,7 @@ beforeEach(() => {
   h.startLog.mockReset();
   Object.values(h.log).forEach((fn) => fn.mockReset());
   h.onEvent = null;
+  window.sessionStorage.clear();
 });
 
 describe('WebTourHubPage', () => {
@@ -185,11 +187,12 @@ describe('WebTourHubPage', () => {
       'https://app.schoology.com/home',
       0
     );
-    expect(h.startLog).toHaveBeenCalledWith('s1', 'u1', {
-      v: 42,
-      furthest: 0,
-      surface: 'web',
-    });
+    expect(h.startLog).toHaveBeenCalledWith(
+      's1',
+      'u1',
+      { v: 42, furthest: 0, surface: 'web', from: undefined },
+      expect.any(Function)
+    );
     expect(
       screen.getByText(
         'The tour is open in another tab. Your progress shows here.'
@@ -289,11 +292,12 @@ describe('WebTourHubPage', () => {
         match: 'none',
       });
     });
-    expect(h.startLog).toHaveBeenCalledWith('s1', 'u1', {
-      v: 42,
-      furthest: 0,
-      surface: 'web',
-    });
+    expect(h.startLog).toHaveBeenCalledWith(
+      's1',
+      'u1',
+      { v: 42, furthest: 0, surface: 'web', from: undefined },
+      expect.any(Function)
+    );
     expect(h.log.match).toHaveBeenCalledWith('a', 'none');
     act(() => {
       h.onEvent?.({ type: 'web-tour/exit', setId: 's1', stepIndex: 0 });
@@ -325,6 +329,41 @@ describe('WebTourHubPage', () => {
       )
     ).toBeTruthy();
     expect(h.startLog).not.toHaveBeenCalled();
+  });
+
+  it('continues the run this tab saved after a reload', async () => {
+    h.ping = { kind: 'ready', protocol: 2, version: '1', profile: 'staff' };
+    const saved = {
+      v: 42,
+      startedAt: 1,
+      furthest: 0,
+      done: false,
+      misses: ['a'],
+      surface: 'web',
+      weak: [],
+    };
+    window.sessionStorage.setItem(
+      'spart:web-tour-run:s1:u1',
+      JSON.stringify(saved)
+    );
+    render(<WebTourHubPage />);
+    await screen.findByRole('button', { name: /Start tour/ });
+    act(() => {
+      h.onEvent?.({
+        type: 'web-tour/step',
+        setId: 's1',
+        stepIndex: 1,
+        stepId: 'b',
+        match: 'role',
+      });
+    });
+    expect(h.startLog).toHaveBeenCalledWith(
+      's1',
+      'u1',
+      expect.objectContaining({ from: saved }),
+      expect.any(Function)
+    );
+    expect(h.log.match).toHaveBeenCalledWith('b', 'role');
   });
 
   it('asks for a staff profile when the extension reports no profile', async () => {
