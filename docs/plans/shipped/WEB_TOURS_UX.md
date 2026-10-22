@@ -2,7 +2,7 @@
 
 Goal: make web tours (tours of other websites, recorded and played by the SpartBoard Chrome extension) feel like part of SpartBoard. Authors should be able to record a tour start to finish from the extension, find and manage it next to live tours, and play it on real sites without the page breaking.
 
-Settled in a design interview with Paul on 2026-10-22, after his first hands-on test of the dev extension on Windows. This plan builds on [CHROME_EXTENSION.md](CHROME_EXTENSION.md) and overrides its T2 (Help Center), T6 last bullet (per-step student-data tick) and T11 (links-only discovery). Everything else there still holds, D3 above all: the extension never reads or writes Firestore.
+Settled in a design interview with Paul on 2026-10-22, after his first hands-on test of the dev extension on Windows. This plan builds on [CHROME_EXTENSION.md](../CHROME_EXTENSION.md) and overrides its T2 (Help Center), T6 last bullet (per-step student-data tick) and T11 (links-only discovery). Everything else there still holds, D3 above all: the extension never reads or writes Firestore.
 
 **Code references** were taken at `dev-paul` `c18c610ba`. Symbol names are authoritative; line numbers are hints. Open PR #4544 ("Start a web tour from the Record a tour button") lands new entry points first; this plan builds on it (U5, U17, PR order).
 
