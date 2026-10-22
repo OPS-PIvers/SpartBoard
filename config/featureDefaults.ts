@@ -723,7 +723,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Web tours played on other websites by the Chrome extension (CHROME_EXTENSION.md T12); gates authoring and /tour/{setId}.
+  // Web tours played on other websites by the Chrome extension (CHROME_EXTENSION.md T12); will gate authoring and /tour/{setId}.
   'web-tours': {
     label: 'Web tours',
     icon: Globe,

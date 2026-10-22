@@ -66,7 +66,8 @@ describe('web tour guards', () => {
     expect(tourHealthOf(web)).toEqual([]);
     const board = set({ steps: [webStep, boardStep] });
     expect(tourStepsOf(board).map((s) => s.id)).toEqual(['b1']);
-    expect(liveTourStepsOf(board)).toHaveLength(2);
+    // A stray web step in a board tour never plays as a plain card.
+    expect(liveTourStepsOf(board).map((s) => s.id)).toEqual(['b1']);
   });
 
   it("takes a snapshot's top-level surface over its set's", () => {

@@ -40,7 +40,9 @@ const runStep = (s: GuidedLearningStep): GuidedLearningStep =>
 export const liveTourStepsOf = (
   set: Pick<GuidedLearningSet, 'mode' | 'steps' | 'surface'>
 ): GuidedLearningStep[] =>
-  isLiveTourSet(set) && !isWebTourSet(set) ? set.steps.map(runStep) : [];
+  isLiveTourSet(set) && !isWebTourSet(set)
+    ? set.steps.filter((s) => !s.web).map(runStep)
+    : [];
 
 /** The set's welcome message when it is switched on and not blank. */
 export const tourWelcome = (

@@ -119,13 +119,21 @@ async function run() {
     db.collection(COLLECTION).get(),
     db.collection(TOURS_COLLECTION).get(),
   ]);
-  const setDocs = setSnap.docs.map((d) => ({
+  const setDocs = setSnap.docs
+    .filter((d) => d.data()?.surface !== 'web')
+    .map((d) => ({
     id: d.id,
     data: d.data(),
     updateTime: d.updateTime,
   }));
   const snapshotDocs = tourSnap.docs
-    .filter((d) => !SKIP_TOUR_IDS.has(d.id))
+    // Web tours play through the extension and have no board slides to convert.
+    .filter(
+      (d) =>
+        !SKIP_TOUR_IDS.has(d.id) &&
+        d.data()?.surface !== 'web' &&
+        d.data()?.set?.surface !== 'web'
+    )
     .map((d) => ({ id: d.id, data: d.data(), updateTime: d.updateTime }));
   const tourCount = setDocs.filter((d) => d.data?.mode === 'tour').length;
   const plans = planConversions(setDocs, snapshotDocs);
