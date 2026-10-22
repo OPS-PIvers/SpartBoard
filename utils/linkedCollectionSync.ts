@@ -99,6 +99,10 @@ export interface RemoteSyncPlan {
   removalCandidates: Dashboard[];
   /** Listed boards that sit in a different local sub-collection than the link says. */
   moves: { boardId: string; collectionId: string }[];
+  /** Local sub-collections someone deleted or moved out, deepest first. */
+  staleSections: Collection[];
+  /** Listed boards whose local name differs from the link. */
+  renames: { boardId: string; name: string }[];
 }
 
 /** What a link snapshot changes on this teacher's copy of the collection. */
@@ -121,13 +125,20 @@ export function planRemoteSync(input: {
   if (color !== undefined && color !== root.color) metadata.color = color;
   if (icon !== undefined && icon !== root.icon) metadata.icon = icon;
 
-  const sections = orderSectionsParentsFirst(link.sections ?? []);
+  const deleted = new Set(link.deletedSections ?? []);
+  const sections = orderSectionsParentsFirst(
+    (link.sections ?? []).filter((s) => !deleted.has(s.id))
+  );
+  // A sub-collection this teacher moved out keeps its key until the link drops it.
+  const outsideKeys = new Set(
+    collections.filter((c) => !tree.has(c.id)).map(sectionKey)
+  );
   const createSections: LinkedCollectionSection[] = [];
   const updateSections: RemoteSyncPlan['updateSections'] = [];
   for (const section of sections) {
     const existing = localByKey.get(section.id);
     if (!existing) {
-      createSections.push(section);
+      if (!outsideKeys.has(section.id)) createSections.push(section);
       continue;
     }
     const patch: Partial<Pick<Collection, 'name' | 'color'>> = {};
@@ -171,6 +182,32 @@ export function planRemoteSync(input: {
     }
   }
 
+  const renames: RemoteSyncPlan['renames'] = [];
+  for (const entry of entries) {
+    const board = liveLocal.get(entry.shareId);
+    if (!board || !tree.has(board.collectionId ?? '')) continue;
+    const name = safeName(entry.name, board.name);
+    if (name !== board.name) renames.push({ boardId: board.id, name });
+  }
+
+  // Only ids the link records as deleted: a new local one just isn't listed yet.
+  const depth = (c: Collection): number => {
+    let n = 0;
+    const seen = new Set<string>();
+    for (
+      let cur: Collection | undefined = c;
+      cur && cur.id !== root.id && !seen.has(cur.id);
+      cur = collections.find((x) => x.id === cur?.parentCollectionId)
+    ) {
+      seen.add(cur.id);
+      n += 1;
+    }
+    return n;
+  };
+  const staleSections = local
+    .filter((c) => deleted.has(sectionKey(c)))
+    .sort((a, b) => depth(b) - depth(a));
+
   return {
     metadata: Object.keys(metadata).length > 0 ? metadata : null,
     createSections,
@@ -178,7 +215,129 @@ export function planRemoteSync(input: {
     missingEntries,
     removalCandidates,
     moves,
+    staleSections,
+    renames,
   };
+}
+
+/** Sub-collection keys in a collection's subtree, the collection included. */
+export const subtreeSectionKeys = (
+  collectionId: string,
+  collections: Collection[]
+): Set<string> => {
+  const byId = new Map(collections.map((c) => [c.id, c]));
+  const keys = new Set<string>();
+  for (const id of collectionTreeIds(collectionId, collections)) {
+    const c = byId.get(id);
+    if (c) keys.add(sectionKey(c));
+  }
+  return keys;
+};
+
+const MAX_DELETED_SECTIONS = 200;
+
+/** Keys of a section and every section under it, as the link records them. */
+export const linkedSubtreeKeys = (
+  sections: LinkedCollectionSection[],
+  key: string
+): Set<string> => {
+  const keys = new Set([key]);
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const s of sections) {
+      if (s.parentId && keys.has(s.parentId) && !keys.has(s.id)) {
+        keys.add(s.id);
+        grew = true;
+      }
+    }
+  }
+  return keys;
+};
+
+/** The deleted-section list with these keys added, newest last, capped. */
+export const withDeletedSections = (
+  current: string[] | undefined,
+  keys: Iterable<string>
+): string[] => {
+  const add = new Set(keys);
+  const next = [...(current ?? []).filter((k) => !add.has(k)), ...add];
+  return next.slice(-MAX_DELETED_SECTIONS);
+};
+
+/** The link with these sections removed and recorded; their boards and children go to the nearest kept section above. */
+export function sectionsAfterRemove(
+  current: Pick<LinkedCollection, 'sections' | 'boards' | 'deletedSections'>,
+  removedKeys: Set<string>
+): Pick<LinkedCollection, 'sections' | 'boards' | 'deletedSections'> {
+  const all = current.sections ?? [];
+  const byId = new Map(all.map((s) => [s.id, s]));
+  const keptAbove = (key: string | null | undefined): string | null => {
+    const seen = new Set<string>();
+    let cur = key ?? null;
+    while (cur && removedKeys.has(cur) && !seen.has(cur)) {
+      seen.add(cur);
+      cur = byId.get(cur)?.parentId ?? null;
+    }
+    return cur && byId.has(cur) && !removedKeys.has(cur) ? cur : null;
+  };
+  const sections = all
+    .filter((s) => !removedKeys.has(s.id))
+    .map((s) =>
+      s.parentId && removedKeys.has(s.parentId)
+        ? { ...s, parentId: keptAbove(s.parentId) }
+        : s
+    );
+  const boards = current.boards.flatMap((b) => {
+    if (!b.sectionId || !removedKeys.has(b.sectionId)) return [b];
+    const { sectionId: _old, ...rest } = b;
+    const above = keptAbove(b.sectionId);
+    return [above ? { ...rest, sectionId: above } : rest];
+  });
+  return {
+    sections,
+    boards,
+    deletedSections: withDeletedSections(current.deletedSections, removedKeys),
+  };
+}
+
+/** Local collection id each listed section should sit under, where that differs from now. */
+export function sectionReparents(input: {
+  link: Pick<LinkedCollection, 'sections' | 'deletedSections'>;
+  rootId: string;
+  keyToLocal: ReadonlyMap<string, string>;
+  collections: Collection[];
+}): { collectionId: string; parentId: string }[] {
+  const { link, rootId, keyToLocal, collections } = input;
+  const deleted = new Set(link.deletedSections ?? []);
+  const byId = new Map(collections.map((c) => [c.id, c]));
+  const out: { collectionId: string; parentId: string }[] = [];
+  for (const section of link.sections ?? []) {
+    if (deleted.has(section.id)) continue;
+    const localId = keyToLocal.get(section.id);
+    const local = localId ? byId.get(localId) : undefined;
+    const parent = section.parentId ? keyToLocal.get(section.parentId) : rootId;
+    if (!local || !parent || parent === local.id) continue;
+    if (parent !== local.parentCollectionId) {
+      out.push({ collectionId: local.id, parentId: parent });
+    }
+  }
+  return out;
+}
+
+/** The link's sections after a sub-collection moves under another one (null = the top). */
+export function sectionsAfterMove(
+  sections: LinkedCollectionSection[],
+  key: string,
+  parentKey: string | null
+): LinkedCollectionSection[] | null {
+  if (!sections.some((s) => s.id === key)) return null;
+  const order =
+    sections
+      .filter((s) => (s.parentId ?? null) === parentKey && s.id !== key)
+      .reduce((m, s) => Math.max(m, s.order), -1) + 1;
+  return sections.map((s) =>
+    s.id === key ? { ...s, parentId: parentKey, order } : s
+  );
 }
 
 export interface LocalSyncPlan {
@@ -198,7 +357,10 @@ export function planLocalSync(input: {
   const { link, root, collections, dashboards } = input;
   const tree = collectionTreeIds(root.id, collections);
   const byId = new Map(collections.map((c) => [c.id, c]));
-  const known = new Set((link.sections ?? []).map((s) => s.id));
+  const known = new Set([
+    ...(link.sections ?? []).map((s) => s.id),
+    ...(link.deletedSections ?? []),
+  ]);
 
   const keyOf = (collectionId: string | null | undefined) => {
     if (!collectionId || collectionId === root.id) return undefined;
@@ -225,6 +387,7 @@ export function planLocalSync(input: {
       visited.add(child.id);
       queue.push(child.id);
       const key = sectionKey(child);
+      // Includes deleted ids: someone removed it for everyone, so it isn't listed again.
       if (known.has(key)) continue;
       const parentKey = keyOf(child.parentCollectionId) ?? null;
       const order = siblingCount.get(parentKey) ?? 0;

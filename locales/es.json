@@ -1625,6 +1625,7 @@
     "deleteBoardConfirm": "¿Eliminar este Tablero?",
     "removeSharedBoardConfirm": "¿Quitar este tablero para todos en la colección compartida?",
     "removeSharedBoardConfirmLabel": "Quitar",
+    "removeSharedCollectionConfirm": "¿Quitar esta colección y sus tableros para todos en la colección compartida?",
     "deleteCollectionConfirm": "¿Eliminar esta Colección? Los Tableros que contiene se moverán al nivel superior.",
     "unpinBoard": "Desanclar Tablero",
     "dragToMove": "Arrastra para mover",

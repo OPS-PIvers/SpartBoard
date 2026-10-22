@@ -2744,6 +2744,7 @@
     "deleteBoardConfirm": "Delete this Board?",
     "removeSharedBoardConfirm": "Remove this board for everyone in the shared collection?",
     "removeSharedBoardConfirmLabel": "Remove",
+    "removeSharedCollectionConfirm": "Remove this collection and its boards for everyone in the shared collection?",
     "deleteCollectionConfirm": "Delete this Collection? Boards inside will move to its parent.",
     "unpinBoard": "Unpin Board",
     "dragToMove": "Drag to move",

@@ -1090,3 +1090,146 @@ describe('stop sharing and leave', () => {
     );
   });
 });
+
+describe('sub-collection moves, deletes and board renames', () => {
+  const nested = {
+    sections: [
+      { id: 'sec-a', name: 'Week 1', parentId: null, order: 0 },
+      { id: 'sec-b', name: 'Monday', parentId: 'sec-a', order: 0 },
+    ],
+    boards: [
+      { shareId: 'board-share-1', name: 'Day 1', order: 0, sectionId: 'sec-b' },
+    ],
+  };
+  const seed = (id: string) =>
+    testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(ref(ctx.firestore(), id), nested);
+    });
+
+  it('a collaborator renames a board in the list, and the host and others read it', async () => {
+    await seed(SYNCED_ID);
+    await assertSucceeds(
+      updateDoc(ref(asCollab(), SYNCED_ID), {
+        boards: [{ ...nested.boards[0], name: 'Day 1 (moved)' }],
+        updatedAt: 2000,
+        updatedBy: COLLAB_UID,
+      })
+    );
+    for (const db of [asHost(), as('collab2-uid')]) {
+      const snap = await assertSucceeds(getDoc(ref(db, SYNCED_ID)));
+      const boards = snap.data()?.boards as { name: string }[];
+      if (boards[0].name !== 'Day 1 (moved)') throw new Error('not renamed');
+    }
+  });
+
+  it('a collaborator moves a sub-collection to the top', async () => {
+    await seed(SYNCED_ID);
+    await assertSucceeds(
+      updateDoc(ref(asCollab(), SYNCED_ID), {
+        sections: [
+          nested.sections[0],
+          { ...nested.sections[1], parentId: null, order: 1 },
+        ],
+        updatedAt: 2000,
+        updatedBy: COLLAB_UID,
+      })
+    );
+  });
+
+  it('a collaborator deletes a sub-collection and its boards move to the parent', async () => {
+    await seed(SYNCED_ID);
+    await assertSucceeds(
+      updateDoc(ref(asCollab(), SYNCED_ID), {
+        sections: [nested.sections[0]],
+        deletedSections: ['sec-b'],
+        boards: [{ ...nested.boards[0], sectionId: 'sec-a' }],
+        updatedAt: 2000,
+        updatedBy: COLLAB_UID,
+      })
+    );
+  });
+
+  it('a collaborator takes a sub-collection and its boards out', async () => {
+    await seed(SYNCED_ID);
+    await assertSucceeds(
+      updateDoc(ref(asCollab(), SYNCED_ID), {
+        sections: [nested.sections[0]],
+        boards: [],
+        updatedAt: 2000,
+        updatedBy: COLLAB_UID,
+      })
+    );
+  });
+
+  it('the deleted list must be a list of at most 200', async () => {
+    await seed(SYNCED_ID);
+    const db = asCollab();
+    await assertFails(
+      updateDoc(ref(db, SYNCED_ID), {
+        deletedSections: 'sec-b',
+        updatedAt: 2000,
+        updatedBy: COLLAB_UID,
+      })
+    );
+    await assertFails(
+      updateDoc(ref(db, SYNCED_ID), {
+        deletedSections: Array.from({ length: 201 }, (_, i) => `k${i}`),
+        updatedAt: 2000,
+        updatedBy: COLLAB_UID,
+      })
+    );
+    await assertSucceeds(
+      updateDoc(ref(db, SYNCED_ID), {
+        deletedSections: Array.from({ length: 200 }, (_, i) => `k${i}`),
+        updatedAt: 2000,
+        updatedBy: COLLAB_UID,
+      })
+    );
+    const snap = await assertSucceeds(getDoc(ref(asHost(), SYNCED_ID)));
+    if ((snap.data()?.deletedSections as string[]).length !== 200) {
+      throw new Error('host should read the deleted list');
+    }
+  });
+
+  it('a viewer cannot rename boards or move or delete sub-collections', async () => {
+    await seed(VIEW_ID);
+    const db = asViewer();
+    await assertSucceeds(getDoc(ref(db, VIEW_ID)));
+    for (const patch of [
+      { boards: [{ ...nested.boards[0], name: 'Mine' }] },
+      { sections: [nested.sections[0]] },
+      { sections: [] },
+      { deletedSections: ['sec-b'] },
+    ]) {
+      await assertFails(
+        updateDoc(ref(db, VIEW_ID), {
+          ...patch,
+          updatedAt: 2000,
+          updatedBy: VIEWER_UID,
+        })
+      );
+    }
+  });
+
+  it('a stranger cannot change sub-collections', async () => {
+    await seed(SYNCED_ID);
+    await assertFails(
+      updateDoc(ref(asStranger(), SYNCED_ID), {
+        sections: [],
+        updatedAt: 2000,
+        updatedBy: STRANGER_UID,
+      })
+    );
+  });
+
+  it('a collaborator cannot change sub-collections once the share ended', async () => {
+    await seed(ENDED_ID);
+    await assertFails(
+      updateDoc(ref(asCollab(), ENDED_ID), {
+        sections: [],
+        updatedAt: 2000,
+        updatedBy: COLLAB_UID,
+      })
+    );
+  });
+});

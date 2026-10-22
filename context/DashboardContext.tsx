@@ -153,6 +153,7 @@ import { useRosters } from '@/hooks/useRosters';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDriveReconnected } from '@/hooks/useDriveReconnected';
 import { useCollections } from '@/hooks/useCollections';
+import type { DeleteCollectionMode } from '@/hooks/useCollections';
 import {
   useSharedCollection,
   type SubShareTree,
@@ -5498,15 +5499,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [user, dashboards, collections, collectionsApi, saveDashboard, addToast]
   );
 
-  const renameDashboard = useCallback(
-    async (id: string, name: string) => {
+  const renameDashboardRaw = useCallback(
+    async (id: string, name: string): Promise<boolean> => {
       if (!user) {
         addToast('Must be signed in to rename', 'error');
-        return;
+        return false;
       }
 
       const dashboard = dashboards.find((d) => d.id === id);
-      if (!dashboard) return;
+      if (!dashboard) return false;
 
       const updated = { ...dashboard, name };
 
@@ -5525,11 +5526,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // write just the name rather than the whole (possibly stale) document.
         await updateDashboardFields(updated, { name });
         addToast('Dashboard renamed');
+        return true;
       } catch (err) {
         console.error('Rename failed:', err);
         addToast('Rename failed', 'error');
         // Revert
         setDashboards((prev) => prev.map((d) => (d.id === id ? dashboard : d)));
+        return false;
       }
     },
     [user, dashboards, activeId, updateDashboardFields, addToast]
@@ -5800,6 +5803,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     (message: string) => addToast(message, 'info'),
     [addToast]
   );
+  const linkedSyncRenameBoard = useCallback(
+    async (boardId: string, name: string) => {
+      const target = dashboardsRef.current.find((x) => x.id === boardId);
+      if (!target || target.name === name) return;
+      setDashboards((prev) =>
+        prev.map((x) => (x.id === boardId ? { ...x, name } : x))
+      );
+      await updateDashboardFields({ ...target, name }, { name });
+    },
+    [updateDashboardFields]
+  );
   const linkedSyncMoveBoard = useCallback(
     (boardId: string, collectionId: string) =>
       moveBoardToCollectionRaw(boardId, collectionId, { silent: true }),
@@ -5807,10 +5821,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const {
     countRemovedForEveryone: countLinkedBoardRemovals,
+    countCollectionMoveRemovals: countLinkedCollectionMoveRemovals,
     beforeBoardsLeave,
     pushCollectionMetadata,
     stopSharingCollection: stopSharingCollectionRaw,
     leaveSharedCollection: leaveSharedCollectionRaw,
+    moveCollectionSynced,
+    deleteCollectionSynced,
+    holdBoardName,
+    pushBoardName,
   } = useLinkedCollectionSync({
     // Optional call: many useAuth test doubles leave canAccessFeature out.
     enabled:
@@ -5833,6 +5852,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     setBoardLink: linkedSyncSetBoardLink,
     moveBoard: linkedSyncMoveBoard,
     notify: linkedSyncNotify,
+    renameBoard: linkedSyncRenameBoard,
   });
 
   const stopSharingCollection = useCallback(
@@ -5878,6 +5898,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       );
     },
     [leaveSharedCollectionRaw, addToast]
+  );
+
+  // A board's new name reaches the shared collection it sits in.
+  const renameDashboard = useCallback(
+    async (id: string, name: string) => {
+      const release = holdBoardName(id, name);
+      if (await renameDashboardRaw(id, name)) void pushBoardName(id, name);
+      else release();
+    },
+    [renameDashboardRaw, holdBoardName, pushBoardName]
   );
 
   // A removal for everyone was confirmed in the UI (D4); the shared list follows the delete or move.
@@ -5927,6 +5957,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [beforeBoardsLeave, moveBoardToCollectionRaw, addToast]
   );
 
+  // Queued moves and deletes run later, so they read the tree as it is then.
+  const collectionsApiRef = useRef(collectionsApi);
+  useLayoutEffect(() => {
+    collectionsApiRef.current = collectionsApi;
+  });
   // Renames and recolors reach the shared collection when this teacher can edit it.
   const syncedCollectionsApi = useMemo(
     () => ({
@@ -5942,8 +5977,27 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         await collectionsApi.setCollectionMetadata(collectionId, patch);
         void pushCollectionMetadata(collectionId, patch);
       },
+      moveCollection: (
+        collectionId: string,
+        nextParentCollectionId: string | null
+      ) =>
+        moveCollectionSynced(collectionId, nextParentCollectionId, () =>
+          collectionsApiRef.current.moveCollection(
+            collectionId,
+            nextParentCollectionId
+          )
+        ),
+      deleteCollection: (collectionId: string, mode: DeleteCollectionMode) =>
+        deleteCollectionSynced(collectionId, mode, () =>
+          collectionsApiRef.current.deleteCollection(collectionId, mode)
+        ),
     }),
-    [collectionsApi, pushCollectionMetadata]
+    [
+      collectionsApi,
+      pushCollectionMetadata,
+      moveCollectionSynced,
+      deleteCollectionSynced,
+    ]
   );
 
   const pinBoard = useCallback(
@@ -8220,6 +8274,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       countLinkedBoardRemovals,
       stopSharingCollection,
       leaveSharedCollection,
+      countLinkedCollectionMoveRemovals,
       shareSubstituteCollection,
       updateSubstituteCollectionShare,
       extendSubstituteCollectionShare,
@@ -8356,6 +8411,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       countLinkedBoardRemovals,
       stopSharingCollection,
       leaveSharedCollection,
+      countLinkedCollectionMoveRemovals,
       shareSubstituteCollection,
       sharedCollectionApi.loadSharedCollection,
       sharedCollectionApi.loadSharedCollectionBoards,

@@ -436,6 +436,11 @@ export interface DashboardContextValue {
     boardIds: string[],
     destination: BoardDestination
   ) => number;
+  /** How many boards moving this collection would remove for everyone in a shared collection. */
+  countLinkedCollectionMoveRemovals: (
+    collectionId: string,
+    destination: string | null
+  ) => number;
   /**
    * Create a sub share of a Collection — or of a single Board, written as a
    * one-board Collection share (docs/plans/shipped/SUB_SHARE_COLLECTIONS.md A1). The

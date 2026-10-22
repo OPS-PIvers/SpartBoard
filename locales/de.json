@@ -1625,6 +1625,7 @@
     "deleteBoardConfirm": "Diese Tafel löschen?",
     "removeSharedBoardConfirm": "Diese Tafel für alle in der geteilten Sammlung entfernen?",
     "removeSharedBoardConfirmLabel": "Entfernen",
+    "removeSharedCollectionConfirm": "Diese Sammlung und ihre Tafeln für alle in der geteilten Sammlung entfernen?",
     "deleteCollectionConfirm": "Diese Sammlung löschen? Enthaltene Tafeln werden zur übergeordneten Ebene verschoben.",
     "unpinBoard": "Tafel lösen",
     "dragToMove": "Zum Verschieben ziehen",
