@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useConfirmLinkedBoardRemoval } from '@/hooks/useConfirmLinkedBoardRemoval';
 import {
   ChevronLeft,
   ChevronRight,
@@ -57,6 +58,7 @@ const boardItemSelector = (id: string) =>
 
 export const BoardNavFab: FC = () => {
   const { t } = useTranslation();
+  const confirmLinkedRemoval = useConfirmLinkedBoardRemoval();
   const {
     dashboards,
     activeDashboard,
@@ -230,6 +232,10 @@ export const BoardNavFab: FC = () => {
     setMovingBoardId(null);
     refocusIfLost(containerRef.current, boardItemSelector(board.id));
     if ((board.collectionId ?? null) === collectionId) return;
+    if (
+      !(await confirmLinkedRemoval([board.id], { kind: 'move', collectionId }))
+    )
+      return;
     try {
       await moveBoardToCollection(board.id, collectionId);
       addToast(

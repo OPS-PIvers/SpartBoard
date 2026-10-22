@@ -1623,6 +1623,8 @@
     "delete": "Löschen",
     "bulkDeleteConfirm": "{{count}} Element(e) löschen? Dies kann nicht rückgängig gemacht werden.",
     "deleteBoardConfirm": "Diese Tafel löschen?",
+    "removeSharedBoardConfirm": "Diese Tafel für alle in der geteilten Sammlung entfernen?",
+    "removeSharedBoardConfirmLabel": "Entfernen",
     "deleteCollectionConfirm": "Diese Sammlung löschen? Enthaltene Tafeln werden zur übergeordneten Ebene verschoben.",
     "unpinBoard": "Tafel lösen",
     "dragToMove": "Zum Verschieben ziehen",

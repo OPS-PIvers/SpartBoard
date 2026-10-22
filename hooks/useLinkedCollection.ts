@@ -6,6 +6,7 @@ import {
   doc,
   getDoc,
   onSnapshot,
+  runTransaction,
   setDoc,
   updateDoc,
 } from 'firebase/firestore';
@@ -43,7 +44,10 @@ export type LinkedCollectionPatch = Partial<
   Pick<LinkedCollection, 'name' | 'color' | 'icon' | 'boards' | 'sections'>
 >;
 
-type Listener = (link: LinkedCollection | null) => void;
+type Listener = (
+  link: LinkedCollection | null,
+  meta?: { fromCache: boolean }
+) => void;
 
 // In-memory store for auth-bypass (dev / E2E) mode, like useSharedCollection's.
 class MockLinkedCollectionStore {
@@ -174,7 +178,10 @@ export const useLinkedCollection = () => {
       if (isAuthBypass) return mockStore.subscribe(linkId, cb);
       return onSnapshot(
         doc(db, LINKED_COLLECTIONS_PATH, linkId),
-        (snap) => cb(snap.exists() ? fromSnapshot(linkId, snap.data()) : null),
+        (snap) =>
+          cb(snap.exists() ? fromSnapshot(linkId, snap.data()) : null, {
+            fromCache: snap.metadata.fromCache,
+          }),
         (err) => {
           logError('useLinkedCollection.subscribe', err, { linkId });
         }
@@ -205,6 +212,46 @@ export const useLinkedCollection = () => {
         return;
       }
       await updateDoc(doc(db, LINKED_COLLECTIONS_PATH, linkId), update);
+    },
+    []
+  );
+
+  /** Read-modify-write of the board / section lists, so two members adding at once don't drop each other's change. */
+  const editLinkedCollection = useCallback(
+    async (
+      linkId: string,
+      uid: string,
+      edit: (link: LinkedCollection) => LinkedCollectionPatch | null
+    ): Promise<boolean> => {
+      if (isAuthBypass) {
+        const current = mockStore.get(linkId);
+        const patch = current ? edit(current) : null;
+        if (!current || !patch) return false;
+        assertWithinCaps(patch);
+        mockStore.set({
+          ...current,
+          ...patch,
+          updatedAt: Date.now(),
+          updatedBy: uid,
+        });
+        return true;
+      }
+      const ref = doc(db, LINKED_COLLECTIONS_PATH, linkId);
+      return runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        const current = snap.exists()
+          ? fromSnapshot(linkId, snap.data())
+          : null;
+        const patch = current ? edit(current) : null;
+        if (!patch) return false;
+        assertWithinCaps(patch);
+        tx.update(ref, {
+          ...withoutUndefined(patch),
+          updatedAt: Date.now(),
+          updatedBy: uid,
+        });
+        return true;
+      });
     },
     []
   );
@@ -276,6 +323,7 @@ export const useLinkedCollection = () => {
       loadLinkedCollection,
       subscribeLinkedCollection,
       updateLinkedCollection,
+      editLinkedCollection,
       joinLinkedCollection,
       leaveLinkedCollection,
       endLinkedCollection,
@@ -285,6 +333,7 @@ export const useLinkedCollection = () => {
       loadLinkedCollection,
       subscribeLinkedCollection,
       updateLinkedCollection,
+      editLinkedCollection,
       joinLinkedCollection,
       leaveLinkedCollection,
       endLinkedCollection,

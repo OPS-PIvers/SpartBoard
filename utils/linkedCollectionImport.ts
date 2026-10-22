@@ -1,6 +1,8 @@
 // Pure helpers for importing a Synced / View-Only shared collection (docs/plans/COLLECTION_SHARING.md slice 3).
 
 import type {
+  Dashboard,
+  DashboardShareRole,
   LinkedCollection,
   LinkedCollectionBoard,
   LinkedCollectionSection,
@@ -109,3 +111,30 @@ export const orderSectionsParentsFirst = (
   }
   return result;
 };
+
+/** A local board mirroring one listed share, before `createNewDashboard` gives it an id. */
+export const linkedBoardFromShare = (
+  entry: LinkedCollectionBoard,
+  snap: Dashboard & { originalAuthor?: string },
+  opts: {
+    uid: string;
+    role: Exclude<DashboardShareRole, 'owner'>;
+    fallbackName: string;
+    order: number;
+  }
+): Dashboard => ({
+  // Same id in every tab and device, so the board is imported once.
+  id: `linked-${entry.shareId}`,
+  name: safeName(entry.name, safeName(snap.name, opts.fallbackName)),
+  background: snap.background,
+  widgets: snap.widgets ?? [],
+  globalStyle: snap.globalStyle,
+  settings: snap.settings,
+  isDefault: false,
+  createdAt: Date.now(),
+  order: opts.order,
+  linkedShareId: entry.shareId,
+  linkedShareRole: snap.originalAuthor === opts.uid ? 'owner' : opts.role,
+  linkedShareHostName: snap.linkedShareHostName,
+  linkedShareEnded: false,
+});

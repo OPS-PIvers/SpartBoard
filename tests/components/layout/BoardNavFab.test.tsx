@@ -11,6 +11,10 @@ vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => useDashboardMock() as ReturnType<typeof useDashboard>,
 }));
 // BoardBreadcrumb has its own test file; stub it here so we focus on FAB logic.
+vi.mock('@/hooks/useConfirmLinkedBoardRemoval', () => ({
+  useConfirmLinkedBoardRemoval: () => () => Promise.resolve(true),
+}));
+
 vi.mock('@/components/layout/BoardBreadcrumb', () => ({
   BoardBreadcrumb: () => null,
 }));
