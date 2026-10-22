@@ -54,7 +54,7 @@ const setup = async () => {
           url: TAB_URL,
         })
       ),
-      sendMessage: vi.fn(() => Promise.resolve()),
+      sendMessage: vi.fn((..._args: unknown[]) => Promise.resolve()),
       captureVisibleTab: vi.fn(() =>
         Promise.resolve('data:image/png;base64,AAAA')
       ),
@@ -298,9 +298,19 @@ describe('recorder worker', () => {
       locator: { role: 'link', name: 'Courses' },
       tip: 'dropped',
     };
-    expect(await send({ type: 'rec/sendFix', step }, { url: PANEL_URL })).toBe(
-      true
-    );
+    // A click picked for another step is refused.
+    expect(
+      await send(
+        { type: 'rec/sendFix', setId: 't1', stepId: 's9', step },
+        { url: PANEL_URL }
+      )
+    ).toBe(false);
+    expect(
+      await send(
+        { type: 'rec/sendFix', setId: 't1', stepId: 's2', step },
+        { url: PANEL_URL }
+      )
+    ).toBe(true);
     const { tip: _tip, ...fixed } = { ...step, id: 's2' };
     expect(posted.at(-1)).toEqual({
       type: 'recorder/repicked',
@@ -310,6 +320,52 @@ describe('recorder worker', () => {
     expect(store['recorder.pick']).toBeUndefined();
     handlers[0]({ type: 'recorder/ack', setId: 't1', stepId: 's2' });
     await vi.waitFor(() => expect(store['recorder.fixes']).toEqual({}));
+  });
+
+  it('drops a fix request when its tour closes, so later recording keeps going', async () => {
+    const { worker, send, store, chromeFake } = await setup();
+    const handlers: Listener[] = [];
+    const closers: Listener[] = [];
+    const port = {
+      postMessage: vi.fn(),
+      disconnect: vi.fn(),
+      onMessage: { addListener: (fn: Listener) => handlers.push(fn) },
+      onDisconnect: { addListener: (fn: Listener) => closers.push(fn) },
+    };
+    worker.handleRecorderPort(port as unknown as chrome.runtime.Port);
+    handlers[0]({ type: 'recorder/attach', setId: 't1', title: 'Tour' });
+    await vi.waitFor(() => expect(port.postMessage).toHaveBeenCalled());
+    handlers[0]({ type: 'recorder/repick', setId: 't1', stepId: 's2' });
+    await vi.waitFor(() => expect(store['recorder.pick']).toBeDefined());
+    closers[0]();
+    await vi.waitFor(() => expect(store['recorder.pick']).toBeUndefined());
+    await send({ type: 'rec/start', tabId: 7 }, { url: PANEL_URL });
+    await send(click, { tab: { id: 7, url: TAB_URL }, frameId: 0 });
+    await send(click, { tab: { id: 7, url: TAB_URL }, frameId: 0 });
+    await vi.waitFor(() =>
+      expect(chromeFake.tabs.captureVisibleTab).toHaveBeenCalledTimes(2)
+    );
+    await flush();
+    expect(store['recorder.tabId']).toBe(7);
+  });
+
+  it('hides the Recording pill while it takes the picture', async () => {
+    const { send, chromeFake } = await setup();
+    const order: string[] = [];
+    chromeFake.tabs.sendMessage.mockImplementation(
+      (_tab: unknown, m: unknown) => {
+        order.push(`pill:${(m as { show?: boolean }).show}`);
+        return Promise.resolve();
+      }
+    );
+    chromeFake.tabs.captureVisibleTab.mockImplementation(() => {
+      order.push('capture');
+      return Promise.resolve('data:image/png;base64,AAAA');
+    });
+    await send({ type: 'rec/start', tabId: 7 }, { url: PANEL_URL });
+    await send(click, { tab: { id: 7, url: TAB_URL }, frameId: 0 });
+    await vi.waitFor(() => expect(order).toContain('pill:true'));
+    expect(order).toEqual(['pill:false', 'capture', 'pill:true']);
   });
 
   it('closes a recorder port when the profile is not staff', async () => {

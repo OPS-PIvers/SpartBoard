@@ -59,7 +59,8 @@ type InternalSpec = {
   'rec/start': { tabId: number };
   'rec/stop': Record<string, never>;
   'rec/send': { setId: string; steps: RecordedWebStep[] };
-  'rec/sendFix': { step: RecordedWebStep };
+  'rec/sendFix': RecorderPick & { step: RecordedWebStep };
+  'rec/pill': { show: boolean };
   'rec/cancelPick': Record<string, never>;
   'rec/captured': { capture: RawCapture };
   'rec/changed': Record<string, never>;
@@ -97,7 +98,9 @@ const CHECKS: {
     Array.isArray(m.steps) &&
     m.steps.length <= 50 &&
     m.steps.every(isRecordedStep),
-  'rec/sendFix': (m) => isRecordedStep(m.step),
+  'rec/sendFix': (m) =>
+    isStr(m.setId, 128) && isStr(m.stepId, 64) && isRecordedStep(m.step),
+  'rec/pill': (m) => typeof m.show === 'boolean',
   'rec/cancelPick': () => true,
   'rec/captured': (m) => isObj(m.capture),
   'rec/changed': () => true,

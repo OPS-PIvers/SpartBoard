@@ -27,9 +27,21 @@ const PILL_CSS = `
 .dot { width: 8px; height: 8px; border-radius: 9999px; background: #c13435; }
 `;
 
-/** The top frame's "Recording" pill, in a closed shadow root the page can't restyle; returns its removal. */
-function showPill(): () => void {
-  if (window !== window.top) return () => undefined;
+interface Pill {
+  remove: () => void;
+  /** Resolves once the change has painted, so a screenshot taken after it is right. */
+  setShown: (shown: boolean) => Promise<void>;
+}
+
+const painted = () =>
+  new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+  );
+
+/** The top frame's "Recording" pill, in a closed shadow root the page can't restyle. */
+function showPill(): Pill {
+  if (window !== window.top)
+    return { remove: () => undefined, setShown: () => Promise.resolve() };
   const host = document.createElement('div');
   host.setAttribute('data-spart-extension', '');
   host.setAttribute('data-tour-ignore', '');
@@ -46,7 +58,16 @@ function showPill(): () => void {
   pill.append(dot, 'Recording');
   shadow.append(style, pill);
   document.documentElement.appendChild(host);
-  return () => host.remove();
+  return {
+    remove: () => host.remove(),
+    setShown: (shown) => {
+      host.setAttribute(
+        'style',
+        shown ? PILL_STYLE : `${PILL_STYLE};visibility: hidden !important`
+      );
+      return painted();
+    },
+  };
 }
 
 const frameElementFor = (url: string, index: number): Element | null => {
@@ -90,16 +111,21 @@ function start(): () => void {
   const onMessage = (
     msg: unknown,
     sender: chrome.runtime.MessageSender,
-    reply: (r: FrameRectReply) => void
+    reply: (r: FrameRectReply | true) => void
   ) => {
-    if (sender.id !== chrome.runtime.id || sender.tab) return;
+    if (sender.id !== chrome.runtime.id || sender.tab) return false;
     if (isRecorderInternal(msg, 'rec/frameRect'))
       reply(frameRect(msg.url, msg.index));
     else if (isRecorderInternal(msg, 'rec/stopFrame')) stop();
+    else if (isRecorderInternal(msg, 'rec/pill')) {
+      void pill.setShown(msg.show).then(() => reply(true));
+      return true;
+    }
+    return false;
   };
-  const hidePill = showPill();
+  const pill = showPill();
   const stop = () => {
-    hidePill();
+    pill.remove();
     removeEventListener('pointerdown', onPointerDown, { capture: true });
     chrome.runtime.onMessage.removeListener(onMessage);
     if (scope[FLAG] === stop) delete scope[FLAG];

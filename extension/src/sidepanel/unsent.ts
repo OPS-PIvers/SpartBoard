@@ -1,6 +1,6 @@
 import type { RedactRect } from '@/components/widgets/GuidedLearning/utils/redactImage';
 import { isObj, isStr } from '@/components/tours/web/recorderProtocol';
-import type { RawCapture } from '../recorder/messages';
+import type { RawCapture, RecorderPick } from '../recorder/messages';
 import { blobToDataUrl } from './pictures';
 
 /** A captured click in the panel: its cropped picture, blur boxes and tip, until it is sent. */
@@ -10,6 +10,8 @@ export interface PanelStep {
   blur: RedactRect[];
   tip: string;
   pending: boolean;
+  /** For a fix: the step SpartBoard asked about when this click was picked. */
+  fixFor?: RecorderPick;
 }
 
 export interface Unsent {
@@ -38,6 +40,7 @@ interface StoredStep {
   picture: string | null;
   blur: RedactRect[];
   tip: string;
+  fixFor?: RecorderPick;
 }
 
 const toStored = async (s: PanelStep): Promise<StoredStep> => ({
@@ -45,6 +48,7 @@ const toStored = async (s: PanelStep): Promise<StoredStep> => ({
   picture: s.picture ? await dataUrlOf(s.picture) : null,
   blur: s.blur,
   tip: s.tip,
+  ...(s.fixFor ? { fixFor: s.fixFor } : {}),
 });
 
 const fromStored = async (v: unknown): Promise<PanelStep | null> => {
@@ -59,6 +63,9 @@ const fromStored = async (v: unknown): Promise<PanelStep | null> => {
     blur: Array.isArray(v.blur) ? (v.blur as RedactRect[]) : [],
     tip: isStr(v.tip) ? v.tip : '',
     pending: false,
+    ...(isObj(v.fixFor) && isStr(v.fixFor.setId) && isStr(v.fixFor.stepId)
+      ? { fixFor: { setId: v.fixFor.setId, stepId: v.fixFor.stepId } }
+      : {}),
   };
 };
 
@@ -102,7 +109,10 @@ async function write({ steps, fix }: Unsent): Promise<boolean> {
     });
     return true;
   } catch {
-    // Full or unavailable storage: the steps stay in the open panel.
+    // Full or unavailable storage: the steps stay in the open panel, and no older copy can come back.
+    await store()
+      .remove(UNSENT_KEY)
+      .catch(() => undefined);
     return false;
   }
 }

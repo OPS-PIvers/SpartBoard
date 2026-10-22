@@ -21,6 +21,7 @@ import { cropRect } from '../recorder/geometry';
 import {
   isRecorderInternal,
   PANEL_PORT,
+  type RecorderPick,
   type RecorderStatus,
 } from '../recorder/messages';
 import { BlurBoxes } from '@/components/tours/web/BlurBoxes';
@@ -49,6 +50,9 @@ const hostOf = (urlPattern: string) => {
 };
 
 const card = 'rounded-2xl border border-slate-200 bg-white shadow-sm';
+const samePick = (a?: RecorderPick | null, b?: RecorderPick | null) =>
+  !!a && !!b && a.setId === b.setId && a.stepId === b.stepId;
+
 const dangerBtn = `rounded-lg bg-brand-red-primary px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-red-dark ${focusRing}`;
 const disabledLook = 'disabled:cursor-not-allowed disabled:opacity-50';
 
@@ -167,13 +171,15 @@ export const SidePanel: React.FC = () => {
   const [target, setTarget] = useState<string>('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const picking = useRef(false);
+  const picking = useRef<RecorderPick | null>(null);
 
   const refresh = useCallback(() => {
     void send<RecorderStatus>({ type: 'rec/status' }).then((s) => {
-      picking.current = !!s.pick;
-      // A fix nobody is waiting for any more can't be sent.
-      if (!s.pick) setFix(null);
+      picking.current = s.pick
+        ? { setId: s.pick.setId, stepId: s.pick.stepId }
+        : null;
+      // A fix picked for another step, or nobody waiting any more, can't be sent.
+      setFix((f) => (f && samePick(f.fixFor, s.pick) ? f : null));
       setStatus(s);
     });
   }, []);
@@ -240,6 +246,7 @@ export const SidePanel: React.FC = () => {
       };
       // A click while SpartBoard asks for a fix is that fix, not a new step.
       const asFix = picking.current;
+      if (asFix) placed.fixFor = asFix;
       const update = (fn: (s: PanelStep) => PanelStep) =>
         asFix
           ? setFix((f) => (f && f.capture.id === capture.id ? fn(f) : f))
@@ -286,6 +293,8 @@ export const SidePanel: React.FC = () => {
   const staff = status?.profile === 'staff';
   const pick = status?.pick ?? null;
   const list = steps ?? [];
+  // Shown and sent only for the step the worker is still asking about.
+  const pickedFix = fix && samePick(fix.fixFor, pick) ? fix : null;
 
   const startRecording = async () => {
     setError('');
@@ -330,13 +339,15 @@ export const SidePanel: React.FC = () => {
   };
 
   const sendFix = async () => {
-    if (!fix || fix.pending) return;
+    const picked = pickedFix;
+    if (!picked?.fixFor || picked.pending) return;
     setBusy(true);
     setError('');
     try {
       const ok = await send<boolean>({
         type: 'rec/sendFix',
-        step: await toRecorded(fix),
+        ...picked.fixFor,
+        step: await toRecorded(picked),
       });
       if (ok) setFix(null);
       else setError('The web tour is no longer open in SpartBoard.');
@@ -375,10 +386,10 @@ export const SidePanel: React.FC = () => {
               />
               Fix a step in {pick.title || 'Untitled tour'}
             </h2>
-            {fix ? (
+            {pickedFix ? (
               <ol className="flex flex-col">
                 <StepCard
-                  step={fix}
+                  step={pickedFix}
                   index={0}
                   locked={busy}
                   withTip={false}
@@ -405,11 +416,11 @@ export const SidePanel: React.FC = () => {
               >
                 Cancel
               </button>
-              {fix ? (
+              {pickedFix ? (
                 <button
                   type="button"
                   className={`${primaryBtn} inline-flex items-center gap-1.5 ${disabledLook}`}
-                  disabled={busy || fix.pending}
+                  disabled={busy || pickedFix.pending}
                   onClick={() => void sendFix()}
                 >
                   <Send className="h-4 w-4" aria-hidden="true" />

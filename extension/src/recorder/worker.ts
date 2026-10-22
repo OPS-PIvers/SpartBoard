@@ -186,11 +186,7 @@ async function onClick(
   if (!tab) return;
   // Only the recorded tab's own screen, still on the clicked page; otherwise no picture.
   const screenshot =
-    tab.active && tab.url === clickedUrl
-      ? await chrome.tabs
-          .captureVisibleTab(tab.windowId, { format: 'png' })
-          .catch(() => null)
-      : null;
+    tab.active && tab.url === clickedUrl ? await captureWithoutPill(tab) : null;
   const frames = (await chrome.webNavigation.getAllFrames({ tabId })) ?? [];
   const path = frameId === 0 ? [] : framePath(frames, frameId);
   const placed =
@@ -215,8 +211,29 @@ async function onClick(
   await chrome.runtime
     .sendMessage({ type: 'rec/captured', capture })
     .catch(() => undefined);
-  // A fix takes one click.
-  if (await readPick()) await stopRecording();
+  // A fix takes one click, while its tour is still open to receive it.
+  const pick = await readPick();
+  if (pick && ports.has(pick.setId)) await stopRecording();
+}
+
+const pill = (tabId: number, show: boolean) =>
+  chrome.tabs
+    .sendMessage(tabId, { type: 'rec/pill', show }, { frameId: 0 })
+    .catch(() => undefined);
+
+/** The tab's screen with the Recording pill hidden, so it never shows in a step picture. */
+async function captureWithoutPill(
+  tab: chrome.tabs.Tab
+): Promise<string | null> {
+  if (tab.id === undefined) return null;
+  await pill(tab.id, false);
+  try {
+    return await chrome.tabs
+      .captureVisibleTab(tab.windowId, { format: 'png' })
+      .catch(() => null);
+  } finally {
+    await pill(tab.id, true);
+  }
 }
 
 const post = (setId: string, msg: object) =>
@@ -245,9 +262,19 @@ async function send(setId: string, steps: RecordedWebStep[]): Promise<boolean> {
 }
 
 /** Sends the picked click as the new target and picture of the step SpartBoard asked to fix. */
-async function sendFix(step: RecordedWebStep): Promise<boolean> {
+async function sendFix(
+  forPick: RecorderPick,
+  step: RecordedWebStep
+): Promise<boolean> {
   const pick = await readPick();
-  if (!pick || !ports.has(pick.setId)) return false;
+  // A click picked for another step never overwrites this one.
+  if (
+    !pick ||
+    !ports.has(pick.setId) ||
+    pick.setId !== forPick.setId ||
+    pick.stepId !== forPick.stepId
+  )
+    return false;
   const { tip: _tip, ...rest } = step;
   const fixed: RecordedWebStep = { ...rest, id: pick.stepId };
   const box = await readBox(FIXES_KEY);
@@ -325,8 +352,15 @@ export function handleRecorderPort(port: chrome.runtime.Port): void {
     const set = ports.get(attached);
     set?.delete(port);
     if (set && set.size === 0) {
-      ports.delete(attached);
-      titles.delete(attached);
+      const closed = attached;
+      ports.delete(closed);
+      titles.delete(closed);
+      // A fix for a tour no tab has open any more is dropped with it.
+      void readPick().then((pick) =>
+        pick?.setId === closed && !ports.has(closed)
+          ? session.remove(PICK_KEY)
+          : undefined
+      );
     }
     notifyPanel();
   });
@@ -360,7 +394,10 @@ export function installRecorder(): void {
       return true;
     }
     if (isRecorderInternal(msg, 'rec/sendFix')) {
-      void sendFix(msg.step).then(reply, () => reply(false));
+      void sendFix({ setId: msg.setId, stepId: msg.stepId }, msg.step).then(
+        reply,
+        () => reply(false)
+      );
       return true;
     }
     if (isRecorderInternal(msg, 'rec/cancelPick')) {
