@@ -88,8 +88,17 @@ Collection Share dialog, same rows as the board dialog:
 
 ## Slices
 
-1. Rules + types + link doc hook (`hooks/useLinkedCollection.ts`), rules tests.
-2. Share dialog modes + host share flow + flag.
-3. Import flow (`/share/collection/...`) and recipient collection.
-4. Membership sync (add / remove / rename both ways) and active-only listeners (D3).
-5. Stop sharing / Leave, ended states, tour anchors, e2e.
+Each slice is its own PR into `dev-paul`, everything behind `collection-sync-sharing`.
+
+1. **Foundation** (no deps): `GlobalFeature` flag + `FEATURE_DEFAULTS` + `featureMissingDoc.ts`,
+   types (`LinkedCollection`, `Collection.linkedCollectionId` / role), `/linked_collections`
+   rules with read and write tests, `hooks/useLinkedCollection.ts` (create, join, leave,
+   subscribe, update boards / metadata).
+2. **Share dialog + host flow** (after 1): Synced / View-Only / Make a copy rows in
+   `ShareCollectionLinkCreatorModal`, host writes board shares + link doc, tour anchors.
+   Copy also includes sub-collections (D1).
+3. **Import flow** (after 1; can run beside 2 once 1 is merged): `/share/collection/{linkId}`
+   landing, recipient collection + linked boards, sub-collections rebuilt (D1).
+4. **Membership sync + active-only listeners** (after 2 and 3): add / remove / rename both
+   ways (D2, D4 confirm), boards in a linked collection listen only while active (D3).
+5. **Stop sharing / Leave + ended states** (after 4): menu items, toasts, e2e.
