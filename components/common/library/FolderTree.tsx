@@ -311,6 +311,10 @@ const FolderRow: React.FC<FolderRowProps> = ({
             e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
           if (hintPlace !== place) drag.setHint({ folderId: folder.id, place });
         },
+        onDragLeave: (e) => {
+          if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+          if (drag.hint?.folderId === folder.id) drag.setHint(null);
+        },
         onDrop: (e) => {
           e.preventDefault();
           const fromId = drag.draggingId;
