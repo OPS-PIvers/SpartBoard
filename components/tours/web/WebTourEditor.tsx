@@ -939,7 +939,7 @@ export const WebTourEditor: React.FC<{
   };
 
   const header = (
-    <div className="flex min-w-0 flex-1 items-center gap-3">
+    <div className="flex min-w-0 shrink-0 items-center gap-3 border-b border-slate-200 px-6 py-4">
       <Globe className="h-5 w-5 shrink-0 text-slate-500" aria-hidden="true" />
       <input
         aria-label="Title"
@@ -1022,7 +1022,7 @@ export const WebTourEditor: React.FC<{
         footer={footer}
         tourScope="web-tour"
       >
-        <div className="grid min-h-[60vh] grid-cols-[17rem_minmax(0,1fr)] gap-5 pb-4">
+        <div className="grid min-h-[60vh] grid-cols-[17rem_minmax(0,1fr)] gap-6 pt-5 pb-4">
           <aside className="flex min-h-0 flex-col gap-3 border-r border-slate-200 pr-4">
             <button
               type="button"
