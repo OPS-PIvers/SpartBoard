@@ -614,6 +614,7 @@ export const GuidedLearningEditorContextPane = React.memo(
             <p className="text-red-600 text-xs font-medium">{imageError}</p>
           )}
 
+          {/* no-tour-anchor: hidden file input opened by its visible upload button */}
           <input
             ref={fileInputRef}
             type="file"

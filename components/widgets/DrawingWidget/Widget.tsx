@@ -171,7 +171,7 @@ export const DrawingWidget: React.FC<{
   // same way the PageStrip kebab was clipped. Portalling into document.body
   // and positioning via `position: fixed` against the viewport escapes that
   // clipping container. The trigger element is queried via `exportMenuRef`
-  // (a `<div>` wrapping the export button — we query the inner <button> by
+  // (a wrapper div around the export button — we query the inner button by
   // aria-label instead of refing it directly so the wrapper can stay a
   // styling/positioning anchor independent of the button itself).
   const [exportMenuAnchor, setExportMenuAnchor] = useState<{

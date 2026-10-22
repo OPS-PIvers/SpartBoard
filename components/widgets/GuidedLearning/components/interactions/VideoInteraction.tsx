@@ -112,6 +112,7 @@ export const VideoInteraction: React.FC<Props> = ({
         className="relative bg-black rounded-xl overflow-hidden shadow-2xl w-full"
         style={{ maxWidth: 'min(500px, 90cqw)' }}
       >
+        {/* no-tour-anchor: student player overlay, not on the teacher board during a tour */}
         <button
           onClick={onClose}
           className="absolute z-10 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center text-white transition-all active:scale-90"

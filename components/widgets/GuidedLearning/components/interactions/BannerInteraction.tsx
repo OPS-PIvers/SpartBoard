@@ -43,6 +43,7 @@ export const BannerInteraction: React.FC<{
         }}
       >
         {onClose && (
+          // no-tour-anchor: student player overlay, not on the teacher board during a tour
           <button
             onClick={onClose}
             className="pointer-events-auto absolute text-white/80 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 rounded"

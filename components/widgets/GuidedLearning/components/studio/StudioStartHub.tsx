@@ -141,6 +141,7 @@ export const StudioStartHub: React.FC<StudioStartHubProps> = ({
             </span>
           </p>
         )}
+        {/* no-tour-anchor: hidden file input opened by its visible upload button */}
         <input
           ref={fileInputRef}
           type="file"
