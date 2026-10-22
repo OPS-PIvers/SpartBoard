@@ -34,6 +34,7 @@ env:
   VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
   VITE_PEXELS_API_KEY: ${{ secrets.VITE_PEXELS_API_KEY }}
   VITE_SPOTIFY_CLIENT_ID: ${{ secrets.VITE_SPOTIFY_CLIENT_ID }}
+  VITE_SPART_EXTENSION_ID: ${{ vars.SPART_EXTENSION_ID }}
 
 jobs:
   # A release or hotfix merge whose tree is identical to its already-validated PR head skips the

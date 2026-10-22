@@ -19,6 +19,8 @@ interface PanelStep {
 }
 
 const KEEP_ALIVE_MS = 20_000;
+// Keeps each message well under Chrome's message and session-storage limits.
+const SEND_BATCH = 10;
 
 const send = <T,>(msg: object): Promise<T> => chrome.runtime.sendMessage(msg);
 
@@ -130,26 +132,33 @@ export const SidePanel: React.FC = () => {
     setBusy(true);
     setError('');
     try {
-      const out: RecordedWebStep[] = [];
-      for (const s of steps) {
-        const picture = s.picture
-          ? await finishPicture(s.picture, s.blur)
-          : undefined;
-        out.push({
-          id: s.capture.id,
-          urlPattern: s.capture.urlPattern,
-          action: s.capture.action,
-          locator: s.capture.locator,
-          ...(picture ? { picture } : {}),
+      // Steps captured while sending stay in the list; only sent ones leave it.
+      for (let i = 0; i < steps.length; i += SEND_BATCH) {
+        const out: RecordedWebStep[] = [];
+        for (const s of steps.slice(i, i + SEND_BATCH)) {
+          const picture = s.picture
+            ? await finishPicture(s.picture, s.blur)
+            : undefined;
+          out.push({
+            id: s.capture.id,
+            urlPattern: s.capture.urlPattern,
+            action: s.capture.action,
+            locator: s.capture.locator,
+            ...(picture ? { picture } : {}),
+          });
+        }
+        const ok = await send<boolean>({
+          type: 'rec/send',
+          setId: chosen.setId,
+          steps: out,
         });
+        if (!ok) {
+          setError('The web tour is no longer open in SpartBoard.');
+          return;
+        }
+        const sent = new Set(out.map((o) => o.id));
+        setSteps((all) => all.filter((x) => !sent.has(x.capture.id)));
       }
-      const ok = await send<boolean>({
-        type: 'rec/send',
-        setId: chosen.setId,
-        steps: out,
-      });
-      if (ok) setSteps([]);
-      else setError('The web tour is no longer open in SpartBoard.');
     } catch {
       setError("Steps couldn't be sent. Try again.");
     } finally {

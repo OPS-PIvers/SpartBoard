@@ -116,6 +116,47 @@ describe('useWebTourRecorder', () => {
     }
   });
 
+  it('keeps saving steps after a stop that lands mid-save', async () => {
+    let finish = () => undefined as void;
+    const onStep = vi
+      .fn()
+      .mockImplementationOnce(
+        () => new Promise<void>((r) => (finish = () => r()))
+      )
+      .mockResolvedValue(undefined);
+    const { result } = renderHook(() =>
+      useWebTourRecorder({ setId: 't1', title: 'Tour', onStep })
+    );
+    act(() => result.current.connect());
+    const first = port;
+    first.postMessage = () => {
+      if (first.disconnect.mock.calls.length)
+        throw new Error('Attempting to use a disconnected port object');
+      first.posted.push('posted');
+    };
+    act(() =>
+      first.emit({ type: 'recorder/step', setId: 't1', step: step('a') })
+    );
+    await waitFor(() => expect(onStep).toHaveBeenCalledTimes(1));
+    act(() => result.current.disconnect());
+    await act(async () => {
+      finish();
+      await Promise.resolve();
+    });
+    port = fakePort();
+    act(() => result.current.connect());
+    act(() =>
+      port.emit({ type: 'recorder/step', setId: 't1', step: step('b') })
+    );
+    await waitFor(() =>
+      expect(port.posted).toContainEqual({
+        type: 'recorder/ack',
+        setId: 't1',
+        stepId: 'b',
+      })
+    );
+  });
+
   it('reports no extension', () => {
     delete (globalThis as { chrome?: unknown }).chrome;
     const { result } = renderHook(() =>

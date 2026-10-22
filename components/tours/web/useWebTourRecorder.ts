@@ -92,10 +92,19 @@ export function useWebTourRecorder({
         setLink('connecting');
         let attached = false;
         // Re-attaching is harmless and keeps the extension's worker from going idle.
-        const keepAlive = setInterval(
-          () => p.postMessage({ type: 'recorder/attach', setId, title }),
-          KEEP_ALIVE_MS
-        );
+        // Posts only while this port is the live one; Chrome throws on a closed port.
+        const post = (msg: object) => {
+          if (port.current !== p) return;
+          try {
+            p.postMessage(msg);
+          } catch {
+            // Closed meanwhile; onDisconnect handles it.
+          }
+        };
+        const keepAlive = setInterval(() => {
+          if (port.current !== p) clearInterval(keepAlive);
+          else post({ type: 'recorder/attach', setId, title });
+        }, KEEP_ALIVE_MS);
         p.onDisconnect.addListener(() => {
           clearInterval(keepAlive);
           if (port.current !== p) return;
@@ -120,7 +129,9 @@ export function useWebTourRecorder({
           if (msg.type !== 'recorder/step') return;
           const step = msg.step;
           // One at a time, so steps keep their recorded order.
+          // A closed port skips its steps unacknowledged, so the extension re-sends them.
           queue.current = queue.current.then(async () => {
+            if (port.current !== p) return;
             if (!done.current.has(step.id)) {
               try {
                 await onStepRef.current(step);
@@ -130,10 +141,10 @@ export function useWebTourRecorder({
                 return;
               }
             }
-            p.postMessage({ type: 'recorder/ack', setId, stepId: step.id });
+            post({ type: 'recorder/ack', setId, stepId: step.id });
           });
         });
-        p.postMessage({ type: 'recorder/attach', setId, title });
+        post({ type: 'recorder/attach', setId, title });
       };
       openPort(retries);
     },

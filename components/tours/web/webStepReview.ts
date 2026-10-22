@@ -113,12 +113,19 @@ const fnv = (s: string): string => {
 /** Fingerprint of everything the student-data tick covers: text, address, clues and picture. */
 export function reviewSignature(step: WebStep): string {
   const web = step.web;
+  const loc = web?.locator ?? {};
+  // Fixed field order: Firestore doesn't keep map key order.
   return fnv(
     JSON.stringify([
       step.label ?? '',
       step.text ?? '',
       web?.urlPattern ?? '',
-      web?.locator ?? {},
+      loc.role ?? '',
+      loc.name ?? '',
+      loc.text ?? '',
+      loc.css ?? '',
+      (loc.frames ?? []).map((f) => [f.urlPattern, f.index]),
+      loc.box ? [loc.box.x, loc.box.y, loc.box.w, loc.box.h] : null,
       web?.picture?.path ?? '',
     ])
   );

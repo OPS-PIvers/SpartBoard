@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const TAB_URL = 'https://orono.schoology.com/course/123456/materials';
+
 const profile = vi.hoisted(() => ({ value: 'staff' }));
 const panel = vi.hoisted(() => ({ open: true }));
 vi.mock('../profile', () => ({
@@ -49,7 +51,7 @@ const setup = async () => {
           id: 7,
           windowId: 1,
           active: true,
-          url: 'https://orono.schoology.com/course/123456/materials',
+          url: TAB_URL,
         })
       ),
       sendMessage: vi.fn(() => Promise.resolve()),
@@ -99,7 +101,7 @@ describe('recorder worker', () => {
     expect(
       await send(
         { type: 'rec/start', tabId: 7 },
-        { tab: { id: 7 }, frameId: 0 }
+        { tab: { id: 7, url: TAB_URL }, frameId: 0 }
       )
     ).toBe('no reply');
     // Another extension page that isn't the panel is ignored too.
@@ -127,14 +129,14 @@ describe('recorder worker', () => {
 
   it('captures clicks only from the tab being recorded', async () => {
     const { send, chromeFake, panelMessages } = await setup();
-    await send(click, { tab: { id: 7 }, frameId: 0 });
+    await send(click, { tab: { id: 7, url: TAB_URL }, frameId: 0 });
     await flush();
     expect(chromeFake.tabs.captureVisibleTab).not.toHaveBeenCalled();
     await send({ type: 'rec/start', tabId: 7 }, { url: PANEL_URL });
-    await send(click, { tab: { id: 8 }, frameId: 0 });
+    await send(click, { tab: { id: 8, url: TAB_URL }, frameId: 0 });
     await flush();
     expect(chromeFake.tabs.captureVisibleTab).not.toHaveBeenCalled();
-    await send(click, { tab: { id: 7 }, frameId: 0 });
+    await send(click, { tab: { id: 7, url: TAB_URL }, frameId: 0 });
     await vi.waitFor(() =>
       expect(
         panelMessages.some(
@@ -154,9 +156,30 @@ describe('recorder worker', () => {
     const { send, chromeFake, store } = await setup();
     await send({ type: 'rec/start', tabId: 7 }, { url: PANEL_URL });
     panel.open = false;
-    await send(click, { tab: { id: 7 }, frameId: 0 });
+    await send(click, { tab: { id: 7, url: TAB_URL }, frameId: 0 });
     await vi.waitFor(() => expect(store['recorder.tabId']).toBeUndefined());
     expect(chromeFake.tabs.captureVisibleTab).not.toHaveBeenCalled();
+  });
+
+  it('keeps the clicked page and takes no picture once the tab has moved on', async () => {
+    const { send, chromeFake, panelMessages } = await setup();
+    await send({ type: 'rec/start', tabId: 7 }, { url: PANEL_URL });
+    chromeFake.tabs.get.mockResolvedValue({
+      id: 7,
+      windowId: 1,
+      active: true,
+      url: 'https://orono.schoology.com/home',
+    });
+    await send(click, { tab: { id: 7, url: TAB_URL }, frameId: 0 });
+    await vi.waitFor(() => expect(panelMessages.length).toBeGreaterThan(1));
+    expect(chromeFake.tabs.captureVisibleTab).not.toHaveBeenCalled();
+    const captured = panelMessages.find(
+      (m) => (m as { type: string }).type === 'rec/captured'
+    ) as { capture: { screenshot: unknown; urlPattern: string } };
+    expect(captured.capture.screenshot).toBeNull();
+    expect(captured.capture.urlPattern).toBe(
+      'https://orono.schoology.com/course/*/materials'
+    );
   });
 
   it('takes no picture of a tab that is not showing', async () => {
@@ -168,7 +191,7 @@ describe('recorder worker', () => {
       active: false,
       url: 'https://orono.schoology.com/home',
     });
-    await send(click, { tab: { id: 7 }, frameId: 0 });
+    await send(click, { tab: { id: 7, url: TAB_URL }, frameId: 0 });
     await vi.waitFor(() => expect(panelMessages.length).toBeGreaterThan(1));
     expect(chromeFake.tabs.captureVisibleTab).not.toHaveBeenCalled();
     const captured = panelMessages.find(
@@ -185,7 +208,7 @@ describe('recorder worker', () => {
         ...click,
         target: { ...click.target, locator: { name: 'x'.repeat(500) } },
       },
-      { tab: { id: 7 }, frameId: 0 }
+      { tab: { id: 7, url: TAB_URL }, frameId: 0 }
     );
     await flush();
     expect(chromeFake.tabs.captureVisibleTab).not.toHaveBeenCalled();

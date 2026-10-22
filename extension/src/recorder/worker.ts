@@ -148,7 +148,11 @@ async function onClick(
 ): Promise<void> {
   const tabId = sender.tab?.id;
   const frameId = sender.frameId ?? 0;
-  if (tabId === undefined || tabId !== (await recordingTab())) return;
+  // The page the click happened on, read before any wait lets it navigate.
+  const clickedUrl = sender.tab?.url;
+  const urlPattern = clickedUrl ? toUrlPattern(clickedUrl) : null;
+  if (tabId === undefined || !urlPattern) return;
+  if (tabId !== (await recordingTab())) return;
   if (!(await panelOpen())) {
     await stopRecording();
     return;
@@ -157,14 +161,14 @@ async function onClick(
   lastCapture = Math.max(Date.now(), lastCapture + MIN_CAPTURE_GAP_MS);
   if (wait > 0) await sleep(wait);
   const tab = await chrome.tabs.get(tabId).catch(() => null);
-  const urlPattern = tab?.url ? toUrlPattern(tab.url) : null;
-  if (!tab || !urlPattern) return;
-  // Only the recorded tab's own screen; a new tab or a switch away gets no picture.
-  const screenshot = tab.active
-    ? await chrome.tabs
-        .captureVisibleTab(tab.windowId, { format: 'png' })
-        .catch(() => null)
-    : null;
+  if (!tab) return;
+  // Only the recorded tab's own screen, still on the clicked page; otherwise no picture.
+  const screenshot =
+    tab.active && tab.url === clickedUrl
+      ? await chrome.tabs
+          .captureVisibleTab(tab.windowId, { format: 'png' })
+          .catch(() => null)
+      : null;
   const frames = (await chrome.webNavigation.getAllFrames({ tabId })) ?? [];
   const path = frameId === 0 ? [] : framePath(frames, frameId);
   const placed =
@@ -200,14 +204,20 @@ const post = (setId: string, msg: object) =>
     }
   });
 
-async function send(setId: string, steps: RecordedWebStep[]): Promise<void> {
+/** False when the outbox can't hold the steps, so the panel keeps its copy. */
+async function send(setId: string, steps: RecordedWebStep[]): Promise<boolean> {
   const box = await readOutbox();
   const queued = box[setId] ?? [];
   const ids = new Set(queued.map((s) => s.id));
   box[setId] = [...queued, ...steps.filter((s) => !ids.has(s.id))];
-  await writeOutbox(box).catch(() => undefined);
+  const stored = await writeOutbox(box).then(
+    () => true,
+    () => false
+  );
+  if (!stored) return false;
   for (const step of steps) post(setId, { type: 'recorder/step', setId, step });
   notifyPanel();
+  return true;
 }
 
 async function ack(setId: string, stepId: string): Promise<void> {
@@ -291,7 +301,7 @@ export function installRecorder(): void {
         reply(false);
         return false;
       }
-      void send(msg.setId, msg.steps).then(() => reply(true));
+      void send(msg.setId, msg.steps).then(reply, () => reply(false));
       return true;
     }
     return false;

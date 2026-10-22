@@ -101,6 +101,31 @@ describe('student-data check', () => {
       false
     );
   });
+
+  it('survives a stored copy that reorders the locator keys', () => {
+    const checked = markStepChecked(
+      step('a', {
+        locator: {
+          role: 'link',
+          name: 'Courses',
+          box: { x: 0.1, y: 0.2, w: 0.3, h: 0.4 },
+        },
+      }),
+      'admin'
+    );
+    const stored = {
+      ...checked,
+      web: {
+        ...(checked.web as WebTourBinding),
+        locator: {
+          box: { h: 0.4, w: 0.3, x: 0.1, y: 0.2 },
+          name: 'Courses',
+          role: 'link',
+        },
+      },
+    };
+    expect(isStepChecked(stored)).toBe(true);
+  });
 });
 
 describe('publishBlockers', () => {

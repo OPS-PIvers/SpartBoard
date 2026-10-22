@@ -347,7 +347,12 @@ export const WebTourEditor: React.FC<{
   const onStep = useCallback(async (recorded: RecordedWebStep) => {
     if (publishing.current) throw new Error('Publishing; the step is re-sent');
     const current = latest.current;
-    if (current.steps.some((s) => s.id === recorded.id)) return;
+    // A re-sent step is already here but its save may have failed, so save again before the ack.
+    if (current.steps.some((s) => s.id === recorded.id)) {
+      if (deleted.current) throw new Error('Tour deleted');
+      await saveWebTourDraft(current);
+      return;
+    }
     let picture;
     const blob = recorded.picture
       ? pictureBlob(recorded.picture.dataUrl)
@@ -425,6 +430,7 @@ export const WebTourEditor: React.FC<{
       { title: 'Delete web tour', variant: 'danger', confirmLabel: 'Delete' }
     );
     if (!ok) return;
+    recorder.disconnect();
     deleted.current = true;
     dirty.current = false;
     try {

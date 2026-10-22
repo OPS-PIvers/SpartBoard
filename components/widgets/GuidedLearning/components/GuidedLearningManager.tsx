@@ -647,7 +647,9 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   };
 
   // Teachers never see Help Center sets in the library, so their tours don't count.
+  // Admins with web tours always get the filter, since it leads to the Web tours list.
   const hasTours =
+    (isAdmin && !!auth?.canAccessFeature('web-tours')) ||
     sets.some((s) => s.mode === 'tour') ||
     buildingSets.some((e) => e.hasLiveTour && (isAdmin || !isHelpCenterSet(e)));
 
