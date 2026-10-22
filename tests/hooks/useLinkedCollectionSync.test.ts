@@ -764,6 +764,75 @@ describe('useLinkedCollectionSync', () => {
       expect(linkDoc.boards[0].name).toBe('Old');
     });
 
+    it('a viewer keeps their own board name until the host renames that board', async () => {
+      const viewerLink = (name: string) =>
+        makeLink({
+          mode: 'view-only',
+          participants: { me: { role: 'viewer', joinedAt: 1 } },
+          boards: [{ shareId: 's1', name, order: 0 }],
+        });
+      const deps = makeDeps({
+        dashboards: [
+          board('a', 'week', { ...live('s1', 'viewer'), name: 'Mine' }),
+        ],
+      });
+      renderHook(() => useLinkedCollectionSync(deps));
+      await emit(viewerLink('Old'));
+      await emit(viewerLink('Old'));
+      expect(deps.renameBoard).not.toHaveBeenCalled();
+      await emit(viewerLink('Host renamed'));
+      expect(deps.renameBoard).toHaveBeenCalledWith('a', 'Host renamed');
+    });
+
+    it('never lists a move of a sub-collection into its own child', async () => {
+      linkDoc = makeLink({
+        sections: [
+          sections[0],
+          { id: 'S-child', name: 'child', parentId: 'S-mon', order: 0 },
+        ],
+      });
+      const child = col('child', 'mon', 'S-child');
+      const deps = makeDeps({ collections: [root, mon, child] });
+      const { result } = renderHook(() => useLinkedCollectionSync(deps));
+      await emit(linkDoc);
+      const before = linkDoc.sections;
+      const move = vi.fn(() =>
+        Promise.reject(
+          new Error(
+            'Cannot move a collection into one of its own subcollections'
+          )
+        )
+      );
+      await act(async () => {
+        await expect(
+          result.current.moveCollectionSynced('mon', 'child', move)
+        ).rejects.toThrow();
+      });
+      expect(linkDoc.sections).toBe(before);
+    });
+
+    it('still moves and deletes locally when the shared list cannot be written', async () => {
+      linkDoc = makeLink({ sections });
+      const deps = makeDeps({ collections: [root, mon, tue] });
+      const { result } = renderHook(() => useLinkedCollectionSync(deps));
+      await emit(linkDoc);
+      vi.mocked(
+        deps.linkedCollectionApi.editLinkedCollection
+      ).mockRejectedValue(new Error('offline'));
+      const move = vi.fn(() => Promise.resolve());
+      const remove = vi.fn(() => Promise.resolve());
+      await act(async () => {
+        await result.current.moveCollectionSynced('tue', 'mon', move);
+        await result.current.deleteCollectionSynced(
+          'mon',
+          'move-to-parent',
+          remove
+        );
+      });
+      expect(move).toHaveBeenCalled();
+      expect(remove).toHaveBeenCalled();
+    });
+
     it('deletes a sub-collection the link records as deleted, only on a server snapshot', async () => {
       const deps = makeDeps({ collections: [root, mon, tue] });
       renderHook(() => useLinkedCollectionSync(deps));

@@ -5958,6 +5958,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [beforeBoardsLeave, moveBoardToCollectionRaw, addToast]
   );
 
+  // Queued moves and deletes run later, so they read the tree as it is then.
+  const collectionsApiRef = useRef(collectionsApi);
+  useLayoutEffect(() => {
+    collectionsApiRef.current = collectionsApi;
+  });
   // Renames and recolors reach the shared collection when this teacher can edit it.
   const syncedCollectionsApi = useMemo(
     () => ({
@@ -5978,11 +5983,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         nextParentCollectionId: string | null
       ) =>
         moveCollectionSynced(collectionId, nextParentCollectionId, () =>
-          collectionsApi.moveCollection(collectionId, nextParentCollectionId)
+          collectionsApiRef.current.moveCollection(
+            collectionId,
+            nextParentCollectionId
+          )
         ),
       deleteCollection: (collectionId: string, mode: DeleteCollectionMode) =>
         deleteCollectionSynced(collectionId, mode, () =>
-          collectionsApi.deleteCollection(collectionId, mode)
+          collectionsApiRef.current.deleteCollection(collectionId, mode)
         ),
     }),
     [

@@ -186,6 +186,8 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
   const closedRoots = useRef(new Set<string>());
   /** Local collections being moved, deleted or already deleted by this session. */
   const settlingCollections = useRef(new Set<string>());
+  /** Link id -> board names its last snapshot listed. */
+  const seenNames = useRef(new Map<string, Map<string, string>>());
   /** Board id -> a rename this session is listing that no snapshot has shown yet. */
   const pendingRenames = useRef(
     new Map<string, { name: string; written: boolean }>()
@@ -422,7 +424,20 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
           pendingRenames.current.delete(boardId);
         }
       }
+      // Non-editors keep their own names until the list renames that board again.
+      const editor = canEditLinkedCollection(link, ctx.uid);
+      const lastSeen = seenNames.current.get(linkId);
+      seenNames.current.set(linkId, listedNames);
       for (const { boardId, name } of plan.renames) {
+        const shareId = d.dashboards.find(
+          (b) => b.id === boardId
+        )?.linkedShareId;
+        if (
+          !editor &&
+          (!lastSeen || !shareId || lastSeen.get(shareId) === name)
+        ) {
+          continue;
+        }
         if (
           leaving.current.has(boardId) ||
           pendingRenames.current.has(boardId)
@@ -1267,12 +1282,21 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
       const from = editableLinkOf(collectionId);
       if (into && into.root.id !== from?.root.id) {
         await runQueued(into.linkId, async () => {
-          await relist(into.linkId, into.uid);
+          await relist(into.linkId, into.uid).catch((err: unknown) =>
+            logError('useLinkedCollectionSync.relistSection', err, {})
+          );
           await move();
         });
         return;
       }
-      if (!from || into?.root.id !== from.root.id) return move();
+      // A move into itself or a child is refused by move() before the list changes.
+      if (
+        !from ||
+        into?.root.id !== from.root.id ||
+        collectionTreeIds(collectionId, d.collections).has(destination ?? '')
+      ) {
+        return move();
+      }
       const { uid, target, root, linkId } = from;
       const dest = d.collections.find((c) => c.id === destination);
       const parentKey = dest && dest.id !== root.id ? sectionKey(dest) : null;
@@ -1281,10 +1305,9 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
       await runQueued(linkId, async () => {
         settlingCollections.current.add(collectionId);
         try {
-          await d.linkedCollectionApi.editLinkedCollection(
-            linkId,
-            uid,
-            (current) => {
+          // Offline or refused, the move still happens here; the next snapshot settles it.
+          await d.linkedCollectionApi
+            .editLinkedCollection(linkId, uid, (current) => {
               if (!canEditLinkedCollection(current, uid)) return null;
               const sections = sectionsAfterMove(
                 current.sections ?? [],
@@ -1292,8 +1315,10 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
                 parentKey
               );
               return sections ? { sections } : null;
-            }
-          );
+            })
+            .catch((err: unknown) =>
+              logError('useLinkedCollectionSync.moveSection', err, { linkId })
+            );
           await move();
         } finally {
           settlingCollections.current.delete(collectionId);
@@ -1330,10 +1355,8 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
             : new Set([collectionId]);
         ids.forEach((id) => settlingCollections.current.add(id));
         try {
-          await d.linkedCollectionApi.editLinkedCollection(
-            linkId,
-            uid,
-            (current) => {
+          await d.linkedCollectionApi
+            .editLinkedCollection(linkId, uid, (current) => {
               if (!canEditLinkedCollection(current, uid)) return null;
               const keys =
                 mode === 'delete-all'
@@ -1343,8 +1366,10 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
                     ])
                   : localKeys;
               return sectionsAfterRemove(current, keys);
-            }
-          );
+            })
+            .catch((err: unknown) =>
+              logError('useLinkedCollectionSync.deleteSection', err, { linkId })
+            );
           await remove();
         } catch (err) {
           ids.forEach((id) => settlingCollections.current.delete(id));

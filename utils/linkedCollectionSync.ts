@@ -264,10 +264,7 @@ export const withDeletedSections = (
   return next.slice(-MAX_DELETED_SECTIONS);
 };
 
-/**
- * The link after these sections are deleted or moved out: their boards and child sections go to the
- * nearest section above them that stays, and their ids are recorded so nobody lists them again.
- */
+/** The link with these sections removed and recorded; their boards and children go to the nearest kept section above. */
 export function sectionsAfterRemove(
   current: Pick<LinkedCollection, 'sections' | 'boards' | 'deletedSections'>,
   removedKeys: Set<string>
