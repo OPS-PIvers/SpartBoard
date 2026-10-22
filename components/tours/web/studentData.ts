@@ -101,6 +101,64 @@ export function findStudentData(
   return out;
 }
 
+/** Text patterns the recorder blurs on the page before each picture. */
+export interface PageBlurPatterns {
+  emails: boolean;
+  ids: boolean;
+  lastFirst: boolean;
+}
+
+// Capitalised words that start ordinary "X, Y" phrases, not names.
+const NOT_NAMES = new Set(
+  (
+    'january february march april may june july august september october november december ' +
+    'monday tuesday wednesday thursday friday saturday sunday today tomorrow yesterday ' +
+    'hello hi hey dear thanks thank welcome yes no okay ok please sincerely regards best cheers ' +
+    'however also then first next last previous back home help settings search menu save cancel ' +
+    'edit delete new open close more view add remove share print download upload submit done ' +
+    'note important warning error notice update updates news events calendar inbox messages ' +
+    'grade grades class classes course courses section unit lesson week day period room ' +
+    'teacher teachers student students parent parents assignment assignments quiz test exam ' +
+    'math science english history reading writing art music spanish french health spring summer fall winter ' +
+    'north south east west street avenue road city county state minnesota wisconsin iowa ' +
+    'america canada mexico london paris washington'
+  ).split(' ')
+);
+
+const looksLikeName = (match: string): boolean =>
+  !match
+    .split(/[\s,-]+/)
+    .some((w) => NOT_NAMES.has(w.replace(/\.$/, '').toLowerCase()));
+
+/** Spans of `text` to blur in a picture, by the patterns switched on; earliest first, overlaps merged. */
+export function findPageBlurSpans(
+  text: string,
+  patterns: PageBlurPatterns
+): { start: number; end: number }[] {
+  if (!text) return [];
+  const hits = [
+    ...(patterns.emails ? collect(EMAIL_RE, text, 'email') : []),
+    ...(patterns.ids
+      ? [
+          ...collect(UUID_RE, text, 'uuid'),
+          ...collect(ID_RE, text, 'id-number'),
+        ]
+      : []),
+    ...(patterns.lastFirst
+      ? collect(LAST_FIRST_RE, text, 'possible-name').filter((h) =>
+          looksLikeName(text.slice(h.start, h.end))
+        )
+      : []),
+  ].sort((a, b) => a.start - b.start || b.end - a.end);
+  const out: { start: number; end: number }[] = [];
+  for (const { start, end } of hits) {
+    const last = out[out.length - 1];
+    if (last && start < last.end) last.end = Math.max(last.end, end);
+    else out.push({ start, end });
+  }
+  return out;
+}
+
 /** Replaces every hit (or only hard ones) with the redaction mark. */
 export function redactStudentData(
   text: string,

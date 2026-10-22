@@ -16,6 +16,7 @@ const PANEL_URL = `chrome-extension://${ID}/sidepanel/index.html`;
 const setup = async () => {
   vi.resetModules();
   const store: Record<string, unknown> = {};
+  const local: Record<string, unknown> = {};
   const onMessage: Listener[] = [];
   const panelMessages: unknown[] = [];
   const chromeFake = {
@@ -38,10 +39,13 @@ const setup = async () => {
           Object.assign(store, o);
           return Promise.resolve();
         },
-        remove: (key: string) => {
-          delete store[key];
+        remove: (key: string | string[]) => {
+          for (const k of [key].flat()) delete store[k];
           return Promise.resolve();
         },
+      },
+      local: {
+        get: (key: string) => Promise.resolve({ [key]: local[key] }),
       },
     },
     sidePanel: { setPanelBehavior: () => Promise.resolve() },
@@ -54,7 +58,10 @@ const setup = async () => {
           url: TAB_URL,
         })
       ),
-      sendMessage: vi.fn((..._args: unknown[]) => Promise.resolve()),
+      // Frames confirm each blur, as the content script does.
+      sendMessage: vi.fn((..._args: unknown[]) =>
+        Promise.resolve<unknown>(true)
+      ),
       captureVisibleTab: vi.fn(() =>
         Promise.resolve('data:image/png;base64,AAAA')
       ),
@@ -74,7 +81,7 @@ const setup = async () => {
       const handled = onMessage[0](msg, { id: ID, ...sender }, resolve);
       if (handled !== true) setTimeout(() => resolve('no reply'), 0);
     });
-  return { worker, chromeFake, store, send, panelMessages };
+  return { worker, chromeFake, store, local, send, panelMessages };
 };
 
 const click = {
@@ -349,13 +356,17 @@ describe('recorder worker', () => {
     expect(store['recorder.tabId']).toBe(7);
   });
 
-  it('hides the Recording pill while it takes the picture', async () => {
-    const { send, chromeFake } = await setup();
+  it('blurs the page with the saved settings before the picture and lifts it after', async () => {
+    const { send, chromeFake, local } = await setup();
+    local['recorder.blur'] = { emails: false, tableRows: true };
     const order: string[] = [];
+    const shoots: unknown[] = [];
     chromeFake.tabs.sendMessage.mockImplementation(
       (_tab: unknown, m: unknown) => {
-        order.push(`pill:${(m as { show?: boolean }).show}`);
-        return Promise.resolve();
+        const msg = m as { type: string };
+        order.push(msg.type);
+        if (msg.type === 'rec/shoot') shoots.push(m);
+        return Promise.resolve(true);
       }
     );
     chromeFake.tabs.captureVisibleTab.mockImplementation(() => {
@@ -364,8 +375,88 @@ describe('recorder worker', () => {
     });
     await send({ type: 'rec/start', tabId: 7 }, { url: PANEL_URL });
     await send(click, { tab: { id: 7, url: TAB_URL }, frameId: 0 });
-    await vi.waitFor(() => expect(order).toContain('pill:true'));
-    expect(order).toEqual(['pill:false', 'capture', 'pill:true']);
+    await vi.waitFor(() => expect(order).toContain('rec/shot'));
+    expect(order).toEqual(['rec/shoot', 'capture', 'rec/shot']);
+    expect(shoots[0]).toEqual({
+      type: 'rec/shoot',
+      blur: {
+        emails: false,
+        ids: true,
+        lastFirst: true,
+        fields: true,
+        tableRows: true,
+        images: false,
+      },
+      picks: [],
+    });
+  });
+
+  it('takes no picture when the page could not be blurred', async () => {
+    const { send, chromeFake, panelMessages } = await setup();
+    chromeFake.tabs.sendMessage.mockImplementation(() =>
+      Promise.reject(new Error('no receiver'))
+    );
+    await send({ type: 'rec/start', tabId: 7 }, { url: PANEL_URL });
+    await send(click, { tab: { id: 7, url: TAB_URL }, frameId: 0 });
+    await vi.waitFor(() =>
+      expect(
+        panelMessages.some(
+          (m) => (m as { type: string }).type === 'rec/captured'
+        )
+      ).toBe(true)
+    );
+    expect(chromeFake.tabs.captureVisibleTab).not.toHaveBeenCalled();
+    const captured = panelMessages.find(
+      (m) => (m as { type: string }).type === 'rec/captured'
+    ) as { capture: { screenshot: unknown } };
+    expect(captured.capture.screenshot).toBeNull();
+  });
+
+  it('remembers Click to blur picks for the page during one recording only', async () => {
+    const { send, chromeFake, store } = await setup();
+    const frameSender = {
+      tab: { id: 7, url: TAB_URL },
+      frameId: 0,
+      url: TAB_URL,
+    };
+    const pick = { type: 'rec/blurPick', selector: '#grades', on: true };
+    expect(
+      await send({ type: 'rec/setBlurPicking', on: true }, { url: PANEL_URL })
+    ).toBe(false);
+    await send({ type: 'rec/start', tabId: 7 }, { url: PANEL_URL });
+    // A pick while Click to blur is off is ignored.
+    await send(pick, frameSender);
+    await flush();
+    expect(store['recorder.blurPicks']).toBeUndefined();
+    expect(
+      await send({ type: 'rec/setBlurPicking', on: true }, { url: PANEL_URL })
+    ).toBe(true);
+    expect(
+      (
+        (await send({ type: 'rec/status' }, { url: PANEL_URL })) as {
+          blurPicking: boolean;
+        }
+      ).blurPicking
+    ).toBe(true);
+    await send(pick, frameSender);
+    await vi.waitFor(() =>
+      expect(store['recorder.blurPicks']).toEqual({
+        'https://orono.schoology.com/course/*/materials': ['#grades'],
+      })
+    );
+    const shoots: unknown[] = [];
+    chromeFake.tabs.sendMessage.mockImplementation(
+      (_tab: unknown, m: unknown) => {
+        if ((m as { type: string }).type === 'rec/shoot') shoots.push(m);
+        return Promise.resolve(true);
+      }
+    );
+    await send(click, { tab: { id: 7, url: TAB_URL }, frameId: 0 });
+    await vi.waitFor(() => expect(shoots).toHaveLength(1));
+    expect((shoots[0] as { picks: string[] }).picks).toEqual(['#grades']);
+    await send({ type: 'rec/stop' }, { url: PANEL_URL });
+    expect(store['recorder.blurPicks']).toBeUndefined();
+    expect(store['recorder.blurPicking']).toBeUndefined();
   });
 
   it('closes a recorder port when the profile is not staff', async () => {
