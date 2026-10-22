@@ -650,7 +650,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             <div className="flex-1 relative overflow-hidden">
               {displayMode === 'code' ? (
                 <iframe
-                  key={refreshKey}
+                  key={`code-${refreshKey}`}
                   title="Embed Content"
                   srcDoc={html}
                   className="absolute top-0 left-0 border-none block"
@@ -661,7 +661,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 />
               ) : (
                 <iframe
-                  key={refreshKey}
+                  key={`url-${refreshKey}`}
                   title="Embed Content"
                   src={finalEmbedUrl}
                   className="absolute top-0 left-0 border-none block"

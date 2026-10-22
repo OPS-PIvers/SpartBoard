@@ -49,6 +49,13 @@ const literalSandbox = (prop: ts.JsxAttribute): string | null => {
   return null;
 };
 
+const SCRIPT_KINDS: Record<string, ts.ScriptKind> = {
+  '.tsx': ts.ScriptKind.TSX,
+  '.jsx': ts.ScriptKind.JSX,
+  // Plain .js may hold JSX too.
+  '.js': ts.ScriptKind.JSX,
+};
+
 type Problem = { where: string; why: string };
 
 const problemsIn = (file: string, text: string): Problem[] => {
@@ -58,7 +65,7 @@ const problemsIn = (file: string, text: string): Problem[] => {
     text,
     ts.ScriptTarget.Latest,
     true,
-    file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
+    SCRIPT_KINDS[file.slice(file.lastIndexOf('.'))] ?? ts.ScriptKind.TS
   );
   const out: Problem[] = [];
   const at = (n: ts.Node) =>
@@ -194,6 +201,11 @@ describe('srcDoc iframes never share the parent origin', () => {
     ];
     for (const code of bad)
       expect(problemsIn('x.tsx', `const a = ${code}`), code).not.toEqual([]);
+    for (const file of ['x.jsx', 'x.js'])
+      expect(
+        problemsIn(file, 'const a = <iframe srcDoc={h} />'),
+        file
+      ).not.toEqual([]);
     expect(
       problemsIn('x.tsx', '<iframe srcDoc={h} sandbox="allow-scripts" />')
     ).toEqual([]);
