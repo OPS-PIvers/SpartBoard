@@ -24,6 +24,8 @@ const {
   mockLibraryEntries,
   mockLinkedShareId,
   mockReadOnly,
+  mockSaveSharedWall,
+  editorProps,
 } = vi.hoisted(() => ({
   mockAddWidget: vi.fn(),
   mockAddToast: vi.fn(),
@@ -39,6 +41,8 @@ const {
   mockLibraryEntries: { current: [] as ActivityWallLibraryEntry[] },
   mockLinkedShareId: { current: null as string | null },
   mockReadOnly: { current: false },
+  mockSaveSharedWall: vi.fn(),
+  editorProps: { current: null as Record<string, unknown> | null },
 }));
 
 const routerProps: { current: Record<string, unknown> | null } = {
@@ -88,7 +92,10 @@ vi.mock('@/hooks/useActivityWallLibrary', () => ({
 // The editor modal pulls in ClassLink + backgrounds; the widget only needs to
 // know that it mounts, so stub it to a marker.
 vi.mock('./editor/WallEditorModal', () => ({
-  WallEditorModal: () => <div data-testid="wall-editor" />,
+  WallEditorModal: (props: Record<string, unknown>) => {
+    editorProps.current = props;
+    return <div data-testid="wall-editor" />;
+  },
 }));
 
 // LayoutRouter lazily imports Leaflet for the map layout; a marker keeps this
@@ -113,6 +120,13 @@ vi.mock('@/context/useDialog', () => ({
 
 vi.mock('@/utils/googleOAuthRefresh', () => ({
   requestAndExchangeAuthCode: vi.fn().mockResolvedValue({ kind: 'cancelled' }),
+}));
+
+import type { SharedWallEditRequest } from './sharedWallEdit';
+
+vi.mock('./sharedWallEdit', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./sharedWallEdit')>()),
+  saveSharedActivityWall: mockSaveSharedWall,
 }));
 
 vi.mock('@/config/firebase', () => ({ db: {}, functions: {}, storage: {} }));
@@ -176,6 +190,8 @@ beforeEach(() => {
   mockLibraryEntries.current = [makeEntry()];
   mockLinkedShareId.current = null;
   mockReadOnly.current = false;
+  editorProps.current = null;
+  mockSaveSharedWall.mockResolvedValue(undefined);
   mockGetDoc.mockResolvedValue({ data: () => undefined });
   mockSaveActivity.mockResolvedValue(undefined);
   mockDeleteActivity.mockResolvedValue(undefined);
@@ -805,6 +821,59 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
     renderWidget();
     await screen.findByText('Warm Up');
     expect(screen.queryByText(/^Shared by/)).toBeNull();
+  });
+
+  it("lets a Synced collaborator edit the host's wall through the server", async () => {
+    sessionDocData = {
+      'activity_wall_sessions/host-1_wall-1': {
+        ...hostSession,
+        classIds: ['class-host'],
+      },
+      'activity_wall_sessions/host-1_wall-1/boardAccess/boards': {
+        boardShareIds: ['share-1/host-1'],
+      },
+    };
+    renderWidget();
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Edit wall' })
+    );
+    expect(screen.getByTestId('wall-editor')).toBeInTheDocument();
+    const props = editorProps.current as {
+      entry: ActivityWallLibraryEntry;
+      save: (entry: ActivityWallLibraryEntry) => Promise<void>;
+    };
+    expect(props.entry.classIds).toEqual(['class-host']);
+    await props.save({
+      ...props.entry,
+      title: 'Renamed',
+      classIds: ['class-host', 'class-mine'],
+    });
+    const [request] = mockSaveSharedWall.mock.calls[0] as [
+      SharedWallEditRequest,
+    ];
+    expect(request).toMatchObject({
+      shareId: 'share-1',
+      ownerUid: 'host-1',
+      activityId: 'wall-1',
+      myClassIds: ['class-mine'],
+    });
+    expect(request.changes.title).toBe('Renamed');
+    expect(mockSetDoc).not.toHaveBeenCalled();
+  });
+
+  it('offers no editing to View-Only members', async () => {
+    mockReadOnly.current = true;
+    sessionDocData = {
+      'activity_wall_sessions/host-1_wall-1': hostSession,
+      'activity_wall_sessions/host-1_wall-1/boardAccess/boards': {
+        boardShareIds: ['share-1/host-1'],
+      },
+    };
+    renderWidget();
+
+    expect(await screen.findByText('Host wall')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit wall' })).toBeNull();
   });
 
   it('keeps the old empty state until the host lists the board', async () => {

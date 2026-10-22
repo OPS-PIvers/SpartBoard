@@ -3774,6 +3774,8 @@ describe('index barrel — deployed export set', () => {
     'recordFlashcardCheckRatingsV1',
     'submitMiniAppResultV1',
     'resolveFlashcardFlagV1',
+    // Shared board Activity Wall editing
+    'saveSharedActivityWallV1',
     // Video Activity answer key
     'checkVideoActivityAnswerV1',
     'scrubVideoActivitySessionKeyV1',

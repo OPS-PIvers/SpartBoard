@@ -100,6 +100,7 @@ describe('tour anchor registry', () => {
       'sub-share.done',
       'quiz-settings.assignment-archive',
       'activity-wall-editor.allow-delete',
+      'activity-wall.edit-shared',
       'assign-stepper.cancel',
       'boards-modal.collection-share',
       'share-link.mode-synced',

@@ -283,6 +283,30 @@ describe('Activity Wall mirror', () => {
       updatedAt: 7,
     });
   });
+
+  it("adds colleagues' classes to the session only when the owner targets classes", () => {
+    const wall = finalizeWall(
+      {
+        ...defaultWall('w', 1),
+        title: 'T',
+        prompt: 'P',
+        classIds: ['c1'],
+        memberClassIds: { v: ['c2', 'c1'] },
+      },
+      5
+    );
+    expect(sessionMirror(wall, 'u', 7).classIds).toEqual(['c1', 'c2']);
+    const linkOnly = finalizeWall(
+      {
+        ...defaultWall('w', 1),
+        title: 'T',
+        prompt: 'P',
+        memberClassIds: { v: ['c2'] },
+      },
+      5
+    );
+    expect(sessionMirror(linkOnly, 'u', 7).classIds).toBeUndefined();
+  });
 });
 
 describe('mini-app limits', () => {

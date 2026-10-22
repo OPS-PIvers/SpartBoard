@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type {
+  ActivityWallLibraryEntry,
   ActivityWallSession,
   ActivityWallSubmission,
   SubShareActivityWallView,
@@ -20,6 +21,8 @@ export interface LinkedBoardActivityWall {
   /** True once the owner has opened this wall to the board's members. */
   active: boolean;
   entry: SubShareActivityWallView | null;
+  /** The wall as the editor needs it, classes and timeline setup included. */
+  editEntry: ActivityWallLibraryEntry | null;
   session: ActivityWallSession | null;
   /** Approved posts, or every post when `moderating`. */
   posts: ActivityWallSubmission[];
@@ -60,6 +63,20 @@ const entryFromSession = (
   allowLikes: session.allowLikes,
   allowComments: session.allowComments,
   allowCommentResponses: session.allowCommentResponses,
+});
+
+const editEntryFromSession = (
+  session: ActivityWallSession
+): ActivityWallLibraryEntry => ({
+  ...entryFromSession(session),
+  ...(session.classId ? { classId: session.classId } : {}),
+  ...(session.classIds ? { classIds: session.classIds } : {}),
+  ...(session.memberClassIds ? { memberClassIds: session.memberClassIds } : {}),
+  ...(session.timePeriods ? { timePeriods: session.timePeriods } : {}),
+  ...(session.timelineGroups ? { timelineGroups: session.timelineGroups } : {}),
+  ...(session.timelineDatesHidden !== undefined
+    ? { timelineDatesHidden: session.timelineDatesHidden }
+    : {}),
 });
 
 /** `ownerUid`'s wall and its posts once the owner lets `shareId` read it; approved posts only unless `canModerate`. Nulls stay idle. */
@@ -189,6 +206,7 @@ export function useLinkedBoardActivityWall(
     () => ({
       active,
       entry: active && session ? entryFromSession(session) : null,
+      editEntry: active && session ? editEntryFromSession(session) : null,
       session: active ? session : null,
       posts: active ? posts : EMPTY_POSTS,
       moderating,

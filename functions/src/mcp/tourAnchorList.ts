@@ -2548,6 +2548,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "activity-wall.edit-shared",
+    "label": "Edit wall button on a colleague's Activity Wall",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "library.activity-wall",
+        "kind": "widget",
+        "widget_type": "activity-wall",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "time-tool.start-pause",
     "label": "Start or pause button in Timer/Stopwatch",
     "scope": "widget",

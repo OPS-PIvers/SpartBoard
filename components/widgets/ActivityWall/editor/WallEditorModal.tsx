@@ -34,6 +34,10 @@ interface WallEditorModalProps {
   widgetType: string;
   onClose: () => void;
   onSaved: (entry: ActivityWallLibraryEntry) => void;
+  /** Saves somewhere other than the signed-in teacher's own library (a colleague's wall). */
+  save?: (entry: ActivityWallLibraryEntry) => Promise<void>;
+  /** On a colleague's wall: classes this teacher can't change, and whether they may add classes. */
+  classLock?: { locked: string[]; canAdd: boolean };
 }
 
 const inputClass =
@@ -61,6 +65,8 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
   widgetType,
   onClose,
   onSaved,
+  save,
+  classLock,
 }) => {
   const { user, featurePermissions, selectedBuildings, canAccessFeature } =
     useAuth();
@@ -267,7 +273,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
     setSaving(true);
     setError(null);
     try {
-      await saveActivity(next);
+      await (save ?? saveActivity)(next);
       onSaved(next);
       onClose();
     } catch (err) {
@@ -476,6 +482,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
               showNames={draft.showNames ?? false}
               studentsCanSeePosts={draft.studentsCanSeePosts ?? true}
               classIds={draft.classIds ?? []}
+              classLock={classLock}
               classes={classes}
               widgetId={widgetId}
               widgetType={widgetType}
