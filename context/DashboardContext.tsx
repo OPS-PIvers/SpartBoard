@@ -3993,7 +3993,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     recordedHost: string | undefined
   ) => {
     if (isAuthBypass || !user) return;
-    if (!canAccessFeature('shared-board-live-walls')) return;
+    // Optional call: many useAuth test doubles leave canAccessFeature out.
+    if (!canAccessFeature?.('shared-board-live-walls')) return;
     if (closedShareIdsRef.current.has(shareId)) return;
     closedShareIdsRef.current.add(shareId);
     const uid = user.uid;
