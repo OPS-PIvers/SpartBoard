@@ -113,6 +113,22 @@ describe('WebTourEditor', () => {
     expect(() => check(tour('Biology 7'))).toThrow(/unchecked/);
   });
 
+  it('never saves the draft again after Delete', async () => {
+    vi.useFakeTimers();
+    try {
+      renderEditor(tour('Biology 7'));
+      fireEvent.change(screen.getByLabelText('Title'), {
+        target: { value: 'Renamed' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Delete web tour' }));
+      await vi.advanceTimersByTimeAsync(2000);
+      expect(storage.deleteWebTourDraft).toHaveBeenCalledWith('t1');
+      expect(storage.saveWebTourDraft).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('warns when no roster is loaded', () => {
     render(
       <WebTourEditor initial={tour('Biology 7')} onClose={() => undefined} />

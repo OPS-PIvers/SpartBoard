@@ -304,6 +304,7 @@ export const WebTourEditor: React.FC<{
   const latest = useRef(set);
   const dirty = useRef(false);
   const publishing = useRef(false);
+  const deleted = useRef(false);
 
   useLayoutEffect(() => {
     latest.current = set;
@@ -321,6 +322,7 @@ export const WebTourEditor: React.FC<{
   useEffect(() => {
     if (!dirty.current) return;
     const timer = setTimeout(() => {
+      if (deleted.current) return;
       dirty.current = false;
       void saveWebTourDraft(set).catch((err: unknown) => {
         logError('web tour draft save', err, { setId: set.id });
@@ -333,7 +335,7 @@ export const WebTourEditor: React.FC<{
   // Closing the editor mid-delay still saves the last change.
   useEffect(
     () => () => {
-      if (!dirty.current) return;
+      if (!dirty.current || deleted.current) return;
       dirty.current = false;
       void saveWebTourDraft(latest.current).catch((err: unknown) =>
         logError('web tour draft save', err, { setId: latest.current.id })
@@ -354,6 +356,8 @@ export const WebTourEditor: React.FC<{
       const path = await uploadWebTourPicture(current.id, blob, 'image/jpeg');
       picture = { path, w: recorded.picture.w, h: recorded.picture.h };
     }
+    // A step that lands after Delete must not re-create the draft.
+    if (deleted.current) throw new Error('Tour deleted');
     const next = {
       ...latest.current,
       steps: [...latest.current.steps, toWebStep(recorded, picture)],
@@ -421,8 +425,16 @@ export const WebTourEditor: React.FC<{
       { title: 'Delete web tour', variant: 'danger', confirmLabel: 'Delete' }
     );
     if (!ok) return;
+    deleted.current = true;
     dirty.current = false;
-    await deleteWebTourDraft(set.id);
+    try {
+      await deleteWebTourDraft(set.id);
+    } catch (err) {
+      deleted.current = false;
+      logError('web tour delete', err, { setId: set.id });
+      setStatus("The tour couldn't be deleted.");
+      return;
+    }
     onClose();
   };
 
