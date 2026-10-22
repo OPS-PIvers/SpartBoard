@@ -10289,6 +10289,8 @@ export type GlobalFeature =
   | 'activity-wall-timeline-dates'
   /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
   | 'checklist-small-card'
+  /** Synced and View-Only collection sharing (docs/plans/COLLECTION_SHARING.md). */
+  | 'collection-sync-sharing'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak';
 
@@ -11551,6 +11553,59 @@ export interface Collection {
   createdAt: number;
   /** Epoch ms at last rename / move / reorder / metadata change. */
   updatedAt?: number;
+  /** `/linked_collections/{id}` this collection mirrors (Synced / View-Only share). */
+  linkedCollectionId?: string;
+  /** This teacher's role in that link; `owner` is the host. */
+  linkedCollectionRole?: DashboardShareRole;
+  /** The link ended or this teacher left; the boards stay as their own copies. */
+  linkedCollectionEnded?: boolean;
+}
+
+/** Mode of a live collection share; Make a copy stays on `/shared_collections`. */
+export type LinkedCollectionMode = 'synced' | 'view-only';
+
+/** One board in a linked collection; its content is the `/shared_boards/{shareId}` doc. */
+export interface LinkedCollectionBoard {
+  shareId: string;
+  name: string;
+  order: number;
+  /** `LinkedCollectionSection.id`; absent for boards at the top level. */
+  sectionId?: string;
+}
+
+/** A sub-collection inside a linked collection (D1). */
+export interface LinkedCollectionSection {
+  id: string;
+  name: string;
+  /** Parent section id, or `null` for a direct child of the shared collection. */
+  parentId: string | null;
+  order: number;
+  color?: string;
+}
+
+export interface LinkedCollectionParticipant {
+  role: Exclude<DashboardShareRole, 'owner'>;
+  name?: string;
+  joinedAt: number;
+}
+
+/** `/linked_collections/{linkId}`: a collection shared Synced or View-Only. */
+export interface LinkedCollection {
+  linkId: string;
+  hostUid: string;
+  hostName: string | null;
+  mode: LinkedCollectionMode;
+  name: string;
+  color?: string;
+  icon?: string;
+  boards: LinkedCollectionBoard[];
+  sections?: LinkedCollectionSection[];
+  participants: Record<string, LinkedCollectionParticipant>;
+  createdAt: number;
+  updatedAt: number;
+  updatedBy: string;
+  /** Set by the host's Stop sharing. */
+  ended?: boolean;
 }
 
 /**

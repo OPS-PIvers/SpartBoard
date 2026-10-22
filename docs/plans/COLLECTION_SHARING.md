@@ -47,7 +47,7 @@ Reuse the board Synced machinery for the boards; add one small doc for the colle
 5. **Adding a board** to a Synced collection (create, move into, duplicate) shares it as a
    `/shared_boards` doc stamped with `linkedCollectionId` and appends to `boards[]`. Moving a
    board out removes it from `boards[]` for everyone (with a confirm). A collaborator who adds
-   a board becomes its `originalAuthor`, so the rules also let the link's host update or delete
+   a board becomes its `originalAuthor`, so the rules also let the link's host delete
    any `/shared_boards` doc whose `linkedCollectionId` names a link they host (slice 1), and a
    collaborator who leaves keeps owning the shares they added while the others stay synced.
 6. **Cost fix (D3):** boards that belong to a linked collection subscribe to their
@@ -64,13 +64,20 @@ Reuse the board Synced machinery for the boards; add one small doc for the colle
    for viewers, `linkedShareEnded` (detached copy) for collaborators, plus
    `linkedCollectionEnded` on the collection. A collaborator can "Leave" (self-leave on the
    link and every board doc, keeps detached copies).
+   **Trust rule for every slice:** `boards[]` is written by any collaborator, so a client
+   never deletes, imports or joins a listed share until it has read that `/shared_boards`
+   doc and confirmed `linkedCollectionId == linkId` (otherwise a collaborator could list
+   one of the host's unrelated shares and have Stop sharing delete it). Slices 2, 4 and 5
+   each test this.
 8. **Flag:** `GlobalFeature` `collection-sync-sharing`, `defaultAccessLevel: 'admin'`,
    `stage: 'preview'`, `afterLaunch: 'retire'`. Without it the dialog stays as today.
    Copy stays available to everyone.
 9. **Rules:** `/linked_collections` with host full update, collaborator update of `name`,
-   `color`, `icon`, `boards`, `updatedAt`, `updatedBy` only, self-join / self-leave, view-only
-   read for participants and any signed-in district user holding the link (matching
-   `/shared_boards` get). Tests cover reads and writes. Measure with `check:rules-size`.
+   `color`, `icon`, `boards`, `updatedAt`, `updatedBy` only, self-join / self-leave, reads
+   for any signed-in teacher account holding the link (not anonymous, not student role;
+   matching `/shared_boards` get). Hosts only ever remove members, recording them in
+   `removed` so they can't rejoin; removing a member from the board shares themselves is
+   slice 5's job. Tests cover reads and writes. Measure with `check:rules-size`.
 10. **Tour anchors:** carry over `share-collection.*`, add `share-collection.mode-synced`,
     `.mode-view-only`, `.mode-copy`, and Leave / Stop sharing menu items.
 

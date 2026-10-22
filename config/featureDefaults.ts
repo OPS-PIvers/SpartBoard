@@ -2,6 +2,7 @@
 import type React from 'react';
 import {
   CalendarRange,
+  FolderSync,
   PenLine,
   BarChart,
   BellRing,
@@ -1182,6 +1183,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'checklist',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Synced and View-Only collection sharing (COLLECTION_SHARING.md). Admin-only until Paul has shared with it.
+  'collection-sync-sharing': {
+    label: 'Synced collection sharing',
+    icon: FolderSync,
+    description: 'Share a collection that you and a colleague both edit.',
+    stage: 'preview',
+    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
