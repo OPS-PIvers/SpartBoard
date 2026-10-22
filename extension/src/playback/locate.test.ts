@@ -115,6 +115,16 @@ describe('locate', () => {
     );
   });
 
+  it('finds text targets inside open shadow roots', () => {
+    html(`<div id="host"></div>`);
+    const root = document
+      .getElementById('host')!
+      .attachShadow({ mode: 'open' });
+    root.innerHTML = `<span id="in">Grades</span>`;
+    place(root.getElementById('in'), 5, 5);
+    expect(locate(document, { text: 'Grades' })?.el.id).toBe('in');
+  });
+
   it('ignores an invalid CSS path', () => {
     html(`<button>x</button>`);
     expect(locate(document, { css: '##bad' })).toBeNull();

@@ -185,8 +185,8 @@ export function profileFromEmail(email: string | undefined): ExtensionProfile {
 const MAX_STEPS = 200;
 const MAX_TEXT = 4000;
 const MAX_CLUE = 500;
-/** 2 MB of bytes as base64. */
-export const MAX_PICTURE_CHARS = Math.ceil((2 * 1024 * 1024) / 3) * 4;
+/** The 5 MB upload cap (WEB_TOUR_PICTURE_MAX_BYTES) as base64, so any stored picture fits. */
+export const MAX_PICTURE_CHARS = Math.ceil((5 * 1024 * 1024) / 3) * 4;
 /** Pictures past this many base64 characters in one tour are dropped (the extension's 10 MB session store). */
 export const MAX_PICTURE_TOTAL_CHARS = 8 * 1024 * 1024;
 const PICTURE_MIMES: readonly WebTourPictureBytes['mime'][] = [

@@ -107,8 +107,11 @@ function byRole(doc: Document, role: string, name: string): Element[] {
 function byText(doc: Document, text: string): Element[] {
   const want = normalizeText(text);
   if (!want) return [];
-  const hits = queryDeep(doc, 'body *').filter(
+  const inBody = (el: Element) =>
+    el.getRootNode() !== doc || (el !== doc.body && !!doc.body?.contains(el));
+  const hits = queryDeep(doc, '*').filter(
     (el) =>
+      inBody(el) &&
       el.tagName !== 'SCRIPT' &&
       el.tagName !== 'STYLE' &&
       normalizeText(el.textContent ?? '') === want
