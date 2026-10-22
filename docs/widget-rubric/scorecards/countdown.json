@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "countdown",
   "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-22T04:14:22.604Z",
+  "gradedAt": "2026-10-22T16:00:51.043Z",
   "stale": false,
   "criteria": {
     "I2": {
@@ -87,10 +87,11 @@
     },
     "S3": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -99,11 +100,11 @@
           "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/tallest-aspect__typical.png",
           "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/tallest-aspect__stress.png"
         ],
-        "runId": "loop-countdown-2026-10-22-after"
+        "runId": "grade-countdown-2026-10-22"
       },
-      "note": "Typical content centers at both extremes and the event name wraps in the tall shape, but nothing reflows, so the wide and tall cards are about 55% empty.",
+      "note": "Even not at extremes (like a standard square) there is a lot of excess padding on the top and bottom or edges.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-22T04:14:22.604Z",
+      "gradedAt": "2026-10-22T15:59:01.924Z",
       "stale": false
     },
     "S4": {
@@ -272,21 +273,21 @@
       "stale": false
     },
     "V3": {
-      "score": 3,
-      "source": "judge",
+      "score": 4,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 4,
+        "paul": 4
       },
       "evidence": {
         "screenshots": [
           "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical.png"
         ],
-        "runId": "loop-countdown-2026-10-22-after"
+        "runId": "grade-countdown-2026-10-22"
       },
-      "note": "The day count is clearly dominant and the gray label steps down, though the bold blue event name is nearly as heavy as the number.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-22T04:14:22.604Z",
+      "gradedAt": "2026-10-22T15:58:18.675Z",
       "stale": false
     },
     "V4": {
@@ -343,20 +344,20 @@
     },
     "C1": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
           "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical.png"
         ],
-        "runId": "loop-countdown-2026-10-22-after"
+        "runId": "grade-countdown-2026-10-22"
       },
-      "note": "Title, start and event dates, weekends, count-today, number or grid view, and event color cover the plausible choices without bloat.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-22T04:14:22.604Z",
+      "gradedAt": "2026-10-22T15:58:27.747Z",
       "stale": false
     },
     "C2": {
@@ -446,22 +447,22 @@
       "stale": false
     },
     "R1": {
-      "score": 3,
-      "source": "judge",
+      "score": 2,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
           "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__empty.png",
           "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical.png"
         ],
-        "runId": "loop-countdown-2026-10-22-after"
+        "runId": "grade-countdown-2026-10-22"
       },
-      "note": "This widget is local-only, so loading, offline and no-roster states don't apply in practice, and both the empty and typical faces render designed views.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-22T04:14:22.604Z",
+      "gradedAt": "2026-10-22T15:59:17.395Z",
       "stale": false
     },
     "R3": {
@@ -539,30 +540,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "loop-countdown-2026-10-22-after"
+        "runId": "grade-countdown-2026-10-22"
       },
-      "gradedAt": "2026-10-22T04:14:22.604Z"
+      "gradedAt": "2026-10-22T16:00:51.043Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "loop-countdown-2026-10-22-after"
+        "runId": "grade-countdown-2026-10-22"
       },
-      "gradedAt": "2026-10-22T04:14:22.604Z"
+      "gradedAt": "2026-10-22T16:00:51.043Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "loop-countdown-2026-10-22-after"
+        "runId": "grade-countdown-2026-10-22"
       },
-      "gradedAt": "2026-10-22T04:14:22.604Z"
+      "gradedAt": "2026-10-22T16:00:51.043Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "loop-countdown-2026-10-22-after"
+        "runId": "grade-countdown-2026-10-22"
       },
-      "gradedAt": "2026-10-22T04:14:22.604Z"
+      "gradedAt": "2026-10-22T16:00:51.043Z"
     }
   }
 }
