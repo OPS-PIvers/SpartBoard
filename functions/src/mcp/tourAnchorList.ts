@@ -26312,6 +26312,66 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "teams.home.latest-assessment",
+    "label": "Latest assessment title on the team Home page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "plc.teams.data",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.plcs",
+          "plcs.open-plc:plcs",
+          "plc-dashboard.section-tab:plc#dataOverview"
+        ],
+        "needs": [
+          "plc"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "teams.home.see-item-analysis",
+    "label": "See item analysis link on the team Home page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "plc.teams.data",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.plcs",
+          "plcs.open-plc:plcs",
+          "plc-dashboard.section-tab:plc#dataOverview"
+        ],
+        "needs": [
+          "plc"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "teams.home.tool",
+    "label": "Team tool link on the team Home page",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "plc.teams.data",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.plcs",
+          "plcs.open-plc:plcs",
+          "plc-dashboard.section-tab:plc#dataOverview"
+        ],
+        "needs": [
+          "plc"
+        ]
+      }
+    ]
+  },
+  {
     "id": "teams.department.agenda-add",
     "label": "Add button for agenda items in the department hub",
     "scope": "board",
