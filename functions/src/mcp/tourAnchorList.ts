@@ -29474,6 +29474,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "library-shell.secondary-menu-item",
+    "label": "Item in a library shell secondary button menu",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.secondary-action"
+        ],
+        "reveal": "library-shell.secondary-action"
+      }
+    ]
+  },
+  {
     "id": "library-shell.new-menu-item",
     "label": "Item in the library shell primary button menu",
     "scope": "field",
@@ -29987,6 +30003,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "admin.help-center.record-tour",
     "label": "Record tour button in Help Center admin",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center.tour-health",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center",
+          "admin.help-center.tour-health-toggle"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.record-web-tour",
+    "label": "Record web tour button in Help Center admin",
     "scope": "board",
     "panel": true,
     "routes": [
