@@ -43,7 +43,7 @@ export const GradebookShell: React.FC<{
             type="button"
             onClick={onClose}
             {...tourAttr('gradebook.close')}
-            className="-ml-1.5 rounded-lg p-1.5 hover:bg-white/20"
+            className="relative touch-target-expand -ml-1.5 rounded-lg p-1.5 hover:bg-white/20"
             aria-label="Back to board"
             title="Back to board"
           >

@@ -1598,6 +1598,7 @@
   "boardsModal": {
     "title": "Tafeln & Sammlungen",
     "close": "Schließen",
+    "backToBoard": "Zurück zur Tafel",
     "searchPlaceholder": "Tafeln & Sammlungen suchen",
     "newBoard": "Neue Tafel",
     "newBoardPrompt": "Name der Tafel",

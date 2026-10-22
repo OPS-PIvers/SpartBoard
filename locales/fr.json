@@ -1598,6 +1598,7 @@
   "boardsModal": {
     "title": "Tableaux et Collections",
     "close": "Fermer",
+    "backToBoard": "Retour au tableau",
     "searchPlaceholder": "Rechercher des Tableaux et Collections",
     "newBoard": "Nouveau Tableau",
     "newBoardPrompt": "Nom du Tableau",

@@ -550,16 +550,16 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
           {backArrow && (
             <button
               onClick={onClose}
-              aria-label={t('teams.header.backToBoard', {
+              aria-label={t('boardsModal.backToBoard', {
                 defaultValue: 'Back to board',
               })}
-              title={t('teams.header.backToBoard', {
+              title={t('boardsModal.backToBoard', {
                 defaultValue: 'Back to board',
               })}
               {...tourAttr('boards-modal.close')}
-              className="p-2 -ml-2 hover:bg-white/20 rounded-lg transition-colors"
+              className="relative touch-target-expand p-2 -ml-2 hover:bg-white/20 rounded-lg transition-colors"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-5 h-5" aria-hidden />
             </button>
           )}
           <h2 id="boards-modal-title" className="text-lg font-bold">

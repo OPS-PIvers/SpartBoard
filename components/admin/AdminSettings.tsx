@@ -404,12 +404,12 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
               <div className="flex items-center gap-1 h-14 px-3 lg:px-2 shrink-0">
                 <button
                   onClick={onClose}
-                  className="p-2 mx-auto lg:mx-0 hover:bg-white/20 rounded-lg transition-colors shrink-0"
+                  className="relative touch-target-expand p-2 mx-auto lg:mx-0 hover:bg-white/20 rounded-lg transition-colors shrink-0"
                   aria-label="Back to board"
                   title="Back to board"
                   {...tourAttr('admin.settings.close')}
                 >
-                  <ArrowLeft className="w-5 h-5" />
+                  <ArrowLeft className="w-5 h-5" aria-hidden />
                 </button>
                 <span className="hidden lg:flex items-center gap-2 text-base font-bold truncate">
                   <Settings className="w-4 h-4 text-white/70 shrink-0" />
