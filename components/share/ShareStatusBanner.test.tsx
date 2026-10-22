@@ -1,13 +1,16 @@
 import React from 'react';
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, cleanup } from '@testing-library/react';
 import { Z_INDEX } from '@/config/zIndex';
 import { ShareStatusBanner } from './ShareStatusBanner';
+
+let widgets: { id: string; maximized?: boolean }[] = [];
 
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
     activeDashboard: {
       id: 'board-1',
+      widgets,
       linkedShareId: 'share-1',
       linkedShareRole: 'owner',
       linkedShareEnded: false,
@@ -16,15 +19,30 @@ vi.mock('@/context/useDashboard', () => ({
   }),
 }));
 
+const chipLayer = () =>
+  Number(
+    (
+      screen.getByRole('button', { name: /Sharing live/ })
+        .parentElement as HTMLElement
+    ).style.zIndex
+  );
+
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: vi.fn() }),
 }));
 
 describe('ShareStatusBanner', () => {
+  afterEach(cleanup);
+
   it('stacks under full-page views so it cannot cover their close button', () => {
+    widgets = [{ id: 'w1' }];
     render(<ShareStatusBanner />);
-    const chip = screen.getByRole('button', { name: /Sharing live/ });
-    const container = chip.parentElement as HTMLElement;
-    expect(Number(container.style.zIndex)).toBeLessThan(Z_INDEX.modal);
+    expect(chipLayer()).toBeLessThan(Z_INDEX.modal);
+  });
+
+  it('stays above a maximized widget so Stop sharing is reachable', () => {
+    widgets = [{ id: 'w1', maximized: true }];
+    render(<ShareStatusBanner />);
+    expect(chipLayer()).toBeGreaterThan(Z_INDEX.maximized);
   });
 });

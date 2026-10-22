@@ -125,13 +125,16 @@ export const ShareStatusBanner: React.FC = () => {
   };
 
   const accessibleLabel = `${label}${detail ? ` — ${detail}` : ''}`;
+  // Under full pages so it never covers their close button; over a maximized widget so Stop sharing stays reachable.
+  const chipZIndex = activeDashboard.widgets.some((w) => w.maximized)
+    ? Z_INDEX.popover
+    : Z_INDEX.systemBanner;
 
   return (
     <div
       ref={containerRef}
       className="fixed top-3 right-3 flex flex-col items-end"
-      // Board chrome: stays under full-page views so it never covers their close button.
-      style={{ zIndex: Z_INDEX.systemBanner }}
+      style={{ zIndex: chipZIndex }}
     >
       <button
         type="button"
