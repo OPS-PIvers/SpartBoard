@@ -30007,6 +30007,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.help-center.web-tour-copy-link",
+    "label": "Copy link button for a web tour in tour health",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center.tour-health",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center",
+          "admin.help-center.tour-health-toggle"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.help-center.unmapped-copy",
     "label": "Copy all button for unmapped anchors",
     "scope": "board",
