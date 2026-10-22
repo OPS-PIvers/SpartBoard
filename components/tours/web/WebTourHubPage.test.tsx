@@ -1,5 +1,11 @@
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import type { ExtensionStatus, WebTourPortEvent } from './extensionClient';
 import { WebTourHubPage } from './WebTourHubPage';
@@ -267,6 +273,8 @@ describe('WebTourHubPage', () => {
     h.ping = { kind: 'ready', protocol: 2, version: '1', profile: 'staff' };
     render(<WebTourHubPage />);
     await screen.findByRole('button', { name: /Start tour/ });
+    // The page subscribes in an effect, which can land after the button shows.
+    await waitFor(() => expect(h.onEvent).not.toBeNull());
     act(() => {
       h.onEvent?.({
         type: 'web-tour/step',
@@ -327,6 +335,8 @@ describe('WebTourHubPage', () => {
     h.ping = { kind: 'ready', protocol: 2, version: '1', profile: 'staff' };
     render(<WebTourHubPage />);
     await screen.findByRole('button', { name: /Start tour/ });
+    // The page subscribes in an effect, which can land after the button shows.
+    await waitFor(() => expect(h.onEvent).not.toBeNull());
     act(() => {
       h.onEvent?.({
         type: 'web-tour/step',
@@ -361,6 +371,8 @@ describe('WebTourHubPage', () => {
     );
     render(<WebTourHubPage />);
     await screen.findByRole('button', { name: /Start tour/ });
+    // The page subscribes in an effect, which can land after the button shows.
+    await waitFor(() => expect(h.onEvent).not.toBeNull());
     act(() => {
       h.onEvent?.({
         type: 'web-tour/step',
@@ -394,6 +406,8 @@ describe('WebTourHubPage', () => {
     h.start.mockResolvedValue({ ok: false, error: 'no-reply' });
     render(<WebTourHubPage />);
     await screen.findByRole('button', { name: /Start tour/ });
+    // The page subscribes in an effect, which can land after the button shows.
+    await waitFor(() => expect(h.onEvent).not.toBeNull());
     act(() => {
       h.onEvent?.({
         type: 'web-tour/step',

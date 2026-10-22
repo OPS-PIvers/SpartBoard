@@ -14,6 +14,15 @@ import { useAuth } from '@/context/useAuth';
 import { useProjectRun } from '@/hooks/useProjectRun';
 import { tourAttr } from '@/config/tourAnchors';
 import { useSubShareProject } from '../useSubShareProject';
+import {
+  useSharedBoardItem,
+  useSharedBoardItemPublisher,
+} from '@/hooks/useSharedBoardItem';
+import {
+  contentVersion,
+  type SharedBoardProjectPayload,
+} from '@/utils/sharedBoardItems';
+import { projectShareView } from '@/utils/bundleSubShareContent';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { OverflowMenu } from '@/components/common/sessionViews/OverflowMenu';
 import { getFontClass, hexToRgba } from '@/utils/styles';
@@ -60,6 +69,8 @@ interface OpenCell {
   anchor: HTMLElement;
 }
 
+const NO_GROUPS: BoardGroup[] = [];
+
 /** The projected tracker (D31–D37): always a grid, one row per group, one column per step. */
 export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
   widget,
@@ -75,7 +86,15 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
   const { updateWidget, rosters, addToast, activeDashboard } = useDashboard();
   const { user } = useAuth();
   const shared = useSubShareProject(projectId);
-  const readOnly = shared.active;
+  // On a Synced or View-Only board the project may be another member's; their
+  // client keeps a copy of the tracker under the share.
+  const boardItem = useSharedBoardItem<SharedBoardProjectPayload>(
+    'project',
+    config.projectOwnerUid,
+    shared.active ? null : projectId
+  );
+  const onBoard = boardItem.status === 'foreign';
+  const readOnly = shared.active || onBoard;
   // A substitute can read neither the project nor its run, so in a share the
   // bundled copy stands in and no listener is opened against either.
   const live = useProjectRun(
@@ -84,9 +103,40 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
     user?.uid
   );
   const { setStepState } = live;
-  const run = readOnly ? shared.run : live.run;
-  const groups: BoardGroup[] = readOnly ? shared.groups : live.groups;
-  const loading = readOnly ? shared.loading : live.loading;
+  const ownTracker = useMemo(
+    () =>
+      !readOnly && live.run
+        ? projectShareView(live.run, projectId, live.groups)
+        : null,
+    [readOnly, live.run, live.groups, projectId]
+  );
+  const ownTrackerVersion = useMemo(
+    () => (ownTracker ? contentVersion(ownTracker) : null),
+    [ownTracker]
+  );
+  useSharedBoardItemPublisher<SharedBoardProjectPayload>({
+    kind: 'project',
+    itemId: ownTracker ? projectId : null,
+    title: ownTracker?.run.title ?? '',
+    version: ownTrackerVersion,
+    build: () => Promise.resolve(ownTracker as SharedBoardProjectPayload),
+    stampedOwnerUid: config.projectOwnerUid,
+    stampOwner: (uid) =>
+      updateWidget(widget.id, { config: { projectOwnerUid: uid } }),
+  });
+  const run = shared.active
+    ? shared.run
+    : onBoard
+      ? (boardItem.item?.payload.run ?? null)
+      : live.run;
+  const groups: BoardGroup[] = shared.active
+    ? shared.groups
+    : onBoard
+      ? (boardItem.item?.payload.groups ?? NO_GROUPS)
+      : live.groups;
+  const loading = shared.active
+    ? shared.loading
+    : boardItem.status === 'pending' || (!onBoard && live.loading);
   const liveRunId = readOnly ? null : (live.run?.id ?? null);
 
   // A set, not a scalar: two cells can be in flight at once and each owns its key.

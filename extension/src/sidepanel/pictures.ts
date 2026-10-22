@@ -53,7 +53,7 @@ export async function cropScreenshot(
   }
 }
 
-const blobToDataUrl = (blob: Blob) =>
+export const blobToDataUrl = (blob: Blob) =>
   new Promise<string>((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(typeof r.result === 'string' ? r.result : '');

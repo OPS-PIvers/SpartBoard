@@ -33,10 +33,17 @@ export interface RecorderTour {
   title: string;
 }
 
+/** A step SpartBoard asked to fix: the next click replaces its target and picture. */
+export interface RecorderPick {
+  setId: string;
+  stepId: string;
+}
+
 export interface RecorderStatus {
   profile: 'staff' | 'other' | 'none';
   recordingTabId: number | null;
   tours: RecorderTour[];
+  pick: (RecorderPick & { title: string }) | null;
   /** Steps sent to a tour that hasn't saved them yet. */
   unsaved: number;
 }
@@ -52,6 +59,9 @@ type InternalSpec = {
   'rec/start': { tabId: number };
   'rec/stop': Record<string, never>;
   'rec/send': { setId: string; steps: RecordedWebStep[] };
+  'rec/sendFix': RecorderPick & { step: RecordedWebStep };
+  'rec/pill': { show: boolean };
+  'rec/cancelPick': Record<string, never>;
   'rec/captured': { capture: RawCapture };
   'rec/changed': Record<string, never>;
 };
@@ -88,6 +98,10 @@ const CHECKS: {
     Array.isArray(m.steps) &&
     m.steps.length <= 50 &&
     m.steps.every(isRecordedStep),
+  'rec/sendFix': (m) =>
+    isStr(m.setId, 128) && isStr(m.stepId, 64) && isRecordedStep(m.step),
+  'rec/pill': (m) => typeof m.show === 'boolean',
+  'rec/cancelPick': () => true,
   'rec/captured': (m) => isObj(m.capture),
   'rec/changed': () => true,
 };

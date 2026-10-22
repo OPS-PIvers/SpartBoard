@@ -31,6 +31,9 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ user: mockUser, canAccessFeature: mockCanAccessFeature }),
 }));
 vi.mock('@/config/firebase', () => ({ db: {} }));
+vi.mock('@/context/boardLinkedShare', () => ({
+  useBoardLinkedShareId: () => null,
+}));
 vi.mock('firebase/firestore', () => ({
   collection: mockCollection,
   doc: mockDoc,

@@ -171,6 +171,11 @@ describe('WebTourEditor', () => {
     expect([id, uid]).toEqual(['t1', 'admin-1']);
     // A draft that gained student data meanwhile is refused.
     expect(() => check(tour('Alice Nguyen'))).toThrow(/student-data/);
+    // So is one that gained a picture nobody confirmed.
+    expect(() => check(withPicture(tour('Biology 7')))).toThrow(
+      /pictures-unchecked/
+    );
+    expect(() => check(tour('Biology 7'))).not.toThrow();
   });
 
   it('offers Fix on site for a step found only by page position', async () => {

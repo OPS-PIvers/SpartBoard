@@ -294,3 +294,45 @@ describe('writing a shared board item', () => {
     await assertSucceeds(deleteDoc(doc(asTeacher(COLLAB_UID), COLLAB_PATH)));
   });
 });
+
+describe('Flashcards, Notebook and Projects items', () => {
+  const KINDS = [
+    { kind: 'flashcards', collection: 'flashcard_sets' },
+    { kind: 'notebook', collection: 'notebooks' },
+    { kind: 'project', collection: 'projects' },
+  ] as const;
+  const ITEM_ID = 'item-1';
+
+  const seedLibrary = async (collectionName: string) => {
+    await seed({ libraryOwners: [] });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `users/${HOST_UID}/${collectionName}/${ITEM_ID}`),
+        { title: 'Mine' }
+      );
+    });
+  };
+
+  for (const { kind, collection } of KINDS) {
+    const path = `shared_boards/${SHARE_ID}/items/${kind}_${HOST_UID}_${ITEM_ID}`;
+    const body = item(HOST_UID, {
+      kind,
+      itemId: ITEM_ID,
+      payload: { view: { id: ITEM_ID } },
+    });
+
+    it(`the host publishes a ${kind} item from their ${collection} and members read it`, async () => {
+      await seedLibrary(collection);
+      await assertSucceeds(setDoc(doc(asTeacher(HOST_UID), path), body));
+      for (const uid of [COLLAB_UID, VIEWER_UID]) {
+        await assertSucceeds(getDoc(doc(asTeacher(uid), path)));
+      }
+      await assertFails(getDoc(doc(asTeacher(OUTSIDER_UID), path)));
+    });
+
+    it(`a ${kind} item needs the item in ${collection}, not another library`, async () => {
+      await seedLibrary(collection === 'notebooks' ? 'projects' : 'notebooks');
+      await assertFails(setDoc(doc(asTeacher(HOST_UID), path), body));
+    });
+  }
+});

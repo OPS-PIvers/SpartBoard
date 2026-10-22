@@ -11,6 +11,8 @@ export interface RecordedWebStep {
   action: WebTourAction;
   locator: WebTourLocator;
   picture?: { dataUrl: string; w: number; h: number };
+  /** The tip the admin typed in the side panel; older clients ignore it. */
+  tip?: string;
 }
 
 export const isObj = (v: unknown): v is Record<string, unknown> =>
@@ -55,6 +57,8 @@ export const isLocator = (v: unknown): v is WebTourLocator =>
 // Step ids become picture file names.
 const STEP_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
+export const MAX_TIP_CHARS = 500;
+
 /** Picture data URLs above this are refused, so one message stays small. */
 export const MAX_PICTURE_CHARS = 1_500_000;
 
@@ -66,6 +70,7 @@ export const isRecordedStep = (v: unknown): v is RecordedWebStep =>
   isStr(v.action, 10) &&
   ACTIONS.includes(v.action) &&
   isLocator(v.locator) &&
+  optStr(v.tip, MAX_TIP_CHARS) &&
   (v.picture === undefined ||
     (isObj(v.picture) &&
       isStr(v.picture.dataUrl, MAX_PICTURE_CHARS) &&

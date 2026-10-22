@@ -5,14 +5,23 @@ import { db } from '@/config/firebase';
 import { quizHasBankSlots } from '@/utils/questionBanks';
 import type {
   QuizData,
+  SubShareFlashcardPayload,
   SubShareGuidedLearningView,
+  SubShareNotebookPayload,
+  SubShareProjectPayload,
   SubShareQuizView,
   SubShareVideoActivityView,
   VideoActivityData,
 } from '@/types';
 
 /** Kinds mirrored under a board share; firestore.rules `sbItemCollection` maps each to its library collection. */
-export type SharedBoardItemKind = 'quiz' | 'videoActivity' | 'guidedLearning';
+export type SharedBoardItemKind =
+  | 'quiz'
+  | 'videoActivity'
+  | 'guidedLearning'
+  | 'flashcards'
+  | 'notebook'
+  | 'project';
 
 /** A `shared_boards/{shareId}/items/{kind}_{ownerUid}_{itemId}` doc. */
 export interface SharedBoardItemDoc<T = unknown> {
@@ -38,6 +47,33 @@ export interface SharedBoardVideoActivityPayload {
 
 export interface SharedBoardGuidedLearningPayload {
   set: SubShareGuidedLearningView;
+}
+
+/** Flashcards, Notebook and Projects carry the same views a sub share bundles. */
+export type SharedBoardFlashcardPayload = SubShareFlashcardPayload;
+export type SharedBoardNotebookPayload = SubShareNotebookPayload;
+export type SharedBoardProjectPayload = SubShareProjectPayload;
+
+/** A version for content with no updatedAt of its own: a hash of its JSON with sorted keys. */
+export function contentVersion(value: unknown): string {
+  const json = JSON.stringify(value, (_key, v: unknown) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.fromEntries(
+          Object.entries(v as Record<string, unknown>).sort(([a], [b]) =>
+            a < b ? -1 : a > b ? 1 : 0
+          )
+        )
+      : v
+  );
+  // Two FNV-1a passes with different seeds, so a collision needs both to collide.
+  let a = 0x811c9dc5;
+  let b = 0x01000193;
+  for (let i = 0; i < json.length; i++) {
+    const c = json.charCodeAt(i);
+    a = Math.imul(a ^ c, 0x01000193);
+    b = Math.imul(b ^ c, 0x811c9dc5);
+  }
+  return `${json.length.toString(36)}-${(a >>> 0).toString(36)}${(b >>> 0).toString(36)}`;
 }
 
 export const SHARED_BOARD_ITEMS = 'items';
@@ -132,6 +168,9 @@ const LIBRARY_COLLECTION: Record<SharedBoardItemKind, string> = {
   quiz: 'quizzes',
   videoActivity: 'video_activities',
   guidedLearning: 'guided_learning',
+  flashcards: 'flashcard_sets',
+  notebook: 'notebooks',
+  project: 'projects',
 };
 
 /** Whether the viewer already holds the linked copy, so Assign never overwrites their edits to it. */

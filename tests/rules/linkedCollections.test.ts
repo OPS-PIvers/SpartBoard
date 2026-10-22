@@ -12,6 +12,7 @@ import {
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
+  runTransaction,
   setDoc,
   getDoc,
   updateDoc,
@@ -774,5 +775,193 @@ describe('import flow', () => {
   it('a student cannot read the board list or the link', async () => {
     await assertFails(getDoc(ref(asStudent(), SYNCED_ID)));
     await assertFails(getDoc(ref(asAnon(), SYNCED_ID)));
+  });
+});
+
+// Slice 4: membership sync. Members add, remove and move boards in the list, and
+// each side reads the board shares the list points to.
+describe('membership sync', () => {
+  const ADDED = 'collab-added-board';
+  const shareRef = (db: ReturnType<typeof asHost>, id: string) =>
+    doc(db, `shared_boards/${id}`);
+  const newShare = (uid: string, mode: string, linkId: string) => ({
+    name: 'Day 2',
+    widgets: [],
+    sharedAt: 2000,
+    originalAuthor: uid,
+    intendedMode: mode,
+    linkedCollectionId: linkId,
+    participants: {},
+    updatedAt: 2000,
+    updatedBy: uid,
+  });
+  const twoBoards = [
+    { shareId: 'board-share-1', name: 'Day 1', order: 0 },
+    { shareId: ADDED, name: 'Day 2', order: 1, sectionId: 'sec-1' },
+  ];
+
+  it('a collaborator shares a new board stamped with the link and lists it with its sub-collection', async () => {
+    const db = asCollab();
+    await assertSucceeds(
+      setDoc(shareRef(db, ADDED), newShare(COLLAB_UID, 'synced', SYNCED_ID))
+    );
+    await assertSucceeds(
+      updateDoc(ref(db, SYNCED_ID), {
+        boards: twoBoards,
+        sections: [{ id: 'sec-1', name: 'Week 2', parentId: null, order: 0 }],
+        updatedAt: 2000,
+        updatedBy: COLLAB_UID,
+      })
+    );
+  });
+
+  it('the host and another member read the list and the new board', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        shareRef(ctx.firestore(), ADDED),
+        newShare(COLLAB_UID, 'synced', SYNCED_ID)
+      );
+    });
+    for (const db of [asHost(), as('collab2-uid')]) {
+      await assertSucceeds(getDoc(ref(db, SYNCED_ID)));
+      await assertSucceeds(getDoc(shareRef(db, ADDED)));
+    }
+  });
+
+  it('the host joins a board a collaborator added, as collaborator', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        shareRef(ctx.firestore(), ADDED),
+        newShare(COLLAB_UID, 'synced', SYNCED_ID)
+      );
+    });
+    await assertSucceeds(
+      updateDoc(shareRef(asHost(), ADDED), {
+        [`participants.${HOST_UID}`]: { role: 'collaborator', joinedAt: 3000 },
+      })
+    );
+  });
+
+  it('a collaborator removes another member’s board from the list (D2, D4)', async () => {
+    await assertSucceeds(
+      updateDoc(ref(asCollab(), SYNCED_ID), {
+        boards: [],
+        updatedAt: 2000,
+        updatedBy: COLLAB_UID,
+      })
+    );
+  });
+
+  it('a collaborator moves a board to another sub-collection', async () => {
+    await assertSucceeds(
+      updateDoc(ref(asCollab(), SYNCED_ID), {
+        boards: [
+          { shareId: 'board-share-1', name: 'Day 1', order: 0, sectionId: 'x' },
+        ],
+        sections: [{ id: 'x', name: 'Later', parentId: null, order: 0 }],
+        updatedAt: 2000,
+        updatedBy: COLLAB_UID,
+      })
+    );
+  });
+
+  it('a collaborator ends the share of a board they added and took out', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        shareRef(ctx.firestore(), ADDED),
+        newShare(COLLAB_UID, 'synced', SYNCED_ID)
+      );
+    });
+    await assertSucceeds(deleteDoc(shareRef(asCollab(), ADDED)));
+  });
+
+  it('a member who took a board out leaves its share', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(shareRef(ctx.firestore(), ADDED), {
+        ...newShare(HOST_UID, 'synced', SYNCED_ID),
+        participants: { [COLLAB_UID]: { role: 'collaborator', joinedAt: 1 } },
+      });
+    });
+    await assertSucceeds(
+      updateDoc(shareRef(asCollab(), ADDED), {
+        [`participants.${COLLAB_UID}`]: deleteField(),
+      })
+    );
+  });
+
+  it('a viewer cannot add, remove or move boards in the list', async () => {
+    await assertFails(
+      updateDoc(ref(asViewer(), VIEW_ID), {
+        boards: [],
+        updatedAt: 2000,
+        updatedBy: VIEWER_UID,
+      })
+    );
+  });
+
+  it('a viewer joins a board the host added to a View-Only collection, only as viewer', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        shareRef(ctx.firestore(), ADDED),
+        newShare(HOST_UID, 'view-only', VIEW_ID)
+      );
+    });
+    const db = asViewer();
+    await assertSucceeds(getDoc(shareRef(db, ADDED)));
+    await assertFails(
+      updateDoc(shareRef(db, ADDED), {
+        [`participants.${VIEWER_UID}`]: { role: 'collaborator', joinedAt: 1 },
+      })
+    );
+    await assertSucceeds(
+      updateDoc(shareRef(db, ADDED), {
+        [`participants.${VIEWER_UID}`]: { role: 'viewer', joinedAt: 1 },
+      })
+    );
+  });
+
+  it('a stranger cannot add a board to the list', async () => {
+    await assertFails(
+      updateDoc(ref(asStranger(), SYNCED_ID), {
+        boards: twoBoards,
+        updatedAt: 2000,
+        updatedBy: STRANGER_UID,
+      })
+    );
+  });
+
+  it('a member cannot rename the shared collection once it ended', async () => {
+    await assertFails(
+      updateDoc(ref(asCollab(), ENDED_ID), {
+        name: 'Renamed',
+        updatedAt: 2000,
+        updatedBy: COLLAB_UID,
+      })
+    );
+  });
+
+  it('a member creates a board share at a fixed id only if none exists yet (two tabs)', async () => {
+    const db = asCollab();
+    const fixed = shareRef(db, `${SYNCED_ID}_board-1`);
+    const createIfAbsent = () =>
+      runTransaction(db, async (tx) => {
+        if (!(await tx.get(fixed)).exists()) {
+          tx.set(fixed, newShare(COLLAB_UID, 'synced', SYNCED_ID));
+        }
+      });
+    await assertSucceeds(createIfAbsent());
+    await assertSucceeds(createIfAbsent());
+  });
+
+  it('reading a share id nobody has used shows it missing, and signed-out callers still cannot read', async () => {
+    const snap = await assertSucceeds(
+      getDoc(shareRef(asStranger(), 'never-made'))
+    );
+    if (snap.exists()) throw new Error('expected a missing doc');
+    await assertFails(
+      getDoc(
+        shareRef(testEnv.unauthenticatedContext().firestore(), 'never-made')
+      )
+    );
   });
 });

@@ -1623,6 +1623,8 @@
     "delete": "Supprimer",
     "bulkDeleteConfirm": "Supprimer {{count}} élément(s) ? Cette action est irréversible.",
     "deleteBoardConfirm": "Supprimer ce Tableau ?",
+    "removeSharedBoardConfirm": "Retirer ce tableau pour tout le monde dans la collection partagée ?",
+    "removeSharedBoardConfirmLabel": "Retirer",
     "deleteCollectionConfirm": "Supprimer cette Collection ? Les Tableaux qu'elle contient seront déplacés vers le niveau parent.",
     "unpinBoard": "Désépingler le Tableau",
     "dragToMove": "Glisser pour déplacer",

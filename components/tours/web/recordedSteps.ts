@@ -55,7 +55,7 @@ export function toWebStep(
     imageIndex: 0,
     interactionType: 'tooltip',
     label: draftLabel(recorded.action, locator),
-    text: '',
+    text: recorded.tip?.trim() ?? '',
     web: {
       urlPattern: toUrlPattern(recorded.urlPattern) ?? '*',
       action: recorded.action,
