@@ -70,6 +70,8 @@ export const WEB_TOUR_PORT = 'web-tour';
 export interface WebTourWatchMessage {
   type: 'web-tour/watch';
   setId: string;
+  /** The protocol the page reads; sent only to an extension at protocol 4 or later, which rejects nothing else. */
+  protocol?: number;
 }
 
 /** Extension to page on the `web-tour` port: `role` found clearly (or by role and name, before protocol 4), `text`/`css` found only by that clue (before protocol 4), `score` a weak scored match, `none` the picture fallback. */
@@ -357,9 +359,26 @@ export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
 export function parseWebTourPortMessage(
   raw: unknown
 ): WebTourWatchMessage | null {
-  if (!isPlainObject(raw) || !onlyKeys(raw, ['type', 'setId'])) return null;
+  if (!isPlainObject(raw) || !onlyKeys(raw, ['type', 'setId', 'protocol'])) {
+    return null;
+  }
   if (raw.type !== 'web-tour/watch' || !str(raw.setId, 200) || !raw.setId) {
     return null;
   }
-  return { type: 'web-tour/watch', setId: raw.setId };
+  const { protocol } = raw;
+  if (protocol !== undefined && !Number.isInteger(protocol)) return null;
+  return {
+    type: 'web-tour/watch',
+    setId: raw.setId,
+    ...(typeof protocol === 'number' ? { protocol } : {}),
+  };
+}
+
+/** A progress message as a page at `protocol` reads it: older pages get a weak match as `text`, which they count as weak. */
+export function progressForPage(
+  msg: WebTourProgressMessage,
+  protocol: number
+): WebTourProgressMessage {
+  if (msg.type !== 'web-tour/step' || msg.match !== 'score') return msg;
+  return protocol >= SCORED_MATCH_PROTOCOL ? msg : { ...msg, match: 'text' };
 }

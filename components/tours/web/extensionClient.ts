@@ -1,4 +1,6 @@
 import {
+  EXTENSION_PROTOCOL_VERSION,
+  SCORED_MATCH_PROTOCOL,
   WEB_TOUR_PORT,
   type ExtensionProfile,
   type WebTourProgressMessage,
@@ -130,7 +132,8 @@ export async function startWebTour(
 export function watchWebTour(
   setId: string,
   onEvent: (event: WebTourPortEvent) => void,
-  onGone: () => void
+  onGone: () => void,
+  extensionProtocol = 0
 ): () => void {
   const id = extensionId();
   const rt = runtime();
@@ -153,7 +156,12 @@ export function watchWebTour(
   port.onDisconnect.addListener(() => {
     if (!closed) onGone();
   });
-  port.postMessage({ type: 'web-tour/watch', setId });
+  // Only a protocol 4 extension accepts the extra key.
+  port.postMessage(
+    extensionProtocol >= SCORED_MATCH_PROTOCOL
+      ? { type: 'web-tour/watch', setId, protocol: EXTENSION_PROTOCOL_VERSION }
+      : { type: 'web-tour/watch', setId }
+  );
   return () => {
     closed = true;
     port.disconnect();

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { draftLabel, pictureBlob, toWebStep } from './recordedSteps';
+import {
+  draftLabel,
+  pictureBlob,
+  scrubLocator,
+  toWebStep,
+} from './recordedSteps';
 
 describe('toWebStep', () => {
   it('makes a web step with a starter title and no tour binding', () => {
@@ -90,6 +95,22 @@ describe('toWebStep', () => {
       locator: { role: 'button', attrs: { ariaLabel: ' ' } },
     });
     expect(step.web?.locator).toEqual({ role: 'button' });
+  });
+});
+
+describe('scrubLocator', () => {
+  it('scrubs a repicked target the same way as a new recording', () => {
+    expect(
+      scrubLocator({
+        name: 'Open 2045831',
+        heading: 'Grades for jane.doe@orono.k12.mn.us',
+        attrs: { href: 'https://lms.example/students/2045831/grades' },
+      })
+    ).toEqual({
+      name: 'Open •••',
+      heading: 'Grades for •••',
+      attrs: { href: 'https://lms.example/students/*/grades' },
+    });
   });
 });
 

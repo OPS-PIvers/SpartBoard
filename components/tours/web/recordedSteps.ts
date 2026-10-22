@@ -34,7 +34,7 @@ export function draftLabel(
 }
 
 // The extension already scrubbed these; the page does it again rather than trust it.
-const scrubLocator = (l: WebTourLocator): WebTourLocator => {
+export const scrubLocator = (l: WebTourLocator): WebTourLocator => {
   const out: WebTourLocator = { ...l };
   for (const key of ['name', 'text', 'heading', 'pageTitle'] as const) {
     const v = scrubCapturedText(l[key]);

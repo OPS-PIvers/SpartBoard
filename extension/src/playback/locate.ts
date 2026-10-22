@@ -243,6 +243,8 @@ export const SCORE_FLOOR = 0.15;
 export const SCORE_MARGIN = 0.1;
 /** A lead below this can't tell two elements apart, so nothing is picked. */
 export const SCORE_TIE = 0.02;
+/** Twins tied on every other clue: the nearest plays when the next is this much farther from the recorded box. */
+export const TWIN_GAP = 0.02;
 const SIMILAR = 0.7;
 const FUZZY_GATHER = 0.6;
 const MAX_CANDIDATES = 300;
@@ -349,6 +351,8 @@ interface Scored {
   /** Clue weight matched before the heading and box, in the order the score adds them. */
   pre: number;
   boxPart: number;
+  /** Raw distance from the recorded box; Infinity without one. */
+  dist: number;
   /** Null until the heading is read. */
   headingPart: number | null;
   score: number;
@@ -394,20 +398,29 @@ function scoreOf(el: Element, index: number, w: Wanted, look: Lookups): Scored {
       }
     }
   }
-  const boxPart = w.box
-    ? C.box * Math.max(0, 1 - distance(el, w.box) / BOX_REACH)
-    : 0;
+  const dist = w.box ? distance(el, w.box) : Infinity;
+  const boxPart = w.box ? C.box * Math.max(0, 1 - dist / BOX_REACH) : 0;
   const s: Scored = {
     el,
     index,
     pre: got,
     boxPart,
+    dist,
     headingPart: w.heading ? null : 0,
     score: 0,
     identified,
   };
   finish(s, w);
   return s;
+}
+
+/** Adds the heading clue to one candidate, once. */
+function readHeading(s: Scored, w: Wanted, look: Lookups): void {
+  if (s.headingPart !== null || !w.heading) return;
+  s.headingPart =
+    CLUE_WEIGHTS.heading *
+    similarity(normalizeText(look.heading(s.el)), w.heading);
+  finish(s, w);
 }
 
 const byRank = (a: Scored, b: Scored) => b.score - a.score || a.index - b.index;
@@ -424,8 +437,7 @@ function pickOf(ranked: Scored[]): { best?: Scored; rival?: Scored } {
 
 /** Adds the heading clue best-first, stopping once no unread candidate could still reach the winner or the rival. */
 function addHeadings(scored: Scored[], w: Wanted, look: Lookups): Scored[] {
-  const heading = w.heading;
-  if (!heading) return [...scored].sort(byRank);
+  if (!w.heading) return [...scored].sort(byRank);
   const reach = CLUE_WEIGHTS.heading / w.total;
   const pending = [...scored].sort(byRank);
   const done: Scored[] = [];
@@ -441,10 +453,7 @@ function addHeadings(scored: Scored[], w: Wanted, look: Lookups): Scored[] {
         break;
     }
     pending.shift();
-    next.headingPart =
-      CLUE_WEIGHTS.heading *
-      similarity(normalizeText(look.heading(next.el)), heading);
-    finish(next, w);
+    readHeading(next, w, look);
     done.push(next);
     done.sort(byRank);
   }
@@ -466,20 +475,61 @@ function gather(
       if (similarity(accessibleName(el), name) >= FUZZY_GATHER) found.add(el);
     }
   }
-  if (w.text) for (const el of byText(doc, roots, w.text)) found.add(el);
-  if (w.css) for (const el of byCss(roots, w.css)) found.add(el);
+  // Exact hits on text, CSS path or an attribute are never cut by the cap.
+  const exact = new Set<Element>();
+  const hit = (el: Element) => {
+    found.add(el);
+    exact.add(el);
+  };
+  if (w.text) for (const el of byText(doc, roots, w.text)) hit(el);
+  if (w.css) for (const el of byCss(roots, w.css)) hit(el);
   if (w.attrs.length) {
     const selector = w.attrs.map(([k]) => ATTR_SELECTOR[k]).join(',');
     for (const el of queryAll(roots, selector)) {
       const have = look.attrs(el);
-      const hit = w.attrs.some(([k, v]) => {
+      const same = w.attrs.some(([k, v]) => {
         const mine = have[k];
         return !!mine && attrValue(k, mine) === v;
       });
-      if (hit) found.add(el);
+      if (same) hit(el);
     }
   }
-  return [...found].filter(isShown).slice(0, MAX_CANDIDATES);
+  const shown = [...found].filter(isShown);
+  if (shown.length <= MAX_CANDIDATES) return shown;
+  // Past the cap, the similar names nearest the recorded box stay, in page order.
+  const others = shown.filter((el) => !exact.has(el));
+  const room = Math.max(0, MAX_CANDIDATES - (shown.length - others.length));
+  const box = w.box;
+  const ranked = box
+    ? others
+        .map((el) => ({ el, d: distance(el, box) }))
+        .sort((a, b) => a.d - b.d)
+        .map(({ el }) => el)
+    : others;
+  const kept = new Set(ranked.slice(0, room));
+  return shown.filter((el) => exact.has(el) || kept.has(el));
+}
+
+/** Twins every clue but position scores alike: the one clearly nearest the recorded box plays, weakly (as the old chain picked list rows). */
+function nearestTwin(
+  scored: Scored[],
+  best: Scored,
+  w: Wanted,
+  look: Lookups
+): LocatorMatch | null {
+  if (!w.box) return null;
+  const same = (a: number, b: number) => Math.abs(a - b) < 1e-9;
+  const twins = scored.filter((s) => {
+    if (!s.identified || !same(s.pre, best.pre)) return false;
+    if (s !== best && (s.el.contains(best.el) || best.el.contains(s.el)))
+      return false;
+    readHeading(s, w, look);
+    readHeading(best, w, look);
+    return same(s.headingPart ?? 0, best.headingPart ?? 0);
+  });
+  const [near, next] = [...twins].sort((a, b) => a.dist - b.dist);
+  if (!near || !next || next.dist - near.dist < TWIN_GAP) return null;
+  return { el: near.el, weak: true, score: near.score };
 }
 
 /** Scores every candidate on every recorded clue; the best plays above the floor, and is clear only by the margin (C1, C2). */
@@ -496,6 +546,6 @@ export function locate(
   const { best, rival } = pickOf(addHeadings(scored, w, look));
   if (!best || best.score < SCORE_FLOOR) return null;
   const lead = rival ? best.score - rival.score : best.score;
-  if (lead < SCORE_TIE) return null;
+  if (lead < SCORE_TIE) return nearestTwin(scored, best, w, look);
   return { el: best.el, weak: lead < SCORE_MARGIN, score: best.score };
 }

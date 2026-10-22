@@ -7,6 +7,8 @@ import {
   REDACTED,
   redactStudentData,
   scrubCapturedText,
+  MAX_HREF_PATTERN,
+  toHrefPattern,
   toUrlPattern,
 } from './studentData';
 
@@ -145,5 +147,28 @@ describe('toUrlPattern', () => {
   it('refuses non-web pages', () => {
     expect(toUrlPattern('chrome://settings')).toBeNull();
     expect(toUrlPattern('not a url')).toBeNull();
+  });
+});
+
+describe('toHrefPattern', () => {
+  it('keeps the path with ids as *, and the origin only for another site', () => {
+    const page = 'https://orono.schoology.com/home';
+    expect(toHrefPattern('/course/7712345678/materials?f=1', page)).toBe(
+      '/course/*/materials'
+    );
+    expect(toHrefPattern('https://docs.google.com/a/b', page)).toBe(
+      'https://docs.google.com/a/b'
+    );
+    expect(toHrefPattern('javascript:void(0)', page)).toBeNull();
+  });
+
+  it('drops a pattern past the cap, origin included, so the click still records', () => {
+    const page = 'https://orono.schoology.com/home';
+    const path = '/' + 'a'.repeat(MAX_HREF_PATTERN - 10);
+    expect(toHrefPattern(path, page)).toBe(path);
+    const far = `https://sharepoint.example.com${path}`;
+    expect(toHrefPattern(far, page)).toBeNull();
+    // The page-side re-scrub of a stored pattern uses the same cap.
+    expect(toHrefPattern(far)).toBeNull();
   });
 });

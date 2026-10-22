@@ -5,8 +5,13 @@ import {
   canPlayWebTours,
   parsePing,
   parseWebTourPortEvent as parsePortEvent,
+  watchWebTour,
 } from './extensionClient';
-import { parseWebTourStartTour } from './extensionProtocol';
+import {
+  parseWebTourPortMessage,
+  parseWebTourStartTour,
+  progressForPage,
+} from './extensionProtocol';
 import {
   buildHandoff,
   eventFitsTour,
@@ -353,6 +358,66 @@ describe('hub', () => {
         ],
       })
     ).toBeNull();
+  });
+
+  it('tells weak matches to an older hub page as text, which it counts as weak', () => {
+    const weak = {
+      type: 'web-tour/step' as const,
+      setId: 's',
+      stepIndex: 0,
+      stepId: 'a',
+      match: 'score' as const,
+    };
+    expect(progressForPage(weak, 0)).toEqual({ ...weak, match: 'text' });
+    expect(progressForPage(weak, 3)).toEqual({ ...weak, match: 'text' });
+    expect(progressForPage(weak, 4)).toEqual(weak);
+    const clear = { ...weak, match: 'role' as const };
+    expect(progressForPage(clear, 0)).toEqual(clear);
+    expect(
+      parseWebTourPortMessage({ type: 'web-tour/watch', setId: 's' })
+    ).toEqual({
+      type: 'web-tour/watch',
+      setId: 's',
+    });
+    expect(
+      parseWebTourPortMessage({
+        type: 'web-tour/watch',
+        setId: 's',
+        protocol: 4,
+      })
+    ).toEqual({ type: 'web-tour/watch', setId: 's', protocol: 4 });
+    expect(
+      parseWebTourPortMessage({
+        type: 'web-tour/watch',
+        setId: 's',
+        protocol: 'x',
+      })
+    ).toBeNull();
+  });
+
+  it('declares its protocol on watch only to an extension that accepts it', () => {
+    vi.stubEnv('VITE_SPART_EXTENSION_ID', 'a'.repeat(32));
+    const posted: unknown[] = [];
+    const port = {
+      postMessage: (m: unknown) => posted.push(m),
+      disconnect: vi.fn(),
+      onMessage: { addListener: vi.fn() },
+      onDisconnect: { addListener: vi.fn() },
+    };
+    (globalThis as { chrome?: unknown }).chrome = {
+      runtime: { sendMessage: vi.fn(), connect: () => port },
+    };
+    try {
+      watchWebTour('s', vi.fn(), vi.fn(), 3)();
+      watchWebTour('s', vi.fn(), vi.fn(), 4)();
+      expect(posted).toEqual([
+        { type: 'web-tour/watch', setId: 's' },
+        { type: 'web-tour/watch', setId: 's', protocol: 4 },
+      ]);
+    } finally {
+      delete (globalThis as { chrome?: unknown }).chrome;
+      vi.unstubAllEnvs();
+    }
   });
 
   it('encodes bytes as base64', () => {

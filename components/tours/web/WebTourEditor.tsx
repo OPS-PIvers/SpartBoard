@@ -61,8 +61,8 @@ import {
   type TourPublishStatus,
 } from '@/components/tours/tourSnapshot';
 import { isWebTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
-import { isHardHit } from './studentData';
-import { toWebStep } from './recordedSteps';
+import { isHardHit, toUrlPattern } from './studentData';
+import { scrubLocator, toWebStep } from './recordedSteps';
 import { uploadRecordedPicture } from './intakeSave';
 import type { RecordedWebStep } from './recorderProtocol';
 import { useWebTourRecorder, type RecorderLink } from './useWebTourRecorder';
@@ -808,8 +808,8 @@ export const WebTourEditor: React.FC<{
     if (deleted.current) throw new Error('Tour deleted');
     const web = {
       ...target.web,
-      urlPattern: recorded.urlPattern,
-      locator: recorded.locator,
+      urlPattern: toUrlPattern(recorded.urlPattern) ?? '*',
+      locator: scrubLocator(recorded.locator),
       ...(picture ? { picture } : {}),
     };
     await saveNow({

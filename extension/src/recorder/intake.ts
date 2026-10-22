@@ -1,5 +1,6 @@
 import {
   parseIntakePageMessage,
+  stepForPage,
   type IntakeDraft,
   type IntakeTarget,
   type RecordedWebStep,
@@ -43,6 +44,10 @@ export function createIntake(origins: readonly string[], notify: () => void) {
   let portOrigin = origins[0] ?? '';
   let phase: IntakeStatus['phase'] = 'none';
   let drafts: IntakeDraft[] = [];
+  // The protocol the intake tab reviews; a tab from before protocol 4 never says.
+  let pageProtocol = 0;
+  const forPage = (steps: RecordedWebStep[]) =>
+    steps.map((s) => stepForPage(s, pageProtocol));
   let openedTab: number | null = null;
   // New-draft jobs whose first batch went out on this port, waiting for `intake/created`.
   const awaitingDraft = new Set<string>();
@@ -67,7 +72,7 @@ export function createIntake(origins: readonly string[], notify: () => void) {
           type: 'intake/save',
           jobId: job.jobId,
           target: job.target,
-          steps: job.steps.slice(0, BATCH),
+          steps: forPage(job.steps.slice(0, BATCH)),
         });
         continue;
       }
@@ -79,7 +84,7 @@ export function createIntake(origins: readonly string[], notify: () => void) {
           type: 'intake/save',
           jobId: job.jobId,
           target,
-          steps: job.steps.slice(i, i + BATCH),
+          steps: forPage(job.steps.slice(i, i + BATCH)),
         });
     }
   };
@@ -108,6 +113,7 @@ export function createIntake(origins: readonly string[], notify: () => void) {
       port?.disconnect();
       port = p;
       awaitingDraft.clear();
+      pageProtocol = 0;
       const url = p.sender?.url;
       if (url) portOrigin = new URL(url).origin;
       p.onMessage.addListener((raw) => {
@@ -118,6 +124,7 @@ export function createIntake(origins: readonly string[], notify: () => void) {
           if (msg.type === 'intake/ready') {
             phase = 'ready';
             drafts = msg.drafts;
+            pageProtocol = msg.protocol ?? 0;
             await flush();
           } else if (msg.type === 'intake/signin') {
             phase = 'signin';
@@ -170,6 +177,7 @@ export function createIntake(origins: readonly string[], notify: () => void) {
         port = null;
         phase = 'none';
         awaitingDraft.clear();
+        pageProtocol = 0;
         notify();
       });
     },

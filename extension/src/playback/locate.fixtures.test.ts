@@ -344,4 +344,61 @@ describe('a long page', () => {
     expect(headingWalks).toBeGreaterThan(0);
     expect(headingWalks).toBeLessThan(100);
   });
+
+  it('finds row 350 of 350 by its CSS path past the candidate cap', () => {
+    document.body.innerHTML = `<table><tbody>${Array.from(
+      { length: 350 },
+      () => '<tr><td>Quiz</td><td><button>Edit</button></td></tr>'
+    ).join('')}</tbody></table>`;
+    const buttons = $$('button');
+    buttons.forEach((b, i) => place(b, 900, i * 20, 40, 18));
+    const target = buttons[349];
+    const clues = record(target);
+    expect(clues.css).toContain('nth-of-type(350)');
+    expect(locate(document, old(clues))?.el).toBe(target);
+    // The box alone keeps the nearest rows past the cap too.
+    const { css: _css, ...noCss } = old(clues);
+    expect(locate(document, noCss)?.el).toBe(target);
+  });
+});
+
+describe('list rows of same-named actions', () => {
+  // Rows 40px apart with the same name and a CSS path both rows match, as in repeated components.
+  const rows = () => {
+    document.body.innerHTML = `<ul class="list">${['Unit 1', 'Unit 2', 'Unit 3']
+      .map(
+        (u) =>
+          `<li class="row"><span>${u}</span><button class="edit">Edit</button></li>`
+      )
+      .join('')}</ul>`;
+    $$('button').forEach((b, i) => place(b, 600, 200 + i * 40, 40, 24));
+  };
+  const clues = (y: number): WebLocatorClues => ({
+    role: 'button',
+    name: 'Edit',
+    css: 'li.row > button.edit',
+    box: {
+      x: 600 / innerWidth,
+      y: y / innerHeight,
+      w: 40 / innerWidth,
+      h: 24 / innerHeight,
+    },
+  });
+
+  it('plays the twin clearly nearest the recorded box, as the old chain did', () => {
+    rows();
+    const second = $$('button')[1];
+    expect(legacyLocate(document, clues(240))).toBe(second);
+    expect(locate(document, clues(240))).toMatchObject({
+      el: second,
+      weak: true,
+    });
+  });
+
+  it('still refuses twins with no recorded box, or a box halfway between', () => {
+    rows();
+    const { box: _box, ...noBox } = clues(240);
+    expect(locate(document, noBox)).toBeNull();
+    expect(locate(document, clues(220))).toBeNull();
+  });
 });

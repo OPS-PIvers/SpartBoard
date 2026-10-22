@@ -262,6 +262,49 @@ describe('recorder worker', () => {
     await vi.waitFor(() => expect(store['recorder.outbox']).toEqual({}));
   });
 
+  it('sends the newer clues only to an editor that said it reviews them', async () => {
+    const { worker, send } = await setup();
+    const step = {
+      id: 'step-1',
+      urlPattern: 'https://orono.schoology.com/home',
+      action: 'click',
+      locator: {
+        name: 'Courses',
+        heading: 'Home',
+        pageTitle: 'Home | Schoology',
+        attrs: { href: '/courses' },
+      },
+    };
+    const open = (hello: boolean) => {
+      const handlers: Listener[] = [];
+      const posted: unknown[] = [];
+      const port = {
+        postMessage: (m: unknown) => posted.push(m),
+        disconnect: vi.fn(),
+        onMessage: { addListener: (fn: Listener) => handlers.push(fn) },
+        onDisconnect: { addListener: vi.fn() },
+      };
+      worker.handleRecorderPort(port as unknown as chrome.runtime.Port);
+      if (hello)
+        handlers[0]({ type: 'recorder/hello', setId: 't1', protocol: 4 });
+      handlers[0]({ type: 'recorder/attach', setId: 't1', title: 'Tour' });
+      return posted;
+    };
+    const current = open(true);
+    const old = open(false);
+    await vi.waitFor(() => expect(old).toHaveLength(1));
+    await send(
+      { type: 'rec/send', setId: 't1', steps: [step] },
+      { url: PANEL_URL }
+    );
+    expect(current[1]).toEqual({ type: 'recorder/step', setId: 't1', step });
+    expect(old[1]).toEqual({
+      type: 'recorder/step',
+      setId: 't1',
+      step: { ...step, locator: { name: 'Courses' } },
+    });
+  });
+
   it('fixes a step SpartBoard asked about with one click, under the step id', async () => {
     const { worker, send, store } = await setup();
     const handlers: Listener[] = [];
