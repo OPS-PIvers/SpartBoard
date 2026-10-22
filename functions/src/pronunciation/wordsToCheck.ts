@@ -19,11 +19,9 @@ export * from './wordsToCheckPool';
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
-// Progress is client-written, so every number is clamped to a small whole count.
-const count = (value: unknown): number =>
-  typeof value === 'number' && Number.isFinite(value) && value > 0
-    ? Math.min(Math.round(value), 100000)
-    : 0;
+// Progress is client-written: an epoch-ms time, or 0 when missing or malformed.
+const timestamp = (value: unknown): number =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0;
 
 async function loadSpeakSessions(
   db: admin.firestore.Firestore
@@ -61,7 +59,7 @@ async function loadSpeakSessions(
       cards,
       progress: progressSnap.docs.map((p) => ({
         studentUid: p.id,
-        lastActiveAt: count(p.get('lastActiveAt')),
+        lastActiveAt: timestamp(p.get('lastActiveAt')),
         speak: p.get('speak') as unknown,
       })),
     });

@@ -23,6 +23,7 @@ import {
   pickAttemptNumber,
   type AttemptWrite,
 } from './quizAttemptHistory';
+import { __resetGradeIndexEnabledCache } from './gradebook/gradeIndex';
 import { makeStubFirestore, type StubData } from './testing/stubFirestore';
 
 type Db = Parameters<typeof applyAttemptWrite>[0];
@@ -386,6 +387,46 @@ describe('applyAttemptGradeWrite', () => {
       after,
     });
     expect(stub.get(SCORES)?.attempts).toHaveLength(1);
+  });
+
+  const ROW = 'grade_index/qs1__u1';
+  const ROW_ATTEMPTS = [
+    { n: 1, at: T, points: 0, max: 2, state: 'awaiting-grade' },
+  ];
+  const rescoreEarlierAttempt = async (indexOn: boolean) => {
+    __resetGradeIndexEnabledCache();
+    const stub = seed({
+      'admin_settings/gradebook_index': { enabled: indexOn },
+      [ROW]: { attempts: ROW_ATTEMPTS },
+    });
+    const first = done({ answers: [{ questionId: 'q1', answer: 'B' }] });
+    await apply(stub, write(undefined, first));
+    await apply(stub, write(first, reset(), T + 1));
+    const before = stub.get(COPY);
+    const after = { ...before, grading: { q1: { points: 2 } } };
+    stub.store.set(COPY, after);
+    await applyAttemptGradeWrite(stub.db as unknown as Db, {
+      sessionId: 'qs1',
+      responseKey: 'u1',
+      n: 1,
+      before,
+      after,
+    });
+    return stub;
+  };
+
+  it('rescores the Gradebook row’s copy of an earlier attempt too', async () => {
+    const stub = await rescoreEarlierAttempt(true);
+    expect(stub.get(ROW)?.attempts).toEqual(stub.get(SCORES)?.attempts);
+    expect(stub.get('grade_index_sessions/qs1')).toMatchObject({
+      kind: 'quiz',
+    });
+  });
+
+  it('leaves the Gradebook row alone while the index is off', async () => {
+    const stub = await rescoreEarlierAttempt(false);
+    expect(stub.get(ROW)?.attempts).toEqual(ROW_ATTEMPTS);
+    expect(stub.get('grade_index_sessions/qs1')).toBeUndefined();
   });
 
   it('ignores open copies and writes that leave grading alone', async () => {

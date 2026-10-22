@@ -2,8 +2,14 @@
 import * as admin from 'firebase-admin';
 import * as logger from 'firebase-functions/logger';
 import './functionsInit';
-import { loadSessionContext, stableStringify } from './gradebook/gradeIndex';
-import { mergeAttempts } from './gradebook/gradeRowMath';
+import {
+  GRADE_INDEX,
+  isGradeIndexEnabled,
+  loadSessionContext,
+  markSessionDirty,
+  stableStringify,
+} from './gradebook/gradeIndex';
+import { mergeAttempts, rowId } from './gradebook/gradeRowMath';
 import { isGlobalFeatureGranted } from './quizMediaArchive';
 import type { IndexAttempt } from './gradebook/types';
 
@@ -290,7 +296,9 @@ export async function applyAttemptGradeWrite(
       .collection(QUIZ_ATTEMPTS_SUBCOLLECTION)
       .doc(String(w.n));
     const listRef = scoresRef(db, w.sessionId, w.responseKey);
-    await db.runTransaction(async (tx) => {
+    // The index kill switch also covers this row write; the score list doesn't depend on it.
+    const indexOn = await isGradeIndexEnabled(db);
+    const rowRescored = await db.runTransaction(async (tx) => {
       const [copySnap, list] = await Promise.all([
         tx.get(copyRef),
         tx.get(listRef),
@@ -298,26 +306,48 @@ export async function applyAttemptGradeWrite(
       // Score the copy as it is now, so out-of-order events settle on the latest grade.
       const fresh: Doc | undefined = copySnap.data();
       // No list means the response was removed or never scored.
-      if (!fresh || !list.exists) return;
+      if (!fresh || !list.exists) return false;
       const studentUid =
         typeof fresh.studentUid === 'string' ? fresh.studentUid : '';
+      // The Gradebook row keeps its own attempt list, so it takes the same rescore.
+      const indexRef =
+        indexOn && studentUid
+          ? db.collection(GRADE_INDEX).doc(rowId(w.sessionId, studentUid))
+          : null;
+      const indexSnap = indexRef ? await tx.get(indexRef) : null;
       // A stored (published) score would mask the new grade.
       const score = ctx.score(studentUid, {
         ...fresh,
         score: null,
         status: 'completed',
       });
-      if (!score) return;
+      if (!score) return false;
+      const rescored = { ...score, attemptNumber: w.n };
+      const now = Date.now();
       const entries: unknown = list.data()?.attempts;
       tx.set(listRef, {
         ...list.data(),
         attempts: mergeAttempts(
           Array.isArray(entries) ? (entries as IndexAttempt[]) : [],
-          { ...score, attemptNumber: w.n }
+          rescored
         ),
-        updatedAt: Date.now(),
+        updatedAt: now,
       });
+      if (indexRef && indexSnap?.exists) {
+        const rowAttempts: unknown = indexSnap.data()?.attempts;
+        tx.update(indexRef, {
+          attempts: mergeAttempts(
+            Array.isArray(rowAttempts) ? (rowAttempts as IndexAttempt[]) : [],
+            rescored
+          ),
+          updatedAt: now,
+        });
+        return true;
+      }
+      return false;
     });
+    // Requeue the session so a recompute this update would skip still runs and the cell catches up.
+    if (rowRescored) await markSessionDirty(db, 'quiz', w.sessionId);
   } catch (err) {
     logger.error('quizAttemptHistory: grade rescore failed', {
       sessionId: w.sessionId,
