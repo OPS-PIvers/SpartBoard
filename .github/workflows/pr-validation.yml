@@ -136,6 +136,8 @@ jobs:
         run: pnpm run format:check
       - if: matrix.check != 'lint-app' && !cancelled()
         run: pnpm run lint:functions
+      - if: matrix.check != 'lint-app' && !cancelled()
+        run: pnpm run lint:extension
 
   # The root suite is ~840 jsdom files; sharding across runners cuts wall time
   # roughly by the shard count. Each shard uploads its JSON report so the
@@ -375,6 +377,30 @@ jobs:
       - name: Build project
         run: pnpm run build:all
 
+  # Builds both Chrome extension listings and keeps the zips as the run's artifact (docs/plans/CHROME_EXTENSION.md D7).
+  extension:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-24.04
+    name: Chrome Extension
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup
+
+      - name: Build and zip the extension
+        run: pnpm run build:extension
+
+      - name: Upload extension zips
+        uses: actions/upload-artifact@v4
+        with:
+          name: chrome-extension
+          path: extension/dist/*.zip
+          if-no-files-found: error
+          retention-days: 14
+
   summary:
     needs:
       [
@@ -389,6 +415,7 @@ jobs:
         grader-scope,
         widget-grader-gates,
         tour-anchors,
+        extension,
       ]
     runs-on: ubuntu-24.04
     if: always()

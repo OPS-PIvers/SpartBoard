@@ -115,6 +115,8 @@ jobs:
         run: NODE_OPTIONS=--max-old-space-size=5120 pnpm run lint:app
       - if: matrix.check == 'functions'
         run: pnpm run lint:functions
+      - if: matrix.check == 'functions'
+        run: pnpm run lint:extension
       - if: matrix.check == 'format'
         run: pnpm run format:check
 
