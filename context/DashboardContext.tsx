@@ -3992,7 +3992,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     recordedHost: string | undefined
   ) => {
     if (isAuthBypass || !user) return;
-    if (!canAccessFeature('shared-board-live-walls')) return;
+    if (!canAccessFeature?.('shared-board-live-walls')) return;
     if (closedShareIdsRef.current.has(shareId)) return;
     closedShareIdsRef.current.add(shareId);
     const uid = user.uid;
@@ -4316,7 +4316,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       // The board's members stop reading this teacher's walls.
-      if (user && canAccessFeature('shared-board-live-walls')) {
+      if (user && canAccessFeature?.('shared-board-live-walls')) {
         closedShareIdsRef.current.add(shareId);
         void closeWallsToBoard(user.uid, shareId, new Set()).catch((err) => {
           console.error('Failed to close walls to the left board:', err);
