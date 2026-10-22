@@ -338,6 +338,85 @@ describe('playback controller, review fixes', () => {
     expect(await c.isPlaying(second)).toBe(true);
   });
 
+  it('posts a revisited step again so the watcher sees the current step', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    await c.committed(7, 0, 'https://a.example/home');
+    const found = async (clue: 'role' | 'text') =>
+      c.frameReport(7, 0, {
+        type: 'wt:found',
+        token: h.lastSeek().msg.token as string,
+        clue,
+        tied: false,
+        url: '',
+      });
+    await found('role');
+    await c.overlayAction(7, 0, 'next');
+    await c.committed(7, 0, 'https://a.example/course/1');
+    await found('text');
+    await c.overlayAction(7, 0, 'back');
+    await c.committed(7, 0, 'https://a.example/home');
+    await found('role');
+    expect(h.posts.at(-1)).toEqual({
+      type: 'web-tour/step',
+      setId: 'set1',
+      stepIndex: 0,
+      stepId: 'a',
+      match: 'role',
+    });
+  });
+
+  it('counts a step left on the wrong page as a miss', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    await c.committed(7, 0, 'https://a.example/login');
+    await c.overlayAction(7, 0, 'next');
+    expect(h.posts).toContainEqual({
+      type: 'web-tour/step',
+      setId: 'set1',
+      stepIndex: 0,
+      stepId: 'a',
+      match: 'none',
+    });
+  });
+
+  it('does not count a step left before its page was opened', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    await c.committed(7, 0, 'https://a.example/home');
+    await c.overlayAction(7, 0, 'next');
+    expect(h.lastRender()).toMatchObject({ status: 'wrong-page' });
+    await c.overlayAction(7, 0, 'exit');
+    expect(h.posts.some((p) => p.type === 'web-tour/step')).toBe(false);
+  });
+
+  it('counts the wrong-page step as a miss when another tour starts', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    await c.committed(7, 0, 'https://a.example/login');
+    await c.start(parsed());
+    expect(h.posts.map((p) => p.type)).toEqual([
+      'web-tour/step',
+      'web-tour/exit',
+    ]);
+  });
+
+  it('counts the wrong-page step as a miss when the tab closes', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    await c.committed(7, 0, 'https://a.example/login');
+    await c.tabClosed(7);
+    expect(h.posts.map((p) => p.type)).toEqual([
+      'web-tour/step',
+      'web-tour/closed',
+    ]);
+  });
+
   it('drops pictures that would overflow the session store', async () => {
     const h = fakeHost();
     const c = createPlaybackController(h.host);
