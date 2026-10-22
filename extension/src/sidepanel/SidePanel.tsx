@@ -241,7 +241,8 @@ export const SidePanel: React.FC = () => {
                       </span>
                       <button
                         type="button"
-                        className="shrink-0 text-slate-600 underline hover:text-slate-900"
+                        disabled={busy}
+                        className="shrink-0 text-slate-600 underline hover:text-slate-900 disabled:opacity-50"
                         onClick={() =>
                           setSteps((all) => all.filter((x) => x !== s))
                         }
@@ -253,16 +254,22 @@ export const SidePanel: React.FC = () => {
                       {hostOf(s.capture.urlPattern)}
                     </span>
                     {s.pending ? null : s.picture ? (
-                      <BlurBoxes
-                        picture={s.picture}
-                        boxes={s.blur}
-                        label={`Picture for step ${i + 1}`}
-                        onChange={(blur) =>
-                          setSteps((all) =>
-                            all.map((x) => (x === s ? { ...x, blur } : x))
-                          )
-                        }
-                      />
+                      // Locked while sending, so what goes out matches what is shown.
+                      <div
+                        className={busy ? 'pointer-events-none opacity-60' : ''}
+                      >
+                        <BlurBoxes
+                          picture={s.picture}
+                          boxes={s.blur}
+                          label={`Picture for step ${i + 1}`}
+                          onChange={(blur) => {
+                            if (busy) return;
+                            setSteps((all) =>
+                              all.map((x) => (x === s ? { ...x, blur } : x))
+                            );
+                          }}
+                        />
+                      </div>
                     ) : (
                       <span className="text-xs text-slate-500">No picture</span>
                     )}
