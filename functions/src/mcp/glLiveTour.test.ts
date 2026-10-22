@@ -19,6 +19,8 @@ import {
   tourStep,
   tourPublishState,
   updateBookends,
+  healthOf,
+  loadTour,
 } from './glLiveTour';
 import type { Step } from './glTools';
 import { buildTourSetup } from './tourSetup';
@@ -672,5 +674,58 @@ describe('notes, playtest and health', () => {
       completed: 0,
       missed: [],
     });
+  });
+});
+
+describe('web tours', () => {
+  const ctxWith = (docs: Record<string, Record<string, unknown>>) =>
+    ({
+      uid: 'u1',
+      email: 'admin@school.org',
+      grantId: 'g',
+      db: {
+        doc: (path: string) => ({
+          get: () =>
+            Promise.resolve({
+              exists: path in docs,
+              data: () => docs[path],
+              get: (k: string) => docs[path]?.[k],
+            }),
+        }),
+        collection: () => {
+          throw new Error('runs are never read for a web tour');
+        },
+      },
+    }) as unknown as ToolContext;
+
+  it('refuses a web tour in every live tour tool', async () => {
+    const ctx = ctxWith({
+      'building_guided_learning/t1': {
+        mode: 'tour',
+        surface: 'web',
+        steps: [],
+      },
+      'building_guided_learning/t2': { mode: 'tour', steps: [] },
+    });
+    await expect(loadTour(ctx, 't1')).rejects.toThrow(/web tour/);
+    await expect(loadTour(ctx, 't2')).resolves.toMatchObject({
+      set: { id: 't2' },
+    });
+  });
+
+  it('leaves health out for a web snapshot', async () => {
+    const ctx = ctxWith({
+      'building_guided_learning_tours/t1': {
+        surface: 'web',
+        set: { steps: [{ id: 'a' }] },
+        publishedAt: 1,
+      },
+      'building_guided_learning_tours/t3': {
+        set: { surface: 'web', steps: [{ id: 'a' }] },
+        publishedAt: 1,
+      },
+    });
+    await expect(healthOf(ctx, 't1')).resolves.toBeUndefined();
+    await expect(healthOf(ctx, 't3')).resolves.toBeUndefined();
   });
 });

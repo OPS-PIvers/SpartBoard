@@ -57,6 +57,7 @@ import {
 import { TOUR_ANCHOR_QUEUE } from '../tourAnchorQueue';
 import { CREATES, OVERWRITES, READ_ONLY, iso, run } from './toolKit';
 import { issuePictureTicket } from './tourPictures';
+import { isWebTour, isWebTourSnapshot, WEB_TOUR_REFUSAL } from './webTours';
 import { tourPlaytestKey } from './tourPlaytest';
 import {
   narrateTourSteps,
@@ -570,7 +571,7 @@ export function mergeTourSteps(
 const FIND_TOURS =
   'list_guided_learning with source "building" and kind "live_tour" lists every live tour with its set_id.';
 
-async function loadTour(ctx: ToolContext, setId: string) {
+export async function loadTour(ctx: ToolContext, setId: string) {
   const loaded = await loadSet(ctx, 'building', setId).catch((err) => {
     if (err instanceof ToolError)
       throw new ToolError(`No live tour has that set_id. ${FIND_TOURS}`);
@@ -580,13 +581,14 @@ async function loadTour(ctx: ToolContext, setId: string) {
     throw new ToolError(
       `That set is a Guided Learning set, not a live tour; read it with get_guided_learning. ${FIND_TOURS}`
     );
+  if (isWebTour(loaded.set)) throw new ToolError(WEB_TOUR_REFUSAL);
   return loaded;
 }
 
 /** The published version's runs, as Health counts them. */
-async function healthOf(ctx: ToolContext, setId: string) {
+export async function healthOf(ctx: ToolContext, setId: string) {
   const tour = await ctx.db.doc(`${GL_TOURS}/${setId}`).get();
-  if (!tour.exists) return undefined;
+  if (!tour.exists || isWebTourSnapshot(tour.data())) return undefined;
   const at: unknown = tour.get('publishedAt');
   const publishedAt = typeof at === 'number' ? at : 0;
   const published = tour.get('set') as { steps?: unknown } | undefined;
@@ -689,6 +691,7 @@ const dryRunSteps = (steps: readonly Step[]): DryRunStep[] =>
     label: typeof s.label === 'string' ? s.label : undefined,
     text: typeof s.text === 'string' ? s.text : undefined,
     tour: s.tour as DryRunStep['tour'],
+    ...(s.web !== undefined ? { web: s.web } : {}),
   }));
 
 /** Runs the playback check on stored steps. */

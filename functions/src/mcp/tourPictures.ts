@@ -6,6 +6,7 @@ import { publicOrigin } from './config';
 import { ToolError, type ToolContext } from './activity';
 import { isAdmin, loadSet, saveSet, type GlSet } from './glTools';
 import { grantRef } from './grants';
+import { isWebTour, WEB_TOUR_REFUSAL } from './webTours';
 import { GL_MEDIA_MARKER } from '../glMediaReferences';
 
 export const PICTURE_TICKETS = 'mcp_tour_picture_tickets';
@@ -121,6 +122,7 @@ export async function savePictures(
   const loaded = await loadSet(ctx, 'building', setId);
   if (loaded.set.mode !== 'tour')
     throw new ToolError('That set is not a live tour.');
+  if (isWebTour(loaded.set)) throw new ToolError(WEB_TOUR_REFUSAL);
   const steps = loaded.set.steps as Step[];
   const bucket = admin.storage().bucket();
   const saved: string[] = [];

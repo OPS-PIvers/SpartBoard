@@ -139,4 +139,17 @@ describe('HelpResourceViewer live tours', () => {
     render(<HelpResourceViewer item={item} onBack={vi.fn()} />);
     expect(await screen.findByText('player')).toBeInTheDocument();
   });
+
+  it('never plays a web tour', async () => {
+    h.loadBuildingSet.mockResolvedValue({
+      ...set(false),
+      mode: 'tour',
+      surface: 'web',
+    });
+    render(<HelpResourceViewer item={item} onBack={vi.fn()} />);
+    expect(
+      await screen.findByText('This activity is no longer available')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('player')).not.toBeInTheDocument();
+  });
 });

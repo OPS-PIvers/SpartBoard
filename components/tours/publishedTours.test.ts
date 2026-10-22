@@ -25,7 +25,15 @@ vi.mock('@/hooks/useGuidedLearning', () => ({
   loadBuildingSet: h.loadBuildingSet,
 }));
 
-import { loadRunnableTour, publishTour } from './publishedTours';
+import { onSnapshot } from 'firebase/firestore';
+import {
+  __resetPublishedToursForTests,
+  isTourRunnable,
+  loadPublishedTour,
+  loadRunnableTour,
+  publishTour,
+  watchTours,
+} from './publishedTours';
 
 const tourSet = (label: string, extra: Partial<GuidedLearningSet> = {}) =>
   ({
@@ -116,5 +124,70 @@ describe('loadRunnableTour', () => {
     h.docs.set('set-1', { set: 'nope' });
     h.loadBuildingSet.mockResolvedValue(tourSet('Legacy'));
     expect(await loadRunnableTour('set-1')).toBeNull();
+  });
+});
+
+describe('web tours', () => {
+  const webStep = {
+    id: 'w1',
+    label: 'Open grades',
+    xPct: 0,
+    yPct: 0,
+    imageIndex: 0,
+    interactionType: 'tooltip' as const,
+    web: {
+      urlPattern: 'https://app.schoology.com/course/*',
+      locator: { role: 'link', name: 'Grades' },
+      action: 'click' as const,
+    },
+  };
+  const webSet = () =>
+    tourSet('unused', { mode: 'tour', surface: 'web', steps: [webStep] });
+
+  it('never runs a snapshot marked web at the top level', async () => {
+    h.docs.set('set-1', {
+      set: { ...tourSet('Looks like a board tour'), mode: 'tour' },
+      surface: 'web',
+      publishedAt: 5,
+    });
+    expect(await loadRunnableTour('set-1')).toBeNull();
+    // The hub still reads it, as a web tour.
+    expect((await loadPublishedTour('set-1'))?.set.surface).toBe('web');
+  });
+
+  it('never runs a snapshot whose set is a web tour', async () => {
+    h.docs.set('set-1', { set: webSet(), publishedAt: 5 });
+    expect(await loadRunnableTour('set-1')).toBeNull();
+  });
+
+  it('never runs a web set from the pre-publishing fallback', async () => {
+    h.docs.clear();
+    h.loadBuildingSet.mockResolvedValue(webSet());
+    expect(await loadRunnableTour('set-1')).toBeNull();
+  });
+
+  it('reports a watched web snapshot as not runnable, even with board steps', () => {
+    __resetPublishedToursForTests();
+    vi.mocked(onSnapshot).mockImplementation(((
+      ref: { id: string },
+      next: (snap: ReturnType<typeof snapOf>) => void
+    ) => {
+      next(snapOf(ref.id));
+      return () => undefined;
+    }) as unknown as typeof onSnapshot);
+    h.docs.set('set-1', {
+      set: { ...tourSet('Board step'), mode: 'tour' },
+      surface: 'web',
+      publishedAt: 5,
+    });
+    h.docs.set('set-2', {
+      set: { ...tourSet('Board step'), mode: 'tour' },
+      publishedAt: 5,
+    });
+    const stop = watchTours(['set-1', 'set-2'], () => undefined);
+    expect(isTourRunnable('set-1')).toBe(false);
+    expect(isTourRunnable('set-2')).toBe(true);
+    stop();
+    __resetPublishedToursForTests();
   });
 });
