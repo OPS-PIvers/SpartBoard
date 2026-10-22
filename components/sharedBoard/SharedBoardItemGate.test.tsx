@@ -8,6 +8,7 @@ import type { SharedBoardItemState } from '@/hooks/useSharedBoardItem';
 import {
   SharedBoardItemGate,
   SharedBoardItemPanel,
+  type SharedBoardLocal,
 } from './SharedBoardItemGate';
 
 const flush = () => Promise.resolve();
@@ -53,10 +54,11 @@ const foreign: SharedBoardItemState<{ note: string }> = {
 };
 
 /** Stands in for the teacher widget: shows its config and navigates through updateWidget. */
-const OwnWidget: React.FC<{ widget: WidgetData; assignOnOpen?: string }> = ({
+const OwnWidget: React.FC<{ widget: WidgetData; local?: SharedBoardLocal }> = ({
   widget: w,
-  assignOnOpen,
+  local,
 }) => {
+  const assignOnOpen = local?.assignOnOpen;
   const ctx = useContext(DashboardContext);
   const config = w.config as { view?: string };
   return (
@@ -69,34 +71,36 @@ const OwnWidget: React.FC<{ widget: WidgetData; assignOnOpen?: string }> = ({
       >
         go-monitor
       </button>
+      {local && (
+        <button type="button" onClick={local.onAssignOpened}>
+          opened
+        </button>
+      )}
     </div>
   );
 };
 
-const renderGate = (onCopy = vi.fn(() => Promise.resolve('q1-copy'))) =>
-  render(
-    <DashboardContext.Provider value={dashboard}>
-      <SharedBoardItemGate<{ note: string }>
-        widget={widget}
-        kind="quiz"
-        itemId="q1"
-        label="quiz"
-        libraryConfig={{ view: 'manager', selectedQuizId: null }}
-        renderShared={(item, onCopied) => (
-          <SharedBoardItemPanel
-            label="quiz"
-            onCopy={onCopy}
-            onCopied={onCopied}
-          >
-            <span>shared:{item.payload.note}</span>
-          </SharedBoardItemPanel>
-        )}
-        renderOwn={(w, assignOnOpen) => (
-          <OwnWidget widget={w} assignOnOpen={assignOnOpen} />
-        )}
-      />
-    </DashboardContext.Provider>
-  );
+const gateTree = (onCopy = vi.fn(() => Promise.resolve('q1-copy'))) => (
+  <DashboardContext.Provider value={dashboard}>
+    <SharedBoardItemGate<{ note: string }>
+      widget={widget}
+      kind="quiz"
+      itemId="q1"
+      ownerUid="host"
+      label="quiz"
+      libraryConfig={{ view: 'manager', selectedQuizId: null }}
+      renderShared={(item, onCopied) => (
+        <SharedBoardItemPanel label="quiz" onCopy={onCopy} onCopied={onCopied}>
+          <span>shared:{item.payload.note}</span>
+        </SharedBoardItemPanel>
+      )}
+      renderOwn={(w, local) => <OwnWidget widget={w} local={local} />}
+    />
+  </DashboardContext.Provider>
+);
+
+const renderGate = (onCopy?: () => Promise<string>) =>
+  render(gateTree(onCopy && vi.fn(onCopy)));
 
 beforeEach(() => {
   realUpdate.mockReset();
@@ -141,6 +145,19 @@ describe('SharedBoardItemGate', () => {
     fireEvent.click(screen.getByText('go-monitor'));
     expect(screen.getByText('own:monitor')).toBeTruthy();
     expect(realUpdate).not.toHaveBeenCalled();
+  });
+
+  it('opens Assign once, and stays in the viewer library when the colleague moves on', async () => {
+    sharedState = foreign;
+    const { rerender } = renderGate();
+    fireEvent.click(screen.getByRole('button', { name: /Assign/ }));
+    await act(flush);
+    fireEvent.click(screen.getByText('opened'));
+    expect(screen.queryByText(/^assign:/)).toBeNull();
+    fireEvent.click(screen.getByText('go-monitor'));
+    sharedState = { status: 'off', item: null };
+    rerender(gateTree());
+    expect(screen.getByText('own:monitor')).toBeTruthy();
   });
 
   it('goes back to the colleague item', async () => {

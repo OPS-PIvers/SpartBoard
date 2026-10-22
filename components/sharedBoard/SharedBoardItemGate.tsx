@@ -161,11 +161,20 @@ const LocalWidgetScope: React.FC<LocalWidgetScopeProps> = ({
   );
 };
 
+/** Handed to the teacher widget while it shows the viewer's own library after Assign. */
+export interface SharedBoardLocal {
+  /** The linked copy to open in Assign once it is in the library; cleared once opened. */
+  assignOnOpen?: string;
+  onAssignOpened: () => void;
+}
+
 interface SharedBoardItemGateProps<T> {
   widget: WidgetData;
   kind: SharedBoardItemKind;
   /** The item the widget shows, or null when it shows the library. */
   itemId: string | null | undefined;
+  /** Whose library the config says the item is in. */
+  ownerUid: string | null | undefined;
   label: string;
   /** Config for the viewer's own library view after Assign. */
   libraryConfig: WidgetConfigRecord;
@@ -173,36 +182,35 @@ interface SharedBoardItemGateProps<T> {
     item: SharedBoardItemDoc<T>,
     onCopied: (copyId: string) => void
   ) => React.ReactNode;
-  renderOwn: (widget: WidgetData, assignOnOpen?: string) => React.ReactNode;
+  renderOwn: (widget: WidgetData, local?: SharedBoardLocal) => React.ReactNode;
 }
 
 /**
  * Renders the teacher widget unless another board member's item is open in it.
  * Assign switches this viewer, and only this viewer, to their own library with
- * the copy's assign step open.
+ * the copy's assign step open, until they press Back.
  */
 export function SharedBoardItemGate<T>({
   widget,
   kind,
   itemId,
+  ownerUid,
   label,
   libraryConfig,
   renderShared,
   renderOwn,
 }: SharedBoardItemGateProps<T>): React.ReactElement {
-  const shared = useSharedBoardItem<T>(kind, itemId);
+  const shared = useSharedBoardItem<T>(kind, ownerUid, itemId);
   const [own, setOwn] = useState<{
-    itemId: string;
     copyId: string;
+    assignPending: boolean;
   } | null>(null);
 
-  if (shared.status !== 'foreign' || !shared.item || !itemId) {
-    return <>{renderOwn(widget)}</>;
-  }
-  if (own && own.itemId === itemId) {
+  // Kept while the colleague's widget moves on, so an assign or monitor in progress stays put.
+  if (own) {
     return (
       <LocalWidgetScope
-        key={`${itemId}:${own.copyId}`}
+        key={own.copyId}
         widget={{
           ...widget,
           config: {
@@ -213,11 +221,26 @@ export function SharedBoardItemGate<T>({
         label={label}
         onBack={() => setOwn(null)}
       >
-        {(local) => renderOwn(local, own.copyId)}
+        {(local) =>
+          renderOwn(local, {
+            ...(own.assignPending ? { assignOnOpen: own.copyId } : {}),
+            onAssignOpened: () =>
+              setOwn((prev) =>
+                prev ? { ...prev, assignPending: false } : prev
+              ),
+          })
+        }
       </LocalWidgetScope>
     );
   }
+  if (shared.status !== 'foreign' || !shared.item || !itemId) {
+    return <>{renderOwn(widget)}</>;
+  }
   return (
-    <>{renderShared(shared.item, (copyId) => setOwn({ itemId, copyId }))}</>
+    <>
+      {renderShared(shared.item, (copyId) =>
+        setOwn({ copyId, assignPending: true })
+      )}
+    </>
   );
 }

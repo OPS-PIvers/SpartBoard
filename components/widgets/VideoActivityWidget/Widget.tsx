@@ -65,7 +65,10 @@ import { writePlcAssignmentIndexEntry } from '@/hooks/usePlcAssignmentIndex';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareVideoActivityWidget } from './SubShareWidget';
 import { SharedBoardVideoActivityView } from './SharedBoardVideoActivityView';
-import { SharedBoardItemGate } from '@/components/sharedBoard/SharedBoardItemGate';
+import {
+  SharedBoardItemGate,
+  type SharedBoardLocal,
+} from '@/components/sharedBoard/SharedBoardItemGate';
 import { useSharedBoardItemPublisher } from '@/hooks/useSharedBoardItem';
 import {
   sharedBoardVideoActivityPayload,
@@ -137,9 +140,9 @@ async function copyUrlToClipboard(
 
 const TeacherVideoActivityWidget: React.FC<{
   widget: WidgetData;
-  /** A linked copy from a shared board, opened in Assign once it is in the library. */
-  assignOnOpen?: string;
-}> = ({ widget, assignOnOpen }) => {
+  /** Set while the viewer's own library stands in for a colleague's activity on a shared board. */
+  local?: SharedBoardLocal;
+}> = ({ widget, local }) => {
   const { updateWidget, addToast, rosters, updateRoster } = useDashboard();
   const { showConfirm } = useDialog();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
@@ -172,7 +175,7 @@ const TeacherVideoActivityWidget: React.FC<{
   } = useVideoActivity(user?.uid);
   // Co-teachers on a shared board read the open activity from this copy.
   const boardActivity =
-    !assignOnOpen && videoActivityItemView(config)
+    !local && videoActivityItemView(config)
       ? activities.find((a) => a.id === config.selectedActivityId)
       : undefined;
   useSharedBoardItemPublisher({
@@ -186,6 +189,9 @@ const TeacherVideoActivityWidget: React.FC<{
         await loadActivityData(boardActivity.driveFileId)
       );
     },
+    stampedOwnerUid: config.selectedActivityOwnerUid,
+    stampOwner: (uid) =>
+      updateWidget(widget.id, { config: { selectedActivityOwnerUid: uid } }),
   });
 
   const { plcs } = usePlcs();
@@ -237,10 +243,11 @@ const TeacherVideoActivityWidget: React.FC<{
   // A make-up assign waiting for the manager view to open it (D18).
   const [pendingAssign, setPendingAssign] =
     useState<VideoActivityPendingAssign | null>(() =>
-      assignOnOpen
+      local?.assignOnOpen
         ? {
-            key: `shared-board:${assignOnOpen}`,
-            activityId: assignOnOpen,
+            key: `shared-board:${local.assignOnOpen}`,
+            activityId: local.assignOnOpen,
+            keepLastPacing: true,
             rosterIds: [],
             targetStudents: [],
           }
@@ -985,7 +992,10 @@ const TeacherVideoActivityWidget: React.FC<{
           return sessionId;
         }}
         pendingAssign={pendingAssign}
-        onPendingAssignDone={() => setPendingAssign(null)}
+        onPendingAssignDone={() => {
+          if (pendingAssign?.keepLastPacing) local?.onAssignOpened();
+          setPendingAssign(null);
+        }}
         lastRosterIdsByActivityId={config.lastRosterIdsByActivityId}
         lastClassIdsByActivityId={config.lastClassIdsByActivityId}
         lastClassIdByActivityId={config.lastClassIdByActivityId}
@@ -1513,6 +1523,7 @@ const VIDEO_ACTIVITY_LIBRARY_CONFIG = {
   view: 'manager',
   selectedActivityId: null,
   selectedActivityTitle: null,
+  selectedActivityOwnerUid: null,
   resultsSessionId: null,
 } satisfies Partial<VideoActivityConfig>;
 
@@ -1526,13 +1537,14 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
       widget={widget}
       kind="videoActivity"
       itemId={videoActivityItemView(widget.config as VideoActivityConfig)}
+      ownerUid={(widget.config as VideoActivityConfig).selectedActivityOwnerUid}
       label="video activity"
       libraryConfig={VIDEO_ACTIVITY_LIBRARY_CONFIG}
       renderShared={(item, onCopied) => (
         <SharedBoardVideoActivityView item={item} onCopied={onCopied} />
       )}
-      renderOwn={(own, assignOnOpen) => (
-        <TeacherVideoActivityWidget widget={own} assignOnOpen={assignOnOpen} />
+      renderOwn={(own, local) => (
+        <TeacherVideoActivityWidget widget={own} local={local} />
       )}
     />
   );

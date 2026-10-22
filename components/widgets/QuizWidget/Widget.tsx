@@ -29,7 +29,10 @@ import { useDashboard } from '@/context/useDashboard';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareQuizWidget } from './SubShareWidget';
 import { SharedBoardQuizView } from './SharedBoardQuizView';
-import { SharedBoardItemGate } from '@/components/sharedBoard/SharedBoardItemGate';
+import {
+  SharedBoardItemGate,
+  type SharedBoardLocal,
+} from '@/components/sharedBoard/SharedBoardItemGate';
 import { useSharedBoardItemPublisher } from '@/hooks/useSharedBoardItem';
 import {
   sharedBoardQuizPayload,
@@ -267,9 +270,9 @@ const QUIZZES_COLLECTION = 'quizzes';
 const TeacherQuizWidget: React.FC<{
   widget: WidgetData;
   variant?: QuizWidgetKind;
-  /** A linked copy from a shared board, opened in Assign once it is in the library. */
-  assignOnOpen?: string;
-}> = ({ widget, variant = 'quiz', assignOnOpen }) => {
+  /** Set while the viewer's own library stands in for a colleague's quiz on a shared board. */
+  local?: SharedBoardLocal;
+}> = ({ widget, variant = 'quiz', local }) => {
   const {
     updateWidget,
     addWidget,
@@ -457,7 +460,7 @@ const TeacherQuizWidget: React.FC<{
   } = useQuiz(user?.uid);
   // Co-teachers on a shared board read the open quiz from this copy.
   const boardQuiz =
-    variant === 'quiz' && !assignOnOpen && quizItemView(config)
+    variant === 'quiz' && !local && quizItemView(config)
       ? quizzes.find((q) => q.id === config.selectedQuizId)
       : undefined;
   useSharedBoardItemPublisher({
@@ -469,6 +472,9 @@ const TeacherQuizWidget: React.FC<{
       if (!boardQuiz) throw new Error('quiz left the board');
       return sharedBoardQuizPayload(await loadQuizData(boardQuiz.driveFileId));
     },
+    stampedOwnerUid: config.selectedQuizOwnerUid,
+    stampOwner: (uid) =>
+      updateWidget(widget.id, { config: { selectedQuizOwnerUid: uid } }),
   });
   const {
     sources: bankSources,
@@ -2198,7 +2204,8 @@ const TeacherQuizWidget: React.FC<{
       {reviewLaunch.modal}
       <QuizManager
         variant={variant}
-        assignOnOpen={assignOnOpen}
+        assignOnOpen={local?.assignOnOpen}
+        onAssignOpened={local?.onAssignOpened}
         onStartReview={
           isReview ? (meta) => void reviewLaunch.open(meta) : undefined
         }
@@ -4345,6 +4352,7 @@ const QUIZ_LIBRARY_CONFIG = {
   managerTab: 'library',
   selectedQuizId: null,
   selectedQuizTitle: null,
+  selectedQuizOwnerUid: null,
   activeAssignmentId: null,
   activeLiveSessionCode: null,
   resultsSessionId: null,
@@ -4363,13 +4371,14 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) =>
       widget={widget}
       kind="quiz"
       itemId={quizItemView(widget.config as QuizConfig)}
+      ownerUid={(widget.config as QuizConfig).selectedQuizOwnerUid}
       label="quiz"
       libraryConfig={QUIZ_LIBRARY_CONFIG}
       renderShared={(item, onCopied) => (
         <SharedBoardQuizView item={item} onCopied={onCopied} />
       )}
-      renderOwn={(own, assignOnOpen) => (
-        <TeacherQuizWidget widget={own} assignOnOpen={assignOnOpen} />
+      renderOwn={(own, local) => (
+        <TeacherQuizWidget widget={own} local={local} />
       )}
     />
   );

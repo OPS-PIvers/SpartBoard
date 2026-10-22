@@ -57,13 +57,13 @@ describe('useSharedBoardItem', () => {
   it('is off without a live share or an item', () => {
     store.shareId = null;
     expect(
-      renderHook(() => useSharedBoardItem('quiz', 'q1'), { wrapper }).result
-        .current.status
+      renderHook(() => useSharedBoardItem('quiz', 'host', 'q1'), { wrapper })
+        .result.current.status
     ).toBe('off');
     store.shareId = 'share-1';
     expect(
-      renderHook(() => useSharedBoardItem('quiz', null), { wrapper }).result
-        .current.status
+      renderHook(() => useSharedBoardItem('quiz', 'host', null), { wrapper })
+        .result.current.status
     ).toBe('off');
     expect(fs.onSnapshot).not.toHaveBeenCalled();
   });
@@ -76,16 +76,19 @@ describe('useSharedBoardItem', () => {
         return noop;
       }
     );
-    const { result } = renderHook(() => useSharedBoardItem('quiz', 'q1'), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useSharedBoardItem('quiz', 'host', 'q1'),
+      {
+        wrapper,
+      }
+    );
     expect(result.current.status).toBe('pending');
     expect(fs.doc).toHaveBeenCalledWith(
       {},
       'shared_boards',
       'share-1',
       'items',
-      'quiz_q1'
+      'quiz_host_q1'
     );
     act(() =>
       emit(snap({ kind: 'quiz', itemId: 'q1', ownerUid: 'host', payload: {} }))
@@ -94,7 +97,15 @@ describe('useSharedBoardItem', () => {
     expect(result.current.item?.ownerUid).toBe('host');
   });
 
-  it('is none for the viewer’s own copy, a missing copy, or a denied read', () => {
+  it('is off for the viewer’s own item', () => {
+    expect(
+      renderHook(() => useSharedBoardItem('quiz', 'me', 'q1'), { wrapper })
+        .result.current.status
+    ).toBe('off');
+    expect(fs.onSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('is none for a copy under another owner, a missing copy, or a denied read', () => {
     let emit: (s: unknown) => void = noop;
     let fail: (e: unknown) => void = noop;
     fs.onSnapshot.mockImplementation(
@@ -108,11 +119,14 @@ describe('useSharedBoardItem', () => {
         return noop;
       }
     );
-    const { result } = renderHook(() => useSharedBoardItem('quiz', 'q1'), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useSharedBoardItem('quiz', 'host', 'q1'),
+      {
+        wrapper,
+      }
+    );
     act(() =>
-      emit(snap({ kind: 'quiz', itemId: 'q1', ownerUid: 'me', payload: {} }))
+      emit(snap({ kind: 'quiz', itemId: 'q1', ownerUid: 'other', payload: {} }))
     );
     expect(result.current.status).toBe('none');
     act(() => emit(snap(null)));
@@ -152,15 +166,6 @@ describe('publishSharedBoardItem', () => {
     expect(build).not.toHaveBeenCalled();
     expect(fs.setDoc).not.toHaveBeenCalled();
   });
-
-  it('leaves another member’s copy alone', async () => {
-    fs.getDoc.mockResolvedValue(snap({ ownerUid: 'host', version: '1' }));
-    const build = vi.fn();
-    await expect(publishSharedBoardItem('share-1', item, build)).resolves.toBe(
-      false
-    );
-    expect(fs.setDoc).not.toHaveBeenCalled();
-  });
 });
 
 describe('useSharedBoardItemPublisher', () => {
@@ -170,7 +175,10 @@ describe('useSharedBoardItemPublisher', () => {
     title: 'Q',
     version,
     build: () => Promise.resolve({ a: 1 }),
+    stampedOwnerUid: 'me',
+    stampOwner,
   });
+  const stampOwner = vi.fn();
 
   it('publishes once per version', async () => {
     fs.getDoc.mockResolvedValue(snap(null));
@@ -190,6 +198,17 @@ describe('useSharedBoardItemPublisher', () => {
     expect(fs.setDoc).toHaveBeenCalledTimes(2);
   });
 
+  it('names the owner in the widget config when it doesn’t already', async () => {
+    fs.getDoc.mockResolvedValue(snap(null));
+    renderHook(
+      () =>
+        useSharedBoardItemPublisher({ ...args('1'), stampedOwnerUid: 'host' }),
+      { wrapper }
+    );
+    await act(flush);
+    expect(stampOwner).toHaveBeenCalledWith('me');
+  });
+
   it('does nothing without the flag or off a shared board', async () => {
     fs.getDoc.mockResolvedValue(snap(null));
     auth.flag = false;
@@ -199,5 +218,6 @@ describe('useSharedBoardItemPublisher', () => {
     renderHook(() => useSharedBoardItemPublisher(args('1')), { wrapper });
     await act(flush);
     expect(fs.getDoc).not.toHaveBeenCalled();
+    expect(stampOwner).not.toHaveBeenCalled();
   });
 });

@@ -1563,7 +1563,7 @@ service cloud.firestore {
       );
 
       // Read-only copies of library items for the share's co-teachers (co-teaching plan slices 4-5).
-      // The item's owner writes it, and must hold the item in their own library under that id.
+      // Id {kind}_{ownerUid}_{itemId}: only the owner writes it, holding the item in their own library.
       match /items/{itemDocId} {
         function sbItemShare() {
           return get(/databases/$(database)/documents/shared_boards/$(shareId)).data;
@@ -1580,16 +1580,21 @@ service cloud.firestore {
             && (sb.originalAuthor == authUid()
                 || sb.get('participants', {}).get(authUid(), {}).get('role', '') == 'collaborator')
             && d.keys().hasOnly(['kind', 'itemId', 'ownerUid', 'title', 'version', 'publishedAt', 'payload'])
-            && isStr('kind') && isStr('itemId') && itemDocId == d.kind + '_' + d.itemId
+            && isStr('kind') && isStr('itemId') && itemDocId == d.kind + '_' + authUid() + '_' + d.itemId
             && sbItemCollection(d.kind) != ''
             && isStr('title') && d.title.size() <= 500
             && isStr('version') && d.version.size() <= 200
             && isMap('payload')
             && exists(/databases/$(database)/documents/users/$(authUid())/$(sbItemCollection(d.kind))/$(d.itemId));
         }
+        function sbItemMember(uid) {
+          return sbItemShare().originalAuthor == uid || uid in sbItemShare().get('participants', {});
+        }
+        // The owner must still belong to the share too, so a share recreated at an old id can't read
+        // copies the deleted share left behind.
         allow get: if signedIn() && notAnon() && !isStudentRoleUser() && isVerifiedDistrictEmail()
-          && (sbItemShare().originalAuthor == authUid()
-              || authUid() in sbItemShare().get('participants', {}));
+          && sbItemMember(authUid())
+          && (resource == null || sbItemMember(existing().get('ownerUid', '')));
         allow create: if signedIn() && sbItemWriteOk();
         allow update: if signedIn() && existing().ownerUid == authUid() && sbItemWriteOk();
         allow delete: if signedIn() && (existing().get('ownerUid', null) == authUid()

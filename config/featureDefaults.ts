@@ -1200,10 +1200,10 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
   },
   // Gates the wall owner's side: only a flagged owner lets board members read the wall's posts.
   'shared-board-live-walls': {
-    label: 'Activity Walls on shared boards',
+    label: 'Library items on shared boards',
     icon: Share2,
     description:
-      'Colleagues on a Synced or View-Only board see your Activity Wall and its posts.',
+      'Colleagues on a Synced or View-Only board see your Activity Walls, quizzes, video activities and guided activities.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

@@ -14,10 +14,10 @@ import {
 } from '@/utils/sharedBoardItems';
 
 /**
- * - `off`: not a live shared board, or no item asked for.
+ * - `off`: not a live shared board, no item, or the item is the viewer's own.
  * - `pending`: the first snapshot has not answered yet.
  * - `foreign`: another member published this item; render it read-only.
- * - `none`: no copy, or the copy is the viewer's own.
+ * - `none`: no copy has been published.
  */
 export type SharedBoardItemStatus = 'off' | 'pending' | 'foreign' | 'none';
 
@@ -33,17 +33,18 @@ function useOwnBoardShareId(): string | null {
   return use(BoardLinkedShareContext) ?? null;
 }
 
-/** Another member's copy of `itemId`; pass null when the viewer's own library has it. */
+/** `ownerUid`'s copy of `itemId`, as stamped in widget config; off when the viewer is the owner. */
 export function useSharedBoardItem<T>(
   kind: SharedBoardItemKind,
+  ownerUid: string | null | undefined,
   itemId: string | null | undefined
 ): SharedBoardItemState<T> {
   const { user } = useAuth();
   const shareId = useOwnBoardShareId();
   const uid = user?.uid ?? null;
   const key =
-    shareId && itemId && uid
-      ? `${shareId}/${sharedBoardItemDocId(kind, itemId)}`
+    shareId && itemId && ownerUid && uid && ownerUid !== uid
+      ? `${shareId}/${sharedBoardItemDocId(kind, ownerUid, itemId)}`
       : null;
 
   const [snapshot, setSnapshot] = useState<{
@@ -52,9 +53,9 @@ export function useSharedBoardItem<T>(
   } | null>(null);
 
   useEffect(() => {
-    if (!key || !shareId || !itemId) return undefined;
+    if (!key || !shareId || !ownerUid || !itemId) return undefined;
     return onSnapshot(
-      sharedBoardItemRef(shareId, kind, itemId),
+      sharedBoardItemRef(shareId, kind, ownerUid, itemId),
       (snap) => {
         setSnapshot({
           key,
@@ -69,13 +70,13 @@ export function useSharedBoardItem<T>(
         setSnapshot({ key, item: null });
       }
     );
-  }, [key, shareId, kind, itemId]);
+  }, [key, shareId, kind, ownerUid, itemId]);
 
   if (!key) return OFF;
   if (!snapshot || snapshot.key !== key)
     return { status: 'pending', item: null };
   const item = snapshot.item;
-  return item && item.ownerUid !== uid && item.kind === kind
+  return item && item.ownerUid === ownerUid && item.kind === kind
     ? { status: 'foreign', item }
     : { status: 'none', item: null };
 }
@@ -90,6 +91,10 @@ export interface SharedBoardItemPublish<T> {
   /** Changes whenever the payload would; null while unknown. */
   version: string | null | undefined;
   build: () => Promise<T>;
+  /** The owner uid the widget config names now. */
+  stampedOwnerUid: string | null | undefined;
+  /** Names the viewer as owner in the widget config, so members find this copy. */
+  stampOwner: (uid: string) => void;
 }
 
 /** Keeps the owner's copy of the widget's open item current for the board's other members. */
@@ -99,6 +104,8 @@ export function useSharedBoardItemPublisher<T>({
   title,
   version,
   build,
+  stampedOwnerUid,
+  stampOwner,
 }: SharedBoardItemPublish<T>): void {
   const { user, canAccessFeature } = useAuth();
   const shareId = useOwnBoardShareId();
@@ -109,9 +116,11 @@ export function useSharedBoardItemPublisher<T>({
     !!itemId &&
     !!version &&
     canAccessFeature('shared-board-live-walls');
-  const key = enabled
-    ? `${shareId}/${sharedBoardItemDocId(kind, itemId)}@${version}`
-    : null;
+  const key =
+    enabled && uid && itemId
+      ? `${shareId}/${sharedBoardItemDocId(kind, uid, itemId)}@${version}`
+      : null;
+  const needsStamp = enabled && !!uid && stampedOwnerUid !== uid;
 
   const publish = useEffectEvent(
     (target: string, ownerUid: string, id: string, ver: string) =>
@@ -121,6 +130,11 @@ export function useSharedBoardItemPublisher<T>({
         build
       )
   );
+  const stamp = useEffectEvent((ownerUid: string) => stampOwner(ownerUid));
+
+  useEffect(() => {
+    if (needsStamp && uid) stamp(uid);
+  }, [needsStamp, uid]);
 
   useEffect(() => {
     if (!key || !shareId || !uid || !itemId || !version) return;

@@ -14,7 +14,7 @@ import type {
 /** Kinds mirrored under a board share; firestore.rules `sbItemCollection` maps each to its library collection. */
 export type SharedBoardItemKind = 'quiz' | 'videoActivity' | 'guidedLearning';
 
-/** A `shared_boards/{shareId}/items/{kind}_{itemId}` doc. */
+/** A `shared_boards/{shareId}/items/{kind}_{ownerUid}_{itemId}` doc. */
 export interface SharedBoardItemDoc<T = unknown> {
   kind: SharedBoardItemKind;
   itemId: string;
@@ -42,11 +42,13 @@ export interface SharedBoardGuidedLearningPayload {
 
 export const SHARED_BOARD_ITEMS = 'items';
 
+/** The owner is part of the id, so no other member can claim an item id first. */
 export function sharedBoardItemDocId(
   kind: SharedBoardItemKind,
+  ownerUid: string,
   itemId: string
 ): string {
-  return `${kind}_${itemId}`;
+  return `${kind}_${ownerUid}_${itemId}`;
 }
 
 /** The id a member's linked copy takes in their own library, so Assign twice reuses it. */
@@ -54,13 +56,18 @@ export function sharedBoardCopyId(itemId: string): string {
   return `${itemId}-copy`;
 }
 
-const itemRef = (shareId: string, kind: SharedBoardItemKind, itemId: string) =>
+const itemRef = (
+  shareId: string,
+  kind: SharedBoardItemKind,
+  ownerUid: string,
+  itemId: string
+) =>
   doc(
     db,
     'shared_boards',
     shareId,
     SHARED_BOARD_ITEMS,
-    sharedBoardItemDocId(kind, itemId)
+    sharedBoardItemDocId(kind, ownerUid, itemId)
   );
 
 /** Writes the owner's copy unless the stored one is already this version. Returns whether it wrote. */
@@ -69,13 +76,13 @@ export async function publishSharedBoardItem<T>(
   item: Omit<SharedBoardItemDoc<T>, 'publishedAt' | 'payload'>,
   buildPayload: () => Promise<T>
 ): Promise<boolean> {
-  const ref = itemRef(shareId, item.kind, item.itemId);
+  const ref = itemRef(shareId, item.kind, item.ownerUid, item.itemId);
   const existing = await getDoc(ref);
-  if (existing.exists()) {
-    const data = existing.data() as Partial<SharedBoardItemDoc>;
-    // Another member's item under the same id is theirs to keep.
-    if (data.ownerUid !== item.ownerUid) return false;
-    if (data.version === item.version) return false;
+  if (
+    existing.exists() &&
+    (existing.data() as Partial<SharedBoardItemDoc>).version === item.version
+  ) {
+    return false;
   }
   const payload = await buildPayload();
   const next: SharedBoardItemDoc<T> = {

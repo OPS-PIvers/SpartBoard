@@ -34,7 +34,10 @@ import { resolveWorkKind } from '@/utils/gradebook/gradebookCore';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareGuidedLearningWidget } from './SubShareWidget';
 import { SharedBoardGuidedLearningView } from './SharedBoardGuidedLearningView';
-import { SharedBoardItemGate } from '@/components/sharedBoard/SharedBoardItemGate';
+import {
+  SharedBoardItemGate,
+  type SharedBoardLocal,
+} from '@/components/sharedBoard/SharedBoardItemGate';
 import { useSharedBoardItemPublisher } from '@/hooks/useSharedBoardItem';
 import { guidedLearningShareView } from '@/utils/bundleSubShareContent';
 import type { SharedBoardGuidedLearningPayload } from '@/utils/sharedBoardItems';
@@ -219,9 +222,9 @@ interface AssignDialogTarget {
 
 const TeacherGuidedLearningWidget: React.FC<{
   widget: WidgetData;
-  /** A linked copy from a shared board, opened in Assign once it is in the library. */
-  assignOnOpen?: string;
-}> = ({ widget, assignOnOpen }) => {
+  /** Set while the viewer's own library stands in for a colleague's set on a shared board. */
+  local?: SharedBoardLocal;
+}> = ({ widget, local }) => {
   const { updateWidget, addToast, rosters, updateRoster } = useDashboard();
   const { t } = useTranslation();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
@@ -263,7 +266,7 @@ const TeacherGuidedLearningWidget: React.FC<{
   } = useGuidedLearning(user?.uid);
   // Co-teachers on a shared board read the open set from this copy.
   const boardSet =
-    !assignOnOpen && guidedLearningItemView(config)
+    !local && guidedLearningItemView(config)
       ? sets.find((s) => s.id === config.playerSetId)
       : undefined;
   useSharedBoardItemPublisher({
@@ -280,6 +283,9 @@ const TeacherGuidedLearningWidget: React.FC<{
         set: guidedLearningShareView(boardSet.id, data, boardSet.title),
       };
     },
+    stampedOwnerUid: config.playerSetOwnerUid,
+    stampOwner: (uid) =>
+      updateWidget(widget.id, { config: { playerSetOwnerUid: uid } }),
   });
 
   const { createSession } = useGuidedLearningSessionTeacher(user?.uid);
@@ -984,13 +990,15 @@ const TeacherGuidedLearningWidget: React.FC<{
   };
 
   // The linked copy from a shared board opens in Assign once it reaches the library.
-  const arrivedCopy = assignOnOpen
-    ? sets.find((s) => s.id === assignOnOpen)
+  const arrivedCopy = local?.assignOnOpen
+    ? sets.find((s) => s.id === local.assignOnOpen)
     : undefined;
   const openedCopyRef = useRef<string | null>(null);
   const openArrivedCopy = useEffectEvent(
     (setId: string, driveFileId: string) => {
-      void handleAssign(setId, driveFileId);
+      void handleAssign(setId, driveFileId).finally(() =>
+        local?.onAssignOpened()
+      );
     }
   );
   useEffect(() => {
@@ -2003,6 +2011,7 @@ function guidedLearningItemView(config: GuidedLearningConfig): string | null {
 const GUIDED_LEARNING_LIBRARY_CONFIG = {
   view: 'library',
   playerSetId: null,
+  playerSetOwnerUid: null,
   resultsSessionId: null,
 } satisfies Partial<GuidedLearningConfig>;
 
@@ -2016,13 +2025,14 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       widget={widget}
       kind="guidedLearning"
       itemId={guidedLearningItemView(widget.config as GuidedLearningConfig)}
+      ownerUid={(widget.config as GuidedLearningConfig).playerSetOwnerUid}
       label="guided activity"
       libraryConfig={GUIDED_LEARNING_LIBRARY_CONFIG}
       renderShared={(item, onCopied) => (
         <SharedBoardGuidedLearningView item={item} onCopied={onCopied} />
       )}
-      renderOwn={(own, assignOnOpen) => (
-        <TeacherGuidedLearningWidget widget={own} assignOnOpen={assignOnOpen} />
+      renderOwn={(own, local) => (
+        <TeacherGuidedLearningWidget widget={own} local={local} />
       )}
     />
   );

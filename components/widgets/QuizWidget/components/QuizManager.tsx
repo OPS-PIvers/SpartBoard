@@ -13,6 +13,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useEffectEvent,
   useRef,
   useState,
 } from 'react';
@@ -263,6 +264,8 @@ interface QuizManagerProps {
   onStartReview?: (quiz: QuizMetadata) => void;
   /** Opens Assign for this quiz once it is in the library (a shared board's linked copy). */
   assignOnOpen?: string;
+  /** Called once `assignOnOpen` has been acted on, so it doesn't reopen on a remount. */
+  onAssignOpened?: () => void;
   /** This widget instance's id, for live-tour anchor scoping. */
   widgetId?: string;
   /** Per-period start and windows in the assign modal; absent while the flag is off. */
@@ -705,6 +708,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   variant = 'quiz',
   onStartReview,
   assignOnOpen,
+  onAssignOpened,
 }) => {
   const isReview = variant === 'review';
   const { canAccessFeature } = useAuth();
@@ -933,15 +937,21 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assignTarget]);
 
-  const [openedOnArrival, setOpenedOnArrival] = useState<string | null>(null);
-  const arrivedQuiz =
-    assignOnOpen && assignOnOpen !== openedOnArrival
-      ? quizzes.find((q) => q.id === assignOnOpen)
-      : undefined;
-  if (arrivedQuiz) {
-    setOpenedOnArrival(arrivedQuiz.id);
-    openShareOrAssign(arrivedQuiz);
-  }
+  const arrivedQuiz = assignOnOpen
+    ? quizzes.find((q) => q.id === assignOnOpen)
+    : undefined;
+  const openArrivedQuiz = useEffectEvent((quiz: QuizMetadata) => {
+    onAssignOpened?.();
+    const missingKeys = quizNeedsKeyCount(quiz);
+    if (!isReview && !isViewOnly && missingKeys > 0) {
+      onError?.(needsKeyAssignReason(missingKeys));
+      return;
+    }
+    openShareOrAssign(quiz);
+  });
+  useEffect(() => {
+    if (arrivedQuiz) openArrivedQuiz(arrivedQuiz);
+  }, [arrivedQuiz]);
 
   // Live ClassLink fetching is no longer performed at assign time. Imported
   // ClassLink rosters carry their own `classlinkClassId` metadata so the

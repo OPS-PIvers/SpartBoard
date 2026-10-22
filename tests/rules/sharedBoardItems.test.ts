@@ -23,7 +23,10 @@ const OUTSIDER_UID = 'outsider-uid';
 const STUDENT_UID = 'student-uid';
 const SHARE_ID = 'share-1';
 const QUIZ_ID = 'quiz-1';
-const ITEM_PATH = `shared_boards/${SHARE_ID}/items/quiz_${QUIZ_ID}`;
+const itemPath = (ownerUid: string) =>
+  `shared_boards/${SHARE_ID}/items/quiz_${ownerUid}_${QUIZ_ID}`;
+const ITEM_PATH = itemPath(HOST_UID);
+const COLLAB_PATH = itemPath(COLLAB_UID);
 
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
@@ -94,7 +97,7 @@ const seed = async ({
         title: 'Fractions check',
       });
     }
-    if (itemOwner) await setDoc(doc(db, ITEM_PATH), item(itemOwner));
+    if (itemOwner) await setDoc(doc(db, itemPath(itemOwner)), item(itemOwner));
   });
 };
 
@@ -163,6 +166,20 @@ describe('reading a shared board item', () => {
   });
 });
 
+describe('a share recreated at an old id', () => {
+  it('cannot read a copy whose owner is not a member', async () => {
+    await seed({ itemOwner: COLLAB_UID, libraryOwners: [COLLAB_UID] });
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `shared_boards/${SHARE_ID}`), {
+        originalAuthor: OUTSIDER_UID,
+        intendedMode: 'synced',
+        participants: {},
+      });
+    });
+    await assertFails(getDoc(doc(asTeacher(OUTSIDER_UID), COLLAB_PATH)));
+  });
+});
+
 describe('writing a shared board item', () => {
   it('the host publishes and republishes an item from their own library', async () => {
     await seed();
@@ -176,14 +193,14 @@ describe('writing a shared board item', () => {
   it('a collaborator publishes an item from their own library', async () => {
     await seed({ libraryOwners: [COLLAB_UID] });
     await assertSucceeds(
-      setDoc(doc(asTeacher(COLLAB_UID), ITEM_PATH), item(COLLAB_UID))
+      setDoc(doc(asTeacher(COLLAB_UID), COLLAB_PATH), item(COLLAB_UID))
     );
   });
 
   it('a viewer cannot publish, even an item they own', async () => {
     await seed({ libraryOwners: [VIEWER_UID] });
     await assertFails(
-      setDoc(doc(asTeacher(VIEWER_UID), ITEM_PATH), item(VIEWER_UID))
+      setDoc(doc(asTeacher(VIEWER_UID), itemPath(VIEWER_UID)), item(VIEWER_UID))
     );
   });
 
@@ -208,10 +225,26 @@ describe('writing a shared board item', () => {
     await assertFails(updateDoc(doc(db, ITEM_PATH), { title: 'Changed' }));
   });
 
+  it('a member holding the same item id cannot take over the owner’s copy', async () => {
+    await seed({ itemOwner: HOST_UID, libraryOwners: [HOST_UID, COLLAB_UID] });
+    const collab = asTeacher(COLLAB_UID);
+    await assertFails(setDoc(doc(collab, ITEM_PATH), item(COLLAB_UID)));
+    await assertSucceeds(setDoc(doc(collab, COLLAB_PATH), item(COLLAB_UID)));
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(HOST_UID), ITEM_PATH),
+        item(HOST_UID, { version: '2000' })
+      )
+    );
+  });
+
   it('an outsider cannot publish into the share', async () => {
     await seed({ libraryOwners: [OUTSIDER_UID] });
     await assertFails(
-      setDoc(doc(asTeacher(OUTSIDER_UID), ITEM_PATH), item(OUTSIDER_UID))
+      setDoc(
+        doc(asTeacher(OUTSIDER_UID), itemPath(OUTSIDER_UID)),
+        item(OUTSIDER_UID)
+      )
     );
   });
 
@@ -220,13 +253,13 @@ describe('writing a shared board item', () => {
     const db = asTeacher(HOST_UID);
     await assertFails(
       setDoc(
-        doc(db, `shared_boards/${SHARE_ID}/items/quiz_other`),
+        doc(db, `shared_boards/${SHARE_ID}/items/quiz_${HOST_UID}_other`),
         item(HOST_UID)
       )
     );
     await assertFails(
       setDoc(
-        doc(db, `shared_boards/${SHARE_ID}/items/poll_${QUIZ_ID}`),
+        doc(db, `shared_boards/${SHARE_ID}/items/poll_${HOST_UID}_${QUIZ_ID}`),
         item(HOST_UID, { kind: 'poll' })
       )
     );
@@ -246,15 +279,18 @@ describe('writing a shared board item', () => {
   it('a student-role user cannot publish', async () => {
     await seed({ libraryOwners: [STUDENT_UID] });
     await assertFails(
-      setDoc(doc(asStudentRole(STUDENT_UID), ITEM_PATH), item(STUDENT_UID))
+      setDoc(
+        doc(asStudentRole(STUDENT_UID), itemPath(STUDENT_UID)),
+        item(STUDENT_UID)
+      )
     );
   });
 
   it('the owner and the host delete; other members cannot', async () => {
     await seed({ itemOwner: COLLAB_UID, libraryOwners: [COLLAB_UID] });
-    await assertFails(deleteDoc(doc(asTeacher(VIEWER_UID), ITEM_PATH)));
-    await assertSucceeds(deleteDoc(doc(asTeacher(HOST_UID), ITEM_PATH)));
+    await assertFails(deleteDoc(doc(asTeacher(VIEWER_UID), COLLAB_PATH)));
+    await assertSucceeds(deleteDoc(doc(asTeacher(HOST_UID), COLLAB_PATH)));
     await seed({ itemOwner: COLLAB_UID, libraryOwners: [COLLAB_UID] });
-    await assertSucceeds(deleteDoc(doc(asTeacher(COLLAB_UID), ITEM_PATH)));
+    await assertSucceeds(deleteDoc(doc(asTeacher(COLLAB_UID), COLLAB_PATH)));
   });
 });
