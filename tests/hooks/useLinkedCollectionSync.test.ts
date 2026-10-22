@@ -914,4 +914,72 @@ describe('useLinkedCollectionSync: Stop sharing, Leave and ended links', () => {
       member.linkedCollectionApi.endLinkedCollection
     ).not.toHaveBeenCalled();
   });
+
+  it('another host tab ends every listed board when it sees the link ended', async () => {
+    const deps = makeDeps({
+      collections: [hostRoot],
+      dashboards: [board('a', 'week', live('L1_a', 'owner'))],
+    });
+    renderHook(() => useLinkedCollectionSync(deps));
+    await emit(
+      makeLink({
+        hostUid: 'me',
+        participants: {},
+        boards: [
+          { shareId: 'L1_a', name: 'A', order: 0 },
+          { shareId: 'collab-board', name: 'B', order: 1 },
+        ],
+        ended: true,
+      })
+    );
+    await waitFor(() =>
+      expect(
+        vi
+          .mocked(deps.stopSharingBoard)
+          .mock.calls.map((c) => c[0])
+          .sort()
+      ).toEqual(['L1_a', 'collab-board'])
+    );
+    expect(deps.setBoardLink).toHaveBeenCalledWith('a', null);
+  });
+
+  it('a Leave retried after the server write landed skips the write and finishes closing', async () => {
+    const deps = makeDeps({
+      dashboards: [board('linked-s1', 'week', live('s1', 'collaborator'))],
+    });
+    vi.mocked(deps.collectionsApi.setCollectionLink)
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue(undefined);
+    const { result } = renderHook(() => useLinkedCollectionSync(deps));
+    await emit(makeLink({ boards: listed }));
+    await act(async () => {
+      await expect(
+        result.current.leaveSharedCollection('week')
+      ).rejects.toThrow('offline');
+    });
+    // The server now shows this teacher out of the link.
+    await emit({ ...linkDoc, participants: {} }, true);
+    await act(async () => {
+      await result.current.leaveSharedCollection('week');
+    });
+    expect(
+      deps.linkedCollectionApi.leaveLinkedCollection
+    ).toHaveBeenCalledTimes(1);
+    expect(deps.collectionsApi.setCollectionLink).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips a queued close when a later snapshot shows the link live again', async () => {
+    const deps = makeDeps({
+      dashboards: [board('linked-s1', 'week', live('s1', 'collaborator'))],
+    });
+    renderHook(() => useLinkedCollectionSync(deps));
+    await act(async () => {
+      linkCb?.(makeLink({ boards: listed, participants: {} }), {
+        fromCache: false,
+      });
+      linkCb?.(makeLink({ boards: listed }), { fromCache: false });
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(deps.collectionsApi.setCollectionLink).not.toHaveBeenCalled();
+  });
 });
