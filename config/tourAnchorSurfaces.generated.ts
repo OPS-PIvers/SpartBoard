@@ -1703,7 +1703,6 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
       'admin.widgets.config.work-symbols',
     ],
     'admin.widget-config.add': [
-      'admin.widgets.config.arts-letters-agenda',
       'admin.widgets.config.checklist',
       'admin.widgets.config.embed',
       'admin.widgets.config.graphic-organizer',

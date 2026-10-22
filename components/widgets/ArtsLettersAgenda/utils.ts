@@ -34,6 +34,22 @@ export const sanitizeAgendaParts = (
   return out;
 };
 
+/** The stored list as the admin typed it: no trimming or dropping, so the editor never fights the keyboard. */
+export const editableAgendaParts = (
+  value: unknown
+): ArtsLettersAgendaPart[] => {
+  if (!Array.isArray(value)) return [];
+  const out: ArtsLettersAgendaPart[] = [];
+  for (const entry of value as unknown[]) {
+    if (typeof entry !== 'object' || entry === null) continue;
+    const { id, label } = entry as Record<string, unknown>;
+    if (typeof id === 'string' && id && typeof label === 'string') {
+      out.push({ id, label });
+    }
+  }
+  return out;
+};
+
 export interface AgendaPartLists {
   simple: ArtsLettersAgendaPart[];
   detailed: ArtsLettersAgendaPart[];

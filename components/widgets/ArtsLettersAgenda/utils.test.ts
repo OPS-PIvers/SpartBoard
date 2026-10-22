@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  editableAgendaParts,
   listsDiffer,
   partsForVersion,
   resolveAgendaPartLists,
@@ -71,5 +72,23 @@ describe('resolveAgendaPartLists', () => {
     expect(partsForVersion(lists, 'detailed')).toBe(lists.detailed);
     expect(listsDiffer(lists.simple, lists.detailed)).toBe(true);
     expect(listsDiffer(lists.simple, lists.simple)).toBe(false);
+  });
+});
+
+describe('editableAgendaParts', () => {
+  it('keeps labels exactly as typed, including spaces and empty text', () => {
+    expect(
+      editableAgendaParts([
+        { id: 'a', label: 'Big ' },
+        { id: 'b', label: '' },
+        { id: '', label: 'No id' },
+        null,
+        { id: 'c', label: 5 },
+      ])
+    ).toEqual([
+      { id: 'a', label: 'Big ' },
+      { id: 'b', label: '' },
+    ]);
+    expect(editableAgendaParts(undefined)).toEqual([]);
   });
 });

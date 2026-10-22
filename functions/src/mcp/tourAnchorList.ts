@@ -31648,7 +31648,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "keys": [
-      "arts-letters-agenda",
       "checklist",
       "embed",
       "graphic-organizer",

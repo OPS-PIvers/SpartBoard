@@ -70,6 +70,7 @@ describe('AgendaVersionField', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     auth.featurePermissions = [];
+    auth.selectedBuildings = ['schumann'];
   });
 
   it('starts on Simple and switches the version', () => {
@@ -81,7 +82,7 @@ describe('AgendaVersionField', () => {
     );
     fireEvent.click(screen.getByRole('radio', { name: 'Detailed' }));
     expect(mockUpdateWidget).toHaveBeenCalledWith('agenda-1', {
-      config: { version: 'detailed' },
+      config: { version: 'detailed', buildingId: 'schumann' },
     });
   });
 
@@ -90,7 +91,7 @@ describe('AgendaVersionField', () => {
     render(<AgendaVersionField ctx={makeCtx(300)} />);
     fireEvent.click(screen.getByRole('radio', { name: 'Detailed' }));
     expect(mockUpdateWidget).toHaveBeenCalledWith('agenda-1', {
-      config: { version: 'detailed' },
+      config: { version: 'detailed', buildingId: 'schumann' },
       h: 606,
     });
   });
@@ -102,12 +103,26 @@ describe('AgendaVersionField', () => {
     expect(mockUpdateWidget.mock.calls[0][1]).not.toHaveProperty('h');
   });
 
-  it('says Detailed matches Simple until a list is set', () => {
-    render(<AgendaVersionField ctx={makeCtx(500)} />);
+  it('explains in a tooltip, not a sentence, that Detailed matches Simple', () => {
+    const { container } = render(<AgendaVersionField ctx={makeCtx(500)} />);
     expect(
-      screen.getByText(
+      screen.queryByText(
         'Detailed matches Simple until your school sets its own list.'
       )
-    ).toBeInTheDocument();
+    ).toBeNull();
+    expect(container.firstElementChild).toHaveAttribute(
+      'title',
+      'Detailed matches Simple until your school sets its own list.'
+    );
+  });
+
+  it('uses the building saved on the widget to size the widget', () => {
+    withDetailed(6);
+    auth.selectedBuildings = ['high'];
+    render(
+      <AgendaVersionField ctx={makeCtx(300, { buildingId: 'schumann' })} />
+    );
+    fireEvent.click(screen.getByRole('radio', { name: 'Detailed' }));
+    expect(mockUpdateWidget.mock.calls[0][1]).toMatchObject({ h: 606 });
   });
 });

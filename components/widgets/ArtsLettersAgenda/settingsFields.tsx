@@ -19,9 +19,11 @@ export const AgendaVersionField: React.FC<{ ctx: CustomRenderCtx }> = ({
   const adminConfig = featurePermissions.find(
     (p) => p.widgetType === ctx.widget.type
   )?.config;
+  const buildingId =
+    (ctx.config.buildingId as string | undefined) ?? selectedBuildings[0];
   const lists = useMemo(
-    () => resolveAgendaPartLists(adminConfig, selectedBuildings[0]),
-    [adminConfig, selectedBuildings]
+    () => resolveAgendaPartLists(adminConfig, buildingId),
+    [adminConfig, buildingId]
   );
   const version = (ctx.config.version as ArtsLettersAgendaVersion) ?? 'simple';
 
@@ -31,13 +33,25 @@ export const AgendaVersionField: React.FC<{ ctx: CustomRenderCtx }> = ({
       AGENDA_CHROME_PX + partsForVersion(lists, next).length * AGENDA_ROW_PX
     );
     updateWidget(ctx.widget.id, {
-      config: { ...ctx.widget.config, version: next },
+      config: {
+        ...ctx.widget.config,
+        version: next,
+        ...(buildingId ? { buildingId } : {}),
+      },
       ...(ctx.widget.h < needed ? { h: needed } : {}),
     });
   };
 
   return (
-    <div id={ctx.id} aria-labelledby={ctx.labelId} className="space-y-2">
+    <div
+      id={ctx.id}
+      aria-labelledby={ctx.labelId}
+      title={
+        listsDiffer(lists.simple, lists.detailed)
+          ? undefined
+          : ctx.t('widgetSettings.arts-letters-agenda.sameLists')
+      }
+    >
       <SegmentedControl
         value={version}
         onChange={change}
@@ -54,11 +68,6 @@ export const AgendaVersionField: React.FC<{ ctx: CustomRenderCtx }> = ({
           },
         ]}
       />
-      {!listsDiffer(lists.simple, lists.detailed) && (
-        <p className="text-xs text-slate-500">
-          {ctx.t('widgetSettings.arts-letters-agenda.sameLists')}
-        </p>
-      )}
     </div>
   );
 };

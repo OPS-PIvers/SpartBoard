@@ -78,7 +78,7 @@ describe('ArtsLettersAgendaWidget', () => {
     renderWidget();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Launch done' }));
     expect(mockUpdateWidget).toHaveBeenCalledWith('agenda-1', {
-      config: { completed: { launch: true } },
+      config: { buildingId: 'schumann', completed: { launch: true } },
     });
   });
 
@@ -86,7 +86,7 @@ describe('ArtsLettersAgendaWidget', () => {
     renderWidget({ completed: { learn: true } });
     fireEvent.click(screen.getByText('Learn'));
     expect(mockUpdateWidget).toHaveBeenCalledWith('agenda-1', {
-      config: { completed: { learn: false } },
+      config: { buildingId: 'schumann', completed: { learn: false } },
     });
   });
 
@@ -110,6 +110,7 @@ describe('ArtsLettersAgendaWidget', () => {
     fireEvent.blur(field);
     expect(mockUpdateWidget).toHaveBeenCalledWith('agenda-1', {
       config: {
+        buildingId: 'schumann',
         completed: { launch: true },
         descriptions: { land: 'Exit ticket' },
       },
@@ -129,7 +130,10 @@ describe('ArtsLettersAgendaWidget', () => {
     fireEvent.change(field, { target: { value: 'Quick write' } });
     fireEvent.keyDown(field, { key: 'Enter' });
     expect(mockUpdateWidget).toHaveBeenCalledWith('agenda-1', {
-      config: { descriptions: { launch: 'Quick write' } },
+      config: {
+        buildingId: 'schumann',
+        descriptions: { launch: 'Quick write' },
+      },
     });
   });
 
@@ -140,7 +144,11 @@ describe('ArtsLettersAgendaWidget', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /reset checks/i }));
     expect(mockUpdateWidget).toHaveBeenCalledWith('agenda-1', {
-      config: { completed: {}, descriptions: { launch: 'Warm up' } },
+      config: {
+        buildingId: 'schumann',
+        completed: {},
+        descriptions: { launch: 'Warm up' },
+      },
     });
   });
 
@@ -188,7 +196,11 @@ describe('ArtsLettersAgendaWidget', () => {
     fireEvent.change(field, { target: { value: 'Pages 4 to 6' } });
     fireEvent.blur(field);
     expect(mockUpdateWidget).toHaveBeenCalledWith('agenda-1', {
-      config: { version: 'detailed', descriptions: { b: 'Pages 4 to 6' } },
+      config: {
+        version: 'detailed',
+        buildingId: 'schumann',
+        descriptions: { b: 'Pages 4 to 6' },
+      },
     });
   });
 
@@ -231,5 +243,38 @@ describe('ArtsLettersAgendaWidget', () => {
     expect(
       screen.getByRole('button', { name: /reset checks/i })
     ).toBeDisabled();
+  });
+
+  it('keeps using the building saved on the widget, not the building of whoever is viewing', () => {
+    auth.selectedBuildings = ['high'];
+    auth.featurePermissions = [
+      {
+        widgetType: 'arts-letters-agenda',
+        config: {
+          buildingDefaults: {
+            schumann: {
+              buildingId: 'schumann',
+              simpleParts: [{ id: 'x', label: 'Warm up' }],
+            },
+            high: {
+              buildingId: 'high',
+              simpleParts: [{ id: 'y', label: 'Hook' }],
+            },
+          },
+        },
+      },
+    ];
+    renderWidget({ buildingId: 'schumann' });
+    expect(screen.getByText('Warm up')).toBeInTheDocument();
+    expect(screen.queryByText('Hook')).toBeNull();
+  });
+
+  it('saves no building when the viewer has none', () => {
+    auth.selectedBuildings = [];
+    renderWidget();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Launch done' }));
+    expect(mockUpdateWidget).toHaveBeenCalledWith('agenda-1', {
+      config: { completed: { launch: true } },
+    });
   });
 });

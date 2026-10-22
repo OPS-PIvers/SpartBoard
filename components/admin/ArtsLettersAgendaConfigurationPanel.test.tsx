@@ -160,4 +160,52 @@ describe('ArtsLettersAgendaConfigurationPanel', () => {
       screen.getByLabelText('New box for Detailed version')
     ).toBeDisabled();
   });
+
+  it('keeps a trailing space and an empty name while the admin is typing', () => {
+    const { rerender } = render(
+      <ArtsLettersAgendaConfigurationPanel
+        config={{
+          buildingDefaults: {
+            schumann: {
+              buildingId: 'schumann',
+              simpleParts: [
+                { id: 'a', label: 'Big ' },
+                { id: 'b', label: '' },
+              ],
+            },
+          },
+        }}
+        onChange={onChange}
+      />
+    );
+    expect(screen.getByLabelText('Simple version box 1')).toHaveValue('Big ');
+    expect(screen.getByLabelText('Simple version box 2')).toHaveValue('');
+    rerender(
+      <ArtsLettersAgendaConfigurationPanel
+        config={{
+          buildingDefaults: {
+            schumann: {
+              buildingId: 'schumann',
+              simpleParts: [{ id: 'a', label: 'Big I' }],
+            },
+          },
+        }}
+        onChange={onChange}
+      />
+    );
+    expect(screen.getByLabelText('Simple version box 1')).toHaveValue('Big I');
+  });
+
+  it('gives each list its own Add button anchor', () => {
+    render(
+      <ArtsLettersAgendaConfigurationPanel
+        config={{ buildingDefaults: {} }}
+        onChange={onChange}
+      />
+    );
+    const anchors = screen
+      .getAllByText('Add')
+      .map((el) => el.closest('button')?.getAttribute('data-tour-field'));
+    expect(new Set(anchors).size).toBe(2);
+  });
 });

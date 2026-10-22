@@ -6,7 +6,7 @@ import {
   canonicalBuildingId,
   canonicalizeBuildingKeyedRecord,
 } from '@/config/buildings';
-import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import {
   ArtsLettersAgendaGlobalConfig,
   ArtsLettersAgendaPart,
@@ -17,7 +17,7 @@ import {
   MAX_AGENDA_PARTS,
   PART_LABEL_MAX_LENGTH,
 } from '@/components/widgets/ArtsLettersAgenda/constants';
-import { sanitizeAgendaParts } from '@/components/widgets/ArtsLettersAgenda/utils';
+import { editableAgendaParts } from '@/components/widgets/ArtsLettersAgenda/utils';
 import { Card } from '@/components/common/Card';
 import { BuildingSelector } from './BuildingSelector';
 
@@ -167,7 +167,11 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
         />
         <button
           type="button"
-          {...tourTypeAttr('admin.widget-config.add', 'arts-letters-agenda')}
+          {...tourFieldAttr(
+            'admin.widget-config.field',
+            'arts-letters-agenda',
+            `${listKey}-add`
+          )}
           onClick={add}
           disabled={!newLabel.trim() || atMax}
           className="flex items-center gap-1 px-3 py-1.5 text-xxs font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
@@ -205,7 +209,7 @@ export const ArtsLettersAgendaConfigurationPanel: React.FC<
   };
 
   const view = (key: ListKey) => {
-    const saved = sanitizeAgendaParts(current[key]);
+    const saved = editableAgendaParts(current[key]);
     return {
       parts: saved.length ? saved : DEFAULT_AGENDA_PARTS,
       isCustom: saved.length > 0,

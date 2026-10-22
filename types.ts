@@ -2028,6 +2028,8 @@ export type ArtsLettersAgendaVersion = 'simple' | 'detailed';
 
 export interface ArtsLettersAgendaConfig {
   version?: ArtsLettersAgendaVersion;
+  /** Building whose admin lists this widget uses; set on first edit so other viewers see the same boxes. */
+  buildingId?: string;
   descriptions?: Record<ArtsLettersAgendaPartId, string>;
   completed?: Record<ArtsLettersAgendaPartId, boolean>;
   fontFamily?: string;

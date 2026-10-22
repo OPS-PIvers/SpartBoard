@@ -38,37 +38,43 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
     textSizePreset,
   } = config;
 
+  const buildingId = config.buildingId ?? selectedBuildings[0];
+  const base = useMemo(
+    () => (buildingId ? { ...config, buildingId } : config),
+    [config, buildingId]
+  );
+
   const toggle = useCallback(
     (id: ArtsLettersAgendaPartId) => {
       updateWidget(widget.id, {
         config: {
-          ...config,
+          ...base,
           completed: { ...completed, [id]: !completed[id] },
         },
       });
     },
-    [updateWidget, widget.id, config, completed]
+    [updateWidget, widget.id, base, completed]
   );
 
   const commitDescription = useCallback(
     (id: ArtsLettersAgendaPartId, text: string) => {
       updateWidget(widget.id, {
-        config: { ...config, descriptions: { ...descriptions, [id]: text } },
+        config: { ...base, descriptions: { ...descriptions, [id]: text } },
       });
     },
-    [updateWidget, widget.id, config, descriptions]
+    [updateWidget, widget.id, base, descriptions]
   );
 
   const resetChecks = useCallback(() => {
-    updateWidget(widget.id, { config: { ...config, completed: {} } });
-  }, [updateWidget, widget.id, config]);
+    updateWidget(widget.id, { config: { ...base, completed: {} } });
+  }, [updateWidget, widget.id, base]);
 
   const adminConfig = featurePermissions.find(
     (p) => p.widgetType === widget.type
   )?.config;
   const lists = useMemo(
-    () => resolveAgendaPartLists(adminConfig, selectedBuildings[0]),
-    [adminConfig, selectedBuildings]
+    () => resolveAgendaPartLists(adminConfig, buildingId),
+    [adminConfig, buildingId]
   );
   const parts = partsForVersion(lists, version);
 
@@ -105,9 +111,9 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
           </h2>
           <div
             role="list"
-            className={`flex-1 overflow-y-auto flex flex-col pb-2 ${parts.length <= 4 ? '[@container(min-aspect-ratio:2.4)]:flex-row' : ''}`}
+            className={`flex-1 overflow-y-auto flex flex-col ${parts.length <= 4 ? '[@container(min-aspect-ratio:2.4)]:flex-row' : ''}`}
             style={{
-              padding: 'min(10px, 2.2cqmin) max(18px, 2.5cqmin) 0',
+              padding: 'min(10px, 2.2cqmin) max(18px, 2.5cqmin) 8px',
               gap: 'min(8px, 2cqmin)',
             }}
           >
