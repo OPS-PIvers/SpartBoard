@@ -1,6 +1,6 @@
 # Collection sharing: Synced and View-Only
 
-Status: draft, waiting on Paul's decisions (D1-D4) and wording OK (W1). Requested 2026-10-22.
+Status: approved by Paul 2026-10-22 (all recommended options for D1-D4, wording W1 as written).
 
 ## Goal
 
@@ -63,7 +63,7 @@ Reuse the board Synced machinery for the boards; add one small doc for the colle
 10. **Tour anchors:** carry over `share-collection.*`, add `share-collection.mode-synced`,
     `.mode-view-only`, `.mode-copy`, and Leave / Stop sharing menu items.
 
-## Decisions for Paul
+## Decisions (approved: the recommended option each time)
 
 - **D1 Sub-collections.** Recommend: include them in Synced / View-Only shares (and fix Copy to
   include them too), rebuilt under the recipient's collection. Alternative: top-level boards only.
@@ -75,7 +75,7 @@ Reuse the board Synced machinery for the boards; add one small doc for the colle
   removes it for everyone after a confirm; others keep nothing. Alternative: others keep a
   detached copy.
 
-## Wording (W1, needs Paul's OK)
+## Wording (W1, approved)
 
 Collection Share dialog, same rows as the board dialog:
 
