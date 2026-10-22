@@ -46,13 +46,14 @@ export function flattenSharedCollection(
   const orderedBoards: Dashboard[] = [];
   const seen = new Set<string>();
 
-  const visit = (collection: Collection) => {
+  const visit = (collection: Collection, parentId?: string) => {
     if (seen.has(collection.id)) return;
     seen.add(collection.id);
     sections.push({
       id: collection.id,
       name: collection.name,
       ...(collection.color !== undefined && { color: collection.color }),
+      ...(parentId !== undefined && { parentId }),
     });
     for (const board of allBoards
       .filter((b) => (b.collectionId ?? null) === collection.id)
@@ -68,7 +69,7 @@ export function flattenSharedCollection(
     for (const child of collections
       .filter((c) => c.parentCollectionId === collection.id)
       .sort(byOrder)) {
-      visit(child);
+      visit(child, collection.id);
     }
   };
 

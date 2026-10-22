@@ -156,6 +156,13 @@ interface ShareCollectionInput {
   boards: Dashboard[];
   hostUid: string;
   hostDisplayName: string | null;
+  tree?: CopyShareTree;
+}
+
+/** A copy share's sub-collections and where each board sits in them. */
+export interface CopyShareTree {
+  sections: SharedCollectionSection[];
+  boardEntries: SharedCollectionBoardEntry[];
 }
 
 /**
@@ -503,6 +510,10 @@ export const useSharedCollection = () => {
         },
         boardIds: input.boards.map((b) => b.id),
         createdAt: now,
+        ...(input.tree && {
+          sections: input.tree.sections,
+          boards: input.tree.boardEntries,
+        }),
       };
 
       if (isAuthBypass) {

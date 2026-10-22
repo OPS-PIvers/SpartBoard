@@ -338,6 +338,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
         deleteCollection: () => Promise.resolve(),
         reorderSiblings: () => Promise.resolve(),
         setCollectionMetadata: () => Promise.resolve(),
+        setCollectionLink: () => Promise.resolve(),
         setCollectionDefaultBoard: () => Promise.resolve(),
       },
       dashboards: [activeDashboard],
@@ -445,6 +446,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
 
       // Collection sharing — subs never originate collection shares.
       shareCollection: () => Promise.resolve(''),
+      shareLinkedCollection: () => Promise.resolve(''),
       shareSubstituteCollection: () => Promise.resolve(''),
       updateSubstituteCollectionShare: () => Promise.resolve(),
       extendSubstituteCollectionShare: () => Promise.resolve(),

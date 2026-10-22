@@ -1695,7 +1695,13 @@
     "notFound": "Collection partagée introuvable ou expirée",
     "empty": "La Collection partagée est vide",
     "invalidShareUrl": "Lien de partage invalide — identifiant de partage manquant.",
-    "substituteImportRejected": "Ce lien est destiné aux remplaçants. Ouvrez-le dans le portail des remplaçants."
+    "substituteImportRejected": "Ce lien est destiné aux remplaçants. Ouvrez-le dans le portail des remplaçants.",
+    "modeSynced": "Synchronisé",
+    "modeSyncedHint": "Vous modifiez tous les deux la même collection.",
+    "modeViewOnly": "Lecture seule",
+    "modeViewOnlyHint": "Ils voient vos modifications en direct mais ne peuvent pas modifier.",
+    "modeCopyTitle": "Faire une copie",
+    "boardAlreadyLive": "{{name}} est déjà partagé en direct. Arrêtez d'abord le partage ou faites une copie."
   },
   "importSharedCollection": {
     "title": "Importer une Collection partagée",

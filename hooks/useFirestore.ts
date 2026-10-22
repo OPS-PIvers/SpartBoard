@@ -475,7 +475,9 @@ export const useFirestore = (userId: string | null) => {
        * Shared Boards tab. Mutating the field post-create is restricted
        * to the host (rules pin it immutable for collaborators).
        */
-      plcId?: string
+      plcId?: string,
+      /** The `/linked_collections` link this board share belongs to. */
+      linkedCollectionId?: string
     ): Promise<string> => {
       assertViewAsCanWrite();
       if (isAuthBypass) {
@@ -486,6 +488,7 @@ export const useFirestore = (userId: string | null) => {
           ...(hostDisplayName ? { originalAuthorName: hostDisplayName } : {}),
           ...(intendedMode ? { intendedMode } : {}),
           ...(plcId ? { plcId } : {}),
+          ...(linkedCollectionId ? { linkedCollectionId } : {}),
         });
       }
 
@@ -509,6 +512,7 @@ export const useFirestore = (userId: string | null) => {
         ...(hostDisplayName ? { originalAuthorName: hostDisplayName } : {}),
         ...(intendedMode ? { intendedMode } : {}),
         ...(plcId ? { plcId } : {}),
+        ...(linkedCollectionId ? { linkedCollectionId } : {}),
         participants: {},
         updatedAt: Date.now(),
         updatedBy: userId,
