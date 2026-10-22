@@ -5,7 +5,6 @@ import React, {
   useCallback,
   useRef,
   useMemo,
-  useEffectEvent,
 } from 'react';
 import {
   Dashboard,
@@ -3974,50 +3973,65 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const closedShareIdsRef = useRef(new Set<string>());
   const recordedHostBoardIdsRef = useRef(new Set<string>());
 
+  // Latest-value handlers the share snapshot callbacks call, so permissions loading doesn't re-subscribe.
+  const linkedShareHandlersRef = useRef<{
+    closeWallsToEndedShare: (shareId: string, host?: string) => void;
+    recordShareHost: (board: Dashboard, hostUid: string) => void;
+  }>({
+    closeWallsToEndedShare: () => undefined,
+    recordShareHost: () => undefined,
+  });
+
   // The ended share stops listing this teacher's walls.
-  const closeWallsToEndedShare = useEffectEvent(
-    (shareId: string, recordedHost: string | undefined) => {
-      if (isAuthBypass || !user) return;
-      if (!canAccessFeature('shared-board-live-walls')) return;
-      if (closedShareIdsRef.current.has(shareId)) return;
-      closedShareIdsRef.current.add(shareId);
-      const uid = user.uid;
-      void (async () => {
-        // A listener error or a cache miss also reports null: close only once the server confirms it.
-        const snap = await getDoc(doc(db, 'shared_boards', shareId));
-        const host: unknown = snap.data()?.originalAuthor;
-        if (snap.exists() && (!recordedHost || host === recordedHost)) {
-          closedShareIdsRef.current.delete(shareId);
-          return;
-        }
-        await closeWallsToBoard(uid, shareId, new Set());
-      })().catch((err: unknown) => {
+  const closeWallsToEndedShare = (
+    shareId: string,
+    recordedHost: string | undefined
+  ) => {
+    if (isAuthBypass || !user) return;
+    if (!canAccessFeature('shared-board-live-walls')) return;
+    if (closedShareIdsRef.current.has(shareId)) return;
+    closedShareIdsRef.current.add(shareId);
+    const uid = user.uid;
+    void (async () => {
+      // A listener error or a cache miss also reports null: close only once the server confirms it.
+      const snap = await getDoc(doc(db, 'shared_boards', shareId));
+      const host: unknown = snap.data()?.originalAuthor;
+      if (snap.exists() && (!recordedHost || host === recordedHost)) {
         closedShareIdsRef.current.delete(shareId);
-        console.error('Failed to close walls to the ended board:', err);
-      });
-    }
-  );
+        return;
+      }
+      await closeWallsToBoard(uid, shareId, new Set());
+    })().catch((err: unknown) => {
+      closedShareIdsRef.current.delete(shareId);
+      console.error('Failed to close walls to the ended board:', err);
+    });
+  };
 
   // Boards joined before the host was recorded keep it from their first snapshot.
-  const recordShareHost = useEffectEvent(
-    (board: Dashboard, hostUid: string) => {
-      if (recordedHostBoardIdsRef.current.has(board.id)) return;
-      recordedHostBoardIdsRef.current.add(board.id);
-      setDashboards((prev) =>
-        prev.map((x) =>
-          x.id === board.id && !x.linkedShareHostUid
-            ? { ...x, linkedShareHostUid: hostUid }
-            : x
-        )
-      );
-      void updateDashboardFields(
-        { ...board, linkedShareHostUid: hostUid },
-        { linkedShareHostUid: hostUid }
-      ).catch((err: unknown) => {
-        console.error('Failed to record the share host:', err);
-      });
-    }
-  );
+  const recordShareHost = (board: Dashboard, hostUid: string) => {
+    if (recordedHostBoardIdsRef.current.has(board.id)) return;
+    recordedHostBoardIdsRef.current.add(board.id);
+    setDashboards((prev) =>
+      prev.map((x) =>
+        x.id === board.id && !x.linkedShareHostUid
+          ? { ...x, linkedShareHostUid: hostUid }
+          : x
+      )
+    );
+    void updateDashboardFields(
+      { ...board, linkedShareHostUid: hostUid },
+      { linkedShareHostUid: hostUid }
+    ).catch((err: unknown) => {
+      console.error('Failed to record the share host:', err);
+    });
+  };
+
+  useLayoutEffect(() => {
+    linkedShareHandlersRef.current = {
+      closeWallsToEndedShare,
+      recordShareHost,
+    };
+  });
 
   const subscribeLinkedBoard = useCallback(
     (d: Dashboard): (() => void) => {
@@ -4055,7 +4069,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           //    detached editable copy and flag `linkedShareEnded` so the
           //    UI can surface a "share ended" indicator.
           if (!known?.linkedShareEnded) {
-            closeWallsToEndedShare(shareId, recordedHost);
+            linkedShareHandlersRef.current.closeWallsToEndedShare(
+              shareId,
+              recordedHost
+            );
           }
           const local = dashboardsRef.current.find((x) => x.id === dashboardId);
           if (local?.linkedShareRole === 'viewer') {
@@ -4120,7 +4137,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // An ended board never takes a host from whoever holds the share id now.
         const remoteHost = remote.linkedShareHostUid;
         if (known && !recordedHost && remoteHost && !known.linkedShareEnded) {
-          recordShareHost(known, remoteHost);
+          linkedShareHandlersRef.current.recordShareHost(known, remoteHost);
         }
 
         // Skip echoes of our own writes — `updatedBy` is stamped by the
