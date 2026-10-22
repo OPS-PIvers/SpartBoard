@@ -141,14 +141,10 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   // On a Synced or View-Only board the wall may be in another member's library.
   const boardShareId = useBoardLinkedShareId();
   const stampedOwner = config.activeActivityOwnerUid ?? null;
-  const needsShareHost =
-    !inSubShare &&
-    !!boardShareId &&
-    !stampedOwner &&
-    !!config.activeActivityId &&
-    !libraryLoading &&
-    !ownEntry;
-  const shareHostUid = useLinkedShareHost(needsShareHost ? boardShareId : null);
+  const shareHostUid = useLinkedShareHost(inSubShare ? null : boardShareId);
+  // The owner lists the board as "shareId/hostUid"; rules check the host so a re-created share id grants nothing.
+  const boardShareEntry =
+    boardShareId && shareHostUid ? `${boardShareId}/${shareHostUid}` : null;
   const foreignOwnerUid =
     inSubShare || !boardShareId || ownEntry
       ? null
@@ -160,10 +156,13 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const linked = useLinkedBoardActivityWall(
     foreignOwnerUid,
     config.activeActivityId ?? null,
-    boardShareId
+    boardShareId,
+    !isActiveBoardReadOnly
   );
-  // Someone else's wall, shown read-only: a sub share or another board member's.
+  // Someone else's wall: a sub share or another board member's.
   const inShare = inSubShare || linked.active;
+  // The owner, or a co-teacher on the board, moderates and posts.
+  const canModerate = !inShare || linked.moderating;
   const ownerName = useLinkedShareMemberName(
     linked.active ? boardShareId : null,
     linked.active ? foreignOwnerUid : null
@@ -223,17 +222,17 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const {
     sessionId,
     session: ownSession,
-    submissions,
-    pendingCount,
+    submissions: ownSubmissions,
+    pendingCount: ownPendingCount,
     driveSync,
     latestShareCode,
     latestShareId,
-    approve,
-    reject,
-    deletePost,
-    movePost,
-    pinPost,
-    editPost,
+    approve: ownApprove,
+    reject: ownReject,
+    deletePost: ownDeletePost,
+    movePost: ownMovePost,
+    pinPost: ownPinPost,
+    editPost: ownEditPost,
     setAcceptingResponses,
     setStudentsCanSeePosts,
     setTimelineDatesHidden,
@@ -242,7 +241,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     activeEntry,
     saveActivity,
     canAccessFeature('activity-wall-timeline-dates'),
-    canAccessFeature('shared-board-live-walls') ? boardShareId : null
+    canAccessFeature('shared-board-live-walls') ? boardShareEntry : null
   );
   const session = inSubShare
     ? shared.session
@@ -255,7 +254,23 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     ? (config.subSharePosts ?? EMPTY_POSTS)
     : linked.active
       ? linked.posts
-      : submissions;
+      : ownSubmissions;
+  // Moderation acts on whichever session is on the board: the owner's own or a co-teacher's.
+  const submissions = linked.moderating ? linked.posts : ownSubmissions;
+  const pendingCount = linked.moderating
+    ? linked.pendingCount
+    : ownPendingCount;
+  const { approve, reject, deletePost, movePost, pinPost, editPost } =
+    linked.moderating
+      ? linked.actions
+      : {
+          approve: ownApprove,
+          reject: ownReject,
+          deletePost: ownDeletePost,
+          movePost: ownMovePost,
+          pinPost: ownPinPost,
+          editPost: ownEditPost,
+        };
 
   const isOpenWall = activeEntry?.acceptingResponses !== false;
   const isVisibleWall = activeEntry?.studentsCanSeePosts !== false;
@@ -307,6 +322,23 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     });
   }, [activeEntry, addToast, isVisibleWall, setStudentsCanSeePosts]);
 
+  // Storage takes uploads only from the owner, students and guests, so a co-teacher posts text and links.
+  const composerSession = useMemo(
+    () =>
+      session && linked.moderating && composer?.kind === 'create'
+        ? {
+            ...session,
+            allowedTypes: {
+              photo: false,
+              file: false,
+              video: false,
+              link: session.allowedTypes?.link === true,
+            },
+          }
+        : session,
+    [session, linked.moderating, composer?.kind]
+  );
+
   const openTeacherComposer = useCallback((placement: WallPlacement = {}) => {
     setComposerError(null);
     setComposer({ kind: 'create', placement });
@@ -334,7 +366,12 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
       setComposerError(null);
       try {
         if (composer.kind === 'edit') {
-          await updatePost(session, composer.post.id, draft, placement);
+          // Rules keep a link post's URL with its owner; a co-teacher edits the rest.
+          const editDraft =
+            linked.moderating && composer.post.type === 'link'
+              ? { ...draft, url: composer.post.content }
+              : draft;
+          await updatePost(session, composer.post.id, editDraft, placement);
           addToast('Post updated.', 'success');
         } else {
           await createPost({
@@ -362,7 +399,15 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         setComposerBusy(false);
       }
     },
-    [addToast, closeComposer, composer, composerBusy, session, user]
+    [
+      addToast,
+      closeComposer,
+      composer,
+      composerBusy,
+      linked.moderating,
+      session,
+      user,
+    ]
   );
 
   const copyStudentLink = useCallback(async () => {
@@ -518,6 +563,32 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     },
   ];
 
+  const moderateButton = activeEntry?.moderationEnabled && (
+    <button
+      type="button"
+      {...tourAttr('activity-wall.moderate', widget.id, widget.type)}
+      onClick={() => setModerationOpen(true)}
+      aria-label={`Moderate posts, ${pendingCount} pending`}
+      className={`${toolbarButtonClass} relative`}
+      style={{ ...iconButtonSize, marginRight: 'min(4px, 1.2cqmin)' }}
+    >
+      <ShieldCheck style={{ width: '60%', height: '60%' }} />
+      {pendingCount > 0 && (
+        <span
+          className="absolute rounded-full bg-rose-500 font-black text-white"
+          style={{
+            right: 'max(-4px, -1.2cqmin)',
+            top: 'max(-4px, -1.2cqmin)',
+            fontSize: 'min(9px, 2.8cqmin)',
+            padding: '0 min(4px, 1.2cqmin)',
+          }}
+        >
+          {pendingCount}
+        </span>
+      )}
+    </button>
+  );
+
   const header = activeEntry && (
     <div
       className="flex items-center justify-between border-b border-white/15 bg-slate-900/70 backdrop-blur-sm"
@@ -553,6 +624,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
       </div>
 
       {/* Every control here writes the teacher's wall or launches for them. */}
+      {linked.moderating && moderateButton}
       {!inShare && (
         <div
           className="flex shrink-0 items-center"
@@ -601,31 +673,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             {isVisibleWall ? 'Visible' : 'Hidden'}
           </button>
 
-          {activeEntry.moderationEnabled && (
-            <button
-              type="button"
-              {...tourAttr('activity-wall.moderate', widget.id, widget.type)}
-              onClick={() => setModerationOpen(true)}
-              aria-label={`Moderate posts, ${pendingCount} pending`}
-              className={`${toolbarButtonClass} relative`}
-              style={{ ...iconButtonSize, marginRight: 'min(4px, 1.2cqmin)' }}
-            >
-              <ShieldCheck style={{ width: '60%', height: '60%' }} />
-              {pendingCount > 0 && (
-                <span
-                  className="absolute rounded-full bg-rose-500 font-black text-white"
-                  style={{
-                    right: 'max(-4px, -1.2cqmin)',
-                    top: 'max(-4px, -1.2cqmin)',
-                    fontSize: 'min(9px, 2.8cqmin)',
-                    padding: '0 min(4px, 1.2cqmin)',
-                  }}
-                >
-                  {pendingCount}
-                </span>
-              )}
-            </button>
-          )}
+          {moderateButton}
 
           {compactToolbar ? (
             <div className="relative" ref={toolbarMenuRef}>
@@ -787,9 +835,9 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
       title="No posts"
       subtitle="This wall had no approved posts when your teacher shared it."
     />
-  ) : inShare && visibleCount === 0 ? (
+  ) : !canModerate && visibleCount === 0 ? (
     <ScaledEmptyState icon={LayoutGrid} title="No posts yet" />
-  ) : !inShare && visibleCount === 0 ? (
+  ) : visibleCount === 0 ? (
     <ScaledEmptyState
       icon={LayoutGrid}
       title={
@@ -831,12 +879,16 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           showNames={activeEntry.showNames ?? false}
           imageSize={imageSize}
           cardStyle={cardStyle}
-          onApprove={inShare ? undefined : (id) => void approve(id)}
-          onReject={inShare ? undefined : (id) => void reject(id)}
-          onDelete={inShare ? undefined : (id) => void deletePost(id)}
-          onPin={inShare ? undefined : (id, pinned) => void pinPost(id, pinned)}
-          onMove={inShare ? undefined : (id, patch) => void movePost(id, patch)}
-          onEdit={inShare ? undefined : openTeacherEdit}
+          onApprove={canModerate ? (id) => void approve(id) : undefined}
+          onReject={canModerate ? (id) => void reject(id) : undefined}
+          onDelete={canModerate ? (id) => void deletePost(id) : undefined}
+          onPin={
+            canModerate ? (id, pinned) => void pinPost(id, pinned) : undefined
+          }
+          onMove={
+            canModerate ? (id, patch) => void movePost(id, patch) : undefined
+          }
+          onEdit={canModerate ? openTeacherEdit : undefined}
           tourWidgetId={widget.id}
           onToggleTimelineDates={
             inShare || isActiveBoardReadOnly
@@ -851,7 +903,9 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                   })
           }
           onAddAt={
-            inShare || isActiveBoardReadOnly ? undefined : openTeacherComposer
+            !canModerate || isActiveBoardReadOnly
+              ? undefined
+              : openTeacherComposer
           }
         />
       </div>
@@ -924,10 +978,10 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         />
       )}
 
-      {!inShare && composer && session && (
+      {canModerate && composer && composerSession && (
         <ComposerSheet
           key={composer.kind === 'edit' ? composer.post.id : 'create'}
-          session={session}
+          session={composerSession}
           placement={
             composer.kind === 'create' ? composer.placement : undefined
           }
@@ -942,7 +996,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         />
       )}
 
-      {!inShare && (
+      {canModerate && (
         <ModerationDrawer
           open={moderationOpen}
           onClose={() => setModerationOpen(false)}
@@ -952,7 +1006,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           onDelete={(id) => void deletePost(id)}
           onPin={(id, pinned) => void pinPost(id, pinned)}
           onEdit={(id, changes) => void editPost(id, changes)}
-          sessionId={sessionId}
+          sessionId={inShare ? null : sessionId}
         />
       )}
 

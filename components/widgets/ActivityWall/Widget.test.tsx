@@ -23,6 +23,7 @@ const {
   mockGetDoc,
   mockLibraryEntries,
   mockLinkedShareId,
+  mockReadOnly,
 } = vi.hoisted(() => ({
   mockAddWidget: vi.fn(),
   mockAddToast: vi.fn(),
@@ -37,6 +38,7 @@ const {
   mockGetDoc: vi.fn().mockResolvedValue({ data: () => undefined }),
   mockLibraryEntries: { current: [] as ActivityWallLibraryEntry[] },
   mockLinkedShareId: { current: null as string | null },
+  mockReadOnly: { current: false },
 }));
 
 const routerProps: { current: Record<string, unknown> | null } = {
@@ -52,7 +54,7 @@ vi.mock('@/context/dashboardCanvasStore', () => ({
     addToast: mockAddToast,
     updateWidget: mockUpdateWidget,
   }),
-  useIsActiveBoardReadOnly: () => false,
+  useIsActiveBoardReadOnly: () => mockReadOnly.current,
   useActiveBoardLinkedShareId: () => mockLinkedShareId.current,
   useGlobalStyle: () => ({ fontFamily: 'sans' }),
 }));
@@ -173,6 +175,7 @@ beforeEach(() => {
   sessionDocData = {};
   mockLibraryEntries.current = [makeEntry()];
   mockLinkedShareId.current = null;
+  mockReadOnly.current = false;
   mockGetDoc.mockResolvedValue({ data: () => undefined });
   mockSaveActivity.mockResolvedValue(undefined);
   mockDeleteActivity.mockResolvedValue(undefined);
@@ -628,11 +631,12 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
     });
   });
 
-  it("shows the host's wall read-only once the host opens it to the board", async () => {
+  it("shows the host's wall read-only to a View-Only member", async () => {
+    mockReadOnly.current = true;
     sessionDocData = {
       'activity_wall_sessions/host-1_wall-1': hostSession,
       'activity_wall_sessions/host-1_wall-1/boardAccess/boards': {
-        boardShareIds: ['share-1'],
+        boardShareIds: ['share-1/host-1'],
       },
     };
     snapshotDocs = [
@@ -656,6 +660,97 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
     // The guest never writes a session of their own.
     expect(mockSetDoc).not.toHaveBeenCalled();
     expect(mockUpdateDoc).not.toHaveBeenCalled();
+  });
+
+  it('lets a collaborator moderate the host wall', async () => {
+    sessionDocData = {
+      'activity_wall_sessions/host-1_wall-1': hostSession,
+      'activity_wall_sessions/host-1_wall-1/boardAccess/boards': {
+        boardShareIds: ['share-1/host-1'],
+      },
+    };
+    snapshotDocs = [
+      {
+        id: 'p-1',
+        content: 'Approved idea',
+        submittedAt: 1,
+        status: 'approved',
+      },
+      { id: 'p-2', content: 'Waiting idea', submittedAt: 2, status: 'pending' },
+    ];
+    routerProps.current = null;
+    renderWidget();
+
+    expect(await screen.findByText('Host wall')).toBeInTheDocument();
+    await screen.findByTestId('layout-router');
+    await waitFor(() => expect(lastRouterProps()?.submissions).toHaveLength(2));
+    for (const handler of ['onApprove', 'onDelete', 'onMove', 'onAddAt']) {
+      expect(lastRouterProps()?.[handler]).toBeTypeOf('function');
+    }
+    expect(
+      screen.getByRole('button', { name: 'Moderate posts, 1 pending' })
+    ).toBeInTheDocument();
+    // Wall setup stays with the owner.
+    expect(screen.queryByRole('button', { name: 'Open' })).toBeNull();
+    expect(lastRouterProps()?.onToggleTimelineDates).toBeUndefined();
+
+    (lastRouterProps()?.onApprove as (id: string) => void)('p-2');
+    await waitFor(() =>
+      expect(mockUpdateDoc).toHaveBeenCalledWith(
+        expect.objectContaining({
+          __path: 'activity_wall_sessions/host-1_wall-1/submissions/p-2',
+        }),
+        { status: 'approved' }
+      )
+    );
+    // The collaborator never mirrors a session of their own.
+    expect(mockSetDoc).not.toHaveBeenCalled();
+  });
+
+  it('falls back to approved posts when the rules refuse moderation', async () => {
+    sessionDocData = {
+      'activity_wall_sessions/host-1_wall-1': hostSession,
+      'activity_wall_sessions/host-1_wall-1/boardAccess/boards': {
+        boardShareIds: ['share-1/host-1'],
+      },
+    };
+    snapshotDocs = [
+      {
+        id: 'p-1',
+        content: 'Approved idea',
+        submittedAt: 1,
+        status: 'approved',
+      },
+    ];
+    const base = mockOnSnapshot.getMockImplementation() as
+      | ((ref: unknown, onNext: unknown, onError: unknown) => () => void)
+      | undefined;
+    let refused = false;
+    mockOnSnapshot.mockImplementation(
+      (
+        ref: unknown,
+        onNext: (v: unknown) => void,
+        onError: (e: unknown) => void
+      ) => {
+        // The first posts listen (every post) is denied, as on a View-Only share.
+        if (
+          typeof ref === 'string' &&
+          ref.includes('submissions') &&
+          !refused
+        ) {
+          refused = true;
+          onError(new Error('permission-denied'));
+          return vi.fn();
+        }
+        return base?.(ref, onNext, onError) ?? vi.fn();
+      }
+    );
+    routerProps.current = null;
+    renderWidget();
+
+    expect(await screen.findByText('Host wall')).toBeInTheDocument();
+    await waitFor(() => expect(lastRouterProps()?.submissions).toHaveLength(1));
+    expect(lastRouterProps()?.onApprove).toBeUndefined();
   });
 
   it("names the wall's owner for the board's other members", async () => {
@@ -729,7 +824,7 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
         title: 'Collaborator wall',
       },
       'activity_wall_sessions/collab-1_wall-1/boardAccess/boards': {
-        boardShareIds: ['share-1'],
+        boardShareIds: ['share-1/host-1'],
       },
     };
     render(
@@ -752,7 +847,7 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
     mockLibraryEntries.current = [makeEntry()];
     sessionDocData = {
       'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards': {
-        boardShareIds: ['old-share'],
+        boardShareIds: ['old-share/x'],
       },
     };
     renderWidget();
@@ -762,7 +857,7 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
         expect.objectContaining({
           __path: 'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards',
         }),
-        { boardShareIds: ['share-1', 'old-share'] },
+        { boardShareIds: ['share-1/host-1', 'old-share/x'] },
         { merge: true }
       )
     );
@@ -787,15 +882,22 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
 
   it('never evicts a live board when the list is full', async () => {
     mockLibraryEntries.current = [makeEntry()];
-    mockGetDoc.mockResolvedValue({ exists: () => true, data: () => ({}) });
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      data: () => ({ originalAuthor: 'host-1' }),
+    });
     sessionDocData = {
       'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards': {
-        boardShareIds: ['a', 'b', 'c'],
+        boardShareIds: ['a/x', 'b/x', 'c/x'],
       },
     };
     renderWidget();
     await screen.findByText('Warm Up');
-    await waitFor(() => expect(mockGetDoc).toHaveBeenCalledTimes(3));
+    await waitFor(() =>
+      expect(mockGetDoc).toHaveBeenCalledWith(
+        expect.objectContaining({ __path: 'shared_boards/c' })
+      )
+    );
     expect(mockSetDoc).not.toHaveBeenCalledWith(
       expect.objectContaining({
         __path: 'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards',
@@ -833,7 +935,7 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
     mockLibraryEntries.current = [makeEntry()];
     sessionDocData = {
       'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards': {
-        boardShareIds: ['other-board', 'share-1'],
+        boardShareIds: ['other-board', 'share-1/host-1'],
       },
     };
     renderWidget();
