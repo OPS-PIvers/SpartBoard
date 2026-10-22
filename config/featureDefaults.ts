@@ -19,6 +19,7 @@ import {
   FileUp,
   Gauge,
   Globe,
+  Home,
   ArrowLeft,
   GraduationCap,
   Flag,
@@ -735,6 +736,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'integrations',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // PLC teams open on Home: charts over time, the latest assessment and team tools.
+  'plc-home-tab': {
+    label: 'PLC Home page',
+    icon: Home,
+    description:
+      'PLC teams open on a Home page with results over time and team tools. Data overview becomes its own tab.',
+    stage: 'preview',
+    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

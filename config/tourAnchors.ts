@@ -6129,6 +6129,16 @@ export const TOUR_ANCHORS = {
   'teams.data.view-open-items': {
     label: 'View button for open items in the team data meeting strip',
   },
+  'teams.home.latest-assessment': {
+    label: 'Latest assessment title on the team Home page',
+  },
+  'teams.home.see-item-analysis': {
+    label: 'See item analysis link on the team Home page',
+  },
+  'teams.home.tool': {
+    label: 'Team tool link on the team Home page',
+    perField: true,
+  },
   'teams.department.agenda-add': {
     label: 'Add button for agenda items in the department hub',
     persists: true,

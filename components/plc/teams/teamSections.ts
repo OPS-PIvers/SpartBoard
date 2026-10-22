@@ -9,9 +9,20 @@ export type TeamOffRailSection = 'members' | 'settings' | 'meeting' | 'targets';
 
 export type TeamRoute =
   | { kind: 'page'; page: TeamPageId }
-  | { kind: 'section'; section: TeamOffRailSection };
+  | { kind: 'section'; section: TeamOffRailSection }
+  // PLC Home, shown in place of a Data overview landing when `plc-home-tab` is on.
+  | { kind: 'plcHome' };
 
-export function teamPageSection(id: TeamPageId): PlcSectionId {
+/** PLC Home replaces the landing only for a team that lands on Data overview. */
+export function teamUsesPlcHome(
+  layout: Pick<PlcTeamLayout, 'landing'>,
+  flagOn: boolean
+): boolean {
+  return flagOn && layout.landing === 'dataOverview';
+}
+
+export function teamPageSection(id: TeamPageId, plcHome = false): PlcSectionId {
+  if (plcHome && id === 'dataOverview') return 'dataOverview';
   return isTeamLandingPage(id) ? 'home' : (id as PlcSectionId);
 }
 
@@ -29,8 +40,19 @@ const PAGE_OF_SECTION: Partial<Record<PlcSectionId, TeamPageId>> = {
 export function resolveTeamRoute(
   section: PlcSectionId,
   layout: Pick<PlcTeamLayout, 'pages' | 'landing'>,
-  options: { targets?: boolean } = {}
+  options: { targets?: boolean; plcHome?: boolean } = {}
 ): { route: TeamRoute; canonical: PlcSectionId } {
+  if (options.plcHome) {
+    if (section === 'home') {
+      return { route: { kind: 'plcHome' }, canonical: 'home' };
+    }
+    if (section === 'dataOverview') {
+      return {
+        route: { kind: 'page', page: 'dataOverview' },
+        canonical: 'dataOverview',
+      };
+    }
+  }
   if (
     section === 'members' ||
     section === 'settings' ||
@@ -47,5 +69,10 @@ export function resolveTeamRoute(
   if (page && enabled) {
     return { route: { kind: 'page', page }, canonical: page as PlcSectionId };
   }
-  return { route: { kind: 'page', page: layout.landing }, canonical: 'home' };
+  return {
+    route: options.plcHome
+      ? { kind: 'plcHome' }
+      : { kind: 'page', page: layout.landing },
+    canonical: 'home',
+  };
 }

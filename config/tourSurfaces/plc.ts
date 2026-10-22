@@ -334,6 +334,14 @@ export const SURFACES: TourSurfaceMap = {
     parent: 'plc.teams.shell',
     needs: ['plc'],
   },
+  'plc.teams.home': {
+    label: 'PLC Home page',
+    kind: 'panel',
+    files: [`${P}teams/home/`],
+    opensWith: `${TAB}home`,
+    parent: 'plc.teams.shell',
+    needs: ['plc'],
+  },
   'plc.teams.data.tag-questions': {
     label: 'Tag questions to learning targets modal',
     kind: 'modal',
