@@ -632,6 +632,10 @@ export const TOUR_ANCHORS = {
     label: 'Connect Google Calendar button on the Calendar face',
     perWidgetType: true,
   },
+  'arts-letters-agenda.toggle-version': {
+    label: 'Simple and Detailed switch in Arts & Letters Agenda',
+    perWidget: true,
+  },
   'arts-letters-agenda.reset-checks': {
     label: 'Reset checks button in Arts & Letters Agenda',
     perWidget: true,

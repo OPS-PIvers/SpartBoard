@@ -131,6 +131,13 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'admin.widgets.configure:admin#checklist',
     needs: ['admin'],
   },
+  'admin.widgets.config.arts-letters-agenda': {
+    label: 'Arts & Letters Agenda admin configuration',
+    kind: 'modal',
+    files: ['components/admin/ArtsLettersAgendaConfigurationPanel.tsx'],
+    opensWith: 'admin.widgets.configure:admin#arts-letters-agenda',
+    needs: ['admin'],
+  },
   'admin.widgets.config.sound': {
     label: 'Noise Meter admin configuration',
     kind: 'modal',

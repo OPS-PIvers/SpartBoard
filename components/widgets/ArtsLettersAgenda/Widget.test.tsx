@@ -5,6 +5,31 @@ import type { ArtsLettersAgendaConfig, WidgetData } from '@/types';
 
 const mockUpdateWidget = vi.fn();
 
+const auth = vi.hoisted(() => ({
+  featurePermissions: [] as unknown[],
+  selectedBuildings: ['schumann'],
+}));
+
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => auth,
+}));
+
+const withLists = (lists: {
+  simpleParts?: { id: string; label: string }[];
+  detailedParts?: { id: string; label: string }[];
+}) => {
+  auth.featurePermissions = [
+    {
+      widgetType: 'arts-letters-agenda',
+      config: {
+        buildingDefaults: {
+          schumann: { buildingId: 'schumann', ...lists },
+        },
+      },
+    },
+  ];
+};
+
 vi.mock('@/context/dashboardCanvasStore', () => ({
   useDashboardActions: () => ({ updateWidget: mockUpdateWidget }),
   useGlobalStyle: () => ({ fontFamily: 'sans' }),
@@ -28,6 +53,8 @@ const renderWidget = (config: ArtsLettersAgendaConfig = {}) =>
 describe('ArtsLettersAgendaWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    auth.featurePermissions = [];
+    auth.selectedBuildings = ['schumann'];
   });
 
   it('always shows Launch, Learn and Land in order', () => {
@@ -119,6 +146,75 @@ describe('ArtsLettersAgendaWidget', () => {
 
   it('disables reset when nothing is checked', () => {
     renderWidget();
+    expect(
+      screen.getByRole('button', { name: /reset checks/i })
+    ).toBeDisabled();
+  });
+
+  it('shows the admin Simple list by default and the Detailed list after switching', () => {
+    withLists({
+      simpleParts: [
+        { id: 'launch', label: 'Launch' },
+        { id: 'learn', label: 'Learn' },
+        { id: 'land', label: 'Land' },
+      ],
+      detailedParts: [
+        { id: 'a', label: 'Warm up' },
+        { id: 'b', label: 'Mini lesson' },
+        { id: 'c', label: 'Practice' },
+        { id: 'd', label: 'Share out' },
+      ],
+    });
+    const { rerender } = renderWidget();
+    expect(screen.getAllByRole('listitem')).toHaveLength(3);
+    fireEvent.click(screen.getByRole('radio', { name: 'Detailed' }));
+    expect(mockUpdateWidget).toHaveBeenCalledWith('agenda-1', {
+      config: { version: 'detailed' },
+    });
+    rerender(
+      <ArtsLettersAgendaWidget widget={makeWidget({ version: 'detailed' })} />
+    );
+    const rows = screen.getAllByRole('listitem');
+    expect(rows).toHaveLength(4);
+    expect(rows[0]).toHaveTextContent('Warm up');
+    expect(rows[3]).toHaveTextContent('Share out');
+  });
+
+  it('hides the switch when both lists are the same', () => {
+    renderWidget();
+    expect(screen.queryByRole('radio', { name: 'Detailed' })).toBeNull();
+  });
+
+  it('keeps checks and descriptions by box when an admin renames a box', () => {
+    withLists({
+      simpleParts: [
+        { id: 'launch', label: 'Hook' },
+        { id: 'learn', label: 'Learn' },
+      ],
+    });
+    renderWidget({
+      completed: { launch: true },
+      descriptions: { launch: 'Quick write' },
+    });
+    expect(screen.getByLabelText('Hook details')).toHaveValue('Quick write');
+    expect(screen.getByRole('checkbox', { name: 'Hook done' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+  });
+
+  it('ignores a malformed admin list and falls back to the defaults', () => {
+    withLists({
+      simpleParts: [{ id: '', label: 'x' }, null as unknown as never],
+    });
+    renderWidget();
+    expect(screen.getAllByRole('listitem')).toHaveLength(3);
+    expect(screen.getByText('Launch')).toBeInTheDocument();
+  });
+
+  it('only counts checks on visible boxes for the reset button', () => {
+    withLists({ simpleParts: [{ id: 'launch', label: 'Launch' }] });
+    renderWidget({ completed: { land: true } });
     expect(
       screen.getByRole('button', { name: /reset checks/i })
     ).toBeDisabled();

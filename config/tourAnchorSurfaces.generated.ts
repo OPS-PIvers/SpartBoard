@@ -149,6 +149,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'blooms-taxonomy.ai-dismiss': ['widgets.blooms-taxonomy.face'],
     'calendar.start-timer': ['widgets.calendar.face'],
     'calendar.connect-google': ['widgets.calendar.face'],
+    'arts-letters-agenda.toggle-version': ['widgets.arts-letters-agenda.face'],
     'arts-letters-agenda.reset-checks': ['widgets.arts-letters-agenda.face'],
     'checklist.open-settings': ['widgets.checklist.face'],
     'checklist.remove-completed': ['widgets.checklist.face'],
@@ -1618,6 +1619,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'admin.access.min-tier': ['admin.shared.access-controls'],
     'admin.widget-config.field': [
       'admin.widgets.config.activity-wall',
+      'admin.widgets.config.arts-letters-agenda',
       'admin.widgets.config.blending-board',
       'admin.widgets.config.blooms-taxonomy',
       'admin.widgets.config.breathing',
@@ -1702,6 +1704,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
       'admin.widgets.config.work-symbols',
     ],
     'admin.widget-config.add': [
+      'admin.widgets.config.arts-letters-agenda',
       'admin.widgets.config.checklist',
       'admin.widgets.config.embed',
       'admin.widgets.config.graphic-organizer',

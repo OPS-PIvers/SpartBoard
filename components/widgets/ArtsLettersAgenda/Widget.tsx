@@ -1,12 +1,15 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   useDashboardActions,
   useGlobalStyle,
 } from '@/context/dashboardCanvasStore';
+import { useAuth } from '@/context/useAuth';
 import { Button } from '@/components/common/Button';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
 import {
   ArtsLettersAgendaConfig,
   ArtsLettersAgendaPartId,
+  ArtsLettersAgendaVersion,
   WidgetData,
 } from '@/types';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
@@ -14,7 +17,7 @@ import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 import { tourAttr } from '@/config/tourAnchors';
 import { WidgetLayout } from '../WidgetLayout';
 import { AgendaRow } from './components/AgendaRow';
-import { AGENDA_PARTS } from './constants';
+import { listsDiffer, partsForVersion, resolveAgendaPartLists } from './utils';
 
 const DEFAULTS = WIDGET_DEFAULTS['arts-letters-agenda']
   .config as Required<ArtsLettersAgendaConfig>;
@@ -23,9 +26,11 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget } = useDashboardActions();
+  const { featurePermissions, selectedBuildings } = useAuth();
   const globalStyle = useGlobalStyle();
   const config = widget.config as ArtsLettersAgendaConfig;
   const {
+    version = 'simple',
     descriptions = {},
     completed = {},
     fontFamily = DEFAULTS.fontFamily,
@@ -60,7 +65,24 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
     updateWidget(widget.id, { config: { ...config, completed: {} } });
   }, [updateWidget, widget.id, config]);
 
-  const anyDone = AGENDA_PARTS.some((p) => completed[p.id]);
+  const adminConfig = featurePermissions.find(
+    (p) => p.widgetType === widget.type
+  )?.config;
+  const lists = useMemo(
+    () => resolveAgendaPartLists(adminConfig, selectedBuildings[0]),
+    [adminConfig, selectedBuildings]
+  );
+  const parts = partsForVersion(lists, version);
+  const canSwitch = listsDiffer(lists.simple, lists.detailed);
+
+  const changeVersion = useCallback(
+    (next: ArtsLettersAgendaVersion) => {
+      updateWidget(widget.id, { config: { ...config, version: next } });
+    },
+    [updateWidget, widget.id, config]
+  );
+
+  const anyDone = parts.some((p) => completed[p.id]);
   const sm = resolveTextPresetMultiplier(textSizePreset, 1);
   const fontClass =
     fontFamily === 'global'
@@ -93,13 +115,13 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
           </h2>
           <div
             role="list"
-            className="flex-1 overflow-hidden flex flex-col [@container(min-aspect-ratio:2.4)]:flex-row"
+            className={`flex-1 overflow-hidden flex flex-col ${parts.length <= 4 ? '[@container(min-aspect-ratio:2.4)]:flex-row' : ''}`}
             style={{
               padding: 'min(10px, 2.2cqmin) max(18px, 2.5cqmin) 0',
               gap: 'min(8px, 2cqmin)',
             }}
           >
-            {AGENDA_PARTS.map((part) => (
+            {parts.map((part) => (
               <div
                 key={part.id}
                 role="listitem"
@@ -133,26 +155,45 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
               padding: 'min(6px, 1.5cqmin) min(12px, 2.5cqmin) 18px',
             }}
           >
-            <Button
-              {...tourAttr(
-                'arts-letters-agenda.reset-checks',
-                widget.id,
-                widget.type
+            <div className="flex flex-wrap items-center justify-center gap-2 [@container(max-height:149px)]:hidden">
+              {canSwitch && (
+                <SegmentedControl
+                  value={version}
+                  onChange={changeVersion}
+                  ariaLabel="Agenda version"
+                  role="radiogroup"
+                  anchor={tourAttr(
+                    'arts-letters-agenda.toggle-version',
+                    widget.id,
+                    widget.type
+                  )}
+                  options={[
+                    { value: 'simple', label: 'Simple' },
+                    { value: 'detailed', label: 'Detailed' },
+                  ]}
+                />
               )}
-              variant="secondary"
-              shape="pill"
-              size="sm"
-              onClick={resetChecks}
-              disabled={!anyDone}
-              title="Reset checks"
-              className="relative touch-target-expand [@container(max-height:149px)]:hidden"
-              style={{
-                fontSize: 'clamp(14px, 3.2cqmin, 18px)',
-                minHeight: 'max(24px, min(44px, 12cqmin))',
-              }}
-            >
-              reset checks
-            </Button>
+              <Button
+                {...tourAttr(
+                  'arts-letters-agenda.reset-checks',
+                  widget.id,
+                  widget.type
+                )}
+                variant="secondary"
+                shape="pill"
+                size="sm"
+                onClick={resetChecks}
+                disabled={!anyDone}
+                title="Reset checks"
+                className="relative touch-target-expand"
+                style={{
+                  fontSize: 'clamp(14px, 3.2cqmin, 18px)',
+                  minHeight: 'max(24px, min(44px, 12cqmin))',
+                }}
+              >
+                reset checks
+              </Button>
+            </div>
           </div>
         </div>
       }
