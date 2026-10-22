@@ -434,6 +434,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   );
   const folderView = useFolderViewSidebar({
     setFolderColor: folderState.setFolderColor,
+    reorderSiblings: folderState.reorderSiblings,
     noun: { one: 'Mini app', many: 'Mini apps' },
     items: personalLibrary,
     placed: sourceFolders.placed,

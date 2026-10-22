@@ -52516,6 +52516,32 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "library-shell.folder-menu-move-up",
+    "label": "Move up item in the library folder menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.folder-menu-move-down",
+    "label": "Move down item in the library folder menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "library-shell.folder-menu-delete",
     "label": "Delete item in the library folder menu",
     "scope": "board",

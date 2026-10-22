@@ -679,6 +679,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   }, [sets, libraryBuildingCount]);
   const folderView = useFolderViewSidebar({
     setFolderColor: folderState.setFolderColor,
+    reorderSiblings: folderState.reorderSiblings,
     noun: { one: 'set', many: 'sets' },
     items: sets,
     placed: sourceFolders.placed,

@@ -69,6 +69,8 @@ export interface FolderTreeProps {
   onMoveToRoot: (folderId: string) => void;
   /** Set or clear a folder's colour; omit to hide the colour row in the menu. */
   onSetColor?: (folderId: string, color: LibraryFolderColor | null) => void;
+  /** Swap a folder with its sibling above or below; omit to hide Move up and Move down. */
+  onReorder?: (folderId: string, direction: 'up' | 'down') => void;
 
   /**
    * When true, each folder row becomes a `useDroppable` target. Must be
@@ -164,6 +166,8 @@ interface FolderRowProps {
   onCreateChild: (parentId: string) => void;
   onMoveToRoot: (folderId: string) => void;
   onSetColor?: (folderId: string, color: LibraryFolderColor | null) => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }
 
 /**
@@ -190,6 +194,8 @@ const FolderRow: React.FC<FolderRowProps> = ({
   onCreateChild,
   onMoveToRoot,
   onSetColor,
+  onMoveUp,
+  onMoveDown,
 }) => {
   const panelMode = useFolderPanelMode();
   const isRail = panelMode === 'rail';
@@ -474,6 +480,34 @@ const FolderRow: React.FC<FolderRowProps> = ({
               Move to root
             </button>
           )}
+          {onMoveUp && (
+            <button
+              type="button"
+              role="menuitem"
+              className="w-full text-left px-2.5 py-1.5 rounded-md hover:bg-slate-100 text-slate-700"
+              {...tourAttr('library-shell.folder-menu-move-up')}
+              onClick={() => {
+                onOpenMenu(null);
+                onMoveUp();
+              }}
+            >
+              Move up
+            </button>
+          )}
+          {onMoveDown && (
+            <button
+              type="button"
+              role="menuitem"
+              className="w-full text-left px-2.5 py-1.5 rounded-md hover:bg-slate-100 text-slate-700"
+              {...tourAttr('library-shell.folder-menu-move-down')}
+              onClick={() => {
+                onOpenMenu(null);
+                onMoveDown();
+              }}
+            >
+              Move down
+            </button>
+          )}
           {onSetColor && (
             <div className="border-y border-slate-100 my-1">
               <FolderColorPicker
@@ -522,6 +556,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
   onCreateChild,
   onMoveToRoot,
   onSetColor,
+  onReorder,
   enableDrop = false,
 }) => {
   // Group children by parentId once per render. Sorted input is expected
@@ -535,6 +570,8 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
   );
 
   if (children.length === 0) return null;
+  // Source folders keep their fixed slots (D21), so only teacher folders move.
+  const movable = children.filter((f) => !isSourceFolderId(f.id));
 
   return (
     <ul role="group" className="flex flex-col">
@@ -545,6 +582,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
         const isMenuOpen = openMenuId === folder.id;
         const isRenaming = renamingId === folder.id;
         const count = itemCounts?.[folder.id] ?? 0;
+        const slot = movable.indexOf(folder);
 
         return (
           <li
@@ -572,6 +610,16 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
               onCreateChild={onCreateChild}
               onMoveToRoot={onMoveToRoot}
               onSetColor={onSetColor}
+              onMoveUp={
+                onReorder && slot > 0
+                  ? () => onReorder(folder.id, 'up')
+                  : undefined
+              }
+              onMoveDown={
+                onReorder && slot >= 0 && slot < movable.length - 1
+                  ? () => onReorder(folder.id, 'down')
+                  : undefined
+              }
             />
             {/* Recurse into children when expanded. */}
             {isExpanded && hasChildren && (
@@ -594,6 +642,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
                 onCreateChild={onCreateChild}
                 onMoveToRoot={onMoveToRoot}
                 onSetColor={onSetColor}
+                onReorder={onReorder}
                 enableDrop={enableDrop}
               />
             )}

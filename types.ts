@@ -10292,6 +10292,8 @@ export type GlobalFeature =
   | 'plc-docs-toolbar'
   /** Team action items sync to the assignee's Google Tasks (docs/plans/GOOGLE_TASKS_ACTION_ITEMS.md). */
   | 'google-tasks-sync'
+  /** Move up and Move down in a library folder's menu. */
+  | 'library-folder-reorder'
   /** PLC teams open on a Home page; Data overview becomes a regular tab. */
   | 'plc-home-tab'
   /** AI coach that checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22). */

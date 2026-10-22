@@ -229,6 +229,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
 
   const folderView = useFolderViewSidebar({
     setFolderColor: folderState.setFolderColor,
+    reorderSiblings: folderState.reorderSiblings,
     noun: { one: 'question bank', many: 'question banks' },
     items: banks,
     placed: sourceFolders.placed,
