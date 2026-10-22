@@ -448,4 +448,20 @@ describe('dryRunTour authoring checks', () => {
       expect.stringContaining('settings step on a different widget')
     );
   });
+
+  it('refuses a web tour step', () => {
+    const report = dryRunTour(
+      [
+        step('board.whole'),
+        {
+          id: 'w1',
+          label: 'Open grades',
+          text: 'Click Grades.',
+          web: { urlPattern: 'https://example.org/*', action: 'click' },
+        },
+      ],
+      board
+    );
+    expect(messages(report.errors).join('\n')).toMatch(/web tour step/);
+  });
 });

@@ -53,6 +53,8 @@ export function parsePublishedTour(
       title: '',
       imageUrls: [],
       ...raw,
+      // The snapshot's top-level surface is the one the read rule checks, so it wins.
+      ...(d.surface === 'web' ? { surface: 'web' as const } : {}),
       steps: raw.steps,
       id: setId,
       createdAt: publishedAt,

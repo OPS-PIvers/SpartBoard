@@ -2,6 +2,7 @@ import {
   freshTourPictureUrl,
   freshTourThumbnail,
   isLiveTourSet,
+  isWebTourSet,
 } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import {
   isDestructiveAnchor,
@@ -27,18 +28,21 @@ export type TourStep = GuidedLearningStep & {
   tour: NonNullable<GuidedLearningStep['tour']>;
 };
 
-/** A set's live-tour steps, in authored order. */
+/** A set's live-tour steps, in authored order; none for a web tour. */
 export const tourStepsOf = (set: GuidedLearningSet): TourStep[] =>
-  set.steps.filter((s): s is TourStep => !!s.tour);
+  isWebTourSet(set) ? [] : set.steps.filter((s): s is TourStep => !!s.tour);
 
 // A whole-board step plays as a centred card on the board, like a plain step.
 const runStep = (s: GuidedLearningStep): GuidedLearningStep =>
   s.tour?.anchor === WHOLE_BOARD_ANCHOR ? { ...s, tour: undefined } : s;
 
-/** Every step a live tour plays, anchored or plain; none for a set that is not a live tour. */
+/** Every step a live tour plays on the board, anchored or plain; none for a non-tour set or a web tour. */
 export const liveTourStepsOf = (
-  set: Pick<GuidedLearningSet, 'mode' | 'steps'>
-): GuidedLearningStep[] => (isLiveTourSet(set) ? set.steps.map(runStep) : []);
+  set: Pick<GuidedLearningSet, 'mode' | 'steps' | 'surface'>
+): GuidedLearningStep[] =>
+  isLiveTourSet(set) && !isWebTourSet(set)
+    ? set.steps.filter((s) => !s.web).map(runStep)
+    : [];
 
 /** The set's welcome message when it is switched on and not blank. */
 export const tourWelcome = (

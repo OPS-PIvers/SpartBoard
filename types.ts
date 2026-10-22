@@ -8199,6 +8199,8 @@ export interface GuidedLearningStep {
   narration?: GuidedLearningNarration;
   /** Live-tour binding. Teacher-only: never mirrored to public steps. */
   tour?: GuidedLearningTourBinding;
+  /** Web-tour binding (a set with `surface: 'web'`); such a step has no `tour`. */
+  web?: WebTourBinding;
   /** AI-drafted text the author has not yet edited or marked reviewed. Editor-only. */
   aiDraft?: boolean;
 }
@@ -8253,6 +8255,49 @@ export type GuidedLearningPublicNarration = Pick<
 
 export type GuidedLearningTourAction =
   'click' | 'observe' | 'toggle' | 'select' | 'type';
+
+/** Where a live tour plays; absent = 'spartboard'. */
+export type GuidedLearningTourSurface = 'spartboard' | 'web';
+
+/** A hint for the tip only; the extension never performs it. */
+export type WebTourAction = 'observe' | 'click' | 'type' | 'select';
+
+/** One frame on the way from the top document to the target. */
+export interface WebTourFrame {
+  /** The frame's address as origin plus path, ids replaced by `*`. */
+  urlPattern: string;
+  /** Position among its parent document's frames. */
+  index: number;
+}
+
+/** Clues that find a web step's target, tried role+name, then text, then css. */
+export interface WebTourLocator {
+  role?: string;
+  name?: string;
+  text?: string;
+  /** Short CSS path. */
+  css?: string;
+  /** Frames from the top document down; absent = the top document. */
+  frames?: WebTourFrame[];
+  /** Viewport box when recorded, as fractions 0-1; breaks ties, never matches alone. */
+  box?: { x: number; y: number; w: number; h: number };
+}
+
+/** A web step's picture in web_tour_pictures/{setId}/; read through the Storage SDK, never a download URL. */
+export interface WebTourPicture {
+  path: string;
+  w: number;
+  h: number;
+}
+
+/** A web-tour step's target; the step's `label` and `text` are its tip. */
+export interface WebTourBinding {
+  /** Origin plus path, ids replaced by `*`. */
+  urlPattern: string;
+  locator: WebTourLocator;
+  action: WebTourAction;
+  picture?: WebTourPicture;
+}
 
 export interface GuidedLearningTourBinding {
   /** TOUR_ANCHORS key */
@@ -8441,6 +8486,8 @@ export interface GuidedLearningSet {
   };
   /** Stamped on every building-set save: true for tour mode or when any step has a live-tour binding. */
   hasLiveTour?: boolean;
+  /** Tour sets only: 'web' plays on other websites through the Chrome extension; absent = 'spartboard'. */
+  surface?: GuidedLearningTourSurface;
 }
 
 /** A live tour's notes for Claude and last editor playtest, at building_guided_learning/{setId}/review/current; admins only. */
@@ -10130,6 +10177,8 @@ export type GlobalFeature =
   | 'quiz-import-versions'
   /** Splits a typed PDF with version headings without AI; AND-ed with `quiz-import-versions`. */
   | 'quiz-import-versions-plain'
+  /** Live tours on other websites, played by the Chrome extension (docs/plans/CHROME_EXTENSION.md T12). */
+  | 'web-tours'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
@@ -11649,7 +11698,7 @@ export interface SubShareVideoActivityPayload {
 /** A step as a substitute sees it: no live-tour binding, no Storage paths. */
 export type SubShareGuidedLearningStep = Omit<
   GuidedLearningStep,
-  'tour' | 'audioStoragePath' | 'videoStoragePath' | 'narration'
+  'tour' | 'web' | 'audioStoragePath' | 'videoStoragePath' | 'narration'
 > & { narration?: GuidedLearningPublicNarration };
 
 /**

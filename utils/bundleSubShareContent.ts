@@ -492,6 +492,7 @@ function openGuidedLearningSetIds(board: Dashboard): string[] {
 function stepForSub(step: GuidedLearningStep): SubShareGuidedLearningStep {
   const {
     tour: _tour,
+    web: _web,
     audioStoragePath: _audioStoragePath,
     videoStoragePath: _videoStoragePath,
     narration,

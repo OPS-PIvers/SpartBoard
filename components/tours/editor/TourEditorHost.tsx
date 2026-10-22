@@ -10,7 +10,10 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/context/useAuth';
 import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { loadBuildingSet } from '@/hooks/useGuidedLearning';
-import { isLiveTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
+import {
+  isLiveTourSet,
+  isWebTourSet,
+} from '@/components/widgets/GuidedLearning/utils/liveTour';
 import { isTourRunning } from '@/components/tours/tourState';
 import {
   TOUR_EDIT_EVENT,
@@ -38,7 +41,7 @@ export const TourEditorHost: React.FC = () => {
     opening.current = true;
     void loadBuildingSet(req.setId)
       .then((set) => {
-        if (!set || !isLiveTourSet(set)) {
+        if (!set || !isLiveTourSet(set) || isWebTourSet(set)) {
           addToast(t('tours.unavailable'), 'error');
           return;
         }
