@@ -1521,7 +1521,8 @@ service cloud.firestore {
         incoming().get('originalAuthorName', null) == existing().get('originalAuthorName', null) &&
         incoming().get('sharedAt', null) == existing().get('sharedAt', null) &&
         incoming().get('intendedMode', null) == existing().get('intendedMode', null) &&
-        incoming().get('plcId', null) == existing().get('plcId', null);
+        incoming().get('plcId', null) == existing().get('plcId', null) &&
+        incoming().get('linkedCollectionId', null) == existing().get('linkedCollectionId', null);
 
       // Self-join: any authed user may add ONLY their own uid to participants
       // (Synced/View-Only importers). Not allowed on substitute shares — subs
@@ -1543,8 +1544,14 @@ service cloud.firestore {
           .affectedKeys().hasOnly([authUid()]) &&
         changedOnly(['participants']);
 
-      allow delete: if signedIn() &&
-        (existing().get('originalAuthor', null) == authUid() || isAdmin());
+      // The host of the shared collection a board belongs to may end it (Stop sharing),
+      // including boards a collaborator added (docs/plans/COLLECTION_SHARING.md step 5).
+      allow delete: if signedIn() && (
+        existing().get('originalAuthor', null) == authUid() || isAdmin()
+        || (existing().get('linkedCollectionId', null) is string
+            && get(/databases/$(database)/documents/linked_collections/$(existing().linkedCollectionId))
+              .data.hostUid == authUid())
+      );
     }
 
     // Collection-level shares — parent holds metadata, /boards/{boardId}
@@ -1717,6 +1724,61 @@ service cloud.firestore {
         );
         allow create, update, delete: if isShareHost();
       }
+    }
+
+    // Synced / View-Only collection link (docs/plans/COLLECTION_SHARING.md). Board content
+    // lives in /shared_boards; this doc holds the collection's name, board list and members.
+    match /linked_collections/{linkId} {
+      function lcTeacher() {
+        return signedIn() && notAnon() && !isStudentRoleUser();
+      }
+      function lcShape() {
+        return incoming().mode in ['synced', 'view-only']
+          && isStr('name') && incoming().name.size() > 0 && incoming().name.size() <= 200
+          && isList('boards') && incoming().boards.size() <= 200
+          && (!('sections' in incoming())
+              || (isList('sections') && incoming().sections.size() <= 200))
+          && isMap('participants') && incoming().participants.size() <= 50
+          && incoming().get('ended', false) is bool;
+      }
+      function lcLive() { return existing().get('ended', false) == false; }
+
+      // Anyone holding the link id may read it (import), like /shared_boards. Students may not.
+      allow get: if lcTeacher();
+      allow list: if lcTeacher() && existing().get('hostUid', null) == authUid();
+
+      allow create: if lcTeacher() && incoming().hostUid == authUid()
+        && incoming().participants.size() == 0 && incoming().get('ended', false) == false
+        && lcShape();
+
+      // Host: everything but who hosts, the mode and createdAt; kicking and ending included.
+      allow update: if lcTeacher() && existing().hostUid == authUid()
+        && unchanged('hostUid') && unchanged('mode') && unchanged('createdAt') && lcShape();
+
+      // Synced collaborator: the collection's look and board list, while the share is live.
+      allow update: if lcTeacher() && existing().mode == 'synced' && lcLive()
+        && existing().participants.get(authUid(), {}).get('role', '') == 'collaborator'
+        && changedOnly(['name', 'color', 'icon', 'boards', 'sections', 'updatedAt', 'updatedBy'])
+        && incoming().updatedBy == authUid() && lcShape();
+
+      // Self-join, only with the role the mode grants (a View-Only link never makes an editor).
+      allow update: if lcTeacher() && lcLive()
+        && !(authUid() in existing().participants)
+        && changedOnly(['participants'])
+        && incoming().participants.diff(existing().participants).affectedKeys().hasOnly([authUid()])
+        && incoming().participants[authUid()].keys().hasOnly(['role', 'name', 'joinedAt'])
+        && incoming().participants[authUid()].role
+          == (existing().mode == 'synced' ? 'collaborator' : 'viewer')
+        && incoming().participants[authUid()].get('name', '') is string
+        && lcShape();
+
+      // Self-leave.
+      allow update: if signedIn() && authUid() in existing().participants
+        && !(authUid() in incoming().participants)
+        && changedOnly(['participants'])
+        && existing().participants.diff(incoming().participants).affectedKeys().hasOnly([authUid()]);
+
+      allow delete: if signedIn() && (existing().hostUid == authUid() || isAdmin());
     }
 
     // Preset substitute emails — per-building list of generic sub accounts,

@@ -47,7 +47,7 @@ Reuse the board Synced machinery for the boards; add one small doc for the colle
 5. **Adding a board** to a Synced collection (create, move into, duplicate) shares it as a
    `/shared_boards` doc stamped with `linkedCollectionId` and appends to `boards[]`. Moving a
    board out removes it from `boards[]` for everyone (with a confirm). A collaborator who adds
-   a board becomes its `originalAuthor`, so the rules also let the link's host update or delete
+   a board becomes its `originalAuthor`, so the rules also let the link's host delete
    any `/shared_boards` doc whose `linkedCollectionId` names a link they host (slice 1), and a
    collaborator who leaves keeps owning the shares they added while the others stay synced.
 6. **Cost fix (D3):** boards that belong to a linked collection subscribe to their
