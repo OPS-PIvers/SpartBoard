@@ -327,6 +327,7 @@ describe('useLinkedCollectionSync', () => {
       linkedShareId: 'new-share',
       linkedShareRole: 'owner',
       linkedShareHostName: 'Me',
+      linkedShareHostUid: 'me',
       linkedShareEnded: false,
     });
   });

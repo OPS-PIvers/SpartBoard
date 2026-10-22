@@ -5752,12 +5752,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     async (boardId: string, link: BoardLinkFields | null) => {
       const target = dashboardsRef.current.find((x) => x.id === boardId);
       if (!target) return;
-      const fields = link ?? {
-        linkedShareId: undefined,
-        linkedShareRole: undefined,
-        linkedShareHostName: undefined,
-        linkedShareEnded: undefined,
-      };
+      // A new link never keeps an earlier share's host.
+      const fields = link
+        ? { linkedShareHostUid: undefined, ...link }
+        : {
+            linkedShareId: undefined,
+            linkedShareRole: undefined,
+            linkedShareHostName: undefined,
+            linkedShareHostUid: undefined,
+            linkedShareEnded: undefined,
+          };
       setDashboards((prev) =>
         prev.map((x) => (x.id === boardId ? { ...x, ...fields } : x))
       );
