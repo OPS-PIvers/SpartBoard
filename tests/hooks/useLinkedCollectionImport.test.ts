@@ -195,3 +195,55 @@ describe('useLinkedCollectionImport', () => {
     });
   });
 });
+
+describe('useLinkedCollectionImport with no usable boards', () => {
+  it('writes nothing when every listed share fails the trust check', async () => {
+    vi.clearAllMocks();
+    joinLinkedCollection.mockResolvedValue(undefined);
+    loadSharedDashboard.mockResolvedValue(
+      share('s-top', { linkedCollectionId: 'elsewhere' })
+    );
+    const { result } = renderHook(() => useLinkedCollectionImport());
+    const out = await result.current.importLinkedCollection(link());
+    expect(out).toEqual({ ok: false, reason: 'error' });
+    expect(createCollection).not.toHaveBeenCalled();
+    expect(createNewDashboard).not.toHaveBeenCalled();
+  });
+
+  it('an empty shared collection still imports', async () => {
+    vi.clearAllMocks();
+    joinLinkedCollection.mockResolvedValue(undefined);
+    createCollection.mockResolvedValue('col-empty');
+    const { result } = renderHook(() => useLinkedCollectionImport());
+    const out = await result.current.importLinkedCollection(
+      link({ boards: [], sections: [] })
+    );
+    expect(out).toMatchObject({
+      ok: true,
+      collectionId: 'col-empty',
+      imported: 0,
+    });
+  });
+});
+
+describe('useLinkedCollectionImport with hostile names', () => {
+  it('falls back to safe names instead of throwing', async () => {
+    vi.clearAllMocks();
+    joinLinkedCollection.mockResolvedValue(undefined);
+    createCollection.mockResolvedValue('col-x');
+    createNewDashboard.mockResolvedValue('board-x');
+    loadSharedDashboard.mockResolvedValue(share('s-top'));
+    const { result } = renderHook(() => useLinkedCollectionImport());
+    const out = await result.current.importLinkedCollection(
+      link({
+        name: '   ',
+        sections: [{ id: 'sec-1', name: '  ', parentId: null, order: 0 }],
+        boards: [{ shareId: 's-top', name: '', order: 0, sectionId: 'sec-1' }],
+      })
+    );
+    expect(out).toMatchObject({ ok: true, imported: 1 });
+    expect(createCollection.mock.calls[0][0]).toBe('Shared collection');
+    expect(createCollection.mock.calls[1][0]).toBe('Shared collection');
+    expect(createNewDashboard.mock.calls[0][0]).toBe('s-top');
+  });
+});

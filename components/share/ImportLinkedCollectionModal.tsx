@@ -64,7 +64,15 @@ export const ImportLinkedCollectionModal: React.FC<
   ImportLinkedCollectionModalProps
 > = ({ linkId, onClose }) => {
   const { canAccessFeature, isAdmin } = useAuth();
-  const { addToast, loadDashboard, setActiveCollectionId } = useDashboard();
+  const {
+    addToast,
+    loadDashboard,
+    setActiveCollectionId,
+    collectionsApi,
+    loading: dashboardsLoading,
+  } = useDashboard();
+  // The duplicate check needs this teacher's collections and boards loaded first.
+  const localReady = !collectionsApi.loading && !dashboardsLoading;
   const { loadLinkedCollection } = useLinkedCollection();
   const { findLocalCollection, firstBoardIn, importLinkedCollection } =
     useLinkedCollectionImport();
@@ -236,7 +244,7 @@ export const ImportLinkedCollectionModal: React.FC<
             <button
               type="button"
               onClick={() => void handleConfirm()}
-              disabled={busy}
+              disabled={busy || !localReady}
               {...tourAttr('import-linked-collection.confirm')}
               className="rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold text-sm px-4 py-2 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait"
             >

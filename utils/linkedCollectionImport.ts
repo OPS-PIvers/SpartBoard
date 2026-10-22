@@ -32,26 +32,61 @@ export const sharedBoardBelongsToLink = (
 ): boolean =>
   board.linkedCollectionId === link.linkId && board.intendedMode === link.mode;
 
-/** Board entries without duplicate share ids, in display order. */
+const str = (value: unknown, max = 200): string | undefined =>
+  typeof value === 'string' && value.trim()
+    ? value.trim().slice(0, max)
+    : undefined;
+const num = (value: unknown): number =>
+  typeof value === 'number' && Number.isFinite(value) ? value : 0;
+
+/** A short CSS color or icon name from a collaborator-written field, else undefined. */
+export const safeStyleValue = (value: unknown): string | undefined =>
+  str(value, 50);
+
+/** A non-empty display name, falling back when a collaborator wrote a blank or non-string one. */
+export const safeName = (value: unknown, fallback: string): string =>
+  str(value) ?? fallback;
+
+/** Board entries narrowed to their typed fields, without duplicate share ids, in display order. */
 export const uniqueLinkedBoards = (
-  boards: LinkedCollectionBoard[]
+  boards: unknown
 ): LinkedCollectionBoard[] => {
+  if (!Array.isArray(boards)) return [];
   const seen = new Set<string>();
-  return [...boards]
-    .sort((a, b) => a.order - b.order)
-    .filter((b) => {
-      if (!b.shareId || seen.has(b.shareId)) return false;
-      seen.add(b.shareId);
-      return true;
+  const result: LinkedCollectionBoard[] = [];
+  for (const raw of boards as Record<string, unknown>[]) {
+    const shareId = str(raw?.shareId);
+    if (!shareId || seen.has(shareId)) continue;
+    seen.add(shareId);
+    const sectionId = str(raw.sectionId);
+    result.push({
+      shareId,
+      name: str(raw.name) ?? '',
+      order: num(raw.order),
+      ...(sectionId ? { sectionId } : {}),
     });
+  }
+  return result.sort((a, b) => a.order - b.order);
 };
 
 /** Sections ordered so every parent comes before its children; orphans and cycles land at the top level. */
 export const orderSectionsParentsFirst = (
-  sections: LinkedCollectionSection[]
+  sections: unknown
 ): LinkedCollectionSection[] => {
+  if (!Array.isArray(sections)) return [];
   const byId = new Map<string, LinkedCollectionSection>();
-  for (const s of sections) if (s.id && !byId.has(s.id)) byId.set(s.id, s);
+  for (const raw of sections as Record<string, unknown>[]) {
+    const id = str(raw?.id);
+    if (!id || byId.has(id)) continue;
+    const color = safeStyleValue(raw.color);
+    byId.set(id, {
+      id,
+      name: str(raw.name) ?? '',
+      parentId: str(raw.parentId) ?? null,
+      order: num(raw.order),
+      ...(color ? { color } : {}),
+    });
+  }
   const unique = [...byId.values()].sort((a, b) => a.order - b.order);
 
   const placed = new Set<string>();

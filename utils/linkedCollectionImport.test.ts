@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   orderSectionsParentsFirst,
   parseLinkedCollectionPath,
+  safeName,
+  safeStyleValue,
   sharedBoardBelongsToLink,
   uniqueLinkedBoards,
 } from './linkedCollectionImport';
@@ -95,5 +97,30 @@ describe('orderSectionsParentsFirst', () => {
       { id: 'x', name: 'X2', parentId: null, order: 1 },
     ]);
     expect(result).toHaveLength(1);
+  });
+});
+
+describe('collaborator-written fields', () => {
+  it('narrows malformed board entries', () => {
+    const result = uniqueLinkedBoards([
+      { shareId: 'a', name: { evil: true }, order: 'x', sectionId: 7 },
+      { shareId: 5, name: 'No id', order: 0 },
+      null,
+    ]);
+    expect(result).toEqual([{ shareId: 'a', name: '', order: 0 }]);
+    expect(uniqueLinkedBoards('not a list')).toEqual([]);
+  });
+  it('narrows malformed sections and blank names', () => {
+    const result = orderSectionsParentsFirst([
+      { id: 's', name: '   ', parentId: 3, order: NaN, color: { x: 1 } },
+    ]);
+    expect(result).toEqual([{ id: 's', name: '', parentId: null, order: 0 }]);
+  });
+  it('falls back for blank or non-string names and style values', () => {
+    expect(safeName('  ', 'Fallback')).toBe('Fallback');
+    expect(safeName(42, 'Fallback')).toBe('Fallback');
+    expect(safeName(' Unit 3 ', 'Fallback')).toBe('Unit 3');
+    expect(safeStyleValue('#ad2122')).toBe('#ad2122');
+    expect(safeStyleValue({})).toBeUndefined();
   });
 });

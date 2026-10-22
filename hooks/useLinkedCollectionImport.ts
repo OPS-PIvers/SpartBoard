@@ -3,15 +3,21 @@
 import { useCallback } from 'react';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
-import { useFirestore } from '@/hooks/useFirestore';
+import { useFirestore, type SharedBoardSnapshot } from '@/hooks/useFirestore';
 import { useLinkedCollection } from '@/hooks/useLinkedCollection';
 import { logError } from '@/utils/logError';
 import {
   orderSectionsParentsFirst,
+  safeName,
+  safeStyleValue,
   sharedBoardBelongsToLink,
   uniqueLinkedBoards,
 } from '@/utils/linkedCollectionImport';
-import type { Dashboard, LinkedCollection } from '@/types';
+import type {
+  Dashboard,
+  LinkedCollection,
+  LinkedCollectionBoard,
+} from '@/types';
 
 export type LinkedCollectionImportResult =
   | {
@@ -95,9 +101,47 @@ export const useLinkedCollectionImport = () => {
       }
 
       try {
-        const rootId = await collectionsApi.createCollection(link.name, null, {
-          color: link.color,
-          icon: link.icon,
+        // Read and verify every listed share before writing anything locally.
+        // Boards already mirrored locally (e.g. imported one by one before) aren't copied twice.
+        const localShares = new Set(
+          dashboards
+            .filter((d) => d.linkedShareId && !d.linkedShareEnded)
+            .map((d) => d.linkedShareId)
+        );
+        const entries = uniqueLinkedBoards(link.boards).filter(
+          (e) => !localShares.has(e.shareId)
+        );
+        const verified: {
+          entry: LinkedCollectionBoard;
+          snap: SharedBoardSnapshot;
+        }[] = [];
+        let failed = 0;
+        for (let i = 0; i < entries.length; i += BOARD_BATCH) {
+          const batch = entries.slice(i, i + BOARD_BATCH);
+          const loaded = await Promise.allSettled(
+            batch.map((entry) => loadSharedDashboard(entry.shareId))
+          );
+          loaded.forEach((r, offset) => {
+            // Trust rule: boards[] is collaborator-written, so the share doc must name this link.
+            if (
+              r.status === 'fulfilled' &&
+              r.value &&
+              sharedBoardBelongsToLink(r.value, link)
+            ) {
+              verified.push({ entry: batch[offset], snap: r.value });
+            } else {
+              failed += 1;
+            }
+          });
+        }
+        if (entries.length > 0 && verified.length === 0) {
+          return { ok: false, reason: 'error' };
+        }
+
+        const rootName = safeName(link.name, 'Shared collection');
+        const rootId = await collectionsApi.createCollection(rootName, null, {
+          color: safeStyleValue(link.color),
+          icon: safeStyleValue(link.icon),
           linkedCollectionId: link.linkId,
           linkedCollectionRole: isHost ? 'owner' : role,
         });
@@ -110,7 +154,7 @@ export const useLinkedCollectionImport = () => {
               ? sectionToLocal.get(section.parentId)
               : undefined) ?? rootId;
           const localId = await collectionsApi.createCollection(
-            section.name || link.name,
+            safeName(section.name, rootName),
             parentLocal,
             {
               color: section.color,
@@ -125,18 +169,12 @@ export const useLinkedCollectionImport = () => {
           (max, d) => Math.max(max, d.order ?? 0),
           0
         );
-        const entries = uniqueLinkedBoards(link.boards);
         const created: { shareId: string; boardId: string; top: boolean }[] =
           [];
-        let failed = 0;
-
-        for (let i = 0; i < entries.length; i += BOARD_BATCH) {
-          const batch = entries.slice(i, i + BOARD_BATCH);
+        for (let i = 0; i < verified.length; i += BOARD_BATCH) {
+          const batch = verified.slice(i, i + BOARD_BATCH);
           const results = await Promise.allSettled(
-            batch.map(async (entry, offset) => {
-              const snap = await loadSharedDashboard(entry.shareId);
-              // Trust rule: boards[] is collaborator-written, so the share doc must name this link.
-              if (!snap || !sharedBoardBelongsToLink(snap, link)) return null;
+            batch.map(async ({ entry, snap }, offset) => {
               const ownsBoard = snap.originalAuthor === user.uid;
               const boardRole = ownsBoard ? 'owner' : role;
               const localSection = entry.sectionId
@@ -144,7 +182,7 @@ export const useLinkedCollectionImport = () => {
                 : undefined;
               const data: Dashboard = {
                 id: crypto.randomUUID(),
-                name: entry.name || snap.name || link.name,
+                name: safeName(entry.name, safeName(snap.name, rootName)),
                 background: snap.background,
                 widgets: snap.widgets ?? [],
                 globalStyle: snap.globalStyle,
@@ -176,7 +214,7 @@ export const useLinkedCollectionImport = () => {
             })
           );
           for (const r of results) {
-            if (r.status === 'fulfilled' && r.value) created.push(r.value);
+            if (r.status === 'fulfilled') created.push(r.value);
             else failed += 1;
           }
         }
