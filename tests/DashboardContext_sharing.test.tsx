@@ -3,7 +3,7 @@ import { act, render, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DashboardProvider } from '@/context/DashboardContext';
 import { useDashboard } from '@/context/useDashboard';
-import { updateDoc } from 'firebase/firestore';
+import { getDoc, updateDoc } from 'firebase/firestore';
 import { Dashboard } from '@/types';
 
 // Mock dependencies
@@ -545,6 +545,7 @@ describe('DashboardContext Sharing Logic', () => {
       expect(Object.keys(patch).sort()).toEqual([
         'linkedShareEnded',
         'linkedShareHostName',
+        'linkedShareHostUid',
         'linkedShareId',
         'linkedShareRole',
         'updatedAt',
@@ -612,6 +613,7 @@ describe('DashboardContext Sharing Logic', () => {
       expect(Object.keys(patch).sort()).toEqual([
         'linkedShareEnded',
         'linkedShareHostName',
+        'linkedShareHostUid',
         'linkedShareId',
         'linkedShareRole',
         'updatedAt',
@@ -619,6 +621,7 @@ describe('DashboardContext Sharing Logic', () => {
       expect(patch.linkedShareId).toBe('mock-share-id');
       expect(patch.linkedShareRole).toBe('owner');
       expect(patch.linkedShareHostName).toBe('Test User');
+      expect(patch.linkedShareHostUid).toBe('test-user');
       expect(patch.linkedShareEnded).toBe(false);
       expect(patch.updatedAt).toEqual(expect.any(Number));
     });
@@ -832,6 +835,164 @@ describe('DashboardContext Sharing Logic', () => {
         expect(board?.linkedShareEnded).toBe(true);
       });
       expect(mockDeleteDashboard).not.toHaveBeenCalled();
+      // The ended share stops listing the collaborator's walls, once the server confirms it is gone.
+      await waitFor(() =>
+        expect(mockCloseWallsToBoard).toHaveBeenCalledWith(
+          'test-user',
+          'share-sync',
+          new Set()
+        )
+      );
+      act(() => {
+        if (subscribeCb) subscribeCb(null);
+      });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(mockCloseWallsToBoard).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the collaborator's walls open when the share still exists (cache miss or listener error)", async () => {
+      vi.mocked(getDoc).mockImplementation((ref) =>
+        Promise.resolve(
+          ((ref as unknown as { __path: string }).__path ===
+          'shared_boards/share-live'
+            ? {
+                exists: () => true,
+                data: () => ({ originalAuthor: 'host-a' }),
+              }
+            : { exists: () => false, data: () => undefined }) as never
+        )
+      );
+      const { emitNull } = await renderSubscribedBoard({
+        id: 'collab-board',
+        name: 'Synced Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-live',
+        linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
+      });
+
+      emitNull();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(mockCloseWallsToBoard).not.toHaveBeenCalled();
+    });
+
+    const renderSubscribedBoard = async (board: Dashboard) => {
+      let subscribeCb: ((remote: Dashboard | null) => void) | null = null;
+      mockSubscribeToSharedBoard.mockImplementation(
+        (_id: string, cb: (remote: Dashboard | null) => void) => {
+          subscribeCb = cb;
+          return () => undefined;
+        }
+      );
+      initialDashboardsSeed = [board];
+      const captured: { current: Dashboard[] } = { current: [] };
+      const Probe: React.FC = () => {
+        const { dashboards } = useDashboard();
+        useEffect(() => {
+          captured.current = dashboards;
+        }, [dashboards]);
+        return <div />;
+      };
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+      await waitFor(() => expect(subscribeCb).not.toBeNull());
+      return {
+        captured,
+        emit: (remote: Dashboard) =>
+          act(() => {
+            subscribeCb?.(remote);
+          }),
+        emitNull: () =>
+          act(() => {
+            subscribeCb?.(null);
+          }),
+      };
+    };
+
+    it('treats a share re-created under the same id by another host as ended', async () => {
+      const { captured, emit } = await renderSubscribedBoard({
+        id: 'collab-board',
+        name: 'Synced Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-sync',
+        linkedShareRole: 'collaborator',
+        linkedShareHostUid: 'host-a',
+      });
+
+      emit({
+        id: 'share-sync',
+        name: 'Someone else',
+        background: 'bg-red-500',
+        widgets: [],
+        createdAt: 2,
+        linkedShareHostUid: 'host-b',
+      });
+
+      await waitFor(() => {
+        const board = captured.current.find((d) => d.id === 'collab-board');
+        expect(board?.linkedShareEnded).toBe(true);
+        expect(board?.background).toBe('bg-slate-800');
+      });
+    });
+
+    it('records the host from the first snapshot for a board joined before it was recorded', async () => {
+      const { captured, emit } = await renderSubscribedBoard({
+        id: 'collab-board',
+        name: 'Synced Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-sync',
+        linkedShareRole: 'collaborator',
+      });
+
+      emit({
+        id: 'share-sync',
+        name: 'Synced Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareHostUid: 'host-a',
+      });
+
+      await waitFor(() => {
+        const board = captured.current.find((d) => d.id === 'collab-board');
+        expect(board?.linkedShareHostUid).toBe('host-a');
+        expect(board?.linkedShareEnded).not.toBe(true);
+      });
+    });
+
+    it('never records a host on a board whose share already ended', async () => {
+      const { captured, emit } = await renderSubscribedBoard({
+        id: 'collab-board',
+        name: 'Synced Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-sync',
+        linkedShareRole: 'collaborator',
+        linkedShareEnded: true,
+      });
+
+      emit({
+        id: 'share-sync',
+        name: 'Someone else',
+        background: 'bg-red-500',
+        widgets: [],
+        createdAt: 2,
+        linkedShareHostUid: 'newcomer',
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      const board = captured.current.find((d) => d.id === 'collab-board');
+      expect(board?.linkedShareHostUid).toBeUndefined();
     });
 
     it('viewer leaving the board (Leave button) deletes the local copy', async () => {

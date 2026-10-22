@@ -3552,6 +3552,12 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'boards-modal.collection-menu-rename': ['board.boards-collection-menu'],
     'boards-modal.collection-menu-move': ['board.boards-collection-menu'],
     'boards-modal.collection-menu-color': ['board.boards-collection-menu'],
+    'boards-modal.collection-menu-stop-sharing': [
+      'board.boards-collection-menu',
+    ],
+    'boards-modal.collection-menu-leave-shared': [
+      'board.boards-collection-menu',
+    ],
     'boards-modal.collection-menu-template': ['board.boards-collection-menu'],
     'stations.absent': ['widgets.stations.face'],
     'gradebook.tab': ['guidedLearning.gradebook'],

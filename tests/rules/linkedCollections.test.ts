@@ -965,3 +965,128 @@ describe('membership sync', () => {
     );
   });
 });
+
+// Slice 5: Stop sharing and Leave. The host ends the link and every board share; members leave
+// both, and everyone can still read the link to see it ended.
+describe('stop sharing and leave', () => {
+  const HOST_BOARD = `${SYNCED_ID}_host-board`;
+  const COLLAB_BOARD = `${SYNCED_ID}_collab-board`;
+  const shareRef = (db: ReturnType<typeof asHost>, id: string) =>
+    doc(db, `shared_boards/${id}`);
+  const share = (author: string, participants: Record<string, unknown>) => ({
+    name: 'Day',
+    widgets: [],
+    sharedAt: 1000,
+    originalAuthor: author,
+    intendedMode: 'synced',
+    linkedCollectionId: SYNCED_ID,
+    participants,
+    updatedAt: 1000,
+    updatedBy: author,
+  });
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(
+        shareRef(db, HOST_BOARD),
+        share(HOST_UID, {
+          [COLLAB_UID]: { role: 'collaborator', joinedAt: 1000 },
+        })
+      );
+      await setDoc(
+        shareRef(db, COLLAB_BOARD),
+        share(COLLAB_UID, {
+          [HOST_UID]: { role: 'collaborator', joinedAt: 1000 },
+        })
+      );
+    });
+  });
+
+  it('the host ends the link, then every board in it, including a collaborator’s', async () => {
+    const db = asHost();
+    await assertSucceeds(
+      updateDoc(ref(db, SYNCED_ID), {
+        ended: true,
+        updatedAt: 2000,
+        updatedBy: HOST_UID,
+      })
+    );
+    await assertSucceeds(deleteDoc(shareRef(db, HOST_BOARD)));
+    await assertSucceeds(deleteDoc(shareRef(db, COLLAB_BOARD)));
+  });
+
+  it('members and the host still read the ended link', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(ref(ctx.firestore(), SYNCED_ID), { ended: true });
+    });
+    for (const db of [asHost(), asCollab(), as('collab2-uid')]) {
+      const snap = await assertSucceeds(getDoc(ref(db, SYNCED_ID)));
+      if (snap.data()?.ended !== true) throw new Error('expected ended');
+    }
+  });
+
+  it('a member cannot stop sharing for everyone', async () => {
+    await assertFails(
+      updateDoc(ref(asCollab(), SYNCED_ID), {
+        ended: true,
+        updatedAt: 2000,
+        updatedBy: COLLAB_UID,
+      })
+    );
+    await assertFails(
+      updateDoc(ref(asViewer(), VIEW_ID), {
+        ended: true,
+        updatedAt: 2000,
+        updatedBy: VIEWER_UID,
+      })
+    );
+    await assertFails(deleteDoc(shareRef(asCollab(), HOST_BOARD)));
+  });
+
+  it('a Synced member leaves the link and the boards they joined, and keeps reading them', async () => {
+    const db = asCollab();
+    await assertSucceeds(
+      updateDoc(ref(db, SYNCED_ID), {
+        [`participants.${COLLAB_UID}`]: deleteField(),
+      })
+    );
+    await assertSucceeds(
+      updateDoc(shareRef(db, HOST_BOARD), {
+        [`participants.${COLLAB_UID}`]: deleteField(),
+      })
+    );
+    await assertSucceeds(getDoc(ref(db, SYNCED_ID)));
+    await assertSucceeds(getDoc(shareRef(db, HOST_BOARD)));
+    // The board they added stays shared for the others, but they can no longer edit the list.
+    await assertFails(
+      updateDoc(ref(db, SYNCED_ID), {
+        boards: [],
+        updatedAt: 3000,
+        updatedBy: COLLAB_UID,
+      })
+    );
+  });
+
+  it('a View-Only member leaves the link', async () => {
+    await assertSucceeds(
+      updateDoc(ref(asViewer(), VIEW_ID), {
+        [`participants.${VIEWER_UID}`]: deleteField(),
+      })
+    );
+  });
+
+  it('leaving cannot take another member out or change anything else', async () => {
+    await assertFails(
+      updateDoc(ref(asCollab(), SYNCED_ID), {
+        [`participants.${COLLAB_UID}`]: deleteField(),
+        name: 'Mine now',
+      })
+    );
+    await assertFails(
+      updateDoc(ref(asCollab(), SYNCED_ID), {
+        [`participants.collab2-uid`]: deleteField(),
+      })
+    );
+  });
+});

@@ -44,6 +44,7 @@ export const sanitizeBoardSnapshot = (board: Dashboard): Dashboard => {
     linkedShareId: _linkedShareId,
     linkedShareRole: _linkedShareRole,
     linkedShareHostName: _linkedShareHostName,
+    linkedShareHostUid: _linkedShareHostUid,
     linkedShareEnded: _linkedShareEnded,
     driveFileId: _driveFileId,
     thumbnailUrl: _thumbnailUrl,

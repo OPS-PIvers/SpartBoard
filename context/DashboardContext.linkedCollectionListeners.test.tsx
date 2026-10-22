@@ -280,3 +280,26 @@ describe('boards in a shared collection listen only while open (D3)', () => {
     await waitFor(() => expect(active.size).toBe(4));
   });
 });
+
+describe('a board share ending inside a shared collection', () => {
+  it('leaves a viewer’s open board for the collection’s own sync to remove', async () => {
+    const viewerBoard = {
+      ...linked('b1', 'week', 's1'),
+      linkedShareRole: 'viewer' as const,
+    };
+    const ctx = await setup([viewerBoard]);
+    act(() => ctx.current?.loadDashboard('b1'));
+    await waitFor(() => expect(active.has('s1')).toBe(true));
+    const cb = subscribeSharedMock.mock.calls
+      .filter((c) => c[0] === 's1')
+      .at(-1)?.[1] as SharedCb;
+    await act(async () => {
+      cb(null);
+      await Promise.resolve();
+    });
+    await waitFor(() =>
+      expect(ctx.current?.dashboards[0]?.linkedShareEnded).toBe(true)
+    );
+    expect(ctx.current?.dashboards).toHaveLength(1);
+  });
+});
