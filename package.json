@@ -16,17 +16,19 @@
     "build": "node scripts/generate-version.js && vite build && vite build --config vite.prerender.config.ts && node dist-ssr/prerender-legal.js",
     "changelog:draft": "node scripts/draft-changelog-entry.js",
     "preview": "vite preview",
-    "lint": "pnpm run lint:app && pnpm run lint:functions",
+    "lint": "pnpm run lint:app && pnpm run lint:functions && pnpm run lint:extension",
     "lint:app": "node scripts/lintApp.mjs",
     "lint:functions": "pnpm -C functions run lint",
-    "lint:fix": "eslint . --fix && pnpm -C functions run lint:fix",
+    "lint:extension": "pnpm -C extension run lint",
+    "build:extension": "pnpm -C extension run package",
+    "lint:fix": "eslint . --fix && pnpm -C functions run lint:fix && pnpm -C extension run lint:fix",
     "type-check": "tsc --noEmit",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
-    "install:ci": "pnpm install --frozen-lockfile && pnpm -C functions install --frozen-lockfile",
-    "install:all": "pnpm install && pnpm -C functions install",
+    "install:ci": "pnpm install --frozen-lockfile && pnpm -C functions install --frozen-lockfile && pnpm -C extension install --frozen-lockfile",
+    "install:all": "pnpm install && pnpm -C functions install && pnpm -C extension install",
     "build:all": "pnpm run build && pnpm -C functions run build",
-    "type-check:all": "pnpm run type-check && pnpm -C functions run type-check",
+    "type-check:all": "pnpm run type-check && pnpm -C functions run type-check && pnpm -C extension run type-check",
     "lint:all": "pnpm run lint",
     "validate": "pnpm run type-check:all && pnpm lint && pnpm format:check && pnpm run check:rules-size && pnpm test && pnpm -C functions test && pnpm run test:counts",
     "test": "vitest run --reporter=default --reporter=json --outputFile=.vitest-reports/root.json",
@@ -162,6 +164,10 @@
   "lint-staged": {
     "functions/**/*.{ts,tsx}": [
       "pnpm -C functions exec eslint --fix --max-warnings 0",
+      "prettier --write"
+    ],
+    "extension/**/*.{ts,tsx}": [
+      "pnpm -C extension exec eslint --fix --max-warnings 0",
       "prettier --write"
     ],
     "*.{ts,tsx}": [

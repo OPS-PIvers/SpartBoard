@@ -67,6 +67,8 @@ jobs:
         run: pnpm run format:check
       - if: matrix.check != 'app' && !cancelled()
         run: pnpm run lint:functions
+      - if: matrix.check != 'app' && !cancelled()
+        run: pnpm run lint:extension
 
   type-check:
     runs-on: ubuntu-24.04
