@@ -6361,8 +6361,11 @@ service cloud.firestore {
                             ]) &&
                             incoming().status in ['approved', 'pending'] &&
                             (!changed(['content']) ||
-                             (changed(['editedAt']) &&
-                              !(existing().get('type', 'text') in ['photo', 'video', 'file', 'link']))) &&
+                             !(existing().get('type', 'text') in ['photo', 'video', 'file', 'link'])) &&
+                            (!changed(['content', 'title', 'label']) || changed(['editedAt'])) &&
+                            (!changed(['editedAt']) ||
+                             (incoming().editedAt is int &&
+                              incoming().editedAt > existing().get('editedAt', 0))) &&
                             isStr('content') &&
                             incoming().content.size() > 0 &&
                             incoming().content.size() <= 5000 &&

@@ -707,6 +707,52 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
     expect(mockSetDoc).not.toHaveBeenCalled();
   });
 
+  it('falls back to approved posts when the rules refuse moderation', async () => {
+    sessionDocData = {
+      'activity_wall_sessions/host-1_wall-1': hostSession,
+      'activity_wall_sessions/host-1_wall-1/boardAccess/boards': {
+        boardShareIds: ['share-1/host-1'],
+      },
+    };
+    snapshotDocs = [
+      {
+        id: 'p-1',
+        content: 'Approved idea',
+        submittedAt: 1,
+        status: 'approved',
+      },
+    ];
+    const base = mockOnSnapshot.getMockImplementation() as
+      | ((ref: unknown, onNext: unknown, onError: unknown) => () => void)
+      | undefined;
+    let refused = false;
+    mockOnSnapshot.mockImplementation(
+      (
+        ref: unknown,
+        onNext: (v: unknown) => void,
+        onError: (e: unknown) => void
+      ) => {
+        // The first posts listen (every post) is denied, as on a View-Only share.
+        if (
+          typeof ref === 'string' &&
+          ref.includes('submissions') &&
+          !refused
+        ) {
+          refused = true;
+          onError(new Error('permission-denied'));
+          return vi.fn();
+        }
+        return base?.(ref, onNext, onError) ?? vi.fn();
+      }
+    );
+    routerProps.current = null;
+    renderWidget();
+
+    expect(await screen.findByText('Host wall')).toBeInTheDocument();
+    await waitFor(() => expect(lastRouterProps()?.submissions).toHaveLength(1));
+    expect(lastRouterProps()?.onApprove).toBeUndefined();
+  });
+
   it('keeps the old empty state until the host lists the board', async () => {
     sessionDocData = { 'activity_wall_sessions/host-1_wall-1': hostSession };
     renderWidget();
@@ -746,7 +792,7 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
     mockLibraryEntries.current = [makeEntry()];
     sessionDocData = {
       'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards': {
-        boardShareIds: ['old-share'],
+        boardShareIds: ['old-share/x'],
       },
     };
     renderWidget();
@@ -756,7 +802,7 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
         expect.objectContaining({
           __path: 'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards',
         }),
-        { boardShareIds: ['share-1/host-1', 'old-share'] },
+        { boardShareIds: ['share-1/host-1', 'old-share/x'] },
         { merge: true }
       )
     );

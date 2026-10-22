@@ -131,8 +131,12 @@ export function useLinkedBoardActivityWall(
     !!session && accessState?.key === accessKey && accessState.listed;
   const postsSessionId = listed ? sessionId : null;
   const isPhotoWall = session?.mode === 'photo';
+  // Rules have the last word on moderating: a denied full listen falls back to approved posts.
+  const [deniedSessionId, setDeniedSessionId] = useState<string | null>(null);
+  const moderate =
+    canModerate && !!postsSessionId && deniedSessionId !== postsSessionId;
   const postsKey = postsSessionId
-    ? `${postsSessionId}:${canModerate ? 'all' : 'approved'}`
+    ? `${postsSessionId}:${moderate ? 'all' : 'approved'}`
     : null;
 
   const [postsState, setPostsState] = useState<{
@@ -149,7 +153,7 @@ export function useLinkedBoardActivityWall(
       'submissions'
     );
     return onSnapshot(
-      canModerate ? posts : query(posts, where('status', '==', 'approved')),
+      moderate ? posts : query(posts, where('status', '==', 'approved')),
       (snap) => {
         setPostsState({
           key: postsKey,
@@ -163,18 +167,22 @@ export function useLinkedBoardActivityWall(
         });
       },
       (err) => {
+        if (moderate) {
+          setDeniedSessionId(postsSessionId);
+          return;
+        }
         console.error(
           '[ActivityWall] Shared board posts listener failed:',
           err
         );
       }
     );
-  }, [postsSessionId, postsKey, canModerate, isPhotoWall]);
+  }, [postsSessionId, postsKey, moderate, isPhotoWall]);
 
   const posts =
     postsState && postsState.key === postsKey ? postsState.posts : EMPTY_POSTS;
   const active = listed && !!session;
-  const moderating = active && canModerate;
+  const moderating = active && moderate;
   const actions = useWallPostActions(moderating ? postsSessionId : null);
 
   return useMemo(

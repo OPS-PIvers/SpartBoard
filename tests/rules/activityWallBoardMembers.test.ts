@@ -457,6 +457,7 @@ describe('collaborators moderate the owner wall', () => {
     await assertSucceeds(
       updateDoc(submissionRef(db, HOST_SESSION, 'photo-1'), {
         title: 'A caption',
+        editedAt: 2_000_000,
       })
     );
   });
@@ -536,6 +537,22 @@ describe('review hardening', () => {
         submissionRef(asTeacher(COLLAB_UID), HOST_SESSION, 'approved-1'),
         { content: 'Silent rewrite' }
       )
+    );
+  });
+
+  it('the edit stamp only moves forward and cannot be removed', async () => {
+    await seed({ [HOST_SESSION]: session(HOST_UID, [ENTRY]) });
+    const db = asTeacher(COLLAB_UID);
+    const ref = submissionRef(db, HOST_SESSION, 'approved-1');
+    await assertSucceeds(
+      updateDoc(ref, { content: 'Fixed spelling', editedAt: 2_000_000 })
+    );
+    await assertFails(updateDoc(ref, { editedAt: deleteField() }));
+    await assertFails(updateDoc(ref, { editedAt: 1_500_000 }));
+    await assertFails(updateDoc(ref, { title: 'Unstamped title' }));
+    await assertFails(updateDoc(ref, { label: 'Unstamped label' }));
+    await assertSucceeds(
+      updateDoc(ref, { title: 'Stamped title', editedAt: 3_000_000 })
     );
   });
 

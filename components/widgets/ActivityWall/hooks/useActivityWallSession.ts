@@ -69,16 +69,18 @@ export const nextWallBoardShareIds = async (
   boardShareEntry: string
 ): Promise<string[] | null> => {
   if (known.includes(boardShareEntry)) return null;
-  let kept = known;
-  if (known.length >= 3) {
+  // Entries without a host pin grant nothing, so they never hold a slot.
+  let kept = known.filter((id) => id.includes('/'));
+  if (kept.length >= 3) {
+    const pinned = kept;
     const alive = await Promise.all(
-      known.map((id) =>
+      pinned.map((id) =>
         getDoc(doc(db, 'shared_boards', id.split('/')[0]))
           .then((snap) => snap.exists())
           .catch(() => true)
       )
     );
-    kept = known.filter((_, index) => alive[index]);
+    kept = pinned.filter((_, index) => alive[index]);
     if (kept.length >= 3) return null;
   }
   return [boardShareEntry, ...kept];
