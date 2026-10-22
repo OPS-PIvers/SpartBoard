@@ -73,75 +73,78 @@ const PartsEditor: React.FC<PartsEditorProps> = ({
         </span>
       </div>
       <div className="space-y-1.5 mb-3">
-        {parts.map((part, index) => (
-          <div
-            key={part.id}
-            className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 flex items-center gap-2 shadow-sm"
-          >
-            <input
-              type="text"
-              {...tourFieldAttr(
-                'admin.widget-config.field',
-                'arts-letters-agenda',
-                `${listKey}-${index}`
-              )}
-              aria-label={`${title} box ${index + 1}`}
-              value={part.label}
-              maxLength={PART_LABEL_MAX_LENGTH}
-              onChange={(e) =>
-                onChange(
-                  parts.map((p) =>
-                    p.id === part.id ? { ...p, label: e.target.value } : p
+        {parts.map((part, index) => {
+          const name = part.label.trim() || `box ${index + 1}`;
+          return (
+            <div
+              key={part.id}
+              className="bg-white border border-slate-200 rounded-lg px-2 py-1.5 flex items-center gap-2 shadow-sm"
+            >
+              <input
+                type="text"
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'arts-letters-agenda',
+                  `${listKey}-${index}`
+                )}
+                aria-label={`${title} box ${index + 1}`}
+                value={part.label}
+                maxLength={PART_LABEL_MAX_LENGTH}
+                onChange={(e) =>
+                  onChange(
+                    parts.map((p) =>
+                      p.id === part.id ? { ...p, label: e.target.value } : p
+                    )
                   )
-                )
-              }
-              className="flex-1 text-xs border-none outline-none bg-transparent"
-              placeholder="Box name"
-            />
-            <button
-              type="button"
-              {...tourFieldAttr(
-                'admin.widget-config.field',
-                'arts-letters-agenda',
-                `${listKey}-up-${index}`
-              )}
-              aria-label={`Move ${part.label} up`}
-              disabled={index === 0}
-              onClick={() => move(index, -1)}
-              className="text-slate-400 hover:text-slate-700 p-0.5 shrink-0 disabled:opacity-30"
-            >
-              <ArrowUp className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              {...tourFieldAttr(
-                'admin.widget-config.field',
-                'arts-letters-agenda',
-                `${listKey}-down-${index}`
-              )}
-              aria-label={`Move ${part.label} down`}
-              disabled={index === parts.length - 1}
-              onClick={() => move(index, 1)}
-              className="text-slate-400 hover:text-slate-700 p-0.5 shrink-0 disabled:opacity-30"
-            >
-              <ArrowDown className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              {...tourFieldAttr(
-                'admin.widget-config.field',
-                'arts-letters-agenda',
-                `${listKey}-remove-${index}`
-              )}
-              aria-label={`Remove ${part.label}`}
-              disabled={parts.length === 1}
-              onClick={() => onChange(parts.filter((p) => p.id !== part.id))}
-              className="text-red-400 hover:text-red-600 p-0.5 shrink-0 disabled:opacity-30"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ))}
+                }
+                className="flex-1 text-xs border-none outline-none bg-transparent"
+                placeholder="Box name"
+              />
+              <button
+                type="button"
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'arts-letters-agenda',
+                  `${listKey}-up-${index}`
+                )}
+                aria-label={`Move ${name} up`}
+                disabled={index === 0}
+                onClick={() => move(index, -1)}
+                className="text-slate-400 hover:text-slate-700 p-0.5 shrink-0 disabled:opacity-30"
+              >
+                <ArrowUp className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'arts-letters-agenda',
+                  `${listKey}-down-${index}`
+                )}
+                aria-label={`Move ${name} down`}
+                disabled={index === parts.length - 1}
+                onClick={() => move(index, 1)}
+                className="text-slate-400 hover:text-slate-700 p-0.5 shrink-0 disabled:opacity-30"
+              >
+                <ArrowDown className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'arts-letters-agenda',
+                  `${listKey}-remove-${index}`
+                )}
+                aria-label={`Remove ${name}`}
+                disabled={parts.length === 1}
+                onClick={() => onChange(parts.filter((p) => p.id !== part.id))}
+                className="text-red-400 hover:text-red-600 p-0.5 shrink-0 disabled:opacity-30"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          );
+        })}
       </div>
       <div className="flex gap-2">
         <input

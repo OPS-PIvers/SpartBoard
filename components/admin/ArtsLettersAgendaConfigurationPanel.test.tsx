@@ -208,4 +208,25 @@ describe('ArtsLettersAgendaConfigurationPanel', () => {
       .map((el) => el.closest('button')?.getAttribute('data-tour-field'));
     expect(new Set(anchors).size).toBe(2);
   });
+
+  it('names an emptied box by its position in the move and remove buttons', () => {
+    render(
+      <ArtsLettersAgendaConfigurationPanel
+        config={{
+          buildingDefaults: {
+            schumann: {
+              buildingId: 'schumann',
+              simpleParts: [
+                { id: 'a', label: 'One' },
+                { id: 'b', label: '' },
+              ],
+            },
+          },
+        }}
+        onChange={onChange}
+      />
+    );
+    expect(screen.getByLabelText('Move box 2 up')).toBeInTheDocument();
+    expect(screen.getByLabelText('Remove box 2')).toBeInTheDocument();
+  });
 });
