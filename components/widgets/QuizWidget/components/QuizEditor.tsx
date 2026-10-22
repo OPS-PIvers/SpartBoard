@@ -842,6 +842,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   });
   const uploadWhiteboardImage = useWhiteboardImageUpload();
   const rubricVisibilityOn = canAccessFeature('quiz-rubric-visibility');
+  const spellCheckToggleOn = canAccessFeature('quiz-spell-check-toggle');
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const readPrompt = useCallback(() => promptRef.current?.value, []);
   const targetsRef = useRef(selectedQuestion?.targets);
@@ -1105,6 +1106,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   // Reset written-specific fields when switching off written types
                   placeholder: isWritten ? q.placeholder : undefined,
                   maxWords: isWritten ? q.maxWords : undefined,
+                  noSpellCheck: isWritten ? q.noSpellCheck : undefined,
                   rubricId: isWritten ? q.rubricId : undefined,
                   rubricSnapshot: isWritten ? q.rubricSnapshot : undefined,
                   rubricVisibleToStudents: isWritten
@@ -1308,6 +1310,24 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   question={q}
                   onChange={(updates) => updateQuestion(q.id, updates)}
                 />
+                {spellCheckToggleOn && (
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={q.noSpellCheck !== true}
+                      onChange={(e) =>
+                        updateQuestion(q.id, {
+                          noSpellCheck: e.target.checked ? undefined : true,
+                        })
+                      }
+                      className="w-4 h-4 accent-brand-blue-primary"
+                      {...tourTypeAttr('quiz-editor.spell-check', 'quiz')}
+                    />
+                    <span className="font-bold text-xs text-slate-700">
+                      Spell check
+                    </span>
+                  </label>
+                )}
               </>
             )}
             <div>

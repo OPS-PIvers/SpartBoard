@@ -1712,6 +1712,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.spell-check': {
+    label: 'Spell check toggle in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-editor.section-drag': {
     label: 'Drag handle, section in the Quiz editor',
     perWidgetType: true,

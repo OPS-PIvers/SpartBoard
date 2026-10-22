@@ -13,6 +13,7 @@ import {
   Download,
   Eye,
   History,
+  SpellCheck,
   FileText,
   FileUp,
   Gauge,
@@ -807,6 +808,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: History,
     description:
       'Teachers and students can look back at every quiz attempt, and teachers choose which score counts.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Per-question "Spell check" switch on Free Response questions.
+  'quiz-spell-check-toggle': {
+    label: 'Spell check switch in quizzes',
+    icon: SpellCheck,
+    description:
+      'Teachers can turn off spelling and grammar underlines on a Free Response question.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

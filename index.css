@@ -141,6 +141,12 @@ body {
   background-color: #f8fafc;
 }
 
+/* Student right-click block also suppresses the iOS long-press callout */
+html.student-no-callout,
+html.student-no-callout * {
+  -webkit-touch-callout: none;
+}
+
 /* Disable pointer events on specific elements during drag/resize to prevent event swallowing */
 body.is-dragging-widget iframe,
 body.is-dragging-widget canvas,

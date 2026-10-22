@@ -265,6 +265,7 @@ interface KeyQuestion {
   minWords?: number;
   maxWords?: number;
   enforceWordLimit?: boolean;
+  noSpellCheck?: boolean;
   stimulusIds?: string[];
 }
 
@@ -325,6 +326,7 @@ export function publicQuestionFromKey(q: KeyQuestion): Record<string, unknown> {
     if (q.enforceWordLimit && (base.minWords || base.maxWords)) {
       base.enforceWordLimit = true;
     }
+    if (q.noSpellCheck === true) base.noSpellCheck = true;
     if (q.points && q.points > 0) base.points = q.points;
   }
   if (q.stimulusIds?.length) base.stimulusIds = [...q.stimulusIds];

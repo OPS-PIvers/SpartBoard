@@ -72,13 +72,19 @@ import {
   MiniAppPeriodPausedOverlay,
 } from './MiniAppPeriodLockedScreen';
 import {
+  MSG_BLOCK_CONTEXT_MENU,
   MSG_INIT,
   MSG_LEGACY_RESULT,
   MSG_SUBMIT,
   MSG_SUBMIT_RESULT,
+  injectContextMenuGuard,
   injectMiniAppHelper,
   type MiniAppInitPayload,
 } from '@/utils/miniAppHelper';
+import {
+  isStudentContextMenuBlockWatched,
+  useObservedStudentContextMenuBlock,
+} from '@/hooks/useStudentContextMenuBlock';
 import { submitErrorCode, submitMiniAppResult } from '@/utils/miniAppResults';
 import {
   initialMiniAppView,
@@ -441,6 +447,9 @@ const AppViewer: React.FC<{
   const submissionsEnabled = !isViewOnly && session.submissionsEnabled === true;
   // Results v2 (MINI_APP_RESULTS.md): every write goes through submitMiniAppResultV1.
   const isV2 = session.resultsVersion === 2 && !isViewOnly;
+  const { enabled: blockContextMenu } = useObservedStudentContextMenuBlock();
+  // Fixed at mount so the switch loading or flipping later never reloads the app mid-work.
+  const [menuGuardInjected] = useState(isStudentContextMenuBlockWatched);
   const attemptLimit =
     typeof session.attemptLimit === 'number' ? session.attemptLimit : null;
   const attemptsLeft =
@@ -572,8 +581,14 @@ const AppViewer: React.FC<{
   const handleIframeLoad = useCallback(() => {
     const target = iframeRef.current?.contentWindow;
     if (!target) return;
+    if (menuGuardInjected) {
+      target.postMessage(
+        { type: MSG_BLOCK_CONTEXT_MENU, enabled: blockContextMenu },
+        '*'
+      );
+    }
     target.postMessage({ type: MSG_INIT, payload: initPayload }, '*');
-  }, [initPayload]);
+  }, [initPayload, menuGuardInjected, blockContextMenu]);
 
   // Re-post INIT whenever submissionsEnabled or timeMultiplier changes, so a
   // teacher toggling the assignment (or an accommodation resolving after
@@ -850,10 +865,18 @@ const AppViewer: React.FC<{
     return () => window.clearTimeout(timeout);
   }, [status]);
 
-  const srcDoc = useMemo(
-    () => (isV2 ? injectMiniAppHelper(session.appHtml) : session.appHtml),
-    [isV2, session.appHtml]
-  );
+  const srcDoc = useMemo(() => {
+    const html = isV2 ? injectMiniAppHelper(session.appHtml) : session.appHtml;
+    return menuGuardInjected ? injectContextMenuGuard(html) : html;
+  }, [isV2, session.appHtml, menuGuardInjected]);
+
+  useEffect(() => {
+    if (!menuGuardInjected) return;
+    iframeRef.current?.contentWindow?.postMessage(
+      { type: MSG_BLOCK_CONTEXT_MENU, enabled: blockContextMenu },
+      '*'
+    );
+  }, [menuGuardInjected, blockContextMenu]);
 
   // Teacher skipped this student for this assignment.
   if (view.kind === 'excluded') return <AssignmentExcludedNotice />;

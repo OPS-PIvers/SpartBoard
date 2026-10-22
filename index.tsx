@@ -8,6 +8,7 @@ import { i18nReady } from './i18n';
 import { attemptChunkReload } from './utils/chunkLoadError';
 import { installTranslateDomGuard } from './utils/translateDomGuard';
 import { LocalProdBanner } from './components/common/LocalProdBanner';
+import { StudentContextMenuGuard } from './components/student/StudentContextMenuGuard';
 
 // Vite v5+ fires `vite:preloadError` when a <link rel="modulepreload"> fails —
 // usually because the chunk no longer exists after a redeploy. Calling
@@ -37,6 +38,7 @@ void Promise.race([
     <React.StrictMode>
       {isLocalProd && <LocalProdBanner />}
       <App />
+      <StudentContextMenuGuard />
     </React.StrictMode>
   );
 });
