@@ -555,6 +555,28 @@ describe('useLinkedCollectionSync', () => {
     expect(deps.leaveSharedBoard).not.toHaveBeenCalled();
   });
 
+  it('puts a board back on the list when its delete fails', async () => {
+    shares.set('s1', share('s1'));
+    linkDoc = makeLink({ boards: [{ shareId: 's1', name: 'A', order: 0 }] });
+    const deps = makeDeps({
+      dashboards: [board('a', 'week', live('s1', 'collaborator'))],
+    });
+    const { result } = renderHook(() => useLinkedCollectionSync(deps));
+    await emit(linkDoc);
+    let finish: ((landed: boolean) => Promise<void>) | undefined;
+    await act(async () => {
+      finish = await result.current.beforeBoardsLeave(['a'], {
+        kind: 'delete',
+      });
+    });
+    expect(linkDoc.boards).toHaveLength(0);
+    await act(async () => {
+      await finish?.(false);
+    });
+    expect(linkDoc.boards.map((b) => b.shareId)).toEqual(['s1']);
+    expect(deps.leaveSharedBoard).not.toHaveBeenCalled();
+  });
+
   it('removes an imported copy whose share is already gone', async () => {
     const deps = makeDeps({
       dashboards: [board('linked-s1', 'week', live('s1', 'collaborator'))],

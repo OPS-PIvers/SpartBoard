@@ -592,7 +592,11 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
 
   /** Applies board-list edits, grouped by link. */
   const editEntries = useCallback(
-    async (uid: string, targets: RemovalTarget[]) => {
+    async (
+      uid: string,
+      targets: RemovalTarget[],
+      removed?: Map<string, LinkedCollectionBoard[]>
+    ) => {
       const byLink = new Map<string, RemovalTarget[]>();
       for (const t of targets) {
         byLink.set(t.linkId, [...(byLink.get(t.linkId) ?? []), t]);
@@ -604,10 +608,14 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
           uid,
           (current) => {
             if (!canEditLinkedCollection(current, uid)) return null;
+            const dropped: LinkedCollectionBoard[] = [];
             const boards = current.boards.flatMap((b) => {
               const change = changes.get(b.shareId);
               if (!change) return [b];
-              if (change.kind === 'remove') return [];
+              if (change.kind === 'remove') {
+                dropped.push(b);
+                return [];
+              }
               const { sectionId: _old, ...rest } = b;
               return [
                 change.sectionId
@@ -615,7 +623,30 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
                   : rest,
               ];
             });
+            removed?.set(linkId, dropped);
             return { boards };
+          }
+        );
+      }
+    },
+    []
+  );
+
+  /** Puts entries back on the list after a delete that didn't land. */
+  const relistEntries = useCallback(
+    async (uid: string, removed: Map<string, LinkedCollectionBoard[]>) => {
+      for (const [linkId, entries] of removed) {
+        if (entries.length === 0) continue;
+        await depsRef.current.linkedCollectionApi.editLinkedCollection(
+          linkId,
+          uid,
+          (current) => {
+            if (!canEditLinkedCollection(current, uid)) return null;
+            const listed = new Set(current.boards.map((b) => b.shareId));
+            const back = entries.filter((e) => !listed.has(e.shareId));
+            return back.length > 0
+              ? { boards: [...current.boards, ...back] }
+              : null;
           }
         );
       }
@@ -657,15 +688,27 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
           ? targets
           : targets.filter((t) => t.change.kind === 'move');
       const later = destination.kind === 'delete' ? [] : removes;
+      const removed = new Map<string, LinkedCollectionBoard[]>();
       try {
-        if (first.length > 0) await editEntries(uid, first);
+        if (first.length > 0) await editEntries(uid, first, removed);
       } catch (err) {
         removes.forEach((t) => leaving.current.delete(t.board.id));
         throw err;
       }
       return async (landed: boolean) => {
         try {
-          if (!landed) return;
+          if (!landed) {
+            if (destination.kind !== 'delete') return;
+            // The board is still here, so it stays listed and linked.
+            for (const id of boardIds) deletedBoards.current.delete(id);
+            for (const t of targets) deletedLocally.current.delete(t.shareId);
+            try {
+              await relistEntries(uid, removed);
+            } catch (err) {
+              logError('useLinkedCollectionSync.relist', err, {});
+            }
+            return;
+          }
           if (later.length > 0) {
             try {
               await editEntries(uid, later);
@@ -698,7 +741,7 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
         }
       };
     },
-    [removalTargets, editEntries]
+    [removalTargets, editEntries, relistEntries]
   );
 
   /** After a local rename or recolor: carries it to the shared collection when this teacher can edit it. */

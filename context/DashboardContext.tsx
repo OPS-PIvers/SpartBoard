@@ -5198,10 +5198,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [user, dashboards, activeId, saveDashboard, buildSaveBaseline, addToast]);
 
   const deleteDashboardRaw = useCallback(
-    async (id: string) => {
+    async (id: string): Promise<boolean> => {
       if (!user) {
         addToast('Must be signed in to delete', 'error');
-        return;
+        return false;
       }
 
       try {
@@ -5211,9 +5211,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           updateActiveId(filtered.length > 0 ? filtered[0].id : null);
         }
         addToast('Dashboard removed');
+        return true;
       } catch (err) {
         console.error('Delete failed:', err);
         addToast('Delete failed', 'error');
+        return false;
       }
     },
     [
@@ -5724,8 +5726,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         addToast('Delete failed', 'error');
         return;
       }
-      await deleteDashboardRaw(id);
-      await finish(true);
+      await finish(await deleteDashboardRaw(id));
     },
     [beforeBoardsLeave, deleteDashboardRaw, addToast]
   );
