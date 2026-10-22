@@ -84,7 +84,9 @@ vi.mock('@/components/tours/webTours', () => ({
   ...webTourStore,
 }));
 
-const copyLink = vi.hoisted(() => vi.fn(() => Promise.resolve(true)));
+const copyLink = vi.hoisted(() =>
+  vi.fn((_setId: string, _title: string) => Promise.resolve(true))
+);
 vi.mock('@/components/tours/web/useCopyWebTourLink', async () => {
   const { useEffect } = await import('react');
   return {
