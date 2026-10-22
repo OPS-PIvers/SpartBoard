@@ -1696,19 +1696,11 @@
     "empty": "La Colección compartida está vacía",
     "invalidShareUrl": "Enlace de compartición inválido — falta el ID de recurso compartido.",
     "substituteImportRejected": "Este enlace es para sustitutos. Ábrelo en el Portal de sustitutos.",
-    "modes": {
-      "synced": {
-        "title": "Sincronizado",
-        "body": "Ambos editan la misma colección."
-      },
-      "viewOnly": {
-        "title": "Solo lectura",
-        "body": "Ven tus cambios en vivo, pero no pueden editar."
-      },
-      "copy": {
-        "title": "Hacer una copia"
-      }
-    },
+    "modeSynced": "Sincronizado",
+    "modeSyncedHint": "Ambos editan la misma colección.",
+    "modeViewOnly": "Solo lectura",
+    "modeViewOnlyHint": "Ven tus cambios en vivo, pero no pueden editar.",
+    "modeCopyTitle": "Hacer una copia",
     "boardAlreadyLive": "{{name}} ya se comparte en vivo. Deja de compartirlo primero o haz una copia."
   },
   "importSharedCollection": {

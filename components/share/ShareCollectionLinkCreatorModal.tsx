@@ -178,10 +178,10 @@ export const ShareCollectionLinkCreatorModal: FC<
               <div className="space-y-3">
                 <ModeOption
                   selected={mode === 'synced'}
-                  title={t('shareCollection.modes.synced.title', {
+                  title={t('shareCollection.modeSynced', {
                     defaultValue: 'Synced',
                   })}
-                  body={t('shareCollection.modes.synced.body', {
+                  body={t('shareCollection.modeSyncedHint', {
                     defaultValue: 'You both edit the same collection.',
                   })}
                   Icon={Cloud}
@@ -190,10 +190,10 @@ export const ShareCollectionLinkCreatorModal: FC<
                 />
                 <ModeOption
                   selected={mode === 'view-only'}
-                  title={t('shareCollection.modes.viewOnly.title', {
+                  title={t('shareCollection.modeViewOnly', {
                     defaultValue: 'View-Only',
                   })}
-                  body={t('shareCollection.modes.viewOnly.body', {
+                  body={t('shareCollection.modeViewOnlyHint', {
                     defaultValue: "They see your changes live but can't edit.",
                   })}
                   Icon={Eye}
@@ -202,7 +202,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                 />
                 <ModeOption
                   selected={mode === 'copy'}
-                  title={t('shareCollection.modes.copy.title', {
+                  title={t('shareCollection.modeCopyTitle', {
                     defaultValue: 'Make a copy',
                   })}
                   body={t('shareCollection.copyModeHint', {

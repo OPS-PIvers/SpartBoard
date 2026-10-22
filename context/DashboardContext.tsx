@@ -4601,11 +4601,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         })
       );
-      await collectionsApi.setCollectionLink(input.collection.id, {
-        linkedCollectionId: linkId,
-        linkedCollectionRole: 'owner',
-        linkedCollectionEnded: false,
-      });
+      // The link already works for recipients, so a failed tag is logged, not thrown.
+      try {
+        await collectionsApi.setCollectionLink(input.collection.id, {
+          linkedCollectionId: linkId,
+          linkedCollectionRole: 'owner',
+          linkedCollectionEnded: false,
+        });
+      } catch (err) {
+        logError('DashboardContext.shareLinkedCollection.collection', err, {
+          linkId,
+        });
+      }
       return linkId;
     },
     [
