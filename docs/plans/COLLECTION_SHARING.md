@@ -45,14 +45,25 @@ Reuse the board Synced machinery for the boards; add one small doc for the colle
    detaches the local board (collaborator) or deletes it (viewer). Collection rename / color
    mirrors both ways for collaborators.
 5. **Adding a board** to a Synced collection (create, move into, duplicate) shares it as a
-   `/shared_boards` doc and appends to `boards[]`. Moving a board out removes it from
-   `boards[]` for everyone (with a confirm).
+   `/shared_boards` doc stamped with `linkedCollectionId` and appends to `boards[]`. Moving a
+   board out removes it from `boards[]` for everyone (with a confirm). A collaborator who adds
+   a board becomes its `originalAuthor`, so the rules also let the link's host update or delete
+   any `/shared_boards` doc whose `linkedCollectionId` names a link they host (slice 1), and a
+   collaborator who leaves keeps owning the shares they added while the others stay synced.
 6. **Cost fix (D3):** boards that belong to a linked collection subscribe to their
-   `/shared_boards` doc only while active (plus a one-shot fetch on open). Mirror writes are
-   already per-edit. This keeps a 20-board collection at ~2 listeners, not 20.
-7. **Ending:** host "Stop sharing" ends the link doc and every board doc it lists; the
-   existing ended-share paths then run. A collaborator can "Leave" (self-leave on all docs,
-   keeps a detached copy).
+   `/shared_boards` doc only while active. Today's mirror effect writes any linked board whose
+   payload differs from `lastMirroredRef`, which starts empty and is primed only by the
+   listener, so a stale local copy would overwrite collaborators' newer edits on load. Rule
+   for slice 4: an inactive linked-collection board never mirrors; on becoming active it
+   fetches the share (one-shot), merges it in through the same path the listener uses
+   (primes `lastMirroredRef`, runs `mergeAnnotationObjects`), and only then mirrors.
+   This keeps a 20-board collection at ~2 listeners, not 20.
+7. **Ending:** host "Stop sharing" sets `ended` on the link doc and deletes every board doc it
+   lists. Inactive boards have no per-board listener to see that, so the link-doc listener
+   (step 4) runs the existing ended-share handling for every board in the collection: delete
+   for viewers, `linkedShareEnded` (detached copy) for collaborators, plus
+   `linkedCollectionEnded` on the collection. A collaborator can "Leave" (self-leave on the
+   link and every board doc, keeps detached copies).
 8. **Flag:** `GlobalFeature` `collection-sync-sharing`, `defaultAccessLevel: 'admin'`,
    `stage: 'preview'`, `afterLaunch: 'retire'`. Without it the dialog stays as today.
    Copy stays available to everyone.
@@ -92,7 +103,8 @@ Each slice is its own PR into `dev-paul`, everything behind `collection-sync-sha
 
 1. **Foundation** (no deps): `GlobalFeature` flag + `FEATURE_DEFAULTS` + `featureMissingDoc.ts`,
    types (`LinkedCollection`, `Collection.linkedCollectionId` / role), `/linked_collections`
-   rules with read and write tests, `hooks/useLinkedCollection.ts` (create, join, leave,
+   rules with read and write tests, the `/shared_boards` `linkedCollectionId` host branch
+   (step 5), `hooks/useLinkedCollection.ts` (create, join, leave,
    subscribe, update boards / metadata).
 2. **Share dialog + host flow** (after 1): Synced / View-Only / Make a copy rows in
    `ShareCollectionLinkCreatorModal`, host writes board shares + link doc, tour anchors.
