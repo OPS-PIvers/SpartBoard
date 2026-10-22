@@ -161,6 +161,22 @@ describe('parsePlcAssessment — tolerant parsing', () => {
     expect(parsed?.deletedAt).toBe(99999);
   });
 
+  it('carries the folder and manual order through', () => {
+    const parsed = parsePlcAssessment('a1', {
+      title: 'T',
+      kind: 'quiz',
+      syncGroupId: 'g',
+      status: 'active',
+      createdBy: 'u',
+      createdAt: 1,
+      updatedAt: 1,
+      folderId: 'f1',
+      order: 3,
+    });
+    expect(parsed?.folderId).toBe('f1');
+    expect(parsed?.order).toBe(3);
+  });
+
   it('omits absent optional fields', () => {
     const parsed = parsePlcAssessment('a1', {
       title: 'T',

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { AuthContext } from '@/context/AuthContextValue';
 import type { LibraryFolder } from '@/types';
 import type { HasFolderId } from './folderFilters';
 import {
@@ -26,6 +27,7 @@ import type { UseLibraryViewOptions, UseLibraryViewResult } from './types';
 import { useLibraryView } from './useLibraryView';
 
 const OUTSIDE_FOLDER_REASON = 'Open a folder to reorder.';
+const MANUAL_FOLDER_SORT = { key: 'order', dir: 'asc' } as const;
 
 export interface FolderViewOptions<TItem> {
   /** Key for the last-folder preference, e.g. the folder widget id. */
@@ -228,7 +230,11 @@ export function useFolderLibraryView<TItem>(
     return map;
   }, [enabled, items, getId, itemFolderId]);
 
-  const sort = view.state.sort;
+  // Reorderable folders keep the teacher's order in the list too.
+  const manualFolderOrder =
+    useContext(AuthContext)?.canAccessFeature('library-folder-reorder') ===
+    true;
+  const sort = manualFolderOrder ? MANUAL_FOLDER_SORT : view.state.sort;
   const folderView = useMemo<LibraryFolderViewModel | null>(() => {
     if (!enabled) return null;
     const showRows = location.kind === 'folder' && !searchActive;
