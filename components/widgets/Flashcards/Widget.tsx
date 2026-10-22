@@ -199,17 +199,23 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
         : null,
     [presenting, ownPresentSet]
   );
+  const ownPresentVersion = useMemo(
+    () => (ownPresentView ? contentVersion(ownPresentView) : null),
+    [ownPresentView]
+  );
   useSharedBoardItemPublisher<SharedBoardFlashcardPayload>({
     kind: 'flashcards',
     itemId: ownPresentView?.id,
     title: ownPresentView?.title ?? '',
-    version: ownPresentView ? contentVersion(ownPresentView) : null,
+    version: ownPresentVersion,
     build: () =>
       Promise.resolve({ set: ownPresentView as SubShareFlashcardSetView }),
   });
   const boardItem = useSharedBoardItem<SharedBoardFlashcardPayload>(
     'flashcards',
-    presenting && !ownPresentSet ? config.presentSetId : null
+    presenting && !flashcardSets.loading && !ownPresentSet
+      ? config.presentSetId
+      : null
   );
   const onBoard = boardItem.status === 'foreign';
   // A sub share or another member's set: present only, nothing to edit.

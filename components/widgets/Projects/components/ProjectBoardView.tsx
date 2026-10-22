@@ -109,11 +109,15 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
         : null,
     [readOnly, live.run, live.groups, projectId]
   );
+  const ownTrackerVersion = useMemo(
+    () => (ownTracker ? contentVersion(ownTracker) : null),
+    [ownTracker]
+  );
   useSharedBoardItemPublisher<SharedBoardProjectPayload>({
     kind: 'project',
     itemId: ownTracker ? projectId : null,
     title: ownTracker?.run.title ?? '',
-    version: ownTracker ? contentVersion(ownTracker) : null,
+    version: ownTrackerVersion,
     build: () => Promise.resolve(ownTracker as SharedBoardProjectPayload),
   });
   const run = shared.active

@@ -762,6 +762,11 @@ export const PollSettings: React.FC<{
             <Button
               variant="secondary"
               onClick={() => void handleStopClick()}
+              // A colleague's session on a shared board is theirs to stop.
+              disabled={
+                !!config.activePollSessionOwnerUid &&
+                config.activePollSessionOwnerUid !== user?.uid
+              }
               icon={<Square className="w-3.5 h-3.5" />}
               {...tourAttr(
                 'widget-settings.poll.stop-voting',

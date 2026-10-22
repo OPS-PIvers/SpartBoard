@@ -1234,6 +1234,32 @@ describe('PollSettings', () => {
     });
   });
 
+  it("leaves a colleague's live session for them to stop", () => {
+    const widget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: {
+        question: 'Pick one',
+        options: [{ id: 'opt-1', label: 'A', votes: 0 }],
+        activePollSessionId: 'sess-9',
+        activePollSessionOwnerUid: 'host-1',
+      },
+    };
+
+    render(<PollSettings widget={widget} />);
+
+    const stop = screen.getByRole('button', { name: /stop voting/i });
+    expect(stop).toBeDisabled();
+    fireEvent.click(stop);
+    expect(mockSetDoc).not.toHaveBeenCalled();
+  });
+
   it('locks option editing while a session is live', () => {
     const widget: WidgetData = {
       id: 'poll-1',

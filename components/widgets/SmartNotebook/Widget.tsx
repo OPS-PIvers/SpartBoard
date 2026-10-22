@@ -83,6 +83,7 @@ export const SmartNotebookWidget: React.FC<{
   const shared = useSubShareNotebook(activeNotebookId);
 
   const [notebooks, setNotebooks] = useState<NotebookItem[]>([]);
+  const [libraryLoaded, setLibraryLoaded] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
   const [showAssets, setShowAssets] = useState(false);
@@ -139,6 +140,7 @@ export const SmartNotebookWidget: React.FC<{
         };
       });
       setNotebooks(items);
+      setLibraryLoaded(true);
     });
     return () => unsubscribe();
   }, [user, isActive, shared.active]);
@@ -156,16 +158,20 @@ export const SmartNotebookWidget: React.FC<{
         : null,
     [ownNotebook, shared.active]
   );
+  const ownNotebookVersion = React.useMemo(
+    () => (ownNotebookView ? contentVersion(ownNotebookView) : null),
+    [ownNotebookView]
+  );
   useSharedBoardItemPublisher<SharedBoardNotebookPayload>({
     kind: 'notebook',
     itemId: isActive ? ownNotebookView?.id : null,
     title: ownNotebookView?.title ?? '',
-    version: ownNotebookView ? contentVersion(ownNotebookView) : null,
+    version: ownNotebookVersion,
     build: () => Promise.resolve({ notebook: ownNotebookView as NotebookItem }),
   });
   const boardItem = useSharedBoardItem<SharedBoardNotebookPayload>(
     'notebook',
-    shared.active || ownNotebook ? null : activeNotebookId
+    shared.active || ownNotebook || !libraryLoaded ? null : activeNotebookId
   );
   const onBoard = boardItem.status === 'foreign';
   const boardShareId = useActiveBoardLinkedShareId();
