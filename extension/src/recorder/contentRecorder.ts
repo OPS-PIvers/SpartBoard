@@ -8,6 +8,45 @@ const OWN_HOST = '[data-spart-extension]';
 
 type Scope = typeof globalThis & { [FLAG]?: () => void };
 
+const PILL_STYLE = [
+  'all: initial !important',
+  'position: fixed !important',
+  'top: 12px !important',
+  'left: 50% !important',
+  'transform: translateX(-50%) !important',
+  'z-index: 2147483647 !important',
+  'pointer-events: none !important',
+].join(';');
+
+const PILL_CSS = `
+.pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px;
+  border-radius: 9999px; background: #1d2a5d; color: #fff;
+  font: 600 13px/1.2 "Lexend", ui-sans-serif, system-ui, sans-serif;
+  box-shadow: 0 1px 2px rgba(2,6,23,.2), 0 12px 24px -6px rgba(2,6,23,.45); }
+.dot { width: 8px; height: 8px; border-radius: 9999px; background: #c13435; }
+`;
+
+/** The top frame's "Recording" pill, in a closed shadow root the page can't restyle; returns its removal. */
+function showPill(): () => void {
+  if (window !== window.top) return () => undefined;
+  const host = document.createElement('div');
+  host.setAttribute('data-spart-extension', '');
+  host.setAttribute('data-tour-ignore', '');
+  host.setAttribute('style', PILL_STYLE);
+  const shadow = host.attachShadow({ mode: 'closed' });
+  const style = document.createElement('style');
+  style.textContent = PILL_CSS;
+  const pill = document.createElement('div');
+  pill.className = 'pill';
+  pill.setAttribute('role', 'status');
+  const dot = document.createElement('span');
+  dot.className = 'dot';
+  pill.append(dot, 'Recording');
+  shadow.append(style, pill);
+  document.documentElement.appendChild(host);
+  return () => host.remove();
+}
+
 const frameElementFor = (url: string, index: number): Element | null => {
   const frames = Array.from(document.querySelectorAll('iframe, frame'));
   const byUrl = frames.filter((f) => {
@@ -56,7 +95,9 @@ function start(): () => void {
       reply(frameRect(msg.url, msg.index));
     else if (isRecorderInternal(msg, 'rec/stopFrame')) stop();
   };
+  const hidePill = showPill();
   const stop = () => {
+    hidePill();
     removeEventListener('pointerdown', onPointerDown, { capture: true });
     chrome.runtime.onMessage.removeListener(onMessage);
     if (scope[FLAG] === stop) delete scope[FLAG];

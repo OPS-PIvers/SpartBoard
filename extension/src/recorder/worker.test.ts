@@ -262,6 +262,56 @@ describe('recorder worker', () => {
     await vi.waitFor(() => expect(store['recorder.outbox']).toEqual({}));
   });
 
+  it('fixes a step SpartBoard asked about with one click, under the step id', async () => {
+    const { worker, send, store } = await setup();
+    const handlers: Listener[] = [];
+    const posted: unknown[] = [];
+    const port = {
+      postMessage: (m: unknown) => posted.push(m),
+      disconnect: vi.fn(),
+      onMessage: { addListener: (fn: Listener) => handlers.push(fn) },
+      onDisconnect: { addListener: vi.fn() },
+    };
+    worker.handleRecorderPort(port as unknown as chrome.runtime.Port);
+    handlers[0]({ type: 'recorder/attach', setId: 't1', title: 'Tour' });
+    await vi.waitFor(() => expect(posted).toHaveLength(1));
+    handlers[0]({ type: 'recorder/repick', setId: 't1', stepId: 's2' });
+    await vi.waitFor(() =>
+      expect(store['recorder.pick']).toEqual({ setId: 't1', stepId: 's2' })
+    );
+    expect(
+      (
+        (await send({ type: 'rec/status' }, { url: PANEL_URL })) as {
+          pick: unknown;
+        }
+      ).pick
+    ).toEqual({ setId: 't1', stepId: 's2', title: 'Tour' });
+
+    await send({ type: 'rec/start', tabId: 7 }, { url: PANEL_URL });
+    await send(click, { tab: { id: 7, url: TAB_URL }, frameId: 0 });
+    await vi.waitFor(() => expect(store['recorder.tabId']).toBeUndefined());
+
+    const step = {
+      id: 'new-capture',
+      urlPattern: 'https://orono.schoology.com/home',
+      action: 'click',
+      locator: { role: 'link', name: 'Courses' },
+      tip: 'dropped',
+    };
+    expect(await send({ type: 'rec/sendFix', step }, { url: PANEL_URL })).toBe(
+      true
+    );
+    const { tip: _tip, ...fixed } = { ...step, id: 's2' };
+    expect(posted.at(-1)).toEqual({
+      type: 'recorder/repicked',
+      setId: 't1',
+      step: fixed,
+    });
+    expect(store['recorder.pick']).toBeUndefined();
+    handlers[0]({ type: 'recorder/ack', setId: 't1', stepId: 's2' });
+    await vi.waitFor(() => expect(store['recorder.fixes']).toEqual({}));
+  });
+
   it('closes a recorder port when the profile is not staff', async () => {
     profile.value = 'other';
     const { worker } = await setup();
