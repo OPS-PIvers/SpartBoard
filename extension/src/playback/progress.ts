@@ -1,7 +1,8 @@
+import type { WebTourAction, WebTourFrame } from '@/types';
 import type { LocatorClue, WebLocatorClues } from './locate';
 import { matchesUrlPattern } from './urlPattern';
 
-export type WebStepAction = 'observe' | 'click' | 'type' | 'select';
+export type WebStepAction = WebTourAction;
 
 export interface PlaybackStep {
   id: string;
@@ -9,7 +10,7 @@ export interface PlaybackStep {
   text: string;
   urlPattern: string;
   /** Frames around the target from the top document down; empty means the top document. */
-  frames: { urlPattern: string; index: number }[];
+  frames: WebTourFrame[];
   clues: WebLocatorClues;
   action: WebStepAction;
   hasPicture: boolean;

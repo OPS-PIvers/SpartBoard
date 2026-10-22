@@ -1,11 +1,7 @@
-export interface WebLocatorClues {
-  role?: string;
-  name?: string;
-  text?: string;
-  css?: string;
-  /** Recorded viewport box as fractions of the frame's viewport; breaks ties only. */
-  box?: { x: number; y: number; w: number; h: number };
-}
+import type { WebTourLocator } from '@/types';
+
+/** The clues a frame searches with; frames are matched by the service worker. */
+export type WebLocatorClues = Omit<WebTourLocator, 'frames'>;
 
 /** Which clue found the target, strongest first. */
 export type LocatorClue = 'role' | 'text' | 'css';
