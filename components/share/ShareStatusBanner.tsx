@@ -130,7 +130,8 @@ export const ShareStatusBanner: React.FC = () => {
     <div
       ref={containerRef}
       className="fixed top-3 right-3 flex flex-col items-end"
-      style={{ zIndex: Z_INDEX.popover }}
+      // Board chrome: stays under full-page views so it never covers their close button.
+      style={{ zIndex: Z_INDEX.systemBanner }}
     >
       <button
         type="button"
