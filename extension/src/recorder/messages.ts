@@ -6,9 +6,11 @@ import {
   isObj,
   isRecordedStep,
   isStr,
+  type IntakeTarget,
   type RecordedWebStep,
 } from '@/components/tours/web/recorderProtocol';
 import type { CapturedTarget } from './captureTarget';
+import type { IntakeStatus } from './intake';
 import type { Rect, Size } from './geometry';
 
 /** The side panel's port to the worker; recording stops when it closes. */
@@ -46,6 +48,7 @@ export interface RecorderStatus {
   pick: (RecorderPick & { title: string }) | null;
   /** Steps sent to a tour that hasn't saved them yet. */
   unsaved: number;
+  intake: IntakeStatus;
 }
 
 export type FrameRectReply =
@@ -61,6 +64,16 @@ type InternalSpec = {
   'rec/send': { setId: string; steps: RecordedWebStep[] };
   'rec/sendFix': RecorderPick & { step: RecordedWebStep };
   'rec/pill': { show: boolean };
+  'rec/intakeOpen': Record<string, never>;
+  'rec/intakeSave': {
+    target: IntakeTarget;
+    title: string;
+    steps: RecordedWebStep[];
+    /** Adds to the job an earlier batch of the same Send started. */
+    jobId?: string;
+  };
+  'rec/intakeRetry': Record<string, never>;
+  'rec/intakeIdle': Record<string, never>;
   'rec/cancelPick': Record<string, never>;
   'rec/captured': { capture: RawCapture };
   'rec/changed': Record<string, never>;
@@ -101,6 +114,18 @@ const CHECKS: {
   'rec/sendFix': (m) =>
     isStr(m.setId, 128) && isStr(m.stepId, 64) && isRecordedStep(m.step),
   'rec/pill': (m) => typeof m.show === 'boolean',
+  'rec/intakeOpen': () => true,
+  'rec/intakeSave': (m) =>
+    isObj(m.target) &&
+    ((m.target.kind === 'new' && isStr(m.target.title, 200)) ||
+      (m.target.kind === 'append' && isStr(m.target.setId, 128))) &&
+    isStr(m.title, 200) &&
+    Array.isArray(m.steps) &&
+    m.steps.length <= 50 &&
+    m.steps.every(isRecordedStep) &&
+    (m.jobId === undefined || isStr(m.jobId, 64)),
+  'rec/intakeRetry': () => true,
+  'rec/intakeIdle': () => true,
   'rec/cancelPick': () => true,
   'rec/captured': (m) => isObj(m.capture),
   'rec/changed': () => true,

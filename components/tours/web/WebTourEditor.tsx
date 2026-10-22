@@ -62,7 +62,8 @@ import {
 } from '@/components/tours/tourSnapshot';
 import { isWebTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import { isHardHit } from './studentData';
-import { pictureBlob, toWebStep } from './recordedSteps';
+import { toWebStep } from './recordedSteps';
+import { uploadRecordedPicture } from './intakeSave';
 import type { RecordedWebStep } from './recorderProtocol';
 import { useWebTourRecorder, type RecorderLink } from './useWebTourRecorder';
 import { BlobImage, BlurBoxes } from './BlurBoxes';
@@ -760,15 +761,6 @@ export const WebTourEditor: React.FC<{
     []
   );
 
-  const uploadRecorded = async (recorded: RecordedWebStep, setId: string) => {
-    const blob = recorded.picture
-      ? pictureBlob(recorded.picture.dataUrl)
-      : null;
-    if (!blob || !recorded.picture) return undefined;
-    const path = await uploadWebTourPicture(setId, blob, 'image/jpeg');
-    return { path, w: recorded.picture.w, h: recorded.picture.h };
-  };
-
   const saveNow = async (next: GuidedLearningSet) => {
     latest.current = next;
     setSet(next);
@@ -784,7 +776,7 @@ export const WebTourEditor: React.FC<{
       await saveWebTourDraft(current);
       return;
     }
-    const picture = await uploadRecorded(recorded, current.id);
+    const picture = await uploadRecordedPicture(recorded, current.id);
     // A step that lands after Delete must not re-create the draft.
     if (deleted.current) throw new Error('Tour deleted');
     await saveNow({
@@ -800,7 +792,7 @@ export const WebTourEditor: React.FC<{
     const index = latest.current.steps.findIndex((s) => s.id === recorded.id);
     const target = latest.current.steps[index];
     if (!target?.web) return;
-    const picture = await uploadRecorded(recorded, latest.current.id);
+    const picture = await uploadRecordedPicture(recorded, latest.current.id);
     if (deleted.current) throw new Error('Tour deleted');
     const web = {
       ...target.web,

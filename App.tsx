@@ -164,6 +164,11 @@ const RequestRolloutPage = lazy(() =>
     default: module.RequestRolloutPage,
   }))
 );
+const WebTourIntakePage = lazy(() =>
+  import('./components/tours/web/WebTourIntakePage').then((module) => ({
+    default: module.WebTourIntakePage,
+  }))
+);
 const WebTourHubPage = lazy(() =>
   import('./components/tours/web/WebTourHubPage').then((module) => ({
     default: module.WebTourHubPage,
@@ -979,6 +984,17 @@ const App: React.FC = () => {
       <Suspense fallback={<FullPageLoader />}>
         <LegalPage />
       </Suspense>
+    );
+  }
+
+  // The extension's intake tab (WEB_TOURS_UX.md U17): auth and draft writes only, no dashboard.
+  if (pathname === '/web-tour-intake') {
+    return (
+      <AuthProvider>
+        <Suspense fallback={<FullPageLoader />}>
+          <WebTourIntakePage />
+        </Suspense>
+      </AuthProvider>
     );
   }
 

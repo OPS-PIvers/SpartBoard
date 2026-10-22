@@ -16,6 +16,7 @@ import {
   type RecorderStatus,
   type RecorderTour,
 } from './messages';
+import { createIntake, type Intake } from './intake';
 
 const RECORDING_KEY = 'recorder.tabId';
 const OUTBOX_KEY = 'recorder.outbox';
@@ -88,7 +89,24 @@ async function status(): Promise<RecorderStatus> {
         ? { ...pick, title: titles.get(pick.setId) ?? '' }
         : null,
     unsaved: count(await readOutbox()) + count(await readBox(FIXES_KEY)),
+    intake: (await intake?.status()) ?? {
+      phase: 'none',
+      drafts: [],
+      pending: 0,
+      failed: false,
+      saved: null,
+    },
   };
+}
+
+let intake: Intake | null = null;
+
+/** The intake tab's port; the caller already checked the sender and port name. */
+export function handleIntakePort(port: chrome.runtime.Port): void {
+  void getChromeProfile().then((profile) => {
+    if (profile !== 'staff' || !intake) port.disconnect();
+    else intake.handlePort(port);
+  });
 }
 
 async function startRecording(tabId: number): Promise<boolean> {
@@ -367,7 +385,8 @@ export function handleRecorderPort(port: chrome.runtime.Port): void {
 }
 
 /** Wires the recorder into the service worker: panel and content-script messages, re-injection, panel behaviour. */
-export function installRecorder(): void {
+export function installRecorder(origins: readonly string[] = []): void {
+  intake = createIntake(origins, notifyPanel);
   void chrome.sidePanel
     .setPanelBehavior({ openPanelOnActionClick: true })
     .catch(() => undefined);
@@ -391,6 +410,31 @@ export function installRecorder(): void {
     }
     if (isRecorderInternal(msg, 'rec/stop')) {
       void stopRecording().then(() => reply(true));
+      return true;
+    }
+    if (isRecorderInternal(msg, 'rec/intakeSave')) {
+      if (!intake) return false;
+      void intake
+        .save(msg.target, msg.title, msg.steps, msg.jobId)
+        .then(reply, () => reply(null));
+      return true;
+    }
+    for (const type of [
+      'rec/intakeOpen',
+      'rec/intakeRetry',
+      'rec/intakeIdle',
+    ] as const) {
+      if (!isRecorderInternal(msg, type) || !intake) continue;
+      const run =
+        type === 'rec/intakeOpen'
+          ? intake.ensure()
+          : type === 'rec/intakeRetry'
+            ? intake.retry()
+            : intake.idle();
+      void run.then(
+        () => reply(true),
+        () => reply(false)
+      );
       return true;
     }
     if (isRecorderInternal(msg, 'rec/sendFix')) {
