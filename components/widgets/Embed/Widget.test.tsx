@@ -251,6 +251,33 @@ describe('EmbedWidget', () => {
     render(<EmbedWidget widget={codeWidget} />);
     const iframe = screen.getByTitle('Embed Content');
     expect(iframe).toHaveAttribute('srcDoc', '<h1>Hello World</h1>');
+    expect(iframe.getAttribute('sandbox')).toBe(
+      'allow-scripts allow-forms allow-popups'
+    );
+  });
+
+  it('keeps code mode sandboxed when the URL field is hidden on a saved URL widget', async () => {
+    const { useEmbedConfig } = await import('./hooks/useEmbedConfig');
+    vi.mocked(useEmbedConfig).mockReturnValueOnce({
+      config: {
+        buildingId: 'schumann-elementary',
+        hideUrlField: true,
+        whitelistUrls: [],
+      },
+      isLoading: false,
+    });
+    const hiddenUrlWidget: WidgetData = {
+      ...baseWidget,
+      config: {
+        mode: 'url',
+        url: 'https://drive.google.com/file/d/abc456/view',
+        html: '<h1>Hello World</h1>',
+      },
+    };
+    render(<EmbedWidget widget={hiddenUrlWidget} />);
+    const iframe = screen.getByTitle('Embed Content');
+    expect(iframe).toHaveAttribute('srcDoc', '<h1>Hello World</h1>');
+    expect(iframe.getAttribute('sandbox')).not.toContain('allow-same-origin');
   });
 
   it('increments refreshKey and re-renders iframe periodically', () => {
