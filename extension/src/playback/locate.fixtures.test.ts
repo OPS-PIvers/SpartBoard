@@ -1,4 +1,4 @@
-import { afterAll, afterEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import {
   accessibleName,
   byCss,
@@ -309,5 +309,39 @@ describe('ambiguous matches', () => {
       locate(document, { box: boxAt(300), heading: 'Unit 2: Genetics' })
     ).toBeNull();
     expect(locate(document, { pageTitle: 'Course' })).toBeNull();
+  });
+});
+
+describe('a long page', () => {
+  it('finds one of 300 same-named buttons, reading few headings', () => {
+    document.body.innerHTML = Array.from(
+      { length: 300 },
+      (_, i) =>
+        `<section><h3>Row ${i}</h3><button id="b${i}">Edit</button></section>`
+    ).join('');
+    const buttons = $$('button');
+    buttons.forEach((b, i) =>
+      place(b, (i % 10) * 100, Math.floor(i / 10) * 25, 40, 20)
+    );
+    const target = buttons[250];
+    const r = target.getBoundingClientRect();
+    const spy = vi.spyOn(Element.prototype, 'querySelectorAll');
+    const hit = locate(document, {
+      role: 'button',
+      name: 'Edit',
+      heading: 'Row 250',
+      box: {
+        x: r.x / innerWidth,
+        y: r.y / innerHeight,
+        w: r.width / innerWidth,
+        h: r.height / innerHeight,
+      },
+    });
+    const headingWalks = spy.mock.calls.length;
+    spy.mockRestore();
+    expect(hit?.el).toBe(target);
+    // Headings are read only for the few candidates that could still win.
+    expect(headingWalks).toBeGreaterThan(0);
+    expect(headingWalks).toBeLessThan(100);
   });
 });

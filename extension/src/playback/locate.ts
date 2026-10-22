@@ -1,4 +1,8 @@
-import { WEB_TOUR_ATTR_KEYS, type WebTourLocator } from '@/types';
+import {
+  WEB_TOUR_ATTR_KEYS,
+  type WebTourLocator,
+  type WebTourStableAttrs,
+} from '@/types';
 import { nearestHeading, stableAttrsOf } from './clues';
 
 /** The clues a frame searches with; frames are matched by the service worker. */
@@ -315,14 +319,50 @@ function wantedOf(clues: WebLocatorClues): Wanted {
   return w;
 }
 
+/** Per-call caches, so one `locate` reads each element's attributes and heading once. */
+interface Lookups {
+  attrs: (el: Element) => WebTourStableAttrs;
+  heading: (el: Element) => string;
+}
+
+function lookups(): Lookups {
+  const attrs = new Map<Element, WebTourStableAttrs>();
+  const headings = new Map<Element, string>();
+  return {
+    attrs: (el) => {
+      let v = attrs.get(el);
+      if (!v) attrs.set(el, (v = stableAttrsOf(el)));
+      return v;
+    },
+    heading: (el) => {
+      let v = headings.get(el);
+      if (v === undefined) headings.set(el, (v = nearestHeading(el)));
+      return v;
+    },
+  };
+}
+
 interface Scored {
   el: Element;
+  /** Gather order, which breaks score ties. */
+  index: number;
+  /** Clue weight matched before the heading and box, in the order the score adds them. */
+  pre: number;
+  boxPart: number;
+  /** Null until the heading is read. */
+  headingPart: number | null;
   score: number;
   /** Matched at least one identifying clue, so position alone never picks it. */
   identified: boolean;
 }
 
-function scoreOf(el: Element, w: Wanted): Scored {
+const finish = (s: Scored, w: Wanted) => {
+  const got = s.pre + (s.headingPart ?? 0) + s.boxPart;
+  s.score = w.total > 0 ? got / w.total : 0;
+};
+
+/** Every clue but the heading, which costs a walk up the tree and is added later only where it can matter. */
+function scoreOf(el: Element, index: number, w: Wanted, look: Lookups): Scored {
   const C = CLUE_WEIGHTS;
   let got = 0;
   let identified = false;
@@ -345,7 +385,7 @@ function scoreOf(el: Element, w: Wanted): Scored {
   }
   if (w.tag && el.tagName === w.tag) got += C.tag;
   if (w.attrs.length) {
-    const have = stableAttrsOf(el);
+    const have = look.attrs(el);
     for (const [k, v] of w.attrs) {
       const mine = have[k];
       if (mine && attrValue(k, mine) === v) {
@@ -354,20 +394,69 @@ function scoreOf(el: Element, w: Wanted): Scored {
       }
     }
   }
-  if (w.heading) {
-    got += C.heading * similarity(normalizeText(nearestHeading(el)), w.heading);
+  const boxPart = w.box
+    ? C.box * Math.max(0, 1 - distance(el, w.box) / BOX_REACH)
+    : 0;
+  const s: Scored = {
+    el,
+    index,
+    pre: got,
+    boxPart,
+    headingPart: w.heading ? null : 0,
+    score: 0,
+    identified,
+  };
+  finish(s, w);
+  return s;
+}
+
+const byRank = (a: Scored, b: Scored) => b.score - a.score || a.index - b.index;
+
+/** The winner and its nearest rival among ranked candidates; a wrapper of the winner or a label inside it is the same control. */
+function pickOf(ranked: Scored[]): { best?: Scored; rival?: Scored } {
+  const best = ranked.find((s) => s.identified);
+  if (!best) return {};
+  const rival = ranked.find(
+    (s) => s !== best && !s.el.contains(best.el) && !best.el.contains(s.el)
+  );
+  return { best, rival };
+}
+
+/** Adds the heading clue best-first, stopping once no unread candidate could still reach the winner or the rival. */
+function addHeadings(scored: Scored[], w: Wanted, look: Lookups): Scored[] {
+  const heading = w.heading;
+  if (!heading) return [...scored].sort(byRank);
+  const reach = CLUE_WEIGHTS.heading / w.total;
+  const pending = [...scored].sort(byRank);
+  const done: Scored[] = [];
+  while (pending.length) {
+    const next = pending[0];
+    if (done.length) {
+      const { best, rival } = pickOf(done);
+      if (
+        best &&
+        rival &&
+        next.score + reach + 1e-9 < Math.min(best.score, rival.score)
+      )
+        break;
+    }
+    pending.shift();
+    next.headingPart =
+      CLUE_WEIGHTS.heading *
+      similarity(normalizeText(look.heading(next.el)), heading);
+    finish(next, w);
+    done.push(next);
+    done.sort(byRank);
   }
-  if (w.box) {
-    got += C.box * Math.max(0, 1 - distance(el, w.box) / BOX_REACH);
-  }
-  return { el, score: w.total > 0 ? got / w.total : 0, identified };
+  return [...done, ...pending];
 }
 
 /** Every shown element some clue points at: role with a similar name, text, CSS path or a stable attribute. */
 function gather(
   doc: Document,
   roots: (Document | ShadowRoot)[],
-  w: Wanted
+  w: Wanted,
+  look: Lookups
 ): Element[] {
   const found = new Set<Element>();
   if (w.role && w.name) {
@@ -382,7 +471,7 @@ function gather(
   if (w.attrs.length) {
     const selector = w.attrs.map(([k]) => ATTR_SELECTOR[k]).join(',');
     for (const el of queryAll(roots, selector)) {
-      const have = stableAttrsOf(el);
+      const have = look.attrs(el);
       const hit = w.attrs.some(([k, v]) => {
         const mine = have[k];
         return !!mine && attrValue(k, mine) === v;
@@ -400,15 +489,12 @@ export function locate(
 ): LocatorMatch | null {
   const w = wantedOf(clues);
   if (w.total === 0) return null;
-  const scored = gather(doc, rootsOf(doc), w)
-    .map((el) => scoreOf(el, w))
-    .sort((a, b) => b.score - a.score);
-  const best = scored.find((s) => s.identified);
-  if (!best || best.score < SCORE_FLOOR) return null;
-  // A wrapper of the winner, or a label inside it, is the same control rather than a rival.
-  const rival = scored.find(
-    (s) => s !== best && !s.el.contains(best.el) && !best.el.contains(s.el)
+  const look = lookups();
+  const scored = gather(doc, rootsOf(doc), w, look).map((el, i) =>
+    scoreOf(el, i, w, look)
   );
+  const { best, rival } = pickOf(addHeadings(scored, w, look));
+  if (!best || best.score < SCORE_FLOOR) return null;
   const lead = rival ? best.score - rival.score : best.score;
   if (lead < SCORE_TIE) return null;
   return { el: best.el, weak: lead < SCORE_MARGIN, score: best.score };
