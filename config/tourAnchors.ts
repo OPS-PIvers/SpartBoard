@@ -6897,6 +6897,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'admin.help-center.web-tour-copy-link': {
+    label: 'Copy link button for a web tour in tour health',
+    perField: true,
+    panel: true,
+  },
   'admin.help-center.unmapped-copy': {
     label: 'Copy all button for unmapped anchors',
     panel: true,

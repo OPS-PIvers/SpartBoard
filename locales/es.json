@@ -4309,6 +4309,26 @@
         "rebound": "Reasignado",
         "needsHuman": "Necesita una persona"
       }
+    },
+    "web": {
+      "title": "Recorridos web",
+      "intro": "Revisa los usos reales de recorridos en otros sitios web.",
+      "empty": "Aún no hay recorridos web.",
+      "loadFailed": "No se pudieron cargar los recorridos web.",
+      "notPublished": "Sin publicar",
+      "colPage": "Página",
+      "state": {
+        "ok": "Correcto",
+        "weak": "Coincidencia débil",
+        "missed": "No encontrado"
+      },
+      "reason": {
+        "missed": "Mostró la imagen en {{misses}} de {{runs}} usos reales",
+        "weak": "Se encontró solo con una pista más débil en {{weak}} de {{runs}} usos reales"
+      },
+      "copyLink": "Copiar enlace",
+      "linkCopied": "Copiado",
+      "copyLinkFor": "Copiar enlace a {{title}}"
     }
   },
   "tourPicker": {
@@ -4408,5 +4428,30 @@
     "startingPage": {
       "loadFailed": "La página inicial no se cargó."
     }
+  },
+  "webTourHub": {
+    "eyebrow": "Recorrido web",
+    "untitled": "Recorrido sin título",
+    "untitledStep": "Paso sin título",
+    "summary_one": "En {{site}} · {{count}} paso",
+    "summary_other": "En {{site}} · {{count}} pasos",
+    "checking": "Buscando la extensión de SpartBoard...",
+    "start": "Iniciar recorrido",
+    "startOver": "Empezar de nuevo",
+    "resume": "Continuar en el paso {{number}}",
+    "playing": "El recorrido está abierto en otra pestaña. Tu progreso se muestra aquí.",
+    "closed": "Se cerró la pestaña del recorrido.",
+    "exited": "Saliste del recorrido.",
+    "done": "Terminaste este recorrido.",
+    "startFailed": "No se pudo iniciar el recorrido. Inténtalo de nuevo.",
+    "noExtension": "Pide a tu equipo de tecnología que agregue la extensión de SpartBoard para Chrome para que este recorrido señale cada paso en el sitio. Por ahora, sigue las imágenes de abajo.",
+    "wrongProfile": "Este recorrido solo funciona en un perfil de Chrome con tu cuenta de personal de Orono. Por ahora, sigue las imágenes de abajo.",
+    "oldExtension": "Tu extensión de SpartBoard necesita una actualización para este recorrido. Por ahora, sigue las imágenes de abajo.",
+    "openSite": "Abrir {{site}}",
+    "currentStep": "Paso actual",
+    "stepDone": "Hecho",
+    "pictureAlt": "Imagen del paso {{number}}",
+    "unavailableTitle": "Este recorrido no está disponible",
+    "unavailableBody": "Puede que el enlace esté mal o que el recorrido se haya eliminado. Pide un enlace nuevo a quien lo compartió."
   }
 }

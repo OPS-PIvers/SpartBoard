@@ -1582,6 +1582,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'admin.help-center.record-tour': ['admin.help-center.tour-health'],
     'admin.help-center.check-live': ['admin.help-center.tour-health'],
     'admin.help-center.edit-step': ['admin.help-center.tour-health'],
+    'admin.help-center.web-tour-copy-link': ['admin.help-center.tour-health'],
     'admin.help-center.unmapped-copy': ['admin.help-center.tour-health'],
     'admin.help-center.unmapped-rebind': ['admin.help-center.tour-health'],
     'admin.help-center.keep-all-in-help': ['admin.help-center'],

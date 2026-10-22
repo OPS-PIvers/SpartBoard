@@ -649,6 +649,7 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       'components/admin/HelpCenter/TourHealthPanel.tsx',
       'components/admin/HelpCenter/UnmappedAnchorsSection.tsx',
+      'components/admin/HelpCenter/WebTourHealthSection.tsx',
     ],
     opensWith: 'admin.help-center.tour-health-toggle',
     needs: ['admin'],

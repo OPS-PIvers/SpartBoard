@@ -164,6 +164,36 @@ describe('tour runs writes', () => {
     await assertFails(setDoc(ref, noMisses));
   });
 
+  it('accepts a web tour run with surface and weak matches', async () => {
+    const ref = doc(asTeacher(), `${RUNS}/teacher-uid`);
+    await assertSucceeds(
+      setDoc(ref, { ...run, surface: 'web', weak: ['step-a:text'] })
+    );
+    await assertSucceeds(setDoc(ref, { ...run, surface: 'web', weak: [] }));
+    await assertFails(setDoc(ref, { ...run, surface: 'spartboard' }));
+    await assertFails(setDoc(ref, { ...run, surface: 1 }));
+    await assertFails(setDoc(ref, { ...run, surface: 'web', weak: 'step-a' }));
+    await assertFails(
+      setDoc(ref, {
+        ...run,
+        surface: 'web',
+        weak: Array.from({ length: 51 }, (_, i) => `s${i}:css`),
+      })
+    );
+  });
+
+  it('lets an admin read a web tour run', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `${RUNS}/web-uid`), {
+        ...run,
+        surface: 'web',
+        weak: ['step-a:css'],
+      });
+    });
+    await assertSucceeds(getDoc(doc(asAdmin(), `${RUNS}/web-uid`)));
+    await assertFails(getDoc(doc(asTeacher('web-uid'), `${RUNS}/web-uid`)));
+  });
+
   it('denies students and signed-out users', async () => {
     await assertFails(
       setDoc(doc(asAnonStudent(), `${RUNS}/anon-student-uid`), run)

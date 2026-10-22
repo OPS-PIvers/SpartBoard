@@ -164,6 +164,11 @@ const RequestRolloutPage = lazy(() =>
     default: module.RequestRolloutPage,
   }))
 );
+const WebTourHubPage = lazy(() =>
+  import('./components/tours/web/WebTourHubPage').then((module) => ({
+    default: module.WebTourHubPage,
+  }))
+);
 const SignInPage = lazy(() =>
   import('./components/auth/SignInPage').then((module) => ({
     default: module.SignInPage,
@@ -967,6 +972,20 @@ const App: React.FC = () => {
       <Suspense fallback={<FullPageLoader />}>
         <LegalPage />
       </Suspense>
+    );
+  }
+
+  // Web tour links (CHROME_EXTENSION.md T9): auth and the published tour only, no dashboard.
+  if (pathname.startsWith('/tour/')) {
+    return (
+      <DialogProvider>
+        <AuthProvider>
+          <Suspense fallback={<FullPageLoader />}>
+            <WebTourHubPage />
+          </Suspense>
+        </AuthProvider>
+        <DialogContainer />
+      </DialogProvider>
     );
   }
 
