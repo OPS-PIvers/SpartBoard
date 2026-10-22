@@ -39,6 +39,10 @@ export interface WallRenderActions {
   viewerUid?: string;
   /** Fired when a submission's media (photo/video/file) fails to load, in any mode. */
   onMediaError?: (submission: ActivityWallSubmission) => void;
+  /** Dated timeline, teacher widget only: hides or shows every date on the wall. */
+  onToggleTimelineDates?: (hidden: boolean) => void;
+  /** Widget id for tour anchors on teacher controls inside the wall. */
+  tourWidgetId?: string;
   /** Gallery-only footer rendered inside each card (likes / comments). */
   renderFooter?: (submission: ActivityWallSubmission) => ReactNode;
 }

@@ -38,12 +38,14 @@ export const clampPos = (
   y: Math.round(Math.min(Math.max(pos.y, 0), Math.max(view.h - size.h, 0))),
 });
 
-/** A floating toolbar moved by its grip, remembered under `storageKey`; null means its default spot. */
+/** A floating toolbar moved by its grip, remembered under `storageKey` (null: not remembered); a null pos is its default spot. */
 export function useDraggablePosition<T extends HTMLElement>(
-  storageKey: string
+  storageKey: string | null
 ) {
   const ref = useRef<T>(null);
-  const [pos, setPos] = useState<Pos | null>(() => readPos(storageKey));
+  const [pos, setPos] = useState<Pos | null>(() =>
+    storageKey ? readPos(storageKey) : null
+  );
   const drag = useRef<{ dx: number; dy: number; pointer: number } | null>(null);
 
   const sizeOf = () => {
@@ -53,7 +55,7 @@ export function useDraggablePosition<T extends HTMLElement>(
   const moveTo = (next: Pos, persist: boolean) => {
     const clamped = clampPos(next, sizeOf());
     setPos(clamped);
-    if (persist) writePos(storageKey, clamped);
+    if (persist && storageKey) writePos(storageKey, clamped);
   };
 
   // A remembered spot from a larger window is pulled back on screen.
@@ -114,7 +116,7 @@ export function useDraggablePosition<T extends HTMLElement>(
     },
     onDoubleClick: () => {
       setPos(null);
-      writePos(storageKey, null);
+      if (storageKey) writePos(storageKey, null);
     },
   };
 

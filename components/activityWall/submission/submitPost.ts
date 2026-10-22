@@ -299,7 +299,10 @@ export const createPost = async ({
   if (isTeacher) payload.authorRole = 'teacher';
   const title = draft.title.trim();
   if (type !== 'word' && title) payload.title = title;
-  if (session.layout === 'columns' && placement.sectionId)
+  if (
+    (session.layout === 'columns' || session.layout === 'timeline') &&
+    placement.sectionId
+  )
     payload.sectionId = placement.sectionId;
   if (session.layout === 'table' && placement.cellKey)
     payload.cellKey = placement.cellKey;
@@ -359,7 +362,10 @@ export const updatePost = async (
   if (type !== 'word') patch.title = draft.title.trim();
   // Rules keep `order` off the student edit allowlist, so timeline edits only touch the label.
   if (session.layout === 'timeline') patch.label = draft.label.trim();
-  if (session.layout === 'columns' && placement.sectionId)
+  if (
+    (session.layout === 'columns' || session.layout === 'timeline') &&
+    placement.sectionId
+  )
     patch.sectionId = placement.sectionId;
   if (session.layout === 'table' && placement.cellKey)
     patch.cellKey = placement.cellKey;

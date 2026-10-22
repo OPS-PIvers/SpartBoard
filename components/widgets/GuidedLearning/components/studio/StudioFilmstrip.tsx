@@ -511,6 +511,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
         )}
       </div>
       <div className="flex shrink-0 flex-col gap-1.5 border-t border-slate-200 p-3">
+        {/* no-tour-anchor: hidden file input opened by its visible upload button */}
         <input
           ref={fileInputRef}
           type="file"
@@ -519,6 +520,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
           className="hidden"
           onChange={handleFiles}
         />
+        {/* no-tour-anchor: hidden file input opened by its visible upload button */}
         <input
           ref={replaceInputRef}
           type="file"

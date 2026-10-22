@@ -38,8 +38,12 @@ import {
   type TourHealthState,
 } from '@/components/tours/tourHealth';
 import { UnmappedAnchorsSection } from './UnmappedAnchorsSection';
+import { WebTourHealthSection } from './WebTourHealthSection';
 import { requestEditTour } from '@/components/tours/editor/tourEditStore';
-import { isLiveTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
+import {
+  isLiveTourSet,
+  isWebTourSet,
+} from '@/components/widgets/GuidedLearning/utils/liveTour';
 
 const GuidedLearningStudio = lazy(() =>
   import('@/components/widgets/GuidedLearning/components/studio/GuidedLearningStudio').then(
@@ -109,7 +113,8 @@ async function loadTour(id: string): Promise<LoadedTour | null> {
     loadPublishedTour(id).catch(() => null),
     loadTourRuns(id).catch(() => null),
   ]);
-  if (!draft) return null;
+  if (!draft || isWebTourSet(draft) || isWebTourSet(published?.set))
+    return null;
   const version = published?.publishedAt ?? draft.updatedAt;
   return {
     draft,
@@ -371,6 +376,8 @@ const TourHealthPanel: React.FC = () => {
           </section>
         );
       })}
+
+      <WebTourHealthSection />
 
       {studio && (
         <Suspense fallback={null}>

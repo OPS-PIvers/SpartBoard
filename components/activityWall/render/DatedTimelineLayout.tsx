@@ -5,7 +5,17 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { FileText, LinkIcon, Pin, X, ZoomIn, ZoomOut } from 'lucide-react';
+import {
+  Eye,
+  EyeOff,
+  FileText,
+  LinkIcon,
+  Pin,
+  X,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react';
+import { tourAttr } from '@/config/tourAnchors';
 import type { ActivityWallSubmission } from '@/types';
 import { AddSpot } from './AddSpot';
 import { showsAddSpots } from './addSpots';
@@ -42,9 +52,15 @@ const timelineMetrics = (
   width: number,
   height: number,
   areaHeight: number,
-  periodRows: number
+  periodRows: number,
+  bandCount = 1,
+  labelled = false
 ) => {
-  const cardW = clamp(Math.min(width * 0.24, height * 0.5), 112, 360);
+  const cardW = clamp(
+    Math.min(width * 0.24, (height / bandCount) * 0.5),
+    112,
+    360
+  );
   const font = {
     meta: clamp(cardW * 0.058, 10, 20),
     title: clamp(cardW * 0.075, 12, 27),
@@ -57,8 +73,15 @@ const timelineMetrics = (
   // Period names get their own strip above the cards.
   const periodRow = font.meta * 2;
   const periodStrip = periodRows * periodRow;
-  const area = Math.max((areaHeight || height - toolbar) - periodStrip, 100);
-  const perSide = (area - pad * 2) / 2 - axisGap;
+  // A group's name sits above its band's top cards.
+  const bandLabel = labelled ? font.meta * 1.8 : 0;
+  // Group bands never shrink below one card per side; the wall scrolls instead.
+  const minArea = labelled ? bandLabel + pad * 2 + (axisGap + 44) * 2 : 100;
+  const area = Math.max(
+    ((areaHeight || height - toolbar) - periodStrip) / bandCount,
+    minArea
+  );
+  const perSide = (area - bandLabel - pad * 2) / 2 - axisGap;
   const target = cardW * 0.72;
   const lanes = clamp(Math.floor((perSide + gap) / (target + gap)), 1, 3);
   const cardH = clamp((perSide - (lanes - 1) * gap) / lanes, 44, target);
@@ -74,6 +97,7 @@ const timelineMetrics = (
     lanes,
     periodStrip,
     periodRow,
+    bandLabel,
   };
 };
 
@@ -99,7 +123,8 @@ const CardPreview: React.FC<{
   metrics: Metrics;
   mode: WallRenderMode;
   showNames: boolean;
-}> = ({ submission, metrics, mode, showNames }) => {
+  hideDate?: boolean;
+}> = ({ submission, metrics, mode, showNames, hideDate }) => {
   const { url } = useMediaUrl(submission);
   const bodyRef = useRef<HTMLDivElement>(null);
   const { height: bodyHeight } = useContainerSize(bodyRef);
@@ -177,8 +202,10 @@ const CardPreview: React.FC<{
         className="flex shrink-0 items-start justify-between gap-1 font-semibold"
         style={{ fontSize: font.meta }}
       >
-        <span className="line-clamp-2 break-words">
-          {submission.label ?? 'No date'}
+        <span
+          className={`${metrics.cardH < 60 ? 'line-clamp-1' : 'line-clamp-2'} break-words`}
+        >
+          {hideDate ? '' : (submission.label ?? 'No date')}
         </span>
         {submission.pinned && (
           <Pin aria-label="Pinned" className="shrink-0" size={font.meta} />
@@ -210,7 +237,7 @@ const CardPreview: React.FC<{
   );
 };
 
-/** Timeline on a dated axis: markers sit at each post's date, cards alternate above and below. */
+/** Timeline on a dated axis: markers sit at each post's date, cards alternate above and below; groups get a band each. */
 export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
   session,
   submissions,
@@ -218,6 +245,8 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
   showNames,
   onAddAt,
   onMove: _onMove,
+  onToggleTimelineDates,
+  tourWidgetId,
   ...actions
 }) => {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -229,6 +258,7 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
   const [openId, setOpenId] = useState<string | null>(null);
   const pendingCenter = useRef<number | null>(null);
   const addSpots = showsAddSpots(mode, onAddAt);
+  const datesHidden = session.timelineDatesHidden === true;
 
   const items = useMemo(() => {
     const visible = visibleSubmissions(submissions, mode).map((submission) => {
@@ -247,6 +277,24 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
       return a.submission.submittedAt - b.submission.submittedAt;
     });
   }, [submissions, mode]);
+
+  // One band per teacher group, plus one for posts in no group; a wall without groups has a single band.
+  const bands = useMemo(() => {
+    const groups = (session.timelineGroups ?? []).filter((g) => g.label.trim());
+    if (groups.length === 0) return [{ id: 'all', label: '', items }];
+    const known = new Set(groups.map((g) => g.id));
+    const grouped = groups.map((group) => ({
+      id: group.id,
+      label: group.label.trim(),
+      items: items.filter((item) => item.submission.sectionId === group.id),
+    }));
+    const rest = items.filter(
+      (item) => !known.has(item.submission.sectionId ?? '')
+    );
+    return rest.length > 0
+      ? [...grouped, { id: 'none', label: 'No group', items: rest }]
+      : grouped;
+  }, [session.timelineGroups, items]);
 
   const periods = useMemo(() => {
     const valid = (session.timePeriods ?? []).flatMap((period) => {
@@ -271,9 +319,18 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
       });
   }, [session.timePeriods]);
   const periodRows = periods.reduce((rows, p) => Math.max(rows, p.row + 1), 0);
+  const grouped = bands.length > 1 || bands[0].id !== 'all';
   const metrics = useMemo(
-    () => timelineMetrics(width || 600, height || 360, areaHeight, periodRows),
-    [width, height, areaHeight, periodRows]
+    () =>
+      timelineMetrics(
+        width || 600,
+        height || 360,
+        areaHeight,
+        periodRows,
+        bands.length,
+        grouped
+      ),
+    [width, height, areaHeight, periodRows, bands.length, grouped]
   );
   const inputs = useMemo(
     () => items.map((item) => ({ id: item.submission.id, key: item.key })),
@@ -288,6 +345,14 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
       ...periods.flatMap((period) => [period.start, period.end]),
     ],
     [items, periods]
+  );
+  // Every band shares every date as a knot, so all bands line up on one scale.
+  const sharedAnchors = useMemo(
+    () => [
+      ...anchors,
+      ...inputs.flatMap((input) => (input.key === null ? [] : [input.key])),
+    ],
+    [anchors, inputs]
   );
   const trueScale = fitPxPerYear(
     [...inputs, ...anchors.map((key, i) => ({ id: `anchor-${i}`, key }))],
@@ -304,7 +369,7 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
           cardWidth: metrics.cardW,
           gap: metrics.gap,
           pad: metrics.pad,
-          lanesPerSide: metrics.lanes,
+          lanesPerSide: metrics.lanes * bands.length,
           anchors,
         },
         width || 600,
@@ -312,23 +377,31 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
         MIN_ZOOM,
         MAX_ZOOM
       ),
-    [inputs, anchors, metrics, width, trueScale]
+    [inputs, anchors, metrics, bands.length, width, trueScale]
   );
   const zoom = zoomChoice ?? fitZoom;
   const pxPerYear = trueScale * 2 ** zoom;
-  const geometry = useMemo(
+  const layouts = useMemo(
     () =>
-      layoutTimeline({
-        items: inputs,
-        pxPerYear,
-        cardWidth: metrics.cardW,
-        gap: metrics.gap,
-        pad: metrics.pad,
-        lanesPerSide: metrics.lanes,
-        anchors,
+      bands.map((band) => {
+        const geometry = layoutTimeline({
+          items: band.items.map((item) => ({
+            id: item.submission.id,
+            key: item.key,
+          })),
+          pxPerYear,
+          cardWidth: metrics.cardW,
+          gap: metrics.gap,
+          pad: metrics.pad,
+          lanesPerSide: metrics.lanes,
+          anchors: sharedAnchors,
+        });
+        return { band, geometry };
       }),
-    [inputs, anchors, pxPerYear, metrics]
+    [bands, pxPerYear, metrics, sharedAnchors]
   );
+  const geometry = layouts[0].geometry;
+  const contentWidth = Math.max(...layouts.map((l) => l.geometry.width));
   const ticks = useMemo(
     () =>
       timelineTicks(geometry, pxPerYear, metrics.font.meta * 6, metrics.cardW),
@@ -365,29 +438,275 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
   };
 
   const { cardW, cardH, gap, axisGap, area, pad, font, toolbar } = metrics;
-  const axisY = area / 2;
+  const { bandLabel } = metrics;
+  const axisY = (area + bandLabel) / 2;
   const cardTop = (p: TimelinePlacement) =>
     p.side === 'above'
       ? axisY - axisGap - (p.lane + 1) * cardH - p.lane * gap
       : axisY + axisGap + p.lane * (cardH + gap);
   const dot = clamp(cardW * 0.03, 4, 8);
-  const axisStart = geometry.originX - cardW / 2;
-  const axisEnd =
-    geometry.undatedStart === null
-      ? geometry.width - pad
-      : geometry.datedEnd + cardW / 2;
   const hasDated = geometry.knots.length > 0;
-  // The solid axis runs between breaks; each break draws its own zigzag.
-  const axisRuns: [number, number][] = [];
-  let runStart = axisStart;
-  for (const b of geometry.breaks) {
-    axisRuns.push([runStart, b.fromX]);
-    runStart = b.toX;
-  }
-  axisRuns.push([runStart, axisEnd]);
 
   const toolButton =
     'flex items-center justify-center rounded-md p-1 text-white/80 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-30';
+
+  const renderBand = (
+    band: (typeof bands)[number],
+    bandGeometry: typeof geometry
+  ) => {
+    const axisStart = bandGeometry.originX - cardW / 2;
+    const axisEnd =
+      bandGeometry.undatedStart === null
+        ? contentWidth - pad
+        : bandGeometry.datedEnd + cardW / 2;
+    // The solid axis runs between breaks; each break draws its own zigzag.
+    const axisRuns: [number, number][] = [];
+    let runStart = axisStart;
+    for (const b of bandGeometry.breaks) {
+      axisRuns.push([runStart, b.fromX]);
+      runStart = b.toX;
+    }
+    axisRuns.push([runStart, axisEnd]);
+    return (
+      <>
+        <svg
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 text-white"
+          width={contentWidth}
+          height={area}
+        >
+          {hasDated &&
+            axisRuns.map(([from, to]) => (
+              <line
+                key={from}
+                x1={from}
+                x2={to}
+                y1={axisY}
+                y2={axisY}
+                stroke="currentColor"
+                strokeOpacity={0.7}
+                strokeWidth={2}
+              />
+            ))}
+          {bandGeometry.breaks.map((b) => {
+            const h = dot * 1.6;
+            const mid = (b.fromX + b.toX) / 2;
+            const zig = [
+              [mid - h * 1.5, 0],
+              [mid - h * 0.75, -h],
+              [mid, h],
+              [mid + h * 0.75, -h],
+              [mid + h * 1.5, 0],
+            ]
+              .map(([x, dy]) => `${x},${axisY + dy}`)
+              .join(' ');
+            return (
+              <polyline
+                key={b.fromX}
+                points={`${b.fromX},${axisY} ${zig} ${b.toX},${axisY}`}
+                fill="none"
+                stroke="currentColor"
+                strokeOpacity={0.7}
+                strokeWidth={2}
+                strokeLinejoin="round"
+              />
+            );
+          })}
+          {bandGeometry.undatedStart !== null && (
+            <line
+              x1={bandGeometry.undatedStart}
+              x2={contentWidth - pad}
+              y1={axisY}
+              y2={axisY}
+              stroke="currentColor"
+              strokeOpacity={0.5}
+              strokeWidth={2}
+              strokeDasharray="6 6"
+            />
+          )}
+          {ticks.map((tick) => (
+            <line
+              key={tick.x}
+              x1={tick.x}
+              x2={tick.x}
+              y1={axisY - 4}
+              y2={axisY + 4}
+              stroke="currentColor"
+              strokeOpacity={0.7}
+            />
+          ))}
+          {bandGeometry.placements.map((p) => {
+            const top = cardTop(p);
+            const edgeY = p.side === 'above' ? top + cardH : top;
+            const anchorX = clamp(p.dotX, p.cardX + pad, p.cardX + cardW - pad);
+            const elbowY =
+              p.side === 'above' ? axisY - axisGap / 2 : axisY + axisGap / 2;
+            return (
+              <path
+                key={p.id}
+                d={`M ${p.dotX} ${axisY} V ${elbowY} H ${anchorX} V ${edgeY}`}
+                fill="none"
+                stroke="currentColor"
+                strokeOpacity={0.45}
+              />
+            );
+          })}
+          {bandGeometry.placements.map((p) => {
+            const item = itemById.get(p.id);
+            if (!item?.range) return null;
+            const from = bandGeometry.keyToX(item.range[0]);
+            const to = bandGeometry.keyToX(item.range[1]);
+            return (
+              <g key={`span-${p.id}`}>
+                <rect
+                  x={from}
+                  y={axisY - dot}
+                  width={Math.max(to - from, dot * 2)}
+                  height={dot * 2}
+                  rx={dot}
+                  fill="currentColor"
+                  fillOpacity={0.3}
+                />
+                {item.span?.end && (
+                  <line
+                    x1={to}
+                    x2={to}
+                    y1={axisY - dot * 1.6}
+                    y2={axisY + dot * 1.6}
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  />
+                )}
+              </g>
+            );
+          })}
+          {bandGeometry.placements.map((p) => {
+            const about = itemById.get(p.id)?.span?.start.precision === 'about';
+            return (
+              <circle
+                key={p.id}
+                cx={p.dotX}
+                cy={axisY}
+                r={dot}
+                fill={p.dated && !about ? 'currentColor' : 'none'}
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeDasharray={
+                  about ? `${dot * 0.8} ${dot * 0.6}` : undefined
+                }
+              />
+            );
+          })}
+        </svg>
+
+        {!datesHidden &&
+          ticks.map((tick) => (
+            <span
+              key={tick.x}
+              aria-hidden="true"
+              className="pointer-events-none absolute -translate-x-1/2 whitespace-nowrap font-semibold text-white/80"
+              style={{
+                left: tick.x,
+                top: axisY + dot + 4,
+                fontSize: font.meta,
+              }}
+            >
+              {tick.label}
+            </span>
+          ))}
+        {!datesHidden &&
+          bandGeometry.breaks.map((b) => (
+            <span
+              key={b.fromX}
+              className="pointer-events-none absolute -translate-x-1/2 whitespace-nowrap font-semibold italic text-white/70"
+              style={{
+                left: (b.fromX + b.toX) / 2,
+                top: axisY + dot + 4,
+                fontSize: font.meta,
+              }}
+            >
+              {breakLabel(b.years)}
+            </span>
+          ))}
+        {bandGeometry.undatedStart !== null && (
+          <span
+            className="pointer-events-none absolute whitespace-nowrap font-semibold text-white/70"
+            style={{
+              left: bandGeometry.undatedStart,
+              top: axisY + dot + 4,
+              fontSize: font.meta,
+            }}
+          >
+            No date
+          </span>
+        )}
+
+        <ol
+          aria-label={
+            datesHidden
+              ? grouped
+                ? `${band.label}: posts`
+                : 'Posts'
+              : grouped
+                ? `${band.label}: posts in date order`
+                : 'Posts in date order'
+          }
+          className="contents"
+        >
+          {bandGeometry.placements.map((p, index) => {
+            const submission = byId.get(p.id);
+            if (!submission) return null;
+            const dateText = datesHidden ? '' : (submission.label ?? 'No date');
+            return (
+              <li key={p.id} className="contents">
+                <button
+                  type="button"
+                  // no-tour-anchor: one per student post; tours point at the wall, not a post
+                  onClick={() => setOpenId(p.id)}
+                  onKeyDown={(event) => {
+                    const step =
+                      event.key === 'ArrowRight'
+                        ? 1
+                        : event.key === 'ArrowLeft'
+                          ? -1
+                          : 0;
+                    const cards = event.currentTarget
+                      .closest('[data-timeline-band]')
+                      ?.querySelectorAll<HTMLElement>('[data-timeline-card]');
+                    const next = cards?.[index + step];
+                    if (!step || !next) return;
+                    event.preventDefault();
+                    next.focus();
+                  }}
+                  aria-label={`Open post: ${[dateText, submission.title].filter(Boolean).join(', ') || 'Post'}`}
+                  data-testid={`aw-timeline-card-${p.id}`}
+                  data-timeline-card
+                  className="absolute flex flex-col overflow-hidden rounded-lg border border-white/15 bg-slate-900/80 text-left text-white shadow-lg transition hover:border-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                  style={{
+                    left: p.cardX,
+                    top: cardTop(p),
+                    width: cardW,
+                    height: cardH,
+                    padding: pad,
+                    gap: pad / 2,
+                    ...cardStyle,
+                  }}
+                >
+                  <CardPreview
+                    submission={submission}
+                    metrics={metrics}
+                    mode={mode}
+                    showNames={showNames}
+                    hideDate={datesHidden}
+                  />
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      </>
+    );
+  };
 
   return (
     <div
@@ -397,16 +716,25 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
     >
       <div
         ref={scrollRef}
-        className="relative min-h-0 flex-1 overflow-x-auto overflow-y-hidden"
+        className={`relative min-h-0 flex-1 overflow-x-auto ${grouped ? 'overflow-y-auto' : 'overflow-y-hidden'}`}
         onWheel={(event) => {
-          if (event.ctrlKey || Math.abs(event.deltaX) > Math.abs(event.deltaY))
+          const node = event.currentTarget;
+          // A wall taller than its window keeps the wheel for scrolling down.
+          if (
+            event.ctrlKey ||
+            Math.abs(event.deltaX) > Math.abs(event.deltaY) ||
+            node.scrollHeight > node.clientHeight
+          )
             return;
-          event.currentTarget.scrollLeft += event.deltaY;
+          node.scrollLeft += event.deltaY;
         }}
       >
         <div
           className="relative"
-          style={{ width: geometry.width, height: area + metrics.periodStrip }}
+          style={{
+            width: contentWidth,
+            height: area * bands.length + metrics.periodStrip,
+          }}
         >
           {periods.map((period, index) => {
             const from = geometry.keyToX(period.start);
@@ -438,243 +766,37 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
               </div>
             );
           })}
-          <div
-            className="absolute left-0"
-            style={{
-              top: metrics.periodStrip,
-              width: geometry.width,
-              height: area,
-            }}
-          >
-            <svg
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 text-white"
-              width={geometry.width}
-              height={area}
+          {layouts.map(({ band, geometry: bandGeometry }, index) => (
+            <div
+              key={band.id}
+              data-timeline-band
+              className={`absolute left-0 ${index > 0 ? 'border-t border-white/15' : ''}`}
+              style={{
+                top: metrics.periodStrip + index * area,
+                width: contentWidth,
+                height: area,
+              }}
             >
-              {hasDated &&
-                axisRuns.map(([from, to]) => (
-                  <line
-                    key={from}
-                    x1={from}
-                    x2={to}
-                    y1={axisY}
-                    y2={axisY}
-                    stroke="currentColor"
-                    strokeOpacity={0.7}
-                    strokeWidth={2}
-                  />
-                ))}
-              {geometry.breaks.map((b) => {
-                const h = dot * 1.6;
-                const mid = (b.fromX + b.toX) / 2;
-                const zig = [
-                  [mid - h * 1.5, 0],
-                  [mid - h * 0.75, -h],
-                  [mid, h],
-                  [mid + h * 0.75, -h],
-                  [mid + h * 1.5, 0],
-                ]
-                  .map(([x, dy]) => `${x},${axisY + dy}`)
-                  .join(' ');
-                return (
-                  <polyline
-                    key={b.fromX}
-                    points={`${b.fromX},${axisY} ${zig} ${b.toX},${axisY}`}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeOpacity={0.7}
-                    strokeWidth={2}
-                    strokeLinejoin="round"
-                  />
-                );
-              })}
-              {geometry.undatedStart !== null && (
-                <line
-                  x1={geometry.undatedStart}
-                  x2={geometry.width - pad}
-                  y1={axisY}
-                  y2={axisY}
-                  stroke="currentColor"
-                  strokeOpacity={0.5}
-                  strokeWidth={2}
-                  strokeDasharray="6 6"
-                />
+              {grouped && (
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none sticky z-10 inline-block truncate font-bold text-white"
+                  style={{
+                    left: pad,
+                    marginLeft: pad,
+                    marginTop: pad / 2,
+                    maxWidth: '40%',
+                    fontSize: font.meta,
+                    lineHeight: `${bandLabel}px`,
+                    textShadow: '0 1px 3px rgba(0,0,0,0.6)',
+                  }}
+                >
+                  {band.label}
+                </span>
               )}
-              {ticks.map((tick) => (
-                <line
-                  key={tick.x}
-                  x1={tick.x}
-                  x2={tick.x}
-                  y1={axisY - 4}
-                  y2={axisY + 4}
-                  stroke="currentColor"
-                  strokeOpacity={0.7}
-                />
-              ))}
-              {geometry.placements.map((p) => {
-                const top = cardTop(p);
-                const edgeY = p.side === 'above' ? top + cardH : top;
-                const anchorX = clamp(
-                  p.dotX,
-                  p.cardX + pad,
-                  p.cardX + cardW - pad
-                );
-                const elbowY =
-                  p.side === 'above'
-                    ? axisY - axisGap / 2
-                    : axisY + axisGap / 2;
-                return (
-                  <path
-                    key={p.id}
-                    d={`M ${p.dotX} ${axisY} V ${elbowY} H ${anchorX} V ${edgeY}`}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeOpacity={0.45}
-                  />
-                );
-              })}
-              {geometry.placements.map((p) => {
-                const item = itemById.get(p.id);
-                if (!item?.range) return null;
-                const from = geometry.keyToX(item.range[0]);
-                const to = geometry.keyToX(item.range[1]);
-                return (
-                  <g key={`span-${p.id}`}>
-                    <rect
-                      x={from}
-                      y={axisY - dot}
-                      width={Math.max(to - from, dot * 2)}
-                      height={dot * 2}
-                      rx={dot}
-                      fill="currentColor"
-                      fillOpacity={0.3}
-                    />
-                    {item.span?.end && (
-                      <line
-                        x1={to}
-                        x2={to}
-                        y1={axisY - dot * 1.6}
-                        y2={axisY + dot * 1.6}
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      />
-                    )}
-                  </g>
-                );
-              })}
-              {geometry.placements.map((p) => {
-                const about =
-                  itemById.get(p.id)?.span?.start.precision === 'about';
-                return (
-                  <circle
-                    key={p.id}
-                    cx={p.dotX}
-                    cy={axisY}
-                    r={dot}
-                    fill={p.dated && !about ? 'currentColor' : 'none'}
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    strokeDasharray={
-                      about ? `${dot * 0.8} ${dot * 0.6}` : undefined
-                    }
-                  />
-                );
-              })}
-            </svg>
-
-            {ticks.map((tick) => (
-              <span
-                key={tick.x}
-                aria-hidden="true"
-                className="pointer-events-none absolute -translate-x-1/2 whitespace-nowrap font-semibold text-white/80"
-                style={{
-                  left: tick.x,
-                  top: axisY + dot + 4,
-                  fontSize: font.meta,
-                }}
-              >
-                {tick.label}
-              </span>
-            ))}
-            {geometry.breaks.map((b) => (
-              <span
-                key={b.fromX}
-                className="pointer-events-none absolute -translate-x-1/2 whitespace-nowrap font-semibold italic text-white/70"
-                style={{
-                  left: (b.fromX + b.toX) / 2,
-                  top: axisY + dot + 4,
-                  fontSize: font.meta,
-                }}
-              >
-                {breakLabel(b.years)}
-              </span>
-            ))}
-            {geometry.undatedStart !== null && (
-              <span
-                className="pointer-events-none absolute whitespace-nowrap font-semibold text-white/70"
-                style={{
-                  left: geometry.undatedStart,
-                  top: axisY + dot + 4,
-                  fontSize: font.meta,
-                }}
-              >
-                No date
-              </span>
-            )}
-
-            <ol aria-label="Posts in date order" className="contents">
-              {geometry.placements.map((p, index) => {
-                const submission = byId.get(p.id);
-                if (!submission) return null;
-                return (
-                  <li key={p.id} className="contents">
-                    <button
-                      type="button"
-                      // no-tour-anchor: one per student post; tours point at the wall, not a post
-                      onClick={() => setOpenId(p.id)}
-                      onKeyDown={(event) => {
-                        const step =
-                          event.key === 'ArrowRight'
-                            ? 1
-                            : event.key === 'ArrowLeft'
-                              ? -1
-                              : 0;
-                        const cards =
-                          scrollRef.current?.querySelectorAll<HTMLElement>(
-                            '[data-timeline-card]'
-                          );
-                        const next = cards?.[index + step];
-                        if (!step || !next) return;
-                        event.preventDefault();
-                        next.focus();
-                      }}
-                      aria-label={`Open post: ${submission.label ?? 'No date'}${submission.title ? `, ${submission.title}` : ''}`}
-                      data-testid={`aw-timeline-card-${p.id}`}
-                      data-timeline-card
-                      className="absolute flex flex-col overflow-hidden rounded-lg border border-white/15 bg-slate-900/80 text-left text-white shadow-lg transition hover:border-white/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-                      style={{
-                        left: p.cardX,
-                        top: cardTop(p),
-                        width: cardW,
-                        height: cardH,
-                        padding: pad,
-                        gap: pad / 2,
-                        ...cardStyle,
-                      }}
-                    >
-                      <CardPreview
-                        submission={submission}
-                        metrics={metrics}
-                        mode={mode}
-                        showNames={showNames}
-                      />
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
+              {renderBand(band, bandGeometry)}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -705,6 +827,26 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
           >
             <ZoomIn size={font.meta * 1.6} />
           </button>
+          {onToggleTimelineDates && mode === 'widget' && (
+            <button
+              type="button"
+              {...tourAttr(
+                'activity-wall.timeline-dates',
+                tourWidgetId,
+                'activity-wall'
+              )}
+              className={toolButton}
+              onClick={() => onToggleTimelineDates(!datesHidden)}
+              aria-label={datesHidden ? 'Show dates' : 'Hide dates'}
+              title={datesHidden ? 'Show dates' : 'Hide dates'}
+            >
+              {datesHidden ? (
+                <Eye size={font.meta * 1.6} />
+              ) : (
+                <EyeOff size={font.meta * 1.6} />
+              )}
+            </button>
+          )}
         </div>
         {addSpots && (
           <AddSpot
@@ -730,7 +872,7 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
           <div
             role="dialog"
             aria-modal="true"
-            aria-label={open.label ?? 'Post'}
+            aria-label={(datesHidden ? open.title : open.label) ?? 'Post'}
             className="relative max-h-full w-full overflow-y-auto"
             style={{ maxWidth: Math.max(cardW * 2, 320) }}
             onClick={(event) => event.stopPropagation()}
@@ -739,7 +881,7 @@ export const DatedTimelineLayout: React.FC<WallRenderProps> = ({
               submission={open}
               mode={mode}
               showNames={showNames}
-              footnote={open.label}
+              footnote={datesHidden ? undefined : open.label}
               {...actions}
             />
             <button

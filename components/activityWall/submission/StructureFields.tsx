@@ -265,8 +265,31 @@ export const StructureFields: React.FC<StructureFieldsProps> = ({
 
   if (session.layout === 'timeline' && session.timelineDates) {
     const { date, endDate } = value;
+    const groups = options(session.timelineGroups);
+    const inGroup = groups.some((group) => group.id === value.sectionId);
     return (
       <div className="space-y-3">
+        {groups.length > 0 && (
+          <div>
+            <label className={labelClass} htmlFor="aw-group">
+              Group
+            </label>
+            {/* no-tour-anchor: student post form, not part of any teacher tour */}
+            <select
+              id="aw-group"
+              className={selectClass}
+              value={inGroup ? value.sectionId : ''}
+              onChange={(event) => onChange({ sectionId: event.target.value })}
+            >
+              {!inGroup && <option value="">No group</option>}
+              {groups.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <fieldset>
           <legend className="sr-only">Date</legend>
           <DateRows

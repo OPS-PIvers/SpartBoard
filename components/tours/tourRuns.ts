@@ -2,6 +2,7 @@ import { collection, doc, getDocs, setDoc } from 'firebase/firestore';
 import { db, isConfigured } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { GL_TOURS_COLLECTION } from './tourSnapshot';
+import type { WebTourProgressMessage } from './web/extensionProtocol';
 
 /** One teacher's latest run of a tour, at building_guided_learning_tours/{setId}/runs/{uid}. */
 export interface TourRun {
@@ -15,7 +16,17 @@ export interface TourRun {
   exit?: number;
   /** Steps whose anchor never appeared before the teacher moved on or left. */
   misses: string[];
+  /** Set on web tour runs (T10). */
+  surface?: 'web';
+  /** Web tour steps found only by a weaker clue, as `stepId:clue`. */
+  weak?: string[];
 }
+
+/** Which clue found a web tour step's target; `none` means the picture fallback showed. */
+export type WebTourMatch = Extract<
+  WebTourProgressMessage,
+  { type: 'web-tour/step' }
+>['match'];
 
 /** The rules cap on `misses`. */
 export const MAX_RUN_MISSES = 50;
@@ -45,6 +56,10 @@ export function parseTourRun(data: unknown): TourRun | null {
     done: d.done === true,
     ...(isInt(d.exit) ? { exit: d.exit } : {}),
     misses: d.misses.filter((m): m is string => typeof m === 'string'),
+    ...(d.surface === 'web' ? { surface: 'web' as const } : {}),
+    ...(Array.isArray(d.weak)
+      ? { weak: d.weak.filter((w): w is string => typeof w === 'string') }
+      : {}),
   };
 }
 
@@ -58,12 +73,14 @@ export async function loadTourRuns(setId: string): Promise<TourRun[]> {
   });
 }
 
-const writeTourRun = (setId: string, uid: string, run: TourRun) =>
+export const writeTourRun = (setId: string, uid: string, run: TourRun) =>
   isConfigured ? setDoc(doc(runsRef(setId), uid), run) : Promise.resolve();
 
 export interface TourRunLog {
   update: (patch: Partial<Pick<TourRun, 'furthest'>>) => void;
   miss: (stepId: string) => void;
+  /** Web tours: the latest clue that found a step replaces its earlier miss or weak match. */
+  match: (stepId: string, match: WebTourMatch) => void;
   /** Final write; later calls do nothing. */
   end: (patch: Pick<TourRun, 'done'> & Pick<Partial<TourRun>, 'exit'>) => void;
   /** Writes pending changes now, e.g. when the page hides. */
@@ -74,17 +91,23 @@ export interface TourRunLog {
 export function startTourRunLog(
   setId: string,
   uid: string,
-  start: Pick<TourRun, 'v' | 'furthest'>,
+  // `from` continues a saved run of the same version instead of starting empty.
+  start: Pick<TourRun, 'v' | 'furthest' | 'surface'> & { from?: TourRun },
   write: (run: TourRun) => Promise<void> = (run) =>
     writeTourRun(setId, uid, run),
   intervalMs = TOUR_RUN_WRITE_INTERVAL_MS
 ): TourRunLog {
+  const v = Number.isFinite(start.v) ? Math.trunc(start.v) : 0;
+  const from = start.from?.v === v && !start.from.done ? start.from : null;
   let run: TourRun = {
-    v: Number.isFinite(start.v) ? Math.trunc(start.v) : 0,
-    startedAt: Date.now(),
-    furthest: stepIndex(start.furthest),
+    v,
+    startedAt: from?.startedAt ?? Date.now(),
+    furthest: Math.max(from?.furthest ?? 0, stepIndex(start.furthest)),
     done: false,
-    misses: [],
+    misses: from?.misses ?? [],
+    ...(start.surface === 'web'
+      ? { surface: 'web' as const, weak: from?.weak ?? [] }
+      : {}),
   };
   let dirty = true;
   let ended = false;
@@ -124,6 +147,24 @@ export function startTourRunLog(
       )
         return;
       run = { ...run, misses: [...run.misses, stepId] };
+      dirty = true;
+      schedule();
+    },
+    match: (stepId, match) => {
+      if (ended) return;
+      const hasMiss = run.misses.includes(stepId);
+      const weakOf = (w: string) => w.slice(0, w.lastIndexOf(':')) === stepId;
+      const oldWeak = (run.weak ?? []).find(weakOf);
+      const nextWeak =
+        match === 'text' || match === 'css' ? `${stepId}:${match}` : undefined;
+      if ((match === 'none') === hasMiss && oldWeak === nextWeak) return;
+      let misses = run.misses.filter((id) => id !== stepId);
+      if (match === 'none' && misses.length < MAX_RUN_MISSES) {
+        misses = [...misses, stepId];
+      }
+      let weak = (run.weak ?? []).filter((w) => !weakOf(w));
+      if (nextWeak && weak.length < MAX_RUN_MISSES) weak = [...weak, nextWeak];
+      run = { ...run, misses, ...(run.surface === 'web' ? { weak } : {}) };
       dirty = true;
       schedule();
     },

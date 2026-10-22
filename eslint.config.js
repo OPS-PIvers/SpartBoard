@@ -64,6 +64,9 @@ export default tseslint.config(
       // tsconfig + package.json) for rendering demo videos. Not part of
       // the main app's TypeScript project.
       'remotion',
+      // `extension/` (the Chrome extension) has its own tsconfig with Chrome types and its own
+      // pass (extension/eslint.config.mjs, run via `pnpm run lint:extension`).
+      'extension',
       // Standalone Node CLI script run directly via `node`/`execFileSync`
       // from tests/ci.eslintConcurrencyMemory.test.ts, not app source — same
       // category as `scripts` above, so it doesn't need browser globals.

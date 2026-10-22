@@ -4876,3 +4876,14 @@ rather than "no data") is also still open.
   - #4472: when `studentIds` aren't parallel to `names`, `withMembers` now drops the field instead of keeping it stale, and all readers handle that. Duplicate first names in class mode still match the first student, as before this PR.
   - #4469: confirm the grader/compare scripts accept the `accepted`/`changed` outcome values in `supervision.json`.
 - Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. CI was green on #4472.
+
+## 2026-10-22
+
+- PRs reviewed: #4536 fix(css-scaling): scale SmartNotebook Viewer page-counter minWidth, #4533 Widget loop: Countdown layout 2.78 → 2.84, #4525 docs(unifier): run 123 log, #4502 Widget loop: Schedule layout S3 (1 → 3)
+- Comments processed: 0. No PR had review threads or change requests. The only comments were four `claude[bot]` "no issues" summaries (#4536, #4533, #4502 ×2), which needed no reply.
+- Fixes pushed: none
+- Reviews posted: 4
+  - Ready: #4536, #4525. Ready with minor notes: #4533, #4502.
+  - #4533 and #4502 both append to the end of `docs/widget-rubric/supervision.json`, so whichever merges second needs a hand merge that keeps both entries.
+  - #4502: rows now grow (`flex: 1 0 auto`), so a schedule with one event fills the card; worth a visual check. Its supervision `openedAt` matches the Checklist entry above it.
+- Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. CI was green on #4502; #4533 had no checks reported yet.

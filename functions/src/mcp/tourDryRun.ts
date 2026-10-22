@@ -65,6 +65,8 @@ export interface DryRunStep {
   label?: string;
   text?: string;
   tour?: TourBindingLike;
+  /** A web-tour binding; such steps never play on the board. */
+  web?: unknown;
 }
 
 export interface DryRunSetup {
@@ -216,6 +218,11 @@ export function dryRunTour(
     const warn = (message: string) =>
       warnings.push({ ...at, message: `${name}: ${message}` });
     const b = step.tour;
+    if (step.web !== undefined) {
+      fail('is a web tour step, which plays on other websites, not the board.');
+      lastSettings = null;
+      return;
+    }
     if (!step.text?.trim())
       warn('has no text; every step should tell the teacher what to do.');
     for (const problem of voiceProblems(step)) warn(problem);

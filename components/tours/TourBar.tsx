@@ -15,11 +15,14 @@ interface TourBarProps {
   onNext: () => void;
   /** Shown while the step's target can't be found. */
   onRetry?: () => void;
-  autopilot: { on: boolean; onChange: (on: boolean) => void };
+  /** Left out where Autopilot never runs (web tours, D3). */
+  autopilot?: { on: boolean; onChange: (on: boolean) => void };
   readAloud?: { on: boolean; onToggle: () => void };
   onExit: () => void;
   /** Called after the bar moves, so the tip can re-place around it. */
   onPlace?: () => void;
+  /** Where the dragged position is remembered; null keeps it for this tour only. */
+  positionKey?: string | null;
 }
 
 /** The tour's controls, in a slim bar at the top that the teacher can drag aside. */
@@ -33,10 +36,11 @@ export const TourBar: React.FC<TourBarProps> = ({
   readAloud,
   onExit,
   onPlace,
+  positionKey = TOUR_BAR_POS_KEY,
 }) => {
   const { t } = useTranslation();
   const { ref, pos, gripProps } =
-    useDraggablePosition<HTMLDivElement>(TOUR_BAR_POS_KEY);
+    useDraggablePosition<HTMLDivElement>(positionKey);
   const last = current === total;
   const placeKey = pos ? `${pos.x},${pos.y}` : '';
   useLayoutEffect(() => {
@@ -59,7 +63,7 @@ export const TourBar: React.FC<TourBarProps> = ({
         zIndex: Z_INDEX.tourCallout,
         ...(pos
           ? { left: pos.x, top: pos.y }
-          : { top: 'calc(0.75rem + env(safe-area-inset-top, 0px))' }),
+          : { top: 'calc(12px + env(safe-area-inset-top, 0px))' }),
       }}
     >
       <button
@@ -105,27 +109,29 @@ export const TourBar: React.FC<TourBarProps> = ({
       <button type="button" onClick={onNext} className={primaryBtn}>
         {last ? t('tours.done') : t('tours.next')}
       </button>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={autopilot.on}
-        onClick={() => autopilot.onChange(!autopilot.on)}
-        className={`ml-2 flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 ${focusRing}`}
-      >
-        {t('tours.autopilot')}
-        <span
-          aria-hidden="true"
-          className={`relative h-4 w-7 rounded-full transition-colors motion-reduce:transition-none ${
-            autopilot.on ? 'bg-brand-blue-primary' : 'bg-slate-300'
-          }`}
+      {autopilot && (
+        <button
+          type="button"
+          role="switch"
+          aria-checked={autopilot.on}
+          onClick={() => autopilot.onChange(!autopilot.on)}
+          className={`ml-2 flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 ${focusRing}`}
         >
+          {t('tours.autopilot')}
           <span
-            className={`absolute left-0 top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-transform motion-reduce:transition-none ${
-              autopilot.on ? 'translate-x-3.5' : 'translate-x-0.5'
+            aria-hidden="true"
+            className={`relative h-4 w-7 rounded-full transition-colors motion-reduce:transition-none ${
+              autopilot.on ? 'bg-brand-blue-primary' : 'bg-slate-300'
             }`}
-          />
-        </span>
-      </button>
+          >
+            <span
+              className={`absolute left-0 top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-transform motion-reduce:transition-none ${
+                autopilot.on ? 'translate-x-3.5' : 'translate-x-0.5'
+              }`}
+            />
+          </span>
+        </button>
+      )}
       {readAloud && (
         <button
           type="button"

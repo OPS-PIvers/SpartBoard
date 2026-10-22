@@ -1,0 +1,21 @@
+{
+  "name": "spartboard-extension",
+  "description": "SpartBoard Chrome extension (docs/plans/CHROME_EXTENSION.md)",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "packageManager": "pnpm@10.30.2",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "build": "node scripts/build.ts",
+    "package": "node scripts/build.ts --zip",
+    "type-check": "node ../node_modules/typescript/bin/tsc --noEmit -p tsconfig.json",
+    "lint": "node ../node_modules/eslint/bin/eslint.js . --max-warnings 0",
+    "lint:fix": "node ../node_modules/eslint/bin/eslint.js . --fix"
+  },
+  "devDependencies": {
+    "@types/chrome": "0.3.4"
+  }
+}

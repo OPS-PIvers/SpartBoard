@@ -69,6 +69,40 @@ describe('startTourRunLog', () => {
     expect(write.mock.calls[1][0]).toMatchObject({ furthest: 500, exit: 500 });
   });
 
+  it('continues a saved run of the same version, and ignores a finished or older one', () => {
+    const write = writer();
+    const saved = {
+      v: 3,
+      startedAt: 5,
+      furthest: 2,
+      done: false,
+      misses: ['a'],
+      surface: 'web' as const,
+      weak: ['b:text'],
+    };
+    startTourRunLog(
+      'set',
+      'uid',
+      { v: 3, furthest: 1, surface: 'web', from: saved },
+      write
+    );
+    expect(write.mock.calls[0][0]).toEqual(saved);
+    startTourRunLog(
+      'set',
+      'uid',
+      { v: 4, furthest: 0, surface: 'web', from: saved },
+      write
+    );
+    expect(write.mock.calls[1][0]).toMatchObject({ misses: [], weak: [] });
+    startTourRunLog(
+      'set',
+      'uid',
+      { v: 3, furthest: 0, surface: 'web', from: { ...saved, done: true } },
+      write
+    );
+    expect(write.mock.calls[2][0]).toMatchObject({ misses: [], furthest: 0 });
+  });
+
   it('stops adding misses at the rules cap', () => {
     const write = writer();
     const log = startTourRunLog('set', 'uid', { v: 1, furthest: 0 }, write);
@@ -91,5 +125,61 @@ describe('parseTourRun', () => {
     ).toEqual({ v: 1, startedAt: 2, furthest: 3, done: true, misses: ['a'] });
     expect(parseTourRun({ v: 'x', furthest: 0, misses: [] })).toBeNull();
     expect(parseTourRun(null)).toBeNull();
+  });
+
+  it('keeps the latest clue per web step as a miss or weak match', () => {
+    const write = writer();
+    const log = startTourRunLog(
+      'set',
+      'uid',
+      { v: 3, furthest: 0, surface: 'web' },
+      write,
+      0
+    );
+    expect(write.mock.calls[0][0]).toMatchObject({ surface: 'web', weak: [] });
+    log.match('a', 'none');
+    log.match('b', 'text');
+    vi.advanceTimersByTime(0);
+    expect(write.mock.calls.at(-1)?.[0]).toMatchObject({
+      misses: ['a'],
+      weak: ['b:text'],
+    });
+    log.match('a', 'role');
+    log.match('b', 'css');
+    vi.advanceTimersByTime(0);
+    expect(write.mock.calls.at(-1)?.[0]).toMatchObject({
+      misses: [],
+      weak: ['b:css'],
+    });
+    const calls = write.mock.calls.length;
+    log.match('b', 'css');
+    vi.advanceTimersByTime(0);
+    expect(write).toHaveBeenCalledTimes(calls);
+  });
+
+  it('never adds weak matches to a board tour run', () => {
+    const write = writer();
+    const log = startTourRunLog('set', 'uid', { v: 1, furthest: 0 }, write, 0);
+    log.match('b', 'text');
+    log.end({ done: true });
+    expect(write.mock.calls.at(-1)?.[0]).not.toHaveProperty('weak');
+    expect(write.mock.calls.at(-1)?.[0]).not.toHaveProperty('surface');
+  });
+});
+
+describe('parseTourRun web fields', () => {
+  it('reads surface and weak, dropping non-strings', () => {
+    expect(
+      parseTourRun({
+        v: 1,
+        furthest: 0,
+        misses: [],
+        surface: 'web',
+        weak: ['a:css', 3],
+      })
+    ).toMatchObject({ surface: 'web', weak: ['a:css'] });
+    expect(parseTourRun({ v: 1, furthest: 0, misses: [] })).not.toHaveProperty(
+      'surface'
+    );
   });
 });

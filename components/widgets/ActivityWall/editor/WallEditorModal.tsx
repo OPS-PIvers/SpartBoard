@@ -252,7 +252,9 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
       sections: trimmedSections,
       tableRows: trimmedRows,
       tableCols: trimmedCols,
-      ...(timelineDates ? { timePeriods } : {}),
+      ...(timelineDates
+        ? { timePeriods, timelineGroups: trimSections(draft.timelineGroups) }
+        : {}),
       createdAt: draft.createdAt || now,
       updatedAt: now,
     };
@@ -282,6 +284,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
     tableCols: draft.tableCols,
     mapCenter: draft.mapCenter,
     timePeriods: draft.timePeriods,
+    timelineGroups: draft.timelineGroups,
   };
 
   return (

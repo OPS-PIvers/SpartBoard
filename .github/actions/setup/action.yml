@@ -40,6 +40,7 @@ runs:
         cache-dependency-path: |
           pnpm-lock.yaml
           functions/pnpm-lock.yaml
+          extension/pnpm-lock.yaml
 
     - name: Install dependencies
       shell: bash

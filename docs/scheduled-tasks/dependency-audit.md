@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-10-20_
+_Last audited: 2026-10-22_
 _Last action: 2026-09-15 — HIGH `browserslist`/`baseline-browser-mapping` resolved: added `pnpm.overrides.browserslist: "^4.28.7"` to both `package.json` and `functions/package.json`, clearing two HIGH + one moderate advisory in the Babel/Jest build-toolchain chain. PR opened against dev-paul. Item moved to Completed._
+
+_2026-10-22: Thursday Audit B2 (read-only). Root and `functions/` each still report 2 vulnerabilities (1 moderate `sprintf-js`, no patched version | 1 high `braces`), both via `firebase-functions-test>jest`; unchanged, covered by the open dev-toolchain item. `pnpm outdated`: patch/minor only for dompurify, firebase 13.0→13.1, i18next, vite 8.3.5, jose, typescript-eslint; majors behind unchanged (eslint 9→10, firebase-admin 13→14, tailwindcss 3→4, typescript 6→7, lucide-react 0.x→1.x, `@anthropic-ai/sdk` 0.x→1.x); `crypto-js`/`fluent-ffmpeg` deprecated. 0 new issues._
 
 _2026-10-20: Tuesday Audit B2 (read-only). Root and `functions/` each report 2 vulnerabilities (1 moderate `sprintf-js` | 1 high `braces`), both transitive via `firebase-functions-test>jest`, identical to 2026-10-15 (sprintf-js has no patched version). `pnpm outdated`: only patch/minor bumps for react/react-dom (19.3.0→19.3.1), firebase packages and vitest; majors behind unchanged (eslint 9→10, firebase-admin 13→14, tailwindcss 3→4, typescript 6→7, lucide-react 0.x→1.x); `crypto-js`/`fluent-ffmpeg` still deprecated in `functions/`. 0 new issues._
 

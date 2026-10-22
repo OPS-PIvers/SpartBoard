@@ -251,6 +251,17 @@ describe('glTourSnapshots trigger', () => {
     expect(tour('s1')).toBeUndefined();
   });
 
+  it('never removes a web tour that shares the deleted set id', async () => {
+    h.store.set(META, { seededAt: 1 });
+    const web = { set: {}, surface: 'web', publishedAt: 1 };
+    h.store.set('building_guided_learning_tours/w1', web);
+    await trigger({
+      params: { setId: 'w1' },
+      data: { after: { exists: false } },
+    });
+    expect(tour('w1')).toEqual(web);
+  });
+
   it('keeps the published tour when its set is only edited', async () => {
     h.store.set(META, { seededAt: 1 });
     h.store.set('building_guided_learning/s1', tourSet({ title: 'Draft' }));

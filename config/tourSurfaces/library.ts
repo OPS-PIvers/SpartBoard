@@ -290,7 +290,10 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'widget',
     widgetType: 'activity-wall',
     needs: ['widget-on-stage'],
-    files: ['components/widgets/ActivityWall/'],
+    files: [
+      'components/widgets/ActivityWall/',
+      'components/activityWall/render/DatedTimelineLayout.tsx',
+    ],
   },
   'library.activity-wall.library': {
     label: 'Activity Wall library',

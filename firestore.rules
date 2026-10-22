@@ -1305,18 +1305,29 @@ service cloud.firestore {
       allow read: if signedIn();
     }
 
+    // Web tour drafts (CHROME_EXTENSION.md T6): admins only, never anonymous or student sessions.
+    match /building_web_tours/{setId} {
+      allow read, write: if isAdmin();
+    }
+
     // Published live tours (P7-3): staff read, admins publish; students never run tours.
+    // A web tour (surface 'web') is district staff only; a missing doc stays readable (_meta, unpublished ids).
+    // A list can't rule out web snapshots, so only district staff list.
     match /building_guided_learning_tours/{setId} {
       function staff() { return signedIn() && notAnon() && !isStudentRoleUser(); }
-      allow read: if staff();
-      allow write: if isAdmin();
-      // Each teacher's latest run of the tour (P7-6): write-only, admins read.
+      allow get: if staff() && (resource == null || existing().get('surface', 'spartboard') == 'spartboard' || isVerifiedDistrictEmail() || isAdmin());
+      allow list: if staff() && isVerifiedDistrictEmail();
+      allow create, delete: if isAdmin();
+      // The read gate rests on surface, so a republish never changes it.
+      allow update: if isAdmin() && incoming().get('surface', 'spartboard') == existing().get('surface', 'spartboard');
+      // Each teacher's latest run of the tour (P7-6): write-only, admins read. Web tour runs add surface and weak (T10).
       match /runs/{uid} {
         function validRun(d) {
-          return d.keys().hasOnly(['v', 'startedAt', 'furthest', 'done', 'exit', 'misses']) &&
+          return d.keys().hasOnly(['v', 'startedAt', 'furthest', 'done', 'exit', 'misses', 'surface', 'weak']) &&
             d.v is int && d.startedAt is int && d.done is bool && optInt(d, 'exit') &&
             d.furthest is int && d.furthest >= 0 && d.furthest <= 500 &&
-            d.misses is list && d.misses.size() <= 50;
+            d.misses is list && d.misses.size() <= 50 &&
+            d.get('surface', 'web') == 'web' && d.get('weak', []) is list && d.get('weak', []).size() <= 50;
         }
         allow read: if isAdmin();
         allow create, update: if staff() && uid == authUid() && validRun(incoming());

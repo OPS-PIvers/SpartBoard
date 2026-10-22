@@ -351,6 +351,12 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const hideUrlField = globalConfig?.hideUrlField ?? false;
   const displayMode = hideUrlField ? 'code' : mode;
+  const zoomStyle = {
+    transform: `scale(${effectiveZoom})`,
+    transformOrigin: 'top left',
+    width: `${100 / effectiveZoom}%`,
+    height: `${100 / effectiveZoom}%`,
+  };
 
   if (displayMode === 'url' && !url) {
     return (
@@ -642,22 +648,29 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             </div>
           ) : (
             <div className="flex-1 relative overflow-hidden">
-              <iframe
-                key={refreshKey}
-                title="Embed Content"
-                src={displayMode === 'url' ? finalEmbedUrl : undefined}
-                srcDoc={displayMode === 'code' ? html : undefined}
-                className="absolute top-0 left-0 border-none block"
-                style={{
-                  transform: `scale(${effectiveZoom})`,
-                  transformOrigin: 'top left',
-                  width: `${100 / effectiveZoom}%`,
-                  height: `${100 / effectiveZoom}%`,
-                }}
-                sandbox={sandbox}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-              />
+              {displayMode === 'code' ? (
+                <iframe
+                  key={`code-${refreshKey}`}
+                  title="Embed Content"
+                  srcDoc={html}
+                  className="absolute top-0 left-0 border-none block"
+                  style={zoomStyle}
+                  sandbox="allow-scripts allow-forms allow-popups"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              ) : (
+                <iframe
+                  key={`url-${refreshKey}`}
+                  title="Embed Content"
+                  src={finalEmbedUrl}
+                  className="absolute top-0 left-0 border-none block"
+                  style={zoomStyle}
+                  sandbox={sandbox}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                />
+              )}
               {/* Top and left edge strips drag the widget; right and bottom stay clear for the page's scrollbars. */}
               {!widget.maximized && (
                 <>

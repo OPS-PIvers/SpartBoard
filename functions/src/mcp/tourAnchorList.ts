@@ -2483,6 +2483,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "activity-wall.timeline-dates",
+    "label": "Hide or show dates button on an Activity Wall timeline",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "library.activity-wall",
+        "kind": "widget",
+        "widget_type": "activity-wall",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "activity-wall.moderate",
     "label": "Moderate posts button in Activity Wall",
     "scope": "widget",
@@ -30007,6 +30023,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.help-center.web-tour-copy-link",
+    "label": "Copy link button for a web tour in tour health",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center.tour-health",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center",
+          "admin.help-center.tour-health-toggle"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.help-center.unmapped-copy",
     "label": "Copy all button for unmapped anchors",
     "scope": "board",
@@ -46228,6 +46264,108 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "reveal": "library-shell.tab:guided-learning#archive",
         "needs": [
           "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tours.new",
+    "label": "New web tour button in the Guided Learning library (admins)",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tours",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.filter:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.title",
+    "label": "Title field in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.filter:guided-learning#row-1",
+          "web-tours.new"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.record",
+    "label": "Record steps button in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.filter:guided-learning#row-1",
+          "web-tours.new"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.publish",
+    "label": "Publish tour button in the web tour editor",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.filter:guided-learning#row-1",
+          "web-tours.new"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.delete",
+    "label": "Delete web tour button in the web tour editor",
+    "scope": "board",
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.filter:guided-learning#row-1",
+          "web-tours.new"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
         ]
       }
     ]

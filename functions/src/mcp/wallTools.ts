@@ -180,6 +180,8 @@ export function sessionMirror(
     'tableCols',
     'mapCenter',
     'timePeriods',
+    'timelineGroups',
+    'timelineDatesHidden',
   ]) {
     if (entry[k]) session[k] = entry[k];
   }

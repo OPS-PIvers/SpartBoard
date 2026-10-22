@@ -25,6 +25,7 @@ import { requestStartTour } from '@/components/tours/tourState';
 import { requestEditTour } from '@/components/tours/editor/tourEditStore';
 import { useFirstRunnableTour } from '@/components/tours/useTourOffers';
 import { isTourRunnable } from '@/components/tours/publishedTours';
+import { isWebTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import { tourAttr } from '@/config/tourAnchors';
 import { tourStepsOf } from '@/components/tours/tourSession';
 import { TourStepList } from '@/components/tours/TourStepList';
@@ -70,7 +71,12 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
     loadBuildingSet(setId)
       .then((set) => {
         if (cancelled) return;
-        setState(set ? { status: 'ready', set } : { status: 'missing' });
+        // A web tour plays through the extension, never here.
+        setState(
+          set && !isWebTourSet(set)
+            ? { status: 'ready', set }
+            : { status: 'missing' }
+        );
       })
       .catch((err) => {
         logError('HelpResourceViewer loadBuildingSet', err);
