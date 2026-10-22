@@ -41,7 +41,7 @@ const configFor = (
   plugins: [react()],
   resolve: { alias: { '@': repoRoot } },
   define: {
-    __SPART_LISTING__: JSON.stringify(listing),
+    __SPART_ORIGINS__: JSON.stringify(LISTINGS[listing].origins),
     'process.env.NODE_ENV': JSON.stringify('production'),
   },
   css: {

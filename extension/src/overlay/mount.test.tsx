@@ -1,6 +1,10 @@
 import { act } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { mountOverlay, OVERLAY_HOST_TAG, type OverlayHandle } from './mount';
+import {
+  mountOverlay,
+  OVERLAY_HOST_SELECTOR,
+  type OverlayHandle,
+} from './mount';
 import { placeTip } from './OverlayRoot';
 
 const state = {
@@ -41,7 +45,7 @@ describe('mountOverlay', () => {
     handle = mountOverlay('.x{color:red}', onAction);
     act(() => handle?.render(state));
 
-    const host = document.querySelector(OVERLAY_HOST_TAG);
+    const host = document.querySelector(OVERLAY_HOST_SELECTOR);
     expect(host).not.toBeNull();
     expect(host?.shadowRoot).toBeNull();
     expect(host?.hasAttribute('data-tour-ignore')).toBe(true);
@@ -92,7 +96,7 @@ describe('mountOverlay', () => {
     expect(onAction.mock.calls).toEqual([['back'], ['next']]);
     act(() => handle?.unmount());
     handle = null;
-    expect(document.querySelector(OVERLAY_HOST_TAG)).toBeNull();
+    expect(document.querySelector(OVERLAY_HOST_SELECTOR)).toBeNull();
   });
 });
 

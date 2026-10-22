@@ -1,11 +1,11 @@
 import { createExternalHandler } from './handler';
-import { LISTINGS } from './listings';
 import { getChromeProfile } from './profile';
 import { isTrustedSender } from './sender';
 
-declare const __SPART_LISTING__: 'prod' | 'dev';
+// The listing's exact origins, inlined at build time so a bundle carries only its own.
+declare const __SPART_ORIGINS__: readonly string[];
 
-const { origins } = LISTINGS[__SPART_LISTING__];
+const origins = __SPART_ORIGINS__;
 const handle = createExternalHandler({
   origins,
   version: chrome.runtime.getManifest().version,

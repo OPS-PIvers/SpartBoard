@@ -3,10 +3,6 @@
 @tailwind components;
 @tailwind utilities;
 
-:host {
-  all: initial;
-}
-
 /* Mirrors index.css: the tip's entrance. */
 @keyframes gl-callout-in {
   from {

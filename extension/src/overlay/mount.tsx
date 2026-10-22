@@ -3,7 +3,8 @@ import { createOverlayI18n } from './i18n';
 import { OverlayRoot } from './OverlayRoot';
 import type { OverlayAction, OverlayState } from './overlayState';
 
-export const OVERLAY_HOST_TAG = 'spartboard-tour-overlay';
+// A plain div, not a custom element name a page could define and take over.
+export const OVERLAY_HOST_SELECTOR = 'div[data-spartboard-tour-overlay]';
 
 // Inline !important so the host page's own CSS can't move, hide or restyle the host.
 const HOST_STYLE = [
@@ -45,14 +46,15 @@ export function mountOverlay(
   onAction: (action: OverlayAction) => void,
   doc: Document = document
 ): OverlayHandle {
-  const host = doc.createElement(OVERLAY_HOST_TAG);
+  const host = doc.createElement('div');
+  host.setAttribute('data-spartboard-tour-overlay', '');
   host.setAttribute('style', HOST_STYLE);
   host.setAttribute('data-tour-ignore', '');
   const shadow = host.attachShadow({ mode: 'closed' });
   adoptCss(shadow, css);
   const container = doc.createElement('div');
   // The host resets every inherited style, so the overlay sets its own font.
-  container.className = 'font-sans antialiased';
+  container.className = 'font-sans leading-normal antialiased';
   shadow.appendChild(container);
   doc.documentElement.appendChild(host);
   const i18n = createOverlayI18n();

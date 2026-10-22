@@ -6,31 +6,40 @@ import { parseOverlayState } from './overlayState';
 let overlay: OverlayHandle | null = null;
 
 const fromServiceWorker = (sender: chrome.runtime.MessageSender) =>
-  sender.id === chrome.runtime.id && sender.tab === undefined;
+  sender.id === chrome.runtime.id &&
+  sender.tab === undefined &&
+  sender.url === chrome.runtime.getURL('service-worker.js');
 
-chrome.runtime.onMessage.addListener((message: unknown, sender) => {
-  if (
-    !fromServiceWorker(sender) ||
-    typeof message !== 'object' ||
-    message === null
-  ) {
+// A second injection into the same document must not add a second listener and overlay.
+const LOADED = Symbol.for('spartboard.overlay.loaded');
+const scope = globalThis as typeof globalThis & { [LOADED]?: true };
+
+if (!scope[LOADED]) {
+  scope[LOADED] = true;
+  chrome.runtime.onMessage.addListener((message: unknown, sender) => {
+    if (
+      !fromServiceWorker(sender) ||
+      typeof message !== 'object' ||
+      message === null
+    ) {
+      return false;
+    }
+    const { type, state } = message as { type?: unknown; state?: unknown };
+    if (type === 'overlay/unmount') {
+      overlay?.unmount();
+      overlay = null;
+    } else if (type === 'overlay/render') {
+      const parsed = parseOverlayState(state);
+      if (!parsed) return false;
+      overlay ??= mountOverlay(css, (action) => {
+        chrome.runtime
+          .sendMessage({ type: 'overlay/action', action })
+          .catch(() => {
+            // No listener until playback lands (slice 6).
+          });
+      });
+      overlay.render(parsed);
+    }
     return false;
-  }
-  const { type, state } = message as { type?: unknown; state?: unknown };
-  if (type === 'overlay/unmount') {
-    overlay?.unmount();
-    overlay = null;
-  } else if (type === 'overlay/render') {
-    const parsed = parseOverlayState(state);
-    if (!parsed) return false;
-    overlay ??= mountOverlay(css, (action) => {
-      chrome.runtime
-        .sendMessage({ type: 'overlay/action', action })
-        .catch(() => {
-          // No listener until playback lands (slice 6).
-        });
-    });
-    overlay.render(parsed);
-  }
-  return false;
-});
+  });
+}
