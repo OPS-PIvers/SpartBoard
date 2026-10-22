@@ -8,7 +8,7 @@ import {
   type RawCapture,
   type RecorderStatus,
 } from '../recorder/messages';
-import { BlurBoxes } from './BlurBoxes';
+import { BlurBoxes } from '@/components/tours/web/BlurBoxes';
 import { cropScreenshot, finishPicture } from './pictures';
 
 interface PanelStep {

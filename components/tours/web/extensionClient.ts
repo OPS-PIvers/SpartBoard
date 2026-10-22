@@ -8,6 +8,9 @@ import {
 /** The protocol that added web tour playback. */
 export const WEB_TOUR_PROTOCOL = 2;
 
+/** The protocol that added Fix on site (`recorder/repick`). */
+export const REPICK_PROTOCOL = 3;
+
 export type WebTourPortEvent = WebTourProgressMessage;
 
 export type ExtensionStatus =
