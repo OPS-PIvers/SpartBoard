@@ -94,7 +94,11 @@ test('a student practises a Speak set to mastery aloud and the teacher sees it',
   });
   const mastered = page.getByText('2/2 said well');
   const nextRound = page.getByRole('button', { name: /next round/i });
-  const record = page.getByRole('button', { name: 'Start speaking' });
+  // Enabled only: while the mic opens the button still reads Start speaking, and a click then would stop the auto take.
+  const record = page.getByRole('button', {
+    name: 'Start speaking',
+    disabled: false,
+  });
   const listening = page.getByText('Listening…');
   const continueButton = page.getByRole('button', { name: 'Continue' });
   for (let step = 0; step < 40; step++) {
