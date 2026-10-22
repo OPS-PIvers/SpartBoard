@@ -125,10 +125,12 @@ export const ShareStatusBanner: React.FC = () => {
   };
 
   const accessibleLabel = `${label}${detail ? ` — ${detail}` : ''}`;
-  // Under full pages so it never covers their close button; over a maximized widget so Stop sharing stays reachable.
-  const chipZIndex = activeDashboard.widgets.some((w) => w.maximized)
+  // Under full pages and the drawer so it never covers their close button; over a shown maximized widget so Stop sharing stays reachable.
+  const chipZIndex = activeDashboard.widgets.some(
+    (w) => w.maximized && !w.minimized
+  )
     ? Z_INDEX.popover
-    : Z_INDEX.systemBanner;
+    : Z_INDEX.shareChip;
 
   return (
     <div

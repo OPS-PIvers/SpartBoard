@@ -4,7 +4,7 @@ import { render, screen, cleanup } from '@testing-library/react';
 import { Z_INDEX } from '@/config/zIndex';
 import { ShareStatusBanner } from './ShareStatusBanner';
 
-let widgets: { id: string; maximized?: boolean }[] = [];
+let widgets: { id: string; maximized?: boolean; minimized?: boolean }[] = [];
 
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
@@ -34,10 +34,16 @@ vi.mock('@/context/useDialog', () => ({
 describe('ShareStatusBanner', () => {
   afterEach(cleanup);
 
-  it('stacks under full-page views so it cannot cover their close button', () => {
+  it('stacks under full pages and the settings drawer so it cannot cover their close button', () => {
     widgets = [{ id: 'w1' }];
     render(<ShareStatusBanner />);
-    expect(chipLayer()).toBeLessThan(Z_INDEX.modal);
+    expect(chipLayer()).toBeLessThan(Z_INDEX.drawer);
+  });
+
+  it('drops back under full pages once a maximized widget is minimized', () => {
+    widgets = [{ id: 'w1', maximized: true, minimized: true }];
+    render(<ShareStatusBanner />);
+    expect(chipLayer()).toBeLessThan(Z_INDEX.drawer);
   });
 
   it('stays above a maximized widget so Stop sharing is reachable', () => {
