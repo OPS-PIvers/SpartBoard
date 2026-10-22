@@ -1,20 +1,37 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { WebTourPortEvent } from './extensionProtocol';
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import type { ExtensionStatus, WebTourPortEvent } from './extensionClient';
 import { WebTourHubPage } from './WebTourHubPage';
 
-const h = vi.hoisted(() => ({
+interface Hoisted {
+  auth: {
+    user: { uid: string } | null;
+    loading: boolean;
+    globalPermissionsLoaded: boolean;
+    isAdmin: boolean | null;
+    canAccessFeature: (id: string) => boolean;
+  };
+  published: unknown;
+  ping: ExtensionStatus;
+  start: Mock<(...args: unknown[]) => Promise<unknown>>;
+  onEvent: ((e: WebTourPortEvent) => void) | null;
+  log: Record<'update' | 'match' | 'miss' | 'end' | 'flush', Mock>;
+  startLog: Mock;
+}
+
+const h = vi.hoisted((): Hoisted => ({
   auth: {
     user: { uid: 'u1' },
     loading: false,
     globalPermissionsLoaded: true,
-    canAccessFeature: (_id: string) => true,
+    isAdmin: false,
+    canAccessFeature: () => true,
   },
   published: null,
   ping: { kind: 'none' },
-  start: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
-  onEvent: null as ((e: WebTourPortEvent) => void) | null,
+  start: vi.fn(),
+  onEvent: null,
   log: {
     update: vi.fn(),
     match: vi.fn(),
@@ -124,7 +141,7 @@ describe('WebTourHubPage', () => {
     expect(await screen.findByText('Post a Schoology update')).toBeTruthy();
     expect(
       await screen.findByText(
-        'Get the SpartBoard Chrome extension to have this tour point to each step on the site. For now, follow the pictures below.'
+        'Ask your tech team to add the SpartBoard Chrome extension so this tour can point to each step on the site. For now, follow the pictures below.'
       )
     ).toBeTruthy();
     expect(screen.getByText('Open the course')).toBeTruthy();

@@ -1,11 +1,14 @@
 import {
-  parseWebTourPortEvent,
   WEB_TOUR_PORT,
-  WEB_TOUR_PROTOCOL,
   type ExtensionProfile,
-  type WebTourHandoff,
-  type WebTourPortEvent,
+  type WebTourProgressMessage,
+  type WebTourStartTour,
 } from './extensionProtocol';
+
+/** The protocol that added web tour playback. */
+export const WEB_TOUR_PROTOCOL = 2;
+
+export type WebTourPortEvent = WebTourProgressMessage;
 
 export type ExtensionStatus =
   | { kind: 'none' }
@@ -102,7 +105,7 @@ export type StartResult =
 
 /** Hands the tour over and opens its site; a start for the same set replaces the old one. */
 export async function startWebTour(
-  tour: WebTourHandoff,
+  tour: WebTourStartTour,
   startUrl: string,
   stepIndex: number
 ): Promise<StartResult> {
@@ -152,4 +155,44 @@ export function watchWebTour(
     closed = true;
     port.disconnect();
   };
+}
+
+/** Validates one port message from the extension for this set, or null. */
+export function parseWebTourPortEvent(
+  message: unknown,
+  setId: string
+): WebTourPortEvent | null {
+  if (!isRecord(message) || message.setId !== setId) return null;
+  const index = message.stepIndex;
+  const validIndex = Number.isInteger(index) && (index as number) >= 0;
+  switch (message.type) {
+    case 'web-tour/step': {
+      const { stepId, match } = message;
+      if (!validIndex || typeof stepId !== 'string') return null;
+      if (
+        match !== 'role' &&
+        match !== 'text' &&
+        match !== 'css' &&
+        match !== 'none'
+      ) {
+        return null;
+      }
+      return {
+        type: 'web-tour/step',
+        setId,
+        stepIndex: index as number,
+        stepId,
+        match,
+      };
+    }
+    case 'web-tour/done':
+      return { type: 'web-tour/done', setId };
+    case 'web-tour/exit':
+    case 'web-tour/closed':
+      return validIndex
+        ? { type: message.type, setId, stepIndex: index as number }
+        : null;
+    default:
+      return null;
+  }
 }

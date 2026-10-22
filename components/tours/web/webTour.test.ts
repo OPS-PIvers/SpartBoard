@@ -1,8 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningStep } from '@/types';
 import { parseTourPath, tourShortLinkCode } from './tourLinks';
-import { canPlayWebTours, parsePing } from './extensionClient';
-import { parseWebTourPortEvent as parsePortEvent } from './extensionProtocol';
+import {
+  canPlayWebTours,
+  parsePing,
+  parseWebTourPortEvent as parsePortEvent,
+} from './extensionClient';
+import { parseWebTourStartTour } from './extensionProtocol';
 import {
   buildHandoff,
   eventFitsTour,
@@ -237,26 +241,40 @@ describe('hub', () => {
     expect(read).toHaveBeenCalledTimes(2);
   });
 
-  it('leaves pictures out of the hand-off past the total cap', () => {
+  it('leaves pictures out of the hand-off past the caps, and passes the extension check', () => {
     const big = (n: number): LoadedPicture => ({
       mime: 'image/png',
       bytes: new Uint8Array(n),
       w: 1,
       h: 1,
     });
-    const steps = ['a', 'b', 'c'].map((id) => step(id, 'https://x.test/'));
+    const steps = ['a', 'b', 'c', 'd', 'e', 'f'].map((id) =>
+      step(id, 'https://x.test/')
+    );
+    const mb = 1024 * 1024;
     const handoff = buildHandoff(
       's',
       5,
       'T',
       steps,
       new Map([
-        ['a', big(9 * 1024 * 1024)],
-        ['b', big(8 * 1024 * 1024)],
-        ['c', big(10)],
+        ['a', big(1.6 * mb)],
+        ['b', big(3 * mb)],
+        ['c', big(1.6 * mb)],
+        ['d', big(1.6 * mb)],
+        ['e', big(1.6 * mb)],
+        ['f', big(10)],
       ])
     );
-    expect(handoff.steps.map((s) => !!s.picture)).toEqual([true, false, true]);
+    expect(handoff.steps.map((s) => !!s.picture)).toEqual([
+      true,
+      false,
+      true,
+      true,
+      false,
+      true,
+    ]);
+    expect(parseWebTourStartTour(handoff)).not.toBeNull();
     expect(handoff.steps[0].web).not.toHaveProperty('picture');
     expect(handoff).toMatchObject({ setId: 's', version: 5, title: 'T' });
   });

@@ -2,7 +2,7 @@ import { collection, doc, getDocs, setDoc } from 'firebase/firestore';
 import { db, isConfigured } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { GL_TOURS_COLLECTION } from './tourSnapshot';
-import type { WebTourMatch } from './web/extensionProtocol';
+import type { WebTourProgressMessage } from './web/extensionProtocol';
 
 /** One teacher's latest run of a tour, at building_guided_learning_tours/{setId}/runs/{uid}. */
 export interface TourRun {
@@ -22,7 +22,11 @@ export interface TourRun {
   weak?: string[];
 }
 
-export type { WebTourMatch };
+/** Which clue found a web tour step's target; `none` means the picture fallback showed. */
+export type WebTourMatch = Extract<
+  WebTourProgressMessage,
+  { type: 'web-tour/step' }
+>['match'];
 
 /** The rules cap on `misses`. */
 export const MAX_RUN_MISSES = 50;

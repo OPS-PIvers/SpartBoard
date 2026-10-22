@@ -1,18 +1,23 @@
-import { getBytes, ref } from 'firebase/storage';
-import { storage } from '@/config/firebase';
 import type { GuidedLearningStep } from '@/types';
 import type { WebTourStep } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import { logError } from '@/utils/logError';
 import {
-  MAX_HANDOFF_PICTURE_BYTES,
-  MAX_PICTURE_BYTES,
-  type WebTourHandoff,
-  type WebTourHandoffPicture,
-  type WebTourMatch,
-  type WebTourPortEvent,
+  isWebTourPicturePath,
+  loadWebTourPicture,
+} from '@/components/tours/webTours';
+import type { WebTourMatch } from '@/components/tours/tourRuns';
+import {
+  MAX_PICTURE_CHARS,
+  MAX_PICTURE_TOTAL_CHARS,
+  type WebTourPictureBytes,
+  type WebTourStartTour,
 } from './extensionProtocol';
+import type { WebTourPortEvent } from './extensionClient';
 
-export const WEB_TOUR_PICTURES = 'web_tour_pictures';
+// The extension's validator rejects a whole tour over these, so the hub clips first.
+const MAX_TITLE = 500;
+const MAX_TEXT = 4000;
+const MAX_STEPS = 200;
 
 export type HubStep = WebTourStep;
 
@@ -56,7 +61,7 @@ export function eventFitsTour(
 }
 
 export interface LoadedPicture {
-  mime: WebTourHandoffPicture['mime'];
+  mime: WebTourPictureBytes['mime'];
   bytes: Uint8Array;
   w: number;
   h: number;
@@ -86,21 +91,17 @@ const sniffMime = (b: Uint8Array): LoadedPicture['mime'] | null => {
 export async function loadPictures(
   setId: string,
   steps: readonly HubStep[],
-  read: (path: string) => Promise<ArrayBuffer> = (path) =>
-    getBytes(ref(storage, path), MAX_PICTURE_BYTES)
+  read: (path: string) => Promise<ArrayBuffer> = loadWebTourPicture
 ): Promise<Map<string, LoadedPicture>> {
-  const prefix = `${WEB_TOUR_PICTURES}/${setId}/`;
   const out = new Map<string, LoadedPicture>();
   await Promise.all(
     steps.map(async (step) => {
       const pic = step.web.picture;
-      if (!pic || !pic.path.startsWith(prefix) || pic.path.includes('..')) {
-        return;
-      }
+      if (!pic || !isWebTourPicturePath(setId, pic.path)) return;
       try {
         const bytes = new Uint8Array(await read(pic.path));
         const mime = sniffMime(bytes);
-        if (mime && bytes.byteLength <= MAX_PICTURE_BYTES) {
+        if (mime) {
           out.set(step.id, { mime, bytes, w: pic.w, h: pic.h });
         }
       } catch (err) {
@@ -119,39 +120,35 @@ export function toBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-/** The tour as the extension takes it, with pictures until the total cap. */
+/** The tour as the extension takes it, with pictures until the per-picture and total caps. */
 export function buildHandoff(
   setId: string,
   version: number,
   title: string,
   steps: readonly HubStep[],
   pictures: ReadonlyMap<string, LoadedPicture>
-): WebTourHandoff {
+): WebTourStartTour {
   let total = 0;
   return {
     setId,
     version,
-    title,
-    steps: steps.map((step) => {
-      const { picture: _picture, ...web } = step.web;
+    title: title.slice(0, MAX_TITLE),
+    steps: steps.slice(0, MAX_STEPS).map((step) => {
+      const { urlPattern, action, locator } = step.web;
       const pic = pictures.get(step.id);
+      const data = pic ? toBase64(pic.bytes) : '';
       const fits =
-        !!pic && total + pic.bytes.byteLength <= MAX_HANDOFF_PICTURE_BYTES;
-      if (pic && fits) total += pic.bytes.byteLength;
+        !!pic &&
+        data.length <= MAX_PICTURE_CHARS &&
+        total + data.length <= MAX_PICTURE_TOTAL_CHARS;
+      if (fits) total += data.length;
       return {
         id: step.id,
-        label: step.label ?? '',
-        text: step.text ?? '',
-        web,
+        label: (step.label ?? '').slice(0, MAX_TEXT),
+        text: (step.text ?? '').slice(0, MAX_TEXT),
+        web: { urlPattern, action, locator },
         ...(pic && fits
-          ? {
-              picture: {
-                mime: pic.mime,
-                data: toBase64(pic.bytes),
-                w: pic.w,
-                h: pic.h,
-              },
-            }
+          ? { picture: { mime: pic.mime, data, w: pic.w, h: pic.h } }
           : {}),
       };
     }),

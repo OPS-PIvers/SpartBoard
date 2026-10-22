@@ -24,8 +24,8 @@ import {
   startWebTour,
   watchWebTour,
   type ExtensionStatus,
+  type WebTourPortEvent,
 } from './extensionClient';
-import type { WebTourPortEvent } from './extensionProtocol';
 import {
   buildHandoff,
   loadPictures,
