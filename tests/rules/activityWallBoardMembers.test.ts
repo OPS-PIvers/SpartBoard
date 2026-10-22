@@ -373,3 +373,50 @@ describe('only teachers can self-join a board share', () => {
     await assertFails(join(asAnonymous('guest-uid'), 'guest-uid'));
   });
 });
+
+describe('the owner closes walls to a board', () => {
+  const ownWallsQuery = (db: ReturnType<typeof asTeacher>, uid: string) =>
+    getDocs(
+      query(
+        collection(db, 'activity_wall_sessions'),
+        where('teacherUid', '==', uid),
+        where('boardAccessAt', '>', 0)
+      )
+    );
+
+  it('the owner finds their board-opened walls and removes the share', async () => {
+    await seed({
+      [HOST_SESSION]: { ...session(HOST_UID, [SHARE_ID]), boardAccessAt: 1 },
+    });
+    const db = asTeacher(HOST_UID);
+    const found = await assertSucceeds(ownWallsQuery(db, HOST_UID));
+    expect(found.docs.map((d) => d.id)).toEqual([HOST_SESSION]);
+    await assertSucceeds(
+      updateDoc(
+        doc(db, `activity_wall_sessions/${HOST_SESSION}/boardAccess/boards`),
+        { boardShareIds: [] }
+      )
+    );
+    await assertSucceeds(
+      updateDoc(doc(db, `activity_wall_sessions/${HOST_SESSION}`), {
+        boardAccessAt: 2,
+      })
+    );
+    // Once closed, the board's members lose the posts.
+    await assertFails(approvedQuery(asTeacher(VIEWER_UID), HOST_SESSION));
+  });
+
+  it("another teacher cannot list or close someone else's walls", async () => {
+    await seed({
+      [HOST_SESSION]: { ...session(HOST_UID, [SHARE_ID]), boardAccessAt: 1 },
+    });
+    const db = asTeacher(COLLAB_UID);
+    await assertFails(ownWallsQuery(db, HOST_UID));
+    await assertFails(
+      updateDoc(
+        doc(db, `activity_wall_sessions/${HOST_SESSION}/boardAccess/boards`),
+        { boardShareIds: [] }
+      )
+    );
+  });
+});

@@ -47,6 +47,10 @@ export const RemoteActivityWallControl: React.FC<
     [activities, config.activeActivityId]
   );
   const isOpen = activeActivity?.acceptingResponses !== false;
+  // A colleague's wall on a shared board: the remote can't open it, and mustn't replace it.
+  const foreignWall =
+    !!config.activeActivityOwnerUid &&
+    config.activeActivityOwnerUid !== user?.uid;
 
   const [submissions, setSubmissions] = useState<RemoteSubmission[]>([]);
   const [showQr, setShowQr] = useState(false);
@@ -137,7 +141,7 @@ export const RemoteActivityWallControl: React.FC<
   };
 
   const toggleOpen = () => {
-    if (!user) return;
+    if (!user || foreignWall) return;
     // With no wall selected, the first tap both selects the newest wall and opens it.
     const target = activeActivity ?? activities[0];
     if (!target) return;
@@ -170,7 +174,7 @@ export const RemoteActivityWallControl: React.FC<
     })();
   };
 
-  const canToggle = activities.length > 0;
+  const canToggle = activities.length > 0 && !foreignWall;
 
   return (
     <div className="flex flex-col gap-5 p-6 h-full">
