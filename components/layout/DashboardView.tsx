@@ -79,6 +79,7 @@ import {
 import type { LiveSession, WidgetType } from '@/types';
 import { extractYouTubeId } from '@/utils/youtube';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { useWallBoardAccessCleanup } from '@/components/widgets/ActivityWall/hooks/useWallBoardAccessCleanup';
 
 // ── Code-split lazies ────────────────────────────────────────────────────────
 // Declared after all static imports. ESM hoists `import` statements regardless,
@@ -495,6 +496,9 @@ export const DashboardView: React.FC = () => {
   }, [rescueWidgets]); // rescueWidgets is stable ([] deps), so listener is registered once
 
   const { canAccessFeature, isAdmin } = useAuth();
+  useWallBoardAccessCleanup(
+    canAccessFeature('shared-board-live-walls') ? (user?.uid ?? null) : null
+  );
 
   const {
     session,

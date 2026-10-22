@@ -658,6 +658,60 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
     expect(mockUpdateDoc).not.toHaveBeenCalled();
   });
 
+  it("names the wall's owner for the board's other members", async () => {
+    // A share id no earlier test has read, so the name lookup isn't cached.
+    mockLinkedShareId.current = 'share-named';
+    mockGetDoc.mockResolvedValue({
+      data: () => ({
+        originalAuthor: 'host-1',
+        originalAuthorName: 'Paul Ivers',
+      }),
+    });
+    sessionDocData = {
+      'activity_wall_sessions/host-1_wall-1': hostSession,
+      'activity_wall_sessions/host-1_wall-1/boardAccess/boards': {
+        boardShareIds: ['share-named'],
+      },
+    };
+    renderWidget();
+
+    expect(await screen.findByText('Shared by Paul Ivers')).toBeInTheDocument();
+  });
+
+  it('never shows an email as the owner name', async () => {
+    mockLinkedShareId.current = 'share-email';
+    mockGetDoc.mockResolvedValue({
+      data: () => ({
+        originalAuthor: 'host-1',
+        originalAuthorName: 'paul.ivers@example.com',
+      }),
+    });
+    sessionDocData = {
+      'activity_wall_sessions/host-1_wall-1': hostSession,
+      'activity_wall_sessions/host-1_wall-1/boardAccess/boards': {
+        boardShareIds: ['share-email'],
+      },
+    };
+    renderWidget();
+
+    expect(await screen.findByText('Host wall')).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(screen.queryByText(/^Shared by/)).toBeNull();
+  });
+
+  it("doesn't label the owner's own wall", async () => {
+    mockLibraryEntries.current = [makeEntry()];
+    mockGetDoc.mockResolvedValue({
+      data: () => ({
+        originalAuthor: 'teacher-1',
+        originalAuthorName: 'Test Teacher',
+      }),
+    });
+    renderWidget();
+    await screen.findByText('Warm Up');
+    expect(screen.queryByText(/^Shared by/)).toBeNull();
+  });
+
   it('keeps the old empty state until the host lists the board', async () => {
     sessionDocData = { 'activity_wall_sessions/host-1_wall-1': hostSession };
     renderWidget();
@@ -666,7 +720,7 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
     expect(screen.queryByText('Host wall')).toBeNull();
   });
 
-  it('uses the stamped owner without looking up the share', async () => {
+  it('uses the stamped owner over the share host', async () => {
     sessionDocData = {
       'activity_wall_sessions/collab-1_wall-1': {
         ...hostSession,
@@ -690,10 +744,8 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
       />
     );
 
+    // The share's host is host-1, but the widget names collab-1 as the owner.
     expect(await screen.findByText('Collaborator wall')).toBeInTheDocument();
-    expect(mockGetDoc).not.toHaveBeenCalledWith(
-      expect.objectContaining({ __path: 'shared_boards/share-1' })
-    );
   });
 
   it("lists the board in the owner's private access doc so members can read it", async () => {
@@ -789,14 +841,14 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
     expect(mockUpdateDoc).not.toHaveBeenCalled();
   });
 
-  it('closes the old wall to the board when the owner switches walls', async () => {
+  it('leaves closing the old wall to the board-level cleanup when switching walls', async () => {
     mockLibraryEntries.current = [
       makeEntry(),
       makeEntry({ id: 'wall-2', title: 'Exit Ticket' }),
     ];
     renderWidget();
     await screen.findByText('Warm Up');
-    // Open each wall in turn; only leaving wall-1 should close it to the board.
+    // Another widget on the board may still show wall-1, so the widget never closes it itself.
     for (const index of [0, 1]) {
       await userEvent.click(
         await screen.findByRole('button', { name: 'Open wall library' })
@@ -807,12 +859,18 @@ describe('ActivityWallWidget on a Synced or View-Only board', () => {
       await userEvent.click(buttons[index]);
     }
     await waitFor(() =>
-      expect(mockUpdateDoc).toHaveBeenCalledWith(
-        expect.objectContaining({
-          __path: 'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards',
-        }),
-        { boardShareIds: { __arrayRemove: ['share-1'] } }
-      )
+      expect(mockUpdateWidget).toHaveBeenLastCalledWith('widget-1', {
+        config: {
+          activeActivityId: 'wall-2',
+          activeActivityOwnerUid: 'teacher-1',
+        },
+      })
+    );
+    expect(mockUpdateDoc).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        __path: 'activity_wall_sessions/teacher-1_wall-1/boardAccess/boards',
+      }),
+      expect.anything()
     );
   });
 

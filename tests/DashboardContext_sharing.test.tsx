@@ -13,9 +13,19 @@ const mockUser = {
   email: 'test@example.com',
 };
 
+const { mockCanAccessFeature, mockCloseWallsToBoard } = vi.hoisted(() => ({
+  mockCanAccessFeature: vi.fn(() => true),
+  mockCloseWallsToBoard: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('@/utils/activityWallBoardAccess', () => ({
+  closeWallsToBoard: mockCloseWallsToBoard,
+}));
+
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: mockUser,
+    canAccessFeature: mockCanAccessFeature,
     isAdmin: false,
     featurePermissions: [],
     selectedBuildings: [],
@@ -651,6 +661,12 @@ describe('DashboardContext Sharing Logic', () => {
 
       expect(mockLeaveSharedBoard).toHaveBeenCalledWith('test-share-id');
       expect(mockStopSharingBoard).not.toHaveBeenCalled();
+      // The board's members stop reading the leaving teacher's walls.
+      expect(mockCloseWallsToBoard).toHaveBeenCalledWith(
+        'test-user',
+        'test-share-id',
+        new Set()
+      );
     });
   });
 
