@@ -1096,6 +1096,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Rollout switch for blocking the right-click menu — every student page reads it; admins flip it.
+    match /admin_settings/student_context_menu {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
     // Admin audit log — admin-only read; create-only (append-only so an admin
     // can't edit/delete their own trail). Written by GlobalPermissionsManager on
     // sensitive settings changes. timestamp is set server-side via

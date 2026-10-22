@@ -383,6 +383,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-editor.word-min': ['quiz.editor'],
     'quiz-editor.word-max': ['quiz.editor'],
     'quiz-editor.word-enforce': ['quiz.editor'],
+    'quiz-editor.spell-check': ['quiz.editor'],
     'quiz-editor.section-drag': ['quiz.editor'],
     'quiz-editor.section-title': ['quiz.editor'],
     'quiz-editor.section-directions': ['quiz.editor'],

@@ -4198,6 +4198,8 @@ export interface QuizQuestion {
   maxWords?: number;
   /** Free Response only. When set, Submit is disabled outside the word range. */
   enforceWordLimit?: boolean;
+  /** Free Response only. True turns off the browser's spelling and grammar underlines in the answer. */
+  noSpellCheck?: boolean;
   /** Free Response only. Size of the lined box on paper answer sheets. */
   paperBoxSize?: PaperBoxSize;
   /**
@@ -4907,6 +4909,8 @@ export interface QuizPublicQuestion {
   maxWords?: number;
   /** Free Response only: when set, Submit is disabled outside the word range */
   enforceWordLimit?: boolean;
+  /** Free Response only: turns off the browser's spelling and grammar underlines */
+  noSpellCheck?: boolean;
   /** Free Response only: max points the teacher can award. */
   points?: number;
   /**
@@ -10226,6 +10230,8 @@ export type GlobalFeature =
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
   | 'quiz-attempt-history'
+  /** Per-question "Spell check" switch on quiz Free Response questions. */
+  | 'quiz-spell-check-toggle'
   /** Quiz rubrics are hidden from students unless the teacher shows them per question. */
   | 'quiz-rubric-visibility'
   /** AP-style scoring-guide rubrics with example responses, beside levels rubrics. */

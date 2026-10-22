@@ -1,7 +1,9 @@
 // The injected `window.SpartBoard` helper (docs/plans/MINI_APP_RESULTS.md D2, D3), run in jsdom as the frame.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  MSG_BLOCK_CONTEXT_MENU,
   RESULT_VALIDATOR_SOURCE,
+  injectContextMenuGuard,
   injectMiniAppHelper,
   miniAppHelperSource,
 } from '@/utils/miniAppHelper';
@@ -225,5 +227,40 @@ describe('injectMiniAppHelper', () => {
     ['<div>x</div>', '<script'],
   ])('places the helper early in %s', (html, prefix) => {
     expect(injectMiniAppHelper(html).startsWith(prefix)).toBe(true);
+  });
+});
+
+describe('context menu guard', () => {
+  const runGuard = () => {
+    const html = injectContextMenuGuard(
+      '<html><head></head><body></body></html>'
+    );
+    const src = /<script data-spart-menu-guard="1">([\s\S]*?)<\/script>/.exec(
+      html
+    )?.[1];
+    if (!src) throw new Error('guard not injected');
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+    const run = new Function(src) as () => void;
+    run();
+  };
+  const rightClick = () =>
+    document.body.dispatchEvent(
+      new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+    );
+  const fromParent = (enabled: boolean) =>
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        source: window.parent,
+        data: { type: MSG_BLOCK_CONTEXT_MENU, enabled },
+      })
+    );
+
+  it('blocks the menu until the host switches it off', () => {
+    runGuard();
+    expect(rightClick()).toBe(false);
+    fromParent(false);
+    expect(rightClick()).toBe(true);
+    fromParent(true);
+    expect(rightClick()).toBe(false);
   });
 });

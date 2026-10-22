@@ -4603,6 +4603,7 @@ export const ActiveQuiz: React.FC<{
                       minWords={currentQuestion.minWords}
                       maxWords={currentQuestion.maxWords}
                       enforceWordLimit={currentQuestion.enforceWordLimit}
+                      spellCheck={currentQuestion.noSpellCheck !== true}
                       disabled={submitted && !isStudentPaced}
                       blockClipboard={blockCopyPaste}
                       light={light}
