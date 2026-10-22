@@ -445,7 +445,7 @@ export const Viewer: React.FC<ViewerProps> = ({
           </button>
           <div
             className="relative flex flex-col items-center"
-            style={{ minWidth: '80px' }}
+            style={{ minWidth: 'min(80px, 18cqmin)' }}
           >
             <button
               ref={jumpTriggerRef}
