@@ -1,5 +1,6 @@
 import type { RecordedWebStep } from '@/components/tours/web/recorderProtocol';
 import { MAX_TIP_CHARS } from '@/components/tours/web/recorderProtocol';
+import { withoutIconGlyphs } from '@/components/tours/web/recordedSteps';
 import React, {
   useCallback,
   useEffect,
@@ -43,8 +44,8 @@ const SEND_BATCH = 10;
 const send = <T,>(msg: object): Promise<T> => chrome.runtime.sendMessage(msg);
 
 const clueOf = (s: PanelStep) =>
-  s.capture.locator.name ||
-  s.capture.locator.text ||
+  withoutIconGlyphs(s.capture.locator.name ?? '') ||
+  withoutIconGlyphs(s.capture.locator.text ?? '') ||
   s.capture.locator.role ||
   'Click';
 

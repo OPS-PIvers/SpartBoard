@@ -15,14 +15,20 @@ const VERB: Record<WebTourAction, string> = {
   select: 'Choose from',
 };
 
+/** Drops icon-font glyphs (private-use characters) that show as boxes, and tidies spaces. */
+export const withoutIconGlyphs = (s: string): string =>
+  s
+    .replace(/[\p{Co}\uFFFD]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
 /** A starter step title from what was clicked; the admin rewrites it in the editor. */
 export function draftLabel(
   action: WebTourAction,
   locator: WebTourLocator
 ): string {
-  const what = (
-    locator.name?.trim() ? locator.name : (locator.text ?? '')
-  ).trim();
+  const name = withoutIconGlyphs(locator.name ?? '');
+  const what = name || withoutIconGlyphs(locator.text ?? '');
   return what ? `${VERB[action]} ${what}` : VERB[action];
 }
 
