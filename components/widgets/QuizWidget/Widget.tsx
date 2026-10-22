@@ -28,6 +28,13 @@ import { withPaperBoxSizes } from '@/utils/paperWritten';
 import { useDashboard } from '@/context/useDashboard';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareQuizWidget } from './SubShareWidget';
+import { SharedBoardQuizView } from './SharedBoardQuizView';
+import { SharedBoardItemGate } from '@/components/sharedBoard/SharedBoardItemGate';
+import { useSharedBoardItemPublisher } from '@/hooks/useSharedBoardItem';
+import {
+  sharedBoardQuizPayload,
+  type SharedBoardQuizPayload,
+} from '@/utils/sharedBoardItems';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useQuiz, SyncedQuizVersionConflictError } from '@/hooks/useQuiz';
@@ -260,7 +267,9 @@ const QUIZZES_COLLECTION = 'quizzes';
 const TeacherQuizWidget: React.FC<{
   widget: WidgetData;
   variant?: QuizWidgetKind;
-}> = ({ widget, variant = 'quiz' }) => {
+  /** A linked copy from a shared board, opened in Assign once it is in the library. */
+  assignOnOpen?: string;
+}> = ({ widget, variant = 'quiz', assignOnOpen }) => {
   const {
     updateWidget,
     addWidget,
@@ -446,6 +455,21 @@ const TeacherQuizWidget: React.FC<{
     attachSyncLinkage,
     isDriveConnected,
   } = useQuiz(user?.uid);
+  // Co-teachers on a shared board read the open quiz from this copy.
+  const boardQuiz =
+    variant === 'quiz' && !assignOnOpen && quizItemView(config)
+      ? quizzes.find((q) => q.id === config.selectedQuizId)
+      : undefined;
+  useSharedBoardItemPublisher({
+    kind: 'quiz',
+    itemId: boardQuiz?.id,
+    title: boardQuiz?.title ?? '',
+    version: boardQuiz ? String(boardQuiz.updatedAt) : null,
+    build: async () => {
+      if (!boardQuiz) throw new Error('quiz left the board');
+      return sharedBoardQuizPayload(await loadQuizData(boardQuiz.driveFileId));
+    },
+  });
   const {
     sources: bankSources,
     loadBankContent,
@@ -2174,6 +2198,7 @@ const TeacherQuizWidget: React.FC<{
       {reviewLaunch.modal}
       <QuizManager
         variant={variant}
+        assignOnOpen={assignOnOpen}
         onStartReview={
           isReview ? (meta) => void reviewLaunch.open(meta) : undefined
         }
@@ -4306,6 +4331,25 @@ const TeacherQuizWidget: React.FC<{
   );
 };
 
+/** Views that show one quiz; on a shared board, a colleague's open quiz shows read-only. */
+function quizItemView(config: QuizConfig): string | null {
+  return config.view === 'preview' ||
+    config.view === 'results' ||
+    config.view === 'monitor'
+    ? config.selectedQuizId
+    : null;
+}
+
+const QUIZ_LIBRARY_CONFIG = {
+  view: 'manager',
+  managerTab: 'library',
+  selectedQuizId: null,
+  selectedQuizTitle: null,
+  activeAssignmentId: null,
+  activeLiveSessionCode: null,
+  resultsSessionId: null,
+} satisfies Partial<QuizConfig>;
+
 /**
  * A substitute gets the bundled quiz instead of the teacher's library, so the
  * two paths are separate components: the teacher's mounts Drive, assignment
@@ -4315,7 +4359,19 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) =>
   useInSubShare() ? (
     <SubShareQuizWidget widget={widget} />
   ) : (
-    <TeacherQuizWidget widget={widget} />
+    <SharedBoardItemGate<SharedBoardQuizPayload>
+      widget={widget}
+      kind="quiz"
+      itemId={quizItemView(widget.config as QuizConfig)}
+      label="quiz"
+      libraryConfig={QUIZ_LIBRARY_CONFIG}
+      renderShared={(item, onCopied) => (
+        <SharedBoardQuizView item={item} onCopied={onCopied} />
+      )}
+      renderOwn={(own, assignOnOpen) => (
+        <TeacherQuizWidget widget={own} assignOnOpen={assignOnOpen} />
+      )}
+    />
   );
 
 /** Live review games over the same quiz library (docs/plans/QUIZ_REVIEW_SPLIT.md). Never shared with subs (D13). */

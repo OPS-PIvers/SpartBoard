@@ -1,12 +1,9 @@
 // Live read-only copies of library items on Synced and View-Only boards, read by members and written by the item's owner.
 
-import { useEffect, useEffectEvent, useState } from 'react';
+import { use, useEffect, useEffectEvent, useState } from 'react';
 import { onSnapshot } from 'firebase/firestore';
 import { useAuth } from '@/context/useAuth';
-import {
-  useActiveBoardLinkedShareId,
-  useIsActiveBoardReadOnly,
-} from '@/context/dashboardCanvasStore';
+import { BoardLinkedShareContext } from '@/context/boardLinkedShare';
 import { logError } from '@/utils/logError';
 import {
   publishSharedBoardItem,
@@ -31,13 +28,18 @@ export interface SharedBoardItemState<T> {
 
 const OFF = { status: 'off', item: null } as const;
 
+/** The widget's own board's live share; null off a board canvas, where nothing is shared. */
+function useOwnBoardShareId(): string | null {
+  return use(BoardLinkedShareContext) ?? null;
+}
+
 /** Another member's copy of `itemId`; pass null when the viewer's own library has it. */
 export function useSharedBoardItem<T>(
   kind: SharedBoardItemKind,
   itemId: string | null | undefined
 ): SharedBoardItemState<T> {
   const { user } = useAuth();
-  const shareId = useActiveBoardLinkedShareId();
+  const shareId = useOwnBoardShareId();
   const uid = user?.uid ?? null;
   const key =
     shareId && itemId && uid
@@ -99,12 +101,10 @@ export function useSharedBoardItemPublisher<T>({
   build,
 }: SharedBoardItemPublish<T>): void {
   const { user, canAccessFeature } = useAuth();
-  const shareId = useActiveBoardLinkedShareId();
-  const readOnly = useIsActiveBoardReadOnly();
+  const shareId = useOwnBoardShareId();
   const uid = user?.uid ?? null;
   const enabled =
     !!shareId &&
-    !readOnly &&
     !!uid &&
     !!itemId &&
     !!version &&

@@ -399,6 +399,13 @@ const StudentLandingDevHarness =
         }))
       )
     : null;
+const SharedBoardItemDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/SharedBoardItemDevHarness').then((module) => ({
+        default: module.SharedBoardItemDevHarness,
+      }))
+    )
+  : null;
 const SessionViewsDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/SessionViewsDevHarness').then((module) => ({
@@ -1259,6 +1266,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <SessionViewsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: a colleague's item on a shared board, at widget sizes.
+  if (
+    import.meta.env.DEV &&
+    SharedBoardItemDevHarness &&
+    pathname === '/shared-board-item-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <SharedBoardItemDevHarness />
       </Suspense>
     );
   }

@@ -2,10 +2,13 @@
 
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { quizHasBankSlots } from '@/utils/questionBanks';
 import type {
+  QuizData,
   SubShareGuidedLearningView,
   SubShareQuizView,
   SubShareVideoActivityView,
+  VideoActivityData,
 } from '@/types';
 
 /** Kinds mirrored under a board share; firestore.rules `sbItemCollection` maps each to its library collection. */
@@ -85,3 +88,53 @@ export async function publishSharedBoardItem<T>(
 }
 
 export { itemRef as sharedBoardItemRef };
+
+/** The quiz field by field: PLC linkage, sync state and bank slots stay with the owner. */
+export function sharedBoardQuizPayload(data: QuizData): SharedBoardQuizPayload {
+  return {
+    quiz: {
+      id: data.id,
+      title: data.title || 'Quiz',
+      questions: Array.isArray(data.questions) ? data.questions : [],
+      createdAt: data.createdAt ?? 0,
+      updatedAt: data.updatedAt ?? 0,
+      ...(data.stimuli ? { stimuli: data.stimuli } : {}),
+      ...(data.language ? { language: data.language } : {}),
+    },
+    hasBankSlots: quizHasBankSlots(data),
+  };
+}
+
+export function sharedBoardVideoActivityPayload(
+  data: VideoActivityData
+): SharedBoardVideoActivityPayload {
+  return {
+    activity: {
+      id: data.id,
+      title: data.title || 'Video activity',
+      youtubeUrl: data.youtubeUrl ?? '',
+      questions: Array.isArray(data.questions) ? data.questions : [],
+      createdAt: data.createdAt ?? 0,
+      updatedAt: data.updatedAt ?? 0,
+      ...(data.videoDuration ? { videoDuration: data.videoDuration } : {}),
+    },
+  };
+}
+
+const LIBRARY_COLLECTION: Record<SharedBoardItemKind, string> = {
+  quiz: 'quizzes',
+  videoActivity: 'video_activities',
+  guidedLearning: 'guided_learning',
+};
+
+/** Whether the viewer already holds the linked copy, so Assign never overwrites their edits to it. */
+export async function hasSharedBoardCopy(
+  uid: string,
+  kind: SharedBoardItemKind,
+  copyId: string
+): Promise<boolean> {
+  const snap = await getDoc(
+    doc(db, 'users', uid, LIBRARY_COLLECTION[kind], copyId)
+  );
+  return snap.exists();
+}

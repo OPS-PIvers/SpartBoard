@@ -3511,6 +3511,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'sub-launch.end': ['board.sub-launch'],
     'sub-launch.end-confirm': ['board.sub-launch'],
     'sub-launch.end-cancel': ['board.sub-launch'],
+    'colleague-item.assign': ['board.shared-board-item'],
+    'colleague-item.back': ['board.shared-board-item'],
     'routine-guide.search': ['widgets.routine-guide.face'],
     'routine-guide.filter': ['widgets.routine-guide.face'],
     'routine-guide.routine': ['widgets.routine-guide.face'],

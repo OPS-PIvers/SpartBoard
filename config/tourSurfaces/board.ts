@@ -120,6 +120,12 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'shared',
     files: ['components/subs/SubLaunchPanel.tsx'],
   },
+  // Quiz, Video Activity and Guided Learning widgets open on a colleague's item.
+  'board.shared-board-item': {
+    label: "Colleague's item on a shared board",
+    kind: 'shared',
+    files: ['components/sharedBoard/SharedBoardItemGate.tsx'],
+  },
   // Mounted by the quiz grader, the student's take review and student results.
   'board.whiteboard-replay': {
     label: 'Whiteboard answer replay',

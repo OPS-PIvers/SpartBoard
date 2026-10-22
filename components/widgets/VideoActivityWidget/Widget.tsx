@@ -64,6 +64,13 @@ import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { writePlcAssignmentIndexEntry } from '@/hooks/usePlcAssignmentIndex';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareVideoActivityWidget } from './SubShareWidget';
+import { SharedBoardVideoActivityView } from './SharedBoardVideoActivityView';
+import { SharedBoardItemGate } from '@/components/sharedBoard/SharedBoardItemGate';
+import { useSharedBoardItemPublisher } from '@/hooks/useSharedBoardItem';
+import {
+  sharedBoardVideoActivityPayload,
+  type SharedBoardVideoActivityPayload,
+} from '@/utils/sharedBoardItems';
 import { useAuth } from '@/context/useAuth';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivitySessionTeacher } from '@/hooks/useVideoActivitySession';
@@ -128,9 +135,11 @@ async function copyUrlToClipboard(
   }
 }
 
-const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
-  widget,
-}) => {
+const TeacherVideoActivityWidget: React.FC<{
+  widget: WidgetData;
+  /** A linked copy from a shared board, opened in Assign once it is in the library. */
+  assignOnOpen?: string;
+}> = ({ widget, assignOnOpen }) => {
   const { updateWidget, addToast, rosters, updateRoster } = useDashboard();
   const { showConfirm } = useDialog();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
@@ -161,6 +170,23 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     isDriveConnected,
     reorderActivities,
   } = useVideoActivity(user?.uid);
+  // Co-teachers on a shared board read the open activity from this copy.
+  const boardActivity =
+    !assignOnOpen && videoActivityItemView(config)
+      ? activities.find((a) => a.id === config.selectedActivityId)
+      : undefined;
+  useSharedBoardItemPublisher({
+    kind: 'videoActivity',
+    itemId: boardActivity?.id,
+    title: boardActivity?.title ?? '',
+    version: boardActivity ? String(boardActivity.updatedAt) : null,
+    build: async () => {
+      if (!boardActivity) throw new Error('video activity left the board');
+      return sharedBoardVideoActivityPayload(
+        await loadActivityData(boardActivity.driveFileId)
+      );
+    },
+  });
 
   const { plcs } = usePlcs();
 
@@ -210,7 +236,16 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   const [loadingActivity, setLoadingActivity] = useState(false);
   // A make-up assign waiting for the manager view to open it (D18).
   const [pendingAssign, setPendingAssign] =
-    useState<VideoActivityPendingAssign | null>(null);
+    useState<VideoActivityPendingAssign | null>(() =>
+      assignOnOpen
+        ? {
+            key: `shared-board:${assignOnOpen}`,
+            activityId: assignOnOpen,
+            rosterIds: [],
+            targetStudents: [],
+          }
+        : null
+    );
   const [selectedSession, setSelectedSession] =
     useState<VideoActivitySession | null>(null);
   // Monotonically increasing token to guard against rapid Monitor/Results
@@ -1467,11 +1502,37 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
  * library: splitting here rather than branching inside keeps the Drive,
  * assignment and live-session listeners from mounting for them at all.
  */
+/** Views that show one activity; on a shared board, a colleague's open activity shows read-only. */
+function videoActivityItemView(config: VideoActivityConfig): string | null {
+  return config.view === 'monitor' || config.view === 'results'
+    ? config.selectedActivityId
+    : null;
+}
+
+const VIDEO_ACTIVITY_LIBRARY_CONFIG = {
+  view: 'manager',
+  selectedActivityId: null,
+  selectedActivityTitle: null,
+  resultsSessionId: null,
+} satisfies Partial<VideoActivityConfig>;
+
 export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) =>
   useInSubShare() ? (
     <SubShareVideoActivityWidget widget={widget} />
   ) : (
-    <TeacherVideoActivityWidget widget={widget} />
+    <SharedBoardItemGate<SharedBoardVideoActivityPayload>
+      widget={widget}
+      kind="videoActivity"
+      itemId={videoActivityItemView(widget.config as VideoActivityConfig)}
+      label="video activity"
+      libraryConfig={VIDEO_ACTIVITY_LIBRARY_CONFIG}
+      renderShared={(item, onCopied) => (
+        <SharedBoardVideoActivityView item={item} onCopied={onCopied} />
+      )}
+      renderOwn={(own, assignOnOpen) => (
+        <TeacherVideoActivityWidget widget={own} assignOnOpen={assignOnOpen} />
+      )}
+    />
   );

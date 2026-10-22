@@ -14490,6 +14490,14 @@ export const TOUR_ANCHORS = {
     label: 'Cancel button when ending a substitute-started run',
     panel: true,
   },
+  // A colleague's quiz, video activity or guided activity open on a shared board.
+  'colleague-item.assign': {
+    label: "Assign button on a colleague's item on a shared board",
+    persists: true,
+  },
+  'colleague-item.back': {
+    label: "Back to the colleague's item after assigning a copy",
+  },
   // Routine Guide widget.
   'routine-guide.search': {
     label: 'Search routines box in the Routine Guide library',
