@@ -409,6 +409,9 @@ describe('applyAttemptGradeWrite', () => {
       after,
     });
     expect(stub.get(ROW)?.attempts).toEqual(stub.get(SCORES)?.attempts);
+    expect(stub.get('grade_index_sessions/qs1')).toMatchObject({
+      kind: 'quiz',
+    });
   });
 
   it('ignores open copies and writes that leave grading alone', async () => {
