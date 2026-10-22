@@ -3852,6 +3852,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     () => linkedTreeCollectionIds(collections),
     [collections]
   );
+  const linkedTreeIdsRef = useRef(linkedTreeIds);
+  useLayoutEffect(() => {
+    linkedTreeIdsRef.current = linkedTreeIds;
+  });
   /** Share ids whose listener has delivered at least one snapshot since it subscribed. */
   const sharedSnapshotSeenRef = useRef<Set<string>>(new Set());
 
@@ -3995,7 +3999,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           //    detached editable copy and flag `linkedShareEnded` so the
           //    UI can surface a "share ended" indicator.
           const local = dashboardsRef.current.find((x) => x.id === dashboardId);
-          if (local?.linkedShareRole === 'viewer') {
+          // In a live shared collection, the collection's sync removes or keeps the board.
+          const inSharedCollection = linkedTreeIdsRef.current.has(
+            local?.collectionId ?? ''
+          );
+          if (local?.linkedShareRole === 'viewer' && !inSharedCollection) {
             const hostName = local.linkedShareHostName;
             // Switch active dashboard away if the doomed board is current.
             if (activeIdRef.current === dashboardId) {
@@ -5693,6 +5701,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     [updateDashboardFields, linkedSyncUid]
   );
+  const linkedSyncNotify = useCallback(
+    (message: string) => addToast(message, 'info'),
+    [addToast]
+  );
   const linkedSyncMoveBoard = useCallback(
     (boardId: string, collectionId: string) =>
       moveBoardToCollectionRaw(boardId, collectionId, { silent: true }),
@@ -5702,6 +5714,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     countRemovedForEveryone: countLinkedBoardRemovals,
     beforeBoardsLeave,
     pushCollectionMetadata,
+    stopSharingCollection: stopSharingCollectionRaw,
+    leaveSharedCollection: leaveSharedCollectionRaw,
   } = useLinkedCollectionSync({
     // Optional call: many useAuth test doubles leave canAccessFeature out.
     enabled:
@@ -5723,7 +5737,53 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     deleteBoard: linkedSyncDeleteBoard,
     setBoardLink: linkedSyncSetBoardLink,
     moveBoard: linkedSyncMoveBoard,
+    notify: linkedSyncNotify,
   });
+
+  const stopSharingCollection = useCallback(
+    async (collectionId: string): Promise<void> => {
+      try {
+        await stopSharingCollectionRaw(collectionId);
+      } catch (err) {
+        logError('DashboardContext.stopSharingCollection', err, {
+          collectionId,
+        });
+        addToast('Failed to stop sharing', 'error');
+        return;
+      }
+      addToast(
+        i18n.t('linkedCollection.stopped', { defaultValue: 'Stopped sharing' }),
+        'success'
+      );
+    },
+    [stopSharingCollectionRaw, addToast]
+  );
+
+  const leaveSharedCollection = useCallback(
+    async (collectionId: string): Promise<void> => {
+      try {
+        await leaveSharedCollectionRaw(collectionId);
+      } catch (err) {
+        logError('DashboardContext.leaveSharedCollection', err, {
+          collectionId,
+        });
+        addToast(
+          i18n.t('linkedCollection.leaveFailed', {
+            defaultValue: 'Failed to leave shared collection',
+          }),
+          'error'
+        );
+        return;
+      }
+      addToast(
+        i18n.t('linkedCollection.left', {
+          defaultValue: 'Left shared collection',
+        }),
+        'success'
+      );
+    },
+    [leaveSharedCollectionRaw, addToast]
+  );
 
   // A removal for everyone was confirmed in the UI (D4); the shared list follows the delete or move.
   const deleteDashboard = useCallback(
@@ -8063,6 +8123,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       shareCollection,
       shareLinkedCollection,
       countLinkedBoardRemovals,
+      stopSharingCollection,
+      leaveSharedCollection,
       shareSubstituteCollection,
       updateSubstituteCollectionShare,
       extendSubstituteCollectionShare,
@@ -8197,6 +8259,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       shareCollection,
       shareLinkedCollection,
       countLinkedBoardRemovals,
+      stopSharingCollection,
+      leaveSharedCollection,
       shareSubstituteCollection,
       sharedCollectionApi.loadSharedCollection,
       sharedCollectionApi.loadSharedCollectionBoards,

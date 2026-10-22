@@ -14648,6 +14648,16 @@ export const TOUR_ANCHORS = {
     label: 'Set color item in the collection card menu',
     panel: true,
   },
+  'boards-modal.collection-menu-stop-sharing': {
+    label: 'Stop sharing item in the collection card menu',
+    panel: true,
+    destructive: true,
+  },
+  'boards-modal.collection-menu-leave-shared': {
+    label: 'Leave shared collection item in the collection card menu',
+    panel: true,
+    destructive: true,
+  },
   'boards-modal.collection-menu-template': {
     label: 'Save as Template item in the collection card menu (admins)',
     panel: true,

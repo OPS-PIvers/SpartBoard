@@ -94,6 +94,8 @@ const makeDeps = (
   collectionsApi: {
     createCollection: vi.fn().mockResolvedValue('new-col'),
     setCollectionMetadata: vi.fn().mockResolvedValue(undefined),
+    setCollectionLink: vi.fn().mockResolvedValue(undefined),
+    deleteCollection: vi.fn().mockResolvedValue(undefined),
   },
   linkedCollectionApi: {
     subscribeLinkedCollection: vi.fn((_id: string, cb: LinkCb) => {
@@ -115,6 +117,8 @@ const makeDeps = (
       }
     ),
     updateLinkedCollection: vi.fn().mockResolvedValue(undefined),
+    endLinkedCollection: vi.fn().mockResolvedValue(undefined),
+    leaveLinkedCollection: vi.fn().mockResolvedValue(undefined),
   },
   loadSharedBoard: vi.fn((id: string) =>
     Promise.resolve(shares.get(id) ?? null)
@@ -129,6 +133,7 @@ const makeDeps = (
   deleteBoard: vi.fn().mockResolvedValue(undefined),
   setBoardLink: vi.fn().mockResolvedValue(undefined),
   moveBoard: vi.fn().mockResolvedValue(undefined),
+  notify: vi.fn(),
   ...overrides,
 });
 
@@ -664,5 +669,249 @@ describe('useLinkedCollectionSync', () => {
     );
     expect(linkDoc.boards).toEqual([]);
     expect(deps.setBoardLink).not.toHaveBeenCalled();
+  });
+});
+
+describe('useLinkedCollectionSync: Stop sharing, Leave and ended links', () => {
+  const hostRoot: Collection = { ...root, linkedCollectionRole: 'owner' };
+  const viewerRoot: Collection = { ...root, linkedCollectionRole: 'viewer' };
+  const listed = [
+    { shareId: 's1', name: 'Mon', order: 0 },
+    { shareId: 'L1_mine', name: 'Tue', order: 1 },
+  ];
+
+  it('keeps a Synced member’s boards as their own when the host stops', async () => {
+    const deps = makeDeps({
+      dashboards: [
+        board('linked-s1', 'week', live('s1', 'collaborator')),
+        board('mine', 'week', live('L1_mine', 'owner')),
+        board('solo', 'week', live('solo-share', 'owner')),
+      ],
+    });
+    renderHook(() => useLinkedCollectionSync(deps));
+    await emit(makeLink({ boards: listed, ended: true }));
+    await waitFor(() =>
+      expect(deps.collectionsApi.setCollectionLink).toHaveBeenCalledWith(
+        'week',
+        {
+          linkedCollectionId: 'L1',
+          linkedCollectionRole: 'collaborator',
+          linkedCollectionEnded: true,
+        }
+      )
+    );
+    expect(deps.setBoardLink).toHaveBeenCalledWith('linked-s1', null);
+    expect(deps.setBoardLink).toHaveBeenCalledWith('mine', null);
+    expect(deps.setBoardLink).not.toHaveBeenCalledWith('solo', null);
+    expect(deps.deleteBoard).not.toHaveBeenCalled();
+    expect(deps.notify).toHaveBeenCalledWith(
+      'Host stopped sharing this collection.'
+    );
+  });
+
+  it('removes a View-Only member’s copy, and the collection when nothing else is in it', async () => {
+    const deps = makeDeps({
+      collections: [viewerRoot],
+      dashboards: [board('linked-s1', 'week', live('s1', 'viewer'))],
+    });
+    renderHook(() => useLinkedCollectionSync(deps));
+    await emit(
+      makeLink({
+        mode: 'view-only',
+        hostName: null,
+        participants: { me: { role: 'viewer', joinedAt: 1 } },
+        boards: [listed[0]],
+        ended: true,
+      })
+    );
+    await waitFor(() =>
+      expect(deps.collectionsApi.deleteCollection).toHaveBeenCalledWith(
+        'week',
+        'delete-all'
+      )
+    );
+    expect(deps.deleteBoard).toHaveBeenCalledWith('linked-s1');
+    expect(deps.notify).toHaveBeenCalledWith(
+      'The host stopped sharing this collection.'
+    );
+  });
+
+  it('keeps a View-Only member’s collection when their own boards are in it', async () => {
+    const deps = makeDeps({
+      collections: [viewerRoot],
+      dashboards: [
+        board('linked-s1', 'week', live('s1', 'viewer')),
+        board('own', 'week'),
+      ],
+    });
+    renderHook(() => useLinkedCollectionSync(deps));
+    await emit(
+      makeLink({
+        mode: 'view-only',
+        participants: { me: { role: 'viewer', joinedAt: 1 } },
+        boards: [listed[0]],
+        ended: true,
+      })
+    );
+    await waitFor(() =>
+      expect(deps.collectionsApi.setCollectionLink).toHaveBeenCalled()
+    );
+    expect(deps.deleteBoard).toHaveBeenCalledWith('linked-s1');
+    expect(deps.deleteBoard).not.toHaveBeenCalledWith('own');
+    expect(deps.collectionsApi.deleteCollection).not.toHaveBeenCalled();
+  });
+
+  it('closes quietly for a member no longer in the link, but only on a server snapshot', async () => {
+    const deps = makeDeps({
+      dashboards: [board('linked-s1', 'week', live('s1', 'collaborator'))],
+    });
+    renderHook(() => useLinkedCollectionSync(deps));
+    await emit(makeLink({ boards: listed, participants: {} }), true);
+    expect(deps.collectionsApi.setCollectionLink).not.toHaveBeenCalled();
+    await emit(makeLink({ boards: listed, participants: {} }));
+    await waitFor(() =>
+      expect(deps.collectionsApi.setCollectionLink).toHaveBeenCalled()
+    );
+    expect(deps.notify).not.toHaveBeenCalled();
+  });
+
+  it('treats a deleted link as ended, but not a cached miss', async () => {
+    const deps = makeDeps({
+      dashboards: [board('linked-s1', 'week', live('s1', 'collaborator'))],
+    });
+    renderHook(() => useLinkedCollectionSync(deps));
+    await act(async () => {
+      linkCb?.(null, { fromCache: true });
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(deps.setBoardLink).not.toHaveBeenCalled();
+    await act(async () => {
+      linkCb?.(null, { fromCache: false });
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    await waitFor(() =>
+      expect(deps.setBoardLink).toHaveBeenCalledWith('linked-s1', null)
+    );
+  });
+
+  it('host Stop sharing ends the link and every listed board, and shares nothing again', async () => {
+    const deps = makeDeps({
+      collections: [hostRoot],
+      dashboards: [
+        board('a', 'week', live('L1_a', 'owner')),
+        board('linked-s1', 'week', live('s1', 'collaborator')),
+      ],
+    });
+    const { result } = renderHook(() => useLinkedCollectionSync(deps));
+    await emit(
+      makeLink({
+        hostUid: 'me',
+        participants: { other: { role: 'collaborator', joinedAt: 1 } },
+        boards: [
+          { shareId: 'L1_a', name: 'A', order: 0 },
+          { shareId: 's1', name: 'B', order: 1 },
+          { shareId: 'not-imported', name: 'C', order: 2 },
+        ],
+      })
+    );
+    await act(async () => {
+      await result.current.stopSharingCollection('week');
+    });
+    expect(deps.linkedCollectionApi.endLinkedCollection).toHaveBeenCalledWith(
+      'L1',
+      'me'
+    );
+    expect(deps.setBoardLink).toHaveBeenCalledWith('a', null);
+    expect(deps.setBoardLink).toHaveBeenCalledWith('linked-s1', null);
+    expect(deps.collectionsApi.setCollectionLink).toHaveBeenCalledWith('week', {
+      linkedCollectionId: 'L1',
+      linkedCollectionRole: 'owner',
+      linkedCollectionEnded: true,
+    });
+    expect(
+      vi
+        .mocked(deps.stopSharingBoard)
+        .mock.calls.map((c) => c[0])
+        .sort()
+    ).toEqual(['L1_a', 'not-imported', 's1']);
+    await emit({ ...linkDoc, ended: true });
+    expect(deps.shareBoard).not.toHaveBeenCalled();
+    expect(deps.notify).not.toHaveBeenCalled();
+  });
+
+  it('a failed Stop sharing changes nothing locally', async () => {
+    const deps = makeDeps({
+      collections: [hostRoot],
+      dashboards: [board('a', 'week', live('L1_a', 'owner'))],
+    });
+    vi.mocked(deps.linkedCollectionApi.endLinkedCollection).mockRejectedValue(
+      Object.assign(new Error('denied'), { code: 'permission-denied' })
+    );
+    const { result } = renderHook(() => useLinkedCollectionSync(deps));
+    await expect(result.current.stopSharingCollection('week')).rejects.toThrow(
+      'denied'
+    );
+    expect(deps.setBoardLink).not.toHaveBeenCalled();
+    expect(deps.stopSharingBoard).not.toHaveBeenCalled();
+    expect(deps.collectionsApi.setCollectionLink).not.toHaveBeenCalled();
+  });
+
+  it('a Synced member who leaves keeps copies and leaves the boards they joined', async () => {
+    const deps = makeDeps({
+      dashboards: [
+        board('linked-s1', 'week', live('s1', 'collaborator')),
+        board('mine', 'week', live('L1_mine', 'owner')),
+      ],
+    });
+    const { result } = renderHook(() => useLinkedCollectionSync(deps));
+    await emit(makeLink({ boards: listed }));
+    await act(async () => {
+      await result.current.leaveSharedCollection('week');
+    });
+    expect(deps.linkedCollectionApi.leaveLinkedCollection).toHaveBeenCalledWith(
+      'L1',
+      'me'
+    );
+    expect(deps.leaveSharedBoard).toHaveBeenCalledWith('s1');
+    expect(deps.leaveSharedBoard).not.toHaveBeenCalledWith('L1_mine');
+    // The board they added stays shared, so the others keep it.
+    expect(deps.stopSharingBoard).not.toHaveBeenCalled();
+    expect(deps.setBoardLink).toHaveBeenCalledWith('linked-s1', null);
+    expect(deps.setBoardLink).toHaveBeenCalledWith('mine', null);
+    expect(deps.collectionsApi.setCollectionLink).toHaveBeenCalledWith(
+      'week',
+      expect.objectContaining({ linkedCollectionEnded: true })
+    );
+    await emit({ ...linkDoc, participants: {} });
+    expect(deps.notify).not.toHaveBeenCalled();
+  });
+
+  it('a View-Only member who leaves loses the copy', async () => {
+    const deps = makeDeps({
+      collections: [viewerRoot],
+      dashboards: [board('linked-s1', 'week', live('s1', 'viewer'))],
+    });
+    const { result } = renderHook(() => useLinkedCollectionSync(deps));
+    await act(async () => {
+      await result.current.leaveSharedCollection('week');
+    });
+    expect(deps.leaveSharedBoard).toHaveBeenCalledWith('s1');
+    expect(deps.deleteBoard).toHaveBeenCalledWith('linked-s1');
+    expect(deps.collectionsApi.deleteCollection).toHaveBeenCalledWith(
+      'week',
+      'delete-all'
+    );
+  });
+
+  it('the host cannot leave, and a member cannot stop sharing', async () => {
+    const host = makeDeps({ collections: [hostRoot] });
+    const { result: h } = renderHook(() => useLinkedCollectionSync(host));
+    await expect(h.current.leaveSharedCollection('week')).rejects.toThrow();
+    const member = makeDeps();
+    const { result: m } = renderHook(() => useLinkedCollectionSync(member));
+    await expect(m.current.stopSharingCollection('week')).rejects.toThrow();
+    expect(
+      member.linkedCollectionApi.endLinkedCollection
+    ).not.toHaveBeenCalled();
   });
 });

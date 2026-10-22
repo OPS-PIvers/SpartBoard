@@ -2844,7 +2844,12 @@
   },
   "collectionMenu": {
     "share": "Share Collection…",
-    "saveAsTemplate": "Save as Template…"
+    "saveAsTemplate": "Save as Template…",
+    "stopSharing": "Stop sharing",
+    "stopSharingConfirm": "Stop sharing this collection? Synced teachers keep their own copy. View-only teachers lose it.",
+    "leaveShared": "Leave shared collection",
+    "leaveSharedConfirm": "Leave this shared collection? You keep a copy of its boards, but they stop updating.",
+    "leaveSharedViewerConfirm": "Leave this shared collection? It will be removed from your account."
   },
   "templatePicker": {
     "title": "Create from Template",
@@ -5516,5 +5521,12 @@
     "pictureAlt": "Picture of step {{number}}",
     "unavailableTitle": "This tour isn't available",
     "unavailableBody": "The link may be wrong, or the tour was removed. Ask whoever shared it for a new link."
+  },
+  "linkedCollection": {
+    "stopped": "Stopped sharing",
+    "left": "Left shared collection",
+    "leaveFailed": "Failed to leave shared collection",
+    "hostStopped": "{{name}} stopped sharing this collection.",
+    "hostStoppedNoName": "The host stopped sharing this collection."
   }
 }

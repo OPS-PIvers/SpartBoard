@@ -8,6 +8,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react';
+import i18n from '@/i18n';
 import { logError } from '@/utils/logError';
 import {
   linkedBoardFromShare,
@@ -47,6 +48,9 @@ import type {
 
 const BATCH = 10;
 
+const isNotFound = (err: unknown): boolean =>
+  (err as { code?: unknown } | null)?.code === 'not-found';
+
 export interface BoardLinkFields {
   linkedShareId: string;
   linkedShareRole: DashboardShareRole;
@@ -62,13 +66,18 @@ export interface LinkedCollectionSyncDeps {
   dashboards: Dashboard[];
   collectionsApi: Pick<
     UseCollectionsResult,
-    'createCollection' | 'setCollectionMetadata'
+    | 'createCollection'
+    | 'setCollectionMetadata'
+    | 'setCollectionLink'
+    | 'deleteCollection'
   >;
   linkedCollectionApi: Pick<
     ReturnType<typeof useLinkedCollection>,
     | 'subscribeLinkedCollection'
     | 'editLinkedCollection'
     | 'updateLinkedCollection'
+    | 'endLinkedCollection'
+    | 'leaveLinkedCollection'
   >;
   loadSharedBoard: (shareId: string) => Promise<SharedBoardSnapshot | null>;
   joinSharedBoard: (
@@ -96,6 +105,8 @@ export interface LinkedCollectionSyncDeps {
     link: BoardLinkFields | null
   ) => Promise<void>;
   moveBoard: (boardId: string, collectionId: string) => Promise<void>;
+  /** Tells the teacher their shared collection ended. */
+  notify?: (message: string) => void;
 }
 
 /** A delete, or a move to a collection (null = top level). */
@@ -109,6 +120,24 @@ interface RemovalTarget {
   /** The sub-collection key it moves to inside the same shared collection, or `remove`. */
   change: { kind: 'remove' } | { kind: 'move'; sectionId?: string };
 }
+
+/** Boards in the collection that mirror one of the link's shares. */
+const boardsOfLink = (
+  d: Pick<LinkedCollectionSyncDeps, 'collections' | 'dashboards'>,
+  root: Collection,
+  linkId: string,
+  link: LinkedCollection | null | undefined
+): Dashboard[] => {
+  const tree = collectionTreeIds(root.id, d.collections);
+  const listed = new Set((link?.boards ?? []).map((b) => b.shareId));
+  return d.dashboards.filter(
+    (b) =>
+      !!b.linkedShareId &&
+      tree.has(b.collectionId ?? '') &&
+      (listed.has(b.linkedShareId) ||
+        boardBelongsToShare(b, b.linkedShareId, linkId))
+  );
+};
 
 export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
   const depsRef = useRef(deps);
@@ -141,6 +170,8 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
   const deletedLocally = useRef(new Set<string>());
   /** Boards this teacher deleted this session. */
   const deletedBoards = useRef(new Set<string>());
+  /** Links this session is stopping, leaving or closing; sync leaves them alone. */
+  const closing = useRef(new Set<string>());
 
   const importsVersion = useSyncExternalStore(
     subscribeLinkedCollectionImports,
@@ -160,8 +191,9 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
     const d = depsRef.current;
     const link = linksRef.current.get(linkId);
     if (!d.enabled || !d.uid || !link) return null;
-    if (isLinkedCollectionImporting(linkId)) return null;
-    // Ended links and members who left are slice 5 (Stop sharing / Leave).
+    if (isLinkedCollectionImporting(linkId) || closing.current.has(linkId)) {
+      return null;
+    }
     if (link.ended || !isLinkMember(link, d.uid)) return null;
     const root = d.collections.find(
       (c) => isLiveLinkedRoot(c) && c.linkedCollectionId === linkId
@@ -471,6 +503,174 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
     [contextFor, importMissing]
   );
 
+  /** Ends this teacher's copy: viewers lose the boards, everyone else keeps them as their own. */
+  const closeLocally = useCallback(
+    async (
+      root: Collection,
+      linkId: string,
+      boards: Dashboard[],
+      removeCopies: boolean
+    ) => {
+      const d = depsRef.current;
+      boards.forEach((b) => leaving.current.add(b.id));
+      if (removeCopies) {
+        const gone = new Set<string>();
+        for (const b of boards) {
+          await d.deleteBoard(b.id);
+          gone.add(b.id);
+        }
+        const tree = collectionTreeIds(root.id, d.collections);
+        const othersLeft = depsRef.current.dashboards.some(
+          (b) => tree.has(b.collectionId ?? '') && !gone.has(b.id)
+        );
+        // Their own boards moved in stay, so the collection does too.
+        if (!othersLeft) {
+          await d.collectionsApi.deleteCollection(root.id, 'delete-all');
+          return;
+        }
+      } else {
+        for (const b of boards) await d.setBoardLink(b.id, null);
+      }
+      await d.collectionsApi.setCollectionLink(root.id, {
+        linkedCollectionId: linkId,
+        linkedCollectionRole: root.linkedCollectionRole ?? 'viewer',
+        linkedCollectionEnded: true,
+      });
+    },
+    []
+  );
+
+  /** The host ended the link, or this teacher is no longer in it. */
+  const applyEnded = useCallback(
+    async (linkId: string, link: LinkedCollection | null) => {
+      const d = depsRef.current;
+      if (!d.enabled || !d.uid || closing.current.has(linkId)) return;
+      if (isLinkedCollectionImporting(linkId)) return;
+      const root = d.collections.find(
+        (c) => isLiveLinkedRoot(c) && c.linkedCollectionId === linkId
+      );
+      if (!root) return;
+      closing.current.add(linkId);
+      const viewer = root.linkedCollectionRole === 'viewer';
+      try {
+        await closeLocally(
+          root,
+          linkId,
+          boardsOfLink(d, root, linkId, link),
+          viewer
+        );
+      } catch (err) {
+        closing.current.delete(linkId);
+        logError('useLinkedCollectionSync.ended', err, { linkId });
+        return;
+      }
+      if (root.linkedCollectionRole === 'owner' || (link && !link.ended)) {
+        return;
+      }
+      const hostName = link?.hostName?.trim();
+      d.notify?.(
+        hostName
+          ? i18n.t('linkedCollection.hostStopped', {
+              name: hostName,
+              defaultValue: '{{name}} stopped sharing this collection.',
+            })
+          : i18n.t('linkedCollection.hostStoppedNoName', {
+              defaultValue: 'The host stopped sharing this collection.',
+            })
+      );
+    },
+    [closeLocally]
+  );
+
+  /** Host: Stop sharing. Synced members keep their copies; View-Only members lose theirs. */
+  const stopSharingCollection = useCallback(
+    async (collectionId: string): Promise<void> => {
+      const d = depsRef.current;
+      if (!d.uid) throw new Error('Not authenticated');
+      const root = d.collections.find((c) => c.id === collectionId);
+      const linkId = root?.linkedCollectionId;
+      if (!root || !linkId || !isLiveLinkedRoot(root)) return;
+      if (root.linkedCollectionRole !== 'owner') {
+        throw new Error('Only the host can stop sharing');
+      }
+      closing.current.add(linkId);
+      try {
+        await d.linkedCollectionApi.endLinkedCollection(linkId, d.uid);
+      } catch (err) {
+        if (!isNotFound(err)) {
+          closing.current.delete(linkId);
+          throw err;
+        }
+      }
+      const link = linksRef.current.get(linkId);
+      const boards = boardsOfLink(d, root, linkId, link);
+      await closeLocally(root, linkId, boards, false);
+      // Every listed board ends, including ones collaborators added.
+      const shareIds = [
+        ...new Set([
+          ...(link?.boards ?? []).map((b) => b.shareId),
+          ...boards.map((b) => b.linkedShareId ?? ''),
+        ]),
+      ].filter(Boolean);
+      for (let i = 0; i < shareIds.length; i += BATCH) {
+        const results = await Promise.allSettled(
+          shareIds.slice(i, i + BATCH).map((id) => d.stopSharingBoard(id))
+        );
+        results.forEach((r) => {
+          if (r.status === 'rejected') {
+            logError('useLinkedCollectionSync.stopBoard', r.reason, { linkId });
+          }
+        });
+      }
+    },
+    [closeLocally]
+  );
+
+  /** Member: Leave shared collection. Synced members keep a copy; View-Only members don't. */
+  const leaveSharedCollection = useCallback(
+    async (collectionId: string): Promise<void> => {
+      const d = depsRef.current;
+      if (!d.uid) throw new Error('Not authenticated');
+      const root = d.collections.find((c) => c.id === collectionId);
+      const linkId = root?.linkedCollectionId;
+      if (!root || !linkId || !isLiveLinkedRoot(root)) return;
+      if (root.linkedCollectionRole === 'owner') {
+        throw new Error('The host stops sharing instead of leaving');
+      }
+      closing.current.add(linkId);
+      try {
+        await d.linkedCollectionApi.leaveLinkedCollection(linkId, d.uid);
+      } catch (err) {
+        if (!isNotFound(err)) {
+          closing.current.delete(linkId);
+          throw err;
+        }
+      }
+      const boards = boardsOfLink(
+        d,
+        root,
+        linkId,
+        linksRef.current.get(linkId)
+      );
+      // Boards this teacher added stay shared, so the others keep them.
+      const joined = boards
+        .filter((b) => b.linkedShareRole !== 'owner')
+        .map((b) => b.linkedShareId ?? '');
+      for (let i = 0; i < joined.length; i += BATCH) {
+        await Promise.allSettled(
+          joined.slice(i, i + BATCH).map((id) => d.leaveSharedBoard(id))
+        );
+      }
+      await closeLocally(
+        root,
+        linkId,
+        boards,
+        root.linkedCollectionRole === 'viewer'
+      );
+    },
+    [closeLocally]
+  );
+
   const rootKey =
     deps.enabled && deps.uid
       ? liveLinkedRoots(deps.collections)
@@ -483,7 +683,8 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
   useEffect(() => {
     if (!rootKey) return;
     const linkIds = [...new Set(rootKey.split('|'))];
-    const { linkedCollectionApi } = depsRef.current;
+    const { linkedCollectionApi, uid: uidNow } = depsRef.current;
+    if (!uidNow) return;
     const unsubs = linkIds.map((linkId) =>
       linkedCollectionApi.subscribeLinkedCollection(linkId, (link, meta) => {
         const next = new Map(linksRef.current);
@@ -491,18 +692,24 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
         else next.delete(linkId);
         linksRef.current = next;
         setLinks(next);
-        if (link) enqueue(linkId, () => applyRemote(linkId, !meta?.fromCache));
+        const fresh = !meta?.fromCache;
+        if (link?.ended || (fresh && (!link || !isLinkMember(link, uidNow)))) {
+          enqueue(linkId, () => applyEnded(linkId, link));
+        } else if (link) {
+          enqueue(linkId, () => applyRemote(linkId, fresh));
+        }
       })
     );
     return () => unsubs.forEach((u) => u());
-  }, [rootKey, enqueue, applyRemote]);
+  }, [rootKey, enqueue, applyRemote, applyEnded]);
 
   const { enabled, uid, dashboards, collections } = deps;
   // Local adds (new, duplicated or moved-in boards and sub-collections) and imports a snapshot couldn't finish.
   useEffect(() => {
     if (!enabled || !uid) return;
     for (const [linkId, link] of links) {
-      if (scheduled.current.has(linkId)) continue;
+      if (scheduled.current.has(linkId) || closing.current.has(linkId))
+        continue;
       if (link.ended || !isLinkMember(link, uid)) continue;
       const root = collections.find(
         (c) => isLiveLinkedRoot(c) && c.linkedCollectionId === linkId
@@ -804,5 +1011,7 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
     countRemovedForEveryone,
     beforeBoardsLeave,
     pushCollectionMetadata,
+    stopSharingCollection,
+    leaveSharedCollection,
   };
 };

@@ -427,6 +427,10 @@ export interface DashboardContextValue {
     tree: CopyShareTree;
     mode: LinkedCollectionMode;
   }) => Promise<string>;
+  /** Host: end a Synced / View-Only collection share for everyone. */
+  stopSharingCollection: (collectionId: string) => Promise<void>;
+  /** Member: leave a Synced / View-Only collection share. */
+  leaveSharedCollection: (collectionId: string) => Promise<void>;
   /** How many of these boards a delete or move would remove for everyone in a shared collection (D4). */
   countLinkedBoardRemovals: (
     boardIds: string[],
