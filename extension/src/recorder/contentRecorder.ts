@@ -1,6 +1,7 @@
 // Injected into every frame of the tab being recorded, only after the side panel's Record press.
 import { captureTarget } from './captureTarget';
 import { isRecorderInternal, type FrameRectReply } from './messages';
+import { loadLexend } from '../fonts';
 
 const FLAG = '__spartTourRecorder';
 // The overlay's own hosts never count as clicks on the site.
@@ -33,6 +34,7 @@ function showPill(): () => void {
   host.setAttribute('data-spart-extension', '');
   host.setAttribute('data-tour-ignore', '');
   host.setAttribute('style', PILL_STYLE);
+  loadLexend();
   const shadow = host.attachShadow({ mode: 'closed' });
   const style = document.createElement('style');
   style.textContent = PILL_CSS;

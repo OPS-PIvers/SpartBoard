@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import {
   copyFileSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -102,6 +103,12 @@ async function buildListing(listing: ListingId, zip: boolean) {
     path.join(repoRoot, 'public/icon-128.png'),
     path.join(outDir, 'icon-128.png')
   );
+  mkdirSync(path.join(outDir, 'fonts'), { recursive: true });
+  for (const file of readdirSync(path.join(extDir, 'fonts')))
+    copyFileSync(
+      path.join(extDir, 'fonts', file),
+      path.join(outDir, 'fonts', file)
+    );
   if (zip) {
     const zipPath = path.join(
       extDir,
