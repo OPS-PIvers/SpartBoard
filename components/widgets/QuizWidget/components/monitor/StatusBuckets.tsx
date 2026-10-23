@@ -1,5 +1,5 @@
 import React from 'react';
-import { tourFieldAttr } from '@/config/tourAnchors';
+import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import { MonitorData } from './useMonitorData';
 
 export type BucketKey = 'notStarted' | 'inProgress' | 'done';
@@ -16,6 +16,8 @@ interface StatusBucketsProps {
   idleCount: number;
   openBucket: BucketKey | null;
   onToggle: (key: BucketKey) => void;
+  /** Live-tour anchor per bucket; defaults to the Quiz monitor's. */
+  anchorFor?: (key: BucketKey) => TourAnchorAttrs;
 }
 
 export const StatusBuckets: React.FC<StatusBucketsProps> = ({
@@ -24,6 +26,7 @@ export const StatusBuckets: React.FC<StatusBucketsProps> = ({
   idleCount,
   openBucket,
   onToggle,
+  anchorFor = (key) => tourFieldAttr('quiz-monitor.status-bucket', 'quiz', key),
 }) => (
   <div
     className="grid grid-cols-3"
@@ -37,7 +40,7 @@ export const StatusBuckets: React.FC<StatusBucketsProps> = ({
         <button
           key={key}
           onClick={() => onToggle(key)}
-          {...tourFieldAttr('quiz-monitor.status-bucket', 'quiz', key)}
+          {...anchorFor(key)}
           aria-expanded={selected}
           className={`flex flex-col items-center rounded-xl border transition-colors ${
             selected

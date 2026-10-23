@@ -89,9 +89,9 @@ const PeriodPicker: React.FC<
       style={{ gap: 'min(10px, 2.5cqmin)' }}
     >
       <select
-        {...anchors?.select}
         aria-label="Class"
         {...tourTypeAttr('quiz-monitor.period-class-picker', 'quiz')}
+        {...anchors?.select}
         value={selected}
         onChange={(e) => onSelect(e.target.value)}
         className="min-w-0 max-w-full rounded-md border border-brand-gray-lighter bg-white font-sans font-bold text-brand-blue-dark"
@@ -126,14 +126,28 @@ export const ClassPicker: React.FC<{
   /** Pause or Resume for every class at once; omitted when the session can't be paused here. */
   onToggle?: () => Promise<void>;
   toggleAnchor?: TourAnchorAttrs;
-}> = ({ names, selected, onSelect, status, onToggle, toggleAnchor }) => {
+  selectAnchor?: TourAnchorAttrs;
+  /** Option labels for each class, when they differ from `names`. */
+  labelFor?: (name: string) => string;
+}> = ({
+  names,
+  selected,
+  onSelect,
+  status,
+  onToggle,
+  toggleAnchor,
+  selectAnchor,
+  labelFor = (name) => name,
+}) => {
   const [busy, setBusy] = useState(false);
   const paused = status === 'paused';
   const state = paused
     ? 'Paused'
     : status === 'waiting'
       ? 'Not started'
-      : 'Live';
+      : status === 'ended'
+        ? 'Ended'
+        : 'Live';
   const text = { fontSize: 'min(16px, 5.5cqmin)' };
   const toggle = async () => {
     if (!onToggle) return;
@@ -156,6 +170,7 @@ export const ClassPicker: React.FC<{
         <select
           aria-label="Class"
           {...tourTypeAttr('quiz-monitor.period-class-picker', 'quiz')}
+          {...selectAnchor}
           value={selected}
           onChange={(e) => onSelect(e.target.value)}
           className="min-w-0 max-w-full rounded-md border border-brand-gray-lighter bg-white font-sans font-bold text-brand-blue-dark"
@@ -164,7 +179,7 @@ export const ClassPicker: React.FC<{
           <option value="">All classes</option>
           {names.map((name) => (
             <option key={name} value={name}>
-              {name} · {state}
+              {labelFor(name)} · {state}
             </option>
           ))}
         </select>
@@ -265,11 +280,11 @@ const PeriodAction: React.FC<
     >
       {live && current.access.closeAt != null && (
         <button
-          {...anchors?.moreTime}
           onClick={() => setMenuOpen((v) => !v)}
           aria-label={`More time for ${current.access.label}`}
           aria-expanded={menuOpen}
           {...tourTypeAttr('quiz-monitor.period-more-time', 'quiz')}
+          {...anchors?.moreTime}
           className="inline-flex items-center rounded-md border border-brand-blue-primary/40 bg-white font-sans font-semibold text-brand-blue-dark hover:bg-brand-blue-lighter"
           style={{
             gap: 'min(4px, 1cqmin)',

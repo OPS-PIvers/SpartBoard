@@ -37,8 +37,18 @@ import { StudentProgressLine } from './results/StudentProgressLine';
 import { useGuidedLearningStudentProgress } from '@/hooks/useGuidedLearningStudentProgress';
 import { LaunchedBySubTag } from '@/components/common/sessionViews/LaunchedBySubTag';
 import { EXTEND_MS, usePeriodAccess } from '@/hooks/usePeriodAccess';
-import { hasPeriodAccess } from '@/utils/periodAccess';
+import { effectivePeriodState, hasPeriodAccess } from '@/utils/periodAccess';
 import { PeriodAccessStrip } from '@/components/widgets/QuizWidget/components/monitor/PeriodAccessStrip';
+import {
+  ClassPicker,
+  PeriodBar,
+} from '@/components/widgets/QuizWidget/components/monitor/PeriodBar';
+import type { BucketKey } from '@/components/widgets/QuizWidget/components/monitor/StatusBuckets';
+import {
+  GuidedLearningMonitor,
+  type GlMonitorRow,
+  type GlMonitorStatus,
+} from './results/GuidedLearningMonitor';
 import {
   GL_CONTENT_COLLECTION,
   GL_CONTENT_DOC,
@@ -95,6 +105,13 @@ interface Props {
   /** Share-link session: no responses; shows views and Engagement, else `viewOnlyFallback`. */
   viewOnly?: boolean;
   viewOnlyFallback?: ReactNode;
+  /** The assignment is archived; the monitor shows it as Ended. */
+  ended?: boolean;
+}
+
+interface GlRow extends GlMonitorRow {
+  response: GuidedLearningResponse | null;
+  qCorrect: number;
 }
 
 export const GuidedLearningResults: React.FC<Props> = ({
@@ -103,6 +120,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
   onClose,
   viewOnly = false,
   viewOnlyFallback = null,
+  ended = false,
 }) => {
   const {
     responses,
@@ -142,6 +160,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
   const [sessionSteps, setSessionSteps] = useState<
     GuidedLearningPublicStep[] | null
   >(null);
+  const [individualTargeting, setIndividualTargeting] = useState(false);
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -163,6 +182,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
               scoreVisibility?: GuidedLearningScoreVisibility;
               dueAt?: number | null;
               closeAt?: number | null;
+              individualTargeting?: boolean;
             })
           | undefined;
         let frozen = Array.isArray(data?.publicSteps) ? data.publicSteps : null;
@@ -192,6 +212,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
         });
         setPeriodSession(toPeriodSession(sessionId, data));
         setPlayerV2(data?.playerV2 === true);
+        setIndividualTargeting(data?.individualTargeting === true);
         setLaunchedBy(data?.launchedBy);
         setClassVisibility(data?.scoreVisibility ?? 'none');
         setStartedAt(
@@ -432,8 +453,263 @@ export const GuidedLearningResults: React.FC<Props> = ({
     URL.revokeObjectURL(url);
   };
 
+  const parity = !viewOnly && canAccessFeature('monitor-parity');
+  const periodAccess = perPeriod ? periodSession?.periodAccess : undefined;
+  const classLabel = (classId: string): string =>
+    periodAccess?.[classId]?.label ??
+    (rosters ?? []).find(
+      (r) => r.classlinkClassId === classId || r.testClassId === classId
+    )?.name ??
+    classId;
+  const classKeys = parity
+    ? [...(periodAccess ? Object.keys(periodAccess) : sessionClassIds)].sort(
+        (a, b) =>
+          classLabel(a).localeCompare(classLabel(b), undefined, {
+            numeric: true,
+          })
+      )
+    : [];
+  // Opens on the first class, like the Quiz monitor; '' is All classes.
+  const [pickedClass, setPickedClass] = useState<string | null>(null);
+  const selectedClass =
+    classKeys.length > 1
+      ? pickedClass === null
+        ? classKeys[0]
+        : classKeys.includes(pickedClass)
+          ? pickedClass
+          : ''
+      : '';
+  const { byStudentUid: pickedClassNames } = useAssignmentPseudonymsMulti(
+    sessionId,
+    parity && selectedClass ? [selectedClass] : [],
+    orgId
+  );
+  const nameFor = (uid: string, pin?: string) =>
+    formatStudentName(byStudentUid.get(uid)) ||
+    (pin ? `PIN: ${pin}` : 'Anonymous');
+  const inPickedClass = (uid: string, r?: GuidedLearningResponse) =>
+    !selectedClass ||
+    pickedClassNames.has(uid) ||
+    r?.classId === selectedClass ||
+    (r?.classPeriod != null && r.classPeriod === classLabel(selectedClass));
+  const monitorRows: GlRow[] = [];
+  if (parity) {
+    const seen = new Set<string>();
+    for (const { response: r, qCorrect } of responseStats) {
+      seen.add(r.studentAnonymousId);
+      if (!inPickedClass(r.studentAnonymousId, r)) continue;
+      const bucket: BucketKey = r.completedAt !== null ? 'done' : 'inProgress';
+      monitorRows.push({
+        key: r.studentAnonymousId,
+        name: nameFor(r.studentAnonymousId, r.pin),
+        bucket,
+        response: r,
+        qCorrect,
+      });
+    }
+    // Opened the set but answered nothing yet.
+    for (const uid of progressByUid?.keys() ?? []) {
+      if (seen.has(uid)) continue;
+      seen.add(uid);
+      if (!inPickedClass(uid)) continue;
+      monitorRows.push({
+        key: uid,
+        name: nameFor(uid),
+        bucket: 'inProgress',
+        response: null,
+        qCorrect: 0,
+      });
+    }
+    // The class roster; per-student assignments only target some of it.
+    if (!individualTargeting) {
+      for (const uid of byStudentUid.keys()) {
+        if (seen.has(uid) || !inPickedClass(uid)) continue;
+        monitorRows.push({
+          key: uid,
+          name: nameFor(uid),
+          bucket: 'notStarted',
+          response: null,
+          qCorrect: 0,
+        });
+      }
+    }
+  }
+  const pastClose =
+    sessionOwner?.closeAt != null && sessionOwner.closeAt <= overlayNow;
+  const monitorStatus: GlMonitorStatus =
+    ended || pastClose
+      ? 'ended'
+      : periodAccess &&
+          !Object.values(periodAccess).some(
+            (a) => effectivePeriodState(a, overlayNow) === 'open'
+          )
+        ? 'paused'
+        : 'live';
+
   if (viewOnly && sessionLoaded && !playerV2) return <>{viewOnlyFallback}</>;
   const loading = !sessionLoaded || (!viewOnly && responsesLoading);
+
+  if (parity) {
+    const progressLine = (uid: string) =>
+      showStudentProgress && sessionLoaded && progressByUid ? (
+        <StudentProgressLine
+          progress={progressByUid.get(uid)}
+          playerV2={playerV2}
+          stepCount={sessionSteps?.length ?? set.steps.length}
+          className="text-brand-gray-primary"
+          style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+        />
+      ) : null;
+    const classControls =
+      classKeys.length < 2 ? null : periodAccess &&
+        monitorStatus !== 'ended' ? (
+        <PeriodBar
+          periodAccess={periodAccess}
+          selected={selectedClass}
+          onSelect={setPickedClass}
+          onStart={(key) => runPeriod(() => periodActions.startPeriod(key))}
+          onPause={(key) => runPeriod(() => periodActions.pausePeriod(key))}
+          onExtend={(key, by) =>
+            runPeriod(() => periodActions.extendPeriod(key, by))
+          }
+          extendMs={EXTEND_MS}
+          anchors={{
+            select: tourAttr('gl-results.class-picker'),
+            start: tourAttr('gl-results.period-start'),
+            pause: tourAttr('gl-results.period-pause'),
+            moreTime: tourAttr('gl-results.period-more-time'),
+            extend: tourAttr('gl-results.period-extend'),
+          }}
+        />
+      ) : (
+        <ClassPicker
+          names={classKeys}
+          labelFor={classLabel}
+          selected={selectedClass}
+          onSelect={setPickedClass}
+          status={monitorStatus === 'ended' ? 'ended' : 'active'}
+          selectAnchor={tourAttr('gl-results.class-picker')}
+        />
+      );
+    return (
+      <GuidedLearningMonitor<GlRow>
+        title={set.title}
+        status={monitorStatus}
+        onBack={onClose}
+        loading={loading}
+        rows={monitorRows}
+        classControls={classControls}
+        banner={
+          launchedBy ? (
+            <div
+              className="flex shrink-0 items-center border-b border-brand-gray-lightest bg-white"
+              style={{ padding: 'min(6px, 1.4cqmin) min(12px, 3cqmin)' }}
+            >
+              <LaunchedBySubTag launchedBy={launchedBy} at={startedAt} />
+            </div>
+          ) : null
+        }
+        questionStats={questionStats}
+        engagement={
+          playerV2 ? (
+            <GuidedLearningEngagement set={set} sessionId={sessionId} />
+          ) : null
+        }
+        onExport={handleExport}
+        exportDisabled={responses.length === 0}
+        renderDetail={(row) => {
+          const r = row.response;
+          if (!r) return progressLine(row.key);
+          return (
+            <>
+              {resultsActions &&
+                (r.resultsOverride != null || r.resultsLockedOut === true) && (
+                  <span
+                    className="inline-flex items-center"
+                    style={{ gap: 'min(6px, 1.5cqmin)' }}
+                  >
+                    <ResultsOverrideBadge override={r.resultsOverride} />
+                    {r.resultsLockedOut && (
+                      <span
+                        className="font-bold text-amber-700"
+                        style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+                      >
+                        Locked
+                      </span>
+                    )}
+                  </span>
+                )}
+              {progressLine(row.key)}
+            </>
+          );
+        }}
+        renderActions={(row) => {
+          const r = row.response;
+          if (!r) return null;
+          const final = finalFor(r, overlayNow);
+          const finalPct = finalPillPct(final);
+          return (
+            <>
+              {questionSteps.length > 0 && (
+                <span
+                  className="text-brand-gray-primary tabular-nums"
+                  style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+                >
+                  {row.qCorrect}/{questionSteps.length} correct
+                </span>
+              )}
+              {finalPct !== null && (
+                <span
+                  className="rounded-full bg-brand-blue-lighter text-brand-blue-dark font-sans font-semibold tabular-nums"
+                  style={{
+                    fontSize: 'min(11px, 3.8cqmin)',
+                    padding: 'min(2px, 0.5cqmin) min(8px, 2cqmin)',
+                  }}
+                >
+                  {Math.round(finalPct)}%
+                </span>
+              )}
+              {final && finalOverlay && (
+                <FinalScoreNote
+                  final={final}
+                  flagDefs={finalOverlay.flagDefs}
+                  className="text-brand-gray-primary"
+                />
+              )}
+              {resultsActions && (
+                <StudentResultsControl
+                  responseKey={r.studentAnonymousId}
+                  override={r.resultsOverride}
+                  completed={typeof r.completedAt === 'number'}
+                  displayName={row.name}
+                  classVisibility={classVisibility}
+                  actions={resultsActions}
+                  addToast={addToast}
+                  onUnlock={
+                    r.resultsLockedOut
+                      ? () =>
+                          unlockResultsForStudent(
+                            GL_SESSIONS_COLLECTION,
+                            sessionId,
+                            r.studentAnonymousId
+                          )
+                      : undefined
+                  }
+                  triggerClassName="rounded-md text-brand-gray-primary hover:bg-brand-gray-lightest hover:text-brand-blue-dark"
+                />
+              )}
+              <ViewAsStudentButton
+                kind="guided-learning"
+                sessionId={sessionId}
+                studentKey={r.studentAnonymousId}
+                tone="light"
+              />
+            </>
+          );
+        }}
+      />
+    );
+  }
 
   return (
     <div className="h-full flex flex-col bg-slate-50 text-slate-900">

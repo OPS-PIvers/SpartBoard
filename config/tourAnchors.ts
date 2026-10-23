@@ -10369,6 +10369,28 @@ export const TOUR_ANCHORS = {
     label: 'Pause all periods button in results',
     persists: true,
   },
+  'gl-results.class-picker': { label: 'Class picker select in results' },
+  'gl-results.period-start': {
+    label: 'Start class button in results',
+    persists: true,
+  },
+  'gl-results.period-pause': {
+    label: 'Pause class button in results',
+    persists: true,
+  },
+  'gl-results.period-more-time': { label: 'More time button in results' },
+  'gl-results.period-extend': {
+    label: 'Extend time option in the results More time menu',
+    persists: true,
+    panel: true,
+  },
+  'gl-results.status-bucket': {
+    label: 'Student status bucket button in results',
+    perField: true,
+  },
+  'gl-results.question-results': {
+    label: 'Question results button in results',
+  },
   'gl-capture.upload': {
     label: 'Upload file button in the capture dialog',
     panel: true,

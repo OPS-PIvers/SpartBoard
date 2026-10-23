@@ -1834,6 +1834,7 @@ const TeacherGuidedLearningWidget: React.FC<{
                       onClose={closeResults}
                       viewOnly={isViewOnlyResults}
                       viewOnlyFallback={viewOnlyNotice}
+                      ended={resultsAssignment?.status === 'archived'}
                     />
                   </Suspense>
                 );
