@@ -368,10 +368,11 @@ export function planLocalSync(input: {
     return c ? sectionKey(c) : undefined;
   };
 
-  const siblingCount = new Map<string | null, number>();
+  // Next free order per parent: after the highest, since deletes leave gaps.
+  const nextOrder = new Map<string | null, number>();
   for (const s of link.sections ?? []) {
     const parent = s.parentId ?? null;
-    siblingCount.set(parent, (siblingCount.get(parent) ?? 0) + 1);
+    nextOrder.set(parent, Math.max(nextOrder.get(parent) ?? 0, s.order + 1));
   }
   const newSections: LinkedCollectionSection[] = [];
   // Parents first, so a new parent is listed before its new children.
@@ -390,8 +391,8 @@ export function planLocalSync(input: {
       // Includes deleted ids: someone removed it for everyone, so it isn't listed again.
       if (known.has(key)) continue;
       const parentKey = keyOf(child.parentCollectionId) ?? null;
-      const order = siblingCount.get(parentKey) ?? 0;
-      siblingCount.set(parentKey, order + 1);
+      const order = nextOrder.get(parentKey) ?? 0;
+      nextOrder.set(parentKey, order + 1);
       newSections.push({
         id: key,
         name: child.name,

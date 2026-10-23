@@ -371,6 +371,22 @@ describe('planLocalSync', () => {
     expect(plan.boardsToShare[0].sectionId).toBe('nested');
   });
 
+  it('puts a new sub-collection after the last listed one when deletes left gaps', () => {
+    const fresh = col('fresh', 'week', { name: 'Fresh' });
+    const plan = planLocalSync({
+      link: link({
+        sections: [
+          { id: 'S-a', name: 'A', parentId: null, order: 0 },
+          { id: 'S-c', name: 'C', parentId: null, order: 5 },
+        ],
+      }),
+      root,
+      collections: [root, fresh],
+      dashboards: [],
+    });
+    expect(plan.newSections.map((s) => s.order)).toEqual([6]);
+  });
+
   it('matches the host’s own sub-collections by id', () => {
     const hostRoot = col('week', null, {
       linkedCollectionId: 'L1',
