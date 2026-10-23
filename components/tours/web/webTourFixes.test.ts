@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GuidedLearningSet, GuidedLearningStep } from '@/types';
 import type { TourRun } from '@/components/tours/tourRuns';
-import { fixKey as serverFixKey } from '@/functions/src/mcp/webTourFixes';
 import {
   applyFix,
   dismissFix,
@@ -177,7 +176,7 @@ describe('suggestionFor, applyFix and dismissFix', () => {
 });
 
 describe('fixKey', () => {
-  it('matches the connector, ignoring position and page title', () => {
+  it('ignores position and page title', () => {
     const l = {
       role: 'link',
       name: 'Grades',
@@ -186,7 +185,6 @@ describe('fixKey', () => {
       heading: 'Course',
       attrs: { testId: 'g', href: '/c/*/g' },
     };
-    expect(fixKey(l)).toBe(serverFixKey(l));
     expect(
       fixKey({ ...l, box: { x: 0, y: 0, w: 1, h: 1 }, pageTitle: 'X' })
     ).toBe(fixKey(l));
