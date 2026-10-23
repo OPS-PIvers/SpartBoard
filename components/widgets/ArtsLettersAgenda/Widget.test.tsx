@@ -5,6 +5,31 @@ import type { ArtsLettersAgendaConfig, WidgetData } from '@/types';
 
 const mockUpdateWidget = vi.fn();
 
+const auth = vi.hoisted(() => ({
+  featurePermissions: [] as unknown[],
+  selectedBuildings: ['schumann'],
+}));
+
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => auth,
+}));
+
+const withLists = (lists: {
+  simpleParts?: { id: string; label: string }[];
+  detailedParts?: { id: string; label: string }[];
+}) => {
+  auth.featurePermissions = [
+    {
+      widgetType: 'arts-letters-agenda',
+      config: {
+        buildingDefaults: {
+          schumann: { buildingId: 'schumann', ...lists },
+        },
+      },
+    },
+  ];
+};
+
 vi.mock('@/context/dashboardCanvasStore', () => ({
   useDashboardActions: () => ({ updateWidget: mockUpdateWidget }),
   useGlobalStyle: () => ({ fontFamily: 'sans' }),
@@ -28,6 +53,8 @@ const renderWidget = (config: ArtsLettersAgendaConfig = {}) =>
 describe('ArtsLettersAgendaWidget', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    auth.featurePermissions = [];
+    auth.selectedBuildings = ['schumann'];
   });
 
   it('always shows Launch, Learn and Land in order', () => {
@@ -51,7 +78,7 @@ describe('ArtsLettersAgendaWidget', () => {
     renderWidget();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Launch done' }));
     expect(mockUpdateWidget).toHaveBeenCalledWith('agenda-1', {
-      config: { completed: { launch: true } },
+      config: { buildingId: 'schumann', completed: { launch: true } },
     });
   });
 
@@ -59,7 +86,7 @@ describe('ArtsLettersAgendaWidget', () => {
     renderWidget({ completed: { learn: true } });
     fireEvent.click(screen.getByText('Learn'));
     expect(mockUpdateWidget).toHaveBeenCalledWith('agenda-1', {
-      config: { completed: { learn: false } },
+      config: { buildingId: 'schumann', completed: { learn: false } },
     });
   });
 
@@ -83,6 +110,7 @@ describe('ArtsLettersAgendaWidget', () => {
     fireEvent.blur(field);
     expect(mockUpdateWidget).toHaveBeenCalledWith('agenda-1', {
       config: {
+        buildingId: 'schumann',
         completed: { launch: true },
         descriptions: { land: 'Exit ticket' },
       },
@@ -102,7 +130,10 @@ describe('ArtsLettersAgendaWidget', () => {
     fireEvent.change(field, { target: { value: 'Quick write' } });
     fireEvent.keyDown(field, { key: 'Enter' });
     expect(mockUpdateWidget).toHaveBeenCalledWith('agenda-1', {
-      config: { descriptions: { launch: 'Quick write' } },
+      config: {
+        buildingId: 'schumann',
+        descriptions: { launch: 'Quick write' },
+      },
     });
   });
 
@@ -113,7 +144,11 @@ describe('ArtsLettersAgendaWidget', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /reset checks/i }));
     expect(mockUpdateWidget).toHaveBeenCalledWith('agenda-1', {
-      config: { completed: {}, descriptions: { launch: 'Warm up' } },
+      config: {
+        buildingId: 'schumann',
+        completed: {},
+        descriptions: { launch: 'Warm up' },
+      },
     });
   });
 
@@ -122,5 +157,124 @@ describe('ArtsLettersAgendaWidget', () => {
     expect(
       screen.getByRole('button', { name: /reset checks/i })
     ).toBeDisabled();
+  });
+
+  it('shows the admin Simple list by default and the Detailed list when Detailed is chosen', () => {
+    withLists({
+      simpleParts: [
+        { id: 'launch', label: 'Launch' },
+        { id: 'learn', label: 'Learn' },
+        { id: 'land', label: 'Land' },
+      ],
+      detailedParts: [
+        { id: 'a', label: 'Warm up' },
+        { id: 'b', label: 'Mini lesson' },
+        { id: 'c', label: 'Practice' },
+        { id: 'd', label: 'Share out' },
+      ],
+    });
+    const { rerender } = renderWidget();
+    expect(screen.getAllByRole('listitem')).toHaveLength(3);
+    rerender(
+      <ArtsLettersAgendaWidget widget={makeWidget({ version: 'detailed' })} />
+    );
+    const rows = screen.getAllByRole('listitem');
+    expect(rows).toHaveLength(4);
+    expect(rows[0]).toHaveTextContent('Warm up');
+    expect(rows[3]).toHaveTextContent('Share out');
+  });
+
+  it('lets teachers add details to every Detailed box', () => {
+    withLists({
+      detailedParts: [
+        { id: 'a', label: 'Warm up' },
+        { id: 'b', label: 'Practice' },
+      ],
+    });
+    renderWidget({ version: 'detailed' });
+    const field = screen.getByLabelText('Practice details');
+    fireEvent.change(field, { target: { value: 'Pages 4 to 6' } });
+    fireEvent.blur(field);
+    expect(mockUpdateWidget).toHaveBeenCalledWith('agenda-1', {
+      config: {
+        version: 'detailed',
+        buildingId: 'schumann',
+        descriptions: { b: 'Pages 4 to 6' },
+      },
+    });
+  });
+
+  it('has no Simple and Detailed switch on the widget face', () => {
+    withLists({ detailedParts: [{ id: 'a', label: 'Warm up' }] });
+    renderWidget();
+    expect(screen.queryByRole('radio', { name: 'Detailed' })).toBeNull();
+  });
+
+  it('keeps checks and descriptions by box when an admin renames a box', () => {
+    withLists({
+      simpleParts: [
+        { id: 'launch', label: 'Hook' },
+        { id: 'learn', label: 'Learn' },
+      ],
+    });
+    renderWidget({
+      completed: { launch: true },
+      descriptions: { launch: 'Quick write' },
+    });
+    expect(screen.getByLabelText('Hook details')).toHaveValue('Quick write');
+    expect(screen.getByRole('checkbox', { name: 'Hook done' })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+  });
+
+  it('ignores a malformed admin list and falls back to the defaults', () => {
+    withLists({
+      simpleParts: [{ id: '', label: 'x' }, null as unknown as never],
+    });
+    renderWidget();
+    expect(screen.getAllByRole('listitem')).toHaveLength(3);
+    expect(screen.getByText('Launch')).toBeInTheDocument();
+  });
+
+  it('only counts checks on visible boxes for the reset button', () => {
+    withLists({ simpleParts: [{ id: 'launch', label: 'Launch' }] });
+    renderWidget({ completed: { land: true } });
+    expect(
+      screen.getByRole('button', { name: /reset checks/i })
+    ).toBeDisabled();
+  });
+
+  it('keeps using the building saved on the widget, not the building of whoever is viewing', () => {
+    auth.selectedBuildings = ['high'];
+    auth.featurePermissions = [
+      {
+        widgetType: 'arts-letters-agenda',
+        config: {
+          buildingDefaults: {
+            schumann: {
+              buildingId: 'schumann',
+              simpleParts: [{ id: 'x', label: 'Warm up' }],
+            },
+            high: {
+              buildingId: 'high',
+              simpleParts: [{ id: 'y', label: 'Hook' }],
+            },
+          },
+        },
+      },
+    ];
+    renderWidget({ buildingId: 'schumann' });
+    expect(screen.getByText('Warm up')).toBeInTheDocument();
+    expect(screen.queryByText('Hook')).toBeNull();
+  });
+
+  it('saves no building when the viewer has none', () => {
+    auth.selectedBuildings = [];
+    renderWidget();
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Launch done' }));
+    expect(mockUpdateWidget).toHaveBeenCalledWith('agenda-1', {
+      config: { completed: { launch: true } },
+    });
   });
 });

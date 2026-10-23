@@ -1622,6 +1622,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'admin.access.min-tier': ['admin.shared.access-controls'],
     'admin.widget-config.field': [
       'admin.widgets.config.activity-wall',
+      'admin.widgets.config.arts-letters-agenda',
       'admin.widgets.config.blending-board',
       'admin.widgets.config.blooms-taxonomy',
       'admin.widgets.config.breathing',

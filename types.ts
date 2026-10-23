@@ -2022,11 +2022,16 @@ export interface ChecklistConfig {
   rowStyle?: 'cards' | 'lines';
 }
 
-export type ArtsLettersAgendaPartId = 'launch' | 'learn' | 'land';
+export type ArtsLettersAgendaPartId = string;
+
+export type ArtsLettersAgendaVersion = 'simple' | 'detailed';
 
 export interface ArtsLettersAgendaConfig {
-  descriptions?: Partial<Record<ArtsLettersAgendaPartId, string>>;
-  completed?: Partial<Record<ArtsLettersAgendaPartId, boolean>>;
+  version?: ArtsLettersAgendaVersion;
+  /** Building whose admin lists this widget uses; set on first edit so other viewers see the same boxes. */
+  buildingId?: string;
+  descriptions?: Record<ArtsLettersAgendaPartId, string>;
+  completed?: Record<ArtsLettersAgendaPartId, boolean>;
   fontFamily?: string;
   fontColor?: string;
   textSizePreset?: TextSizePreset;
@@ -3105,6 +3110,22 @@ export interface BuildingChecklistDefaults {
 
 export interface ChecklistGlobalConfig {
   buildingDefaults: Record<string, BuildingChecklistDefaults>;
+}
+
+// --- Arts & Letters Agenda Global Config ---
+export interface ArtsLettersAgendaPart {
+  id: string;
+  label: string;
+}
+
+export interface BuildingArtsLettersAgendaDefaults {
+  buildingId: string;
+  simpleParts?: ArtsLettersAgendaPart[];
+  detailedParts?: ArtsLettersAgendaPart[];
+}
+
+export interface ArtsLettersAgendaGlobalConfig {
+  buildingDefaults: Record<string, BuildingArtsLettersAgendaDefaults>;
 }
 
 // --- Stations Global Config ---
