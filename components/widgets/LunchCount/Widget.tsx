@@ -159,6 +159,7 @@ const MenuItemBlock: React.FC<MenuItemBlockProps> = ({
       style={{ gap: 'min(8px, 2cqmin)', marginBottom: 'min(10px, 2cqmin)' }}
     >
       {imageUrl ? (
+        // no-tour-anchor: one photo button per menu item row
         <button
           type="button"
           onClick={() => item && onPeekItem(item)}
@@ -200,6 +201,7 @@ const MenuItemBlock: React.FC<MenuItemBlockProps> = ({
                   </span>
                 ) : null}
                 {s.imageUrl ? (
+                  // no-tour-anchor: one photo button per menu item row
                   <button
                     type="button"
                     onClick={() => onPeekItem(s)}

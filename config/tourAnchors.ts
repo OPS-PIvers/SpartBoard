@@ -11956,6 +11956,45 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'hotspot-image.popover-close': {
+    label: 'Close button on a Hotspot Image popover',
+    perWidget: true,
+    destructive: true,
+    panel: true,
+  },
+  'instructional-routines.blooms-key-words': {
+    label: 'Key Words button in Instructional Routines',
+    perWidget: true,
+  },
+  'instructional-routines.blooms-sentence-starters': {
+    label: 'Sentence Starters button in Instructional Routines',
+    perWidget: true,
+  },
+  'lunch-count.missing-info-close': {
+    label: 'Close button in the Lunch Count missing info dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'lunch-count.school-option': {
+    label: 'School choice in the Lunch Count missing info dialog',
+    perField: true,
+    panel: true,
+  },
+  'lunch-count.grade-option': {
+    label: 'Grade choice in the Lunch Count missing info dialog',
+    perField: true,
+    panel: true,
+  },
+  'lunch-count.extra-pizza': {
+    label: 'Extra pizza count box in the Lunch Count report dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'lunch-count.report-notes': {
+    label: 'Additional notes box in the Lunch Count report dialog',
+    perWidgetType: true,
+    panel: true,
+  },
   'lunch-count.report-confirm': {
     label: 'Confirm and send button in the Lunch Count report dialog',
     perWidgetType: true,
