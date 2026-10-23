@@ -5626,6 +5626,9 @@ service cloud.firestore {
         // encodeResponseKeySegment, closes the cross-auth grief path). studentRole
         // users must be enrolled in the session's class.
         allow create: if signedIn() &&
+          // Join fields only: no session-shaped fields a server reader could trust.
+          incoming().keys().hasOnly(['studentUid', 'joinedAt', 'answers', 'completedAt', 'score',
+            'completedAttempts', 'tabSwitchWarnings', 'pin', 'name', 'classPeriod', 'classId']) &&
           incoming().studentUid == authUid() &&
           incoming().score == null &&
           incoming().completedAt == null &&

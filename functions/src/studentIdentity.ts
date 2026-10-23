@@ -1645,7 +1645,8 @@ export const pinLoginV1 = onCall(
     } else {
       const sessionId =
         typeof data.sessionId === 'string' ? data.sessionId : '';
-      if (!sessionId) {
+      // A single id segment only: a slash path would load a nested doc as the session.
+      if (!sessionId || sessionId.includes('/')) {
         throw new HttpsError(
           'invalid-argument',
           'sessionId is required for video-activity.'
