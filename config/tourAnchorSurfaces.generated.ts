@@ -2456,6 +2456,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'web-tour-editor.title': ['board.web-tour-editor'],
     'web-tour-editor.play': ['board.web-tour-editor'],
     'web-tour-editor.copy-link': ['board.web-tour-editor'],
+    'web-tour-editor.check': ['board.web-tour-editor'],
     'web-tour-editor.record': ['board.web-tour-editor'],
     'web-tour-editor.publish': ['board.web-tour-editor'],
     'web-tour-editor.delete': ['board.web-tour-editor'],

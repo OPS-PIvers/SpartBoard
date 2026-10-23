@@ -1,8 +1,11 @@
 import {
+  CHECK_PROTOCOL,
   EXTENSION_PROTOCOL_VERSION,
+  isCheckRunId,
   SCORED_MATCH_PROTOCOL,
   WEB_TOUR_PORT,
   type ExtensionProfile,
+  type WebTourCheckProgress,
   type WebTourProgressMessage,
   type WebTourStartTour,
 } from './extensionProtocol';
@@ -105,6 +108,12 @@ export const canPlayWebTours = (status: ExtensionStatus): boolean =>
   status.protocol >= WEB_TOUR_PROTOCOL &&
   status.profile === 'staff';
 
+/** Whether this extension can play a draft in check mode (C12) for this browser profile. */
+export const canCheckWebTours = (status: ExtensionStatus): boolean =>
+  canPlayWebTours(status) &&
+  status.kind === 'ready' &&
+  status.protocol >= CHECK_PROTOCOL;
+
 export type StartResult =
   { ok: true; tabId: number } | { ok: false; error: string };
 
@@ -112,10 +121,20 @@ export type StartResult =
 export async function startWebTour(
   tour: WebTourStartTour,
   startUrl: string,
-  stepIndex: number
+  stepIndex: number,
+  // A check run id plays in check mode, which only a protocol 6 extension knows; callers gate on canCheckWebTours.
+  checkRunId?: string
 ): Promise<StartResult> {
   const reply = await send(
-    { type: 'web-tour/start', startUrl, stepIndex, tour },
+    checkRunId
+      ? {
+          type: 'web-tour/check',
+          startUrl,
+          stepIndex,
+          tour,
+          runId: checkRunId,
+        }
+      : { type: 'web-tour/start', startUrl, stepIndex, tour },
     30_000
   );
   if (isRecord(reply) && reply.ok === true && Number.isInteger(reply.tabId)) {
@@ -135,6 +154,37 @@ export function watchWebTour(
   onGone: () => void,
   extensionProtocol = 0
 ): () => void {
+  return openWatch(
+    setId,
+    (m) => parseWebTourPortEvent(m, setId),
+    onEvent,
+    onGone,
+    extensionProtocol
+  );
+}
+
+/** Listens to a check run's results; only a protocol 6 extension sends them, and only to a page that says it reads them. */
+export function watchWebTourCheck(
+  setId: string,
+  onEvent: (event: WebTourCheckProgress) => void,
+  onGone: () => void
+): () => void {
+  return openWatch(
+    setId,
+    (m) => parseWebTourCheckEvent(m, setId),
+    onEvent,
+    onGone,
+    CHECK_PROTOCOL
+  );
+}
+
+function openWatch<E>(
+  setId: string,
+  parse: (message: unknown) => E | null,
+  onEvent: (event: E) => void,
+  onGone: () => void,
+  extensionProtocol: number
+): () => void {
   const id = extensionId();
   const rt = runtime();
   if (!id || !rt) {
@@ -150,7 +200,7 @@ export function watchWebTour(
   }
   let closed = false;
   port.onMessage.addListener((message) => {
-    const event = parseWebTourPortEvent(message, setId);
+    const event = parse(message);
     if (event && !closed) onEvent(event);
   });
   port.onDisconnect.addListener(() => {
@@ -165,6 +215,44 @@ export function watchWebTour(
   return () => {
     closed = true;
     port.disconnect();
+  };
+}
+
+const CHECK_RESULTS = ['found', 'weak', 'ambiguous', 'none'] as const;
+
+/** Validates one check-run message from the extension for this set, or null. */
+export function parseWebTourCheckEvent(
+  message: unknown,
+  setId: string
+): WebTourCheckProgress | null {
+  if (!isRecord(message) || message.setId !== setId) return null;
+  const { runId } = message;
+  if (!isCheckRunId(runId)) return null;
+  const index = message.stepIndex;
+  if (!Number.isInteger(index) || (index as number) < 0) return null;
+  const stepIndex = index as number;
+  if (message.type === 'web-tour/check-end') {
+    return typeof message.done === 'boolean'
+      ? {
+          type: 'web-tour/check-end',
+          setId,
+          runId,
+          stepIndex,
+          done: message.done,
+        }
+      : null;
+  }
+  if (message.type !== 'web-tour/check-step') return null;
+  const { stepId } = message;
+  const result = CHECK_RESULTS.find((r) => r === message.result);
+  if (typeof stepId !== 'string' || !result) return null;
+  return {
+    type: 'web-tour/check-step',
+    setId,
+    runId,
+    stepIndex,
+    stepId,
+    result,
   };
 }
 

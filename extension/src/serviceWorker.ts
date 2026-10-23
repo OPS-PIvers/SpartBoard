@@ -2,7 +2,7 @@ import {
   parseWebTourPortMessage,
   progressForPage,
   WEB_TOUR_PORT,
-  type WebTourProgressMessage,
+  type WebTourPortPost,
 } from '@/components/tours/web/extensionProtocol';
 import { createExternalHandler } from './handler';
 import { getChromeProfile } from './profile';
@@ -33,9 +33,11 @@ const origins = __SPART_ORIGINS__;
 const watchers = new Map<string, Set<chrome.runtime.Port>>();
 // The protocol each watching page reads; a page from before protocol 4 never says.
 const watcherProtocols = new WeakMap<chrome.runtime.Port, number>();
-const toPage = (port: chrome.runtime.Port, msg: WebTourProgressMessage) =>
-  port.postMessage(progressForPage(msg, watcherProtocols.get(port) ?? 0));
-const post = (setId: string, msg: WebTourProgressMessage) => {
+const toPage = (port: chrome.runtime.Port, msg: WebTourPortPost) => {
+  const out = progressForPage(msg, watcherProtocols.get(port) ?? 0);
+  if (out) port.postMessage(out);
+};
+const post = (setId: string, msg: WebTourPortPost) => {
   for (const port of watchers.get(setId) ?? []) {
     try {
       toPage(port, msg);

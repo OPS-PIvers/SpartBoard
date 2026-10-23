@@ -3,6 +3,8 @@ import {
   createPlaybackController,
   framesForStep,
   SESSION_BUDGET,
+  CHECK_END_KEEP_MS,
+  CHECK_ENDS_KEPT,
   type HostFrame,
   type PlaybackHost,
   type ProgressPost,
@@ -557,5 +559,291 @@ describe('framesForStep', () => {
     expect(
       framesForStep(withAd, [{ urlPattern: 'https://b.example/x', index: 1 }])
     ).toEqual([5, 6]);
+  });
+});
+
+describe('playback controller, check mode (C12)', () => {
+  const checkStart = (): ParsedStart => ({
+    ...parsed(),
+    check: true,
+    runId: 'r1',
+  });
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+  const timeOut = async (
+    h: ReturnType<typeof fakeHost>,
+    c: { isPlaying: (t: number) => Promise<boolean> }
+  ) => {
+    h.timers.at(-1)?.();
+    await flush();
+    await c.isPlaying(7);
+    await flush();
+  };
+
+  it('reports a clear find as Found, and Next moves on without a click', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(checkStart());
+    await c.committed(7, 0, 'https://a.example/home');
+    expect(h.lastRender()).toMatchObject({ check: 'pending' });
+    await c.frameReport(7, 0, {
+      type: 'wt:found',
+      token: h.lastSeek().msg.token as string,
+      weak: false,
+      url: '',
+    });
+    expect(h.lastRender()).toMatchObject({ status: 'shown', check: 'found' });
+    await c.overlayAction(7, 0, 'next');
+    expect(h.lastRender()).toMatchObject({ current: 2, check: 'pending' });
+    expect(h.posts).toEqual([
+      {
+        type: 'web-tour/check-step',
+        setId: 'set1',
+        runId: 'r1',
+        stepIndex: 0,
+        stepId: 'a',
+        result: 'found',
+      },
+    ]);
+  });
+
+  it('reports weak and ambiguous targets', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(checkStart());
+    await c.committed(7, 0, 'https://a.example/home');
+    await c.frameReport(7, 0, {
+      type: 'wt:found',
+      token: h.lastSeek().msg.token as string,
+      weak: true,
+      url: '',
+    });
+    await c.overlayAction(7, 0, 'next');
+    await c.historyChanged(7, 0, 'https://a.example/course/2');
+    const token = h.lastSeek().msg.token as string;
+    await c.frameReport(7, 0, { type: 'wt:ambiguous', token });
+    await timeOut(h, c);
+    expect(h.lastRender()).toMatchObject({
+      status: 'fallback',
+      check: 'ambiguous',
+    });
+    const results = h.posts.flatMap((p) =>
+      p.type === 'web-tour/check-step' ? [[p.stepId, p.result]] : []
+    );
+    expect(results).toEqual([
+      ['a', 'weak'],
+      ['b', 'ambiguous'],
+    ]);
+  });
+
+  it('posts Not found on timeout, and re-reports it once candidates tie', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start({ ...checkStart(), stepIndex: 1 });
+    await c.committed(7, 0, 'https://a.example/course/3');
+    const token = h.lastSeek().msg.token as string;
+    await timeOut(h, c);
+    expect(h.posts.at(-1)).toMatchObject({ stepId: 'b', result: 'none' });
+    await c.frameReport(7, 0, { type: 'wt:ambiguous', token });
+    expect(h.posts.at(-1)).toMatchObject({ stepId: 'b', result: 'ambiguous' });
+  });
+
+  it('never posts run progress, so a hub watching the same tour logs nothing', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start({ ...checkStart(), stepIndex: 1 });
+    await c.committed(7, 0, 'https://a.example/course/1');
+    await c.overlayAction(7, 0, 'next');
+    await c.start(checkStart());
+    await c.tabClosed(8);
+    expect(h.posts.every((p) => p.type.startsWith('web-tour/check-'))).toBe(
+      true
+    );
+    expect(h.posts).toContainEqual({
+      type: 'web-tour/check-end',
+      setId: 'set1',
+      runId: 'r1',
+      stepIndex: 1,
+      done: true,
+    });
+    expect(h.posts.at(-1)).toEqual({
+      type: 'web-tour/check-end',
+      setId: 'set1',
+      runId: 'r1',
+      stepIndex: 0,
+      done: false,
+    });
+  });
+
+  it('replays the current result to a page that reconnects', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(checkStart());
+    await c.committed(7, 0, 'https://a.example/home');
+    await c.frameReport(7, 0, {
+      type: 'wt:found',
+      token: h.lastSeek().msg.token as string,
+      weak: false,
+      url: '',
+    });
+    expect(await c.replay('set1')).toEqual([
+      {
+        type: 'web-tour/check-step',
+        setId: 'set1',
+        runId: 'r1',
+        stepIndex: 0,
+        stepId: 'a',
+        result: 'found',
+      },
+    ]);
+  });
+
+  it('reports Not found when a step found earlier loses its target and then times out', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(checkStart());
+    await c.committed(7, 0, 'https://a.example/home');
+    const token = h.lastSeek().msg.token as string;
+    await c.frameReport(7, 0, {
+      type: 'wt:found',
+      token,
+      weak: false,
+      url: '',
+    });
+    await c.frameReport(7, 0, { type: 'wt:lost', token });
+    expect(h.lastRender()).toMatchObject({
+      status: 'seeking',
+      check: 'pending',
+    });
+    await timeOut(h, c);
+    expect(h.lastRender()).toMatchObject({ status: 'fallback', check: 'none' });
+    expect(h.posts.at(-1)).toMatchObject({ stepId: 'a', result: 'none' });
+  });
+
+  it('works a revisited step out from the new seek only', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(checkStart());
+    await c.committed(7, 0, 'https://a.example/home');
+    await c.frameReport(7, 0, {
+      type: 'wt:found',
+      token: h.lastSeek().msg.token as string,
+      weak: false,
+      url: '',
+    });
+    await c.overlayAction(7, 0, 'next');
+    await c.overlayAction(7, 0, 'back');
+    expect(h.lastRender()).toMatchObject({ current: 1, check: 'pending' });
+    await timeOut(h, c);
+    expect(h.posts.at(-1)).toMatchObject({ stepId: 'a', result: 'none' });
+  });
+
+  it('replays every result of the run to a page that reconnects', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(checkStart());
+    await c.committed(7, 0, 'https://a.example/home');
+    await c.frameReport(7, 0, {
+      type: 'wt:found',
+      token: h.lastSeek().msg.token as string,
+      weak: false,
+      url: '',
+    });
+    await c.overlayAction(7, 0, 'next');
+    await c.historyChanged(7, 0, 'https://a.example/course/2');
+    await c.frameReport(7, 0, {
+      type: 'wt:found',
+      token: h.lastSeek().msg.token as string,
+      weak: true,
+      url: '',
+    });
+    const replayed = await c.replay('set1');
+    expect(
+      replayed.map((p) =>
+        p.type === 'web-tour/check-step' ? p.result : p.type
+      )
+    ).toEqual(['found', 'weak']);
+  });
+
+  it('keeps an ended check run for a while, so a late editor still gets its end', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(checkStart());
+    await c.committed(7, 0, 'https://a.example/home');
+    await c.frameReport(7, 0, {
+      type: 'wt:found',
+      token: h.lastSeek().msg.token as string,
+      weak: false,
+      url: '',
+    });
+    await c.overlayAction(7, 0, 'exit');
+    expect(await c.isPlaying(7)).toBe(false);
+    expect(await c.replay('set1')).toEqual([
+      {
+        type: 'web-tour/check-step',
+        setId: 'set1',
+        runId: 'r1',
+        stepIndex: 0,
+        stepId: 'a',
+        result: 'found',
+      },
+      {
+        type: 'web-tour/check-end',
+        setId: 'set1',
+        runId: 'r1',
+        stepIndex: 0,
+        done: false,
+      },
+    ]);
+    expect(await c.replay('other')).toEqual([]);
+    h.clock.now += CHECK_END_KEEP_MS;
+    expect(await c.replay('set1')).toEqual([]);
+  });
+
+  it('replays the end of an exited check run whose record is still stored', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(checkStart());
+    await c.committed(7, 0, 'https://a.example/home');
+    const before = structuredClone(h.store.get('wt:tab:7')) as {
+      state: { status: string };
+    };
+    await c.overlayAction(7, 0, 'exit');
+    // A record left behind as exited (a forget that never finished) is not a live run.
+    h.store.set('wt:tab:7', {
+      ...before,
+      state: { ...before.state, status: 'exited' },
+    });
+    h.store.set('wt:tabs', [7]);
+    expect(await c.replay('set1')).toContainEqual({
+      type: 'web-tour/check-end',
+      setId: 'set1',
+      runId: 'r1',
+      stepIndex: 0,
+      done: false,
+    });
+  });
+
+  it('keeps only the last few ended check runs', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    for (let i = 0; i < CHECK_ENDS_KEPT + 2; i++) {
+      const tab = await c.start({ ...checkStart(), runId: `r${i}` });
+      await c.tabClosed(tab);
+    }
+    const ends = (await c.replay('set1')).flatMap((p) =>
+      p.type === 'web-tour/check-end' ? [p.runId] : []
+    );
+    expect(ends).toEqual(['r2', 'r3', 'r4', 'r5', 'r6']);
+  });
+
+  it('ignores ambiguity reports outside check mode', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    await c.committed(7, 0, 'https://a.example/home');
+    const token = h.lastSeek().msg.token as string;
+    await c.frameReport(7, 0, { type: 'wt:ambiguous', token });
+    expect(h.posts).toEqual([]);
+    expect('check' in h.lastRender()).toBe(false);
   });
 });

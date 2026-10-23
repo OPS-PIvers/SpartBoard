@@ -4069,7 +4069,11 @@
     },
     "webFindIt": "Cherchez ceci sur la page.",
     "webOtherPage": "Cette étape se trouve sur une autre page. Ouvrez-la pour continuer.",
-    "webPictureAlt": "Image de cette étape"
+    "webPictureAlt": "Image de cette étape",
+    "webCheckFound": "Trouvé",
+    "webCheckWeak": "Correspondance faible",
+    "webCheckAmbiguous": "Correspond à plusieurs",
+    "webCheckNone": "Introuvable"
   },
   "glPlayer": {
     "modeChip": {

@@ -8379,6 +8379,18 @@ export interface WebTourStudentDataCheck {
   sig: string;
 }
 
+/** How a check run found a step's target (C12): only `found` passes. */
+export type WebTourCheckResult = 'found' | 'weak' | 'ambiguous' | 'none';
+
+/** The draft's last check run; `sig` fingerprints the targets it played. */
+export interface WebTourCheckRun {
+  by: string;
+  at: number;
+  sig: string;
+  /** By step id; a step the run never reached has none. */
+  results: Record<string, WebTourCheckResult>;
+}
+
 export interface GuidedLearningTourBinding {
   /** TOUR_ANCHORS key */
   anchor: string;
@@ -8572,6 +8584,8 @@ export interface GuidedLearningSet {
   webPicturesChecked?: WebTourStudentDataCheck;
   /** Web tours: what the tour explains, for Claude; never published. */
   webGoal?: string;
+  /** Web tours: the last Check tour run, which Publish needs passing for these targets (C13). */
+  webTourChecked?: WebTourCheckRun;
 }
 
 /** A live tour's notes for Claude and last editor playtest, at building_guided_learning/{setId}/review/current; admins only. */

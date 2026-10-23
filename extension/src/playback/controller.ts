@@ -8,8 +8,9 @@ import {
 } from './progress';
 import type {
   WebTourPictureBytes,
-  WebTourProgressMessage,
+  WebTourPortPost,
 } from '@/components/tours/web/extensionProtocol';
+import type { WebTourCheckResult } from '@/types';
 import type { OverlayAction, OverlayState } from '../overlay/overlayState';
 import type { ParsedStart } from './startMessage';
 import { matchesUrlPattern } from './urlPattern';
@@ -23,7 +24,7 @@ export interface HostFrame {
 export type OverlayMessage =
   { type: 'overlay/render'; state: OverlayState } | { type: 'overlay/unmount' };
 
-export type ProgressPost = WebTourProgressMessage;
+export type ProgressPost = WebTourPortPost;
 
 /** The Chrome APIs playback needs, so the controller runs against a fake in tests. */
 export interface PlaybackHost {
@@ -66,19 +67,52 @@ interface TabRecord {
   postedIndex: number;
   /** Step index on which a page actually loaded and didn't match, so only a real wrong page counts as a miss. */
   wrongPageIndex?: number;
+  /** Check mode (C12): posts only check results, never a run's progress. */
+  check?: boolean;
+  /** Check mode: the page's id for the run, echoed in every result. */
+  runId?: string;
+  /** Check mode: the latest result posted per step. */
+  results?: Record<string, WebTourCheckResult>;
+  /** Check mode: the seek whose candidates tied. */
+  ambiguousToken?: string;
 }
 
 export const FALLBACK_MS = 4000;
 const tabKey = (tabId: number) => `wt:tab:${tabId}`;
 const picKey = (tabId: number, stepId: string) => `wt:pic:${tabId}:${stepId}`;
 const TABS_KEY = 'wt:tabs';
+const CHECK_ENDS_KEY = 'wt:checkEnds';
+/** Ended check runs kept for an editor that reconnects late. */
+export const CHECK_ENDS_KEPT = 5;
+export const CHECK_END_KEEP_MS = 10 * 60 * 1000;
+
+interface EndedCheck {
+  setId: string;
+  runId: string;
+  at: number;
+  posts: ProgressPost[];
+}
 // Not a real tab id: the queue that keeps two starts from racing.
 const START_QUEUE = -1;
 const TABS_QUEUE = -2;
+const CHECK_ENDS_QUEUE = -3;
 /** The session store holds 10 MB; one tour's record and pictures stay under this. */
 export const SESSION_BUDGET = 9 * 1024 * 1024;
 const MAX_TITLE = 200;
 const isWebPage = (url: string) => /^https?:\/\//.test(url);
+
+/** A step's check result from how it was found; an unfound step whose candidates tied is `ambiguous`. */
+export const checkResultOf = (
+  match: FoundMatch | 'none',
+  tied: boolean
+): WebTourCheckResult =>
+  match === 'role'
+    ? 'found'
+    : match === 'score'
+      ? 'weak'
+      : tied
+        ? 'ambiguous'
+        : 'none';
 
 /** The frame ids whose chain of addresses matches the step's recorded frames; empty when none do. */
 export function framesForStep(
@@ -163,6 +197,7 @@ export function createPlaybackController(host: PlaybackHost) {
       return;
     }
     const shownIn = state.status === 'shown' ? rec.targetFrameId : null;
+    const settled = state.status === 'shown' || state.status === 'fallback';
     const base = {
       title: step.title.slice(0, MAX_TITLE),
       text: step.text,
@@ -170,6 +205,11 @@ export function createPlaybackController(host: PlaybackHost) {
       total: state.tour.steps.length,
       status: state.status,
       observe: step.action === 'observe',
+      ...(rec.check
+        ? {
+            check: (settled && rec.results?.[step.id]) || ('pending' as const),
+          }
+        : {}),
     };
     host.sendToFrame(rec.tabId, 0, {
       type: 'overlay/render',
@@ -202,6 +242,19 @@ export function createPlaybackController(host: PlaybackHost) {
     if (!step) return;
     rec.posted = { ...rec.posted, [step.id]: match };
     rec.postedIndex = index;
+    if (rec.check) {
+      const result = checkResultOf(match, rec.ambiguousToken === rec.token);
+      rec.results = { ...rec.results, [step.id]: result };
+      host.post(setId, {
+        type: 'web-tour/check-step',
+        setId,
+        runId: rec.runId ?? '',
+        stepIndex: index,
+        stepId: step.id,
+        result,
+      });
+      return;
+    }
     host.post(setId, {
       type: 'web-tour/step',
       setId,
@@ -209,6 +262,78 @@ export function createPlaybackController(host: PlaybackHost) {
       stepId: step.id,
       match,
     });
+  }
+
+  /** How a run ended; a check run reports only `web-tour/check-end`, so it is never logged as a teacher's run. */
+  function postEnd(
+    rec: TabRecord,
+    kind: 'done' | 'exit' | 'closed',
+    stepIndex: number
+  ) {
+    const setId = rec.state.tour.id;
+    if (rec.check) {
+      const end: ProgressPost = {
+        type: 'web-tour/check-end',
+        setId,
+        runId: rec.runId ?? '',
+        stepIndex,
+        done: kind === 'done',
+      };
+      host.post(setId, end);
+      rememberCheck(setId, rec.runId ?? '', [...checkResultPosts(rec), end]);
+    } else if (kind === 'done') {
+      host.post(setId, { type: 'web-tour/done', setId });
+    } else if (kind === 'exit') {
+      host.post(setId, { type: 'web-tour/exit', setId, stepIndex });
+    } else {
+      host.post(setId, { type: 'web-tour/closed', setId, stepIndex });
+    }
+  }
+
+  /** Every result of a check run so far, in step order. */
+  function checkResultPosts(rec: TabRecord): ProgressPost[] {
+    const setId = rec.state.tour.id;
+    return rec.state.tour.steps.flatMap((s, i): ProgressPost[] => {
+      const result = rec.results?.[s.id];
+      return result
+        ? [
+            {
+              type: 'web-tour/check-step',
+              setId,
+              runId: rec.runId ?? '',
+              stepIndex: i,
+              stepId: s.id,
+              result,
+            },
+          ]
+        : [];
+    });
+  }
+
+  const loadEnded = async () =>
+    ((await host.load<EndedCheck[]>(CHECK_ENDS_KEY)) ?? []).filter(
+      (e) => host.now() - e.at < CHECK_END_KEEP_MS
+    );
+
+  /** Keeps an ended check run's results and end, so an editor that reconnects late still gets them. */
+  function rememberCheck(setId: string, runId: string, posts: ProgressPost[]) {
+    void serial(CHECK_ENDS_QUEUE, async () => {
+      const kept = [
+        ...(await loadEnded()),
+        { setId, runId, at: host.now(), posts },
+      ];
+      await host.save({ [CHECK_ENDS_KEY]: kept.slice(-CHECK_ENDS_KEPT) });
+    }).catch(() => undefined);
+  }
+
+  /** Check mode: a new seek of a step drops what an earlier visit found, so its result comes from this seek only. */
+  function forgetCheckResult(rec: TabRecord, stepId: string) {
+    const { [stepId]: _posted, ...posted } = rec.posted;
+    const { [stepId]: _result, ...results } = rec.results ?? {};
+    const { [stepId]: _matched, ...matched } = rec.state.matched;
+    rec.posted = posted;
+    rec.results = results;
+    rec.state = { ...rec.state, matched };
   }
 
   /** A step left while still on the wrong page counts as a miss, so a broken page pattern shows in tour health. */
@@ -222,7 +347,6 @@ export function createPlaybackController(host: PlaybackHost) {
 
   function postProgress(rec: TabRecord, before: PlaybackState) {
     const { state } = rec;
-    const setId = state.tour.id;
     const step = state.tour.steps[state.index];
     if (
       state.index !== before.index ||
@@ -239,18 +363,14 @@ export function createPlaybackController(host: PlaybackHost) {
       }
     }
     if (state.status === 'done' && before.status !== 'done') {
-      host.post(setId, { type: 'web-tour/done', setId });
+      postEnd(rec, 'done', state.index);
     }
     if (
       state.status === 'exited' &&
       before.status !== 'exited' &&
       before.status !== 'done'
     ) {
-      host.post(setId, {
-        type: 'web-tour/exit',
-        setId,
-        stepIndex: state.index,
-      });
+      postEnd(rec, 'exit', state.index);
     }
   }
 
@@ -262,6 +382,7 @@ export function createPlaybackController(host: PlaybackHost) {
     }
     rec.targetFrameId = null;
     if (state.status !== 'seeking' || !step) return;
+    if (rec.check) forgetCheckResult(rec, step.id);
     rec.seq += 1;
     rec.token = `${state.index}:${rec.seq}`;
     const frames = await host.frames(rec.tabId);
@@ -369,13 +490,8 @@ export function createPlaybackController(host: PlaybackHost) {
         const rec = await load(other);
         if (!rec) return;
         if (rec.state.status !== 'done') {
-          const setId = rec.state.tour.id;
           postWrongPageMiss(rec, rec.state);
-          host.post(setId, {
-            type: 'web-tour/exit',
-            setId,
-            stepIndex: rec.state.index,
-          });
+          postEnd(rec, 'exit', rec.state.index);
         }
         await stopTab(rec);
       });
@@ -404,6 +520,9 @@ export function createPlaybackController(host: PlaybackHost) {
         seekAt: 0,
         posted: {},
         postedIndex: -1,
+        ...(parsed.check
+          ? { check: true, runId: parsed.runId ?? '', results: {} }
+          : {}),
       };
       let room = SESSION_BUDGET - JSON.stringify(rec).length;
       const pictures: Record<string, WebTourPictureBytes> = {};
@@ -491,6 +610,15 @@ export function createPlaybackController(host: PlaybackHost) {
             { type: 'found', match: report.weak ? 'score' : 'role' },
             frameId
           );
+        } else if (report.type === 'wt:ambiguous') {
+          if (!rec.check || rec.ambiguousToken === report.token) return;
+          rec.ambiguousToken = report.token;
+          // A step that already timed out is re-reported as ambiguous.
+          if (rec.state.status === 'fallback') {
+            postStep(rec, rec.state.index, 'none');
+            await render(rec);
+          }
+          await store(rec);
         } else if (frameId === rec.targetFrameId) {
           await dispatch(rec, {
             type: report.type === 'wt:lost' ? 'lost' : 'acted',
@@ -510,28 +638,29 @@ export function createPlaybackController(host: PlaybackHost) {
       serial(tabId, async () => {
         const rec = await load(tabId);
         if (!rec) return;
-        const setId = rec.state.tour.id;
         if (rec.state.status !== 'done' && rec.state.status !== 'exited') {
           postWrongPageMiss(rec, rec.state);
-          host.post(setId, {
-            type: 'web-tour/closed',
-            setId,
-            stepIndex: rec.state.index,
-          });
+          postEnd(rec, 'closed', rec.state.index);
         }
         await forget(rec);
       }),
 
-    /** What a page that starts watching mid-tour has missed: the current step's latest match, or done. */
+    /** What a page that starts watching mid-tour has missed: the current step's latest match, or done; a check run's every result and its end. */
     async replay(setId: string): Promise<ProgressPost[]> {
       const out: ProgressPost[] = [];
+      const live = new Set<string>();
       for (const tabId of (await host.load<number[]>(TABS_KEY)) ?? []) {
         const rec = await load(tabId);
         if (!rec || rec.state.tour.id !== setId) continue;
         const { state } = rec;
         const step = state.tour.steps[state.index];
         const match = step ? rec.posted[step.id] : undefined;
-        if (state.status === 'done') {
+        if (rec.check) {
+          // An ended run (done or exited) replays from the ended list below.
+          if (state.status === 'done' || state.status === 'exited') continue;
+          live.add(rec.runId ?? '');
+          out.push(...checkResultPosts(rec));
+        } else if (state.status === 'done') {
           out.push({ type: 'web-tour/done', setId });
         } else if (step && match) {
           out.push({
@@ -542,6 +671,10 @@ export function createPlaybackController(host: PlaybackHost) {
             match,
           });
         }
+      }
+      const ended = await serial(CHECK_ENDS_QUEUE, loadEnded);
+      for (const e of ended) {
+        if (e.setId === setId && !live.has(e.runId)) out.push(...e.posts);
       }
       return out;
     },

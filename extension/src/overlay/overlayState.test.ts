@@ -26,7 +26,17 @@ describe('parseOverlayState', () => {
     });
   });
 
+  it('accepts a check result in check mode', () => {
+    for (const check of ['found', 'weak', 'ambiguous', 'none', 'pending']) {
+      expect(parseOverlayState({ ...valid, check })).toEqual({
+        ...valid,
+        check,
+      });
+    }
+  });
+
   it.each([
+    ['an unknown check result', { ...valid, check: 'role' }],
     ['an extra key', { ...valid, html: '<b>x</b>' }],
     ['a missing key', { title: 'x', text: 'y', current: 1, total: 1 }],
     ['a step past the end', { ...valid, current: 4 }],

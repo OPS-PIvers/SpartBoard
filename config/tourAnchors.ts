@@ -10312,6 +10312,9 @@ export const TOUR_ANCHORS = {
   'web-tour-editor.copy-link': {
     label: 'Copy link button in the web tour editor header',
   },
+  'web-tour-editor.check': {
+    label: 'Check tour button in the web tour editor header',
+  },
   'web-tour-editor.record': {
     label: 'Record steps button in the web tour editor',
   },

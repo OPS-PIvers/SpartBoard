@@ -31,6 +31,7 @@ const NOT_PUBLISHED = new Set([
   'updatedAt',
   'hasLiveTour',
   'webGoal',
+  'webTourChecked',
 ]);
 
 /** The published copy of a stored building set: everything a tour run shows. */

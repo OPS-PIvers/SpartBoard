@@ -5125,7 +5125,11 @@
     },
     "webFindIt": "Look for this on the page.",
     "webOtherPage": "This step is on another page. Open it to continue.",
-    "webPictureAlt": "Picture of this step"
+    "webPictureAlt": "Picture of this step",
+    "webCheckFound": "Found",
+    "webCheckWeak": "Weak match",
+    "webCheckAmbiguous": "Matches more than one",
+    "webCheckNone": "Not found"
   },
   "glPlayer": {
     "modeChip": {

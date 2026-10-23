@@ -18,6 +18,7 @@ import {
   Loader2,
   MapPin,
   Play,
+  ScanSearch,
   Trash2,
   TriangleAlert,
 } from 'lucide-react';
@@ -25,6 +26,7 @@ import type {
   GuidedLearningSet,
   GuidedLearningStep,
   WebTourAction,
+  WebTourCheckResult,
 } from '@/types';
 import { Modal } from '@/components/common/Modal';
 import { DashboardContext } from '@/context/DashboardContextValue';
@@ -52,6 +54,7 @@ import {
   loadWebTourPicture,
   publishWebTour,
   saveWebTourDraft,
+  setWebTourCheckRun,
   uploadWebTourPicture,
   type WebTourPictureType,
 } from '@/components/tours/webTours';
@@ -71,23 +74,46 @@ import { buildTourUrl } from './tourLinks';
 import { useCopyWebTourLink } from './useCopyWebTourLink';
 import { WebStepClaudeFields, WebTourWriting } from './WebTourWriting';
 import { pageUrlOf, type HubStep } from './webTourHub';
-import { pingExtension, REPICK_PROTOCOL } from './extensionClient';
+import {
+  canCheckWebTours,
+  pingExtension,
+  REPICK_PROTOCOL,
+} from './extensionClient';
+import { useWebTourCheck } from './useWebTourCheck';
 import {
   assertPublishable,
+  checkPasses,
   confirmPictures,
+  currentCheckResults,
   hideHits,
   hideStudentData,
   needsFixOnSite,
   picturesNeedConfirm,
   publishBlockers,
+  recordCheckResult,
   reviewEntries,
   setReviewField,
+  startCheckRun,
   type HiddenText,
   type ReviewEntry,
   type ReviewField,
 } from './webStepReview';
 
 const SAVE_DELAY_MS = 800;
+
+const CHECK_LABEL: Record<WebTourCheckResult, string> = {
+  found: 'Found',
+  weak: 'Weak match',
+  ambiguous: 'Matches more than one',
+  none: 'Not found',
+};
+
+const CHECK_TONE: Record<WebTourCheckResult, string> = {
+  found: 'bg-emerald-100 text-emerald-800',
+  weak: 'bg-amber-100 text-amber-800',
+  ambiguous: 'bg-amber-100 text-amber-800',
+  none: 'bg-red-100 text-red-800',
+};
 
 const FIELD_LABEL: Record<string, string> = {
   label: 'Step title',
@@ -245,12 +271,14 @@ const StepList: React.FC<{
   steps: WebStep[];
   selected: string | null;
   matcher: NameMatcher | null;
+  results: Record<string, WebTourCheckResult> | null;
   onSelect: (id: string) => void;
-}> = ({ steps, selected, matcher, onSelect }) => (
+}> = ({ steps, selected, matcher, results, onSelect }) => (
   <ol className="flex flex-col gap-1">
     {steps.map((step, i) => {
       const warning = stepWarning(step, matcher);
       const active = step.id === selected;
+      const result = results?.[step.id];
       return (
         <li key={step.id}>
           {/* no-tour-anchor: one row per recorded step */}
@@ -280,6 +308,13 @@ const StepList: React.FC<{
                 <span className={`${warnChip} mt-0.5 w-fit text-[11px]`}>
                   <TriangleAlert className="h-3 w-3" aria-hidden="true" />
                   {warning}
+                </span>
+              )}
+              {result && (
+                <span
+                  className={`mt-0.5 w-fit rounded-full px-1.5 text-[11px] font-semibold ${CHECK_TONE[result]}`}
+                >
+                  {CHECK_LABEL[result]}
                 </span>
               )}
             </span>
@@ -717,6 +752,7 @@ export const WebTourEditor: React.FC<{
   } | null>(null);
   const [copied, setCopied] = useState(false);
   const [canFix, setCanFix] = useState(false);
+  const [canCheck, setCanCheck] = useState(false);
   const copyLink = useCopyWebTourLink();
   const published = usePublishedTour(initial.id);
   const live =
@@ -733,8 +769,9 @@ export const WebTourEditor: React.FC<{
   useEffect(() => {
     let cancelled = false;
     void pingExtension().then((s) => {
-      if (!cancelled)
-        setCanFix(s.kind === 'ready' && s.protocol >= REPICK_PROTOCOL);
+      if (cancelled) return;
+      setCanFix(s.kind === 'ready' && s.protocol >= REPICK_PROTOCOL);
+      setCanCheck(canCheckWebTours(s));
     });
     return () => {
       cancelled = true;
@@ -774,6 +811,24 @@ export const WebTourEditor: React.FC<{
     },
     []
   );
+
+  // Check results save on their own, so a check never counts as an edit of the published tour.
+  const saveCheck = (update: (s: GuidedLearningSet) => GuidedLearningSet) => {
+    const next = update(latest.current);
+    if (next === latest.current || !next.webTourChecked || deleted.current)
+      return;
+    latest.current = next;
+    setSet(next);
+    void setWebTourCheckRun(next.id, next.webTourChecked).catch(
+      (err: unknown) => logError('web tour check save', err, { setId: next.id })
+    );
+  };
+  const checker = useWebTourCheck({
+    onStart: (sig) => saveCheck((s) => startCheckRun(s, uid, sig)),
+    onResult: (sig, stepId, result) =>
+      saveCheck((s) => recordCheckResult(s, sig, stepId, result)),
+    onStatus: setStatus,
+  });
 
   const saveNow = async (next: GuidedLearningSet) => {
     latest.current = next;
@@ -845,6 +900,8 @@ export const WebTourEditor: React.FC<{
   const blockers = publishBlockers(set, matcher).filter(
     (b) => b.kind !== 'student-data' && b.kind !== 'title-data'
   );
+  const unchecked = blockers.some((b) => b.kind === 'unchecked');
+  const checkResults = currentCheckResults(set);
 
   const updateStep = (id: string, step: GuidedLearningStep) =>
     change((cur) => ({
@@ -926,6 +983,12 @@ export const WebTourEditor: React.FC<{
   const publish = () => {
     const { set: scrubbed, hidden } = hideStudentData(latest.current, matcher);
     if (hidden.length > 0) change(() => scrubbed);
+    if (!checkPasses(scrubbed)) {
+      setStatus(
+        'Student data was hidden in a step target. Check the tour again.'
+      );
+      return;
+    }
     const askPictures = picturesNeedConfirm(scrubbed);
     if (hidden.length === 0 && !askPictures) {
       void doPublish(scrubbed);
@@ -992,6 +1055,25 @@ export const WebTourEditor: React.FC<{
       </button>
       <button
         type="button"
+        disabled={!canCheck || checker.checking || steps.length === 0}
+        title={
+          canCheck
+            ? undefined
+            : 'Needs a newer SpartBoard extension in this Chrome profile.'
+        }
+        className={`${secondaryBtn} inline-flex shrink-0 items-center gap-1.5 disabled:opacity-40`}
+        onClick={() => void checker.start(latest.current)}
+        {...tourAttr('web-tour-editor.check')}
+      >
+        {checker.checking ? (
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+        ) : (
+          <ScanSearch className="h-4 w-4" aria-hidden="true" />
+        )}
+        Check tour
+      </button>
+      <button
+        type="button"
         className={`${secondaryBtn} inline-flex shrink-0 items-center gap-1.5`}
         onClick={() => void copy()}
         {...tourAttr('web-tour-editor.copy-link')}
@@ -1019,6 +1101,11 @@ export const WebTourEditor: React.FC<{
       <span className="flex-1 text-sm text-slate-600" role="status">
         {status}
       </span>
+      {unchecked && (
+        <span className="text-sm text-amber-800">
+          Check the tour before publishing.
+        </span>
+      )}
       <button
         type="button"
         disabled={busy || blockers.length > 0}
@@ -1083,6 +1170,7 @@ export const WebTourEditor: React.FC<{
                 steps={steps}
                 selected={selected?.id ?? null}
                 matcher={matcher}
+                results={checkResults}
                 onSelect={(id) => {
                   setBlurring(false);
                   setSelectedId(id);
