@@ -44849,6 +44849,238 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "video-activity.monitor-back",
+    "label": "Back button in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-status-bucket",
+    "label": "Student status count in the video activity monitor",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-class-picker",
+    "label": "Class picker select in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-period-start",
+    "label": "Start button for the picked class in the video activity monitor",
+    "scope": "widget type",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-period-pause",
+    "label": "Pause button for the picked class in the video activity monitor",
+    "scope": "widget type",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-period-more-time",
+    "label": "More time button in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-period-extend",
+    "label": "Extend time option in the video activity monitor More time menu",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-question-results",
+    "label": "Question results button in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-question-result",
+    "label": "Question result row in the video activity monitor",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-roster-sort",
+    "label": "Sort students select in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-roster-filter",
+    "label": "Filter students select in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-row-actions",
+    "label": "Student actions button in the video activity monitor",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "video-activity.results-tab",
     "label": "Overview, Questions and Students tabs in video activity results",
     "scope": "field",

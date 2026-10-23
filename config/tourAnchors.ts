@@ -10011,6 +10011,58 @@ export const TOUR_ANCHORS = {
   'video-activity.monitor-tab-warnings': {
     label: 'Tab warnings toggle in the live monitor',
   },
+  'video-activity.monitor-back': {
+    label: 'Back button in the video activity monitor',
+    perWidgetType: true,
+  },
+  'video-activity.monitor-status-bucket': {
+    label: 'Student status count in the video activity monitor',
+    perField: true,
+  },
+  'video-activity.monitor-class-picker': {
+    label: 'Class picker select in the video activity monitor',
+    perWidgetType: true,
+  },
+  'video-activity.monitor-period-start': {
+    label: 'Start button for the picked class in the video activity monitor',
+    perWidgetType: true,
+    persists: true,
+  },
+  'video-activity.monitor-period-pause': {
+    label: 'Pause button for the picked class in the video activity monitor',
+    perWidgetType: true,
+    persists: true,
+  },
+  'video-activity.monitor-period-more-time': {
+    label: 'More time button in the video activity monitor',
+    perWidgetType: true,
+  },
+  'video-activity.monitor-period-extend': {
+    label: 'Extend time option in the video activity monitor More time menu',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'video-activity.monitor-question-results': {
+    label: 'Question results button in the video activity monitor',
+    perWidgetType: true,
+  },
+  'video-activity.monitor-question-result': {
+    label: 'Question result row in the video activity monitor',
+    perField: true,
+  },
+  'video-activity.monitor-roster-sort': {
+    label: 'Sort students select in the video activity monitor',
+    perWidgetType: true,
+  },
+  'video-activity.monitor-roster-filter': {
+    label: 'Filter students select in the video activity monitor',
+    perWidgetType: true,
+  },
+  'video-activity.monitor-row-actions': {
+    label: 'Student actions button in the video activity monitor',
+    perField: true,
+  },
   'video-activity.results-tab': {
     label: 'Overview, Questions and Students tabs in video activity results',
     perField: true,

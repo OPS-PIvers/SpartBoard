@@ -126,7 +126,6 @@ export const ClassPicker: React.FC<{
   /** Pause or Resume for every class at once; omitted when the session can't be paused here. */
   onToggle?: () => Promise<void>;
   toggleAnchor?: TourAnchorAttrs;
-  /** Tour anchor for the select; defaults to the Quiz monitor's. */
   selectAnchor?: TourAnchorAttrs;
 }> = ({
   names,
@@ -135,7 +134,7 @@ export const ClassPicker: React.FC<{
   status,
   onToggle,
   toggleAnchor,
-  selectAnchor,
+  selectAnchor = tourTypeAttr('quiz-monitor.period-class-picker', 'quiz'),
 }) => {
   const [busy, setBusy] = useState(false);
   const paused = status === 'paused';
@@ -167,8 +166,7 @@ export const ClassPicker: React.FC<{
       >
         <select
           aria-label="Class"
-          {...(selectAnchor ??
-            tourTypeAttr('quiz-monitor.period-class-picker', 'quiz'))}
+          {...selectAnchor}
           value={selected}
           onChange={(e) => onSelect(e.target.value)}
           className="min-w-0 max-w-full rounded-md border border-brand-gray-lighter bg-white font-sans font-bold text-brand-blue-dark"
