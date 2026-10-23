@@ -70,7 +70,7 @@ import { OpenPartControl } from './OpenPartControl';
 import { openQuizPart } from './openPart';
 import { RosterList } from './RosterList';
 import { PeriodAccessStrip } from './PeriodAccessStrip';
-import { PeriodBar } from './PeriodBar';
+import { ClassPicker, PeriodBar } from './PeriodBar';
 import { joinCodesAllowedForBuildings } from './monitorUtils';
 import { EXTEND_MS, usePeriodAccess } from '@/hooks/usePeriodAccess';
 import { hasPeriodAccess } from '@/utils/periodAccess';
@@ -268,8 +268,12 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       periodFailed(err);
     }
   };
+  const classPicker =
+    authContext?.canAccessFeature?.('monitor-parity') === true &&
+    data.periodNames.length > 1 &&
+    !chipsFilter;
   // The class picker shows one class or all, so drop a multi-class filter.
-  if (chipsFilter && data.selectedPeriods.length > 1)
+  if ((chipsFilter || classPicker) && data.selectedPeriods.length > 1)
     data.setSelectedPeriods([]);
   const periodBar = chipsFilter &&
     session.periodAccess && {
@@ -748,7 +752,18 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 }
               />
             )}
-            {data.periodNames.length > 1 && !chipsFilter && (
+            {classPicker && (
+              <ClassPicker
+                names={data.periodNames}
+                selected={
+                  data.selectedPeriods.length === 1
+                    ? data.selectedPeriods[0]
+                    : ''
+                }
+                onSelect={(name) => data.setSelectedPeriods(name ? [name] : [])}
+              />
+            )}
+            {data.periodNames.length > 1 && !chipsFilter && !classPicker && (
               <div
                 className="flex flex-wrap"
                 style={{ gap: 'min(4px, 1cqmin)' }}

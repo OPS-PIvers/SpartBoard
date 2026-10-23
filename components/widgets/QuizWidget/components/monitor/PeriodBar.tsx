@@ -116,6 +116,33 @@ const PeriodPicker: React.FC<
   );
 };
 
+/** Class filter for classes that share one Pause: the picker without per-class state. */
+export const ClassPicker: React.FC<{
+  names: string[];
+  /** The class name shown, or '' for every class. */
+  selected: string;
+  onSelect: (name: string) => void;
+}> = ({ names, selected, onSelect }) => (
+  <select
+    aria-label="Class"
+    {...tourTypeAttr('quiz-monitor.period-class-picker', 'quiz')}
+    value={selected}
+    onChange={(e) => onSelect(e.target.value)}
+    className="self-start min-w-0 max-w-full rounded-md border border-brand-gray-lighter bg-white font-sans font-bold text-brand-blue-dark"
+    style={{
+      fontSize: 'min(16px, 5.5cqmin)',
+      padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)',
+    }}
+  >
+    <option value="">All classes</option>
+    {names.map((name) => (
+      <option key={name} value={name}>
+        {name}
+      </option>
+    ))}
+  </select>
+);
+
 /** Start or Pause for the picked class, plus More time while it has a close time. */
 const PeriodAction: React.FC<
   Omit<PeriodBarProps, 'onSelect' | 'periodAccess'> & { rows: Row[] }
