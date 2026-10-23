@@ -24,6 +24,27 @@ describe('internal message checks', () => {
       false
     );
     expect(isFrameReport({ type: 'wt:next', token: '1' })).toBe(false);
+    const fix = { role: 'button', name: 'Save' };
+    expect(isFrameReport({ type: 'wt:candidate', token: '1', fix })).toBe(true);
+    expect(
+      isFrameReport({
+        type: 'wt:found',
+        token: '1',
+        weak: true,
+        url: '',
+        fix,
+      })
+    ).toBe(true);
+    for (const bad of [
+      undefined,
+      'Save',
+      { ...fix, frames: [] },
+      { ...fix, html: '<b>' },
+      { name: 'x'.repeat(501) },
+    ])
+      expect(
+        isFrameReport({ type: 'wt:candidate', token: '1', fix: bad })
+      ).toBe(false);
     expect(isFrameReport(null)).toBe(false);
   });
 

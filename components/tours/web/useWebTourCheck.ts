@@ -1,5 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import type { GuidedLearningSet, WebTourCheckResult } from '@/types';
+import type {
+  GuidedLearningSet,
+  WebTourCheckResult,
+  WebTourLocator,
+} from '@/types';
 import { startWebTour, watchWebTourCheck } from './extensionClient';
 import { buildHandoff, hubStepsOf, startUrlOf } from './webTourHub';
 import { targetsSignature } from './webStepReview';
@@ -14,6 +18,8 @@ export interface WebTourCheckHandlers {
   /** A run began playing these targets. */
   onStart: (sig: string) => void;
   onResult: (sig: string, stepId: string, result: WebTourCheckResult) => void;
+  /** A better candidate's clues for a step this run missed or found weakly (C14). */
+  onSuggest?: (sig: string, stepId: string, locator: WebTourLocator) => void;
   onStatus: (message: string) => void;
 }
 
@@ -66,6 +72,10 @@ export function useWebTourCheck(handlers: WebTourCheckHandlers) {
         budget = CHECK_RECONNECTS;
         if (event.type === 'web-tour/check-step') {
           latest.current.onResult(sig, event.stepId, event.result);
+          return;
+        }
+        if (event.type === 'web-tour/suggest') {
+          latest.current.onSuggest?.(sig, event.stepId, event.locator);
           return;
         }
         end(event.done ? 'Check finished.' : 'Check stopped.');

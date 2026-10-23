@@ -120,6 +120,47 @@ describe('frame seeker', () => {
     expect(reports).toEqual([]);
   });
 
+  it('reports the closest candidate when nothing matches, scrubbed, once per change (C14)', async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML =
+      '<button aria-label="Load more for kid@school.org">Load more</button>';
+    const reports: FrameReport[] = [];
+    const run = installFrameSeeker(document, (r) => reports.push(r));
+    run({
+      ...seek,
+      clues: {
+        role: 'link',
+        name: 'Open the course page',
+        text: 'Load more',
+        css: '#gone',
+        heading: 'Course',
+        attrs: { testId: 'zz', ariaLabel: 'zz', name: 'zz', href: '/zz' },
+        box: { x: 0.9, y: 0.9, w: 0.05, h: 0.05 },
+      },
+    });
+    expect(reports.some((r) => r.type === 'wt:found')).toBe(false);
+    const candidate = reports.find((r) => r.type === 'wt:candidate');
+    expect(candidate).toMatchObject({
+      type: 'wt:candidate',
+      token: 't1',
+      fix: { role: 'button', text: 'Load more', css: 'body > button' },
+    });
+    expect(JSON.stringify(candidate)).not.toContain('kid@school.org');
+    document.body.setAttribute('data-x', '1');
+    await vi.advanceTimersByTimeAsync(300);
+    expect(reports.filter((r) => r.type === 'wt:candidate')).toHaveLength(1);
+  });
+
+  it('sends no fix with a clear match', () => {
+    document.body.innerHTML = '<button>Load more</button>';
+    const reports: FrameReport[] = [];
+    installFrameSeeker(document, (r) => reports.push(r))(seek);
+    const found = reports.find((r) => r.type === 'wt:found');
+    expect(found).toMatchObject({ weak: false });
+    expect(found).not.toHaveProperty('fix');
+    expect(reports.some((r) => r.type === 'wt:candidate')).toBe(false);
+  });
+
   it('validates commands', () => {
     expect(isFrameCommand(seek)).toBe(true);
     expect(isFrameCommand({ ...seek, action: 'submit' })).toBe(false);

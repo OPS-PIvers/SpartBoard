@@ -22,7 +22,7 @@ interface Hoisted {
   ping: ExtensionStatus;
   start: Mock<(...args: unknown[]) => Promise<unknown>>;
   onEvent: ((e: WebTourPortEvent) => void) | null;
-  log: Record<'update' | 'match' | 'miss' | 'end' | 'flush', Mock>;
+  log: Record<'update' | 'match' | 'miss' | 'suggest' | 'end' | 'flush', Mock>;
   startLog: Mock;
 }
 
@@ -42,6 +42,7 @@ const h = vi.hoisted((): Hoisted => ({
     update: vi.fn(),
     match: vi.fn(),
     miss: vi.fn(),
+    suggest: vi.fn(),
     end: vi.fn(),
     flush: vi.fn(),
   },
@@ -209,7 +210,7 @@ describe('WebTourHubPage', () => {
     expect(h.startLog).toHaveBeenCalledWith(
       's1',
       'u1',
-      { v: 42, furthest: 0, surface: 'web', from: undefined },
+      { v: 42, furthest: 0, surface: 'web', from: undefined, admin: false },
       expect.any(Function)
     );
     expect(
@@ -229,6 +230,21 @@ describe('WebTourHubPage', () => {
     });
     expect(h.log.update).toHaveBeenCalledWith({ furthest: 1 });
     expect(h.log.match).toHaveBeenCalledWith('b', 'text');
+
+    // A suggested fix lands on the run, scrubbed; a check run's never does (C14).
+    act(() => {
+      h.onEvent?.({
+        type: 'web-tour/suggest',
+        setId: 's1',
+        stepIndex: 1,
+        stepId: 'b',
+        locator: { role: 'button', name: 'Post to kid@school.org' },
+      });
+    });
+    expect(h.log.suggest).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(h.log.suggest.mock.calls[0])).not.toContain(
+      'kid@school.org'
+    );
 
     act(() => {
       h.onEvent?.({ type: 'web-tour/closed', setId: 's1', stepIndex: 1 });
@@ -316,7 +332,7 @@ describe('WebTourHubPage', () => {
     expect(h.startLog).toHaveBeenCalledWith(
       's1',
       'u1',
-      { v: 42, furthest: 0, surface: 'web', from: undefined },
+      { v: 42, furthest: 0, surface: 'web', from: undefined, admin: false },
       expect.any(Function)
     );
     expect(h.log.match).toHaveBeenCalledWith('a', 'none');

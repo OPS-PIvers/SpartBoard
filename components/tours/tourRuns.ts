@@ -2,7 +2,12 @@ import { collection, doc, getDocs, setDoc } from 'firebase/firestore';
 import { db, isConfigured } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { GL_TOURS_COLLECTION } from './tourSnapshot';
-import type { WebTourProgressMessage } from './web/extensionProtocol';
+import type { WebTourLocator } from '@/types';
+import { fixKey } from './web/fixClues';
+import {
+  parseWebTourLocator,
+  type WebTourProgressMessage,
+} from './web/extensionProtocol';
 
 /** One teacher's latest run of a tour, at building_guided_learning_tours/{setId}/runs/{uid}. */
 export interface TourRun {
@@ -20,6 +25,10 @@ export interface TourRun {
   surface?: 'web';
   /** Web tour steps found weakly, as `stepId:text|css` (older extensions) or `stepId:score` (C2). */
   weak?: string[];
+  /** Web tours: a better candidate's scrubbed clues for a step this run missed or found weakly (C14), by step id. */
+  fixes?: Record<string, WebTourLocator>;
+  /** Set on an admin's own run, whose suggestions show without waiting for a second run. */
+  admin?: true;
 }
 
 /** Which clue found a web tour step's target; `none` means the picture fallback showed. */
@@ -60,7 +69,19 @@ export function parseTourRun(data: unknown): TourRun | null {
     ...(Array.isArray(d.weak)
       ? { weak: d.weak.filter((w): w is string => typeof w === 'string') }
       : {}),
+    ...parseFixes(d.fixes),
+    ...(d.admin === true ? { admin: true as const } : {}),
   };
+}
+
+function parseFixes(raw: unknown): Pick<TourRun, 'fixes'> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const fixes: Record<string, WebTourLocator> = {};
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    const locator = parseWebTourLocator(value);
+    if (locator) fixes[id] = locator;
+  }
+  return Object.keys(fixes).length ? { fixes } : {};
 }
 
 /** Every teacher's latest run of a tour; admins only. */
@@ -81,6 +102,8 @@ export interface TourRunLog {
   miss: (stepId: string) => void;
   /** Web tours: the latest clue that found a step replaces its earlier miss or weak match. */
   match: (stepId: string, match: WebTourMatch) => void;
+  /** Web tours: a better candidate's clues for a step this run missed or found weakly. */
+  suggest: (stepId: string, locator: WebTourLocator) => void;
   /** Final write; later calls do nothing. */
   end: (patch: Pick<TourRun, 'done'> & Pick<Partial<TourRun>, 'exit'>) => void;
   /** Writes pending changes now, e.g. when the page hides. */
@@ -92,7 +115,10 @@ export function startTourRunLog(
   setId: string,
   uid: string,
   // `from` continues a saved run of the same version instead of starting empty.
-  start: Pick<TourRun, 'v' | 'furthest' | 'surface'> & { from?: TourRun },
+  start: Pick<TourRun, 'v' | 'furthest' | 'surface'> & {
+    from?: TourRun;
+    admin?: boolean;
+  },
   write: (run: TourRun) => Promise<void> = (run) =>
     writeTourRun(setId, uid, run),
   intervalMs = TOUR_RUN_WRITE_INTERVAL_MS
@@ -106,7 +132,12 @@ export function startTourRunLog(
     done: false,
     misses: from?.misses ?? [],
     ...(start.surface === 'web'
-      ? { surface: 'web' as const, weak: from?.weak ?? [] }
+      ? {
+          surface: 'web' as const,
+          weak: from?.weak ?? [],
+          ...(from?.fixes ? { fixes: from.fixes } : {}),
+          ...(start.admin ? { admin: true as const } : {}),
+        }
       : {}),
   };
   let dirty = true;
@@ -167,6 +198,27 @@ export function startTourRunLog(
       let weak = (run.weak ?? []).filter((w) => !weakOf(w));
       if (nextWeak && weak.length < MAX_RUN_MISSES) weak = [...weak, nextWeak];
       run = { ...run, misses, ...(run.surface === 'web' ? { weak } : {}) };
+      // A step found clearly needs no fix.
+      if (match === 'role' && run.fixes?.[stepId]) {
+        const { [stepId]: _gone, ...fixes } = run.fixes;
+        run = { ...run, fixes };
+      }
+      dirty = true;
+      schedule();
+    },
+    suggest: (stepId, locator) => {
+      if (ended || run.surface !== 'web') return;
+      const struggled =
+        run.misses.includes(stepId) ||
+        (run.weak ?? []).some((w) => w.slice(0, w.lastIndexOf(':')) === stepId);
+      const fixes = run.fixes ?? {};
+      if (!struggled) return;
+      if (!(stepId in fixes) && Object.keys(fixes).length >= MAX_RUN_MISSES)
+        return;
+      // Same clues with a new position isn't a new fix, so it isn't written again.
+      const had = fixes[stepId];
+      if (had && fixKey(had) === fixKey(locator)) return;
+      run = { ...run, fixes: { ...fixes, [stepId]: locator } };
       dirty = true;
       schedule();
     },

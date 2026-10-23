@@ -188,6 +188,11 @@ Each item names the plan it came from; the plan holds the detail.
 - [ ] Paul tests the dev extension (0.1.4, `extension\dist\dev`) in real Chrome: record on a website, send about ten steps with pictures to a New tour with no editor open, check the background tab saves them and closes, use Open in SpartBoard, then publish and play the tour. (S)
 - [ ] Set `web-tours` to Public in Admin Settings > Access > Previews once Paul has tested in prod, then add the public changelog entry. (S)
 
+#### `docs/plans/shipped/WEB_TOURS_CLAUDE.md`
+
+- [ ] Paul tries the dev extension (0.1.11) in real Chrome: scored matching, blur before capture, Write with Claude, Check tour and the Publish gate, and a Suggested fix from a check run and from two teacher runs. (S)
+- [ ] C15 pictures: save a fresh picture with a suggestion from an admin's own run or a check run (PR 5 sends clues only). (M)
+
 #### `docs/specs/LO12-nexus-widget-connections-spec.md`
 
 - [ ] Candidate 11: Activity Wall → Hotspot Image. (M)

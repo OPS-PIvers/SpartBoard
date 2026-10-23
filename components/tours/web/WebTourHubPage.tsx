@@ -47,6 +47,8 @@ import {
   type LoadedPicture,
 } from './webTourHub';
 import { parseTourPath } from './tourLinks';
+import { scrubLocator } from './recordedSteps';
+import { runFixClues } from './fixClues';
 import {
   isWebTourSet,
   webTourStepsOf,
@@ -104,7 +106,8 @@ const openRunLog = (
   setId: string,
   uid: string,
   v: number,
-  furthest: number
+  furthest: number,
+  admin: boolean
 ): TourRunLog =>
   startTourRunLog(
     setId,
@@ -114,6 +117,7 @@ const openRunLog = (
       furthest,
       surface: 'web',
       from: readSavedRun(setId, uid, v) ?? undefined,
+      admin,
     },
     (run) => {
       saveRun(setId, uid, run);
@@ -172,10 +176,21 @@ export const WebTourHubPage: React.FC = () => {
   if (!globalPermissionsLoaded || isAdmin === null) return <Loader />;
   const setId = parseTourPath(window.location.pathname);
   if (!setId || !canAccessFeature('web-tours')) return <Unavailable />;
-  return <Hub key={`${setId}:${user.uid}`} setId={setId} uid={user.uid} />;
+  return (
+    <Hub
+      key={`${setId}:${user.uid}`}
+      setId={setId}
+      uid={user.uid}
+      admin={isAdmin}
+    />
+  );
 };
 
-const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
+const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
+  setId,
+  uid,
+  admin,
+}) => {
   const { t } = useTranslation();
   const [load, setLoad] = useState<TourLoad>({ kind: 'loading' });
   const [extension, setExtension] = useState<ExtensionStatus | null>(null);
@@ -238,6 +253,16 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
   const onPortEvent = useEffectEvent((event: WebTourPortEvent) => {
     if (!tour || !eventFitsTour(event, tour.steps)) return;
     failures.current = 0;
+    if (event.type === 'web-tour/suggest') {
+      const own = tour.steps[event.stepIndex]?.web.locator;
+      // Only the site's own clues are kept; page words come from the published step (C15).
+      if (own)
+        log.current?.suggest(
+          event.stepId,
+          runFixClues(scrubLocator(event.locator), own)
+        );
+      return;
+    }
     setPlay((prev) => reducePlay(prev, event));
     // A reloaded page continues the run this tab saved; otherwise only its own start logs.
     const resumable =
@@ -251,7 +276,8 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
       setId,
       uid,
       tour.version,
-      event.type === 'web-tour/step' ? event.stepIndex : 0
+      event.type === 'web-tour/step' ? event.stepIndex : 0,
+      admin
     ));
     if (event.type === 'web-tour/step') {
       exitAt.current = null;
@@ -350,7 +376,7 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
       );
       return;
     }
-    log.current ??= openRunLog(setId, uid, tour.version, stepIndex);
+    log.current ??= openRunLog(setId, uid, tour.version, stepIndex, admin);
     setPlay((prev) =>
       prev.kind === 'starting'
         ? {

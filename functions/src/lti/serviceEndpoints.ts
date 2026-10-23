@@ -112,6 +112,8 @@ export const ltiSignDeepLinkResponseV1 = onCall(
         throw new HttpsError('invalid-argument', 'Invalid quiz code.');
       }
       custom.quiz_code = code;
+      // Codes aren't owner-bound; launches resolve only to the signer's sessions.
+      custom.teacher_uid = request.auth.uid;
     } else {
       const sid = typeof data.sessionId === 'string' ? data.sessionId : '';
       if (!/^[A-Za-z0-9_-]{1,128}$/.test(sid)) {

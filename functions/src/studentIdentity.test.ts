@@ -1427,6 +1427,30 @@ describe('pinLoginV1', () => {
     expect(res).toEqual({ matched: true, customToken: 'ct:PS2' });
   });
 
+  it('refuses a video-activity sessionId that names a nested doc', async () => {
+    h.docStore.set('video_activity_sessions/vs1/responses/r1', {
+      teacherUid: 'teacher1',
+      rosterIds: ['r1'],
+    });
+    h.docStore.set('users/teacher1/rosters/r1/pin_index/1__1234', {
+      pseudonym: 'PS2',
+      classId: 'CL2',
+      orgId: 'org-orono',
+    });
+    await expectCode(
+      callPinLogin({
+        data: {
+          kind: 'video-activity',
+          sessionId: 'vs1/responses/r1',
+          pin: '1234',
+          period: '1',
+        },
+      }),
+      'invalid-argument'
+    );
+    expect(h.lastCustomToken).toBeNull();
+  });
+
   describe('allowAnonymousJoin stamp', () => {
     function seedVa(extra: Record<string, unknown>) {
       h.docStore.set('video_activity_sessions/vs1', {

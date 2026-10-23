@@ -107,6 +107,31 @@ describe('findQuizSessionsByCode', () => {
     expect(out.map((m) => m.id)).toEqual(['s1', 's-legacy']);
   });
 
+  it("keeps only the named teacher's sessions when a teacher is given", async () => {
+    getDoc.mockImplementation((ref: { path?: string }) => {
+      const id = (ref?.path ?? '').split('/').pop() ?? '';
+      return Promise.resolve(
+        sessionSnap(id, { code: 'ABC123', teacherUid: 't-1' })
+      );
+    });
+    getDocs.mockImplementation((ref: { path?: string }) =>
+      Promise.resolve(
+        (ref?.path ?? '').startsWith('quiz_join_codes')
+          ? pointerSnap(['mine'])
+          : {
+              docs: [
+                {
+                  id: 'squat',
+                  data: () => ({ code: 'ABC123', teacherUid: 'attacker' }),
+                },
+              ],
+            }
+      )
+    );
+    const out = await findQuizSessionsByCode('ABC123', 't-1');
+    expect(out.map((m) => m.id)).toEqual(['mine']);
+  });
+
   it('reports a session found by both paths once', async () => {
     wireQueries(['s1'], ['s1']);
     const out = await findQuizSessionsByCode('ABC123');

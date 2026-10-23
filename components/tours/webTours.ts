@@ -151,6 +151,16 @@ export async function setWebTourCheckRun(
   await updateDoc(draftRef(setId), { webTourChecked: run });
 }
 
+/** Saves the draft's suggested fixes and dismissals (C14) without counting as an edit. */
+export async function setWebTourFixes(
+  set: Pick<GuidedLearningSet, 'id' | 'webSuggestions' | 'webFixDismissed'>
+): Promise<void> {
+  await updateDoc(draftRef(set.id), {
+    webSuggestions: set.webSuggestions ?? {},
+    webFixDismissed: set.webFixDismissed ?? {},
+  });
+}
+
 /** Saves a copy of the draft under a new id, with its own copies of the pictures; never published. */
 export async function duplicateWebTourDraft(
   set: GuidedLearningSet

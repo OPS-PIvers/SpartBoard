@@ -43,8 +43,9 @@
 // Google Classroom path already stores the equivalent roster names. No student
 // name or email is ever written.
 //
-// Quiz vs Video Activity: a quiz deep-link carries a join CODE (the session is
-// created later when the teacher runs it), so we resolve the session by code.
+// Quiz vs Video Activity: a quiz deep-link carries a join CODE plus the signing
+// teacher's uid, so we resolve the session by code among that teacher's sessions
+// (older links without the uid: see quizLinkOwner).
 // A video-activity deep-link carries the session id directly (the session
 // already exists at attach time), so we file under it.
 //
@@ -273,9 +274,15 @@ export type LtiSessionKind = 'quiz' | 'va';
 // SAME session the student's responses land in.
 const JOINABLE_QUIZ_STATUSES = new Set(['waiting', 'active', 'paused']);
 
-/** Identifies the session a launch targets: a quiz join code or a VA session id. */
+/** Identifies the session a launch targets: a quiz join code plus the deep-linking teacher and launch section, or a VA session id. */
 export type LtiTargetSessionArgs =
-  { kind: 'quiz'; quizCode: string } | { kind: 'va'; sessionId: string };
+  | {
+      kind: 'quiz';
+      quizCode: string;
+      teacherUid: string | null;
+      contextId: string | null;
+    }
+  | { kind: 'va'; sessionId: string };
 
 /**
  * Fields common to both launch kinds, plus a discriminated `kind`→id pairing so
@@ -304,6 +311,8 @@ export type PersistLtiLaunchContextArgs = {
       kind: 'quiz';
       /** The quiz join code embedded in the deep-link (`custom.quiz_code`). */
       quizCode: string;
+      /** The deep-linking teacher's uid (`custom.teacher_uid`); null on links signed before it existed. */
+      teacherUid: string | null;
     }
   | {
       kind: 'va';
@@ -312,7 +321,7 @@ export type PersistLtiLaunchContextArgs = {
     }
 );
 
-/** The session a Schoology launch joins: the VA session by id, or the most recently started joinable quiz session for the code. */
+/** The session a Schoology launch joins: the VA session by id, or the deep-linking teacher's most recently started joinable quiz session for the code. */
 export async function resolveLtiTargetSession(
   db: Db,
   args: LtiTargetSessionArgs
@@ -328,18 +337,17 @@ export async function resolveLtiTargetSession(
     if (!snap.exists) return null;
     return { sessionId: snap.id, sessionData: snap.data() ?? {} };
   }
-  const normCode = normalizeQuizCode(args.quizCode);
-  if (!normCode) return null;
-  const snap = await db
-    .collection(collectionName)
-    .where('code', '==', normCode)
-    .get();
-  // Filter to joinable docs and prefer the most recently started — identical
-  // to the client's join-target selection, so the context is filed under the
-  // exact session the student joined.
-  const joinable = snap.docs
-    .filter((d) =>
-      JOINABLE_QUIZ_STATUSES.has((d.data().status as string) ?? '')
+  const docs = await quizSessionsByCode(db, args.quizCode);
+  const owner = await quizLinkOwner(db, docs, args.teacherUid, args.contextId);
+  if (!owner) return null;
+  // Filter to the owner's joinable docs and prefer the most recently started —
+  // identical to the client's join-target selection, so the context is filed
+  // under the exact session the student joined.
+  const joinable = docs
+    .filter(
+      (d) =>
+        d.data().teacherUid === owner &&
+        JOINABLE_QUIZ_STATUSES.has((d.data().status as string) ?? '')
     )
     .sort(
       (a, b) =>
@@ -349,6 +357,63 @@ export async function resolveLtiTargetSession(
   const sessionDoc = joinable[0];
   if (!sessionDoc) return null;
   return { sessionId: sessionDoc.id, sessionData: sessionDoc.data() ?? {} };
+}
+
+async function quizSessionsByCode(
+  db: Db,
+  quizCode: string
+): Promise<admin.firestore.QueryDocumentSnapshot[]> {
+  const normCode = normalizeQuizCode(quizCode);
+  if (!normCode) return [];
+  const snap = await db
+    .collection(QUIZ_SESSIONS_COLLECTION)
+    .where('code', '==', normCode)
+    .get();
+  return snap.docs;
+}
+
+/** The one teacher among these sessions, or null when there are none or several. */
+function soleTeacher(
+  docs: admin.firestore.QueryDocumentSnapshot[]
+): string | null {
+  const uids = new Set(docs.map((d) => d.data().teacherUid as unknown));
+  const [uid] = [...uids];
+  return uids.size === 1 && typeof uid === 'string' && uid ? uid : null;
+}
+
+/** An older link (no signer) trusts only server records: the section's filed session, else the code's sole teacher. */
+async function quizLinkOwner(
+  db: Db,
+  docs: admin.firestore.QueryDocumentSnapshot[],
+  teacherUid: string | null,
+  contextId: string | null
+): Promise<string | null> {
+  if (teacherUid) return teacherUid;
+  if (!contextId) return soleTeacher(docs);
+  const filed = await Promise.all(
+    docs.map((d) =>
+      db
+        .collection(LTI_SESSION_MEMBERSHIPS_COLLECTION)
+        .doc(d.id)
+        .collection('contexts')
+        .doc(contextId)
+        .get()
+    )
+  );
+  const anchored = docs.filter((_, i) => filed[i].exists);
+  return soleTeacher(anchored.length > 0 ? anchored : docs);
+}
+
+/** The teacher a quiz link belongs to (see quizLinkOwner); null when it can't be told safely. */
+export async function ltiQuizOwner(
+  db: Db,
+  quizCode: string,
+  teacherUid: string | null,
+  contextId: string | null
+): Promise<string | null> {
+  if (teacherUid) return teacherUid;
+  const docs = await quizSessionsByCode(db, quizCode);
+  return quizLinkOwner(db, docs, null, contextId);
 }
 
 /**

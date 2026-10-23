@@ -87,6 +87,7 @@ import {
   computeStudentUid,
   getOAuthHeaders,
   isSafeEmailForOneRosterFilter,
+  isStudentDomainEmail,
   normalizeEmailDomain,
   resolveOrgIdForDomain,
   type ClassLinkClass,
@@ -1272,6 +1273,17 @@ interface OneRosterUserWithRole extends ClassLinkUser {
   roles?: Array<{ role?: string; roleType?: string }>;
 }
 
+/** True only for a OneRoster user whose every role is student. */
+export function isOnlyOneRosterStudent(user: OneRosterUserWithRole): boolean {
+  if (typeof user.role === 'string') {
+    return user.role.toLowerCase() === 'student';
+  }
+  if (Array.isArray(user.roles) && user.roles.length > 0) {
+    return user.roles.every((r) => (r.role ?? '').toLowerCase() === 'student');
+  }
+  return false;
+}
+
 /**
  * Candidate classes = classes on the caller's OWN roster docs. Roster docs are
  * client-writable, so this is a narrowing hint only; ClassLink re-verification
@@ -1432,7 +1444,7 @@ export async function loadClassLinkMembership(
     { params: userParams, headers: { ...userHeaders } }
   );
   const teacher = (userResp.data.users ?? [])[0];
-  if (!teacher) return out;
+  if (!teacher || isOnlyOneRosterStudent(teacher)) return out;
 
   const classesUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/users/${teacher.sourcedId}/classes`;
   const classesHeaders = getOAuthHeaders(
@@ -1565,7 +1577,11 @@ export const setAssignmentTargetsV1 = onCall(
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
     const teacherEmail = request.auth.token.email;
-    if (!teacherEmail || request.auth.token.studentRole === true) {
+    if (
+      !teacherEmail ||
+      request.auth.token.studentRole === true ||
+      isStudentDomainEmail(teacherEmail)
+    ) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
     // teacherEmail drives org/test-class resolution below, so it must be verified (same rail as isAdmin()).

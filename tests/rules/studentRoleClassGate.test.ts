@@ -662,6 +662,37 @@ describe('video_activity_sessions/responses — student-role gate', () => {
     );
   });
 
+  it('denies a response create that plants session fields', async () => {
+    const join = {
+      studentUid: ANON_UID,
+      pin: '5678',
+      classPeriod: 'period_1',
+      joinedAt: 2000,
+      score: null,
+      completedAt: null,
+      answers: [],
+      completedAttempts: 0,
+      tabSwitchWarnings: 0,
+    };
+    const anonRef = doc(
+      asAnonStudent(),
+      `${col}/${SESSION_A}/responses/pin-period_1-5678`
+    );
+    await assertFails(setDoc(anonRef, { ...join, teacherUid: TEACHER_UID }));
+    await assertFails(setDoc(anonRef, { ...join, rosterIds: ['roster-1'] }));
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await deleteDoc(doc(ctx.firestore(), respPath(SESSION_A)));
+    });
+    await assertFails(
+      setDoc(doc(asStudentA(), respPath(SESSION_A)), {
+        ...baseResp(),
+        teacherUid: TEACHER_UID,
+        rosterIds: ['roster-1'],
+      })
+    );
+    await assertSucceeds(setDoc(anonRef, join));
+  });
+
   it('studentRole user cannot create response under pin-scheme key', async () => {
     // SSO `studentRole` joiners must write under their auth.uid (the
     // stable identity). Routing through a `pin-*` key is denied even
