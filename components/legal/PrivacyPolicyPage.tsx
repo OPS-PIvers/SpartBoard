@@ -21,7 +21,7 @@ import { LegalPageLayout, LegalH2, LegalP, LegalList } from './LegalPageLayout';
 const PRIVACY_CONTACT = 'spartboard@orono.k12.mn.us';
 
 export const PrivacyPolicyPage: React.FC = () => (
-  <LegalPageLayout title="Privacy Policy" lastUpdated="June 22, 2026">
+  <LegalPageLayout title="Privacy Policy" lastUpdated="October 23, 2026">
     <LegalP>
       SpartBoard is a classroom-management tool that any educator with a Google
       account may use to create a free account. SpartBoard is operated by Orono
@@ -139,6 +139,43 @@ export const PrivacyPolicyPage: React.FC = () => (
       or as required by law. We do not use Google user data to train generalized
       artificial-intelligence or machine-learning models.
     </LegalP>
+
+    <LegalH2>SpartBoard Chrome extension</LegalH2>
+    <LegalP>
+      The SpartBoard Chrome extension is installed by the District for Orono
+      Public Schools staff. It shows web tours created in SpartBoard on other
+      websites and lets District staff record new tours.
+    </LegalP>
+    <LegalList
+      items={[
+        <>
+          <strong>Your Chrome profile email.</strong> The extension reads the
+          email address of the signed-in Chrome profile to confirm that only
+          Orono staff accounts can record tours. It is not stored or sent
+          anywhere.
+        </>,
+        <>
+          <strong>Recording a tour.</strong> Only after a staff member presses
+          Record, the extension captures a picture of the visible page, the text
+          of the control they click, and the page address for each step. By
+          default, emails, ID and phone numbers, names, and images are blurred
+          in the picture, and the recorder reviews each step before sending it.
+          Steps go only to that staff member&rsquo;s open SpartBoard tab, which
+          saves them as a draft tour.
+        </>,
+        <>
+          <strong>Playing a tour.</strong> The extension reads the page only to
+          find the control a tour step points to. Nothing from the page is
+          recorded or sent.
+        </>,
+        <>
+          <strong>No other data.</strong> The extension does not read browsing
+          history, does not track activity between tours, contacts no server of
+          its own, and keeps unsent steps only in the browser until they are
+          sent or discarded.
+        </>,
+      ]}
+    />
 
     <LegalH2>Student data, FERPA, and children&rsquo;s privacy</LegalH2>
     {/*
