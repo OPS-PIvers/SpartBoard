@@ -29,12 +29,16 @@ export interface AccountInfo {
 
 export interface BuildingGroupDeps {
   db: Firestore;
-  getUser: (
-    uid: string
-  ) => Promise<{ email?: string; displayName?: string } | null>;
-  getUserByEmail: (
-    email: string
-  ) => Promise<{ uid: string; displayName?: string } | null>;
+  getUser: (uid: string) => Promise<{
+    email?: string;
+    emailVerified?: boolean;
+    displayName?: string;
+  } | null>;
+  getUserByEmail: (email: string) => Promise<{
+    uid: string;
+    emailVerified?: boolean;
+    displayName?: string;
+  } | null>;
   serverTimestamp: () => unknown;
 }
 
@@ -228,19 +232,28 @@ export function parseCreateBuildingGroupPayload(
 
 // ── Firestore helpers ────────────────────────────────────────────────────
 
-/** Org member doc exists and is not deactivated. */
+/** Org member doc is active and, when it is linked to an account, linked to `uid`. */
 export async function isActiveOrgMember(
   db: Firestore,
   orgId: string,
-  emailLower: string
+  emailLower: string,
+  uid: string
 ): Promise<boolean> {
   if (!emailLower) return false;
   const snap = await db
     .doc(`organizations/${orgId}/members/${emailLower}`)
     .get();
-  if (!snap.exists) return false;
-  const status: unknown = snap.get('status');
-  return status !== 'inactive' && status !== 'removed';
+  if (!snap.exists || snap.get('status') !== 'active') return false;
+  const memberUid: unknown = snap.get('uid');
+  return memberUid === undefined || memberUid === uid;
+}
+
+/** The account's lowercased email, or '' unless Auth has verified it. */
+function verifiedEmail(
+  user: Awaited<ReturnType<BuildingGroupDeps['getUser']>>
+): string {
+  if (user?.emailVerified !== true) return '';
+  return user.email?.trim().toLowerCase() ?? '';
 }
 
 /** Throws unless the caller is a super/domain admin of `orgId` or the operator super admin. */
@@ -289,7 +302,7 @@ async function assertBuildingInOrg(
   }
 }
 
-/** Resolve an email to a signed-in account: the org member doc's uid first, then Auth. */
+/** Resolve an email to a signed-in account: the org member doc's uid first, then a verified Auth account. */
 export async function resolveAccount(
   deps: BuildingGroupDeps,
   orgId: string,
@@ -310,7 +323,7 @@ export async function resolveAccount(
     };
   }
   const user = await deps.getUserByEmail(emailLower);
-  if (!user) return null;
+  if (user?.emailVerified !== true) return null;
   return {
     uid: user.uid,
     email: emailLower,
@@ -406,9 +419,9 @@ export async function rosterBuildingGroup(
   const candidates: AccountInfo[] = [];
   for (const uid of uids) {
     const user = await deps.getUser(uid);
-    const email = user?.email?.trim().toLowerCase() ?? '';
+    const email = verifiedEmail(user);
     if (!email) continue;
-    if (!(await isActiveOrgMember(deps.db, orgId, email))) continue;
+    if (!(await isActiveOrgMember(deps.db, orgId, email, uid))) continue;
     candidates.push({ uid, email, displayName: user?.displayName ?? '' });
   }
   if (candidates.length === 0) return 0;
@@ -452,7 +465,7 @@ export async function applyProfileBuildingsChange(
     }
     if (account === undefined) {
       const user = await deps.getUser(uid);
-      const email = user?.email?.trim().toLowerCase() ?? '';
+      const email = verifiedEmail(user);
       account = email
         ? { uid, email, displayName: user?.displayName ?? '' }
         : null;
@@ -460,7 +473,10 @@ export async function applyProfileBuildingsChange(
     if (!account || !diff.added.includes(buildingId)) continue;
     const orgId = g.data.orgId as string;
     if (!orgOk.has(orgId)) {
-      orgOk.set(orgId, await isActiveOrgMember(deps.db, orgId, account.email));
+      orgOk.set(
+        orgId,
+        await isActiveOrgMember(deps.db, orgId, account.email, uid)
+      );
     }
     if (!orgOk.get(orgId)) continue;
     if ((await addToGroup(deps, g.id, [account], 'trigger')) > 0) {
@@ -580,7 +596,11 @@ function defaultDeps(): BuildingGroupDeps {
     getUser: async (uid) => {
       try {
         const u = await auth.getUser(uid);
-        return { email: u.email, displayName: u.displayName };
+        return {
+          email: u.email,
+          emailVerified: u.emailVerified,
+          displayName: u.displayName,
+        };
       } catch (err) {
         if (notFound(err)) return null;
         throw err;
@@ -589,7 +609,11 @@ function defaultDeps(): BuildingGroupDeps {
     getUserByEmail: async (email) => {
       try {
         const u = await auth.getUserByEmail(email);
-        return { uid: u.uid, displayName: u.displayName };
+        return {
+          uid: u.uid,
+          emailVerified: u.emailVerified,
+          displayName: u.displayName,
+        };
       } catch (err) {
         if (notFound(err)) return null;
         throw err;
