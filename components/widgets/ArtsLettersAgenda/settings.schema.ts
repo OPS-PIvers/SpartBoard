@@ -17,6 +17,9 @@ export default defineSettings<ArtsLettersAgendaConfig>({
           type: 'custom',
           label: 'version',
           searchTerms: ['simple', 'detailed'],
+          visibleWhen: (ctx) =>
+            ctx.canAccessFeature('agenda-versions') ||
+            ctx.config.version === 'detailed',
           render: renderVersion,
         },
       ],

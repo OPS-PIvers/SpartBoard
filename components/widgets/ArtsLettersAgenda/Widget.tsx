@@ -24,7 +24,7 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget } = useDashboardActions();
-  const { featurePermissions, selectedBuildings } = useAuth();
+  const { featurePermissions, selectedBuildings, canAccessFeature } = useAuth();
   const globalStyle = useGlobalStyle();
   const config = widget.config as ArtsLettersAgendaConfig;
   const {
@@ -69,14 +69,19 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
     updateWidget(widget.id, { config: { ...base, completed: {} } });
   }, [updateWidget, widget.id, base]);
 
-  const adminConfig = featurePermissions.find(
-    (p) => p.widgetType === widget.type
-  )?.config;
+  // Admin-built boxes reach teachers only with the preview on; a Detailed widget keeps its list.
+  const versionsOn =
+    canAccessFeature('agenda-versions') || version === 'detailed';
+  const adminConfig = versionsOn
+    ? featurePermissions.find((p) => p.widgetType === widget.type)?.config
+    : undefined;
   const lists = useMemo(
     () => resolveAgendaPartLists(adminConfig, buildingId),
     [adminConfig, buildingId]
   );
   const parts = partsForVersion(lists, version);
+  // The default three boxes shrink to fit, as before; longer admin lists keep a row floor and scroll.
+  const scrolls = parts.length > 3;
 
   const anyDone = parts.some((p) => completed[p.id]);
   const sm = resolveTextPresetMultiplier(textSizePreset, 1);
@@ -111,9 +116,9 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
           </h2>
           <div
             role="list"
-            className={`flex-1 overflow-y-auto flex flex-col ${parts.length <= 4 ? '[@container(min-aspect-ratio:2.4)]:flex-row' : ''}`}
+            className={`flex-1 ${scrolls ? 'overflow-y-auto' : 'overflow-hidden'} flex flex-col ${parts.length <= 4 ? '[@container(min-aspect-ratio:2.4)]:flex-row' : ''}`}
             style={{
-              padding: 'min(10px, 2.2cqmin) max(18px, 2.5cqmin) 8px',
+              padding: `min(10px, 2.2cqmin) max(18px, 2.5cqmin) ${scrolls ? '8px' : '0'}`,
               gap: 'min(8px, 2cqmin)',
             }}
           >
@@ -121,9 +126,14 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
               <div
                 key={part.id}
                 role="listitem"
-                className="[@container(min-height:220px)]:min-h-[min(64px,22cqh)]"
+                className={
+                  scrolls
+                    ? '[@container(min-height:220px)]:min-h-[min(64px,22cqh)]'
+                    : undefined
+                }
                 style={{
                   flex: 1,
+                  ...(scrolls ? {} : { minHeight: 0 }),
                   minWidth: 0,
                   containerType: 'size',
                 }}

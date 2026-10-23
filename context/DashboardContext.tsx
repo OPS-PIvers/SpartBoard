@@ -3982,9 +3982,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const linkedShareHandlersRef = useRef<{
     closeWallsToEndedShare: (shareId: string, host?: string) => void;
     recordShareHost: (board: Dashboard, hostUid: string) => void;
+    hostCheckOn: boolean;
   }>({
     closeWallsToEndedShare: () => undefined,
     recordShareHost: () => undefined,
+    hostCheckOn: false,
   });
 
   // The ended share stops listing this teacher's walls.
@@ -4014,6 +4016,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Boards joined before the host was recorded keep it from their first snapshot.
   const recordShareHost = (board: Dashboard, hostUid: string) => {
+    if (!canAccessFeature?.('shared-board-live-walls')) return;
     if (recordedHostBoardIdsRef.current.has(board.id)) return;
     recordedHostBoardIdsRef.current.add(board.id);
     setDashboards((prev) =>
@@ -4035,6 +4038,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     linkedShareHandlersRef.current = {
       closeWallsToEndedShare,
       recordShareHost,
+      hostCheckOn: canAccessFeature?.('shared-board-live-walls') === true,
     };
   });
 
@@ -4062,6 +4066,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         const recordedHost = known?.linkedShareHostUid;
         // The share doc was deleted and its id re-created by someone else: treat it as ended.
         const hostChanged =
+          linkedShareHandlersRef.current.hostCheckOn &&
           !!remote?.linkedShareHostUid &&
           !!recordedHost &&
           remote.linkedShareHostUid !== recordedHost;

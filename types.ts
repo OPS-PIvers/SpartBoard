@@ -10370,6 +10370,8 @@ export type GlobalFeature =
   | 'google-tasks-sync'
   /** Move up and Move down in a library folder's menu. */
   | 'library-folder-reorder'
+  /** Simple/Detailed choice in Arts & Letters Agenda settings. */
+  | 'agenda-versions'
   /** PLC teams open on a Home page; Data overview becomes a regular tab. */
   | 'plc-home-tab'
   /** AI coach that checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22). */
