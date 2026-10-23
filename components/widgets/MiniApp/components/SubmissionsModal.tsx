@@ -83,8 +83,11 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
     },
     rosters
   );
-  const { byAssignmentPseudonym, loading: namesLoading } =
-    useAssignmentPseudonymsMulti(sessionId, classIds ?? null, orgId);
+  const {
+    byAssignmentPseudonym,
+    loading: namesLoading,
+    error: namesError,
+  } = useAssignmentPseudonymsMulti(sessionId, classIds ?? null, orgId);
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -157,6 +160,7 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
         error={error}
         names={byAssignmentPseudonym}
         namesLoading={namesLoading}
+        namesError={!!namesError}
         periodActions={perPeriod ? periodActions : undefined}
         orgId={orgId}
         onClose={onClose}

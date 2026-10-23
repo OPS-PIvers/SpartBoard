@@ -1,13 +1,20 @@
 // Older Mini App submissions behind monitor-parity: names, Not started / Done counts, class picker.
 import '@testing-library/jest-dom';
 import React from 'react';
-import { fireEvent, render, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ClassRoster, MiniAppSession, PeriodAccess } from '@/types';
 import type { StudentName } from '@/hooks/useAssignmentPseudonyms';
 import { MiniAppSubmissionsMonitor } from './MiniAppSubmissionsMonitor';
 
-const { rosters, classMaps } = vi.hoisted(() => ({
+const { rosters, classMaps, lookup } = vi.hoisted(() => ({
+  lookup: { loading: false, error: null as Error | null },
   rosters: [] as Partial<ClassRoster>[],
   classMaps: new Map<
     string,
@@ -23,7 +30,7 @@ vi.mock('@/hooks/useAssignmentPseudonyms', () => ({
     n ? `${n.givenName} ${n.familyName}`.trim() : '',
   useAssignmentPseudonymsMulti: (_id: string | null, ids: string[] | null) => ({
     byAssignmentPseudonym: classMaps.get(ids?.[0] ?? '') ?? new Map(),
-    loading: false,
+    ...(ids ? lookup : { loading: false, error: null }),
   }),
 }));
 vi.mock('@/hooks/useServerNow', () => ({ useServerNow: () => 1_000 }));
@@ -65,12 +72,61 @@ const renderMonitor = (s: MiniAppSession, names = ALL) =>
       error={null}
       names={names}
       namesLoading={false}
+      namesError={false}
       orgId="org"
       onClose={vi.fn()}
     />
   );
 
+const pickPeriod3 = () => {
+  rosters.splice(
+    0,
+    rosters.length,
+    { id: 'r1', name: 'Period 1', classlinkClassId: 'cl-1' },
+    { id: 'r2', name: 'Period 3', classlinkClassId: 'cl-3' }
+  );
+  classMaps.set('cl-3', new Map([['p-ben', name('Ben', 'Okafor')]]));
+  renderMonitor(session({ rosterIds: ['r1', 'r2'] }));
+  fireEvent.change(screen.getByRole('combobox', { name: 'Class' }), {
+    target: { value: 'Period 3' },
+  });
+};
+
+beforeEach(() => {
+  lookup.loading = false;
+  lookup.error = null;
+});
+
 describe('MiniAppSubmissionsMonitor', () => {
+  it('hides Not started on a per-student assignment', () => {
+    renderMonitor(session({ individualTargeting: true }));
+    expect(screen.queryByRole('button', { name: /Not started/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /2\s*Done/ })).toBeVisible();
+  });
+
+  it('shows no counts while a picked class is looked up or when the lookup fails', () => {
+    lookup.loading = true;
+    pickPeriod3();
+    expect(screen.queryByRole('button', { name: /Done/ })).toBeNull();
+    cleanup();
+    lookup.loading = false;
+    lookup.error = new Error('denied');
+    pickPeriod3();
+    expect(screen.queryByRole('button', { name: /Done/ })).toBeNull();
+  });
+
+  it('leaves classes it cannot filter out of the picker', () => {
+    rosters.splice(
+      0,
+      rosters.length,
+      { id: 'r1', name: 'Period 1', classlinkClassId: 'cl-1' },
+      { id: 'r2', name: 'Period 3', classlinkClassId: 'cl-3' },
+      { id: 'r3', name: 'PIN class' }
+    );
+    renderMonitor(session({ rosterIds: ['r1', 'r2', 'r3'] }));
+    expect(screen.queryByRole('option', { name: /PIN class/ })).toBeNull();
+  });
+
   it('counts Not started and Done, and never shows raw ids', () => {
     renderMonitor(session());
     const buckets = screen.getByRole('group', { name: 'Student status' });
@@ -153,6 +209,7 @@ describe('MiniAppSubmissionsMonitor', () => {
         error={null}
         names={ALL}
         namesLoading={false}
+        namesError={false}
         periodActions={{} as never}
         orgId="org"
         onClose={vi.fn()}
@@ -163,5 +220,38 @@ describe('MiniAppSubmissionsMonitor', () => {
       target: { value: 'cl-3' },
     });
     expect(screen.getByRole('button', { name: 'Start' })).toBeVisible();
+  });
+
+  it('hides counts for a picked period it cannot filter by name', () => {
+    const period = (label: string): PeriodAccess => ({
+      state: 'open',
+      openAt: null,
+      closeAt: null,
+      bellPeriodId: null,
+      verified: false,
+      label,
+    });
+    render(
+      <MiniAppSubmissionsMonitor
+        session={session({
+          periodAccess: { 'cl-1': period('P1'), 'roster:r9': period('P9') },
+        })}
+        assignmentName="Fractions pizza"
+        submissions={subs}
+        loading={false}
+        error={null}
+        names={ALL}
+        namesLoading={false}
+        namesError={false}
+        periodActions={{} as never}
+        orgId="org"
+        onClose={vi.fn()}
+      />
+    );
+    fireEvent.change(screen.getByRole('combobox', { name: 'Class' }), {
+      target: { value: 'roster:r9' },
+    });
+    expect(screen.queryByRole('button', { name: /Done/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeVisible();
   });
 });

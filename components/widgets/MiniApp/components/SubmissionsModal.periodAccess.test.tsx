@@ -7,7 +7,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MiniAppSession, PeriodAccess } from '@/types';
 import { SubmissionsModal } from './SubmissionsModal';
 
-const { batchUpdate, batchCommit } = vi.hoisted(() => ({
+const { batchUpdate, batchCommit, flag } = vi.hoisted(() => ({
+  flag: { on: false },
   batchUpdate: vi.fn(),
   batchCommit: vi.fn(() => Promise.resolve()),
 }));
@@ -44,10 +45,15 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1' },
     orgId: 'org',
     featurePermissions: [],
+    canAccessFeature: (id: string) => id === 'monitor-parity' && flag.on,
   }),
 }));
 vi.mock('@/hooks/useAssignmentPseudonyms', () => ({
-  useAssignmentPseudonymsMulti: () => ({ byAssignmentPseudonym: new Map() }),
+  useAssignmentPseudonymsMulti: () => ({
+    byAssignmentPseudonym: new Map(),
+    loading: false,
+    error: null,
+  }),
   formatStudentName: () => '',
 }));
 
@@ -90,7 +96,10 @@ const renderModal = (s: MiniAppSession) =>
     />
   );
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  flag.on = false;
+});
 
 describe('SubmissionsModal — per-period access', () => {
   it('shows a chip per period with Start and Pause all', () => {
@@ -135,5 +144,15 @@ describe('SubmissionsModal — per-period access', () => {
     unmount();
     renderModal(session({ status: 'ended' }));
     expect(screen.queryByRole('group', { name: 'Class periods' })).toBeNull();
+  });
+
+  it('shows the Quiz-style monitor only with monitor-parity on', () => {
+    const { unmount } = renderModal(session());
+    expect(screen.queryByRole('combobox', { name: 'Class' })).toBeNull();
+    unmount();
+    flag.on = true;
+    renderModal(session());
+    expect(screen.getByRole('combobox', { name: 'Class' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Start all' })).toBeNull();
   });
 });

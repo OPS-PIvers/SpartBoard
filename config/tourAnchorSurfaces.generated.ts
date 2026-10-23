@@ -746,9 +746,18 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-monitor.settings-podium': ['quiz.monitor.settings'],
     'quiz-monitor.settings-answer-reveal': ['quiz.monitor.settings'],
     'quiz-monitor.settings-scoreboard-sync': ['quiz.monitor.settings'],
-    'quiz-monitor.period-start': ['quiz.monitor'],
-    'quiz-monitor.period-pause': ['quiz.monitor'],
-    'quiz-monitor.period-extend': ['quiz.monitor'],
+    'quiz-monitor.period-start': [
+      'library.mini-app.submissions',
+      'quiz.monitor',
+    ],
+    'quiz-monitor.period-pause': [
+      'library.mini-app.submissions',
+      'quiz.monitor',
+    ],
+    'quiz-monitor.period-extend': [
+      'library.mini-app.submissions',
+      'quiz.monitor',
+    ],
     'review-start.gamification': ['quiz.review-start'],
     'quiz-library.bulk-merge': ['quiz.face'],
     'quiz-library.bulk-share-plc': ['quiz.face'],

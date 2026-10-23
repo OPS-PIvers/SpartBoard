@@ -75,6 +75,7 @@ export const MiniAppSubmissionsMonitor: React.FC<{
   /** Every targeted student, keyed by their submission id. */
   names: Map<string, StudentName>;
   namesLoading: boolean;
+  namesError: boolean;
   /** Per-period sessions only: Start, Pause and More time for each class. */
   periodActions?: PeriodAccessActions;
   orgId: string | null | undefined;
@@ -87,6 +88,7 @@ export const MiniAppSubmissionsMonitor: React.FC<{
   error,
   names,
   namesLoading,
+  namesError,
   periodActions,
   orgId,
   onClose,
@@ -107,7 +109,12 @@ export const MiniAppSubmissionsMonitor: React.FC<{
     : rosters
         .filter((r) => session.rosterIds?.includes(r.id))
         .map((r) => ({ key: periodKeyForRoster(r), label: r.name }))
-        .filter((c, i, all) => all.findIndex((o) => o.key === c.key) === i)
+        // Only classes the name lookup can filter, one per label.
+        .filter(
+          (c, i, all) =>
+            resolvable(c.key) &&
+            all.findIndex((o) => o.key === c.key || o.label === c.label) === i
+        )
         .sort((a, b) =>
           a.label.localeCompare(b.label, undefined, { numeric: true })
         );
@@ -122,7 +129,14 @@ export const MiniAppSubmissionsMonitor: React.FC<{
   );
   const members = classFilter ? classNames.byAssignmentPseudonym : names;
   const membersLoading = classFilter ? classNames.loading : namesLoading;
-  const knowRoster = !membersLoading && members.size > 0;
+  // A picked class whose students can't be looked up can't be filtered, so its counts stay hidden.
+  const cantFilter = !!selected && (!classFilter || !!classNames.error);
+  // Per-student assignments target part of a class, so the class roster can't say who hasn't started.
+  const knowRoster =
+    !membersLoading &&
+    !(classFilter ? classNames.error : namesError) &&
+    !session.individualTargeting &&
+    members.size > 0;
 
   // Shared-link launches carry no name; number them in the order they submitted.
   const unnamed = new Map(
@@ -167,6 +181,11 @@ export const MiniAppSubmissionsMonitor: React.FC<{
         }
         extendMs={EXTEND_MS}
         widgetType="miniApp"
+        anchors={{
+          start: tourTypeAttr('quiz-monitor.period-start', 'miniApp'),
+          pause: tourTypeAttr('quiz-monitor.period-pause', 'miniApp'),
+          extend: tourTypeAttr('quiz-monitor.period-extend', 'miniApp'),
+        }}
       />
     ) : (
       <ClassPicker
@@ -225,7 +244,7 @@ export const MiniAppSubmissionsMonitor: React.FC<{
           <p className="text-brand-red-primary font-medium" style={NAME_TEXT}>
             {error}
           </p>
-        ) : loading ? (
+        ) : loading || namesLoading ? (
           <div className="h-full flex items-center justify-center text-brand-blue-primary">
             <Loader2 className="w-5 h-5 animate-spin" />
           </div>
@@ -238,116 +257,126 @@ export const MiniAppSubmissionsMonitor: React.FC<{
         ) : (
           <div className="flex flex-col" style={{ gap: 'min(10px, 2.5cqmin)' }}>
             {classRow}
-            <StatusBuckets
-              counts={counts}
-              handCount={0}
-              idleCount={0}
-              openBucket={openBucket}
-              onToggle={(key) =>
-                setOpenBucket((cur) => (cur === key ? null : key))
-              }
-              keys={knowRoster ? ['notStarted', 'done'] : ['done']}
-              widgetType="miniApp"
-            />
-            {openBucket === 'notStarted' && knowRoster && (
-              <div
-                className="flex flex-col"
-                style={{ gap: 'min(6px, 1.5cqmin)' }}
-              >
-                {notStarted.length === 0 ? (
-                  <EmptyLine text="No students here yet." />
-                ) : (
-                  notStarted.map(([id, name]) => (
-                    <div
-                      key={id}
-                      className="flex items-center rounded-lg border border-brand-gray-lightest bg-white"
-                      style={ROW_STYLE}
-                    >
-                      <p
-                        className="font-sans font-medium text-brand-gray-dark truncate"
-                        style={NAME_TEXT}
-                      >
-                        {formatStudentName(name)}
-                      </p>
-                    </div>
-                  ))
-                )}
+            {cantFilter ? null : membersLoading ? (
+              <div className="flex justify-center text-brand-blue-primary">
+                <Loader2 className="w-5 h-5 animate-spin" />
               </div>
-            )}
-            {openBucket === 'done' && (
-              <div
-                className="flex flex-col"
-                style={{ gap: 'min(6px, 1.5cqmin)' }}
-              >
-                {done.length === 0 ? (
-                  <EmptyLine text="No students here yet." />
-                ) : (
-                  done.map((s, i) => {
-                    const open = expandedId === s.id;
-                    return (
-                      <div
-                        key={s.id}
-                        className={`rounded-lg border bg-white ${open ? 'border-brand-blue-light' : 'border-brand-gray-lightest'}`}
-                        style={{
-                          padding: 'min(7px, 1.8cqmin) min(10px, 2.5cqmin)',
-                        }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setExpandedId((cur) => (cur === s.id ? null : s.id))
-                          }
-                          aria-expanded={open}
-                          {...tourFieldAttr(
-                            'mini-app.submission-row',
-                            'miniApp',
-                            `row-${i + 1}`
-                          )}
-                          className="flex w-full items-center justify-between text-left"
-                          style={{ gap: 'min(8px, 2cqmin)' }}
+            ) : (
+              <>
+                <StatusBuckets
+                  counts={counts}
+                  handCount={0}
+                  idleCount={0}
+                  openBucket={openBucket}
+                  onToggle={(key) =>
+                    setOpenBucket((cur) => (cur === key ? null : key))
+                  }
+                  keys={knowRoster ? ['notStarted', 'done'] : ['done']}
+                  widgetType="miniApp"
+                />
+                {openBucket === 'notStarted' && knowRoster && (
+                  <div
+                    className="flex flex-col"
+                    style={{ gap: 'min(6px, 1.5cqmin)' }}
+                  >
+                    {notStarted.length === 0 ? (
+                      <EmptyLine text="No students here yet." />
+                    ) : (
+                      notStarted.map(([id, name]) => (
+                        <div
+                          key={id}
+                          className="flex items-center rounded-lg border border-brand-gray-lightest bg-white"
+                          style={ROW_STYLE}
                         >
-                          <span
-                            className="flex items-center min-w-0"
-                            style={{ gap: 'min(4px, 1cqmin)' }}
+                          <p
+                            className="font-sans font-medium text-brand-gray-dark truncate"
+                            style={NAME_TEXT}
                           >
-                            <ChevronRight
-                              aria-hidden
-                              className={`shrink-0 text-brand-gray-primary transition-transform ${open ? 'rotate-90' : ''}`}
-                              style={{
-                                width: 'min(12px, 3.8cqmin)',
-                                height: 'min(12px, 3.8cqmin)',
-                              }}
-                            />
-                            <span
-                              className="font-sans font-medium text-brand-gray-dark truncate"
-                              style={NAME_TEXT}
-                            >
-                              {nameOf(s.id)}
-                            </span>
-                          </span>
-                          <span
-                            className="shrink-0 text-brand-gray-primary tabular-nums"
-                            style={SMALL_TEXT}
-                          >
-                            {formatTime(s.submittedAt)}
-                          </span>
-                        </button>
-                        {open && (
-                          <pre
-                            className="max-h-60 overflow-auto whitespace-pre-wrap break-all rounded-md bg-slate-900 p-2 text-slate-100"
+                            {formatStudentName(name)}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+                {openBucket === 'done' && (
+                  <div
+                    className="flex flex-col"
+                    style={{ gap: 'min(6px, 1.5cqmin)' }}
+                  >
+                    {done.length === 0 ? (
+                      <EmptyLine text="No students here yet." />
+                    ) : (
+                      done.map((s, i) => {
+                        const open = expandedId === s.id;
+                        return (
+                          <div
+                            key={s.id}
+                            className={`rounded-lg border bg-white ${open ? 'border-brand-blue-light' : 'border-brand-gray-lightest'}`}
                             style={{
-                              marginTop: 'min(8px, 2cqmin)',
-                              fontSize: 'min(11px, 3.5cqmin)',
+                              padding: 'min(7px, 1.8cqmin) min(10px, 2.5cqmin)',
                             }}
                           >
-                            {formatPayload(s.payload)}
-                          </pre>
-                        )}
-                      </div>
-                    );
-                  })
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setExpandedId((cur) =>
+                                  cur === s.id ? null : s.id
+                                )
+                              }
+                              aria-expanded={open}
+                              {...tourFieldAttr(
+                                'mini-app.submission-row',
+                                'miniApp',
+                                `row-${i + 1}`
+                              )}
+                              className="flex w-full items-center justify-between text-left"
+                              style={{ gap: 'min(8px, 2cqmin)' }}
+                            >
+                              <span
+                                className="flex items-center min-w-0"
+                                style={{ gap: 'min(4px, 1cqmin)' }}
+                              >
+                                <ChevronRight
+                                  aria-hidden
+                                  className={`shrink-0 text-brand-gray-primary transition-transform ${open ? 'rotate-90' : ''}`}
+                                  style={{
+                                    width: 'min(12px, 3.8cqmin)',
+                                    height: 'min(12px, 3.8cqmin)',
+                                  }}
+                                />
+                                <span
+                                  className="font-sans font-medium text-brand-gray-dark truncate"
+                                  style={NAME_TEXT}
+                                >
+                                  {nameOf(s.id)}
+                                </span>
+                              </span>
+                              <span
+                                className="shrink-0 text-brand-gray-primary tabular-nums"
+                                style={SMALL_TEXT}
+                              >
+                                {formatTime(s.submittedAt)}
+                              </span>
+                            </button>
+                            {open && (
+                              <pre
+                                className="max-h-60 overflow-auto whitespace-pre-wrap break-all rounded-md bg-slate-900 p-2 text-slate-100"
+                                style={{
+                                  marginTop: 'min(8px, 2cqmin)',
+                                  fontSize: 'min(11px, 3.5cqmin)',
+                                }}
+                              >
+                                {formatPayload(s.payload)}
+                              </pre>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 )}
-              </div>
+              </>
             )}
           </div>
         )}
