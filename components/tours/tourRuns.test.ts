@@ -160,6 +160,31 @@ describe('parseTourRun', () => {
     expect(write).toHaveBeenCalledTimes(calls);
   });
 
+  it('keeps a fix only for a step that missed or played weak, until it is found clearly (C14)', () => {
+    const write = writer();
+    const log = startTourRunLog(
+      'set',
+      'uid',
+      { v: 3, furthest: 0, surface: 'web', admin: true },
+      write,
+      0
+    );
+    const fix = { role: 'button', name: 'Save' };
+    log.suggest('a', fix);
+    log.match('b', 'score');
+    log.suggest('b', fix);
+    log.match('c', 'none');
+    log.suggest('c', { text: 'Post' });
+    vi.advanceTimersByTime(0);
+    expect(write.mock.calls.at(-1)?.[0]).toMatchObject({
+      admin: true,
+      fixes: { b: fix, c: { text: 'Post' } },
+    });
+    log.match('b', 'role');
+    vi.advanceTimersByTime(0);
+    expect(write.mock.calls.at(-1)?.[0].fixes).toEqual({ c: { text: 'Post' } });
+  });
+
   it('never adds weak matches to a board tour run', () => {
     const write = writer();
     const log = startTourRunLog('set', 'uid', { v: 1, furthest: 0 }, write, 0);
@@ -184,5 +209,18 @@ describe('parseTourRun web fields', () => {
     expect(parseTourRun({ v: 1, furthest: 0, misses: [] })).not.toHaveProperty(
       'surface'
     );
+  });
+
+  it('reads fixes as checked locators and the admin mark', () => {
+    expect(
+      parseTourRun({
+        v: 1,
+        furthest: 0,
+        misses: [],
+        surface: 'web',
+        admin: true,
+        fixes: { a: { role: 'button' }, b: { evil: 1 }, c: 'x' },
+      })
+    ).toMatchObject({ admin: true, fixes: { a: { role: 'button' } } });
   });
 });

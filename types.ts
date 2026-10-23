@@ -8391,6 +8391,17 @@ export interface WebTourCheckRun {
   results: Record<string, WebTourCheckResult>;
 }
 
+/** Better clues the extension found for a step that missed or played weak (C14); the admin accepts or dismisses them. */
+export interface WebTourSuggestion {
+  locator: WebTourLocator;
+  source: 'admin' | 'check' | 'teacher';
+  /** Runs that suggested these clues. */
+  count: number;
+  at: number;
+  /** Fingerprint of the step's clues it would replace; a changed step hides it. */
+  base: string;
+}
+
 export interface GuidedLearningTourBinding {
   /** TOUR_ANCHORS key */
   anchor: string;
@@ -8586,6 +8597,10 @@ export interface GuidedLearningSet {
   webGoal?: string;
   /** Web tours: the last Check tour run, which Publish needs passing for these targets (C13). */
   webTourChecked?: WebTourCheckRun;
+  /** Web tours: suggested fixes from check runs, by step id; never published. */
+  webSuggestions?: Record<string, WebTourSuggestion>;
+  /** Web tours: the fingerprint of the fix the admin dismissed, by step id; never published. */
+  webFixDismissed?: Record<string, string>;
 }
 
 /** A live tour's notes for Claude and last editor playtest, at building_guided_learning/{setId}/review/current; admins only. */

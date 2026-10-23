@@ -28,6 +28,8 @@ const NOT_PUBLISHED = new Set([
   'hasLiveTour',
   'webGoal',
   'webTourChecked',
+  'webSuggestions',
+  'webFixDismissed',
 ]);
 
 // A web step's note and Claude's question stay in the draft.

@@ -1,4 +1,4 @@
-// Write with Claude for web tours (docs/plans/WEB_TOURS_CLAUDE.md C9-C11): admin only, behind web-tours.
+// Write with Claude for web tours (docs/plans/shipped/WEB_TOURS_CLAUDE.md C9-C11): admin only, behind web-tours.
 import './functionsInit';
 import { ANTHROPIC_API_KEY } from './secrets';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';

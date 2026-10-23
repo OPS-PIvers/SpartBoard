@@ -6,11 +6,12 @@ import {
   type PlaybackEvent,
   type PlaybackState,
 } from './progress';
-import type {
-  WebTourPictureBytes,
-  WebTourPortPost,
+import {
+  parseWebTourLocator,
+  type WebTourPictureBytes,
+  type WebTourPortPost,
 } from '@/components/tours/web/extensionProtocol';
-import type { WebTourCheckResult } from '@/types';
+import type { WebTourCheckResult, WebTourLocator } from '@/types';
 import type { OverlayAction, OverlayState } from '../overlay/overlayState';
 import type { ParsedStart } from './startMessage';
 import { matchesUrlPattern } from './urlPattern';
@@ -75,6 +76,10 @@ interface TabRecord {
   results?: Record<string, WebTourCheckResult>;
   /** Check mode: the seek whose candidates tied. */
   ambiguousToken?: string;
+  /** The closest candidate a frame found for the current seek when nothing matched (C14). */
+  candidate?: { token: string; fix: WebTourLocator };
+  /** The fix last suggested per step, so a repeat isn't posted again. */
+  suggested?: Record<string, string>;
 }
 
 export const FALLBACK_MS = 4000;
@@ -236,21 +241,68 @@ export function createPlaybackController(host: PlaybackHost) {
     }
   }
 
+  /** Posts a candidate's clues for a step that missed or played weak; pages before protocol 7 never get it. */
+  function postSuggest(rec: TabRecord, index: number, fix: WebTourLocator) {
+    const setId = rec.state.tour.id;
+    const step = rec.state.tour.steps[index];
+    if (!step) return;
+    const said = JSON.stringify(fix);
+    if (rec.suggested?.[step.id] === said) return;
+    rec.suggested = { ...rec.suggested, [step.id]: said };
+    host.post(setId, {
+      type: 'web-tour/suggest',
+      setId,
+      stepIndex: index,
+      stepId: step.id,
+      locator: fix,
+      ...(rec.check ? { runId: rec.runId ?? '' } : {}),
+    });
+  }
+
+  /** A fix from a frame on the step's own frame path, with its box only from the top frame, whose viewport the box is measured in. */
+  async function fixFrom(
+    rec: TabRecord,
+    frameId: number,
+    raw: unknown
+  ): Promise<WebTourLocator | null> {
+    const step = rec.state.tour.steps[rec.state.index];
+    const fix = parseWebTourLocator(raw);
+    if (!step || !fix || fix.frames) return null;
+    const ids = framesForStep(await host.frames(rec.tabId), step.frames);
+    if (!ids.includes(frameId)) return null;
+    if (frameId === 0) return fix;
+    const { box: _box, ...rest } = fix;
+    return rest;
+  }
+
   function postStep(rec: TabRecord, index: number, match: FoundMatch | 'none') {
     const setId = rec.state.tour.id;
     const step = rec.state.tour.steps[index];
     if (!step) return;
     rec.posted = { ...rec.posted, [step.id]: match };
     rec.postedIndex = index;
+    postProgressStep(rec, setId, index, step.id, match);
+    // After the miss itself, so the page has the miss to attach it to.
+    if (match === 'none' && rec.candidate?.token === rec.token)
+      postSuggest(rec, index, rec.candidate.fix);
+  }
+
+  function postProgressStep(
+    rec: TabRecord,
+    setId: string,
+    index: number,
+    stepId: string,
+    match: FoundMatch | 'none'
+  ) {
     if (rec.check) {
       const result = checkResultOf(match, rec.ambiguousToken === rec.token);
-      rec.results = { ...rec.results, [step.id]: result };
+      rec.results = { ...rec.results, [stepId]: result };
       host.post(setId, {
         type: 'web-tour/check-step',
         setId,
         runId: rec.runId ?? '',
         stepIndex: index,
-        stepId: step.id,
+        stepId,
         result,
       });
       return;
@@ -259,7 +311,7 @@ export function createPlaybackController(host: PlaybackHost) {
       type: 'web-tour/step',
       setId,
       stepIndex: index,
-      stepId: step.id,
+      stepId,
       match,
     });
   }
@@ -603,6 +655,11 @@ export function createPlaybackController(host: PlaybackHost) {
         if (report.type === 'wt:found') {
           if (rec.state.status === 'shown' && rec.targetFrameId !== frameId)
             return;
+          const index = rec.state.index;
+          const fix =
+            report.weak && report.fix
+              ? await fixFrom(rec, frameId, report.fix)
+              : null;
           // The spotlight is drawn inside the frame that holds the target.
           if (frameId !== 0) await host.inject(tabId, [frameId], true);
           await dispatch(
@@ -610,6 +667,23 @@ export function createPlaybackController(host: PlaybackHost) {
             { type: 'found', match: report.weak ? 'score' : 'role' },
             frameId
           );
+          if (
+            fix &&
+            rec.state.index === index &&
+            rec.state.status === 'shown'
+          ) {
+            postSuggest(rec, index, fix);
+            await store(rec);
+          }
+        } else if (report.type === 'wt:candidate') {
+          const fix = await fixFrom(rec, frameId, report.fix);
+          if (!fix || rec.state.status === 'shown') return;
+          rec.candidate = { token: report.token, fix };
+          // A step that already fell back gets the fix now.
+          const step = rec.state.tour.steps[rec.state.index];
+          if (step && rec.posted[step.id] === 'none')
+            postSuggest(rec, rec.state.index, fix);
+          await store(rec);
         } else if (report.type === 'wt:ambiguous') {
           if (!rec.check || rec.ambiguousToken === report.token) return;
           rec.ambiguousToken = report.token;

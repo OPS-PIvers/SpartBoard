@@ -11,7 +11,7 @@ import {
 } from '@/types';
 
 /** Bumped additively when a message type is added; the page checks it before using a feature. */
-export const EXTENSION_PROTOCOL_VERSION = 6;
+export const EXTENSION_PROTOCOL_VERSION = 7;
 
 /** Protocol 4: locators may carry `heading`, `pageTitle` and `attrs`, and steps report `score` matches. */
 export const SCORED_MATCH_PROTOCOL = 4;
@@ -21,6 +21,9 @@ export const CLAUDE_NOTES_PROTOCOL = 5;
 
 /** Protocol 6: `web-tour/check` plays a draft in check mode and reports `web-tour/check-*` on the port (C12). */
 export const CHECK_PROTOCOL = 6;
+
+/** Protocol 7: `web-tour/suggest` carries a better candidate's clues for a step that missed or played weak (C14). */
+export const SUGGEST_PROTOCOL = 7;
 
 /** Staff Google accounts; `@students.orono.k12.mn.us` does not match. */
 export const STAFF_EMAIL_DOMAIN = 'orono.k12.mn.us';
@@ -122,7 +125,18 @@ export type WebTourCheckProgress =
       done: boolean;
     };
 
-export type WebTourPortPost = WebTourProgressMessage | WebTourCheckProgress;
+/** Extension to page on the `web-tour` port (protocol 7): scrubbed clues of the best candidate for a missed or weak step; `runId` marks a check run. */
+export interface WebTourSuggestPost {
+  type: 'web-tour/suggest';
+  setId: string;
+  stepIndex: number;
+  stepId: string;
+  locator: WebTourLocator;
+  runId?: string;
+}
+
+export type WebTourPortPost =
+  WebTourProgressMessage | WebTourCheckProgress | WebTourSuggestPost;
 
 export type ExtensionMessage =
   PingMessage | WebTourStartMessage | WebTourCheckStartMessage;
@@ -282,6 +296,10 @@ function parseFrames(v: unknown): WebTourFrame[] | null {
   return out;
 }
 
+/** A locator checked key by key, or null; the same validator the start message uses. */
+export const parseWebTourLocator = (v: unknown): WebTourLocator | null =>
+  parseLocator(v);
+
 function parseLocator(v: unknown): WebTourLocator | null {
   const keys = [
     'role',
@@ -425,11 +443,13 @@ export function parseWebTourPortMessage(
 const isCheckProgress = (msg: WebTourPortPost): msg is WebTourCheckProgress =>
   msg.type === 'web-tour/check-step' || msg.type === 'web-tour/check-end';
 
-/** A port message as a page at `protocol` reads it: older pages get a weak match as `text`, and no check results (null). */
+/** A port message as a page at `protocol` reads it: older pages get a weak match as `text`, and no check results or suggestions (null). */
 export function progressForPage(
   msg: WebTourPortPost,
   protocol: number
 ): WebTourPortPost | null {
+  if (msg.type === 'web-tour/suggest')
+    return protocol >= SUGGEST_PROTOCOL ? msg : null;
   if (isCheckProgress(msg)) return protocol >= CHECK_PROTOCOL ? msg : null;
   if (msg.type !== 'web-tour/step' || msg.match !== 'score') return msg;
   return protocol >= SCORED_MATCH_PROTOCOL ? msg : { ...msg, match: 'text' };
