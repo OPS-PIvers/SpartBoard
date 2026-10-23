@@ -264,13 +264,26 @@
       "widgetType": "countdown",
       "dimension": "layout",
       "openedAt": "2026-10-22T04:16:00Z",
-      "outcome": "open",
+      "outcome": "accepted",
       "changes": {
         "S3": {
           "before": 1,
           "after": 2
         },
         "C1": {
+          "before": 2,
+          "after": 3
+        }
+      }
+    },
+    {
+      "pr": 4594,
+      "widgetType": "countdown",
+      "dimension": "layout",
+      "openedAt": "2026-10-23T04:11:00Z",
+      "outcome": "open",
+      "changes": {
+        "S1": {
           "before": 2,
           "after": 3
         }
