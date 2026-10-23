@@ -99,12 +99,16 @@ const orgMember = (uid: string, extra: StubData = {}): StubData => ({
 
 function makeDeps(seed: Record<string, StubData>) {
   const stub = makeStubFirestore(seed);
-  const users: Record<string, { email?: string; displayName?: string }> = {};
+  const users: Record<
+    string,
+    { email?: string; emailVerified?: boolean; displayName?: string }
+  > = {};
   for (const path of Object.keys(seed)) {
     const segs = path.split('/');
     if (segs[0] === 'users' && segs[3] === 'profile') {
       users[segs[1]] = {
         email: `${segs[1]}@orono.k12.mn.us`,
+        emailVerified: true,
         displayName: segs[1].toUpperCase(),
       };
     }
@@ -115,7 +119,13 @@ function makeDeps(seed: Record<string, StubData>) {
     getUserByEmail: (email) => {
       const uid = Object.keys(users).find((u) => users[u].email === email);
       return Promise.resolve(
-        uid ? { uid, displayName: users[uid].displayName } : null
+        uid
+          ? {
+              uid,
+              emailVerified: users[uid].emailVerified,
+              displayName: users[uid].displayName,
+            }
+          : null
       );
     },
     serverTimestamp: () => 'TS',
@@ -405,6 +415,148 @@ function rosterSeed(): Record<string, StubData> {
     'users/t1/userProfile/other': { selectedBuildings: ['middle'] },
   };
 }
+
+// An unverified account, an unclaimed invite with no verified org domain, and a doc claimed by someone else.
+function forgedSeed(): Record<string, StubData> {
+  const seed = rosterSeed();
+  seed['organizations/orono/members/inv@orono.k12.mn.us'] = {
+    roleId: 'teacher',
+    status: 'invited',
+  };
+  seed['organizations/orono/members/other@orono.k12.mn.us'] =
+    orgMember('someoneElse');
+  seed['organizations/orono/members/unv@orono.k12.mn.us'] = {
+    roleId: 'teacher',
+    status: 'active',
+  };
+  seed['users/inv/userProfile/profile'] = { selectedBuildings: ['middle'] };
+  seed['users/other/userProfile/profile'] = { selectedBuildings: ['middle'] };
+  seed['users/unv/userProfile/profile'] = { selectedBuildings: ['middle'] };
+  return seed;
+}
+
+function forgedDeps(seed: Record<string, StubData>) {
+  const out = makeDeps(seed);
+  out.users.unv.emailVerified = false;
+  return out;
+}
+
+describe('auto-roster identity checks', () => {
+  it('backfill skips unverified, unclaimed and mismatched accounts', async () => {
+    const seed = forgedSeed();
+    seed['plcs/g1'] = group({ lead: member('lead', 'lead') });
+    const { stub, deps } = forgedDeps(seed);
+    expect(await rosterBuildingGroup(deps, 'g1')).toBe(2);
+    expect([...(stub.get('plcs/g1')!.memberUids as string[])].sort()).toEqual([
+      'lead',
+      't1',
+      't2',
+    ]);
+  });
+
+  it('createBuildingGroup and syncBuildingGroup backfill none of them', async () => {
+    const seed = forgedSeed();
+    seed['organizations/orono/members/boss@orono.k12.mn.us'] = orgMember(
+      'boss',
+      { roleId: 'domain_admin' }
+    );
+    seed['plcs/g1'] = group(
+      { lead: member('lead', 'lead') },
+      { autoRoster: false }
+    );
+    const { stub, deps } = forgedDeps(seed);
+    const { plcId } = await createBuildingGroup(deps, {
+      orgId: ORG,
+      buildingId: 'middle',
+      name: 'OMS Staff',
+      leadEmail: 'lead@orono.k12.mn.us',
+      coLeadEmails: [],
+      autoRoster: true,
+    });
+    await syncBuildingGroup(deps, 'g1', 'boss@orono.k12.mn.us', true);
+    for (const id of [plcId, 'g1']) {
+      const uids = stub.get(`plcs/${id}`)!.memberUids as string[];
+      expect(uids).not.toContain('inv');
+      expect(uids).not.toContain('other');
+      expect(uids).not.toContain('unv');
+    }
+  });
+
+  it('the profile trigger adds none of them', async () => {
+    const seed = forgedSeed();
+    seed['plcs/g1'] = group({ lead: member('lead', 'lead') });
+    const { stub, deps } = forgedDeps(seed);
+    for (const uid of ['inv', 'other', 'unv']) {
+      expect(
+        await applyProfileBuildingsChange(deps, uid, [], ['middle'])
+      ).toEqual({ added: [], removed: [] });
+    }
+    expect(stub.get('plcs/g1')!.memberUids).toEqual(['lead']);
+  });
+
+  it('counts an unclaimed invite only on a verified org domain', async () => {
+    const seed = forgedSeed();
+    seed['plcs/g1'] = group({ lead: member('lead', 'lead') });
+    seed['organizations/orono/domains/d1'] = {
+      domain: '@orono.k12.mn.us',
+      status: 'verified',
+    };
+    seed['organizations/orono/members/taken@orono.k12.mn.us'] = {
+      roleId: 'teacher',
+      status: 'invited',
+      uid: 'someoneElse',
+    };
+    seed['users/taken/userProfile/profile'] = { selectedBuildings: ['middle'] };
+    const { stub, deps } = forgedDeps(seed);
+    expect(await rosterBuildingGroup(deps, 'g1')).toBe(3);
+    const uids = stub.get('plcs/g1')!.memberUids as string[];
+    expect(uids).toContain('inv');
+    for (const uid of ['other', 'unv', 'taken']) {
+      expect(uids).not.toContain(uid);
+    }
+  });
+
+  it('the profile trigger adds an invitee on a verified org domain', async () => {
+    const seed = forgedSeed();
+    seed['plcs/g1'] = group({ lead: member('lead', 'lead') });
+    seed['organizations/orono/domains/d1'] = {
+      domain: '@orono.k12.mn.us',
+      status: 'verified',
+    };
+    const { stub, deps } = forgedDeps(seed);
+    expect(
+      await applyProfileBuildingsChange(deps, 'inv', [], ['middle'])
+    ).toEqual({ added: ['g1'], removed: [] });
+    expect(stub.get('plcs/g1')!.memberUids).toContain('inv');
+  });
+
+  it('ignores an unverified org domain for an unclaimed invite', async () => {
+    const seed = forgedSeed();
+    seed['plcs/g1'] = group({ lead: member('lead', 'lead') });
+    seed['organizations/orono/domains/d1'] = {
+      domain: '@orono.k12.mn.us',
+      status: 'pending',
+    };
+    const { stub, deps } = forgedDeps(seed);
+    await rosterBuildingGroup(deps, 'g1');
+    expect(stub.get('plcs/g1')!.memberUids).not.toContain('inv');
+  });
+
+  it('createBuildingGroup rejects a lead found only as an unverified account', async () => {
+    const seed = forgedSeed();
+    const { deps } = forgedDeps(seed);
+    await expect(
+      createBuildingGroup(deps, {
+        orgId: ORG,
+        buildingId: 'middle',
+        name: 'OMS Staff',
+        leadEmail: 'unv@orono.k12.mn.us',
+        coLeadEmails: [],
+        autoRoster: false,
+      })
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+  });
+});
 
 describe('createBuildingGroup', () => {
   const payload = {
