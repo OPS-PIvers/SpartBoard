@@ -559,3 +559,142 @@ describe('framesForStep', () => {
     ).toEqual([5, 6]);
   });
 });
+
+describe('playback controller, check mode (C12)', () => {
+  const checkStart = (): ParsedStart => ({ ...parsed(), check: true });
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+  const timeOut = async (
+    h: ReturnType<typeof fakeHost>,
+    c: { isPlaying: (t: number) => Promise<boolean> }
+  ) => {
+    h.timers.at(-1)?.();
+    await flush();
+    await c.isPlaying(7);
+    await flush();
+  };
+
+  it('reports a clear find as Found, and Next moves on without a click', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(checkStart());
+    await c.committed(7, 0, 'https://a.example/home');
+    expect(h.lastRender()).toMatchObject({ check: 'pending' });
+    await c.frameReport(7, 0, {
+      type: 'wt:found',
+      token: h.lastSeek().msg.token as string,
+      weak: false,
+      url: '',
+    });
+    expect(h.lastRender()).toMatchObject({ status: 'shown', check: 'found' });
+    await c.overlayAction(7, 0, 'next');
+    expect(h.lastRender()).toMatchObject({ current: 2, check: 'pending' });
+    expect(h.posts).toEqual([
+      {
+        type: 'web-tour/check-step',
+        setId: 'set1',
+        stepIndex: 0,
+        stepId: 'a',
+        result: 'found',
+      },
+    ]);
+  });
+
+  it('reports weak and ambiguous targets', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(checkStart());
+    await c.committed(7, 0, 'https://a.example/home');
+    await c.frameReport(7, 0, {
+      type: 'wt:found',
+      token: h.lastSeek().msg.token as string,
+      weak: true,
+      url: '',
+    });
+    await c.overlayAction(7, 0, 'next');
+    await c.historyChanged(7, 0, 'https://a.example/course/2');
+    const token = h.lastSeek().msg.token as string;
+    await c.frameReport(7, 0, { type: 'wt:ambiguous', token });
+    await timeOut(h, c);
+    expect(h.lastRender()).toMatchObject({
+      status: 'fallback',
+      check: 'ambiguous',
+    });
+    const results = h.posts.flatMap((p) =>
+      p.type === 'web-tour/check-step' ? [[p.stepId, p.result]] : []
+    );
+    expect(results).toEqual([
+      ['a', 'weak'],
+      ['b', 'ambiguous'],
+    ]);
+  });
+
+  it('posts Not found on timeout, and re-reports it once candidates tie', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start({ ...checkStart(), stepIndex: 1 });
+    await c.committed(7, 0, 'https://a.example/course/3');
+    const token = h.lastSeek().msg.token as string;
+    await timeOut(h, c);
+    expect(h.posts.at(-1)).toMatchObject({ stepId: 'b', result: 'none' });
+    await c.frameReport(7, 0, { type: 'wt:ambiguous', token });
+    expect(h.posts.at(-1)).toMatchObject({ stepId: 'b', result: 'ambiguous' });
+  });
+
+  it('never posts run progress, so a hub watching the same tour logs nothing', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start({ ...checkStart(), stepIndex: 1 });
+    await c.committed(7, 0, 'https://a.example/course/1');
+    await c.overlayAction(7, 0, 'next');
+    await c.start(checkStart());
+    await c.tabClosed(8);
+    expect(h.posts.every((p) => p.type.startsWith('web-tour/check-'))).toBe(
+      true
+    );
+    expect(h.posts).toContainEqual({
+      type: 'web-tour/check-end',
+      setId: 'set1',
+      stepIndex: 1,
+      done: true,
+    });
+    expect(h.posts.at(-1)).toEqual({
+      type: 'web-tour/check-end',
+      setId: 'set1',
+      stepIndex: 0,
+      done: false,
+    });
+  });
+
+  it('replays the current result to a page that reconnects', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(checkStart());
+    await c.committed(7, 0, 'https://a.example/home');
+    await c.frameReport(7, 0, {
+      type: 'wt:found',
+      token: h.lastSeek().msg.token as string,
+      weak: false,
+      url: '',
+    });
+    expect(await c.replay('set1')).toEqual([
+      {
+        type: 'web-tour/check-step',
+        setId: 'set1',
+        stepIndex: 0,
+        stepId: 'a',
+        result: 'found',
+      },
+    ]);
+  });
+
+  it('ignores ambiguity reports outside check mode', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    await c.committed(7, 0, 'https://a.example/home');
+    const token = h.lastSeek().msg.token as string;
+    await c.frameReport(7, 0, { type: 'wt:ambiguous', token });
+    expect(h.posts).toEqual([]);
+    expect('check' in h.lastRender()).toBe(false);
+  });
+});

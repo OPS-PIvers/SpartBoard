@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   parseExtensionMessage,
+  type WebTourCheckStartMessage,
   type WebTourStartMessage,
 } from '@/components/tours/web/extensionProtocol';
 import { toPlayback } from './startMessage';
@@ -67,6 +68,20 @@ describe('web-tour/start', () => {
       clues: { text: 'Grades' },
     });
     expect(p.pictures.a.data).toBe('AAAA');
+  });
+
+  it('takes the same tour as web-tour/check and marks it a check run', () => {
+    const parsed = parse({ ...valid(), type: 'web-tour/check' });
+    expect(parsed.kind).toBe('ok');
+    if (parsed.kind !== 'ok') return;
+    expect(parsed.staffOnly).toBe(true);
+    expect(toPlayback(parsed.message as WebTourCheckStartMessage).check).toBe(
+      true
+    );
+    expect(toPlayback(valid() as WebTourStartMessage).check).toBeUndefined();
+    expect(parse({ ...valid(), type: 'web-tour/check', extra: 1 }).kind).toBe(
+      'invalid'
+    );
   });
 
   it('clamps the step index to the tour', () => {

@@ -3,17 +3,23 @@ import type {
   GuidedLearningSet,
   GuidedLearningStep,
   WebTourBinding,
+  WebTourCheckRun,
 } from '@/types';
 import { buildNameMatcher } from '@/components/widgets/GuidedLearning/components/recorder/redaction';
 import {
   assertPublishable,
+  checkPasses,
   confirmPictures,
+  currentCheckResults,
   hideHits,
   hideStudentData,
   picturesNeedConfirm,
   publishBlockers,
+  recordCheckResult,
   reviewEntries,
   setReviewField,
+  startCheckRun,
+  targetsSignature,
 } from './webStepReview';
 
 const roster = buildNameMatcher([{ firstName: 'Alice', lastName: 'Nguyen' }]);
@@ -42,6 +48,19 @@ const step = (
         }
       : {}),
   }) as GuidedLearningStep & { web?: WebTourBinding };
+
+// A check run in which every step was found clearly.
+const passed = <T extends { steps: GuidedLearningStep[] }>(
+  set: T
+): T & { webTourChecked: WebTourCheckRun } => ({
+  ...set,
+  webTourChecked: {
+    by: 'u1',
+    at: 1,
+    sig: targetsSignature(set),
+    results: Object.fromEntries(set.steps.map((s) => [s.id, 'found'])),
+  },
+});
 
 describe('reviewEntries', () => {
   it('lists every captured field with its hits', () => {
@@ -192,7 +211,7 @@ describe('hideStudentData', () => {
       [0, 'name'],
     ]);
     expect(set.title).not.toContain('Alice');
-    expect(publishBlockers(set, roster)).toEqual([]);
+    expect(publishBlockers(passed(set), roster)).toEqual([]);
   });
 
   it('returns the same set when nothing needs hiding', () => {
@@ -210,16 +229,17 @@ describe('publishBlockers', () => {
     expect(publishBlockers({ steps: [step('a', null), bad] }, roster)).toEqual([
       { kind: 'not-web', stepId: 'a' },
       { kind: 'student-data', stepId: 'b', field: 'name' },
+      { kind: 'unchecked' },
     ]);
   });
 
   it('passes a tour with no student data, and assertPublishable agrees', () => {
-    const ok = { steps: [step('a', {})] };
+    const ok = passed({ steps: [step('a', {})] });
     expect(publishBlockers(ok, roster)).toEqual([]);
     expect(() => assertPublishable(ok, roster)).not.toThrow();
     expect(() =>
       assertPublishable(
-        { steps: [step('a', {}, { text: 'Find Alice' })] },
+        passed({ steps: [step('a', {}, { text: 'Find Alice' })] }),
         roster
       )
     ).toThrow(/student-data/);
@@ -228,9 +248,132 @@ describe('publishBlockers', () => {
   it('blocks a tour whose title names a student', () => {
     expect(
       publishBlockers(
-        { title: 'Alice Nguyen grades', steps: [step('a', {})] },
+        passed({ title: 'Alice Nguyen grades', steps: [step('a', {})] }),
         roster
       )
     ).toEqual([{ kind: 'title-data' }]);
+  });
+
+  it('blocks until a check run found every step clearly', () => {
+    const steps = [step('a', {}), step('b', {})];
+    expect(publishBlockers({ steps }, roster)).toEqual([{ kind: 'unchecked' }]);
+    expect(() => assertPublishable({ steps }, roster)).toThrow(/unchecked/);
+    const run = passed({ steps });
+    expect(publishBlockers(run, roster)).toEqual([]);
+    const weak = {
+      ...run,
+      webTourChecked: {
+        ...run.webTourChecked,
+        results: { a: 'found' as const, b: 'weak' as const },
+      },
+    };
+    expect(publishBlockers(weak, roster)).toEqual([{ kind: 'unchecked' }]);
+    const partial = {
+      ...run,
+      webTourChecked: {
+        ...run.webTourChecked,
+        results: { a: 'found' as const },
+      },
+    };
+    expect(checkPasses(partial)).toBe(false);
+  });
+});
+
+describe('check signature', () => {
+  const base = () => passed(tourOf([step('a', {}), step('b', {})]));
+  const withStep = (
+    set: GuidedLearningSet,
+    id: string,
+    patch: (
+      s: GuidedLearningStep & { web?: WebTourBinding }
+    ) => GuidedLearningStep
+  ): GuidedLearningSet => ({
+    ...set,
+    steps: set.steps.map((s) => (s.id === id ? patch(s) : s)),
+  });
+
+  it('survives edits to text, labels, tips, notes, pictures and key order', () => {
+    const set = base();
+    const edited = withStep(
+      { ...set, title: 'New title' },
+      'a',
+      (s) =>
+        ({
+          ...s,
+          label: 'Renamed',
+          text: 'A new tip',
+          web: {
+            ...(s.web as WebTourBinding),
+            picture: { path: 'web_tour_pictures/t1/x.jpg', w: 1, h: 1 },
+            note: 'For Claude',
+          },
+        }) as GuidedLearningStep
+    );
+    expect(checkPasses(edited)).toBe(true);
+    // Firestore can hand map keys back in another order.
+    const reordered = withStep(set, 'a', (s) => ({
+      ...s,
+      web: {
+        ...(s.web as WebTourBinding),
+        locator: { name: 'Grades', role: 'link' },
+      },
+    }));
+    expect(checkPasses(reordered)).toBe(true);
+  });
+
+  it('expires on any change to what playback looks for', () => {
+    const set = base();
+    const changes: GuidedLearningSet[] = [
+      withStep(set, 'a', (s) => ({
+        ...s,
+        web: {
+          ...(s.web as WebTourBinding),
+          locator: { role: 'button', name: 'Grades' },
+        },
+      })),
+      withStep(set, 'a', (s) => setReviewField(s, 'css', 'div > a')),
+      withStep(set, 'a', (s) => ({
+        ...s,
+        web: {
+          ...(s.web as WebTourBinding),
+          urlPattern: 'https://orono.schoology.com/home',
+        },
+      })),
+      withStep(set, 'a', (s) => ({
+        ...s,
+        web: { ...(s.web as WebTourBinding), action: 'observe' },
+      })),
+      withStep(set, 'a', (s) => ({
+        ...s,
+        web: {
+          ...(s.web as WebTourBinding),
+          locator: {
+            ...(s.web as WebTourBinding).locator,
+            frames: [{ urlPattern: 'https://x.example/f', index: 0 }],
+          },
+        },
+      })),
+      { ...set, steps: [...set.steps].reverse() },
+      { ...set, steps: set.steps.slice(1) },
+      { ...set, steps: [...set.steps, step('c', {})] },
+    ];
+    for (const changed of changes) {
+      expect(checkPasses(changed)).toBe(false);
+      expect(currentCheckResults(changed)).toBeNull();
+    }
+  });
+
+  it('records results only for the run they belong to', () => {
+    const set = tourOf([step('a', {})]);
+    const started = startCheckRun(set, 'u1');
+    expect(started.webTourChecked?.results).toEqual({});
+    const sig = started.webTourChecked?.sig ?? '';
+    const found = recordCheckResult(started, sig, 'a', 'found');
+    expect(checkPasses(found)).toBe(true);
+    expect(recordCheckResult(found, 'old', 'a', 'none')).toBe(found);
+    expect(recordCheckResult(found, sig, 'gone', 'none')).toBe(found);
+    const later = recordCheckResult(found, sig, 'a', 'ambiguous');
+    expect(later.webTourChecked?.results.a).toBe('ambiguous');
+    expect(checkPasses(later)).toBe(false);
   });
 });

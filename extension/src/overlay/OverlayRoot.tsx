@@ -5,7 +5,12 @@ import { TourBar } from '@/components/tours/TourBar';
 import { TourSpotlight } from '@/components/tours/TourSpotlight';
 import { TourTip } from '@/components/tours/TourTip';
 import { tetherFor } from '@/components/widgets/GuidedLearning/utils/calloutPlacement';
-import type { OverlayAction, OverlayRect, OverlayState } from './overlayState';
+import type {
+  OverlayAction,
+  OverlayCheck,
+  OverlayRect,
+  OverlayState,
+} from './overlayState';
 import { useTargetRect } from './targetRect';
 
 const TIP_W = 320;
@@ -54,6 +59,20 @@ const Picture: React.FC<{ picture: NonNullable<OverlayState['picture']> }> = ({
   );
 };
 
+const CHECK_KEYS: Record<Exclude<OverlayCheck, 'pending'>, string> = {
+  found: 'tours.webCheckFound',
+  weak: 'tours.webCheckWeak',
+  ambiguous: 'tours.webCheckAmbiguous',
+  none: 'tours.webCheckNone',
+};
+
+const CHECK_TONE: Record<Exclude<OverlayCheck, 'pending'>, string> = {
+  found: 'bg-emerald-100 text-emerald-800',
+  weak: 'bg-amber-100 text-amber-800',
+  ambiguous: 'bg-amber-100 text-amber-800',
+  none: 'bg-red-100 text-red-800',
+};
+
 const TopOverlay: React.FC<Omit<Props, 'i18n' | 'styled'>> = ({
   state,
   onAction,
@@ -79,6 +98,9 @@ const TopOverlay: React.FC<Omit<Props, 'i18n' | 'styled'>> = ({
       )
     : null;
   const last = state.current === state.total;
+  // Check mode: Next moves on from any step without the real click (C12).
+  const checking = state.check !== undefined;
+  const result = state.check && state.check !== 'pending' ? state.check : null;
   return (
     <>
       {lit && (
@@ -107,11 +129,20 @@ const TopOverlay: React.FC<Omit<Props, 'i18n' | 'styled'>> = ({
         next={
           done
             ? { onNext: () => onAction('exit'), last: true }
-            : state.observe || state.status === 'fallback'
+            : checking || state.observe || state.status === 'fallback'
               ? { onNext: () => onAction('next'), last }
               : undefined
         }
       >
+        {result && !done && (
+          <p
+            role="status"
+            data-testid="web-tour-check-result"
+            className={`mb-2 w-fit rounded-full px-2 py-0.5 text-xs font-semibold ${CHECK_TONE[result]}`}
+          >
+            {t(CHECK_KEYS[result])}
+          </p>
+        )}
         {!done && <p className="text-sm text-slate-700">{state.text}</p>}
         {state.status === 'wrong-page' && (
           <p

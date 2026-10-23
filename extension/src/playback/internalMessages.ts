@@ -8,7 +8,12 @@ export function isFrameReport(msg: unknown): msg is FrameReport {
   if (!msg || typeof msg !== 'object') return false;
   const m = msg as Record<string, unknown>;
   if (typeof m.token !== 'string' || m.token.length > 100) return false;
-  if (m.type === 'wt:lost' || m.type === 'wt:acted') return true;
+  if (
+    m.type === 'wt:lost' ||
+    m.type === 'wt:acted' ||
+    m.type === 'wt:ambiguous'
+  )
+    return true;
   return (
     m.type === 'wt:found' &&
     typeof m.weak === 'boolean' &&

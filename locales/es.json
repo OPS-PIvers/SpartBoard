@@ -4069,7 +4069,11 @@
     },
     "webFindIt": "Busque esto en la página.",
     "webOtherPage": "Este paso está en otra página. Ábrala para continuar.",
-    "webPictureAlt": "Imagen de este paso"
+    "webPictureAlt": "Imagen de este paso",
+    "webCheckFound": "Encontrado",
+    "webCheckWeak": "Coincidencia débil",
+    "webCheckAmbiguous": "Coincide con más de uno",
+    "webCheckNone": "No encontrado"
   },
   "glPlayer": {
     "modeChip": {

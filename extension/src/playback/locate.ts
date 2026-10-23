@@ -532,20 +532,41 @@ function nearestTwin(
   return { el: near.el, weak: true, score: near.score };
 }
 
+/** What a search came to: a match, a tie it refused to break (`ambiguous`), or nothing above the floor. */
+export type LocateOutcome =
+  | { kind: 'match'; match: LocatorMatch }
+  | { kind: 'ambiguous' }
+  | { kind: 'none' };
+
 /** Scores every candidate on every recorded clue; the best plays above the floor, and is clear only by the margin (C1, C2). */
-export function locate(
+export function assessTarget(
   doc: Document,
   clues: WebLocatorClues
-): LocatorMatch | null {
+): LocateOutcome {
   const w = wantedOf(clues);
-  if (w.total === 0) return null;
+  if (w.total === 0) return { kind: 'none' };
   const look = lookups();
   const scored = gather(doc, rootsOf(doc), w, look).map((el, i) =>
     scoreOf(el, i, w, look)
   );
   const { best, rival } = pickOf(addHeadings(scored, w, look));
-  if (!best || best.score < SCORE_FLOOR) return null;
+  if (!best || best.score < SCORE_FLOOR) return { kind: 'none' };
   const lead = rival ? best.score - rival.score : best.score;
-  if (lead < SCORE_TIE) return nearestTwin(scored, best, w, look);
-  return { el: best.el, weak: lead < SCORE_MARGIN, score: best.score };
+  if (lead < SCORE_TIE) {
+    const twin = nearestTwin(scored, best, w, look);
+    return twin ? { kind: 'match', match: twin } : { kind: 'ambiguous' };
+  }
+  return {
+    kind: 'match',
+    match: { el: best.el, weak: lead < SCORE_MARGIN, score: best.score },
+  };
+}
+
+/** The element a step plays on, or null when nothing clears the floor or a tie can't be broken. */
+export function locate(
+  doc: Document,
+  clues: WebLocatorClues
+): LocatorMatch | null {
+  const out = assessTarget(doc, clues);
+  return out.kind === 'match' ? out.match : null;
 }

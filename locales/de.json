@@ -4069,7 +4069,11 @@
     },
     "webFindIt": "Suchen Sie dies auf der Seite.",
     "webOtherPage": "Dieser Schritt ist auf einer anderen Seite. Öffnen Sie sie, um fortzufahren.",
-    "webPictureAlt": "Bild dieses Schritts"
+    "webPictureAlt": "Bild dieses Schritts",
+    "webCheckFound": "Gefunden",
+    "webCheckWeak": "Schwache Übereinstimmung",
+    "webCheckAmbiguous": "Passt auf mehr als eines",
+    "webCheckNone": "Nicht gefunden"
   },
   "glPlayer": {
     "modeChip": {

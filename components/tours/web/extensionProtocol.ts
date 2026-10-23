@@ -6,14 +6,18 @@ import {
   type WebTourAction,
   type WebTourFrame,
   type WebTourLocator,
+  type WebTourCheckResult,
   type WebTourStableAttrs,
 } from '@/types';
 
 /** Bumped additively when a message type is added; the page checks it before using a feature. */
-export const EXTENSION_PROTOCOL_VERSION = 4;
+export const EXTENSION_PROTOCOL_VERSION = 5;
 
 /** Protocol 4: locators may carry `heading`, `pageTitle` and `attrs`, and steps report `score` matches. */
 export const SCORED_MATCH_PROTOCOL = 4;
+
+/** Protocol 5: `web-tour/check` plays a draft in check mode and reports `web-tour/check-*` on the port (C12). */
+export const CHECK_PROTOCOL = 5;
 
 /** Staff Google accounts; `@students.orono.k12.mn.us` does not match. */
 export const STAFF_EMAIL_DOMAIN = 'orono.k12.mn.us';
@@ -58,6 +62,14 @@ export interface WebTourStartMessage {
   tour: WebTourStartTour;
 }
 
+/** Protocol 5, staff only: the same tour played in check mode, reported only as check results. */
+export interface WebTourCheckStartMessage {
+  type: 'web-tour/check';
+  startUrl: string;
+  stepIndex: number;
+  tour: WebTourStartTour;
+}
+
 export interface WebTourStartReply {
   ok: true;
   tabId: number;
@@ -87,7 +99,26 @@ export type WebTourProgressMessage =
   | { type: 'web-tour/exit'; setId: string; stepIndex: number }
   | { type: 'web-tour/closed'; setId: string; stepIndex: number };
 
-export type ExtensionMessage = PingMessage | WebTourStartMessage;
+/** Extension to page on the `web-tour` port during a check run (protocol 5); `done` false means it stopped early. */
+export type WebTourCheckProgress =
+  | {
+      type: 'web-tour/check-step';
+      setId: string;
+      stepIndex: number;
+      stepId: string;
+      result: WebTourCheckResult;
+    }
+  | {
+      type: 'web-tour/check-end';
+      setId: string;
+      stepIndex: number;
+      done: boolean;
+    };
+
+export type WebTourPortPost = WebTourProgressMessage | WebTourCheckProgress;
+
+export type ExtensionMessage =
+  PingMessage | WebTourStartMessage | WebTourCheckStartMessage;
 export type ExtensionMessageType = ExtensionMessage['type'];
 
 export interface PingReply {
@@ -114,16 +145,19 @@ interface MessageSpec {
   fields: Record<string, (value: unknown) => boolean>;
 }
 
+const START_SPEC: MessageSpec = {
+  staffOnly: true,
+  fields: {
+    startUrl: (v) => isOpenableUrl(v),
+    stepIndex: (v) => Number.isInteger(v) && (v as number) >= 0,
+    tour: (v) => parseWebTourStartTour(v) !== null,
+  },
+};
+
 const MESSAGE_SPECS: Record<ExtensionMessageType, MessageSpec> = {
   ping: { staffOnly: false, fields: {} },
-  'web-tour/start': {
-    staffOnly: true,
-    fields: {
-      startUrl: (v) => isOpenableUrl(v),
-      stepIndex: (v) => Number.isInteger(v) && (v as number) >= 0,
-      tour: (v) => parseWebTourStartTour(v) !== null,
-    },
-  },
+  'web-tour/start': START_SPEC,
+  'web-tour/check': START_SPEC,
 };
 
 export type ParsedMessage =
@@ -374,11 +408,15 @@ export function parseWebTourPortMessage(
   };
 }
 
-/** A progress message as a page at `protocol` reads it: older pages get a weak match as `text`, which they count as weak. */
+const isCheckProgress = (msg: WebTourPortPost): msg is WebTourCheckProgress =>
+  msg.type === 'web-tour/check-step' || msg.type === 'web-tour/check-end';
+
+/** A port message as a page at `protocol` reads it: older pages get a weak match as `text`, and no check results (null). */
 export function progressForPage(
-  msg: WebTourProgressMessage,
+  msg: WebTourPortPost,
   protocol: number
-): WebTourProgressMessage {
+): WebTourPortPost | null {
+  if (isCheckProgress(msg)) return protocol >= CHECK_PROTOCOL ? msg : null;
   if (msg.type !== 'web-tour/step' || msg.match !== 'score') return msg;
   return protocol >= SCORED_MATCH_PROTOCOL ? msg : { ...msg, match: 'text' };
 }

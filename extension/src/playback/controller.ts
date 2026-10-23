@@ -8,8 +8,9 @@ import {
 } from './progress';
 import type {
   WebTourPictureBytes,
-  WebTourProgressMessage,
+  WebTourPortPost,
 } from '@/components/tours/web/extensionProtocol';
+import type { WebTourCheckResult } from '@/types';
 import type { OverlayAction, OverlayState } from '../overlay/overlayState';
 import type { ParsedStart } from './startMessage';
 import { matchesUrlPattern } from './urlPattern';
@@ -23,7 +24,7 @@ export interface HostFrame {
 export type OverlayMessage =
   { type: 'overlay/render'; state: OverlayState } | { type: 'overlay/unmount' };
 
-export type ProgressPost = WebTourProgressMessage;
+export type ProgressPost = WebTourPortPost;
 
 /** The Chrome APIs playback needs, so the controller runs against a fake in tests. */
 export interface PlaybackHost {
@@ -66,6 +67,12 @@ interface TabRecord {
   postedIndex: number;
   /** Step index on which a page actually loaded and didn't match, so only a real wrong page counts as a miss. */
   wrongPageIndex?: number;
+  /** Check mode (C12): posts only check results, never a run's progress. */
+  check?: boolean;
+  /** Check mode: the latest result posted per step. */
+  results?: Record<string, WebTourCheckResult>;
+  /** Check mode: the seek whose candidates tied. */
+  ambiguousToken?: string;
 }
 
 export const FALLBACK_MS = 4000;
@@ -79,6 +86,19 @@ const TABS_QUEUE = -2;
 export const SESSION_BUDGET = 9 * 1024 * 1024;
 const MAX_TITLE = 200;
 const isWebPage = (url: string) => /^https?:\/\//.test(url);
+
+/** A step's check result from how it was found; an unfound step whose candidates tied is `ambiguous`. */
+export const checkResultOf = (
+  match: FoundMatch | 'none',
+  tied: boolean
+): WebTourCheckResult =>
+  match === 'role'
+    ? 'found'
+    : match === 'score'
+      ? 'weak'
+      : tied
+        ? 'ambiguous'
+        : 'none';
 
 /** The frame ids whose chain of addresses matches the step's recorded frames; empty when none do. */
 export function framesForStep(
@@ -163,6 +183,7 @@ export function createPlaybackController(host: PlaybackHost) {
       return;
     }
     const shownIn = state.status === 'shown' ? rec.targetFrameId : null;
+    const settled = state.status === 'shown' || state.status === 'fallback';
     const base = {
       title: step.title.slice(0, MAX_TITLE),
       text: step.text,
@@ -170,6 +191,11 @@ export function createPlaybackController(host: PlaybackHost) {
       total: state.tour.steps.length,
       status: state.status,
       observe: step.action === 'observe',
+      ...(rec.check
+        ? {
+            check: (settled && rec.results?.[step.id]) || ('pending' as const),
+          }
+        : {}),
     };
     host.sendToFrame(rec.tabId, 0, {
       type: 'overlay/render',
@@ -202,6 +228,18 @@ export function createPlaybackController(host: PlaybackHost) {
     if (!step) return;
     rec.posted = { ...rec.posted, [step.id]: match };
     rec.postedIndex = index;
+    if (rec.check) {
+      const result = checkResultOf(match, rec.ambiguousToken === rec.token);
+      rec.results = { ...rec.results, [step.id]: result };
+      host.post(setId, {
+        type: 'web-tour/check-step',
+        setId,
+        stepIndex: index,
+        stepId: step.id,
+        result,
+      });
+      return;
+    }
     host.post(setId, {
       type: 'web-tour/step',
       setId,
@@ -209,6 +247,29 @@ export function createPlaybackController(host: PlaybackHost) {
       stepId: step.id,
       match,
     });
+  }
+
+  /** How a run ended; a check run reports only `web-tour/check-end`, so it is never logged as a teacher's run. */
+  function postEnd(
+    rec: TabRecord,
+    kind: 'done' | 'exit' | 'closed',
+    stepIndex: number
+  ) {
+    const setId = rec.state.tour.id;
+    if (rec.check) {
+      host.post(setId, {
+        type: 'web-tour/check-end',
+        setId,
+        stepIndex,
+        done: kind === 'done',
+      });
+    } else if (kind === 'done') {
+      host.post(setId, { type: 'web-tour/done', setId });
+    } else if (kind === 'exit') {
+      host.post(setId, { type: 'web-tour/exit', setId, stepIndex });
+    } else {
+      host.post(setId, { type: 'web-tour/closed', setId, stepIndex });
+    }
   }
 
   /** A step left while still on the wrong page counts as a miss, so a broken page pattern shows in tour health. */
@@ -222,7 +283,6 @@ export function createPlaybackController(host: PlaybackHost) {
 
   function postProgress(rec: TabRecord, before: PlaybackState) {
     const { state } = rec;
-    const setId = state.tour.id;
     const step = state.tour.steps[state.index];
     if (
       state.index !== before.index ||
@@ -239,18 +299,14 @@ export function createPlaybackController(host: PlaybackHost) {
       }
     }
     if (state.status === 'done' && before.status !== 'done') {
-      host.post(setId, { type: 'web-tour/done', setId });
+      postEnd(rec, 'done', state.index);
     }
     if (
       state.status === 'exited' &&
       before.status !== 'exited' &&
       before.status !== 'done'
     ) {
-      host.post(setId, {
-        type: 'web-tour/exit',
-        setId,
-        stepIndex: state.index,
-      });
+      postEnd(rec, 'exit', state.index);
     }
   }
 
@@ -369,13 +425,8 @@ export function createPlaybackController(host: PlaybackHost) {
         const rec = await load(other);
         if (!rec) return;
         if (rec.state.status !== 'done') {
-          const setId = rec.state.tour.id;
           postWrongPageMiss(rec, rec.state);
-          host.post(setId, {
-            type: 'web-tour/exit',
-            setId,
-            stepIndex: rec.state.index,
-          });
+          postEnd(rec, 'exit', rec.state.index);
         }
         await stopTab(rec);
       });
@@ -404,6 +455,7 @@ export function createPlaybackController(host: PlaybackHost) {
         seekAt: 0,
         posted: {},
         postedIndex: -1,
+        ...(parsed.check ? { check: true, results: {} } : {}),
       };
       let room = SESSION_BUDGET - JSON.stringify(rec).length;
       const pictures: Record<string, WebTourPictureBytes> = {};
@@ -491,6 +543,15 @@ export function createPlaybackController(host: PlaybackHost) {
             { type: 'found', match: report.weak ? 'score' : 'role' },
             frameId
           );
+        } else if (report.type === 'wt:ambiguous') {
+          if (!rec.check || rec.ambiguousToken === report.token) return;
+          rec.ambiguousToken = report.token;
+          // A step that already timed out is re-reported as ambiguous.
+          if (rec.state.status === 'fallback') {
+            postStep(rec, rec.state.index, 'none');
+            await render(rec);
+          }
+          await store(rec);
         } else if (frameId === rec.targetFrameId) {
           await dispatch(rec, {
             type: report.type === 'wt:lost' ? 'lost' : 'acted',
@@ -510,14 +571,9 @@ export function createPlaybackController(host: PlaybackHost) {
       serial(tabId, async () => {
         const rec = await load(tabId);
         if (!rec) return;
-        const setId = rec.state.tour.id;
         if (rec.state.status !== 'done' && rec.state.status !== 'exited') {
           postWrongPageMiss(rec, rec.state);
-          host.post(setId, {
-            type: 'web-tour/closed',
-            setId,
-            stepIndex: rec.state.index,
-          });
+          postEnd(rec, 'closed', rec.state.index);
         }
         await forget(rec);
       }),
@@ -531,7 +587,25 @@ export function createPlaybackController(host: PlaybackHost) {
         const { state } = rec;
         const step = state.tour.steps[state.index];
         const match = step ? rec.posted[step.id] : undefined;
-        if (state.status === 'done') {
+        const result = step ? rec.results?.[step.id] : undefined;
+        if (rec.check) {
+          if (state.status === 'done') {
+            out.push({
+              type: 'web-tour/check-end',
+              setId,
+              stepIndex: state.index,
+              done: true,
+            });
+          } else if (step && result) {
+            out.push({
+              type: 'web-tour/check-step',
+              setId,
+              stepIndex: state.index,
+              stepId: step.id,
+              result,
+            });
+          }
+        } else if (state.status === 'done') {
           out.push({ type: 'web-tour/done', setId });
         } else if (step && match) {
           out.push({

@@ -1,4 +1,4 @@
-import { locate, type WebLocatorClues } from './locate';
+import { assessTarget, type WebLocatorClues } from './locate';
 import type { WebStepAction } from './progress';
 
 /** Messages the service worker sends to every frame of a playing tab. */
@@ -20,6 +20,8 @@ export type FrameReport =
       weak: boolean;
       url: string;
     }
+  /** Candidates tie and none is nearest the recorded box; sent once per seek. */
+  | { type: 'wt:ambiguous'; token: string }
   | { type: 'wt:lost'; token: string }
   | { type: 'wt:acted'; token: string };
 
@@ -73,6 +75,7 @@ export function installFrameSeeker(
   let observer: MutationObserver | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let detach: (() => void) | null = null;
+  let toldAmbiguous = false;
 
   const clearTarget = () => {
     detach?.();
@@ -118,8 +121,13 @@ export function installFrameSeeker(
       clearTarget();
       send({ type: 'wt:lost', token: seek.token });
     }
-    const hit = locate(doc, seek.clues);
-    if (!hit) return;
+    const out = assessTarget(doc, seek.clues);
+    if (out.kind === 'ambiguous' && !toldAmbiguous) {
+      toldAmbiguous = true;
+      send({ type: 'wt:ambiguous', token: seek.token });
+    }
+    if (out.kind !== 'match') return;
+    const hit = out.match;
     attach(hit.el, seek.token, seek.action);
     send({
       type: 'wt:found',
@@ -135,6 +143,7 @@ export function installFrameSeeker(
 
   const stop = () => {
     seek = null;
+    toldAmbiguous = false;
     observer?.disconnect();
     observer = null;
     if (timer !== null) clearTimeout(timer);

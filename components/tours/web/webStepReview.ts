@@ -3,6 +3,7 @@ import {
   type GuidedLearningSet,
   type GuidedLearningStep,
   type WebTourBinding,
+  type WebTourCheckResult,
   type WebTourStableAttrs,
 } from '@/types';
 import type { NameMatcher } from '@/components/widgets/GuidedLearning/components/recorder/redaction';
@@ -159,6 +160,79 @@ export const confirmPictures = (
   webPicturesChecked: { by: uid, at: Date.now(), sig: picturesSignature(set) },
 });
 
+// Map keys sorted, so a Firestore round trip that reorders them keeps the signature.
+const sortedKeys = (_key: string, value: unknown): unknown =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? Object.fromEntries(
+        Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
+          a < b ? -1 : a > b ? 1 : 0
+        )
+      )
+    : value;
+
+/** Fingerprint of what playback looks for: step ids in order, and each step's page, action and locator (frames included); text, notes and pictures stay out (C13). */
+export const targetsSignature = (
+  set: Pick<GuidedLearningSet, 'steps'>
+): string =>
+  fnv(
+    JSON.stringify(
+      (set.steps as WebStep[]).map((s) => [
+        s.id,
+        s.web?.urlPattern ?? null,
+        s.web?.action ?? null,
+        s.web?.locator ?? null,
+      ]),
+      sortedKeys
+    )
+  );
+
+/** The last check run's results, or null once a target changed since it ran. */
+export const currentCheckResults = (
+  set: Pick<GuidedLearningSet, 'steps' | 'webTourChecked'>
+): Record<string, WebTourCheckResult> | null => {
+  const run = set.webTourChecked;
+  return run && run.sig === targetsSignature(set) ? run.results : null;
+};
+
+/** Whether the draft has a check run of these targets in which every step was found clearly. */
+export const checkPasses = (
+  set: Pick<GuidedLearningSet, 'steps' | 'webTourChecked'>
+): boolean => {
+  const results = currentCheckResults(set);
+  return (
+    !!results &&
+    set.steps.length > 0 &&
+    set.steps.every((s) => results[s.id] === 'found')
+  );
+};
+
+/** Starts a check run of the targets as they are now, clearing any earlier results. */
+export const startCheckRun = (
+  set: GuidedLearningSet,
+  uid: string,
+  sig = targetsSignature(set)
+): GuidedLearningSet => ({
+  ...set,
+  webTourChecked: { by: uid, at: Date.now(), sig, results: {} },
+});
+
+/** Records one step's result for the run started with `sig`; a result from an older run is dropped. */
+export const recordCheckResult = (
+  set: GuidedLearningSet,
+  sig: string,
+  stepId: string,
+  result: WebTourCheckResult
+): GuidedLearningSet => {
+  const run = set.webTourChecked;
+  if (!run || run.sig !== sig || !set.steps.some((s) => s.id === stepId))
+    return set;
+  if (run.results[stepId] === result) return set;
+  return {
+    ...set,
+    webTourChecked: { ...run, results: { ...run.results, [stepId]: result } },
+  };
+};
+
 export interface HiddenText {
   /** 0-based step index, or null for the tour title. */
   step: number | null;
@@ -207,11 +281,14 @@ export type PublishBlocker =
   | { kind: 'no-steps' }
   | { kind: 'title-data' }
   | { kind: 'not-web'; stepId: string }
-  | { kind: 'student-data'; stepId: string; field: ReviewField };
+  | { kind: 'student-data'; stepId: string; field: ReviewField }
+  | { kind: 'unchecked' };
 
 /** Why the tour can't be published yet; empty when it can. */
 export function publishBlockers(
-  set: Pick<GuidedLearningSet, 'steps'> & { title?: string },
+  set: Pick<GuidedLearningSet, 'steps' | 'webTourChecked'> & {
+    title?: string;
+  },
   matcher: NameMatcher | null
 ): PublishBlocker[] {
   const steps = set.steps as WebStep[];
@@ -228,12 +305,16 @@ export function publishBlockers(
       if (entry.hits.some(isHardHit))
         out.push({ kind: 'student-data', stepId: step.id, field: entry.field });
   }
+  if (!checkPasses(set)) out.push({ kind: 'unchecked' });
   return out;
 }
 
 /** Throws unless the set passes the publish gate, pictures confirmed as they are now; every publish path calls this. */
 export function assertPublishable(
-  set: Pick<GuidedLearningSet, 'steps' | 'webPicturesChecked'> & {
+  set: Pick<
+    GuidedLearningSet,
+    'steps' | 'webPicturesChecked' | 'webTourChecked'
+  > & {
     title?: string;
   },
   matcher: NameMatcher | null

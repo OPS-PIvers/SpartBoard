@@ -144,6 +144,29 @@ describe('web tour states', () => {
     expect(onAction).toHaveBeenCalledWith('next');
   });
 
+  it('shows the check result and a Next button on a found click step in check mode', () => {
+    captureShadow();
+    const onAction = vi.fn();
+    handle = mountOverlay(STYLED, onAction);
+    act(() => handle?.render(state));
+    expect(shadow?.querySelector('[data-testid="tour-tip-next"]')).toBeNull();
+    act(() => handle?.render({ ...state, check: 'ambiguous' }));
+    expect(
+      shadow?.querySelector('[data-testid="web-tour-check-result"]')
+        ?.textContent
+    ).toBe('Matches more than one');
+    const next = shadow?.querySelector(
+      '[data-testid="tour-tip-next"]'
+    ) as HTMLButtonElement | null;
+    expect(next?.textContent).toMatch(/Next/);
+    act(() => next?.click());
+    expect(onAction).toHaveBeenCalledWith('next');
+    act(() => handle?.render({ ...state, check: 'pending' }));
+    expect(
+      shadow?.querySelector('[data-testid="web-tour-check-result"]')
+    ).toBeNull();
+  });
+
   it('says the step is on another page', () => {
     captureShadow();
     handle = mountOverlay(STYLED, vi.fn());

@@ -2,10 +2,13 @@ import { describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningStep } from '@/types';
 import { parseTourPath, tourShortLinkCode } from './tourLinks';
 import {
+  canCheckWebTours,
   canPlayWebTours,
   parsePing,
+  parseWebTourCheckEvent,
   parseWebTourPortEvent as parsePortEvent,
   watchWebTour,
+  watchWebTourCheck,
 } from './extensionClient';
 import {
   parseWebTourPortMessage,
@@ -410,14 +413,65 @@ describe('hub', () => {
     try {
       watchWebTour('s', vi.fn(), vi.fn(), 3)();
       watchWebTour('s', vi.fn(), vi.fn(), 4)();
+      watchWebTourCheck('s', vi.fn(), vi.fn())();
       expect(posted).toEqual([
         { type: 'web-tour/watch', setId: 's' },
-        { type: 'web-tour/watch', setId: 's', protocol: 4 },
+        { type: 'web-tour/watch', setId: 's', protocol: 5 },
+        { type: 'web-tour/watch', setId: 's', protocol: 5 },
       ]);
     } finally {
       delete (globalThis as { chrome?: unknown }).chrome;
       vi.unstubAllEnvs();
     }
+  });
+
+  it('sends check results only to a page that reads protocol 5', () => {
+    const step = {
+      type: 'web-tour/check-step' as const,
+      setId: 's',
+      stepIndex: 0,
+      stepId: 'a',
+      result: 'found' as const,
+    };
+    const end = {
+      type: 'web-tour/check-end' as const,
+      setId: 's',
+      stepIndex: 2,
+      done: true,
+    };
+    for (const msg of [step, end]) {
+      expect(progressForPage(msg, 0)).toBeNull();
+      expect(progressForPage(msg, 4)).toBeNull();
+      expect(progressForPage(msg, 5)).toEqual(msg);
+    }
+    // The hub's own parser drops them, so a check run never reaches a teacher's run log.
+    expect(parsePortEvent(step, 's')).toBeNull();
+    expect(parseWebTourCheckEvent(step, 's')).toEqual(step);
+    expect(parseWebTourCheckEvent(end, 's')).toEqual(end);
+    expect(parseWebTourCheckEvent(step, 'other')).toBeNull();
+    expect(parseWebTourCheckEvent({ ...step, result: 'role' }, 's')).toBeNull();
+    expect(parseWebTourCheckEvent({ ...end, done: 'yes' }, 's')).toBeNull();
+    expect(
+      parseWebTourCheckEvent(
+        {
+          type: 'web-tour/step',
+          setId: 's',
+          stepIndex: 0,
+          stepId: 'a',
+          match: 'role',
+        },
+        's'
+      )
+    ).toBeNull();
+  });
+
+  it('offers Check tour only on a protocol 5 extension in a staff profile', () => {
+    const ready = (protocol: number, profile: 'staff' | 'other') =>
+      ({ kind: 'ready', protocol, version: '1', profile }) as const;
+    expect(canCheckWebTours(ready(4, 'staff'))).toBe(false);
+    expect(canCheckWebTours(ready(5, 'other'))).toBe(false);
+    expect(canCheckWebTours(ready(5, 'staff'))).toBe(true);
+    expect(canCheckWebTours({ kind: 'none' })).toBe(false);
   });
 
   it('encodes bytes as base64', () => {
