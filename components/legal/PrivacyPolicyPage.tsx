@@ -158,15 +158,19 @@ export const PrivacyPolicyPage: React.FC = () => (
           <strong>Recording a tour.</strong> Only after a staff member presses
           Record, the extension captures a picture of the visible page, the text
           of the control they click, and the page address for each step. By
-          default, emails, ID and phone numbers, names, and typed-in fields are
-          blurred in the picture, and the recorder reviews each step before
-          sending it. Steps go only to that staff member&rsquo;s open SpartBoard
-          tab, which saves them as a draft tour.
+          default, emails, ID and phone numbers, names written Last, First, and
+          typed-in fields are blurred in the picture; table rows and images can
+          be blurred too. The recorder reviews each step before sending it.
+          Steps go only to that staff member&rsquo;s open SpartBoard tab, which
+          saves them as a draft tour.
         </>,
         <>
-          <strong>Playing a tour.</strong> The extension reads the page only to
-          find the control a tour step points to. Nothing from the page is
-          recorded or sent.
+          <strong>Playing a tour.</strong> The extension reads the page to find
+          the control each step points to and reports how each step was found.
+          When a step is missed or matches weakly, it also sends the closest
+          control&rsquo;s code clues (its page path, link address, test id, and
+          position, but not its words), which SpartBoard saves with the run so
+          the tour can be repaired. Pictures and page text are not sent.
         </>,
         <>
           <strong>No other data.</strong> The extension does not read browsing
