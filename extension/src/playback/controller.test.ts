@@ -799,6 +799,30 @@ describe('playback controller, check mode (C12)', () => {
     expect(await c.replay('set1')).toEqual([]);
   });
 
+  it('replays the end of an exited check run whose record is still stored', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(checkStart());
+    await c.committed(7, 0, 'https://a.example/home');
+    const before = structuredClone(h.store.get('wt:tab:7')) as {
+      state: { status: string };
+    };
+    await c.overlayAction(7, 0, 'exit');
+    // A record left behind as exited (a forget that never finished) is not a live run.
+    h.store.set('wt:tab:7', {
+      ...before,
+      state: { ...before.state, status: 'exited' },
+    });
+    h.store.set('wt:tabs', [7]);
+    expect(await c.replay('set1')).toContainEqual({
+      type: 'web-tour/check-end',
+      setId: 'set1',
+      runId: 'r1',
+      stepIndex: 0,
+      done: false,
+    });
+  });
+
   it('keeps only the last few ended check runs', async () => {
     const h = fakeHost();
     const c = createPlaybackController(h.host);

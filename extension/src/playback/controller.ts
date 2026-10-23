@@ -656,8 +656,8 @@ export function createPlaybackController(host: PlaybackHost) {
         const step = state.tour.steps[state.index];
         const match = step ? rec.posted[step.id] : undefined;
         if (rec.check) {
-          // A finished run's end is in the ended list below.
-          if (state.status === 'done') continue;
+          // An ended run (done or exited) replays from the ended list below.
+          if (state.status === 'done' || state.status === 'exited') continue;
           live.add(rec.runId ?? '');
           out.push(...checkResultPosts(rec));
         } else if (state.status === 'done') {
