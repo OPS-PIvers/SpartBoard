@@ -31,6 +31,7 @@ import {
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
+import { useServerNow } from '@/hooks/useServerNow';
 import { logError } from '@/utils/logError';
 import { GuidedLearningEngagement } from './results/GuidedLearningEngagement';
 import { StudentProgressLine } from './results/StudentProgressLine';
@@ -479,19 +480,23 @@ export const GuidedLearningResults: React.FC<Props> = ({
           ? pickedClass
           : ''
       : '';
-  const { byStudentUid: pickedClassNames } = useAssignmentPseudonymsMulti(
-    sessionId,
-    parity && selectedClass ? [selectedClass] : [],
-    orgId
-  );
+  const { byStudentUid: pickedClassNames, loading: pickedClassLoading } =
+    useAssignmentPseudonymsMulti(
+      sessionId,
+      parity && selectedClass ? [selectedClass] : [],
+      orgId
+    );
   const nameFor = (uid: string, pin?: string) =>
     formatStudentName(byStudentUid.get(uid)) ||
     (pin ? `PIN: ${pin}` : 'Anonymous');
+  // A response's own class wins, so a student in two picked classes shows once.
   const inPickedClass = (uid: string, r?: GuidedLearningResponse) =>
     !selectedClass ||
-    pickedClassNames.has(uid) ||
-    r?.classId === selectedClass ||
-    (r?.classPeriod != null && r.classPeriod === classLabel(selectedClass));
+    (r?.classId
+      ? r.classId === selectedClass
+      : pickedClassNames.has(uid) ||
+        (r?.classPeriod != null &&
+          r.classPeriod === classLabel(selectedClass)));
   const monitorRows: GlRow[] = [];
   if (parity) {
     const seen = new Set<string>();
@@ -534,15 +539,19 @@ export const GuidedLearningResults: React.FC<Props> = ({
       }
     }
   }
+  const statusNow = useServerNow(parity ? 30_000 : null);
   const pastClose =
-    sessionOwner?.closeAt != null && sessionOwner.closeAt <= overlayNow;
+    sessionOwner?.closeAt != null && sessionOwner.closeAt <= statusNow;
+  const periodStates = Object.values(periodAccess ?? {}).map((a) =>
+    effectivePeriodState(a, statusNow)
+  );
   const monitorStatus: GlMonitorStatus =
-    ended || pastClose
+    ended ||
+    pastClose ||
+    (periodStates.length > 0 &&
+      periodStates.every((st) => st === 'closed' || st === 'ended'))
       ? 'ended'
-      : periodAccess &&
-          !Object.values(periodAccess).some(
-            (a) => effectivePeriodState(a, overlayNow) === 'open'
-          )
+      : periodStates.length > 0 && !periodStates.includes('open')
         ? 'paused'
         : 'live';
 
@@ -596,7 +605,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
         title={set.title}
         status={monitorStatus}
         onBack={onClose}
-        loading={loading}
+        loading={loading || (selectedClass !== '' && pickedClassLoading)}
         rows={monitorRows}
         classControls={classControls}
         banner={
