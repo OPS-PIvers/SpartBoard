@@ -230,7 +230,10 @@ describe('useSharedBoardItemPublisher', () => {
     await act(flush);
     rerender('B');
     await act(flush);
-    await act(async () => failA(new Error('offline')));
+    await act(() => {
+      failA(new Error('offline'));
+      return flush();
+    });
     unmount();
     renderHook(() => useSharedBoardItemPublisher(args('B')), { wrapper });
     await act(flush);
