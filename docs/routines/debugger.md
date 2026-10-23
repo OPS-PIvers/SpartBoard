@@ -645,12 +645,12 @@
 | 2026-10-21 | State & Data | Clean: read merge/sync utils, normalizers, grading and scheduling utils, gradebook, collection/folder hooks; no reproducible bug. | — |
 | 2026-10-21 | Admin & Config | `BetaUsersPanel` cleared the input on Enter/Add even when the email was rejected as invalid. `addBetaUser` now returns a boolean and callers clear only on success. (contained). | [#4470](https://github.com/OPS-PIvers/SpartBoard/pull/4470) |
 | 2026-10-21 | Build & Tooling | Clean: read test-count/merge/rules scripts, `ssrfGuard`, `fetchImportImage` and its callers; no reproducible bug. | — |
-| 2026-10-23 | Baseline | `pnpm run validate` green on `dev-paul` at `554b8e58` except one load-only flake, `VideoActivityStudentApp.live.test.tsx` "warns and logs a tab exit" (1016 ms timing; passes 3/3 alone). No open debugger `nightly/*` PRs at dispatch. | - |
+| 2026-10-23 | Baseline | `pnpm run validate` green on `dev-paul` at `554b8e58` except one load-only flake, `VideoActivityStudentApp.live.test.tsx` "warns and logs a tab exit" (1016 ms timing; passes 3/3 alone). No open debugger `nightly/*` PRs at dispatch. | — |
 | 2026-10-23 | Widgets | `useSharedBoardItemPublisher` kept a `Set` of `share/item@version` keys and never rewrote one, so content that reverted A to B to A (Flashcards/Notebook content-hash version) left the mirror stale for colleagues. Now a `Map` of last version per item. (contained). | [#4595](https://github.com/OPS-PIvers/SpartBoard/pull/4595) |
 | 2026-10-23 | Dashboard & Layout | Library `FolderTree` and `FolderSidebar` reorder used a raw `parentId` filter, so a folder with a deleted parent vanished from the sidebar while the list showed it. Both use `buildFolderIndex`. (contained). | [#4596](https://github.com/OPS-PIvers/SpartBoard/pull/4596) |
 | 2026-10-23 | State & Data | `planLocalSync` gave a new sub-collection `order` = sibling count, which lands mid-list or ties after deletes leave gaps. Now highest order + 1, as `sectionsAfterMove` does. (contained). | [#4597](https://github.com/OPS-PIvers/SpartBoard/pull/4597) |
 | 2026-10-23 | Admin & Config | Deleting the migrated "Legacy Default Schedule" saved `schedules: []` but kept legacy `items`, so it reappeared and still ran for teachers. The delete now clears `items`. (contained). | [#4598](https://github.com/OPS-PIvers/SpartBoard/pull/4598) |
-| 2026-10-23 | Build & Tooling | Discarded: connector `struggled()` in `webTourFixes.ts` parsed malformed `weak` entries differently from the editor's `parseWeak` (fixed and tested), but only malformed run data triggers it and the real client never writes it. No PR; lead below. | - |
+| 2026-10-23 | Build & Tooling | Discarded: connector `struggled()` in `webTourFixes.ts` parsed malformed `weak` entries differently from the editor's `parseWeak` (fixed and tested), but only malformed run data triggers it and the real client never writes it. No PR; lead below. | — |
 
 ## Backlog
 
