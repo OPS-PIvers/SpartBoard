@@ -4420,15 +4420,45 @@ service cloud.firestore {
     }
 
     // Sessions - Teacher owns it, Students can join
+    // Live Session broadcasters: never anonymous or studentRole, and a verified email.
+    function liveTeacher() {
+      return signedIn() && notAnon() && !isStudentRoleUser() &&
+        request.auth.token.get('email_verified', false) == true;
+    }
+
+    // Live Session join code -> broadcaster pointer, create-if-absent, so a code has
+    // exactly one owner and joinSession resolves it to that teacher's session only.
+    match /live_session_codes/{code} {
+      allow get: if signedIn();
+      allow create: if liveTeacher() &&
+        code.matches('^[A-Z0-9]{6}$') &&
+        incoming().keys().hasOnly(['teacherUid', 'createdAt']) &&
+        incoming().teacherUid == authUid() &&
+        isInt('createdAt');
+      allow delete: if signedIn() && existing().teacherUid == authUid();
+    }
+
     match /sessions/{userId} {
-      // Only authenticated users (including anonymous) can read sessions
-      // This allows students to find sessions by code and listen to updates.
-      // Also relied on by hooks/useLiveSession.ts's allocateSessionCode()
-      // for its collision check — narrowing this will break it too.
-      // TODO: For Phase 2/Production, implement Cloud Functions to validate
-      // join codes server-side and remove this broad read permission.
+      // Only authenticated users (including anonymous) can read sessions so a
+      // joined student can follow their teacher's broadcast.
+      // TODO: For Phase 2/Production, remove this broad read permission.
       allow read: if signedIn();
-      allow write: if signedIn() && authUid() == userId; // Teacher controls it
+      // Shape-checks only the keys a write sets, so a legacy doc can still be ended, frozen or switched.
+      function liveSessionOk(k) {
+        return k.hasOnly(['id', 'isActive', 'activeWidgetId', 'activeWidgetType',
+            'activeWidgetConfig', 'background', 'code', 'frozen', 'createdAt']) &&
+          (request.method == 'update' || k.hasAll(['isActive', 'frozen', 'code'])) &&
+          (!('isActive' in k) || isBool('isActive')) && (!('frozen' in k) || isBool('frozen')) &&
+          (!('activeWidgetConfig' in k) || isMap('activeWidgetConfig')) &&
+          (!('background' in k) || isStr('background')) &&
+          (!('code' in k) || (isStr('code') &&
+            getAfter(/databases/$(database)/documents/live_session_codes/$(incoming().code)).data.teacherUid == userId));
+      }
+      // Teacher-only; a new `code` must be a /live_session_codes pointer this teacher owns (getAfter: same batch).
+      allow create, update: if liveTeacher() && authUid() == userId &&
+        liveSessionOk(request.method == 'create' ? incoming().keys() :
+          incoming().diff(existing()).addedKeys().union(incoming().diff(existing()).changedKeys()));
+      allow delete: if signedIn() && authUid() == userId;
 
       match /students/{studentId} {
         // Student session records store the roster PIN the student typed, which pinLoginV1
