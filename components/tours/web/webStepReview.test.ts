@@ -294,21 +294,16 @@ describe('check signature', () => {
 
   it('survives edits to text, labels, tips, notes, pictures and key order', () => {
     const set = base();
-    const edited = withStep(
-      { ...set, title: 'New title' },
-      'a',
-      (s) =>
-        ({
-          ...s,
-          label: 'Renamed',
-          text: 'A new tip',
-          web: {
-            ...(s.web as WebTourBinding),
-            picture: { path: 'web_tour_pictures/t1/x.jpg', w: 1, h: 1 },
-            note: 'For Claude',
-          },
-        }) as GuidedLearningStep
-    );
+    const edited = withStep({ ...set, title: 'New title' }, 'a', (s) => ({
+      ...s,
+      label: 'Renamed',
+      text: 'A new tip',
+      web: {
+        ...(s.web as WebTourBinding),
+        picture: { path: 'web_tour_pictures/t1/x.jpg', w: 1, h: 1 },
+        note: 'For Claude',
+      },
+    }));
     expect(checkPasses(edited)).toBe(true);
     // Firestore can hand map keys back in another order.
     const reordered = withStep(set, 'a', (s) => ({
