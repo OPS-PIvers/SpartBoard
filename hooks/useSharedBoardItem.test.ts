@@ -198,6 +198,20 @@ describe('useSharedBoardItemPublisher', () => {
     expect(fs.setDoc).toHaveBeenCalledTimes(2);
   });
 
+  it('republishes when content reverts to a version published earlier', async () => {
+    fs.getDoc.mockResolvedValue(snap(null));
+    const { rerender } = renderHook(
+      (v: string) => useSharedBoardItemPublisher(args(v)),
+      { initialProps: 'A', wrapper }
+    );
+    await act(flush);
+    rerender('B');
+    await act(flush);
+    rerender('A');
+    await act(flush);
+    expect(fs.setDoc).toHaveBeenCalledTimes(3);
+  });
+
   it('names the owner in the widget config when it doesn’t already', async () => {
     fs.getDoc.mockResolvedValue(snap(null));
     renderHook(
