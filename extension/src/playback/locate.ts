@@ -532,11 +532,14 @@ function nearestTwin(
   return { el: near.el, weak: true, score: near.score };
 }
 
-/** What a search came to: a match, a tie it refused to break (`ambiguous`), or nothing above the floor. */
+/** What a search came to: a match, a tie it refused to break (`ambiguous`), or nothing above the floor, with the closest identified element when one comes near (C14). */
 export type LocateOutcome =
   | { kind: 'match'; match: LocatorMatch }
   | { kind: 'ambiguous' }
-  | { kind: 'none' };
+  | { kind: 'none'; candidate?: Element };
+
+/** Below the floor, an identified element scoring at least this is still worth suggesting. */
+export const SUGGEST_FLOOR = SCORE_FLOOR / 2;
 
 /** Scores every candidate on every recorded clue; the best plays above the floor, and is clear only by the margin (C1, C2). */
 export function assessTarget(
@@ -550,7 +553,11 @@ export function assessTarget(
     scoreOf(el, i, w, look)
   );
   const { best, rival } = pickOf(addHeadings(scored, w, look));
-  if (!best || best.score < SCORE_FLOOR) return { kind: 'none' };
+  if (!best) return { kind: 'none' };
+  if (best.score < SCORE_FLOOR)
+    return best.score >= SUGGEST_FLOOR
+      ? { kind: 'none', candidate: best.el }
+      : { kind: 'none' };
   const lead = rival ? best.score - rival.score : best.score;
   if (lead < SCORE_TIE) {
     const twin = nearestTwin(scored, best, w, look);

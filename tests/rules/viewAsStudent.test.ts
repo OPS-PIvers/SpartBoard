@@ -115,6 +115,11 @@ const pinResponse = (uid: string) => ({
   pin: '01',
   classPeriod: 'period_1',
 });
+// Video-activity joins write no status (its create rule allowlists join fields).
+const joinFor = (coll: string, r: Record<string, unknown>) =>
+  coll === 'video_activity_sessions'
+    ? Object.fromEntries(Object.entries(r).filter(([k]) => k !== 'status'))
+    : r;
 const glResponse = (uid: string, sessionId: string) => ({
   sessionId,
   studentAnonymousId: uid,
@@ -233,13 +238,13 @@ describe.each(['quiz_sessions', 'video_activity_sessions'])(
       await assertFails(
         setDoc(
           doc(asSsoPreview(), `${coll}/s1/responses/${SSO_UID}`),
-          ssoResponse(SSO_UID)
+          joinFor(coll, ssoResponse(SSO_UID))
         )
       );
       await assertFails(
         setDoc(
           doc(asAnonPreview(), `${coll}/open/responses/pin-period_1-02`),
-          pinResponse(ANON_UID)
+          joinFor(coll, pinResponse(ANON_UID))
         )
       );
       await assertFails(
@@ -258,13 +263,13 @@ describe.each(['quiz_sessions', 'video_activity_sessions'])(
       await assertSucceeds(
         setDoc(
           doc(asSso(), `${coll}/s1/responses/${SSO_UID}`),
-          ssoResponse(SSO_UID)
+          joinFor(coll, ssoResponse(SSO_UID))
         )
       );
       await assertSucceeds(
         setDoc(
           doc(asAnon(), `${coll}/open/responses/pin-period_1-02`),
-          pinResponse(ANON_UID)
+          joinFor(coll, pinResponse(ANON_UID))
         )
       );
       await assertSucceeds(

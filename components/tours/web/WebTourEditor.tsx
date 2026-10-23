@@ -21,12 +21,15 @@ import {
   ScanSearch,
   Trash2,
   TriangleAlert,
+  Wrench,
 } from 'lucide-react';
 import type {
   GuidedLearningSet,
   GuidedLearningStep,
   WebTourAction,
   WebTourCheckResult,
+  WebTourLocator,
+  WebTourSuggestion,
 } from '@/types';
 import { Modal } from '@/components/common/Modal';
 import { DashboardContext } from '@/context/DashboardContextValue';
@@ -55,10 +58,12 @@ import {
   publishWebTour,
   saveWebTourDraft,
   setWebTourCheckRun,
+  setWebTourFixes,
   uploadWebTourPicture,
   type WebTourPictureType,
 } from '@/components/tours/webTours';
 import { usePublishedTour } from '@/components/tours/publishedTours';
+import { loadTourRuns, type TourRun } from '@/components/tours/tourRuns';
 import {
   tourPublishStatus,
   type TourPublishStatus,
@@ -80,6 +85,14 @@ import {
   REPICK_PROTOCOL,
 } from './extensionClient';
 import { useWebTourCheck } from './useWebTourCheck';
+import {
+  applyFix,
+  clearFoundSuggestion,
+  dismissFix,
+  recordCheckSuggestion,
+  runSuggestions,
+  suggestionFor,
+} from './webTourFixes';
 import {
   assertPublishable,
   checkPasses,
@@ -272,8 +285,9 @@ const StepList: React.FC<{
   selected: string | null;
   matcher: NameMatcher | null;
   results: Record<string, WebTourCheckResult> | null;
+  fixed: ReadonlySet<string>;
   onSelect: (id: string) => void;
-}> = ({ steps, selected, matcher, results, onSelect }) => (
+}> = ({ steps, selected, matcher, results, fixed, onSelect }) => (
   <ol className="flex flex-col gap-1">
     {steps.map((step, i) => {
       const warning = stepWarning(step, matcher);
@@ -315,6 +329,11 @@ const StepList: React.FC<{
                   className={`mt-0.5 w-fit rounded-full px-1.5 text-[11px] font-semibold ${CHECK_TONE[result]}`}
                 >
                   {CHECK_LABEL[result]}
+                </span>
+              )}
+              {fixed.has(step.id) && (
+                <span className="mt-0.5 w-fit rounded-full bg-sky-100 px-1.5 text-[11px] font-semibold text-sky-800">
+                  Suggested fix
                 </span>
               )}
             </span>
@@ -383,6 +402,103 @@ const BlurEditor: React.FC<{
   );
 };
 
+type ClueRow = [field: ReviewField, value: (l: WebTourLocator) => string];
+
+const FIX_ROWS: ClueRow[] = [
+  ['role', (l) => l.role ?? ''],
+  ['name', (l) => l.name ?? ''],
+  ['pageText', (l) => l.text ?? ''],
+  ['heading', (l) => l.heading ?? ''],
+  ['attr:testId', (l) => l.attrs?.testId ?? ''],
+  ['attr:ariaLabel', (l) => l.attrs?.ariaLabel ?? ''],
+  ['attr:name', (l) => l.attrs?.name ?? ''],
+  ['attr:href', (l) => l.attrs?.href ?? ''],
+  ['css', (l) => l.css ?? ''],
+];
+
+/** A fix a run found (C14): the step's clues now and the candidate's, to accept, dismiss or redo on the site. */
+const SuggestedFix: React.FC<{
+  before: WebTourLocator;
+  fix: WebTourSuggestion;
+  canFix: boolean;
+  onUse: () => void;
+  onDismiss: () => void;
+  onFix: () => void;
+}> = ({ before, fix, canFix, onUse, onDismiss, onFix }) => {
+  const rows = FIX_ROWS.map(([field, read]) => ({
+    field,
+    was: read(before),
+    now: read(fix.locator),
+  })).filter((r) => r.was || r.now);
+  return (
+    <section
+      aria-label="Suggested fix"
+      className="flex flex-col gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2"
+    >
+      <div className="flex items-center gap-2">
+        <Wrench className="h-4 w-4 shrink-0 text-sky-700" aria-hidden="true" />
+        <h4 className="flex-1 text-sm font-semibold text-slate-900">
+          Suggested fix
+        </h4>
+      </div>
+      <table className="w-full table-fixed text-left text-xs">
+        <thead className="text-slate-500">
+          <tr>
+            <th className="w-32 py-1 font-semibold">
+              <span className="sr-only">Clue</span>
+            </th>
+            <th className="py-1 font-semibold">Before</th>
+            <th className="py-1 font-semibold">After</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.field} className="border-t border-sky-100 align-top">
+              <th scope="row" className="py-1 pr-2 font-normal text-slate-500">
+                {fieldLabel(r.field)}
+              </th>
+              <td className="break-all py-1 pr-2 text-slate-700">{r.was}</td>
+              <td
+                className={`break-all py-1 ${
+                  r.was === r.now
+                    ? 'text-slate-700'
+                    : 'font-semibold text-slate-900'
+                }`}
+              >
+                {r.now}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="flex flex-wrap items-center gap-2">
+        {/* no-tour-anchor: shows only on a step a run found a fix for */}
+        <button type="button" className={primaryBtn} onClick={onUse}>
+          Use this fix
+        </button>
+        {/* no-tour-anchor: shows only on a step a run found a fix for */}
+        <button type="button" className={secondaryBtn} onClick={onDismiss}>
+          Dismiss
+        </button>
+        {/* no-tour-anchor: shows only on a step a run found a fix for */}
+        <button
+          type="button"
+          className={`${secondaryBtn} disabled:cursor-not-allowed disabled:opacity-50`}
+          disabled={!canFix}
+          title={
+            canFix
+              ? undefined
+              : 'Needs a newer SpartBoard extension in this Chrome profile.'
+          }
+          onClick={onFix}
+        >
+          Fix on site
+        </button>
+      </div>
+    </section>
+  );
+};
+
 const StepDetail: React.FC<{
   step: WebStep;
   index: number;
@@ -390,12 +506,15 @@ const StepDetail: React.FC<{
   matcher: NameMatcher | null;
   blurring: boolean;
   canFix: boolean;
+  fix: WebTourSuggestion | null;
   onChange: (step: WebStep) => void;
   onMove: (by: -1 | 1) => void;
   onDelete: () => void;
   onBlur: (on: boolean) => void;
   onBlurred: (blob: Blob) => Promise<void>;
   onFix: () => void;
+  onUseFix: () => void;
+  onDismissFix: () => void;
 }> = ({
   step,
   index,
@@ -403,12 +522,15 @@ const StepDetail: React.FC<{
   matcher,
   blurring,
   canFix,
+  fix,
   onChange,
   onMove,
   onDelete,
   onBlur,
   onBlurred,
   onFix,
+  onUseFix,
+  onDismissFix,
 }) => {
   const entries = reviewEntries(step, matcher);
   const blocked = entries.some((e) => e.hits.some(isHardHit));
@@ -497,6 +619,17 @@ const StepDetail: React.FC<{
             </div>
           )}
         </div>
+      )}
+
+      {fix && step.web && (
+        <SuggestedFix
+          before={step.web.locator}
+          fix={fix}
+          canFix={canFix}
+          onUse={onUseFix}
+          onDismiss={onDismissFix}
+          onFix={onFix}
+        />
       )}
 
       {needsFixOnSite(step) && (
@@ -757,6 +890,7 @@ export const WebTourEditor: React.FC<{
   const published = usePublishedTour(initial.id);
   const live =
     published.tour && isWebTourSet(published.tour.set) ? published.tour : null;
+  const [runs, setRuns] = useState<TourRun[] | null>(null);
   const latest = useRef(set);
   const dirty = useRef(false);
   const publishing = useRef(false);
@@ -777,6 +911,21 @@ export const WebTourEditor: React.FC<{
       cancelled = true;
     };
   }, []);
+
+  // Runs of the published tour, for the fixes they suggest.
+  useEffect(() => {
+    let cancelled = false;
+    loadTourRuns(initial.id)
+      .then((r) => {
+        if (!cancelled) setRuns(r);
+      })
+      .catch((err: unknown) =>
+        logError('web tour runs', err, { setId: initial.id })
+      );
+    return () => {
+      cancelled = true;
+    };
+  }, [initial.id]);
 
   // Built on the latest set, so a step the recorder just added is never overwritten.
   const change = (update: (s: GuidedLearningSet) => GuidedLearningSet) => {
@@ -823,10 +972,27 @@ export const WebTourEditor: React.FC<{
       (err: unknown) => logError('web tour check save', err, { setId: next.id })
     );
   };
+  // Suggested fixes and dismissals save on their own too; using one is an edit.
+  const saveFixes = (update: (s: GuidedLearningSet) => GuidedLearningSet) => {
+    const next = update(latest.current);
+    if (next === latest.current || deleted.current) return;
+    latest.current = next;
+    setSet(next);
+    void setWebTourFixes(next).catch((err: unknown) =>
+      logError('web tour fixes save', err, { setId: next.id })
+    );
+  };
   const checker = useWebTourCheck({
     onStart: (sig) => saveCheck((s) => startCheckRun(s, uid, sig)),
-    onResult: (sig, stepId, result) =>
-      saveCheck((s) => recordCheckResult(s, sig, stepId, result)),
+    onResult: (sig, stepId, result) => {
+      saveCheck((s) => recordCheckResult(s, sig, stepId, result));
+      // A step this check found clearly needs no earlier check's fix.
+      if (result === 'found') saveFixes((s) => clearFoundSuggestion(s, stepId));
+    },
+    onSuggest: (sig, stepId, locator) =>
+      saveFixes((s) =>
+        recordCheckSuggestion(s, sig, stepId, locator, Date.now(), matcher)
+      ),
     onStatus: setStatus,
   });
 
@@ -902,6 +1068,19 @@ export const WebTourEditor: React.FC<{
   );
   const unchecked = blockers.some((b) => b.kind === 'unchecked');
   const checkResults = currentCheckResults(set);
+  const fromRuns = useMemo(
+    () =>
+      runs && live
+        ? runSuggestions(runs, live.publishedAt, live.set.steps, matcher)
+        : new Map<string, WebTourSuggestion>(),
+    [runs, live, matcher]
+  );
+  const fixes = new Map(
+    steps.flatMap((s) => {
+      const fix = suggestionFor(set, s, fromRuns);
+      return fix ? [[s.id, fix] as const] : [];
+    })
+  );
 
   const updateStep = (id: string, step: GuidedLearningStep) =>
     change((cur) => ({
@@ -1171,6 +1350,7 @@ export const WebTourEditor: React.FC<{
                 selected={selected?.id ?? null}
                 matcher={matcher}
                 results={checkResults}
+                fixed={new Set(fixes.keys())}
                 onSelect={(id) => {
                   setBlurring(false);
                   setSelectedId(id);
@@ -1188,12 +1368,21 @@ export const WebTourEditor: React.FC<{
                 matcher={matcher}
                 blurring={blurring}
                 canFix={canFix}
+                fix={fixes.get(selected.id) ?? null}
                 onChange={(s) => updateStep(selected.id, s)}
                 onMove={(by) => moveStep(selected.id, by)}
                 onDelete={() => deleteStep(selected.id)}
                 onBlur={setBlurring}
                 onBlurred={(blob) => applyBlur(selected.id, blob)}
                 onFix={() => fixOnSite(selected, steps.indexOf(selected))}
+                onUseFix={() => {
+                  const fix = fixes.get(selected.id);
+                  if (fix) change((s) => applyFix(s, selected.id, fix));
+                }}
+                onDismissFix={() => {
+                  const fix = fixes.get(selected.id);
+                  if (fix) saveFixes((s) => dismissFix(s, selected.id, fix));
+                }}
               />
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-1 text-center">

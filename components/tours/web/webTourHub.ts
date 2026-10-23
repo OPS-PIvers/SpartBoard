@@ -104,7 +104,7 @@ export function eventFitsTour(
   if (event.type === 'web-tour/done') return true;
   if (event.stepIndex >= steps.length) return false;
   return (
-    event.type !== 'web-tour/step' ||
+    (event.type !== 'web-tour/step' && event.type !== 'web-tour/suggest') ||
     steps[event.stepIndex]?.id === event.stepId
   );
 }
@@ -267,5 +267,7 @@ export function reducePlay(play: HubPlay, event: WebTourPortEvent): HubPlay {
         furthest: p.furthest,
         matches: p.matches,
       };
+    case 'web-tour/suggest':
+      return play;
   }
 }

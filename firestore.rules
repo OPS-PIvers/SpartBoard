@@ -544,6 +544,8 @@ service cloud.firestore {
           (isSuperAdmin() ||
            (sameId() &&
             unchanged('orgId') &&
+            // A verified domain can't be renamed: that would claim another org's domain unverified.
+            (existing().get('status', '') != 'verified' || unchanged('domain')) &&
             changedOnly([
               'domain', 'authMethod', 'role'
             ])));
@@ -1326,14 +1328,17 @@ service cloud.firestore {
       allow create, delete: if isAdmin();
       // The read gate rests on surface, so a republish never changes it.
       allow update: if isAdmin() && incoming().get('surface', 'spartboard') == existing().get('surface', 'spartboard');
-      // Each teacher's latest run of the tour (P7-6): write-only, admins read. Web tour runs add surface and weak (T10).
+      // Each teacher's latest run of the tour (P7-6): write-only, admins read. Web tour runs add surface and weak (T10),
+      // suggested fixes by step (C14), and `admin` on an admin's own run, whose fixes show after one run.
       match /runs/{uid} {
         function validRun(d) {
-          return d.keys().hasOnly(['v', 'startedAt', 'furthest', 'done', 'exit', 'misses', 'surface', 'weak']) &&
+          return d.keys().hasOnly(['v', 'startedAt', 'furthest', 'done', 'exit', 'misses', 'surface', 'weak', 'fixes', 'admin']) &&
             d.v is int && d.startedAt is int && d.done is bool && optInt(d, 'exit') &&
             d.furthest is int && d.furthest >= 0 && d.furthest <= 500 &&
             d.misses is list && d.misses.size() <= 50 &&
-            d.get('surface', 'web') == 'web' && d.get('weak', []) is list && d.get('weak', []).size() <= 50;
+            d.get('surface', 'web') == 'web' && d.get('weak', []) is list && d.get('weak', []).size() <= 50 &&
+            d.get('fixes', {}) is map && d.get('fixes', {}).size() <= 50 &&
+            (!('admin' in d) || (d.admin == true && isAdmin()));
         }
         allow read: if isAdmin();
         allow create, update: if staff() && uid == authUid() && validRun(incoming());
@@ -4743,6 +4748,13 @@ service cloud.firestore {
       function sessionTeacherUid() {
         return sessionData().teacherUid;
       }
+      // A served-subset pointer counts only when this session's teacher wrote it for this session.
+      // One list compare, and a missing pointer/field errors (denies): the response update rule
+      // sits at Firestore's 1,000-expression limit.
+      function servedPointerOk(p) {
+        return [p.teacherUid, p.sessionId, p.override.questionIds] ==
+          [sessionTeacherUid(), sessionId, incoming().servedQuestionIds];
+      }
       allow create: if signedIn() &&
         notAnon() &&
         incoming().teacherUid == authUid() &&
@@ -4750,8 +4762,10 @@ service cloud.firestore {
         (!('plcId' in incoming()) || plcLinkOk(incoming()));
       // Update: an unchanged or cleared plcId needs no PLC read; a new/changed
       // non-null plcId re-runs the membership gate.
+      // teacherUid is pinned: Schoology launches trust it to name the session's owner.
       allow update: if signedIn() &&
         existing().teacherUid == authUid() &&
+        unchanged('teacherUid') &&
         subMonitorStampUnchanged() &&
         (!changed(['status']) || incoming().status in ['waiting', 'active', 'paused', 'ended']) &&
         (incoming().get('plcId', null) == existing().get('plcId', null) ||
@@ -4980,9 +4994,7 @@ service cloud.firestore {
              isList('servedQuestionIds') &&
              incoming().servedQuestionIds.size() == sessionData().totalQuestions) ||
             (sessionData().get('assignmentId', '') != '' &&
-             exists(/databases/$(database)/documents/student_assignments/$(authUid())/items/$(sessionData().assignmentId)) &&
-             incoming().servedQuestionIds ==
-               get(/databases/$(database)/documents/student_assignments/$(authUid())/items/$(sessionData().assignmentId)).data.get('override', {}).get('questionIds', null))) &&
+             servedPointerOk(get(/databases/$(database)/documents/student_assignments/$(authUid())/items/$(sessionData().assignmentId)).data))) &&
            // Stimulus telemetry maps (per-attempt play + load-failure counters). Truthfulness
            // is client-enforced diagnostics, not a security boundary - but size is: the teacher
            // monitor reads every response doc in the session, so cap the key count to stop a
@@ -5625,6 +5637,9 @@ service cloud.firestore {
         // encodeResponseKeySegment, closes the cross-auth grief path). studentRole
         // users must be enrolled in the session's class.
         allow create: if signedIn() &&
+          // Join fields only: no session-shaped fields a server reader could trust.
+          incoming().keys().hasOnly(['studentUid', 'joinedAt', 'answers', 'completedAt', 'score',
+            'completedAttempts', 'tabSwitchWarnings', 'pin', 'name', 'classPeriod', 'classId']) &&
           incoming().studentUid == authUid() &&
           incoming().score == null &&
           incoming().completedAt == null &&

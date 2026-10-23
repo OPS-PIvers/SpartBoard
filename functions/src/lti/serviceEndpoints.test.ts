@@ -623,6 +623,13 @@ describe('ltiSignDeepLinkResponseV1 — security gate', () => {
     expect(signToolJwtMock).toHaveBeenCalledTimes(1);
   });
 
+  it('binds a quiz link to the signing teacher, not just the join code', async () => {
+    await callSign({ auth: TEACHER, data: { ...goodData, teacherUid: 'x' } });
+    const signed = JSON.stringify(signToolJwtMock.mock.calls[0]);
+    expect(signed).toContain('"quiz_code":"ABC123"');
+    expect(signed).toContain('"teacher_uid":"teacher-1"');
+  });
+
   it('still rejects a non-Schoology return URL for an authenticated teacher', async () => {
     await expectCode(
       callSign({
