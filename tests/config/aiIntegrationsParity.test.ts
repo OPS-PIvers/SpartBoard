@@ -54,6 +54,18 @@ describe('AI integrations registry', () => {
     expect(client).toEqual(server);
   });
 
+  it('marks the same integrations as never falling back to Gemini', () => {
+    const source = serverSource('aiIntegrations.ts');
+    const block =
+      /AI_INTEGRATIONS_WITHOUT_FALLBACK[\s\S]*?new Set<AiIntegrationId>\(\[([\s\S]*?)\]\)/.exec(
+        source
+      )?.[1];
+    const server = [...(block ?? '').matchAll(/'([\w-]+)'/g)].map((m) => m[1]);
+    const client = AI_INTEGRATIONS.filter((i) => i.noFallback).map((i) => i.id);
+    expect(server.length).toBeGreaterThan(0);
+    expect(client.sort()).toEqual(server.sort());
+  });
+
   it('every integration is called somewhere on the server', () => {
     const callers = [
       'aiGeneration.ts',

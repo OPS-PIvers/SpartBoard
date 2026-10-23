@@ -24,7 +24,11 @@ Moved from the retired GEMINI.md. Code comments in `config/geminiModels.ts` and 
   `integrationModels` on `global_permissions/gemini-functions.config`, beside the existing
   `advancedModel` / `standardModel` tier defaults, which stay Gemini so a fallback always exists.
   An integration with no choice runs its tier's Gemini model, unless `AI_INTEGRATION_DEFAULT_MODELS`
-  (mirrored as `defaultModel` in `config/aiIntegrations.ts`) names one: `web-tour-writing` defaults to Claude Sonnet.
+  (mirrored as `defaultModel` in `config/aiIntegrations.ts`) names one that the AI tab's allowed list includes:
+  `web-tour-writing` defaults to Claude Sonnet.
+- **No Gemini fallback.** Integrations in `AI_INTEGRATIONS_WITHOUT_FALLBACK` (`noFallback` in the client registry;
+  `web-tour-writing`) never switch to Gemini on their own. A missing Claude key, a failed Claude call, or no allowed
+  default and no AI tab pick throws `AiUnavailableError`. Gemini runs only when an admin picks it on the AI tab.
 - **Claude.** Runs through the Anthropic API with the `ANTHROPIC_API_KEY` secret, adaptive thinking,
   effort `low` (standard tier) or `medium` (advanced tier), and structured outputs converted from
   the Gemini response schema. A missing or placeholder key (anything not starting `sk-ant-`), an

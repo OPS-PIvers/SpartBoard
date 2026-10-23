@@ -6,7 +6,7 @@ import * as admin from 'firebase-admin';
 import { Type, type Schema } from '@google/genai';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { recordAiUsage, resolveCallerIsAdmin } from './aiGeneration';
-import { generateAi, type AiPart } from './aiRouter';
+import { AiUnavailableError, generateAi, type AiPart } from './aiRouter';
 import { parseGeminiJson } from './parseGeminiJson';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { MAX_SLIDE_BYTES } from './mcp/glTools';
@@ -279,6 +279,8 @@ export async function runWebTourWriting(
   } catch (error) {
     if (error instanceof HttpsError) throw error;
     console.error('[writeWebTourTextV1] failed:', error);
+    if (error instanceof AiUnavailableError)
+      throw new HttpsError('failed-precondition', error.message);
     throw new HttpsError('internal', "Claude couldn't write these steps.");
   }
 }

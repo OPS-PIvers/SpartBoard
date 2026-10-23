@@ -23,9 +23,13 @@ vi.mock('./aiGeneration', () => ({
   recordAiUsage: vi.fn(),
   resolveCallerIsAdmin: vi.fn(),
 }));
-vi.mock('./aiRouter', () => ({ generateAi: vi.fn() }));
+vi.mock('./aiRouter', () => ({
+  generateAi: vi.fn(),
+  AiUnavailableError: class AiUnavailableError extends Error {},
+}));
 vi.mock('./mcp/glTools', () => ({ MAX_SLIDE_BYTES: 3_500_000 }));
 
+import { AiUnavailableError } from './aiRouter';
 import {
   buildWritingParts,
   parseWritingRequest,
@@ -249,5 +253,24 @@ describe('runWebTourWriting', () => {
         })
       )
     ).rejects.toMatchObject({ code: 'internal' });
+  });
+
+  it('says plainly when Claude is unavailable, with no other model', async () => {
+    await expect(
+      runWebTourWriting(
+        req(),
+        'u',
+        {},
+        deps({
+          generate: () =>
+            Promise.reject(
+              new AiUnavailableError('The Claude API key is not set.')
+            ),
+        })
+      )
+    ).rejects.toMatchObject({
+      code: 'failed-precondition',
+      message: 'The Claude API key is not set.',
+    });
   });
 });
