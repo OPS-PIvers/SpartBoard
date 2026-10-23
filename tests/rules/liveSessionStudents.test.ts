@@ -77,7 +77,6 @@ const asTeacher = () =>
   testEnv
     .authenticatedContext(TEACHER_UID, {
       email: 'teacher@school.edu',
-      email_verified: true,
       firebase: { sign_in_provider: 'google.com' },
     })
     .firestore();

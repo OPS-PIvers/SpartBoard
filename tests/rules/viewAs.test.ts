@@ -187,19 +187,12 @@ describe('users/{uid}/** under a view-as token', () => {
         joinedAt: 1,
         lastActive: 1,
       });
-      await setDoc(doc(ctx.firestore(), `sessions/${TEACHER_UID}`), {
-        isActive: false,
-        code: 'LIVE12',
-        frozen: false,
-      });
     });
     const ro = asViewAs().firestore();
     await assertFails(
-      setDoc(
-        doc(ro, `sessions/${TEACHER_UID}`),
-        { isActive: true },
-        { merge: true }
-      )
+      setDoc(doc(ro, `sessions/${TEACHER_UID}`), {
+        isActive: true,
+      })
     );
     await assertFails(deleteDoc(doc(ro, `sessions/${TEACHER_UID}/students/k`)));
     await assertFails(
@@ -211,11 +204,9 @@ describe('users/{uid}/** under a view-as token', () => {
     );
     const unlocked = asViewAs({ ro: false }).firestore();
     await assertSucceeds(
-      setDoc(
-        doc(unlocked, `sessions/${TEACHER_UID}`),
-        { isActive: true },
-        { merge: true }
-      )
+      setDoc(doc(unlocked, `sessions/${TEACHER_UID}`), {
+        isActive: true,
+      })
     );
   });
 
