@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "countdown",
   "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-23T04:11:24.747Z",
+  "gradedAt": "2026-10-23T12:45:29.525Z",
   "stale": false,
   "criteria": {
     "I2": {
@@ -47,10 +47,11 @@
     },
     "S1": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
@@ -58,11 +59,10 @@
           "scripts/widget-grader/out/loop-countdown-2026-10-23-after2/screenshots/countdown/envelope-min__typical.png",
           "scripts/widget-grader/out/loop-countdown-2026-10-23-after2/screenshots/countdown/envelope-min__stress.png"
         ],
-        "runId": "loop-countdown-2026-10-23-after2"
+        "runId": "grade-countdown-2026-10-23"
       },
-      "note": "At 150×100 the 'days until' line drops away so the number and event name stay large and readable, and the grid stress view keeps tappable-looking cells under a truncated title.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-23T04:11:24.747Z",
+      "gradedAt": "2026-10-23T12:44:53.204Z",
       "stale": false
     },
     "S2": {
@@ -325,21 +325,21 @@
       "stale": false
     },
     "V6": {
-      "score": 3,
-      "source": "judge",
+      "score": 4,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 4,
+        "paul": 4
       },
       "evidence": {
         "screenshots": [
           "scripts/widget-grader/out/loop-countdown-2026-10-23-after2/screenshots/countdown/default__typical.png"
         ],
-        "runId": "loop-countdown-2026-10-23-after2"
+        "runId": "grade-countdown-2026-10-23"
       },
-      "note": "Labels are short and plain ('days until', the event title), there are no copy violations, and the single inline SVG is the grid's cross-out mark.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-23T04:11:24.747Z",
+      "gradedAt": "2026-10-23T12:45:04.521Z",
       "stale": false
     },
     "C1": {
@@ -540,30 +540,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "loop-countdown-2026-10-23-after2"
+        "runId": "grade-countdown-2026-10-23"
       },
-      "gradedAt": "2026-10-23T04:11:24.747Z"
+      "gradedAt": "2026-10-23T12:45:29.525Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "loop-countdown-2026-10-23-after2"
+        "runId": "grade-countdown-2026-10-23"
       },
-      "gradedAt": "2026-10-23T04:11:24.747Z"
+      "gradedAt": "2026-10-23T12:45:29.525Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "loop-countdown-2026-10-23-after2"
+        "runId": "grade-countdown-2026-10-23"
       },
-      "gradedAt": "2026-10-23T04:11:24.747Z"
+      "gradedAt": "2026-10-23T12:45:29.525Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "loop-countdown-2026-10-23-after2"
+        "runId": "grade-countdown-2026-10-23"
       },
-      "gradedAt": "2026-10-23T04:11:24.747Z"
+      "gradedAt": "2026-10-23T12:45:29.525Z"
     }
   }
 }
