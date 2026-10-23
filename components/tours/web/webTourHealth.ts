@@ -59,15 +59,20 @@ export function webFieldStatsOf(
 
 export type WebStepState = 'ok' | 'weak' | 'missed';
 
-/** Missed: the picture showed in a real run; weak: found only by its text or page position, or scored close to another control. */
+/** A step is flagged only once it struggled in more than this many runs of the version (C16). */
+export const ALERT_AFTER_RUNS = 1;
+
+/** Missed: the picture showed in real runs; weak: found only by its text or page position, or scored close to another control; flagged past ALERT_AFTER_RUNS runs. */
 export function webStepState(
   stepId: string,
   stats: WebTourFieldStats | null
 ): WebStepState {
   if (!stats) return 'ok';
-  if ((stats.misses.get(stepId) ?? 0) > 0) return 'missed';
-  const weak = stats.weak.get(stepId);
-  return weak && weak.text + weak.css + weak.score > 0 ? 'weak' : 'ok';
+  const misses = stats.misses.get(stepId) ?? 0;
+  const w = stats.weak.get(stepId);
+  const weak = w ? w.text + w.css + w.score : 0;
+  if (misses + weak <= ALERT_AFTER_RUNS) return 'ok';
+  return misses > 0 ? 'missed' : 'weak';
 }
 
 const RANK: Record<WebStepState, number> = { ok: 0, weak: 1, missed: 2 };

@@ -48,6 +48,14 @@ async function allocateSessionCode(): Promise<string> {
     .padEnd(6, '0');
 }
 
+/** Claims this teacher's live code if it has no pointer yet (a session from before pointers). */
+async function claimOwnCode(teacherUid: string, code: string): Promise<void> {
+  const ref = doc(db, CODES_COLLECTION, code);
+  const pointer = await getDoc(ref);
+  if (pointer.exists()) return;
+  await setDoc(ref, { teacherUid, createdAt: Date.now() });
+}
+
 /**
  * Custom hook for managing live classroom sessions.
  * Supports both teacher and student roles with different behaviors:
@@ -232,6 +240,15 @@ export const useLiveSession = (
     };
   }, [userId, role, session?.isActive]);
 
+  // TEACHER: a live session from before pointers claims its code as soon as the tab sees it.
+  const liveCode = role === 'teacher' && session?.isActive ? session.code : '';
+  useEffect(() => {
+    if (!userId || !liveCode) return;
+    claimOwnCode(userId, liveCode).catch((err) => {
+      console.error('Failed to claim live session code:', err);
+    });
+  }, [userId, liveCode]);
+
   // STUDENT: Subscribe to My Student Status (Am I individually frozen?)
   useEffect(() => {
     if (role !== 'student' || !joinCode || !studentId) {
@@ -311,20 +328,6 @@ export const useLiveSession = (
       teacherId,
       STUDENTS_COLLECTION
     );
-    // Reject duplicate PINs to prevent students from being indistinguishable
-    // in the teacher's roster view during live sessions.
-    // Allow if the PIN is already in use by the CURRENT user (re-join scenario).
-    const existingSnap = await getDocs(studentsRef);
-    const pinInUse = existingSnap.docs.some(
-      (d) => (d.data() as { pin?: string }).pin === sanitizedPin && d.id !== uid
-    );
-    if (pinInUse) {
-      throw new Error(
-        `PIN "${sanitizedPin}" is already in use in this session. ` +
-          'Please contact your teacher for a unique PIN.'
-      );
-    }
-
     const newStudent: Omit<LiveStudent, 'id'> = {
       pin: sanitizedPin,
       status: 'active',
@@ -391,30 +394,16 @@ export const useLiveSession = (
       const currentSession = current?.exists()
         ? (current.data() as LiveSession)
         : null;
-      const liveCode =
+      // Already live on another widget: switch the broadcast, keeping the roster and join code.
+      if (
         currentSession &&
         startKind(deriveLiveSessionState(currentSession)) === 'switch'
-          ? currentSession.code
-          : '';
-      // An unclaimed live code (pre-pointer session) is claimed in place; a failed read keeps the class live.
-      const ownsCode =
-        !!liveCode &&
-        (await getDoc(doc(db, CODES_COLLECTION, liveCode)).then(
-          (pointer) =>
-            pointer.exists()
-              ? pointer.data()?.teacherUid === userId
-              : setDoc(doc(db, CODES_COLLECTION, liveCode), {
-                  teacherUid: userId,
-                  createdAt: Date.now(),
-                }).then(
-                  () => true,
-                  () => false
-                ),
-          () => true
-        ));
-
-      // Already live on another widget: switch the broadcast, keeping the roster and join code.
-      if (currentSession && ownsCode) {
+      ) {
+        if (currentSession.code) {
+          await claimOwnCode(userId, currentSession.code).catch((err) => {
+            console.error('Failed to claim live session code:', err);
+          });
+        }
         await updateDoc(sessionRef, {
           activeWidgetId: widgetId,
           activeWidgetType: widgetType,
@@ -437,18 +426,10 @@ export const useLiveSession = (
         return switched;
       }
 
-      // Clear existing students for a fresh start
-      const studentsRef = collection(
-        db,
-        SESSIONS_COLLECTION,
-        userId,
-        STUDENTS_COLLECTION
+      // Old students are listed now but cleared only once the fresh start commits.
+      const studentsSnapshot = await getDocs(
+        collection(db, SESSIONS_COLLECTION, userId, STUDENTS_COLLECTION)
       );
-      const studentsSnapshot = await getDocs(studentsRef);
-      const deletePromises = studentsSnapshot.docs.map((d) => deleteDoc(d.ref));
-      await Promise.all(deletePromises).catch((err) => {
-        console.error('Failed to clear old students:', err);
-      });
 
       const newSession: LiveSession = {
         id: userId,
@@ -470,6 +451,11 @@ export const useLiveSession = (
       await batch.commit().catch((err) => {
         console.error('Failed to start session:', err);
         throw err;
+      });
+      await Promise.all(
+        studentsSnapshot.docs.map((d) => deleteDoc(d.ref))
+      ).catch((err) => {
+        console.error('Failed to clear old students:', err);
       });
       if (currentSession?.code && currentSession.code !== newSession.code) {
         void deleteDoc(doc(db, CODES_COLLECTION, currentSession.code)).catch(

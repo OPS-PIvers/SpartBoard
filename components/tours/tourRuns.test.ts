@@ -160,6 +160,53 @@ describe('parseTourRun', () => {
     expect(write).toHaveBeenCalledTimes(calls);
   });
 
+  it('keeps a fix only for a step that missed or played weak, until it is found clearly (C14)', () => {
+    const write = writer();
+    const log = startTourRunLog(
+      'set',
+      'uid',
+      { v: 3, furthest: 0, surface: 'web', admin: true },
+      write,
+      0
+    );
+    const fix = { role: 'button', name: 'Save' };
+    log.suggest('a', fix);
+    log.match('b', 'score');
+    log.suggest('b', fix);
+    log.match('c', 'none');
+    log.suggest('c', { text: 'Post' });
+    vi.advanceTimersByTime(0);
+    expect(write.mock.calls.at(-1)?.[0]).toMatchObject({
+      admin: true,
+      fixes: { b: fix, c: { text: 'Post' } },
+    });
+    log.match('b', 'role');
+    vi.advanceTimersByTime(0);
+    expect(write.mock.calls.at(-1)?.[0].fixes).toEqual({ c: { text: 'Post' } });
+  });
+
+  it('writes a fix again only when its clues change, not its position', () => {
+    const write = writer();
+    const log = startTourRunLog(
+      'set',
+      'uid',
+      { v: 3, furthest: 0, surface: 'web' },
+      write,
+      0
+    );
+    const fix = { css: '#save', box: { x: 0, y: 0, w: 0.1, h: 0.1 } };
+    log.match('a', 'none');
+    log.suggest('a', fix);
+    vi.advanceTimersByTime(0);
+    const calls = write.mock.calls.length;
+    log.suggest('a', { ...fix, box: { x: 0.5, y: 0.5, w: 0.1, h: 0.1 } });
+    vi.advanceTimersByTime(0);
+    expect(write).toHaveBeenCalledTimes(calls);
+    log.suggest('a', { ...fix, css: '#other' });
+    vi.advanceTimersByTime(0);
+    expect(write).toHaveBeenCalledTimes(calls + 1);
+  });
+
   it('never adds weak matches to a board tour run', () => {
     const write = writer();
     const log = startTourRunLog('set', 'uid', { v: 1, furthest: 0 }, write, 0);
@@ -184,5 +231,18 @@ describe('parseTourRun web fields', () => {
     expect(parseTourRun({ v: 1, furthest: 0, misses: [] })).not.toHaveProperty(
       'surface'
     );
+  });
+
+  it('reads fixes as checked locators and the admin mark', () => {
+    expect(
+      parseTourRun({
+        v: 1,
+        furthest: 0,
+        misses: [],
+        surface: 'web',
+        admin: true,
+        fixes: { a: { role: 'button' }, b: { evil: 1 }, c: 'x' },
+      })
+    ).toMatchObject({ admin: true, fixes: { a: { role: 'button' } } });
   });
 });

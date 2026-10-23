@@ -259,11 +259,78 @@ describe('live session — a claimed code has one owner', () => {
     await assertSucceeds(deleteDoc(doc(db, `live_session_codes/${CODE}`)));
   });
 
+  it('denies a mistyped field on a partial update', async () => {
+    const ref = doc(teacherDb(TEACHER_UID), `sessions/${TEACHER_UID}`);
+    await assertFails(updateDoc(ref, { frozen: 'yes' }));
+    await assertFails(updateDoc(ref, { activeWidgetConfig: 'x' }));
+    await assertFails(updateDoc(ref, { payload: 'x' }));
+  });
+
   it("denies the owner moving to a code they don't own", async () => {
     await startLive(teacherDb(OTHER_TEACHER_UID), OTHER_TEACHER_UID, 'OTH777');
     await assertFails(
       updateDoc(doc(teacherDb(TEACHER_UID), `sessions/${TEACHER_UID}`), {
         code: 'OTH777',
+      })
+    );
+  });
+});
+
+describe('live session — sessions stored before pointers', () => {
+  // Shape the old open rule allowed: an extra key, no `frozen`, a string config.
+  const legacy = {
+    id: TEACHER_UID,
+    isActive: true,
+    activeWidgetId: 'w1',
+    activeWidgetType: 'embed',
+    activeWidgetConfig: 'legacy',
+    code: CODE,
+    createdAt: 1000,
+    legacyExtra: true,
+  };
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `sessions/${TEACHER_UID}`), legacy);
+    });
+  });
+
+  it('lets the teacher switch, update, freeze and end a misshaped legacy session', async () => {
+    const ref = doc(teacherDb(TEACHER_UID), `sessions/${TEACHER_UID}`);
+    await assertSucceeds(
+      updateDoc(ref, {
+        activeWidgetId: 'w2',
+        activeWidgetType: 'poll',
+        activeWidgetConfig: { q: 1 },
+        frozen: false,
+      })
+    );
+    await assertSucceeds(updateDoc(ref, { background: 'bg-blue' }));
+    await assertSucceeds(updateDoc(ref, { frozen: true }));
+    await assertSucceeds(
+      updateDoc(ref, { isActive: false, activeWidgetId: null, frozen: false })
+    );
+  });
+
+  it('lets the teacher replace a legacy doc with a fresh start', async () => {
+    await assertSucceeds(
+      startLive(teacherDb(TEACHER_UID), TEACHER_UID, 'NEW999')
+    );
+  });
+
+  it("denies the previous client's pointerless Go Live, which would leave a claimable code", async () => {
+    await assertFails(
+      setDoc(
+        doc(teacherDb(TEACHER_UID), `sessions/${TEACHER_UID}`),
+        session(TEACHER_UID, { code: 'OLD555' })
+      )
+    );
+  });
+
+  it("denies another teacher writing the legacy teacher's session", async () => {
+    await assertFails(
+      updateDoc(doc(teacherDb(OTHER_TEACHER_UID), `sessions/${TEACHER_UID}`), {
+        frozen: true,
       })
     );
   });

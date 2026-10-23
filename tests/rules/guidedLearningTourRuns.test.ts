@@ -182,6 +182,46 @@ describe('tour runs writes', () => {
     );
   });
 
+  it('accepts suggested fixes by step, bounded, on a web run (C14)', async () => {
+    const ref = doc(asTeacher(), `${RUNS}/teacher-uid`);
+    const fix = { role: 'button', name: 'Save', css: 'button.save' };
+    await assertSucceeds(
+      setDoc(ref, {
+        ...run,
+        surface: 'web',
+        weak: [],
+        fixes: { 'step-a': fix },
+      })
+    );
+    await assertSucceeds(setDoc(ref, { ...run, surface: 'web', fixes: {} }));
+    await assertFails(setDoc(ref, { ...run, surface: 'web', fixes: [fix] }));
+    await assertFails(
+      setDoc(ref, {
+        ...run,
+        surface: 'web',
+        fixes: Object.fromEntries(
+          Array.from({ length: 51 }, (_, i) => [`s${i}`, fix])
+        ),
+      })
+    );
+  });
+
+  it('lets only an admin mark their own run as an admin run', async () => {
+    await assertFails(
+      setDoc(doc(asTeacher(), `${RUNS}/teacher-uid`), { ...run, admin: true })
+    );
+    await assertSucceeds(
+      setDoc(doc(asAdmin(), `${RUNS}/admin-uid`), {
+        ...run,
+        surface: 'web',
+        admin: true,
+      })
+    );
+    await assertFails(
+      setDoc(doc(asAdmin(), `${RUNS}/admin-uid`), { ...run, admin: false })
+    );
+  });
+
   it('lets an admin read a web tour run', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), `${RUNS}/web-uid`), {

@@ -101,34 +101,9 @@ describe('useLiveSession — joinSession input validation', () => {
     );
   });
 
-  it('rejects a duplicate PIN already held by a different student', async () => {
-    asMock(firestore.getDocs).mockResolvedValueOnce({
-      docs: [
-        {
-          id: 'other-student-uid',
-          data: () => ({ pin: '1234' }),
-        },
-      ],
-    });
-
-    const { result } = renderHook(() =>
-      useLiveSession(undefined, 'student', 'ABC123')
-    );
-    await expect(result.current.joinSession('1234', 'ABC123')).rejects.toThrow(
-      /PIN "1234" is already in use/
-    );
-  });
-
-  it('allows the same user to rejoin with their own previously-used PIN', async () => {
-    asMock(firestore.getDocs).mockResolvedValueOnce({
-      docs: [
-        {
-          id: 'student-uid-1', // same uid as auth.currentUser
-          data: () => ({ pin: '1234' }),
-        },
-      ],
-    });
+  it('joins without listing the session roster, which only the teacher may read', async () => {
     asMock(firestore.setDoc).mockResolvedValueOnce(undefined);
+    const getDocsMock = asMock(firestore.getDocs);
 
     const { result } = renderHook(() =>
       useLiveSession(undefined, 'student', 'ABC123')
@@ -138,10 +113,10 @@ describe('useLiveSession — joinSession input validation', () => {
       teacherId = await result.current.joinSession('1234', 'ABC123');
     });
     expect(teacherId).toBe('teacher-uid-1');
+    expect(getDocsMock).not.toHaveBeenCalled();
   });
 
   it('normalizes the code to uppercase and strips non-alphanumeric characters before the lookup', async () => {
-    asMock(firestore.getDocs).mockResolvedValueOnce({ docs: [] });
     asMock(firestore.setDoc).mockResolvedValueOnce(undefined);
 
     const { result } = renderHook(() =>
@@ -157,7 +132,6 @@ describe('useLiveSession — joinSession input validation', () => {
   });
 
   it('truncates a PIN longer than MAX_PIN_LENGTH (10) before writing', async () => {
-    asMock(firestore.getDocs).mockResolvedValueOnce({ docs: [] });
     const setDocMock = asMock(firestore.setDoc);
     setDocMock.mockResolvedValueOnce(undefined);
 
@@ -541,7 +515,7 @@ describe('useLiveSession — switching the broadcast widget', () => {
     expect(session?.code).toBe('KEEP12');
   });
 
-  it('mints a fresh code when another teacher owns the live code', async () => {
+  it('still switches, keeping the roster, when another teacher owns the live code', async () => {
     mockTeacherDocs(liveOnWidget1, 'other-teacher');
 
     const { result } = renderHook(() =>
@@ -552,12 +526,15 @@ describe('useLiveSession — switching the broadcast widget', () => {
       session = await result.current.startSession('widget-2', 'poll');
     });
 
-    expect(firestore.updateDoc).not.toHaveBeenCalled();
-    expect(batch.commit).toHaveBeenCalledTimes(1);
-    expect(session?.code).not.toBe('KEEP12');
+    expect(firestore.setDoc).not.toHaveBeenCalled();
+    expect(firestore.getDocs).not.toHaveBeenCalled();
+    expect(firestore.deleteDoc).not.toHaveBeenCalled();
+    expect(batch.commit).not.toHaveBeenCalled();
+    expect(firestore.updateDoc).toHaveBeenCalledTimes(1);
+    expect(session?.code).toBe('KEEP12');
   });
 
-  it('mints a fresh code when claiming the unclaimed live code is refused', async () => {
+  it('still switches, keeping the roster, when claiming the live code is refused', async () => {
     mockTeacherDocs(liveOnWidget1, null);
     asMock(firestore.setDoc).mockRejectedValueOnce(new Error('denied'));
 
@@ -569,9 +546,30 @@ describe('useLiveSession — switching the broadcast widget', () => {
       session = await result.current.startSession('widget-2', 'poll');
     });
 
-    expect(firestore.updateDoc).not.toHaveBeenCalled();
-    expect(batch.commit).toHaveBeenCalledTimes(1);
-    expect(session?.code).not.toBe('KEEP12');
+    expect(firestore.getDocs).not.toHaveBeenCalled();
+    expect(firestore.deleteDoc).not.toHaveBeenCalled();
+    expect(batch.commit).not.toHaveBeenCalled();
+    expect(firestore.updateDoc).toHaveBeenCalledTimes(1);
+    expect(session?.code).toBe('KEEP12');
+  });
+
+  it('keeps the old roster when the fresh-start batch is denied', async () => {
+    mockTeacherDocs({ isActive: false, code: 'OLD123' }, 'teacher-uid-1');
+    asMock(firestore.getDocs).mockResolvedValue({
+      docs: [{ ref: 'student-ref' }],
+    });
+    batch.commit.mockRejectedValueOnce(new Error('denied'));
+
+    const { result } = renderHook(() =>
+      useLiveSession('teacher-uid-1', 'teacher')
+    );
+    await act(async () => {
+      await expect(
+        result.current.startSession('widget-2', 'poll')
+      ).rejects.toThrow('denied');
+    });
+
+    expect(firestore.deleteDoc).not.toHaveBeenCalled();
   });
 
   it('clears the roster and mints a new code when the session had ended', async () => {
@@ -595,6 +593,71 @@ describe('useLiveSession — switching the broadcast widget', () => {
     expect(firestore.deleteDoc).toHaveBeenCalledWith({
       path: 'live_session_codes/OLD123',
     });
+  });
+});
+
+describe('useLiveSession — teacher tab claims a pre-pointer live code', () => {
+  type SessionCallback = (snap: {
+    exists: () => boolean;
+    data: () => Record<string, unknown>;
+  }) => void;
+  let callbacks: SessionCallback[];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    callbacks = [];
+    asMock(firestore.onSnapshot).mockImplementation(
+      (_ref: unknown, cb: SessionCallback) => {
+        callbacks.push(cb);
+        return vi.fn();
+      }
+    );
+    mockDocPaths();
+    asMock(firestore.collection).mockReturnValue({});
+    asMock(firestore.setDoc).mockResolvedValue(undefined);
+  });
+
+  const fireLive = (code: string) =>
+    act(async () => {
+      callbacks[0]({
+        exists: () => true,
+        data: () => ({ id: 'teacher-uid-1', isActive: true, code }),
+      });
+      await Promise.resolve();
+    });
+
+  it('claims the code as soon as the live session loads', async () => {
+    asMock(firestore.getDoc).mockResolvedValue({ exists: () => false });
+    renderHook(() => useLiveSession('teacher-uid-1', 'teacher'));
+    await fireLive('LIVE01');
+
+    expect(firestore.getDoc).toHaveBeenCalledWith({
+      path: 'live_session_codes/LIVE01',
+    });
+    expect(firestore.setDoc).toHaveBeenCalledWith(
+      { path: 'live_session_codes/LIVE01' },
+      expect.objectContaining({ teacherUid: 'teacher-uid-1' })
+    );
+  });
+
+  it('leaves an existing pointer alone', async () => {
+    asMock(firestore.getDoc).mockResolvedValue({
+      exists: () => true,
+      data: () => ({ teacherUid: 'teacher-uid-1' }),
+    });
+    renderHook(() => useLiveSession('teacher-uid-1', 'teacher'));
+    await fireLive('LIVE01');
+
+    expect(firestore.getDoc).toHaveBeenCalledTimes(1);
+    expect(firestore.setDoc).not.toHaveBeenCalled();
+  });
+
+  it('never claims from a student tab', async () => {
+    asMock(firestore.getDoc).mockResolvedValue({ exists: () => false });
+    renderHook(() => useLiveSession(undefined, 'student', 'teacher-uid-1'));
+    await fireLive('LIVE01');
+
+    expect(firestore.setDoc).not.toHaveBeenCalled();
   });
 });
 

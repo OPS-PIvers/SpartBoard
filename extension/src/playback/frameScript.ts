@@ -1,5 +1,8 @@
 import { assessTarget, type WebLocatorClues } from './locate';
 import type { WebStepAction } from './progress';
+import { captureTarget } from '../recorder/captureTarget';
+import { toBox } from '../recorder/geometry';
+import { fixKey } from '@/components/tours/web/fixClues';
 
 /** Messages the service worker sends to every frame of a playing tab. */
 export type FrameCommand =
@@ -19,7 +22,11 @@ export type FrameReport =
       /** Scored close to another element (C2). */
       weak: boolean;
       url: string;
+      /** A weak match's own clues, read fresh, as a suggested fix (C14). */
+      fix?: WebLocatorClues;
     }
+  /** Nothing cleared the floor; the closest identified element's clues, sent when they change. */
+  | { type: 'wt:candidate'; token: string; fix: WebLocatorClues }
   /** Candidates tie and none is nearest the recorded box; sent once per seek. */
   | { type: 'wt:ambiguous'; token: string }
   | { type: 'wt:lost'; token: string }
@@ -33,6 +40,13 @@ export interface FrameTarget {
 
 declare global {
   var __sbWebTourFrame: { target: FrameTarget | null } | undefined;
+}
+
+/** An element's clues as the recorder reads them (scrubbed), with its box in this frame's viewport. */
+export function cluesOf(el: Element): WebLocatorClues {
+  const { locator, rect, viewport } = captureTarget(el);
+  const box = toBox(rect, viewport);
+  return { ...locator, ...(box ? { box } : {}) };
 }
 
 const ACT_EVENTS: Record<WebStepAction, string[]> = {
@@ -76,6 +90,7 @@ export function installFrameSeeker(
   let timer: ReturnType<typeof setTimeout> | null = null;
   let detach: (() => void) | null = null;
   let toldAmbiguous = false;
+  let toldCandidate = '';
 
   const clearTarget = () => {
     detach?.();
@@ -126,6 +141,15 @@ export function installFrameSeeker(
       toldAmbiguous = true;
       send({ type: 'wt:ambiguous', token: seek.token });
     }
+    if (out.kind === 'none' && out.candidate) {
+      const fix = cluesOf(out.candidate);
+      // A new position alone isn't a new candidate.
+      const said = fixKey(fix);
+      if (said !== toldCandidate) {
+        toldCandidate = said;
+        send({ type: 'wt:candidate', token: seek.token, fix });
+      }
+    }
     if (out.kind !== 'match') return;
     const hit = out.match;
     attach(hit.el, seek.token, seek.action);
@@ -134,6 +158,7 @@ export function installFrameSeeker(
       token: seek.token,
       weak: hit.weak,
       url: doc.location?.href ?? '',
+      ...(hit.weak ? { fix: cluesOf(hit.el) } : {}),
     });
   };
 
@@ -144,6 +169,7 @@ export function installFrameSeeker(
   const stop = () => {
     seek = null;
     toldAmbiguous = false;
+    toldCandidate = '';
     observer?.disconnect();
     observer = null;
     if (timer !== null) clearTimeout(timer);

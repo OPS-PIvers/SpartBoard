@@ -14,6 +14,7 @@ import { assertAccess, MAX_SLIDE_BYTES } from './glTools';
 import { OVERWRITES, READ_ONLY, iso, run } from './toolKit';
 import { isWebTour, isWebTourSnapshot } from './webTours';
 import { isHardTextHit, webTourTextHits } from './webTourStudentData';
+import { stepFixes, type FixRun, type StepFix } from './webTourFixes';
 
 // Must match components/tours/webTours.ts and functions/src/glTours.ts.
 export const WEB_TOURS = 'building_web_tours';
@@ -41,6 +42,7 @@ const CONFLICT =
 
 interface WebLocator {
   role?: unknown;
+  css?: unknown;
   name?: unknown;
   text?: unknown;
   heading?: unknown;
@@ -70,6 +72,8 @@ export interface WebTourDoc {
   helpCenter?: unknown;
   updatedAt?: unknown;
   webGoal?: unknown;
+  webSuggestions?: unknown;
+  webFixDismissed?: unknown;
   [key: string]: unknown;
 }
 
@@ -152,17 +156,46 @@ export function publishState(
 
 const ATTR_KEYS = ['testId', 'ariaLabel', 'name', 'href'] as const;
 
-/** A step as Claude sees it: words, action, address, the readable clues and the admin's note; never the CSS or box. */
-export function publicWebStep(step: WebStep, index: number) {
-  const web = step.web;
-  const loc = web?.locator ?? {};
+/** The clues Claude may read: never the CSS path or the box. */
+function readableClues(loc: WebLocator, withTitle = true) {
   const locator: Record<string, string | Record<string, string>> = {};
   for (const key of ['role', 'name', 'text', 'heading', 'pageTitle'] as const)
-    if (str(loc[key])) locator[key] = str(loc[key]);
+    if ((withTitle || key !== 'pageTitle') && str(loc[key]))
+      locator[key] = str(loc[key]);
   const attrs: Record<string, string> = {};
   for (const key of ATTR_KEYS)
     if (str(loc.attrs?.[key])) attrs[key] = str(loc.attrs?.[key]);
   if (Object.keys(attrs).length) locator.attrs = attrs;
+  return locator;
+}
+
+const CLUE_NAMES: Record<string, string> = {
+  role: 'role',
+  name: 'name',
+  text: 'text',
+  heading: 'heading',
+  css: 'page position',
+  'attrs.testId': 'control id',
+  'attrs.ariaLabel': 'control label',
+  'attrs.name': 'field name',
+  'attrs.href': 'link address',
+};
+
+/** Which clues a fix changes, by name only, so Claude can tell what differs without reading the CSS path. */
+function changedClues(before: WebLocator, after: WebLocator): string[] {
+  const read = (l: WebLocator, key: string) =>
+    key.startsWith('attrs.')
+      ? str(l.attrs?.[key.slice(6)])
+      : str(l[key as keyof WebLocator]);
+  return Object.keys(CLUE_NAMES)
+    .filter((k) => read(before, k) !== read(after, k))
+    .map((k) => CLUE_NAMES[k]);
+}
+
+/** A step as Claude sees it: words, action, address, the readable clues, the admin's note and any suggested fix; never the CSS or box. */
+export function publicWebStep(step: WebStep, index: number, fix?: StepFix) {
+  const web = step.web;
+  const locator = readableClues(web?.locator ?? {});
   const note = str(web?.note);
   const question = str(web?.claudeQuestion);
   return {
@@ -176,6 +209,18 @@ export function publicWebStep(step: WebStep, index: number) {
     has_picture: typeof web?.picture?.path === 'string',
     ...(note ? { note } : {}),
     ...(question ? { question } : {}),
+    ...(fix
+      ? {
+          suggested_fix: {
+            // Never a page title: it can name the student whose page it was.
+            locator: readableClues(fix.locator, false),
+            changed: changedClues(web?.locator ?? {}, fix.locator),
+            source: fix.source,
+            runs: fix.count,
+            found_at: iso(fix.at),
+          },
+        }
+      : {}),
   };
 }
 
@@ -198,6 +243,19 @@ export async function loadWebTour(ctx: ToolContext, setId: string) {
   if (!isWebTour(set)) throw new ToolError(NOT_WEB);
   return { set, updateTime: snap.updateTime };
 }
+
+/** Runs of the tour, for the fixes they suggest; admins read them through the Admin SDK. */
+async function runsOf(ctx: ToolContext, setId: string): Promise<FixRun[]> {
+  const snap = await ctx.db.collection(`${SNAPSHOTS}/${setId}/runs`).get();
+  return snap.docs.map((d) => d.data() as FixRun);
+}
+
+const publishedSteps = (p: PublishedWebTour | null) => {
+  const steps = (p?.set as { steps?: unknown } | undefined)?.steps;
+  return p && Array.isArray(steps)
+    ? { at: p.at, steps: steps as WebStep[] }
+    : null;
+};
 
 async function publishedOf(
   ctx: ToolContext,
@@ -347,7 +405,7 @@ export async function restoreWebTourRevision(
 }
 
 const STEP_LIST =
-  "Each step: id, number, title, tip, action (click, type, select or observe), url_pattern (the page it plays on, ids as *), locator (the role, name, text, nearby heading, page title and stable attrs it finds its control by), has_picture, and when set the admin's private note for Claude (note, never shown to teachers) and the question SpartBoard's Write with Claude left on the step (question). goal is what the admin said the tour explains.";
+  "Each step: id, number, title, tip, action (click, type, select or observe), url_pattern (the page it plays on, ids as *), locator (the role, name, text, nearby heading, page title and stable attrs it finds its control by), has_picture, and when set the admin's private note for Claude (note, never shown to teachers) and the question SpartBoard's Write with Claude left on the step (question). goal is what the admin said the tour explains. suggested_fix, when present, is what a run of the tour found instead when the step missed or matched weakly: the clues (locator, whose name, text and heading are always the step's own, never words from the page it was found on), which clues differ (changed), where it came from (source: check for the admin's Check tour, admin for an admin's own run, teacher for teachers' runs, shown once at least two agree), and how many runs found it (runs). Claude can recommend a fix; only the admin can use it, in SpartBoard.";
 
 export function registerWebTourTools(
   server: McpServer,
@@ -420,10 +478,12 @@ export function registerWebTourTools(
     ({ set_id }) =>
       run('get_web_tour', ctx, async () => {
         await assertWebTourAccess(ctx);
-        const [{ set }, published] = await Promise.all([
+        const [{ set }, published, runs] = await Promise.all([
           loadWebTour(ctx, set_id),
           publishedOf(ctx, set_id),
+          runsOf(ctx, set_id),
         ]);
+        const fixes = stepFixes(set, publishedSteps(published), runs);
         return {
           set_id,
           title: str(set.title),
@@ -431,7 +491,7 @@ export function registerWebTourTools(
           help_center: set.helpCenter === true,
           updated_at: iso(set.updatedAt),
           publish_state: publishState(set, published),
-          steps: set.steps.map(publicWebStep),
+          steps: set.steps.map((s, i) => publicWebStep(s, i, fixes.get(s.id))),
         };
       })
   );
@@ -541,7 +601,7 @@ export function registerWebTourTools(
           title: nextTitle,
           previous_version_revision_id: saved.revisionId,
           changed_steps: edited.steps
-            .map(publicWebStep)
+            .map((s, i) => publicWebStep(s, i))
             .filter((s) => changed.has(s.id)),
           ...(warnings.length ? { warnings } : {}),
           note: 'Saved as a draft. Teachers keep the published tour until an admin opens it in SpartBoard and publishes; the publish check there also looks for roster names.',

@@ -43,6 +43,7 @@ import {
   resolvePinName,
   __resetPinNameWarnDedupe,
   buildGameLeaderboard,
+  toBroadcastLeaderboard,
 } from './quizScoreboard';
 import type {
   QuizResponse,
@@ -1140,5 +1141,20 @@ describe('quizScoreboard', () => {
       expect(entries[0]?.rank).toBe(1);
       expect(entries[9]?.rank).toBe(10);
     });
+  });
+});
+
+describe('toBroadcastLeaderboard', () => {
+  it('drops PINs, PIN-fallback names and names below rank 10', () => {
+    const out = toBroadcastLeaderboard([
+      { pin: '1111', studentUid: 'a', name: 'Ada L.', score: 9, rank: 1 },
+      { pin: '2222', studentUid: 'b', name: 'PIN 2222', score: 8, rank: 2 },
+      { pin: '3333', studentUid: 'c', name: 'Cy D.', score: 1, rank: 11 },
+    ]);
+    expect(out).toEqual([
+      { studentUid: 'a', name: 'Ada L.', score: 9, rank: 1 },
+      { studentUid: 'b', score: 8, rank: 2 },
+      { studentUid: 'c', score: 1, rank: 11 },
+    ]);
   });
 });

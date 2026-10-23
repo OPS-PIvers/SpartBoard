@@ -121,6 +121,7 @@ describe('QuizStudentApp — excluded student join gate', () => {
       expect(mockJoinQuizSession).toHaveBeenCalledWith(
         'ABC123',
         undefined,
+        undefined,
         undefined
       );
     });

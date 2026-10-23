@@ -26,6 +26,15 @@ vi.mock('firebase-functions/v2/https', () => ({
   },
 }));
 
+const axiosGet = vi.hoisted(() =>
+  vi.fn<(url: string) => Promise<unknown>>(() =>
+    Promise.reject(new Error('no axios handler'))
+  )
+);
+vi.mock('axios', () => ({
+  default: { get: axiosGet, isAxiosError: () => false },
+}));
+
 vi.mock('./secrets', () => ({
   CLASSLINK_CLIENT_ID: { value: () => 'id' },
   CLASSLINK_CLIENT_SECRET: { value: () => 'secret' },
@@ -39,6 +48,7 @@ import {
   computeSessionCloseAt,
   handleSetAssignmentTargets,
   isTestClassAuthority,
+  loadClassLinkMembership,
   targetRefsFromAssignment,
   parseSetAssignmentTargetsInput,
   refKey,
@@ -2214,5 +2224,64 @@ describe('setAssignmentTargetsV1 onCall wrapper — caller identity verification
       data: payload,
     });
     expect(res).toMatchObject({ written: 0 });
+  });
+
+  it('SECURITY: rejects a verified student-domain Google session', async () => {
+    await expect(
+      handler({
+        auth: {
+          uid: TEACHER_UID,
+          token: {
+            email: 'kid@students.orono.k12.mn.us',
+            email_verified: true,
+          },
+        },
+        data: payload,
+      })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.writes).toHaveLength(0);
+  });
+});
+
+describe('loadClassLinkMembership', () => {
+  const route = (users: unknown[]) =>
+    axiosGet.mockImplementation((url: string) => {
+      if (url.endsWith('/users')) return Promise.resolve({ data: { users } });
+      if (url.endsWith('/classes')) {
+        return Promise.resolve({ data: { classes: [{ sourcedId: CLASS_A }] } });
+      }
+      if (url.endsWith(`/classes/${CLASS_A}/students`)) {
+        return Promise.resolve({ data: { users: [{ sourcedId: SOURCED_A }] } });
+      }
+      return Promise.reject(new Error(`unexpected ${url}`));
+    });
+
+  beforeEach(() => {
+    axiosGet.mockReset();
+  });
+
+  it("resolves a teacher's taught-class students", async () => {
+    route([{ sourcedId: 'T1', role: 'teacher' }]);
+    const out = await loadClassLinkMembership(
+      'teacher@orono.k12.mn.us',
+      [CLASS_A],
+      'id',
+      'secret',
+      'https://tenant.example'
+    );
+    expect(out.get(SOURCED_A)).toBe(CLASS_A);
+  });
+
+  it('SECURITY: a student-only OneRoster caller resolves to no classes', async () => {
+    route([{ sourcedId: 'S1', roles: [{ role: 'student' }] }]);
+    const out = await loadClassLinkMembership(
+      'kid@orono.k12.mn.us',
+      [CLASS_A],
+      'id',
+      'secret',
+      'https://tenant.example'
+    );
+    expect(out.size).toBe(0);
+    expect(axiosGet).toHaveBeenCalledTimes(1);
   });
 });

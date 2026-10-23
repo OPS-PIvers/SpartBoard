@@ -2,12 +2,14 @@ import {
   CHECK_PROTOCOL,
   EXTENSION_PROTOCOL_VERSION,
   isCheckRunId,
+  parseWebTourLocator,
   SCORED_MATCH_PROTOCOL,
   WEB_TOUR_PORT,
   type ExtensionProfile,
   type WebTourCheckProgress,
   type WebTourProgressMessage,
   type WebTourStartTour,
+  type WebTourSuggestPost,
 } from './extensionProtocol';
 
 /** The protocol that added web tour playback. */
@@ -16,7 +18,9 @@ export const WEB_TOUR_PROTOCOL = 2;
 /** The protocol that added Fix on site (`recorder/repick`). */
 export const REPICK_PROTOCOL = 3;
 
-export type WebTourPortEvent = WebTourProgressMessage;
+export type WebTourPortEvent = WebTourProgressMessage | WebTourSuggestPost;
+
+export type WebTourCheckEvent = WebTourCheckProgress | WebTourSuggestPost;
 
 export type ExtensionStatus =
   | { kind: 'none' }
@@ -166,7 +170,7 @@ export function watchWebTour(
 /** Listens to a check run's results; only a protocol 6 extension sends them, and only to a page that says it reads them. */
 export function watchWebTourCheck(
   setId: string,
-  onEvent: (event: WebTourCheckProgress) => void,
+  onEvent: (event: WebTourCheckEvent) => void,
   onGone: () => void
 ): () => void {
   return openWatch(
@@ -220,14 +224,42 @@ function openWatch<E>(
 
 const CHECK_RESULTS = ['found', 'weak', 'ambiguous', 'none'] as const;
 
+/** A suggestion for this set; a check run's carries its run id, a playing run's none. */
+export function parseWebTourSuggest(
+  message: unknown,
+  setId: string
+): WebTourSuggestPost | null {
+  if (!isRecord(message) || message.type !== 'web-tour/suggest') return null;
+  if (message.setId !== setId) return null;
+  const { stepIndex, stepId, runId } = message;
+  if (!Number.isInteger(stepIndex) || (stepIndex as number) < 0) return null;
+  if (typeof stepId !== 'string' || !stepId || stepId.length > 200) return null;
+  if (runId !== undefined && !isCheckRunId(runId)) return null;
+  const raw = message.locator;
+  // The extension sends one frame's clues; frames stay the step's own.
+  if (isRecord(raw) && 'frames' in raw) return null;
+  const locator = parseWebTourLocator(raw);
+  if (!locator) return null;
+  return {
+    type: 'web-tour/suggest',
+    setId,
+    stepIndex: stepIndex as number,
+    stepId,
+    locator,
+    ...(typeof runId === 'string' ? { runId } : {}),
+  };
+}
+
 /** Validates one check-run message from the extension for this set, or null. */
 export function parseWebTourCheckEvent(
   message: unknown,
   setId: string
-): WebTourCheckProgress | null {
+): WebTourCheckEvent | null {
   if (!isRecord(message) || message.setId !== setId) return null;
   const { runId } = message;
   if (!isCheckRunId(runId)) return null;
+  if (message.type === 'web-tour/suggest')
+    return parseWebTourSuggest(message, setId);
   const index = message.stepIndex;
   if (!Number.isInteger(index) || (index as number) < 0) return null;
   const stepIndex = index as number;
@@ -287,6 +319,11 @@ export function parseWebTourPortEvent(
     }
     case 'web-tour/done':
       return { type: 'web-tour/done', setId };
+    case 'web-tour/suggest':
+      // A check run's suggestion is the editor's, never a run's.
+      return message.runId === undefined
+        ? parseWebTourSuggest(message, setId)
+        : null;
     case 'web-tour/exit':
     case 'web-tour/closed':
       return validIndex

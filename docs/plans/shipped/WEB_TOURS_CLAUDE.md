@@ -2,7 +2,7 @@
 
 Goal: an admin clicks through a website at full speed with the extension recording, and Claude writes every step's title and tip. Each tour is checked by playing it before it publishes, and keeps finding its buttons as sites change. No narration and no AI other than Claude.
 
-Settled in a design interview with Paul on 2026-10-22, after research into Scribe, Tango, Supademo, Arcade, Guidde, WalkMe, Whatfix, Pendo, Userlane, the Chrome DevTools Recorder and the Similo papers. It builds on [CHROME_EXTENSION.md](CHROME_EXTENSION.md) and [shipped/WEB_TOURS_UX.md](shipped/WEB_TOURS_UX.md). D3 still holds: the extension never reads or writes Firestore.
+Settled in a design interview with Paul on 2026-10-22, after research into Scribe, Tango, Supademo, Arcade, Guidde, WalkMe, Whatfix, Pendo, Userlane, the Chrome DevTools Recorder and the Similo papers. It builds on [CHROME_EXTENSION.md](../CHROME_EXTENSION.md) and [WEB_TOURS_UX.md](WEB_TOURS_UX.md). D3 still holds: the extension never reads or writes Firestore.
 
 **Code references** were taken at `dev-paul` `8035727f9`. Symbol names are authoritative; line numbers are hints.
 
