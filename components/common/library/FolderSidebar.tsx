@@ -363,7 +363,10 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
           : `Deleted “${target.name}”`
       );
     }
-    if (selectedFolderId === target.id) onSelectFolder(target.parentId);
+    if (selectedFolderId === target.id) {
+      const parentExists = folders.some((f) => f.id === target.parentId);
+      onSelectFolder(parentExists ? target.parentId : null);
+    }
     setConfirmDelete(null);
     setCommitError(null);
   };
