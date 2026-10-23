@@ -38,7 +38,11 @@ import { useFolderPanelMode } from './LibraryFolderPanelContext';
 import { folderColorSwatch } from './folderColors';
 import { FolderColorPicker } from './FolderColorPicker';
 import { isSourceFolderId } from './sourceFolders';
-import { folderDropIndex, type FolderDropHint } from './folderView';
+import {
+  buildFolderIndex,
+  folderDropIndex,
+  type FolderDropHint,
+} from './folderView';
 
 export interface FolderTreeProps {
   /** Flat folder list — the tree shape is derived from `parentId`. */
@@ -658,9 +662,9 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
   // (the hook orders by `order` asc); still, sort defensively.
   const children = useMemo(
     () =>
-      folders
-        .filter((f) => (f.parentId ?? null) === parentId)
-        .sort((a, b) => a.order - b.order),
+      [...(buildFolderIndex(folders).childrenOf.get(parentId) ?? [])].sort(
+        (a, b) => a.order - b.order
+      ),
     [folders, parentId]
   );
 
