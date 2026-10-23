@@ -753,6 +753,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Arts & Letters Agenda: teachers pick Simple or Detailed, from the boxes admins build.
+  'agenda-versions': {
+    label: 'Agenda Simple and Detailed',
+    icon: ListOrdered,
+    description:
+      'A Simple or Detailed choice in Arts & Letters Agenda settings, using the boxes admins set for each building.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // PLC teams open on Home: charts over time, the latest assessment and team tools.
   'plc-home-tab': {
     label: 'PLC Home page',

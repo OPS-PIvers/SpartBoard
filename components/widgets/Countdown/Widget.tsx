@@ -180,7 +180,7 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
           }}
         >
           {viewMode === 'number' ? (
-            <div className="flex flex-col items-center justify-center text-center w-full [@container(min-aspect-ratio:2)]:flex-row [@container(min-aspect-ratio:2)]:gap-[4cqw] [@container(max-aspect-ratio:0.6)]:gap-[10cqh]">
+            <div className="flex flex-col items-center justify-center text-center w-full [@container(min-aspect-ratio:2)]:flex-row [@container(min-aspect-ratio:2)]:gap-[4cqw] [@container(max-aspect-ratio:0.6)]:gap-[5cqh]">
               <div
                 className="font-bold leading-none [font-size:var(--num-std)] [@container(min-aspect-ratio:2)]:[font-size:var(--num-wide)]"
                 style={
@@ -193,7 +193,7 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
               >
                 {calculatedDays}
               </div>
-              <div className="flex flex-col items-center [@container(max-aspect-ratio:0.6)]:gap-[6cqh] [@container(min-aspect-ratio:2)]:items-start [@container(min-aspect-ratio:2)]:text-left">
+              <div className="flex flex-col items-center [@container(max-aspect-ratio:0.6)]:gap-[3cqh] [@container(min-aspect-ratio:2)]:items-start [@container(min-aspect-ratio:2)]:text-left">
                 <div
                   className="font-medium [font-size:var(--days-std)] [@container(min-aspect-ratio:2)]:[font-size:var(--days-wide)]"
                   style={

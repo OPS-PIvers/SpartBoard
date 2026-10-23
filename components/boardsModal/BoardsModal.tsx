@@ -894,11 +894,17 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
         <ShareCollectionLinkCreatorModal
           isOpen
           collection={shareCollectionTarget}
-          {...shareCollectionTree(
-            shareCollectionTarget,
-            collections,
-            dashboards
-          )}
+          {...(collectionSync
+            ? shareCollectionTree(
+                shareCollectionTarget,
+                collections,
+                dashboards
+              )
+            : {
+                boards: dashboards.filter(
+                  (d) => (d.collectionId ?? null) === shareCollectionTarget.id
+                ),
+              })}
           inLiveShare={touchesLiveCollectionShare(
             shareCollectionTarget,
             collections
