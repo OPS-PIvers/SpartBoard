@@ -127,10 +127,30 @@ describe('buildWritingParts', () => {
     expect(text).toContain('Step 2 (id b)\n');
     expect(text).toContain('Current tip: Saves it.');
     expect(text).not.toContain('nth-child');
+    expect(text).toContain('The picture is, in order: step 1 (id a).');
     expect(parts.slice(1)).toEqual([
-      { text: 'Picture for step 1:' },
+      { text: 'Picture for step 1 (id a):' },
       { inlineData: { mimeType: 'image/jpeg', data: 'AAAA' } },
     ]);
+  });
+
+  it("names the pictures' steps in order up front, since Claude reads media before text", () => {
+    const picture = { mimeType: 'image/jpeg', data: 'AAAA' };
+    const parts = buildWritingParts(
+      tour(),
+      req([
+        { id: 'a', fields: ['tip'] },
+        { id: 'b', fields: ['tip'] },
+      ]),
+      new Map([
+        ['b', picture],
+        ['a', picture],
+      ])
+    );
+    expect(parts[0].text).toContain(
+      'The 2 pictures are, in order: step 1 (id a), step 2 (id b).'
+    );
+    expect(parts.filter((p) => p.inlineData)).toHaveLength(2);
   });
 });
 

@@ -101,7 +101,7 @@ export function parseWritingRequest(raw: unknown): WritingRequest {
 }
 
 export const WRITING_SYSTEM_PROMPT = `You write the words for a web tour: a walkthrough that highlights one control at a time on a website a teacher uses, with a short title and tip on each step.
-You get the tour's goal when the admin gave one, every step in order with the clues the recorder saved (action, page address, page title, nearby heading, control role, name and text), the admin's private notes, and a picture of each step you are asked to write.
+You get the tour's goal when the admin gave one, every step in order with the clues the recorder saved (action, page address, page title, nearby heading, control role, name and text), the admin's private notes, and a picture of each step you are asked to write. The pictures come in the order the prompt lists them; match each picture to its step by that list.
 Write only the fields each step asks for. A title is a short imperative under 60 characters, like "Open Gradebook". A tip is one or two plain sentences saying what the control does and why the teacher clicks it here; don't repeat the title.
 Write for teachers in a calm, direct voice. Never include a student's name, email or id number, even if a picture shows one.
 When you can't tell why a step happens, write no title or tip for it and return a short question instead (under 120 characters) that the admin can answer in a few words.`;
@@ -147,22 +147,31 @@ export function buildWritingParts(
     if (note) lines.push(`Admin's note: ${note}`);
     return lines.join('\n');
   });
+  const pictured = steps.flatMap((step, i) => {
+    const picture = pictures.get(str(step.id));
+    return picture ? [{ n: i + 1, id: str(step.id), picture }] : [];
+  });
+  // Claude gets every picture before any text, so the order is named rather than implied by position.
+  const order = pictured.length
+    ? `The ${pictured.length === 1 ? 'picture is' : `${pictured.length} pictures are`}, in order: ${pictured
+        .map((p) => `step ${p.n} (id ${p.id})`)
+        .join(', ')}.`
+    : 'There are no pictures.';
   const parts: AiPart[] = [
     {
       text: [
         `Tour title: ${str(tour.title) || '(none)'}`,
         `Goal: ${goal || '(not given)'}`,
+        order,
         '',
         blocks.join('\n\n'),
       ].join('\n'),
     },
   ];
-  steps.forEach((step, i) => {
-    const picture = pictures.get(str(step.id));
-    if (!picture) return;
-    parts.push({ text: `Picture for step ${i + 1}:` });
-    parts.push({ inlineData: picture });
-  });
+  for (const p of pictured) {
+    parts.push({ text: `Picture for step ${p.n} (id ${p.id}):` });
+    parts.push({ inlineData: p.picture });
+  }
   return parts;
 }
 

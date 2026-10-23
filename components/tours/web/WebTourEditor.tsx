@@ -784,6 +784,7 @@ export const WebTourEditor: React.FC<{
   // Write with Claude reads the saved draft, so it saves first.
   const flushDraft = async () => {
     if (deleted.current) throw new Error('Tour deleted');
+    if (!dirty.current) return latest.current;
     dirty.current = false;
     await saveNow(latest.current);
     return latest.current;

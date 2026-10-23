@@ -74,9 +74,12 @@ const Harness: React.FC<{ onFlush: (s: GuidedLearningSet) => void }> = ({
 
 describe('Write with Claude', () => {
   it('saves the goal and note first, fills the blanks, and undoes in one go', async () => {
-    calls.request.mockResolvedValueOnce([
-      { id: 's1', title: 'Open the gradebook', tip: 'Shows every grade.' },
-    ]);
+    calls.request.mockResolvedValueOnce({
+      steps: [
+        { id: 's1', title: 'Open the gradebook', tip: 'Shows every grade.' },
+      ],
+      failed: [],
+    });
     const onFlush = vi.fn();
     render(<Harness onFlush={onFlush} />);
     fireEvent.change(screen.getByLabelText('What does your tour explain?'), {
@@ -105,8 +108,14 @@ describe('Write with Claude', () => {
 
   it("shows Claude's question under the step and reruns just those steps", async () => {
     calls.request
-      .mockResolvedValueOnce([{ id: 's1', question: 'Which course is this?' }])
-      .mockResolvedValueOnce([{ id: 's1', tip: 'Opens grades.' }]);
+      .mockResolvedValueOnce({
+        steps: [{ id: 's1', question: 'Which course is this?' }],
+        failed: [],
+      })
+      .mockResolvedValueOnce({
+        steps: [{ id: 's1', tip: 'Opens grades.' }],
+        failed: [],
+      });
     render(<Harness onFlush={() => undefined} />);
     fireEvent.click(screen.getByRole('button', { name: 'Rewrite all' }));
     expect(
@@ -122,5 +131,29 @@ describe('Write with Claude', () => {
       { id: 's1', fields: ['title', 'tip'] },
     ]);
     expect(screen.queryByText('Which course is this?')).toBeNull();
+  });
+
+  it('lets the admin dismiss a question', async () => {
+    calls.request.mockResolvedValueOnce({
+      steps: [{ id: 's1', question: 'Which course?' }],
+      failed: [],
+    });
+    render(<Harness onFlush={() => undefined} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Write with Claude' }));
+    await screen.findByText('Which course?');
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss question' }));
+    expect(screen.queryByText('Which course?')).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Run again for questions' })
+    ).toBeNull();
+  });
+
+  it('keeps what a partly failed run wrote and names the steps that failed', async () => {
+    calls.request.mockResolvedValueOnce({ steps: [], failed: ['s1'] });
+    render(<Harness onFlush={() => undefined} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Write with Claude' }));
+    expect(
+      await screen.findByText("Claude couldn't write step 1. Try again.")
+    ).toBeInTheDocument();
   });
 });

@@ -6,6 +6,8 @@ import type * as admin from 'firebase-admin';
 import type { ToolContext } from './activity';
 import {
   WEB_TOUR_TOOLS,
+  applyWebStepText,
+  publishState,
   registerWebTourTools,
   restoreWebTourRevision,
   isWebTourPicturePath,
@@ -285,6 +287,43 @@ describe('web tour connector tools', () => {
       },
     });
     expect(out.steps[1]).not.toHaveProperty('note');
+  });
+
+  it("clears a step's Claude question once words are written for it", () => {
+    const asked = {
+      ...STEP_A,
+      web: { ...STEP_A.web, claudeQuestion: 'Which course?' },
+    };
+    const { steps } = applyWebStepText(
+      [asked, { ...STEP_B, web: { ...STEP_B.web, claudeQuestion: 'Why?' } }],
+      [
+        { id: 'a', tip: 'Opens the gradebook.' },
+        { id: 'b', title: '' },
+      ]
+    );
+    expect(steps[0].web).not.toHaveProperty('claudeQuestion');
+    expect(steps[1].web).toHaveProperty('claudeQuestion', 'Why?');
+  });
+
+  it('stays published when only the goal, notes or questions changed', () => {
+    const published = { at: 10, set: tour() };
+    const draft = {
+      ...tour(),
+      updatedAt: 30,
+      webGoal: 'New goal',
+      steps: [
+        { ...STEP_A, web: { ...STEP_A.web, note: 'n', claudeQuestion: 'q' } },
+        STEP_B,
+      ],
+    };
+    expect(publishState(draft, published)).toBe('published');
+    expect(publishState({ ...draft, steps: [STEP_B, STEP_A] }, published)).toBe(
+      'changed'
+    );
+    expect(publishState({ ...tour(), updatedAt: 5 }, published)).toBe(
+      'published'
+    );
+    expect(publishState(tour(), null)).toBe('draft');
   });
 
   it('is for admins only, with the web-tours flag on', async () => {

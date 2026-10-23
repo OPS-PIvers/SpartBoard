@@ -1,5 +1,11 @@
 import React, { useState } from 'react';
-import { Loader2, MessageCircleQuestion, Sparkles, Undo2 } from 'lucide-react';
+import {
+  Loader2,
+  MessageCircleQuestion,
+  Sparkles,
+  Undo2,
+  X,
+} from 'lucide-react';
 import type { GuidedLearningSet, GuidedLearningStep } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
 import { logError } from '@/utils/logError';
@@ -12,6 +18,7 @@ import { MAX_GOAL_CHARS, MAX_NOTE_CHARS } from './recorderProtocol';
 import { scrubCapturedText } from './studentData';
 import {
   applyWriting,
+  dismissQuestion,
   requestWebTourWriting,
   undoWriting,
   writingRequests,
@@ -23,6 +30,12 @@ type Change = (update: (s: GuidedLearningSet) => GuidedLearningSet) => void;
 
 const count = (n: number, one: string, many: string) =>
   `${n} ${n === 1 ? one : many}`;
+
+// "3", "3 and 5", "3, 5 and 9".
+const listNumbers = (ns: number[]) =>
+  ns.length < 2
+    ? ns.join('')
+    : `${ns.slice(0, -1).join(', ')} and ${ns[ns.length - 1]}`;
 
 const disabledLook = 'disabled:cursor-not-allowed disabled:opacity-50';
 
@@ -48,18 +61,27 @@ export const WebTourWriting: React.FC<{
         onStatus('Every title and tip is filled in.');
         return;
       }
-      const written = await requestWebTourWriting(saved.id, requests);
+      const { steps: written, failed } = await requestWebTourWriting(
+        saved.id,
+        requests
+      );
       const ran: { r?: ReturnType<typeof applyWriting> } = {};
       change((cur) => {
         ran.r = applyWriting(cur, written, mode);
         return ran.r.set;
       });
+      const failedNumbers = saved.steps.flatMap((s, i) =>
+        failed.includes(s.id) ? [i + 1] : []
+      );
       const { r } = ran;
       if (!r) return;
       setUndo(Object.keys(r.undo).length ? r.undo : null);
       const parts = [
         r.wrote ? `Claude wrote ${count(r.wrote, 'step', 'steps')}.` : '',
         r.asked ? `Claude asked about ${count(r.asked, 'step', 'steps')}.` : '',
+        failedNumbers.length
+          ? `Claude couldn't write ${failedNumbers.length === 1 ? 'step' : 'steps'} ${listNumbers(failedNumbers)}. Try again.`
+          : '',
       ].filter(Boolean);
       onStatus(parts.join(' ') || 'Claude had nothing to add.');
     } catch (err) {
@@ -170,7 +192,19 @@ export const WebStepClaudeFields: React.FC<{
             className="mt-0.5 h-4 w-4 shrink-0 text-brand-blue-primary"
             aria-hidden="true"
           />
-          <span className="min-w-0 break-words">{web.claudeQuestion}</span>
+          <span className="min-w-0 flex-1 break-words">
+            {web.claudeQuestion}
+          </span>
+          {/* no-tour-anchor: per-step controls repeat on every step */}
+          <button
+            type="button"
+            className="-m-1 shrink-0 rounded p-1 text-slate-500 hover:bg-white/60 hover:text-slate-900"
+            aria-label="Dismiss question"
+            title="Dismiss question"
+            onClick={() => onChange(dismissQuestion(step))}
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
         </p>
       )}
       <label className="flex flex-col gap-1 text-sm">
