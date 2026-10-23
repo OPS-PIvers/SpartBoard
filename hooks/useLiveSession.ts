@@ -8,9 +8,8 @@ import {
   deleteDoc,
   deleteField,
   getDoc,
-  query,
-  where,
   getDocs,
+  writeBatch,
 } from 'firebase/firestore';
 import { db, auth } from '@/config/firebase';
 import { LiveSession, LiveStudent, WidgetType, WidgetConfig } from '@/types';
@@ -25,12 +24,12 @@ import {
 // Constants for Firestore Paths
 const SESSIONS_COLLECTION = 'sessions';
 const STUDENTS_COLLECTION = 'students';
+// Join code -> owning teacher (firestore.rules: create-if-absent, one owner per code).
+const CODES_COLLECTION = 'live_session_codes';
 
 const MAX_PIN_LENGTH = 10; // Prevent storage abuse; the sibling #2625 rules-hardening PR adds a matching (not yet merged) server-side size() cap — keep both in sync once it lands
 
-/** Unique 6-char join code generator with collision check against active live sessions. */
-// Relies on the broad `sessions` read permission (firestore.rules: `match
-// /sessions/{userId}`'s Phase-2 TODO) to query across all teachers' sessions.
+/** Unique 6-char join code generator with collision check against claimed codes. */
 async function allocateSessionCode(): Promise<string> {
   for (let attempt = 0; attempt < 5; attempt++) {
     const candidate = Math.random()
@@ -38,14 +37,10 @@ async function allocateSessionCode(): Promise<string> {
       .substring(2, 8)
       .toUpperCase()
       .padEnd(6, '0');
-    const snap = await getDocs(
-      query(collection(db, SESSIONS_COLLECTION), where('code', '==', candidate))
-    );
-    const collision = snap.docs.some((d) => (d.data() as LiveSession).isActive);
-    if (!collision) return candidate;
+    const snap = await getDoc(doc(db, CODES_COLLECTION, candidate));
+    if (!snap.exists()) return candidate;
   }
-  // Last-resort fallback: accept a theoretical collision rather than
-  // blocking the teacher from starting a session (mirrors allocateJoinCode).
+  // Last-resort fallback: an unchecked code (a claimed one fails the start batch).
   return Math.random()
     .toString(36)
     .substring(2, 8)
@@ -280,23 +275,20 @@ export const useLiveSession = (
       throw new Error('Invalid code format');
     }
 
-    const sessionsRef = collection(db, SESSIONS_COLLECTION);
-    const q = query(sessionsRef, where('code', '==', normalizedCode));
-    const querySnapshot = await getDocs(q);
-
-    // A code can still be shared by a stale/ended session left over from
-    // before collision-checking existed at creation time — only an active
-    // session is a valid join target.
-    const activeDocs = querySnapshot.docs.filter(
-      (d) => (d.data() as LiveSession).isActive
-    );
-
-    if (activeDocs.length === 0) {
+    // The code's owner pointer names the only session it can resolve to.
+    const pointer = await getDoc(doc(db, CODES_COLLECTION, normalizedCode));
+    const teacherId = pointer.exists()
+      ? (pointer.data() as { teacherUid?: string }).teacherUid
+      : undefined;
+    const sessionSnap = teacherId
+      ? await getDoc(doc(db, SESSIONS_COLLECTION, teacherId))
+      : null;
+    const target = sessionSnap?.exists()
+      ? (sessionSnap.data() as LiveSession)
+      : null;
+    if (!teacherId || !target?.isActive || target.code !== normalizedCode) {
       throw new Error('Session not found');
     }
-
-    const sessionDoc = activeDocs[0];
-    const teacherId = sessionDoc.id;
 
     // Sanitize PIN (max length limit, simple trim)
     const sanitizedPin = pin.trim().substring(0, MAX_PIN_LENGTH);
@@ -399,12 +391,30 @@ export const useLiveSession = (
       const currentSession = current?.exists()
         ? (current.data() as LiveSession)
         : null;
-
-      // Already live on another widget: switch the broadcast, keeping the roster and join code.
-      if (
+      const liveCode =
         currentSession &&
         startKind(deriveLiveSessionState(currentSession)) === 'switch'
-      ) {
+          ? currentSession.code
+          : '';
+      // An unclaimed live code (pre-pointer session) is claimed in place; a failed read keeps the class live.
+      const ownsCode =
+        !!liveCode &&
+        (await getDoc(doc(db, CODES_COLLECTION, liveCode)).then(
+          (pointer) =>
+            pointer.exists()
+              ? pointer.data()?.teacherUid === userId
+              : setDoc(doc(db, CODES_COLLECTION, liveCode), {
+                  teacherUid: userId,
+                  createdAt: Date.now(),
+                }).then(
+                  () => true,
+                  () => false
+                ),
+          () => true
+        ));
+
+      // Already live on another widget: switch the broadcast, keeping the roster and join code.
+      if (currentSession && ownsCode) {
         await updateDoc(sessionRef, {
           activeWidgetId: widgetId,
           activeWidgetType: widgetType,
@@ -451,10 +461,21 @@ export const useLiveSession = (
         frozen: false,
         createdAt: Date.now(),
       };
-      await setDoc(sessionRef, newSession).catch((err) => {
+      const batch = writeBatch(db);
+      batch.set(doc(db, CODES_COLLECTION, newSession.code), {
+        teacherUid: userId,
+        createdAt: newSession.createdAt,
+      });
+      batch.set(sessionRef, newSession);
+      await batch.commit().catch((err) => {
         console.error('Failed to start session:', err);
         throw err;
       });
+      if (currentSession?.code && currentSession.code !== newSession.code) {
+        void deleteDoc(doc(db, CODES_COLLECTION, currentSession.code)).catch(
+          () => undefined
+        );
+      }
 
       return newSession;
     },
