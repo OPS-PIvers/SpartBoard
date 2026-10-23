@@ -10063,23 +10063,6 @@ export const TOUR_ANCHORS = {
     label: 'Student actions button in the video activity monitor',
     perField: true,
   },
-  'video-activity.results-drill-questions': {
-    label: 'Question results row in video activity results',
-    perWidgetType: true,
-  },
-  'video-activity.results-drill-students': {
-    label: 'Students row in video activity results',
-    perWidgetType: true,
-  },
-  'video-activity.results-export-sheets': {
-    label: 'Export to Sheets button in video activity results',
-    perWidgetType: true,
-    persists: true,
-  },
-  'video-activity.results-open-sheet': {
-    label: 'Open Sheet button in video activity results',
-    perWidgetType: true,
-  },
   'video-activity.results-tab': {
     label: 'Overview, Questions and Students tabs in video activity results',
     perField: true,

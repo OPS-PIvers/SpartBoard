@@ -62,7 +62,7 @@ import {
   type LtiPushGradesData,
 } from '@/utils/ltiGradePush';
 import { functions } from '@/config/firebase';
-import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { httpsCallable } from 'firebase/functions';
 import {
   useAssignmentPseudonymsMulti,
@@ -666,6 +666,12 @@ export const Results: React.FC<ResultsProps> = ({
   }
 
   const showExport = !exportUrl && !isExternalUser;
+  // The footer button replaces the single ⋯ menu item, so it keeps that item's anchor.
+  const moreItemAnchor = tourFieldAttr(
+    'video-activity.results-more-item',
+    'video-activity',
+    'item-1'
+  );
   return (
     <div
       className={`flex flex-col h-full font-sans ${parity ? 'bg-white text-brand-gray-dark' : ''}`}
@@ -837,13 +843,15 @@ export const Results: React.FC<ResultsProps> = ({
             onOpenQuestions={() => setActiveTab('questions')}
             onOpenStudents={() => setActiveTab('students')}
             anchors={{
-              questions: tourTypeAttr(
-                'video-activity.results-drill-questions',
-                'video-activity'
+              questions: tourFieldAttr(
+                'video-activity.results-tab',
+                'video-activity',
+                'questions'
               ),
-              students: tourTypeAttr(
-                'video-activity.results-drill-students',
-                'video-activity'
+              students: tourFieldAttr(
+                'video-activity.results-tab',
+                'video-activity',
+                'students'
               ),
             }}
           />
@@ -1305,10 +1313,7 @@ export const Results: React.FC<ResultsProps> = ({
               <FooterButton
                 label="Open Sheet"
                 icon={ExternalLink}
-                anchor={tourTypeAttr(
-                  'video-activity.results-open-sheet',
-                  'video-activity'
-                )}
+                anchor={moreItemAnchor}
                 onClick={() =>
                   window.open(exportUrl, '_blank', 'noopener,noreferrer')
                 }
@@ -1318,10 +1323,7 @@ export const Results: React.FC<ResultsProps> = ({
               <FooterButton
                 label="Export to Sheets"
                 icon={FileSpreadsheet}
-                anchor={tourTypeAttr(
-                  'video-activity.results-export-sheets',
-                  'video-activity'
-                )}
+                anchor={moreItemAnchor}
                 busy={exporting}
                 disabled={
                   exporting ||

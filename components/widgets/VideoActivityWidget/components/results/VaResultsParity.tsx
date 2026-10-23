@@ -34,7 +34,7 @@ export const ParityHeader: React.FC<{
       onClick={onBack}
       aria-label="Back"
       {...backAnchor}
-      className="rounded-md hover:bg-white/15 transition-colors"
+      className="relative touch-target-expand rounded-md hover:bg-white/15 transition-colors"
       style={{ padding: 'min(4px, 1cqmin)' }}
     >
       <ArrowLeft style={headerIcon} />
