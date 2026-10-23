@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 123_
-_Last run: 2026-10-22_
+_Run count: 124_
+_Last run: 2026-10-23_
 _Base branch: dev-paul_
 
 ---
@@ -577,6 +577,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-10-23 | `nightly/unifier-log-2026-10-23` | D1/D2/D3/D4/D5 | Aligned (run 124) — light probe of 8 commits / 57 non-test client files since run 123 (`14eff4ec..dev-paul`: web tours editor/recording, shared collections flags, PLC Home, Arts & Letters Agenda). Diff-scoped greps for added `'../'` imports, `<Toast`, `#2d3f89`/`#ad2122`, `role="group"` returned zero hits. The only D3 hits are 2 `text-xxs font-bold text-slate-500 uppercase` labels in `ArtsLettersAgendaConfigurationPanel.tsx`, which is the catalogued admin-panel tier D3-E25 (intentional). No code shipped; `validate` not run (CLAUDE.md forbids it; no code touched). | — |
 | 2026-10-22 | `nightly/unifier-log-2026-10-22` | D1/D2/D3/D4/D5 | Aligned (run 123) — light probe of 51 commits / 125 non-test client files since run 122 (`226d5125^..dev-paul`: quiz assign stepper, student attempts picker, settings drawer width, beta-user field). Diff-scoped greps for added `'../'` imports, `<Toast`, `#2d3f89`/`#ad2122` returned zero hits; the one `text-xxs font-bold uppercase` hit is a pre-existing class string re-indented, not new. D3: new exclusive-choice `role="group"`+`aria-pressed` pill rows in `QuizAttemptsStep.tsx` (Final score) and `QuizStudentApp.tsx` (Attempt, theme-dependent student UI). Neither converted to `SegmentedControl`: its slate-100 pill with white active chip would restyle the brand-blue active state (visual-risk), same call as run 112's `OverviewCharts.tsx`; logged LOW. Full `validate` not run (CLAUDE.md forbids it; no code touched). No code shipped. | — |
 | 2026-10-21 | `nightly/unifier-log-2026-10-21` | D1/D2/D3/D4/D5 | Aligned (run 122) — light probe of 51 commits / ~60 non-test client files since run 121 (`5bd7c01b..dev-paul`: workspace Analytics charts, Guided Learning player/studio, Flashcards speak, Materials/Embed/UrlWidget). D1: new Embed and UrlWidget empty states already use `ScaledEmptyState`. D2/D4/D5: diff-scoped greps for brand hex/rgb, multi-level relative imports and `<Toast`/local toast state returned zero hits. D3: only new `role="group"`+`aria-pressed` sites are the admin Analytics range/group pickers (admin chart toolbar, outside the widget-Settings scope) and Materials tray multi-select toggles (non-exclusive, correct as `aria-pressed`). Full `validate` not run (CLAUDE.md forbids it; no code touched). No code shipped. | — |
 | 2026-10-20 | `nightly/unifier-log-2026-10-20` | D1/D2/D3/D4/D5 | Aligned (run 121) — light probe of 15 commits / 27 non-test client files since run 120 (`675f3fcb..origin/dev-paul`: LunchCount redesign, Flashcards speak/pronunciation utils). D4: only new `'../'` imports are LunchCount `redesign/` -> parent LunchCount siblings (own-widget gray zone) and `../../WidgetLayout` (D4-E2). D1: the new LunchCount redesign empty state already uses `ScaledEmptyState`. D2/D3/D5: diff-scoped greps for inline-style hex/rgb, `#2d3f89`/`#ad2122`, hand-rolled `text-xxs font-black/bold uppercase` labels, `role="group"`/`aria-pressed` and `<Toast` returned zero hits. Full `validate` not run (CLAUDE.md forbids it; no code touched). No code shipped. | — |
