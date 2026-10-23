@@ -90,8 +90,8 @@ const PeriodPicker: React.FC<
     >
       <select
         aria-label="Class"
-        {...tourTypeAttr('quiz-monitor.period-class-picker', 'quiz')}
-        {...anchors?.select}
+        {...(anchors?.select ??
+          tourTypeAttr('quiz-monitor.period-class-picker', 'quiz'))}
         value={selected}
         onChange={(e) => onSelect(e.target.value)}
         className="min-w-0 max-w-full rounded-md border border-brand-gray-lighter bg-white font-sans font-bold text-brand-blue-dark"
@@ -136,7 +136,7 @@ export const ClassPicker: React.FC<{
   status,
   onToggle,
   toggleAnchor,
-  selectAnchor,
+  selectAnchor = tourTypeAttr('quiz-monitor.period-class-picker', 'quiz'),
   labelFor = (name) => name,
 }) => {
   const [busy, setBusy] = useState(false);
@@ -169,7 +169,6 @@ export const ClassPicker: React.FC<{
       >
         <select
           aria-label="Class"
-          {...tourTypeAttr('quiz-monitor.period-class-picker', 'quiz')}
           {...selectAnchor}
           value={selected}
           onChange={(e) => onSelect(e.target.value)}
@@ -283,8 +282,8 @@ const PeriodAction: React.FC<
           onClick={() => setMenuOpen((v) => !v)}
           aria-label={`More time for ${current.access.label}`}
           aria-expanded={menuOpen}
-          {...tourTypeAttr('quiz-monitor.period-more-time', 'quiz')}
-          {...anchors?.moreTime}
+          {...(anchors?.moreTime ??
+            tourTypeAttr('quiz-monitor.period-more-time', 'quiz'))}
           className="inline-flex items-center rounded-md border border-brand-blue-primary/40 bg-white font-sans font-semibold text-brand-blue-dark hover:bg-brand-blue-lighter"
           style={{
             gap: 'min(4px, 1cqmin)',

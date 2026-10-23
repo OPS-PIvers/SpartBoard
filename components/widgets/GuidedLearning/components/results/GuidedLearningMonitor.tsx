@@ -152,7 +152,7 @@ export const GuidedLearningMonitor = <R extends GlMonitorRow>({
                 onToggle={(key) =>
                   setOpenBucket((cur) => (cur === key ? null : key))
                 }
-                anchorFor={(key) =>
+                anchor={(key) =>
                   tourFieldAttr(
                     'gl-results.status-bucket',
                     'guided-learning',

@@ -42,7 +42,8 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1' },
     orgId: 'org',
     featurePermissions: [],
-    canAccessFeature: () => true,
+    // The monitor-parity layout has its own tests.
+    canAccessFeature: (id: string) => id !== 'monitor-parity',
   }),
 }));
 vi.mock('@/hooks/useAssignmentPseudonyms', () => ({
