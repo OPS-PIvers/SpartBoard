@@ -14459,6 +14459,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class picker select in the Quiz monitor",
     "scope": "widget type",
     "keys": [
+      "miniApp",
       "quiz"
     ],
     "routes": [
@@ -14482,6 +14483,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "More time button in the Quiz monitor",
     "scope": "widget type",
     "keys": [
+      "miniApp",
       "quiz"
     ],
     "routes": [

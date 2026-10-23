@@ -40,6 +40,7 @@ import { usePeriodAccess } from '@/hooks/usePeriodAccess';
 import { hasPeriodAccess } from '@/utils/periodAccess';
 import { PeriodAccessControls } from '@/components/common/sessionViews/PeriodAccessControls';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { MiniAppSubmissionsMonitor } from './MiniAppSubmissionsMonitor';
 
 interface SubmissionRow {
   id: string;
@@ -66,7 +67,8 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
   session,
   onClose,
 }) => {
-  const { user, orgId, ensureGoogleScope, isExternalUser } = useAuth();
+  const { user, orgId, ensureGoogleScope, isExternalUser, canAccessFeature } =
+    useAuth();
   const { rosters } = useDashboard();
   // No Let in now here: a student shows up only once they submit.
   const perPeriod =
@@ -81,11 +83,8 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
     },
     rosters
   );
-  const { byAssignmentPseudonym } = useAssignmentPseudonymsMulti(
-    sessionId,
-    classIds ?? null,
-    orgId
-  );
+  const { byAssignmentPseudonym, loading: namesLoading } =
+    useAssignmentPseudonymsMulti(sessionId, classIds ?? null, orgId);
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -147,6 +146,23 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
         logTag="MiniAppSubmissionsModal.periodAccess"
       />
     ) : undefined;
+
+  if (!isV2 && session && canAccessFeature?.('monitor-parity') === true) {
+    return (
+      <MiniAppSubmissionsMonitor
+        session={session}
+        assignmentName={assignmentName}
+        submissions={submissions}
+        loading={loading}
+        error={error}
+        names={byAssignmentPseudonym}
+        namesLoading={namesLoading}
+        periodActions={perPeriod ? periodActions : undefined}
+        orgId={orgId}
+        onClose={onClose}
+      />
+    );
+  }
 
   if (isV2 && session) {
     return (

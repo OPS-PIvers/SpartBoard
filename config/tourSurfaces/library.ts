@@ -436,7 +436,10 @@ export const SURFACES: TourSurfaceMap = {
   'library.mini-app.submissions': {
     label: 'Mini App submissions dialog',
     kind: 'modal',
-    files: ['components/widgets/MiniApp/components/SubmissionsModal.tsx'],
+    files: [
+      'components/widgets/MiniApp/components/SubmissionsModal.tsx',
+      'components/widgets/MiniApp/components/MiniAppSubmissionsMonitor.tsx',
+    ],
     opensWith: 'mini-app.session-submissions:miniApp',
     needs: ['student-data'],
   },
