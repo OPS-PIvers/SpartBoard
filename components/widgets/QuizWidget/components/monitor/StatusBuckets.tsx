@@ -1,5 +1,5 @@
 import React from 'react';
-import { tourFieldAttr } from '@/config/tourAnchors';
+import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import { MonitorData } from './useMonitorData';
 
 export type BucketKey = 'notStarted' | 'inProgress' | 'done';
@@ -18,8 +18,8 @@ interface StatusBucketsProps {
   onToggle: (key: BucketKey) => void;
   /** Buckets to show, in order; defaults to all three. */
   keys?: BucketKey[];
-  /** Widget type on the bucket tour anchors. */
-  widgetType?: 'quiz' | 'miniApp';
+  /** Tour anchor for each bucket; defaults to the Quiz monitor's. */
+  anchor?: (key: BucketKey) => TourAnchorAttrs;
 }
 
 export const StatusBuckets: React.FC<StatusBucketsProps> = ({
@@ -29,7 +29,7 @@ export const StatusBuckets: React.FC<StatusBucketsProps> = ({
   openBucket,
   onToggle,
   keys,
-  widgetType = 'quiz',
+  anchor,
 }) => (
   <div
     className="grid"
@@ -47,9 +47,8 @@ export const StatusBuckets: React.FC<StatusBucketsProps> = ({
           <button
             key={key}
             onClick={() => onToggle(key)}
-            {...(widgetType === 'miniApp'
-              ? tourFieldAttr('quiz-monitor.status-bucket', 'miniApp', key)
-              : tourFieldAttr('quiz-monitor.status-bucket', 'quiz', key))}
+            {...(anchor?.(key) ??
+              tourFieldAttr('quiz-monitor.status-bucket', 'quiz', key))}
             aria-expanded={selected}
             className={`flex flex-col items-center rounded-xl border transition-colors ${
               selected

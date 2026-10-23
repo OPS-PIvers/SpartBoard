@@ -132,17 +132,29 @@ export const MiniAppSubmissionsMonitor: React.FC<{
   // A picked class whose students can't be looked up can't be filtered, so its counts stay hidden.
   const cantFilter = !!selected && (!classFilter || !!classNames.error);
   // Per-student assignments target part of a class, so the class roster can't say who hasn't started.
+  // On All classes, a section the lookup can't reach (LMS, PIN roster) would be missing from Not started.
+  const everyClassKnown = (
+    periodAccess
+      ? Object.keys(periodAccess)
+      : [
+          ...(session.classIds ?? []),
+          ...rosters
+            .filter((r) => session.rosterIds?.includes(r.id))
+            .map(periodKeyForRoster),
+        ]
+  ).every(resolvable);
   const knowRoster =
+    (!!classFilter || everyClassKnown) &&
     !membersLoading &&
     !(classFilter ? classNames.error : namesError) &&
     !session.individualTargeting &&
     members.size > 0;
 
-  // Shared-link launches carry no name; number them in the order they submitted.
+  // Shared-link launches carry no name; number them by id so a resubmit doesn't renumber them.
   const unnamed = new Map(
     submissions
       .filter((s) => !formatStudentName(names.get(s.id)))
-      .sort((a, b) => a.submittedAt - b.submittedAt)
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
       .map((s, i) => [s.id, `Student ${i + 1}`])
   );
   const nameOf = (id: string): string =>
@@ -180,8 +192,9 @@ export const MiniAppSubmissionsMonitor: React.FC<{
           runPeriod(() => periodActions.extendPeriod(key, by))
         }
         extendMs={EXTEND_MS}
-        widgetType="miniApp"
         anchors={{
+          select: tourTypeAttr('quiz-monitor.period-class-picker', 'miniApp'),
+          moreTime: tourTypeAttr('quiz-monitor.period-more-time', 'miniApp'),
           start: tourTypeAttr('quiz-monitor.period-start', 'miniApp'),
           pause: tourTypeAttr('quiz-monitor.period-pause', 'miniApp'),
           extend: tourTypeAttr('quiz-monitor.period-extend', 'miniApp'),
@@ -195,7 +208,10 @@ export const MiniAppSubmissionsMonitor: React.FC<{
           setSelected(classes.find((c) => c.label === label)?.key ?? '')
         }
         status={session.status === 'ended' ? 'ended' : 'active'}
-        widgetType="miniApp"
+        selectAnchor={tourTypeAttr(
+          'quiz-monitor.period-class-picker',
+          'miniApp'
+        )}
       />
     );
 
@@ -212,7 +228,7 @@ export const MiniAppSubmissionsMonitor: React.FC<{
           onClick={onClose}
           aria-label="Back"
           {...tourTypeAttr('mini-app.submissions-close', 'miniApp')}
-          className="rounded-md hover:bg-white/15 transition-colors"
+          className="touch-target-expand rounded-md hover:bg-white/15 transition-colors"
           style={{ padding: 'min(4px, 1cqmin)' }}
         >
           <ArrowLeft
@@ -272,7 +288,9 @@ export const MiniAppSubmissionsMonitor: React.FC<{
                     setOpenBucket((cur) => (cur === key ? null : key))
                   }
                   keys={knowRoster ? ['notStarted', 'done'] : ['done']}
-                  widgetType="miniApp"
+                  anchor={(key) =>
+                    tourFieldAttr('quiz-monitor.status-bucket', 'miniApp', key)
+                  }
                 />
                 {openBucket === 'notStarted' && knowRoster && (
                   <div

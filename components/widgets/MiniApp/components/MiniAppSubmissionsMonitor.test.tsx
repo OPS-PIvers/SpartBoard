@@ -98,6 +98,11 @@ beforeEach(() => {
 });
 
 describe('MiniAppSubmissionsMonitor', () => {
+  it('hides Not started on All classes when a section has no name lookup', () => {
+    renderMonitor(session({ classIds: ['cl-1', 'schoology:sec-9'] }));
+    expect(screen.queryByRole('button', { name: /Not started/ })).toBeNull();
+  });
+
   it('hides Not started on a per-student assignment', () => {
     renderMonitor(session({ individualTargeting: true }));
     expect(screen.queryByRole('button', { name: /Not started/ })).toBeNull();

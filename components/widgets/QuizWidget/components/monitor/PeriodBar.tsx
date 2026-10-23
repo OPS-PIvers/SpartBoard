@@ -11,9 +11,6 @@ import {
   type EffectivePeriodState,
 } from '@/utils/periodAccess';
 
-/** Widget type on the monitor's tour anchors. */
-export type MonitorWidgetType = 'quiz' | 'miniApp';
-
 const STATE_LABEL: Record<EffectivePeriodState, string> = {
   open: 'Live',
   paused: 'Paused',
@@ -50,8 +47,6 @@ export interface PeriodBarProps {
     moreTime?: TourAnchorAttrs;
     extend?: TourAnchorAttrs;
   };
-  /** Widget type on the class picker's tour anchors. */
-  widgetType?: MonitorWidgetType;
 }
 
 function useEntries(periodAccess: Record<string, PeriodAccess>) {
@@ -82,10 +77,8 @@ type Row = ReturnType<typeof useEntries>[number];
 
 /** Class picker; each option carries its class's state, so the picked one reads at a glance. */
 const PeriodPicker: React.FC<
-  Pick<PeriodBarProps, 'selected' | 'onSelect' | 'anchors' | 'widgetType'> & {
-    rows: Row[];
-  }
-> = ({ rows, selected, onSelect, anchors, widgetType = 'quiz' }) => {
+  Pick<PeriodBarProps, 'selected' | 'onSelect' | 'anchors'> & { rows: Row[] }
+> = ({ rows, selected, onSelect, anchors }) => {
   const current = rows.find((r) => r.key === selected);
   const liveCount = rows.filter((r) => r.state === 'open').length;
   const text = { fontSize: 'min(16px, 5.5cqmin)' };
@@ -96,11 +89,9 @@ const PeriodPicker: React.FC<
       style={{ gap: 'min(10px, 2.5cqmin)' }}
     >
       <select
-        {...anchors?.select}
         aria-label="Class"
-        {...(widgetType === 'miniApp'
-          ? tourTypeAttr('quiz-monitor.period-class-picker', 'miniApp')
-          : tourTypeAttr('quiz-monitor.period-class-picker', 'quiz'))}
+        {...(anchors?.select ??
+          tourTypeAttr('quiz-monitor.period-class-picker', 'quiz'))}
         value={selected}
         onChange={(e) => onSelect(e.target.value)}
         className="min-w-0 max-w-full rounded-md border border-brand-gray-lighter bg-white font-sans font-bold text-brand-blue-dark"
@@ -135,7 +126,8 @@ export const ClassPicker: React.FC<{
   /** Pause or Resume for every class at once; omitted when the session can't be paused here. */
   onToggle?: () => Promise<void>;
   toggleAnchor?: TourAnchorAttrs;
-  widgetType?: MonitorWidgetType;
+  /** Tour anchor for the select; defaults to the Quiz monitor's. */
+  selectAnchor?: TourAnchorAttrs;
 }> = ({
   names,
   selected,
@@ -143,7 +135,7 @@ export const ClassPicker: React.FC<{
   status,
   onToggle,
   toggleAnchor,
-  widgetType = 'quiz',
+  selectAnchor,
 }) => {
   const [busy, setBusy] = useState(false);
   const paused = status === 'paused';
@@ -175,9 +167,8 @@ export const ClassPicker: React.FC<{
       >
         <select
           aria-label="Class"
-          {...(widgetType === 'miniApp'
-            ? tourTypeAttr('quiz-monitor.period-class-picker', 'miniApp')
-            : tourTypeAttr('quiz-monitor.period-class-picker', 'quiz'))}
+          {...(selectAnchor ??
+            tourTypeAttr('quiz-monitor.period-class-picker', 'quiz'))}
           value={selected}
           onChange={(e) => onSelect(e.target.value)}
           className="min-w-0 max-w-full rounded-md border border-brand-gray-lighter bg-white font-sans font-bold text-brand-blue-dark"
@@ -232,16 +223,7 @@ export const ClassPicker: React.FC<{
 /** Start or Pause for the picked class, plus More time while it has a close time. */
 const PeriodAction: React.FC<
   Omit<PeriodBarProps, 'onSelect' | 'periodAccess'> & { rows: Row[] }
-> = ({
-  rows,
-  selected,
-  onStart,
-  onPause,
-  onExtend,
-  extendMs,
-  anchors,
-  widgetType = 'quiz',
-}) => {
+> = ({ rows, selected, onStart, onPause, onExtend, extendMs, anchors }) => {
   const [busy, setBusy] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -296,13 +278,11 @@ const PeriodAction: React.FC<
     >
       {live && current.access.closeAt != null && (
         <button
-          {...anchors?.moreTime}
           onClick={() => setMenuOpen((v) => !v)}
           aria-label={`More time for ${current.access.label}`}
           aria-expanded={menuOpen}
-          {...(widgetType === 'miniApp'
-            ? tourTypeAttr('quiz-monitor.period-more-time', 'miniApp')
-            : tourTypeAttr('quiz-monitor.period-more-time', 'quiz'))}
+          {...(anchors?.moreTime ??
+            tourTypeAttr('quiz-monitor.period-more-time', 'quiz'))}
           className="inline-flex items-center rounded-md border border-brand-blue-primary/40 bg-white font-sans font-semibold text-brand-blue-dark hover:bg-brand-blue-lighter"
           style={{
             gap: 'min(4px, 1cqmin)',
