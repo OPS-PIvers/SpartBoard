@@ -262,8 +262,23 @@ describe('VideoActivityLiveMonitor — monitor-parity layout', () => {
       .calls[0] as [string, { segments: string[] }];
     expect(ref).toBe('video_activity_sessions/s1');
     expect(path.segments).toEqual(['studentAccess', 'u1']);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Class' }), {
+      target: { value: '' },
+    });
+    expect(bucket('Not started')).toHaveTextContent('2');
     expect(
       within(document.body).queryByRole('button', { name: 'Actions for 3333' })
     ).toBeNull();
+  });
+
+  it('shows every class when a per-period class has no class control', () => {
+    renderMonitor(
+      session({
+        accessMode: 'assessment',
+        periodAccess: { 'cl-1': period({ label: 'P1', state: 'open' }) },
+      })
+    );
+    expect(screen.queryByRole('combobox', { name: 'Class' })).toBeNull();
+    expect(bucket('Done')).toHaveTextContent('2');
   });
 });

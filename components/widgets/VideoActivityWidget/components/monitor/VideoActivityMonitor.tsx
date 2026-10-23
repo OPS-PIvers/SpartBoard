@@ -118,8 +118,7 @@ export const VideoActivityMonitor: React.FC<VideoActivityLiveMonitorProps> = ({
     setScreen({ name: 'home' });
     setOpenBucket(null);
     setSelected(periodNames[0] ?? '');
-  }
-  if (selected && !periodNames.includes(selected)) setSelected('');
+  } else if (selected && !periodNames.includes(selected)) setSelected('');
 
   // Per-period sessions get each class's own Start and Pause.
   const perPeriod = hasPeriodAccess(session) && session.status !== 'ended';
@@ -187,11 +186,20 @@ export const VideoActivityMonitor: React.FC<VideoActivityLiveMonitorProps> = ({
   const { questions } = useVideoActivityKeyQuestions(session);
 
   const filteredResponses = useMemo(() => {
-    if (periodNames.length <= 1 || !selected) return responses;
+    // Filter only while a class control shows, so no class can be stuck hidden.
+    if (periodNames.length <= 1 || !selected || !(periodBar || classPicker))
+      return responses;
     return responses.filter(
       (r) => vaResponsePeriod(r, session.classPeriodByClassId) === selected
     );
-  }, [responses, periodNames, selected, session.classPeriodByClassId]);
+  }, [
+    responses,
+    periodNames,
+    selected,
+    periodBar,
+    classPicker,
+    session.classPeriodByClassId,
+  ]);
 
   const students = useMemo(
     () =>
