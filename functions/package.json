@@ -19,7 +19,7 @@
   },
   "main": "lib/index.js",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.135.0",
+    "@anthropic-ai/sdk": "^1.1.0",
     "@echogarden/espeak-ng-emscripten": "0.3.5",
     "@google-cloud/functions-framework": "^5.0.5",
     "@google-cloud/text-to-speech": "^7.2.0",
