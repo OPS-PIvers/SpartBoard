@@ -278,6 +278,7 @@ export const LiveControl: React.FC<LiveControlProps> = ({
                     </span>
                   </div>
                   <div className="flex gap-1">
+                    {/* no-tour-anchor: per-student row, exists only while students are joined */}
                     <button
                       onClick={() => onFreezeStudent(s.id, s.status)}
                       className={`p-1 rounded hover:bg-blue-50 ${s.status === 'frozen' ? 'text-blue-600' : 'text-slate-300 hover:text-blue-500'}`}
@@ -289,6 +290,7 @@ export const LiveControl: React.FC<LiveControlProps> = ({
                     >
                       <Snowflake size={14} />
                     </button>
+                    {/* no-tour-anchor: per-student row, exists only while students are joined */}
                     <button
                       onClick={() => onRemoveStudent(s.id)}
                       className="p-1 rounded hover:bg-red-50 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
