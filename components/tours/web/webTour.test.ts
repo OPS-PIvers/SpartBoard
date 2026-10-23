@@ -423,8 +423,8 @@ describe('hub', () => {
       watchWebTourCheck('s', vi.fn(), vi.fn())();
       expect(posted).toEqual([
         { type: 'web-tour/watch', setId: 's' },
-        { type: 'web-tour/watch', setId: 's', protocol: 6 },
-        { type: 'web-tour/watch', setId: 's', protocol: 6 },
+        { type: 'web-tour/watch', setId: 's', protocol: 7 },
+        { type: 'web-tour/watch', setId: 's', protocol: 7 },
       ]);
     } finally {
       delete (globalThis as { chrome?: unknown }).chrome;
@@ -477,6 +477,36 @@ describe('hub', () => {
         's'
       )
     ).toBeNull();
+  });
+
+  it('sends suggested fixes only to a page that reads protocol 7, each to its own run (C14)', () => {
+    const suggest = {
+      type: 'web-tour/suggest' as const,
+      setId: 's',
+      stepIndex: 1,
+      stepId: 'b',
+      locator: { role: 'button', name: 'Save' },
+    };
+    const checked = { ...suggest, runId: 'r1' };
+    for (const msg of [suggest, checked]) {
+      expect(progressForPage(msg, 4)).toBeNull();
+      expect(progressForPage(msg, 6)).toBeNull();
+      expect(progressForPage(msg, 7)).toEqual(msg);
+    }
+    expect(parsePortEvent(suggest, 's')).toEqual(suggest);
+    // A check run's fix never reaches a teacher's run log, nor a run's the editor's check.
+    expect(parsePortEvent(checked, 's')).toBeNull();
+    expect(parseWebTourCheckEvent(checked, 's')).toEqual(checked);
+    expect(parseWebTourCheckEvent(suggest, 's')).toBeNull();
+    for (const bad of [
+      { ...suggest, locator: { role: 'button', evil: 'x' } },
+      { ...suggest, locator: { role: 'button', frames: [] } },
+      { ...suggest, locator: 'button' },
+      { ...suggest, stepId: '' },
+      { ...suggest, stepIndex: -1 },
+      { ...suggest, setId: 'other' },
+    ])
+      expect(parsePortEvent(bad, 's')).toBeNull();
   });
 
   it('offers Check tour only on a protocol 6 extension in a staff profile', () => {
@@ -570,12 +600,32 @@ describe('web tour health', () => {
     expect(stats.misses.has('b')).toBe(false);
     expect(stats.weak.get('b')).toEqual({ text: 1, css: 0, score: 0 });
     expect(stats.weak.get('c')).toEqual({ text: 0, css: 0, score: 1 });
-    expect(webStepState('a', stats)).toBe('missed');
-    expect(webStepState('b', stats)).toBe('weak');
-    expect(webStepState('c', stats)).toBe('weak');
+    // One run each is not enough to flag a step (C16).
+    expect(webStepState('a', stats)).toBe('ok');
+    expect(webStepState('b', stats)).toBe('ok');
+    expect(webStepState('c', stats)).toBe('ok');
     expect(webStepState('d', stats)).toBe('ok');
     expect(webStepState('a', null)).toBe('ok');
     expect(worstWebState(['ok', 'weak'])).toBe('weak');
     expect(worstWebState(['weak', 'missed', 'ok'])).toBe('missed');
+  });
+
+  it('flags a step only when it struggles in more than one run (C16)', () => {
+    const stats = webFieldStatsOf(
+      [
+        run({ misses: ['a'] }),
+        run({ misses: ['a'] }),
+        run({ weak: ['b:score'] }),
+        run({ weak: ['b:text'] }),
+        run({ misses: ['c'] }),
+        run({ weak: ['c:score'] }),
+        run({ misses: ['d'] }),
+      ],
+      2
+    );
+    expect(webStepState('a', stats)).toBe('missed');
+    expect(webStepState('b', stats)).toBe('weak');
+    expect(webStepState('c', stats)).toBe('missed');
+    expect(webStepState('d', stats)).toBe('ok');
   });
 });

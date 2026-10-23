@@ -1326,14 +1326,17 @@ service cloud.firestore {
       allow create, delete: if isAdmin();
       // The read gate rests on surface, so a republish never changes it.
       allow update: if isAdmin() && incoming().get('surface', 'spartboard') == existing().get('surface', 'spartboard');
-      // Each teacher's latest run of the tour (P7-6): write-only, admins read. Web tour runs add surface and weak (T10).
+      // Each teacher's latest run of the tour (P7-6): write-only, admins read. Web tour runs add surface and weak (T10),
+      // suggested fixes by step (C14), and `admin` on an admin's own run, whose fixes show after one run.
       match /runs/{uid} {
         function validRun(d) {
-          return d.keys().hasOnly(['v', 'startedAt', 'furthest', 'done', 'exit', 'misses', 'surface', 'weak']) &&
+          return d.keys().hasOnly(['v', 'startedAt', 'furthest', 'done', 'exit', 'misses', 'surface', 'weak', 'fixes', 'admin']) &&
             d.v is int && d.startedAt is int && d.done is bool && optInt(d, 'exit') &&
             d.furthest is int && d.furthest >= 0 && d.furthest <= 500 &&
             d.misses is list && d.misses.size() <= 50 &&
-            d.get('surface', 'web') == 'web' && d.get('weak', []) is list && d.get('weak', []).size() <= 50;
+            d.get('surface', 'web') == 'web' && d.get('weak', []) is list && d.get('weak', []).size() <= 50 &&
+            d.get('fixes', {}) is map && d.get('fixes', {}).size() <= 50 &&
+            (!('admin' in d) || (d.admin == true && isAdmin()));
         }
         allow read: if isAdmin();
         allow create, update: if staff() && uid == authUid() && validRun(incoming());

@@ -13,6 +13,7 @@ import {
   isWebTourPicturePath,
 } from './webTourTools';
 import { webTourTextHits } from './webTourStudentData';
+import { fixKey, runFixClues } from './webTourFixes';
 
 const h = vi.hoisted(() => ({
   flags: new Set(['claude-connector-guided-learning', 'web-tours']),
@@ -287,6 +288,113 @@ describe('web tour connector tools', () => {
       },
     });
     expect(out.steps[1]).not.toHaveProperty('note');
+  });
+
+  it('returns suggested fixes read-only: a check run, or teacher runs that agree (C14, C16)', async () => {
+    const fix = {
+      role: 'link',
+      name: 'Jane Smith',
+      pageTitle: 'Smith, Jane - Grades',
+      css: '#nav > a.grades',
+    };
+    const run = (over: Data): Data => ({
+      v: 20,
+      startedAt: 5,
+      furthest: 1,
+      done: false,
+      surface: 'web',
+      misses: ['a', 'b'],
+      weak: [],
+      fixes: { a: fix, b: { text: 'Grades view' } },
+      ...over,
+    });
+    const env = seed({
+      'building_guided_learning_tours/t1': {
+        surface: 'web',
+        publishedAt: 20,
+        set: { steps: [STEP_A, STEP_B] },
+      },
+      'building_guided_learning_tours/t1/runs/u2': run({}),
+      'building_guided_learning_tours/t1/runs/u3': run({
+        fixes: { a: fix },
+      }),
+      'building_guided_learning_tours/t1/runs/u4': run({ v: 9 }),
+    });
+    const call = await connect(env.db);
+    const out = (await call('get_web_tour', { set_id: 't1' })) as {
+      steps: Data[];
+    };
+    // A teacher's page words and title never reach Claude: the step's own words stay (C15).
+    expect(out.steps[0].suggested_fix).toEqual({
+      locator: { role: 'link', name: 'Gradebook', text: 'Gradebook' },
+      changed: ['page position'],
+      source: 'teacher',
+      runs: 2,
+      found_at: expect.any(String) as unknown,
+    });
+    // One teacher run is not enough.
+    expect(out.steps[1]).not.toHaveProperty('suggested_fix');
+    expect(JSON.stringify(out)).not.toContain('a.grades');
+    expect(JSON.stringify(out)).not.toMatch(/Jane|Smith|Grades view/);
+
+    const doc = env.docs.get('building_web_tours/t1') as Data;
+    env.docs.set('building_web_tours/t1', {
+      ...doc,
+      webSuggestions: {
+        b: {
+          locator: { text: 'Grades view', attrs: { testId: 'grades' } },
+          source: 'check',
+          count: 1,
+          at: 7,
+          base: fixKey(STEP_B.web.locator),
+        },
+      },
+      webFixDismissed: { a: fixKey(runFixClues(fix, STEP_A.web.locator)) },
+    });
+    const next = (await call('get_web_tour', { set_id: 't1' })) as {
+      steps: Data[];
+    };
+    expect(next.steps[0]).not.toHaveProperty('suggested_fix');
+    // A check's new words stay in SpartBoard; Claude reads only the site's own clues.
+    expect(next.steps[1].suggested_fix).toMatchObject({
+      source: 'check',
+      locator: { text: 'Grades', attrs: { testId: 'grades' } },
+      changed: ['control id'],
+    });
+    expect(JSON.stringify(next)).not.toContain('Grades view');
+
+    // A later check that found the step clearly hides the check's fix.
+    env.docs.set('building_web_tours/t1', {
+      ...(env.docs.get('building_web_tours/t1') as Data),
+      webTourChecked: { by: 'u1', at: 9, sig: 'x', results: { b: 'found' } },
+    });
+    const later = (await call('get_web_tour', { set_id: 't1' })) as {
+      steps: Data[];
+    };
+    expect(later.steps[1]).not.toHaveProperty('suggested_fix');
+
+    // update_web_tour_text never touches a locator or the suggestions.
+    const kept = (env.docs.get('building_web_tours/t1') as Data).webSuggestions;
+    await call('update_web_tour_text', {
+      set_id: 't1',
+      steps: [{ id: 'a', tip: 'New tip' }],
+    });
+    const saved = env.docs.get('building_web_tours/t1') as Data & {
+      steps: (typeof STEP_A)[];
+      webSuggestions: unknown;
+    };
+    expect(saved.steps[0].web.locator).toEqual(STEP_A.web.locator);
+    expect(saved.webSuggestions).toEqual(kept);
+    expect(saved.steps[0]).toMatchObject({ text: 'New tip' });
+    expect(saved.webFixDismissed).toEqual({
+      a: fixKey(runFixClues(fix, STEP_A.web.locator)),
+    });
+  });
+
+  it('offers no tool that applies a fix', () => {
+    expect([...WEB_TOUR_TOOLS].some((t) => /fix|locator|target/.test(t))).toBe(
+      false
+    );
   });
 
   it("clears a step's Claude question once words are written for it", () => {

@@ -1,4 +1,4 @@
-// Write with Claude (docs/plans/WEB_TOURS_CLAUDE.md C9-C11): which fields a run writes, applying them, and undo.
+// Write with Claude (docs/plans/shipped/WEB_TOURS_CLAUDE.md C9-C11): which fields a run writes, applying them, and undo.
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
 import type { GuidedLearningSet, GuidedLearningStep } from '@/types';
