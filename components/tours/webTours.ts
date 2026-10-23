@@ -12,7 +12,11 @@ import {
 } from 'firebase/firestore';
 import { deleteObject, getBytes, ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '@/config/firebase';
-import type { GuidedLearningSet, GuidedLearningStep } from '@/types';
+import type {
+  GuidedLearningSet,
+  GuidedLearningStep,
+  WebTourCheckRun,
+} from '@/types';
 import { normalizeGuidedLearningSet } from '@/components/widgets/GuidedLearning/utils/setMigration';
 import { assertGuidedLearningDocFits } from '@/utils/firestoreDocSize';
 import { logError } from '@/utils/logError';
@@ -137,6 +141,14 @@ export async function setWebTourHelpCenter(
   helpCenter: boolean
 ): Promise<void> {
   await updateDoc(draftRef(setId), { helpCenter });
+}
+
+/** Saves the draft's check run (C13) without counting as an edit. */
+export async function setWebTourCheckRun(
+  setId: string,
+  run: WebTourCheckRun
+): Promise<void> {
+  await updateDoc(draftRef(setId), { webTourChecked: run });
 }
 
 /** Saves a copy of the draft under a new id, with its own copies of the pictures; never published. */

@@ -69,6 +69,8 @@ interface TabRecord {
   wrongPageIndex?: number;
   /** Check mode (C12): posts only check results, never a run's progress. */
   check?: boolean;
+  /** Check mode: the page's id for the run, echoed in every result. */
+  runId?: string;
   /** Check mode: the latest result posted per step. */
   results?: Record<string, WebTourCheckResult>;
   /** Check mode: the seek whose candidates tied. */
@@ -79,9 +81,21 @@ export const FALLBACK_MS = 4000;
 const tabKey = (tabId: number) => `wt:tab:${tabId}`;
 const picKey = (tabId: number, stepId: string) => `wt:pic:${tabId}:${stepId}`;
 const TABS_KEY = 'wt:tabs';
+const CHECK_ENDS_KEY = 'wt:checkEnds';
+/** Ended check runs kept for an editor that reconnects late. */
+export const CHECK_ENDS_KEPT = 5;
+export const CHECK_END_KEEP_MS = 10 * 60 * 1000;
+
+interface EndedCheck {
+  setId: string;
+  runId: string;
+  at: number;
+  posts: ProgressPost[];
+}
 // Not a real tab id: the queue that keeps two starts from racing.
 const START_QUEUE = -1;
 const TABS_QUEUE = -2;
+const CHECK_ENDS_QUEUE = -3;
 /** The session store holds 10 MB; one tour's record and pictures stay under this. */
 export const SESSION_BUDGET = 9 * 1024 * 1024;
 const MAX_TITLE = 200;
@@ -234,6 +248,7 @@ export function createPlaybackController(host: PlaybackHost) {
       host.post(setId, {
         type: 'web-tour/check-step',
         setId,
+        runId: rec.runId ?? '',
         stepIndex: index,
         stepId: step.id,
         result,
@@ -257,12 +272,15 @@ export function createPlaybackController(host: PlaybackHost) {
   ) {
     const setId = rec.state.tour.id;
     if (rec.check) {
-      host.post(setId, {
+      const end: ProgressPost = {
         type: 'web-tour/check-end',
         setId,
+        runId: rec.runId ?? '',
         stepIndex,
         done: kind === 'done',
-      });
+      };
+      host.post(setId, end);
+      rememberCheck(setId, rec.runId ?? '', [...checkResultPosts(rec), end]);
     } else if (kind === 'done') {
       host.post(setId, { type: 'web-tour/done', setId });
     } else if (kind === 'exit') {
@@ -270,6 +288,52 @@ export function createPlaybackController(host: PlaybackHost) {
     } else {
       host.post(setId, { type: 'web-tour/closed', setId, stepIndex });
     }
+  }
+
+  /** Every result of a check run so far, in step order. */
+  function checkResultPosts(rec: TabRecord): ProgressPost[] {
+    const setId = rec.state.tour.id;
+    return rec.state.tour.steps.flatMap((s, i): ProgressPost[] => {
+      const result = rec.results?.[s.id];
+      return result
+        ? [
+            {
+              type: 'web-tour/check-step',
+              setId,
+              runId: rec.runId ?? '',
+              stepIndex: i,
+              stepId: s.id,
+              result,
+            },
+          ]
+        : [];
+    });
+  }
+
+  const loadEnded = async () =>
+    ((await host.load<EndedCheck[]>(CHECK_ENDS_KEY)) ?? []).filter(
+      (e) => host.now() - e.at < CHECK_END_KEEP_MS
+    );
+
+  /** Keeps an ended check run's results and end, so an editor that reconnects late still gets them. */
+  function rememberCheck(setId: string, runId: string, posts: ProgressPost[]) {
+    void serial(CHECK_ENDS_QUEUE, async () => {
+      const kept = [
+        ...(await loadEnded()),
+        { setId, runId, at: host.now(), posts },
+      ];
+      await host.save({ [CHECK_ENDS_KEY]: kept.slice(-CHECK_ENDS_KEPT) });
+    }).catch(() => undefined);
+  }
+
+  /** Check mode: a new seek of a step drops what an earlier visit found, so its result comes from this seek only. */
+  function forgetCheckResult(rec: TabRecord, stepId: string) {
+    const { [stepId]: _posted, ...posted } = rec.posted;
+    const { [stepId]: _result, ...results } = rec.results ?? {};
+    const { [stepId]: _matched, ...matched } = rec.state.matched;
+    rec.posted = posted;
+    rec.results = results;
+    rec.state = { ...rec.state, matched };
   }
 
   /** A step left while still on the wrong page counts as a miss, so a broken page pattern shows in tour health. */
@@ -318,6 +382,7 @@ export function createPlaybackController(host: PlaybackHost) {
     }
     rec.targetFrameId = null;
     if (state.status !== 'seeking' || !step) return;
+    if (rec.check) forgetCheckResult(rec, step.id);
     rec.seq += 1;
     rec.token = `${state.index}:${rec.seq}`;
     const frames = await host.frames(rec.tabId);
@@ -455,7 +520,9 @@ export function createPlaybackController(host: PlaybackHost) {
         seekAt: 0,
         posted: {},
         postedIndex: -1,
-        ...(parsed.check ? { check: true, results: {} } : {}),
+        ...(parsed.check
+          ? { check: true, runId: parsed.runId ?? '', results: {} }
+          : {}),
       };
       let room = SESSION_BUDGET - JSON.stringify(rec).length;
       const pictures: Record<string, WebTourPictureBytes> = {};
@@ -578,33 +645,21 @@ export function createPlaybackController(host: PlaybackHost) {
         await forget(rec);
       }),
 
-    /** What a page that starts watching mid-tour has missed: the current step's latest match, or done. */
+    /** What a page that starts watching mid-tour has missed: the current step's latest match, or done; a check run's every result and its end. */
     async replay(setId: string): Promise<ProgressPost[]> {
       const out: ProgressPost[] = [];
+      const live = new Set<string>();
       for (const tabId of (await host.load<number[]>(TABS_KEY)) ?? []) {
         const rec = await load(tabId);
         if (!rec || rec.state.tour.id !== setId) continue;
         const { state } = rec;
         const step = state.tour.steps[state.index];
         const match = step ? rec.posted[step.id] : undefined;
-        const result = step ? rec.results?.[step.id] : undefined;
         if (rec.check) {
-          if (state.status === 'done') {
-            out.push({
-              type: 'web-tour/check-end',
-              setId,
-              stepIndex: state.index,
-              done: true,
-            });
-          } else if (step && result) {
-            out.push({
-              type: 'web-tour/check-step',
-              setId,
-              stepIndex: state.index,
-              stepId: step.id,
-              result,
-            });
-          }
+          // A finished run's end is in the ended list below.
+          if (state.status === 'done') continue;
+          live.add(rec.runId ?? '');
+          out.push(...checkResultPosts(rec));
         } else if (state.status === 'done') {
           out.push({ type: 'web-tour/done', setId });
         } else if (step && match) {
@@ -616,6 +671,10 @@ export function createPlaybackController(host: PlaybackHost) {
             match,
           });
         }
+      }
+      const ended = await serial(CHECK_ENDS_QUEUE, loadEnded);
+      for (const e of ended) {
+        if (e.setId === setId && !live.has(e.runId)) out.push(...e.posts);
       }
       return out;
     },

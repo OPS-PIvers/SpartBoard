@@ -26,6 +26,7 @@ const NOT_PUBLISHED = new Set([
   'createdAt',
   'updatedAt',
   'hasLiveTour',
+  'webTourChecked',
 ]);
 
 /** What a tour run shows, as Firestore will store it (no undefined values). */

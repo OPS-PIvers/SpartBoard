@@ -68,6 +68,8 @@ export interface WebTourCheckStartMessage {
   startUrl: string;
   stepIndex: number;
   tour: WebTourStartTour;
+  /** A nonce the page picks; every result of this run echoes it. */
+  runId: string;
 }
 
 export interface WebTourStartReply {
@@ -104,6 +106,7 @@ export type WebTourCheckProgress =
   | {
       type: 'web-tour/check-step';
       setId: string;
+      runId: string;
       stepIndex: number;
       stepId: string;
       result: WebTourCheckResult;
@@ -111,6 +114,7 @@ export type WebTourCheckProgress =
   | {
       type: 'web-tour/check-end';
       setId: string;
+      runId: string;
       stepIndex: number;
       done: boolean;
     };
@@ -154,10 +158,17 @@ const START_SPEC: MessageSpec = {
   },
 };
 
+/** A check run's id: short, plain characters only. */
+export const isCheckRunId = (v: unknown): v is string =>
+  typeof v === 'string' && /^[A-Za-z0-9-]{1,64}$/.test(v);
+
 const MESSAGE_SPECS: Record<ExtensionMessageType, MessageSpec> = {
   ping: { staffOnly: false, fields: {} },
   'web-tour/start': START_SPEC,
-  'web-tour/check': START_SPEC,
+  'web-tour/check': {
+    staffOnly: true,
+    fields: { ...START_SPEC.fields, runId: isCheckRunId },
+  },
 };
 
 export type ParsedMessage =

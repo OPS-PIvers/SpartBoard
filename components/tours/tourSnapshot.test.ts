@@ -52,6 +52,15 @@ describe('tourPublishStatus', () => {
     ).toBe('published');
   });
 
+  it('stays Published after a web tour check run, which is never published', () => {
+    const published = stored(set());
+    const checkedSet = set({
+      webTourChecked: { by: 'u', at: 9, sig: 'x', results: { s1: 'found' } },
+    });
+    expect(tourPublishStatus(checkedSet, published)).toBe('published');
+    expect(buildTourContent(checkedSet)).not.toHaveProperty('webTourChecked');
+  });
+
   it('is Changes not published after a tour edit', () => {
     const published = stored(set());
     expect(tourPublishStatus(set({ watchPace: 'calm' }), published)).toBe(

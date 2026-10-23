@@ -1,6 +1,7 @@
 import {
   CHECK_PROTOCOL,
   EXTENSION_PROTOCOL_VERSION,
+  isCheckRunId,
   SCORED_MATCH_PROTOCOL,
   WEB_TOUR_PORT,
   type ExtensionProfile,
@@ -121,11 +122,21 @@ export async function startWebTour(
   tour: WebTourStartTour,
   startUrl: string,
   stepIndex: number,
-  // Only a protocol 5 extension knows `web-tour/check`; callers gate on canCheckWebTours.
-  mode: 'play' | 'check' = 'play'
+  // A check run id plays in check mode, which only a protocol 5 extension knows; callers gate on canCheckWebTours.
+  checkRunId?: string
 ): Promise<StartResult> {
-  const type = mode === 'check' ? 'web-tour/check' : 'web-tour/start';
-  const reply = await send({ type, startUrl, stepIndex, tour }, 30_000);
+  const reply = await send(
+    checkRunId
+      ? {
+          type: 'web-tour/check',
+          startUrl,
+          stepIndex,
+          tour,
+          runId: checkRunId,
+        }
+      : { type: 'web-tour/start', startUrl, stepIndex, tour },
+    30_000
+  );
   if (isRecord(reply) && reply.ok === true && Number.isInteger(reply.tabId)) {
     return { ok: true, tabId: reply.tabId as number };
   }
@@ -215,19 +226,34 @@ export function parseWebTourCheckEvent(
   setId: string
 ): WebTourCheckProgress | null {
   if (!isRecord(message) || message.setId !== setId) return null;
+  const { runId } = message;
+  if (!isCheckRunId(runId)) return null;
   const index = message.stepIndex;
   if (!Number.isInteger(index) || (index as number) < 0) return null;
   const stepIndex = index as number;
   if (message.type === 'web-tour/check-end') {
     return typeof message.done === 'boolean'
-      ? { type: 'web-tour/check-end', setId, stepIndex, done: message.done }
+      ? {
+          type: 'web-tour/check-end',
+          setId,
+          runId,
+          stepIndex,
+          done: message.done,
+        }
       : null;
   }
   if (message.type !== 'web-tour/check-step') return null;
   const { stepId } = message;
   const result = CHECK_RESULTS.find((r) => r === message.result);
   if (typeof stepId !== 'string' || !result) return null;
-  return { type: 'web-tour/check-step', setId, stepIndex, stepId, result };
+  return {
+    type: 'web-tour/check-step',
+    setId,
+    runId,
+    stepIndex,
+    stepId,
+    result,
+  };
 }
 
 /** Validates one port message from the extension for this set, or null. */

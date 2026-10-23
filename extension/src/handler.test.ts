@@ -107,7 +107,7 @@ describe('web-tour/start', () => {
     }
   });
   it('starts a check run the same way, for staff only (protocol 5)', async () => {
-    const check = { ...start, type: 'web-tour/check' };
+    const check = { ...start, type: 'web-tour/check', runId: 'r1' };
     for (const [profile, reply] of [
       ['staff', { ok: true, tabId: 12 }],
       ['other', { ok: false, error: 'refused' }],

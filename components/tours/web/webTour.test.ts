@@ -429,6 +429,7 @@ describe('hub', () => {
     const step = {
       type: 'web-tour/check-step' as const,
       setId: 's',
+      runId: 'r1',
       stepIndex: 0,
       stepId: 'a',
       result: 'found' as const,
@@ -436,6 +437,7 @@ describe('hub', () => {
     const end = {
       type: 'web-tour/check-end' as const,
       setId: 's',
+      runId: 'r1',
       stepIndex: 2,
       done: true,
     };
@@ -451,6 +453,9 @@ describe('hub', () => {
     expect(parseWebTourCheckEvent(step, 'other')).toBeNull();
     expect(parseWebTourCheckEvent({ ...step, result: 'role' }, 's')).toBeNull();
     expect(parseWebTourCheckEvent({ ...end, done: 'yes' }, 's')).toBeNull();
+    expect(
+      parseWebTourCheckEvent({ ...end, runId: undefined }, 's')
+    ).toBeNull();
     expect(
       parseWebTourCheckEvent(
         {

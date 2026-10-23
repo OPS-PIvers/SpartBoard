@@ -21,6 +21,7 @@ const storage = vi.hoisted(() => ({
       Promise.resolve()
   ),
   deleteWebTourDraft: vi.fn(() => Promise.resolve()),
+  setWebTourCheckRun: vi.fn(() => Promise.resolve()),
   uploadWebTourPicture: vi.fn(() =>
     Promise.resolve('web_tour_pictures/t1/abc.jpg')
   ),
@@ -257,23 +258,21 @@ describe('WebTourEditor', () => {
     await waitFor(() => expect(button).toBeEnabled());
     fireEvent.click(button);
     await waitFor(() => expect(ext.startWebTour).toHaveBeenCalled());
-    const [handoff, url, index, mode] = ext.startWebTour.mock
+    const [handoff, url, index, runId] = ext.startWebTour.mock
       .calls[0] as unknown as [
       { steps: { id: string }[] },
       string,
       number,
       string,
     ];
-    expect([url, index, mode]).toEqual([
-      'https://orono.schoology.com/',
-      0,
-      'check',
-    ]);
+    expect([url, index]).toEqual(['https://orono.schoology.com/', 0]);
+    expect(runId).toEqual(expect.any(String));
     expect(handoff.steps.map((s) => s.id)).toEqual(['s1']);
     act(() =>
       ext.onCheck?.({
         type: 'web-tour/check-step',
         setId: 't1',
+        runId,
         stepIndex: 0,
         stepId: 's1',
         result: 'weak',
@@ -285,6 +284,7 @@ describe('WebTourEditor', () => {
       ext.onCheck?.({
         type: 'web-tour/check-step',
         setId: 't1',
+        runId,
         stepIndex: 0,
         stepId: 's1',
         result: 'found',
@@ -296,11 +296,18 @@ describe('WebTourEditor', () => {
       ext.onCheck?.({
         type: 'web-tour/check-end',
         setId: 't1',
+        runId,
         stepIndex: 0,
         done: true,
       })
     );
     expect(screen.getByText('Check finished.')).toBeInTheDocument();
+    // Results save on their own, never as an edit that bumps the draft.
+    expect(storage.setWebTourCheckRun).toHaveBeenLastCalledWith(
+      't1',
+      expect.objectContaining({ results: { s1: 'found' } })
+    );
+    expect(storage.saveWebTourDraft).not.toHaveBeenCalled();
     // Changing the step type changes its target, so the result expires.
     fireEvent.change(screen.getByLabelText('Step type'), {
       target: { value: 'observe' },
