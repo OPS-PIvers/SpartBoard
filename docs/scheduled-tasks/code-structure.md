@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-10-16_
+_Last audited: 2026-10-23_
 _Last action: 2026-09-23 — MEDIUM `FeaturePermissionsManager.tsx` grid/list card-body duplication resolved: extracted a shared `WidgetPermissionCardBody` component (`variant: 'grid' | 'list'`) consumed by both view modes, shrinking the file from 1,078 to 738 lines. Moved to Completed._
 
 _2026-10-16: Friday weekly audit (C1), light pass. Non-test files >1000 lines: 80. Largest: `context/DashboardContext.tsx` 7770 lines (existing items), `QuizStudentApp.tsx` 6450, `QuizResults.tsx` 4544, `QuizWidget/Widget.tsx` 4309, `useQuizSession.ts` 3966, `useQuizAssignments.ts` 3733, `DraggableWindow.tsx` 3579, `AuthContext.tsx` 3428. `functions/src/index.ts` is now 360 lines (functions split across modules); no `firebase-functions/v1` imports remain in `functions/src` and no `functionsV1` use, so the v1/v2 and `index.ts`-size items below are stale. `getAdminBuildingConfig` now delegates to `utils/adminBuildingConfig.ts`. No imports with 3+ levels of `../` in components/context/hooks/utils. 0 new issues; existing Open items not individually re-diffed._
@@ -20,6 +20,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-10-23: Friday weekly audit (C1), light pass. Non-test files >1000 lines: 83. Largest: `context/DashboardContext.tsx` 8513 lines (+743 since 7770 on 2026-10-16; existing HIGH/MEDIUM items still stand), `AuthContext.tsx` 3506, `functions/src/index.ts` 376 lines, no `firebase-functions/v1` imports. 0 imports with 3+ levels of `../`. 0 new issues._
 
 _2026-10-02: Audit C1 (Friday). `context/DashboardContext.tsx` is now **7,613 lines** (+217 since 7,396 on 2026-09-25; last touched 2026-09-30) — the HIGH growth item below still stands, no extraction has happened. `context/AuthContext.tsx` 3,403 lines. Files over 1,000 lines in `components/context/hooks/utils` (non-test): **69** (journal's 34-file figure is stale; largest: `QuizStudentApp.tsx` 5,982, `QuizResults.tsx` 4,338, `QuizWidget/Widget.tsx` 4,072, `useQuizSession.ts` 3,815, `useQuizAssignments.ts` 3,612, `DraggableWindow.tsx` 3,599, `QuizManager.tsx` 3,427). `functions/src/index.ts` is now 339 lines (93 re-export statements; logic split into per-feature modules), no `firebase-functions/v1` imports remain in `functions/src` — both earlier items stay Completed. 0 imports with 3+ levels of `../`; 0 `console.log` calls in app code. Only zero-consumer util remains `videoActivityDriveService` (existing LOW). `getAdminBuildingConfig` in the context is still the thin bridge to `utils/adminBuildingConfig.ts`. 0 new issues; the existing >1000-line MEDIUM item's count should be read as 69._
 
