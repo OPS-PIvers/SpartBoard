@@ -8,6 +8,7 @@ import React, { useId, useMemo, useState } from 'react';
 import {
   Download,
   ExternalLink,
+  FileSpreadsheet,
   AlertTriangle,
   BarChart3,
   Clock,
@@ -117,6 +118,11 @@ import { readLmsLink, schoologyLinkedTargets } from '@/utils/gradebook/lmsPush';
 import { buildToolColumnGrades } from '@/utils/schoologyToolColumns';
 import { ViewAsStudentButton } from '@/components/viewAs/ViewAsStudentButton';
 import { isVaResponseCompleted } from '@/utils/videoActivityState';
+import {
+  FooterButton,
+  ParityHeader,
+  ParityOverview,
+} from './results/VaResultsParity';
 
 const KEY_LOADING_TOAST =
   'Still loading the answer key — try again in a moment.';
@@ -153,6 +159,8 @@ export const Results: React.FC<ResultsProps> = ({
   const { ensureGoogleScope, user, orgId, canAccessFeature, isExternalUser } =
     useAuth();
   const tabAwayTimerOn = canAccessFeature('tab-away-timer');
+  // Quiz results layout while 'monitor-parity' is in preview.
+  const parity = canAccessFeature('monitor-parity');
   const { showConfirm } = useDialog();
   const { addToast, rosters } = useDashboard();
   // Use the multi-class variant — `session.classId` is a transitional
@@ -297,13 +305,13 @@ export const Results: React.FC<ResultsProps> = ({
 
   // ⚡ Bolt: Consolidate multiple O(N) array passes inside render
   // Calculate completed count and average score in a single loop
-  const { completed, avgScore } = React.useMemo(() => {
+  const { completed, avgScore, scores } = React.useMemo(() => {
     if (responses.length === 0) {
       // No responses → nothing is scoreable, so the average is undefined, not a
       // real 0. Return `null` (not `0`) so the Avg Score tile renders "—",
       // matching the no-scoreable-responses path below — otherwise an empty
       // session would show a phantom "0%" that reads as a class that failed.
-      return { completed: 0, avgScore: null };
+      return { completed: 0, avgScore: null, scores: [] as number[] };
     }
 
     let completedCount = 0;
@@ -315,12 +323,15 @@ export const Results: React.FC<ResultsProps> = ({
     // See `canScoreVideoActivityResponse`. `completedCount` still counts every
     // completion (that's a real headcount), so only the denominator narrows.
     let scoredCount = 0;
+    const scorePcts: number[] = [];
 
     for (const r of responses) {
       if (isVaResponseCompleted(r)) {
         completedCount++;
         if (canScoreVideoActivityResponse(scoredQuestions, r.answers)) {
-          scoreSum += computeVideoActivityScorePct(scoredQuestions, r.answers);
+          const pct = computeVideoActivityScorePct(scoredQuestions, r.answers);
+          scoreSum += pct;
+          scorePcts.push(pct);
           scoredCount++;
         }
       }
@@ -333,6 +344,7 @@ export const Results: React.FC<ResultsProps> = ({
       // phantom "0%" that reads as a class that failed. A genuine empty
       // submission still counts as a real 0, so it keeps the average defined.
       avgScore: scoredCount > 0 ? Math.round(scoreSum / scoredCount) : null,
+      scores: scorePcts,
     };
   }, [responses, scoredQuestions]);
 
@@ -653,72 +665,99 @@ export const Results: React.FC<ResultsProps> = ({
     });
   }
 
+  const showExport = !exportUrl && !isExternalUser;
+  // The footer button replaces the single ⋯ menu item, so it keeps that item's anchor.
+  const moreItemAnchor = tourFieldAttr(
+    'video-activity.results-more-item',
+    'video-activity',
+    'item-1'
+  );
   return (
-    <div className="flex flex-col h-full font-sans">
+    <div
+      className={`flex flex-col h-full font-sans ${parity ? 'bg-white text-brand-gray-dark' : ''}`}
+    >
       {/* Header */}
-      <SessionViewHeader
-        onBack={onBack}
-        backAnchor={tourAttr('video-activity.results-back')}
-        status={session.status === 'ended' ? 'ended' : 'live'}
-        title={session.assignmentName}
-        subtitle={session.activityTitle}
-        actions={
-          <>
-            {/* Push grades to Google Classroom — only when this assignment was
+      {parity ? (
+        <ParityHeader
+          title={
+            activeTab === 'questions'
+              ? 'Question results'
+              : activeTab === 'students'
+                ? 'Students'
+                : session.assignmentName
+          }
+          status={session.status === 'ended' ? 'Results' : 'Live'}
+          onBack={() =>
+            activeTab === 'overview' ? onBack() : setActiveTab('overview')
+          }
+          backAnchor={tourAttr('video-activity.results-back')}
+          actions={toolColumnPush.dialog}
+        />
+      ) : (
+        <SessionViewHeader
+          onBack={onBack}
+          backAnchor={tourAttr('video-activity.results-back')}
+          status={session.status === 'ended' ? 'ended' : 'live'}
+          title={session.assignmentName}
+          subtitle={session.activityTitle}
+          actions={
+            <>
+              {/* Push grades to Google Classroom — only when this assignment was
                 attached to one or more Classroom coursework items via the add-on.
                 The admin-managed `google-classroom` gate hides it for users
                 below the doc's minTier. */}
-            {showClassroomPush && (
-              <ActionButton
-                variant="primary"
-                label="Push Grades"
-                anchor={tourAttr('video-activity.results-push-classroom')}
-                icon={GraduationCap}
-                loading={pushingGrades}
-                onClick={() => void handlePushGrades()}
-                disabled={pushingGrades}
-              />
-            )}
-            {/* Push grades to Schoology — only when this assignment was launched
+              {showClassroomPush && (
+                <ActionButton
+                  variant="primary"
+                  label="Push Grades"
+                  anchor={tourAttr('video-activity.results-push-classroom')}
+                  icon={GraduationCap}
+                  loading={pushingGrades}
+                  onClick={() => void handlePushGrades()}
+                  disabled={pushingGrades}
+                />
+              )}
+              {/* Push grades to Schoology — only when this assignment was launched
                 from a Schoology resource link (server sets `ltiAttachment` on the
                 first student launch). */}
-            {toolColumnPush.dialog}
-            {showSchoologyPush && (
-              <ActionButton
-                variant="primary"
-                label="Push to Schoology"
-                anchor={tourAttr('video-activity.results-push-schoology')}
-                icon={Send}
-                loading={pushingSchoology || toolColumnPush.busy}
-                onClick={() =>
-                  void (ltiAttachment
-                    ? handlePushSchoologyGrades()
-                    : toolColumnPush.start())
-                }
-                disabled={
-                  pushingSchoology || toolColumnPush.busy || completed === 0
-                }
-              />
-            )}
-            {showMakeUp && (
-              <ActionButton
-                variant="secondary"
-                label="Assign make-up (self-paced)"
-                anchor={tourAttr('video-activity.results-assign-makeup')}
-                icon={UserPlus}
-                onClick={handleAssignMakeUp}
-              />
-            )}
-            {overflowItems.length > 0 && (
-              <OverflowMenu
-                items={overflowItems}
-                tourId="video-activity.results-more-item"
-                tourScope="video-activity"
-              />
-            )}
-          </>
-        }
-      />
+              {toolColumnPush.dialog}
+              {showSchoologyPush && (
+                <ActionButton
+                  variant="primary"
+                  label="Push to Schoology"
+                  anchor={tourAttr('video-activity.results-push-schoology')}
+                  icon={Send}
+                  loading={pushingSchoology || toolColumnPush.busy}
+                  onClick={() =>
+                    void (ltiAttachment
+                      ? handlePushSchoologyGrades()
+                      : toolColumnPush.start())
+                  }
+                  disabled={
+                    pushingSchoology || toolColumnPush.busy || completed === 0
+                  }
+                />
+              )}
+              {showMakeUp && (
+                <ActionButton
+                  variant="secondary"
+                  label="Assign make-up (self-paced)"
+                  anchor={tourAttr('video-activity.results-assign-makeup')}
+                  icon={UserPlus}
+                  onClick={handleAssignMakeUp}
+                />
+              )}
+              {overflowItems.length > 0 && (
+                <OverflowMenu
+                  items={overflowItems}
+                  tourId="video-activity.results-more-item"
+                  tourScope="video-activity"
+                />
+              )}
+            </>
+          }
+        />
+      )}
 
       {session.launchedBy && (
         <div
@@ -753,41 +792,72 @@ export const Results: React.FC<ResultsProps> = ({
       )}
 
       {/* Tabs */}
-      <div
-        className="flex border-b border-slate-200"
-        style={{ padding: 'min(8px, 2cqmin) min(16px, 4cqmin)' }}
-      >
-        <SegmentedTabs
-          tourId="video-activity.results-tab"
-          tourScope="video-activity"
-          ariaLabel="Video activity results sections"
-          panelIdPrefix={tabPanelId}
-          value={activeTab}
-          onChange={setActiveTab}
-          tabs={[
-            { key: 'overview', label: 'Overview', icon: BarChart3 },
-            { key: 'questions', label: 'Questions', icon: Clock },
-            {
-              key: 'students',
-              label: 'Students',
-              icon: Users,
-              count: responses.length,
-            },
-            // No PLC tab: pooled PLC results live on the PLC dashboard.
-          ]}
-        />
-      </div>
+      {!parity && (
+        <div
+          className="flex border-b border-slate-200"
+          style={{ padding: 'min(8px, 2cqmin) min(16px, 4cqmin)' }}
+        >
+          <SegmentedTabs
+            tourId="video-activity.results-tab"
+            tourScope="video-activity"
+            ariaLabel="Video activity results sections"
+            panelIdPrefix={tabPanelId}
+            value={activeTab}
+            onChange={setActiveTab}
+            tabs={[
+              { key: 'overview', label: 'Overview', icon: BarChart3 },
+              { key: 'questions', label: 'Questions', icon: Clock },
+              {
+                key: 'students',
+                label: 'Students',
+                icon: Users,
+                count: responses.length,
+              },
+              // No PLC tab: pooled PLC results live on the PLC dashboard.
+            ]}
+          />
+        </div>
+      )}
 
       {/* Tab content */}
       <div
-        role="tabpanel"
-        id={`${tabPanelId}-panel-${activeTab}`}
-        aria-labelledby={`${tabPanelId}-tab-${activeTab}`}
+        {...(parity
+          ? {}
+          : {
+              role: 'tabpanel',
+              id: `${tabPanelId}-panel-${activeTab}`,
+              'aria-labelledby': `${tabPanelId}-tab-${activeTab}`,
+            })}
         className="flex-1 overflow-y-auto custom-scrollbar"
-        style={{ padding: 'min(14px, 3.5cqmin)' }}
+        style={{
+          padding: parity ? 'min(12px, 3cqmin)' : 'min(14px, 3.5cqmin)',
+        }}
       >
+        {parity && activeTab === 'overview' && (
+          <ParityOverview
+            avgScore={avgScore}
+            completed={completed}
+            total={totalStudents}
+            scores={scores}
+            questionCount={questions.length}
+            onOpenQuestions={() => setActiveTab('questions')}
+            onOpenStudents={() => setActiveTab('students')}
+            anchors={{
+              questions: tourFieldAttr(
+                'video-activity.results-tab',
+                'video-activity',
+                'questions'
+              ),
+              students: tourFieldAttr(
+                'video-activity.results-tab',
+                'video-activity',
+                'students'
+              ),
+            }}
+          />
+        )}
         {/* Overview tab */}
-        {activeTab === 'overview' && (
+        {!parity && activeTab === 'overview' && (
           <div className="space-y-3">
             <div className="grid grid-cols-3 gap-2">
               <StatTile
@@ -1190,6 +1260,84 @@ export const Results: React.FC<ResultsProps> = ({
         {/* PLC tab intentionally not rendered for Video Activity — see
             tab-strip comment above for the cross-contamination reason. */}
       </div>
+
+      {parity && activeTab === 'overview' && (
+        <div
+          className="flex flex-wrap items-center border-t border-brand-gray-lightest shrink-0"
+          style={{
+            gap: 'min(8px, 2cqmin)',
+            padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
+          }}
+        >
+          {showClassroomPush && (
+            <FooterButton
+              primary
+              label="Push Grades"
+              icon={GraduationCap}
+              anchor={tourAttr('video-activity.results-push-classroom')}
+              busy={pushingGrades}
+              disabled={pushingGrades}
+              onClick={() => void handlePushGrades()}
+            />
+          )}
+          {showSchoologyPush && (
+            <FooterButton
+              primary
+              label="Push to Schoology"
+              icon={Send}
+              anchor={tourAttr('video-activity.results-push-schoology')}
+              busy={pushingSchoology || toolColumnPush.busy}
+              disabled={
+                pushingSchoology || toolColumnPush.busy || completed === 0
+              }
+              onClick={() =>
+                void (ltiAttachment
+                  ? handlePushSchoologyGrades()
+                  : toolColumnPush.start())
+              }
+            />
+          )}
+          {showMakeUp && (
+            <FooterButton
+              label="Assign make-up (self-paced)"
+              icon={UserPlus}
+              anchor={tourAttr('video-activity.results-assign-makeup')}
+              onClick={handleAssignMakeUp}
+            />
+          )}
+          <div
+            className="ml-auto flex items-center shrink-0"
+            style={{ gap: 'min(6px, 1.5cqmin)' }}
+          >
+            {exportUrl && (
+              <FooterButton
+                label="Open Sheet"
+                icon={ExternalLink}
+                anchor={moreItemAnchor}
+                onClick={() =>
+                  window.open(exportUrl, '_blank', 'noopener,noreferrer')
+                }
+              />
+            )}
+            {showExport && (
+              <FooterButton
+                label="Export to Sheets"
+                icon={FileSpreadsheet}
+                anchor={moreItemAnchor}
+                busy={exporting}
+                disabled={
+                  exporting ||
+                  totalStudents === 0 ||
+                  outward.locked ||
+                  namesLoading
+                }
+                title={namesLoading ? 'Loading student names…' : undefined}
+                onClick={() => void handleExport()}
+              />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
