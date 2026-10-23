@@ -70,7 +70,7 @@ import { OpenPartControl } from './OpenPartControl';
 import { openQuizPart } from './openPart';
 import { RosterList } from './RosterList';
 import { PeriodAccessStrip } from './PeriodAccessStrip';
-import { PeriodBar } from './PeriodBar';
+import { ClassPicker, PeriodBar } from './PeriodBar';
 import { joinCodesAllowedForBuildings } from './monitorUtils';
 import { EXTEND_MS, usePeriodAccess } from '@/hooks/usePeriodAccess';
 import { hasPeriodAccess } from '@/utils/periodAccess';
@@ -268,8 +268,19 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       periodFailed(err);
     }
   };
-  // The class picker shows one class or all, so drop a multi-class filter.
-  if (chipsFilter && data.selectedPeriods.length > 1)
+  const classPicker =
+    authContext?.canAccessFeature?.('monitor-parity') === true &&
+    data.periodNames.length > 1 &&
+    !chipsFilter &&
+    !perPeriod &&
+    session.sessionMode !== 'game';
+  // The class picker shows one class or all, so drop a multi-class filter or a class no longer listed.
+  if (
+    ((chipsFilter || classPicker) && data.selectedPeriods.length > 1) ||
+    (classPicker &&
+      data.selectedPeriods.length === 1 &&
+      !data.periodNames.includes(data.selectedPeriods[0]))
+  )
     data.setSelectedPeriods([]);
   const periodBar = chipsFilter &&
     session.periodAccess && {
@@ -748,7 +759,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 }
               />
             )}
-            {data.periodNames.length > 1 && !chipsFilter && (
+            {data.periodNames.length > 1 && !chipsFilter && !classPicker && (
               <div
                 className="flex flex-wrap"
                 style={{ gap: 'min(4px, 1cqmin)' }}
@@ -811,24 +822,52 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 onAdvance={handleAdvance}
                 widgetId={widgetId}
                 periodControls={
-                  periodBar && (
-                    <PeriodBar
-                      {...periodBar}
-                      anchors={{
-                        start: tourTypeAttr(
-                          'quiz-monitor.period-start',
-                          'quiz'
-                        ),
-                        pause: tourTypeAttr(
-                          'quiz-monitor.period-pause',
-                          'quiz'
-                        ),
-                        extend: tourTypeAttr(
-                          'quiz-monitor.period-extend',
-                          'quiz'
-                        ),
-                      }}
+                  classPicker ? (
+                    <ClassPicker
+                      names={data.periodNames}
+                      selected={
+                        data.selectedPeriods.length === 1
+                          ? data.selectedPeriods[0]
+                          : ''
+                      }
+                      onSelect={(name) =>
+                        data.setSelectedPeriods(name ? [name] : [])
+                      }
+                      status={session.status}
+                      onToggle={
+                        // One Pause stops every class, so it shows only beside All classes.
+                        (onPause ?? onResume) &&
+                        session.status !== 'ended' &&
+                        data.selectedPeriods.length !== 1
+                          ? handleTogglePause
+                          : undefined
+                      }
+                      toggleAnchor={tourAttr(
+                        'quiz.pause-resume',
+                        widgetId,
+                        tourType
+                      )}
                     />
+                  ) : (
+                    periodBar && (
+                      <PeriodBar
+                        {...periodBar}
+                        anchors={{
+                          start: tourTypeAttr(
+                            'quiz-monitor.period-start',
+                            'quiz'
+                          ),
+                          pause: tourTypeAttr(
+                            'quiz-monitor.period-pause',
+                            'quiz'
+                          ),
+                          extend: tourTypeAttr(
+                            'quiz-monitor.period-extend',
+                            'quiz'
+                          ),
+                        }}
+                      />
+                    )
                   )
                 }
               />
@@ -972,6 +1011,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
           {(onPause ?? onResume) &&
             !perPeriod &&
             !isGame &&
+            !classPicker &&
             session.status !== 'ended' && (
               <button
                 onClick={handleTogglePause}
