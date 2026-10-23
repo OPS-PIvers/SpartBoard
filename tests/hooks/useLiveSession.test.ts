@@ -96,45 +96,14 @@ describe('useLiveSession — joinSession input validation', () => {
     );
   });
 
-  it('rejects a duplicate PIN already held by a different student', async () => {
-    // First getDocs: session lookup
-    // Second getDocs: existing students list with duplicate PIN
-    (firestore.getDocs as unknown as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce({
-        empty: false,
-        docs: [{ id: 'teacher-uid-1', data: () => ({ isActive: true }) }],
-      })
-      .mockResolvedValueOnce({
-        docs: [
-          {
-            id: 'other-student-uid',
-            data: () => ({ pin: '1234' }),
-          },
-        ],
-      });
-
-    const { result } = renderHook(() =>
-      useLiveSession(undefined, 'student', 'ABC123')
-    );
-    await expect(result.current.joinSession('1234', 'ABC123')).rejects.toThrow(
-      /PIN "1234" is already in use/
-    );
-  });
-
-  it('allows the same user to rejoin with their own previously-used PIN', async () => {
-    (firestore.getDocs as unknown as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce({
-        empty: false,
-        docs: [{ id: 'teacher-uid-1', data: () => ({ isActive: true }) }],
-      })
-      .mockResolvedValueOnce({
-        docs: [
-          {
-            id: 'student-uid-1', // same uid as auth.currentUser
-            data: () => ({ pin: '1234' }),
-          },
-        ],
-      });
+  it('joins without listing the session roster, which only the teacher may read', async () => {
+    const getDocsMock = firestore.getDocs as unknown as ReturnType<
+      typeof vi.fn
+    >;
+    getDocsMock.mockResolvedValueOnce({
+      empty: false,
+      docs: [{ id: 'teacher-uid-1', data: () => ({ isActive: true }) }],
+    });
     (
       firestore.setDoc as unknown as ReturnType<typeof vi.fn>
     ).mockResolvedValueOnce(undefined);
@@ -147,15 +116,16 @@ describe('useLiveSession — joinSession input validation', () => {
       teacherId = await result.current.joinSession('1234', 'ABC123');
     });
     expect(teacherId).toBe('teacher-uid-1');
+    expect(getDocsMock).toHaveBeenCalledTimes(1);
   });
 
   it('normalizes the code to uppercase and strips non-alphanumeric characters before querying', async () => {
-    (firestore.getDocs as unknown as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce({
-        empty: false,
-        docs: [{ id: 'teacher-uid-1', data: () => ({ isActive: true }) }],
-      })
-      .mockResolvedValueOnce({ docs: [] });
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [{ id: 'teacher-uid-1', data: () => ({ isActive: true }) }],
+    });
     (
       firestore.setDoc as unknown as ReturnType<typeof vi.fn>
     ).mockResolvedValueOnce(undefined);
@@ -177,12 +147,12 @@ describe('useLiveSession — joinSession input validation', () => {
   });
 
   it('truncates a PIN longer than MAX_PIN_LENGTH (10) before writing', async () => {
-    (firestore.getDocs as unknown as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce({
-        empty: false,
-        docs: [{ id: 'teacher-uid-1', data: () => ({ isActive: true }) }],
-      })
-      .mockResolvedValueOnce({ docs: [] });
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [{ id: 'teacher-uid-1', data: () => ({ isActive: true }) }],
+    });
     const setDocMock = firestore.setDoc as unknown as ReturnType<typeof vi.fn>;
     setDocMock.mockResolvedValueOnce(undefined);
 
@@ -216,15 +186,15 @@ describe('useLiveSession — joinSession input validation', () => {
   });
 
   it('skips a stale inactive session and joins the active one sharing the same code', async () => {
-    (firestore.getDocs as unknown as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce({
-        empty: false,
-        docs: [
-          { id: 'ended-teacher', data: () => ({ isActive: false }) },
-          { id: 'live-teacher', data: () => ({ isActive: true }) },
-        ],
-      })
-      .mockResolvedValueOnce({ docs: [] });
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [
+        { id: 'ended-teacher', data: () => ({ isActive: false }) },
+        { id: 'live-teacher', data: () => ({ isActive: true }) },
+      ],
+    });
     (
       firestore.setDoc as unknown as ReturnType<typeof vi.fn>
     ).mockResolvedValueOnce(undefined);

@@ -44,7 +44,15 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, doc, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
+import {
+  setDoc,
+  doc,
+  updateDoc,
+  getDoc,
+  getDocs,
+  deleteDoc,
+  collection,
+} from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-live-session-students-test';
 const TEACHER_UID = 'teacher-live';
@@ -251,6 +259,67 @@ describe('live session students — create', () => {
         lastActive: 2000,
       })
     );
+  });
+});
+
+describe('live session students — read (the PIN is a pinLoginV1 credential)', () => {
+  const ADMIN_EMAIL = 'admin@school.edu';
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, `sessions/${TEACHER_UID}/students/${STUDENT_UID}`), {
+        pin: '4821',
+        status: 'active',
+        joinedAt: 2000,
+        lastActive: 2000,
+      });
+      await setDoc(doc(db, `admins/${ADMIN_EMAIL}`), { roleId: 'admin' });
+    });
+  });
+
+  const roster = (db: ReturnType<typeof asStudent>) =>
+    collection(db, `sessions/${TEACHER_UID}/students`);
+
+  it('denies another anonymous user listing or reading the roster', async () => {
+    const db = asStudent(ATTACKER_UID);
+    await assertFails(getDocs(roster(db)));
+    await assertFails(getDoc(studentRef(db, STUDENT_UID)));
+  });
+
+  it('denies a joined student listing classmates', async () => {
+    await assertFails(getDocs(roster(asStudent(STUDENT_UID))));
+  });
+
+  it('lets the student read their own record', async () => {
+    await assertSucceeds(
+      getDoc(studentRef(asStudent(STUDENT_UID), STUDENT_UID))
+    );
+  });
+
+  it('lets the owning teacher list the roster (Live Control)', async () => {
+    await assertSucceeds(getDocs(roster(asTeacher())));
+  });
+
+  it('denies a different teacher listing the roster', async () => {
+    const other = testEnv
+      .authenticatedContext('other-teacher', {
+        email: 'other@school.edu',
+        firebase: { sign_in_provider: 'google.com' },
+      })
+      .firestore();
+    await assertFails(getDocs(roster(other)));
+  });
+
+  it('lets an admin list the roster', async () => {
+    const admin = testEnv
+      .authenticatedContext('admin-uid', {
+        email: ADMIN_EMAIL,
+        email_verified: true,
+        firebase: { sign_in_provider: 'google.com' },
+      })
+      .firestore();
+    await assertSucceeds(getDocs(roster(admin)));
   });
 });
 

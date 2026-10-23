@@ -4426,11 +4426,13 @@ service cloud.firestore {
       allow write: if signedIn() && authUid() == userId; // Teacher controls it
 
       match /students/{studentId} {
-        // Student session records store only a PIN - no PII. The anonymous auth UID is the
-        // doc ID so rules can validate ownership without server-side logic. Authed users
-        // read (PIN duplicate checks); students create/update only their own record
-        // (heartbeats/disconnects); only teacher and admins delete.
-        allow read: if signedIn();
+        // Student session records store the roster PIN the student typed, which pinLoginV1
+        // accepts as proof of identity, so only the teacher, admins and the student
+        // themselves read it. The anonymous auth UID is the doc ID so rules can validate
+        // ownership without server-side logic; students create/update only their own
+        // record (heartbeats/disconnects); only teacher and admins delete.
+        allow read: if signedIn() &&
+          (authUid() == userId || authUid() == studentId || isAdmin());
         // Matches the client's exact write shape (useLiveSession.ts `newStudent`) - without
         // it, any caller who learns a sessionId could spray unbounded arbitrary-shape docs
         // into a teacher's live roster. pin is capped at MAX_PIN_LENGTH (10).
