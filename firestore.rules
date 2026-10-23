@@ -4746,6 +4746,13 @@ service cloud.firestore {
       function sessionTeacherUid() {
         return sessionData().teacherUid;
       }
+      // A served-subset pointer counts only when this session's teacher wrote it for this session.
+      // One list compare, and a missing pointer/field errors (denies): the response update rule
+      // sits at Firestore's 1,000-expression limit.
+      function servedPointerOk(p) {
+        return [p.teacherUid, p.sessionId, p.override.questionIds] ==
+          [sessionTeacherUid(), sessionId, incoming().servedQuestionIds];
+      }
       allow create: if signedIn() &&
         notAnon() &&
         incoming().teacherUid == authUid() &&
@@ -4983,9 +4990,7 @@ service cloud.firestore {
              isList('servedQuestionIds') &&
              incoming().servedQuestionIds.size() == sessionData().totalQuestions) ||
             (sessionData().get('assignmentId', '') != '' &&
-             exists(/databases/$(database)/documents/student_assignments/$(authUid())/items/$(sessionData().assignmentId)) &&
-             incoming().servedQuestionIds ==
-               get(/databases/$(database)/documents/student_assignments/$(authUid())/items/$(sessionData().assignmentId)).data.get('override', {}).get('questionIds', null))) &&
+             servedPointerOk(get(/databases/$(database)/documents/student_assignments/$(authUid())/items/$(sessionData().assignmentId)).data))) &&
            // Stimulus telemetry maps (per-attempt play + load-failure counters). Truthfulness
            // is client-enforced diagnostics, not a security boundary - but size is: the teacher
            // monitor reads every response doc in the session, so cap the key count to stop a
