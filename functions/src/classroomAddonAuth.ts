@@ -904,7 +904,7 @@ export const classroomAddonLoginV1 = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    assertViewAsAllowed(request, { signIn: true });
     const data = (request.data ?? {}) as ClassroomAddonLoginData;
     const accessToken =
       typeof data.accessToken === 'string' ? data.accessToken : '';

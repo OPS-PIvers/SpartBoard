@@ -40,6 +40,8 @@ vi.mock('@/utils/quizJoinCodes', () => ({
 }));
 vi.mock('firebase/auth', () => ({
   signInAnonymously: vi.fn().mockResolvedValue({ user: { uid: 'anon-uid' } }),
+  setPersistence: vi.fn().mockResolvedValue(undefined),
+  indexedDBLocalPersistence: 'local',
 }));
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
@@ -1445,6 +1447,49 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
         'Missing or insufficient permissions.'
       );
     });
+  });
+
+  it('re-runs the PIN join when the saved PIN sign-in belongs to another session', async () => {
+    const pinUser = {
+      uid: 'pin-uid',
+      isAnonymous: false,
+      getIdTokenResult: () =>
+        Promise.resolve({
+          claims: { pinLogin: true, pinSessionId: 'other-session' },
+        }),
+    };
+    (auth as unknown as { currentUser: unknown }).currentUser = pinUser;
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [buildSessionDoc('s1', { status: 'active' })],
+    });
+    const { signInAnonymously } = await import('firebase/auth');
+    const signIn = signInAnonymously as unknown as ReturnType<typeof vi.fn>;
+    signIn.mockClear();
+
+    const { result } = renderHook(() => useQuizSessionStudent());
+    // Without a PIN the tab keeps its sign-in rather than dropping it first.
+    await act(async () => {
+      await expect(result.current.joinQuizSession('ABC123')).rejects.toThrow(
+        'PIN is required'
+      );
+    });
+    expect(signIn).not.toHaveBeenCalled();
+
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [buildSessionDoc('s1', { status: 'active' })],
+    });
+    await act(async () => {
+      await result.current
+        .joinQuizSession('ABC123', '1234')
+        .catch(() => undefined);
+    });
+    expect(signIn).toHaveBeenCalledTimes(1);
   });
 
   // Regression: PR #1409 review. An anonymous student whose device has a

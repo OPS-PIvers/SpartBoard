@@ -269,6 +269,9 @@ import {
   getStudentClassDirectoryV1,
   commitRosterPinIndexV1,
   pinLoginV1,
+  PIN_LOGIN_MAX_FAILURES,
+  PIN_LOGIN_MAX_IDENTITIES,
+  PIN_LOGIN_MAX_PER_STUDENT,
 } from './studentIdentity';
 import { computeStudentUid } from './classlinkShared';
 
@@ -1186,71 +1189,88 @@ describe('pinLoginV1', () => {
   });
 
   describe('attempt limits', () => {
+    const KEY = 'pin_login_attempts/vs1';
+    const pinOf = (n: number) => String(n).padStart(2, '0');
     function seedSession() {
       h.docStore.set('video_activity_sessions/vs1', {
         teacherUid: 'teacher1',
         rosterIds: ['r1'],
       });
-      for (const pin of ['01', '02', '03', '04']) {
-        h.docStore.set(`users/teacher1/rosters/r1/pin_index/1__${pin}`, {
-          pseudonym: 'PS' + pin,
+      for (let n = 1; n <= PIN_LOGIN_MAX_IDENTITIES + 1; n++) {
+        h.docStore.set(`users/teacher1/rosters/r1/pin_index/1__${pinOf(n)}`, {
+          pseudonym: 'PS' + pinOf(n),
           classId: 'CL2',
           orgId: 'org-orono',
         });
       }
     }
-    const login = (pin: string, uid = 'anon-caller') =>
+    // Every call from a fresh anonymous uid, as an attacker renewing sign-in would.
+    let caller = 0;
+    const login = (pin: string, uid = `anon-${caller++}`) =>
       callPinLogin({
         auth: { uid, token: {} },
         data: { kind: 'video-activity', sessionId: 'vs1', pin, period: '1' },
       });
 
-    it('stops bridging after repeated misses from one caller', async () => {
+    it('stops bridging the session after repeated misses from any callers', async () => {
       seedSession();
-      for (let i = 0; i < 10; i++) {
-        expect(await login('9' + i)).toMatchObject({
+      expect(await login('02')).toMatchObject({ matched: true });
+      for (let i = 0; i < PIN_LOGIN_MAX_FAILURES; i++) {
+        expect(await login('x' + i)).toMatchObject({
           reason: 'no-index-entry',
         });
       }
-      // Even a correct PIN now falls back to the plain PIN join.
+      // Even a correct PIN from a fresh caller now falls back to the plain PIN join.
       expect(await login('01')).toEqual({
         matched: false,
         reason: 'rate-limited',
       });
-      // Another caller is unaffected.
-      expect(await login('01', 'other-anon')).toMatchObject({ matched: true });
+      // A student already bridged this window still rejoins.
+      expect(await login('02')).toMatchObject({ matched: true });
     });
 
-    it('lets one caller rejoin as the same student but caps distinct students', async () => {
+    it('caps distinct students per session across fresh callers but allows rejoins', async () => {
       seedSession();
-      for (const pin of ['01', '01', '02', '03', '01']) {
-        expect(await login(pin)).toMatchObject({ matched: true });
+      for (let n = 1; n <= PIN_LOGIN_MAX_IDENTITIES; n++) {
+        expect(await login(pinOf(n))).toMatchObject({ matched: true });
       }
-      expect(await login('04')).toEqual({
+      expect(await login(pinOf(PIN_LOGIN_MAX_IDENTITIES + 1))).toEqual({
         matched: false,
         reason: 'rate-limited',
       });
+      expect(await login('01')).toMatchObject({ matched: true });
+    });
+
+    it('caps how often one student is bridged, even past the miss cap', async () => {
+      seedSession();
+      for (let i = 0; i < PIN_LOGIN_MAX_PER_STUDENT; i++) {
+        expect(await login('01')).toMatchObject({ matched: true });
+      }
+      expect(await login('01')).toEqual({
+        matched: false,
+        reason: 'rate-limited',
+      });
+      expect(await login('02')).toMatchObject({ matched: true });
     });
 
     it('re-checks the identity cap when the attempt is recorded', async () => {
       seedSession();
-      const key = 'pin_login_attempts/vs1__anon-caller';
-      for (const pin of ['01', '02', '03']) await login(pin);
+      for (let n = 1; n <= PIN_LOGIN_MAX_IDENTITIES; n++) await login(pinOf(n));
       // Simulate a parallel call that read the counter before the others landed.
-      const full = h.docStore.get(key);
-      h.docStore.set(key, { ...full, indexKeys: ['1__01', '1__02'] });
+      const full = h.docStore.get(KEY) as { indexKeys: string[] };
+      h.docStore.set(KEY, { ...full, indexKeys: full.indexKeys.slice(1) });
       const realSet = h.docStore.set.bind(h.docStore);
       let swapped = false;
       h.docStore.get = ((orig) => (p: string) => {
         const v = orig(p);
-        if (p === key && !swapped) {
+        if (p === KEY && !swapped) {
           swapped = true;
-          realSet(key, full);
+          realSet(KEY, full);
         }
         return v;
       })(h.docStore.get.bind(h.docStore));
       try {
-        expect(await login('04')).toEqual({
+        expect(await login(pinOf(PIN_LOGIN_MAX_IDENTITIES + 1))).toEqual({
           matched: false,
           reason: 'rate-limited',
         });
@@ -1259,12 +1279,42 @@ describe('pinLoginV1', () => {
       }
     });
 
+    it('fails closed when the counter cannot be read or recorded', async () => {
+      seedSession();
+      const realGet = h.docStore.get.bind(h.docStore);
+      h.docStore.get = (p: string) => {
+        if (p === KEY) throw new Error('unavailable');
+        return realGet(p);
+      };
+      try {
+        expect(await login('01')).toEqual({
+          matched: false,
+          reason: 'rate-limited',
+        });
+      } finally {
+        h.docStore.get = Map.prototype.get.bind(h.docStore);
+      }
+      const realSet = h.docStore.set.bind(h.docStore);
+      h.docStore.set = (p: string, d: unknown) => {
+        if (p === KEY) throw new Error('unavailable');
+        return realSet(p, d);
+      };
+      try {
+        expect(await login('01')).toEqual({
+          matched: false,
+          reason: 'rate-limited',
+        });
+      } finally {
+        h.docStore.set = Map.prototype.set.bind(h.docStore);
+      }
+      expect(h.lastCustomToken).toBeNull();
+    });
+
     it('resets after the window passes', async () => {
       seedSession();
-      for (let i = 0; i < 10; i++) await login('9' + i);
-      const key = 'pin_login_attempts/vs1__anon-caller';
-      h.docStore.set(key, {
-        ...h.docStore.get(key),
+      for (let i = 0; i < PIN_LOGIN_MAX_FAILURES; i++) await login('x' + i);
+      h.docStore.set(KEY, {
+        ...h.docStore.get(KEY),
         windowStart: Date.now() - 16 * 60 * 1000,
       });
       expect(await login('01')).toMatchObject({ matched: true });
@@ -1403,7 +1453,53 @@ describe('pinLoginV1', () => {
       orgId: 'org-orono',
       classIds: ['CL1'],
       pinLogin: true,
+      pinSessionId: 'qs1',
     });
+  });
+
+  it('scopes a quiz token to the session the client resolved from the code', async () => {
+    for (const id of ['qs-a', 'qs-b']) {
+      h.docStore.set(`quiz_sessions/${id}`, {
+        code: 'ABC123',
+        status: 'active',
+        teacherUid: 'teacher1',
+        rosterIds: ['r1'],
+      });
+    }
+    h.docStore.set('users/teacher1/rosters/r1/pin_index/1__1234', {
+      pseudonym: 'PS1',
+      classId: 'CL1',
+      orgId: 'org-orono',
+    });
+
+    await callPinLogin({
+      data: {
+        kind: 'quiz',
+        code: 'ABC123',
+        sessionId: 'qs-b',
+        pin: '1234',
+        period: '1',
+      },
+    });
+
+    expect(h.lastCustomToken?.claims).toMatchObject({
+      pinSessionId: 'qs-b',
+    });
+
+    // A session the code does not resolve to gets no token rather than another session's.
+    h.lastCustomToken = null;
+    expect(
+      await callPinLogin({
+        data: {
+          kind: 'quiz',
+          code: 'ABC123',
+          sessionId: 'qs-other',
+          pin: '1234',
+          period: '1',
+        },
+      })
+    ).toEqual({ matched: false, reason: 'no-joinable-session' });
+    expect(h.lastCustomToken).toBeNull();
   });
 
   it('mints a token for a resolved video-activity PIN', async () => {

@@ -26,6 +26,41 @@ const claim = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+describe('assertViewAsAllowed PIN session scope', () => {
+  const pinReq = (data: unknown, pinSessionId: unknown = 's1') => ({
+    auth: {
+      uid: 'student',
+      token: { studentRole: true, pinLogin: true, pinSessionId },
+    },
+    data,
+  });
+
+  it('lets a PIN token call for the session it was minted for', () => {
+    expect(
+      assertViewAsAllowed(pinReq({ sessionId: 's1' }), { read: true }, NOW)
+    ).toBeNull();
+  });
+
+  it('refuses a PIN token for any other session or request shape', () => {
+    for (const r of [
+      pinReq({ sessionId: 's2' }),
+      pinReq({ assignmentId: 's1' }),
+      pinReq(undefined),
+      pinReq({ sessionId: 's1' }, null),
+    ]) {
+      expect(() => assertViewAsAllowed(r, { read: true }, NOW)).toThrow(
+        expect.objectContaining({ code: 'permission-denied' })
+      );
+    }
+  });
+
+  it('lets a PIN token reach a sign-in callable from any session', () => {
+    expect(
+      assertViewAsAllowed(pinReq({ idToken: 'x' }), { signIn: true }, NOW)
+    ).toBeNull();
+  });
+});
+
 describe('assertViewAsAllowed', () => {
   it('lets an ordinary token through untouched', () => {
     expect(assertViewAsAllowed(req(), {}, NOW)).toBeNull();

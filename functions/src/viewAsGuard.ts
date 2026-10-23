@@ -12,6 +12,23 @@ export interface ViewAsClaim {
 
 interface RequestWithAuth {
   auth?: { uid?: string; token?: unknown } | null;
+  data?: unknown;
+}
+
+/** A pinLoginV1 token is its student only in the one session its PIN was proven for. */
+function assertPinSessionScope(request: RequestWithAuth): void {
+  const token = request.auth?.token;
+  if (!token || typeof token !== 'object') return;
+  const t = token as Record<string, unknown>;
+  if (t.pinLogin !== true) return;
+  const data = request.data;
+  const sessionId =
+    data && typeof data === 'object'
+      ? (data as Record<string, unknown>).sessionId
+      : undefined;
+  if (typeof t.pinSessionId !== 'string' || sessionId !== t.pinSessionId) {
+    throw new HttpsError('permission-denied', 'Sign in to do this.');
+  }
 }
 
 export interface ViewAsGuardOptions {
@@ -19,6 +36,8 @@ export interface ViewAsGuardOptions {
   read?: boolean;
   /** Assign, start, share, invite, AI or export (D14). Needs an unlocked session. */
   outward?: boolean;
+  /** A sign-in callable that never acts as the caller, so a PIN token from any session may call it. */
+  signIn?: boolean;
 }
 
 /** The parsed claim, or null for an ordinary token. A malformed claim reads as expired and read-only. */
@@ -43,6 +62,7 @@ export function assertViewAsAllowed(
   options: ViewAsGuardOptions = {},
   now: number = Date.now()
 ): ViewAsClaim | null {
+  if (!options.signIn) assertPinSessionScope(request);
   const claim = readViewAsClaim(request);
   if (!claim) return null;
   if (!claim.sid || !claim.by || now >= claim.exp) {

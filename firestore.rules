@@ -6,11 +6,33 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
-    // A view-as token that may not make this request (read-only write, or past exp)
+    // A view-as token that may not make this request (read-only write, or past exp),
+    // or a pinLoginV1 token outside the session its PIN was proven for,
     // has no uid: the missing-key error denies every owner comparison built on it.
     // shorthands: off (the one place the raw uid is read)
+    // Ordinary tokens pass on one lookup: the quiz response update sits at the 1,000-expression cap.
+    // A PIN token skips viewAsOk() and tests its session first: PIN students write quiz responses too.
     function authUid() {
-      return viewAsOk() ? request.auth.uid : request.auth.token.viewAs.noUid;
+      let t = request.auth.token;
+      return t.get('viewAs', t.get('pinLogin', false)) == false ||
+             (t.get('viewAs', null) == null
+               ? (request.path[4] == t.get('pinSessionId', '')
+                   ? request.path[3] in ['quiz_sessions', 'video_activity_sessions']
+                   : pinPathOk(t.get('pinSessionId', '')))
+               : viewAsOk() && pinScopeOk())
+             ? request.auth.uid : t.viewAs.noUid;
+    }
+    function pinScopeOk() {
+      return request.auth.token.get('pinLogin', false) != true ||
+             pinPathOk(request.auth.token.get('pinSessionId', ''));
+    }
+    // The session's own docs, its attempt ledger (`${sessionId}__${uid}`), or the clock probe.
+    function pinPathOk(sid) {
+      return request.path[4] == sid
+        ? request.path[3] in ['quiz_sessions', 'video_activity_sessions']
+        : request.path[3] == 'server_time_probe' ||
+          (request.path[4] == sid + '__' + request.auth.uid &&
+           request.path[3] in ['quiz_attempt_ledger', 'video_activity_attempt_ledger']);
     }
     // shorthands: on
     function unchanged(k) { return request.resource.data[k] == resource.data[k]; }
@@ -144,7 +166,7 @@ service cloud.firestore {
       return signedIn() && request.auth.token.get('studentRole', false) == true;
     }
 
-    // pinLoginV1 tokens share a student's SSO uid but prove only one class.
+    // pinLoginV1 tokens share a student's SSO uid but prove only one session (authUid()).
     function isPinLoginToken() {
       return request.auth.token.get('pinLogin', false) == true;
     }
@@ -312,7 +334,7 @@ service cloud.firestore {
     // either: that makes the clause unprovable, so it can only ever be false.
     function sessionListScoped() {
       return existing().get('teacherUid', '') == authUid() ||
-             (request.auth.token.get('classIds', []) is list &&
+             (pinScopeOk() && request.auth.token.get('classIds', []) is list &&
               (existing().get('classIds', []).hasAny(request.auth.token.get('classIds', [])) ||
                existing().get('classId', '') in request.auth.token.get('classIds', [])));
     }
@@ -4761,9 +4783,8 @@ service cloud.firestore {
             // PIN joins honor the teacher's anonymous-join stamp.
             : responseKey.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$') &&
               sessionData().get('allowAnonymousJoin', true) != false);
+        // The student branch runs first so a student's write skips the teacher and admin checks.
         allow update: if signedIn() && (
-          // Teacher and admins can update any field
-          authUid() == sessionTeacherUid() || isAdmin() ||
           // Students update only their own response (ownership via studentUid, not the key).
           // Mutable: answers, status, submittedAt, tabSwitchWarnings, completedAttempts,
           // classPeriod, score (reset to null on rejoin). pin/join metadata immutable.
@@ -4771,14 +4792,16 @@ service cloud.firestore {
           (authUid() == existing().studentUid &&
            passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
            // Student writes stop at the session close time (M17) or the run's end.
-           // The teacher branch above is unaffected — grading continues after close.
+           // The teacher branch below is unaffected — grading continues after close.
            (runOpen(sessionData()) ||
             isResultsProtectionOnlyWrite() ||
             existing().get('unlocked', false) == true) &&
            // Pause is enforced here for every session, and per period where set.
            (frozenWriteOk(sessionData(), existing().get('classId', null)) ||
             (sessionData().status != 'paused' &&
-             (periodOpen(sessionData(), existing().get('classId', null)) || studentLetIn(sessionData())))) &&
+             // studentUid is authUid() here, and cheaper: a PIN token's authUid() costs more expressions.
+             (periodOpen(sessionData(), existing().get('classId', null)) ||
+              sessionData().get('studentAccess', {}).get(existing().studentUid, 0) > request.time.toMillis()))) &&
            unchanged('studentUid') &&
            // SSO studentRole responses omit `pin` entirely, so direct dot-access on
            // `resource.data.pin` would throw a Null-value error and deny the write. Use
@@ -4849,9 +4872,9 @@ service cloud.firestore {
              isList('servedQuestionIds') &&
              incoming().servedQuestionIds.size() == sessionData().totalQuestions) ||
             (sessionData().get('assignmentId', '') != '' &&
-             exists(/databases/$(database)/documents/student_assignments/$(authUid())/items/$(sessionData().assignmentId)) &&
+             exists(/databases/$(database)/documents/student_assignments/$(existing().studentUid)/items/$(sessionData().assignmentId)) &&
              incoming().servedQuestionIds ==
-               get(/databases/$(database)/documents/student_assignments/$(authUid())/items/$(sessionData().assignmentId)).data.get('override', {}).get('questionIds', null))) &&
+               get(/databases/$(database)/documents/student_assignments/$(existing().studentUid)/items/$(sessionData().assignmentId)).data.get('override', {}).get('questionIds', null))) &&
            // Stimulus telemetry maps (per-attempt play + load-failure counters). Truthfulness
            // is client-enforced diagnostics, not a security boundary - but size is: the teacher
            // monitor reads every response doc in the session, so cap the key count to stop a
@@ -4905,7 +4928,9 @@ service cloud.firestore {
            // else a hostile client could increment past the cap.
            (sessionAttemptLimit() == null ||
             incoming().get('completedAttempts', 0) <= sessionAttemptLimit()) &&
-           (!changed(['status']) || statusMoveOk(existing(), incoming(), sessionAttemptLimit())))
+           (!changed(['status']) || statusMoveOk(existing(), incoming(), sessionAttemptLimit()))) ||
+          // Teacher and admins can update any field
+          authUid() == sessionTeacherUid() || isAdmin()
         );
         allow delete: if signedIn() &&
           (authUid() == sessionTeacherUid() || isAdmin());
@@ -6480,7 +6505,7 @@ service cloud.firestore {
       // the query planner can prove from the client's array-contains-any filter,
       // and either guard makes every student list query unprovable and denied.
       function fcInSessionClass(sessionClassIds) {
-        return isStudentRoleUser()
+        return isStudentRoleUser() && pinScopeOk()
                && request.auth.token.classIds is list
                && sessionClassIds.hasAny(request.auth.token.classIds);
       }
@@ -6625,7 +6650,7 @@ service cloud.firestore {
       // Positive student check. passesStudentClassGate*() passes every
       // non-student, so it can never stand as the || alternative to ownership.
       function pjStudentInAnyClass(classIds) {
-        return isStudentRoleUser()
+        return isStudentRoleUser() && pinScopeOk()
                && request.auth.token.classIds is list
                && classIds is list
                && classIds.hasAny(request.auth.token.classIds);
@@ -6658,7 +6683,7 @@ service cloud.firestore {
       function pjRunListScoped() {
         return (existing().get('teacherUid', '') == authUid()
                 && notDeactivated()) ||
-               (request.auth.token.get('classIds', []) is list &&
+               (pinScopeOk() && request.auth.token.get('classIds', []) is list &&
                 existing().get('classIds', [])
                   .hasAny(request.auth.token.get('classIds', [])));
       }

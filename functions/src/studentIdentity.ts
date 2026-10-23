@@ -163,7 +163,7 @@ export const studentLoginV1 = onCall(
     invoker: 'public',
   },
   async (request) => {
-    assertViewAsAllowed(request);
+    assertViewAsAllowed(request, { signIn: true });
     const rawIdToken = (request.data as { idToken?: unknown })?.idToken;
     const idToken = typeof rawIdToken === 'string' ? rawIdToken : '';
     if (!idToken) {
@@ -1479,17 +1479,18 @@ export async function reconcileRosterPinIndex(
   }
 }
 
-// Per (session, caller uid) limits. Seat PINs are short, so a caller that keeps
-// missing, or keeps landing on different students, stops bridging and falls back
-// to the plain PIN join.
+// Per-session limits for every caller together (an anonymous uid is free to renew).
+// Past them the bridge falls back to the plain PIN join.
 const PIN_LOGIN_ATTEMPTS_COLLECTION = 'pin_login_attempts';
 const PIN_LOGIN_WINDOW_MS = 15 * 60 * 1000;
-export const PIN_LOGIN_MAX_FAILURES = 10;
-export const PIN_LOGIN_MAX_IDENTITIES = 3;
+export const PIN_LOGIN_MAX_FAILURES = 60;
+export const PIN_LOGIN_MAX_IDENTITIES = 100;
+export const PIN_LOGIN_MAX_PER_STUDENT = 10;
 
 interface PinLoginAttempts {
   windowStart: number;
   failures: number;
+  /** One entry per bridge, so repeats count a student's rejoins. */
   indexKeys: string[];
 }
 
@@ -1514,10 +1515,12 @@ function readPinLoginAttempts(
 }
 
 function pinLoginBlocked(a: PinLoginAttempts, indexKey: string): boolean {
-  if (a.failures >= PIN_LOGIN_MAX_FAILURES) return true;
+  const bridged = a.indexKeys.filter((k) => k === indexKey).length;
+  // A student already bridged this window rejoins past the other caps, a few times at most.
+  if (bridged > 0) return bridged >= PIN_LOGIN_MAX_PER_STUDENT;
   return (
-    a.indexKeys.length >= PIN_LOGIN_MAX_IDENTITIES &&
-    !a.indexKeys.includes(indexKey)
+    a.failures >= PIN_LOGIN_MAX_FAILURES ||
+    new Set(a.indexKeys).size >= PIN_LOGIN_MAX_IDENTITIES
   );
 }
 
@@ -1527,25 +1530,29 @@ async function recordPinLoginAttempt(
   indexKey: string,
   success: boolean
 ): Promise<boolean> {
-  return db.runTransaction(async (tx) => {
-    const now = Date.now();
-    const a = readPinLoginAttempts((await tx.get(ref)).data(), now);
-    // Re-checked here so parallel calls from one caller can't overshoot the caps.
-    const allowed = !pinLoginBlocked(a, indexKey);
-    if (!success) {
-      a.failures += 1;
-    } else if (allowed && !a.indexKeys.includes(indexKey)) {
-      a.indexKeys.push(indexKey);
-    }
-    tx.set(ref, {
-      ...a,
-      // TTL field (firestore.indexes.json) so stale counters delete themselves.
-      expireAt: admin.firestore.Timestamp.fromMillis(
-        a.windowStart + 2 * PIN_LOGIN_WINDOW_MS
-      ),
-    });
-    return allowed;
-  });
+  // A whole class joins at once, so give the shared counter extra retries.
+  return db.runTransaction(
+    async (tx) => {
+      const now = Date.now();
+      const a = readPinLoginAttempts((await tx.get(ref)).data(), now);
+      // Re-checked here so parallel calls can't overshoot the caps.
+      const allowed = !pinLoginBlocked(a, indexKey);
+      if (!success) {
+        a.failures += 1;
+      } else if (allowed) {
+        a.indexKeys.push(indexKey);
+      }
+      tx.set(ref, {
+        ...a,
+        // TTL field (firestore.indexes.json) so stale counters delete themselves.
+        expireAt: admin.firestore.Timestamp.fromMillis(
+          a.windowStart + 2 * PIN_LOGIN_WINDOW_MS
+        ),
+      });
+      return allowed;
+    },
+    { maxAttempts: 15 }
+  );
 }
 
 interface PinLoginRequestData {
@@ -1562,7 +1569,7 @@ interface PinLoginRequestData {
  * Input:
  *   {
  *     kind: 'quiz' | 'video-activity',
- *     sessionId?: string,    // required for video-activity
+ *     sessionId?: string,    // required for video-activity; for quiz, which code match
  *     code?: string,         // required for quiz
  *     pin: string,
  *     period?: string,       // optional, picks one when the session has
@@ -1590,12 +1597,10 @@ export const pinLoginV1 = onCall(
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
-    assertViewAsAllowed(request);
-    // Both join flows sign in anonymously first; the uid keys the attempt limit.
+    assertViewAsAllowed(request, { signIn: true });
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
-    const callerUid = request.auth.uid;
     const data = (request.data ?? {}) as PinLoginRequestData;
     const kind =
       data.kind === 'quiz' || data.kind === 'video-activity' ? data.kind : null;
@@ -1623,7 +1628,7 @@ export const pinLoginV1 = onCall(
         .collection('quiz_sessions')
         .where('code', '==', code)
         .where('status', 'in', ['waiting', 'active', 'paused'])
-        .limit(1)
+        .limit(10)
         .get();
       if (codeMatch.empty) {
         // Cheap existence check purely for log clarity: was this code never
@@ -1641,7 +1646,24 @@ export const pinLoginV1 = onCall(
         });
         return { matched: false, reason: 'no-joinable-session' };
       }
-      sessionRef = codeMatch.docs[0].ref;
+      // The token is scoped to one session, so bridge only the one the client resolved from this code.
+      const wanted =
+        typeof data.sessionId === 'string' && data.sessionId
+          ? data.sessionId
+          : null;
+      const picked = wanted
+        ? codeMatch.docs.find((d) => d.id === wanted)
+        : codeMatch.docs[0];
+      if (!picked) {
+        console.warn('[pinLoginV1] fallback', {
+          kind,
+          reason: 'no-joinable-session',
+          sessionId: wanted,
+          period,
+        });
+        return { matched: false, reason: 'no-joinable-session' };
+      }
+      sessionRef = picked.ref;
     } else {
       const sessionId =
         typeof data.sessionId === 'string' ? data.sessionId : '';
@@ -1715,14 +1737,13 @@ export const pinLoginV1 = onCall(
 
     const attemptsRef = db
       .collection(PIN_LOGIN_ATTEMPTS_COLLECTION)
-      .doc(`${sessionRef.id}__${callerUid}`);
-    // Fail open: a counter outage must not lock real students out of the bridge.
-    const attemptsData = await attemptsRef
-      .get()
-      .then((snap) => snap.data())
-      .catch(() => undefined);
-    const attempts = readPinLoginAttempts(attemptsData, Date.now());
-    if (pinLoginBlocked(attempts, indexKey)) {
+      .doc(sessionRef.id);
+    // Fail closed: a counter outage only sends students to the plain PIN join.
+    const attempts = await attemptsRef.get().then(
+      (snap) => readPinLoginAttempts(snap.data(), Date.now()),
+      () => null
+    );
+    if (!attempts || pinLoginBlocked(attempts, indexKey)) {
       console.warn('[pinLoginV1] fallback', {
         kind,
         reason: 'rate-limited',
@@ -1785,7 +1806,7 @@ export const pinLoginV1 = onCall(
       matched !== null
     ).catch((err: unknown) => {
       console.error('[pinLoginV1] attempt record failed:', err);
-      return true;
+      return false;
     });
     if (matched && !allowed) {
       console.warn('[pinLoginV1] fallback', {
@@ -1821,8 +1842,9 @@ export const pinLoginV1 = onCall(
         studentRole: true,
         orgId: matched.orgId,
         classIds: [matched.classId],
-        // Rules keep a PIN-proven token to this one class (see student_grades).
+        // Rules and callables keep a PIN-proven token to this one session.
         pinLogin: true,
+        pinSessionId: sessionRef.id,
       });
     } catch (err) {
       console.error('[pinLoginV1] createCustomToken failed:', err);

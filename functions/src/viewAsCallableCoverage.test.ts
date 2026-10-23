@@ -151,6 +151,8 @@ function modeOf(options: string | undefined): Mode | 'unknown' {
   if (opts === '') return 'write';
   if (opts === '{read:true}') return 'read';
   if (opts === '{outward:true}') return 'outward';
+  // A sign-in callable skips only the PIN session scope.
+  if (opts === '{signIn:true}') return 'write';
   return 'unknown';
 }
 

@@ -43,7 +43,12 @@ import {
 } from '@/utils/quizBalancedDeal';
 import { encodeResponseKeySegment } from '@/utils/quizResponseKey';
 import { db, auth, functions } from '@/config/firebase';
-import { signInAnonymously, signInWithCustomToken } from 'firebase/auth';
+import { signInAnonymously } from 'firebase/auth';
+import {
+  pinBridgeSessionId,
+  signInAnonymouslyOverPinBridge,
+  signInWithPinBridgeToken,
+} from '@/utils/pinBridge';
 import { httpsCallable } from 'firebase/functions';
 import {
   QuizSession,
@@ -2549,6 +2554,15 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         const sessionDoc = joinable[0];
         const sessionData = sessionDoc.data;
 
+        // A PIN-bridged sign-in only works in its own session; elsewhere bridge again.
+        const pinSession = await pinBridgeSessionId(currentUser);
+        if (pinSession !== null && pinSession !== sessionDoc.id) {
+          if (!sanitizedPin) throw new Error('PIN is required');
+          currentUser = await signInAnonymouslyOverPinBridge();
+          studentUid = currentUser.uid;
+          isAnonymous = true;
+        }
+
         if (isAnonymous && isAnonymousJoinBlocked(sessionData)) {
           throw new Error(ANONYMOUS_JOIN_BLOCKED_MESSAGE);
         }
@@ -2575,6 +2589,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               {
                 kind: 'quiz';
                 code: string;
+                sessionId: string;
                 pin: string;
                 period?: string;
               },
@@ -2584,6 +2599,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               callable({
                 kind: 'quiz',
                 code: normCode,
+                sessionId: sessionDoc.id,
                 pin: sanitizedPin,
                 period: classPeriod,
               });
@@ -2618,7 +2634,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               res = await callBridge();
             }
             if (res.data.matched && res.data.customToken) {
-              await signInWithCustomToken(auth, res.data.customToken);
+              await signInWithPinBridgeToken(res.data.customToken);
               const refreshed = auth.currentUser;
               if (refreshed) {
                 currentUser = refreshed;

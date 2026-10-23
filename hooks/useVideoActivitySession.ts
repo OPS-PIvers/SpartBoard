@@ -34,10 +34,14 @@ import {
   writeBatch,
   type DocumentReference,
 } from 'firebase/firestore';
-import { signInWithCustomToken } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import { db, auth, functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import {
+  pinBridgeSessionId,
+  signInAnonymouslyOverPinBridge,
+  signInWithPinBridgeToken,
+} from '@/utils/pinBridge';
 import { tabAwaySessionFields } from '@/utils/tabAwayLimit';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
@@ -921,6 +925,11 @@ export const useVideoActivitySessionStudent =
             setError('Authentication required. Please refresh and try again.');
             return;
           }
+          // A PIN-bridged sign-in only works in its own session; elsewhere bridge again.
+          const pinSession = await pinBridgeSessionId(currentUser);
+          if (pinSession !== null && pinSession !== targetSessionId) {
+            currentUser = await signInAnonymouslyOverPinBridge();
+          }
 
           let isAnonymous = currentUser.isAnonymous;
 
@@ -1006,7 +1015,7 @@ export const useVideoActivitySessionStudent =
                 period: classPeriod,
               });
               if (res.data.matched && res.data.customToken) {
-                await signInWithCustomToken(auth, res.data.customToken);
+                await signInWithPinBridgeToken(res.data.customToken);
                 const refreshed = auth.currentUser;
                 if (refreshed) {
                   currentUser = refreshed;

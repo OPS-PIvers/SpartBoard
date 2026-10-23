@@ -1,5 +1,5 @@
 // Student sign-in hardening: who may create a quiz session, and what a
-// pinLoginV1 token (studentRole + pinLogin, one class) may read.
+// pinLoginV1 token (studentRole + pinLogin, one session) may read.
 //
 // Requires a running Firestore emulator. Invoke via:
 //   pnpm run test:rules
@@ -21,6 +21,7 @@ import {
   collection,
   doc,
   query,
+  serverTimestamp,
   where,
 } from 'firebase/firestore';
 
@@ -61,12 +62,13 @@ const asSso = () =>
     })
     .firestore();
 
-const asPin = () =>
+const asPin = (pinSessionId: string | null = 's1') =>
   testEnv
     .authenticatedContext(STUDENT_UID, {
       studentRole: true,
       classIds: [CLASS_A],
       pinLogin: true,
+      ...(pinSessionId ? { pinSessionId } : {}),
       firebase: { sign_in_provider: 'custom' },
     })
     .firestore();
@@ -116,6 +118,25 @@ beforeEach(async () => {
       studentUid: STUDENT_UID,
       entries: {},
     });
+    for (const sid of ['s1', 's2']) {
+      const inClass = { ...session(TEACHER_UID), classIds: [CLASS_A] };
+      await setDoc(doc(db, `quiz_sessions/${sid}`), inClass);
+      await setDoc(doc(db, `video_activity_sessions/${sid}`), inClass);
+      const response = { studentUid: STUDENT_UID, answers: [] };
+      await setDoc(
+        doc(db, `quiz_sessions/${sid}/responses/${STUDENT_UID}`),
+        response
+      );
+      await setDoc(
+        doc(db, `video_activity_sessions/${sid}/responses/${STUDENT_UID}`),
+        response
+      );
+      await setDoc(doc(db, `quiz_attempt_ledger/${sid}__${STUDENT_UID}`), {
+        studentUid: STUDENT_UID,
+        teacherUid: TEACHER_UID,
+        completedAttempts: 1,
+      });
+    }
   });
 });
 
@@ -154,28 +175,70 @@ describe('quiz_sessions create', () => {
 describe('PIN sign-in token scope', () => {
   const items = `student_assignments/${STUDENT_UID}/items`;
   const grades = `student_grades/${STUDENT_UID}/classes/${CLASS_A}`;
+  const quizResponse = (sid: string) =>
+    `quiz_sessions/${sid}/responses/${STUDENT_UID}`;
+  const vaResponse = (sid: string) =>
+    `video_activity_sessions/${sid}/responses/${STUDENT_UID}`;
+  const ledger = (sid: string) => `quiz_attempt_ledger/${sid}__${STUDENT_UID}`;
 
-  it('reads its own pointer in its class and a missing pointer', async () => {
-    await assertSucceeds(getDoc(doc(asPin(), `${items}/in-a`)));
-    await assertSucceeds(getDoc(doc(asPin(), `${items}/missing`)));
+  it("reads the student's work in the session its PIN was proven for", async () => {
+    await assertSucceeds(getDoc(doc(asPin(), quizResponse('s1'))));
+    await assertSucceeds(getDoc(doc(asPin(), ledger('s1'))));
+    await assertSucceeds(getDoc(doc(asPin(), vaResponse('s1'))));
     await assertSucceeds(
+      setDoc(doc(asPin(), `server_time_probe/${STUDENT_UID}`), {
+        at: serverTimestamp(),
+      })
+    );
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(asPin(), 'quiz_sessions/s1/responses'),
+          where('studentUid', '==', STUDENT_UID)
+        )
+      )
+    );
+  });
+
+  it("cannot read the same student's work in another session of the class", async () => {
+    await assertFails(getDoc(doc(asPin(), quizResponse('s2'))));
+    await assertFails(getDoc(doc(asPin(), ledger('s2'))));
+    await assertFails(getDoc(doc(asPin(), vaResponse('s2'))));
+    await assertFails(
+      setDoc(doc(asPin(), quizResponse('s2')), { studentUid: STUDENT_UID })
+    );
+  });
+
+  it("cannot list the class's other sessions through its class claim", async () => {
+    await assertFails(
+      getDocs(
+        query(
+          collection(asPin(), 'video_activity_sessions'),
+          where('classIds', 'array-contains-any', [CLASS_A])
+        )
+      )
+    );
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(asSso(), 'video_activity_sessions'),
+          where('classIds', 'array-contains-any', [CLASS_A])
+        )
+      )
+    );
+  });
+
+  it('gets nothing from a token minted without a session', async () => {
+    await assertFails(getDoc(doc(asPin(null), quizResponse('s1'))));
+  });
+
+  it('cannot read pointers or grades', async () => {
+    await assertFails(getDoc(doc(asPin(), `${items}/in-a`)));
+    await assertFails(
       getDocs(
         query(collection(asPin(), items), where('classId', '==', CLASS_A))
       )
     );
-    await assertSucceeds(
-      getDocs(
-        query(collection(asPin(), items), where('classId', 'in', [CLASS_A]))
-      )
-    );
-  });
-
-  it("cannot read the same student's pointers in other classes", async () => {
-    await assertFails(getDoc(doc(asPin(), `${items}/in-b`)));
-    await assertFails(getDocs(collection(asPin(), items)));
-  });
-
-  it('cannot read grades', async () => {
     await assertFails(getDoc(doc(asPin(), grades)));
     await assertFails(
       getDocs(collection(asPin(), `student_grades/${STUDENT_UID}/classes`))
@@ -186,10 +249,81 @@ describe('PIN sign-in token scope', () => {
     await assertSucceeds(getDoc(doc(asSso(), `${items}/in-b`)));
     await assertSucceeds(getDocs(collection(asSso(), items)));
     await assertSucceeds(getDoc(doc(asSso(), grades)));
+    await assertSucceeds(getDoc(doc(asSso(), quizResponse('s2'))));
+    await assertSucceeds(getDoc(doc(asSso(), ledger('s2'))));
   });
 
   it('never lets a PIN token write pointers or grades', async () => {
     await assertFails(setDoc(doc(asPin(), `${items}/in-a`), pointer(CLASS_A)));
     await assertFails(setDoc(doc(asPin(), grades), { entries: {} }));
+  });
+
+  // The Let-in-now answer write sits near the 1,000-expression cap, so a costlier PIN authUid() fails it.
+  it('saves answers in its session through a Let in now pass', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'quiz_sessions/s1'), {
+        ...session(TEACHER_UID),
+        status: 'active',
+        classIds: [CLASS_A],
+        classId: CLASS_A,
+        accessMode: 'assessment',
+        periodAccess: {
+          [CLASS_A]: { state: 'closed', openAt: null, closeAt: null },
+        },
+        studentAccess: { [STUDENT_UID]: 4_000_000_000_000 },
+      });
+      await setDoc(doc(db, quizResponse('s1')), {
+        studentUid: STUDENT_UID,
+        classId: CLASS_A,
+        joinedAt: 1000,
+        score: null,
+        answers: [],
+        status: 'in-progress',
+        completedAttempts: 0,
+        tabSwitchWarnings: 0,
+      });
+    });
+    const answers = [
+      { questionId: 'q1', answer: 'A', answeredAt: 1, status: 'draft' },
+    ];
+    await assertSucceeds(
+      updateDoc(doc(asPin(), quizResponse('s1')), { answers })
+    );
+  });
+
+  it('saves video answers in its session and nowhere else', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      for (const sid of ['s1', 's2']) {
+        await setDoc(doc(db, `video_activity_sessions/${sid}`), {
+          teacherUid: TEACHER_UID,
+          status: 'active',
+          mode: 'submissions',
+          classIds: [CLASS_A],
+          classId: CLASS_A,
+          accessMode: 'assessment',
+          periodAccess: {
+            [CLASS_A]: { state: 'closed', openAt: null, closeAt: null },
+          },
+          studentAccess: { [STUDENT_UID]: 4_000_000_000_000 },
+        });
+        await setDoc(doc(db, vaResponse(sid)), {
+          studentUid: STUDENT_UID,
+          classId: CLASS_A,
+          joinedAt: 1000,
+          score: null,
+          answers: [],
+          completedAt: null,
+          completedAttempts: 0,
+          tabSwitchWarnings: 0,
+        });
+      }
+    });
+    const answers = [{ questionId: 'q1', answer: 'A', answeredAt: 1 }];
+    await assertSucceeds(
+      updateDoc(doc(asPin(), vaResponse('s1')), { answers })
+    );
+    await assertFails(updateDoc(doc(asPin(), vaResponse('s2')), { answers }));
   });
 });
