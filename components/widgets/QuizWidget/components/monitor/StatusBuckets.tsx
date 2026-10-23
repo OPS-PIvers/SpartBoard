@@ -1,5 +1,5 @@
 import React from 'react';
-import { tourFieldAttr } from '@/config/tourAnchors';
+import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import { MonitorData } from './useMonitorData';
 
 export type BucketKey = 'notStarted' | 'inProgress' | 'done';
@@ -16,6 +16,11 @@ interface StatusBucketsProps {
   idleCount: number;
   openBucket: BucketKey | null;
   onToggle: (key: BucketKey) => void;
+  /** Replaces a bucket's label, e.g. Submitted for a Flashcards Check. */
+  labels?: Partial<Record<BucketKey, string>>;
+  /** Extra line under a bucket's label. */
+  notes?: Partial<Record<BucketKey, React.ReactNode>>;
+  anchorFor?: (key: BucketKey) => TourAnchorAttrs;
 }
 
 export const StatusBuckets: React.FC<StatusBucketsProps> = ({
@@ -24,6 +29,9 @@ export const StatusBuckets: React.FC<StatusBucketsProps> = ({
   idleCount,
   openBucket,
   onToggle,
+  labels,
+  notes,
+  anchorFor = (key) => tourFieldAttr('quiz-monitor.status-bucket', 'quiz', key),
 }) => (
   <div
     className="grid grid-cols-3"
@@ -37,7 +45,7 @@ export const StatusBuckets: React.FC<StatusBucketsProps> = ({
         <button
           key={key}
           onClick={() => onToggle(key)}
-          {...tourFieldAttr('quiz-monitor.status-bucket', 'quiz', key)}
+          {...anchorFor(key)}
           aria-expanded={selected}
           className={`flex flex-col items-center rounded-xl border transition-colors ${
             selected
@@ -56,8 +64,9 @@ export const StatusBuckets: React.FC<StatusBucketsProps> = ({
             className="font-sans font-medium text-brand-gray-primary"
             style={{ fontSize: 'min(11px, 3.8cqmin)' }}
           >
-            {label}
+            {labels?.[key] ?? label}
           </span>
+          {notes?.[key]}
           {key === 'inProgress' && (handCount > 0 || idleCount > 0) && (
             <span
               className="flex items-center font-sans font-semibold tabular-nums"

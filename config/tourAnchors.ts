@@ -12994,6 +12994,50 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'flashcards.class-picker': {
+    label: 'Class picker select in the Flashcards monitor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.period-start': {
+    label: 'Start button for the picked class in the Flashcards monitor',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'flashcards.period-pause': {
+    label: 'Pause button for the picked class in the Flashcards monitor',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'flashcards.period-more-time': {
+    label: 'More time button in the Flashcards monitor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.period-extend': {
+    label: 'Extend time option in the Flashcards monitor More time menu',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'flashcards.status-bucket': {
+    label: 'Student status bucket button in the Flashcards monitor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.card-results': {
+    label: 'Card results button in the Flashcards monitor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.close-all': {
+    label: 'Close all button in the Flashcards monitor',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
   'mini-app.stepper-class-picker': {
     label: 'Class picker in the Mini App assign dialog',
     perWidgetType: true,

@@ -22,7 +22,12 @@ import { ActionButton } from '@/components/common/sessionViews/ActionButton';
 import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import { PeriodAccessStrip } from '@/components/widgets/QuizWidget/components/monitor/PeriodAccessStrip';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import {
+  ClassPicker,
+  PeriodBar,
+} from '@/components/widgets/QuizWidget/components/monitor/PeriodBar';
 import { FlashcardStudyResults } from './FlashcardStudyResults';
+import { FlashcardMonitor } from './FlashcardMonitor';
 import { useSyncPlcFlashcardResult } from './useSyncPlcFlashcardResult';
 import { FlashcardCheckReview } from './FlashcardCheckReview';
 import {
@@ -40,6 +45,8 @@ interface FlashcardResultsViewProps {
   onUnpublishScores: (assignmentId: string) => Promise<void>;
   /** Refresh the PLC-shared summary while open. */
   syncPlcShare?: boolean;
+  /** Ends the assignment for every class (Close all on the monitor-parity layout). */
+  onEnd?: () => Promise<void>;
 }
 
 const isPublished = (
@@ -52,6 +59,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
   onPublishScores,
   onUnpublishScores,
   syncPlcShare = false,
+  onEnd,
 }) => {
   const { orgId, canAccessFeature } = useAuth();
   const { rosters, addToast } = useDashboard();
@@ -186,6 +194,30 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
     }
   };
 
+  const handleCloseAll = async (): Promise<void> => {
+    if (!onEnd) return;
+    const confirmed = await showConfirm(
+      `Close “${assignment.setTitle}” for every class? Students lose access and their work is kept.`,
+      {
+        title: 'Close for all classes',
+        variant: 'warning',
+        confirmLabel: 'Close all',
+      }
+    );
+    if (!confirmed) return;
+    try {
+      await onEnd();
+      addToast(`“${assignment.setTitle}” closed.`, 'success');
+    } catch (endError) {
+      addToast(
+        endError instanceof Error
+          ? endError.message
+          : 'Assignment could not be closed.',
+        'error'
+      );
+    }
+  };
+
   const handleUnpublish = async (): Promise<void> => {
     const confirmed = await showConfirm(
       `Hide scores for “${assignment.setTitle}”? Students stop seeing their results.`,
@@ -213,6 +245,28 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
 
   const published = isPublished(
     session?.scoreVisibility ?? assignment.scoreVisibility
+  );
+
+  const publishModal = publishOpen && (
+    <FlashcardPublishScoresModal
+      assignmentTitle={assignment.setTitle || 'Untitled set'}
+      currentVisibility={session?.scoreVisibility}
+      onClose={() => setPublishOpen(false)}
+      onConfirm={async (visibility) => {
+        try {
+          await onPublishScores(assignment.id, visibility);
+          addToast('Scores published.', 'success');
+          setPublishOpen(false);
+        } catch (publishError) {
+          addToast(
+            publishError instanceof Error
+              ? publishError.message
+              : 'Scores could not be published.',
+            'error'
+          );
+        }
+      }}
+    />
   );
 
   const publishAction =
@@ -271,6 +325,83 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
   ) : (
     publishAction
   );
+
+  if (canAccessFeature('monitor-parity') && !loading && !error && session) {
+    const classControls =
+      perPeriod && session.periodAccess ? (
+        <PeriodBar
+          periodAccess={session.periodAccess}
+          selected={
+            classFilter && classFilter in session.periodAccess
+              ? classFilter
+              : ''
+          }
+          onSelect={(key) => setClassFilter(key || null)}
+          onStart={(key) => runPeriod(() => periodActions.startPeriod(key))}
+          onPause={(key) => runPeriod(() => periodActions.pausePeriod(key))}
+          onExtend={(key, by) =>
+            runPeriod(() => periodActions.extendPeriod(key, by))
+          }
+          extendMs={EXTEND_MS}
+          anchors={{
+            select: tourTypeAttr('flashcards.class-picker', 'flashcards'),
+            start: tourTypeAttr('flashcards.period-start', 'flashcards'),
+            pause: tourTypeAttr('flashcards.period-pause', 'flashcards'),
+            moreTime: tourTypeAttr('flashcards.period-more-time', 'flashcards'),
+            extend: tourTypeAttr('flashcards.period-extend', 'flashcards'),
+          }}
+        />
+      ) : presentClassIds.length > 1 ? (
+        <ClassPicker
+          names={presentClassIds}
+          labelOf={(id) => classLabels[id] ?? id}
+          selected={
+            classFilter && presentClassIds.includes(classFilter)
+              ? classFilter
+              : ''
+          }
+          onSelect={(id) => setClassFilter(id || null)}
+          status={
+            session.status === 'ended' || assignment.status === 'ended'
+              ? 'ended'
+              : 'active'
+          }
+          selectAnchor={tourTypeAttr('flashcards.class-picker', 'flashcards')}
+        />
+      ) : null;
+    return (
+      <>
+        <FlashcardMonitor
+          assignment={assignment}
+          session={session}
+          results={visibleResults}
+          tests={testsByStudent}
+          nameFor={nameFor}
+          now={now}
+          speakLanguage={speakLanguage}
+          published={published}
+          onBack={onBack}
+          onResetStudent={(uid) => void handleReset(uid)}
+          onResolveFlag={handleResolveFlag}
+          letInFor={letInFor}
+          onPublish={() =>
+            published ? void handleUnpublish() : setPublishOpen(true)
+          }
+          onEnd={onEnd ? handleCloseAll : undefined}
+          classControls={classControls}
+          launchedBy={
+            assignment.launchedBy ? (
+              <LaunchedBySubTag
+                launchedBy={assignment.launchedBy}
+                at={assignment.createdAt}
+              />
+            ) : null
+          }
+        />
+        {publishModal}
+      </>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col bg-slate-50">
@@ -394,27 +525,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
         )}
       </div>
 
-      {publishOpen && (
-        <FlashcardPublishScoresModal
-          assignmentTitle={assignment.setTitle || 'Untitled set'}
-          currentVisibility={session?.scoreVisibility}
-          onClose={() => setPublishOpen(false)}
-          onConfirm={async (visibility) => {
-            try {
-              await onPublishScores(assignment.id, visibility);
-              addToast('Scores published.', 'success');
-              setPublishOpen(false);
-            } catch (publishError) {
-              addToast(
-                publishError instanceof Error
-                  ? publishError.message
-                  : 'Scores could not be published.',
-                'error'
-              );
-            }
-          }}
-        />
-      )}
+      {publishModal}
     </div>
   );
 };
