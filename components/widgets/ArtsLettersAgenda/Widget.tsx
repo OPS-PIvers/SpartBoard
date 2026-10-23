@@ -24,7 +24,7 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget } = useDashboardActions();
-  const { featurePermissions, selectedBuildings } = useAuth();
+  const { featurePermissions, selectedBuildings, canAccessFeature } = useAuth();
   const globalStyle = useGlobalStyle();
   const config = widget.config as ArtsLettersAgendaConfig;
   const {
@@ -69,9 +69,12 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
     updateWidget(widget.id, { config: { ...base, completed: {} } });
   }, [updateWidget, widget.id, base]);
 
-  const adminConfig = featurePermissions.find(
-    (p) => p.widgetType === widget.type
-  )?.config;
+  // Admin-built boxes reach teachers only with the preview on; a Detailed widget keeps its list.
+  const versionsOn =
+    canAccessFeature('agenda-versions') || version === 'detailed';
+  const adminConfig = versionsOn
+    ? featurePermissions.find((p) => p.widgetType === widget.type)?.config
+    : undefined;
   const lists = useMemo(
     () => resolveAgendaPartLists(adminConfig, buildingId),
     [adminConfig, buildingId]

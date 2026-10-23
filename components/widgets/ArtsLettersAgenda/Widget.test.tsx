@@ -8,6 +8,8 @@ const mockUpdateWidget = vi.fn();
 const auth = vi.hoisted(() => ({
   featurePermissions: [] as unknown[],
   selectedBuildings: ['schumann'],
+  versionsOn: true,
+  canAccessFeature: (id: string) => id === 'agenda-versions' && auth.versionsOn,
 }));
 
 vi.mock('@/context/useAuth', () => ({
@@ -55,6 +57,15 @@ describe('ArtsLettersAgendaWidget', () => {
     vi.clearAllMocks();
     auth.featurePermissions = [];
     auth.selectedBuildings = ['schumann'];
+    auth.versionsOn = true;
+  });
+
+  it('keeps Launch, Learn and Land for teachers without the preview, even with admin boxes', () => {
+    auth.versionsOn = false;
+    withLists({ simpleParts: [{ id: 'x', label: 'Warm up' }] });
+    renderWidget();
+    expect(screen.getByText('Launch')).toBeInTheDocument();
+    expect(screen.queryByText('Warm up')).toBeNull();
   });
 
   it('always shows Launch, Learn and Land in order', () => {
