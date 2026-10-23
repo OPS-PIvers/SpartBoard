@@ -10386,7 +10386,7 @@ export type GlobalFeature =
   | 'mini-app-results'
   /** Quiz live monitor declutter (#4023): footer buttons, Close all, no More actions menu for assessments. */
   | 'quiz-monitor-declutter'
-  /** Same monitor layout across Quiz, Video Activity, Flashcards, Guided Learning and Mini App (monitor-parity/FINDINGS.md). */
+  /** Same monitor layout across Quiz, Video Activity, Flashcards, Guided Learning and Mini App. */
   | 'monitor-parity'
   | 'quiz-banks-in-library'
   /** Teachers turn in a quiz for a student who left without submitting. */

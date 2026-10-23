@@ -272,9 +272,15 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     authContext?.canAccessFeature?.('monitor-parity') === true &&
     data.periodNames.length > 1 &&
     !chipsFilter &&
+    !perPeriod &&
     session.sessionMode !== 'game';
-  // The class picker shows one class or all, so drop a multi-class filter.
-  if ((chipsFilter || classPicker) && data.selectedPeriods.length > 1)
+  // The class picker shows one class or all, so drop a multi-class filter or a class no longer listed.
+  if (
+    ((chipsFilter || classPicker) && data.selectedPeriods.length > 1) ||
+    (classPicker &&
+      data.selectedPeriods.length === 1 &&
+      !data.periodNames.includes(data.selectedPeriods[0]))
+  )
     data.setSelectedPeriods([]);
   const periodBar = chipsFilter &&
     session.periodAccess && {
@@ -827,11 +833,9 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                       onSelect={(name) =>
                         data.setSelectedPeriods(name ? [name] : [])
                       }
-                      paused={session.status === 'paused'}
+                      status={session.status}
                       onToggle={
-                        (onPause ?? onResume) &&
-                        !perPeriod &&
-                        session.status !== 'ended'
+                        (onPause ?? onResume) && session.status !== 'ended'
                           ? handleTogglePause
                           : undefined
                       }

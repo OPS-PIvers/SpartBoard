@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { ChevronDown, Loader2, Pause, Play } from 'lucide-react';
-import type { PeriodAccess } from '@/types';
+import type { PeriodAccess, QuizSessionStatus } from '@/types';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useServerNow } from '@/hooks/useServerNow';
@@ -122,13 +122,18 @@ export const ClassPicker: React.FC<{
   /** The class name shown, or '' for every class. */
   selected: string;
   onSelect: (name: string) => void;
-  paused: boolean;
+  status: QuizSessionStatus;
   /** Pause or Resume for every class at once; omitted when the session can't be paused here. */
   onToggle?: () => Promise<void>;
   toggleAnchor?: TourAnchorAttrs;
-}> = ({ names, selected, onSelect, paused, onToggle, toggleAnchor }) => {
+}> = ({ names, selected, onSelect, status, onToggle, toggleAnchor }) => {
   const [busy, setBusy] = useState(false);
-  const state = paused ? 'Paused' : 'Live';
+  const paused = status === 'paused';
+  const state = paused
+    ? 'Paused'
+    : status === 'waiting'
+      ? 'Not started'
+      : 'Live';
   const text = { fontSize: 'min(16px, 5.5cqmin)' };
   const toggle = async () => {
     if (!onToggle) return;
