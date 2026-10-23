@@ -201,7 +201,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
     }
   };
 
-  const handleCloseAll = async (): Promise<void> => {
+  const handleCloseAll = async (onConfirmed: () => void): Promise<void> => {
     if (!onEnd) return;
     const confirmed = await showConfirm(
       `Close “${assignment.setTitle}” for every class? Students lose access and their work is kept.`,
@@ -212,6 +212,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
       }
     );
     if (!confirmed) return;
+    onConfirmed();
     try {
       await onEnd();
       addToast(`“${assignment.setTitle}” closed.`, 'success');

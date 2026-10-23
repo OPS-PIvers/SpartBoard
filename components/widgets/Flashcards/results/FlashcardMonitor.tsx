@@ -61,8 +61,8 @@ interface FlashcardMonitorProps {
   ) => Promise<void>;
   letInFor: (studentUid: string) => (() => void) | undefined;
   onPublish: () => void;
-  /** Ends the assignment for every class; omitted when it can't be ended here. */
-  onEnd?: () => Promise<void>;
+  /** Confirms, then ends the assignment for every class; `onConfirmed` fires once the teacher agrees. */
+  onEnd?: (onConfirmed: () => void) => Promise<void>;
   /** Class picker row, or null with a single class. */
   classControls: React.ReactNode;
   launchedBy: React.ReactNode;
@@ -255,9 +255,8 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
 
   const handleEnd = async (): Promise<void> => {
     if (!onEnd) return;
-    setEnding(true);
     try {
-      await onEnd();
+      await onEnd(() => setEnding(true));
     } finally {
       setEnding(false);
     }
@@ -428,7 +427,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
                   'flashcards',
                   `row-${flagIndex + 1}`
                 )}
-                className={`rounded-md border font-sans font-medium transition-colors disabled:opacity-40 ${
+                className={`touch-target-expand relative rounded-md border font-sans font-medium transition-colors disabled:opacity-40 ${
                   accept
                     ? 'border-brand-blue-primary text-brand-blue-primary hover:bg-brand-blue-primary hover:text-white'
                     : 'border-brand-gray-lighter text-brand-gray-dark hover:border-brand-blue-light'
@@ -522,7 +521,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
           onClick={() => (screen === 'home' ? onBack() : setScreen('home'))}
           aria-label="Back"
           {...tourTypeAttr('flashcards.results-back', 'flashcards')}
-          className="rounded-md transition-colors hover:bg-white/15"
+          className="touch-target-expand relative rounded-md transition-colors hover:bg-white/15"
           style={{ padding: 'min(4px, 1cqmin)' }}
         >
           <ArrowLeft

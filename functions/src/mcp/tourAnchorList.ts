@@ -58303,6 +58303,191 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "flashcards.class-picker",
+    "label": "Class picker select in the Flashcards monitor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.period-start",
+    "label": "Start button for the picked class in the Flashcards monitor",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.period-pause",
+    "label": "Pause button for the picked class in the Flashcards monitor",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.period-more-time",
+    "label": "More time button in the Flashcards monitor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.period-extend",
+    "label": "Extend time option in the Flashcards monitor More time menu",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.status-bucket",
+    "label": "Student status bucket button in the Flashcards monitor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.card-results",
+    "label": "Card results button in the Flashcards monitor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.close-all",
+    "label": "Close all button in the Flashcards monitor",
+    "scope": "widget type",
+    "panel": true,
+    "destructive": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "mini-app.stepper-class-picker",
     "label": "Class picker in the Mini App assign dialog",
     "scope": "widget type",
