@@ -455,7 +455,12 @@ export const ScheduleConfigurationPanel: React.FC<
     );
     if (confirmed) {
       const newSchedules = schedules.filter((s) => s.id !== id);
-      handleUpdateBuilding({ schedules: newSchedules });
+      // An emptied list falls back to legacy items, so drop them too.
+      handleUpdateBuilding(
+        newSchedules.length
+          ? { schedules: newSchedules }
+          : { schedules: [], items: [] }
+      );
       if (activeScheduleId === id) setActiveScheduleId(null);
     }
   };
