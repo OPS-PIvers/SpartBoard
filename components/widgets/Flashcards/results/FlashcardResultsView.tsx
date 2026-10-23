@@ -368,7 +368,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
       ) : presentClassIds.length > 1 ? (
         <ClassPicker
           names={presentClassIds}
-          labelOf={(id) => classLabels[id] ?? id}
+          labelFor={(id) => classLabels[id] ?? id}
           selected={activeFilter ?? ''}
           onSelect={(id) => setClassFilter(id || null)}
           status={

@@ -209,6 +209,8 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'panel',
     files: [
       'components/widgets/VideoActivityWidget/components/VideoActivityLiveMonitor.tsx',
+      'components/widgets/VideoActivityWidget/components/monitor/VideoActivityMonitor.tsx',
+      'components/widgets/VideoActivityWidget/components/monitor/VaRosterList.tsx',
       'components/widgets/VideoActivityWidget/components/VideoActivityLivePlayer.tsx',
     ],
     opensWith: 'library-shell.archive-primary-action:video-activity#row-1',
@@ -436,7 +438,10 @@ export const SURFACES: TourSurfaceMap = {
   'library.mini-app.submissions': {
     label: 'Mini App submissions dialog',
     kind: 'modal',
-    files: ['components/widgets/MiniApp/components/SubmissionsModal.tsx'],
+    files: [
+      'components/widgets/MiniApp/components/SubmissionsModal.tsx',
+      'components/widgets/MiniApp/components/MiniAppSubmissionsMonitor.tsx',
+    ],
     opensWith: 'mini-app.session-submissions:miniApp',
     needs: ['student-data'],
   },

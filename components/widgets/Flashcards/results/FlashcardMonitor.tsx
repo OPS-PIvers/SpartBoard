@@ -583,7 +583,7 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
                     }
                   : undefined
               }
-              anchorFor={(key) =>
+              anchor={(key) =>
                 tourFieldAttr('flashcards.status-bucket', 'flashcards', key)
               }
             />

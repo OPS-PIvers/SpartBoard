@@ -16,11 +16,14 @@ interface StatusBucketsProps {
   idleCount: number;
   openBucket: BucketKey | null;
   onToggle: (key: BucketKey) => void;
+  /** Each count's tour anchor; defaults to the Quiz monitor's. */
+  anchor?: (key: BucketKey) => TourAnchorAttrs;
+  /** Buckets to show, in order; defaults to all three. */
+  keys?: BucketKey[];
   /** Replaces a bucket's label, e.g. Submitted for a Flashcards Check. */
   labels?: Partial<Record<BucketKey, string>>;
   /** Extra line under a bucket's label. */
   notes?: Partial<Record<BucketKey, React.ReactNode>>;
-  anchorFor?: (key: BucketKey) => TourAnchorAttrs;
 }
 
 export const StatusBuckets: React.FC<StatusBucketsProps> = ({
@@ -29,70 +32,76 @@ export const StatusBuckets: React.FC<StatusBucketsProps> = ({
   idleCount,
   openBucket,
   onToggle,
+  anchor = (key) => tourFieldAttr('quiz-monitor.status-bucket', 'quiz', key),
+  keys,
   labels,
   notes,
-  anchorFor = (key) => tourFieldAttr('quiz-monitor.status-bucket', 'quiz', key),
 }) => (
   <div
-    className="grid grid-cols-3"
-    style={{ gap: 'min(10px, 2.5cqmin)' }}
+    className="grid"
+    style={{
+      gap: 'min(10px, 2.5cqmin)',
+      gridTemplateColumns: `repeat(${keys?.length ?? BUCKETS.length}, minmax(0, 1fr))`,
+    }}
     role="group"
     aria-label="Student status"
   >
-    {BUCKETS.map(({ key, label }) => {
-      const selected = openBucket === key;
-      return (
-        <button
-          key={key}
-          onClick={() => onToggle(key)}
-          {...anchorFor(key)}
-          aria-expanded={selected}
-          className={`flex flex-col items-center rounded-xl border transition-colors ${
-            selected
-              ? 'bg-brand-blue-lighter border-brand-blue-primary'
-              : 'bg-white border-brand-gray-lighter hover:border-brand-blue-light'
-          }`}
-          style={{ padding: 'min(12px, 3cqmin) min(6px, 1.5cqmin)' }}
-        >
-          <span
-            className="font-sans font-bold text-brand-blue-dark tabular-nums"
-            style={{ fontSize: 'min(26px, 10cqmin)', lineHeight: 1.1 }}
+    {BUCKETS.filter(({ key }) => !keys || keys.includes(key)).map(
+      ({ key, label }) => {
+        const selected = openBucket === key;
+        return (
+          <button
+            key={key}
+            onClick={() => onToggle(key)}
+            {...anchor(key)}
+            aria-expanded={selected}
+            className={`flex flex-col items-center rounded-xl border transition-colors ${
+              selected
+                ? 'bg-brand-blue-lighter border-brand-blue-primary'
+                : 'bg-white border-brand-gray-lighter hover:border-brand-blue-light'
+            }`}
+            style={{ padding: 'min(12px, 3cqmin) min(6px, 1.5cqmin)' }}
           >
-            {counts[key]}
-          </span>
-          <span
-            className="font-sans font-medium text-brand-gray-primary"
-            style={{ fontSize: 'min(11px, 3.8cqmin)' }}
-          >
-            {labels?.[key] ?? label}
-          </span>
-          {notes?.[key]}
-          {key === 'inProgress' && (handCount > 0 || idleCount > 0) && (
             <span
-              className="flex items-center font-sans font-semibold tabular-nums"
-              style={{
-                gap: 'min(4px, 1cqmin)',
-                fontSize: 'min(10px, 3.5cqmin)',
-                marginTop: 'min(2px, 0.5cqmin)',
-              }}
+              className="font-sans font-bold text-brand-blue-dark tabular-nums"
+              style={{ fontSize: 'min(26px, 10cqmin)', lineHeight: 1.1 }}
             >
-              {handCount > 0 && (
-                <span className="text-brand-blue-primary">
-                  {handCount} hand{handCount === 1 ? '' : 's'}
-                </span>
-              )}
-              {handCount > 0 && idleCount > 0 && (
-                <span className="text-brand-gray-primary" aria-hidden>
-                  ·
-                </span>
-              )}
-              {idleCount > 0 && (
-                <span className="text-amber-700">{idleCount} idle</span>
-              )}
+              {counts[key]}
             </span>
-          )}
-        </button>
-      );
-    })}
+            <span
+              className="font-sans font-medium text-brand-gray-primary"
+              style={{ fontSize: 'min(11px, 3.8cqmin)' }}
+            >
+              {labels?.[key] ?? label}
+            </span>
+            {notes?.[key]}
+            {key === 'inProgress' && (handCount > 0 || idleCount > 0) && (
+              <span
+                className="flex items-center font-sans font-semibold tabular-nums"
+                style={{
+                  gap: 'min(4px, 1cqmin)',
+                  fontSize: 'min(10px, 3.5cqmin)',
+                  marginTop: 'min(2px, 0.5cqmin)',
+                }}
+              >
+                {handCount > 0 && (
+                  <span className="text-brand-blue-primary">
+                    {handCount} hand{handCount === 1 ? '' : 's'}
+                  </span>
+                )}
+                {handCount > 0 && idleCount > 0 && (
+                  <span className="text-brand-gray-primary" aria-hidden>
+                    ·
+                  </span>
+                )}
+                {idleCount > 0 && (
+                  <span className="text-amber-700">{idleCount} idle</span>
+                )}
+              </span>
+            )}
+          </button>
+        );
+      }
+    )}
   </div>
 );
