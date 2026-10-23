@@ -835,7 +835,10 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                       }
                       status={session.status}
                       onToggle={
-                        (onPause ?? onResume) && session.status !== 'ended'
+                        // One Pause stops every class, so it shows only beside All classes.
+                        (onPause ?? onResume) &&
+                        session.status !== 'ended' &&
+                        data.selectedPeriods.length !== 1
                           ? handleTogglePause
                           : undefined
                       }
