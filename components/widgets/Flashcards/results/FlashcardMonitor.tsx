@@ -357,9 +357,9 @@ export const FlashcardMonitor: React.FC<FlashcardMonitorProps> = ({
               </p>
             ) : (
               <ul>
-                {studentTests.map((test) => (
+                {studentTests.map((test, index) => (
                   <li
-                    key={`${test.at}`}
+                    key={`${test.at}-${index}`}
                     className="flex justify-between text-brand-gray-primary"
                   >
                     <span>{new Date(test.at).toLocaleString()}</span>

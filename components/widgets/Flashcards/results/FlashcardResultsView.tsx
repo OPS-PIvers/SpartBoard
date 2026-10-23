@@ -204,7 +204,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
   const handleCloseAll = async (onConfirmed: () => void): Promise<void> => {
     if (!onEnd) return;
     const confirmed = await showConfirm(
-      `Close “${assignment.setTitle}” for every class? Students lose access and their work is kept.`,
+      `Close “${assignment.setTitle}” for every class? Students lose access, but their progress is saved.`,
       {
         title: 'Close for all classes',
         variant: 'warning',
