@@ -54048,7 +54048,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button on a Hotspot Image popover",
     "scope": "widget",
     "panel": true,
-    "destructive": true,
     "routes": [
       {
         "surface": "widgets.hotspot-image.face",

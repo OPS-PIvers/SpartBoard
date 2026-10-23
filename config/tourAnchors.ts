@@ -11959,7 +11959,6 @@ export const TOUR_ANCHORS = {
   'hotspot-image.popover-close': {
     label: 'Close button on a Hotspot Image popover',
     perWidget: true,
-    destructive: true,
     panel: true,
   },
   'instructional-routines.blooms-key-words': {
