@@ -372,7 +372,8 @@ export function planLocalSync(input: {
   const nextOrder = new Map<string | null, number>();
   for (const s of link.sections ?? []) {
     const parent = s.parentId ?? null;
-    nextOrder.set(parent, Math.max(nextOrder.get(parent) ?? 0, s.order + 1));
+    const order = Number.isFinite(s.order) ? s.order : 0;
+    nextOrder.set(parent, Math.max(nextOrder.get(parent) ?? 0, order + 1));
   }
   const newSections: LinkedCollectionSection[] = [];
   // Parents first, so a new parent is listed before its new children.

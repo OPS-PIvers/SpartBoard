@@ -387,6 +387,23 @@ describe('planLocalSync', () => {
     expect(plan.newSections.map((s) => s.order)).toEqual([6]);
   });
 
+  it('still numbers a new sub-collection when a listed one has no order', () => {
+    const fresh = col('fresh', 'week', { name: 'Fresh' });
+    const legacy = { id: 'S-a', name: 'A', parentId: null } as unknown as {
+      id: string;
+      name: string;
+      parentId: null;
+      order: number;
+    };
+    const plan = planLocalSync({
+      link: link({ sections: [legacy] }),
+      root,
+      collections: [root, fresh],
+      dashboards: [],
+    });
+    expect(plan.newSections.map((s) => s.order)).toEqual([1]);
+  });
+
   it('matches the host’s own sub-collections by id', () => {
     const hostRoot = col('week', null, {
       linkedCollectionId: 'L1',
