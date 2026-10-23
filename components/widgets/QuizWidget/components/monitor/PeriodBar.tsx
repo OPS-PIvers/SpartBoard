@@ -116,32 +116,91 @@ const PeriodPicker: React.FC<
   );
 };
 
-/** Class filter for classes that share one Pause: the picker without per-class state. */
+/** Class picker for classes that share one Pause, with that shared state and its Pause or Resume. */
 export const ClassPicker: React.FC<{
   names: string[];
   /** The class name shown, or '' for every class. */
   selected: string;
   onSelect: (name: string) => void;
-}> = ({ names, selected, onSelect }) => (
-  <select
-    aria-label="Class"
-    {...tourTypeAttr('quiz-monitor.period-class-picker', 'quiz')}
-    value={selected}
-    onChange={(e) => onSelect(e.target.value)}
-    className="self-start min-w-0 max-w-full rounded-md border border-brand-gray-lighter bg-white font-sans font-bold text-brand-blue-dark"
-    style={{
-      fontSize: 'min(16px, 5.5cqmin)',
-      padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)',
-    }}
-  >
-    <option value="">All classes</option>
-    {names.map((name) => (
-      <option key={name} value={name}>
-        {name}
-      </option>
-    ))}
-  </select>
-);
+  paused: boolean;
+  /** Pause or Resume for every class at once; omitted when the session can't be paused here. */
+  onToggle?: () => Promise<void>;
+  toggleAnchor?: TourAnchorAttrs;
+}> = ({ names, selected, onSelect, paused, onToggle, toggleAnchor }) => {
+  const [busy, setBusy] = useState(false);
+  const state = paused ? 'Paused' : 'Live';
+  const text = { fontSize: 'min(16px, 5.5cqmin)' };
+  const toggle = async () => {
+    if (!onToggle) return;
+    setBusy(true);
+    try {
+      await onToggle();
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div
+      className="flex flex-wrap items-center justify-between"
+      style={{ gap: 'min(8px, 2cqmin)' }}
+    >
+      <div
+        className="flex flex-wrap items-center min-w-0"
+        style={{ gap: 'min(10px, 2.5cqmin)' }}
+      >
+        <select
+          aria-label="Class"
+          {...tourTypeAttr('quiz-monitor.period-class-picker', 'quiz')}
+          value={selected}
+          onChange={(e) => onSelect(e.target.value)}
+          className="min-w-0 max-w-full rounded-md border border-brand-gray-lighter bg-white font-sans font-bold text-brand-blue-dark"
+          style={{ ...text, padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)' }}
+        >
+          <option value="">All classes</option>
+          {names.map((name) => (
+            <option key={name} value={name}>
+              {name} · {state}
+            </option>
+          ))}
+        </select>
+        {!selected && (
+          <span
+            className="whitespace-nowrap font-sans font-bold text-brand-blue-dark"
+            style={text}
+          >
+            {state}
+          </span>
+        )}
+      </div>
+      {onToggle && (
+        <button
+          {...toggleAnchor}
+          onClick={() => void toggle()}
+          disabled={busy}
+          className={`inline-flex items-center rounded-md font-sans font-semibold transition-colors disabled:opacity-60 ${
+            paused
+              ? 'bg-brand-blue-primary hover:bg-brand-blue-light text-white'
+              : 'border border-brand-blue-primary/40 bg-white text-brand-blue-dark hover:bg-brand-blue-lighter'
+          }`}
+          style={{
+            gap: 'min(6px, 1.5cqmin)',
+            padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+            fontSize: 'min(13px, 4.5cqmin)',
+          }}
+        >
+          {busy ? (
+            <Loader2 className="animate-spin" style={iconStyle} />
+          ) : paused ? (
+            <Play style={iconStyle} />
+          ) : (
+            <Pause style={iconStyle} />
+          )}
+          {paused ? 'Resume' : 'Pause'}
+        </button>
+      )}
+    </div>
+  );
+};
 
 /** Start or Pause for the picked class, plus More time while it has a close time. */
 const PeriodAction: React.FC<

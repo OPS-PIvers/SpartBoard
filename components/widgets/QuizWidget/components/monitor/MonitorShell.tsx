@@ -271,7 +271,8 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   const classPicker =
     authContext?.canAccessFeature?.('monitor-parity') === true &&
     data.periodNames.length > 1 &&
-    !chipsFilter;
+    !chipsFilter &&
+    session.sessionMode !== 'game';
   // The class picker shows one class or all, so drop a multi-class filter.
   if ((chipsFilter || classPicker) && data.selectedPeriods.length > 1)
     data.setSelectedPeriods([]);
@@ -752,17 +753,6 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 }
               />
             )}
-            {classPicker && (
-              <ClassPicker
-                names={data.periodNames}
-                selected={
-                  data.selectedPeriods.length === 1
-                    ? data.selectedPeriods[0]
-                    : ''
-                }
-                onSelect={(name) => data.setSelectedPeriods(name ? [name] : [])}
-              />
-            )}
             {data.periodNames.length > 1 && !chipsFilter && !classPicker && (
               <div
                 className="flex flex-wrap"
@@ -826,24 +816,51 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 onAdvance={handleAdvance}
                 widgetId={widgetId}
                 periodControls={
-                  periodBar && (
-                    <PeriodBar
-                      {...periodBar}
-                      anchors={{
-                        start: tourTypeAttr(
-                          'quiz-monitor.period-start',
-                          'quiz'
-                        ),
-                        pause: tourTypeAttr(
-                          'quiz-monitor.period-pause',
-                          'quiz'
-                        ),
-                        extend: tourTypeAttr(
-                          'quiz-monitor.period-extend',
-                          'quiz'
-                        ),
-                      }}
+                  classPicker ? (
+                    <ClassPicker
+                      names={data.periodNames}
+                      selected={
+                        data.selectedPeriods.length === 1
+                          ? data.selectedPeriods[0]
+                          : ''
+                      }
+                      onSelect={(name) =>
+                        data.setSelectedPeriods(name ? [name] : [])
+                      }
+                      paused={session.status === 'paused'}
+                      onToggle={
+                        (onPause ?? onResume) &&
+                        !perPeriod &&
+                        session.status !== 'ended'
+                          ? handleTogglePause
+                          : undefined
+                      }
+                      toggleAnchor={tourAttr(
+                        'quiz.pause-resume',
+                        widgetId,
+                        tourType
+                      )}
                     />
+                  ) : (
+                    periodBar && (
+                      <PeriodBar
+                        {...periodBar}
+                        anchors={{
+                          start: tourTypeAttr(
+                            'quiz-monitor.period-start',
+                            'quiz'
+                          ),
+                          pause: tourTypeAttr(
+                            'quiz-monitor.period-pause',
+                            'quiz'
+                          ),
+                          extend: tourTypeAttr(
+                            'quiz-monitor.period-extend',
+                            'quiz'
+                          ),
+                        }}
+                      />
+                    )
                   )
                 }
               />
@@ -987,6 +1004,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
           {(onPause ?? onResume) &&
             !perPeriod &&
             !isGame &&
+            !classPicker &&
             session.status !== 'ended' && (
               <button
                 onClick={handleTogglePause}
