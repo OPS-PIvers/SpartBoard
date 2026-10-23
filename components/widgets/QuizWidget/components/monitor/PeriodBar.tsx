@@ -142,7 +142,9 @@ export const ClassPicker: React.FC<{
     ? 'Paused'
     : status === 'waiting'
       ? 'Not started'
-      : 'Live';
+      : status === 'ended'
+        ? 'Ended'
+        : 'Live';
   const text = { fontSize: 'min(16px, 5.5cqmin)' };
   const toggle = async () => {
     if (!onToggle) return;

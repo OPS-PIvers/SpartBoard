@@ -14459,9 +14459,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class picker select in the Quiz monitor",
     "scope": "widget type",
     "keys": [
+      "miniApp",
       "quiz"
     ],
     "routes": [
+      {
+        "surface": "library.mini-app.submissions",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp",
+          "mini-app.session-submissions:miniApp"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "quiz.monitor",
         "kind": "panel",
@@ -14482,9 +14497,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "More time button in the Quiz monitor",
     "scope": "widget type",
     "keys": [
+      "miniApp",
       "quiz"
     ],
     "routes": [
+      {
+        "surface": "library.mini-app.submissions",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp",
+          "mini-app.session-submissions:miniApp"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "quiz.monitor",
         "kind": "panel",
@@ -14592,6 +14622,20 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student status bucket button in the Quiz monitor",
     "scope": "field",
     "routes": [
+      {
+        "surface": "library.mini-app.submissions",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp",
+          "mini-app.session-submissions:miniApp"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "quiz.monitor",
         "kind": "panel",
@@ -14999,9 +15043,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "persists": true,
     "keys": [
+      "miniApp",
       "quiz"
     ],
     "routes": [
+      {
+        "surface": "library.mini-app.submissions",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp",
+          "mini-app.session-submissions:miniApp"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "quiz.monitor",
         "kind": "panel",
@@ -15023,9 +15082,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "persists": true,
     "keys": [
+      "miniApp",
       "quiz"
     ],
     "routes": [
+      {
+        "surface": "library.mini-app.submissions",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp",
+          "mini-app.session-submissions:miniApp"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "quiz.monitor",
         "kind": "panel",
@@ -15048,9 +15122,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "persists": true,
     "keys": [
+      "miniApp",
       "quiz"
     ],
     "routes": [
+      {
+        "surface": "library.mini-app.submissions",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp",
+          "mini-app.session-submissions:miniApp"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "quiz.monitor",
         "kind": "panel",
