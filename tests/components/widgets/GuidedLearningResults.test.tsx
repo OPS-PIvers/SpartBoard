@@ -153,7 +153,8 @@ describe('GuidedLearningResults.fetchSessionClassIds', () => {
       />
     );
     await waitFor(() => {
-      const lastCall = pseudonymsHook.mock.calls.at(-1);
+      // The second lookup is the monitor's picked class, empty here.
+      const lastCall = pseudonymsHook.mock.calls.at(-2);
       expect(lastCall?.[1]).toEqual(['class-a', 'class-b']);
     });
     expect(loggedErrors).toHaveLength(0);
@@ -172,7 +173,8 @@ describe('GuidedLearningResults.fetchSessionClassIds', () => {
       />
     );
     await waitFor(() => {
-      const lastCall = pseudonymsHook.mock.calls.at(-1);
+      // The second lookup is the monitor's picked class, empty here.
+      const lastCall = pseudonymsHook.mock.calls.at(-2);
       expect(lastCall?.[1]).toEqual(['legacy-class']);
     });
     expect(loggedErrors).toHaveLength(0);

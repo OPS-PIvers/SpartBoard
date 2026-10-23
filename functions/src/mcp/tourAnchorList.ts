@@ -14459,9 +14459,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class picker select in the Quiz monitor",
     "scope": "widget type",
     "keys": [
+      "miniApp",
       "quiz"
     ],
     "routes": [
+      {
+        "surface": "library.mini-app.submissions",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp",
+          "mini-app.session-submissions:miniApp"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "quiz.monitor",
         "kind": "panel",
@@ -14482,9 +14497,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "More time button in the Quiz monitor",
     "scope": "widget type",
     "keys": [
+      "miniApp",
       "quiz"
     ],
     "routes": [
+      {
+        "surface": "library.mini-app.submissions",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp",
+          "mini-app.session-submissions:miniApp"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "quiz.monitor",
         "kind": "panel",
@@ -14592,6 +14622,20 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student status bucket button in the Quiz monitor",
     "scope": "field",
     "routes": [
+      {
+        "surface": "library.mini-app.submissions",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp",
+          "mini-app.session-submissions:miniApp"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "quiz.monitor",
         "kind": "panel",
@@ -14999,9 +15043,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "persists": true,
     "keys": [
+      "miniApp",
       "quiz"
     ],
     "routes": [
+      {
+        "surface": "library.mini-app.submissions",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp",
+          "mini-app.session-submissions:miniApp"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "quiz.monitor",
         "kind": "panel",
@@ -15023,9 +15082,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "persists": true,
     "keys": [
+      "miniApp",
       "quiz"
     ],
     "routes": [
+      {
+        "surface": "library.mini-app.submissions",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp",
+          "mini-app.session-submissions:miniApp"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "quiz.monitor",
         "kind": "panel",
@@ -15048,9 +15122,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "persists": true,
     "keys": [
+      "miniApp",
       "quiz"
     ],
     "routes": [
+      {
+        "surface": "library.mini-app.submissions",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp",
+          "mini-app.session-submissions:miniApp"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "quiz.monitor",
         "kind": "panel",
@@ -44760,6 +44849,238 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "video-activity.monitor-back",
+    "label": "Back button in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-status-bucket",
+    "label": "Student status count in the video activity monitor",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-class-picker",
+    "label": "Class picker select in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-period-start",
+    "label": "Start button for the picked class in the video activity monitor",
+    "scope": "widget type",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-period-pause",
+    "label": "Pause button for the picked class in the video activity monitor",
+    "scope": "widget type",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-period-more-time",
+    "label": "More time button in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-period-extend",
+    "label": "Extend time option in the video activity monitor More time menu",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-question-results",
+    "label": "Question results button in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-question-result",
+    "label": "Question result row in the video activity monitor",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-roster-sort",
+    "label": "Sort students select in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-roster-filter",
+    "label": "Filter students select in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-row-actions",
+    "label": "Student actions button in the video activity monitor",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "video-activity.results-tab",
     "label": "Overview, Questions and Students tabs in video activity results",
     "scope": "field",
@@ -47095,6 +47416,157 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Pause all periods button in results",
     "scope": "board",
     "persists": true,
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.class-picker",
+    "label": "Class picker select in results",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.period-start",
+    "label": "Start class button in results",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.period-pause",
+    "label": "Pause class button in results",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.period-more-time",
+    "label": "More time button in results",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.period-extend",
+    "label": "Extend time option in the results More time menu",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.status-bucket",
+    "label": "Student status bucket button in results",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.question-results",
+    "label": "Question results button in results",
+    "scope": "board",
     "routes": [
       {
         "surface": "guidedLearning.results",
@@ -58284,6 +58756,191 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Back button in Flashcards results",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.class-picker",
+    "label": "Class picker select in the Flashcards monitor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.period-start",
+    "label": "Start button for the picked class in the Flashcards monitor",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.period-pause",
+    "label": "Pause button for the picked class in the Flashcards monitor",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.period-more-time",
+    "label": "More time button in the Flashcards monitor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.period-extend",
+    "label": "Extend time option in the Flashcards monitor More time menu",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.status-bucket",
+    "label": "Student status bucket button in the Flashcards monitor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.card-results",
+    "label": "Card results button in the Flashcards monitor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.close-all",
+    "label": "Close all button in the Flashcards monitor",
+    "scope": "widget type",
+    "panel": true,
+    "destructive": true,
     "keys": [
       "flashcards"
     ],
