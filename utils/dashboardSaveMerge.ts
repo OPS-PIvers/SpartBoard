@@ -114,7 +114,8 @@ const pick = (w: WidgetData, fields: readonly MergeFieldKey[]) => {
   return out as Partial<WidgetData>;
 };
 
-const mergeWidget = (
+// Field-group three-way merge of one widget: locally changed groups win, the rest take the server's.
+export const mergeWidget = (
   local: WidgetData,
   server: WidgetData,
   base: WidgetData

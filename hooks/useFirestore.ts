@@ -25,6 +25,10 @@ import { migrateBoardForCollections } from '@/utils/collectionsMigration';
 import { migrateDashboardWidgets } from '@/utils/migrateProportionalLayout';
 import { migrateBoardWidgets } from '@/utils/migration';
 import {
+  mergeSharedBoard,
+  type SharedBoardBaseline,
+} from '@/utils/sharedBoardMerge';
+import {
   Dashboard,
   SharedBoardIntendedMode,
   SharedBoardParticipant,
@@ -642,13 +646,29 @@ export const useFirestore = (userId: string | null) => {
   /**
    * Push the host or collaborator's local dashboard state into the shared
    * doc. Strips the doc id and link bookkeeping so they don't leak to the
-   * other side. `updatedBy` is the local user's uid so subscribers can
-   * skip echoes of their own writes.
+   * other side. With a baseline, the write folds in a co-teacher's edits the
+   * local copy has not received yet instead of overwriting them.
    */
   const mirrorSharedBoard = useCallback(
-    async (shareId: string, dashboard: Dashboard): Promise<void> => {
-      if (isViewAsTab) return;
+    async (
+      shareId: string,
+      dashboard: Dashboard,
+      baseline?: SharedBoardBaseline
+    ): Promise<Dashboard | undefined> => {
+      if (isViewAsTab) return undefined;
+      const withServer = (raw: unknown): Dashboard =>
+        baseline && raw
+          ? {
+              ...dashboard,
+              ...mergeSharedBoard(
+                dashboard,
+                mapSharedDocToDashboard(raw, shareId),
+                baseline
+              ),
+            }
+          : dashboard;
       if (isAuthBypass) {
+        const written = withServer(mockSharedStore.get(shareId));
         const {
           id: _id,
           linkedShareId: _ls,
@@ -657,33 +677,48 @@ export const useFirestore = (userId: string | null) => {
           linkedShareHostUid: _lshu,
           linkedShareEnded: _lse,
           ...patch
-        } = dashboard;
+        } = written;
         mockSharedStore.update(shareId, {
           ...patch,
           updatedAt: Date.now(),
           updatedBy: userId ?? 'mock',
         });
-        return;
+        return written;
       }
 
-      if (!userId) return;
+      if (!userId) return undefined;
       const docRef = doc(db, 'shared_boards', shareId);
-      const {
-        id: _id,
-        linkedShareId: _ls,
-        linkedShareRole: _lsr,
-        linkedShareHostName: _lsh,
-        linkedShareHostUid: _lshu,
-        linkedShareEnded: _lse,
-        ...patch
-      } = dashboard;
-      // updateDoc preserves participants/originalAuthor/sharedAt so guests
-      // and host bookkeeping survive across mirrors.
-      await updateDoc(docRef, {
-        ...patch,
-        updatedAt: Date.now(),
-        updatedBy: userId,
-      });
+      const toPatch = (board: Dashboard) => {
+        const {
+          id: _id,
+          linkedShareId: _ls,
+          linkedShareRole: _lsr,
+          linkedShareHostName: _lsh,
+          linkedShareHostUid: _lshu,
+          linkedShareEnded: _lse,
+          ...patch
+        } = board;
+        return { ...patch, updatedAt: Date.now(), updatedBy: userId };
+      };
+      // update (not set) preserves participants/originalAuthor/sharedAt so
+      // guests and host bookkeeping survive across mirrors.
+      if (!baseline) {
+        await updateDoc(docRef, toPatch(dashboard));
+        return dashboard;
+      }
+      try {
+        return await runTransaction(db, async (tx) => {
+          const snap = await tx.get(docRef);
+          const written = withServer(snap.exists() ? snap.data() : null);
+          tx.update(docRef, toPatch(written));
+          return written;
+        });
+      } catch (err) {
+        // Offline: queue the plain write, as saveDashboard does.
+        if (!isOfflineError(err)) throw err;
+        await updateDoc(docRef, toPatch(dashboard));
+        return dashboard;
+      }
     },
     [userId]
   );

@@ -191,6 +191,11 @@ import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
 import { closeWallsToBoard } from '@/utils/activityWallBoardAccess';
 import { mergeAnnotationObjects } from '@/utils/annotationMerge';
 import {
+  mergeSharedWidgets,
+  sharedBoardBaseline,
+  type SharedBoardBaseline,
+} from '@/utils/sharedBoardMerge';
+import {
   estimateAnnotationBytes,
   estimateWidgetBytes,
   getAnnotationCapReason,
@@ -3862,6 +3867,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   });
   /** Share ids whose listener has delivered at least one snapshot since it subscribed. */
   const sharedSnapshotSeenRef = useRef<Set<string>>(new Set());
+  /** Per share, the doc as last received: the base for merging co-teachers' edits. */
+  const sharedBaselineRef = useRef<Map<string, SharedBoardBaseline>>(new Map());
+  /** Per share, a count of snapshots received, so a finished write never replaces a newer base. */
+  const sharedSnapshotGenRef = useRef<Map<string, number>>(new Map());
 
   /** Pending debounced mirror timers per shareId. */
   const mirrorTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
@@ -3919,14 +3928,27 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       if (existing) clearTimeout(existing);
 
+      // The baseline that matches `scrubbed`: one received after it would read a co-teacher's edit as ours.
+      const baseline = sharedBaselineRef.current.get(shareId);
       const timer = setTimeout(() => {
         mirrorTimersRef.current.delete(shareId);
         lastMirroredRef.current.set(shareId, payload);
-        void mirrorSharedBoard(shareId, scrubbed).catch((err) => {
-          console.warn('Mirror to shared board failed:', err);
-          // Drop the cached payload so we retry on the next change.
-          lastMirroredRef.current.delete(shareId);
-        });
+        const gen = sharedSnapshotGenRef.current.get(shareId);
+        void mirrorSharedBoard(shareId, scrubbed, baseline)
+          .then((written) => {
+            // What we sent is the newest base until a snapshot says otherwise, so an undo before the echo stays.
+            if (written && sharedSnapshotGenRef.current.get(shareId) === gen) {
+              sharedBaselineRef.current.set(
+                shareId,
+                sharedBoardBaseline(written)
+              );
+            }
+          })
+          .catch((err) => {
+            console.warn('Mirror to shared board failed:', err);
+            // Drop the cached payload so we retry on the next change.
+            lastMirroredRef.current.delete(shareId);
+          });
       }, 500);
       mirrorTimersRef.current.set(shareId, timer);
     });
@@ -3939,6 +3961,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         mirrorTimersRef.current.delete(shareId);
         lastMirroredRef.current.delete(shareId);
       }
+    }
+    for (const shareId of sharedBaselineRef.current.keys()) {
+      if (!liveShareIds.has(shareId)) sharedBaselineRef.current.delete(shareId);
     }
   }, [dashboards, user, mirrorSharedBoard, linkedTreeIds]);
 
@@ -4154,110 +4179,160 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           linkedShareHandlersRef.current.recordShareHost(known, remoteHost);
         }
 
-        // Skip echoes of our own writes — `updatedBy` is stamped by the
-        // mirror effect with the writer's uid, so this filter applies
-        // symmetrically to owner, collaborator, and viewer roles.
+        // Merge against the copy we last received so a local edit not yet
+        // mirrored survives, and our own echo (which may carry a co-teacher's
+        // edit folded in by the mirror) is applied like any other snapshot.
+        // Viewers never edit, so they always take the share as is.
+        const baseline =
+          known?.linkedShareRole === 'viewer'
+            ? undefined
+            : sharedBaselineRef.current.get(shareId);
+        sharedBaselineRef.current.set(shareId, sharedBoardBaseline(remote));
+        sharedSnapshotGenRef.current.set(
+          shareId,
+          (sharedSnapshotGenRef.current.get(shareId) ?? 0) + 1
+        );
         const remoteWith = remote as Dashboard & {
           updatedBy?: string;
         };
-        if (remoteWith.updatedBy === user.uid) return;
+        if (!baseline && remoteWith.updatedBy === user.uid) return;
 
         // Apply remote content patch to the local dashboard. This runs for
         // every role:
         //   - owner       receives collaborator edits (Synced bidirectional)
         //   - collaborator receives owner + peer edits (Synced bidirectional)
         //   - viewer       receives owner edits (View-Only one-way)
-        // The echo filter above prevents a writer from re-applying its own
-        // mirrored update.
         const hasBaseline = lastMirroredRef.current.has(shareId);
-        // A co-teacher's widget edit invalidates local undo for that board.
-        // Both sides go through the same PII scrub and key-stable serializer:
-        // comparing the remote (scrubbed, Firestore-sorted) against the local
-        // copy (PII merged back in) marked every snapshot of a roster-bearing
-        // board as a remote edit and wiped the undo stack.
-        const localBeforeMirror = dashboardsRef.current.find(
-          (x) => x.id === dashboardId
-        );
-        if (
-          remote.widgets &&
-          localBeforeMirror &&
-          widgetMirrorSignature(remote.widgets) !==
-            widgetMirrorSignature(localBeforeMirror.widgets)
-        ) {
-          widgetHistoryRef.current.delete(dashboardId);
-        }
-        setDashboards((prev) =>
-          prev.map((x) => {
-            if (x.id !== dashboardId) return x;
-            const { vpW, vpH } = getCurrentViewport();
-            // Hydrate pixel x/y/w/h for this viewport: the remote may have
-            // been authored on a screen with different dimensions, so its
-            // pixel fields are stale. Proportional fields are the source of
-            // truth and stay identical across devices.
-            const remoteHydrated: Dashboard = remote.widgets
-              ? hydrateDashboardForViewport(
-                  { ...x, widgets: remote.widgets },
-                  vpW,
-                  vpH
+        setDashboards((prev) => {
+          const x = prev.find((b) => b.id === dashboardId);
+          if (!x) return prev;
+          const { vpW, vpH } = getCurrentViewport();
+          // Hydrate pixel x/y/w/h for this viewport: the remote may have
+          // been authored on a screen with different dimensions, so its
+          // pixel fields are stale. Proportional fields are the source of
+          // truth and stay identical across devices.
+          const hydrate = (widgets: WidgetData[]): WidgetData[] =>
+            hydrateDashboardForViewport({ ...x, widgets }, vpW, vpH).widgets;
+          const remoteWidgets = remote.widgets
+            ? hydrate(remote.widgets)
+            : x.widgets;
+          // Without a baseline (first snapshot on this device) the share wins.
+          const widgets =
+            remote.widgets && baseline
+              ? hydrate(
+                  mergeSharedWidgets(
+                    x.widgets,
+                    remote.widgets,
+                    baseline.widgets
+                  )
                 )
-              : x;
-            const next: Dashboard = {
-              ...x,
-              widgets: keepLocalUseStamps(remoteHydrated.widgets, x.widgets),
-              background: remote.background ?? x.background,
-              globalStyle: remote.globalStyle ?? x.globalStyle,
-              settings: remote.settings ?? x.settings,
-              // Live annotation overlay — hosts and collaborators push
-              // strokes through this field so all participants see strokes
-              // appear in real time. Merged per object against the last
-              // payload we mirrored: taking the remote array wholesale made
-              // two co-annotating teachers erase each other's strokes.
-              // Falls back to the local copy when the remote omits it
-              // (legacy docs).
-              annotationOverlay: remote.annotationOverlay
-                ? {
-                    ...remote.annotationOverlay,
-                    canvasWidth:
-                      remote.annotationOverlay.canvasWidth ??
-                      x.annotationOverlay?.canvasWidth,
-                    canvasHeight:
-                      remote.annotationOverlay.canvasHeight ??
-                      x.annotationOverlay?.canvasHeight,
-                    // Without a mirrored payload (first snapshot on this
-                    // device, or after a mirror failure/unlink cleared it)
-                    // every local object would look like a local add and
-                    // resurrect ink a collaborator just erased. Fall back to
-                    // the ink we had at subscribe time as the baseline.
-                    objects: mergeAnnotationObjects(
-                      x.annotationOverlay?.objects ?? [],
-                      remote.annotationOverlay.objects ?? [],
-                      hasBaseline
-                        ? mirroredAnnotationBaseline(
-                            lastMirroredRef.current.get(shareId)
-                          )
-                        : (mountInkBaselineRef.current.get(shareId) ?? [])
-                    ),
-                  }
-                : x.annotationOverlay,
-              linkedShareEnded: false,
-            };
-            // Prime the mirror dedupe so the state change we just made
-            // doesn't trigger an immediate echo write back to the shared
-            // doc. Without this, every remote apply costs an extra
-            // Firestore write of identical content. Prime it with the
-            // remote ink, not the merged ink: local-only strokes the shared
-            // doc never saw must stay pending for the mirror effect.
-            lastMirroredRef.current.set(
-              shareId,
-              serializeDashboard(
-                remote.annotationOverlay
-                  ? { ...next, annotationOverlay: remote.annotationOverlay }
-                  : next
+              : keepLocalUseStamps(remoteWidgets, x.widgets);
+          const keepLocal = <T,>(local: T, server: T, base: T): T =>
+            baseline &&
+            stableStringify(local ?? null) !== stableStringify(base ?? null)
+              ? local
+              : server;
+          const background =
+            keepLocal<string | undefined>(
+              x.background,
+              remote.background ?? x.background,
+              baseline?.background
+            ) ?? x.background;
+          const globalStyle = keepLocal(
+            x.globalStyle,
+            remote.globalStyle ?? x.globalStyle,
+            baseline?.globalStyle
+          );
+          const settings = keepLocal(
+            x.settings,
+            remote.settings ?? x.settings,
+            baseline?.settings
+          );
+          // A co-teacher's widget edit invalidates local undo for that board.
+          // Both sides go through the same PII scrub and key-stable serializer:
+          // comparing the remote (scrubbed, Firestore-sorted) against the local
+          // copy (PII merged back in) marked every snapshot of a roster-bearing
+          // board as a remote edit and wiped the undo stack.
+          const widgetsChanged =
+            widgetMirrorSignature(widgets) !== widgetMirrorSignature(x.widgets);
+          if (widgetsChanged) widgetHistoryRef.current.delete(dashboardId);
+          const next: Dashboard = {
+            ...x,
+            widgets,
+            background,
+            globalStyle,
+            settings,
+            // Live annotation overlay — hosts and collaborators push
+            // strokes through this field so all participants see strokes
+            // appear in real time. Merged per object against the last
+            // payload we mirrored: taking the remote array wholesale made
+            // two co-annotating teachers erase each other's strokes.
+            // Falls back to the local copy when the remote omits it
+            // (legacy docs).
+            annotationOverlay: remote.annotationOverlay
+              ? {
+                  ...remote.annotationOverlay,
+                  canvasWidth:
+                    remote.annotationOverlay.canvasWidth ??
+                    x.annotationOverlay?.canvasWidth,
+                  canvasHeight:
+                    remote.annotationOverlay.canvasHeight ??
+                    x.annotationOverlay?.canvasHeight,
+                  // Without a mirrored payload (first snapshot on this
+                  // device, or after a mirror failure/unlink cleared it)
+                  // every local object would look like a local add and
+                  // resurrect ink a collaborator just erased. Fall back to
+                  // the ink we had at subscribe time as the baseline.
+                  objects: mergeAnnotationObjects(
+                    x.annotationOverlay?.objects ?? [],
+                    remote.annotationOverlay.objects ?? [],
+                    hasBaseline
+                      ? mirroredAnnotationBaseline(
+                          lastMirroredRef.current.get(shareId)
+                        )
+                      : (mountInkBaselineRef.current.get(shareId) ?? [])
+                  ),
+                }
+              : x.annotationOverlay,
+            linkedShareEnded: false,
+          };
+          // Prime the mirror dedupe with the share's own content, scrubbed
+          // exactly as the mirror effect scrubs: a received snapshot is never
+          // written back, while local edits the share has not seen stay
+          // pending. Priming with the unscrubbed merged board made two open
+          // tabs echo every snapshot back at each other, so a fresh edit was
+          // overwritten within a second.
+          lastMirroredRef.current.set(
+            shareId,
+            serializeDashboard(
+              withoutUseStamps(
+                scrubDashboardPII(
+                  withoutTransient({
+                    ...next,
+                    widgets: remoteWidgets,
+                    background: remote.background ?? x.background,
+                    globalStyle: remote.globalStyle ?? x.globalStyle,
+                    settings: remote.settings ?? x.settings,
+                    annotationOverlay:
+                      remote.annotationOverlay ?? next.annotationOverlay,
+                  })
+                )
               )
-            );
-            return next;
-          })
-        );
+            )
+          );
+          if (
+            !widgetsChanged &&
+            background === x.background &&
+            globalStyle === x.globalStyle &&
+            settings === x.settings &&
+            stableStringify(next.annotationOverlay ?? null) ===
+              stableStringify(x.annotationOverlay ?? null) &&
+            !x.linkedShareEnded
+          ) {
+            return prev;
+          }
+          return prev.map((b) => (b.id === dashboardId ? next : b));
+        });
       });
     },
     [
@@ -4291,10 +4366,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     const shareId = d?.linkedShareId;
     if (!d || !shareId) return;
     const seen = sharedSnapshotSeenRef.current;
+    const baselines = sharedBaselineRef.current;
     const unsub = subscribeLinkedBoard(d);
     return () => {
       unsub();
       seen.delete(shareId);
+      baselines.delete(shareId);
     };
   }, [activeTreeShareKey, user, subscribeLinkedBoard]);
 
