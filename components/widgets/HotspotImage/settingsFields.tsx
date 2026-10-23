@@ -200,6 +200,7 @@ const HotspotBaseImageField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
               ? t('replaceImage')
               : t('uploadImage')}
         </Button>
+        {/* no-tour-anchor: hidden file input opened by its visible upload button */}
         <input
           ref={fileInputRef}
           type="file"
@@ -402,6 +403,7 @@ export const HotspotImagePinsField: React.FC<{ ctx: CustomRenderCtx }> = ({
                 const Icon = option.icon;
                 const selected = hotspot.icon === option.value;
                 return (
+                  // no-tour-anchor: icon choice repeats for every hotspot row
                   <button
                     key={option.value}
                     type="button"

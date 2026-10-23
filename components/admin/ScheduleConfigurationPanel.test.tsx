@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ScheduleConfigurationPanel } from './ScheduleConfigurationPanel';
 import { ScheduleGlobalConfig } from '@/types';
@@ -113,6 +113,39 @@ describe('ScheduleConfigurationPanel', () => {
     expect(testSchedule?.items).toHaveLength(2);
     // items are now appended to the end to respect manual ordering
     expect(testSchedule?.items[1].task).toBe('New Task');
+  });
+
+  it('clears legacy items when the migrated legacy schedule is deleted', async () => {
+    const legacyConfig: ScheduleGlobalConfig = {
+      buildingDefaults: {
+        b1: {
+          buildingId: 'b1',
+          items: [
+            {
+              id: 'old1',
+              task: 'Old task',
+              startTime: '09:00',
+              endTime: '10:00',
+              mode: 'clock',
+            },
+          ],
+          schedules: [],
+        },
+      },
+    };
+    render(
+      <ScheduleConfigurationPanel
+        config={legacyConfig}
+        onChange={mockOnChange}
+      />
+    );
+
+    fireEvent.click(screen.getByTitle('Delete schedule'));
+
+    await waitFor(() => expect(mockOnChange).toHaveBeenCalled());
+    const saved = mockOnChange.mock.calls[0][0] as ScheduleGlobalConfig;
+    expect(saved.buildingDefaults.b1.schedules).toEqual([]);
+    expect(saved.buildingDefaults.b1.items).toEqual([]);
   });
 
   it('sorts items by time when Sort button is clicked', () => {

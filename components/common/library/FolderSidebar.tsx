@@ -42,7 +42,12 @@ import {
 } from './DeleteFolderDialog';
 import type { LibraryFolderViewModel } from './LibraryFolderViewContext';
 import { LIBRARY_ROOT_LABEL } from './FolderViewHeader';
-import { folderPath, sameLocation, type LibraryLocation } from './folderView';
+import {
+  buildFolderIndex,
+  folderPath,
+  sameLocation,
+  type LibraryLocation,
+} from './folderView';
 import { SOURCE_LABELS, SOURCE_ORDER, isSourceFolderId } from './sourceFolders';
 import type { PlacedItem } from './useSourceFolders';
 
@@ -358,7 +363,10 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
           : `Deleted “${target.name}”`
       );
     }
-    if (selectedFolderId === target.id) onSelectFolder(target.parentId);
+    if (selectedFolderId === target.id) {
+      const parentExists = folders.some((f) => f.id === target.parentId);
+      onSelectFolder(parentExists ? target.parentId : null);
+    }
     setConfirmDelete(null);
     setCommitError(null);
   };
@@ -535,15 +543,15 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         onReorder={
           onReorderSiblings
             ? (folderId, toIndex) => {
-                const folder = folders.find((f) => f.id === folderId);
+                const index = buildFolderIndex(folders);
+                const folder = index.byId.get(folderId);
                 if (!folder) return;
-                const parentId = folder.parentId ?? null;
-                const ids = folders
-                  .filter(
-                    (f) =>
-                      (f.parentId ?? null) === parentId &&
-                      !isSourceFolderId(f.id)
-                  )
+                const parentId =
+                  folder.parentId != null && index.byId.has(folder.parentId)
+                    ? folder.parentId
+                    : null;
+                const ids = (index.childrenOf.get(parentId) ?? [])
+                  .filter((f) => !isSourceFolderId(f.id))
                   .sort((a, b) => a.order - b.order)
                   .map((f) => f.id);
                 const from = ids.indexOf(folderId);

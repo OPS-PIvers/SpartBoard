@@ -198,6 +198,48 @@ describe('useSharedBoardItemPublisher', () => {
     expect(fs.setDoc).toHaveBeenCalledTimes(2);
   });
 
+  it('republishes when content reverts to a version published earlier', async () => {
+    fs.getDoc.mockResolvedValue(snap(null));
+    const { rerender } = renderHook(
+      (v: string) => useSharedBoardItemPublisher(args(v)),
+      { initialProps: 'A', wrapper }
+    );
+    await act(flush);
+    rerender('B');
+    await act(flush);
+    rerender('A');
+    await act(flush);
+    expect(fs.setDoc).toHaveBeenCalledTimes(3);
+    expect(fs.setDoc.mock.calls[2][1]).toMatchObject({ version: 'A' });
+    rerender('A');
+    await act(flush);
+    expect(fs.setDoc).toHaveBeenCalledTimes(3);
+  });
+
+  it('keeps a newer version marked when an older write fails late', async () => {
+    vi.spyOn(console, 'error').mockImplementation(noop);
+    fs.getDoc.mockResolvedValue(snap(null));
+    let failA: (e: Error) => void = noop;
+    fs.setDoc.mockImplementationOnce(
+      () => new Promise((_res, rej) => (failA = rej))
+    );
+    const { rerender, unmount } = renderHook(
+      (v: string) => useSharedBoardItemPublisher(args(v)),
+      { initialProps: 'A', wrapper }
+    );
+    await act(flush);
+    rerender('B');
+    await act(flush);
+    await act(() => {
+      failA(new Error('offline'));
+      return flush();
+    });
+    unmount();
+    renderHook(() => useSharedBoardItemPublisher(args('B')), { wrapper });
+    await act(flush);
+    expect(fs.setDoc).toHaveBeenCalledTimes(2);
+  });
+
   it('names the owner in the widget config when it doesn’t already', async () => {
     fs.getDoc.mockResolvedValue(snap(null));
     renderHook(
