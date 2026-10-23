@@ -11,6 +11,7 @@ import {
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   FlashcardAssignment,
+  FlashcardCardProgress,
   FlashcardSession,
   PeriodAccess,
 } from '@/types';
@@ -109,7 +110,7 @@ const assignment = (
   ...over,
 });
 
-const mastered = { s: 5, c: 5, w: 0 };
+const mastered: FlashcardCardProgress = { s: 4, c: 5, w: 0, due: 0 };
 const show = (onEnd?: () => Promise<void>, over = {}) =>
   render(
     <FlashcardResultsView
@@ -200,7 +201,7 @@ describe('FlashcardResultsView — monitor-parity layout', () => {
         studentUid: 'midway-1',
         classId: 'cl-1',
         studyMs: 1,
-        cards: { c2: { s: 0, c: 0, w: 3 } },
+        cards: { c2: { s: 0, c: 0, w: 3, due: 0 } },
       },
     ];
     show();
