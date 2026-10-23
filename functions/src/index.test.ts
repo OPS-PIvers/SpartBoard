@@ -3873,6 +3873,9 @@ describe('index barrel — deployed export set', () => {
     'runPlcMeetingNotesJob',
     'plcGoalCoachV1',
     'writeWebTourTextV1',
+    'webToursListV1',
+    'webTourLoadV1',
+    'webTourRunV1',
     // Dev-only prod → dev materials sync
     'syncMyMaterialsFromProdV1',
     'gradebookDemoV1',
