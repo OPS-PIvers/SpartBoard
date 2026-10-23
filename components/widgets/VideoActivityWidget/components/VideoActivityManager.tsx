@@ -667,6 +667,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       userId: userId,
       folders: folderState.folders,
       foldersLoading: folderState.loading,
+      reorderSiblings: folderState.reorderSiblings,
       getId: ACTIVITY_GET_ID,
       getRecentAt: activityRecentAt,
       itemNoun: ACTIVITY_NOUN,

@@ -22,7 +22,7 @@ describe('createExternalHandler', () => {
     const { handle } = handlerWith('none');
     await expect(handle({ type: 'ping' }, top)).resolves.toEqual({
       ok: true,
-      protocol: 5,
+      protocol: 6,
       version: '0.1.0',
       profile: 'none',
     });
@@ -106,7 +106,7 @@ describe('web-tour/start', () => {
       expect(startWebTour).not.toHaveBeenCalled();
     }
   });
-  it('starts a check run the same way, for staff only (protocol 5)', async () => {
+  it('starts a check run the same way, for staff only (protocol 6)', async () => {
     const check = { ...start, type: 'web-tour/check', runId: 'r1' };
     for (const [profile, reply] of [
       ['staff', { ok: true, tabId: 12 }],

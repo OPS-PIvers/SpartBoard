@@ -37,7 +37,12 @@ vi.mock('firebase-admin', () => ({
   }),
 }));
 
-import { chooseModels, generateAi, toClaudeJsonSchema } from './aiRouter';
+import {
+  AiUnavailableError,
+  chooseModels,
+  generateAi,
+  toClaudeJsonSchema,
+} from './aiRouter';
 import {
   parseIntegrationModels,
   resetAiModelConfigCache,
@@ -101,6 +106,7 @@ describe('chooseModels', () => {
     expect(chooseModels({ integration: 'quiz' }, config())).toEqual({
       model: 'gemini-3.5-flash-lite',
       geminiFallback: 'gemini-3.5-flash-lite',
+      fromTier: true,
     });
     expect(chooseModels({ integration: 'mini-app' }, config()).model).toBe(
       'gemini-3.8-flash'
@@ -118,6 +124,33 @@ describe('chooseModels', () => {
         cfg
       ).model
     ).toBe('gemini-2.5-flash');
+  });
+
+  it("runs an integration's own default model only while the AI tab allows it", () => {
+    const allowing = (allowedModels?: string[]) => ({
+      ...config(),
+      ...(allowedModels ? { allowedModels } : {}),
+    });
+    expect(
+      chooseModels(
+        { integration: 'web-tour-writing' },
+        allowing(['gemini-3.8-flash', 'claude-sonnet-5-5'])
+      )
+    ).toEqual({
+      model: 'claude-sonnet-5-5',
+      geminiFallback: 'gemini-3.8-flash',
+      fromTier: false,
+    });
+    for (const cfg of [allowing(['gemini-3.8-flash']), allowing()])
+      expect(
+        chooseModels({ integration: 'web-tour-writing' }, cfg)
+      ).toMatchObject({ model: 'gemini-3.8-flash', fromTier: true });
+    expect(
+      chooseModels(
+        { integration: 'web-tour-writing' },
+        config({ 'web-tour-writing': 'gemini-3.8-flash' })
+      )
+    ).toMatchObject({ model: 'gemini-3.8-flash', fromTier: false });
   });
 
   it('lets a tier override pick the fallback', () => {
@@ -259,6 +292,56 @@ describe('generateAi', () => {
     expect(logSets[1]).toMatchObject({
       id: expect.stringMatching(/__mini-app__gemini-3_7-flash$/) as unknown,
       data: { fallbacks: { inc: 1 }, errors: { inc: 0 } },
+    });
+  });
+
+  describe('an integration without fallback', () => {
+    const allowsClaude = { allowedModels: ['claude-sonnet-5-5'] };
+    const call = (cfg: Record<string, unknown>) =>
+      generateAi(fakeDb(cfg), {
+        integration: 'web-tour-writing',
+        parts: [{ text: 'hi' }],
+      });
+
+    it('runs its Claude default', async () => {
+      secretValue.current = 'sk-ant-test';
+      claudeStreamMock.mockReturnValue(claudeOk());
+      await expect(call(allowsClaude)).resolves.toMatchObject({
+        provider: 'claude',
+        model: 'claude-sonnet-5-5',
+      });
+    });
+
+    it('fails instead of running Gemini when Claude fails or has no key', async () => {
+      secretValue.current = 'sk-ant-test';
+      claudeStreamMock.mockReturnValue({
+        finalMessage: () => Promise.reject(new Error('overloaded')),
+      });
+      await expect(call(allowsClaude)).rejects.toBeInstanceOf(
+        AiUnavailableError
+      );
+      secretValue.current = 'placeholder';
+      await expect(call(allowsClaude)).rejects.toThrow(/API key/);
+      expect(generateContentMock).not.toHaveBeenCalled();
+    });
+
+    it('fails when Claude is not allowed and the AI tab picks nothing', async () => {
+      secretValue.current = 'sk-ant-test';
+      await expect(
+        call({ allowedModels: ['gemini-3.7-flash'] })
+      ).rejects.toThrow(/pick one on the AI tab/);
+      expect(claudeStreamMock).not.toHaveBeenCalled();
+      expect(generateContentMock).not.toHaveBeenCalled();
+    });
+
+    it('runs Gemini only when the AI tab picks it', async () => {
+      generateContentMock.mockResolvedValue(geminiOk());
+      await expect(
+        call({
+          allowedModels: ['gemini-3.7-flash'],
+          integrationModels: { 'web-tour-writing': 'gemini-3.7-flash' },
+        })
+      ).resolves.toMatchObject({ provider: 'gemini', fellBack: false });
     });
   });
 

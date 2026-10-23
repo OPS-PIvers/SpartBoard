@@ -301,6 +301,9 @@ export {
 // PLC goal coach: checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22).
 export { plcGoalCoachV1 } from './plcGoalCoach';
 
+// Web tours: Claude writes step titles and tips (docs/plans/WEB_TOURS_CLAUDE.md C9).
+export { writeWebTourTextV1 } from './webTourWriting';
+
 // ── One-shot PLC migration (arrays→members map, orgId inference, aggregates
 // skeleton). Admin-only callable; see functions/src/migratePlcs.ts. ─────────
 export { migratePlcs } from './migratePlcs';

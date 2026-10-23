@@ -172,7 +172,7 @@ When the admin has played the tour or left notes ("finish the tour", "I played i
 
 ## Web tours
 
-A web tour plays on another website through the SpartBoard Chrome extension. An admin records it; Claude can only finish its words. Find it with `list_web_tours`, read it with `get_web_tour`, look at each step with `get_web_tour_step_picture`, then save new titles and tips with `update_web_tour_text`. Write each tip for what the picture shows, in the same voice as a live tour. Claude can't change where a step points, re-record, reorder or publish: hand those back to the admin, who publishes in SpartBoard.
+A web tour plays on another website through the SpartBoard Chrome extension. An admin records it; Claude can only finish its words. Find it with `list_web_tours`, read it with `get_web_tour`, look at each step with `get_web_tour_step_picture`, then save new titles and tips with `update_web_tour_text`. Write each tip for what the picture shows, in the same voice as a live tour. Read the tour's `goal` and each step's `note` first: they are the admin's words for why the tour and the step exist. When you still can't tell why a step happens, ask the admin in chat rather than guess. Claude can't change where a step points, re-record, reorder or publish: hand those back to the admin, who publishes in SpartBoard.
 
 ## Examples
 

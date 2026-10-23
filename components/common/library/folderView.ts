@@ -251,3 +251,22 @@ export function latestAssignedAt<A extends { createdAt?: number }>(
   }
   return latest;
 }
+
+export interface FolderDropHint {
+  folderId: string;
+  place: 'before' | 'after';
+}
+
+/** Target slot among siblings after dropping `fromId` before or after `hint.folderId`; null for no move. */
+export function folderDropIndex(
+  siblingIds: readonly string[],
+  fromId: string,
+  hint: FolderDropHint
+): number | null {
+  const from = siblingIds.indexOf(fromId);
+  const over = siblingIds.indexOf(hint.folderId);
+  if (from < 0 || over < 0) return null;
+  let to = hint.place === 'after' ? over + 1 : over;
+  if (from < to) to -= 1;
+  return to === from ? null : to;
+}

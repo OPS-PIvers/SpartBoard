@@ -46419,6 +46419,101 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "web-tour-editor.goal",
+    "label": "What does your tour explain? field in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.write-with-claude",
+    "label": "Write with Claude button in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.rewrite-all",
+    "label": "Rewrite all button in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.write-asked",
+    "label": "Run again for questions button in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.undo-writing",
+    "label": "Undo button for Claude's writing in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "web-tour-editor.title",
     "label": "Title field in the web tour editor",
     "scope": "board",

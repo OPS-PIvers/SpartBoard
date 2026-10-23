@@ -1,6 +1,7 @@
 import {
   parseIntakePageMessage,
   stepForPage,
+  targetForPage,
   type IntakeDraft,
   type IntakeTarget,
   type RecordedWebStep,
@@ -71,7 +72,7 @@ export function createIntake(origins: readonly string[], notify: () => void) {
         post({
           type: 'intake/save',
           jobId: job.jobId,
-          target: job.target,
+          target: targetForPage(job.target, pageProtocol),
           steps: forPage(job.steps.slice(0, BATCH)),
         });
         continue;

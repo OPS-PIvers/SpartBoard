@@ -262,6 +262,7 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
       userId,
       folders: folderState.folders,
       foldersLoading: folderState.loading,
+      reorderSiblings: folderState.reorderSiblings,
       getId: GET_ID,
       getRecentAt: projectRecentAt,
       itemNoun: PROJECT_NOUN,

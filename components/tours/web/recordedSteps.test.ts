@@ -38,6 +38,25 @@ describe('toWebStep', () => {
     expect(step.text).toBe('Opens in a new tab.');
   });
 
+  it('keeps the note for Claude, scrubbed', () => {
+    const step = toWebStep({
+      id: 's4',
+      urlPattern: 'https://docs.google.com/document/d/*/edit',
+      action: 'click',
+      locator: { role: 'button', name: 'Share' },
+      note: '  shares with  a@b.org ',
+    });
+    expect(step.web?.note).toBe('shares with •••');
+    const blank = toWebStep({
+      id: 's5',
+      urlPattern: 'https://docs.google.com/document/d/*/edit',
+      action: 'click',
+      locator: {},
+      note: '  ',
+    });
+    expect(blank.web && 'note' in blank.web).toBe(false);
+  });
+
   it('scrubs captured text and addresses again on the page side', () => {
     const step = toWebStep({
       id: 's2',

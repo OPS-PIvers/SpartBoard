@@ -6,7 +6,7 @@ import type {
   WebTourPicture,
   WebTourStableAttrs,
 } from '@/types';
-import type { RecordedWebStep } from './recorderProtocol';
+import { MAX_NOTE_CHARS, type RecordedWebStep } from './recorderProtocol';
 import { scrubCapturedText, toHrefPattern, toUrlPattern } from './studentData';
 
 const VERB: Record<WebTourAction, string> = {
@@ -64,6 +64,7 @@ export function toWebStep(
   picture?: WebTourPicture
 ): GuidedLearningStep {
   const locator = scrubLocator(recorded.locator);
+  const note = scrubCapturedText(recorded.note, MAX_NOTE_CHARS);
   return {
     id: recorded.id,
     xPct: 50,
@@ -77,6 +78,7 @@ export function toWebStep(
       action: recorded.action,
       locator,
       ...(picture ? { picture } : {}),
+      ...(note ? { note } : {}),
     },
   };
 }

@@ -161,6 +161,7 @@ export function LibraryGrid<TItem>(
       key={`folder:${row.folder.id}`}
       row={row}
       viewMode={layout}
+      reorder={folderView.folderReorder}
       onOpen={() =>
         folderView.navigate({ kind: 'folder', folderId: row.folder.id })
       }

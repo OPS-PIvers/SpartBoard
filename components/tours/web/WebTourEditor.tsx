@@ -72,6 +72,7 @@ import { useWebTourRecorder, type RecorderLink } from './useWebTourRecorder';
 import { BlobImage, BlurBoxes } from './BlurBoxes';
 import { buildTourUrl } from './tourLinks';
 import { useCopyWebTourLink } from './useCopyWebTourLink';
+import { WebStepClaudeFields, WebTourWriting } from './WebTourWriting';
 import { pageUrlOf, type HubStep } from './webTourHub';
 import {
   canCheckWebTours,
@@ -546,6 +547,7 @@ const StepDetail: React.FC<{
           onChange={(e) => edit('text', e.target.value)}
         />
       </label>
+      <WebStepClaudeFields step={step} onChange={onChange} />
       {step.web && (
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-semibold text-slate-700">Step type</span>
@@ -832,6 +834,15 @@ export const WebTourEditor: React.FC<{
     latest.current = next;
     setSet(next);
     await saveWebTourDraft(next);
+  };
+
+  // Write with Claude reads the saved draft, so it saves first.
+  const flushDraft = async () => {
+    if (deleted.current) throw new Error('Tour deleted');
+    if (!dirty.current) return latest.current;
+    dirty.current = false;
+    await saveNow(latest.current);
+    return latest.current;
   };
 
   const onStep = async (recorded: RecordedWebStep) => {
@@ -1148,6 +1159,12 @@ export const WebTourEditor: React.FC<{
                 found automatically.
               </p>
             )}
+            <WebTourWriting
+              set={set}
+              change={change}
+              flush={flushDraft}
+              onStatus={setStatus}
+            />
             <div className="min-h-0 flex-1 overflow-y-auto pb-2">
               <StepList
                 steps={steps}

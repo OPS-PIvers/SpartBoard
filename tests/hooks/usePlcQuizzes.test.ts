@@ -21,6 +21,7 @@ import {
 } from 'firebase/firestore';
 import {
   mirrorPlcQuizHeadersBySyncGroup,
+  parsePlcQuizEntry,
   usePlcQuizzes,
   writePlcQuizEntry,
 } from '@/hooks/usePlcQuizzes';
@@ -756,5 +757,22 @@ describe('writePlcQuizEntry', () => {
         sharedByEmail: 'alice@example.com',
       })
     ).rejects.toBe(err);
+  });
+});
+
+describe('parsePlcQuizEntry - folders', () => {
+  it('carries the folder and manual order through', () => {
+    const parsed = parsePlcQuizEntry('q1', {
+      title: 'T',
+      questionCount: 1,
+      syncGroupId: 'g',
+      sharedBy: 'u',
+      sharedAt: 1,
+      updatedAt: 1,
+      folderId: 'f1',
+      order: 2,
+    });
+    expect(parsed?.folderId).toBe('f1');
+    expect(parsed?.order).toBe(2);
   });
 });

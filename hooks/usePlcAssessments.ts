@@ -118,6 +118,10 @@ export function parsePlcAssessment(
   } else if (data.deletedAt != null) {
     assessment.deletedAt = tsToMillis(data.deletedAt);
   }
+  if (typeof data.folderId === 'string' || data.folderId === null) {
+    assessment.folderId = data.folderId;
+  }
+  if (typeof data.order === 'number') assessment.order = data.order;
   return assessment;
 }
 

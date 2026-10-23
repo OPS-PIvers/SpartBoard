@@ -9,6 +9,8 @@ export interface PanelStep {
   picture: Blob | null;
   blur: RedactRect[];
   tip: string;
+  /** Private note for Claude; never played. */
+  note: string;
   pending: boolean;
   /** For a fix: the step SpartBoard asked about when this click was picked. */
   fixFor?: RecorderPick;
@@ -40,6 +42,7 @@ interface StoredStep {
   picture: string | null;
   blur: RedactRect[];
   tip: string;
+  note?: string;
   fixFor?: RecorderPick;
 }
 
@@ -48,6 +51,7 @@ const toStored = async (s: PanelStep): Promise<StoredStep> => ({
   picture: s.picture ? await dataUrlOf(s.picture) : null,
   blur: s.blur,
   tip: s.tip,
+  ...(s.note ? { note: s.note } : {}),
   ...(s.fixFor ? { fixFor: s.fixFor } : {}),
 });
 
@@ -62,6 +66,7 @@ const fromStored = async (v: unknown): Promise<PanelStep | null> => {
     picture,
     blur: Array.isArray(v.blur) ? (v.blur as RedactRect[]) : [],
     tip: isStr(v.tip) ? v.tip : '',
+    note: isStr(v.note) ? v.note : '',
     pending: false,
     ...(isObj(v.fixFor) && isStr(v.fixFor.setId) && isStr(v.fixFor.stepId)
       ? { fixFor: { setId: v.fixFor.setId, stepId: v.fixFor.stepId } }

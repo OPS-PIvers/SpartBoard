@@ -8346,6 +8346,10 @@ export interface WebTourBinding {
   locator: WebTourLocator;
   action: WebTourAction;
   picture?: WebTourPicture;
+  /** The admin's private note for Claude; never played or published. */
+  note?: string;
+  /** Claude's question when it couldn't tell why the step happens; editor only, never published. */
+  claudeQuestion?: string;
 }
 
 export interface WebTourStudentDataCheck {
@@ -8557,6 +8561,8 @@ export interface GuidedLearningSet {
   surface?: GuidedLearningTourSurface;
   /** Web tours: the admin confirmed no private data in the pictures; `sig` fingerprints which pictures. */
   webPicturesChecked?: WebTourStudentDataCheck;
+  /** Web tours: what the tour explains, for Claude; never published. */
+  webGoal?: string;
   /** Web tours: the last Check tour run, which Publish needs passing for these targets (C13). */
   webTourChecked?: WebTourCheckRun;
 }

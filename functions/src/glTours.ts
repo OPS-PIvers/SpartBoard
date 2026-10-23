@@ -30,6 +30,7 @@ const NOT_PUBLISHED = new Set([
   'createdAt',
   'updatedAt',
   'hasLiveTour',
+  'webGoal',
   'webTourChecked',
 ]);
 

@@ -245,14 +245,14 @@ describe('WebTourEditor', () => {
   });
 
   it('keeps Check tour off on an extension without check mode', async () => {
-    ext.protocol = 4;
+    ext.protocol = 5;
     renderEditor(tour('Biology 7'));
     await waitFor(() => expect(ext.onCheck).toBeNull());
     expect(screen.getByRole('button', { name: 'Check tour' })).toBeDisabled();
   });
 
   it('checks the tour on the site and shows each step result', async () => {
-    ext.protocol = 5;
+    ext.protocol = 6;
     renderEditor(tour('Biology 7'));
     const button = screen.getByRole('button', { name: 'Check tour' });
     await waitFor(() => expect(button).toBeEnabled());

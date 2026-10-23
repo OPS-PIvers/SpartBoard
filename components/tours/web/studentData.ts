@@ -197,13 +197,16 @@ export function redactStudentData(
 }
 
 /** Captured page text, trimmed, cut to length and with emails, ids and uuids already removed. */
-export function scrubCapturedText(raw: string | null | undefined): string {
+export function scrubCapturedText(
+  raw: string | null | undefined,
+  max = MAX_CAPTURED_TEXT
+): string {
   const text = (raw ?? '').replace(/\s+/g, ' ').trim();
   if (!text) return '';
   // Redact before cutting, so a cut never leaves part of an email or number behind.
   const clean = redactStudentData(text, findStudentData(text, null), 'hard');
-  if (clean.length <= MAX_CAPTURED_TEXT) return clean;
-  const cut = clean.slice(0, MAX_CAPTURED_TEXT);
+  if (clean.length <= max) return clean;
+  const cut = clean.slice(0, max);
   // Drop a word the cut split in two.
   const lastSpace = cut.lastIndexOf(' ');
   return (lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trimEnd();

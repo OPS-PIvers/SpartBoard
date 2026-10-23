@@ -10290,6 +10290,21 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'gl-manager.show-older': { label: 'Show older assignments button' },
+  'web-tour-editor.goal': {
+    label: 'What does your tour explain? field in the web tour editor',
+  },
+  'web-tour-editor.write-with-claude': {
+    label: 'Write with Claude button in the web tour editor',
+  },
+  'web-tour-editor.rewrite-all': {
+    label: 'Rewrite all button in the web tour editor',
+  },
+  'web-tour-editor.write-asked': {
+    label: 'Run again for questions button in the web tour editor',
+  },
+  'web-tour-editor.undo-writing': {
+    label: "Undo button for Claude's writing in the web tour editor",
+  },
   'web-tour-editor.title': { label: 'Title field in the web tour editor' },
   'web-tour-editor.play': {
     label: 'Play button in the web tour editor header',

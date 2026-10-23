@@ -11,13 +11,16 @@ import {
 } from '@/types';
 
 /** Bumped additively when a message type is added; the page checks it before using a feature. */
-export const EXTENSION_PROTOCOL_VERSION = 5;
+export const EXTENSION_PROTOCOL_VERSION = 6;
 
 /** Protocol 4: locators may carry `heading`, `pageTitle` and `attrs`, and steps report `score` matches. */
 export const SCORED_MATCH_PROTOCOL = 4;
 
-/** Protocol 5: `web-tour/check` plays a draft in check mode and reports `web-tour/check-*` on the port (C12). */
-export const CHECK_PROTOCOL = 5;
+/** Protocol 5: recorded steps may carry a note for Claude, and a new intake draft a goal. */
+export const CLAUDE_NOTES_PROTOCOL = 5;
+
+/** Protocol 6: `web-tour/check` plays a draft in check mode and reports `web-tour/check-*` on the port (C12). */
+export const CHECK_PROTOCOL = 6;
 
 /** Staff Google accounts; `@students.orono.k12.mn.us` does not match. */
 export const STAFF_EMAIL_DOMAIN = 'orono.k12.mn.us';
@@ -62,7 +65,7 @@ export interface WebTourStartMessage {
   tour: WebTourStartTour;
 }
 
-/** Protocol 5, staff only: the same tour played in check mode, reported only as check results. */
+/** Protocol 6, staff only: the same tour played in check mode, reported only as check results. */
 export interface WebTourCheckStartMessage {
   type: 'web-tour/check';
   startUrl: string;
@@ -101,7 +104,7 @@ export type WebTourProgressMessage =
   | { type: 'web-tour/exit'; setId: string; stepIndex: number }
   | { type: 'web-tour/closed'; setId: string; stepIndex: number };
 
-/** Extension to page on the `web-tour` port during a check run (protocol 5); `done` false means it stopped early. */
+/** Extension to page on the `web-tour` port during a check run (protocol 6); `done` false means it stopped early. */
 export type WebTourCheckProgress =
   | {
       type: 'web-tour/check-step';

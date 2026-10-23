@@ -1080,6 +1080,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       userId,
       folders: folderState.folders,
       foldersLoading: folderState.loading,
+      reorderSiblings: folderState.reorderSiblings,
       getId: QUIZ_GET_ID,
       getRecentAt: quizRecentAt,
       itemNoun: banksInLibrary ? MIXED_NOUN : QUIZ_NOUN,

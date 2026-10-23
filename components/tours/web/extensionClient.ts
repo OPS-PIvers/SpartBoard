@@ -122,7 +122,7 @@ export async function startWebTour(
   tour: WebTourStartTour,
   startUrl: string,
   stepIndex: number,
-  // A check run id plays in check mode, which only a protocol 5 extension knows; callers gate on canCheckWebTours.
+  // A check run id plays in check mode, which only a protocol 6 extension knows; callers gate on canCheckWebTours.
   checkRunId?: string
 ): Promise<StartResult> {
   const reply = await send(
@@ -163,7 +163,7 @@ export function watchWebTour(
   );
 }
 
-/** Listens to a check run's results; only a protocol 5 extension sends them, and only to a page that says it reads them. */
+/** Listens to a check run's results; only a protocol 6 extension sends them, and only to a page that says it reads them. */
 export function watchWebTourCheck(
   setId: string,
   onEvent: (event: WebTourCheckProgress) => void,

@@ -329,6 +329,13 @@ describe('hub', () => {
     expect(parseWebTourStartTour(handoff)).not.toBeNull();
   });
 
+  it("never hands the extension a step's note or Claude's question", () => {
+    const noted = step('a', 'https://x.test/');
+    noted.web = { ...noted.web, note: 'private', claudeQuestion: 'Why?' };
+    const handoff = buildHandoff('s', 1, 'T', [noted], new Map(), true);
+    expect(JSON.stringify(handoff)).not.toMatch(/private|Why\?/);
+  });
+
   it('sends the newer clues only to an extension that scores them', () => {
     const rich = step('a', 'https://x.test/');
     rich.web.locator = {
@@ -416,8 +423,8 @@ describe('hub', () => {
       watchWebTourCheck('s', vi.fn(), vi.fn())();
       expect(posted).toEqual([
         { type: 'web-tour/watch', setId: 's' },
-        { type: 'web-tour/watch', setId: 's', protocol: 5 },
-        { type: 'web-tour/watch', setId: 's', protocol: 5 },
+        { type: 'web-tour/watch', setId: 's', protocol: 6 },
+        { type: 'web-tour/watch', setId: 's', protocol: 6 },
       ]);
     } finally {
       delete (globalThis as { chrome?: unknown }).chrome;
@@ -425,7 +432,7 @@ describe('hub', () => {
     }
   });
 
-  it('sends check results only to a page that reads protocol 5', () => {
+  it('sends check results only to a page that reads protocol 6', () => {
     const step = {
       type: 'web-tour/check-step' as const,
       setId: 's',
@@ -444,7 +451,9 @@ describe('hub', () => {
     for (const msg of [step, end]) {
       expect(progressForPage(msg, 0)).toBeNull();
       expect(progressForPage(msg, 4)).toBeNull();
-      expect(progressForPage(msg, 5)).toEqual(msg);
+      // Protocol 5 is notes and goals (#4581), not check mode.
+      expect(progressForPage(msg, 5)).toBeNull();
+      expect(progressForPage(msg, 6)).toEqual(msg);
     }
     // The hub's own parser drops them, so a check run never reaches a teacher's run log.
     expect(parsePortEvent(step, 's')).toBeNull();
@@ -470,12 +479,12 @@ describe('hub', () => {
     ).toBeNull();
   });
 
-  it('offers Check tour only on a protocol 5 extension in a staff profile', () => {
+  it('offers Check tour only on a protocol 6 extension in a staff profile', () => {
     const ready = (protocol: number, profile: 'staff' | 'other') =>
       ({ kind: 'ready', protocol, version: '1', profile }) as const;
-    expect(canCheckWebTours(ready(4, 'staff'))).toBe(false);
-    expect(canCheckWebTours(ready(5, 'other'))).toBe(false);
-    expect(canCheckWebTours(ready(5, 'staff'))).toBe(true);
+    expect(canCheckWebTours(ready(5, 'staff'))).toBe(false);
+    expect(canCheckWebTours(ready(6, 'other'))).toBe(false);
+    expect(canCheckWebTours(ready(6, 'staff'))).toBe(true);
     expect(canCheckWebTours({ kind: 'none' })).toBe(false);
   });
 

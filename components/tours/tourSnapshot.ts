@@ -1,4 +1,4 @@
-import type { GuidedLearningSet } from '@/types';
+import type { GuidedLearningSet, GuidedLearningStep } from '@/types';
 import { normalizeGuidedLearningSet } from '@/components/widgets/GuidedLearning/utils/setMigration';
 
 export const GL_TOURS_COLLECTION = 'building_guided_learning_tours';
@@ -26,8 +26,16 @@ const NOT_PUBLISHED = new Set([
   'createdAt',
   'updatedAt',
   'hasLiveTour',
+  'webGoal',
   'webTourChecked',
 ]);
+
+// A web step's note and Claude's question stay in the draft.
+const withoutPrivateWeb = (step: GuidedLearningStep): GuidedLearningStep => {
+  if (!step.web) return step;
+  const { note: _note, claudeQuestion: _question, ...web } = step.web;
+  return { ...step, web };
+};
 
 /** What a tour run shows, as Firestore will store it (no undefined values). */
 export function buildTourContent(set: GuidedLearningSet): GuidedLearningSet {
@@ -35,6 +43,10 @@ export function buildTourContent(set: GuidedLearningSet): GuidedLearningSet {
   for (const [key, value] of Object.entries(normalizeGuidedLearningSet(set))) {
     if (!NOT_PUBLISHED.has(key) && value !== undefined) out[key] = value;
   }
+  if (Array.isArray(out.steps))
+    out.steps = (out.steps as GuidedLearningSet['steps']).map(
+      withoutPrivateWeb
+    );
   return JSON.parse(JSON.stringify(out)) as GuidedLearningSet;
 }
 
