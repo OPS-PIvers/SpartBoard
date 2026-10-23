@@ -20,11 +20,12 @@ export interface GlQuestionStat {
   pct: number | null;
 }
 
-export type GlMonitorStatus = 'live' | 'paused' | 'ended';
+export type GlMonitorStatus = 'live' | 'paused' | 'waiting' | 'ended';
 
 const STATUS_PILL: Record<GlMonitorStatus, { label: string; cls: string }> = {
   live: { label: 'Live', cls: 'bg-white text-brand-blue-primary' },
   paused: { label: 'Paused', cls: 'bg-white/20 text-white' },
+  waiting: { label: 'Not started', cls: 'bg-white/20 text-white' },
   ended: { label: 'Ended', cls: 'bg-white/20 text-white' },
 };
 

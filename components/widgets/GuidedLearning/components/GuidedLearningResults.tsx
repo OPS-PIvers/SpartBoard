@@ -472,8 +472,9 @@ export const GuidedLearningResults: React.FC<Props> = ({
     : [];
   // Opens on the first class, like the Quiz monitor; '' is All classes.
   const [pickedClass, setPickedClass] = useState<string | null>(null);
+  // Per-period sessions always pick a class, so a lone class still gets its Start.
   const selectedClass =
-    classKeys.length > 1
+    classKeys.length > (periodAccess ? 0 : 1)
       ? pickedClass === null
         ? classKeys[0]
         : classKeys.includes(pickedClass)
@@ -483,7 +484,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
   const { byStudentUid: pickedClassNames, loading: pickedClassLoading } =
     useAssignmentPseudonymsMulti(
       sessionId,
-      parity && selectedClass ? [selectedClass] : [],
+      parity && sessionClassIds.includes(selectedClass) ? [selectedClass] : [],
       orgId
     );
   const nameFor = (uid: string, pin?: string) =>
@@ -545,15 +546,17 @@ export const GuidedLearningResults: React.FC<Props> = ({
   const periodStates = Object.values(periodAccess ?? {}).map((a) =>
     effectivePeriodState(a, statusNow)
   );
+  // A 'closed' period is waiting for Start, not over.
   const monitorStatus: GlMonitorStatus =
     ended ||
     pastClose ||
-    (periodStates.length > 0 &&
-      periodStates.every((st) => st === 'closed' || st === 'ended'))
+    (periodStates.length > 0 && periodStates.every((st) => st === 'ended'))
       ? 'ended'
-      : periodStates.length > 0 && !periodStates.includes('open')
-        ? 'paused'
-        : 'live';
+      : periodStates.length === 0 || periodStates.includes('open')
+        ? 'live'
+        : periodStates.includes('paused')
+          ? 'paused'
+          : 'waiting';
 
   if (viewOnly && sessionLoaded && !playerV2) return <>{viewOnlyFallback}</>;
   const loading = !sessionLoaded || (!viewOnly && responsesLoading);
@@ -570,8 +573,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
         />
       ) : null;
     const classControls =
-      classKeys.length < 2 ? null : periodAccess &&
-        monitorStatus !== 'ended' ? (
+      periodAccess && !ended ? (
         <PeriodBar
           periodAccess={periodAccess}
           selected={selectedClass}
@@ -590,7 +592,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
             extend: tourAttr('gl-results.period-extend'),
           }}
         />
-      ) : (
+      ) : classKeys.length > 1 ? (
         <ClassPicker
           names={classKeys}
           labelFor={classLabel}
@@ -599,13 +601,16 @@ export const GuidedLearningResults: React.FC<Props> = ({
           status={monitorStatus === 'ended' ? 'ended' : 'active'}
           selectAnchor={tourAttr('gl-results.class-picker')}
         />
-      );
+      ) : null;
     return (
       <GuidedLearningMonitor<GlRow>
         title={set.title}
         status={monitorStatus}
         onBack={onClose}
-        loading={loading || (selectedClass !== '' && pickedClassLoading)}
+        loading={
+          loading ||
+          (sessionClassIds.includes(selectedClass) && pickedClassLoading)
+        }
         rows={monitorRows}
         classControls={classControls}
         banner={

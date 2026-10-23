@@ -140,4 +140,28 @@ describe('GuidedLearningResults monitor (monitor-parity)', () => {
     );
     await waitFor(() => expect(screen.getByText('Ended')).toBeTruthy());
   });
+
+  it('keeps Start for a lone per-period class waiting to open', async () => {
+    sessionData = {
+      classIds: ['class-a'],
+      teacherUid: 't1',
+      periodAccess: {
+        'class-a': {
+          label: 'Period 1',
+          state: 'closed',
+          openAt: null,
+          closeAt: null,
+          verified: true,
+        },
+      },
+    };
+    render(
+      <GuidedLearningResults set={SET} sessionId="s1" onClose={vi.fn()} />
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Start' })).toBeTruthy()
+    );
+    expect(screen.getAllByText('Not started').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Ended')).toBeNull();
+  });
 });
