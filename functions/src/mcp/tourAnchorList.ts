@@ -47113,6 +47113,157 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "gl-results.class-picker",
+    "label": "Class picker select in results",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.period-start",
+    "label": "Start class button in results",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.period-pause",
+    "label": "Pause class button in results",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.period-more-time",
+    "label": "More time button in results",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.period-extend",
+    "label": "Extend time option in the results More time menu",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.status-bucket",
+    "label": "Student status bucket button in results",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.question-results",
+    "label": "Question results button in results",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
     "id": "gl-capture.upload",
     "label": "Upload file button in the capture dialog",
     "scope": "board",
