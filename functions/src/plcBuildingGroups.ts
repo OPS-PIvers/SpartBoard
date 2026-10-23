@@ -9,6 +9,7 @@ import {
   canonicalBuildingIdServer,
   canonicalizeBuildingIdsServer,
 } from './buildingIds';
+import { normalizeEmailDomain } from './classlinkShared';
 import { ADMIN_ROLE_IDS } from './organizationInvites';
 import { assertViewAsAllowed } from './viewAsGuard';
 
@@ -232,7 +233,24 @@ export function parseCreateBuildingGroupPayload(
 
 // ── Firestore helpers ────────────────────────────────────────────────────
 
-/** Org member doc is active and, when it is linked to an account, linked to `uid`. */
+/** True when the email's domain is a verified domain of `orgId`. */
+async function isOrgVerifiedDomain(
+  db: Firestore,
+  orgId: string,
+  emailLower: string
+): Promise<boolean> {
+  const domain = normalizeEmailDomain(emailLower);
+  if (!domain) return false;
+  const snap = await db
+    .collection(`organizations/${orgId}/domains`)
+    .where('domain', '==', domain)
+    .where('status', '==', 'verified')
+    .limit(1)
+    .get();
+  return !snap.empty;
+}
+
+/** Verified `emailLower` is a claimed org member (active, or an invite on a verified org domain) not linked to another uid. */
 export async function isActiveOrgMember(
   db: Firestore,
   orgId: string,
@@ -243,9 +261,13 @@ export async function isActiveOrgMember(
   const snap = await db
     .doc(`organizations/${orgId}/members/${emailLower}`)
     .get();
-  if (!snap.exists || snap.get('status') !== 'active') return false;
+  if (!snap.exists) return false;
   const memberUid: unknown = snap.get('uid');
-  return memberUid === undefined || memberUid === uid;
+  if (memberUid !== undefined && memberUid !== uid) return false;
+  const status: unknown = snap.get('status');
+  if (status === 'active') return true;
+  if (status !== 'invited') return false;
+  return isOrgVerifiedDomain(db, orgId, emailLower);
 }
 
 /** The account's lowercased email, or '' unless Auth has verified it. */

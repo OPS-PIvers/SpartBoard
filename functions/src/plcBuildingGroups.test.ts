@@ -416,7 +416,7 @@ function rosterSeed(): Record<string, StubData> {
   };
 }
 
-// An unverified self-registered account, an unclaimed invite, and an invite claimed by someone else.
+// An unverified account, an unclaimed invite with no verified org domain, and a doc claimed by someone else.
 function forgedSeed(): Record<string, StubData> {
   const seed = rosterSeed();
   seed['organizations/orono/members/inv@orono.k12.mn.us'] = {
@@ -492,6 +492,54 @@ describe('auto-roster identity checks', () => {
       ).toEqual({ added: [], removed: [] });
     }
     expect(stub.get('plcs/g1')!.memberUids).toEqual(['lead']);
+  });
+
+  it('counts an unclaimed invite only on a verified org domain', async () => {
+    const seed = forgedSeed();
+    seed['plcs/g1'] = group({ lead: member('lead', 'lead') });
+    seed['organizations/orono/domains/d1'] = {
+      domain: '@orono.k12.mn.us',
+      status: 'verified',
+    };
+    seed['organizations/orono/members/taken@orono.k12.mn.us'] = {
+      roleId: 'teacher',
+      status: 'invited',
+      uid: 'someoneElse',
+    };
+    seed['users/taken/userProfile/profile'] = { selectedBuildings: ['middle'] };
+    const { stub, deps } = forgedDeps(seed);
+    expect(await rosterBuildingGroup(deps, 'g1')).toBe(3);
+    const uids = stub.get('plcs/g1')!.memberUids as string[];
+    expect(uids).toContain('inv');
+    for (const uid of ['other', 'unv', 'taken']) {
+      expect(uids).not.toContain(uid);
+    }
+  });
+
+  it('the profile trigger adds an invitee on a verified org domain', async () => {
+    const seed = forgedSeed();
+    seed['plcs/g1'] = group({ lead: member('lead', 'lead') });
+    seed['organizations/orono/domains/d1'] = {
+      domain: '@orono.k12.mn.us',
+      status: 'verified',
+    };
+    const { stub, deps } = forgedDeps(seed);
+    expect(
+      await applyProfileBuildingsChange(deps, 'inv', [], ['middle'])
+    ).toEqual({ added: ['g1'], removed: [] });
+    expect(stub.get('plcs/g1')!.memberUids).toContain('inv');
+  });
+
+  it('ignores an unverified org domain for an unclaimed invite', async () => {
+    const seed = forgedSeed();
+    seed['plcs/g1'] = group({ lead: member('lead', 'lead') });
+    seed['organizations/orono/domains/d1'] = {
+      domain: '@orono.k12.mn.us',
+      status: 'pending',
+    };
+    const { stub, deps } = forgedDeps(seed);
+    await rosterBuildingGroup(deps, 'g1');
+    expect(stub.get('plcs/g1')!.memberUids).not.toContain('inv');
   });
 
   it('createBuildingGroup rejects a lead found only as an unverified account', async () => {
