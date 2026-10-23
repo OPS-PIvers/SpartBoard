@@ -20,6 +20,10 @@ interface StatusBucketsProps {
   anchor?: (key: BucketKey) => TourAnchorAttrs;
   /** Buckets to show, in order; defaults to all three. */
   keys?: BucketKey[];
+  /** Replaces a bucket's label, e.g. Submitted for a Flashcards Check. */
+  labels?: Partial<Record<BucketKey, string>>;
+  /** Extra line under a bucket's label. */
+  notes?: Partial<Record<BucketKey, React.ReactNode>>;
 }
 
 export const StatusBuckets: React.FC<StatusBucketsProps> = ({
@@ -30,6 +34,8 @@ export const StatusBuckets: React.FC<StatusBucketsProps> = ({
   onToggle,
   anchor = (key) => tourFieldAttr('quiz-monitor.status-bucket', 'quiz', key),
   keys,
+  labels,
+  notes,
 }) => (
   <div
     className="grid"
@@ -66,8 +72,9 @@ export const StatusBuckets: React.FC<StatusBucketsProps> = ({
               className="font-sans font-medium text-brand-gray-primary"
               style={{ fontSize: 'min(11px, 3.8cqmin)' }}
             >
-              {label}
+              {labels?.[key] ?? label}
             </span>
+            {notes?.[key]}
             {key === 'inProgress' && (handCount > 0 || idleCount > 0) && (
               <span
                 className="flex items-center font-sans font-semibold tabular-nums"
