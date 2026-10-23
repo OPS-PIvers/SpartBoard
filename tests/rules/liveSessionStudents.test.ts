@@ -323,6 +323,57 @@ describe('live session students — read (the PIN is a pinLoginV1 credential)', 
   });
 });
 
+describe('live session students — previous-client join compatibility', () => {
+  const roster = (db: ReturnType<typeof asStudent>) =>
+    collection(db, `sessions/${TEACHER_UID}/students`);
+
+  it('denies the previous client roster scan even on an empty roster', async () => {
+    await assertFails(getDocs(roster(asStudent(STUDENT_UID))));
+  });
+
+  it('lets the current client join with no roster read', async () => {
+    const db = asStudent(STUDENT_UID);
+    await assertSucceeds(
+      setDoc(studentRef(db, STUDENT_UID), {
+        pin: '4821',
+        status: 'active',
+        joinedAt: 2000,
+        lastActive: 2000,
+      })
+    );
+    await assertSucceeds(getDoc(studentRef(db, STUDENT_UID)));
+  });
+
+  it('lets the same uid rejoin over its own record without a roster read', async () => {
+    const db = asStudent(STUDENT_UID);
+    const record = {
+      pin: '4821',
+      status: 'active',
+      joinedAt: 2000,
+      lastActive: 2000,
+    };
+    await assertSucceeds(setDoc(studentRef(db, STUDENT_UID), record));
+    await assertSucceeds(
+      setDoc(studentRef(db, STUDENT_UID), { ...record, joinedAt: 3000 })
+    );
+  });
+
+  it('lets a second device join with a PIN already in use (Live Control numbers them)', async () => {
+    const record = {
+      pin: '4821',
+      status: 'active',
+      joinedAt: 2000,
+      lastActive: 2000,
+    };
+    await assertSucceeds(
+      setDoc(studentRef(asStudent(STUDENT_UID), STUDENT_UID), record)
+    );
+    await assertSucceeds(
+      setDoc(studentRef(asStudent(ATTACKER_UID), ATTACKER_UID), record)
+    );
+  });
+});
+
 describe('live session students — update', () => {
   beforeEach(async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {

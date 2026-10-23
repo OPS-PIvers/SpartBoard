@@ -122,6 +122,37 @@ describe('LiveControl', () => {
     expect(props.onRemoveStudent).toHaveBeenCalledWith('s1');
   });
 
+  it('tells apart two devices that joined with the same PIN', () => {
+    const { props } = renderLiveControl({
+      students: [
+        {
+          id: 'late',
+          pin: '07',
+          status: 'active',
+          joinedAt: 20,
+          lastActive: 0,
+        },
+        {
+          id: 'early',
+          pin: '07',
+          status: 'active',
+          joinedAt: 10,
+          lastActive: 0,
+        },
+      ] as LiveStudent[],
+    });
+    fireEvent.click(screen.getByLabelText(/connected students/));
+
+    expect(screen.getByText('PIN 07 (1)')).toHaveAttribute(
+      'title',
+      'More than one device joined with this PIN'
+    );
+    fireEvent.click(screen.getByLabelText('Remove PIN 07 (2)'));
+    expect(props.onRemoveStudent).toHaveBeenCalledWith('late');
+    fireEvent.click(screen.getByLabelText('Freeze PIN 07 (1)'));
+    expect(props.onFreezeStudent).toHaveBeenCalledWith('early', 'active');
+  });
+
   it('calls onFreezeAll when "Freeze All" is clicked', () => {
     const { props } = renderLiveControl();
     fireEvent.click(screen.getByLabelText(/connected students/));
