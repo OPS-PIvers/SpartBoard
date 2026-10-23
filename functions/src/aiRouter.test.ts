@@ -120,6 +120,18 @@ describe('chooseModels', () => {
     ).toBe('gemini-2.5-flash');
   });
 
+  it("runs an integration's own default model when the AI tab names none", () => {
+    expect(chooseModels({ integration: 'web-tour-writing' }, config())).toEqual(
+      { model: 'claude-sonnet-5-5', geminiFallback: 'gemini-3.8-flash' }
+    );
+    expect(
+      chooseModels(
+        { integration: 'web-tour-writing' },
+        config({ 'web-tour-writing': 'gemini-3.8-flash' })
+      ).model
+    ).toBe('gemini-3.8-flash');
+  });
+
   it('lets a tier override pick the fallback', () => {
     expect(
       chooseModels(

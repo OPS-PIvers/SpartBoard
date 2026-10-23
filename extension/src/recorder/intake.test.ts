@@ -108,6 +108,30 @@ describe('intake', () => {
     expect(current.posted[0].steps).toEqual([rich]);
   });
 
+  it('sends notes and a new tour goal only to an intake tab on protocol 5', async () => {
+    const noted: RecordedWebStep = { ...step('s1'), note: 'opens grades' };
+    const intake = createIntake([ORIGIN], () => undefined);
+    await intake.save(
+      { kind: 'new', title: 'T', goal: 'Posting a grade' },
+      'T',
+      [noted]
+    );
+    const old = fakePort();
+    intake.handlePort(old.port);
+    await old.reply({ type: 'intake/ready', drafts: [], protocol: 4 });
+    expect(old.posted[0].target).toEqual({ kind: 'new', title: 'T' });
+    expect(old.posted[0].steps).toEqual([step('s1')]);
+    const current = fakePort();
+    intake.handlePort(current.port);
+    await current.reply({ type: 'intake/ready', drafts: [], protocol: 5 });
+    expect(current.posted[0].target).toEqual({
+      kind: 'new',
+      title: 'T',
+      goal: 'Posting a grade',
+    });
+    expect(current.posted[0].steps).toEqual([noted]);
+  });
+
   it('keeps a failed job until Try again, and brings the tab forward to sign in', async () => {
     const intake = createIntake([ORIGIN], () => undefined);
     const jobId = await intake.save({ kind: 'append', setId: 'd2' }, 'Two', [

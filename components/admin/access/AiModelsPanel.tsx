@@ -401,7 +401,7 @@ export const AiModelsPanel: React.FC = () => {
                 key={i.id}
                 integration={i}
                 value={integrationModels[i.id] ?? ''}
-                tierModel={tierModel(i.tier)}
+                tierModel={i.defaultModel ?? tierModel(i.tier)}
                 allowed={allowed}
                 usage={usage[i.id]}
                 onChange={(model) => setIntegrationModel(i.id, model)}

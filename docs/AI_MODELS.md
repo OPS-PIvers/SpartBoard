@@ -23,7 +23,8 @@ Moved from the retired GEMINI.md. Code comments in `config/geminiModels.ts` and 
 - **Choosing a model.** Admin Settings > Access > AI stores `allowedModels` and
   `integrationModels` on `global_permissions/gemini-functions.config`, beside the existing
   `advancedModel` / `standardModel` tier defaults, which stay Gemini so a fallback always exists.
-  An integration with no choice runs its tier's Gemini model.
+  An integration with no choice runs its tier's Gemini model, unless `AI_INTEGRATION_DEFAULT_MODELS`
+  (mirrored as `defaultModel` in `config/aiIntegrations.ts`) names one: `web-tour-writing` defaults to Claude Sonnet.
 - **Claude.** Runs through the Anthropic API with the `ANTHROPIC_API_KEY` secret, adaptive thinking,
   effort `low` (standard tier) or `medium` (advanced tier), and structured outputs converted from
   the Gemini response schema. A missing or placeholder key (anything not starting `sk-ant-`), an

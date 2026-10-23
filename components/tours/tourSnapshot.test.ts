@@ -76,3 +76,43 @@ describe('parsePublishedTour', () => {
     );
   });
 });
+
+describe('buildTourContent', () => {
+  it("never publishes a web tour's goal, notes or Claude's questions", () => {
+    const web = set({
+      surface: 'web',
+      webGoal: 'How to post a grade',
+      steps: [
+        {
+          id: 's1',
+          label: 'Open',
+          xPct: 50,
+          yPct: 50,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          web: {
+            urlPattern: 'https://a.example/*',
+            action: 'click',
+            locator: { role: 'button', name: 'Open' },
+            note: 'opens the gradebook',
+            claudeQuestion: 'Why open this?',
+          },
+        },
+      ],
+    });
+    const out = buildTourContent(web);
+    expect(out.webGoal).toBeUndefined();
+    expect(out.steps[0].web).toEqual({
+      urlPattern: 'https://a.example/*',
+      action: 'click',
+      locator: { role: 'button', name: 'Open' },
+    });
+    const published = stored(web);
+    const edited = web.steps.map((s) =>
+      s.web ? { ...s, web: { ...s.web, note: 'changed' } } : s
+    );
+    expect(
+      tourPublishStatus({ ...web, webGoal: 'Other', steps: edited }, published)
+    ).toBe('published');
+  });
+});

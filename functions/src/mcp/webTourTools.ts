@@ -43,12 +43,17 @@ interface WebLocator {
   role?: unknown;
   name?: unknown;
   text?: unknown;
+  heading?: unknown;
+  pageTitle?: unknown;
+  attrs?: Record<string, unknown>;
 }
 interface WebBinding {
   urlPattern?: unknown;
   action?: unknown;
   locator?: WebLocator;
   picture?: { path?: unknown; w?: unknown; h?: unknown };
+  note?: unknown;
+  claudeQuestion?: unknown;
 }
 export interface WebStep {
   id: string;
@@ -64,6 +69,7 @@ export interface WebTourDoc {
   steps: WebStep[];
   helpCenter?: unknown;
   updatedAt?: unknown;
+  webGoal?: unknown;
   [key: string]: unknown;
 }
 
@@ -106,13 +112,21 @@ export function publishState(
     : 'published';
 }
 
-/** A step as Claude sees it: words, action, address and the readable clues; never the CSS or box. */
+const ATTR_KEYS = ['testId', 'ariaLabel', 'name', 'href'] as const;
+
+/** A step as Claude sees it: words, action, address, the readable clues and the admin's note; never the CSS or box. */
 export function publicWebStep(step: WebStep, index: number) {
   const web = step.web;
   const loc = web?.locator ?? {};
-  const locator: Record<string, string> = {};
-  for (const key of ['role', 'name', 'text'] as const)
+  const locator: Record<string, string | Record<string, string>> = {};
+  for (const key of ['role', 'name', 'text', 'heading', 'pageTitle'] as const)
     if (str(loc[key])) locator[key] = str(loc[key]);
+  const attrs: Record<string, string> = {};
+  for (const key of ATTR_KEYS)
+    if (str(loc.attrs?.[key])) attrs[key] = str(loc.attrs?.[key]);
+  if (Object.keys(attrs).length) locator.attrs = attrs;
+  const note = str(web?.note);
+  const question = str(web?.claudeQuestion);
   return {
     id: step.id,
     number: index + 1,
@@ -122,6 +136,8 @@ export function publicWebStep(step: WebStep, index: number) {
     url_pattern: web ? str(web.urlPattern) : null,
     locator,
     has_picture: typeof web?.picture?.path === 'string',
+    ...(note ? { note } : {}),
+    ...(question ? { question } : {}),
   };
 }
 
@@ -285,7 +301,7 @@ export async function restoreWebTourRevision(
 }
 
 const STEP_LIST =
-  'Each step: id, number, title, tip, action (click, type, select or observe), url_pattern (the page it plays on, ids as *), locator (the role, name and text it finds its control by) and has_picture.';
+  "Each step: id, number, title, tip, action (click, type, select or observe), url_pattern (the page it plays on, ids as *), locator (the role, name, text, nearby heading, page title and stable attrs it finds its control by), has_picture, and when set the admin's private note for Claude (note, never shown to teachers) and the question SpartBoard's Write with Claude left on the step (question). goal is what the admin said the tour explains.";
 
 export function registerWebTourTools(
   server: McpServer,
@@ -358,6 +374,7 @@ export function registerWebTourTools(
         return {
           set_id,
           title: str(set.title),
+          goal: str(set.webGoal) || null,
           help_center: set.helpCenter === true,
           updated_at: iso(set.updatedAt),
           publish_state: publishState(set.updatedAt, publishedAt),

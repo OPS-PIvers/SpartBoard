@@ -145,7 +145,10 @@ export const SURFACES: TourSurfaceMap = {
     parent: 'guidedLearning.face',
     opensWith: 'library-shell.secondary-menu-item',
     needs: ['widget-on-stage', 'admin'],
-    files: ['components/tours/web/WebTourEditor.tsx'],
+    files: [
+      'components/tours/web/WebTourEditor.tsx',
+      'components/tours/web/WebTourWriting.tsx',
+    ],
   },
   'board.absent-students': {
     label: 'Absent students dialog',

@@ -13,7 +13,11 @@ import {
   vertexClientOptions,
   type AiModelConfig,
 } from './aiModelConfig';
-import { AI_INTEGRATIONS, type AiIntegrationId } from './aiIntegrations';
+import {
+  AI_INTEGRATION_DEFAULT_MODELS,
+  AI_INTEGRATIONS,
+  type AiIntegrationId,
+} from './aiIntegrations';
 import { providerOf, type AiProvider, type AiTier } from './aiModels';
 import { CLAUDE_OUTPUT_TOKENS_DEFAULTS } from './aiLimits';
 import { normalizeModelName } from './shared';
@@ -98,6 +102,7 @@ export function chooseModels(
   const model =
     config.integrationModels[req.integration] ??
     normalizeModelName(req.legacyModel) ??
+    AI_INTEGRATION_DEFAULT_MODELS[req.integration] ??
     geminiFallback;
   return { model, geminiFallback };
 }

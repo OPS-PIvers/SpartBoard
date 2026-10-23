@@ -22,12 +22,20 @@ export const AI_INTEGRATIONS = {
   'paper-handwriting': { tier: 'standard', inputs: ['image'] },
   'quiz-translation': { tier: 'advanced', inputs: ['text'] },
   'response-translation': { tier: 'standard', inputs: ['text'] },
+  'web-tour-writing': { tier: 'advanced', inputs: ['image'] },
 } as const satisfies Record<
   string,
   { tier: AiTier; inputs: readonly AiInputKind[] }
 >;
 
 export type AiIntegrationId = keyof typeof AI_INTEGRATIONS;
+
+// The model an integration runs when the AI tab names none; absent = its tier's Gemini model. Mirrored in config/aiIntegrations.ts.
+export const AI_INTEGRATION_DEFAULT_MODELS: Partial<
+  Record<AiIntegrationId, string>
+> = {
+  'web-tour-writing': 'claude-sonnet-5-5',
+};
 
 export const isAiIntegrationId = (id: string): id is AiIntegrationId =>
   Object.prototype.hasOwnProperty.call(AI_INTEGRATIONS, id);

@@ -10,10 +10,13 @@ import {
 } from '@/types';
 
 /** Bumped additively when a message type is added; the page checks it before using a feature. */
-export const EXTENSION_PROTOCOL_VERSION = 4;
+export const EXTENSION_PROTOCOL_VERSION = 5;
 
 /** Protocol 4: locators may carry `heading`, `pageTitle` and `attrs`, and steps report `score` matches. */
 export const SCORED_MATCH_PROTOCOL = 4;
+
+/** Protocol 5: recorded steps may carry a note for Claude, and a new intake draft a goal. */
+export const CLAUDE_NOTES_PROTOCOL = 5;
 
 /** Staff Google accounts; `@students.orono.k12.mn.us` does not match. */
 export const STAFF_EMAIL_DOMAIN = 'orono.k12.mn.us';

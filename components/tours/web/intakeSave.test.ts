@@ -29,6 +29,7 @@ import {
 import {
   parseIntakePageMessage,
   parseIntakePortMessage,
+  stepForPage,
   type RecordedWebStep,
 } from './recorderProtocol';
 
@@ -53,6 +54,17 @@ describe('intake saving', () => {
     expect(made?.title).toBe('Apps Script');
     expect(store.saved).toHaveLength(1);
     expect(await intakeDraftFor({ kind: 'append', setId: 'gone' })).toBeNull();
+  });
+
+  it("saves a new draft's goal, scrubbed", async () => {
+    const made = await intakeDraftFor({
+      kind: 'new',
+      title: 'T',
+      goal: ' Grades for 4821937 ',
+    });
+    expect(made?.webGoal).toBe('Grades for •••');
+    const bare = await intakeDraftFor({ kind: 'new', title: 'T', goal: ' ' });
+    expect(bare && 'webGoal' in bare).toBe(false);
   });
 
   it('acks each step only after it is saved, and skips one sent again', async () => {
@@ -105,9 +117,34 @@ describe('intake messages', () => {
       })
     ).toBeNull();
     expect(parseIntakePortMessage({ ...save, jobId: 'a b' })).toBeNull();
+    const noted = {
+      ...save,
+      target: { kind: 'new', title: 'T', goal: 'Grading' },
+      steps: [{ ...step('a'), note: 'why' }],
+    };
+    expect(parseIntakePortMessage(noted)).toEqual(noted);
+    expect(
+      parseIntakePortMessage({
+        ...save,
+        target: { kind: 'new', title: 'T', goal: 'x'.repeat(501) },
+      })
+    ).toBeNull();
+    expect(
+      parseIntakePortMessage({
+        ...save,
+        steps: [{ ...step('a'), note: 'x'.repeat(501) }],
+      })
+    ).toBeNull();
     expect(parseIntakePortMessage({ type: 'intake/listDrafts' })).toEqual({
       type: 'intake/listDrafts',
     });
+  });
+
+  it('sends a note only to a page on protocol 5', () => {
+    const noted = { ...step('a'), note: 'why' };
+    expect(stepForPage(noted, 5)).toEqual(noted);
+    expect(stepForPage(noted, 4)).toEqual(step('a'));
+    expect(stepForPage(noted, 0)).toEqual(step('a'));
   });
 
   it('reads the page replies and drops extra fields', () => {

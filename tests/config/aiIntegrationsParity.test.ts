@@ -35,6 +35,25 @@ describe('AI integrations registry', () => {
     expect([...client].sort(byId)).toEqual([...server].sort(byId));
   });
 
+  it('has the same default models as the server', () => {
+    const source = serverSource('aiIntegrations.ts');
+    const block = /AI_INTEGRATION_DEFAULT_MODELS[\s\S]*?= \{([\s\S]*?)\};/.exec(
+      source
+    )?.[1];
+    const server = Object.fromEntries(
+      [...(block ?? '').matchAll(/'([\w-]+)': '([^']+)'/g)].map(
+        ([, id, model]) => [id, model]
+      )
+    );
+    const client = Object.fromEntries(
+      AI_INTEGRATIONS.flatMap((i) =>
+        i.defaultModel ? [[i.id, i.defaultModel]] : []
+      )
+    );
+    expect(Object.keys(server).length).toBeGreaterThan(0);
+    expect(client).toEqual(server);
+  });
+
   it('every integration is called somewhere on the server', () => {
     const callers = [
       'aiGeneration.ts',
@@ -44,6 +63,7 @@ describe('AI integrations registry', () => {
       'quizStimulusText.ts',
       'paperTranscribe.ts',
       'quizTranslation.ts',
+      'webTourWriting.ts',
     ]
       .map(serverSource)
       .join('\n');

@@ -4,7 +4,10 @@ import {
   type WebTourLocator,
 } from '@/types';
 import { MAX_CAPTURED_TEXT, MAX_HREF_PATTERN } from './studentData';
-import { SCORED_MATCH_PROTOCOL } from './extensionProtocol';
+import {
+  CLAUDE_NOTES_PROTOCOL,
+  SCORED_MATCH_PROTOCOL,
+} from './extensionProtocol';
 
 /** Port the web-step editor opens to the extension to receive recorded steps. */
 export const RECORDER_PORT = 'web-tour-recorder';
@@ -18,6 +21,8 @@ export interface RecordedWebStep {
   picture?: { dataUrl: string; w: number; h: number };
   /** The tip the admin typed in the side panel; older clients ignore it. */
   tip?: string;
+  /** The admin's private note for Claude; only to pages on protocol 5 or later. */
+  note?: string;
 }
 
 export const isObj = (v: unknown): v is Record<string, unknown> =>
@@ -75,6 +80,8 @@ export const isLocator = (v: unknown): v is WebTourLocator =>
 const STEP_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 export const MAX_TIP_CHARS = 500;
+export const MAX_NOTE_CHARS = 500;
+export const MAX_GOAL_CHARS = 500;
 
 /** Picture data URLs above this are refused, so one message stays small. */
 export const MAX_PICTURE_CHARS = 1_500_000;
@@ -88,6 +95,7 @@ export const isRecordedStep = (v: unknown): v is RecordedWebStep =>
   ACTIONS.includes(v.action) &&
   isLocator(v.locator) &&
   optStr(v.tip, MAX_TIP_CHARS) &&
+  optStr(v.note, MAX_NOTE_CHARS) &&
   (v.picture === undefined ||
     (isObj(v.picture) &&
       isStr(v.picture.dataUrl, MAX_PICTURE_CHARS) &&
@@ -100,9 +108,23 @@ export function stepForPage(
   step: RecordedWebStep,
   protocol: number
 ): RecordedWebStep {
-  if (protocol >= SCORED_MATCH_PROTOCOL) return step;
+  const { note, ...rest } = step;
+  const kept =
+    protocol >= CLAUDE_NOTES_PROTOCOL && note ? { ...rest, note } : rest;
+  if (protocol >= SCORED_MATCH_PROTOCOL) return kept;
   const { heading: _h, pageTitle: _t, attrs: _a, ...locator } = step.locator;
-  return { ...step, locator };
+  return { ...kept, locator };
+}
+
+/** The intake target as a page speaking `protocol` reads it: older pages never get the goal. */
+export function targetForPage(
+  target: IntakeTarget,
+  protocol: number
+): IntakeTarget {
+  if (target.kind !== 'new' || !target.goal) return target;
+  return protocol >= CLAUDE_NOTES_PROTOCOL
+    ? target
+    : { kind: 'new', title: target.title };
 }
 
 /** What the extension posts on the recorder port. */
@@ -177,7 +199,8 @@ export const INTAKE_PORT = 'web-tour-intake';
 
 /** Where an intake job's steps go: a new draft with this title, or the end of an existing draft. */
 export type IntakeTarget =
-  { kind: 'new'; title: string } | { kind: 'append'; setId: string };
+  | { kind: 'new'; title: string; goal?: string }
+  | { kind: 'append'; setId: string };
 
 export interface IntakeDraft {
   setId: string;
@@ -190,7 +213,9 @@ const MAX_DRAFTS = 200;
 
 const isTarget = (v: unknown): v is IntakeTarget =>
   isObj(v) &&
-  ((v.kind === 'new' && isStr(v.title, 200)) ||
+  ((v.kind === 'new' &&
+    isStr(v.title, 200) &&
+    optStr(v.goal, MAX_GOAL_CHARS)) ||
     (v.kind === 'append' && isStr(v.setId, 128) && STEP_ID.test(v.setId)));
 
 /** What the extension posts to the intake tab. */

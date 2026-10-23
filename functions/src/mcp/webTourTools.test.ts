@@ -243,6 +243,50 @@ describe('web tour connector tools', () => {
     expect(JSON.stringify(out)).not.toContain('nth-child');
   });
 
+  it('returns the goal, each note and question, and the newer clues', async () => {
+    const env = seed();
+    const doc = env.docs.get('building_web_tours/t1') as Data;
+    env.docs.set('building_web_tours/t1', {
+      ...doc,
+      webGoal: 'Posting a grade',
+      steps: [
+        {
+          ...STEP_A,
+          web: {
+            ...STEP_A.web,
+            note: 'starts every grading run',
+            claudeQuestion: 'Which course?',
+            locator: {
+              ...STEP_A.web.locator,
+              heading: 'Course tools',
+              pageTitle: 'Biology',
+              attrs: { testId: 'gradebook-link', href: '/course/*/grades' },
+            },
+          },
+        },
+        STEP_B,
+      ],
+    });
+    const call = await connect(env.db);
+    const out = (await call('get_web_tour', { set_id: 't1' })) as Data & {
+      steps: Data[];
+    };
+    expect(out.goal).toBe('Posting a grade');
+    expect(out.steps[0]).toMatchObject({
+      note: 'starts every grading run',
+      question: 'Which course?',
+      locator: {
+        role: 'link',
+        name: 'Gradebook',
+        text: 'Gradebook',
+        heading: 'Course tools',
+        pageTitle: 'Biology',
+        attrs: { testId: 'gradebook-link', href: '/course/*/grades' },
+      },
+    });
+    expect(out.steps[1]).not.toHaveProperty('note');
+  });
+
   it('is for admins only, with the web-tours flag on', async () => {
     let call = await connect(seed({}, false).db);
     for (const [name, args] of [
