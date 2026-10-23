@@ -388,7 +388,7 @@ describe('QuizStudentApp — published results on an active (self-paced) session
     render(<QuizStudentApp />);
 
     expect(await screen.findByText('Your Results')).toBeInTheDocument();
-    expect(mockSubscribeForReview).toHaveBeenCalledWith('ABC123');
+    expect(mockSubscribeForReview).toHaveBeenCalledWith('ABC123', undefined);
   });
 
   it('labels the results watermark with watermarkNameOverride (nameless Classroom SSO session)', async () => {

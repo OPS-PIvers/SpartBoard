@@ -153,10 +153,12 @@ async function sessionsByLegacyQuery(
  * appear on more than one session when an old one is recycled — so this returns
  * all matches rather than guessing which one the caller wants.
  *
- * `normCode` must already be through `normalizeQuizCode`.
+ * `normCode` must already be through `normalizeQuizCode`. A `teacherUid` keeps
+ * only that teacher's sessions (a Schoology link names the teacher who added it).
  */
 export async function findQuizSessionsByCode(
-  normCode: string
+  normCode: string,
+  teacherUid?: string
 ): Promise<QuizSessionMatch[]> {
   if (!normCode) return [];
   const branches = LEGACY_CODE_QUERY_ENABLED
@@ -172,5 +174,8 @@ export async function findQuizSessionsByCode(
     if (result.status !== 'fulfilled') continue;
     for (const match of result.value) byId.set(match.id, match);
   }
-  return [...byId.values()];
+  const matches = [...byId.values()];
+  return teacherUid
+    ? matches.filter((m) => m.data.teacherUid === teacherUid)
+    : matches;
 }

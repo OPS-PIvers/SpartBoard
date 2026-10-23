@@ -166,6 +166,12 @@ describe('quiz session doc: run transitions', () => {
     });
   }
 
+  it('refuses the teacher handing the session to another teacher', async () => {
+    await assertFails(
+      updateDoc(sessionRef(asTeacher()), { teacherUid: OTHER_TEACHER_UID })
+    );
+  });
+
   it('refuses a student who tries to delete the session', async () => {
     await assertFails(deleteDoc(sessionRef(asAnon())));
     await assertFails(deleteDoc(sessionRef(asStudent())));
