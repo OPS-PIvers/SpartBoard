@@ -209,6 +209,8 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'panel',
     files: [
       'components/widgets/VideoActivityWidget/components/VideoActivityLiveMonitor.tsx',
+      'components/widgets/VideoActivityWidget/components/monitor/VideoActivityMonitor.tsx',
+      'components/widgets/VideoActivityWidget/components/monitor/VaRosterList.tsx',
       'components/widgets/VideoActivityWidget/components/VideoActivityLivePlayer.tsx',
     ],
     opensWith: 'library-shell.archive-primary-action:video-activity#row-1',

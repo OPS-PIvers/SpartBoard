@@ -390,6 +390,60 @@ export function makeVaResponses(): VideoActivityResponse[] {
   ];
 }
 
+/** Two classes on one assignment; `perPeriod` gives each class its own Start and Pause. */
+export function makeVaMultiClassSession(
+  perPeriod: boolean,
+  status: VideoActivitySession['status'] = 'active'
+): VideoActivitySession {
+  const period = (label: string, state: 'open' | 'paused') => ({
+    label,
+    state,
+    openAt: null,
+    closeAt: state === 'open' ? NOW + 25 * 60_000 : null,
+    bellPeriodId: null,
+    verified: true,
+  });
+  return {
+    ...makeVaSession(status),
+    assignmentName: 'Photosynthesis',
+    periodNames: ['Period 1', 'Period 3'],
+    classIds: ['cl-1', 'cl-3'],
+    classPeriodByClassId: { 'cl-1': 'Period 1', 'cl-3': 'Period 3' },
+    ...(perPeriod
+      ? {
+          periodAccess: {
+            'cl-1': period('Period 1', 'paused'),
+            'cl-3': period('Period 3', 'open'),
+          },
+        }
+      : {}),
+  };
+}
+
+/** The single-class responses plus a second class, each tagged with its class. */
+export function makeVaMultiClassResponses(): VideoActivityResponse[] {
+  const p1 = makeVaResponses().map((r) => ({ ...r, classId: 'cl-1' }));
+  const p3 = [
+    vaResponse(
+      'pin-Period 3-3001',
+      '3001',
+      [
+        { questionId: VA_Q1_ID, answer: 'Carbon dioxide' },
+        { questionId: VA_Q2_ID, answer: 'chloroplast' },
+      ],
+      true
+    ),
+    vaResponse(
+      'pin-Period 3-3002',
+      '3002',
+      [{ questionId: VA_Q1_ID, answer: 'Oxygen' }],
+      false
+    ),
+    vaResponse('pin-Period 3-3003', '3003', [], false),
+  ].map((r) => ({ ...r, classPeriod: 'Period 3', classId: 'cl-3' }));
+  return [...p1, ...p3];
+}
+
 /* ─── Timed (overall time limit) fixtures ─────────────────────────────────── */
 
 const TIMED_STARTS: Record<string, number> = {

@@ -58,6 +58,8 @@ import {
   makeQuizConfig,
   makeVaSession,
   makeVaResponses,
+  makeVaMultiClassSession,
+  makeVaMultiClassResponses,
 } from './sessionViewsMocks';
 import {
   AUDIO_CAPTURE_STATES,
@@ -306,11 +308,21 @@ const SessionView: React.FC<{
   }
 
   if (view === 'va-monitor') {
-    const status = state === 'ended' ? 'ended' : 'active';
-    const responses = state === 'waiting' ? [] : makeVaResponses();
+    const status = state === 'ended' || state === 'paused' ? 'ended' : 'active';
+    const multi = state === 'multi-class' || state === 'per-period';
+    const responses =
+      state === 'waiting'
+        ? []
+        : multi
+          ? makeVaMultiClassResponses()
+          : makeVaResponses();
     return (
       <VideoActivityLiveMonitor
-        session={makeVaSession(status)}
+        session={
+          multi
+            ? makeVaMultiClassSession(state === 'per-period', status)
+            : makeVaSession(status)
+        }
         responses={responses}
         onEnd={noop}
         onPause={noop}
