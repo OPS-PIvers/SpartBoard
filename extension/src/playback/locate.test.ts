@@ -49,8 +49,7 @@ describe('locate', () => {
       css: '.x',
     });
     expect(hit?.el.id).toBe('b');
-    expect(hit?.clue).toBe('role');
-    expect(hit?.tied).toBe(false);
+    expect(hit?.weak).toBe(false);
   });
 
   it('falls back to the innermost text match, then the CSS path', () => {
@@ -71,7 +70,7 @@ describe('locate', () => {
       css: 'i.icon',
     });
     expect(css?.el.id).toBe('c');
-    expect(css?.clue).toBe('css');
+    expect(css?.weak).toBe(false);
   });
 
   it('skips hidden matches', () => {
@@ -80,7 +79,7 @@ describe('locate', () => {
     expect(locate(document, { role: 'button', name: 'Post' })?.el.id).toBe('v');
   });
 
-  it('uses the recorded box only to break a tie', () => {
+  it('lets the recorded box separate same-named controls', () => {
     html(`<button id="l">Edit</button><button id="r">Edit</button>`);
     place(document.getElementById('l'), 0, 0);
     place(document.getElementById('r'), 900, 0);
@@ -90,7 +89,7 @@ describe('locate', () => {
       box: { x: 0.88, y: 0, w: 0.04, h: 0.02 },
     });
     expect(hit?.el.id).toBe('r');
-    expect(hit?.tied).toBe(true);
+    expect(hit?.weak).toBe(false);
   });
 
   it('never matches by the box alone', () => {

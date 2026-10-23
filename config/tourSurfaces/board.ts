@@ -120,6 +120,12 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'shared',
     files: ['components/subs/SubLaunchPanel.tsx'],
   },
+  // Quiz, Video Activity and Guided Learning widgets open on a colleague's item.
+  'board.shared-board-item': {
+    label: "Colleague's item on a shared board",
+    kind: 'shared',
+    files: ['components/sharedBoard/SharedBoardItemGate.tsx'],
+  },
   // Mounted by the quiz grader, the student's take review and student results.
   'board.whiteboard-replay': {
     label: 'Whiteboard answer replay',
@@ -131,23 +137,18 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'shared',
     files: ['components/tours/'],
   },
-  'board.web-tours': {
-    label: 'Web tours list in the Guided Learning library (Live tours filter)',
-    kind: 'panel',
-    widgetType: 'guided-learning',
-    parent: 'guidedLearning.face',
-    opensWith: 'library-shell.filter:guided-learning#row-1',
-    needs: ['widget-on-stage', 'admin'],
-    files: ['components/tours/web/WebToursSection.tsx'],
-  },
   'board.web-tour-editor': {
-    label: 'Web tour editor (New web tour, or a web tour in the list)',
+    label:
+      'Web tour editor (Record a tour > Web tour, or Edit on a web tour card)',
     kind: 'modal',
     widgetType: 'guided-learning',
-    parent: 'board.web-tours',
-    opensWith: 'web-tours.new',
+    parent: 'guidedLearning.face',
+    opensWith: 'library-shell.secondary-menu-item',
     needs: ['widget-on-stage', 'admin'],
-    files: ['components/tours/web/WebTourEditor.tsx'],
+    files: [
+      'components/tours/web/WebTourEditor.tsx',
+      'components/tours/web/WebTourWriting.tsx',
+    ],
   },
   'board.absent-students': {
     label: 'Absent students dialog',
@@ -546,6 +547,12 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'page',
     files: ['components/share/ImportSharedCollectionModal.tsx'],
     url: '/share-collection/{shareId}',
+  },
+  'board.linked-collection-import': {
+    label: 'Import synced or view-only collection',
+    kind: 'page',
+    files: ['components/share/ImportLinkedCollectionModal.tsx'],
+    url: '/share/collection/{linkId}',
   },
 
   'board.help-center': {

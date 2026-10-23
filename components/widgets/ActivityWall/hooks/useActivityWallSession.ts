@@ -49,6 +49,36 @@ export const writeSessionMirror = async (
   });
 };
 
+/** Which board shares may read a wall's posts; kept out of the session doc, which students read. */
+export const wallBoardAccessDoc = (sessionId: string) =>
+  doc(db, 'activity_wall_sessions', sessionId, 'boardAccess', 'boards');
+
+/** The list with `boardShareEntry` ("shareId/hostUid") added (max 3, evicting only deleted shares), or null to leave it. */
+export const nextWallBoardShareIds = async (
+  known: string[],
+  boardShareEntry: string
+): Promise<string[] | null> => {
+  if (known.includes(boardShareEntry)) return null;
+  // Entries without a host pin, or for this share under another host, grant nothing, so they never hold a slot.
+  const shareId = boardShareEntry.split('/')[0];
+  let kept = known.filter(
+    (id) => id.includes('/') && id.split('/')[0] !== shareId
+  );
+  if (kept.length >= 3) {
+    const pinned = kept;
+    const alive = await Promise.all(
+      pinned.map((id) =>
+        getDoc(doc(db, 'shared_boards', id.split('/')[0]))
+          .then((snap) => snap.exists())
+          .catch(() => true)
+      )
+    );
+    kept = pinned.filter((_, index) => alive[index]);
+    if (kept.length >= 3) return null;
+  }
+  return [boardShareEntry, ...kept];
+};
+
 export interface DriveSyncCounts {
   failed: number;
   lost: number;
@@ -100,11 +130,85 @@ export const clearWallSubmissions = async (
   }
 };
 
+export type WallPostActions = Pick<
+  UseActivityWallSessionResult,
+  'approve' | 'reject' | 'deletePost' | 'movePost' | 'pinPost' | 'editPost'
+>;
+
+/** Moderation writes on one session's posts, for its owner or a board co-teacher. */
+export const useWallPostActions = (
+  sessionId: string | null
+): WallPostActions => {
+  const writeSubmission = useCallback(
+    async (submissionId: string, patch: Record<string, unknown>) => {
+      if (!sessionId) return;
+      await updateDoc(submissionDoc(sessionId, submissionId), patch);
+    },
+    [sessionId]
+  );
+
+  const approve = useCallback(
+    (submissionId: string) =>
+      writeSubmission(submissionId, { status: 'approved' }),
+    [writeSubmission]
+  );
+
+  const reject = useCallback(
+    async (submissionId: string) => {
+      if (!sessionId) return;
+      await deleteDoc(submissionDoc(sessionId, submissionId));
+    },
+    [sessionId]
+  );
+
+  const deletePost = reject;
+
+  const movePost = useCallback(
+    (submissionId: string, patch: WallMovePatch) => {
+      const write: Record<string, unknown> = {};
+      if ('sectionId' in patch) {
+        write.sectionId =
+          patch.sectionId === null ? deleteField() : patch.sectionId;
+      }
+      if ('cellKey' in patch) {
+        write.cellKey = patch.cellKey === null ? deleteField() : patch.cellKey;
+      }
+      if (typeof patch.order === 'number') write.order = patch.order;
+      if (Object.keys(write).length === 0) return Promise.resolve();
+      return writeSubmission(submissionId, write);
+    },
+    [writeSubmission]
+  );
+
+  const pinPost = useCallback(
+    (submissionId: string, pinned: boolean) =>
+      writeSubmission(submissionId, { pinned }),
+    [writeSubmission]
+  );
+
+  const editPost = useCallback(
+    (submissionId: string, changes: { content?: string; title?: string }) => {
+      const write: Record<string, unknown> = { editedAt: Date.now() };
+      if (typeof changes.content === 'string') write.content = changes.content;
+      if (typeof changes.title === 'string') write.title = changes.title;
+      return writeSubmission(submissionId, write);
+    },
+    [writeSubmission]
+  );
+
+  return useMemo(
+    () => ({ approve, reject, deletePost, movePost, pinPost, editPost }),
+    [approve, reject, deletePost, movePost, pinPost, editPost]
+  );
+};
+
 export const useActivityWallSession = (
   uid: string | undefined,
   entry: ActivityWallLibraryEntry | null,
   saveActivity: (entry: ActivityWallLibraryEntry) => Promise<void>,
-  timelineDates?: boolean
+  timelineDates?: boolean,
+  /** "shareId/hostUid" of a live board share whose members may read this wall. */
+  boardShareEntry?: string | null
 ): UseActivityWallSessionResult => {
   const sessionId = uid && entry ? activityWallSessionId(uid, entry.id) : null;
 
@@ -169,6 +273,63 @@ export const useActivityWallSession = (
     shareInfo.sessionId === sessionId ? shareInfo.latestShareCode : undefined;
   const latestShareId =
     shareInfo.sessionId === sessionId ? shareInfo.latestShareId : undefined;
+
+  const accessSessionId = boardShareEntry && !sandboxed ? sessionId : null;
+  const [boardAccess, setBoardAccess] = useState<{
+    sessionId: string;
+    ids: string[];
+  } | null>(null);
+  useEffect(() => {
+    if (!accessSessionId) return undefined;
+    return onSnapshot(
+      wallBoardAccessDoc(accessSessionId),
+      (snap) => {
+        const ids: unknown = snap.data()?.boardShareIds;
+        setBoardAccess({
+          sessionId: accessSessionId,
+          ids: Array.isArray(ids)
+            ? ids.filter((id): id is string => typeof id === 'string')
+            : [],
+        });
+      },
+      (err) => {
+        console.error('[ActivityWall] Board access listener failed:', err);
+      }
+    );
+  }, [accessSessionId]);
+
+  // An id already listed is never rewritten, and live shares are never evicted, so open boards can't fight.
+  const knownBoardShareIds =
+    boardAccess && boardAccess.sessionId === accessSessionId
+      ? boardAccess.ids
+      : null;
+  const missingBoardShareKey =
+    accessSessionId &&
+    boardShareEntry &&
+    knownBoardShareIds &&
+    !knownBoardShareIds.includes(boardShareEntry)
+      ? JSON.stringify(knownBoardShareIds)
+      : null;
+  useEffect(() => {
+    if (!accessSessionId || !boardShareEntry || !missingBoardShareKey) return;
+    const known = JSON.parse(missingBoardShareKey) as string[];
+    void nextWallBoardShareIds(known, boardShareEntry)
+      .then(async (next) => {
+        if (!next) return;
+        await setDoc(
+          wallBoardAccessDoc(accessSessionId),
+          { boardShareIds: next },
+          { merge: true }
+        );
+        // Tells members to re-check access without putting share ids in the session doc.
+        await updateDoc(doc(db, 'activity_wall_sessions', accessSessionId), {
+          boardAccessAt: Date.now(),
+        });
+      })
+      .catch((err) => {
+        console.error('[ActivityWall] Failed to open wall to board:', err);
+      });
+  }, [accessSessionId, boardShareEntry, missingBoardShareKey]);
 
   // Walls saved before wall-level engagement flags inherit them once from their latest gallery share.
   const seededEntryIdRef = useRef<string | null>(null);
@@ -250,62 +411,8 @@ export const useActivityWallSession = (
     return { failed, lost, needsConsent };
   }, [submissions]);
 
-  const writeSubmission = useCallback(
-    async (submissionId: string, patch: Record<string, unknown>) => {
-      if (!sessionId) return;
-      await updateDoc(submissionDoc(sessionId, submissionId), patch);
-    },
-    [sessionId]
-  );
-
-  const approve = useCallback(
-    (submissionId: string) =>
-      writeSubmission(submissionId, { status: 'approved' }),
-    [writeSubmission]
-  );
-
-  const reject = useCallback(
-    async (submissionId: string) => {
-      if (!sessionId) return;
-      await deleteDoc(submissionDoc(sessionId, submissionId));
-    },
-    [sessionId]
-  );
-
-  const deletePost = reject;
-
-  const movePost = useCallback(
-    (submissionId: string, patch: WallMovePatch) => {
-      const write: Record<string, unknown> = {};
-      if ('sectionId' in patch) {
-        write.sectionId =
-          patch.sectionId === null ? deleteField() : patch.sectionId;
-      }
-      if ('cellKey' in patch) {
-        write.cellKey = patch.cellKey === null ? deleteField() : patch.cellKey;
-      }
-      if (typeof patch.order === 'number') write.order = patch.order;
-      if (Object.keys(write).length === 0) return Promise.resolve();
-      return writeSubmission(submissionId, write);
-    },
-    [writeSubmission]
-  );
-
-  const pinPost = useCallback(
-    (submissionId: string, pinned: boolean) =>
-      writeSubmission(submissionId, { pinned }),
-    [writeSubmission]
-  );
-
-  const editPost = useCallback(
-    (submissionId: string, changes: { content?: string; title?: string }) => {
-      const write: Record<string, unknown> = { editedAt: Date.now() };
-      if (typeof changes.content === 'string') write.content = changes.content;
-      if (typeof changes.title === 'string') write.title = changes.title;
-      return writeSubmission(submissionId, write);
-    },
-    [writeSubmission]
-  );
+  const { approve, reject, deletePost, movePost, pinPost, editPost } =
+    useWallPostActions(sessionId);
 
   const clearPosts = useCallback(
     async (targetSessionId?: string) => {

@@ -249,6 +249,10 @@ export function parsePlcQuizEntry(
   if (typeof data.archived === 'boolean') {
     entry.archived = data.archived;
   }
+  if (typeof data.folderId === 'string' || data.folderId === null) {
+    entry.folderId = data.folderId;
+  }
+  if (typeof data.order === 'number') entry.order = data.order;
   return entry;
 }
 

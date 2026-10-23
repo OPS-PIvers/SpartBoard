@@ -9,6 +9,10 @@ export interface AiIntegration {
   group: string;
   tier: AiTier;
   inputs: readonly AiInputKind[];
+  /** Runs when the AI tab names no model and allows this one; absent = the tier's Gemini model. */
+  defaultModel?: string;
+  /** Never switched to Gemini on its own; with no usable model the call fails. */
+  noFallback?: true;
 }
 
 // Every server model call names one of these ids; tiers and inputs must match functions/src/aiIntegrations.ts (aiIntegrationsParity test).
@@ -106,6 +110,17 @@ export const AI_INTEGRATIONS: readonly AiIntegration[] = [
     group: 'Guided Learning',
     tier: 'advanced',
     inputs: ['image'],
+  },
+  {
+    id: 'web-tour-writing',
+    label: 'Web tour writing',
+    description:
+      'Writes step titles and tips for a recorded web tour from its pictures.',
+    group: 'Guided Learning',
+    tier: 'advanced',
+    inputs: ['image'],
+    defaultModel: 'claude-sonnet-5-5',
+    noFallback: true,
   },
   {
     id: 'plc-meeting-transcribe',

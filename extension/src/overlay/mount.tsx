@@ -1,6 +1,7 @@
 import { createRoot, type Root } from 'react-dom/client';
 import { createOverlayI18n } from './i18n';
 import { OverlayRoot } from './OverlayRoot';
+import { loadLexend } from '../fonts';
 import type { OverlayAction, OverlayState } from './overlayState';
 
 // A plain div, not a custom element name a page could define and take over.
@@ -40,6 +41,16 @@ function adoptCss(shadow: ShadowRoot, css: string) {
   shadow.appendChild(style);
 }
 
+/** Whether the overlay's Tailwind utilities reached its shadow root, read off a probe element. */
+function sheetApplied(shadow: ShadowRoot, doc: Document): boolean {
+  const probe = doc.createElement('div');
+  probe.className = 'hidden';
+  shadow.appendChild(probe);
+  const applied = doc.defaultView?.getComputedStyle(probe).display === 'none';
+  probe.remove();
+  return applied;
+}
+
 /** Mounts the overlay in a closed Shadow DOM so page scripts can't reach into it. */
 export function mountOverlay(
   css: string,
@@ -52,17 +63,24 @@ export function mountOverlay(
   host.setAttribute('data-tour-ignore', '');
   const shadow = host.attachShadow({ mode: 'closed' });
   adoptCss(shadow, css);
+  loadLexend(doc);
   const container = doc.createElement('div');
   // The host resets every inherited style, so the overlay sets its own font.
   container.className = 'font-sans leading-normal antialiased';
   shadow.appendChild(container);
   doc.documentElement.appendChild(host);
+  const styled = sheetApplied(shadow, doc);
   const i18n = createOverlayI18n();
   let root: Root | null = createRoot(container);
   return {
     render: (state) =>
       root?.render(
-        <OverlayRoot i18n={i18n} state={state} onAction={onAction} />
+        <OverlayRoot
+          i18n={i18n}
+          state={state}
+          styled={styled}
+          onAction={onAction}
+        />
       ),
     unmount: () => {
       root?.unmount();

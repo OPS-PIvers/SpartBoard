@@ -65,6 +65,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   releaseGuidedLearningMediaV1: 'write',
   resolveFlashcardFlagV1: 'write',
   resolvePlcMeetingNotesDraftV1: 'write',
+  saveSharedActivityWallV1: 'write',
   revokeGoogleRefreshToken: 'write',
   revokeMcpGrantV1: 'write',
   revokeSpotifyAuth: 'write',
@@ -121,6 +122,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   translateQuizV1: 'outward',
   translateResponseV1: 'outward',
   withdrawTeammatePaperBatchV1: 'outward',
+  writeWebTourTextV1: 'outward',
   // The session callables read the claim themselves.
   startViewAsSessionV1: 'session',
   startViewAsStudentV1: 'session',

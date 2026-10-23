@@ -27,6 +27,8 @@ export type PlcSectionId =
   | 'settings'
   // Team pages (TEAMS_REDESIGN T27, T31).
   | 'updates'
+  // Data overview as its own tab when PLC Home is the landing page.
+  | 'dataOverview'
   | 'workspace';
 
 /**
@@ -80,6 +82,7 @@ export const PLC_ROUTE_SECTIONS: ReadonlySet<PlcRouteSection> =
     'settings',
     'updates',
     'workspace',
+    'dataOverview',
     // Aliases (router-accepted, rewritten to a canonical id):
     'quizzes',
     'videoActivities',

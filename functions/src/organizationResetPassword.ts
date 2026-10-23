@@ -29,6 +29,7 @@ import {
 } from './organizationInvites';
 import { assertViewAsAllowed } from './viewAsGuard';
 import { isStrictSuperAdmin } from './authz';
+import { normalizeEmailDomain } from './classlinkShared';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -121,6 +122,38 @@ async function assertCallerOutranksTarget(
   throw new HttpsError(
     'permission-denied',
     "Only a super admin can reset a super admin's password."
+  );
+}
+
+// Every verified claim must be this org's: a second org claiming the domain could otherwise win a first-match lookup.
+async function isDomainVerifiedOnlyFor(
+  db: admin.firestore.Firestore,
+  domainWithAt: string,
+  orgId: string
+): Promise<boolean> {
+  const snap = await db
+    .collectionGroup('domains')
+    .where('domain', '==', domainWithAt)
+    .where('status', '==', 'verified')
+    .get();
+  return (
+    !snap.empty && snap.docs.every((d) => d.ref.parent.parent?.id === orgId)
+  );
+}
+
+// Auth accounts are global and org admins author member docs, so only a domain verified for this org ties the account to it.
+async function assertTargetOnOrgDomain(
+  db: admin.firestore.Firestore,
+  orgId: string,
+  callerEmailLower: string,
+  targetEmailLower: string
+): Promise<void> {
+  const domain = normalizeEmailDomain(targetEmailLower);
+  if (domain && (await isDomainVerifiedOnlyFor(db, domain, orgId))) return;
+  if (await isStrictSuperAdmin(db, callerEmailLower)) return;
+  throw new HttpsError(
+    'permission-denied',
+    "Only accounts on this organization's verified domains can be reset here."
   );
 }
 
@@ -228,6 +261,7 @@ export const resetOrganizationUserPassword = onCall(
       target,
       email
     );
+    await assertTargetOnOrgDomain(db, orgId, callerEmailLower, email);
 
     // Firebase Auth's `generatePasswordResetLink` throws `auth/user-not-found`
     // if no Auth user matches — common for members who were invited but

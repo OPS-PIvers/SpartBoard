@@ -53,6 +53,7 @@ import {
   buildGameLeaderboard,
   getDisplayScore,
   isGamificationActive,
+  toBroadcastLeaderboard,
 } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { Z_INDEX } from '@/config/zIndex';
 import { resolveStimuli } from '@/utils/quizStimuli';
@@ -329,24 +330,21 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     streakBonusEnabled: session.streakBonusEnabled,
   };
 
-  // Review ranks everyone so each device finds its own row; names stay top 10 only.
+  // Review ranks everyone so each device finds its own row by studentUid.
   const liveEntries = () =>
-    (isGame
-      ? buildGameLeaderboard(responses, data.pinToName, data.byStudentUid)
-      : buildLiveLeaderboard(
-          responses,
-          quizData.questions,
-          scoringConfig,
-          data.pinToName,
-          data.byStudentUid,
-          fibGrading,
-          session.boardRankLimit ? null : 10
-        )
-    ).map((entry) => {
-      if (entry.rank <= 10) return entry;
-      const { name: _hidden, ...rest } = entry;
-      return rest;
-    });
+    toBroadcastLeaderboard(
+      isGame
+        ? buildGameLeaderboard(responses, data.pinToName, data.byStudentUid)
+        : buildLiveLeaderboard(
+            responses,
+            quizData.questions,
+            scoringConfig,
+            data.pinToName,
+            data.byStudentUid,
+            fibGrading,
+            session.boardRankLimit ? null : 10
+          )
+    );
 
   // Broadcast the live leaderboard to the session doc (unchanged plumbing).
   const fingerprintRef = useRef<string | null>(null);

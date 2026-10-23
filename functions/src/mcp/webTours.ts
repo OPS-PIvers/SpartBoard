@@ -1,6 +1,6 @@
-// Web tours (docs/plans/CHROME_EXTENSION.md T13) play through the Chrome extension; these tools don't handle them yet.
+// Web tours (docs/plans/CHROME_EXTENSION.md T13) play through the Chrome extension; only webTourTools.ts reads or edits them.
 export const WEB_TOUR_REFUSAL =
-  'That set is a web tour, which plays on other websites. The live tour tools only work on SpartBoard tours.';
+  'That set is a web tour, which plays on other websites. The live tour tools only work on SpartBoard tours; use get_web_tour and update_web_tour_text for its words.';
 
 export const isWebTour = (set: unknown): boolean =>
   !!set &&

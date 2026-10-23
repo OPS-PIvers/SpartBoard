@@ -12,6 +12,10 @@ import { DEFAULT_GLOBAL_STYLE } from '@/types';
 import { WidgetRenderer } from '@/components/widgets/WidgetRenderer';
 import { GroupBoundingBox } from '@/components/common/GroupBoundingBox';
 import { useDashboardCanvasSelector } from '@/context/dashboardCanvasStore';
+import {
+  BoardLinkedShareContext,
+  BoardLinkedShareHostContext,
+} from '@/context/boardLinkedShare';
 import { deriveLiveSessionState, isWidgetLive } from '@/utils/liveSessionState';
 
 export interface BoardCanvasProps {
@@ -122,56 +126,66 @@ export const BoardCanvas: FC<BoardCanvasProps> = memo(
     // the active Board's styling when widget memoization is evaluated.
     const globalStyle = dashboard.globalStyle ?? DEFAULT_GLOBAL_STYLE;
     const liveState = deriveLiveSessionState(session);
+    const linkedShareId = dashboard.linkedShareEnded
+      ? null
+      : (dashboard.linkedShareId ?? null);
 
     return (
-      <div
-        className={`absolute inset-0 ${animationClass} transition-opacity duration-500 ease-in-out`}
-        style={{
-          // Note: transform and opacity transitions here create CSS stacking
-          // contexts. Spotlighted widgets escape this by portaling to document.body.
-          display: isActive ? 'block' : 'none',
-          transform: isMinimized && isActive ? 'translateY(80vh)' : undefined,
-          transformOrigin: isMinimized ? 'bottom center' : 'center center',
-          opacity: isMinimized && isActive ? 0 : 1,
-          pointerEvents: isMinimized && isActive ? 'none' : 'auto',
-        }}
-        aria-hidden={!isActive}
-        data-board-id={dashboard.id}
-      >
-        {dashboard.widgets.map((widget) => {
-          const isLive = isWidgetLive(liveState, widget.id);
-          return (
-            <WidgetRenderer
-              key={widget.id}
-              widget={widget}
-              isActive={isActive}
-              isStudentView={false}
-              sessionCode={session?.code}
-              isGlobalFrozen={session?.frozen ?? false}
-              isLive={isLive}
-              students={isLive ? students : emptyStudents}
-              updateSessionConfig={updateSessionConfig}
-              updateSessionBackground={updateSessionBackground}
-              startSession={startSession}
-              endSession={endSession}
-              removeStudent={removeStudent}
-              toggleFreezeStudent={toggleFreezeStudent}
-              toggleGlobalFreeze={toggleGlobalFreeze}
-              updateWidget={updateWidget}
-              removeWidget={removeWidget}
-              duplicateWidget={duplicateWidget}
-              bringToFront={bringToFront}
-              addToast={addToast}
-              globalStyle={globalStyle}
-              dashboardBackground={dashboard.background}
-              dashboardSettings={dashboard.settings}
-              updateDashboardSettings={updateDashboardSettings}
-            />
-          );
-        })}
-        {/* Group Bounding Box — rendered when a grouped widget is selected */}
-        <GroupBoundingBoxLayer dashboard={dashboard} />
-      </div>
+      <BoardLinkedShareContext value={linkedShareId}>
+        <BoardLinkedShareHostContext
+          value={dashboard.linkedShareHostUid ?? null}
+        >
+          <div
+            className={`absolute inset-0 ${animationClass} transition-opacity duration-500 ease-in-out`}
+            style={{
+              // Note: transform and opacity transitions here create CSS stacking
+              // contexts. Spotlighted widgets escape this by portaling to document.body.
+              display: isActive ? 'block' : 'none',
+              transform:
+                isMinimized && isActive ? 'translateY(80vh)' : undefined,
+              transformOrigin: isMinimized ? 'bottom center' : 'center center',
+              opacity: isMinimized && isActive ? 0 : 1,
+              pointerEvents: isMinimized && isActive ? 'none' : 'auto',
+            }}
+            aria-hidden={!isActive}
+            data-board-id={dashboard.id}
+          >
+            {dashboard.widgets.map((widget) => {
+              const isLive = isWidgetLive(liveState, widget.id);
+              return (
+                <WidgetRenderer
+                  key={widget.id}
+                  widget={widget}
+                  isActive={isActive}
+                  isStudentView={false}
+                  sessionCode={session?.code}
+                  isGlobalFrozen={session?.frozen ?? false}
+                  isLive={isLive}
+                  students={isLive ? students : emptyStudents}
+                  updateSessionConfig={updateSessionConfig}
+                  updateSessionBackground={updateSessionBackground}
+                  startSession={startSession}
+                  endSession={endSession}
+                  removeStudent={removeStudent}
+                  toggleFreezeStudent={toggleFreezeStudent}
+                  toggleGlobalFreeze={toggleGlobalFreeze}
+                  updateWidget={updateWidget}
+                  removeWidget={removeWidget}
+                  duplicateWidget={duplicateWidget}
+                  bringToFront={bringToFront}
+                  addToast={addToast}
+                  globalStyle={globalStyle}
+                  dashboardBackground={dashboard.background}
+                  dashboardSettings={dashboard.settings}
+                  updateDashboardSettings={updateDashboardSettings}
+                />
+              );
+            })}
+            {/* Group Bounding Box — rendered when a grouped widget is selected */}
+            <GroupBoundingBoxLayer dashboard={dashboard} />
+          </div>
+        </BoardLinkedShareHostContext>
+      </BoardLinkedShareContext>
     );
   }
 );

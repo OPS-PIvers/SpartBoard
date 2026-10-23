@@ -2,6 +2,7 @@
 import type React from 'react';
 import {
   CalendarRange,
+  FolderSync,
   PenLine,
   BarChart,
   BellRing,
@@ -13,10 +14,13 @@ import {
   Download,
   Eye,
   History,
+  SpellCheck,
   FileText,
   FileUp,
   Gauge,
   Globe,
+  Home,
+  ArrowLeft,
   GraduationCap,
   Flag,
   Footprints,
@@ -26,6 +30,7 @@ import {
   Library,
   Link2,
   ListChecks,
+  ListOrdered,
   Mic,
   Music2,
   Printer,
@@ -736,6 +741,54 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Move up and Move down in each library folder's menu.
+  'library-folder-reorder': {
+    label: 'Reorder library folders',
+    icon: ListOrdered,
+    description:
+      'Move up and Move down in each folder menu, in every library and PLC Assessments.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Arts & Letters Agenda: teachers pick Simple or Detailed, from the boxes admins build.
+  'agenda-versions': {
+    label: 'Agenda Simple and Detailed',
+    icon: ListOrdered,
+    description:
+      'A Simple or Detailed choice in Arts & Letters Agenda settings, using the boxes admins set for each building.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // PLC teams open on Home: charts over time, the latest assessment and team tools.
+  'plc-home-tab': {
+    label: 'PLC Home page',
+    icon: Home,
+    description:
+      'PLC teams open on a Home page with results over time and team tools. Data overview becomes its own tab.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Top-left back arrow on Boards & Collections, Gradebook and Admin Settings.
+  'full-page-back-arrow': {
+    label: 'Back arrow on full pages',
+    icon: ArrowLeft,
+    description:
+      'Boards & Collections, Gradebook and Admin Settings close with a back arrow at the top left.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Claude connector sign-in and tools; the server checks the same gate on every request (CC-D7).
   'claude-connector': {
     label: 'Claude connector',
@@ -807,6 +860,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: History,
     description:
       'Teachers and students can look back at every quiz attempt, and teachers choose which score counts.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Per-question "Spell check" switch on Free Response questions.
+  'quiz-spell-check-toggle': {
+    label: 'Spell check switch in quizzes',
+    icon: SpellCheck,
+    description:
+      'Teachers can turn off spelling and grammar underlines on a Free Response question.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1156,6 +1221,29 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'checklist',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Synced and View-Only collection sharing (COLLECTION_SHARING.md). Admin-only until Paul has shared with it.
+  'collection-sync-sharing': {
+    label: 'Synced collection sharing',
+    icon: FolderSync,
+    description: 'Share a collection that you and a colleague both edit.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Gates the wall owner's side: only a flagged owner lets board members read the wall's posts.
+  'shared-board-live-walls': {
+    label: 'Library items on shared boards',
+    icon: Share2,
+    description:
+      'Colleagues on a Synced or View-Only board see your Activity Walls, quizzes, video activities and guided activities.',
+    stage: 'preview',
+    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

@@ -30,6 +30,7 @@ import {
   SubstituteShareRoster,
   ROOT_COLLECTION_KEY,
   Collection,
+  LinkedCollectionMode,
   CollectionSubstituteShareInput,
 } from '@/types';
 import {
@@ -117,6 +118,15 @@ import {
 } from '@/utils/dashboardPII';
 import { migrateBoardForCollections } from '@/utils/collectionsMigration';
 import { pickInitialBoard } from '@/utils/pickInitialBoard';
+import { LINKED_COLLECTION_SHARE_PREFIX } from '@/utils/linkedCollectionImport';
+import {
+  linkedBoardShareId,
+  linkedTreeCollectionIds,
+} from '@/utils/linkedCollectionSync';
+import {
+  useLinkedCollectionSync,
+  type BoardLinkFields,
+} from '@/hooks/useLinkedCollectionSync';
 import { sanitizeBoardSnapshot } from '@/utils/dashboardSanitize';
 import {
   grantedRosters,
@@ -130,13 +140,24 @@ import {
 import { reconcileExpiredSubShares } from '@/hooks/useReconcileExpiredSubShares';
 import { logError } from '@/utils/logError';
 import { mergeSubsetOrder } from '@/utils/reorderIds';
+import {
+  linkedCollectionLayout,
+  planCopyImportTree,
+} from '@/utils/sharedCollectionTree';
+import {
+  LINKED_COLLECTION_MAX_BOARDS,
+  LINKED_COLLECTION_MAX_SECTIONS,
+  useLinkedCollection,
+} from '@/hooks/useLinkedCollection';
 import { useRosters } from '@/hooks/useRosters';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDriveReconnected } from '@/hooks/useDriveReconnected';
 import { useCollections } from '@/hooks/useCollections';
+import type { DeleteCollectionMode } from '@/hooks/useCollections';
 import {
   useSharedCollection,
   type SubShareTree,
+  type CopyShareTree,
 } from '@/hooks/useSharedCollection';
 import type { SubShareBundle } from '@/utils/bundleSubShareContent';
 import { authError, setDriveAuthErrorHandler } from '@/utils/driveAuthErrors';
@@ -167,6 +188,7 @@ import { seedMaterialsConfig } from '@/utils/materialsPreferences';
 import { isBetaUser } from '@/utils/betaAccess';
 import { AnnotationState } from './DashboardContextValue';
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
+import { closeWallsToBoard } from '@/utils/activityWallBoardAccess';
 import { mergeAnnotationObjects } from '@/utils/annotationMerge';
 import {
   estimateAnnotationBytes,
@@ -582,6 +604,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     setupCompleted,
     lastActiveCollectionId,
     lastBoardIdByCollection,
+    canAccessFeature,
   } = useAuth();
   const { driveService, userDomain } = useGoogleDrive();
   const {
@@ -600,6 +623,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   } = useFirestore(user?.uid ?? null);
 
   const collectionsApi = useCollections(user?.uid);
+  const linkedCollectionApi = useLinkedCollection();
   const { collections } = collectionsApi;
   const sharedCollectionApi = useSharedCollection();
 
@@ -613,6 +637,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     if (path.startsWith('/share/assignment/')) return null;
     if (path.startsWith('/share/video-activity/')) return null;
     if (path.startsWith('/share/rubric/')) return null;
+    if (path.startsWith(LINKED_COLLECTION_SHARE_PREFIX)) return null;
     if (path.startsWith('/share/')) {
       return path.split('/share/')[1] || null;
     }
@@ -2016,6 +2041,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         linkedShareId: shareId,
         linkedShareRole: 'owner',
         linkedShareHostName: hostName,
+        linkedShareHostUid: user?.uid,
         linkedShareEnded: false,
       };
       // Optimistic local update so the UI reflects the live-share state
@@ -2034,6 +2060,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           linkedShareId: shareId,
           linkedShareRole: 'owner',
           linkedShareHostName: hostName,
+          ...(user?.uid ? { linkedShareHostUid: user.uid } : {}),
           linkedShareEnded: false,
         });
       } catch (e) {
@@ -3757,6 +3784,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               linkedShareRole:
                 effectiveMode === 'synced' ? 'collaborator' : 'viewer',
               linkedShareHostName: preview.linkedShareHostName,
+              linkedShareHostUid: preview.linkedShareHostUid,
               linkedShareEnded: false,
             }
           : {}),
@@ -3823,6 +3851,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Per-share ink present when we first subscribed — the fallback merge
   // baseline before this device has mirrored or received anything.
   const mountInkBaselineRef = useRef<Map<string, DrawableObject[]>>(new Map());
+  // Collections inside a live Synced / View-Only collection share (D3).
+  const linkedTreeIds = useMemo(
+    () => linkedTreeCollectionIds(collections),
+    [collections]
+  );
+  const linkedTreeIdsRef = useRef(linkedTreeIds);
+  useLayoutEffect(() => {
+    linkedTreeIdsRef.current = linkedTreeIds;
+  });
+  /** Share ids whose listener has delivered at least one snapshot since it subscribed. */
+  const sharedSnapshotSeenRef = useRef<Set<string>>(new Set());
+
   /** Pending debounced mirror timers per shareId. */
   const mirrorTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map()
@@ -3850,6 +3890,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const shareId = d.linkedShareId;
       liveShareIds.add(shareId);
+      // A board in a shared collection mirrors only while open and after its share has been read (D3).
+      if (
+        linkedTreeIds.has(d.collectionId ?? '') &&
+        (d.id !== activeIdRef.current ||
+          !sharedSnapshotSeenRef.current.has(shareId))
+      ) {
+        return;
+      }
 
       // Scrub student PII before broadcasting. The local dashboard may have
       // had names merged back in from Drive (mergeDashboardPII); those must
@@ -3892,7 +3940,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         lastMirroredRef.current.delete(shareId);
       }
     }
-  }, [dashboards, user, mirrorSharedBoard]);
+  }, [dashboards, user, mirrorSharedBoard, linkedTreeIds]);
 
   // Cleanup pending mirror timers on unmount so we don't write after teardown.
   useEffect(() => {
@@ -3906,23 +3954,97 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Subscribe to remote edits on each linked share. We re-subscribe whenever
   // the set of (dashboardId, shareId) pairs changes; widget content edits do
   // NOT cause re-subscription because we read the dashboard list via ref.
+  // Boards inside a shared collection are left out here: they listen only
+  // while open (below), so a 20-board collection costs one listener, not 20.
   const linkedShareKeys = useMemo(
     () =>
       dashboards
-        .filter((d) => d.linkedShareId)
+        .filter(
+          (d) => d.linkedShareId && !linkedTreeIds.has(d.collectionId ?? '')
+        )
         .map((d) => `${d.id}:${d.linkedShareId}`)
         .sort()
         .join('|'),
-    [dashboards]
+    [dashboards, linkedTreeIds]
   );
+  const activeTreeShareKey = useMemo(() => {
+    const d = dashboards.find((x) => x.id === activeId);
+    return d?.linkedShareId && linkedTreeIds.has(d.collectionId ?? '')
+      ? `${d.id}:${d.linkedShareId}`
+      : '';
+  }, [dashboards, activeId, linkedTreeIds]);
 
-  useEffect(() => {
-    if (!user) return;
+  // Shares whose walls were already closed, and boards whose host was recorded, this session.
+  const closedShareIdsRef = useRef(new Set<string>());
+  const recordedHostBoardIdsRef = useRef(new Set<string>());
 
-    const linked = dashboardsRef.current.filter((d) => d.linkedShareId);
-    if (linked.length === 0) return;
+  // Latest-value handlers the share snapshot callbacks call, so permissions loading doesn't re-subscribe.
+  const linkedShareHandlersRef = useRef<{
+    closeWallsToEndedShare: (shareId: string, host?: string) => void;
+    recordShareHost: (board: Dashboard, hostUid: string) => void;
+    hostCheckOn: boolean;
+  }>({
+    closeWallsToEndedShare: () => undefined,
+    recordShareHost: () => undefined,
+    hostCheckOn: false,
+  });
 
-    const unsubs = linked.map((d) => {
+  // The ended share stops listing this teacher's walls.
+  const closeWallsToEndedShare = (
+    shareId: string,
+    recordedHost: string | undefined
+  ) => {
+    if (isAuthBypass || !user) return;
+    if (!canAccessFeature?.('shared-board-live-walls')) return;
+    if (closedShareIdsRef.current.has(shareId)) return;
+    closedShareIdsRef.current.add(shareId);
+    const uid = user.uid;
+    void (async () => {
+      // A listener error or a cache miss also reports null: close only once the server confirms it.
+      const snap = await getDoc(doc(db, 'shared_boards', shareId));
+      const host: unknown = snap.data()?.originalAuthor;
+      if (snap.exists() && (!recordedHost || host === recordedHost)) {
+        closedShareIdsRef.current.delete(shareId);
+        return;
+      }
+      await closeWallsToBoard(uid, shareId, new Set());
+    })().catch((err: unknown) => {
+      closedShareIdsRef.current.delete(shareId);
+      console.error('Failed to close walls to the ended board:', err);
+    });
+  };
+
+  // Boards joined before the host was recorded keep it from their first snapshot.
+  const recordShareHost = (board: Dashboard, hostUid: string) => {
+    if (!canAccessFeature?.('shared-board-live-walls')) return;
+    if (recordedHostBoardIdsRef.current.has(board.id)) return;
+    recordedHostBoardIdsRef.current.add(board.id);
+    setDashboards((prev) =>
+      prev.map((x) =>
+        x.id === board.id && !x.linkedShareHostUid
+          ? { ...x, linkedShareHostUid: hostUid }
+          : x
+      )
+    );
+    void updateDashboardFields(
+      { ...board, linkedShareHostUid: hostUid },
+      { linkedShareHostUid: hostUid }
+    ).catch((err: unknown) => {
+      console.error('Failed to record the share host:', err);
+    });
+  };
+
+  useLayoutEffect(() => {
+    linkedShareHandlersRef.current = {
+      closeWallsToEndedShare,
+      recordShareHost,
+      hostCheckOn: canAccessFeature?.('shared-board-live-walls') === true,
+    };
+  });
+
+  const subscribeLinkedBoard = useCallback(
+    (d: Dashboard): (() => void) => {
+      if (!user) return () => undefined;
       const dashboardId = d.id;
       const shareId = d.linkedShareId;
       if (!shareId) return () => undefined;
@@ -3939,7 +4061,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       return subscribeToSharedBoard(shareId, (remote) => {
-        if (!remote) {
+        sharedSnapshotSeenRef.current.add(shareId);
+        const known = dashboardsRef.current.find((x) => x.id === dashboardId);
+        const recordedHost = known?.linkedShareHostUid;
+        // The share doc was deleted and its id re-created by someone else: treat it as ended.
+        const hostChanged =
+          linkedShareHandlersRef.current.hostCheckOn &&
+          !!remote?.linkedShareHostUid &&
+          !!recordedHost &&
+          remote.linkedShareHostUid !== recordedHost;
+        if (!remote || hostChanged) {
           // Shared doc deleted by the host (revoked). Behavior depends on
           // the local user's role:
           //  - viewer: View-Only is ephemeral end-to-end. Delete the local
@@ -3947,8 +4078,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           //  - collaborator (or anything else): preserve content as a
           //    detached editable copy and flag `linkedShareEnded` so the
           //    UI can surface a "share ended" indicator.
+          if (!known?.linkedShareEnded) {
+            linkedShareHandlersRef.current.closeWallsToEndedShare(
+              shareId,
+              recordedHost
+            );
+          }
           const local = dashboardsRef.current.find((x) => x.id === dashboardId);
-          if (local?.linkedShareRole === 'viewer') {
+          // In a live shared collection, the collection's sync removes or keeps the board.
+          const inSharedCollection = linkedTreeIdsRef.current.has(
+            local?.collectionId ?? ''
+          );
+          if (local?.linkedShareRole === 'viewer' && !inSharedCollection) {
             const hostName = local.linkedShareHostName;
             // Switch active dashboard away if the doomed board is current.
             if (activeIdRef.current === dashboardId) {
@@ -4005,6 +4146,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             )
           );
           return;
+        }
+
+        // An ended board never takes a host from whoever holds the share id now.
+        const remoteHost = remote.linkedShareHostUid;
+        if (known && !recordedHost && remoteHost && !known.linkedShareEnded) {
+          linkedShareHandlersRef.current.recordShareHost(known, remoteHost);
         }
 
         // Skip echoes of our own writes — `updatedBy` is stamped by the
@@ -4112,21 +4259,44 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           })
         );
       });
-    });
+    },
+    [
+      user,
+      subscribeToSharedBoard,
+      addToast,
+      deleteDashboardFirestore,
+      updateActiveId,
+    ]
+  );
 
+  useEffect(() => {
+    if (!user || !linkedShareKeys) return;
+    const keys = new Set(linkedShareKeys.split('|'));
+    const unsubs = dashboardsRef.current
+      .filter((d) => keys.has(`${d.id}:${d.linkedShareId}`))
+      .map(subscribeLinkedBoard);
     return () => {
       unsubs.forEach((u) => u());
     };
     // linkedShareKeys captures only structural changes (which share/dashboard
     // pairs exist), not content edits — so we don't re-subscribe on every edit.
-  }, [
-    linkedShareKeys,
-    user,
-    subscribeToSharedBoard,
-    addToast,
-    deleteDashboardFirestore,
-    updateActiveId,
-  ]);
+  }, [linkedShareKeys, user, subscribeLinkedBoard]);
+
+  // The open board of a shared collection: its first snapshot is the one-shot read on open (D3).
+  useEffect(() => {
+    if (!user || !activeTreeShareKey) return;
+    const d = dashboardsRef.current.find(
+      (x) => `${x.id}:${x.linkedShareId}` === activeTreeShareKey
+    );
+    const shareId = d?.linkedShareId;
+    if (!d || !shareId) return;
+    const seen = sharedSnapshotSeenRef.current;
+    const unsub = subscribeLinkedBoard(d);
+    return () => {
+      unsub();
+      seen.delete(shareId);
+    };
+  }, [activeTreeShareKey, user, subscribeLinkedBoard]);
 
   const stopSharingDashboard = useCallback(
     async (dashboardId: string) => {
@@ -4149,6 +4319,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         console.error('Failed to tear down share:', err);
         addToast('Failed to stop sharing', 'error');
         return;
+      }
+
+      // The board's members stop reading this teacher's walls.
+      if (user && canAccessFeature?.('shared-board-live-walls')) {
+        closedShareIdsRef.current.add(shareId);
+        void closeWallsToBoard(user.uid, shareId, new Set()).catch((err) => {
+          console.error('Failed to close walls to the left board:', err);
+        });
       }
 
       // Viewer leaving a View-Only board: View-Only is ephemeral end-to-end,
@@ -4188,6 +4366,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         linkedShareId: undefined,
         linkedShareRole: undefined,
         linkedShareHostName: undefined,
+        linkedShareHostUid: undefined,
         linkedShareEnded: undefined,
       };
       setDashboards((prev) =>
@@ -4201,6 +4380,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           linkedShareId: deleteField(),
           linkedShareRole: deleteField(),
           linkedShareHostName: deleteField(),
+          linkedShareHostUid: deleteField(),
           linkedShareEnded: deleteField(),
         });
       } catch (err) {
@@ -4215,6 +4395,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       addToast,
       deleteDashboardFirestore,
       updateActiveId,
+      user,
+      canAccessFeature,
     ]
   );
 
@@ -4430,7 +4612,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     async (
       name: string,
       data?: Dashboard,
-      options?: { collectionId?: string | null; silent?: boolean }
+      options?: {
+        collectionId?: string | null;
+        silent?: boolean;
+        keepId?: boolean;
+      }
     ): Promise<string | undefined> => {
       if (!user) {
         if (!options?.silent)
@@ -4451,7 +4637,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const newDb: Dashboard = data
         ? {
             ...data,
-            id: crypto.randomUUID(),
+            id: options?.keepId ? data.id : crypto.randomUUID(),
             name,
             order: data.order ?? maxOrder + 1,
             collectionId,
@@ -4500,6 +4686,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     async (input: {
       collection: Collection;
       boards: Dashboard[];
+      tree?: CopyShareTree;
     }): Promise<string> => {
       if (!user) throw new Error('Not authenticated');
       return sharedCollectionApi.shareCollection({
@@ -4509,6 +4696,137 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       });
     },
     [user, sharedCollectionApi]
+  );
+
+  const shareLinkedCollection = useCallback(
+    async (input: {
+      collection: Collection;
+      boards: Dashboard[];
+      tree: CopyShareTree;
+      mode: LinkedCollectionMode;
+    }): Promise<string> => {
+      if (!user) throw new Error('Not authenticated');
+      if (input.boards.some((b) => b.linkedShareId && !b.linkedShareEnded)) {
+        throw new Error('A board in this collection is already shared live');
+      }
+      if (
+        input.boards.length > LINKED_COLLECTION_MAX_BOARDS ||
+        input.tree.sections.length - 1 > LINKED_COLLECTION_MAX_SECTIONS
+      ) {
+        throw new Error('This collection is too big to share live');
+      }
+      // Stamped on each board share before the link doc exists, so no recipient sees a half-made link.
+      const linkId = crypto.randomUUID();
+      const hostName = user.displayName ?? user.email ?? undefined;
+      const shareIdByBoard = new Map<string, string>();
+      const results = await Promise.allSettled(
+        input.boards.map(async (board) => {
+          const shareId = await shareDashboardFirestore(
+            scrubDashboardPII(withoutTransient(board)),
+            input.mode,
+            hostName,
+            undefined,
+            linkId,
+            linkedBoardShareId(linkId, board.id)
+          );
+          shareIdByBoard.set(board.id, shareId);
+        })
+      );
+      const failed = results.find(
+        (r): r is PromiseRejectedResult => r.status === 'rejected'
+      );
+
+      const linkFields = (shareId: string) => ({
+        linkedShareId: shareId,
+        linkedShareRole: 'owner' as const,
+        linkedShareHostName: hostName,
+        linkedShareHostUid: user.uid,
+        linkedShareEnded: false,
+      });
+      try {
+        if (failed) throw failed.reason;
+        setDashboards((prev) =>
+          prev.map((d) => {
+            const shareId = shareIdByBoard.get(d.id);
+            return shareId ? { ...d, ...linkFields(shareId) } : d;
+          })
+        );
+        // Linkage fields only, as in handleShareDashboard: most of these boards have no save baseline.
+        await Promise.all(
+          input.boards.map((board) => {
+            const shareId = shareIdByBoard.get(board.id) ?? '';
+            return updateDashboardFields(
+              { ...board, ...linkFields(shareId) },
+              linkFields(shareId)
+            );
+          })
+        );
+        const layout = linkedCollectionLayout(input.tree, shareIdByBoard);
+        await linkedCollectionApi.createLinkedCollection({
+          linkId,
+          hostUid: user.uid,
+          hostName: hostName ?? null,
+          mode: input.mode,
+          name: input.collection.name,
+          color: input.collection.color,
+          icon: input.collection.icon,
+          ...layout,
+        });
+      } catch (err) {
+        // Put back each board's earlier linkage (an ended share keeps its state).
+        const before = new Map(input.boards.map((b) => [b.id, b]));
+        const priorLink = (b: Dashboard) => ({
+          linkedShareId: b.linkedShareId,
+          linkedShareRole: b.linkedShareRole,
+          linkedShareHostName: b.linkedShareHostName,
+          linkedShareHostUid: b.linkedShareHostUid,
+          linkedShareEnded: b.linkedShareEnded,
+        });
+        setDashboards((prev) =>
+          prev.map((d) => {
+            const orig = before.get(d.id);
+            return orig ? { ...d, ...priorLink(orig) } : d;
+          })
+        );
+        await Promise.allSettled([
+          ...input.boards.map((board) =>
+            updateDashboardFields(
+              board,
+              Object.fromEntries(
+                Object.entries(priorLink(board)).map(([k, v]) => [
+                  k,
+                  v ?? deleteField(),
+                ])
+              )
+            )
+          ),
+          ...[...shareIdByBoard.values()].map((id) => stopSharingBoard(id)),
+        ]);
+        throw err;
+      }
+
+      // The link already works for recipients, so a failed tag here is logged, not thrown.
+      try {
+        await collectionsApi.setCollectionLink(input.collection.id, {
+          linkedCollectionId: linkId,
+          linkedCollectionRole: 'owner',
+          linkedCollectionEnded: false,
+        });
+      } catch (err) {
+        logError('DashboardContext.shareLinkedCollection.collection', err, {
+          linkId,
+        });
+      }
+      return linkId;
+    },
+    [
+      user,
+      shareDashboardFirestore,
+      stopSharingBoard,
+      linkedCollectionApi,
+      updateDashboardFields,
+      collectionsApi,
+    ]
   );
 
   const shareSubstituteCollection = useCallback(
@@ -4758,6 +5076,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     return sharedCollectionApi.listHostSubShares(user.uid);
   }, [user, sharedCollectionApi]);
 
+  const deleteImportedCollections = useCallback(
+    async (ids: string[]): Promise<void> => {
+      if (isAuthBypass) {
+        await Promise.all(
+          ids.map((id) => collectionsApi.deleteCollection(id, 'delete-all'))
+        );
+        return;
+      }
+      if (!user) return;
+      const batch = writeBatch(db);
+      for (const id of ids) {
+        batch.delete(doc(db, 'users', user.uid, 'collections', id));
+      }
+      await batch.commit();
+    },
+    [user, collectionsApi]
+  );
+
   const importSharedCollection = useCallback(
     async (
       shareId: string
@@ -4815,6 +5151,41 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           null // root — recipient can move it later
         );
 
+        // Rebuild sub-collections (D1); boards of one that fails land in the root.
+        const tree = planCopyImportTree(meta);
+        const collectionFor = new Map<string, string>();
+        const childIdsByParent = new Map<string, string[]>();
+        for (const child of tree.children) {
+          const parent =
+            (child.parentId ? collectionFor.get(child.parentId) : undefined) ??
+            newCollectionId;
+          try {
+            const id = await collectionsApi.createCollection(
+              child.name,
+              parent,
+              child.color ? { color: child.color } : undefined
+            );
+            collectionFor.set(child.id, id);
+            childIdsByParent.set(parent, [
+              ...(childIdsByParent.get(parent) ?? []),
+              id,
+            ]);
+          } catch (err) {
+            logError('DashboardContext.importSharedCollection.child', err, {
+              shareId,
+            });
+          }
+        }
+        await Promise.all(
+          [...childIdsByParent].map(([parent, ids]) =>
+            collectionsApi.reorderSiblings(parent, ids).catch((err) =>
+              logError('DashboardContext.importSharedCollection.order', err, {
+                shareId,
+              })
+            )
+          )
+        );
+
         // Capture maxOrder ONCE before the parallel fan-out so each board
         // gets a deterministic, non-colliding order value.
         const baseOrder = dashboards.reduce(
@@ -4837,7 +5208,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 id: crypto.randomUUID(),
                 order: baseOrder + idx + 1,
               },
-              { collectionId: newCollectionId, silent: true }
+              {
+                collectionId:
+                  collectionFor.get(tree.sectionOf.get(b.id) ?? '') ??
+                  newCollectionId,
+                silent: true,
+              }
             )
           )
         );
@@ -4873,10 +5249,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           // All boards failed — delete the empty Collection rather than
           // leaving a labeled-but-empty shell in the recipient's tree.
           try {
-            await collectionsApi.deleteCollection(
+            // By id: deleteCollection reads collections state that predates this import.
+            await deleteImportedCollections([
+              ...collectionFor.values(),
               newCollectionId,
-              'delete-all'
-            );
+            ]);
           } catch (cleanupErr) {
             logError(
               'DashboardContext.importSharedCollection.cleanup',
@@ -4913,6 +5290,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       sharedCollectionApi,
       collectionsApi,
       createNewDashboard,
+      deleteImportedCollections,
     ]
   );
 
@@ -4934,11 +5312,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [user, dashboards, activeId, saveDashboard, buildSaveBaseline, addToast]);
 
-  const deleteDashboard = useCallback(
-    async (id: string) => {
+  const deleteDashboardRaw = useCallback(
+    async (id: string): Promise<boolean> => {
       if (!user) {
         addToast('Must be signed in to delete', 'error');
-        return;
+        return false;
       }
 
       try {
@@ -4948,9 +5326,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           updateActiveId(filtered.length > 0 ? filtered[0].id : null);
         }
         addToast('Dashboard removed');
+        return true;
       } catch (err) {
         console.error('Delete failed:', err);
         addToast('Delete failed', 'error');
+        return false;
       }
     },
     [
@@ -5124,15 +5504,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [user, dashboards, collections, collectionsApi, saveDashboard, addToast]
   );
 
-  const renameDashboard = useCallback(
-    async (id: string, name: string) => {
+  const renameDashboardRaw = useCallback(
+    async (id: string, name: string): Promise<boolean> => {
       if (!user) {
         addToast('Must be signed in to rename', 'error');
-        return;
+        return false;
       }
 
       const dashboard = dashboards.find((d) => d.id === id);
-      if (!dashboard) return;
+      if (!dashboard) return false;
 
       const updated = { ...dashboard, name };
 
@@ -5151,11 +5531,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // write just the name rather than the whole (possibly stale) document.
         await updateDashboardFields(updated, { name });
         addToast('Dashboard renamed');
+        return true;
       } catch (err) {
         console.error('Rename failed:', err);
         addToast('Rename failed', 'error');
         // Revert
         setDashboards((prev) => prev.map((d) => (d.id === id ? dashboard : d)));
+        return false;
       }
     },
     [user, dashboards, activeId, updateDashboardFields, addToast]
@@ -5300,7 +5682,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [user?.uid, dashboards, addToast]
   );
 
-  const moveBoardToCollection = useCallback(
+  const moveBoardToCollectionRaw = useCallback(
     // eslint-disable-next-line react-hooks/preserve-manual-memoization -- existing deps kept to preserve callback identity
     async (
       boardId: string,
@@ -5345,6 +5727,282 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     },
     [user?.uid, dashboards, addToast]
+  );
+
+  // --- Synced / View-Only collections: membership sync (COLLECTION_SHARING slice 4) ---
+  const linkedSyncDisplayName = user?.displayName ?? user?.email ?? undefined;
+  const linkedSyncShareBoard = useCallback(
+    (board: Dashboard, mode: LinkedCollectionMode, linkId: string) =>
+      shareDashboardFirestore(
+        scrubDashboardPII(withoutTransient(board)),
+        mode,
+        linkedSyncDisplayName,
+        undefined,
+        linkId,
+        linkedBoardShareId(linkId, board.id)
+      ),
+    [shareDashboardFirestore, linkedSyncDisplayName]
+  );
+  const linkedSyncCreateBoard = useCallback(
+    (data: Dashboard, collectionId: string) =>
+      createNewDashboard(data.name, data, {
+        collectionId,
+        silent: true,
+        keepId: true,
+      }),
+    [createNewDashboard]
+  );
+  const linkedSyncDeleteBoard = useCallback(
+    async (boardId: string) => {
+      if (activeIdRef.current === boardId) {
+        const next = dashboardsRef.current.find((x) => x.id !== boardId);
+        updateActiveId(next ? next.id : null);
+      }
+      await handleDeleteDashboard(boardId);
+      setDashboards((prev) => prev.filter((x) => x.id !== boardId));
+    },
+    [handleDeleteDashboard, updateActiveId]
+  );
+  const linkedSyncUid = user?.uid;
+  const linkedSyncSetBoardLink = useCallback(
+    async (boardId: string, link: BoardLinkFields | null) => {
+      const target = dashboardsRef.current.find((x) => x.id === boardId);
+      if (!target) return;
+      // A new link never keeps an earlier share's host.
+      const fields = link
+        ? { linkedShareHostUid: undefined, ...link }
+        : {
+            linkedShareId: undefined,
+            linkedShareRole: undefined,
+            linkedShareHostName: undefined,
+            linkedShareHostUid: undefined,
+            linkedShareEnded: undefined,
+          };
+      setDashboards((prev) =>
+        prev.map((x) => (x.id === boardId ? { ...x, ...fields } : x))
+      );
+      const patch = Object.fromEntries(
+        Object.entries(fields).map(([k, v]) => [k, v ?? deleteField()])
+      );
+      if (link || isAuthBypass || isViewAsTab || !linkedSyncUid) {
+        // Linkage fields only: the board may have no save baseline.
+        await updateDashboardFields({ ...target, ...fields }, patch);
+        return;
+      }
+      // Clearing never re-creates a board another tab just deleted.
+      try {
+        await updateDoc(
+          doc(db, 'users', linkedSyncUid, 'dashboards', boardId),
+          {
+            ...patch,
+            updatedAt: Date.now(),
+          }
+        );
+      } catch (err) {
+        if ((err as { code?: unknown } | null)?.code !== 'not-found') throw err;
+      }
+    },
+    [updateDashboardFields, linkedSyncUid]
+  );
+  const linkedSyncNotify = useCallback(
+    (message: string) => addToast(message, 'info'),
+    [addToast]
+  );
+  const linkedSyncRenameBoard = useCallback(
+    async (boardId: string, name: string) => {
+      const target = dashboardsRef.current.find((x) => x.id === boardId);
+      if (!target || target.name === name) return;
+      setDashboards((prev) =>
+        prev.map((x) => (x.id === boardId ? { ...x, name } : x))
+      );
+      await updateDashboardFields({ ...target, name }, { name });
+    },
+    [updateDashboardFields]
+  );
+  const linkedSyncMoveBoard = useCallback(
+    (boardId: string, collectionId: string) =>
+      moveBoardToCollectionRaw(boardId, collectionId, { silent: true }),
+    [moveBoardToCollectionRaw]
+  );
+  const {
+    countRemovedForEveryone: countLinkedBoardRemovals,
+    countCollectionMoveRemovals: countLinkedCollectionMoveRemovals,
+    beforeBoardsLeave,
+    pushCollectionMetadata,
+    stopSharingCollection: stopSharingCollectionRaw,
+    leaveSharedCollection: leaveSharedCollectionRaw,
+    moveCollectionSynced,
+    deleteCollectionSynced,
+    holdBoardName,
+    pushBoardName,
+  } = useLinkedCollectionSync({
+    // Optional call: many useAuth test doubles leave canAccessFeature out.
+    enabled:
+      canAccessFeature?.('collection-sync-sharing') === true &&
+      !isViewAsTab &&
+      !loading,
+    uid: user?.uid ?? null,
+    displayName: linkedSyncDisplayName,
+    collections,
+    dashboards,
+    collectionsApi,
+    linkedCollectionApi,
+    loadSharedBoard: loadSharedDashboardFirestore,
+    joinSharedBoard,
+    leaveSharedBoard,
+    stopSharingBoard,
+    shareBoard: linkedSyncShareBoard,
+    createBoard: linkedSyncCreateBoard,
+    deleteBoard: linkedSyncDeleteBoard,
+    setBoardLink: linkedSyncSetBoardLink,
+    moveBoard: linkedSyncMoveBoard,
+    notify: linkedSyncNotify,
+    renameBoard: linkedSyncRenameBoard,
+  });
+
+  const stopSharingCollection = useCallback(
+    async (collectionId: string): Promise<void> => {
+      try {
+        await stopSharingCollectionRaw(collectionId);
+      } catch (err) {
+        logError('DashboardContext.stopSharingCollection', err, {
+          collectionId,
+        });
+        addToast('Failed to stop sharing', 'error');
+        return;
+      }
+      addToast(
+        i18n.t('linkedCollection.stopped', { defaultValue: 'Stopped sharing' }),
+        'success'
+      );
+    },
+    [stopSharingCollectionRaw, addToast]
+  );
+
+  const leaveSharedCollection = useCallback(
+    async (collectionId: string): Promise<void> => {
+      try {
+        await leaveSharedCollectionRaw(collectionId);
+      } catch (err) {
+        logError('DashboardContext.leaveSharedCollection', err, {
+          collectionId,
+        });
+        addToast(
+          i18n.t('linkedCollection.leaveFailed', {
+            defaultValue: 'Failed to leave shared collection',
+          }),
+          'error'
+        );
+        return;
+      }
+      addToast(
+        i18n.t('linkedCollection.left', {
+          defaultValue: 'Left shared collection',
+        }),
+        'success'
+      );
+    },
+    [leaveSharedCollectionRaw, addToast]
+  );
+
+  // A board's new name reaches the shared collection it sits in.
+  const renameDashboard = useCallback(
+    async (id: string, name: string) => {
+      const release = holdBoardName(id, name);
+      if (await renameDashboardRaw(id, name)) void pushBoardName(id, name);
+      else release();
+    },
+    [renameDashboardRaw, holdBoardName, pushBoardName]
+  );
+
+  // A removal for everyone was confirmed in the UI (D4); the shared list follows the delete or move.
+  const deleteDashboard = useCallback(
+    async (id: string) => {
+      let finish: (landed: boolean) => Promise<void>;
+      try {
+        finish = await beforeBoardsLeave([id], { kind: 'delete' });
+      } catch (err) {
+        logError('DashboardContext.deleteDashboard.linked', err, { id });
+        addToast('Delete failed', 'error');
+        return;
+      }
+      await finish(await deleteDashboardRaw(id));
+    },
+    [beforeBoardsLeave, deleteDashboardRaw, addToast]
+  );
+
+  const moveBoardToCollection = useCallback(
+    async (
+      boardId: string,
+      collectionId: string | null,
+      options?: { silent?: boolean }
+    ): Promise<void> => {
+      const prev = dashboardsRef.current.find((d) => d.id === boardId);
+      if (!prev || (prev.collectionId ?? null) === collectionId) {
+        return moveBoardToCollectionRaw(boardId, collectionId, options);
+      }
+      let finish: (landed: boolean) => Promise<void>;
+      try {
+        finish = await beforeBoardsLeave([boardId], {
+          kind: 'move',
+          collectionId,
+        });
+      } catch (err) {
+        if (!options?.silent) addToast('Failed to move board', 'error');
+        throw err;
+      }
+      let landed = false;
+      try {
+        await moveBoardToCollectionRaw(boardId, collectionId, options);
+        landed = true;
+      } finally {
+        await finish(landed);
+      }
+    },
+    [beforeBoardsLeave, moveBoardToCollectionRaw, addToast]
+  );
+
+  // Queued moves and deletes run later, so they read the tree as it is then.
+  const collectionsApiRef = useRef(collectionsApi);
+  useLayoutEffect(() => {
+    collectionsApiRef.current = collectionsApi;
+  });
+  // Renames and recolors reach the shared collection when this teacher can edit it.
+  const syncedCollectionsApi = useMemo(
+    () => ({
+      ...collectionsApi,
+      renameCollection: async (collectionId: string, nextName: string) => {
+        await collectionsApi.renameCollection(collectionId, nextName);
+        void pushCollectionMetadata(collectionId, { name: nextName.trim() });
+      },
+      setCollectionMetadata: async (
+        collectionId: string,
+        patch: Partial<Pick<Collection, 'name' | 'color' | 'icon'>>
+      ) => {
+        await collectionsApi.setCollectionMetadata(collectionId, patch);
+        void pushCollectionMetadata(collectionId, patch);
+      },
+      moveCollection: (
+        collectionId: string,
+        nextParentCollectionId: string | null
+      ) =>
+        moveCollectionSynced(collectionId, nextParentCollectionId, () =>
+          collectionsApiRef.current.moveCollection(
+            collectionId,
+            nextParentCollectionId
+          )
+        ),
+      deleteCollection: (collectionId: string, mode: DeleteCollectionMode) =>
+        deleteCollectionSynced(collectionId, mode, () =>
+          collectionsApiRef.current.deleteCollection(collectionId, mode)
+        ),
+    }),
+    [
+      collectionsApi,
+      pushCollectionMetadata,
+      moveCollectionSynced,
+      deleteCollectionSynced,
+    ]
   );
 
   const pinBoard = useCallback(
@@ -7516,7 +8174,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const contextValue = useMemo(
     () => ({
       driveService,
-      collectionsApi,
+      collectionsApi: syncedCollectionsApi,
       dashboards,
       activeDashboard,
       toasts,
@@ -7617,6 +8275,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setPendingQuizReveal,
       clearPendingQuizReveal,
       shareCollection,
+      shareLinkedCollection,
+      countLinkedBoardRemovals,
+      stopSharingCollection,
+      leaveSharedCollection,
+      countLinkedCollectionMoveRemovals,
       shareSubstituteCollection,
       updateSubstituteCollectionShare,
       extendSubstituteCollectionShare,
@@ -7648,7 +8311,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     }),
     [
       driveService,
-      collectionsApi,
+      syncedCollectionsApi,
       dashboards,
       activeDashboard,
       toasts,
@@ -7749,6 +8412,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setPendingQuizReveal,
       clearPendingQuizReveal,
       shareCollection,
+      shareLinkedCollection,
+      countLinkedBoardRemovals,
+      stopSharingCollection,
+      leaveSharedCollection,
+      countLinkedCollectionMoveRemovals,
       shareSubstituteCollection,
       sharedCollectionApi.loadSharedCollection,
       sharedCollectionApi.loadSharedCollectionBoards,

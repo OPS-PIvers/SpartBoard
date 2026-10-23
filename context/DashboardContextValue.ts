@@ -15,17 +15,20 @@ import {
   DrawableObject,
   ShapeTool,
   Collection,
+  LinkedCollectionMode,
   CollectionSubstituteShareInput,
   SubstituteShareRoster,
   SharedCollection,
   TourWidgetLayout,
 } from '@/types';
+import type { BoardDestination } from '@/hooks/useLinkedCollectionSync';
 import type { RosterCreateMeta } from '@/hooks/useRosters';
 import type { GoogleDriveService } from '@/utils/googleDriveService';
 import type { UseCollectionsResult } from '@/hooks/useCollections';
 import type {
   LoadSharedCollectionResult,
   SubShareTree,
+  CopyShareTree,
 } from '@/hooks/useSharedCollection';
 import type { SubShareBundle } from '@/utils/bundleSubShareContent';
 
@@ -156,7 +159,12 @@ export interface DashboardContextValue {
   createNewDashboard: (
     name: string,
     data?: Dashboard,
-    options?: { collectionId?: string | null; silent?: boolean }
+    /** `keepId` saves `data.id` as is (a shared-collection board's fixed id). */
+    options?: {
+      collectionId?: string | null;
+      silent?: boolean;
+      keepId?: boolean;
+    }
   ) => Promise<string | undefined>;
   saveCurrentDashboard: () => Promise<void>;
   deleteDashboard: (id: string) => Promise<void>;
@@ -409,7 +417,30 @@ export interface DashboardContextValue {
   shareCollection: (input: {
     collection: Collection;
     boards: Dashboard[];
+    /** The sub-collection tree, so the copy rebuilds it (COLLECTION_SHARING D1). */
+    tree?: CopyShareTree;
   }) => Promise<string>;
+  /** Synced / View-Only collection share: one board share each plus the link doc; returns the link id. */
+  shareLinkedCollection: (input: {
+    collection: Collection;
+    boards: Dashboard[];
+    tree: CopyShareTree;
+    mode: LinkedCollectionMode;
+  }) => Promise<string>;
+  /** Host: end a Synced / View-Only collection share for everyone. */
+  stopSharingCollection: (collectionId: string) => Promise<void>;
+  /** Member: leave a Synced / View-Only collection share. */
+  leaveSharedCollection: (collectionId: string) => Promise<void>;
+  /** How many of these boards a delete or move would remove for everyone in a shared collection (D4). */
+  countLinkedBoardRemovals: (
+    boardIds: string[],
+    destination: BoardDestination
+  ) => number;
+  /** How many boards moving this collection would remove for everyone in a shared collection. */
+  countLinkedCollectionMoveRemovals: (
+    collectionId: string,
+    destination: string | null
+  ) => number;
   /**
    * Create a sub share of a Collection — or of a single Board, written as a
    * one-board Collection share (docs/plans/shipped/SUB_SHARE_COLLECTIONS.md A1). The

@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { EXTENSION_PROTOCOL_VERSION } from './extensionProtocol';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RECORDER_PORT } from './recorderProtocol';
 import { useWebTourRecorder } from './useWebTourRecorder';
@@ -51,7 +52,13 @@ describe('useWebTourRecorder', () => {
     );
     act(() => result.current.connect());
     expect(connect).toHaveBeenCalledWith('ext-id', { name: RECORDER_PORT });
+    // The page says which clues it reviews before attaching.
     expect(port.posted[0]).toEqual({
+      type: 'recorder/hello',
+      setId: 't1',
+      protocol: EXTENSION_PROTOCOL_VERSION,
+    });
+    expect(port.posted[1]).toEqual({
       type: 'recorder/attach',
       setId: 't1',
       title: 'Tour',
@@ -62,9 +69,9 @@ describe('useWebTourRecorder', () => {
       port.emit({ type: 'recorder/step', setId: 't1', step: step('a') });
       port.emit({ type: 'recorder/step', setId: 't1', step: step('a') });
     });
-    await waitFor(() => expect(port.posted).toHaveLength(3));
+    await waitFor(() => expect(port.posted).toHaveLength(4));
     expect(onStep).toHaveBeenCalledTimes(1);
-    expect(port.posted.slice(1)).toEqual([
+    expect(port.posted.slice(2)).toEqual([
       { type: 'recorder/ack', setId: 't1', stepId: 'a' },
       { type: 'recorder/ack', setId: 't1', stepId: 'a' },
     ]);
@@ -91,7 +98,7 @@ describe('useWebTourRecorder', () => {
     await waitFor(() => expect(onStep).toHaveBeenCalledTimes(1));
     await new Promise((r) => setTimeout(r, 0));
     // Not acknowledged, so the extension keeps it and re-sends on the next attach.
-    expect(port.posted).toHaveLength(1);
+    expect(port.posted).toHaveLength(2);
   });
 
   it('reconnects when the extension restarts after attaching', () => {
@@ -110,7 +117,7 @@ describe('useWebTourRecorder', () => {
         vi.advanceTimersByTime(1000);
       });
       expect(connect).toHaveBeenCalledTimes(2);
-      expect(port.posted[0]).toMatchObject({ type: 'recorder/attach' });
+      expect(port.posted[1]).toMatchObject({ type: 'recorder/attach' });
     } finally {
       vi.useRealTimers();
     }
@@ -155,6 +162,41 @@ describe('useWebTourRecorder', () => {
         stepId: 'b',
       })
     );
+  });
+
+  it('asks to re-pick a step once attached, then saves and acks the new pick', async () => {
+    const onStep = vi.fn(() => Promise.resolve());
+    const onRepicked = vi.fn(() => Promise.resolve());
+    const { result } = renderHook(() =>
+      useWebTourRecorder({ setId: 't1', title: 'Tour', onStep, onRepicked })
+    );
+    act(() => result.current.repick('a'));
+    expect(connect).toHaveBeenCalledTimes(1);
+    act(() => port.emit({ type: 'recorder/attached', setId: 't1' }));
+    expect(port.posted).toContainEqual({
+      type: 'recorder/repick',
+      setId: 't1',
+      stepId: 'a',
+    });
+    act(() =>
+      port.emit({ type: 'recorder/repicked', setId: 't1', step: step('a') })
+    );
+    await waitFor(() =>
+      expect(port.posted).toContainEqual({
+        type: 'recorder/ack',
+        setId: 't1',
+        stepId: 'a',
+      })
+    );
+    expect(onRepicked).toHaveBeenCalledTimes(1);
+    expect(onStep).not.toHaveBeenCalled();
+    // Already attached: a second Fix on site posts straight away.
+    act(() => result.current.repick('b'));
+    expect(port.posted.at(-1)).toEqual({
+      type: 'recorder/repick',
+      setId: 't1',
+      stepId: 'b',
+    });
   });
 
   it('reports no extension', () => {

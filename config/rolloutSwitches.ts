@@ -49,6 +49,10 @@ import {
   GROUP_REMINDER_EMAILS_SETTINGS_DOC,
   normalizeGroupReminderEmailsSettings,
 } from '@/config/groupReminderEmails';
+import {
+  STUDENT_CONTEXT_MENU_SETTINGS_DOC,
+  normalizeStudentContextMenuSettings,
+} from '@/config/studentContextMenu';
 
 export interface RolloutSwitch {
   docId: string;
@@ -153,5 +157,11 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     description:
       'Students read and accept a notice before their first quiz recording. On by default.',
     normalize: normalizeQuizRecordingNoticeSettings,
+  },
+  {
+    docId: STUDENT_CONTEXT_MENU_SETTINGS_DOC,
+    title: 'Block right-click for students',
+    description: 'Turns off the right-click menu on student pages.',
+    normalize: normalizeStudentContextMenuSettings,
   },
 ];

@@ -59,3 +59,12 @@ describe('toPublicQuestion word limits', () => {
     expect(pub).not.toHaveProperty('enforceWordLimit');
   });
 });
+
+describe('toPublicQuestion spell check', () => {
+  it('projects noSpellCheck only when the teacher turned spell check off', () => {
+    expect(toPublicQuestion(written({ noSpellCheck: true })).noSpellCheck).toBe(
+      true
+    );
+    expect(toPublicQuestion(written())).not.toHaveProperty('noSpellCheck');
+  });
+});

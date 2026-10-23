@@ -90,6 +90,8 @@ vi.mock('@/hooks/useRosters', () => ({
 // Module-scoped collection mocks so individual tests can assert calls.
 const mockCreateCollection = vi.fn().mockResolvedValue('new-collection-id');
 const mockDeleteCollection = vi.fn().mockResolvedValue(undefined);
+const mockReorderSiblings = vi.fn().mockResolvedValue(undefined);
+const { mockBatchDelete } = vi.hoisted(() => ({ mockBatchDelete: vi.fn() }));
 
 vi.mock('@/hooks/useCollections', () => ({
   useCollections: () => ({
@@ -100,8 +102,9 @@ vi.mock('@/hooks/useCollections', () => ({
     renameCollection: vi.fn(),
     moveCollection: vi.fn(),
     deleteCollection: mockDeleteCollection,
-    reorderSiblings: vi.fn(),
+    reorderSiblings: mockReorderSiblings,
     setCollectionMetadata: vi.fn(),
+    setCollectionLink: vi.fn(),
     setCollectionDefaultBoard: vi.fn(),
   }),
 }));
@@ -139,7 +142,7 @@ vi.mock('firebase/firestore', async (importOriginal) => {
     updateDoc: vi.fn().mockResolvedValue(undefined),
     writeBatch: vi.fn(() => ({
       update: vi.fn(),
-      delete: vi.fn(),
+      delete: mockBatchDelete,
       set: vi.fn(),
       commit: vi.fn().mockResolvedValue(undefined),
     })),
@@ -220,7 +223,7 @@ describe('DashboardContext.importSharedCollection — rollback + partial-failure
     window.history.pushState({}, '', '/');
   });
 
-  it('rolls back the new Collection via deleteCollection("delete-all") when EVERY board fails', async () => {
+  it('rolls back the new Collection by id when EVERY board fails', async () => {
     // Three boards in the share, saveDashboard rejects for all of them.
     const boards = [
       makeBoard('b1', 'Board One'),
@@ -243,11 +246,10 @@ describe('DashboardContext.importSharedCollection — rollback + partial-failure
 
     // Returned null because no boards landed.
     expect(result).toBeNull();
-    // Cleanup invoked with the newly-created Collection id + delete-all mode.
-    expect(mockDeleteCollection).toHaveBeenCalledWith(
-      'new-collection-id',
-      'delete-all'
-    );
+    // Cleanup deletes the new Collection's doc directly, not through stale collections state.
+    expect(mockBatchDelete).toHaveBeenCalledWith({
+      __path: 'users/recipient-uid/collections/new-collection-id',
+    });
     // createCollection was called exactly once (the Phase 1 write).
     expect(mockCreateCollection).toHaveBeenCalledTimes(1);
   });
@@ -283,7 +285,7 @@ describe('DashboardContext.importSharedCollection — rollback + partial-failure
     expect(typeof result?.firstBoardId).toBe('string');
     // CRITICAL: no rollback on partial success — the user keeps the
     // boards that did import, and the Collection stays.
-    expect(mockDeleteCollection).not.toHaveBeenCalled();
+    expect(mockBatchDelete).not.toHaveBeenCalled();
     // saveDashboard called 3 times (one per board, regardless of outcome).
     expect(mockSaveDashboard).toHaveBeenCalledTimes(3);
   });
@@ -314,5 +316,95 @@ describe('DashboardContext.importSharedCollection — rollback + partial-failure
     // We also did not call loadSharedCollectionBoards — substitute bail
     // happens immediately after the metadata check.
     expect(mockLoadSharedCollectionBoards).not.toHaveBeenCalled();
+  });
+
+  it('rebuilds sub-collections under their parents and files each board in its own', async () => {
+    const boards = [
+      makeBoard('intro', 'Intro'),
+      makeBoard('m1', 'Monday one'),
+      makeBoard('a1', 'Morning one'),
+    ];
+    mockLoadSharedCollection.mockResolvedValue({
+      ok: true,
+      meta: {
+        ...makeCopyMeta(['intro', 'm1', 'a1']),
+        sections: [
+          { id: 'week', name: 'Week' },
+          { id: 'mon', name: 'Monday', parentId: 'week', color: '#f00' },
+          { id: 'am', name: 'Morning', parentId: 'mon' },
+        ],
+        boards: [
+          { id: 'intro', name: 'Intro', sectionId: 'week', order: 0 },
+          { id: 'm1', name: 'Monday one', sectionId: 'mon', order: 1 },
+          { id: 'a1', name: 'Morning one', sectionId: 'am', order: 2 },
+        ],
+      },
+    });
+    mockLoadSharedCollectionBoards.mockResolvedValue(boards);
+    mockCreateCollection
+      .mockResolvedValueOnce('root-id')
+      .mockResolvedValueOnce('mon-id')
+      .mockResolvedValueOnce('am-id');
+
+    const { callImport } = renderWithCaptured();
+    let result: Awaited<ReturnType<typeof callImport>> | undefined;
+    await waitFor(async () => {
+      result = await callImport();
+      expect(result).toBeDefined();
+    });
+
+    expect(result?.collectionId).toBe('root-id');
+    expect(mockCreateCollection.mock.calls).toEqual([
+      ['Shared Folder', null],
+      ['Monday', 'root-id', { color: '#f00' }],
+      ['Morning', 'mon-id', undefined],
+    ]);
+    const savedIn = Object.fromEntries(
+      mockSaveDashboard.mock.calls.map((call) => {
+        const d = call[0] as Dashboard;
+        return [d.name, d.collectionId];
+      })
+    );
+    expect(savedIn).toEqual({
+      'Intro (Imported)': 'root-id',
+      'Monday one (Imported)': 'mon-id',
+      'Morning one (Imported)': 'am-id',
+    });
+    expect(mockReorderSiblings).toHaveBeenCalledWith('root-id', ['mon-id']);
+    expect(mockReorderSiblings).toHaveBeenCalledWith('mon-id', ['am-id']);
+  });
+
+  it('also deletes the rebuilt sub-collections when EVERY board fails', async () => {
+    mockLoadSharedCollection.mockResolvedValue({
+      ok: true,
+      meta: {
+        ...makeCopyMeta(['m1']),
+        sections: [
+          { id: 'week', name: 'Week' },
+          { id: 'mon', name: 'Monday', parentId: 'week' },
+        ],
+        boards: [{ id: 'm1', name: 'M1', sectionId: 'mon', order: 0 }],
+      },
+    });
+    mockLoadSharedCollectionBoards.mockResolvedValue([makeBoard('m1', 'M1')]);
+    mockCreateCollection
+      .mockResolvedValueOnce('root-id')
+      .mockResolvedValueOnce('mon-id');
+    mockSaveDashboard.mockRejectedValue(new Error('Firestore write rejected'));
+
+    const { callImport } = renderWithCaptured();
+    await waitFor(async () => {
+      expect(await callImport()).toBeNull();
+    });
+
+    const deleted = mockBatchDelete.mock.calls.map(
+      (call) => (call[0] as { __path: string }).__path
+    );
+    expect(deleted).toEqual(
+      expect.arrayContaining([
+        'users/recipient-uid/collections/mon-id',
+        'users/recipient-uid/collections/root-id',
+      ])
+    );
   });
 });

@@ -470,7 +470,15 @@ const useFixtureFolders = (
       );
       return Promise.resolve();
     },
-    reorderSiblings: () => Promise.resolve(),
+    reorderSiblings: (_parentId, orderedIds) => {
+      setFolders((prev) =>
+        prev.map((f) => {
+          const i = orderedIds.indexOf(f.id);
+          return i >= 0 ? { ...f, order: i } : f;
+        })
+      );
+      return Promise.resolve();
+    },
     moveItem: (itemId, folderId) => {
       onMoveItem(itemId, folderId);
       return Promise.resolve();

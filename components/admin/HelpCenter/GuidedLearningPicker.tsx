@@ -1,6 +1,13 @@
-import React, { lazy, Suspense, useRef, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
-import { Check, GraduationCap, Loader2, Plus, Search } from 'lucide-react';
+import {
+  Check,
+  Globe,
+  GraduationCap,
+  Loader2,
+  Plus,
+  Search,
+} from 'lucide-react';
 import {
   Btn,
   CellPopover,
@@ -12,6 +19,7 @@ import { isHelpCenterSet } from '@/components/widgets/GuidedLearning/utils/helpC
 import { isLiveTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import { requestEditTour } from '@/components/tours/editor/tourEditStore';
 import { openAssignmentIdsForSet } from '@/utils/guidedLearningFileRelease';
+import { watchWebTourDrafts } from '@/components/tours/webTours';
 
 const GuidedLearningStudio = lazy(() =>
   import('@/components/widgets/GuidedLearning/components/studio/GuidedLearningStudio').then(
@@ -46,7 +54,13 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
   mode,
   onChange,
 }) => {
-  const { user } = useAuth();
+  const { user, isAdmin, canAccessFeature } = useAuth();
+  const webToursOn = isAdmin === true && canAccessFeature('web-tours');
+  const [webTours, setWebTours] = useState<GuidedLearningSet[] | null>(null);
+  useEffect(
+    () => (webToursOn ? watchWebTourDrafts(setWebTours) : undefined),
+    [webToursOn]
+  );
   const {
     sets,
     buildingSets,
@@ -64,10 +78,16 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
   const [editing, setEditing] = useState<GuidedLearningSet | null>(null);
 
   const selected = buildingSets.find((set) => set.id === selectedSetId);
+  const selectedWeb = webToursOn
+    ? webTours?.find((set) => set.id === selectedSetId)
+    : undefined;
   const visible = buildingSets.filter((set) => matches(set.title, search));
   const helpCenter = visible.filter(isHelpCenterSet);
   const building = visible.filter((set) => !isHelpCenterSet(set));
   const personal = sets.filter((set) => matches(set.title, search));
+  const web = webToursOn
+    ? (webTours ?? []).filter((set) => matches(set.title, search))
+    : [];
 
   const openEditor = (set: GuidedLearningSet) => {
     setEditing(set);
@@ -190,6 +210,19 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
         onPick: () => pick(set.id, set.title),
       })),
     },
+    ...(webToursOn
+      ? [
+          {
+            heading: 'Web tours',
+            empty: 'No web tours.',
+            rows: web.map((set) => ({
+              id: set.id,
+              title: set.title || 'Untitled web tour',
+              onPick: () => pick(set.id, set.title),
+            })),
+          },
+        ]
+      : []),
     {
       heading: 'My library',
       empty: 'No personal activities.',
@@ -208,20 +241,29 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
 
   const selectedLabel = selected
     ? selected.title || 'Untitled activity'
-    : buildingLoading
-      ? 'Loading...'
-      : 'This activity was deleted. Pick another one.';
+    : selectedWeb
+      ? selectedWeb.title || 'Untitled web tour'
+      : buildingLoading || (webToursOn && webTours === null)
+        ? 'Loading...'
+        : 'This activity was deleted. Pick another one.';
 
   return (
     <>
       {mode === 'chosen' && selectedSetId ? (
         <div className="flex min-h-10 w-full items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2">
-          <GraduationCap
-            className="w-4 h-4 shrink-0 text-slate-500"
-            aria-hidden="true"
-          />
+          {selectedWeb ? (
+            <Globe
+              className="w-4 h-4 shrink-0 text-slate-500"
+              aria-hidden="true"
+            />
+          ) : (
+            <GraduationCap
+              className="w-4 h-4 shrink-0 text-slate-500"
+              aria-hidden="true"
+            />
+          )}
           <span
-            className={`flex-1 break-words text-sm ${selected ? 'text-slate-800' : 'text-slate-500'}`}
+            className={`flex-1 break-words text-sm ${selected || selectedWeb ? 'text-slate-800' : 'text-slate-500'}`}
           >
             {selectedLabel}
           </span>

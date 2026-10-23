@@ -22,7 +22,7 @@ describe('createExternalHandler', () => {
     const { handle } = handlerWith('none');
     await expect(handle({ type: 'ping' }, top)).resolves.toEqual({
       ok: true,
-      protocol: 2,
+      protocol: 7,
       version: '0.1.0',
       profile: 'none',
     });
@@ -104,6 +104,23 @@ describe('web-tour/start', () => {
         error: 'refused',
       });
       expect(startWebTour).not.toHaveBeenCalled();
+    }
+  });
+  it('starts a check run the same way, for staff only (protocol 6)', async () => {
+    const check = { ...start, type: 'web-tour/check', runId: 'r1' };
+    for (const [profile, reply] of [
+      ['staff', { ok: true, tabId: 12 }],
+      ['other', { ok: false, error: 'refused' }],
+    ] as const) {
+      const startWebTour = vi.fn(() => Promise.resolve(12));
+      const handle = createExternalHandler({
+        origins: [ORIGIN],
+        version: '0.1.0',
+        getProfile: () => Promise.resolve(profile),
+        startWebTour,
+      });
+      await expect(handle(check, top)).resolves.toEqual(reply);
+      expect(startWebTour).toHaveBeenCalledTimes(profile === 'staff' ? 1 : 0);
     }
   });
 });

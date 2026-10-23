@@ -125,12 +125,18 @@ export const ShareStatusBanner: React.FC = () => {
   };
 
   const accessibleLabel = `${label}${detail ? ` — ${detail}` : ''}`;
+  // Under full pages and the drawer so it never covers their close button; over a shown maximized widget so Stop sharing stays reachable.
+  const chipZIndex = activeDashboard.widgets.some(
+    (w) => w.maximized && !w.minimized
+  )
+    ? Z_INDEX.popover
+    : Z_INDEX.shareChip;
 
   return (
     <div
       ref={containerRef}
       className="fixed top-3 right-3 flex flex-col items-end"
-      style={{ zIndex: Z_INDEX.popover }}
+      style={{ zIndex: chipZIndex }}
     >
       <button
         type="button"

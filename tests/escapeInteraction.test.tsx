@@ -196,6 +196,7 @@ describe('Global Escape Interaction', () => {
       deleteCollection: vi.fn(),
       reorderSiblings: vi.fn(),
       setCollectionMetadata: vi.fn(),
+      setCollectionLink: vi.fn(),
       setCollectionDefaultBoard: vi.fn(),
     },
   };

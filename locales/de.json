@@ -1598,6 +1598,7 @@
   "boardsModal": {
     "title": "Tafeln & Sammlungen",
     "close": "Schließen",
+    "backToBoard": "Zurück zur Tafel",
     "searchPlaceholder": "Tafeln & Sammlungen suchen",
     "newBoard": "Neue Tafel",
     "newBoardPrompt": "Name der Tafel",
@@ -1622,6 +1623,9 @@
     "delete": "Löschen",
     "bulkDeleteConfirm": "{{count}} Element(e) löschen? Dies kann nicht rückgängig gemacht werden.",
     "deleteBoardConfirm": "Diese Tafel löschen?",
+    "removeSharedBoardConfirm": "Diese Tafel für alle in der geteilten Sammlung entfernen?",
+    "removeSharedBoardConfirmLabel": "Entfernen",
+    "removeSharedCollectionConfirm": "Diese Sammlung und ihre Tafeln für alle in der geteilten Sammlung entfernen?",
     "deleteCollectionConfirm": "Diese Sammlung löschen? Enthaltene Tafeln werden zur übergeordneten Ebene verschoben.",
     "unpinBoard": "Tafel lösen",
     "dragToMove": "Zum Verschieben ziehen",
@@ -1694,7 +1698,13 @@
     "notFound": "Geteilte Sammlung nicht gefunden oder abgelaufen",
     "empty": "Geteilte Sammlung ist leer",
     "invalidShareUrl": "Ungültiger Freigabelink – fehlende Freigabe-ID.",
-    "substituteImportRejected": "Dieser Link ist für Vertretungen. Öffne ihn im Vertretungsportal."
+    "substituteImportRejected": "Dieser Link ist für Vertretungen. Öffne ihn im Vertretungsportal.",
+    "modeSynced": "Synchronisiert",
+    "modeSyncedHint": "Ihr bearbeitet beide dieselbe Sammlung.",
+    "modeViewOnly": "Nur ansehen",
+    "modeViewOnlyHint": "Sie sehen deine Änderungen live, können aber nichts bearbeiten.",
+    "modeCopyTitle": "Kopie erstellen",
+    "boardAlreadyLive": "{{name}} wird bereits live geteilt. Beende zuerst das Teilen oder erstelle eine Kopie."
   },
   "importSharedCollection": {
     "title": "Geteilte Sammlung importieren",
@@ -1716,7 +1726,12 @@
   },
   "collectionMenu": {
     "share": "Sammlung teilen…",
-    "saveAsTemplate": "Als Vorlage speichern…"
+    "saveAsTemplate": "Als Vorlage speichern…",
+    "stopSharing": "Teilen beenden",
+    "stopSharingConfirm": "Teilen dieser Sammlung beenden? Synchronisierte Lehrkräfte behalten ihre eigene Kopie. Lehrkräfte mit Leserechten verlieren sie.",
+    "leaveShared": "Geteilte Sammlung verlassen",
+    "leaveSharedConfirm": "Diese geteilte Sammlung verlassen? Du behältst eine Kopie ihrer Tafeln, aber sie werden nicht mehr aktualisiert.",
+    "leaveSharedViewerConfirm": "Diese geteilte Sammlung verlassen? Sie wird aus deinem Konto entfernt."
   },
   "templatePicker": {
     "title": "Aus Vorlage erstellen",
@@ -3169,7 +3184,8 @@
         "other": "Sonstiges",
         "tours": "Live-Touren"
       },
-      "liveTourBadge": "Live-Tour"
+      "liveTourBadge": "Live-Tour",
+      "webTourBadge": "Web-Tour"
     },
     "shortcuts": {
       "open-help": "Hilfe öffnen",
@@ -4053,7 +4069,11 @@
     },
     "webFindIt": "Suchen Sie dies auf der Seite.",
     "webOtherPage": "Dieser Schritt ist auf einer anderen Seite. Öffnen Sie sie, um fortzufahren.",
-    "webPictureAlt": "Bild dieses Schritts"
+    "webPictureAlt": "Bild dieses Schritts",
+    "webCheckFound": "Gefunden",
+    "webCheckWeak": "Schwache Übereinstimmung",
+    "webCheckAmbiguous": "Passt auf mehr als eines",
+    "webCheckNone": "Nicht gefunden"
   },
   "glPlayer": {
     "modeChip": {
@@ -4248,6 +4268,8 @@
     "loading": "Touren werden geladen...",
     "intro": "Prüft veröffentlichte Touren anhand des Anker-Verzeichnisses.",
     "recordTour": "Tour aufnehmen",
+    "recordWebTour": "Web-Tour aufnehmen",
+    "recordWebTourFailed": "Die Web-Tour konnte nicht erstellt werden.",
     "checkLive": "Live prüfen",
     "empty": "Noch kein Guided-Learning-Set hat Live-Tour-Schritte.",
     "untitledSet": "Unbenanntes Set",
@@ -4324,7 +4346,8 @@
       },
       "reason": {
         "missed": "Bild in {{misses}} von {{runs}} echten Durchläufen gezeigt",
-        "weak": "Nur über einen schwächeren Hinweis gefunden in {{weak}} von {{runs}} echten Durchläufen"
+        "weak": "Nur über einen schwächeren Hinweis gefunden in {{weak}} von {{runs}} echten Durchläufen",
+        "weakScore": "Nah an einem anderen Steuerelement in {{weak}} von {{runs}} echten Durchläufen"
       },
       "copyLink": "Link kopieren",
       "linkCopied": "Kopiert",
@@ -4444,7 +4467,8 @@
     "exited": "Sie haben die Tour verlassen.",
     "done": "Sie haben diese Tour abgeschlossen.",
     "startFailed": "Die Tour konnte nicht starten. Versuchen Sie es erneut.",
-    "noExtension": "Bitten Sie Ihr Technikteam, die SpartBoard-Erweiterung für Chrome hinzuzufügen, damit diese Tour jeden Schritt auf der Website zeigt. Folgen Sie bis dahin den Bildern unten.",
+    "noExtension": "Fügen Sie die SpartBoard-Erweiterung für Chrome hinzu, damit diese Tour jeden Schritt auf der Website zeigt. Folgen Sie bis dahin den Bildern unten.",
+    "getExtension": "SpartBoard-Erweiterung holen",
     "wrongProfile": "Diese Tour läuft nur in einem Chrome-Profil, das mit Ihrem Orono-Personalkonto angemeldet ist. Folgen Sie bis dahin den Bildern unten.",
     "oldExtension": "Ihre SpartBoard-Erweiterung braucht ein Update für diese Tour. Folgen Sie bis dahin den Bildern unten.",
     "openSite": "{{site}} öffnen",
@@ -4453,5 +4477,12 @@
     "pictureAlt": "Bild von Schritt {{number}}",
     "unavailableTitle": "Diese Tour ist nicht verfügbar",
     "unavailableBody": "Der Link ist vielleicht falsch oder die Tour wurde entfernt. Bitten Sie die Person, die ihn geteilt hat, um einen neuen Link."
+  },
+  "linkedCollection": {
+    "stopped": "Teilen beendet",
+    "left": "Geteilte Sammlung verlassen",
+    "leaveFailed": "Geteilte Sammlung konnte nicht verlassen werden",
+    "hostStopped": "{{name}} teilt diese Sammlung nicht mehr.",
+    "hostStoppedNoName": "Der Host teilt diese Sammlung nicht mehr."
   }
 }

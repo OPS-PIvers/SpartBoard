@@ -24,6 +24,8 @@ const glMocks = vi.hoisted(() => ({
   tourSetIds: new Set<string>(),
   published: new Set<string>(),
   canRunLive: true,
+  webTours: new Map<string, string>(),
+  features: new Set<string>(),
   loadBuildingSet: vi.fn(),
   playerProps: [] as { teacherMode?: boolean; setTitle: string }[],
 }));
@@ -47,6 +49,22 @@ vi.mock('@/components/tours/publishedTours', () => ({
   getToursVersion: () => 0,
   isTourRunnable: (id: string) => glMocks.published.has(id),
   loadRunnableTour: vi.fn(),
+  readPublishedTour: (id: string) => {
+    const site = glMocks.webTours.get(id);
+    return {
+      loaded: true,
+      tour:
+        site === undefined
+          ? null
+          : {
+              publishedAt: 1,
+              set: {
+                surface: 'web',
+                steps: [{ web: { urlPattern: `https://${site}/home` } }],
+              },
+            },
+    };
+  },
 }));
 
 vi.mock('@/components/tours/useCanRunLiveTour', () => ({
@@ -67,6 +85,7 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     orgId: 'org-1',
     user: { uid: 'u1' },
+    canAccessFeature: (id: string) => glMocks.features.has(id),
   }),
 }));
 
@@ -139,6 +158,8 @@ describe('HelpGuidesTab', () => {
     glMocks.tourSetIds = new Set();
     glMocks.published = new Set();
     glMocks.canRunLive = true;
+    glMocks.webTours = new Map();
+    glMocks.features = new Set();
     helpState.items = [
       makeItem({ id: 'v1', title: 'Welcome video' }),
       makeItem({
@@ -208,6 +229,49 @@ describe('HelpGuidesTab', () => {
     await user.click(screen.getByRole('button', { name: 'Live tours' }));
     expect(screen.getByText('Boards walkthrough')).toBeInTheDocument();
     expect(screen.queryByText('Welcome video')).toBeNull();
+  });
+
+  it('lists a web tour with its site and opens its page', async () => {
+    const user = userEvent.setup();
+    glMocks.features = new Set(['web-tours']);
+    glMocks.webTours = new Map([['web-set', 'docs.google.com']]);
+    helpState.items.push(
+      makeItem({
+        id: 'w1',
+        kind: 'guided-learning',
+        title: 'Apps Script in Docs',
+        url: null,
+        embedType: null,
+        setId: 'web-set',
+      })
+    );
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    render(<HelpGuidesTab query="" />);
+    expect(screen.getByText('docs.google.com')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Live tours' }));
+    await user.click(screen.getByText('Apps Script in Docs'));
+    expect(open).toHaveBeenCalledWith(
+      `${window.location.origin}/tour/web-set`,
+      '_blank',
+      'noopener,noreferrer'
+    );
+    open.mockRestore();
+  });
+
+  it('hides a web tour from staff without web tours', () => {
+    glMocks.webTours = new Map([['web-set', 'docs.google.com']]);
+    helpState.items.push(
+      makeItem({
+        id: 'w1',
+        kind: 'guided-learning',
+        title: 'Apps Script in Docs',
+        url: null,
+        embedType: null,
+        setId: 'web-set',
+      })
+    );
+    render(<HelpGuidesTab query="" />);
+    expect(screen.queryByText('Apps Script in Docs')).toBeNull();
   });
 
   const tourItem = () =>

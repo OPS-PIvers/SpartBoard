@@ -56,9 +56,10 @@ test.describe('Collections — share + import (Copy mode)', () => {
     await expect(ctxMenu).toBeVisible({ timeout: 5000 });
     await ctxMenu.getByRole('menuitem', { name: /share collection/i }).click();
 
-    // 3. Share creator opens; default mode is Copy → Create link
+    // 3. Share creator opens; the bypass admin sees the live modes, so pick Make a copy → Create link
     const shareDialog = page.getByRole('dialog', { name: /share collection/i });
     await expect(shareDialog).toBeVisible({ timeout: 5000 });
+    await shareDialog.getByRole('button', { name: /^make a copy/i }).click();
     await shareDialog.getByRole('button', { name: /create link/i }).click();
 
     // 4. URL appears

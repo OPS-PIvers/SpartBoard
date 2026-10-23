@@ -25,6 +25,9 @@ target.getBoundingClientRect = () => new DOMRect(40, 40, 120, 32);
 target.scrollIntoView = () => undefined;
 globalThis.__sbWebTourFrame = { target: { token: 't', el: target } };
 
+// The one utility the stylesheet probe reads.
+const STYLED = '.hidden{display:none}';
+
 let handle: OverlayHandle | null = null;
 let shadow: ShadowRoot | null = null;
 
@@ -52,7 +55,7 @@ describe('mountOverlay', () => {
   it('draws the tour inside a closed shadow root, with tip text as plain text', () => {
     captureShadow();
     const onAction = vi.fn();
-    handle = mountOverlay('.x{color:red}', onAction);
+    handle = mountOverlay(STYLED, onAction);
     act(() => handle?.render(state));
 
     const host = document.querySelector(OVERLAY_HOST_SELECTOR);
@@ -79,7 +82,7 @@ describe('mountOverlay', () => {
   it('has no Autopilot and keeps nothing in the site storage', () => {
     captureShadow();
     const setItem = vi.spyOn(Storage.prototype, 'setItem');
-    handle = mountOverlay('', vi.fn());
+    handle = mountOverlay(STYLED, vi.fn());
     act(() => handle?.render(state));
     expect(shadow?.querySelector('[role="switch"]')).toBeNull();
     const grip = shadow?.querySelector('[data-testid="tour-bar-grip"]');
@@ -94,7 +97,7 @@ describe('mountOverlay', () => {
   it('reports bar actions and removes its host on unmount', () => {
     captureShadow();
     const onAction = vi.fn();
-    handle = mountOverlay('', onAction);
+    handle = mountOverlay(STYLED, onAction);
     act(() => handle?.render(state));
     const buttons = [
       ...(shadow?.querySelectorAll('[data-testid="tour-bar"] button') ?? []),
@@ -116,7 +119,7 @@ describe('web tour states', () => {
   it('shows the picture and a Next button when the target can not be found', () => {
     captureShadow();
     const onAction = vi.fn();
-    handle = mountOverlay('', onAction);
+    handle = mountOverlay(STYLED, onAction);
     act(() =>
       handle?.render({
         ...state,
@@ -141,9 +144,32 @@ describe('web tour states', () => {
     expect(onAction).toHaveBeenCalledWith('next');
   });
 
+  it('shows the check result and a Next button on a found click step in check mode', () => {
+    captureShadow();
+    const onAction = vi.fn();
+    handle = mountOverlay(STYLED, onAction);
+    act(() => handle?.render(state));
+    expect(shadow?.querySelector('[data-testid="tour-tip-next"]')).toBeNull();
+    act(() => handle?.render({ ...state, check: 'ambiguous' }));
+    expect(
+      shadow?.querySelector('[data-testid="web-tour-check-result"]')
+        ?.textContent
+    ).toBe('Matches more than one');
+    const next = shadow?.querySelector(
+      '[data-testid="tour-tip-next"]'
+    ) as HTMLButtonElement | null;
+    expect(next?.textContent).toMatch(/Next/);
+    act(() => next?.click());
+    expect(onAction).toHaveBeenCalledWith('next');
+    act(() => handle?.render({ ...state, check: 'pending' }));
+    expect(
+      shadow?.querySelector('[data-testid="web-tour-check-result"]')
+    ).toBeNull();
+  });
+
   it('says the step is on another page', () => {
     captureShadow();
-    handle = mountOverlay('', vi.fn());
+    handle = mountOverlay(STYLED, vi.fn());
     act(() =>
       handle?.render({
         ...state,
@@ -162,7 +188,7 @@ describe('web tour states', () => {
 
   it('draws only the spotlight in a frame that holds the target', () => {
     captureShadow();
-    handle = mountOverlay('', vi.fn());
+    handle = mountOverlay(STYLED, vi.fn());
     act(() => handle?.render({ ...state, role: 'target' }));
     expect(
       shadow?.querySelector('[data-testid="tour-spotlight"]')
@@ -174,7 +200,7 @@ describe('web tour states', () => {
   it('ends the tour from the finished tip', () => {
     captureShadow();
     const onAction = vi.fn();
-    handle = mountOverlay('', onAction);
+    handle = mountOverlay(STYLED, onAction);
     act(() =>
       handle?.render({
         ...state,
@@ -212,5 +238,26 @@ describe('placeTip', () => {
     const tip = placeTip({ x: 1250, y: 760, width: 30, height: 30 }, view);
     expect(tip.left + tip.width).toBeLessThanOrEqual(view.w - 12);
     expect(tip.top).toBeLessThan(760);
+  });
+});
+
+describe('stylesheet safety', () => {
+  it('dims with an inline fill and lets clicks through to the website', () => {
+    captureShadow();
+    handle = mountOverlay(STYLED, vi.fn());
+    act(() => handle?.render(state));
+    const dim = shadow?.querySelector('[data-testid="tour-spotlight"] path');
+    expect(dim?.getAttribute('fill')).toBe('rgba(2,6,23,0.55)');
+    expect((dim as SVGPathElement | null)?.style.pointerEvents).toBe('none');
+  });
+
+  it('shows the find-it tip instead of a spotlight when the stylesheet is missing', () => {
+    captureShadow();
+    handle = mountOverlay('', vi.fn());
+    act(() => handle?.render(state));
+    expect(shadow?.querySelector('[data-testid="tour-spotlight"]')).toBeNull();
+    expect(
+      shadow?.querySelector('[data-testid="web-tour-find-it"]')
+    ).not.toBeNull();
   });
 });

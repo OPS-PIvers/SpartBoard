@@ -540,6 +540,10 @@ export const TOUR_ANCHORS = {
     label: 'Open wall library button in Activity Wall',
     perWidget: true,
   },
+  'activity-wall.edit-shared': {
+    label: "Edit wall button on a colleague's Activity Wall",
+    perWidget: true,
+  },
   'time-tool.start-pause': {
     label: 'Start or pause button in Timer/Stopwatch',
     perWidget: true,
@@ -1709,6 +1713,11 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.word-enforce': {
     label: 'Enforce limit toggle in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.spell-check': {
+    label: 'Spell check toggle in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
@@ -6120,6 +6129,16 @@ export const TOUR_ANCHORS = {
   'teams.data.view-open-items': {
     label: 'View button for open items in the team data meeting strip',
   },
+  'teams.home.latest-assessment': {
+    label: 'Latest assessment title on the team Home page',
+  },
+  'teams.home.see-item-analysis': {
+    label: 'See item analysis link on the team Home page',
+  },
+  'teams.home.tool': {
+    label: 'Team tool link on the team Home page',
+    perField: true,
+  },
   'teams.department.agenda-add': {
     label: 'Add button for agenda items in the department hub',
     persists: true,
@@ -6757,6 +6776,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'library-shell.secondary-menu-item': {
+    label: 'Item in a library shell secondary button menu',
+    perField: true,
+    panel: true,
+  },
   'library-shell.new-menu-item': {
     label: 'Item in the library shell primary button menu',
     perField: true,
@@ -6820,6 +6844,9 @@ export const TOUR_ANCHORS = {
   'help-center.viewer.back': {
     label: 'Back button in the resource viewer',
     panel: true,
+  },
+  'help-center.viewer.open-web-tour': {
+    label: 'Open in a new tab button for a web tour in a Help Center guide',
   },
   'help-center.viewer.fullscreen': {
     label: 'Fullscreen toggle button in the resource viewer',
@@ -6890,6 +6917,10 @@ export const TOUR_ANCHORS = {
   },
   'admin.help-center.record-tour': {
     label: 'Record tour button in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.record-web-tour': {
+    label: 'Record web tour button in Help Center admin',
     panel: true,
   },
   'admin.help-center.check-live': {
@@ -10259,10 +10290,31 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'gl-manager.show-older': { label: 'Show older assignments button' },
-  'web-tours.new': {
-    label: 'New web tour button in the Guided Learning library (admins)',
+  'web-tour-editor.goal': {
+    label: 'What does your tour explain? field in the web tour editor',
+  },
+  'web-tour-editor.write-with-claude': {
+    label: 'Write with Claude button in the web tour editor',
+  },
+  'web-tour-editor.rewrite-all': {
+    label: 'Rewrite all button in the web tour editor',
+  },
+  'web-tour-editor.write-asked': {
+    label: 'Run again for questions button in the web tour editor',
+  },
+  'web-tour-editor.undo-writing': {
+    label: "Undo button for Claude's writing in the web tour editor",
   },
   'web-tour-editor.title': { label: 'Title field in the web tour editor' },
+  'web-tour-editor.play': {
+    label: 'Play button in the web tour editor header',
+  },
+  'web-tour-editor.copy-link': {
+    label: 'Copy link button in the web tour editor header',
+  },
+  'web-tour-editor.check': {
+    label: 'Check tour button in the web tour editor header',
+  },
   'web-tour-editor.record': {
     label: 'Record steps button in the web tour editor',
   },
@@ -11347,6 +11399,18 @@ export const TOUR_ANCHORS = {
     label: 'Copy button for the sub share link',
     panel: true,
   },
+  'share-collection.mode-synced': {
+    label: 'Synced option in the collection share dialog',
+    panel: true,
+  },
+  'share-collection.mode-view-only': {
+    label: 'View-Only option in the collection share dialog',
+    panel: true,
+  },
+  'share-collection.mode-copy': {
+    label: 'Make a copy option in the collection share dialog',
+    panel: true,
+  },
   'share-collection.share-with-sub': {
     label: 'Share with a sub option in the collection share dialog',
     panel: true,
@@ -11406,6 +11470,19 @@ export const TOUR_ANCHORS = {
   },
   'import-shared-collection.import': {
     label: 'Import Collection button in the import shared collection dialog',
+    panel: true,
+    persists: true,
+  },
+  'import-linked-collection.close': {
+    label: 'Close button in the import shared collection dialog',
+    panel: true,
+  },
+  'import-linked-collection.cancel': {
+    label: 'Cancel button in the import shared collection dialog',
+    panel: true,
+  },
+  'import-linked-collection.confirm': {
+    label: 'Import button in the import shared collection dialog',
     panel: true,
     persists: true,
   },
@@ -11493,6 +11570,14 @@ export const TOUR_ANCHORS = {
   },
   'library-shell.folder-menu-move-to-root': {
     label: 'Move to root item in the library folder menu',
+    panel: true,
+  },
+  'library-shell.folder-menu-move-up': {
+    label: 'Move up item in the library folder menu',
+    panel: true,
+  },
+  'library-shell.folder-menu-move-down': {
+    label: 'Move down item in the library folder menu',
     panel: true,
   },
   'library-shell.folder-menu-delete': {
@@ -14464,6 +14549,14 @@ export const TOUR_ANCHORS = {
     label: 'Cancel button when ending a substitute-started run',
     panel: true,
   },
+  // A colleague's quiz, video activity or guided activity open on a shared board.
+  'colleague-item.assign': {
+    label: "Assign button on a colleague's item on a shared board",
+    persists: true,
+  },
+  'colleague-item.back': {
+    label: "Back to the colleague's item after assigning a copy",
+  },
   // Routine Guide widget.
   'routine-guide.search': {
     label: 'Search routines box in the Routine Guide library',
@@ -14594,6 +14687,16 @@ export const TOUR_ANCHORS = {
   'boards-modal.collection-menu-color': {
     label: 'Set color item in the collection card menu',
     panel: true,
+  },
+  'boards-modal.collection-menu-stop-sharing': {
+    label: 'Stop sharing item in the collection card menu',
+    panel: true,
+    destructive: true,
+  },
+  'boards-modal.collection-menu-leave-shared': {
+    label: 'Leave shared collection item in the collection card menu',
+    panel: true,
+    destructive: true,
   },
   'boards-modal.collection-menu-template': {
     label: 'Save as Template item in the collection card menu (admins)',

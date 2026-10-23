@@ -52,6 +52,15 @@ describe('tourPublishStatus', () => {
     ).toBe('published');
   });
 
+  it('stays Published after a web tour check run, which is never published', () => {
+    const published = stored(set());
+    const checkedSet = set({
+      webTourChecked: { by: 'u', at: 9, sig: 'x', results: { s1: 'found' } },
+    });
+    expect(tourPublishStatus(checkedSet, published)).toBe('published');
+    expect(buildTourContent(checkedSet)).not.toHaveProperty('webTourChecked');
+  });
+
   it('is Changes not published after a tour edit', () => {
     const published = stored(set());
     expect(tourPublishStatus(set({ watchPace: 'calm' }), published)).toBe(
@@ -74,5 +83,45 @@ describe('parsePublishedTour', () => {
     expect(parsePublishedTour('doc-id', { set: { steps: [] } })?.set.id).toBe(
       'doc-id'
     );
+  });
+});
+
+describe('buildTourContent', () => {
+  it("never publishes a web tour's goal, notes or Claude's questions", () => {
+    const web = set({
+      surface: 'web',
+      webGoal: 'How to post a grade',
+      steps: [
+        {
+          id: 's1',
+          label: 'Open',
+          xPct: 50,
+          yPct: 50,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          web: {
+            urlPattern: 'https://a.example/*',
+            action: 'click',
+            locator: { role: 'button', name: 'Open' },
+            note: 'opens the gradebook',
+            claudeQuestion: 'Why open this?',
+          },
+        },
+      ],
+    });
+    const out = buildTourContent(web);
+    expect(out.webGoal).toBeUndefined();
+    expect(out.steps[0].web).toEqual({
+      urlPattern: 'https://a.example/*',
+      action: 'click',
+      locator: { role: 'button', name: 'Open' },
+    });
+    const published = stored(web);
+    const edited = web.steps.map((s) =>
+      s.web ? { ...s, web: { ...s.web, note: 'changed' } } : s
+    );
+    expect(
+      tourPublishStatus({ ...web, webGoal: 'Other', steps: edited }, published)
+    ).toBe('published');
   });
 });

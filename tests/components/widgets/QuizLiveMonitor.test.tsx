@@ -438,9 +438,10 @@ describe('QuizLiveMonitor (rebuilt)', () => {
           Array.isArray((c[1] as { liveLeaderboard?: unknown }).liveLeaderboard)
       );
       if (!leaderboardCall) throw new Error('leaderboard broadcast missing');
-      expect(
-        (leaderboardCall[1] as { liveLeaderboard: unknown[] }).liveLeaderboard
-      ).toHaveLength(2);
+      const broadcast = (leaderboardCall[1] as { liveLeaderboard: object[] })
+        .liveLeaderboard;
+      expect(broadcast).toHaveLength(2);
+      for (const entry of broadcast) expect(entry).not.toHaveProperty('pin');
     } finally {
       vi.useRealTimers();
     }

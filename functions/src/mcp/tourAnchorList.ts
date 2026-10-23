@@ -483,6 +483,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "arts-letters-agenda#fontColor",
       "arts-letters-agenda#fontFamily",
       "arts-letters-agenda#textSizePreset",
+      "arts-letters-agenda#version",
       "blending-board#managedNotice",
       "blooms-taxonomy#enabledCategories",
       "breathing#cardColor",
@@ -780,6 +781,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "requires": "settings-open",
     "keys": [
       "activity-wall#content",
+      "arts-letters-agenda#content",
       "blending-board#content",
       "blooms-taxonomy#content",
       "breathing#content",
@@ -2534,6 +2536,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "activity-wall.library",
     "label": "Open wall library button in Activity Wall",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "library.activity-wall",
+        "kind": "widget",
+        "widget_type": "activity-wall",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "activity-wall.edit-shared",
+    "label": "Edit wall button on a colleague's Activity Wall",
     "scope": "widget",
     "routes": [
       {
@@ -7088,6 +7106,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-editor.word-enforce",
     "label": "Enforce limit toggle in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.spell-check",
+    "label": "Spell check toggle in the Quiz editor",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -26274,6 +26314,66 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "teams.home.latest-assessment",
+    "label": "Latest assessment title on the team Home page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "plc.teams.home",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.plcs",
+          "plcs.open-plc:plcs",
+          "plc-dashboard.section-tab:plc#home"
+        ],
+        "needs": [
+          "plc"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "teams.home.see-item-analysis",
+    "label": "See item analysis link on the team Home page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "plc.teams.home",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.plcs",
+          "plcs.open-plc:plcs",
+          "plc-dashboard.section-tab:plc#home"
+        ],
+        "needs": [
+          "plc"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "teams.home.tool",
+    "label": "Team tool link on the team Home page",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "plc.teams.home",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.plcs",
+          "plcs.open-plc:plcs",
+          "plc-dashboard.section-tab:plc#home"
+        ],
+        "needs": [
+          "plc"
+        ]
+      }
+    ]
+  },
+  {
     "id": "teams.department.agenda-add",
     "label": "Add button for agenda items in the department hub",
     "scope": "board",
@@ -29452,6 +29552,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "library-shell.secondary-menu-item",
+    "label": "Item in a library shell secondary button menu",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.secondary-action"
+        ],
+        "reveal": "library-shell.secondary-action"
+      }
+    ]
+  },
+  {
     "id": "library-shell.new-menu-item",
     "label": "Item in the library shell primary button menu",
     "scope": "field",
@@ -29685,6 +29801,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Back button in the resource viewer",
     "scope": "board",
     "panel": true,
+    "routes": [
+      {
+        "surface": "board.help-viewer",
+        "kind": "panel",
+        "path": [
+          "board-actions.help",
+          "help-center.tab:help#guides",
+          "help-center.guides.item:help"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "help-center.viewer.open-web-tour",
+    "label": "Open in a new tab button for a web tour in a Help Center guide",
+    "scope": "board",
     "routes": [
       {
         "surface": "board.help-viewer",
@@ -29965,6 +30097,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "admin.help-center.record-tour",
     "label": "Record tour button in Help Center admin",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center.tour-health",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center",
+          "admin.help-center.tour-health-toggle"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.record-web-tour",
+    "label": "Record web tour button in Help Center admin",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -30616,6 +30768,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.admin-settings",
           "admin.settings.tab:admin#widgets",
           "admin.widgets.configure:admin#activity-wall"
+        ],
+        "needs": [
+          "admin"
+        ]
+      },
+      {
+        "surface": "admin.widgets.config.arts-letters-agenda",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#arts-letters-agenda"
         ],
         "needs": [
           "admin"
@@ -46269,16 +46433,92 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "web-tours.new",
-    "label": "New web tour button in the Guided Learning library (admins)",
+    "id": "web-tour-editor.goal",
+    "label": "What does your tour explain? field in the web tour editor",
     "scope": "board",
     "routes": [
       {
-        "surface": "board.web-tours",
-        "kind": "panel",
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.filter:guided-learning#row-1"
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.write-with-claude",
+    "label": "Write with Claude button in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.rewrite-all",
+    "label": "Rewrite all button in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.write-asked",
+    "label": "Run again for questions button in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.undo-writing",
+    "label": "Undo button for Claude's writing in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
         ],
         "needs": [
           "widget-on-stage",
@@ -46297,8 +46537,64 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.filter:guided-learning#row-1",
-          "web-tours.new"
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.play",
+    "label": "Play button in the web tour editor header",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.copy-link",
+    "label": "Copy link button in the web tour editor header",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.check",
+    "label": "Check tour button in the web tour editor header",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
         ],
         "needs": [
           "widget-on-stage",
@@ -46317,8 +46613,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.filter:guided-learning#row-1",
-          "web-tours.new"
+          "library-shell.secondary-menu-item"
         ],
         "needs": [
           "widget-on-stage",
@@ -46338,8 +46633,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.filter:guided-learning#row-1",
-          "web-tours.new"
+          "library-shell.secondary-menu-item"
         ],
         "needs": [
           "widget-on-stage",
@@ -46360,8 +46654,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.filter:guided-learning#row-1",
-          "web-tours.new"
+          "library-shell.secondary-menu-item"
         ],
         "needs": [
           "widget-on-stage",
@@ -51710,6 +52003,66 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "share-collection.mode-synced",
+    "label": "Synced option in the collection share dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.share-collection",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-share"
+        ],
+        "needs": [
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "share-collection.mode-view-only",
+    "label": "View-Only option in the collection share dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.share-collection",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-share"
+        ],
+        "needs": [
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "share-collection.mode-copy",
+    "label": "Make a copy option in the collection share dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.share-collection",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-share"
+        ],
+        "needs": [
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
     "id": "share-collection.share-with-sub",
     "label": "Share with a sub option in the collection share dialog",
     "scope": "board",
@@ -51949,6 +52302,49 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "board.share-collection-import",
         "kind": "page",
         "url": "/share-collection/{shareId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-linked-collection.close",
+    "label": "Close button in the import shared collection dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.linked-collection-import",
+        "kind": "page",
+        "url": "/share/collection/{linkId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-linked-collection.cancel",
+    "label": "Cancel button in the import shared collection dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.linked-collection-import",
+        "kind": "page",
+        "url": "/share/collection/{linkId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-linked-collection.confirm",
+    "label": "Import button in the import shared collection dialog",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.linked-collection-import",
+        "kind": "page",
+        "url": "/share/collection/{linkId}",
         "path": []
       }
     ]
@@ -52244,6 +52640,32 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.folder-menu"
         ],
         "reveal": "library-shell.folder-menu"
+      }
+    ]
+  },
+  {
+    "id": "library-shell.folder-menu-move-up",
+    "label": "Move up item in the library folder menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.folder-menu-move-down",
+    "label": "Move down item in the library folder menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -64772,6 +65194,31 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "colleague-item.assign",
+    "label": "Assign button on a colleague's item on a shared board",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.shared-board-item",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "colleague-item.back",
+    "label": "Back to the colleague's item after assigning a copy",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.shared-board-item",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "routine-guide.search",
     "label": "Search routines box in the Routine Guide library",
     "scope": "widget type",
@@ -65294,6 +65741,48 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Set color item in the collection card menu",
     "scope": "board",
     "panel": true,
+    "routes": [
+      {
+        "surface": "board.boards-collection-menu",
+        "kind": "menu",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-edit"
+        ],
+        "needs": [
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boards-modal.collection-menu-stop-sharing",
+    "label": "Stop sharing item in the collection card menu",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.boards-collection-menu",
+        "kind": "menu",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-edit"
+        ],
+        "needs": [
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boards-modal.collection-menu-leave-shared",
+    "label": "Leave shared collection item in the collection card menu",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
     "routes": [
       {
         "surface": "board.boards-collection-menu",

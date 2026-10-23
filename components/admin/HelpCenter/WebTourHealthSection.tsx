@@ -11,17 +11,11 @@ import {
 import { tourFieldAttr } from '@/config/tourAnchors';
 import type { GuidedLearningSet } from '@/types';
 import { AuthContext } from '@/context/AuthContextValue';
-import { useCreateShortLink } from '@/hooks/useShortLinks';
-import { resolveShortLink } from '@/utils/shortLinksApi';
-import { buildShortUrl } from '@/utils/shortLinkValidation';
 import { logError } from '@/utils/logError';
 import { loadPublishedTour } from '@/components/tours/publishedTours';
 import { loadTourRuns } from '@/components/tours/tourRuns';
 import { listWebTourDrafts } from '@/components/tours/webTours';
-import {
-  buildTourUrl,
-  tourShortLinkCode,
-} from '@/components/tours/web/tourLinks';
+import { useCopyWebTourLink } from '@/components/tours/web/useCopyWebTourLink';
 import { hubStepsOf, type HubStep } from '@/components/tours/web/webTourHub';
 import {
   webFieldStatsOf,
@@ -84,7 +78,7 @@ const CopyTourLink: React.FC<{ setId: string; title: string }> = ({
   title,
 }) => {
   const { t } = useTranslation();
-  const { createShortLink } = useCreateShortLink();
+  const copyLink = useCopyWebTourLink();
   const [state, setState] = useState<'idle' | 'working' | 'done'>('idle');
   const timer = useRef<number | null>(null);
   useEffect(
@@ -94,39 +88,16 @@ const CopyTourLink: React.FC<{ setId: string; title: string }> = ({
     []
   );
 
-  const shareUrl = async (): Promise<string> => {
-    const destination = buildTourUrl(setId);
-    const code = tourShortLinkCode(setId);
-    try {
-      const existing = await resolveShortLink(code);
-      if (existing?.destination === destination) return buildShortUrl(code);
-      const result = await createShortLink({
-        destination,
-        slug: existing ? undefined : code,
-        label: `Web tour: ${title}`,
-      });
-      if (result.ok) return buildShortUrl(result.link.code);
-      // Another admin may have claimed the code a moment ago.
-      const raced = await resolveShortLink(code);
-      if (raced?.destination === destination) return buildShortUrl(code);
-    } catch (err) {
-      logError('WebTourHealthSection.shortLink', err, { setId });
-    }
-    return destination;
-  };
-
   const copy = async () => {
     if (state === 'working') return;
     setState('working');
-    try {
-      await navigator.clipboard.writeText(await shareUrl());
-      setState('done');
-      if (timer.current !== null) window.clearTimeout(timer.current);
-      timer.current = window.setTimeout(() => setState('idle'), 1500);
-    } catch (err) {
-      logError('WebTourHealthSection.clipboard', err, { setId });
+    if (!(await copyLink(setId, title))) {
       setState('idle');
+      return;
     }
+    setState('done');
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setState('idle'), 1500);
   };
 
   return (
@@ -303,10 +274,20 @@ export const WebTourHealthSection: React.FC<{
                               })}
                             </span>
                           )}
-                          {stepState === 'weak' && weak && (
+                          {stepState === 'weak' &&
+                            weak &&
+                            weak.text + weak.css > 0 && (
+                              <span className="block text-slate-500">
+                                {t('tourHealth.web.reason.weak', {
+                                  weak: weak.text + weak.css,
+                                  runs: tour.field?.runs ?? 0,
+                                })}
+                              </span>
+                            )}
+                          {stepState === 'weak' && weak && weak.score > 0 && (
                             <span className="block text-slate-500">
-                              {t('tourHealth.web.reason.weak', {
-                                weak: weak.text + weak.css,
+                              {t('tourHealth.web.reason.weakScore', {
+                                weak: weak.score,
                                 runs: tour.field?.runs ?? 0,
                               })}
                             </span>

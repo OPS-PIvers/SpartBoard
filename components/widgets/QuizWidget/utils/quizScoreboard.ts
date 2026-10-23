@@ -627,3 +627,14 @@ export function buildGameLeaderboard(
     .sort((a, b) => b.score - a.score)
     .map((entry, index) => ({ ...entry, rank: index + 1 }));
 }
+
+/** Entries safe for the any-reader session doc: no roster PINs, names for the top 10 only. */
+export function toBroadcastLeaderboard(
+  entries: QuizLeaderboardEntry[]
+): QuizLeaderboardEntry[] {
+  return entries.map(({ pin, name, ...rest }) =>
+    rest.rank <= 10 && name && !(pin && name === `PIN ${pin}`)
+      ? { ...rest, name }
+      : rest
+  );
+}

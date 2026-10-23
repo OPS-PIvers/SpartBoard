@@ -27,6 +27,7 @@ import {
   LTI_SESSION_MEMBERSHIPS_COLLECTION,
   QUIZ_SESSIONS_COLLECTION,
   VIDEO_ACTIVITY_SESSIONS_COLLECTION,
+  ltiQuizOwner,
 } from './nrpsStore';
 
 interface SessionRow {
@@ -164,6 +165,7 @@ const db = (): admin.firestore.Firestore =>
 const QUIZ_ARGS = {
   kind: 'quiz' as const,
   quizCode: 'abc123', // normalizeQuizCode → 'ABC123'
+  teacherUid: 'teacher-1',
   contextId: 'ctx-1',
   contextTitle: 'Math 7',
   resourceLinkId: 'rl-1',
@@ -525,26 +527,98 @@ describe('persistLtiLaunchContext — quiz', () => {
     expect(writes).toHaveLength(0);
   });
 
-  it('skips the archive mirror when the session has no teacherUid', async () => {
+  it("ignores another teacher's later session squatting the same code", async () => {
     quizSessions = [
       {
-        id: 'sess-1',
-        data: { code: 'ABC123', status: 'active', startedAt: 1 },
+        id: 'mine',
+        data: {
+          code: 'ABC123',
+          status: 'active',
+          startedAt: 100,
+          teacherUid: 'teacher-1',
+        },
+      },
+      {
+        id: 'squat',
+        data: {
+          code: 'ABC123',
+          status: 'waiting',
+          startedAt: 9e15,
+          teacherUid: 'attacker',
+        },
       },
     ];
-    await persistLtiLaunchContext(db(), QUIZ_ARGS);
-    expect(writeAt('users/')).toBeUndefined();
-    // The session denormalization still happens.
-    expect(writeAt(`${QUIZ_SESSIONS_COLLECTION}/sess-1`)).toBeTruthy();
+    expect(await persistLtiLaunchContext(db(), QUIZ_ARGS)).toBe('mine');
+    expect(writes.some((w) => w.path.includes('squat'))).toBe(false);
+    expect(writeAt('users/attacker')).toBeUndefined();
+  });
+
+  // An older link (no teacher_uid) trusts only server records for its owner.
+  const OLDER = { ...QUIZ_ARGS, teacherUid: null };
+  const row = (id: string, teacherUid: string, status = 'active') => ({
+    id,
+    data: { code: 'ABC123', status, startedAt: 1, teacherUid },
+  });
+  const fileSection = (sessionId: string) =>
+    contextDocs.set(
+      `${LTI_SESSION_MEMBERSHIPS_COLLECTION}/${sessionId}/contexts/ctx-1`,
+      { contextMembershipsUrl: QUIZ_ARGS.membershipUrl, contextTitle: 'Math 7' }
+    );
+
+  it("files an older link under the code's sole teacher", async () => {
+    quizSessions = [row('sess-1', 'teacher-1')];
+    expect(await persistLtiLaunchContext(db(), OLDER)).toBe('sess-1');
+  });
+
+  it('files nothing for an older link once another teacher reuses the code', async () => {
+    quizSessions = [row('sess-1', 'teacher-1'), row('squat', 'attacker')];
+    expect(await persistLtiLaunchContext(db(), OLDER)).toBeNull();
+    expect(writes).toHaveLength(0);
+  });
+
+  it('keeps an older link on the session its section was filed under', async () => {
+    quizSessions = [row('sess-1', 'teacher-1'), row('squat', 'attacker')];
+    fileSection('sess-1');
+    expect(await persistLtiLaunchContext(db(), OLDER)).toBe('sess-1');
+    expect(writes.some((w) => w.path.includes('squat'))).toBe(false);
+  });
+
+  it('files nothing when the section was filed under two teachers', async () => {
+    quizSessions = [row('sess-1', 'teacher-1'), row('squat', 'attacker')];
+    fileSection('sess-1');
+    fileSection('squat');
+    expect(await persistLtiLaunchContext(db(), OLDER)).toBeNull();
   });
 
   it('picks the most-recent joinable session and ignores ended ones', async () => {
+    const t = 'teacher-1';
     quizSessions = [
-      { id: 'old', data: { code: 'ABC123', status: 'active', startedAt: 100 } },
-      { id: 'new', data: { code: 'ABC123', status: 'active', startedAt: 500 } },
+      {
+        id: 'old',
+        data: {
+          code: 'ABC123',
+          status: 'active',
+          startedAt: 100,
+          teacherUid: t,
+        },
+      },
+      {
+        id: 'new',
+        data: {
+          code: 'ABC123',
+          status: 'active',
+          startedAt: 500,
+          teacherUid: t,
+        },
+      },
       {
         id: 'ended',
-        data: { code: 'ABC123', status: 'ended', startedAt: 999 },
+        data: {
+          code: 'ABC123',
+          status: 'ended',
+          startedAt: 999,
+          teacherUid: t,
+        },
       },
     ];
     expect(await persistLtiLaunchContext(db(), QUIZ_ARGS)).toBe('new');
@@ -565,6 +639,24 @@ describe('persistLtiLaunchContext — quiz', () => {
     });
     expect(sessionId).toBeNull();
     expect(writes).toHaveLength(0);
+  });
+});
+
+describe('ltiQuizOwner', () => {
+  it('names the signer, else the sole teacher, else nobody', async () => {
+    quizSessions = [
+      { id: 'a', data: { code: 'ABC123', teacherUid: 'teacher-1' } },
+    ];
+    expect(await ltiQuizOwner(db(), 'abc123', 'signer', 'ctx-1')).toBe(
+      'signer'
+    );
+    expect(await ltiQuizOwner(db(), 'abc123', null, 'ctx-1')).toBe('teacher-1');
+    expect(await ltiQuizOwner(db(), 'abc123', null, null)).toBe('teacher-1');
+    quizSessions.push({
+      id: 'b',
+      data: { code: 'ABC123', teacherUid: 'attacker' },
+    });
+    expect(await ltiQuizOwner(db(), 'abc123', null, 'ctx-1')).toBeNull();
   });
 });
 

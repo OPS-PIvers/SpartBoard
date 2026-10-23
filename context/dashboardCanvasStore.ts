@@ -283,6 +283,22 @@ export function useIsActiveBoardReadOnly(): boolean {
   return useDashboardCanvasSelector((s) => s.isActiveBoardReadOnly);
 }
 
+/** The live (Synced or View-Only) share the active board belongs to, or null once it ends. */
+export function useActiveBoardLinkedShareId(): string | null {
+  return useDashboardCanvasSelector((s) =>
+    s.activeDashboard?.linkedShareEnded
+      ? null
+      : (s.activeDashboard?.linkedShareId ?? null)
+  );
+}
+
+/** The share host uid the active board recorded when it joined, or null. */
+export function useActiveBoardLinkedShareHostUid(): string | null {
+  return useDashboardCanvasSelector(
+    (s) => s.activeDashboard?.linkedShareHostUid ?? null
+  );
+}
+
 /**
  * Per-instance selector for "is THIS widget the selected one". Returns the
  * boolean `selectedWidgetId === id`, NOT the raw `selectedWidgetId` — so a

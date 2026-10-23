@@ -1423,6 +1423,12 @@
       "assignmentArchive": "View archive",
       "managerView": "Reset to manager view"
     },
+    "arts-letters-agenda": {
+      "version": "Version",
+      "simple": "Simple",
+      "detailed": "Detailed",
+      "sameLists": "Detailed matches Simple until your school sets its own list."
+    },
     "breathing": {
       "pattern": "Pattern",
       "boxBreathing": "Box Breathing",
@@ -2717,6 +2723,7 @@
   "boardsModal": {
     "title": "Boards & Collections",
     "close": "Close",
+    "backToBoard": "Back to board",
     "searchPlaceholder": "Search Boards & Collections",
     "newBoard": "New Board",
     "newBoardPrompt": "Board name",
@@ -2741,6 +2748,9 @@
     "delete": "Delete",
     "bulkDeleteConfirm": "Delete {{count}} item(s)? This cannot be undone.",
     "deleteBoardConfirm": "Delete this Board?",
+    "removeSharedBoardConfirm": "Remove this board for everyone in the shared collection?",
+    "removeSharedBoardConfirmLabel": "Remove",
+    "removeSharedCollectionConfirm": "Remove this collection and its boards for everyone in the shared collection?",
     "deleteCollectionConfirm": "Delete this Collection? Boards inside will move to its parent.",
     "unpinBoard": "Unpin Board",
     "dragToMove": "Drag to move",
@@ -2813,7 +2823,13 @@
     "notFound": "Shared Collection not found or expired",
     "empty": "Shared Collection is empty",
     "invalidShareUrl": "Invalid share link — missing share id.",
-    "substituteImportRejected": "This link is for substitutes. Open it in the Substitute Portal."
+    "substituteImportRejected": "This link is for substitutes. Open it in the Substitute Portal.",
+    "modeSynced": "Synced",
+    "modeSyncedHint": "You both edit the same collection.",
+    "modeViewOnly": "View-Only",
+    "modeViewOnlyHint": "They see your changes live but can't edit.",
+    "modeCopyTitle": "Make a copy",
+    "boardAlreadyLive": "{{name}} is already shared live. Stop sharing it first, or make a copy."
   },
   "importSharedCollection": {
     "title": "Import shared Collection",
@@ -2835,7 +2851,12 @@
   },
   "collectionMenu": {
     "share": "Share Collection…",
-    "saveAsTemplate": "Save as Template…"
+    "saveAsTemplate": "Save as Template…",
+    "stopSharing": "Stop sharing",
+    "stopSharingConfirm": "Stop sharing this collection? Synced teachers keep their own copy. View-only teachers lose it.",
+    "leaveShared": "Leave shared collection",
+    "leaveSharedConfirm": "Leave this shared collection? You keep a copy of its boards, but they stop updating.",
+    "leaveSharedViewerConfirm": "Leave this shared collection? It will be removed from your account."
   },
   "templatePicker": {
     "title": "Create from Template",
@@ -4302,7 +4323,8 @@
         "other": "Other",
         "tours": "Live tours"
       },
-      "liveTourBadge": "Live tour"
+      "liveTourBadge": "Live tour",
+      "webTourBadge": "Web tour"
     },
     "shortcuts": {
       "open-help": "Open Help",
@@ -5103,7 +5125,11 @@
     },
     "webFindIt": "Look for this on the page.",
     "webOtherPage": "This step is on another page. Open it to continue.",
-    "webPictureAlt": "Picture of this step"
+    "webPictureAlt": "Picture of this step",
+    "webCheckFound": "Found",
+    "webCheckWeak": "Weak match",
+    "webCheckAmbiguous": "Matches more than one",
+    "webCheckNone": "Not found"
   },
   "glPlayer": {
     "modeChip": {
@@ -5298,6 +5324,8 @@
     "loading": "Loading tours...",
     "intro": "Checks published tours against the anchor registry.",
     "recordTour": "Record a tour",
+    "recordWebTour": "Record a web tour",
+    "recordWebTourFailed": "The web tour couldn't be created.",
     "checkLive": "Check live",
     "empty": "No Guided Learning set has live-tour steps yet.",
     "untitledSet": "Untitled set",
@@ -5374,7 +5402,8 @@
       },
       "reason": {
         "missed": "Showed the picture in {{misses}} of {{runs}} real runs",
-        "weak": "Found only by a weaker clue in {{weak}} of {{runs}} real runs"
+        "weak": "Found only by a weaker clue in {{weak}} of {{runs}} real runs",
+        "weakScore": "Close to another control in {{weak}} of {{runs}} real runs"
       },
       "copyLink": "Copy link",
       "linkCopied": "Copied",
@@ -5494,7 +5523,8 @@
     "exited": "You left the tour.",
     "done": "You finished this tour.",
     "startFailed": "The tour couldn't start. Try again.",
-    "noExtension": "Ask your tech team to add the SpartBoard Chrome extension so this tour can point to each step on the site. For now, follow the pictures below.",
+    "noExtension": "Add the SpartBoard Chrome extension so this tour can point to each step on the site. For now, follow the pictures below.",
+    "getExtension": "Get the SpartBoard extension",
     "wrongProfile": "This tour plays only in a Chrome profile signed in with your Orono staff account. For now, follow the pictures below.",
     "oldExtension": "Your SpartBoard extension needs an update to play this tour. For now, follow the pictures below.",
     "openSite": "Open {{site}}",
@@ -5503,5 +5533,12 @@
     "pictureAlt": "Picture of step {{number}}",
     "unavailableTitle": "This tour isn't available",
     "unavailableBody": "The link may be wrong, or the tour was removed. Ask whoever shared it for a new link."
+  },
+  "linkedCollection": {
+    "stopped": "Stopped sharing",
+    "left": "Left shared collection",
+    "leaveFailed": "Failed to leave shared collection",
+    "hostStopped": "{{name}} stopped sharing this collection.",
+    "hostStoppedNoName": "The host stopped sharing this collection."
   }
 }

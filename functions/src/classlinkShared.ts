@@ -124,6 +124,11 @@ export function normalizeEmailDomain(email: string): string | null {
   return '@' + email.slice(at + 1).toLowerCase();
 }
 
+/** True for a student Workspace address (e.g. `@students.orono.k12.mn.us`), which never holds a teacher session. */
+export function isStudentDomainEmail(email: string): boolean {
+  return normalizeEmailDomain(email)?.startsWith('@students.') === true;
+}
+
 /**
  * Look up the organization that owns an email domain. Matches the
  * `/organizations/{orgId}/domains/{doc}` subcollection, requiring

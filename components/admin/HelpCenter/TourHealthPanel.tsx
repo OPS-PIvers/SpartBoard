@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Circle,
+  Globe,
   Loader2,
   OctagonAlert,
   PanelTopOpen,
@@ -39,6 +40,9 @@ import {
 } from '@/components/tours/tourHealth';
 import { UnmappedAnchorsSection } from './UnmappedAnchorsSection';
 import { WebTourHealthSection } from './WebTourHealthSection';
+import { AuthContext } from '@/context/AuthContextValue';
+import { createWebTourDraft } from '@/components/tours/webTours';
+import { logError } from '@/utils/logError';
 import { requestEditTour } from '@/components/tours/editor/tourEditStore';
 import {
   isLiveTourSet,
@@ -49,6 +53,12 @@ const GuidedLearningStudio = lazy(() =>
   import('@/components/widgets/GuidedLearning/components/studio/GuidedLearningStudio').then(
     (m) => ({ default: m.GuidedLearningStudio })
   )
+);
+
+const WebTourEditor = lazy(() =>
+  import('@/components/tours/web/WebTourEditor').then((m) => ({
+    default: m.WebTourEditor,
+  }))
 );
 
 interface LoadedTour {
@@ -135,6 +145,19 @@ const TourHealthPanel: React.FC = () => {
     set: GuidedLearningSet;
     stepId: string;
   } | null>(null);
+  const canCreateWebTour =
+    useContext(AuthContext)?.canAccessFeature('web-tours') ?? false;
+  const [webTour, setWebTour] = useState<GuidedLearningSet | null>(null);
+  const [webTourFailed, setWebTourFailed] = useState(false);
+  const createWebTour = async () => {
+    setWebTourFailed(false);
+    try {
+      setWebTour(await createWebTourDraft());
+    } catch (err) {
+      logError('TourHealthPanel.createWebTour', err);
+      setWebTourFailed(true);
+    }
+  };
 
   const rosters = useContext(DashboardContext)?.rosters;
   const matcher = useMemo(
@@ -211,6 +234,17 @@ const TourHealthPanel: React.FC = () => {
             <Circle className="w-3.5 h-3.5 fill-current" aria-hidden="true" />
             {t('tourHealth.recordTour')}
           </button>
+          {canCreateWebTour && (
+            <button
+              type="button"
+              onClick={() => void createWebTour()}
+              {...tourAttr('admin.help-center.record-web-tour')}
+              className="flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:bg-slate-50"
+            >
+              <Globe className="w-3.5 h-3.5" aria-hidden="true" />
+              {t('tourHealth.recordWebTour')}
+            </button>
+          )}
           <button
             type="button"
             onClick={checkLive}
@@ -223,6 +257,12 @@ const TourHealthPanel: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {webTourFailed && (
+        <p role="alert" className="text-sm text-red-700">
+          {t('tourHealth.recordWebTourFailed')}
+        </p>
+      )}
 
       <UnmappedAnchorsSection
         titles={titles}
@@ -378,6 +418,12 @@ const TourHealthPanel: React.FC = () => {
       })}
 
       <WebTourHealthSection />
+
+      {webTour && (
+        <Suspense fallback={null}>
+          <WebTourEditor initial={webTour} onClose={() => setWebTour(null)} />
+        </Suspense>
+      )}
 
       {studio && (
         <Suspense fallback={null}>

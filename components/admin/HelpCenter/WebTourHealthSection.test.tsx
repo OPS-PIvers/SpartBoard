@@ -74,7 +74,10 @@ describe('WebTourHealthSection', () => {
     });
     h.runs.set('w1', [
       run({ misses: ['a'], done: true }),
+      run({ misses: ['a'] }),
       run({ weak: ['b:css'] }),
+      run({ weak: ['b:score'] }),
+      run({ v: 3, misses: ['c'] }),
       run({ v: 3, misses: ['c'] }),
     ]);
     const list = () => Promise.resolve([set]);

@@ -65,6 +65,41 @@ vi.mock('./components/PageEditorOverlay', () => ({
   ),
 }));
 
+const boardItemMock = vi.hoisted(() => {
+  const state: {
+    status: 'off' | 'pending' | 'foreign' | 'none';
+    item: { ownerUid: string; payload: unknown } | null;
+  } = { status: 'off', item: null };
+  return {
+    shareId: null as string | null,
+    state,
+    published: [] as {
+      itemId?: string | null;
+      version?: string | null;
+      build?: () => Promise<unknown>;
+    }[],
+  };
+});
+vi.mock('@/hooks/useSharedBoardItem', () => ({
+  useSharedBoardItem: () => boardItemMock.state,
+  useSharedBoardItemPublisher: (args: {
+    itemId?: string | null;
+    version?: string | null;
+    build?: () => Promise<unknown>;
+  }) => {
+    boardItemMock.published.push(args);
+  },
+}));
+vi.mock('@/context/dashboardCanvasStore', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/context/dashboardCanvasStore')>()),
+  useActiveBoardLinkedShareId: () => boardItemMock.shareId,
+}));
+
+beforeEach(() => {
+  boardItemMock.shareId = null;
+  boardItemMock.state = { status: 'off', item: null };
+  boardItemMock.published = [];
+});
 describe('SmartNotebookWidget object link concurrency', () => {
   const mockUser = { uid: 'test-uid' };
   const mockWidget = {

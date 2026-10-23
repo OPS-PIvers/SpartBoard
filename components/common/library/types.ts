@@ -81,6 +81,8 @@ export interface LibraryMenuAction {
 /** One choice in a primary action's menu. */
 export interface LibraryActionMenuItem {
   label: string;
+  /** Stable key and tour anchor field; defaults to the item's position. */
+  id?: string;
   icon?: LucideIcon;
   onClick: () => void;
 }

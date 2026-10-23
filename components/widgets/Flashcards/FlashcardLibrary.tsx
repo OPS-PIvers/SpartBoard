@@ -183,6 +183,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
       userId,
       folders: folders.folders,
       foldersLoading: folders.loading,
+      reorderSiblings: folders.reorderSiblings,
       getId: getSetId,
       getRecentAt: recentAt,
       itemNoun: SET_NOUN,
@@ -202,6 +203,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   const folderCounts = useMemo(() => countItemsByFolder(sets), [sets]);
   const folderView = useFolderViewSidebar({
     setFolderColor: folders.setFolderColor,
+    reorderSiblings: folders.reorderSiblings,
     noun: { one: 'flashcard set', many: 'flashcard sets' },
     items: sets,
     ...folderDeleteActions,

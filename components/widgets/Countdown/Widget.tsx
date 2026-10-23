@@ -180,38 +180,49 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
           }}
         >
           {viewMode === 'number' ? (
-            <div className="flex flex-col items-center justify-center text-center w-full">
+            <div className="flex flex-col items-center justify-center text-center w-full [@container(min-aspect-ratio:2)]:flex-row [@container(min-aspect-ratio:2)]:gap-[4cqw] [@container(max-aspect-ratio:0.6)]:gap-[5cqh]">
               <div
-                className="font-bold leading-none"
-                style={{
-                  fontSize: `min(42cqh, ${(TEXT_CQW / longestWordEm(String(calculatedDays))).toFixed(2)}cqw)`,
-                  color: fontColor,
-                }}
+                className="font-bold leading-none [font-size:var(--num-std)] [@container(min-aspect-ratio:2)]:[font-size:var(--num-wide)]"
+                style={
+                  {
+                    '--num-std': `min(42cqh, ${(TEXT_CQW / longestWordEm(String(calculatedDays))).toFixed(2)}cqw)`,
+                    '--num-wide': `min(68cqh, ${(34 / longestWordEm(String(calculatedDays))).toFixed(2)}cqw)`,
+                    color: fontColor,
+                  } as React.CSSProperties
+                }
               >
                 {calculatedDays}
               </div>
-              <div
-                className="font-medium"
-                style={{
-                  fontSize: 'min(9cqh, 16cqw)',
-                  marginTop: 'min(8px, 2cqmin)',
-                  color: fontColor,
-                  opacity: 0.6,
-                }}
-              >
-                day{calculatedDays !== 1 ? 's' : ''} until
-              </div>
-              <div
-                className="font-bold text-center [overflow-wrap:anywhere]"
-                style={{
-                  fontSize: `min(13cqh, 30cqw, ${(TEXT_CQW / titleWordEm).toFixed(2)}cqw)`,
-                  marginTop: 'min(6px, 1.5cqmin)',
-                  paddingLeft: 'min(16px, 4cqmin)',
-                  paddingRight: 'min(16px, 4cqmin)',
-                  color: eventColor,
-                }}
-              >
-                {title}
+              <div className="flex flex-col items-center [@container(max-aspect-ratio:0.6)]:gap-[3cqh] [@container(min-aspect-ratio:2)]:items-start [@container(min-aspect-ratio:2)]:text-left">
+                <div
+                  className="font-medium [font-size:var(--days-std)] [@container(min-aspect-ratio:2)]:[font-size:var(--days-wide)]"
+                  style={
+                    {
+                      '--days-std': 'min(9cqh, 16cqw)',
+                      '--days-wide': 'min(14cqh, 5cqw)',
+                      marginTop: 'min(8px, 2cqmin)',
+                      color: fontColor,
+                      opacity: 0.6,
+                    } as React.CSSProperties
+                  }
+                >
+                  day{calculatedDays !== 1 ? 's' : ''} until
+                </div>
+                <div
+                  className="font-bold [overflow-wrap:anywhere] [font-size:var(--title-std)] [@container(min-aspect-ratio:2)]:[font-size:var(--title-wide)]"
+                  style={
+                    {
+                      '--title-std': `min(13cqh, 30cqw, ${(TEXT_CQW / titleWordEm).toFixed(2)}cqw)`,
+                      '--title-wide': `min(24cqh, ${(46 / titleWordEm).toFixed(2)}cqw)`,
+                      marginTop: 'min(6px, 1.5cqmin)',
+                      paddingLeft: 'min(16px, 4cqmin)',
+                      paddingRight: 'min(16px, 4cqmin)',
+                      color: eventColor,
+                    } as React.CSSProperties
+                  }
+                >
+                  {title}
+                </div>
               </div>
             </div>
           ) : (

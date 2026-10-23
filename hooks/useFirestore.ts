@@ -41,6 +41,11 @@ import {
  */
 export type SharedBoardSnapshot = Dashboard & {
   intendedMode?: SharedBoardIntendedMode;
+  /** `/linked_collections/{id}` the share belongs to, when part of a shared collection. */
+  linkedCollectionId?: string;
+  /** Uid of the teacher who created the share. */
+  originalAuthor?: string;
+  participants?: Record<string, SharedBoardParticipant>;
 };
 
 /**
@@ -165,8 +170,12 @@ class MockSharedStore {
     return MockSharedStore.instance;
   }
 
-  add(dashboard: Dashboard | Record<string, unknown>): string {
-    const id = 'share-' + Date.now();
+  add(
+    dashboard: Dashboard | Record<string, unknown>,
+    fixedId?: string
+  ): string {
+    if (fixedId && this.shared.has(fixedId)) return fixedId;
+    const id = fixedId ?? 'share-' + Date.now();
     const data = { ...(dashboard as Record<string, unknown>), id };
     this.shared.set(id, data);
     this.persist(id, data);
@@ -273,12 +282,19 @@ function mapSharedDocToDashboard(
       ? rawIntendedMode
       : undefined;
   const base = record as unknown as Dashboard;
+  const { linkedCollectionId: rawLinkId, ...rest } = record;
+  const hostUid =
+    typeof record.originalAuthor === 'string' && record.originalAuthor
+      ? record.originalAuthor
+      : undefined;
   return {
-    ...base,
+    ...(rest as unknown as Dashboard),
     widgets: migrateBoardWidgets(base.widgets ?? []),
     id: shareId,
     ...(originalAuthorName ? { linkedShareHostName: originalAuthorName } : {}),
+    ...(hostUid ? { linkedShareHostUid: hostUid } : {}),
     ...(intendedMode ? { intendedMode } : {}),
+    ...(typeof rawLinkId === 'string' ? { linkedCollectionId: rawLinkId } : {}),
   };
 }
 
@@ -475,18 +491,26 @@ export const useFirestore = (userId: string | null) => {
        * Shared Boards tab. Mutating the field post-create is restricted
        * to the host (rules pin it immutable for collaborators).
        */
-      plcId?: string
+      plcId?: string,
+      /** The `/linked_collections` link this board share belongs to. */
+      linkedCollectionId?: string,
+      /** Fixed share id: written only if no share has it yet, so two tabs share a board once. */
+      shareId?: string
     ): Promise<string> => {
       assertViewAsCanWrite();
       if (isAuthBypass) {
         // Stash the host display name on the mock doc under the same field
         // the live path uses so loadSharedDashboard's mapping works in bypass.
-        return mockSharedStore.add({
-          ...dashboard,
-          ...(hostDisplayName ? { originalAuthorName: hostDisplayName } : {}),
-          ...(intendedMode ? { intendedMode } : {}),
-          ...(plcId ? { plcId } : {}),
-        });
+        return mockSharedStore.add(
+          {
+            ...dashboard,
+            ...(hostDisplayName ? { originalAuthorName: hostDisplayName } : {}),
+            ...(intendedMode ? { intendedMode } : {}),
+            ...(plcId ? { plcId } : {}),
+            ...(linkedCollectionId ? { linkedCollectionId } : {}),
+          },
+          shareId
+        );
       }
 
       const shareRef = collection(db, 'shared_boards');
@@ -498,21 +522,31 @@ export const useFirestore = (userId: string | null) => {
         linkedShareId: _ls,
         linkedShareRole: _lsr,
         linkedShareHostName: _lsh,
+        linkedShareHostUid: _lshu,
         linkedShareEnded: _lse,
         ...data
       } = dashboard;
 
-      const docRef = await addDoc(shareRef, {
+      const payload = {
         ...data,
         sharedAt: Date.now(),
         originalAuthor: userId,
         ...(hostDisplayName ? { originalAuthorName: hostDisplayName } : {}),
         ...(intendedMode ? { intendedMode } : {}),
         ...(plcId ? { plcId } : {}),
+        ...(linkedCollectionId ? { linkedCollectionId } : {}),
         participants: {},
         updatedAt: Date.now(),
         updatedBy: userId,
-      });
+      };
+      if (shareId) {
+        const ref = doc(shareRef, shareId);
+        await runTransaction(db, async (tx) => {
+          if (!(await tx.get(ref)).exists()) tx.set(ref, payload);
+        });
+        return shareId;
+      }
+      const docRef = await addDoc(shareRef, payload);
       return docRef.id;
     },
     [userId]
@@ -570,6 +604,7 @@ export const useFirestore = (userId: string | null) => {
         linkedShareId: _ls,
         linkedShareRole: _lsr,
         linkedShareHostName: _lsh,
+        linkedShareHostUid: _lshu,
         linkedShareEnded: _lse,
         ...data
       } = dashboard;
@@ -619,6 +654,7 @@ export const useFirestore = (userId: string | null) => {
           linkedShareId: _ls,
           linkedShareRole: _lsr,
           linkedShareHostName: _lsh,
+          linkedShareHostUid: _lshu,
           linkedShareEnded: _lse,
           ...patch
         } = dashboard;
@@ -637,6 +673,7 @@ export const useFirestore = (userId: string | null) => {
         linkedShareId: _ls,
         linkedShareRole: _lsr,
         linkedShareHostName: _lsh,
+        linkedShareHostUid: _lshu,
         linkedShareEnded: _lse,
         ...patch
       } = dashboard;

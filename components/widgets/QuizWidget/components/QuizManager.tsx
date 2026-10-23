@@ -13,6 +13,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useEffectEvent,
   useRef,
   useState,
 } from 'react';
@@ -261,6 +262,10 @@ interface QuizManagerProps {
   variant?: QuizWidgetKind;
   /** Review's launch; while absent, Start stays disabled. */
   onStartReview?: (quiz: QuizMetadata) => void;
+  /** Opens Assign for this quiz once it is in the library (a shared board's linked copy). */
+  assignOnOpen?: string;
+  /** Called once `assignOnOpen` has been acted on, so it doesn't reopen on a remount. */
+  onAssignOpened?: () => void;
   /** This widget instance's id, for live-tour anchor scoping. */
   widgetId?: string;
   /** Per-period start and windows in the assign modal; absent while the flag is off. */
@@ -702,6 +707,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onError,
   variant = 'quiz',
   onStartReview,
+  assignOnOpen,
+  onAssignOpened,
 }) => {
   const isReview = variant === 'review';
   const { canAccessFeature } = useAuth();
@@ -930,6 +937,22 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assignTarget]);
 
+  const arrivedQuiz = assignOnOpen
+    ? quizzes.find((q) => q.id === assignOnOpen)
+    : undefined;
+  const openArrivedQuiz = useEffectEvent((quiz: QuizMetadata) => {
+    onAssignOpened?.();
+    const missingKeys = quizNeedsKeyCount(quiz);
+    if (!isReview && !isViewOnly && missingKeys > 0) {
+      onError?.(needsKeyAssignReason(missingKeys));
+      return;
+    }
+    openShareOrAssign(quiz);
+  });
+  useEffect(() => {
+    if (arrivedQuiz) openArrivedQuiz(arrivedQuiz);
+  }, [arrivedQuiz]);
+
   // Live ClassLink fetching is no longer performed at assign time. Imported
   // ClassLink rosters carry their own `classlinkClassId` metadata so the
   // student SSO gate resolves purely from rosters; live ClassLink data is
@@ -1033,6 +1056,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   );
   const folderView = useFolderViewSidebar({
     setFolderColor: folderState.setFolderColor,
+    reorderSiblings: folderState.reorderSiblings,
     noun: { one: 'quiz', many: 'quizzes' },
     items: quizzes,
     ...folderDeleteActions,
@@ -1056,6 +1080,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       userId,
       folders: folderState.folders,
       foldersLoading: folderState.loading,
+      reorderSiblings: folderState.reorderSiblings,
       getId: QUIZ_GET_ID,
       getRecentAt: quizRecentAt,
       itemNoun: banksInLibrary ? MIXED_NOUN : QUIZ_NOUN,

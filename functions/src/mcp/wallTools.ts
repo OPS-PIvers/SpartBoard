@@ -4,6 +4,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { PAGE_SIZE } from './config';
+import { effectiveWallClassIds } from '../activityWallClasses';
 import {
   REVIEW_MARK,
   ToolError,
@@ -171,9 +172,12 @@ export function sessionMirror(
     allowComments: entry.allowComments ?? false,
     allowCommentResponses: entry.allowCommentResponses ?? false,
   };
+  const classIds = effectiveWallClassIds(entry);
+  if (entry.classIds || classIds.length > 0)
+    session.classIds = classIds.length > 0 ? classIds : entry.classIds;
   for (const k of [
     'classId',
-    'classIds',
+    'memberClassIds',
     'rosterIds',
     'sections',
     'tableRows',
@@ -289,12 +293,14 @@ export async function restoreWallRevision(
       acceptingResponses: current.acceptingResponses,
       studentsCanSeePosts: current.studentsCanSeePosts,
       classIds: current.classIds,
+      memberClassIds: current.memberClassIds,
       rosterIds: current.rosterIds,
     },
     Date.now()
   );
   if (current.classIds === undefined) delete restored.classIds;
   if (current.rosterIds === undefined) delete restored.rosterIds;
+  if (current.memberClassIds === undefined) delete restored.memberClassIds;
   return writeWall(ctx, restored, { previous: current, action: 'restore' });
 }
 

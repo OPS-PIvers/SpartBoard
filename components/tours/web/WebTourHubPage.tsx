@@ -26,6 +26,7 @@ import {
 import { logError } from '@/utils/logError';
 import {
   canPlayWebTours,
+  extensionId,
   pingExtension,
   startWebTour,
   watchWebTour,
@@ -33,6 +34,7 @@ import {
   type ExtensionStatus,
   type WebTourPortEvent,
 } from './extensionClient';
+import { SCORED_MATCH_PROTOCOL } from './extensionProtocol';
 import {
   buildHandoff,
   loadPictures,
@@ -45,6 +47,8 @@ import {
   type LoadedPicture,
 } from './webTourHub';
 import { parseTourPath } from './tourLinks';
+import { scrubLocator } from './recordedSteps';
+import { runFixClues } from './fixClues';
 import {
   isWebTourSet,
   webTourStepsOf,
@@ -102,7 +106,8 @@ const openRunLog = (
   setId: string,
   uid: string,
   v: number,
-  furthest: number
+  furthest: number,
+  admin: boolean
 ): TourRunLog =>
   startTourRunLog(
     setId,
@@ -112,6 +117,7 @@ const openRunLog = (
       furthest,
       surface: 'web',
       from: readSavedRun(setId, uid, v) ?? undefined,
+      admin,
     },
     (run) => {
       saveRun(setId, uid, run);
@@ -170,10 +176,21 @@ export const WebTourHubPage: React.FC = () => {
   if (!globalPermissionsLoaded || isAdmin === null) return <Loader />;
   const setId = parseTourPath(window.location.pathname);
   if (!setId || !canAccessFeature('web-tours')) return <Unavailable />;
-  return <Hub key={`${setId}:${user.uid}`} setId={setId} uid={user.uid} />;
+  return (
+    <Hub
+      key={`${setId}:${user.uid}`}
+      setId={setId}
+      uid={user.uid}
+      admin={isAdmin}
+    />
+  );
 };
 
-const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
+const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
+  setId,
+  uid,
+  admin,
+}) => {
   const { t } = useTranslation();
   const [load, setLoad] = useState<TourLoad>({ kind: 'loading' });
   const [extension, setExtension] = useState<ExtensionStatus | null>(null);
@@ -228,11 +245,24 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
   }, [setId]);
 
   const playable = extension !== null && canPlayWebTours(extension);
+  const extensionProtocol =
+    extension?.kind === 'ready' ? extension.protocol : 0;
+  const storeId = extensionId();
   const tour = load.kind === 'ready' ? load.tour : null;
 
   const onPortEvent = useEffectEvent((event: WebTourPortEvent) => {
     if (!tour || !eventFitsTour(event, tour.steps)) return;
     failures.current = 0;
+    if (event.type === 'web-tour/suggest') {
+      const own = tour.steps[event.stepIndex]?.web.locator;
+      // Only the site's own clues are kept; page words come from the published step (C15).
+      if (own)
+        log.current?.suggest(
+          event.stepId,
+          runFixClues(scrubLocator(event.locator), own)
+        );
+      return;
+    }
     setPlay((prev) => reducePlay(prev, event));
     // A reloaded page continues the run this tab saved; otherwise only its own start logs.
     const resumable =
@@ -246,7 +276,8 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
       setId,
       uid,
       tour.version,
-      event.type === 'web-tour/step' ? event.stepIndex : 0
+      event.type === 'web-tour/step' ? event.stepIndex : 0,
+      admin
     ));
     if (event.type === 'web-tour/step') {
       exitAt.current = null;
@@ -273,14 +304,19 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
   });
   useEffect(() => {
     if (!playable) return;
-    const stop = watchWebTour(setId, onPortEvent, onPortGone);
+    const stop = watchWebTour(
+      setId,
+      onPortEvent,
+      onPortGone,
+      extensionProtocol
+    );
     return () => {
       if (reconnectTimer.current !== null) {
         window.clearTimeout(reconnectTimer.current);
       }
       stop();
     };
-  }, [playable, setId, reconnects, watchEpoch]);
+  }, [playable, setId, reconnects, watchEpoch, extensionProtocol]);
 
   useEffect(() => {
     const leave = () => {
@@ -325,7 +361,8 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
       tour.version,
       tour.title,
       tour.steps,
-      pictures ?? new Map()
+      pictures ?? new Map(),
+      extensionProtocol >= SCORED_MATCH_PROTOCOL
     );
     const result = await startWebTour(handoff, url, stepIndex);
     if (!result.ok) {
@@ -339,7 +376,7 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
       );
       return;
     }
-    log.current ??= openRunLog(setId, uid, tour.version, stepIndex);
+    log.current ??= openRunLog(setId, uid, tour.version, stepIndex, admin);
     setPlay((prev) =>
       prev.kind === 'starting'
         ? {
@@ -388,15 +425,29 @@ const Hub: React.FC<{ setId: string; uid: string }> = ({ setId, uid }) => {
                     ? t('webTourHub.oldExtension')
                     : t('webTourHub.wrongProfile')}
               </p>
-              <a
-                href={tour.startUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-sm font-semibold text-brand-blue-primary hover:underline"
-              >
-                {t('webTourHub.openSite', { site })}
-                <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
-              </a>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                {extension.kind === 'none' && storeId && (
+                  // no-tour-anchor: the /tour page is outside the board, where live tours never run
+                  <a
+                    href={`https://chromewebstore.google.com/detail/${storeId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white hover:bg-brand-blue-dark"
+                  >
+                    {t('webTourHub.getExtension')}
+                    <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+                  </a>
+                )}
+                <a
+                  href={tour.startUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-brand-blue-primary hover:underline"
+                >
+                  {t('webTourHub.openSite', { site })}
+                  <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
+                </a>
+              </div>
             </div>
           )}
         </div>

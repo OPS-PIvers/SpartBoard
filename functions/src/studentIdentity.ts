@@ -28,6 +28,7 @@ import {
 import { normalizeQuizCode } from './quizCode';
 import {
   MAX_TARGET_REFS,
+  isOnlyOneRosterStudent,
   loadTargetDirectory,
   resolveTargets,
   targetRefsFromAssignment,
@@ -1078,17 +1079,6 @@ const ONEROSTER_PAGE_LIMIT = 200;
 const ONEROSTER_MAX_PAGES = 10;
 const CLASSLINK_TIMEOUT_MS = 20000;
 
-/** True only for a OneRoster user whose every role is student. */
-function isOnlyOneRosterStudent(user: OneRosterUserWithRole): boolean {
-  if (typeof user.role === 'string') {
-    return user.role.toLowerCase() === 'student';
-  }
-  if (Array.isArray(user.roles) && user.roles.length > 0) {
-    return user.roles.every((r) => (r.role ?? '').toLowerCase() === 'student');
-  }
-  return false;
-}
-
 /** Every page of a OneRoster list endpoint, or null if it ran past the page cap. */
 async function fetchOneRosterPages<T>(
   url: string,
@@ -1645,7 +1635,8 @@ export const pinLoginV1 = onCall(
     } else {
       const sessionId =
         typeof data.sessionId === 'string' ? data.sessionId : '';
-      if (!sessionId) {
+      // A single id segment only: a slash path would load a nested doc as the session.
+      if (!sessionId || sessionId.includes('/')) {
         throw new HttpsError(
           'invalid-argument',
           'sessionId is required for video-activity.'

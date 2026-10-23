@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "countdown",
   "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-18T15:24:45.241Z",
+  "gradedAt": "2026-10-22T16:00:51.043Z",
   "stale": false,
   "criteria": {
     "I2": {
@@ -10,7 +10,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "I3": {
@@ -18,7 +18,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "I4": {
@@ -26,7 +26,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "I5": {
@@ -34,7 +34,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "I6": {
@@ -42,7 +42,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "S1": {
@@ -54,15 +54,15 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/envelope-min__empty.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/envelope-min__typical.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/envelope-min__stress.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/envelope-min__empty.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/envelope-min__typical.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/envelope-min__stress.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
-      "note": "At 150x100 the typical number, label and event name stay readable with the number dominant, but the stress grid view only shrinks its tiles uniformly to tiny 5.5px numbers under a truncated title instead of collapsing.",
+      "note": "At 150x100 the number and event name stay readable, but the whole face just shrinks so 'days until' drops to about 5.5px, and the stress grid crams 300 tiny cells under a truncated title.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "S2": {
@@ -74,35 +74,37 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/large-1400x900__typical.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/large-1400x900__stress.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/large-1400x900__typical.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/large-1400x900__stress.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
-      "note": "At 1400x900 the number, label and event name grow proportionally and the grid widens to show all 300 tiles, but nothing beyond zooming is added in number mode.",
+      "note": "At 1400x900 the number, label and event name grow together and fill the card, and the stress grid spreads into a full calendar of cells without stretched controls.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "S3": {
-      "score": 1,
-      "source": "script",
+      "score": 2,
+      "source": "paul",
       "candidates": {
-        "script": 1,
-        "judge": 2
+        "script": null,
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/widest-aspect__typical.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/widest-aspect__stress.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/tallest-aspect__typical.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/tallest-aspect__stress.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/widest-aspect__typical.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/widest-aspect__stress.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/tallest-aspect__stress.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "grade-countdown-2026-10-22"
       },
+      "note": "Even not at extremes (like a standard square) there is a lot of excess padding on the top and bottom or edges.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T15:59:01.924Z",
       "stale": false
     },
     "S4": {
@@ -113,12 +115,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "S5": {
@@ -129,14 +131,14 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__empty.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__stress.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__empty.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__stress.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "S6": {
@@ -147,15 +149,15 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/envelope-min__stress.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__stress.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/widest-aspect__stress.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/tallest-aspect__stress.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/envelope-min__stress.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__stress.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/widest-aspect__stress.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/tallest-aspect__stress.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "S7": {
@@ -167,14 +169,14 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/envelope-min__typical.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/envelope-min__typical.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
-      "note": "The 150x100 minimum fits the number, label and event name readably, which matches what a single-count widget needs.",
+      "note": "A number plus a short label genuinely fits the 150x100 global floor, so the envelope matches the content.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "S8": {
@@ -186,15 +188,15 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/maximized-1920x1080__empty.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/maximized-1920x1080__typical.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/maximized-1920x1080__stress.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/maximized-1920x1080__stress.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
-      "note": "Maximized is the default stack enlarged on a plain white screen, and the stress grid leaves a large empty band between the title and the tiles.",
+      "note": "Maximized shows a huge number and event name that read well from a distance, but it is the same card scaled up, and the stress grid leaves a large empty band above it.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "I1": {
@@ -205,12 +207,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "I7": {
@@ -221,16 +223,16 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/envelope-min__typical__selected.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical__selected.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/large-1400x900__typical__selected.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/widest-aspect__typical__selected.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/tallest-aspect__typical__selected.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical__selected.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/tallest-aspect__typical__selected.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "V1": {
@@ -242,13 +244,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
-      "note": "Clean white card, confident Lexend number, one brand-blue accent, no gradients, borders or emoji.",
+      "note": "Clean white card with confident bold type, one accent color and no ban-list hits.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "V2": {
@@ -260,32 +262,32 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__stress.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__stress.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
-      "note": "Six words and no controls on the face: the count, 'days until' and the event name, none of which could be removed.",
+      "note": "The face is only the number, 'days until' and the event name, so it passes the 3-second test with nothing removable.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "V3": {
-      "score": 3,
-      "source": "judge",
+      "score": 4,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 4,
+        "paul": 4
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "grade-countdown-2026-10-22"
       },
-      "note": "The huge dark number is clearly primary and 'days until' steps down in gray, though the bold blue event name is nearly as heavy as a second headline.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T15:58:18.675Z",
       "stale": false
     },
     "V4": {
@@ -297,13 +299,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
-      "note": "The drawer is built from the shared settings schema, but the face uses hand-set colors and radii with no shared component imports, and the date field is a hand-styled raw input.",
+      "note": "The drawer is schema-driven with shared controls, but the face has no shared imports and uses three one-off colors and one one-off radius.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "V5": {
@@ -314,12 +316,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "V6": {
@@ -331,31 +333,31 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
-      "note": "Plain short copy ('days until', event name) with no copy-guard violations and only a single inline X glyph in the grid.",
+      "note": "The face copy is just 'days until' plus the event name, plain and short, with one icon style.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "C1": {
-      "score": 2,
-      "source": "judge",
+      "score": 3,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "grade-countdown-2026-10-22"
       },
-      "note": "Title, dates, weekends, count-today, view mode and colors are configurable, but skipping holidays or no-school days, which teachers need to count school days, is not.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T15:58:27.747Z",
       "stale": false
     },
     "C2": {
@@ -367,13 +369,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical__settings.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical__settings.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
-      "note": "The schema groups settings into content, behavior and display with standard controls and no advanced options mixed in, though the settings screenshot did not capture the drawer open.",
+      "note": "The settings screenshot shows only the selected card with no drawer open, so this score comes from the schema, which has short Content, Behavior and Display groups with standard fields.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "C3": {
@@ -385,13 +387,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__empty.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__empty.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
-      "note": "On first drop the empty fixture shows a finished-looking '7 days until Special Event'.",
+      "note": "A fresh drop shows a polished '7 days until Special Event' that works with no setup.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "C4": {
@@ -402,12 +404,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical__settings.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical__settings.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "C5": {
@@ -419,13 +421,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__empty.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__empty.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
-      "note": "The face is not blank, but the placeholder 'Special Event' gives no hint that the teacher should set the event and date in settings.",
+      "note": "The first-drop face shows a placeholder 'Special Event' countdown with no hint or button for setting a real event and date.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "C6": {
@@ -436,31 +438,31 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical__settings.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical__settings.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "R1": {
-      "score": 3,
-      "source": "judge",
+      "score": 2,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__empty.png",
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__empty.png",
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "grade-countdown-2026-10-22"
       },
-      "note": "The count is computed locally, so loading, offline and no-roster never show anything other than the normal designed face, and no raw error or spinner appears.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T15:59:17.395Z",
       "stale": false
     },
     "R3": {
@@ -471,12 +473,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "R4": {
@@ -488,13 +490,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
-      "note": "The face shows only a day count and an event name, with no student data.",
+      "note": "The face shows no student data, only a count and an event name.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "E1": {
@@ -506,13 +508,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
-      "note": "No connections misfire, but the event cannot come from the Calendar or Schedule widgets or the school calendar, which is the obvious high-value link.",
+      "note": "It stands alone, and high-value links are missing: pulling events and no-school days from the Calendar or Schedule widgets. Proposals: add a Calendar/Schedule event source and building no-school days; remove nothing.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     },
     "E3": {
@@ -524,13 +526,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/countdown-after5/screenshots/countdown/default__typical.png"
+          "scripts/widget-grader/out/loop-countdown-2026-10-22-after/screenshots/countdown/default__typical.png"
         ],
-        "runId": "countdown-after5"
+        "runId": "loop-countdown-2026-10-22-after"
       },
-      "note": "A widget test file, four small files (max 283 lines), no any, no useDashboard and no derived-state effects.",
+      "note": "It has a folder test, small files (largest 308 lines), no `any`, no useDashboard calls and no derived-state effects.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:24:45.241Z",
+      "gradedAt": "2026-10-22T04:14:22.604Z",
       "stale": false
     }
   },
@@ -538,30 +540,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "countdown-after5"
+        "runId": "grade-countdown-2026-10-22"
       },
-      "gradedAt": "2026-10-18T15:24:45.241Z"
+      "gradedAt": "2026-10-22T16:00:51.043Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "countdown-after5"
+        "runId": "grade-countdown-2026-10-22"
       },
-      "gradedAt": "2026-10-18T15:24:45.241Z"
+      "gradedAt": "2026-10-22T16:00:51.043Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "countdown-after5"
+        "runId": "grade-countdown-2026-10-22"
       },
-      "gradedAt": "2026-10-18T15:24:45.241Z"
+      "gradedAt": "2026-10-22T16:00:51.043Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "countdown-after5"
+        "runId": "grade-countdown-2026-10-22"
       },
-      "gradedAt": "2026-10-18T15:24:45.241Z"
+      "gradedAt": "2026-10-22T16:00:51.043Z"
     }
   }
 }

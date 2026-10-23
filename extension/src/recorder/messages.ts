@@ -6,9 +6,18 @@ import {
   isObj,
   isRecordedStep,
   isStr,
+  MAX_GOAL_CHARS,
+  type IntakeTarget,
   type RecordedWebStep,
 } from '@/components/tours/web/recorderProtocol';
 import type { CapturedTarget } from './captureTarget';
+import {
+  isBlurSettings,
+  MAX_PICK_SELECTOR,
+  MAX_PICKS_PER_PAGE,
+  type BlurSettings,
+} from './blurSettings';
+import type { IntakeStatus } from './intake';
 import type { Rect, Size } from './geometry';
 
 /** The side panel's port to the worker; recording stops when it closes. */
@@ -33,12 +42,28 @@ export interface RecorderTour {
   title: string;
 }
 
+/** A step SpartBoard asked to fix: the next click replaces its target and picture. */
+export interface RecorderPick {
+  setId: string;
+  stepId: string;
+}
+
 export interface RecorderStatus {
   profile: 'staff' | 'other' | 'none';
   recordingTabId: number | null;
   tours: RecorderTour[];
+  pick: (RecorderPick & { title: string }) | null;
   /** Steps sent to a tour that hasn't saved them yet. */
   unsaved: number;
+  intake: IntakeStatus;
+  /** Click to blur is on: clicks on the page pick elements to blur instead of making steps. */
+  blurPicking: boolean;
+}
+
+/** A child frame of the top frame, as the top frame can find its element. */
+export interface FrameRef {
+  url: string;
+  index: number;
 }
 
 export type FrameRectReply =
@@ -52,6 +77,26 @@ type InternalSpec = {
   'rec/start': { tabId: number };
   'rec/stop': Record<string, never>;
   'rec/send': { setId: string; steps: RecordedWebStep[] };
+  'rec/sendFix': RecorderPick & { step: RecordedWebStep };
+  /** Blurs this frame (and hides the pill in the top frame) before a picture. */
+  'rec/shoot': { blur: BlurSettings; picks: string[] };
+  'rec/shot': Record<string, never>;
+  /** Blurs whole child frames from the top frame when they couldn't blur themselves. */
+  'rec/cover': { frames: FrameRef[] };
+  'rec/blurMode': { on: boolean; picks: string[] };
+  'rec/setBlurPicking': { on: boolean };
+  'rec/blurPick': { selector: string; on: boolean };
+  'rec/intakeOpen': Record<string, never>;
+  'rec/intakeSave': {
+    target: IntakeTarget;
+    title: string;
+    steps: RecordedWebStep[];
+    /** Adds to the job an earlier batch of the same Send started. */
+    jobId?: string;
+  };
+  'rec/intakeRetry': Record<string, never>;
+  'rec/intakeIdle': Record<string, never>;
+  'rec/cancelPick': Record<string, never>;
   'rec/captured': { capture: RawCapture };
   'rec/changed': Record<string, never>;
 };
@@ -73,6 +118,11 @@ const isTarget = (v: unknown): v is CapturedTarget =>
   isNum(v.viewport.w) &&
   isNum(v.viewport.h);
 
+const isPicks = (v: unknown): v is string[] =>
+  Array.isArray(v) &&
+  v.length <= MAX_PICKS_PER_PAGE &&
+  v.every((s) => isStr(s, MAX_PICK_SELECTOR));
+
 const CHECKS: {
   [K in keyof InternalSpec]: (m: Record<string, unknown>) => boolean;
 } = {
@@ -88,6 +138,39 @@ const CHECKS: {
     Array.isArray(m.steps) &&
     m.steps.length <= 50 &&
     m.steps.every(isRecordedStep),
+  'rec/sendFix': (m) =>
+    isStr(m.setId, 128) && isStr(m.stepId, 64) && isRecordedStep(m.step),
+  'rec/shoot': (m) => isBlurSettings(m.blur) && isPicks(m.picks),
+  'rec/shot': () => true,
+  'rec/cover': (m) =>
+    Array.isArray(m.frames) &&
+    m.frames.length <= 100 &&
+    m.frames.every(
+      (f) =>
+        isObj(f) &&
+        isStr(f.url) &&
+        Number.isInteger(f.index) &&
+        (f.index as number) >= 0
+    ),
+  'rec/blurMode': (m) => typeof m.on === 'boolean' && isPicks(m.picks),
+  'rec/setBlurPicking': (m) => typeof m.on === 'boolean',
+  'rec/blurPick': (m) =>
+    isStr(m.selector, MAX_PICK_SELECTOR) && typeof m.on === 'boolean',
+  'rec/intakeOpen': () => true,
+  'rec/intakeSave': (m) =>
+    isObj(m.target) &&
+    ((m.target.kind === 'new' &&
+      isStr(m.target.title, 200) &&
+      (m.target.goal === undefined || isStr(m.target.goal, MAX_GOAL_CHARS))) ||
+      (m.target.kind === 'append' && isStr(m.target.setId, 128))) &&
+    isStr(m.title, 200) &&
+    Array.isArray(m.steps) &&
+    m.steps.length <= 50 &&
+    m.steps.every(isRecordedStep) &&
+    (m.jobId === undefined || isStr(m.jobId, 64)),
+  'rec/intakeRetry': () => true,
+  'rec/intakeIdle': () => true,
+  'rec/cancelPick': () => true,
   'rec/captured': (m) => isObj(m.capture),
   'rec/changed': () => true,
 };

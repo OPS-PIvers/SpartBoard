@@ -115,6 +115,7 @@ vi.mock('./stores', () => ({
 // Stub persistLtiLaunchContext so we only test the grade-link write path.
 vi.mock('./nrpsStore', () => ({
   persistLtiLaunchContext: vi.fn(async () => 'sess-1'),
+  ltiQuizOwner: vi.fn(async () => null),
   resolveLtiTargetSession: vi.fn(async () => ({
     sessionId: 'sess-1',
     sessionData: {},
@@ -155,6 +156,7 @@ vi.mock('./config', async (orig) => ({
 }));
 
 import { ltiExchange } from './launchEndpoints';
+import { persistLtiLaunchContext } from './nrpsStore';
 
 type Req = {
   auth?: { uid: string; token: Record<string, unknown> };
@@ -346,5 +348,32 @@ describe('ltiExchange — section linked after the student already launched', ()
     await callExchange({ data: { code: 'code-1' } });
 
     expect(mintedTokens[0].uid).toBe('sid-uid');
+  });
+});
+
+describe('ltiExchange — deep-linking teacher binding', () => {
+  it('files the launch only under the teacher who signed the deep link', async () => {
+    nextLaunch = makeLaunch();
+    nextLaunch.custom = {
+      kind: 'quiz',
+      quiz_code: 'ABC123',
+      teacher_uid: 'teacher-1',
+    };
+    await callExchange({ data: { code: 'code-1' } });
+
+    expect(vi.mocked(persistLtiLaunchContext)).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ quizCode: 'ABC123', teacherUid: 'teacher-1' })
+    );
+  });
+
+  it('passes no teacher for a link signed before the binding existed', async () => {
+    nextLaunch = makeLaunch();
+    await callExchange({ data: { code: 'code-1' } });
+
+    expect(vi.mocked(persistLtiLaunchContext)).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ quizCode: 'ABC123', teacherUid: null })
+    );
   });
 });

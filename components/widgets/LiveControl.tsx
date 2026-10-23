@@ -5,6 +5,7 @@ import { LiveStudent } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { Z_INDEX } from '@/config/zIndex';
 import { withPreviewFlag } from '@/utils/urlHelpers';
+import { liveStudentLabels } from './liveControlLabels';
 
 interface LiveControlProps {
   isLive: boolean;
@@ -37,6 +38,7 @@ export const LiveControl: React.FC<LiveControlProps> = ({
   isGlobalFrozen,
 }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const labels = liveStudentLabels(students);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [menuPosition, setMenuPosition] = useState<{
@@ -250,43 +252,56 @@ export const LiveControl: React.FC<LiveControlProps> = ({
                 Waiting for students to join...
               </div>
             )}
-            {students.map((s) => (
-              <div
-                key={s.id}
-                className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg group transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <div
-                    className={`w-2 h-2 rounded-full ${s.status === 'active' ? 'bg-green-500' : 'bg-blue-400'}`}
-                  ></div>
-                  <span
-                    className={`text-xs  truncate max-w-[100px] font-mono ${s.status === 'frozen' ? 'text-blue-400 line-through' : 'text-slate-700'}`}
-                  >
-                    PIN {s.pin}
-                  </span>
+            {students.map((s) => {
+              const { label, duplicate } = labels.get(s.id) ?? {
+                label: `PIN ${s.pin}`,
+                duplicate: false,
+              };
+              return (
+                <div
+                  key={s.id}
+                  className="flex items-center justify-between p-2 hover:bg-slate-50 rounded-lg group transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-2 h-2 rounded-full ${s.status === 'active' ? 'bg-green-500' : 'bg-blue-400'}`}
+                    ></div>
+                    <span
+                      className={`text-xs  truncate max-w-[120px] font-mono ${s.status === 'frozen' ? 'text-blue-400 line-through' : duplicate ? 'text-amber-700' : 'text-slate-700'}`}
+                      title={
+                        duplicate
+                          ? 'More than one device joined with this PIN'
+                          : undefined
+                      }
+                    >
+                      {label}
+                    </span>
+                  </div>
+                  <div className="flex gap-1">
+                    {/* no-tour-anchor: per-student row, exists only while students are joined */}
+                    <button
+                      onClick={() => onFreezeStudent(s.id, s.status)}
+                      className={`p-1 rounded hover:bg-blue-50 ${s.status === 'frozen' ? 'text-blue-600' : 'text-slate-300 hover:text-blue-500'}`}
+                      aria-label={
+                        s.status === 'frozen'
+                          ? `Unfreeze ${label}`
+                          : `Freeze ${label}`
+                      }
+                    >
+                      <Snowflake size={14} />
+                    </button>
+                    {/* no-tour-anchor: per-student row, exists only while students are joined */}
+                    <button
+                      onClick={() => onRemoveStudent(s.id)}
+                      className="p-1 rounded hover:bg-red-50 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      aria-label={`Remove ${label}`}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => onFreezeStudent(s.id, s.status)}
-                    className={`p-1 rounded hover:bg-blue-50 ${s.status === 'frozen' ? 'text-blue-600' : 'text-slate-300 hover:text-blue-500'}`}
-                    aria-label={
-                      s.status === 'frozen'
-                        ? `Unfreeze PIN ${s.pin}`
-                        : `Freeze PIN ${s.pin}`
-                    }
-                  >
-                    <Snowflake size={14} />
-                  </button>
-                  <button
-                    onClick={() => onRemoveStudent(s.id)}
-                    className="p-1 rounded hover:bg-red-50 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                    aria-label={`Remove PIN ${s.pin}`}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           <div className="p-2 border-t border-slate-100 bg-slate-50 rounded-b-xl">

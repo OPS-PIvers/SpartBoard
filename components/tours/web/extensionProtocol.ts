@@ -1,10 +1,29 @@
 // Messages between a SpartBoard page and the Chrome extension (docs/plans/CHROME_EXTENSION.md D3, D6).
 // Pure data and validators: imported by both the page and `extension/`, so no DOM or chrome APIs here.
 
-import type { WebTourAction, WebTourFrame, WebTourLocator } from '@/types';
+import {
+  WEB_TOUR_ATTR_KEYS,
+  type WebTourAction,
+  type WebTourFrame,
+  type WebTourLocator,
+  type WebTourCheckResult,
+  type WebTourStableAttrs,
+} from '@/types';
 
 /** Bumped additively when a message type is added; the page checks it before using a feature. */
-export const EXTENSION_PROTOCOL_VERSION = 2;
+export const EXTENSION_PROTOCOL_VERSION = 7;
+
+/** Protocol 4: locators may carry `heading`, `pageTitle` and `attrs`, and steps report `score` matches. */
+export const SCORED_MATCH_PROTOCOL = 4;
+
+/** Protocol 5: recorded steps may carry a note for Claude, and a new intake draft a goal. */
+export const CLAUDE_NOTES_PROTOCOL = 5;
+
+/** Protocol 6: `web-tour/check` plays a draft in check mode and reports `web-tour/check-*` on the port (C12). */
+export const CHECK_PROTOCOL = 6;
+
+/** Protocol 7: `web-tour/suggest` carries a better candidate's clues for a step that missed or played weak (C14). */
+export const SUGGEST_PROTOCOL = 7;
 
 /** Staff Google accounts; `@students.orono.k12.mn.us` does not match. */
 export const STAFF_EMAIL_DOMAIN = 'orono.k12.mn.us';
@@ -49,6 +68,16 @@ export interface WebTourStartMessage {
   tour: WebTourStartTour;
 }
 
+/** Protocol 6, staff only: the same tour played in check mode, reported only as check results. */
+export interface WebTourCheckStartMessage {
+  type: 'web-tour/check';
+  startUrl: string;
+  stepIndex: number;
+  tour: WebTourStartTour;
+  /** A nonce the page picks; every result of this run echoes it. */
+  runId: string;
+}
+
 export interface WebTourStartReply {
   ok: true;
   tabId: number;
@@ -61,22 +90,56 @@ export const WEB_TOUR_PORT = 'web-tour';
 export interface WebTourWatchMessage {
   type: 'web-tour/watch';
   setId: string;
+  /** The protocol the page reads; sent only to an extension at protocol 4 or later, which rejects nothing else. */
+  protocol?: number;
 }
 
-/** Extension to page on the `web-tour` port; `match` is the clue that found the step, `none` the picture fallback. */
+/** Extension to page on the `web-tour` port: `role` found clearly (or by role and name, before protocol 4), `text`/`css` found only by that clue (before protocol 4), `score` a weak scored match, `none` the picture fallback. */
 export type WebTourProgressMessage =
   | {
       type: 'web-tour/step';
       setId: string;
       stepIndex: number;
       stepId: string;
-      match: 'role' | 'text' | 'css' | 'none';
+      match: 'role' | 'text' | 'css' | 'score' | 'none';
     }
   | { type: 'web-tour/done'; setId: string }
   | { type: 'web-tour/exit'; setId: string; stepIndex: number }
   | { type: 'web-tour/closed'; setId: string; stepIndex: number };
 
-export type ExtensionMessage = PingMessage | WebTourStartMessage;
+/** Extension to page on the `web-tour` port during a check run (protocol 6); `done` false means it stopped early. */
+export type WebTourCheckProgress =
+  | {
+      type: 'web-tour/check-step';
+      setId: string;
+      runId: string;
+      stepIndex: number;
+      stepId: string;
+      result: WebTourCheckResult;
+    }
+  | {
+      type: 'web-tour/check-end';
+      setId: string;
+      runId: string;
+      stepIndex: number;
+      done: boolean;
+    };
+
+/** Extension to page on the `web-tour` port (protocol 7): scrubbed clues of the best candidate for a missed or weak step; `runId` marks a check run. */
+export interface WebTourSuggestPost {
+  type: 'web-tour/suggest';
+  setId: string;
+  stepIndex: number;
+  stepId: string;
+  locator: WebTourLocator;
+  runId?: string;
+}
+
+export type WebTourPortPost =
+  WebTourProgressMessage | WebTourCheckProgress | WebTourSuggestPost;
+
+export type ExtensionMessage =
+  PingMessage | WebTourStartMessage | WebTourCheckStartMessage;
 export type ExtensionMessageType = ExtensionMessage['type'];
 
 export interface PingReply {
@@ -103,15 +166,25 @@ interface MessageSpec {
   fields: Record<string, (value: unknown) => boolean>;
 }
 
+const START_SPEC: MessageSpec = {
+  staffOnly: true,
+  fields: {
+    startUrl: (v) => isOpenableUrl(v),
+    stepIndex: (v) => Number.isInteger(v) && (v as number) >= 0,
+    tour: (v) => parseWebTourStartTour(v) !== null,
+  },
+};
+
+/** A check run's id: short, plain characters only. */
+export const isCheckRunId = (v: unknown): v is string =>
+  typeof v === 'string' && /^[A-Za-z0-9-]{1,64}$/.test(v);
+
 const MESSAGE_SPECS: Record<ExtensionMessageType, MessageSpec> = {
   ping: { staffOnly: false, fields: {} },
-  'web-tour/start': {
+  'web-tour/start': START_SPEC,
+  'web-tour/check': {
     staffOnly: true,
-    fields: {
-      startUrl: (v) => isOpenableUrl(v),
-      stepIndex: (v) => Number.isInteger(v) && (v as number) >= 0,
-      tour: (v) => parseWebTourStartTour(v) !== null,
-    },
+    fields: { ...START_SPEC.fields, runId: isCheckRunId },
   },
 };
 
@@ -223,13 +296,45 @@ function parseFrames(v: unknown): WebTourFrame[] | null {
   return out;
 }
 
+/** A locator checked key by key, or null; the same validator the start message uses. */
+export const parseWebTourLocator = (v: unknown): WebTourLocator | null =>
+  parseLocator(v);
+
 function parseLocator(v: unknown): WebTourLocator | null {
-  const keys = ['role', 'name', 'text', 'css', 'frames', 'box'];
+  const keys = [
+    'role',
+    'name',
+    'text',
+    'css',
+    'frames',
+    'box',
+    'heading',
+    'pageTitle',
+    'attrs',
+  ];
   if (!isPlainObject(v) || !onlyKeys(v, keys)) return null;
   const out: WebTourLocator = {};
-  for (const key of ['role', 'name', 'text', 'css'] as const) {
+  for (const key of [
+    'role',
+    'name',
+    'text',
+    'css',
+    'heading',
+    'pageTitle',
+  ] as const) {
     if (!optStr(v[key], MAX_CLUE)) return null;
     if (v[key]) out[key] = v[key];
+  }
+  if (v.attrs !== undefined) {
+    const a = v.attrs;
+    if (!isPlainObject(a) || !onlyKeys(a, WEB_TOUR_ATTR_KEYS)) return null;
+    const attrs: WebTourStableAttrs = {};
+    for (const key of WEB_TOUR_ATTR_KEYS) {
+      if (!optStr(a[key], MAX_CLUE)) return null;
+      const value = a[key];
+      if (typeof value === 'string' && value) attrs[key] = value;
+    }
+    out.attrs = attrs;
   }
   if (v.frames !== undefined) {
     const frames = parseFrames(v.frames);
@@ -320,9 +425,32 @@ export function parseWebTourStartTour(raw: unknown): WebTourStartTour | null {
 export function parseWebTourPortMessage(
   raw: unknown
 ): WebTourWatchMessage | null {
-  if (!isPlainObject(raw) || !onlyKeys(raw, ['type', 'setId'])) return null;
+  if (!isPlainObject(raw) || !onlyKeys(raw, ['type', 'setId', 'protocol'])) {
+    return null;
+  }
   if (raw.type !== 'web-tour/watch' || !str(raw.setId, 200) || !raw.setId) {
     return null;
   }
-  return { type: 'web-tour/watch', setId: raw.setId };
+  const { protocol } = raw;
+  if (protocol !== undefined && !Number.isInteger(protocol)) return null;
+  return {
+    type: 'web-tour/watch',
+    setId: raw.setId,
+    ...(typeof protocol === 'number' ? { protocol } : {}),
+  };
+}
+
+const isCheckProgress = (msg: WebTourPortPost): msg is WebTourCheckProgress =>
+  msg.type === 'web-tour/check-step' || msg.type === 'web-tour/check-end';
+
+/** A port message as a page at `protocol` reads it: older pages get a weak match as `text`, and no check results or suggestions (null). */
+export function progressForPage(
+  msg: WebTourPortPost,
+  protocol: number
+): WebTourPortPost | null {
+  if (msg.type === 'web-tour/suggest')
+    return protocol >= SUGGEST_PROTOCOL ? msg : null;
+  if (isCheckProgress(msg)) return protocol >= CHECK_PROTOCOL ? msg : null;
+  if (msg.type !== 'web-tour/step' || msg.match !== 'score') return msg;
+  return protocol >= SCORED_MATCH_PROTOCOL ? msg : { ...msg, match: 'text' };
 }
