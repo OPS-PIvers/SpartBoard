@@ -127,6 +127,8 @@ export const ClassPicker: React.FC<{
   onToggle?: () => Promise<void>;
   toggleAnchor?: TourAnchorAttrs;
   selectAnchor?: TourAnchorAttrs;
+  /** Option labels for each class, when they differ from `names`. */
+  labelFor?: (name: string) => string;
 }> = ({
   names,
   selected,
@@ -135,6 +137,7 @@ export const ClassPicker: React.FC<{
   onToggle,
   toggleAnchor,
   selectAnchor = tourTypeAttr('quiz-monitor.period-class-picker', 'quiz'),
+  labelFor = (name) => name,
 }) => {
   const [busy, setBusy] = useState(false);
   const paused = status === 'paused';
@@ -175,7 +178,7 @@ export const ClassPicker: React.FC<{
           <option value="">All classes</option>
           {names.map((name) => (
             <option key={name} value={name}>
-              {name} · {state}
+              {labelFor(name)} · {state}
             </option>
           ))}
         </select>

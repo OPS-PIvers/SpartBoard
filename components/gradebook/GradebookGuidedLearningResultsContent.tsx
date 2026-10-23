@@ -111,6 +111,7 @@ export const GradebookGuidedLearningResultsContent: React.FC<Props> = ({
         set={set}
         sessionId={sessionId}
         onClose={onClose}
+        ended={assignment?.status === 'archived'}
       />
     </Suspense>
   );
