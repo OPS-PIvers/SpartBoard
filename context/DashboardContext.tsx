@@ -3869,6 +3869,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const sharedSnapshotSeenRef = useRef<Set<string>>(new Set());
   /** Per share, the doc as last received: the base for merging co-teachers' edits. */
   const sharedBaselineRef = useRef<Map<string, SharedBoardBaseline>>(new Map());
+  /** Per share, a count of snapshots received, so a finished write never replaces a newer base. */
+  const sharedSnapshotGenRef = useRef<Map<string, number>>(new Map());
 
   /** Pending debounced mirror timers per shareId. */
   const mirrorTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
@@ -3926,18 +3928,27 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       if (existing) clearTimeout(existing);
 
+      // The baseline that matches `scrubbed`: one received after it would read a co-teacher's edit as ours.
+      const baseline = sharedBaselineRef.current.get(shareId);
       const timer = setTimeout(() => {
         mirrorTimersRef.current.delete(shareId);
         lastMirroredRef.current.set(shareId, payload);
-        void mirrorSharedBoard(
-          shareId,
-          scrubbed,
-          sharedBaselineRef.current.get(shareId)
-        ).catch((err) => {
-          console.warn('Mirror to shared board failed:', err);
-          // Drop the cached payload so we retry on the next change.
-          lastMirroredRef.current.delete(shareId);
-        });
+        const gen = sharedSnapshotGenRef.current.get(shareId);
+        void mirrorSharedBoard(shareId, scrubbed, baseline)
+          .then((written) => {
+            // What we sent is the newest base until a snapshot says otherwise, so an undo before the echo stays.
+            if (written && sharedSnapshotGenRef.current.get(shareId) === gen) {
+              sharedBaselineRef.current.set(
+                shareId,
+                sharedBoardBaseline(written)
+              );
+            }
+          })
+          .catch((err) => {
+            console.warn('Mirror to shared board failed:', err);
+            // Drop the cached payload so we retry on the next change.
+            lastMirroredRef.current.delete(shareId);
+          });
       }, 500);
       mirrorTimersRef.current.set(shareId, timer);
     });
@@ -4171,8 +4182,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // Merge against the copy we last received so a local edit not yet
         // mirrored survives, and our own echo (which may carry a co-teacher's
         // edit folded in by the mirror) is applied like any other snapshot.
-        const baseline = sharedBaselineRef.current.get(shareId);
+        // Viewers never edit, so they always take the share as is.
+        const baseline =
+          known?.linkedShareRole === 'viewer'
+            ? undefined
+            : sharedBaselineRef.current.get(shareId);
         sharedBaselineRef.current.set(shareId, sharedBoardBaseline(remote));
+        sharedSnapshotGenRef.current.set(
+          shareId,
+          (sharedSnapshotGenRef.current.get(shareId) ?? 0) + 1
+        );
         const remoteWith = remote as Dashboard & {
           updatedBy?: string;
         };
@@ -4183,8 +4202,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         //   - owner       receives collaborator edits (Synced bidirectional)
         //   - collaborator receives owner + peer edits (Synced bidirectional)
         //   - viewer       receives owner edits (View-Only one-way)
-        // The echo filter above prevents a writer from re-applying its own
-        // mirrored update.
         const hasBaseline = lastMirroredRef.current.has(shareId);
         setDashboards((prev) => {
           const x = prev.find((b) => b.id === dashboardId);
@@ -4215,11 +4232,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             stableStringify(local ?? null) !== stableStringify(base ?? null)
               ? local
               : server;
-          const background = keepLocal(
-            x.background,
-            remote.background ?? x.background,
-            baseline?.background
-          );
+          const background =
+            keepLocal<string | undefined>(
+              x.background,
+              remote.background ?? x.background,
+              baseline?.background
+            ) ?? x.background;
           const globalStyle = keepLocal(
             x.globalStyle,
             remote.globalStyle ?? x.globalStyle,

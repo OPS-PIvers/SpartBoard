@@ -2,6 +2,7 @@ import type { Dashboard, DrawableObject, WidgetData } from '@/types';
 import { mergeWidget } from '@/utils/dashboardSaveMerge';
 import { mergeAnnotationObjects } from '@/utils/annotationMerge';
 import { stableStringify } from '@/utils/stableStringify';
+import { scrubWidgetsPII } from '@/utils/dashboardPII';
 
 /** The shared doc as this device last received it: the base for telling its own edits from a co-teacher's. */
 export interface SharedBoardBaseline {
@@ -19,6 +20,38 @@ export const sharedBoardBaseline = (d: Dashboard): SharedBoardBaseline => ({
   globalStyle: d.globalStyle,
   annotationObjects: d.annotationOverlay?.objects ?? [],
 });
+
+const sharedConfig = (w: WidgetData): string =>
+  stableStringify(scrubWidgetsPII([w])[0].config);
+
+const withoutVersion = (w: WidgetData): WidgetData => {
+  const { version: _version, ...rest } = w;
+  return rest;
+};
+
+// Config is compared by content: two teachers' concurrent edits reach the same `version`.
+const mergeSharedWidget = (
+  local: WidgetData,
+  server: WidgetData,
+  base: WidgetData
+): WidgetData => {
+  const merged = mergeWidget(
+    withoutVersion(local),
+    server,
+    withoutVersion(base)
+  );
+  if (local.version === undefined && server.version === undefined) {
+    return withoutVersion(merged);
+  }
+  // A merged config the share lacks gets a newer version, or the mirror never sends it.
+  const version =
+    sharedConfig(merged) === sharedConfig(server)
+      ? server.version
+      : Math.max(local.version ?? 0, server.version ?? 0) + 1;
+  return version === undefined
+    ? withoutVersion(merged)
+    : { ...merged, version };
+};
 
 /**
  * Three-way widget merge for a Synced board. Widgets this device changed keep
@@ -42,7 +75,7 @@ export function mergeSharedWidgets(
       if (!bw) merged.push(sw); // added by a co-teacher
       continue; // removed here
     }
-    merged.push(bw ? mergeWidget(lw, sw, bw) : lw);
+    merged.push(bw ? mergeSharedWidget(lw, sw, bw) : lw);
   }
   for (const lw of local) {
     if (serverIds.has(lw.id)) continue;

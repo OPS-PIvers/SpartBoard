@@ -102,6 +102,31 @@ describe('mergeSharedWidgets', () => {
   });
 });
 
+describe('concurrent settings edits on one widget', () => {
+  const cfg = (c: Record<string, number>) => c as WidgetData['config'];
+
+  it('keeps both keys though both edits reached the same version', () => {
+    const base = [w('a', { version: 5, config: cfg({ j: 0, k: 0 }) })];
+    const local = [w('a', { version: 6, config: cfg({ j: 1, k: 0 }) })];
+    const server = [w('a', { version: 6, config: cfg({ j: 0, k: 1 }) })];
+    const [merged] = mergeSharedWidgets(local, server, base);
+    expect(merged.config).toEqual({ j: 1, k: 1 });
+    // Newer than the share's, so the mirror still sends it.
+    expect(merged.version).toBe(7);
+
+    // The next snapshot (base is now the server copy) must not revert j.
+    const [again] = mergeSharedWidgets([merged], server, server);
+    expect(again.config).toEqual({ j: 1, k: 1 });
+  });
+
+  it('takes the share version once the configs match', () => {
+    const base = [w('a', { version: 5, config: cfg({ j: 0 }) })];
+    const server = [w('a', { version: 9, config: cfg({ j: 2 }) })];
+    const [merged] = mergeSharedWidgets(base, server, base);
+    expect(merged).toEqual(server[0]);
+  });
+});
+
 describe('two co-teachers editing at once', () => {
   it('keeps both edits when both write before seeing the other', () => {
     let server = board([w('a')]);

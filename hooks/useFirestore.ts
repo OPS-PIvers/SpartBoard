@@ -654,8 +654,8 @@ export const useFirestore = (userId: string | null) => {
       shareId: string,
       dashboard: Dashboard,
       baseline?: SharedBoardBaseline
-    ): Promise<void> => {
-      if (isViewAsTab) return;
+    ): Promise<Dashboard | undefined> => {
+      if (isViewAsTab) return undefined;
       const withServer = (raw: unknown): Dashboard =>
         baseline && raw
           ? {
@@ -668,6 +668,7 @@ export const useFirestore = (userId: string | null) => {
             }
           : dashboard;
       if (isAuthBypass) {
+        const written = withServer(mockSharedStore.get(shareId));
         const {
           id: _id,
           linkedShareId: _ls,
@@ -676,16 +677,16 @@ export const useFirestore = (userId: string | null) => {
           linkedShareHostUid: _lshu,
           linkedShareEnded: _lse,
           ...patch
-        } = withServer(mockSharedStore.get(shareId));
+        } = written;
         mockSharedStore.update(shareId, {
           ...patch,
           updatedAt: Date.now(),
           updatedBy: userId ?? 'mock',
         });
-        return;
+        return written;
       }
 
-      if (!userId) return;
+      if (!userId) return undefined;
       const docRef = doc(db, 'shared_boards', shareId);
       const toPatch = (board: Dashboard) => {
         const {
@@ -703,20 +704,20 @@ export const useFirestore = (userId: string | null) => {
       // guests and host bookkeeping survive across mirrors.
       if (!baseline) {
         await updateDoc(docRef, toPatch(dashboard));
-        return;
+        return dashboard;
       }
       try {
-        await runTransaction(db, async (tx) => {
+        return await runTransaction(db, async (tx) => {
           const snap = await tx.get(docRef);
-          tx.update(
-            docRef,
-            toPatch(withServer(snap.exists() ? snap.data() : null))
-          );
+          const written = withServer(snap.exists() ? snap.data() : null);
+          tx.update(docRef, toPatch(written));
+          return written;
         });
       } catch (err) {
         // Offline: queue the plain write, as saveDashboard does.
         if (!isOfflineError(err)) throw err;
         await updateDoc(docRef, toPatch(dashboard));
+        return dashboard;
       }
     },
     [userId]

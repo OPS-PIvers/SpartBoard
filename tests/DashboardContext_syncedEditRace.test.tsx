@@ -311,4 +311,42 @@ describe('Synced board concurrent edits', () => {
       expect(board()?.widgets[0].z).toBe(7);
     });
   });
+  it('keeps an edit undone before our own echo arrives', async () => {
+    mockMirrorSharedBoard.mockImplementation((_id: string, d: Dashboard) =>
+      Promise.resolve(d)
+    );
+    const linked = linkedBoard([widget('w1')]);
+    await mount(linked);
+    act(() => {
+      emit?.({ ...linked, updatedBy: 'other-user' } as unknown as Dashboard);
+    });
+    act(() => {
+      ctx?.updateWidget('w1', { z: 5 });
+    });
+    await waitFor(() => expect(mockMirrorSharedBoard).toHaveBeenCalled(), {
+      timeout: 2000,
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    act(() => {
+      ctx?.updateWidget('w1', { z: 1 });
+    });
+    // The echo of the first write lands after the change back.
+    act(() => {
+      emit?.({
+        ...linked,
+        widgets: [widget('w1', { z: 5 })],
+        updatedBy: 'test-user',
+      } as unknown as Dashboard);
+    });
+    await waitFor(() => expect(board()?.widgets[0].z).toBe(1));
+    await waitFor(
+      () => {
+        const last = mockMirrorSharedBoard.mock.calls.at(-1)?.[1] as Dashboard;
+        expect(last.widgets[0].z).toBe(1);
+      },
+      { timeout: 2000 }
+    );
+  });
 });
