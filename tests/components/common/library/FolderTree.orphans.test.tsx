@@ -1,5 +1,4 @@
-// Regression: a folder whose parent was deleted vanished from the sidebar tree
-// (the folder list shows it at the top level), so it was unreachable there.
+// Regression: a folder with a deleted parent must still show in the sidebar tree.
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
