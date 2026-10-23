@@ -138,9 +138,16 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
     );
   }, [classLabels, results]);
 
+  // A class that left the list (ended period strip, last student reset) falls back to All classes.
+  const activeFilter =
+    classFilter &&
+    (presentClassIds.includes(classFilter) ||
+      (perPeriod && !!session?.periodAccess?.[classFilter]))
+      ? classFilter
+      : null;
   const visibleResults = useMemo(
-    () => filterResultsByClass(results, classFilter),
-    [classFilter, results]
+    () => filterResultsByClass(results, activeFilter),
+    [activeFilter, results]
   );
 
   const nameFor = useMemo(() => {
@@ -326,16 +333,22 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
     publishAction
   );
 
+  if (canAccessFeature('monitor-parity') && loading)
+    return (
+      <div className="flex h-full items-center justify-center bg-white text-brand-gray-light">
+        <Loader2
+          className="animate-spin"
+          aria-label="Loading results"
+          style={{ width: 'min(24px, 6cqmin)', height: 'min(24px, 6cqmin)' }}
+        />
+      </div>
+    );
   if (canAccessFeature('monitor-parity') && !loading && !error && session) {
     const classControls =
       perPeriod && session.periodAccess ? (
         <PeriodBar
           periodAccess={session.periodAccess}
-          selected={
-            classFilter && classFilter in session.periodAccess
-              ? classFilter
-              : ''
-          }
+          selected={activeFilter ?? ''}
           onSelect={(key) => setClassFilter(key || null)}
           onStart={(key) => runPeriod(() => periodActions.startPeriod(key))}
           onPause={(key) => runPeriod(() => periodActions.pausePeriod(key))}
@@ -355,11 +368,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
         <ClassPicker
           names={presentClassIds}
           labelOf={(id) => classLabels[id] ?? id}
-          selected={
-            classFilter && presentClassIds.includes(classFilter)
-              ? classFilter
-              : ''
-          }
+          selected={activeFilter ?? ''}
           onSelect={(id) => setClassFilter(id || null)}
           status={
             session.status === 'ended' || assignment.status === 'ended'
@@ -459,7 +468,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
             <button
               key={id ?? 'all'}
               type="button"
-              aria-pressed={classFilter === id}
+              aria-pressed={activeFilter === id}
               {...tourFieldAttr(
                 'flashcards.results-class-filter',
                 'flashcards',
@@ -467,7 +476,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
               )}
               onClick={() => setClassFilter(id)}
               className={`rounded-full border font-bold ${
-                classFilter === id
+                activeFilter === id
                   ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-dark'
                   : 'border-slate-200 text-slate-600 hover:bg-slate-100'
               }`}

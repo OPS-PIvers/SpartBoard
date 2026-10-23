@@ -175,6 +175,25 @@ describe('FlashcardResultsView — monitor-parity layout', () => {
     ).toBeInTheDocument();
   });
 
+  it('falls back to All classes when the picked class leaves the list', () => {
+    const { rerender } = show();
+    fireEvent.change(screen.getByRole('combobox', { name: 'Class' }), {
+      target: { value: 'cl-3' },
+    });
+    h.results = h.results.filter((r) => r.classId !== 'cl-3');
+    h.results.push({ studentUid: 'other-2', classId: 'cl-2' });
+    rerender(
+      <FlashcardResultsView
+        assignment={assignment()}
+        onBack={vi.fn()}
+        onPublishScores={vi.fn()}
+        onUnpublishScores={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('combobox', { name: 'Class' })).toHaveValue('');
+    expect(bucket('Not started')).toHaveTextContent('2');
+  });
+
   it('opens Card results with the hardest cards', () => {
     h.results = [
       {
