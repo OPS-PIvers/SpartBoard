@@ -544,6 +544,8 @@ service cloud.firestore {
           (isSuperAdmin() ||
            (sameId() &&
             unchanged('orgId') &&
+            // A verified domain can't be renamed: that would claim another org's domain unverified.
+            (existing().get('status', '') != 'verified' || unchanged('domain')) &&
             changedOnly([
               'domain', 'authMethod', 'role'
             ])));
