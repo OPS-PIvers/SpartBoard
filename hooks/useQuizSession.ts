@@ -1953,7 +1953,10 @@ export interface UseQuizSessionStudentResult {
    * Returns the session's periodNames so the UI can show a period picker
    * before the student commits to joining.
    */
-  lookupSession: (code: string) => Promise<{
+  lookupSession: (
+    code: string,
+    teacherUid?: string
+  ) => Promise<{
     periodNames: string[];
     classIds: string[];
     /** Session doc id — also the assignment id for pointer-doc lookups. */
@@ -1973,7 +1976,8 @@ export interface UseQuizSessionStudentResult {
   joinQuizSession: (
     code: string,
     pin?: string,
-    classPeriod?: string
+    classPeriod?: string,
+    teacherUid?: string
   ) => Promise<string>;
   /**
    * Subscribe to an already-ended session for a read-only review of the
@@ -1996,7 +2000,7 @@ export interface UseQuizSessionStudentResult {
    * when no response doc exists under the resolved key (e.g., the
    * student never submitted before the session ended).
    */
-  subscribeForReview: (code: string) => Promise<void>;
+  subscribeForReview: (code: string, teacherUid?: string) => Promise<void>;
   /** View as student (D15): listens to an existing response without joining; every write stays a no-op. */
   previewResponse: (sessionId: string, responseKey: string) => void;
   submitAnswer: (
@@ -2421,7 +2425,8 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
 
   const lookupSession = useCallback(
     async (
-      code: string
+      code: string,
+      teacherUid?: string
     ): Promise<{
       periodNames: string[];
       classIds: string[];
@@ -2436,7 +2441,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         const normCode = normalizeQuizCode(code);
         if (!normCode) return null;
         setError(null);
-        const matches = await findQuizSessionsByCode(normCode);
+        const matches = await findQuizSessionsByCode(normCode, teacherUid);
         if (matches.length === 0) return null;
         const joinable = matches.filter((m) => acceptsStudents('quiz', m.data));
         if (joinable.length === 0) return null;
@@ -2477,7 +2482,8 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     async (
       code: string,
       pin?: string,
-      classPeriod?: string
+      classPeriod?: string,
+      teacherUid?: string
     ): Promise<string> => {
       if (studentPreviewBlocksWrite()) throw new Error('View-only');
       setLoading(true);
@@ -2521,13 +2527,15 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           throw new Error('PIN is required');
         }
 
-        const matches = await findQuizSessionsByCode(normCode).catch(
-          (err: unknown) =>
-            logQuizJoinFirestoreError('lookup-sessions', err, {
-              codeNorm: normCode,
-              studentUid,
-              isAnonymous,
-            })
+        const matches = await findQuizSessionsByCode(
+          normCode,
+          teacherUid
+        ).catch((err: unknown) =>
+          logQuizJoinFirestoreError('lookup-sessions', err, {
+            codeNorm: normCode,
+            studentUid,
+            isAnonymous,
+          })
         );
         if (matches.length === 0)
           throw new Error('No active quiz found with that code.');
@@ -4041,7 +4049,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   }, []);
 
   const subscribeForReview = useCallback(
-    async (code: string): Promise<void> => {
+    async (code: string, teacherUid?: string): Promise<void> => {
       setLoading(true);
       setError(null);
       try {
@@ -4062,7 +4070,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         }
         const studentUid = currentUser.uid;
 
-        const matches = await findQuizSessionsByCode(normCode);
+        const matches = await findQuizSessionsByCode(normCode, teacherUid);
         if (matches.length === 0) {
           throw new Error('No quiz found with that code.');
         }

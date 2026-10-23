@@ -471,6 +471,8 @@ const QuizJoinFlow: React.FC<{
 }> = ({ isStudentRole, embedded, watermarkNameOverride }) => {
   const params = new URLSearchParams(window.location.search);
   const urlCode = params.get('code') ?? '';
+  // A Schoology launch names the teacher who added the quiz; join only their session.
+  const urlTeacher = params.get('teacher') ?? undefined;
 
   const [code, setCode] = useState(urlCode);
   const [pin, setPin] = useState('');
@@ -594,7 +596,7 @@ const QuizJoinFlow: React.FC<{
         // Fail-open: a lookup failure falls through to the join below, which
         // surfaces its own error.
         try {
-          const info = await lookupSession(urlCode);
+          const info = await lookupSession(urlCode, urlTeacher);
           const uid = auth.currentUser?.uid;
           if (info?.sessionId && uid) {
             const snap = await getDoc(
@@ -608,7 +610,7 @@ const QuizJoinFlow: React.FC<{
         } catch {
           // Ignore — proceed to join.
         }
-        await joinQuizSession(urlCode, undefined, undefined);
+        await joinQuizSession(urlCode, undefined, undefined, urlTeacher);
         dispatchFlow({ type: 'joined' });
       } catch (err) {
         // Fall back to read-only review mode in two cases so the student can
@@ -634,7 +636,7 @@ const QuizJoinFlow: React.FC<{
           err instanceof AttemptLimitReachedError
         ) {
           try {
-            await subscribeForReview(urlCode);
+            await subscribeForReview(urlCode, urlTeacher);
             dispatchFlow({ type: 'joined' });
             return;
           } catch (reviewErr) {
@@ -671,6 +673,7 @@ const QuizJoinFlow: React.FC<{
   }, [
     isStudentRole,
     urlCode,
+    urlTeacher,
     joined,
     joinQuizSession,
     subscribeForReview,

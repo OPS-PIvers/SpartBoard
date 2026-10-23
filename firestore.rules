@@ -4619,8 +4619,10 @@ service cloud.firestore {
         (!('plcId' in incoming()) || plcLinkOk(incoming()));
       // Update: an unchanged or cleared plcId needs no PLC read; a new/changed
       // non-null plcId re-runs the membership gate.
+      // teacherUid is pinned: Schoology launches trust it to name the session's owner.
       allow update: if signedIn() &&
         existing().teacherUid == authUid() &&
+        unchanged('teacherUid') &&
         subMonitorStampUnchanged() &&
         (!changed(['status']) || incoming().status in ['waiting', 'active', 'paused', 'ended']) &&
         (incoming().get('plcId', null) == existing().get('plcId', null) ||

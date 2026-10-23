@@ -192,6 +192,7 @@ describe('QuizStudentApp — SSO studentRole auto-join', () => {
       expect(mockJoinQuizSession).toHaveBeenCalledWith(
         'ABC123',
         undefined,
+        undefined,
         undefined
       );
     });
@@ -246,6 +247,7 @@ describe('QuizStudentApp — SSO studentRole auto-join', () => {
       expect(mockJoinQuizSession).toHaveBeenCalledWith(
         'ABC123',
         undefined,
+        undefined,
         undefined
       );
     });
@@ -257,7 +259,28 @@ describe('QuizStudentApp — SSO studentRole auto-join', () => {
 
     // lookupSession now resolves only the assignment id for the skip check;
     // classPeriod is still never derived from it on the SSO path.
-    expect(mockLookupSession).toHaveBeenCalledWith('ABC123');
+    expect(mockLookupSession).toHaveBeenCalledWith('ABC123', undefined);
+  });
+
+  it("joins only the Schoology link teacher's session when the launch names one", async () => {
+    mockAuth.currentUser = mintUser({
+      uid: 'sso-uid-1',
+      isAnonymous: false,
+      studentRole: true,
+    });
+    setSearch('?code=ABC123&teacher=t-1');
+
+    render(<QuizStudentApp />);
+
+    await waitFor(() => {
+      expect(mockJoinQuizSession).toHaveBeenCalledWith(
+        'ABC123',
+        undefined,
+        undefined,
+        't-1'
+      );
+    });
+    expect(mockLookupSession).toHaveBeenCalledWith('ABC123', 't-1');
   });
 
   it('does not auto-join when the user is anonymous (anon PIN flow renders the join form instead)', async () => {
