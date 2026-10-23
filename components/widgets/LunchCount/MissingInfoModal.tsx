@@ -1,3 +1,4 @@
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, { useState } from 'react';
 import { Clock, X } from 'lucide-react';
 import { Button } from '@/components/common/Button';
@@ -107,6 +108,7 @@ const MissingInfoForm: React.FC<Omit<MissingInfoModalProps, 'isOpen'>> = ({
         <button
           onClick={onClose}
           className="p-2 hover:bg-white/20 rounded-full transition-colors"
+          {...tourTypeAttr('lunch-count.missing-info-close', 'lunchCount')}
           aria-label="Close"
         >
           <X className="w-5 h-5" />
@@ -133,6 +135,11 @@ const MissingInfoForm: React.FC<Omit<MissingInfoModalProps, 'isOpen'>> = ({
                   type="button"
                   role="radio"
                   aria-checked={schoolSite === option.value}
+                  {...tourFieldAttr(
+                    'lunch-count.school-option',
+                    'lunchCount',
+                    option.value
+                  )}
                   onClick={() => pickSchool(option.value)}
                   className={`flex-1 h-14 rounded-2xl text-lg font-black border transition-colors ${
                     schoolSite === option.value
@@ -200,6 +207,11 @@ const MissingInfoForm: React.FC<Omit<MissingInfoModalProps, 'isOpen'>> = ({
                   type="button"
                   role="radio"
                   aria-checked={grade === option.value}
+                  {...tourFieldAttr(
+                    'lunch-count.grade-option',
+                    'lunchCount',
+                    option.value
+                  )}
                   onClick={() => {
                     setGrade(option.value);
                     setShowGradeError(false);

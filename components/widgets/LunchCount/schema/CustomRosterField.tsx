@@ -19,6 +19,7 @@ const CustomRosterFieldImpl: React.FC<CustomRenderCtx> = ({
   const [draft, setDraft] = useState<string | null>(null);
   const value = draft ?? roster.join('\n');
   return (
+    // no-tour-anchor: the field row around it already carries the settings.field anchor
     <textarea
       id={id}
       value={value}

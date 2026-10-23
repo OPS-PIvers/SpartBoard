@@ -2866,6 +2866,18 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'lunch-count.photo-close': ['widgets.lunch-count.face'],
     'lunch-count.report-close': ['widgets.lunch-count.report'],
     'lunch-count.report-cancel': ['widgets.lunch-count.report'],
+    'hotspot-image.popover-close': ['widgets.hotspot-image.face'],
+    'instructional-routines.blooms-key-words': [
+      'widgets.instructional-routines.face',
+    ],
+    'instructional-routines.blooms-sentence-starters': [
+      'widgets.instructional-routines.face',
+    ],
+    'lunch-count.missing-info-close': ['widgets.lunch-count.face'],
+    'lunch-count.school-option': ['widgets.lunch-count.face'],
+    'lunch-count.grade-option': ['widgets.lunch-count.face'],
+    'lunch-count.extra-pizza': ['widgets.lunch-count.report'],
+    'lunch-count.report-notes': ['widgets.lunch-count.report'],
     'lunch-count.report-confirm': ['widgets.lunch-count.report'],
     'embed.zoom-out': ['widgets.embed.face'],
     'embed.zoom-level': ['widgets.embed.face'],

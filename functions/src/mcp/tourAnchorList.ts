@@ -54044,6 +54044,153 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "hotspot-image.popover-close",
+    "label": "Close button on a Hotspot Image popover",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.hotspot-image.face",
+        "kind": "widget",
+        "widget_type": "hotspot-image",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "instructional-routines.blooms-key-words",
+    "label": "Key Words button in Instructional Routines",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.face",
+        "kind": "widget",
+        "widget_type": "instructionalRoutines",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "instructional-routines.blooms-sentence-starters",
+    "label": "Sentence Starters button in Instructional Routines",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.face",
+        "kind": "widget",
+        "widget_type": "instructionalRoutines",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "lunch-count.missing-info-close",
+    "label": "Close button in the Lunch Count missing info dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "lunchCount"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.lunch-count.face",
+        "kind": "widget",
+        "widget_type": "lunchCount",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "lunch-count.school-option",
+    "label": "School choice in the Lunch Count missing info dialog",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.lunch-count.face",
+        "kind": "widget",
+        "widget_type": "lunchCount",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "lunch-count.grade-option",
+    "label": "Grade choice in the Lunch Count missing info dialog",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.lunch-count.face",
+        "kind": "widget",
+        "widget_type": "lunchCount",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "lunch-count.extra-pizza",
+    "label": "Extra pizza count box in the Lunch Count report dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "lunchCount"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.lunch-count.report",
+        "kind": "modal",
+        "widget_type": "lunchCount",
+        "path": [
+          "lunch-count.open-report"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "lunch-count.report-notes",
+    "label": "Additional notes box in the Lunch Count report dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "lunchCount"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.lunch-count.report",
+        "kind": "modal",
+        "widget_type": "lunchCount",
+        "path": [
+          "lunch-count.open-report"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "lunch-count.report-confirm",
     "label": "Confirm and send button in the Lunch Count report dialog",
     "scope": "widget type",
