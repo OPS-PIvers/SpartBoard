@@ -2383,6 +2383,12 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'video-activity.monitor-roster-sort': ['library.video-activity.live'],
     'video-activity.monitor-roster-filter': ['library.video-activity.live'],
     'video-activity.monitor-row-actions': ['library.video-activity.live'],
+    'video-activity.results-drill-questions': [
+      'library.video-activity.results',
+    ],
+    'video-activity.results-drill-students': ['library.video-activity.results'],
+    'video-activity.results-export-sheets': ['library.video-activity.results'],
+    'video-activity.results-open-sheet': ['library.video-activity.results'],
     'video-activity.results-tab': ['library.video-activity.results'],
     'video-activity.results-more-item': ['library.video-activity.results'],
     'video-activity.timeline-track': ['library.video-activity.editor'],

@@ -199,7 +199,10 @@ export const SURFACES: TourSurfaceMap = {
   'library.video-activity.results': {
     label: 'Video Activity results',
     kind: 'panel',
-    files: ['components/widgets/VideoActivityWidget/components/Results.tsx'],
+    files: [
+      'components/widgets/VideoActivityWidget/components/Results.tsx',
+      'components/widgets/VideoActivityWidget/components/results/VaResultsParity.tsx',
+    ],
     opensWith: 'library-shell.archive-primary-action:video-activity#row-1',
     parent: 'library.video-activity',
     needs: ['student-data'],
