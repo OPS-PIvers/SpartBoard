@@ -6,11 +6,13 @@ import {
   uploadWebTourPicture,
 } from '@/components/tours/webTours';
 import { newWebTour, pictureBlob, toWebStep } from './recordedSteps';
-import type {
-  IntakeDraft,
-  IntakeTarget,
-  RecordedWebStep,
+import {
+  MAX_GOAL_CHARS,
+  type IntakeDraft,
+  type IntakeTarget,
+  type RecordedWebStep,
 } from './recorderProtocol';
+import { scrubCapturedText } from './studentData';
 
 /** Uploads a recorded step's picture into the set's folder; undefined when it has none. */
 export async function uploadRecordedPicture(
@@ -28,9 +30,11 @@ export async function intakeDraftFor(
   target: IntakeTarget
 ): Promise<GuidedLearningSet | null> {
   if (target.kind === 'append') return loadWebTourDraft(target.setId);
+  const goal = scrubCapturedText(target.goal, MAX_GOAL_CHARS);
   const set: GuidedLearningSet = {
     ...newWebTour(),
     title: target.title.trim() || 'Untitled web tour',
+    ...(goal ? { webGoal: goal } : {}),
   };
   await saveWebTourDraft(set);
   return set;

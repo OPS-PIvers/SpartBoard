@@ -6,6 +6,7 @@ import {
   isObj,
   isRecordedStep,
   isStr,
+  MAX_GOAL_CHARS,
   type IntakeTarget,
   type RecordedWebStep,
 } from '@/components/tours/web/recorderProtocol';
@@ -158,7 +159,9 @@ const CHECKS: {
   'rec/intakeOpen': () => true,
   'rec/intakeSave': (m) =>
     isObj(m.target) &&
-    ((m.target.kind === 'new' && isStr(m.target.title, 200)) ||
+    ((m.target.kind === 'new' &&
+      isStr(m.target.title, 200) &&
+      (m.target.goal === undefined || isStr(m.target.goal, MAX_GOAL_CHARS))) ||
       (m.target.kind === 'append' && isStr(m.target.setId, 128))) &&
     isStr(m.title, 200) &&
     Array.isArray(m.steps) &&

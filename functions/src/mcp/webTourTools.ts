@@ -43,12 +43,17 @@ interface WebLocator {
   role?: unknown;
   name?: unknown;
   text?: unknown;
+  heading?: unknown;
+  pageTitle?: unknown;
+  attrs?: Record<string, unknown>;
 }
 interface WebBinding {
   urlPattern?: unknown;
   action?: unknown;
   locator?: WebLocator;
   picture?: { path?: unknown; w?: unknown; h?: unknown };
+  note?: unknown;
+  claudeQuestion?: unknown;
 }
 export interface WebStep {
   id: string;
@@ -64,6 +69,7 @@ export interface WebTourDoc {
   steps: WebStep[];
   helpCenter?: unknown;
   updatedAt?: unknown;
+  webGoal?: unknown;
   [key: string]: unknown;
 }
 
@@ -96,23 +102,69 @@ export function isWebTourPicturePath(setId: string, path: string): boolean {
   );
 }
 
-export function publishState(
-  updatedAt: unknown,
-  publishedAt: number | null
-): 'draft' | 'published' | 'changed' {
-  if (publishedAt === null) return 'draft';
-  return typeof updatedAt === 'number' && updatedAt > publishedAt
-    ? 'changed'
-    : 'published';
+const sortKeys = (_key: string, value: unknown): unknown =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? Object.fromEntries(
+        Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
+          a < b ? -1 : a > b ? 1 : 0
+        )
+      )
+    : value;
+
+/** What teachers see of a web tour; the goal, notes and Claude's questions never count. */
+export function publishedFingerprint(set: unknown): string | null {
+  const s = (set ?? {}) as Record<string, unknown>;
+  if (!Array.isArray(s.steps)) return null;
+  const steps = (s.steps as WebStep[]).map((step) => {
+    const web: WebBinding | undefined = step.web ? { ...step.web } : undefined;
+    delete web?.note;
+    delete web?.claudeQuestion;
+    return { id: step.id, label: str(step.label), text: str(step.text), web };
+  });
+  return JSON.stringify(
+    {
+      title: str(s.title),
+      webPicturesChecked: s.webPicturesChecked ?? null,
+      steps,
+    },
+    sortKeys
+  );
 }
 
-/** A step as Claude sees it: words, action, address and the readable clues; never the CSS or box. */
+export interface PublishedWebTour {
+  at: number;
+  set: unknown;
+}
+
+/** Changed only when the draft was saved after publishing and what teachers see differs. */
+export function publishState(
+  draft: { updatedAt?: unknown; [key: string]: unknown },
+  published: PublishedWebTour | null
+): 'draft' | 'published' | 'changed' {
+  if (published === null) return 'draft';
+  if (typeof draft.updatedAt !== 'number' || draft.updatedAt <= published.at)
+    return 'published';
+  const now = publishedFingerprint(draft);
+  return now !== null && now === publishedFingerprint(published.set)
+    ? 'published'
+    : 'changed';
+}
+
+const ATTR_KEYS = ['testId', 'ariaLabel', 'name', 'href'] as const;
+
+/** A step as Claude sees it: words, action, address, the readable clues and the admin's note; never the CSS or box. */
 export function publicWebStep(step: WebStep, index: number) {
   const web = step.web;
   const loc = web?.locator ?? {};
-  const locator: Record<string, string> = {};
-  for (const key of ['role', 'name', 'text'] as const)
+  const locator: Record<string, string | Record<string, string>> = {};
+  for (const key of ['role', 'name', 'text', 'heading', 'pageTitle'] as const)
     if (str(loc[key])) locator[key] = str(loc[key]);
+  const attrs: Record<string, string> = {};
+  for (const key of ATTR_KEYS)
+    if (str(loc.attrs?.[key])) attrs[key] = str(loc.attrs?.[key]);
+  if (Object.keys(attrs).length) locator.attrs = attrs;
+  const note = str(web?.note);
+  const question = str(web?.claudeQuestion);
   return {
     id: step.id,
     number: index + 1,
@@ -122,6 +174,8 @@ export function publicWebStep(step: WebStep, index: number) {
     url_pattern: web ? str(web.urlPattern) : null,
     locator,
     has_picture: typeof web?.picture?.path === 'string',
+    ...(note ? { note } : {}),
+    ...(question ? { question } : {}),
   };
 }
 
@@ -145,11 +199,14 @@ export async function loadWebTour(ctx: ToolContext, setId: string) {
   return { set, updateTime: snap.updateTime };
 }
 
-async function publishedAtOf(ctx: ToolContext, setId: string) {
+async function publishedOf(
+  ctx: ToolContext,
+  setId: string
+): Promise<PublishedWebTour | null> {
   const snap = await ctx.db.collection(SNAPSHOTS).doc(setId).get();
   if (!snap.exists || !isWebTourSnapshot(snap.data())) return null;
   const at: unknown = snap.get('publishedAt');
-  return typeof at === 'number' ? at : 0;
+  return { at: typeof at === 'number' ? at : 0, set: snap.get('set') };
 }
 
 export interface TextEdit {
@@ -177,6 +234,11 @@ export function applyWebStepText(
     const edit = byId.get(step.id);
     if (!edit) return step;
     const out: WebStep = { ...step };
+    // Words written for the step answer Claude's question on it.
+    if (out.web && (edit.title?.trim() || edit.tip?.trim())) {
+      out.web = { ...out.web };
+      delete out.web.claudeQuestion;
+    }
     for (const [field, key] of [
       ['title', 'label'],
       ['tip', 'text'],
@@ -285,7 +347,7 @@ export async function restoreWebTourRevision(
 }
 
 const STEP_LIST =
-  'Each step: id, number, title, tip, action (click, type, select or observe), url_pattern (the page it plays on, ids as *), locator (the role, name and text it finds its control by) and has_picture.';
+  "Each step: id, number, title, tip, action (click, type, select or observe), url_pattern (the page it plays on, ids as *), locator (the role, name, text, nearby heading, page title and stable attrs it finds its control by), has_picture, and when set the admin's private note for Claude (note, never shown to teachers) and the question SpartBoard's Write with Claude left on the step (question). goal is what the admin said the tour explains.";
 
 export function registerWebTourTools(
   server: McpServer,
@@ -312,7 +374,14 @@ export function registerWebTourTools(
         const words = (search ?? '').toLowerCase().split(/\s+/).filter(Boolean);
         const snap = await ctx.db
           .collection(WEB_TOURS)
-          .select('title', 'updatedAt', 'helpCenter', 'steps', 'surface')
+          .select(
+            'title',
+            'updatedAt',
+            'helpCenter',
+            'steps',
+            'surface',
+            'webPicturesChecked'
+          )
           .get();
         const rows = snap.docs
           .map((d) => ({ id: d.id, data: d.data() }))
@@ -325,7 +394,7 @@ export function registerWebTourTools(
               Number(b.data.updatedAt ?? 0) - Number(a.data.updatedAt ?? 0)
           );
         const published = await Promise.all(
-          rows.map((r) => publishedAtOf(ctx, r.id))
+          rows.map((r) => publishedOf(ctx, r.id))
         );
         return {
           web_tours: rows.map((r, i) => ({
@@ -334,7 +403,7 @@ export function registerWebTourTools(
             step_count: Array.isArray(r.data.steps) ? r.data.steps.length : 0,
             help_center: r.data.helpCenter === true,
             updated_at: iso(r.data.updatedAt),
-            publish_state: publishState(r.data.updatedAt, published[i]),
+            publish_state: publishState(r.data, published[i]),
           })),
         };
       })
@@ -351,16 +420,17 @@ export function registerWebTourTools(
     ({ set_id }) =>
       run('get_web_tour', ctx, async () => {
         await assertWebTourAccess(ctx);
-        const [{ set }, publishedAt] = await Promise.all([
+        const [{ set }, published] = await Promise.all([
           loadWebTour(ctx, set_id),
-          publishedAtOf(ctx, set_id),
+          publishedOf(ctx, set_id),
         ]);
         return {
           set_id,
           title: str(set.title),
+          goal: str(set.webGoal) || null,
           help_center: set.helpCenter === true,
           updated_at: iso(set.updatedAt),
-          publish_state: publishState(set.updatedAt, publishedAt),
+          publish_state: publishState(set, published),
           steps: set.steps.map(publicWebStep),
         };
       })

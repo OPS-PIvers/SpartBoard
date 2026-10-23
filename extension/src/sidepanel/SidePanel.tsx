@@ -1,5 +1,10 @@
 import type { RecordedWebStep } from '@/components/tours/web/recorderProtocol';
-import { MAX_TIP_CHARS } from '@/components/tours/web/recorderProtocol';
+import {
+  MAX_GOAL_CHARS,
+  MAX_NOTE_CHARS,
+  MAX_TIP_CHARS,
+} from '@/components/tours/web/recorderProtocol';
+import { scrubCapturedText } from '@/components/tours/web/studentData';
 import { withoutIconGlyphs } from '@/components/tours/web/recordedSteps';
 import React, {
   useCallback,
@@ -75,6 +80,7 @@ const disabledLook = 'disabled:cursor-not-allowed disabled:opacity-50';
 const toRecorded = async (s: PanelStep): Promise<RecordedWebStep> => {
   const picture = s.picture ? await finishPicture(s.picture, s.blur) : null;
   const tip = s.tip.trim();
+  const note = scrubCapturedText(s.note, MAX_NOTE_CHARS);
   return {
     id: s.capture.id,
     urlPattern: s.capture.urlPattern,
@@ -82,6 +88,7 @@ const toRecorded = async (s: PanelStep): Promise<RecordedWebStep> => {
     locator: s.capture.locator,
     ...(picture ? { picture } : {}),
     ...(tip ? { tip } : {}),
+    ...(note ? { note } : {}),
   };
 };
 
@@ -173,6 +180,18 @@ const StepCard: React.FC<{
             maxLength={MAX_TIP_CHARS}
             disabled={locked}
             onChange={(e) => onChange({ ...step, tip: e.target.value })}
+          />
+        </label>
+      )}
+      {withTip && (
+        <label className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
+          Note for Claude
+          <textarea
+            className={`min-h-[2.5rem] rounded-lg px-2 py-1.5 text-sm font-normal ${inputLight}`}
+            value={step.note}
+            maxLength={MAX_NOTE_CHARS}
+            disabled={locked}
+            onChange={(e) => onChange({ ...step, note: e.target.value })}
           />
         </label>
       )}
@@ -307,6 +326,7 @@ export const SidePanel: React.FC = () => {
   const [sending, setSending] = useState<{
     dest: string;
     title: string;
+    goal: string;
   } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -381,6 +401,7 @@ export const SidePanel: React.FC = () => {
         picture: null,
         blur: [],
         tip: '',
+        note: '',
         pending: true,
       };
       // A click while SpartBoard asks for a fix is that fix, not a new step.
@@ -460,6 +481,7 @@ export const SidePanel: React.FC = () => {
     setSending({
       dest: first ? `editor:${first.setId}` : 'new',
       title: (tab?.title ?? '').slice(0, 200),
+      goal: '',
     });
     // The draft list comes from a SpartBoard tab; opened now so it's ready by Save.
     if (!first) void send({ type: 'rec/intakeOpen' });
@@ -478,6 +500,7 @@ export const SidePanel: React.FC = () => {
   const sendSteps = async () => {
     if (!sending || list.length === 0 || list.some((s) => s.pending)) return;
     const { dest, title } = sending;
+    const goal = scrubCapturedText(sending.goal, MAX_GOAL_CHARS);
     setBusy(true);
     setError('');
     try {
@@ -505,7 +528,7 @@ export const SidePanel: React.FC = () => {
             type: 'rec/intakeSave',
             target: draftId
               ? { kind: 'append', setId: draftId }
-              : { kind: 'new', title: title.trim() },
+              : { kind: 'new', title: title.trim(), ...(goal ? { goal } : {}) },
             title: draftId
               ? (drafts.find((d) => d.setId === draftId)?.title ?? '')
               : title.trim() || 'Untitled web tour',
@@ -734,6 +757,22 @@ export const SidePanel: React.FC = () => {
                             onChange={(e) =>
                               setSending((f) =>
                                 f ? { ...f, title: e.target.value } : f
+                              )
+                            }
+                          />
+                        </label>
+                      )}
+                      {sending.dest === 'new' && (
+                        <label className="flex flex-col gap-1 text-xs font-semibold text-slate-700">
+                          What does your tour explain?
+                          <textarea
+                            className={`min-h-[2.5rem] rounded-lg px-2 py-1.5 text-sm font-normal ${inputLight}`}
+                            value={sending.goal}
+                            maxLength={MAX_GOAL_CHARS}
+                            disabled={busy}
+                            onChange={(e) =>
+                              setSending((f) =>
+                                f ? { ...f, goal: e.target.value } : f
                               )
                             }
                           />

@@ -326,6 +326,13 @@ describe('hub', () => {
     expect(parseWebTourStartTour(handoff)).not.toBeNull();
   });
 
+  it("never hands the extension a step's note or Claude's question", () => {
+    const noted = step('a', 'https://x.test/');
+    noted.web = { ...noted.web, note: 'private', claudeQuestion: 'Why?' };
+    const handoff = buildHandoff('s', 1, 'T', [noted], new Map(), true);
+    expect(JSON.stringify(handoff)).not.toMatch(/private|Why\?/);
+  });
+
   it('sends the newer clues only to an extension that scores them', () => {
     const rich = step('a', 'https://x.test/');
     rich.web.locator = {
@@ -412,7 +419,7 @@ describe('hub', () => {
       watchWebTour('s', vi.fn(), vi.fn(), 4)();
       expect(posted).toEqual([
         { type: 'web-tour/watch', setId: 's' },
-        { type: 'web-tour/watch', setId: 's', protocol: 4 },
+        { type: 'web-tour/watch', setId: 's', protocol: 5 },
       ]);
     } finally {
       delete (globalThis as { chrome?: unknown }).chrome;

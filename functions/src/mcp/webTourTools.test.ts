@@ -6,6 +6,8 @@ import type * as admin from 'firebase-admin';
 import type { ToolContext } from './activity';
 import {
   WEB_TOUR_TOOLS,
+  applyWebStepText,
+  publishState,
   registerWebTourTools,
   restoreWebTourRevision,
   isWebTourPicturePath,
@@ -241,6 +243,87 @@ describe('web tour connector tools', () => {
     });
     expect(out.steps[1].has_picture).toBe(false);
     expect(JSON.stringify(out)).not.toContain('nth-child');
+  });
+
+  it('returns the goal, each note and question, and the newer clues', async () => {
+    const env = seed();
+    const doc = env.docs.get('building_web_tours/t1') as Data;
+    env.docs.set('building_web_tours/t1', {
+      ...doc,
+      webGoal: 'Posting a grade',
+      steps: [
+        {
+          ...STEP_A,
+          web: {
+            ...STEP_A.web,
+            note: 'starts every grading run',
+            claudeQuestion: 'Which course?',
+            locator: {
+              ...STEP_A.web.locator,
+              heading: 'Course tools',
+              pageTitle: 'Biology',
+              attrs: { testId: 'gradebook-link', href: '/course/*/grades' },
+            },
+          },
+        },
+        STEP_B,
+      ],
+    });
+    const call = await connect(env.db);
+    const out = (await call('get_web_tour', { set_id: 't1' })) as Data & {
+      steps: Data[];
+    };
+    expect(out.goal).toBe('Posting a grade');
+    expect(out.steps[0]).toMatchObject({
+      note: 'starts every grading run',
+      question: 'Which course?',
+      locator: {
+        role: 'link',
+        name: 'Gradebook',
+        text: 'Gradebook',
+        heading: 'Course tools',
+        pageTitle: 'Biology',
+        attrs: { testId: 'gradebook-link', href: '/course/*/grades' },
+      },
+    });
+    expect(out.steps[1]).not.toHaveProperty('note');
+  });
+
+  it("clears a step's Claude question once words are written for it", () => {
+    const asked = {
+      ...STEP_A,
+      web: { ...STEP_A.web, claudeQuestion: 'Which course?' },
+    };
+    const { steps } = applyWebStepText(
+      [asked, { ...STEP_B, web: { ...STEP_B.web, claudeQuestion: 'Why?' } }],
+      [
+        { id: 'a', tip: 'Opens the gradebook.' },
+        { id: 'b', title: '' },
+      ]
+    );
+    expect(steps[0].web).not.toHaveProperty('claudeQuestion');
+    expect(steps[1].web).toHaveProperty('claudeQuestion', 'Why?');
+  });
+
+  it('stays published when only the goal, notes or questions changed', () => {
+    const published = { at: 10, set: tour() };
+    const draft = {
+      ...tour(),
+      updatedAt: 30,
+      webGoal: 'New goal',
+      steps: [
+        { ...STEP_A, web: { ...STEP_A.web, note: 'n', claudeQuestion: 'q' } },
+        STEP_B,
+      ],
+    };
+    expect(publishState(draft, published)).toBe('published');
+    expect(publishState({ ...draft, steps: [STEP_B, STEP_A] }, published)).toBe(
+      'changed'
+    );
+    expect(publishState({ ...tour(), updatedAt: 5 }, published)).toBe(
+      'published'
+    );
+    expect(publishState(tour(), null)).toBe('draft');
   });
 
   it('is for admins only, with the web-tours flag on', async () => {

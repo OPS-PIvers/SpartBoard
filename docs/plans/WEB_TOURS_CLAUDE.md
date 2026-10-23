@@ -31,7 +31,7 @@ Settled in a design interview with Paul on 2026-10-22, after research into Scrib
 
 ### Intent without narration
 
-- **C7. Optional goal.** Send shows an optional "What does this tour teach?" box under the title, saved on the draft and editable in the editor. It never blocks.
+- **C7. Optional goal.** Send shows an optional "What does your tour explain?" box under the title, saved on the draft and editable in the editor. It never blocks.
 - **C8. Private note per step.** A "Note for Claude" field in the side panel and the editor. It is stored on `step.web`, never shown during playback, and never published.
 
 ### Claude writes
@@ -53,7 +53,7 @@ Settled in a design interview with Paul on 2026-10-22, after research into Scrib
 
 ## New wording for Paul's OK
 
-- Send form: "What does this tour teach?" (optional box)
+- Send form: "What does your tour explain?" (optional box)
 - Step field: "Note for Claude"
 - Editor buttons: "Write with Claude", "Rewrite all", "Check tour"
 - Check results: "Found", "Weak match", "Matches more than one", "Not found"

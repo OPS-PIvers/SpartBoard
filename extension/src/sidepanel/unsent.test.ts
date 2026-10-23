@@ -35,6 +35,7 @@ const step = (id: string, extra: Partial<PanelStep> = {}): PanelStep => ({
   picture: null,
   blur: [],
   tip: '',
+  note: '',
   pending: false,
   ...extra,
 });
@@ -46,13 +47,16 @@ describe('unsent steps', () => {
     });
     const blur = [{ xPct: 1, yPct: 2, wPct: 3, hPct: 4 }];
     await saveUnsent({
-      steps: [step('a', { picture, blur, tip: 'Open the menu' })],
+      steps: [
+        step('a', { picture, blur, tip: 'Open the menu', note: 'grades' }),
+      ],
       fix: null,
     });
     const back = await loadUnsent();
     expect(back.fix).toBeNull();
     expect(back.steps).toHaveLength(1);
     expect(back.steps[0].tip).toBe('Open the menu');
+    expect(back.steps[0].note).toBe('grades');
     expect(back.steps[0].blur).toEqual(blur);
     expect(new Uint8Array(await back.steps[0].picture!.arrayBuffer())).toEqual(
       new Uint8Array([1, 2, 3])
