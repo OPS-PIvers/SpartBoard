@@ -4887,3 +4887,20 @@ rather than "no data") is also still open.
   - #4533 and #4502 both append to the end of `docs/widget-rubric/supervision.json`, so whichever merges second needs a hand merge that keeps both entries.
   - #4502: rows now grow (`flex: 1 0 auto`), so a schedule with one event fills the card; worth a visual check. Its supervision `openedAt` matches the Checklist entry above it.
 - Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. CI was green on #4502; #4533 had no checks reported yet.
+
+## 2026-10-23
+
+- PRs reviewed: #4600 fix(quiz): scale QuizPreview back arrow and Eye icons with cqmin, #4599 Debugger run 105 log, #4598 Schedule admin: deleting the legacy default schedule clears legacy items, #4597 Shared collections: list a new sub-collection after the last one, #4596 Show library folders with a missing parent in the sidebar tree, #4595 fix(shared-board): republish a live item when its content reverts, #4594 Widget loop: Countdown layout S1 2 → 3, #4593 Revert #4589 out of promotion #4591, #4591 Promote dev-paul to main
+- Comments processed: 9, with 0 fixed and 9 explained or needing no action.
+  - #4591 had one unresolved inline thread (the `live_session_codes` rules break from #4589). It already had an answer and is waiting on Paul's ship-or-revert decision, so it got no new reply.
+  - #4594 had two bot questions and #4593 one. They were answered in the review bodies.
+  - #4591 had three earlier bot comments. They were answered in its review body.
+  - The rest were `claude[bot]` comments that reported no issues.
+- Fixes pushed: none
+- Reviews posted: 9
+  - Ready: #4600, #4599, #4598, #4597. Ready with minor notes: #4596, #4595, #4594, #4593. Needs changes: #4591.
+  - #4591 is blocked on Paul's call. He either merges revert #4593, or ships #4589 with the prod `live_session_codes` backfill and a reload notice for teachers, because old-client tabs can't start Classroom Live under the new rule. The dev deploy failure was a Cloud Run CPU quota error on spartboard-dev, so a green re-run should be confirmed before merging.
+  - #4596: the new test file opens with a two-line comment, which breaks the one-line comment rule.
+  - #4595: a fast A→B→A edit can still leave the shared copy at B (narrow race, older than this PR).
+  - #4594: `--num-std` grows from 42cqh to 46cqh at every card size, not only small ones.
+- Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. No local checks were run because no fixes were made.
