@@ -25,7 +25,6 @@ import {
 import {
   chromeMuted,
   focusRing,
-  headerBar,
   iconBtn,
   inputLight,
   primaryBtn,
@@ -591,24 +590,30 @@ export const SidePanel: React.FC = () => {
 
   return (
     <main className="flex min-h-screen flex-col bg-slate-50 font-sans text-sm text-slate-900 antialiased">
-      <header className={`flex items-center gap-2 px-4 py-3 ${headerBar}`}>
-        <img src="../icon-128.png" alt="" className="h-6 w-6 rounded" />
-        <h1 className="text-base font-semibold">Record a web tour</h1>
-      </header>
+      {/* Chrome's own panel bar already shows the name and icon, so the panel only titles its state. */}
       <div className="flex flex-1 flex-col gap-3 p-4">
+        <h1
+          className="flex items-center gap-2 text-base font-semibold"
+          aria-live="polite"
+        >
+          {recording && !pick && (
+            <span
+              className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-brand-red-primary motion-reduce:animate-none"
+              aria-hidden="true"
+            />
+          )}
+          {pick
+            ? `Fix a step in ${pick.title || 'Untitled tour'}`
+            : recording
+              ? 'Recording'
+              : 'Record a web tour'}
+        </h1>
         {!staff ? (
           <p className="text-slate-700">
             Sign in to Chrome with your Orono staff account to record tours.
           </p>
         ) : pick ? (
           <section className={`flex flex-col gap-3 rounded-2xl p-4 ${card}`}>
-            <h2 className="flex items-start gap-2 font-semibold">
-              <MapPin
-                className="mt-0.5 h-4 w-4 shrink-0 text-brand-blue-primary"
-                aria-hidden="true"
-              />
-              Fix a step in {pick.title || 'Untitled tour'}
-            </h2>
             {pickedFix ? (
               <ol className="flex flex-col">
                 <StepCard

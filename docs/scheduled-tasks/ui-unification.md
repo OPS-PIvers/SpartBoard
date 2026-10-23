@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-10-14_
+_Last audited: 2026-10-23_
 _Last action: 2026-09-25 — MEDIUM dead appearance fields: removed `cardColor`/`cardOpacity`/`fontFamily`/`fontColor` from `StickerBookConfig` and `fontFamily`/`fontColor` from `TalkingToolConfig` (types.ts) — none were read by their widgets, matching the `CarRiderProConfig` precedent. `pnpm run type-check` exit 0; 88 targeted tests passed. Moved to Completed. PR opened to dev-paul._
+
+_2026-10-23: Friday weekly audit (C2), light pass. No hand-written `components/widgets/*/Settings.tsx` remain (schema-driven drawer); 47 admin `*ConfigurationPanel.tsx` files present; 0 hardcoded hex colors in widget Settings files. 0 new issues._
 
 ---
 

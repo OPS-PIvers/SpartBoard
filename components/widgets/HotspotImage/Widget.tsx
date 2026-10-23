@@ -5,6 +5,7 @@ import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { MapPin, Search, Info, HelpCircle, Star, X } from 'lucide-react';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { tourAttr } from '@/config/tourAnchors';
 
 const ICON_MAP = {
   search: Search,
@@ -156,6 +157,7 @@ export const HotspotImageWidget: React.FC<{ widget: WidgetData }> = ({
                       transform: 'translate(-50%, -50%)',
                     }}
                   >
+                    {/* no-tour-anchor: one pin per hotspot, positioned from the teacher's image */}
                     <button
                       aria-label={`Open hotspot: ${spot.title || 'Untitled'}`}
                       onClick={(e) => handlePinClick(spot.id, e)}
@@ -208,6 +210,11 @@ export const HotspotImageWidget: React.FC<{ widget: WidgetData }> = ({
                           </h4>
                           <button
                             aria-label="Close popover"
+                            {...tourAttr(
+                              'hotspot-image.popover-close',
+                              widget.id,
+                              widget.type
+                            )}
                             onClick={handleClosePopover}
                             className="text-slate-400 hover:text-slate-600 transition-colors absolute right-0 top-0"
                             style={{

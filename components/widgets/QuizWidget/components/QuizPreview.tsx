@@ -140,14 +140,26 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
           <button
             onClick={onBack}
             {...tourTypeAttr('quiz-library.preview-back', 'quiz')}
-            className="p-1.5 hover:bg-brand-blue-primary/10 rounded-lg transition-colors text-brand-blue-primary"
+            className="hover:bg-brand-blue-primary/10 rounded-lg transition-colors text-brand-blue-primary"
+            style={{ padding: 'min(6px, 1.5cqmin)' }}
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft
+              style={{
+                width: 'min(16px, 4cqmin)',
+                height: 'min(16px, 4cqmin)',
+              }}
+            />
           </button>
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <Eye className="w-3.5 h-3.5 text-brand-blue-primary" />
+            <Eye
+              className="text-brand-blue-primary"
+              style={{
+                width: 'min(14px, 3.5cqmin)',
+                height: 'min(14px, 3.5cqmin)',
+              }}
+            />
             <span
               className="font-bold text-brand-blue-dark truncate"
               style={{ fontSize: 'min(14px, 4.5cqmin)' }}
@@ -594,7 +606,12 @@ const MultiAnswerArea: React.FC<{
           className="flex items-center gap-2 text-brand-blue-primary font-black uppercase tracking-widest hover:underline"
           style={{ fontSize: 'min(10px, 3cqmin)' }}
         >
-          <Eye className="w-3.5 h-3.5" />
+          <Eye
+            style={{
+              width: 'min(14px, 3.5cqmin)',
+              height: 'min(14px, 3.5cqmin)',
+            }}
+          />
           Check Answer
         </button>
       ) : (
@@ -662,7 +679,12 @@ const FIBAnswerArea: React.FC<{
         className="flex items-center gap-2 text-brand-blue-primary font-black uppercase tracking-widest hover:underline"
         style={{ fontSize: 'min(10px, 3cqmin)' }}
       >
-        <Eye className="w-3.5 h-3.5" />
+        <Eye
+          style={{
+            width: 'min(14px, 3.5cqmin)',
+            height: 'min(14px, 3.5cqmin)',
+          }}
+        />
         Reveal Correct Answer
       </button>
     )}
@@ -761,7 +783,12 @@ const StructuredAnswerArea: React.FC<{
           className="flex items-center gap-2 text-brand-blue-primary font-black uppercase tracking-widest hover:underline"
           style={{ fontSize: 'min(10px, 3cqmin)' }}
         >
-          <Eye className="w-3.5 h-3.5" />
+          <Eye
+            style={{
+              width: 'min(14px, 3.5cqmin)',
+              height: 'min(14px, 3.5cqmin)',
+            }}
+          />
           Reveal Sequence
         </button>
       )}

@@ -24,7 +24,7 @@ import React from 'react';
  * package version, so a `pnpm update lucide-react` fails CI until someone
  * re-copies the paths and bumps this pin in the same change.
  */
-export const LANDING_ICONS_LUCIDE_VERSION = '0.563.0';
+export const LANDING_ICONS_LUCIDE_VERSION = '1.61.0';
 
 type IconNode = ReadonlyArray<
   readonly [string, Record<string, string | number>]
@@ -122,7 +122,7 @@ export const ShieldCheck = makeIcon('ShieldCheck', [
 
 export const School = makeIcon('School', [
   ['path', { d: 'M14 21v-3a2 2 0 0 0-4 0v3' }],
-  ['path', { d: 'M18 5v16' }],
+  ['path', { d: 'M18 4.933V21' }],
   ['path', { d: 'm4 6 7.106-3.79a2 2 0 0 1 1.788 0L20 6' }],
   [
     'path',
@@ -130,7 +130,7 @@ export const School = makeIcon('School', [
       d: 'm6 11-3.52 2.147a1 1 0 0 0-.48.854V19a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5a1 1 0 0 0-.48-.853L18 11',
     },
   ],
-  ['path', { d: 'M6 5v16' }],
+  ['path', { d: 'M6 4.933V21' }],
   ['circle', { cx: '12', cy: '9', r: '2' }],
 ]);
 

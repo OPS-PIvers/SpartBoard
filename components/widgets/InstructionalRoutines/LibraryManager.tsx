@@ -457,6 +457,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                           className="text-slate-400 group-hover/upload:text-blue-500"
                         />
                       )}
+                      {/* no-tour-anchor: hidden file input opened by its visible upload tile */}
                       <input
                         type="file"
                         accept="image/*"
@@ -517,6 +518,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                           className="text-slate-400 group-hover/upload-img:text-blue-500"
                         />
                       )}
+                      {/* no-tour-anchor: hidden file input opened by its visible upload tile */}
                       <input
                         type="file"
                         accept="image/*"

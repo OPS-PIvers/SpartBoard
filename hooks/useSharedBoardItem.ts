@@ -81,7 +81,8 @@ export function useSharedBoardItem<T>(
     : { status: 'none', item: null };
 }
 
-const published = new Set<string>();
+// Last version this tab wrote per item; a revert to an older version must write again.
+const published = new Map<string, string>();
 
 export interface SharedBoardItemPublish<T> {
   kind: SharedBoardItemKind;
@@ -118,7 +119,7 @@ export function useSharedBoardItemPublisher<T>({
     canAccessFeature('shared-board-live-walls');
   const key =
     enabled && uid && itemId
-      ? `${shareId}/${sharedBoardItemDocId(kind, uid, itemId)}@${version}`
+      ? `${shareId}/${sharedBoardItemDocId(kind, uid, itemId)}`
       : null;
   const needsStamp = enabled && !!uid && stampedOwnerUid !== uid;
 
@@ -138,10 +139,10 @@ export function useSharedBoardItemPublisher<T>({
 
   useEffect(() => {
     if (!key || !shareId || !uid || !itemId || !version) return;
-    if (published.has(key)) return;
-    published.add(key);
+    if (published.get(key) === version) return;
+    published.set(key, version);
     publish(shareId, uid, itemId, version).catch((err: unknown) => {
-      published.delete(key);
+      if (published.get(key) === version) published.delete(key);
       logError('useSharedBoardItemPublisher', err, { kind, itemId });
     });
   }, [key, shareId, uid, kind, itemId, version]);
