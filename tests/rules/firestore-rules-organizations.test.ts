@@ -807,6 +807,35 @@ describe('organizations/domains — writes', () => {
     );
   });
 
+  it('domain admin cannot rename a verified domain, but can still edit its other fields', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `organizations/${ORG_ID}/domains/verified`),
+        {
+          ...pendingDomain('verified', '@verified.orono.k12.mn.us'),
+          status: 'verified',
+        }
+      );
+    });
+    await assertFails(
+      updateDoc(
+        doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/verified`),
+        { domain: '@other-district.org' }
+      )
+    );
+    await assertSucceeds(
+      updateDoc(
+        doc(asDomainAdmin(), `organizations/${ORG_ID}/domains/verified`),
+        { authMethod: 'saml' }
+      )
+    );
+    await assertSucceeds(
+      updateDoc(doc(asSuper(), `organizations/${ORG_ID}/domains/verified`), {
+        domain: '@renamed.orono.k12.mn.us',
+      })
+    );
+  });
+
   it('building admin cannot write domains', async () => {
     await assertFails(
       setDoc(doc(asBuildingAdmin(), `organizations/${ORG_ID}/domains/new`), {
