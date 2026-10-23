@@ -42,6 +42,7 @@ const CONFLICT =
 
 interface WebLocator {
   role?: unknown;
+  css?: unknown;
   name?: unknown;
   text?: unknown;
   heading?: unknown;
@@ -156,15 +157,39 @@ export function publishState(
 const ATTR_KEYS = ['testId', 'ariaLabel', 'name', 'href'] as const;
 
 /** The clues Claude may read: never the CSS path or the box. */
-function readableClues(loc: WebLocator) {
+function readableClues(loc: WebLocator, withTitle = true) {
   const locator: Record<string, string | Record<string, string>> = {};
   for (const key of ['role', 'name', 'text', 'heading', 'pageTitle'] as const)
-    if (str(loc[key])) locator[key] = str(loc[key]);
+    if ((withTitle || key !== 'pageTitle') && str(loc[key]))
+      locator[key] = str(loc[key]);
   const attrs: Record<string, string> = {};
   for (const key of ATTR_KEYS)
     if (str(loc.attrs?.[key])) attrs[key] = str(loc.attrs?.[key]);
   if (Object.keys(attrs).length) locator.attrs = attrs;
   return locator;
+}
+
+const CLUE_NAMES: Record<string, string> = {
+  role: 'role',
+  name: 'name',
+  text: 'text',
+  heading: 'heading',
+  css: 'page position',
+  'attrs.testId': 'control id',
+  'attrs.ariaLabel': 'control label',
+  'attrs.name': 'field name',
+  'attrs.href': 'link address',
+};
+
+/** Which clues a fix changes, by name only, so Claude can tell what differs without reading the CSS path. */
+function changedClues(before: WebLocator, after: WebLocator): string[] {
+  const read = (l: WebLocator, key: string) =>
+    key.startsWith('attrs.')
+      ? str(l.attrs?.[key.slice(6)])
+      : str(l[key as keyof WebLocator]);
+  return Object.keys(CLUE_NAMES)
+    .filter((k) => read(before, k) !== read(after, k))
+    .map((k) => CLUE_NAMES[k]);
 }
 
 /** A step as Claude sees it: words, action, address, the readable clues, the admin's note and any suggested fix; never the CSS or box. */
@@ -187,7 +212,9 @@ export function publicWebStep(step: WebStep, index: number, fix?: StepFix) {
     ...(fix
       ? {
           suggested_fix: {
-            locator: readableClues(fix.locator),
+            // Never a page title: it can name the student whose page it was.
+            locator: readableClues(fix.locator, false),
+            changed: changedClues(web?.locator ?? {}, fix.locator),
             source: fix.source,
             runs: fix.count,
             found_at: iso(fix.at),
@@ -378,7 +405,7 @@ export async function restoreWebTourRevision(
 }
 
 const STEP_LIST =
-  "Each step: id, number, title, tip, action (click, type, select or observe), url_pattern (the page it plays on, ids as *), locator (the role, name, text, nearby heading, page title and stable attrs it finds its control by), has_picture, and when set the admin's private note for Claude (note, never shown to teachers) and the question SpartBoard's Write with Claude left on the step (question). goal is what the admin said the tour explains. suggested_fix, when present, is what a run of the tour found instead when the step missed or matched weakly: the clues (locator), where it came from (source: check for the admin's Check tour, admin for an admin's own run, teacher for teachers' runs, shown once at least two agree), and how many runs found it (runs). Claude can recommend a fix; only the admin can use it, in SpartBoard.";
+  "Each step: id, number, title, tip, action (click, type, select or observe), url_pattern (the page it plays on, ids as *), locator (the role, name, text, nearby heading, page title and stable attrs it finds its control by), has_picture, and when set the admin's private note for Claude (note, never shown to teachers) and the question SpartBoard's Write with Claude left on the step (question). goal is what the admin said the tour explains. suggested_fix, when present, is what a run of the tour found instead when the step missed or matched weakly: the clues (locator, whose name, text and heading are always the step's own, never words from the page it was found on), which clues differ (changed), where it came from (source: check for the admin's Check tour, admin for an admin's own run, teacher for teachers' runs, shown once at least two agree), and how many runs found it (runs). Claude can recommend a fix; only the admin can use it, in SpartBoard.";
 
 export function registerWebTourTools(
   server: McpServer,

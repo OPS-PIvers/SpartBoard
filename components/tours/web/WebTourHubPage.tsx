@@ -48,6 +48,7 @@ import {
 } from './webTourHub';
 import { parseTourPath } from './tourLinks';
 import { scrubLocator } from './recordedSteps';
+import { runFixClues } from './fixClues';
 import {
   isWebTourSet,
   webTourStepsOf,
@@ -253,7 +254,13 @@ const Hub: React.FC<{ setId: string; uid: string; admin: boolean }> = ({
     if (!tour || !eventFitsTour(event, tour.steps)) return;
     failures.current = 0;
     if (event.type === 'web-tour/suggest') {
-      log.current?.suggest(event.stepId, scrubLocator(event.locator));
+      const own = tour.steps[event.stepIndex]?.web.locator;
+      // Only the site's own clues are kept; page words come from the published step (C15).
+      if (own)
+        log.current?.suggest(
+          event.stepId,
+          runFixClues(scrubLocator(event.locator), own)
+        );
       return;
     }
     setPlay((prev) => reducePlay(prev, event));

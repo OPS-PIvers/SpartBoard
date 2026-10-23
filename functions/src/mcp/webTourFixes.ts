@@ -1,4 +1,5 @@
-// Suggested fixes on web tour steps, read-only for the connector; mirrors components/tours/web/webTourFixes.ts.
+// Suggested fixes on web tour steps, read-only for the connector; mirrors components/tours/web/webTourFixes.ts and fixClues.ts.
+import { webTourTextHits } from './webTourStudentData';
 
 // Must match MIN_TEACHER_RUNS in components/tours/web/webTourFixes.ts.
 export const MIN_TEACHER_RUNS = 2;
@@ -20,7 +21,7 @@ const fnv = (s: string): string => {
   return (h >>> 0).toString(36);
 };
 
-/** Must match fixKey in components/tours/web/webTourFixes.ts. */
+/** Must match fixKey in components/tours/web/fixClues.ts. */
 export function fixKey(locator: unknown): string {
   const l = isObj(locator) ? locator : {};
   const attrs = isObj(l.attrs) ? l.attrs : {};
@@ -29,6 +30,29 @@ export function fixKey(locator: unknown): string {
     ...ATTR_KEYS.map((k) => str(attrs[k])),
   ];
   return fnv(JSON.stringify(parts));
+}
+
+const ROLE = /^[a-z][a-z-]{0,39}$/;
+const clean = (v: unknown): v is string =>
+  typeof v === 'string' && v !== '' && webTourTextHits(v).size === 0;
+
+/** Must match runFixClues in components/tours/web/fixClues.ts (without a roster): page words only from the step's own clues, never a page title. */
+export function runFixClues(fix: Obj, recorded: Obj): Obj {
+  const out: Obj = {};
+  if (typeof fix.role === 'string' && ROLE.test(fix.role)) out.role = fix.role;
+  for (const k of ['name', 'text', 'heading'] as const)
+    if (str(recorded[k])) out[k] = recorded[k];
+  if (clean(fix.css)) out.css = fix.css;
+  const fromRecorded = isObj(recorded.attrs) ? recorded.attrs : {};
+  const fromFix = isObj(fix.attrs) ? fix.attrs : {};
+  const attrs: Obj = {};
+  for (const k of ['ariaLabel', 'name'] as const)
+    if (str(fromRecorded[k])) attrs[k] = fromRecorded[k];
+  for (const k of ['testId', 'href'] as const)
+    if (clean(fromFix[k])) attrs[k] = fromFix[k];
+  if (Object.keys(attrs).length) out.attrs = attrs;
+  if (isObj(fix.box)) out.box = fix.box;
+  return out;
 }
 
 export interface FixRun {
@@ -73,16 +97,24 @@ export function stepFixes(
     steps: DraftStep[];
     webSuggestions?: unknown;
     webFixDismissed?: unknown;
+    webTourChecked?: unknown;
   },
   published: { at: number; steps: DraftStep[] } | null,
   runs: readonly FixRun[]
 ): Map<string, StepFix> {
+  const recorded = new Map(
+    (published?.steps ?? []).flatMap((s) =>
+      isObj(s.web?.locator) ? [[s.id, s.web.locator] as const] : []
+    )
+  );
   const groups = new Map<string, Map<string, FixGroup>>();
   for (const run of published ? runs : []) {
     if (run.v !== published?.at || run.surface !== 'web' || !isObj(run.fixes))
       continue;
-    for (const [stepId, locator] of Object.entries(run.fixes)) {
-      if (!isObj(locator) || !struggled(run, stepId)) continue;
+    for (const [stepId, stored] of Object.entries(run.fixes)) {
+      const own = recorded.get(stepId);
+      if (!own || !isObj(stored) || !struggled(run, stepId)) continue;
+      const locator = runFixClues(stored, own);
       const byKey = groups.get(stepId) ?? new Map<string, FixGroup>();
       groups.set(stepId, byKey);
       const key = fixKey(locator);
@@ -101,21 +133,26 @@ export function stepFixes(
   );
   const checks = isObj(draft.webSuggestions) ? draft.webSuggestions : {};
   const dismissed = isObj(draft.webFixDismissed) ? draft.webFixDismissed : {};
+  const checked = isObj(draft.webTourChecked) ? draft.webTourChecked : {};
+  const results = isObj(checked.results) ? checked.results : {};
   const out = new Map<string, StepFix>();
   for (const step of draft.steps) {
-    if (!isObj(step.web?.locator)) continue;
-    const current = fixKey(step.web.locator);
+    const own = step.web?.locator;
+    if (!isObj(own)) continue;
+    const current = fixKey(own);
     const usable = (locator: unknown) =>
       fixKey(locator) !== current && fixKey(locator) !== dismissed[step.id];
     const check = checks[step.id];
     if (
+      results[step.id] !== 'found' &&
       isObj(check) &&
       isObj(check.locator) &&
       check.base === current &&
       usable(check.locator)
     ) {
       out.set(step.id, {
-        locator: check.locator,
+        // Claude never reads a check's new page words, only the site's own clues.
+        locator: runFixClues(check.locator, own),
         source: 'check',
         count: 1,
         at: typeof check.at === 'number' ? check.at : 0,

@@ -2,6 +2,7 @@ import { assessTarget, type WebLocatorClues } from './locate';
 import type { WebStepAction } from './progress';
 import { captureTarget } from '../recorder/captureTarget';
 import { toBox } from '../recorder/geometry';
+import { fixKey } from '@/components/tours/web/fixClues';
 
 /** Messages the service worker sends to every frame of a playing tab. */
 export type FrameCommand =
@@ -142,7 +143,8 @@ export function installFrameSeeker(
     }
     if (out.kind === 'none' && out.candidate) {
       const fix = cluesOf(out.candidate);
-      const said = JSON.stringify(fix);
+      // A new position alone isn't a new candidate.
+      const said = fixKey(fix);
       if (said !== toldCandidate) {
         toldCandidate = said;
         send({ type: 'wt:candidate', token: seek.token, fix });

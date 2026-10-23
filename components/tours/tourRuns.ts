@@ -3,6 +3,7 @@ import { db, isConfigured } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { GL_TOURS_COLLECTION } from './tourSnapshot';
 import type { WebTourLocator } from '@/types';
+import { fixKey } from './web/fixClues';
 import {
   parseWebTourLocator,
   type WebTourProgressMessage,
@@ -214,7 +215,9 @@ export function startTourRunLog(
       if (!struggled) return;
       if (!(stepId in fixes) && Object.keys(fixes).length >= MAX_RUN_MISSES)
         return;
-      if (JSON.stringify(fixes[stepId]) === JSON.stringify(locator)) return;
+      // Same clues with a new position isn't a new fix, so it isn't written again.
+      const had = fixes[stepId];
+      if (had && fixKey(had) === fixKey(locator)) return;
       run = { ...run, fixes: { ...fixes, [stepId]: locator } };
       dirty = true;
       schedule();

@@ -12,6 +12,11 @@ import {
   type WebTourPortPost,
 } from '@/components/tours/web/extensionProtocol';
 import type { WebTourCheckResult, WebTourLocator } from '@/types';
+import {
+  checkFixClues,
+  fixKey,
+  runFixClues,
+} from '@/components/tours/web/fixClues';
 import type { OverlayAction, OverlayState } from '../overlay/overlayState';
 import type { ParsedStart } from './startMessage';
 import { matchesUrlPattern } from './urlPattern';
@@ -78,8 +83,8 @@ interface TabRecord {
   ambiguousToken?: string;
   /** The closest candidate a frame found for the current seek when nothing matched (C14). */
   candidate?: { token: string; fix: WebTourLocator };
-  /** The fix last suggested per step, so a repeat isn't posted again. */
-  suggested?: Record<string, string>;
+  /** The fix last suggested per step, replayed to a page that reconnects; the same clues aren't posted twice. */
+  fixes?: Record<string, WebTourLocator>;
 }
 
 export const FALLBACK_MS = 4000;
@@ -243,21 +248,37 @@ export function createPlaybackController(host: PlaybackHost) {
 
   /** Posts a candidate's clues for a step that missed or played weak; pages before protocol 7 never get it. */
   function postSuggest(rec: TabRecord, index: number, fix: WebTourLocator) {
-    const setId = rec.state.tour.id;
     const step = rec.state.tour.steps[index];
     if (!step) return;
-    const said = JSON.stringify(fix);
-    if (rec.suggested?.[step.id] === said) return;
-    rec.suggested = { ...rec.suggested, [step.id]: said };
-    host.post(setId, {
+    const had = rec.fixes?.[step.id];
+    if (had && fixKey(had) === fixKey(fix)) return;
+    rec.fixes = { ...rec.fixes, [step.id]: fix };
+    const post = suggestPost(rec, index);
+    if (post) host.post(rec.state.tour.id, post);
+  }
+
+  /** The step's last suggested fix as a post, or null. */
+  function suggestPost(rec: TabRecord, index: number): ProgressPost | null {
+    const setId = rec.state.tour.id;
+    const step = rec.state.tour.steps[index];
+    const fix = step ? rec.fixes?.[step.id] : undefined;
+    if (!step || !fix) return null;
+    return {
       type: 'web-tour/suggest',
       setId,
       stepIndex: index,
       stepId: step.id,
       locator: fix,
       ...(rec.check ? { runId: rec.runId ?? '' } : {}),
-    });
+    };
   }
+
+  /** Every step's last suggested fix, in step order. */
+  const suggestPosts = (rec: TabRecord): ProgressPost[] =>
+    rec.state.tour.steps.flatMap((_s, i) => {
+      const post = suggestPost(rec, i);
+      return post ? [post] : [];
+    });
 
   /** A fix from a frame on the step's own frame path, with its box only from the top frame, whose viewport the box is measured in. */
   async function fixFrom(
@@ -266,10 +287,12 @@ export function createPlaybackController(host: PlaybackHost) {
     raw: unknown
   ): Promise<WebTourLocator | null> {
     const step = rec.state.tour.steps[rec.state.index];
-    const fix = parseWebTourLocator(raw);
-    if (!step || !fix || fix.frames) return null;
+    const parsed = parseWebTourLocator(raw);
+    if (!step || !parsed || parsed.frames) return null;
     const ids = framesForStep(await host.frames(rec.tabId), step.frames);
     if (!ids.includes(frameId)) return null;
+    // A teacher's run keeps only the site's own clues; page words stay the step's (C15).
+    const fix = (rec.check ? checkFixClues : runFixClues)(parsed, step.clues);
     if (frameId === 0) return fix;
     const { box: _box, ...rest } = fix;
     return rest;
@@ -332,7 +355,11 @@ export function createPlaybackController(host: PlaybackHost) {
         done: kind === 'done',
       };
       host.post(setId, end);
-      rememberCheck(setId, rec.runId ?? '', [...checkResultPosts(rec), end]);
+      rememberCheck(setId, rec.runId ?? '', [
+        ...checkResultPosts(rec),
+        ...suggestPosts(rec),
+        end,
+      ]);
     } else if (kind === 'done') {
       host.post(setId, { type: 'web-tour/done', setId });
     } else if (kind === 'exit') {
@@ -733,7 +760,7 @@ export function createPlaybackController(host: PlaybackHost) {
           // An ended run (done or exited) replays from the ended list below.
           if (state.status === 'done' || state.status === 'exited') continue;
           live.add(rec.runId ?? '');
-          out.push(...checkResultPosts(rec));
+          out.push(...checkResultPosts(rec), ...suggestPosts(rec));
         } else if (state.status === 'done') {
           out.push({ type: 'web-tour/done', setId });
         } else if (step && match) {
@@ -744,6 +771,8 @@ export function createPlaybackController(host: PlaybackHost) {
             stepId: step.id,
             match,
           });
+          // After the step, so the page has its miss to attach the fix to.
+          out.push(...suggestPosts(rec));
         }
       }
       const ended = await serial(CHECK_ENDS_QUEUE, loadEnded);

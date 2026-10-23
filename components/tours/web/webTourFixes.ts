@@ -1,38 +1,21 @@
 // Suggested fixes for web tour steps that missed or played weak (C14-C16).
-import {
-  WEB_TOUR_ATTR_KEYS,
-  type GuidedLearningSet,
-  type GuidedLearningStep,
-  type WebTourLocator,
-  type WebTourSuggestion,
+import type {
+  GuidedLearningSet,
+  GuidedLearningStep,
+  WebTourLocator,
+  WebTourSuggestion,
 } from '@/types';
 import type { TourRun } from '@/components/tours/tourRuns';
+import type { NameMatcher } from '@/components/widgets/GuidedLearning/components/recorder/redaction';
 import { parseWeak } from './webTourHealth';
 import { scrubLocator } from './recordedSteps';
 import { targetsSignature } from './webStepReview';
+import { checkFixClues, fixKey, runFixClues } from './fixClues';
+
+export { FIX_CLUES, fixKey } from './fixClues';
 
 /** Teacher runs must agree on a fix this many times before it shows (C16). */
 export const MIN_TEACHER_RUNS = 2;
-
-/** The clues a fix is compared by; position and page title change with the window, so they stay out. */
-export const FIX_CLUES = ['role', 'name', 'text', 'css', 'heading'] as const;
-
-// Must match fixKey in functions/src/mcp/webTourFixes.ts.
-const fnv = (s: string): string => {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return (h >>> 0).toString(36);
-};
-
-/** Fingerprint of a locator's identifying clues. */
-export function fixKey(locator: WebTourLocator | undefined): string {
-  const parts: string[] = FIX_CLUES.map((k) => locator?.[k] ?? '');
-  for (const k of WEB_TOUR_ATTR_KEYS) parts.push(locator?.attrs?.[k] ?? '');
-  return fnv(JSON.stringify(parts));
-}
 
 interface FixGroup {
   locator: WebTourLocator;
@@ -49,13 +32,20 @@ const struggled = (run: TourRun, stepId: string) =>
 export function runSuggestions(
   runs: readonly TourRun[],
   version: number,
-  published: readonly GuidedLearningStep[]
+  published: readonly GuidedLearningStep[],
+  matcher: NameMatcher | null = null
 ): Map<string, WebTourSuggestion> {
+  const recorded = new Map(
+    published.flatMap((s) => (s.web ? [[s.id, s.web.locator] as const] : []))
+  );
   const groups = new Map<string, Map<string, FixGroup>>();
   for (const run of runs) {
     if (run.v !== version || run.surface !== 'web' || !run.fixes) continue;
-    for (const [stepId, locator] of Object.entries(run.fixes)) {
-      if (!struggled(run, stepId)) continue;
+    for (const [stepId, stored] of Object.entries(run.fixes)) {
+      const own = recorded.get(stepId);
+      if (!own || !struggled(run, stepId)) continue;
+      // Read through the same filter it was written with, so no page words from a teacher's run ever show.
+      const locator = runFixClues(stored, own, matcher);
       const byKey = groups.get(stepId) ?? new Map<string, FixGroup>();
       groups.set(stepId, byKey);
       const key = fixKey(locator);
@@ -86,9 +76,12 @@ export function runSuggestions(
   return out;
 }
 
-/** The fix to show on a step: a check run's first, then runs'; none once the step changed, already uses it, or the admin dismissed it. */
+/** The fix to show on a step: a check run's first, unless the latest check found the step clearly, then runs'; none once the step changed, already uses it, or the admin dismissed it. */
 export function suggestionFor(
-  set: Pick<GuidedLearningSet, 'webSuggestions' | 'webFixDismissed'>,
+  set: Pick<
+    GuidedLearningSet,
+    'webSuggestions' | 'webFixDismissed' | 'webTourChecked'
+  >,
   step: GuidedLearningStep,
   fromRuns: ReadonlyMap<string, WebTourSuggestion>
 ): WebTourSuggestion | null {
@@ -102,7 +95,8 @@ export function suggestionFor(
     fixKey(s.locator) !== current &&
     fixKey(s.locator) !== dismissed;
   const check = set.webSuggestions?.[step.id];
-  if (usable(check)) return check ?? null;
+  const foundSince = set.webTourChecked?.results[step.id] === 'found';
+  if (!foundSince && usable(check)) return check ?? null;
   const run = fromRuns.get(step.id);
   return usable(run) ? (run ?? null) : null;
 }
@@ -122,9 +116,13 @@ export function applyFix(
     ...set,
     steps: set.steps.map((s) => {
       if (s.id !== stepId || !s.web) return s;
-      const { frames, box } = s.web.locator;
-      const { frames: _frames, ...clues } = scrubLocator(fix.locator);
-      // A fix from a subframe has no box, so the old one stays.
+      const { frames, box, pageTitle } = s.web.locator;
+      const {
+        frames: _frames,
+        pageTitle: _title,
+        ...clues
+      } = scrubLocator(fix.locator);
+      // A fix from a subframe has no box, so the old one stays; the page title is never a fix's.
       const kept = clues.box ?? box;
       return {
         ...s,
@@ -133,6 +131,7 @@ export function applyFix(
           locator: {
             ...clues,
             ...(kept ? { box: kept } : {}),
+            ...(pageTitle ? { pageTitle } : {}),
             ...(frames ? { frames } : {}),
           },
         },
@@ -153,17 +152,27 @@ export const dismissFix = (
   webFixDismissed: { ...set.webFixDismissed, [stepId]: fixKey(fix.locator) },
 });
 
-/** Saves a check run's suggestion when the targets are still the ones it played. */
+/** Drops a check run's suggestion for a step a later check found clearly. */
+export const clearFoundSuggestion = (
+  set: GuidedLearningSet,
+  stepId: string
+): GuidedLearningSet =>
+  set.webSuggestions?.[stepId]
+    ? { ...set, webSuggestions: withoutStep(set.webSuggestions, stepId) }
+    : set;
+
+/** Saves a check run's suggestion when the targets are still the ones it played; words that look like student data fall back to the step's own. */
 export function recordCheckSuggestion(
   set: GuidedLearningSet,
   sig: string,
   stepId: string,
   locator: WebTourLocator,
-  at: number
+  at: number,
+  matcher: NameMatcher | null = null
 ): GuidedLearningSet {
   const step = set.steps.find((s) => s.id === stepId);
   if (!step?.web || targetsSignature(set) !== sig) return set;
-  const { frames: _frames, ...clues } = scrubLocator(locator);
+  const clues = checkFixClues(scrubLocator(locator), step.web.locator, matcher);
   const old = set.webSuggestions?.[stepId];
   if (old && fixKey(old.locator) === fixKey(clues)) return set;
   return {

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { GuidedLearningStep, WebTourLocator } from '@/types';
 import type { TourRun } from '@/components/tours/tourRuns';
 import * as client from '@/components/tours/web/webTourFixes';
+import { runFixClues } from '@/components/tours/web/fixClues';
 import * as server from '@/functions/src/mcp/webTourFixes';
 
 // Shared fixture: every clue fixKey reads, the ones it ignores, and edge cases.
@@ -72,7 +73,7 @@ describe('web tour fixes client/server parity', () => {
 
   it('shows a teacher fix at the same run count on both sides', () => {
     const recorded: WebTourLocator = { role: 'button', name: 'Save' };
-    const fix: WebTourLocator = { role: 'button', name: 'Save changes' };
+    const fix: WebTourLocator = { role: 'button', name: 'Save', css: '#save' };
     const steps = [step('a', recorded)];
     for (let n = 1; n <= client.MIN_TEACHER_RUNS + 1; n++) {
       const runs = Array.from({ length: n }, () => run(fix));
@@ -87,6 +88,56 @@ describe('web tour fixes client/server parity', () => {
       expect(fromServer?.count).toBe(fromClient?.count);
       expect(fromServer?.source).toBe(fromClient?.source);
       expect(!!fromServer).toBe(n >= client.MIN_TEACHER_RUNS);
+    }
+  });
+
+  it('keeps the same clues of a run fix on both sides, with no page words', () => {
+    const recorded: WebTourLocator = {
+      role: 'button',
+      name: 'Save',
+      heading: 'Course',
+      attrs: { ariaLabel: 'Save course' },
+    };
+    for (const l of [
+      ...LOCATORS,
+      {
+        role: 'link',
+        name: 'Jane Smith',
+        pageTitle: 'Smith, Jane - Grades',
+        css: '#Smith, Jane',
+        attrs: { testId: 'kid@school.org', href: '/s/*', ariaLabel: 'Jane' },
+      },
+    ]) {
+      const fromClient = runFixClues(l, recorded);
+      expect(
+        server.runFixClues(
+          l as Record<string, unknown>,
+          recorded as Record<string, unknown>
+        )
+      ).toEqual(fromClient);
+      expect(JSON.stringify(fromClient)).not.toMatch(/Jane|Smith|kid@/);
+    }
+  });
+
+  it("hides a check's fix on both sides once the latest check found the step", () => {
+    const steps = [step('a', { role: 'button', name: 'Save' })];
+    const suggestion = {
+      locator: { role: 'button', name: 'Save', css: '#save' },
+      source: 'check' as const,
+      count: 1,
+      at: 2,
+      base: client.fixKey(steps[0].web?.locator),
+    };
+    for (const result of ['weak', 'found'] as const) {
+      const draft = {
+        steps,
+        webSuggestions: { a: suggestion },
+        webTourChecked: { by: 'x', at: 3, sig: 's', results: { a: result } },
+      };
+      const fromClient = client.suggestionFor(draft, steps[0], new Map());
+      const fromServer = server.stepFixes(draft, null, []).get('a');
+      expect(!!fromServer).toBe(!!fromClient);
+      expect(!!fromClient).toBe(result !== 'found');
     }
   });
 });

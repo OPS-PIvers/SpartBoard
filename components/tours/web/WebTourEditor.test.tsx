@@ -339,7 +339,7 @@ describe('WebTourEditor', () => {
         runId,
         stepIndex: 0,
         stepId: 's1',
-        result: 'found',
+        result: 'weak',
       });
       ext.onCheck?.({
         type: 'web-tour/suggest',
@@ -350,7 +350,6 @@ describe('WebTourEditor', () => {
         locator: { role: 'link', name: 'Biology 7 (2026)' },
       });
     });
-    expect(publishButton()).toBeEnabled();
     const panel = screen.getByRole('region', { name: 'Suggested fix' });
     expect(panel).toHaveTextContent('Biology 7 (2026)');
     expect(storage.setWebTourFixes).toHaveBeenCalled();
@@ -366,6 +365,69 @@ describe('WebTourEditor', () => {
     });
   });
 
+  it('drops a check fix once a later result finds the step clearly', async () => {
+    ext.protocol = 7;
+    renderEditor(tour('Biology 7'));
+    const button = screen.getByRole('button', { name: 'Check tour' });
+    await waitFor(() => expect(button).toBeEnabled());
+    fireEvent.click(button);
+    await waitFor(() => expect(ext.startWebTour).toHaveBeenCalled());
+    const runId = (ext.startWebTour.mock.calls[0] as unknown as string[])[3];
+    const step = (result: 'weak' | 'found') =>
+      ext.onCheck?.({
+        type: 'web-tour/check-step',
+        setId: 't1',
+        runId,
+        stepIndex: 0,
+        stepId: 's1',
+        result,
+      });
+    act(() => {
+      step('weak');
+      ext.onCheck?.({
+        type: 'web-tour/suggest',
+        setId: 't1',
+        runId,
+        stepIndex: 0,
+        stepId: 's1',
+        locator: { role: 'link', name: 'Biology 7 (2026)' },
+      });
+    });
+    expect(screen.getByRole('region', { name: 'Suggested fix' })).toBeTruthy();
+    act(() => step('found'));
+    expect(screen.queryByRole('region', { name: 'Suggested fix' })).toBeNull();
+    expect(storage.setWebTourFixes).toHaveBeenLastCalledWith(
+      expect.objectContaining({ webSuggestions: {} })
+    );
+  });
+
+  it("never shows a student's name or page title from a teacher's run (C15)", async () => {
+    const set = tour('Biology 7');
+    const run: TourRun = {
+      v: 9,
+      startedAt: 3,
+      furthest: 0,
+      done: false,
+      misses: ['s1'],
+      surface: 'web',
+      weak: [],
+      fixes: {
+        s1: {
+          role: 'link',
+          name: 'Jane Smith',
+          pageTitle: 'Smith, Jane - Grades',
+          css: 'tr.student > a',
+        },
+      },
+    };
+    live.tour = { set, publishedAt: 9 };
+    live.runs = [run, { ...run, startedAt: 4 }];
+    renderEditor(set);
+    const panel = await screen.findByRole('region', { name: 'Suggested fix' });
+    expect(panel).toHaveTextContent('tr.student > a');
+    expect(document.body.textContent).not.toMatch(/Jane|Smith|Grades/);
+  });
+
   it('shows a fix from teacher runs only once two agree, and dismisses it (C16)', async () => {
     const set = tour('Biology 7');
     const run = (uid: string): TourRun => ({
@@ -376,7 +438,7 @@ describe('WebTourEditor', () => {
       misses: ['s1'],
       surface: 'web',
       weak: [],
-      fixes: { s1: { role: 'link', name: 'Biology 7 A' } },
+      fixes: { s1: { role: 'link', name: 'Biology 7', css: 'a.course' } },
     });
     live.tour = { set, publishedAt: 9 };
     live.runs = [run('u1')];
@@ -388,7 +450,7 @@ describe('WebTourEditor', () => {
     renderEditor(set);
     expect(
       await screen.findByRole('region', { name: 'Suggested fix' })
-    ).toHaveTextContent('Biology 7 A');
+    ).toHaveTextContent('a.course');
     expect(screen.getAllByText('Suggested fix').length).toBeGreaterThan(1);
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
     expect(screen.queryByRole('region', { name: 'Suggested fix' })).toBeNull();

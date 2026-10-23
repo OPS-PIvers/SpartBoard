@@ -87,6 +87,7 @@ import {
 import { useWebTourCheck } from './useWebTourCheck';
 import {
   applyFix,
+  clearFoundSuggestion,
   dismissFix,
   recordCheckSuggestion,
   runSuggestions,
@@ -983,11 +984,14 @@ export const WebTourEditor: React.FC<{
   };
   const checker = useWebTourCheck({
     onStart: (sig) => saveCheck((s) => startCheckRun(s, uid, sig)),
-    onResult: (sig, stepId, result) =>
-      saveCheck((s) => recordCheckResult(s, sig, stepId, result)),
+    onResult: (sig, stepId, result) => {
+      saveCheck((s) => recordCheckResult(s, sig, stepId, result));
+      // A step this check found clearly needs no earlier check's fix.
+      if (result === 'found') saveFixes((s) => clearFoundSuggestion(s, stepId));
+    },
     onSuggest: (sig, stepId, locator) =>
       saveFixes((s) =>
-        recordCheckSuggestion(s, sig, stepId, locator, Date.now())
+        recordCheckSuggestion(s, sig, stepId, locator, Date.now(), matcher)
       ),
     onStatus: setStatus,
   });
@@ -1067,9 +1071,9 @@ export const WebTourEditor: React.FC<{
   const fromRuns = useMemo(
     () =>
       runs && live
-        ? runSuggestions(runs, live.publishedAt, live.set.steps)
+        ? runSuggestions(runs, live.publishedAt, live.set.steps, matcher)
         : new Map<string, WebTourSuggestion>(),
-    [runs, live]
+    [runs, live, matcher]
   );
   const fixes = new Map(
     steps.flatMap((s) => {
