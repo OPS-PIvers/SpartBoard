@@ -645,7 +645,12 @@
 | 2026-10-21 | State & Data | Clean: read merge/sync utils, normalizers, grading and scheduling utils, gradebook, collection/folder hooks; no reproducible bug. | — |
 | 2026-10-21 | Admin & Config | `BetaUsersPanel` cleared the input on Enter/Add even when the email was rejected as invalid. `addBetaUser` now returns a boolean and callers clear only on success. (contained). | [#4470](https://github.com/OPS-PIvers/SpartBoard/pull/4470) |
 | 2026-10-21 | Build & Tooling | Clean: read test-count/merge/rules scripts, `ssrfGuard`, `fetchImportImage` and its callers; no reproducible bug. | — |
-
+| 2026-10-23 | Baseline | `pnpm run validate` green on `dev-paul` at `554b8e58` except one load-only flake, `VideoActivityStudentApp.live.test.tsx` "warns and logs a tab exit" (1016 ms timing; passes 3/3 alone). No open debugger `nightly/*` PRs at dispatch. | - |
+| 2026-10-23 | Widgets | `useSharedBoardItemPublisher` kept a `Set` of `share/item@version` keys and never rewrote one, so content that reverted A to B to A (Flashcards/Notebook content-hash version) left the mirror stale for colleagues. Now a `Map` of last version per item. (contained). | [#4595](https://github.com/OPS-PIvers/SpartBoard/pull/4595) |
+| 2026-10-23 | Dashboard & Layout | Library `FolderTree` and `FolderSidebar` reorder used a raw `parentId` filter, so a folder with a deleted parent vanished from the sidebar while the list showed it. Both use `buildFolderIndex`. (contained). | [#4596](https://github.com/OPS-PIvers/SpartBoard/pull/4596) |
+| 2026-10-23 | State & Data | `planLocalSync` gave a new sub-collection `order` = sibling count, which lands mid-list or ties after deletes leave gaps. Now highest order + 1, as `sectionsAfterMove` does. (contained). | [#4597](https://github.com/OPS-PIvers/SpartBoard/pull/4597) |
+| 2026-10-23 | Admin & Config | Deleting the migrated "Legacy Default Schedule" saved `schedules: []` but kept legacy `items`, so it reappeared and still ran for teachers. The delete now clears `items`. (contained). | [#4598](https://github.com/OPS-PIvers/SpartBoard/pull/4598) |
+| 2026-10-23 | Build & Tooling | Discarded: connector `struggled()` in `webTourFixes.ts` parsed malformed `weak` entries differently from the editor's `parseWeak` (fixed and tested), but only malformed run data triggers it and the real client never writes it. No PR; lead below. | - |
 
 ## Backlog
 
@@ -1028,7 +1033,11 @@
 | Admin & Config | `HexColorField` calls `onChange` on every valid blur even when unchanged (redundant write); `BetaUsersPanel` lacks a duplicate-email test. | 2026-10-21 | open (low) |
 | State & Data | `gradingPeriods.ts` `inPeriod` uses local date vs UTC-midnight date-only `dueAt` (dead code today); `perClassDueDates` uses `in` on a plain object; `useStudentAssignments` ~L673 `.slice(0, 30)` drops class ids for PIN students in more than 30 classes; `stableStringify` serializes Date/Map/Set as `{}`. | 2026-10-21 | open (latent) |
 | Build & Tooling | `ssrfGuard` does not unwrap IPv4-translated `::ffff:0:a.b.c.d` (unreachable via DNS); `mergeVitestReports` falls back to `startTime` 0. | 2026-10-21 | open (low) |
-
+| Build & Tooling | `functions/src/mcp/webTourFixes.ts` mirrors (`MIN_TEACHER_RUNS`, `fixKey`, `parseWeak`) have no cross-package parity test against `components/tours/web/webTourHealth.ts`; `struggled()` accepts malformed `weak` entries (no colon, bad clue, empty id). Low impact. | 2026-10-23 | open |
+| State & Data | `mergeSubsetOrder` (`utils/reorderIds.ts`) duplicates ids and drops others if `subset` has duplicates. `importMissing` (`useLinkedCollectionSync`) marks shares handled before loading, so a transient `loadSharedBoard` failure is never retried that session. `useFolderTree.createFolder` next-order uses the render closure; `move-to-parent` delete can collide sibling orders. | 2026-10-23 | open |
+| Widgets | `diffSharedWallEdit` (`ActivityWall/sharedWallEdit.ts`) skips keys whose new value is `undefined`, so a colleague can't clear an optional field. Arts & Letters Agenda `completed`/`descriptions` are plain objects keyed by admin part ids and are never pruned. | 2026-10-23 | open (unverified) |
+| Dashboard & Layout | Library `FolderRowButton`/`FolderRow` drag state is cleared only by `dragend`/`drop`, so a row unmounting mid-drag leaves it stuck. `BoardsModal` bulk delete of collections may skip `confirmLinkedRemoval`. `ToastContainer`, `ActiveClassChip`, `RosterModeControl` use full `useDashboard()`. | 2026-10-23 | open (unverified) |
+| Admin & Config | de/es/fr each lack ~926 keys that en has (e.g. `widgetSettings.qr.*`, `widgetSettings.scoreboard.*`); confirm English fallback is intended. Deleting a schedule leaves `dateOverrides` pointing at it (cosmetic). | 2026-10-23 | open |
 
 ## Notes & Gotchas
 
@@ -1437,6 +1446,8 @@
 - 2026-10-20: **`git stash` is shared across all worktrees.** Three of five subagents used `stash push/pop` for fail-before checks and popped each other's stashes (lost edits recovered from the agents' own reports and `git fsck --lost-found`). Dispatch prompts must say: never use `git stash`; use `git checkout <base> -- <file>` then `git checkout HEAD -- <file>`.
 - 2026-10-20: the husky hook on subagent commits did not catch a `no-restricted-imports` (relative `../` import in tests), a `require-await`, an `unbound-method`, a `no-unsafe-return` or two prettier misses; the merged-tree gate caught all of them. `validate` chains with `&&`, so a lint failure hides format/test results: re-run after fixing. Gate the merged tree once on a temporary integration branch.
 - 2026-10-20: a fresh container can lack `functions/node_modules` packages (`@echogarden/espeak-ng-emscripten`), failing 3 pronunciation tests; run `pnpm install` in `functions/` before reading the baseline as red.
+- 2026-10-23: a cheap gate is one `validate` + `build` on a temporary integration branch merging all kept fixes (they were file-disjoint), run after rebasing on the latest `dev-paul`; subagents ran scoped checks only. `dev-paul` moved 7 security PRs during the run, so fetch before the rebase. A one-off `VideoActivityStudentApp.live` timing failure under full-suite load passed 3/3 alone.
+- Run count: **105** | Last run: **2026-10-23**
 - Run count: **104** | Last run: **2026-10-21**
 - Run count: **103** | Last run: **2026-10-20**
 - Run count: **102** | Last run: **2026-10-19**
