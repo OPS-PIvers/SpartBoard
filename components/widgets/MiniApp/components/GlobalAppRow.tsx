@@ -49,6 +49,7 @@ export const GlobalAppRow: React.FC<GlobalAppRowProps> = ({
         </div>
       </div>
       <div className="flex items-center" style={{ gap: 'min(4px, 1cqmin)' }}>
+        {/* no-tour-anchor: one row per library app, generated from the admin list */}
         <button
           onClick={() => onAssign(app)}
           className="bg-violet-600 hover:bg-violet-500 text-white rounded-lg transition-all flex items-center gap-1.5 font-black uppercase tracking-widest shadow-sm"
@@ -67,6 +68,7 @@ export const GlobalAppRow: React.FC<GlobalAppRowProps> = ({
           <span className="hidden sm:inline">Assign</span>
         </button>
 
+        {/* no-tour-anchor: one row per library app, generated from the admin list */}
         <button
           onClick={() => onShowAssignments(app)}
           className="text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
@@ -82,6 +84,7 @@ export const GlobalAppRow: React.FC<GlobalAppRowProps> = ({
           />
         </button>
 
+        {/* no-tour-anchor: one row per library app, generated from the admin list */}
         <button
           onClick={() => onRun(app)}
           className="bg-emerald-50/50 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors"
@@ -97,6 +100,7 @@ export const GlobalAppRow: React.FC<GlobalAppRowProps> = ({
             }}
           />
         </button>
+        {/* no-tour-anchor: one row per library app, generated from the admin list */}
         <button
           onClick={() => onSaveToLibrary(app)}
           disabled={isSaving}

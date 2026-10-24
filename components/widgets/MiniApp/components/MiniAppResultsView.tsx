@@ -21,6 +21,7 @@ import {
 } from '@/utils/scoreColor';
 import type { StudentQuestionLine } from '@/utils/quizStudentDrilldown';
 import type { MiniAppBestAttempt, MiniAppManifestQuestion } from '@/types';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 export interface MiniAppResultRow {
   id: string;
@@ -135,6 +136,7 @@ function SegmentedToggle<T extends string>({
       {options.map(([v, text], i) => {
         const on = v === value;
         return (
+          // no-tour-anchor: filter option generated from the options list
           <button
             key={v}
             type="button"
@@ -163,6 +165,7 @@ const DrillRow: React.FC<{
   detail: string;
   onClick: () => void;
 }> = ({ label, detail, onClick }) => (
+  // no-tour-anchor: summary card generated per results section
   <button
     onClick={onClick}
     className={`flex items-center justify-between ${CARD} hover:border-brand-blue-light transition-colors text-left`}
@@ -377,6 +380,7 @@ export const MiniAppResultsView: React.FC<{
       >
         <button
           onClick={() => (screen === 'home' ? onBack() : setScreen('home'))}
+          {...tourTypeAttr('mini-app.results-back', 'miniApp')}
           aria-label="Back"
           className="rounded-md hover:bg-white/15 transition-colors"
           style={{ padding: 'min(4px, 1cqmin)' }}
@@ -392,6 +396,7 @@ export const MiniAppResultsView: React.FC<{
         <button
           type="button"
           onClick={toggleHideNames}
+          {...tourTypeAttr('mini-app.results-hide-names', 'miniApp')}
           aria-pressed={hideNames}
           aria-label="Hide student names"
           title={hideNames ? 'Show student names' : 'Hide student names'}
@@ -695,6 +700,7 @@ export const MiniAppResultsView: React.FC<{
                         className="flex items-center min-w-0"
                         style={{ gap: 'min(6px, 1.5cqmin)' }}
                       >
+                        {/* no-tour-anchor: per-student row expander */}
                         <button
                           type="button"
                           onClick={(e) => {
@@ -905,6 +911,7 @@ export const MiniAppResultsView: React.FC<{
             <button
               type="button"
               onClick={() => void handleExport()}
+              {...tourTypeAttr('mini-app.results-export-sheet', 'miniApp')}
               disabled={exporting || rows.length === 0}
               className="inline-flex items-center bg-white border border-brand-gray-lighter hover:border-brand-blue-light text-brand-blue-primary font-sans font-semibold rounded-md transition-colors disabled:opacity-60"
               style={{

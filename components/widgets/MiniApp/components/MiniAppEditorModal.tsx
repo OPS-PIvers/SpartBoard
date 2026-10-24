@@ -363,6 +363,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
             <button
               type="button"
               onClick={() => setTrying(true)}
+              {...tourTypeAttr('mini-app.try-as-student', 'miniApp')}
               disabled={!html.trim()}
               className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-brand-blue-primary rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50"
             >

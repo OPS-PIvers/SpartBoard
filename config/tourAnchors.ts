@@ -3779,6 +3779,13 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'widget-settings.materials.form-delete': {
+    label: 'Delete button in the Materials custom material form',
+    perWidget: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
   'widget-settings.music.sync-time-tool': {
     label: 'Sync with Time Tool toggle in Music settings',
     perWidget: true,
@@ -9754,6 +9761,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'mini-app.session-rename-cancel': {
+    label: 'Cancel rename button on a Mini App assignment',
+    perField: true,
+    panel: true,
+  },
   'mini-app.session-copy-link': {
     label: 'Copy Link button on a Mini App assignment',
     perField: true,
@@ -9780,6 +9792,37 @@ export const TOUR_ANCHORS = {
     label: 'End Session button on a Mini App assignment',
     perField: true,
     destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'mini-app.session-end-cancel': {
+    label: 'Cancel button on a Mini App assignment end confirmation',
+    perField: true,
+    panel: true,
+  },
+  'mini-app.try-as-student': {
+    label: 'Try as student button in the Mini App editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.key-add-question': {
+    label: 'Add question button in the Mini App answer key',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.results-back': {
+    label: 'Back button in the Mini App results view',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.results-hide-names': {
+    label: 'Hide student names button in the Mini App results view',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.results-export-sheet': {
+    label: 'Export to Sheets button in the Mini App results view',
+    perWidgetType: true,
     persists: true,
     panel: true,
   },

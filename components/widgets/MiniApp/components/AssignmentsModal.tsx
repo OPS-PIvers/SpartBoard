@@ -174,6 +174,11 @@ export const AssignmentsModal: React.FC<AssignmentsModalProps> = ({
                                 setEditingSessionId(null);
                                 setDraftName('');
                               }}
+                              {...tourFieldAttr(
+                                'mini-app.session-rename-cancel',
+                                'miniApp',
+                                `row-${sessionIndex + 1}`
+                              )}
                               className="rounded-xl bg-slate-200 px-3 py-2 text-xs font-bold text-slate-700"
                             >
                               Cancel
@@ -302,6 +307,11 @@ export const AssignmentsModal: React.FC<AssignmentsModalProps> = ({
                             </button>
                             <button
                               onClick={() => setConfirmEndId(null)}
+                              {...tourFieldAttr(
+                                'mini-app.session-end-cancel',
+                                'miniApp',
+                                `row-${sessionIndex + 1}`
+                              )}
                               className="rounded-xl bg-slate-200 px-3 py-2 text-xs font-bold text-slate-700"
                             >
                               Cancel
