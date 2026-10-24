@@ -6,6 +6,10 @@ export interface Listing {
   name: string;
   /** Exact page origins allowed to message the extension. */
   origins: readonly string[];
+  /** Where the extension's tour calls live (WEB_TOURS_HELP_PANEL.md H7). */
+  functionsBase: string;
+  /** The listing's "Chrome extension" OAuth client (H8); keep equal to functions/src/webTourExtension.ts. */
+  oauthClientId: string;
 }
 
 const LOCALHOST_PORTS = [3000, 3001, 3002, 3003, 3004];
@@ -17,6 +21,9 @@ export const LISTINGS: Record<ListingId, Listing> = {
       'https://spartboard.web.app',
       'https://spartboard.firebaseapp.com',
     ],
+    functionsBase: 'https://us-central1-spartboard.cloudfunctions.net',
+    oauthClientId:
+      '759666600376-3588aon892pctctjtosfpurqksup9hk5.apps.googleusercontent.com',
   },
   dev: {
     name: 'SpartBoard (dev)',
@@ -26,6 +33,9 @@ export const LISTINGS: Record<ListingId, Listing> = {
       'https://spartboard-dev.firebaseapp.com',
       ...LOCALHOST_PORTS.map((port) => `http://localhost:${port}`),
     ],
+    functionsBase: 'https://us-central1-spartboard-dev.cloudfunctions.net',
+    oauthClientId:
+      '258543092004-9mfh4nls8a7edmift5dkh9l93jp7pdk1.apps.googleusercontent.com',
   },
 };
 

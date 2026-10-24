@@ -7,12 +7,17 @@ export interface Manifest {
   [key: string]: unknown;
 }
 
-/** The base manifest with the listing's name and its exact `externally_connectable` origins. */
+export const OAUTH_SCOPES = ['https://www.googleapis.com/auth/userinfo.email'];
+
+/** The base manifest with the listing's name, its exact `externally_connectable` origins and its OAuth client once it has one. */
 export function manifestFor(base: Manifest, listing: ListingId): Manifest {
-  const { name, origins } = LISTINGS[listing];
+  const { name, origins, oauthClientId } = LISTINGS[listing];
   return {
     ...base,
     name,
     externally_connectable: { matches: origins.map((o) => `${o}/*`) },
+    ...(oauthClientId
+      ? { oauth2: { client_id: oauthClientId, scopes: OAUTH_SCOPES } }
+      : {}),
   };
 }
