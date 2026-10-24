@@ -3,7 +3,7 @@ import { WidgetData, CountdownConfig } from '@/types';
 import { WidgetLayout } from '../WidgetLayout';
 import { getFontClass, hexToRgba } from '@/utils/styles';
 import { useGlobalStyle } from '@/context/dashboardCanvasStore';
-import { parseConfigDate } from './utils';
+import { countDaysBetween, parseConfigDate } from './utils';
 
 interface CountdownDay {
   date: Date;
@@ -14,6 +14,7 @@ interface CountdownDay {
 }
 
 const MAX_PAST_GRID_DAYS = 366;
+const MAX_FUTURE_GRID_DAYS = 366;
 
 // Usable face width in cqw once the title's side padding is taken off.
 const TEXT_CQW = 88;
@@ -101,17 +102,7 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
       return 0;
     }
 
-    let days = 0;
-    const current = new Date(countStart);
-
-    while (current < event) {
-      if (includeWeekends || !isWeekendDate(current)) {
-        days++;
-      }
-      current.setDate(current.getDate() + 1);
-    }
-
-    return days;
+    return countDaysBetween(countStart, event, includeWeekends);
   }, [startDate, eventDate, includeWeekends, countToday, todayMidnightMs]);
 
   const gridData = useMemo(() => {
@@ -130,8 +121,12 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
     const gridStart = new Date(countStart);
     gridStart.setDate(gridStart.getDate() - MAX_PAST_GRID_DAYS);
     const current = new Date(Math.max(start.getTime(), gridStart.getTime()));
+    // Stop a year past the count start so a far-future event can't render millions of cells.
+    const gridEnd = new Date(countStart);
+    gridEnd.setDate(gridEnd.getDate() + MAX_FUTURE_GRID_DAYS);
+    const totalCounted = countDaysBetween(countStart, event, includeWeekends);
 
-    while (current <= event) {
+    while (current <= event && current <= gridEnd) {
       const normalizedCurrent = new Date(current);
 
       const isEvent = normalizedCurrent.getTime() === event.getTime();
@@ -155,10 +150,7 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
     }
 
     const countdownNumbers = new Map(
-      countedDays.map((day, index) => [
-        day.getTime(),
-        countedDays.length - index,
-      ])
+      countedDays.map((day, index) => [day.getTime(), totalCounted - index])
     );
 
     return validDays.map((item) => ({
