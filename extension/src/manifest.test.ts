@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import manifestJson from '../manifest.json';
 import { manifestFor, type Manifest } from './manifest';
+import { LISTINGS } from './listings';
 
 const base: Manifest = manifestJson;
 
@@ -53,6 +54,20 @@ describe('manifest', () => {
     );
     for (const match of dev.externally_connectable.matches) {
       expect(match).not.toMatch(/\*\./);
+    }
+  });
+
+  it('adds a Google sign-in block only once the listing has an OAuth client', () => {
+    for (const listing of ['prod', 'dev'] as const) {
+      const manifest = manifestFor(base, listing);
+      if (LISTINGS[listing].oauthClientId) {
+        expect(manifest.oauth2).toEqual({
+          client_id: LISTINGS[listing].oauthClientId,
+          scopes: ['https://www.googleapis.com/auth/userinfo.email'],
+        });
+      } else {
+        expect(manifest).not.toHaveProperty('oauth2');
+      }
     }
   });
 });

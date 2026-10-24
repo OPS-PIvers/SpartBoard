@@ -55,6 +55,19 @@ export interface PlaybackHost {
   now(): number;
 }
 
+/** A tour waiting for its start page (WEB_TOURS_HELP_PANEL.md H1-H3). */
+interface ArmState {
+  since: number;
+  /** The start page's host, which a sign-in round trip leaves and comes back to. */
+  host: string;
+  /** The tab left the host since it last loaded a page there. */
+  leftHost: boolean;
+  /** The one automatic trip to the start page has been made (H2). */
+  navigated: boolean;
+  /** The chip offers "Go to the start" instead of navigating again. */
+  goStart: boolean;
+}
+
 interface TabRecord {
   tabId: number;
   state: PlaybackState;
@@ -85,9 +98,13 @@ interface TabRecord {
   candidate?: { token: string; fix: WebTourLocator };
   /** The fix last suggested per step, replayed to a page that reconnects; the same clues aren't posted twice. */
   fixes?: Record<string, WebTourLocator>;
+  /** Set while the tour is armed. */
+  arm?: ArmState;
 }
 
 export const FALLBACK_MS = 4000;
+/** How long an armed tour waits for its site before it stops (H3). */
+export const ARM_MS = 10 * 60 * 1000;
 const tabKey = (tabId: number) => `wt:tab:${tabId}`;
 const picKey = (tabId: number, stepId: string) => `wt:pic:${tabId}:${stepId}`;
 const TABS_KEY = 'wt:tabs';
@@ -110,6 +127,13 @@ const CHECK_ENDS_QUEUE = -3;
 export const SESSION_BUDGET = 9 * 1024 * 1024;
 const MAX_TITLE = 200;
 const isWebPage = (url: string) => /^https?:\/\//.test(url);
+const hostOf = (url: string) => {
+  try {
+    return new URL(url).host.toLowerCase();
+  } catch {
+    return '';
+  }
+};
 
 /** A step's check result from how it was found; an unfound step whose candidates tied is `ambiguous`. */
 export const checkResultOf = (
@@ -206,6 +230,13 @@ export function createPlaybackController(host: PlaybackHost) {
       }
       return;
     }
+    if (state.status === 'armed') {
+      host.sendToFrame(rec.tabId, 0, {
+        type: 'overlay/render',
+        state: notice(rec, 'armed'),
+      });
+      return;
+    }
     const shownIn = state.status === 'shown' ? rec.targetFrameId : null;
     const settled = state.status === 'shown' || state.status === 'fallback';
     const base = {
@@ -244,6 +275,149 @@ export function createPlaybackController(host: PlaybackHost) {
         state: { ...base, role: 'target', targetHere: true, picture: null },
       });
     }
+  }
+
+  /** The chip state for an armed, moved or stopped tour. */
+  function notice(
+    rec: TabRecord,
+    status: 'armed' | 'moved' | 'stopped'
+  ): OverlayState {
+    const { state } = rec;
+    return {
+      title: state.tour.title.slice(0, MAX_TITLE),
+      text: '',
+      current: Math.min(state.index + 1, state.tour.steps.length),
+      total: state.tour.steps.length,
+      status,
+      role: 'top',
+      targetHere: false,
+      observe: false,
+      picture: null,
+      ...(status === 'armed' ? { goStart: !!rec.arm?.goStart } : {}),
+    };
+  }
+
+  /** The tour's own start url ends the wait, so a wildcard first step opened at the site root still plays. */
+  function leavesArm(rec: TabRecord, url: string) {
+    if (!rec.arm || rec.state.status !== 'armed') return false;
+    const trim = (u: string) => u.replace(/\/$/, '');
+    return (
+      hostOf(url) === rec.arm.host &&
+      trim(url) === trim(rec.state.tour.startUrl)
+    );
+  }
+
+  /** An armed tab loaded a page that isn't the start page: a trip off the site and back goes to the start once (H2). */
+  async function armedPage(rec: TabRecord, url: string) {
+    const arm = rec.arm;
+    if (!arm) return;
+    if (hostOf(url) !== arm.host) {
+      rec.arm = { ...arm, leftHost: true, goStart: false };
+    } else if (arm.leftHost && !arm.navigated) {
+      rec.arm = { ...arm, leftHost: false, navigated: true, goStart: false };
+      await host.navigate(rec.tabId, rec.state.tour.startUrl);
+    } else {
+      rec.arm = { ...arm, leftHost: false, goStart: true };
+    }
+  }
+
+  /** Stops a tour that waited too long for its site; the page can start it again. */
+  async function expire(rec: TabRecord) {
+    for (const f of await host.frames(rec.tabId)) {
+      host.sendToFrame(rec.tabId, f.frameId, { type: 'wt:stop' });
+    }
+    host.sendToFrame(rec.tabId, 0, {
+      type: 'overlay/render',
+      state: notice(rec, 'stopped'),
+    });
+    postEnd(rec, 'exit', rec.state.index);
+    await forget(rec);
+  }
+
+  const armedOut = (rec: TabRecord) =>
+    !!rec.arm &&
+    rec.state.status === 'armed' &&
+    host.now() - rec.arm.since >= ARM_MS;
+
+  /** Stops every armed tour past its wait; true while one is still waiting. */
+  async function expireArmed(): Promise<boolean> {
+    let waiting = false;
+    for (const tabId of (await host.load<number[]>(TABS_KEY)) ?? []) {
+      await serial(tabId, async () => {
+        const rec = await load(tabId);
+        if (!rec?.arm || rec.state.status !== 'armed') return;
+        if (armedOut(rec)) await expire(rec);
+        else waiting = true;
+      });
+    }
+    return waiting;
+  }
+
+  /** The armed tour waiting for this url's site in another tab, if any. */
+  async function armedTabFor(tabId: number, url: string) {
+    const site = hostOf(url);
+    for (const other of (await host.load<number[]>(TABS_KEY)) ?? []) {
+      if (other === tabId) continue;
+      const rec = await load(other);
+      if (
+        rec?.arm &&
+        rec.state.status === 'armed' &&
+        rec.arm.host === site &&
+        !armedOut(rec)
+      )
+        return other;
+    }
+    return null;
+  }
+
+  /** Moves an armed tour to the tab that reached its site, e.g. one LaunchPad opened (H3). */
+  function adopt(fromTabId: number, toTabId: number) {
+    return serial(fromTabId, async (): Promise<TabRecord | null> => {
+      const rec = await load(fromTabId);
+      if (!rec?.arm || rec.state.status !== 'armed' || armedOut(rec))
+        return null;
+      // Pictures move one at a time so two full copies never share the session quota.
+      const done: string[] = [];
+      try {
+        for (const s of rec.state.tour.steps) {
+          if (!s.hasPicture) continue;
+          const pic = await host.load<WebTourPictureBytes>(
+            picKey(fromTabId, s.id)
+          );
+          if (!pic) continue;
+          await host.save({ [picKey(toTabId, s.id)]: pic });
+          done.push(s.id);
+          await host.remove([picKey(fromTabId, s.id)]);
+        }
+      } catch {
+        for (const id of done) {
+          const pic = await host.load<WebTourPictureBytes>(picKey(toTabId, id));
+          if (pic) await host.save({ [picKey(fromTabId, id)]: pic });
+          await host.remove([picKey(toTabId, id)]);
+        }
+        return null;
+      }
+      // Arriving from elsewhere counts as a trip off the site, so a landing page goes to the start once.
+      const moved: TabRecord = {
+        ...rec,
+        tabId: toTabId,
+        targetFrameId: null,
+        litFrameId: null,
+        arm: { ...rec.arm, leftHost: true, navigated: false, goStart: false },
+      };
+      await store(moved);
+      await trackTab(toTabId, true);
+      await host.remove([
+        tabKey(fromTabId),
+        ...rec.state.tour.steps.map((s) => picKey(fromTabId, s.id)),
+      ]);
+      await trackTab(fromTabId, false);
+      host.sendToFrame(fromTabId, 0, {
+        type: 'overlay/render',
+        state: notice(rec, 'moved'),
+      });
+      return moved;
+    });
   }
 
   /** Posts a candidate's clues for a step that missed or played weak; pages before protocol 7 never get it. */
@@ -509,12 +683,16 @@ export function createPlaybackController(host: PlaybackHost) {
     event: PlaybackEvent,
     frameId: number | null = null
   ) {
+    if (event.type === 'page' && leavesArm(rec, event.url))
+      rec.state = { ...rec.state, status: 'seeking' };
     const before = rec.state;
     const withUrl: PlaybackEvent =
       event.type === 'next' || event.type === 'back'
         ? { ...event, url: rec.url }
         : event;
     rec.state = reducePlayback(before, withUrl);
+    if (rec.state.status !== 'armed') delete rec.arm;
+    else if (event.type === 'page') await armedPage(rec, event.url);
     if (event.type === 'found' && rec.state.status === 'shown')
       rec.targetFrameId = frameId;
     postProgress(rec, before);
@@ -563,7 +741,10 @@ export function createPlaybackController(host: PlaybackHost) {
     await trackTab(rec.tabId, false);
   }
 
-  async function startNow(parsed: ParsedStart): Promise<number> {
+  async function startNow(
+    parsed: ParsedStart,
+    inTab?: number
+  ): Promise<number> {
     for (const other of (await host.load<number[]>(TABS_KEY)) ?? []) {
       await serial(other, async () => {
         const rec = await load(other);
@@ -576,7 +757,7 @@ export function createPlaybackController(host: PlaybackHost) {
       });
     }
     // The record is saved before the page loads, so its first commit always finds it.
-    const tabId = await host.openTab('about:blank');
+    const tabId = inTab ?? (await host.openTab('about:blank'));
     return serial(tabId, async () => {
       const state = startPlayback(
         parsed.tour,
@@ -589,7 +770,7 @@ export function createPlaybackController(host: PlaybackHost) {
           ...state,
           index: parsed.stepIndex,
           furthest: parsed.stepIndex,
-          status: 'seeking',
+          status: 'armed',
         },
         token: '',
         seq: 0,
@@ -599,6 +780,13 @@ export function createPlaybackController(host: PlaybackHost) {
         seekAt: 0,
         posted: {},
         postedIndex: -1,
+        arm: {
+          since: host.now(),
+          host: hostOf(parsed.tour.startUrl),
+          leftHost: false,
+          navigated: false,
+          goStart: false,
+        },
         ...(parsed.check
           ? { check: true, runId: parsed.runId ?? '', results: {} }
           : {}),
@@ -622,25 +810,33 @@ export function createPlaybackController(host: PlaybackHost) {
         await trackTab(tabId, true);
       } catch (err) {
         await forget(rec).catch(() => undefined);
-        await host.closeTab(tabId).catch(() => undefined);
+        if (inTab === undefined)
+          await host.closeTab(tabId).catch(() => undefined);
         throw err;
       }
       await host.navigate(tabId, parsed.tour.startUrl);
+      host.backstop();
+      host.setTimer(ARM_MS, () => void expireArmed());
       return tabId;
     });
   }
 
   return {
-    /** Opens the tour's first page in a new tab and starts playing there; one tour plays at a time. */
-    start(parsed: ParsedStart): Promise<number> {
-      return serial(START_QUEUE, () => startNow(parsed));
+    /** Opens the tour's first page in a new tab, or `inTab` (H5), and starts playing there; one tour plays at a time. */
+    start(parsed: ParsedStart, inTab?: number): Promise<number> {
+      return serial(START_QUEUE, () => startNow(parsed, inTab));
     },
 
     /** A new document committed in a frame of the tab (navigation, reload or a new frame). */
     committed: (tabId: number, frameId: number, url: string) =>
       serial(tabId, async () => {
-        const rec = await load(tabId);
-        if (!rec || !isWebPage(url)) return;
+        if (!isWebPage(url)) return;
+        let rec = await load(tabId);
+        if (!rec && frameId === 0) {
+          const from = await armedTabFor(tabId, url);
+          if (from !== null) rec = (await adopt(from, tabId)) ?? undefined;
+        }
+        if (!rec) return;
         if (frameId === 0 && leftFinished(rec, url)) {
           await stopTab(rec);
           return;
@@ -671,6 +867,8 @@ export function createPlaybackController(host: PlaybackHost) {
           await stopTab(rec);
           return;
         }
+        // A reused tab whose start URL changed only the fragment never commits, so it needs the overlay here.
+        if (rec.url === 'about:blank') await host.inject(tabId, [0], true);
         rec.url = url;
         await dispatch(rec, { type: 'page', url });
       }),
@@ -732,6 +930,14 @@ export function createPlaybackController(host: PlaybackHost) {
         if (frameId !== 0) return;
         const rec = await load(tabId);
         if (!rec) return;
+        if (action === 'start') {
+          if (rec.state.status !== 'armed' || !rec.arm) return;
+          rec.arm = { ...rec.arm, navigated: true, goStart: false };
+          await store(rec);
+          await render(rec);
+          await host.navigate(tabId, rec.state.tour.startUrl);
+          return;
+        }
         await dispatch(rec, { type: action });
       }),
 
@@ -782,8 +988,9 @@ export function createPlaybackController(host: PlaybackHost) {
       return out;
     },
 
-    /** Times out seeks whose timer died with a restarted worker. */
+    /** Times out seeks and armed waits whose timers died with a restarted worker. */
     async sweep() {
+      if (await expireArmed()) host.backstop();
       for (const tabId of (await host.load<number[]>(TABS_KEY)) ?? []) {
         await serial(tabId, async () => {
           const rec = await load(tabId);

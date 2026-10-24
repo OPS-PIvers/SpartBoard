@@ -115,9 +115,9 @@ export const HexColorField: React.FC<HexColorFieldProps> = ({
           // the last committed value rather than persisting garbage downstream
           // consumers would have to defensively re-validate.
           if (next === '') {
-            onChange(undefined);
+            if (value !== undefined) onChange(undefined);
           } else if (isValidHex(next)) {
-            onChange(next);
+            if (next !== value) onChange(next);
             setDraft(next);
           } else {
             setDraft(value ?? '');

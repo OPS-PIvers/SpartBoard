@@ -80,6 +80,39 @@ describe('CountdownWidget', () => {
     ).toBeLessThan(500);
   });
 
+  it('caps grid cells and keeps numbering when the event is years away', () => {
+    const { container } = render(
+      <CountdownWidget
+        widget={buildWidget({
+          startDate: '2026-04-03',
+          eventDate: '2100-01-01',
+          viewMode: 'grid',
+        })}
+      />
+    );
+
+    expect(
+      container.querySelectorAll('.rounded-lg.border-2').length
+    ).toBeLessThan(500);
+    // Apr 3 2026 through Dec 31 2099 is 26,936 days; the first cell carries the full count.
+    expect(screen.getByText('26936')).toBeInTheDocument();
+  });
+
+  it('counts weekdays only across a long span without looping', () => {
+    render(
+      <CountdownWidget
+        widget={buildWidget({
+          startDate: '2026-04-03',
+          eventDate: '2100-01-01',
+          includeWeekends: false,
+        })}
+      />
+    );
+
+    // 26,936 days = 3,848 whole weeks, so 3,848 x 5 weekdays.
+    expect(screen.getByText('19240')).toBeInTheDocument();
+  });
+
   it('still marks the event day in grid mode when it falls on an excluded weekend', () => {
     const { container } = render(
       <CountdownWidget

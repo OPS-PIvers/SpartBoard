@@ -304,6 +304,13 @@ export { plcGoalCoachV1 } from './plcGoalCoach';
 // Web tours: Claude writes step titles and tips (docs/plans/shipped/WEB_TOURS_CLAUDE.md C9).
 export { writeWebTourTextV1 } from './webTourWriting';
 
+// Web tours: the extension lists, loads and records tours with a Google token (docs/plans/shipped/WEB_TOURS_HELP_PANEL.md H7).
+export {
+  webToursListV1,
+  webTourLoadV1,
+  webTourRunV1,
+} from './webTourExtension';
+
 // ── One-shot PLC migration (arrays→members map, orgId inference, aggregates
 // skeleton). Admin-only callable; see functions/src/migratePlcs.ts. ─────────
 export { migratePlcs } from './migratePlcs';

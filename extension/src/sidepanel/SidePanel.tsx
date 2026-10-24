@@ -589,7 +589,7 @@ export const SidePanel: React.FC = () => {
   if (!status || steps === null) return null;
 
   return (
-    <main className="flex min-h-screen flex-col bg-slate-50 font-sans text-sm text-slate-900 antialiased">
+    <div className="flex flex-1 flex-col">
       {/* Chrome's own panel bar already shows the name and icon, so the panel only titles its state. */}
       <div className="flex flex-1 flex-col gap-3 p-4">
         <h1
@@ -833,6 +833,6 @@ export const SidePanel: React.FC = () => {
           </>
         )}
       </div>
-    </main>
+    </div>
   );
 };

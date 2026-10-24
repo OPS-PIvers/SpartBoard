@@ -15,6 +15,7 @@ on:
       - 'dev-*'
     paths:
       - 'scripts/sync-lunch-menus.mjs'
+      - 'scripts/nutrisliceFetch.mjs'
       - '.github/workflows/sync-lunch-menus.yml'
   workflow_dispatch:
     inputs:
@@ -43,7 +44,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: scripts/sync-lunch-menus.mjs
+          sparse-checkout: |
+            scripts/sync-lunch-menus.mjs
+            scripts/nutrisliceFetch.mjs
           sparse-checkout-cone-mode: false
 
       - uses: actions/setup-node@v4

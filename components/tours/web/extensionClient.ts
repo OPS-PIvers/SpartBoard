@@ -2,6 +2,7 @@ import {
   CHECK_PROTOCOL,
   EXTENSION_PROTOCOL_VERSION,
   isCheckRunId,
+  OPEN_PROTOCOL,
   parseWebTourLocator,
   SCORED_MATCH_PROTOCOL,
   WEB_TOUR_PORT,
@@ -149,6 +150,27 @@ export async function startWebTour(
       ? reply.error
       : 'no-reply';
   return { ok: false, error };
+}
+
+/** Whether this extension loads and opens a tour from its id alone (protocol 8), so the page needs no sign-in. */
+export const canOpenWebTours = (status: ExtensionStatus): boolean =>
+  canPlayWebTours(status) &&
+  status.kind === 'ready' &&
+  status.protocol >= OPEN_PROTOCOL;
+
+/** Asks the extension to load the published tour and open it; any failure means the page hands the tour over itself. */
+export async function openWebTour(setId: string): Promise<StartResult> {
+  const reply = await send({ type: 'web-tour/open', setId }, 60_000);
+  if (isRecord(reply) && reply.ok === true && Number.isInteger(reply.tabId)) {
+    return { ok: true, tabId: reply.tabId as number };
+  }
+  return {
+    ok: false,
+    error:
+      isRecord(reply) && typeof reply.error === 'string'
+        ? reply.error
+        : 'no-reply',
+  };
 }
 
 /** Listens to the tour's progress until the returned cleanup runs; onGone fires if the port drops. */
