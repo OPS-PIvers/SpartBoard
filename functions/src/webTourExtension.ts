@@ -10,10 +10,12 @@ type Firestore = admin.firestore.Firestore;
 
 export const DISTRICT_DOMAIN = 'orono.k12.mn.us';
 
-// Each listing's "Chrome extension" OAuth client; empty until it is created (H8). Keep equal to extension/src/listings.ts.
+// Each listing's "Chrome extension" OAuth client (H8). Keep equal to extension/src/listings.ts.
 export const EXTENSION_OAUTH_CLIENTS: Record<string, string> = {
-  spartboard: '',
-  'spartboard-dev': '',
+  spartboard:
+    '759666600376-3588aon892pctctjtosfpurqksup9hk5.apps.googleusercontent.com',
+  'spartboard-dev':
+    '258543092004-9mfh4nls8a7edmift5dkh9l93jp7pdk1.apps.googleusercontent.com',
 };
 
 // Same caps as the extension's start message (components/tours/web/extensionProtocol.ts).

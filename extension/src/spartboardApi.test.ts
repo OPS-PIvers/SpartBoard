@@ -80,7 +80,7 @@ describe('OAuth clients', () => {
       'utf8'
     );
     const quoted = (project: string) =>
-      new RegExp(`'?${project}'?: '([^']*)'`).exec(server)?.[1];
+      new RegExp(`'?${project}'?:\\s*'([^']*)'`).exec(server)?.[1];
     expect(quoted('spartboard')).toBe(LISTINGS.prod.oauthClientId);
     expect(quoted('spartboard-dev')).toBe(LISTINGS.dev.oauthClientId);
   });
