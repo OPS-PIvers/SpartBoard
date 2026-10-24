@@ -3,6 +3,8 @@
 // Runs from GitHub Actions because Nutrislice refuses requests from Google Cloud IPs (2026-10-02).
 // Usage: PROJECT_ID=spartboard ACCESS_TOKEN=$(gcloud auth print-access-token) node scripts/sync-lunch-menus.mjs [--dry-run]
 
+import { fetchJsonWithRetry } from './nutrisliceFetch.mjs';
+
 const SCHOOL_SITES = [
   'schumann-elementary',
   'orono-intermediate-school',
@@ -44,17 +46,7 @@ const trimItem = (item) => {
   return out;
 };
 
-const fetchWeek = async (site, date) => {
-  const url = weekUrl(site, date);
-  for (let attempt = 1; ; attempt++) {
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
-    if (res.ok) return res.json();
-    if (attempt >= 3 || res.status < 500) {
-      throw new Error(`Nutrislice ${res.status} for ${url}`);
-    }
-    await new Promise((r) => setTimeout(r, 2000 * attempt));
-  }
-};
+const fetchWeek = (site, date) => fetchJsonWithRetry(weekUrl(site, date));
 
 const toValue = (v) => {
   if (v === null || v === undefined) return { nullValue: null };
