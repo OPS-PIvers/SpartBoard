@@ -15979,6 +15979,27 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.materials.form-delete",
+    "label": "Delete button in the Materials custom material form",
+    "scope": "widget",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.materials.settings",
+        "kind": "settings-drawer",
+        "widget_type": "materials",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.music.sync-time-tool",
     "label": "Sync with Time Tool toggle in Music settings",
     "scope": "widget",
@@ -43738,6 +43759,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "mini-app.session-rename-cancel",
+    "label": "Cancel rename button on a Mini App assignment",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.mini-app.assignments",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "mini-app.session-copy-link",
     "label": "Copy Link button on a Mini App assignment",
     "scope": "field",
@@ -43838,6 +43879,128 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         ],
         "needs": [
           "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mini-app.session-end-cancel",
+    "label": "Cancel button on a Mini App assignment end confirmation",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.mini-app.assignments",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mini-app.try-as-student",
+    "label": "Try as student button in the Mini App editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "miniApp"
+    ],
+    "routes": [
+      {
+        "surface": "library.mini-app.editor",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:miniApp"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mini-app.key-add-question",
+    "label": "Add question button in the Mini App answer key",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "miniApp"
+    ],
+    "routes": [
+      {
+        "surface": "library.mini-app",
+        "kind": "widget",
+        "widget_type": "miniApp",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mini-app.results-back",
+    "label": "Back button in the Mini App results view",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "miniApp"
+    ],
+    "routes": [
+      {
+        "surface": "library.mini-app",
+        "kind": "widget",
+        "widget_type": "miniApp",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mini-app.results-hide-names",
+    "label": "Hide student names button in the Mini App results view",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "miniApp"
+    ],
+    "routes": [
+      {
+        "surface": "library.mini-app",
+        "kind": "widget",
+        "widget_type": "miniApp",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mini-app.results-export-sheet",
+    "label": "Export to Sheets button in the Mini App results view",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "miniApp"
+    ],
+    "routes": [
+      {
+        "surface": "library.mini-app",
+        "kind": "widget",
+        "widget_type": "miniApp",
+        "path": [],
+        "needs": [
           "widget-on-stage"
         ]
       }

@@ -147,6 +147,7 @@ export const RotationHandle: React.FC<RotationHandleProps> = ({
       {/* Circular grip — <button> for keyboard focus and accessibility */}
       <button
         type="button"
+        {...tourTypeAttr('math-tool.rotate', 'mathTool')}
         className="pointer-events-auto rounded-full bg-white border-2 border-brand-blue-primary shadow-md flex items-center justify-center select-none"
         style={{
           cursor: isActive ? 'grabbing' : 'grab',
@@ -158,7 +159,6 @@ export const RotationHandle: React.FC<RotationHandleProps> = ({
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onDoubleClick={handleDoubleClick}
-        {...tourTypeAttr('math-tool.rotate', 'mathTool')}
         aria-label="Rotate math tool"
         title="Drag to rotate · Click to snap 45° · Double-click to reset"
       >

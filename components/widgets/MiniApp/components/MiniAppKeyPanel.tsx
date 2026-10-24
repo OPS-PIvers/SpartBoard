@@ -8,6 +8,7 @@ import {
   blankQuestion,
   type MiniAppQuestionDraft,
 } from '@/utils/miniAppEditorDraft';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 const FIELD =
   'w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40';
@@ -35,6 +36,7 @@ const AnswerField: React.FC<{
     return (
       <label className="block">
         <span className={SMALL_LABEL}>{label}</span>
+        {/* no-tour-anchor: per-question row, generated from the answer key list */}
         <select
           value={row.answer}
           onChange={(e) => onChange({ answer: e.target.value })}
@@ -51,6 +53,7 @@ const AnswerField: React.FC<{
       <div className="grid grid-cols-2 gap-2">
         <label className="block">
           <span className={SMALL_LABEL}>{label}</span>
+          {/* no-tour-anchor: per-question row, generated from the answer key list */}
           <input
             type="number"
             value={row.answer}
@@ -60,6 +63,7 @@ const AnswerField: React.FC<{
         </label>
         <label className="block">
           <span className={SMALL_LABEL}>Allow off by</span>
+          {/* no-tour-anchor: per-question row, generated from the answer key list */}
           <input
             type="number"
             min={0}
@@ -74,6 +78,7 @@ const AnswerField: React.FC<{
   return (
     <label className="block">
       <span className={SMALL_LABEL}>{label}</span>
+      {/* no-tour-anchor: per-question row, generated from the answer key list */}
       <input
         value={row.answer}
         onChange={(e) => onChange({ answer: e.target.value })}
@@ -141,6 +146,7 @@ export const MiniAppKeyPanel: React.FC<{
                   <span className="text-xs font-semibold text-brand-blue-primary w-6 shrink-0">
                     Q{i + 1}
                   </span>
+                  {/* no-tour-anchor: per-question row, generated from the answer key list */}
                   <input
                     value={row.prompt}
                     onChange={(e) => update(i, { prompt: e.target.value })}
@@ -148,6 +154,7 @@ export const MiniAppKeyPanel: React.FC<{
                     aria-label={`Question ${i + 1}`}
                     className={FIELD}
                   />
+                  {/* no-tour-anchor: per-question row, generated from the answer key list */}
                   <button
                     type="button"
                     onClick={() => onRowsChange(rows.filter((_, j) => j !== i))}
@@ -160,6 +167,7 @@ export const MiniAppKeyPanel: React.FC<{
                 <div className="grid grid-cols-[1fr_5rem_4rem] gap-2 pl-8">
                   <label className="block">
                     <span className={SMALL_LABEL}>Type</span>
+                    {/* no-tour-anchor: per-question row, generated from the answer key list */}
                     <select
                       value={row.type}
                       onChange={(e) =>
@@ -180,6 +188,7 @@ export const MiniAppKeyPanel: React.FC<{
                   </label>
                   <label className="block">
                     <span className={SMALL_LABEL}>ID</span>
+                    {/* no-tour-anchor: per-question row, generated from the answer key list */}
                     <input
                       value={row.id}
                       onChange={(e) => update(i, { id: e.target.value })}
@@ -189,6 +198,7 @@ export const MiniAppKeyPanel: React.FC<{
                   </label>
                   <label className="block">
                     <span className={SMALL_LABEL}>Points</span>
+                    {/* no-tour-anchor: per-question row, generated from the answer key list */}
                     <input
                       type="number"
                       min={0}
@@ -209,6 +219,7 @@ export const MiniAppKeyPanel: React.FC<{
           <button
             type="button"
             onClick={() => onRowsChange([...rows, blankQuestion(rows)])}
+            {...tourTypeAttr('mini-app.key-add-question', 'miniApp')}
             className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-blue-primary hover:text-brand-blue-dark"
           >
             <Plus className="w-4 h-4" />

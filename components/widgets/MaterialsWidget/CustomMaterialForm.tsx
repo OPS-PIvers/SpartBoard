@@ -260,6 +260,11 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
           <button
             type="button"
             onClick={onDelete}
+            {...tourAttr(
+              'widget-settings.materials.form-delete',
+              tourWidget?.id,
+              tourWidget?.type
+            )}
             aria-label={t('deleteMaterial', {
               label: material?.label ?? t('material'),
             })}
