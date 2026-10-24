@@ -310,7 +310,8 @@ export function createPlaybackController(host: PlaybackHost) {
     const arm = rec.arm;
     if (!arm || rec.state.status !== 'armed' || hostOf(url) !== arm.host)
       return false;
-    const sameUrl = (a: string, b: string) => a.replace(/\/$/, '') === b.replace(/\/$/, '');
+    const sameUrl = (a: string, b: string) =>
+      a.replace(/\/$/, '') === b.replace(/\/$/, '');
     if (sameUrl(url, rec.state.tour.startUrl)) return true;
     return !arm.leftHost && !arm.navigated && !SIGN_IN_PATH.test(pathOf(url));
   }

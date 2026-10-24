@@ -293,7 +293,10 @@ describe('loadTour', () => {
       }
     );
     expect(overlap).toBe(false);
-    expect(rooms).toEqual([MAX_PICTURE_TOTAL_CHARS, MAX_PICTURE_TOTAL_CHARS / 2]);
+    expect(rooms).toEqual([
+      MAX_PICTURE_TOTAL_CHARS,
+      MAX_PICTURE_TOTAL_CHARS / 2,
+    ]);
   });
 
   it('plays the tour without a picture that fails to load', async () => {
