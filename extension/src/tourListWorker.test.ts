@@ -62,9 +62,14 @@ describe('tour list worker', () => {
   it('keeps the cache while offline', async () => {
     const cached = { at: 1, admin: false, tours: listed.tours };
     const s = setup({ ok: false, why: 'offline' }, cached);
-    await s.worker.refresh();
+    expect(await s.worker.refresh()).toEqual({ ok: true, list: cached });
     expect(s.stored()).toEqual(cached);
     expect(s.badges.size).toBe(0);
+  });
+
+  it('says offline with nothing cached', async () => {
+    const s = setup({ ok: false, why: 'offline' });
+    expect(await s.worker.refresh()).toEqual({ ok: false, why: 'offline' });
   });
 
   it('badges one tab from the cache after it navigates', async () => {

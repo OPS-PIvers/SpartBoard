@@ -843,6 +843,8 @@ export function createPlaybackController(host: PlaybackHost) {
           await stopTab(rec);
           return;
         }
+        // A reused tab whose start URL changed only the fragment never commits, so it needs the overlay here.
+        if (rec.url === 'about:blank') await host.inject(tabId, [0], true);
         rec.url = url;
         await dispatch(rec, { type: 'page', url });
       }),

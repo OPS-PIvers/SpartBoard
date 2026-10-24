@@ -1068,6 +1068,15 @@ describe('playback controller, waiting through sign-in (H1-H3)', () => {
     expect(h.lastRender()).toMatchObject({ status: 'seeking', current: 1 });
   });
 
+  it('injects the overlay when the given tab only changes its fragment (H5)', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed(), 42);
+    await c.historyChanged(42, 0, 'https://a.example/home');
+    expect(h.injected).toContainEqual({ frameIds: [0], overlay: true });
+    expect(h.lastRender()).toMatchObject({ status: 'seeking', current: 1 });
+  });
+
   it('waits through a ClassLink redirect chain and starts on the start page', async () => {
     const h = fakeHost();
     const c = createPlaybackController(h.host);

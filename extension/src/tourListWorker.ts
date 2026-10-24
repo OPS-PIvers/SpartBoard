@@ -25,14 +25,16 @@ export function createTourListWorker(deps: TourListDeps) {
   };
 
   return {
-    /** Fetches the list, caches it and redraws every tab's badge; a refusal clears the cache, so no badge outlives access. */
+    /** Fetches the list, caches it and redraws every tab's badge; a refusal clears the cache, so no badge outlives access, while offline answers with the cache. */
     async refresh(interactive = false): Promise<TourListReply> {
       const got = await deps.list(interactive);
       if (!got.ok) {
-        if (got.why !== 'offline') {
-          await deps.save(null);
-          await badgeTabs([]);
+        if (got.why === 'offline') {
+          const cached = await deps.load().catch(() => undefined);
+          return cached ? { ok: true, list: cached } : got;
         }
+        await deps.save(null);
+        await badgeTabs([]);
         return got;
       }
       const list = parseTourList(got.value, deps.now());

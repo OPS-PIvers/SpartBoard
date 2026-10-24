@@ -13,6 +13,8 @@ export interface ApiDeps {
   getToken: (interactive: boolean) => Promise<string | null>;
   dropToken: (token: string) => Promise<void>;
   fetch: typeof fetch;
+  /** False when the browser knows it has no network, so a missing token means offline, not signed out. */
+  online?: () => boolean;
 }
 
 const failureFor = (status: number): ApiFailure =>
@@ -35,7 +37,11 @@ export async function callSpartBoard<T>(
 ): Promise<ApiResult<T>> {
   for (let attempt = 0; attempt < 2; attempt++) {
     const token = await deps.getToken(interactive).catch(() => null);
-    if (!token) return { ok: false, why: 'signed-out' };
+    if (!token)
+      return {
+        ok: false,
+        why: deps.online?.() === false ? 'offline' : 'signed-out',
+      };
     let res: Response;
     try {
       res = await deps.fetch(`${deps.base}/${name}`, {

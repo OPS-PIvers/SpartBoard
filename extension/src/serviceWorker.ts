@@ -55,6 +55,7 @@ const api: ApiDeps = {
   base: __SPART_FUNCTIONS__,
   ...chromeTokens,
   fetch: (input, init) => fetch(input, init),
+  online: () => navigator.onLine,
 };
 
 const runs = createRunRecorder({
