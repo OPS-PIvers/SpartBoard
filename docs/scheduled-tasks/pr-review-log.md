@@ -4905,7 +4905,7 @@ rather than "no data") is also still open.
   - #4594: `--num-std` grows from 42cqh to 46cqh at every card size, not only small ones.
 - Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. No local checks were run because no fixes were made.
 
-## 2026-10-24
+## 2026-10-24 (run 2)
 - PRs reviewed: #4629 SmartNotebook assets panel: scale width caps with the widget, #4628 Widget loop: Graphic Organizer layout S1 1 → 3, #4627 Debugger run 106: log 2026-10-24, #4626 Lunch menu sync: retry thrown network errors, not just 5xx, #4625 HexColorField: skip onChange on an unchanged blur, #4624 StaffEmailInput: ignore Enter and arrows while an IME is composing, #4623 Countdown: count days arithmetically and cap grid cells for far-future events, #4622 Web tours: Tours tab and badge in the side panel (help panel slice 3), #4621 Unifier run 125: aligned (log only)
 - Comments processed: 3 total. 3 fixed, 0 explained.
   - All three were red-circle inline findings from `claude[bot]` on #4622. Each got a reply, and its thread was resolved.
