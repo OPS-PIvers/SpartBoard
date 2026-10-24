@@ -273,6 +273,29 @@ describe('loadTour', () => {
     expect(Object.keys(tour.pictures)).toEqual(['a']);
   });
 
+  it('reads pictures one at a time and hands each read the room left', async () => {
+    let inFlight = 0;
+    let overlap = false;
+    const rooms: number[] = [];
+    const half = 'A'.repeat(MAX_PICTURE_TOTAL_CHARS / 2);
+    await loadTour(
+      'set1',
+      snapshot([
+        step('a', 'https://app.example.com/', pic('a')),
+        step('b', 'https://app.example.com/', pic('b')),
+      ]),
+      async (_path, room) => {
+        rooms.push(room);
+        overlap ||= ++inFlight > 1;
+        await Promise.resolve();
+        inFlight -= 1;
+        return { mime: 'image/png', data: half };
+      }
+    );
+    expect(overlap).toBe(false);
+    expect(rooms).toEqual([MAX_PICTURE_TOTAL_CHARS, MAX_PICTURE_TOTAL_CHARS / 2]);
+  });
+
   it('plays the tour without a picture that fails to load', async () => {
     const tour = await loadTour(
       'set1',

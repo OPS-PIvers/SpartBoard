@@ -219,7 +219,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
 
 // T7: re-inject on every new document or frame, and re-seek on in-app route changes.
 chrome.webNavigation.onCommitted.addListener(({ tabId, frameId, url }) => {
-  void playback.committed(tabId, frameId, url);
+  playback.committed(tabId, frameId, url).catch(() => undefined);
 });
 chrome.webNavigation.onHistoryStateUpdated.addListener(
   ({ tabId, frameId, url }) => {

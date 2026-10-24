@@ -183,33 +183,29 @@ export interface LoadedTour {
 export async function loadTour(
   setId: string,
   snap: StoredSnapshot | null,
-  readPicture: (path: string) => Promise<{ mime: string; data: string } | null>
+  readPicture: (
+    path: string,
+    maxChars: number
+  ) => Promise<{ mime: string; data: string } | null>
 ): Promise<LoadedTour> {
   if (!snap || !isWebTourSnapshot(snap) || !startHostOf(snap))
     throw fail(404, 'That tour is no longer published.');
   const steps = webSteps(snap);
-  const read = await Promise.all(
-    steps.map(async (step) => {
-      const pic = step.web?.picture;
-      const path = str(pic?.path);
-      const w = Number(pic?.w);
-      const h = Number(pic?.h);
-      if (!isWebTourPicturePath(setId, path) || !(w > 0) || !(h > 0))
-        return null;
-      const got = await readPicture(path).catch(() => null);
-      return got && got.data.length <= MAX_PICTURE_CHARS
-        ? { ...got, w, h }
-        : null;
-    })
-  );
   const pictures: Record<string, LoadedTourPicture> = {};
   let total = 0;
-  steps.forEach((step, i) => {
-    const pic = read[i];
-    if (!pic || total + pic.data.length > MAX_PICTURE_TOTAL_CHARS) return;
-    total += pic.data.length;
-    pictures[str(step.id)] = pic;
-  });
+  for (const step of steps) {
+    const pic = step.web?.picture;
+    const path = str(pic?.path);
+    const w = Number(pic?.w);
+    const h = Number(pic?.h);
+    if (!isWebTourPicturePath(setId, path) || !(w > 0) || !(h > 0)) continue;
+    const room = MAX_PICTURE_TOTAL_CHARS - total;
+    const got = await readPicture(path, room).catch(() => null);
+    if (!got || got.data.length > MAX_PICTURE_CHARS || got.data.length > room)
+      continue;
+    total += got.data.length;
+    pictures[str(step.id)] = { ...got, w, h };
+  }
   return {
     setId,
     version: Number(snap.publishedAt) || 0,
@@ -325,13 +321,15 @@ function defaultDeps(db: Firestore): ExtensionDeps {
 }
 
 async function readPicture(
-  path: string
+  path: string,
+  maxChars: number
 ): Promise<{ mime: string; data: string } | null> {
   const file = admin.storage().bucket().file(path);
   const [meta] = await file.getMetadata();
   const mime = String(meta.contentType ?? '');
   if (!PICTURE_TYPES.has(mime) || Number(meta.size ?? 0) > 5 * 1024 * 1024)
     return null;
+  if (Math.ceil(Number(meta.size ?? 0) / 3) * 4 > maxChars) return null;
   const [data] = await file.download();
   return { mime, data: data.toString('base64') };
 }

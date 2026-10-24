@@ -1114,6 +1114,54 @@ describe('playback controller, waiting through sign-in (H1-H3)', () => {
     expect(h.lastRender()).toMatchObject({ status: 'seeking', current: 2 });
   });
 
+  it('leaves the wait when a wildcard start step loads the site root', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    const p = parsed();
+    p.tour.startUrl = 'https://a.example/';
+    p.tour.steps[0].urlPattern = 'https://a.example/*';
+    await c.start({ ...p });
+    await c.committed(7, 0, 'https://a.example/');
+    expect(h.lastRender()).toMatchObject({ status: 'seeking', current: 1 });
+  });
+
+  it('leaves the wait on the first same-site page that is not a sign-in page', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    await c.committed(7, 0, 'https://a.example/landing');
+    expect(h.lastRender()).toMatchObject({ status: 'wrong-page' });
+  });
+
+  it('moves pictures one at a time and keeps them on the old tab if a move fails', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    const p = parsed();
+    p.pictures = {
+      a: { mime: 'image/png', data: 'AAAA', w: 1, h: 1 },
+      b: { mime: 'image/png', data: 'BBBB', w: 1, h: 1 },
+    };
+    await c.start(p);
+    const saves: number[] = [];
+    const save = h.host.save;
+    h.host.save = (e) => {
+      saves.push(Object.keys(e).length);
+      if (Object.keys(e).some((k) => k.startsWith('wt:pic:9:b')))
+        return Promise.reject(new Error('quota'));
+      return save(e);
+    };
+    await c.committed(7, 0, 'https://launchpad.classlink.com/home');
+    await expect(
+      c.committed(9, 0, 'https://a.example/dashboard')
+    ).resolves.toBeUndefined();
+    expect(saves.every((n) => n === 1)).toBe(true);
+    expect(await c.isPlaying(7)).toBe(true);
+    expect(await c.isPlaying(9)).toBe(false);
+    expect(h.store.has('wt:pic:7:a')).toBe(true);
+    expect(h.store.has('wt:pic:7:b')).toBe(true);
+    expect(h.store.has('wt:pic:9:a')).toBe(false);
+  });
+
   it('shows "Go to the start" instead of looping when the site bounces again', async () => {
     const h = fakeHost();
     const c = createPlaybackController(h.host);

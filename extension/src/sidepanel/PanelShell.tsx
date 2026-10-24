@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { focusRing } from '@/components/common/lightChrome';
 import type { TourListReply } from '../tourList';
+import { isDefiniteNonAdmin } from './recordTab';
 import { isRecorderInternal, type RecorderStatus } from '../recorder/messages';
 import { SidePanel } from './SidePanel';
 import { ToursTab } from './ToursTab';
@@ -50,7 +51,7 @@ export const PanelShell: React.FC = () => {
     return () => chrome.runtime.onMessage.removeListener(onMessage);
   }, [loadList]);
 
-  const showRecord = busy || (reply?.ok === true && reply.list.admin);
+  const showRecord = busy || !isDefiniteNonAdmin(reply);
   const current: PanelTab = showRecord ? tab : 'tours';
 
   const tabButton = (id: PanelTab, label: string) => (

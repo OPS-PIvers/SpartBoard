@@ -108,6 +108,14 @@ export const ARM_MS = 10 * 60 * 1000;
 const tabKey = (tabId: number) => `wt:tab:${tabId}`;
 const picKey = (tabId: number, stepId: string) => `wt:pic:${tabId}:${stepId}`;
 const TABS_KEY = 'wt:tabs';
+const SIGN_IN_PATH = /log-?in|sign-?in|sso|auth|saml|mfa|2fa|password/i;
+const pathOf = (url: string) => {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return '';
+  }
+};
 const CHECK_ENDS_KEY = 'wt:checkEnds';
 /** Ended check runs kept for an editor that reconnects late. */
 export const CHECK_ENDS_KEPT = 5;
@@ -297,6 +305,16 @@ export function createPlaybackController(host: PlaybackHost) {
     };
   }
 
+  /** A start-site page that isn't a sign-in hop ends the wait: the first load, or the start url itself. */
+  function leavesArm(rec: TabRecord, url: string) {
+    const arm = rec.arm;
+    if (!arm || rec.state.status !== 'armed' || hostOf(url) !== arm.host)
+      return false;
+    const sameUrl = (a: string, b: string) => a.replace(/\/$/, '') === b.replace(/\/$/, '');
+    if (sameUrl(url, rec.state.tour.startUrl)) return true;
+    return !arm.leftHost && !arm.navigated && !SIGN_IN_PATH.test(pathOf(url));
+  }
+
   /** An armed tab loaded a page that isn't the start page: a trip off the site and back goes to the start once (H2). */
   async function armedPage(rec: TabRecord, url: string) {
     const arm = rec.arm;
@@ -366,13 +384,26 @@ export function createPlaybackController(host: PlaybackHost) {
       const rec = await load(fromTabId);
       if (!rec?.arm || rec.state.status !== 'armed' || armedOut(rec))
         return null;
-      const pictures: Record<string, WebTourPictureBytes> = {};
-      for (const s of rec.state.tour.steps) {
-        if (!s.hasPicture) continue;
-        const pic = await host.load<WebTourPictureBytes>(
-          picKey(fromTabId, s.id)
-        );
-        if (pic) pictures[picKey(toTabId, s.id)] = pic;
+      // Pictures move one at a time so two full copies never share the session quota.
+      const done: string[] = [];
+      try {
+        for (const s of rec.state.tour.steps) {
+          if (!s.hasPicture) continue;
+          const pic = await host.load<WebTourPictureBytes>(
+            picKey(fromTabId, s.id)
+          );
+          if (!pic) continue;
+          await host.save({ [picKey(toTabId, s.id)]: pic });
+          await host.remove([picKey(fromTabId, s.id)]);
+          done.push(s.id);
+        }
+      } catch {
+        for (const id of done) {
+          const pic = await host.load<WebTourPictureBytes>(picKey(toTabId, id));
+          if (pic) await host.save({ [picKey(fromTabId, id)]: pic });
+          await host.remove([picKey(toTabId, id)]);
+        }
+        return null;
       }
       // Arriving from elsewhere counts as a trip off the site, so a landing page goes to the start once.
       const moved: TabRecord = {
@@ -382,7 +413,6 @@ export function createPlaybackController(host: PlaybackHost) {
         litFrameId: null,
         arm: { ...rec.arm, leftHost: true, navigated: false, goStart: false },
       };
-      await host.save(pictures);
       await store(moved);
       await trackTab(toTabId, true);
       await host.remove([
@@ -661,6 +691,8 @@ export function createPlaybackController(host: PlaybackHost) {
     event: PlaybackEvent,
     frameId: number | null = null
   ) {
+    if (event.type === 'page' && leavesArm(rec, event.url))
+      rec.state = { ...rec.state, status: 'seeking' };
     const before = rec.state;
     const withUrl: PlaybackEvent =
       event.type === 'next' || event.type === 'back'
