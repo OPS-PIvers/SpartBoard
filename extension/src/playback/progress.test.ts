@@ -3,6 +3,7 @@ import {
   missedSteps,
   reducePlayback,
   startPlayback,
+  type PlaybackState,
   type PlaybackStep,
   type PlaybackTour,
 } from './progress';
@@ -111,5 +112,39 @@ describe('playback progress', () => {
     let s = startPlayback(tour, 'https://a.example/home', 0);
     s = reducePlayback(s, { type: 'exit' });
     expect(reducePlayback(s, { type: 'next' })).toBe(s);
+  });
+
+  it('stays armed through sign-in pages and seeks once the start page loads', () => {
+    let s: PlaybackState = {
+      ...startPlayback(tour, 'https://a.example/home', 0),
+      status: 'armed',
+    };
+    for (const url of [
+      'https://launchpad.classlink.com/oauth',
+      'https://accounts.google.com/signin',
+      'https://a.example/dashboard',
+    ]) {
+      s = reducePlayback(s, { type: 'page', url });
+      expect(s.status).toBe('armed');
+    }
+    for (const event of [
+      { type: 'found', match: 'role' },
+      { type: 'timeout' },
+      { type: 'next' },
+      { type: 'acted' },
+    ] as const) {
+      expect(reducePlayback(s, event).status).toBe('armed');
+    }
+    s = reducePlayback(s, { type: 'page', url: 'https://a.example/home' });
+    expect(s.status).toBe('seeking');
+    expect(s.index).toBe(0);
+  });
+
+  it('lets an armed tour be exited', () => {
+    const s: PlaybackState = {
+      ...startPlayback(tour, 'https://a.example/home', 0),
+      status: 'armed',
+    };
+    expect(reducePlayback(s, { type: 'exit' }).status).toBe('exited');
   });
 });

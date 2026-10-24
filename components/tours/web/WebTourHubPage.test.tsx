@@ -21,6 +21,7 @@ interface Hoisted {
   published: unknown;
   ping: ExtensionStatus;
   start: Mock<(...args: unknown[]) => Promise<unknown>>;
+  open: Mock<(...args: unknown[]) => Promise<unknown>>;
   onEvent: ((e: WebTourPortEvent) => void) | null;
   log: Record<'update' | 'match' | 'miss' | 'suggest' | 'end' | 'flush', Mock>;
   startLog: Mock;
@@ -37,6 +38,7 @@ const h = vi.hoisted((): Hoisted => ({
   published: null,
   ping: { kind: 'none' },
   start: vi.fn(),
+  open: vi.fn(),
   onEvent: null,
   log: {
     update: vi.fn(),
@@ -71,6 +73,7 @@ vi.mock('./extensionClient', async (orig) => ({
   ...(await orig<typeof import('./extensionClient')>()),
   pingExtension: () => Promise.resolve(h.ping),
   startWebTour: (...args: unknown[]) => h.start(...args),
+  openWebTour: (...args: unknown[]) => h.open(...args),
   watchWebTour: (_id: string, onEvent: (e: WebTourPortEvent) => void) => {
     h.onEvent = onEvent;
     return () => undefined;
@@ -116,10 +119,71 @@ beforeEach(() => {
   h.published = webTour();
   h.ping = { kind: 'none' };
   h.start.mockReset();
+  h.open.mockReset();
   h.startLog.mockReset();
   Object.values(h.log).forEach((fn) => fn.mockReset());
   h.onEvent = null;
   window.sessionStorage.clear();
+});
+
+describe('WebTourHubPage with an extension that opens tours itself (H4)', () => {
+  const staff8: ExtensionStatus = {
+    kind: 'ready',
+    protocol: 8,
+    version: '0.1.13',
+    profile: 'staff',
+  };
+
+  it('opens the tour without asking for SpartBoard sign-in', async () => {
+    h.auth.user = null;
+    h.ping = staff8;
+    h.open.mockResolvedValue({ ok: true, tabId: 7 });
+    render(<WebTourHubPage />);
+    expect(
+      await screen.findByText('Your tour is open in the other tab')
+    ).toBeTruthy();
+    expect(h.open).toHaveBeenCalledWith('s1');
+    expect(h.start).not.toHaveBeenCalled();
+    expect(screen.queryByText('sign in')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Start again' }));
+    await waitFor(() => expect(h.open).toHaveBeenCalledTimes(2));
+  });
+
+  it('says so when Start again fails', async () => {
+    h.ping = staff8;
+    h.open
+      .mockResolvedValueOnce({ ok: true, tabId: 7 })
+      .mockResolvedValueOnce({ ok: false, error: 'unavailable' });
+    render(<WebTourHubPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Start again' }));
+    expect(
+      await screen.findByText("The tour couldn't start. Try again.")
+    ).toBeTruthy();
+  });
+
+  it("falls back to sign-in and the handoff when the extension can't load the tour", async () => {
+    h.auth.user = null;
+    h.ping = staff8;
+    h.open.mockResolvedValue({ ok: false, error: 'unavailable' });
+    render(<WebTourHubPage />);
+    expect(await screen.findByText('sign in')).toBeTruthy();
+  });
+
+  it('keeps the old flow for a 0.1.12 extension', async () => {
+    h.ping = { ...staff8, protocol: 7, version: '0.1.12' };
+    render(<WebTourHubPage />);
+    expect(
+      await screen.findByRole('button', { name: /Start tour/ })
+    ).toBeTruthy();
+    expect(h.open).not.toHaveBeenCalled();
+  });
+
+  it('never opens for a non-staff profile', async () => {
+    h.ping = { ...staff8, profile: 'other' };
+    render(<WebTourHubPage />);
+    expect(await screen.findByText('Post a Schoology update')).toBeTruthy();
+    expect(h.open).not.toHaveBeenCalled();
+  });
 });
 
 describe('WebTourHubPage', () => {

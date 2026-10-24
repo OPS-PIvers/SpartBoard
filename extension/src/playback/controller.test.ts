@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ARM_MS,
   createPlaybackController,
   framesForStep,
   SESSION_BUDGET,
@@ -216,8 +217,10 @@ describe('playback controller', () => {
   it('waits on the wrong page and seeks after an in-app route change', async () => {
     const h = fakeHost();
     const c = createPlaybackController(h.host);
-    await c.start({ ...parsed(), stepIndex: 1 });
+    await c.start(parsed());
     await c.committed(7, 0, 'https://a.example/home');
+    await c.overlayAction(7, 0, 'next');
+    await c.historyChanged(7, 0, 'https://a.example/settings');
     expect(h.lastRender()).toMatchObject({
       status: 'wrong-page',
       picture: { data: 'AAAA' },
@@ -368,13 +371,15 @@ describe('playback controller, review fixes', () => {
     const h = fakeHost();
     const c = createPlaybackController(h.host);
     await c.start(parsed());
-    await c.committed(7, 0, 'https://a.example/login');
+    await c.committed(7, 0, 'https://a.example/home');
     await c.overlayAction(7, 0, 'next');
+    await c.committed(7, 0, 'https://a.example/login');
+    await c.overlayAction(7, 0, 'back');
     expect(h.posts).toContainEqual({
       type: 'web-tour/step',
       setId: 'set1',
-      stepIndex: 0,
-      stepId: 'a',
+      stepIndex: 1,
+      stepId: 'b',
       match: 'none',
     });
   });
@@ -394,6 +399,8 @@ describe('playback controller, review fixes', () => {
     const h = fakeHost();
     const c = createPlaybackController(h.host);
     await c.start(parsed());
+    await c.committed(7, 0, 'https://a.example/home');
+    await c.overlayAction(7, 0, 'next');
     await c.committed(7, 0, 'https://a.example/login');
     await c.start(parsed());
     expect(h.posts.map((p) => p.type)).toEqual([
@@ -406,6 +413,8 @@ describe('playback controller, review fixes', () => {
     const h = fakeHost();
     const c = createPlaybackController(h.host);
     await c.start(parsed());
+    await c.committed(7, 0, 'https://a.example/home');
+    await c.overlayAction(7, 0, 'next');
     await c.committed(7, 0, 'https://a.example/login');
     await c.tabClosed(7);
     expect(h.posts.map((p) => p.type)).toEqual([
@@ -1040,5 +1049,151 @@ describe('playback controller, suggested fixes (C14)', () => {
         runId: 'r1',
       },
     ]);
+  });
+});
+
+describe('playback controller, waiting through sign-in (H1-H3)', () => {
+  const navigationsTo = (h: ReturnType<typeof fakeHost>, url: string) =>
+    h.navigated.filter((n) => n.url === url).length;
+
+  it('waits through a ClassLink redirect chain and starts on the start page', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    for (const url of [
+      'https://launchpad.classlink.com/oauth2/v2/auth',
+      'https://accounts.google.com/signin',
+    ]) {
+      await c.committed(7, 0, url);
+      expect(h.lastRender()).toMatchObject({
+        status: 'armed',
+        goStart: false,
+      });
+    }
+    expect(h.posts).toEqual([]);
+    expect(h.sent.some((s) => s.msg.type === 'wt:seek')).toBe(false);
+    await c.committed(7, 0, 'https://a.example/home');
+    expect(h.lastRender()).toMatchObject({ status: 'seeking', current: 1 });
+    expect(h.lastSeek().frameId).toBe(0);
+    // The site came straight back to the start page, so no extra trip.
+    expect(navigationsTo(h, 'https://a.example/home')).toBe(1);
+  });
+
+  it('goes to the start page once when sign-in lands on the home page', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    const p = parsed();
+    p.tour.startUrl = 'https://a.example/course/9';
+    await c.start({ ...p, stepIndex: 1 });
+    await c.committed(7, 0, 'https://launchpad.classlink.com/sso');
+    await c.committed(7, 0, 'https://a.example/home');
+    expect(navigationsTo(h, 'https://a.example/course/9')).toBe(2);
+    expect(h.lastRender()).toMatchObject({ status: 'armed', goStart: false });
+    await c.committed(7, 0, 'https://a.example/course/9');
+    expect(h.lastRender()).toMatchObject({ status: 'seeking', current: 2 });
+  });
+
+  it('shows "Go to the start" instead of looping when the site bounces again', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    const p = parsed();
+    p.tour.startUrl = 'https://a.example/course/9';
+    await c.start({ ...p, stepIndex: 1 });
+    await c.committed(7, 0, 'https://launchpad.classlink.com/sso');
+    await c.committed(7, 0, 'https://a.example/home');
+    await c.committed(7, 0, 'https://launchpad.classlink.com/sso');
+    await c.committed(7, 0, 'https://a.example/home');
+    expect(navigationsTo(h, 'https://a.example/course/9')).toBe(2);
+    expect(h.lastRender()).toMatchObject({ status: 'armed', goStart: true });
+    await c.overlayAction(7, 0, 'start');
+    expect(navigationsTo(h, 'https://a.example/course/9')).toBe(3);
+    expect(h.lastRender()).toMatchObject({ status: 'armed', goStart: false });
+  });
+
+  it('offers "Go to the start" on a sign-in page of the site itself', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    await c.committed(7, 0, 'https://a.example/login');
+    expect(h.lastRender()).toMatchObject({ status: 'armed', goStart: true });
+    expect(navigationsTo(h, 'https://a.example/home')).toBe(1);
+  });
+
+  it('follows a tab LaunchPad opens on the site and tells the first tab', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    const p = parsed();
+    p.pictures = { b: { mime: 'image/png', data: 'AAAA', w: 10, h: 10 } };
+    await c.start(p);
+    await c.committed(7, 0, 'https://launchpad.classlink.com/home');
+    await c.committed(9, 0, 'https://a.example/dashboard');
+    expect(
+      h.sent.some(
+        (s) =>
+          s.msg.type === 'overlay/render' &&
+          (s.msg.state as { status: string }).status === 'moved'
+      )
+    ).toBe(true);
+    expect(await c.isPlaying(7)).toBe(false);
+    expect(await c.isPlaying(9)).toBe(true);
+    expect(h.store.has('wt:pic:9:b')).toBe(true);
+    expect(h.store.has('wt:pic:7:b')).toBe(false);
+    // The new tab landed on a home page, so it goes to the start once.
+    expect(h.navigated.at(-1)).toMatchObject({
+      tabId: 9,
+      url: 'https://a.example/home',
+    });
+    await c.committed(9, 0, 'https://a.example/home');
+    expect(h.lastRender()).toMatchObject({ status: 'seeking' });
+  });
+
+  it('ignores tabs on other sites and a tab that reaches the site after 10 minutes', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    await c.committed(9, 0, 'https://other.example/');
+    expect(await c.isPlaying(9)).toBe(false);
+    h.clock.now += ARM_MS;
+    await c.committed(10, 0, 'https://a.example/home');
+    expect(await c.isPlaying(10)).toBe(false);
+  });
+
+  it('stops after 10 minutes without the site, and the page can start it again', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    await c.committed(7, 0, 'https://launchpad.classlink.com/home');
+    await c.sweep();
+    expect(await c.isPlaying(7)).toBe(true);
+    const before = h.backstops();
+    h.clock.now += ARM_MS;
+    await c.sweep();
+    expect(await c.isPlaying(7)).toBe(false);
+    expect(h.lastRender()).toMatchObject({ status: 'stopped' });
+    expect(h.posts).toContainEqual({
+      type: 'web-tour/exit',
+      setId: 'set1',
+      stepIndex: 0,
+    });
+    expect(h.backstops()).toBe(before);
+  });
+
+  it('keeps waking up while a tour is armed', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    const before = h.backstops();
+    await c.sweep();
+    expect(h.backstops()).toBe(before + 1);
+  });
+
+  it('lets the learner stop an armed tour', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    await c.committed(7, 0, 'https://launchpad.classlink.com/home');
+    await c.overlayAction(7, 0, 'exit');
+    expect(await c.isPlaying(7)).toBe(false);
+    expect(h.posts.map((p) => p.type)).toEqual(['web-tour/exit']);
   });
 });

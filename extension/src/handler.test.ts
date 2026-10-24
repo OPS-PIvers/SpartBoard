@@ -22,7 +22,7 @@ describe('createExternalHandler', () => {
     const { handle } = handlerWith('none');
     await expect(handle({ type: 'ping' }, top)).resolves.toEqual({
       ok: true,
-      protocol: 7,
+      protocol: 8,
       version: '0.1.0',
       profile: 'none',
     });
@@ -122,5 +122,46 @@ describe('web-tour/start', () => {
       await expect(handle(check, top)).resolves.toEqual(reply);
       expect(startWebTour).toHaveBeenCalledTimes(profile === 'staff' ? 1 : 0);
     }
+  });
+});
+
+describe('web-tour/open (protocol 8)', () => {
+  const openWith = (profile: ExtensionProfile, result: number | null = 12) => {
+    const openWebTour = vi.fn(() => Promise.resolve(result));
+    const handle = createExternalHandler({
+      origins: [ORIGIN],
+      version: '0.1.13',
+      getProfile: () => Promise.resolve(profile),
+      openWebTour,
+    });
+    return { handle, openWebTour };
+  };
+
+  it('opens the tour by id for a staff profile', async () => {
+    const { handle, openWebTour } = openWith('staff');
+    await expect(
+      handle({ type: 'web-tour/open', setId: 'set-1' }, top)
+    ).resolves.toEqual({ ok: true, tabId: 12 });
+    expect(openWebTour).toHaveBeenCalledWith('set-1');
+  });
+
+  it("says unavailable when the tour couldn't be loaded, so the page hands it over", async () => {
+    const { handle } = openWith('staff', null);
+    await expect(
+      handle({ type: 'web-tour/open', setId: 'set-1' }, top)
+    ).resolves.toEqual({ ok: false, error: 'unavailable' });
+  });
+
+  it('refuses other profiles and malformed ids without loading anything', async () => {
+    const student = openWith('other');
+    await expect(
+      student.handle({ type: 'web-tour/open', setId: 'set-1' }, top)
+    ).resolves.toEqual({ ok: false, error: 'refused' });
+    expect(student.openWebTour).not.toHaveBeenCalled();
+    const staff = openWith('staff');
+    await expect(
+      staff.handle({ type: 'web-tour/open', setId: '../x' }, top)
+    ).resolves.toEqual({ ok: false, error: 'invalid' });
+    expect(staff.openWebTour).not.toHaveBeenCalled();
   });
 });

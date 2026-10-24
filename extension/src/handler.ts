@@ -16,6 +16,8 @@ interface HandlerDeps {
   startWebTour?: (
     message: WebTourStartMessage | WebTourCheckStartMessage
   ) => Promise<number>;
+  /** Loads a published tour by id and opens it; null when it couldn't be loaded (H4). */
+  openWebTour?: (setId: string) => Promise<number | null>;
 }
 
 /** Answers one external message; null means the sender is not trusted and gets no reply. */
@@ -24,6 +26,7 @@ export function createExternalHandler({
   version,
   getProfile,
   startWebTour,
+  openWebTour,
 }: HandlerDeps) {
   return async (
     raw: unknown,
@@ -48,6 +51,13 @@ export function createExternalHandler({
       case 'web-tour/check':
         if (!startWebTour) return { ok: false, error: 'unsupported' };
         return { ok: true, tabId: await startWebTour(parsed.message) };
+      case 'web-tour/open': {
+        if (!openWebTour) return { ok: false, error: 'unsupported' };
+        const tabId = await openWebTour(parsed.message.setId);
+        return tabId === null
+          ? { ok: false, error: 'unavailable' }
+          : { ok: true, tabId };
+      }
     }
   };
 }

@@ -26,8 +26,9 @@ export interface PlaybackTour {
   steps: PlaybackStep[];
 }
 
+/** `armed`: started but not yet on the start step's page, e.g. while the learner signs in (WEB_TOURS_HELP_PANEL.md H1). */
 export type PlaybackStatus =
-  'wrong-page' | 'seeking' | 'shown' | 'fallback' | 'done' | 'exited';
+  'armed' | 'wrong-page' | 'seeking' | 'shown' | 'fallback' | 'done' | 'exited';
 
 export interface PlaybackState {
   tour: PlaybackTour;
@@ -115,6 +116,13 @@ export function reducePlayback(
     return state;
   }
   const step = state.tour.steps[state.index];
+  if (state.status === 'armed') {
+    // Sign-in, SSO and MFA pages are ignored until the start step's page loads.
+    if (event.type === 'exit') return { ...state, status: 'exited' };
+    if (event.type === 'page' && matchesUrlPattern(step.urlPattern, event.url))
+      return { ...state, status: 'seeking' };
+    return state;
+  }
   switch (event.type) {
     case 'page': {
       if (state.status === 'shown' || state.status === 'fallback') {

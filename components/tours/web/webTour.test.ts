@@ -423,8 +423,8 @@ describe('hub', () => {
       watchWebTourCheck('s', vi.fn(), vi.fn())();
       expect(posted).toEqual([
         { type: 'web-tour/watch', setId: 's' },
-        { type: 'web-tour/watch', setId: 's', protocol: 7 },
-        { type: 'web-tour/watch', setId: 's', protocol: 7 },
+        { type: 'web-tour/watch', setId: 's', protocol: 8 },
+        { type: 'web-tour/watch', setId: 's', protocol: 8 },
       ]);
     } finally {
       delete (globalThis as { chrome?: unknown }).chrome;

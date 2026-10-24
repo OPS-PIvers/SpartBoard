@@ -61,6 +61,21 @@ describe('parseOverlayState', () => {
     expect(parseOverlayState(raw)).toBeNull();
   });
 
+  it('accepts the notice states, and "Go to the start" only while armed', () => {
+    for (const status of ['armed', 'moved', 'stopped'] as const) {
+      expect(parseOverlayState({ ...valid, status })?.status).toBe(status);
+    }
+    expect(
+      parseOverlayState({ ...valid, status: 'armed', goStart: true })?.goStart
+    ).toBe(true);
+    expect(
+      parseOverlayState({ ...valid, status: 'seeking', goStart: true })
+    ).toBeNull();
+    expect(
+      parseOverlayState({ ...valid, status: 'armed', goStart: 'yes' })
+    ).toBeNull();
+  });
+
   it('refuses non-objects', () => {
     expect(parseOverlayState(null)).toBeNull();
     expect(parseOverlayState('state')).toBeNull();
