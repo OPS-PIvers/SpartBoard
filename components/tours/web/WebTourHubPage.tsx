@@ -25,8 +25,10 @@ import {
 } from '@/components/tours/tourRuns';
 import { logError } from '@/utils/logError';
 import {
+  canOpenWebTours,
   canPlayWebTours,
   extensionId,
+  openWebTour,
   pingExtension,
   startWebTour,
   watchWebTour,
@@ -160,8 +162,88 @@ const Unavailable: React.FC = () => {
   );
 };
 
-/** The `/tour/{setId}` page: hands a web tour to the extension, or shows it as pictures. */
+type OpenState = 'checking' | 'opening' | 'open' | 'failed' | 'fallback';
+
+/** The `/tour/{setId}` page: an extension that loads tours itself just opens it (H4); otherwise the page hands it over or shows pictures. */
 export const WebTourHubPage: React.FC = () => {
+  const setId = parseTourPath(window.location.pathname);
+  const [open, setOpen] = useState<OpenState>(setId ? 'checking' : 'fallback');
+
+  useEffect(() => {
+    if (!setId) return;
+    let cancelled = false;
+    void pingExtension().then(async (status) => {
+      if (cancelled) return;
+      if (!canOpenWebTours(status)) {
+        setOpen('fallback');
+        return;
+      }
+      const result = await openWebTour(setId);
+      if (!cancelled) setOpen(result.ok ? 'open' : 'fallback');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [setId]);
+
+  if (open === 'checking') return <Loader />;
+  if (setId && open !== 'fallback') {
+    return (
+      <OpenedTour
+        state={open}
+        onStartAgain={() => {
+          setOpen('opening');
+          void openWebTour(setId).then((r) =>
+            setOpen(r.ok ? 'open' : 'failed')
+          );
+        }}
+      />
+    );
+  }
+  return <SignedInHub />;
+};
+
+/** What the page shows once the extension opened the tour in its own tab. */
+const OpenedTour: React.FC<{
+  state: Exclude<OpenState, 'checking' | 'fallback'>;
+  onStartAgain: () => void;
+}> = ({ state, onStartAgain }) => {
+  const { t } = useTranslation();
+  return (
+    <main className="h-screen [height:100dvh] overflow-y-auto bg-white px-4 py-12 pb-16">
+      <div className="mx-auto max-w-2xl" aria-live="polite">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          {t('webTourHub.eyebrow')}
+        </p>
+        <h1 className="mt-1 text-xl font-semibold text-slate-900">
+          {t('webTourHub.openedTitle')}
+        </h1>
+        {state === 'failed' && (
+          <p className="mt-2 text-sm text-red-700">
+            {t('webTourHub.startFailed')}
+          </p>
+        )}
+        {/* no-tour-anchor: the /tour page is outside the board, where live tours never run */}
+        <button
+          type="button"
+          onClick={onStartAgain}
+          disabled={state === 'opening'}
+          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white hover:bg-brand-blue-dark disabled:opacity-60"
+        >
+          {state === 'opening' ? (
+            <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+          ) : (
+            <RotateCcw className="w-4 h-4" aria-hidden="true" />
+          )}
+          {t('webTourHub.startAgain')}
+        </button>
+      </div>
+    </main>
+  );
+};
+
+/** The page for an extension that can't load tours itself: SpartBoard sign-in, then the handoff or pictures. */
+const SignedInHub: React.FC = () => {
   const { user, loading, globalPermissionsLoaded, isAdmin, canAccessFeature } =
     useAuth();
   if (loading) return <Loader />;

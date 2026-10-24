@@ -1,4 +1,6 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
+import { X } from 'lucide-react';
+import { chromeSurface, focusRing } from '@/components/common/lightChrome';
 import type { i18n as I18n } from 'i18next';
 import { I18nextProvider, useTranslation } from 'react-i18next';
 import { TourBar } from '@/components/tours/TourBar';
@@ -169,6 +171,53 @@ const TopOverlay: React.FC<Omit<Props, 'i18n' | 'styled'>> = ({
   );
 };
 
+const NOTICE_KEYS: Record<'armed' | 'moved' | 'stopped', string> = {
+  armed: 'tours.webArmed',
+  moved: 'tours.webMoved',
+  stopped: 'tours.webStopped',
+};
+
+const isNotice = (
+  status: OverlayState['status']
+): status is keyof typeof NOTICE_KEYS => status in NOTICE_KEYS;
+
+/** A small chip while the tour waits for sign-in, moved to another tab or stopped; nothing else is drawn on the page. */
+const NoticeChip: React.FC<{
+  state: OverlayState & { status: keyof typeof NOTICE_KEYS };
+  onAction: (action: OverlayAction) => void;
+}> = ({ state, onAction }) => {
+  const { t } = useTranslation();
+  const [hidden, setHidden] = useState(false);
+  if (hidden) return null;
+  const armed = state.status === 'armed';
+  return (
+    <div
+      role="status"
+      data-testid={`web-tour-${state.status}`}
+      className={`fixed right-4 top-4 flex max-w-sm items-center gap-2 rounded-2xl py-2 pl-4 pr-2 text-sm text-slate-800 ${chromeSurface}`}
+    >
+      <p className="font-semibold">{t(NOTICE_KEYS[state.status])}</p>
+      {armed && state.goStart && (
+        <button
+          type="button"
+          onClick={() => onAction('start')}
+          className={`shrink-0 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-blue-dark ${focusRing}`}
+        >
+          {t('tours.webGoToStart')}
+        </button>
+      )}
+      <button
+        type="button"
+        aria-label={armed ? t('tours.webArmedExit') : t('tours.webDismiss')}
+        onClick={() => (armed ? onAction('exit') : setHidden(true))}
+        className={`shrink-0 rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800 ${focusRing}`}
+      >
+        <X className="h-4 w-4" aria-hidden="true" />
+      </button>
+    </div>
+  );
+};
+
 /** A frame that holds the target: only the spotlight, since the bar and tip live in the top frame. */
 const TargetOverlay: React.FC<{ state: OverlayState }> = ({ state }) => {
   const lit = state.status === 'shown' && state.targetHere;
@@ -194,7 +243,14 @@ export const OverlayRoot: React.FC<Props> = ({
   const state = styled ? raw : unstyledState(raw);
   return (
     <I18nextProvider i18n={i18n}>
-      {state.role === 'top' ? (
+      {isNotice(state.status) ? (
+        state.role === 'top' && (
+          <NoticeChip
+            state={state as OverlayState & { status: keyof typeof NOTICE_KEYS }}
+            onAction={onAction}
+          />
+        )
+      ) : state.role === 'top' ? (
         <TopOverlay state={state} onAction={onAction} />
       ) : (
         <TargetOverlay state={state} />

@@ -58,6 +58,7 @@ const configFor = (
   resolve: { alias: { '@': repoRoot } },
   define: {
     __SPART_ORIGINS__: JSON.stringify(LISTINGS[listing].origins),
+    __SPART_FUNCTIONS__: JSON.stringify(LISTINGS[listing].functionsBase),
     'process.env.NODE_ENV': JSON.stringify('production'),
   },
   css: {

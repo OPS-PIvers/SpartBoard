@@ -23,11 +23,33 @@ import {
   isOverlayActionMessage,
 } from './playback/internalMessages';
 import { toPlayback } from './playback/startMessage';
+import { openedTour } from './playback/openTour';
+import { createRunRecorder } from './playback/runRecorder';
+import { callSpartBoard, chromeTokens, type ApiDeps } from './spartboardApi';
+import type { TourRun } from '@/components/tours/tourRunLog';
 
 // The listing's exact origins, inlined at build time so a bundle carries only its own.
 declare const __SPART_ORIGINS__: readonly string[];
 
 const origins = __SPART_ORIGINS__;
+// This listing's SpartBoard functions (WEB_TOURS_HELP_PANEL.md H7).
+declare const __SPART_FUNCTIONS__: string;
+
+const api: ApiDeps = {
+  base: __SPART_FUNCTIONS__,
+  ...chromeTokens,
+  fetch: (input, init) => fetch(input, init),
+};
+
+const runs = createRunRecorder({
+  load: async <T>(key: string) =>
+    (await chrome.storage.session.get(key))[key] as T | undefined,
+  save: (entries) => chrome.storage.session.set(entries),
+  remove: (keys) => chrome.storage.session.remove(keys),
+  send: async (setId: string, run: TourRun) => {
+    await callSpartBoard(api, 'webTourRunV1', { setId, run });
+  },
+});
 
 // Pages following a tour's progress, by set id; a restarted worker loses them and the page reconnects.
 const watchers = new Map<string, Set<chrome.runtime.Port>>();
@@ -38,6 +60,7 @@ const toPage = (port: chrome.runtime.Port, msg: WebTourPortPost) => {
   if (out) port.postMessage(out);
 };
 const post = (setId: string, msg: WebTourPortPost) => {
+  void runs.onPost(msg);
   for (const port of watchers.get(setId) ?? []) {
     try {
       toPage(port, msg);
@@ -53,7 +76,21 @@ const handle = createExternalHandler({
   origins,
   version: chrome.runtime.getManifest().version,
   getProfile: getChromeProfile,
-  startWebTour: (message) => playback.start(toPlayback(message)),
+  // Starting ends any other tour first, so its exit reaches its run before a new run begins.
+  startWebTour: async (message) => {
+    const tabId = await playback.start(toPlayback(message));
+    await runs.forget(message.tour.setId);
+    return tabId;
+  },
+  openWebTour: async (setId) => {
+    // Interactive, since a click on the tour link started it and Chrome may need to ask once.
+    const loaded = await callSpartBoard(api, 'webTourLoadV1', { setId }, true);
+    const opened = loaded.ok ? openedTour(setId, loaded.value) : null;
+    if (!opened) return null;
+    const tabId = await playback.start(opened.start);
+    await runs.begin(setId, opened.start.version, opened.locators);
+    return tabId;
+  },
 });
 
 chrome.runtime.onMessageExternal.addListener(

@@ -12,8 +12,16 @@ export interface OverlayRect {
 /** A check run's verdict on the current step; `pending` while it is still looking. */
 export type OverlayCheck = WebTourCheckResult | 'pending';
 
+/** `armed`, `moved` and `stopped` draw only a small notice chip (WEB_TOURS_HELP_PANEL.md H1-H3). */
 export type OverlayStatus =
-  'wrong-page' | 'seeking' | 'shown' | 'fallback' | 'done';
+  | 'wrong-page'
+  | 'seeking'
+  | 'shown'
+  | 'fallback'
+  | 'done'
+  | 'armed'
+  | 'moved'
+  | 'stopped';
 
 export interface OverlayState {
   title: string;
@@ -31,9 +39,11 @@ export interface OverlayState {
   picture: WebTourPictureBytes | null;
   /** Set only in check mode (C12). */
   check?: OverlayCheck;
+  /** Armed only: offer a button that opens the tour's start page. */
+  goStart?: boolean;
 }
 
-export type OverlayAction = 'next' | 'back' | 'exit';
+export type OverlayAction = 'next' | 'back' | 'exit' | 'start';
 
 const MAX_TEXT = 4000;
 const STATUSES: readonly OverlayStatus[] = [
@@ -42,6 +52,9 @@ const STATUSES: readonly OverlayStatus[] = [
   'shown',
   'fallback',
   'done',
+  'armed',
+  'moved',
+  'stopped',
 ];
 const CHECKS: readonly OverlayCheck[] = [
   'found',
@@ -99,8 +112,16 @@ const KEYS = [
 export function parseOverlayState(raw: unknown): OverlayState | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const checking = 'check' in raw;
-  if (!hasExactKeys(raw, checking ? [...KEYS, 'check'] : KEYS)) return null;
+  const offering = 'goStart' in raw;
+  const keys = [
+    ...KEYS,
+    ...(checking ? ['check'] : []),
+    ...(offering ? ['goStart'] : []),
+  ];
+  if (!hasExactKeys(raw, keys)) return null;
   const r = raw as Record<string, unknown>;
+  if (offering && (typeof r.goStart !== 'boolean' || r.status !== 'armed'))
+    return null;
   const check = CHECKS.find((c) => c === r.check);
   if (checking && !check) return null;
   const status = STATUSES.find((s) => s === r.status);
@@ -131,5 +152,6 @@ export function parseOverlayState(raw: unknown): OverlayState | null {
     observe: r.observe,
     picture,
     ...(check ? { check } : {}),
+    ...(offering ? { goStart: r.goStart as boolean } : {}),
   };
 }

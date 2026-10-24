@@ -11,7 +11,7 @@ import {
 } from '@/types';
 
 /** Bumped additively when a message type is added; the page checks it before using a feature. */
-export const EXTENSION_PROTOCOL_VERSION = 7;
+export const EXTENSION_PROTOCOL_VERSION = 8;
 
 /** Protocol 4: locators may carry `heading`, `pageTitle` and `attrs`, and steps report `score` matches. */
 export const SCORED_MATCH_PROTOCOL = 4;
@@ -24,6 +24,9 @@ export const CHECK_PROTOCOL = 6;
 
 /** Protocol 7: `web-tour/suggest` carries a better candidate's clues for a step that missed or played weak (C14). */
 export const SUGGEST_PROTOCOL = 7;
+
+/** Protocol 8: `web-tour/open` sends only a set id; the extension loads the tour, waits through sign-in and records the run (WEB_TOURS_HELP_PANEL.md H4). */
+export const OPEN_PROTOCOL = 8;
 
 /** Staff Google accounts; `@students.orono.k12.mn.us` does not match. */
 export const STAFF_EMAIL_DOMAIN = 'orono.k12.mn.us';
@@ -76,6 +79,12 @@ export interface WebTourCheckStartMessage {
   tour: WebTourStartTour;
   /** A nonce the page picks; every result of this run echoes it. */
   runId: string;
+}
+
+/** Protocol 8, staff only: the extension loads the published tour itself and opens it. */
+export interface WebTourOpenMessage {
+  type: 'web-tour/open';
+  setId: string;
 }
 
 export interface WebTourStartReply {
@@ -139,7 +148,10 @@ export type WebTourPortPost =
   WebTourProgressMessage | WebTourCheckProgress | WebTourSuggestPost;
 
 export type ExtensionMessage =
-  PingMessage | WebTourStartMessage | WebTourCheckStartMessage;
+  | PingMessage
+  | WebTourStartMessage
+  | WebTourCheckStartMessage
+  | WebTourOpenMessage;
 export type ExtensionMessageType = ExtensionMessage['type'];
 
 export interface PingReply {
@@ -149,7 +161,9 @@ export interface PingReply {
   profile: ExtensionProfile;
 }
 
-export type ExtensionErrorCode = 'unsupported' | 'invalid' | 'refused';
+/** `unavailable`: the extension couldn't load the tour for `web-tour/open`, so the page falls back to handing it over. */
+export type ExtensionErrorCode =
+  'unsupported' | 'invalid' | 'refused' | 'unavailable';
 
 export interface ExtensionErrorReply {
   ok: false;
@@ -175,6 +189,10 @@ const START_SPEC: MessageSpec = {
   },
 };
 
+/** A published tour's id, as the `/tour/{setId}` link carries it. */
+export const isTourSetId = (v: unknown): v is string =>
+  typeof v === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(v);
+
 /** A check run's id: short, plain characters only. */
 export const isCheckRunId = (v: unknown): v is string =>
   typeof v === 'string' && /^[A-Za-z0-9-]{1,64}$/.test(v);
@@ -186,6 +204,7 @@ const MESSAGE_SPECS: Record<ExtensionMessageType, MessageSpec> = {
     staffOnly: true,
     fields: { ...START_SPEC.fields, runId: isCheckRunId },
   },
+  'web-tour/open': { staffOnly: true, fields: { setId: isTourSetId } },
 };
 
 export type ParsedMessage =
