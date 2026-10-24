@@ -717,7 +717,10 @@ export function createPlaybackController(host: PlaybackHost) {
     await trackTab(rec.tabId, false);
   }
 
-  async function startNow(parsed: ParsedStart): Promise<number> {
+  async function startNow(
+    parsed: ParsedStart,
+    inTab?: number
+  ): Promise<number> {
     for (const other of (await host.load<number[]>(TABS_KEY)) ?? []) {
       await serial(other, async () => {
         const rec = await load(other);
@@ -730,7 +733,7 @@ export function createPlaybackController(host: PlaybackHost) {
       });
     }
     // The record is saved before the page loads, so its first commit always finds it.
-    const tabId = await host.openTab('about:blank');
+    const tabId = inTab ?? (await host.openTab('about:blank'));
     return serial(tabId, async () => {
       const state = startPlayback(
         parsed.tour,
@@ -783,7 +786,8 @@ export function createPlaybackController(host: PlaybackHost) {
         await trackTab(tabId, true);
       } catch (err) {
         await forget(rec).catch(() => undefined);
-        await host.closeTab(tabId).catch(() => undefined);
+        if (inTab === undefined)
+          await host.closeTab(tabId).catch(() => undefined);
         throw err;
       }
       await host.navigate(tabId, parsed.tour.startUrl);
@@ -794,9 +798,9 @@ export function createPlaybackController(host: PlaybackHost) {
   }
 
   return {
-    /** Opens the tour's first page in a new tab and starts playing there; one tour plays at a time. */
-    start(parsed: ParsedStart): Promise<number> {
-      return serial(START_QUEUE, () => startNow(parsed));
+    /** Opens the tour's first page in a new tab, or `inTab` (H5), and starts playing there; one tour plays at a time. */
+    start(parsed: ParsedStart, inTab?: number): Promise<number> {
+      return serial(START_QUEUE, () => startNow(parsed, inTab));
     },
 
     /** A new document committed in a frame of the tab (navigation, reload or a new frame). */

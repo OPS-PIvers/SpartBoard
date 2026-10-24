@@ -367,16 +367,21 @@ const extensionEndpoint = (handler: Handler, memory: '256MiB' | '512MiB') =>
     }
   );
 
-export const webToursListV1 = extensionEndpoint(async (_body, _caller, db) => {
-  const snap = await db
-    .collection(GL_TOURS_COLLECTION)
-    .where('set.surface', '==', 'web')
-    .select('publishedAt', 'set.title', 'set.surface', 'set.steps')
-    .get();
-  return {
-    tours: listTours(snap.docs.map((d) => ({ id: d.id, data: d.data() }))),
-  };
-}, '256MiB');
+export const webToursListV1 = extensionEndpoint(
+  async (_body, caller, db, deps) => {
+    const snap = await db
+      .collection(GL_TOURS_COLLECTION)
+      .where('set.surface', '==', 'web')
+      .select('publishedAt', 'set.title', 'set.surface', 'set.steps')
+      .get();
+    return {
+      tours: listTours(snap.docs.map((d) => ({ id: d.id, data: d.data() }))),
+      // Admins also get the side panel's Record tab (H5).
+      admin: await deps.isAdmin(caller.email),
+    };
+  },
+  '256MiB'
+);
 
 export const webTourLoadV1 = extensionEndpoint(async (body, _caller, db) => {
   const setId = parseSetId(body);

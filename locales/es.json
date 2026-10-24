@@ -4073,7 +4073,7 @@
     "webGoToStart": "Ir al inicio",
     "webArmedExit": "Detener el recorrido",
     "webMoved": "Su recorrido pasó a la otra pestaña.",
-    "webStopped": "Recorrido detenido. Abra el enlace del recorrido otra vez para empezar de nuevo.",
+    "webStopped": "Recorrido detenido. Haga clic en el icono de SpartBoard para empezarlo de nuevo.",
     "webDismiss": "Cerrar",
     "webPictureAlt": "Imagen de este paso",
     "webCheckFound": "Encontrado",
