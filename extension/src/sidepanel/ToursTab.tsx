@@ -1,4 +1,4 @@
-// The side panel's help center (docs/plans/WEB_TOURS_HELP_PANEL.md H5, H9).
+// The side panel's help center (docs/plans/shipped/WEB_TOURS_HELP_PANEL.md H5, H9).
 import React, { useEffect, useState } from 'react';
 import { Play, RefreshCw, Search } from 'lucide-react';
 import {

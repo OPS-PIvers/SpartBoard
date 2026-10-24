@@ -1,4 +1,4 @@
-// The worker's half of the Tours tab and badge (docs/plans/WEB_TOURS_HELP_PANEL.md H5, H6).
+// The worker's half of the Tours tab and badge (docs/plans/shipped/WEB_TOURS_HELP_PANEL.md H5, H6).
 import type { ApiResult } from './spartboardApi';
 import {
   badgeFor,
