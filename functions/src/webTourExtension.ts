@@ -1,4 +1,4 @@
-// The extension's own tour calls (docs/plans/WEB_TOURS_HELP_PANEL.md H7): a Google access token, never Firebase auth.
+// The extension's own tour calls (docs/plans/shipped/WEB_TOURS_HELP_PANEL.md H7): a Google access token, never Firebase auth.
 import './functionsInit';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';

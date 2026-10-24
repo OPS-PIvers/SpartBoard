@@ -11,7 +11,7 @@ Scope was settled in a design interview with Paul on 2026-10-22, then revised th
 
 **Web tours UX** (2026-10-22): [WEB_TOURS_UX.md](WEB_TOURS_UX.md) overrides T2 (web tours now appear in the Help Center), T6's per-step student-data tick (one publish check) and T11 (library cards, not links only).
 
-**Web tours help panel** (2026-10-23): [WEB_TOURS_HELP_PANEL.md](WEB_TOURS_HELP_PANEL.md) revises D3 (the extension calls SpartBoard's HTTPS functions with a Google token), T7, T9 and T11, and lists tours in the side panel.
+**Web tours help panel** (2026-10-23): [WEB_TOURS_HELP_PANEL.md](shipped/WEB_TOURS_HELP_PANEL.md) revises D3 (the extension calls SpartBoard's HTTPS functions with a Google token), T7, T9 and T11, and lists tours in the side panel.
 
 ## Starting facts
 

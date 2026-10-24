@@ -1,4 +1,4 @@
-// The side panel's tabs: Tours for every staff profile, Record for admins (docs/plans/WEB_TOURS_HELP_PANEL.md H5).
+// The side panel's tabs: Tours for every staff profile, Record for admins (docs/plans/shipped/WEB_TOURS_HELP_PANEL.md H5).
 import React, { useCallback, useEffect, useState } from 'react';
 import { focusRing } from '@/components/common/lightChrome';
 import type { TourListReply } from '../tourList';

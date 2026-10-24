@@ -193,6 +193,13 @@ Each item names the plan it came from; the plan holds the detail.
 - [ ] Paul tries the dev extension (0.1.11) in real Chrome: scored matching, blur before capture, Write with Claude, Check tour and the Publish gate, and a Suggested fix from a check run and from two teacher runs. (S)
 - [ ] C15 pictures: save a fresh picture with a suggestion from an admin's own run or a check run (PR 5 sends clues only). (M)
 
+#### `docs/plans/shipped/WEB_TOURS_HELP_PANEL.md`
+
+- [ ] Upload extension 0.1.14 to both Web Store listings (prod is still on 0.1.12; 0.1.13 was never uploaded). (S)
+- [ ] IT marks both "Chrome extension" OAuth clients (prod `759666600376-3588...`, dev `258543092004-9mfh...`) as Trusted in Admin Console > Security > API Controls, so teachers get no consent prompt (H8). (S)
+- [ ] Paul tries the dev extension (0.1.14) in real Chrome: a tour link through ClassLink sign-in (waits, then starts), a LaunchPad new tab, the Tours tab with search and Start, the badge, and the not-signed-in message on a personal profile. (S)
+- [ ] Optional: store each tour's start host and step count at publish time so `webToursListV1` stops reading every step; needs a rules change, so wait until the rules have room. (M)
+
 #### `docs/specs/LO12-nexus-widget-connections-spec.md`
 
 - [ ] Candidate 11: Activity Wall → Hotspot Image. (M)

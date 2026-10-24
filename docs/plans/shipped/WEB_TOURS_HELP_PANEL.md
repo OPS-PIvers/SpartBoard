@@ -1,8 +1,10 @@
 # Web tours: start after sign-in, and a help center in the side panel
 
+**Shipped** 2026-10-24: slices 1-3 merged to `dev-paul` (#4619, #4620, #4622), extension 0.1.14. The store upload, IT trusting the OAuth clients and the real-Chrome check are tracked in `TODO.md`.
+
 Goal: a web tour link keeps working on sites behind a sign-in (most of ours go through ClassLink), and staff can find every tour for the site they're on by clicking the extension's icon, without a link at all.
 
-Settled in a design interview with Paul on 2026-10-23. It builds on [CHROME_EXTENSION.md](CHROME_EXTENSION.md), [WEB_TOURS_UX.md](shipped/WEB_TOURS_UX.md) and [WEB_TOURS_CLAUDE.md](shipped/WEB_TOURS_CLAUDE.md), and **revises** CHROME_EXTENSION.md D3, T7, T9 and T11 and its out-of-scope line "the extension listing tours in its popup" (see "What this overrides").
+Settled in a design interview with Paul on 2026-10-23. It builds on [CHROME_EXTENSION.md](../CHROME_EXTENSION.md), [WEB_TOURS_UX.md](WEB_TOURS_UX.md) and [WEB_TOURS_CLAUDE.md](WEB_TOURS_CLAUDE.md), and **revises** CHROME_EXTENSION.md D3, T7, T9 and T11 and its out-of-scope line "the extension listing tours in its popup" (see "What this overrides").
 
 **Code references** were taken at `dev-paul` `1e94907ec`. Symbol names are authoritative; line numbers are hints.
 

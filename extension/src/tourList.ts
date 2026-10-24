@@ -1,4 +1,4 @@
-// The Tours tab and badge's cached list (docs/plans/WEB_TOURS_HELP_PANEL.md H5, H6).
+// The Tours tab and badge's cached list (docs/plans/shipped/WEB_TOURS_HELP_PANEL.md H5, H6).
 import type { ApiFailure } from './spartboardApi';
 
 export interface ListedTour {

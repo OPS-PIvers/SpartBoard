@@ -1,4 +1,4 @@
-// SpartBoard's tour calls (docs/plans/WEB_TOURS_HELP_PANEL.md H7): a Google access token as the bearer, no Firebase.
+// SpartBoard's tour calls (docs/plans/shipped/WEB_TOURS_HELP_PANEL.md H7): a Google access token as the bearer, no Firebase.
 
 /** Why a call failed, in words the side panel can show. */
 export type ApiFailure =
