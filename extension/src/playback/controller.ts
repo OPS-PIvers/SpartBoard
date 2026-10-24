@@ -108,15 +108,6 @@ export const ARM_MS = 10 * 60 * 1000;
 const tabKey = (tabId: number) => `wt:tab:${tabId}`;
 const picKey = (tabId: number, stepId: string) => `wt:pic:${tabId}:${stepId}`;
 const TABS_KEY = 'wt:tabs';
-const SIGN_IN_PATH =
-  /(^|[/_.-])(log-?in|sign-?in|sso|auth|oauth2?|saml|mfa|2fa|password)([/_.-]|$)/i;
-const pathOf = (url: string) => {
-  try {
-    return new URL(url).pathname;
-  } catch {
-    return '';
-  }
-};
 const CHECK_ENDS_KEY = 'wt:checkEnds';
 /** Ended check runs kept for an editor that reconnects late. */
 export const CHECK_ENDS_KEPT = 5;
@@ -306,15 +297,14 @@ export function createPlaybackController(host: PlaybackHost) {
     };
   }
 
-  /** A start-site page that isn't a sign-in hop ends the wait: the first load, or the start url itself. */
+  /** The tour's own start url ends the wait, so a wildcard first step opened at the site root still plays. */
   function leavesArm(rec: TabRecord, url: string) {
-    const arm = rec.arm;
-    if (!arm || rec.state.status !== 'armed' || hostOf(url) !== arm.host)
-      return false;
-    const sameUrl = (a: string, b: string) =>
-      a.replace(/\/$/, '') === b.replace(/\/$/, '');
-    if (sameUrl(url, rec.state.tour.startUrl)) return true;
-    return !arm.leftHost && !arm.navigated && !SIGN_IN_PATH.test(pathOf(url));
+    if (!rec.arm || rec.state.status !== 'armed') return false;
+    const trim = (u: string) => u.replace(/\/$/, '');
+    return (
+      hostOf(url) === rec.arm.host &&
+      trim(url) === trim(rec.state.tour.startUrl)
+    );
   }
 
   /** An armed tab loaded a page that isn't the start page: a trip off the site and back goes to the start once (H2). */
@@ -396,8 +386,8 @@ export function createPlaybackController(host: PlaybackHost) {
           );
           if (!pic) continue;
           await host.save({ [picKey(toTabId, s.id)]: pic });
-          await host.remove([picKey(fromTabId, s.id)]);
           done.push(s.id);
+          await host.remove([picKey(fromTabId, s.id)]);
         }
       } catch {
         for (const id of done) {

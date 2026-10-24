@@ -218,12 +218,16 @@ describe('loadTour', () => {
     w: 800,
     h: 600,
   });
+  const storeOf = (size: number, data = 'AAAA', mime = 'image/jpeg') => ({
+    meta: vi.fn(() => Promise.resolve({ mime, size })),
+    download: vi.fn(() => Promise.resolve(data)),
+  });
 
   it('drops private notes and questions and returns pictures by step', async () => {
     const tour = await loadTour(
       'set1',
       snapshot([step('a', 'https://app.example.com/', pic('a'))]),
-      () => Promise.resolve({ mime: 'image/jpeg', data: 'AAAA' })
+      storeOf(3)
     );
     expect(tour.steps[0]).toEqual({
       id: 'a',
@@ -242,9 +246,7 @@ describe('loadTour', () => {
   });
 
   it("never reads a picture outside the set's folder", async () => {
-    const read = vi.fn(() =>
-      Promise.resolve({ mime: 'image/jpeg', data: 'A' })
-    );
+    const store = storeOf(3);
     const tour = await loadTour(
       'set1',
       snapshot([
@@ -254,63 +256,58 @@ describe('loadTour', () => {
           h: 1,
         }),
       ]),
-      read
+      store
     );
-    expect(read).not.toHaveBeenCalled();
+    expect(store.meta).not.toHaveBeenCalled();
+    expect(store.download).not.toHaveBeenCalled();
     expect(tour.pictures).toEqual({});
   });
 
-  it('keeps pictures within the total budget, in step order', async () => {
-    const big = 'A'.repeat(MAX_PICTURE_TOTAL_CHARS / 2 + 1);
+  it('spends the total budget in step order and never downloads what does not fit', async () => {
+    const store = storeOf((MAX_PICTURE_TOTAL_CHARS / 2 / 4) * 3 + 3);
     const tour = await loadTour(
       'set1',
       snapshot([
         step('a', 'https://app.example.com/', pic('a')),
         step('b', 'https://app.example.com/', pic('b')),
       ]),
-      () => Promise.resolve({ mime: 'image/png', data: big })
+      store
     );
     expect(Object.keys(tour.pictures)).toEqual(['a']);
+    expect(store.meta).toHaveBeenCalledTimes(2);
+    expect(store.download).toHaveBeenCalledTimes(1);
+    expect(store.download).toHaveBeenCalledWith('web_tour_pictures/set1/a.jpg');
   });
 
-  it('reads pictures one at a time and hands each read the room left', async () => {
-    let inFlight = 0;
-    let overlap = false;
-    const rooms: number[] = [];
-    const half = 'A'.repeat(MAX_PICTURE_TOTAL_CHARS / 2);
-    await loadTour(
-      'set1',
-      snapshot([
-        step('a', 'https://app.example.com/', pic('a')),
-        step('b', 'https://app.example.com/', pic('b')),
-      ]),
-      async (_path, room) => {
-        rooms.push(room);
-        overlap ||= ++inFlight > 1;
-        await Promise.resolve();
-        inFlight -= 1;
-        return { mime: 'image/png', data: half };
-      }
-    );
-    expect(overlap).toBe(false);
-    expect(rooms).toEqual([
-      MAX_PICTURE_TOTAL_CHARS,
-      MAX_PICTURE_TOTAL_CHARS / 2,
-    ]);
+  it('skips a picture of another type or over the size cap', async () => {
+    const gif = storeOf(3, 'AAAA', 'image/gif');
+    const huge = storeOf(5 * 1024 * 1024 + 1);
+    for (const store of [gif, huge]) {
+      const tour = await loadTour(
+        'set1',
+        snapshot([step('a', 'https://app.example.com/', pic('a'))]),
+        store
+      );
+      expect(tour.pictures).toEqual({});
+      expect(store.download).not.toHaveBeenCalled();
+    }
   });
 
   it('plays the tour without a picture that fails to load', async () => {
     const tour = await loadTour(
       'set1',
       snapshot([step('a', 'https://app.example.com/', pic('a'))]),
-      () => Promise.reject(new Error('gone'))
+      {
+        meta: () => Promise.resolve({ mime: 'image/jpeg', size: 3 }),
+        download: () => Promise.reject(new Error('gone')),
+      }
     );
     expect(tour.pictures).toEqual({});
     expect(tour.steps).toHaveLength(1);
   });
 
   it('refuses a missing, unpublished or SpartBoard tour', async () => {
-    const read = () => Promise.resolve(null);
+    const read = storeOf(3);
     expect(await status(loadTour('set1', null, read))).toBe(404);
     expect(
       await status(

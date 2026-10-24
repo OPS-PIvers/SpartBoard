@@ -1125,12 +1125,12 @@ describe('playback controller, waiting through sign-in (H1-H3)', () => {
     expect(h.lastRender()).toMatchObject({ status: 'seeking', current: 1 });
   });
 
-  it('leaves the wait on the first same-site page that is not a sign-in page, even one containing "sso" or "auth"', async () => {
+  it('keeps waiting on a same-site sign-in page the start url redirected to', async () => {
     const h = fakeHost();
     const c = createPlaybackController(h.host);
     await c.start(parsed());
-    await c.committed(7, 0, 'https://a.example/lessons/author');
-    expect(h.lastRender()).toMatchObject({ status: 'wrong-page' });
+    await c.committed(7, 0, 'https://a.example/users/sign_in');
+    expect(h.lastRender()).toMatchObject({ status: 'armed' });
   });
 
   it('moves pictures one at a time and keeps them on the old tab if a move fails', async () => {
