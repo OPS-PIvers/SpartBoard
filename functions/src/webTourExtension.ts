@@ -183,32 +183,44 @@ export interface LoadedTour {
 export async function loadTour(
   setId: string,
   snap: StoredSnapshot | null,
-  readPicture: (path: string) => Promise<{ mime: string; data: string } | null>
+  store: PictureStore
 ): Promise<LoadedTour> {
   if (!snap || !isWebTourSnapshot(snap) || !startHostOf(snap))
     throw fail(404, 'That tour is no longer published.');
   const steps = webSteps(snap);
-  const read = await Promise.all(
-    steps.map(async (step) => {
-      const pic = step.web?.picture;
-      const path = str(pic?.path);
-      const w = Number(pic?.w);
-      const h = Number(pic?.h);
-      if (!isWebTourPicturePath(setId, path) || !(w > 0) || !(h > 0))
-        return null;
-      const got = await readPicture(path).catch(() => null);
-      return got && got.data.length <= MAX_PICTURE_CHARS
-        ? { ...got, w, h }
-        : null;
-    })
+  const wanted: { id: string; path: string; w: number; h: number }[] = [];
+  for (const step of steps) {
+    const pic = step.web?.picture;
+    const path = str(pic?.path);
+    const w = Number(pic?.w);
+    const h = Number(pic?.h);
+    if (!isWebTourPicturePath(setId, path) || !(w > 0) || !(h > 0)) continue;
+    wanted.push({ id: str(step.id), path, w, h });
+  }
+  // Sizes come from metadata in parallel; the budget is spent in step order before any download.
+  const metas = await Promise.all(
+    wanted.map((p) => store.meta(p.path).catch(() => null))
+  );
+  const accepted: ((typeof wanted)[number] & { mime: string })[] = [];
+  let total = 0;
+  wanted.forEach((p, i) => {
+    const meta = metas[i];
+    if (!meta || !PICTURE_TYPES.has(meta.mime)) return;
+    if (meta.size > 5 * 1024 * 1024) return;
+    const chars = Math.ceil(meta.size / 3) * 4;
+    if (chars > MAX_PICTURE_CHARS || total + chars > MAX_PICTURE_TOTAL_CHARS)
+      return;
+    total += chars;
+    accepted.push({ ...p, mime: meta.mime });
+  });
+  const datas = await Promise.all(
+    accepted.map((p) => store.download(p.path).catch(() => null))
   );
   const pictures: Record<string, LoadedTourPicture> = {};
-  let total = 0;
-  steps.forEach((step, i) => {
-    const pic = read[i];
-    if (!pic || total + pic.data.length > MAX_PICTURE_TOTAL_CHARS) return;
-    total += pic.data.length;
-    pictures[str(step.id)] = pic;
+  accepted.forEach((p, i) => {
+    const data = datas[i];
+    if (!data || data.length > MAX_PICTURE_CHARS) return;
+    pictures[p.id] = { mime: p.mime, data, w: p.w, h: p.h };
   });
   return {
     setId,
@@ -324,17 +336,22 @@ function defaultDeps(db: Firestore): ExtensionDeps {
   };
 }
 
-async function readPicture(
-  path: string
-): Promise<{ mime: string; data: string } | null> {
-  const file = admin.storage().bucket().file(path);
-  const [meta] = await file.getMetadata();
-  const mime = String(meta.contentType ?? '');
-  if (!PICTURE_TYPES.has(mime) || Number(meta.size ?? 0) > 5 * 1024 * 1024)
-    return null;
-  const [data] = await file.download();
-  return { mime, data: data.toString('base64') };
-}
+export type PictureStore = {
+  meta: (path: string) => Promise<{ mime: string; size: number } | null>;
+  download: (path: string) => Promise<string>;
+};
+
+const pictureStore: PictureStore = {
+  async meta(path) {
+    const [meta] = await admin.storage().bucket().file(path).getMetadata();
+    const size = Number(meta.size ?? 0);
+    return { mime: String(meta.contentType ?? ''), size };
+  },
+  async download(path) {
+    const [data] = await admin.storage().bucket().file(path).download();
+    return data.toString('base64');
+  },
+};
 
 type Handler = (
   body: unknown,
@@ -389,7 +406,7 @@ export const webTourLoadV1 = extensionEndpoint(async (body, _caller, db) => {
   return loadTour(
     setId,
     snap.exists ? (snap.data() as StoredSnapshot) : null,
-    readPicture
+    pictureStore
   );
 }, '512MiB');
 
