@@ -14,6 +14,9 @@ import { useAuth } from '@/context/useAuth';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { getFontClass, hexToRgba } from '@/utils/styles';
 
+// Floors body text at 9px so tiny cards stay legible.
+const BODY_FONT = 'max(9px, min(14px, 5.5cqmin))';
+
 export const EditableNode: React.FC<{
   id: string;
   initialText: string;
@@ -152,7 +155,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         style={{ backgroundColor: cellBg, padding: 'min(16px, 3cqmin)' }}
       >
         <div
-          className="absolute font-bold text-slate-500 uppercase"
+          className="absolute font-bold text-slate-500 uppercase [@container_(max-width:219px)_or_(max-height:199px)]:hidden"
           style={{
             top: 'min(8px, 1.5cqmin)',
             left: 'min(8px, 1.5cqmin)',
@@ -168,7 +171,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           className="h-full"
           style={{
             marginTop: 'min(16px, 3cqmin)',
-            fontSize: 'min(14px, 5.5cqmin)',
+            fontSize: BODY_FONT,
           }}
           placeholder={`Type ${selectedTemplate?.defaultNodes?.topLeft ?? 'definition'}...`}
         />
@@ -178,7 +181,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         style={{ backgroundColor: cellBg, padding: 'min(16px, 3cqmin)' }}
       >
         <div
-          className="absolute font-bold text-slate-500 uppercase"
+          className="absolute font-bold text-slate-500 uppercase [@container_(max-width:219px)_or_(max-height:199px)]:hidden"
           style={{
             top: 'min(8px, 1.5cqmin)',
             left: 'min(8px, 1.5cqmin)',
@@ -194,7 +197,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           className="h-full"
           style={{
             marginTop: 'min(16px, 3cqmin)',
-            fontSize: 'min(14px, 5.5cqmin)',
+            fontSize: BODY_FONT,
           }}
           placeholder={`Type ${selectedTemplate?.defaultNodes?.topRight ?? 'characteristics'}...`}
         />
@@ -204,7 +207,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         style={{ backgroundColor: cellBg, padding: 'min(16px, 3cqmin)' }}
       >
         <div
-          className="absolute font-bold text-slate-500 uppercase"
+          className="absolute font-bold text-slate-500 uppercase [@container_(max-width:219px)_or_(max-height:199px)]:hidden"
           style={{
             top: 'min(8px, 1.5cqmin)',
             left: 'min(8px, 1.5cqmin)',
@@ -220,7 +223,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           className="h-full"
           style={{
             marginTop: 'min(16px, 3cqmin)',
-            fontSize: 'min(14px, 5.5cqmin)',
+            fontSize: BODY_FONT,
           }}
           placeholder={`Type ${selectedTemplate?.defaultNodes?.bottomLeft ?? 'examples'}...`}
         />
@@ -230,7 +233,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
         style={{ backgroundColor: cellBg, padding: 'min(16px, 3cqmin)' }}
       >
         <div
-          className="absolute font-bold text-slate-500 uppercase"
+          className="absolute font-bold text-slate-500 uppercase [@container_(max-width:219px)_or_(max-height:199px)]:hidden"
           style={{
             top: 'min(8px, 1.5cqmin)',
             left: 'min(8px, 1.5cqmin)',
@@ -246,13 +249,13 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           className="h-full"
           style={{
             marginTop: 'min(16px, 3cqmin)',
-            fontSize: 'min(14px, 5.5cqmin)',
+            fontSize: BODY_FONT,
           }}
           placeholder={`Type ${selectedTemplate?.defaultNodes?.bottomRight ?? 'non-examples'}...`}
         />
       </div>
       <div
-        className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-indigo-100 border-4 border-indigo-300 rounded-full flex items-center justify-center shadow-lg text-center z-10"
+        className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-indigo-100 border-4 border-indigo-300 rounded-full flex items-center justify-center shadow-lg text-center z-10 [@container_(max-width:219px)_or_(max-height:199px)]:hidden"
         style={{
           width: 'min(128px, 22cqmin)',
           height: 'min(128px, 22cqmin)',
@@ -297,7 +300,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           initialText={nodes['left']?.text ?? ''}
           onUpdate={handleUpdate}
           className="h-full"
-          style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+          style={{ fontSize: BODY_FONT }}
           placeholder={
             selectedTemplate?.defaultNodes?.leftContent ?? '- Item 1\n- Item 2'
           }
@@ -321,7 +324,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           initialText={nodes['right']?.text ?? ''}
           onUpdate={handleUpdate}
           className="h-full"
-          style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+          style={{ fontSize: BODY_FONT }}
           placeholder={
             selectedTemplate?.defaultNodes?.rightContent ?? '- Item 1\n- Item 2'
           }
@@ -357,7 +360,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
             id="left"
             initialText={nodes['left']?.text ?? ''}
             onUpdate={handleUpdate}
-            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+            style={{ fontSize: BODY_FONT }}
             placeholder="Unique to A"
           />
         </div>
@@ -377,7 +380,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
             id="center"
             initialText={nodes['center']?.text ?? ''}
             onUpdate={handleUpdate}
-            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+            style={{ fontSize: BODY_FONT }}
             placeholder="Shared"
           />
         </div>
@@ -399,7 +402,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
             id="right"
             initialText={nodes['right']?.text ?? ''}
             onUpdate={handleUpdate}
-            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+            style={{ fontSize: BODY_FONT }}
             placeholder="Unique to B"
           />
         </div>
@@ -424,8 +427,8 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
             K
           </div>
           <div
-            className="font-bold text-blue-600 uppercase"
-            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+            className="font-bold text-blue-600 uppercase [@container_(max-width:219px)_or_(max-height:199px)]:hidden"
+            style={{ fontSize: BODY_FONT }}
           >
             {selectedTemplate?.defaultNodes?.k ?? 'What I Know'}
           </div>
@@ -438,7 +441,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           style={{
             padding: 'min(16px, 3cqmin)',
             paddingBottom: 'clamp(12px, 3cqmin, 16px)',
-            fontSize: 'min(14px, 5.5cqmin)',
+            fontSize: BODY_FONT,
           }}
           placeholder="Type here..."
         />
@@ -455,8 +458,8 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
             W
           </div>
           <div
-            className="font-bold text-amber-600 uppercase"
-            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+            className="font-bold text-amber-600 uppercase [@container_(max-width:219px)_or_(max-height:199px)]:hidden"
+            style={{ fontSize: BODY_FONT }}
           >
             {selectedTemplate?.defaultNodes?.w ?? 'What I Wonder'}
           </div>
@@ -469,7 +472,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           style={{
             padding: 'min(16px, 3cqmin)',
             paddingBottom: 'clamp(12px, 3cqmin, 16px)',
-            fontSize: 'min(14px, 5.5cqmin)',
+            fontSize: BODY_FONT,
           }}
           placeholder="Type here..."
         />
@@ -486,8 +489,8 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
             L
           </div>
           <div
-            className="font-bold text-green-600 uppercase"
-            style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+            className="font-bold text-green-600 uppercase [@container_(max-width:219px)_or_(max-height:199px)]:hidden"
+            style={{ fontSize: BODY_FONT }}
           >
             {selectedTemplate?.defaultNodes?.l ?? 'What I Learned'}
           </div>
@@ -500,7 +503,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           style={{
             padding: 'min(16px, 3cqmin)',
             paddingBottom: 'clamp(12px, 3cqmin, 16px)',
-            fontSize: 'min(14px, 5.5cqmin)',
+            fontSize: BODY_FONT,
           }}
           placeholder="Type here..."
         />
@@ -522,7 +525,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           className="bg-rose-100 text-center rounded-t-md border-b-2 border-rose-300 font-bold text-rose-800 uppercase tracking-wider"
           style={{
             padding: 'min(8px, 1.5cqmin)',
-            fontSize: 'min(14px, 5.5cqmin)',
+            fontSize: BODY_FONT,
           }}
         >
           Cause
@@ -534,7 +537,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           className="flex-grow"
           style={{
             padding: 'min(16px, 3cqmin)',
-            fontSize: 'min(14px, 5.5cqmin)',
+            fontSize: BODY_FONT,
           }}
           placeholder={
             selectedTemplate?.defaultNodes?.cause1 ?? 'Why it happened...'
@@ -565,7 +568,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           className="bg-emerald-100 text-center rounded-t-md border-b-2 border-emerald-300 font-bold text-emerald-800 uppercase tracking-wider"
           style={{
             padding: 'min(8px, 1.5cqmin)',
-            fontSize: 'min(14px, 5.5cqmin)',
+            fontSize: BODY_FONT,
           }}
         >
           Effect
@@ -577,7 +580,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           className="flex-grow"
           style={{
             padding: 'min(16px, 3cqmin)',
-            fontSize: 'min(14px, 5.5cqmin)',
+            fontSize: BODY_FONT,
           }}
           placeholder={
             selectedTemplate?.defaultNodes?.effect ?? 'What happened...'
