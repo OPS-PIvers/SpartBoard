@@ -281,9 +281,34 @@
       "widgetType": "countdown",
       "dimension": "layout",
       "openedAt": "2026-10-23T04:11:00Z",
+      "outcome": "accepted",
+      "changes": {
+        "S1": {
+          "before": 2,
+          "after": 3
+        }
+      }
+    },
+    {
+      "pr": 4628,
+      "widgetType": "graphic-organizer",
+      "dimension": "layout",
+      "openedAt": "2026-10-24T04:16:30Z",
       "outcome": "open",
       "changes": {
         "S1": {
+          "before": 1,
+          "after": 2
+        },
+        "S3": {
+          "before": 1,
+          "after": 2
+        },
+        "S7": {
+          "before": 2,
+          "after": 3
+        },
+        "I2": {
           "before": 2,
           "after": 3
         }
