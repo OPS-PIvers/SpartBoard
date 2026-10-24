@@ -1143,7 +1143,7 @@ describe('playback controller, waiting through sign-in (H1-H3)', () => {
     };
     await c.start(p);
     const saves: number[] = [];
-    const save = h.host.save;
+    const save = h.host.save.bind(h.host);
     h.host.save = (e) => {
       saves.push(Object.keys(e).length);
       if (Object.keys(e).some((k) => k.startsWith('wt:pic:9:b')))
