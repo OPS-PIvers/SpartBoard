@@ -8,6 +8,7 @@ import React, {
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { Z_INDEX } from '@/config/zIndex';
+import { isImeComposing } from '@/utils/imeComposing';
 import { filterStaff, useStaffDirectory } from '@/hooks/useStaffDirectory';
 
 type InputProps = Omit<
@@ -85,6 +86,7 @@ export const StaffEmailInput: React.FC<StaffEmailInputProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (isImeComposing(e)) return;
     if (showList) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();

@@ -68,6 +68,17 @@ describe('StaffEmailInput', () => {
     expect(onEnter).toHaveBeenCalledTimes(1);
   });
 
+  it('ignores Enter while an IME is composing', async () => {
+    const onEnter = vi.fn();
+    render(<Harness orgId="org-a" onEnter={onEnter} />);
+    const input = await typeInto('paul');
+    await screen.findAllByRole('option');
+    fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 });
+    expect(input.value).toBe('paul');
+    expect(screen.queryByRole('listbox')).not.toBeNull();
+    expect(onEnter).not.toHaveBeenCalled();
+  });
+
   it('closes only the suggestion list on Escape, not the host modal', async () => {
     const onClose = vi.fn();
     render(
