@@ -1125,11 +1125,11 @@ describe('playback controller, waiting through sign-in (H1-H3)', () => {
     expect(h.lastRender()).toMatchObject({ status: 'seeking', current: 1 });
   });
 
-  it('leaves the wait on the first same-site page that is not a sign-in page', async () => {
+  it('leaves the wait on the first same-site page that is not a sign-in page, even one containing "sso" or "auth"', async () => {
     const h = fakeHost();
     const c = createPlaybackController(h.host);
     await c.start(parsed());
-    await c.committed(7, 0, 'https://a.example/landing');
+    await c.committed(7, 0, 'https://a.example/lessons/author');
     expect(h.lastRender()).toMatchObject({ status: 'wrong-page' });
   });
 

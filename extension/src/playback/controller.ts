@@ -108,7 +108,8 @@ export const ARM_MS = 10 * 60 * 1000;
 const tabKey = (tabId: number) => `wt:tab:${tabId}`;
 const picKey = (tabId: number, stepId: string) => `wt:pic:${tabId}:${stepId}`;
 const TABS_KEY = 'wt:tabs';
-const SIGN_IN_PATH = /log-?in|sign-?in|sso|auth|saml|mfa|2fa|password/i;
+const SIGN_IN_PATH =
+  /(^|[/_.-])(log-?in|sign-?in|sso|auth|oauth2?|saml|mfa|2fa|password)([/_.-]|$)/i;
 const pathOf = (url: string) => {
   try {
     return new URL(url).pathname;
