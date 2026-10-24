@@ -4904,3 +4904,21 @@ rather than "no data") is also still open.
   - #4595: a fast A→B→A edit can still leave the shared copy at B (narrow race, older than this PR).
   - #4594: `--num-std` grows from 42cqh to 46cqh at every card size, not only small ones.
 - Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. No local checks were run because no fixes were made.
+
+## 2026-10-24 (run 2)
+- PRs reviewed: #4629 SmartNotebook assets panel: scale width caps with the widget, #4628 Widget loop: Graphic Organizer layout S1 1 → 3, #4627 Debugger run 106: log 2026-10-24, #4626 Lunch menu sync: retry thrown network errors, not just 5xx, #4625 HexColorField: skip onChange on an unchanged blur, #4624 StaffEmailInput: ignore Enter and arrows while an IME is composing, #4623 Countdown: count days arithmetically and cap grid cells for far-future events, #4622 Web tours: Tours tab and badge in the side panel (help panel slice 3), #4621 Unifier run 125: aligned (log only)
+- Comments processed: 3 total. 3 fixed, 0 explained.
+  - All three were red-circle inline findings from `claude[bot]` on #4622. Each got a reply, and its thread was resolved.
+  - The other PRs had only `claude[bot]` summary comments that reported no issues.
+- Fixes pushed:
+  - #4622 on `web-tours-panel`, commit ddbf73a3:
+    - A reused tab whose start URL changes only the fragment now gets the overlay.
+    - With no token while the browser is offline, the result is 'offline' instead of 'signed-out'.
+    - An offline refresh now returns the cached list. Before, it replaced the list in the panel with a failure.
+- Reviews posted: 9
+  - Ready: #4629, #4627, #4626, #4625, #4624, #4623.
+  - Ready with minor notes: #4628, #4622, #4621.
+  - #4628 hides the Frayer center circle at small sizes. That circle holds the concept word the teacher typed, so whether it may be hidden needs Paul's call.
+  - #4621 put its run row into the Journal table, which has a different column count.
+  - #4622 has no functions test for the new `admin` field in the `webToursListV1` reply.
+- Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. The fix was checked with the extension type-check and the three affected suites (69 tests, all passing). The new controller test fails without the fix. Lint and prettier passed in the pre-commit hook.
