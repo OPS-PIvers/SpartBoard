@@ -52,6 +52,15 @@ describe('callSpartBoard', () => {
     });
   });
 
+  it('says offline with no token while the browser is offline', async () => {
+    const { d } = deps([], null);
+    d.online = () => false;
+    expect(await callSpartBoard(d, 'x', {})).toEqual({
+      ok: false,
+      why: 'offline',
+    });
+  });
+
   it('names each refusal', async () => {
     const why = async (status: number) => {
       const r = await callSpartBoard(deps([reply(status)]).d, 'x', {});

@@ -1056,6 +1056,27 @@ describe('playback controller, waiting through sign-in (H1-H3)', () => {
   const navigationsTo = (h: ReturnType<typeof fakeHost>, url: string) =>
     h.navigated.filter((n) => n.url === url).length;
 
+  it('arms in the given tab instead of opening one (H5)', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    expect(await c.start(parsed(), 42)).toBe(42);
+    expect(h.opened).toEqual([]);
+    expect(h.navigated).toEqual([
+      { tabId: 42, url: 'https://a.example/home', saved: true },
+    ]);
+    await c.committed(42, 0, 'https://a.example/home');
+    expect(h.lastRender()).toMatchObject({ status: 'seeking', current: 1 });
+  });
+
+  it('injects the overlay when the given tab only changes its fragment (H5)', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed(), 42);
+    await c.historyChanged(42, 0, 'https://a.example/home');
+    expect(h.injected).toContainEqual({ frameIds: [0], overlay: true });
+    expect(h.lastRender()).toMatchObject({ status: 'seeking', current: 1 });
+  });
+
   it('waits through a ClassLink redirect chain and starts on the start page', async () => {
     const h = fakeHost();
     const c = createPlaybackController(h.host);
