@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "graphic-organizer",
   "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-24T04:08:23.376Z",
+  "gradedAt": "2026-10-24T18:44:02.783Z",
   "stale": false,
   "criteria": {
     "I5": {
@@ -14,23 +14,23 @@
       "stale": false
     },
     "S1": {
-      "score": 3,
-      "source": "judge",
+      "score": 2,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-graphic-organizer-2026-10-24-after/screenshots/graphic-organizer/envelope-min__empty.png",
-          "scripts/widget-grader/out/loop-graphic-organizer-2026-10-24-after/screenshots/graphic-organizer/envelope-min__typical.png",
-          "scripts/widget-grader/out/loop-graphic-organizer-2026-10-24-after/screenshots/graphic-organizer/envelope-min__stress.png"
+          "scripts/widget-grader/out/grade-go-4628/screenshots/graphic-organizer/envelope-min__empty.png",
+          "scripts/widget-grader/out/grade-go-4628/screenshots/graphic-organizer/envelope-min__typical.png",
+          "scripts/widget-grader/out/grade-go-4628/screenshots/graphic-organizer/envelope-min__stress.png"
         ],
-        "runId": "loop-graphic-organizer-2026-10-24-after"
+        "runId": "grade-go-4628"
       },
-      "note": "At 150×100 the quadrant labels hide so the four cells keep their content readable at about 9 px, and the KWL stress view keeps its K/W/L headers while the body text wraps.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-24T04:08:23.376Z",
+      "gradedAt": "2026-10-24T18:41:15.330Z",
       "stale": false
     },
     "S2": {
@@ -55,23 +55,23 @@
     },
     "S3": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-graphic-organizer-2026-10-24-after/screenshots/graphic-organizer/widest-aspect__typical.png",
-          "scripts/widget-grader/out/loop-graphic-organizer-2026-10-24-after/screenshots/graphic-organizer/widest-aspect__stress.png",
-          "scripts/widget-grader/out/loop-graphic-organizer-2026-10-24-after/screenshots/graphic-organizer/tallest-aspect__typical.png",
-          "scripts/widget-grader/out/loop-graphic-organizer-2026-10-24-after/screenshots/graphic-organizer/tallest-aspect__stress.png"
+          "scripts/widget-grader/out/grade-go-4628/screenshots/graphic-organizer/widest-aspect__typical.png",
+          "scripts/widget-grader/out/grade-go-4628/screenshots/graphic-organizer/widest-aspect__stress.png",
+          "scripts/widget-grader/out/grade-go-4628/screenshots/graphic-organizer/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/grade-go-4628/screenshots/graphic-organizer/tallest-aspect__stress.png"
         ],
-        "runId": "loop-graphic-organizer-2026-10-24-after"
+        "runId": "grade-go-4628"
       },
-      "note": "The Frayer stays a 2×2 grid at every shape, so at 225×900 the cells become thin strips and the topic circle wraps 'Plant' into 'Plan / t'; it fills the card but never reflows.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-24T04:08:23.376Z",
+      "gradedAt": "2026-10-24T18:41:31.839Z",
       "stale": false
     },
     "S4": {
@@ -129,21 +129,21 @@
     },
     "S7": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-graphic-organizer-2026-10-24-after/screenshots/graphic-organizer/envelope-min__typical.png",
-          "scripts/widget-grader/out/loop-graphic-organizer-2026-10-24-after/screenshots/graphic-organizer/default__typical.png"
+          "scripts/widget-grader/out/grade-go-4628/screenshots/graphic-organizer/envelope-min__typical.png",
+          "scripts/widget-grader/out/grade-go-4628/screenshots/graphic-organizer/default__typical.png"
         ],
-        "runId": "loop-graphic-organizer-2026-10-24-after"
+        "runId": "grade-go-4628"
       },
-      "note": "The 150×100 minimum still shows four usable cells, which matches what a four-part organizer needs.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-24T04:08:23.376Z",
+      "gradedAt": "2026-10-24T18:41:46.859Z",
       "stale": false
     },
     "S8": {
@@ -184,18 +184,19 @@
     },
     "I2": {
       "score": 3,
-      "source": "script",
+      "source": "paul",
       "candidates": {
-        "script": 3
+        "script": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-graphic-organizer-2026-10-24-after/screenshots/graphic-organizer/default__typical.png"
+          "scripts/widget-grader/out/grade-go-4628/screenshots/graphic-organizer/default__typical.png"
         ],
-        "runId": "loop-graphic-organizer-2026-10-24-after"
+        "runId": "grade-go-4628"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-24T04:08:23.376Z",
+      "gradedAt": "2026-10-24T18:41:57.997Z",
       "stale": false
     },
     "I3": {
@@ -397,21 +398,21 @@
       "stale": false
     },
     "C2": {
-      "score": 3,
-      "source": "judge",
+      "score": 2,
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-graphic-organizer-2026-10-24-after/screenshots/graphic-organizer/default__typical__settings.png"
+          "scripts/widget-grader/out/grade-go-4628/screenshots/graphic-organizer/default__typical__settings.png"
         ],
-        "runId": "loop-graphic-organizer-2026-10-24-after"
+        "runId": "grade-go-4628"
       },
-      "note": "The drawer screenshot does not show the drawer open, so this is judged from its schema: a single content group holding the template picker, with font and card color as standard style keys, and nothing advanced mixed in.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-24T04:08:23.376Z",
+      "gradedAt": "2026-10-24T18:42:11.544Z",
       "stale": false
     },
     "C3": {
@@ -576,30 +577,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "loop-graphic-organizer-2026-10-24-after"
+        "runId": "grade-go-4628"
       },
-      "gradedAt": "2026-10-24T04:08:23.376Z"
+      "gradedAt": "2026-10-24T18:44:02.783Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "loop-graphic-organizer-2026-10-24-after"
+        "runId": "grade-go-4628"
       },
-      "gradedAt": "2026-10-24T04:08:23.376Z"
+      "gradedAt": "2026-10-24T18:44:02.783Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "loop-graphic-organizer-2026-10-24-after"
+        "runId": "grade-go-4628"
       },
-      "gradedAt": "2026-10-24T04:08:23.376Z"
+      "gradedAt": "2026-10-24T18:44:02.783Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "loop-graphic-organizer-2026-10-24-after"
+        "runId": "grade-go-4628"
       },
-      "gradedAt": "2026-10-24T04:08:23.376Z"
+      "gradedAt": "2026-10-24T18:44:02.783Z"
     }
   }
 }
