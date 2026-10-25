@@ -3,6 +3,7 @@ import type React from 'react';
 import {
   CalendarRange,
   Trophy,
+  Camera,
   FolderSync,
   PenLine,
   BarChart,
@@ -1269,6 +1270,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'seating-chart',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'document-camera-pro': {
+    label: 'Camera as a document camera',
+    icon: Camera,
+    description:
+      'Zoom, turn, freeze and draw on the Camera image, and compare photos side by side.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'webcam',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

@@ -2733,7 +2733,10 @@ export interface ActivityWallLike {
 
 export interface WebcamConfig {
   deviceId?: string;
+  /** Digital zoom, 1 to 4 (document-camera-pro). */
   zoomLevel?: number;
+  /** Feed rotation in degrees: 0, 90, 180 or 270 (document-camera-pro). */
+  rotation?: number;
   isMirrored?: boolean;
   autoSendToNotes?: boolean;
   isRemoteMode?: boolean;
@@ -10436,6 +10439,8 @@ export type GlobalFeature =
   | 'seating-chart-plans'
   /** Scoreboard undo, score history, point buttons, leader marker and score motion. */
   | 'scoreboard-pro'
+  /** Camera as a document camera: zoom, pan, rotate, freeze, draw, compare, resolution. */
+  | 'document-camera-pro'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak';
 

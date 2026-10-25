@@ -11970,6 +11970,22 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'webcam.zoom-in': {
+    label: 'Zoom in button in Webcam',
+    perWidget: true,
+  },
+  'webcam.zoom-out': {
+    label: 'Zoom out button in Webcam',
+    perWidget: true,
+  },
+  'webcam.rotate': {
+    label: 'Rotate button in Webcam',
+    perWidget: true,
+  },
+  'webcam.reset-view': {
+    label: 'Reset view button in Webcam (shows once zoomed or turned)',
+    perWidget: true,
+  },
   'classes-widget.manage': {
     label: 'Manage classes button in Classes',
     perWidget: true,

@@ -54276,6 +54276,70 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "webcam.zoom-in",
+    "label": "Zoom in button in Webcam",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.zoom-out",
+    "label": "Zoom out button in Webcam",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.rotate",
+    "label": "Rotate button in Webcam",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.reset-view",
+    "label": "Reset view button in Webcam (shows once zoomed or turned)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "classes-widget.manage",
     "label": "Manage classes button in Classes",
     "scope": "widget",
