@@ -2,6 +2,7 @@
 import type React from 'react';
 import {
   CalendarRange,
+  Trophy,
   FolderSync,
   PenLine,
   BarChart,
@@ -1255,6 +1256,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
       'Colleagues on a Synced or View-Only board see your Activity Walls, quizzes, video activities and guided activities.',
     stage: 'preview',
     afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'scoreboard-pro': {
+    label: 'Scoreboard undo and history',
+    icon: Trophy,
+    description: 'Undo score changes and see recent changes for each team.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'scoreboard',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

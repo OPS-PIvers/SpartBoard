@@ -1582,6 +1582,15 @@
       "play": "Abspielen",
       "pause": "Pause",
       "reset": "Zurücksetzen"
+    },
+    "scoreboard": {
+      "undo": "Rückgängig",
+      "undoShortcut": "Letzte Punkteänderung rückgängig machen (Strg+Z)",
+      "history": "Verlauf",
+      "scores": "Punkte",
+      "recentChanges": "Letzte Änderungen",
+      "noChanges": "Noch keine Änderungen",
+      "reset": "Zurückgesetzt"
     }
   },
   "boardBreadcrumb": {

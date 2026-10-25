@@ -2758,6 +2758,21 @@ export interface ScoreboardTeam {
   memberStudentIds?: string[];
 }
 
+export interface ScoreboardScoreChange {
+  teamId: string;
+  from: number;
+  to: number;
+}
+
+export interface ScoreboardHistoryEntry {
+  id: string;
+  /** Epoch ms. */
+  at: number;
+  /** `reset` marks a Reset all scores step. */
+  kind?: 'reset';
+  changes: ScoreboardScoreChange[];
+}
+
 export interface ScoreboardConfig {
   /** @deprecated use teams array instead */
   scoreA?: number;
@@ -2772,6 +2787,8 @@ export interface ScoreboardConfig {
   layout?: 'cards' | 'rows';
   /** When set, indicates this scoreboard is being live-synced from a quiz widget */
   liveQuizWidgetId?: string;
+  /** Recent score changes, oldest first, capped at SCOREBOARD_HISTORY_LIMIT. */
+  history?: ScoreboardHistoryEntry[];
 }
 
 export interface ExpectationsConfig {
@@ -10401,6 +10418,8 @@ export type GlobalFeature =
   | 'collection-sync-sharing'
   /** Members of a shared board see the owner's Activity Wall and its approved posts live. */
   | 'shared-board-live-walls'
+  /** Scoreboard undo, score history, point buttons, leader marker and score motion. */
+  | 'scoreboard-pro'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak';
 
