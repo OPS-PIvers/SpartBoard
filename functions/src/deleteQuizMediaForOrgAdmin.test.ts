@@ -953,6 +953,21 @@ describe('two-phase delete claim', () => {
     });
   });
 
+  it('still deletes the Storage copy when the Drive folder check refuses the file', async () => {
+    const deps = makeDeps(db, {
+      deleteDriveFile: vi.fn(() =>
+        Promise.reject(new Error('not in the quiz archive folder'))
+      ),
+    });
+    const { results } = await runDelete(deps);
+    expect(results[0]?.status).toBe('failed');
+    expect(results[0]?.error).toMatch(/Drive delete failed/);
+    expect(deps.deleteStorageObject).toHaveBeenCalledWith(
+      'quiz_response_media/s1/stu1/a1.webm'
+    );
+    expect(entry().archiveStatus).toBe('delete-failed');
+  });
+
   it('never commits deleted while the physical delete is still in flight', async () => {
     let claimSeen: Record<string, unknown> | undefined;
     const deps = makeDeps(db, {

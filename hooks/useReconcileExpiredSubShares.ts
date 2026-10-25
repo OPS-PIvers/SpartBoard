@@ -49,6 +49,7 @@ import { db } from '@/config/firebase';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import type { GoogleDriveService } from '@/utils/googleDriveService';
 import { SHARE_SUBCOLLECTIONS } from '@/utils/subShareContent';
+import { subShareNamesFileName } from '@/utils/subShareNames';
 
 const SESSION_KEY_PREFIX = 'spart_sub_reconcile_';
 
@@ -189,10 +190,16 @@ export async function reconcileExpiredSubShares(
     const isExpired = (data.expiresAt ?? 0) <= now;
 
     if (isExpired) {
+      // Only Collection shares write a names file; one on a board share was not ours.
+      const ownNamesFile =
+        docSnap.ref.parent?.id === 'shared_collections' &&
+        typeof data.namesFileId === 'string'
+          ? data.namesFileId
+          : undefined;
       expiredDocs.push({
         ref: docSnap.ref,
         grants,
-        ...(data.namesFileId ? { namesFileId: data.namesFileId } : {}),
+        ...(ownNamesFile ? { namesFileId: ownNamesFile } : {}),
       });
     } else {
       // Active share — every permissionId it holds is off-limits to revoke.
@@ -219,6 +226,15 @@ export async function reconcileExpiredSubShares(
         continue;
       }
       try {
+        // Revoke only a user reader grant (Drive may report an alias's primary email, so no email match).
+        const perm = await driveService.getPermission(g.fileId, g.permissionId);
+        if (!perm) continue;
+        if (perm.type !== 'user' || perm.role !== 'reader') {
+          console.warn(
+            `[reconcileExpiredSubShares] skipping permission ${g.permissionId} on ${g.fileId}: not a user reader grant`
+          );
+          continue;
+        }
         await driveService.deletePermission(g.fileId, g.permissionId);
         revoked += 1;
       } catch (err) {
@@ -235,7 +251,15 @@ export async function reconcileExpiredSubShares(
       // The names file belongs to this share alone, so it goes with it rather
       // than sitting in the teacher's Drive holding a class list.
       try {
-        await driveService.trashFile(namesFileId);
+        // Trash it only if it is still this share's own names file.
+        const name = await driveService.getFileNameIfExists(namesFileId);
+        if (name === subShareNamesFileName(ref.id)) {
+          await driveService.trashFile(namesFileId);
+        } else if (name !== null) {
+          console.warn(
+            `[reconcileExpiredSubShares] not trashing ${namesFileId}: not this share's names file`
+          );
+        }
       } catch (err) {
         allRevokesOk = false;
         failed += 1;

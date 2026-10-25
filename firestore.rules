@@ -1504,11 +1504,14 @@ service cloud.firestore {
       // Host or admin: full update, but intendedMode is locked to its create value and
       // any plcId change requires current membership of the target PLC (admins bypass).
       // Substitute addendum: all lifecycle fields (buildingId, initialState, expiresAt,
-      // subEmails, driveGrants, sharedRosters) are pinned to create-time values so the frozen,
+      // subEmails, driveGrants, sharedRosters, namesFileId) are pinned to create-time values so the frozen,
       // time-boxed snapshot can't drift. Admin-overridable.
       allow update: if signedIn() &&
         (existing().get('originalAuthor', null) == authUid() || isAdmin()) &&
         incoming().get('intendedMode', null) == existing().get('intendedMode', null) &&
+        // originalAuthor is pinned for everyone, admins included: the expiry sweep runs
+        // in the named teacher's browser and trusts the doc's Drive metadata as theirs.
+        incoming().get('originalAuthor', null) == existing().get('originalAuthor', null) &&
         // "substitute + plcId" must stay an impossible state. The `list` rule's plcId
         // branch admits any member of that PLC with no @orono/expiry gate and CANNOT
         // re-check intendedMode (the PLC query doesn't pin it, so in query scope it
@@ -1529,7 +1532,8 @@ service cloud.firestore {
             incoming().get('expiresAt', null) == existing().get('expiresAt', null) &&
             incoming().get('subEmails', null) == existing().get('subEmails', null) &&
             incoming().get('driveGrants', null) == existing().get('driveGrants', null) &&
-            incoming().get('sharedRosters', null) == existing().get('sharedRosters', null)
+            incoming().get('sharedRosters', null) == existing().get('sharedRosters', null) &&
+            incoming().get('namesFileId', null) == existing().get('namesFileId', null)
           )
         ) &&
         (
@@ -1551,6 +1555,8 @@ service cloud.firestore {
       allow update: if signedIn() &&
         authUid() in existing().get('participants', {}) &&
         existing().participants[authUid()].get('role', '') == 'collaborator' &&
+        // Substitute shares carry Drive grants the host's sweep revokes; no collaborator edits.
+        existing().get('intendedMode', null) != 'substitute' &&
         incoming().get('participants', {}) == existing().get('participants', {}) &&
         unchanged('originalAuthor') &&
         incoming().get('originalAuthorName', null) == existing().get('originalAuthorName', null) &&
@@ -1911,11 +1917,25 @@ service cloud.firestore {
     // Shared quiz assignments - like shared_quizzes but also carries assignment
     // settings (class label, PLC sheet URL, session toggles) so a receiving
     // teacher can get a pre-configured, paused assignment when they paste the link.
+    // A share's syncGroupId is a join invite, so only a group participant may set it, once.
+    function shareSyncGroupOk(coll) {
+      return !('syncGroupId' in incoming()) ||
+        authUid() in get(/databases/$(database)/documents/$(coll)/$(incoming().syncGroupId)).data.participants;
+    }
+    function shareSyncGroupKept() {
+      return incoming().get('syncGroupId', null) == existing().get('syncGroupId', null) &&
+        incoming().get('originalAuthor', null) == existing().get('originalAuthor', null);
+    }
+
     match /shared_assignments/{shareId} {
       allow get: if signedIn();
       allow create: if signedIn() &&
-        incoming().originalAuthor == authUid();
-      allow update, delete: if signedIn() &&
+        incoming().originalAuthor == authUid() &&
+        shareSyncGroupOk('synced_quizzes');
+      allow update: if signedIn() &&
+        (existing().get('originalAuthor', null) == authUid() || isAdmin()) &&
+        shareSyncGroupKept();
+      allow delete: if signedIn() &&
         (existing().get('originalAuthor', null) == authUid() || isAdmin());
     }
 
@@ -2248,8 +2268,12 @@ service cloud.firestore {
     match /shared_video_activity_assignments/{shareId} {
       allow get: if signedIn();
       allow create: if signedIn() &&
-        incoming().originalAuthor == authUid();
-      allow update, delete: if signedIn() &&
+        incoming().originalAuthor == authUid() &&
+        shareSyncGroupOk('synced_video_activities');
+      allow update: if signedIn() &&
+        (existing().get('originalAuthor', null) == authUid() || isAdmin()) &&
+        shareSyncGroupKept();
+      allow delete: if signedIn() &&
         (existing().get('originalAuthor', null) == authUid() || isAdmin());
     }
 
@@ -4961,6 +4985,10 @@ service cloud.firestore {
           incoming().get('revealedAnswers', null) == null &&
           // Review games: checkQuizGameAnswerV1 alone writes points, verdicts and answers.
           incoming().get('game', null) == null &&
+          // Media archive bookkeeping is server-written; the hourly sweep trusts its Drive ids.
+          incoming().get('artifactArchive', null) == null &&
+          incoming().get('hasStuckArchive', null) == null &&
+          incoming().get('backTranslations', null) == null &&
           (sessionData().get('sessionMode', '') != 'game' ||
            incoming().get('answers', []).size() == 0) &&
           // studentRole users must be enrolled in the session's class

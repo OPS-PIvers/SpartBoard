@@ -186,6 +186,20 @@ export async function pullSyncedVideoActivityContent(groupId: string): Promise<{
   };
 }
 
+/** True when `uid` is a current participant of the synced video activity group (a share may only invite to such a group). */
+export async function isSyncedVideoActivityGroupParticipant(
+  groupId: string,
+  uid: string
+): Promise<boolean> {
+  const snap = await getDoc(doc(db, SYNCED_COLLECTION, groupId));
+  const participants = snap.exists()
+    ? (snap.data() as SyncedVideoActivityGroup).participants
+    : undefined;
+  return (
+    !!participants && Object.prototype.hasOwnProperty.call(participants, uid)
+  );
+}
+
 /**
  * Create the canonical doc for a brand-new synced group. Used by
  * `shareAssignment` when the source activity has no `syncGroupId` yet —
