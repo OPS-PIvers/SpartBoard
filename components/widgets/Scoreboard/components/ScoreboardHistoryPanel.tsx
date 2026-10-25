@@ -77,6 +77,12 @@ export const ScoreboardHistoryPanel: React.FC<{
                         {item.reset
                           ? t('widgets.scoreboard.reset')
                           : formatScoreDelta(item.delta)}
+                        <span className="sr-only">
+                          {' '}
+                          <time dateTime={new Date(item.at).toISOString()}>
+                            {formatTime(item.at)}
+                          </time>
+                        </span>
                       </span>
                     ))
                   )}
