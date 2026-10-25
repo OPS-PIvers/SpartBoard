@@ -6518,19 +6518,10 @@ service cloud.firestore {
       }
     }
 
-    // Poll join-code pointers: the code is the path segment, so a lookup needs the code.
+    // Poll join-code pointers, written only by the pollCodePointer trigger; a lookup needs the code.
     match /poll_codes/{code} {
       allow get: if signedIn();
-      allow list: if false;
-      allow create, update: if signedIn() &&
-        notAnon() &&
-        code.matches('^[A-Z0-9]{5}$') &&
-        incoming().keys().hasOnly(['sessionId', 'teacherUid', 'updatedAt']) &&
-        incoming().teacherUid == authUid() &&
-        incoming().sessionId == authUid() + '_' + code &&
-        isInt('updatedAt') &&
-        (resource == null || existing().teacherUid == authUid());
-      allow delete: if signedIn() && (resource == null || existing().teacherUid == authUid());
+      allow list, write: if false;
     }
 
     // Poll Sessions — public, anonymous device-voting for the Poll widget.

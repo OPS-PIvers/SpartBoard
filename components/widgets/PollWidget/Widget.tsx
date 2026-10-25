@@ -39,7 +39,6 @@ import {
   withQuestionAt,
 } from '@/utils/pollQuestions';
 import { usePollSession } from '@/hooks/usePollSession';
-import { ensurePollCodePointer } from '@/components/poll/pollSession';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { tourAttr } from '@/config/tourAnchors';
 import { ScaleResults } from './components/ScaleResults';
@@ -232,16 +231,6 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const joinCode =
     isLive && user && canOfferAnonymousJoin ? (config.joinCode ?? '') : '';
   const joinUrl = joinCode ? buildPollJoinUrl(joinCode) : '';
-  const pointerOwnerUid =
-    joinCode && !foreignSession && config.activePollSessionId === joinCode
-      ? user?.uid
-      : undefined;
-  useEffect(() => {
-    if (!pointerOwnerUid || !joinCode) return;
-    void ensurePollCodePointer(pointerOwnerUid, joinCode).catch((err) =>
-      logError('PollWidget.ensureCodePointer', err)
-    );
-  }, [pointerOwnerUid, joinCode]);
   const qrUrl = useMemo(
     () =>
       joinUrl

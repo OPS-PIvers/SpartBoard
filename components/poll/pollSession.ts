@@ -6,7 +6,7 @@
  * all four drive the same state.
  */
 
-import { deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type {
   PollConfig,
@@ -147,7 +147,7 @@ const mintUniquePollCode = async (): Promise<string> => {
     const candidate = generatePollCode();
     const taken = await getDoc(doc(db, POLL_CODES, candidate)).then(
       (snap) => snap.exists(),
-      // Offline: the pointer create below still rejects a real collision.
+      // Offline: treat as free; the server never moves a live session's code.
       (err: unknown) => {
         if ((err as { code?: string })?.code === 'unavailable') return false;
         throw err;
@@ -185,11 +185,6 @@ const writeSessionDoc = async (
     updatedAt: Date.now(),
     ...toSessionResultsState(config, pollPro),
   };
-  await setDoc(doc(db, POLL_CODES, code), {
-    sessionId: makePollSessionId(teacherUid, code),
-    teacherUid,
-    updatedAt: Date.now(),
-  });
   await setDoc(
     doc(db, POLL_SESSIONS, makePollSessionId(teacherUid, code)),
     payload,
@@ -235,21 +230,7 @@ export const lookupPollSessionByCode = async (
   return { sessionId: snap.id, data: snap.data() as PollSessionDoc };
 };
 
-/** Write a missing code pointer for a live session started before pointers existed. */
-export const ensurePollCodePointer = async (
-  teacherUid: string,
-  code: string
-): Promise<void> => {
-  const ref = doc(db, POLL_CODES, code);
-  if ((await getDoc(ref)).exists()) return;
-  await setDoc(ref, {
-    sessionId: makePollSessionId(teacherUid, code),
-    teacherUid,
-    updatedAt: Date.now(),
-  });
-};
-
-/** Blank an abandoned session's questions (roster-derived labels) and drop its code pointer. */
+/** Blank an abandoned session's questions (roster-derived labels); the server then drops its code pointer. */
 export const retirePollSession = async (
   teacherUid: string,
   code: string
@@ -266,7 +247,6 @@ export const retirePollSession = async (
       },
       { merge: true }
     );
-    await deleteDoc(doc(db, POLL_CODES, code));
   } catch {
     // Best effort: the new session must still start.
   }
@@ -312,7 +292,13 @@ export const startPollSession = async (
     pollPro
   );
   const previousCode = config.joinCode;
-  if (rotate && previousCode && previousCode !== code) {
+  const previousOwner = config.lastPollSessionOwnerUid ?? teacherUid;
+  if (
+    rotate &&
+    previousCode &&
+    previousCode !== code &&
+    previousOwner === teacherUid
+  ) {
     await retirePollSession(teacherUid, previousCode);
   }
   return {

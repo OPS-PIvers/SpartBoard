@@ -536,7 +536,12 @@ export const PollSettings: React.FC<{
     if (!confirmed) return;
     const reset = withVotesReset(config);
     const next = pollPro ? withStoppedSessionEnded(reset) : reset;
-    if (next.joinCode !== config.joinCode && config.joinCode && user) {
+    if (
+      next.joinCode !== config.joinCode &&
+      config.joinCode &&
+      user &&
+      (config.lastPollSessionOwnerUid ?? user.uid) === user.uid
+    ) {
       void retirePollSession(user.uid, config.joinCode);
     }
     applyConfig(next);

@@ -642,65 +642,38 @@ describe('poll session discovery', () => {
   });
 
   it('resolves a session by code pointer but never lists pointers', async () => {
-    await assertFails(
-      setDoc(doc(asAnonVoter(), 'poll_codes/ABCDE'), {
-        sessionId: `${TEACHER_UID}_ABCDE`,
-        teacherUid: TEACHER_UID,
-        updatedAt: 1,
-      })
-    );
-    await assertFails(
-      setDoc(doc(asOtherTeacher(), 'poll_codes/ABCDE'), {
-        sessionId: `${TEACHER_UID}_ABCDE`,
-        teacherUid: TEACHER_UID,
-        updatedAt: 1,
-      })
-    );
-    await assertSucceeds(
-      setDoc(doc(asTeacher(), 'poll_codes/ABCDE'), {
-        sessionId: `${TEACHER_UID}_ABCDE`,
-        teacherUid: TEACHER_UID,
-        updatedAt: 1,
-      })
-    );
-    await assertSucceeds(getDoc(doc(asAnonVoter(), 'poll_codes/ABCDE')));
-    await assertSucceeds(
-      getDoc(doc(asAnonVoter(), `poll_sessions/${ACTIVE_SESSION_ID}`))
-    );
-    await assertFails(getDocs(collection(asAnonVoter(), 'poll_codes')));
-    await assertFails(
-      setDoc(doc(asOtherTeacher(), 'poll_codes/ABCDE'), {
-        sessionId: 'teacher-other_ABCDE',
-        teacherUid: 'teacher-other',
-        updatedAt: 2,
-      })
-    );
-  });
-
-  it('protects an existing pointer from another teacher and a forged session owner', async () => {
     const pointer = {
       sessionId: `${TEACHER_UID}_ABCDE`,
       teacherUid: TEACHER_UID,
       updatedAt: 1,
     };
-    await assertSucceeds(setDoc(doc(asTeacher(), 'poll_codes/ABCDE'), pointer));
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'poll_codes/ABCDE'), pointer);
+    });
+    await assertSucceeds(getDoc(doc(asAnonVoter(), 'poll_codes/ABCDE')));
+    await assertSucceeds(getDoc(doc(asTeacher(), 'poll_codes/ABCDE')));
     await assertSucceeds(
-      setDoc(doc(asTeacher(), 'poll_codes/ABCDE'), { ...pointer, updatedAt: 2 })
+      getDoc(doc(asAnonVoter(), `poll_sessions/${ACTIVE_SESSION_ID}`))
     );
-    await assertFails(deleteDoc(doc(asOtherTeacher(), 'poll_codes/ABCDE')));
-    await assertFails(
-      setDoc(doc(asOtherTeacher(), 'poll_codes/ABCDE'), {
-        sessionId: 'teacher-other_ABCDE',
-        teacherUid: 'teacher-other',
-        updatedAt: 3,
-      })
-    );
+    await assertFails(getDocs(collection(asAnonVoter(), 'poll_codes')));
+    await assertFails(getDocs(collection(asTeacher(), 'poll_codes')));
+  });
+
+  it('leaves every pointer write to the server', async () => {
+    const pointer = {
+      sessionId: `${TEACHER_UID}_ABCDE`,
+      teacherUid: TEACHER_UID,
+      updatedAt: 1,
+    };
+    for (const db of [asAnonVoter(), asTeacher(), asOtherTeacher()]) {
+      await assertFails(setDoc(doc(db, 'poll_codes/ABCDE'), pointer));
+      await assertFails(deleteDoc(doc(db, 'poll_codes/ABCDE')));
+    }
     await assertFails(
       setDoc(doc(asOtherTeacher(), `poll_sessions/teacher-other_ZZZZZ`), {
         teacherUid: TEACHER_UID,
         code: 'ZZZZZ',
       })
     );
-    await assertSucceeds(deleteDoc(doc(asTeacher(), 'poll_codes/ABCDE')));
   });
 });

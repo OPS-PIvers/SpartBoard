@@ -32,7 +32,6 @@ import {
   aggregateVotes,
   toSessionQuestions,
   ensurePollJoinCode,
-  ensurePollCodePointer,
   lookupPollSessionByCode,
   startPollSession,
   toSessionResultsState,
@@ -194,6 +193,29 @@ describe('startPollSession', () => {
     expect(next.joinCode).toBe('NEWCD');
     expect(next.activePollSessionId).toBe('NEWCD');
     expect(next.lastPollSessionId).toBeNull();
+    expect(mockSetDoc).toHaveBeenCalledWith(
+      { __path: 'poll_sessions/teacher-1_K3F9Q' },
+      expect.objectContaining({ questions: [], active: false }),
+      { merge: true }
+    );
+  });
+
+  it("leaves a Synced-board colleague's previous session alone on rotation", async () => {
+    mockGeneratePollCode.mockReturnValue('NEWCD');
+    await startPollSession(
+      {
+        ...baseConfig,
+        joinCode: 'K3F9Q',
+        lastPollSessionId: 'K3F9Q',
+        lastPollSessionOwnerUid: 'teacher-2',
+      },
+      'teacher-1',
+      'fresh'
+    );
+    const paths = mockSetDoc.mock.calls.map(
+      (c) => (c[0] as { __path: string }).__path
+    );
+    expect(paths).toEqual(['poll_sessions/teacher-1_NEWCD']);
   });
 
   it('reuses the sticky code (and its votes) on resume', async () => {
@@ -297,25 +319,6 @@ describe('lookupPollSessionByCode', () => {
     const found = await lookupPollSessionByCode(' k3f-9q ');
     expect(mockDoc).toHaveBeenCalledWith({}, 'poll_codes', 'K3F9Q');
     expect(found?.sessionId).toBe('teacher-1_K3F9Q');
-  });
-});
-
-describe('ensurePollCodePointer', () => {
-  it('writes the pointer for a live session that has none', async () => {
-    await ensurePollCodePointer('teacher-1', 'K3F9Q');
-    expect(mockSetDoc).toHaveBeenCalledWith(
-      { __path: 'poll_codes/K3F9Q' },
-      expect.objectContaining({
-        sessionId: 'teacher-1_K3F9Q',
-        teacherUid: 'teacher-1',
-      })
-    );
-  });
-
-  it('leaves an existing pointer alone', async () => {
-    mockGetDoc.mockResolvedValueOnce({ exists: () => true });
-    await ensurePollCodePointer('teacher-1', 'K3F9Q');
-    expect(mockSetDoc).not.toHaveBeenCalled();
   });
 });
 
