@@ -229,7 +229,7 @@ export const lookupPollSessionByCode = async (
 };
 
 /** Blank an abandoned session's questions (roster-derived labels) and drop its code pointer. */
-const retirePollSession = async (
+export const retirePollSession = async (
   teacherUid: string,
   code: string
 ): Promise<void> => {
@@ -272,9 +272,6 @@ export const startPollSession = async (
   const rotate = mode === 'fresh' && !!config.lastPollSessionId;
   const code =
     rotate || !config.joinCode ? await mintUniquePollCode() : config.joinCode;
-  if (rotate && config.joinCode) {
-    await retirePollSession(teacherUid, config.joinCode);
-  }
   // A fresh start hides and unlocks every question again; resume keeps them.
   const base: PollConfig =
     mode === 'fresh'
@@ -293,6 +290,10 @@ export const startPollSession = async (
     { active: true, startedAt: Date.now() },
     pollPro
   );
+  const previousCode = config.joinCode;
+  if (rotate && previousCode && previousCode !== code) {
+    await retirePollSession(teacherUid, previousCode);
+  }
   return {
     ...base,
     joinCode: code,

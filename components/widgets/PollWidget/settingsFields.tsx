@@ -53,6 +53,7 @@ import {
   stopPollSession,
   syncSessionResultsState,
   withStoppedSessionEnded,
+  retirePollSession,
 } from '@/components/poll/pollSession';
 import { buildPollJoinUrl } from '@/utils/pollCode';
 import {
@@ -535,6 +536,9 @@ export const PollSettings: React.FC<{
     if (!confirmed) return;
     const reset = withVotesReset(config);
     const next = pollPro ? withStoppedSessionEnded(reset) : reset;
+    if (next.joinCode !== config.joinCode && config.joinCode && user) {
+      void retirePollSession(user.uid, config.joinCode);
+    }
     applyConfig(next);
     syncHiddenResults(next);
   };

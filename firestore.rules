@@ -6100,7 +6100,9 @@ service cloud.firestore {
       // Only authenticated non-anonymous teachers/admins can create or update the session document itself.
       allow create, update: if signedIn() &&
                             notAnon() &&
-                            (isAdmin() || sessionId.matches(authUid() + '_.*'));
+                            (isAdmin() ||
+                              (sessionId.matches(authUid() + '_.*') &&
+                                incoming().get('teacherUid', authUid()) == authUid()));
       allow delete: if false;
 
       // Merged student page helpers (shared by submissions, likes, comments).
@@ -6518,7 +6520,7 @@ service cloud.firestore {
       allow list: if false;
       allow create, update: if signedIn() &&
         notAnon() &&
-        code.matches('^[A-Z0-9]{1,16}$') &&
+        code.matches('^[A-Z0-9]{5}$') &&
         incoming().keys().hasOnly(['sessionId', 'teacherUid', 'updatedAt']) &&
         incoming().teacherUid == authUid() &&
         incoming().sessionId == authUid() + '_' + code &&
@@ -6539,7 +6541,9 @@ service cloud.firestore {
       // admin) may create/update the session doc itself.
       allow create, update: if signedIn() &&
                             notAnon() &&
-                            (isAdmin() || sessionId.matches(authUid() + '_.*'));
+                            (isAdmin() ||
+                              (sessionId.matches(authUid() + '_.*') &&
+                                incoming().get('teacherUid', authUid()) == authUid()));
       allow delete: if false;
 
       // Vote doc id is the composite `{questionIndex}_{uid}` so one listener
