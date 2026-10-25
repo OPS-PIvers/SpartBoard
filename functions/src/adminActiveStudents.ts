@@ -16,7 +16,7 @@ import {
   getOAuthHeaders,
   type ClassLinkStudent,
 } from './classlinkShared';
-import { isSuperAdminRoleId } from './authz';
+import { isRevokedMemberStatus, isSuperAdminRoleId } from './authz';
 import { assertViewAsAllowed } from './viewAsGuard';
 
 // Admin-only drill-down behind the Active Students KPIs: teachers come from assignments opened; names come live from ClassLink.
@@ -297,7 +297,12 @@ async function assertOrgWideAdmin(
   ]);
   if (adminDoc.exists && isSuperAdminRoleId(adminDoc.get('roleId'))) return;
   const roleId: unknown = memberDoc.exists ? memberDoc.get('roleId') : null;
-  if (typeof roleId === 'string' && ORG_WIDE_ROLE_IDS.has(roleId)) return;
+  if (
+    typeof roleId === 'string' &&
+    ORG_WIDE_ROLE_IDS.has(roleId) &&
+    !isRevokedMemberStatus(memberDoc.get('status'))
+  )
+    return;
   throw new HttpsError(
     'permission-denied',
     'Only district admins can view the student list.'

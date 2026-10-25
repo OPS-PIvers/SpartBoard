@@ -401,9 +401,11 @@ service cloud.firestore {
          b.hasAny(['schumann', 'schumann-elementary']));
     }
 
-    // The caller's roleId within an org, or empty string when not a member.
+    // The caller's roleId within an org, or empty string when not a member or
+    // deactivated (Deactivate keeps roleId, so the admin tier must check status).
     function memberRole(orgId, emailLower) {
-      return exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(emailLower))
+      return exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(emailLower)) &&
+             !(get(/databases/$(database)/documents/organizations/$(orgId)/members/$(emailLower)).data.get('status', 'active') in ['inactive', 'removed'])
              ? get(/databases/$(database)/documents/organizations/$(orgId)/members/$(emailLower)).data.get('roleId', '')
              : '';
     }
@@ -628,6 +630,9 @@ service cloud.firestore {
            changedOnly([
              'roleId', 'buildingIds', 'status', 'name', 'invitedAt', 'lastActive'
            ]) &&
+           // No self-service role or status change (e.g. undoing a deactivation).
+           (emailLower != request.auth.token.email.lower() ||
+            (unchanged('roleId') && unchanged('status'))) &&
            // Anti-escalation: roleId=='super_admin' is a live isSuperAdmin() grant
            // (isMemberSuperAdmin()), so a domain admin must not write it (incl.
            // onto their own doc). On a doc that already has it, a domain admin may
@@ -644,6 +649,7 @@ service cloud.firestore {
           // not editable until a domain admin assigns a building. See
           // config/buildings.ts.
           (isBuildingAdmin(orgId) &&
+           emailLower != request.auth.token.email.lower() &&
            existing().get('roleId', '') != 'super_admin' &&
            buildingListsOverlap(existing().get('buildingIds', []), orgMember(orgId).get('buildingIds', [])) &&
            changedOnly(['status'])) ||

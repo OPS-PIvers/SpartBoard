@@ -15,6 +15,11 @@ export async function isSiteSuperAdmin(
   return snap.exists && isSuperAdminRoleId(snap.get('roleId'));
 }
 
+/** A deactivated member keeps their roleId, so every org-admin gate must also reject this status. */
+export function isRevokedMemberStatus(status: unknown): boolean {
+  return status === 'inactive' || status === 'removed';
+}
+
 // Operator org: the fixed path the rules' isMemberSuperAdmin() reads.
 export const OPERATOR_ORG_ID = 'orono';
 

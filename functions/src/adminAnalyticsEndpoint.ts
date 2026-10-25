@@ -9,7 +9,7 @@ import * as admin from 'firebase-admin';
 import { randomUUID } from 'node:crypto';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { readAnalyticsSnapshot } from './adminAnalyticsSnapshot';
-import { isSuperAdminRoleId } from './authz';
+import { isRevokedMemberStatus, isSuperAdminRoleId } from './authz';
 import './functionsInit';
 
 /**
@@ -107,7 +107,7 @@ export const adminAnalytics = onRequest(
       db.doc(`organizations/${orgId}/members/${email}`).get(),
     ]);
     const memberData = memberDoc.exists
-      ? (memberDoc.data() as { roleId?: unknown })
+      ? (memberDoc.data() as { roleId?: unknown; status?: unknown })
       : undefined;
     const memberRoleId =
       typeof memberData?.roleId === 'string' ? memberData.roleId.trim() : '';
@@ -116,7 +116,10 @@ export const adminAnalytics = onRequest(
       : undefined;
     const isSuperAdmin =
       adminDoc.exists && isSuperAdminRoleId(adminData?.roleId);
-    const isOrgAdmin = memberDoc.exists && ORG_ADMIN_ROLE_IDS.has(memberRoleId);
+    const isOrgAdmin =
+      memberDoc.exists &&
+      ORG_ADMIN_ROLE_IDS.has(memberRoleId) &&
+      !isRevokedMemberStatus(memberData?.status);
     if (!isSuperAdmin && !isOrgAdmin) {
       console.error('[getAdminAnalytics] Unauthorized access', {
         requestId,

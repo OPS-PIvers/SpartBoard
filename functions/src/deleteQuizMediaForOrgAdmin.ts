@@ -37,7 +37,7 @@ import {
   STUCK_ARCHIVE_AGE_MS,
 } from './quizMediaArchive';
 import { ALLOWED_ORIGINS } from './classlinkShared';
-import { isSuperAdminRoleId } from './authz';
+import { isRevokedMemberStatus, isSuperAdminRoleId } from './authz';
 import './functionsInit';
 import { withQuizSessionContent } from './quizSessionContent';
 import { assertViewAsAllowed } from './viewAsGuard';
@@ -500,7 +500,10 @@ export async function assertOrgMediaAdmin(
     );
   }
   const roleId = asString(memberSnap.get('roleId'));
-  if (!MEDIA_ADMIN_ROLE_IDS.includes(roleId)) {
+  if (
+    !MEDIA_ADMIN_ROLE_IDS.includes(roleId) ||
+    isRevokedMemberStatus(memberSnap.get('status'))
+  ) {
     throw new HttpsError(
       'permission-denied',
       'Caller is not an administrator for this organization.'
