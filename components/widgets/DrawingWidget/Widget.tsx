@@ -2,6 +2,7 @@ import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -22,34 +23,49 @@ import {
 import {
   ArrowRight,
   Circle,
+  CopyPlus,
   Download,
   Eraser,
+  Hand,
+  Highlighter,
   ImagePlus,
   Lasso,
   MousePointer2,
   MousePointerClick,
+  MoveHorizontal,
   Pencil,
+  Flashlight,
   Redo2,
   Slash,
   Square,
+  SquareDashed,
+  StickyNote,
   Trash2,
   Type,
   TypeOutline,
   Undo2,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 import { TextEditorOverlay } from './TextEditorOverlay';
 import { applyTextWrapOnResize } from './renderers/text';
 import { useImageInsertion } from './useImageInsertion';
-import { useSelection } from './useSelection';
+import { translateObject, useSelection } from './useSelection';
+import type { ShapeStyle } from './useDrawingCanvas';
 import { useCommandStack } from './useCommandStack';
 import { useDrawingObjectsDoc } from './useDrawingObjectsDoc';
 import { useDrawingPages } from './useDrawingPages';
-import { hitTestObject, isObjectEnclosedByPolygon } from './hitTest';
+import {
+  getBoundingBox,
+  hitTestObject,
+  isObjectEnclosedByPolygon,
+} from './hitTest';
+import { readClipboardObjects, writeClipboardObjects } from './clipboard';
 import { PageStrip } from './PageStrip';
 import { extractTextWithGemini } from '@/utils/ai';
 import { useAuth } from '@/context/useAuth';
 import { PenColorSwatches } from '@/components/common/PenColorSwatches';
-import { STANDARD_COLORS } from '@/config/colors';
+import { COLOR_HEX_TO_NAME, STANDARD_COLORS } from '@/config/colors';
 import { DRAWING_DEFAULTS } from './constants';
 import { useDrawingCanvas } from './useDrawingCanvas';
 import { migrateDrawingConfig, nextZ } from '@/utils/migrateDrawingConfig';
@@ -59,12 +75,59 @@ import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import type { DrawingPage } from '@/types';
 import { getBackgroundStyle } from './backgroundTemplates';
+import { useDrawingViewport } from './useDrawingViewport';
+import { LaserOverlay, type LaserOverlayHandle } from './LaserOverlay';
+import {
+  IDENTITY_VIEW,
+  isIdentityView,
+  MAX_VIEW_ZOOM,
+  MIN_VIEW_ZOOM,
+  pageScreenRect,
+  viewBackgroundStyle,
+  visiblePageArea,
+} from './viewport';
 import {
   downloadDataUrl,
   exportAllPagesPng,
   exportPagePng,
   exportPdf,
 } from './exportCanvas';
+
+const PRO_TOOLS: ReadonlySet<ShapeTool> = new Set([
+  'highlighter',
+  'laser',
+  'sticky',
+]);
+const HIGHLIGHTER_COLORS = [
+  STANDARD_COLORS.yellow,
+  STANDARD_COLORS.green,
+  STANDARD_COLORS.cyan,
+  STANDARD_COLORS.pink,
+  STANDARD_COLORS.orange,
+] as const;
+const HIGHLIGHTER_DEFAULT_WIDTH = 24;
+const DUPLICATE_OFFSET = 16;
+const SHAPE_TOOLS = new Set<ShapeTool>(['line', 'arrow', 'rect', 'ellipse']);
+const TOOL_SHORTCUTS: Partial<Record<ShapeTool, string>> = {
+  select: 'V',
+  pen: 'P',
+  highlighter: 'H',
+  text: 'T',
+  eraser: 'E',
+};
+const SHORTCUT_TOOLS = new Map(
+  Object.entries(TOOL_SHORTCUTS).map(([tool, key]) => [
+    key.toLowerCase(),
+    tool as ShapeTool,
+  ])
+);
+const STICKY_COLORS = [
+  STANDARD_COLORS.yellow,
+  STANDARD_COLORS.orange,
+  STANDARD_COLORS.green,
+  STANDARD_COLORS.cyan,
+  STANDARD_COLORS.pink,
+] as const;
 
 const TOOL_BUTTONS: ReadonlyArray<{
   tool: ShapeTool;
@@ -78,7 +141,10 @@ const TOOL_BUTTONS: ReadonlyArray<{
   // Pen comes before text: drawing is the primary action on a whiteboard,
   // and the muscle memory ordering teachers expect is select → draw → annotate.
   { tool: 'pen', Icon: Pencil, label: 'Pen' },
+  { tool: 'highlighter', Icon: Highlighter, label: 'Highlighter' },
+  { tool: 'laser', Icon: Flashlight, label: 'Laser pointer' },
   { tool: 'text', Icon: TypeOutline, label: 'Text' },
+  { tool: 'sticky', Icon: StickyNote, label: 'Sticky note' },
   { tool: 'eraser', Icon: Eraser, label: 'Eraser' },
   { tool: 'line', Icon: Slash, label: 'Line' },
   { tool: 'arrow', Icon: ArrowRight, label: 'Arrow' },
@@ -120,10 +186,28 @@ export const DrawingWidget: React.FC<{
     width = DRAWING_DEFAULTS.WIDTH,
     pages,
     currentPage,
-    activeTool = DRAWING_DEFAULTS.ACTIVE_TOOL,
+    activeTool: storedTool = DRAWING_DEFAULTS.ACTIVE_TOOL,
     eraserMode = DRAWING_DEFAULTS.ERASER_MODE,
     shapeFill = DRAWING_DEFAULTS.SHAPE_FILL,
+    highlighterColor = STANDARD_COLORS.yellow,
+    highlighterWidth = HIGHLIGHTER_DEFAULT_WIDTH,
+    stickyColor = STANDARD_COLORS.yellow,
+    shapeDashed = false,
+    arrowBothEnds = false,
   } = config;
+  const proEnabled = !isStudentView && canAccessFeature('whiteboard-pro');
+  // Without the flag a saved highlighter or laser falls back to the pen.
+  const activeTool: ShapeTool =
+    !proEnabled && PRO_TOOLS.has(storedTool) ? 'pen' : storedTool;
+  const highlighterInk = useMemo(
+    () => ({ color: highlighterColor, width: highlighterWidth }),
+    [highlighterColor, highlighterWidth]
+  );
+  const shapeStyle = useMemo<ShapeStyle | undefined>(
+    () =>
+      proEnabled ? { dashed: shapeDashed, bothEnds: arrowBothEnds } : undefined,
+    [proEnabled, shapeDashed, arrowBothEnds]
+  );
 
   // Page-scoped object slice. `migrateDrawingConfig` guarantees pages is
   // non-empty and currentPage is clamped, so this never falls back to `[]`
@@ -233,6 +317,8 @@ export const DrawingWidget: React.FC<{
   // overlay all flow through this value so they stay aligned with the
   // visible canvas regardless of how the toolbar grows.
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
+  // CSS px per canvas px, for DOM layers that move with the zoomed page.
+  const [layoutRatio, setLayoutRatio] = useState(1);
   const [wrapperSize, setWrapperSize] = useState<{
     width: number;
     height: number;
@@ -254,6 +340,9 @@ export const DrawingWidget: React.FC<{
         width: Math.round(r.width),
         height: Math.round(r.height),
       };
+      // Board zoom scales the measured rect but not CSS layout px.
+      const ratio = node.offsetWidth > 0 ? node.offsetWidth / next.width : 1;
+      setLayoutRatio((prev) => (Math.abs(prev - ratio) < 0.001 ? prev : ratio));
       setWrapperSize((prev) =>
         prev.width === next.width && prev.height === next.height ? prev : next
       );
@@ -270,6 +359,18 @@ export const DrawingWidget: React.FC<{
     }
     return wrapperSize;
   }, [isStudentView, widget.w, widget.h, wrapperSize]);
+
+  const gestureTakeoverRef = useRef<() => void>(() => undefined);
+  const viewport = useDrawingViewport({
+    enabled: proEnabled,
+    pageId: activePage.id,
+    canvasRef,
+    wrapperRef: canvasWrapperRef,
+    canvasSize,
+    objects,
+    onGestureTakeover: () => gestureTakeoverRef.current(),
+  });
+  const { view } = viewport;
 
   // Page-scoped sink: every command-stack apply (push / undo / redo) lands
   // here. The hook hands us a new `objects[]` for the active page.
@@ -431,6 +532,18 @@ export const DrawingWidget: React.FC<{
   const handleTextSpawn = (obj: TextObject) => {
     // Clicking away from an open editor only commits it via blur.
     if (editingText) return;
+    if (obj.sticky) {
+      // Keep a new note fully on screen so its editor never scrolls the page.
+      const area = visiblePageArea(view ?? IDENTITY_VIEW, canvasSize);
+      const clamp = (v: number, min: number, span: number, size: number) =>
+        span > size ? Math.min(Math.max(v, min), min + span - size) : min;
+      setEditingText({
+        ...obj,
+        x: clamp(obj.x, area.x, area.width, obj.w),
+        y: clamp(obj.y, area.y, area.height, obj.h),
+      });
+      return;
+    }
     setEditingText(obj);
   };
 
@@ -507,6 +620,8 @@ export const DrawingWidget: React.FC<{
   } = useImageInsertion({
     canvasRef,
     onImageReady: handleImageReady,
+    clientToPage: view ? viewport.clientToPage : undefined,
+    getVisibleArea: view ? viewport.getVisibleArea : undefined,
   });
 
   // Selection preview: local-only override applied during a transform drag.
@@ -570,6 +685,8 @@ export const DrawingWidget: React.FC<{
     handleSelectPointerUp,
     handleKeyDown: handleSelectKeyDown,
     clearSelection,
+    selectObject,
+    guides,
   } = useSelection({
     objects,
     activeTool,
@@ -577,7 +694,92 @@ export const DrawingWidget: React.FC<{
     onTransformCommit: handleTransformCommit,
     onRemoveObject: handleRemoveObject,
     canvasRef,
+    viewZoom: view?.zoom,
+    snapping: proEnabled ? canvasSize : undefined,
   });
+
+  // A copy just below and to the right, selected so it can be dragged straight away.
+  const duplicateSelected = () => {
+    if (!selectedObject) return;
+    const copy: DrawableObject = {
+      ...translateObject(selectedObject, DUPLICATE_OFFSET, DUPLICATE_OFFSET),
+      id: crypto.randomUUID(),
+      z: nextZ(objects),
+    };
+    pushAdd(copy);
+    selectObject(copy.id);
+  };
+
+  // Copy, cut and paste go through the clipboard events, so they work across pages, boards and tabs.
+  // Text fields inside the board keep their own copy and paste.
+  const isTypingTarget = (target: EventTarget) =>
+    target instanceof Element &&
+    target.closest('[contenteditable="true"],input,textarea') !== null;
+
+  const copySelection = (e: React.ClipboardEvent): boolean => {
+    if (!proEnabled || isTypingTarget(e.target)) return false;
+    if (activeTool !== 'select' || !selectedObject) return false;
+    e.clipboardData.setData(
+      'text/plain',
+      writeClipboardObjects([selectedObject])
+    );
+    e.preventDefault();
+    return true;
+  };
+
+  const handleCut = (e: React.ClipboardEvent) => {
+    const target = selectedObject;
+    if (!target || !copySelection(e)) return;
+    handleRemoveObject(target.id);
+    clearSelection();
+  };
+
+  const pasteObjects = (pasted: DrawableObject[]) => {
+    const area = visiblePageArea(view ?? IDENTITY_VIEW, canvasSize);
+    let z = nextZ(objects);
+    let lastId: string | null = null;
+    for (const original of pasted) {
+      // The copy belongs to whoever pastes it.
+      const rest: DrawableObject = { ...original };
+      delete rest.authorUid;
+      // Pasting back onto the same page lands beside the original.
+      let dx = objects.some((o) => o.id === original.id) ? DUPLICATE_OFFSET : 0;
+      let dy = dx;
+      const b = getBoundingBox(rest);
+      const onScreen =
+        b.x + dx < area.x + area.width &&
+        b.x + b.w + dx > area.x &&
+        b.y + dy < area.y + area.height &&
+        b.y + b.h + dy > area.y;
+      if (!onScreen) {
+        dx = area.x + (area.width - b.w) / 2 - b.x;
+        dy = area.y + (area.height - b.h) / 2 - b.y;
+      }
+      const copy: DrawableObject = {
+        ...translateObject(rest, dx, dy),
+        id: crypto.randomUUID(),
+        z: z++,
+      };
+      pushAdd(copy);
+      lastId = copy.id;
+    }
+    if (activeTool !== 'select') setActiveTool('select');
+    if (lastId) selectObject(lastId);
+  };
+
+  const handleWrapperPaste = (e: React.ClipboardEvent) => {
+    if (proEnabled && !isTypingTarget(e.target)) {
+      const pasted = readClipboardObjects(
+        e.clipboardData.getData('text/plain')
+      );
+      if (pasted) {
+        e.preventDefault();
+        pasteObjects(pasted);
+        return;
+      }
+    }
+    handlePaste(e);
+  };
 
   // Selection chrome is cleared by `setActiveTool` directly when leaving the
   // Select tool — see the event-handler path below — so a state-sync effect
@@ -595,26 +797,55 @@ export const DrawingWidget: React.FC<{
     setPreviewObject(null);
   }
 
-  const { handleStart, handleMove, handleEnd, isDrawing } = useDrawingCanvas({
-    canvasRef,
-    color,
-    width,
-    objects,
-    onObjectComplete: pushAdd,
-    onTextSpawn: handleTextSpawn,
-    disabled: isStudentView,
-    canvasSize,
-    nextZ: nextZ(objects),
-    activeTool,
-    shapeFill,
-    selectedObject,
-    transformState: transformState ? { active: true } : null,
-    previewObject,
+  const { handleStart, handleMove, handleEnd, cancel, isDrawing } =
+    useDrawingCanvas({
+      canvasRef,
+      color,
+      width,
+      objects,
+      onObjectComplete: pushAdd,
+      onTextSpawn: handleTextSpawn,
+      disabled: isStudentView,
+      canvasSize,
+      nextZ: nextZ(objects),
+      activeTool,
+      shapeFill,
+      selectedObject,
+      transformState: transformState ? { active: true } : null,
+      previewObject,
+      view,
+      highlighter: highlighterInk,
+      stickyFill: stickyColor,
+      shapeStyle,
+    });
+
+  const laserRef = useRef<LaserOverlayHandle>(null);
+  const laserPointerRef = useRef<number | null>(null);
+
+  // A pinch drops whatever the first finger had started.
+  useLayoutEffect(() => {
+    gestureTakeoverRef.current = () => {
+      cancel();
+      laserPointerRef.current = null;
+      laserRef.current?.end();
+      objectEraseQueueRef.current = new Set();
+      setLassoPoints(null);
+      // The first finger of a pinch opened a text box that was never typed in.
+      if (editingText && !objects.some((o) => o.id === editingText.id)) {
+        setEditingText(null);
+      }
+      if (transformState) {
+        clearSelection();
+        setPreviewObject(null);
+      }
+    };
   });
 
   // Pointer chooser: route to selection handlers when 'select' is active,
   // to draw handlers otherwise. Keeps the canvas a single event surface.
   const getCanvasPos = (e: React.PointerEvent): { x: number; y: number } => {
+    if (view)
+      return viewport.clientToPage(e.clientX, e.clientY) ?? { x: 0, y: 0 };
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
@@ -628,6 +859,12 @@ export const DrawingWidget: React.FC<{
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (isStudentView) return;
+    if (activeTool === 'laser') {
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+      laserPointerRef.current = e.pointerId;
+      laserRef.current?.start(getCanvasPos(e));
+      return;
+    }
     if (activeTool === 'select') {
       handleSelectPointerDown(e, getCanvasPos(e));
       return;
@@ -648,6 +885,12 @@ export const DrawingWidget: React.FC<{
   };
   const handlePointerMove = (e: React.PointerEvent) => {
     if (isStudentView) return;
+    if (activeTool === 'laser') {
+      if (laserPointerRef.current === e.pointerId) {
+        laserRef.current?.add(getCanvasPos(e));
+      }
+      return;
+    }
     if (activeTool === 'select') {
       handleSelectPointerMove(e, getCanvasPos(e));
       return;
@@ -664,6 +907,13 @@ export const DrawingWidget: React.FC<{
   };
   const handlePointerUp = (e: React.PointerEvent) => {
     if (isStudentView) return;
+    if (activeTool === 'laser') {
+      if (laserPointerRef.current === e.pointerId) {
+        laserPointerRef.current = null;
+        laserRef.current?.end();
+      }
+      return;
+    }
     if (activeTool === 'select') {
       handleSelectPointerUp(e, getCanvasPos(e));
       return;
@@ -700,6 +950,7 @@ export const DrawingWidget: React.FC<{
   // still receives the event for Backspace/Delete/Arrow nudges; we delegate
   // to it for anything that isn't an undo/redo shortcut.
   const handleWrapperKeyDown = (e: React.KeyboardEvent) => {
+    if (viewport.handleKeyDown(e)) return;
     const isMod = e.metaKey || e.ctrlKey;
     const key = e.key.toLowerCase();
     if (isMod && key === 'z') {
@@ -714,6 +965,32 @@ export const DrawingWidget: React.FC<{
     if (isMod && key === 'y') {
       e.preventDefault();
       redo();
+      return;
+    }
+    if (
+      proEnabled &&
+      isMod &&
+      key === 'd' &&
+      activeTool === 'select' &&
+      selectedObject
+    ) {
+      e.preventDefault();
+      duplicateSelected();
+      return;
+    }
+    const shortcutTool =
+      proEnabled &&
+      !isMod &&
+      !e.altKey &&
+      !e.shiftKey &&
+      e.target === e.currentTarget
+        ? SHORTCUT_TOOLS.get(key)
+        : undefined;
+    if (shortcutTool) {
+      e.preventDefault();
+      viewport.setHandActive(false);
+      closeToolPopover();
+      setActiveTool(shortcutTool);
       return;
     }
     handleSelectKeyDown(e);
@@ -1003,7 +1280,14 @@ export const DrawingWidget: React.FC<{
     try {
       setIsExtracting(true);
       addToast('Scanning handwriting...', 'info');
-      const dataUrl = canvas.toDataURL('image/png');
+      // Zoomed: read the whole page, not the part on screen.
+      const dataUrl =
+        view && !isIdentityView(view)
+          ? await exportPagePng(
+              { ...activePage, objects, background: 'blank' },
+              { w: canvasSize.width, h: canvasSize.height }
+            )
+          : canvas.toDataURL('image/png');
       const extractedText = await extractTextWithGemini(dataUrl, 'drawing');
 
       if (!extractedText || !extractedText.trim()) {
@@ -1071,9 +1355,10 @@ export const DrawingWidget: React.FC<{
     tool: ShapeTool,
     e: React.MouseEvent<HTMLButtonElement>
   ) => {
+    viewport.setHandActive(false);
     setActiveTool(tool);
-    // Select gets no popover — it has no color/width options.
-    if (tool === 'select') {
+    // Select and the laser get no popover; they have no color/width options.
+    if (tool === 'select' || tool === 'laser') {
       closeToolPopover();
       return;
     }
@@ -1096,6 +1381,38 @@ export const DrawingWidget: React.FC<{
   const setColor = (next: string) => {
     updateWidget(widget.id, {
       config: { ...config, color: next },
+    });
+  };
+
+  const shownWidth = toolPopover === 'highlighter' ? highlighterWidth : width;
+
+  const setHighlighterColor = (next: string) => {
+    updateWidget(widget.id, {
+      config: { ...config, highlighterColor: next },
+    });
+  };
+
+  const setShapeDashed = (next: boolean) => {
+    updateWidget(widget.id, {
+      config: { ...config, shapeDashed: next },
+    });
+  };
+
+  const setArrowBothEnds = (next: boolean) => {
+    updateWidget(widget.id, {
+      config: { ...config, arrowBothEnds: next },
+    });
+  };
+
+  const setStickyColor = (next: string) => {
+    updateWidget(widget.id, {
+      config: { ...config, stickyColor: next },
+    });
+  };
+
+  const setHighlighterWidth = (px: number) => {
+    updateWidget(widget.id, {
+      config: { ...config, highlighterWidth: px },
     });
   };
 
@@ -1132,7 +1449,7 @@ export const DrawingWidget: React.FC<{
   const queueObjectEraseHits = (p: Point) => {
     for (const obj of objects) {
       if (objectEraseQueueRef.current.has(obj.id)) continue;
-      if (hitTestObject(obj, p)) {
+      if (hitTestObject(obj, p, view?.zoom)) {
         objectEraseQueueRef.current.add(obj.id);
       }
     }
@@ -1165,6 +1482,9 @@ export const DrawingWidget: React.FC<{
   const actionBtnBase =
     'w-7 h-7 rounded-md flex items-center justify-center transition-colors text-slate-200 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900';
 
+  const shapeToggleBase =
+    'h-8 px-2.5 rounded-md flex items-center gap-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900';
+
   const PaletteUI = (
     <div ref={toolBarRef} className="flex flex-col gap-1.5 px-2 py-2">
       {/* Row 1 — tool segmented control. One row, full width. Uses
@@ -1176,11 +1496,13 @@ export const DrawingWidget: React.FC<{
         aria-label="Drawing tool"
         className="flex w-full items-stretch gap-0.5 rounded-lg bg-slate-950/40 p-1 ring-1 ring-white/5"
       >
-        {TOOL_BUTTONS.map(({ tool, Icon, label }) => {
+        {TOOL_BUTTONS.filter(
+          ({ tool }) => proEnabled || !PRO_TOOLS.has(tool)
+        ).map(({ tool, Icon, label }) => {
           const isActive = activeTool === tool;
           // Each drawing tool also reflects whether its options popover is
           // currently open via `aria-expanded`; select stays a plain toggle.
-          const hasPopover = tool !== 'select';
+          const hasPopover = tool !== 'select' && tool !== 'laser';
           return (
             <button
               key={tool}
@@ -1195,8 +1517,15 @@ export const DrawingWidget: React.FC<{
                   ? 'bg-brand-blue-primary text-white shadow-sm'
                   : 'text-slate-300 hover:bg-white/10'
               }`}
-              title={label}
+              title={
+                proEnabled && TOOL_SHORTCUTS[tool]
+                  ? `${label} (${TOOL_SHORTCUTS[tool]})`
+                  : label
+              }
               aria-label={label}
+              aria-keyshortcuts={
+                proEnabled ? TOOL_SHORTCUTS[tool]?.toLowerCase() : undefined
+              }
             >
               <Icon className="w-4 h-4" />
             </button>
@@ -1234,6 +1563,18 @@ export const DrawingWidget: React.FC<{
           >
             <Redo2 className="w-4 h-4" />
           </button>
+          {proEnabled && activeTool === 'select' && selectedObject && (
+            <button
+              type="button"
+              {...tourAttr('drawing.duplicate', widget.id, widget.type)}
+              onClick={duplicateSelected}
+              title="Duplicate (Ctrl+D)"
+              aria-label="Duplicate"
+              className={actionBtnBase}
+            >
+              <CopyPlus className="w-4 h-4" />
+            </button>
+          )}
           <button
             type="button"
             {...tourAttr('drawing.clear', widget.id, widget.type)}
@@ -1441,15 +1782,60 @@ export const DrawingWidget: React.FC<{
             )}
 
             {/* Color row — hidden for the eraser, which ignores stroke color. */}
-            {toolPopover !== 'eraser' && (
-              <PenColorSwatches
-                variant="whiteboard"
-                value={color}
-                onSelect={setColor}
-                anchor={tourAttr('drawing.pen-colors', widget.id, widget.type)}
-                className="flex items-center justify-between mb-3"
-              />
-            )}
+            {(toolPopover === 'highlighter' || toolPopover === 'sticky') &&
+              (() => {
+                const isSticky = toolPopover === 'sticky';
+                const current = isSticky ? stickyColor : highlighterColor;
+                const pick = isSticky ? setStickyColor : setHighlighterColor;
+                return (
+                  <div
+                    role="group"
+                    aria-label={
+                      isSticky ? 'Sticky note color' : 'Highlighter color'
+                    }
+                    {...(isSticky
+                      ? tourTypeAttr('drawing.sticky-colors', 'drawing')
+                      : tourTypeAttr('drawing.highlighter-colors', 'drawing'))}
+                    className={`flex items-center justify-between ${
+                      isSticky ? '' : 'mb-3'
+                    }`}
+                  >
+                    {(isSticky ? STICKY_COLORS : HIGHLIGHTER_COLORS).map(
+                      (c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          // no-tour-anchor: the row carries the colors anchor
+                          aria-label={COLOR_HEX_TO_NAME[c] ?? c}
+                          aria-pressed={current === c}
+                          onClick={() => pick(c)}
+                          className={`w-6 h-6 rounded-full transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
+                            current === c
+                              ? 'ring-2 ring-white scale-110'
+                              : 'ring-1 ring-white/20 hover:scale-110'
+                          }`}
+                          style={{ backgroundColor: c }}
+                        />
+                      )
+                    )}
+                  </div>
+                );
+              })()}
+            {toolPopover !== 'eraser' &&
+              toolPopover !== 'highlighter' &&
+              toolPopover !== 'sticky' && (
+                <PenColorSwatches
+                  variant="whiteboard"
+                  value={color}
+                  onSelect={setColor}
+                  anchor={tourAttr(
+                    'drawing.pen-colors',
+                    widget.id,
+                    widget.type
+                  )}
+                  className="flex items-center justify-between mb-3"
+                />
+              )}
 
             {/* Stroke width slider — full 1–80px range, matched to the
                 Settings panel. The thumb preview on the left shows the
@@ -1458,30 +1844,70 @@ export const DrawingWidget: React.FC<{
                 stroke doesn't overflow the popover, while the px count
                 still tells the truth. Hidden for the Lasso eraser
                 (selection-by-region, not by hit radius). */}
-            {!(toolPopover === 'eraser' && eraserMode === 'lasso') && (
-              <div className="flex items-center gap-3">
-                <span
-                  aria-hidden
-                  className="block rounded-full bg-white shrink-0"
-                  style={{
-                    width: `${Math.max(4, Math.min(28, width))}px`,
-                    height: `${Math.max(4, Math.min(28, width))}px`,
-                  }}
-                />
-                <input
-                  type="range"
-                  min={1}
-                  max={80}
-                  step={1}
-                  value={width}
-                  {...tourTypeAttr('drawing.stroke-width', 'drawing')}
-                  onChange={(e) => setWidth(parseInt(e.target.value, 10))}
-                  aria-label="Stroke width"
-                  className="flex-1 h-1.5 rounded-full bg-slate-700 appearance-none cursor-pointer accent-brand-blue-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
-                />
-                <span className="font-mono text-xs text-slate-300 w-10 text-right tabular-nums">
-                  {width}px
-                </span>
+            {!(toolPopover === 'eraser' && eraserMode === 'lasso') &&
+              toolPopover !== 'sticky' && (
+                <div className="flex items-center gap-3">
+                  <span
+                    aria-hidden
+                    className="block rounded-full bg-white shrink-0"
+                    style={{
+                      width: `${Math.max(4, Math.min(28, shownWidth))}px`,
+                      height: `${Math.max(4, Math.min(28, shownWidth))}px`,
+                    }}
+                  />
+                  <input
+                    type="range"
+                    min={1}
+                    max={80}
+                    step={1}
+                    value={shownWidth}
+                    {...tourTypeAttr('drawing.stroke-width', 'drawing')}
+                    onChange={(e) => {
+                      const px = parseInt(e.target.value, 10);
+                      if (toolPopover === 'highlighter')
+                        setHighlighterWidth(px);
+                      else setWidth(px);
+                    }}
+                    aria-label="Stroke width"
+                    className="flex-1 h-1.5 rounded-full bg-slate-700 appearance-none cursor-pointer accent-brand-blue-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+                  />
+                  <span className="font-mono text-xs text-slate-300 w-10 text-right tabular-nums">
+                    {shownWidth}px
+                  </span>
+                </div>
+              )}
+            {proEnabled && SHAPE_TOOLS.has(toolPopover) && (
+              <div className="flex items-center gap-1 mt-3">
+                <button
+                  type="button"
+                  aria-pressed={shapeDashed}
+                  {...tourTypeAttr('drawing.shape-dashed', 'drawing')}
+                  onClick={() => setShapeDashed(!shapeDashed)}
+                  className={`${shapeToggleBase} ${
+                    shapeDashed
+                      ? 'bg-brand-blue-primary text-white'
+                      : 'text-slate-300 hover:bg-white/10'
+                  }`}
+                >
+                  <SquareDashed className="w-4 h-4" aria-hidden />
+                  Dashed
+                </button>
+                {toolPopover === 'arrow' && (
+                  <button
+                    type="button"
+                    aria-pressed={arrowBothEnds}
+                    {...tourTypeAttr('drawing.arrow-both-ends', 'drawing')}
+                    onClick={() => setArrowBothEnds(!arrowBothEnds)}
+                    className={`${shapeToggleBase} ${
+                      arrowBothEnds
+                        ? 'bg-brand-blue-primary text-white'
+                        : 'text-slate-300 hover:bg-white/10'
+                    }`}
+                  >
+                    <MoveHorizontal className="w-4 h-4" aria-hidden />
+                    Both ends
+                  </button>
+                )}
               </div>
             )}
           </div>,
@@ -1499,8 +1925,9 @@ export const DrawingWidget: React.FC<{
     const rect = canvas.getBoundingClientRect();
     const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
     const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
-    const px = (e.clientX - rect.left) * scaleX;
-    const py = (e.clientY - rect.top) * scaleY;
+    const viewPos = view ? viewport.clientToPage(e.clientX, e.clientY) : null;
+    const px = viewPos?.x ?? (e.clientX - rect.left) * scaleX;
+    const py = viewPos?.y ?? (e.clientY - rect.top) * scaleY;
     // Iterate top-to-bottom (highest z first) so the front-most text wins.
     // Use the shared `hitTestObject` instead of a raw AABB check — text
     // objects can be rotated, and the renderer/selection pipeline already
@@ -1519,9 +1946,13 @@ export const DrawingWidget: React.FC<{
   // crosshair the freehand tools have always used.
   const cursorClass = isStudentView
     ? ''
-    : activeTool === 'select'
-      ? 'cursor-default'
-      : 'cursor-crosshair';
+    : viewport.grabbing
+      ? 'cursor-grabbing'
+      : viewport.grabReady
+        ? 'cursor-grab'
+        : activeTool === 'select'
+          ? 'cursor-default'
+          : 'cursor-crosshair';
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -1539,7 +1970,15 @@ export const DrawingWidget: React.FC<{
         // arrow nudges to reach the selection hook without a focused child.
         tabIndex={isStudentView || isMigratingSubcollection ? undefined : 0}
         onPaste={
-          isStudentView || isMigratingSubcollection ? undefined : handlePaste
+          isStudentView || isMigratingSubcollection
+            ? undefined
+            : handleWrapperPaste
+        }
+        onCopy={
+          isStudentView || isMigratingSubcollection ? undefined : copySelection
+        }
+        onCut={
+          isStudentView || isMigratingSubcollection ? undefined : handleCut
         }
         onDrop={
           isStudentView || isMigratingSubcollection ? undefined : handleDrop
@@ -1553,6 +1992,7 @@ export const DrawingWidget: React.FC<{
             : handleWrapperKeyDown
         }
         data-selected-id={selectedId ?? ''}
+        {...viewport.pointerCaptureHandlers}
       >
         {/* Background template layer (Wave 7). A sibling div BELOW the
             canvas — keeps the canvas pixel data clean (no full repaint on
@@ -1562,11 +2002,14 @@ export const DrawingWidget: React.FC<{
         <div
           aria-hidden
           className="absolute inset-0 pointer-events-none"
-          style={getBackgroundStyle(
-            activePage.background ??
-              config.background ??
-              DRAWING_DEFAULTS.BACKGROUND
-          )}
+          style={(() => {
+            const bg = getBackgroundStyle(
+              activePage.background ??
+                config.background ??
+                DRAWING_DEFAULTS.BACKGROUND
+            );
+            return view ? viewBackgroundStyle(bg, view, layoutRatio) : bg;
+          })()}
         />
         <canvas
           ref={canvasRef}
@@ -1586,6 +2029,20 @@ export const DrawingWidget: React.FC<{
           className="absolute inset-0 w-full h-full"
           style={{ touchAction: 'none' }}
         />
+        {view && !isIdentityView(view) && (
+          // Page edge while zoomed: what Download and students see.
+          <div
+            aria-hidden
+            className="absolute pointer-events-none rounded-sm ring-1 ring-slate-400/70"
+            style={{
+              left: view.x * layoutRatio,
+              top: view.y * layoutRatio,
+              width: canvasSize.width * view.zoom * layoutRatio,
+              height: canvasSize.height * view.zoom * layoutRatio,
+              boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.06)',
+            }}
+          />
+        )}
         {/* Lasso preview overlay — SVG above the canvas, in canvas-pixel
             coordinates via viewBox. pointer-events:none so the canvas
             still receives the in-flight drag events that build this
@@ -1594,7 +2051,13 @@ export const DrawingWidget: React.FC<{
           <svg
             aria-hidden
             className="absolute inset-0 pointer-events-none"
-            viewBox={`0 0 ${canvasSize.width} ${canvasSize.height}`}
+            viewBox={(() => {
+              const a = visiblePageArea(
+                view ?? { zoom: 1, x: 0, y: 0 },
+                canvasSize
+              );
+              return `${a.x} ${a.y} ${a.width} ${a.height}`;
+            })()}
             preserveAspectRatio="none"
           >
             <polygon
@@ -1605,6 +2068,31 @@ export const DrawingWidget: React.FC<{
               strokeDasharray="6 4"
               vectorEffect="non-scaling-stroke"
             />
+          </svg>
+        )}
+        {guides.length > 0 && (
+          <svg
+            aria-hidden
+            data-testid="drawing-alignment-guides"
+            className="absolute inset-0 pointer-events-none"
+            viewBox={(() => {
+              const a = visiblePageArea(view ?? IDENTITY_VIEW, canvasSize);
+              return `${a.x} ${a.y} ${a.width} ${a.height}`;
+            })()}
+            preserveAspectRatio="none"
+          >
+            {guides.map((g, i) => (
+              <line
+                key={i}
+                x1={g.axis === 'x' ? g.at : g.from}
+                x2={g.axis === 'x' ? g.at : g.to}
+                y1={g.axis === 'x' ? g.from : g.at}
+                y2={g.axis === 'x' ? g.to : g.at}
+                stroke="rgb(236, 72, 153)"
+                strokeWidth={1}
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
           </svg>
         )}
         {/* Loading state — only shown while the subcollection subscription
@@ -1636,7 +2124,9 @@ export const DrawingWidget: React.FC<{
         {editingText && canvasRect && (
           <TextEditorOverlay
             object={editingText}
-            canvasRect={canvasRect}
+            canvasRect={
+              view ? pageScreenRect(canvasRect, canvasSize, view) : canvasRect
+            }
             canvasSize={canvasSize}
             onCommit={commitTextEdit}
             onCancel={cancelTextEdit}
@@ -1660,6 +2150,73 @@ export const DrawingWidget: React.FC<{
                 Migrating drawing…
               </span>
             </div>
+          </div>
+        )}
+        {view && activeTool === 'laser' && (
+          <LaserOverlay ref={laserRef} canvasSize={canvasSize} view={view} />
+        )}
+        {view && (
+          <div
+            role="group"
+            aria-label="Zoom"
+            className="absolute bottom-2 right-2 flex items-center gap-0.5 rounded-lg bg-slate-900/80 p-0.5 text-slate-200 shadow-sm ring-1 ring-white/10 backdrop-blur-md"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              {...tourAttr('drawing.hand', widget.id, widget.type)}
+              aria-pressed={viewport.handActive}
+              onClick={() => viewport.setHandActive(!viewport.handActive)}
+              title="Hand (hold Space)"
+              aria-label="Hand"
+              className={`${actionBtnBase} touch-target-expand ${
+                viewport.handActive ? '!bg-brand-blue-primary text-white' : ''
+              }`}
+            >
+              <Hand className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              {...tourAttr('drawing.zoom-out', widget.id, widget.type)}
+              onClick={viewport.zoomOut}
+              disabled={view.zoom <= MIN_VIEW_ZOOM + 0.001}
+              title="Zoom out (Ctrl -)"
+              aria-label="Zoom out"
+              className={`${actionBtnBase} touch-target-expand`}
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              {...tourAttr('drawing.zoom-reset', widget.id, widget.type)}
+              onClick={viewport.resetZoom}
+              title="Zoom to 100% (Ctrl 0)"
+              aria-label="Zoom to 100%"
+              className="touch-target-expand h-7 min-w-[3rem] rounded-md px-1 text-xs font-semibold tabular-nums transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+            >
+              {Math.round(view.zoom * 100)}%
+            </button>
+            <button
+              type="button"
+              {...tourAttr('drawing.zoom-in', widget.id, widget.type)}
+              onClick={viewport.zoomIn}
+              disabled={view.zoom >= MAX_VIEW_ZOOM - 0.001}
+              title="Zoom in (Ctrl +)"
+              aria-label="Zoom in"
+              className={`${actionBtnBase} touch-target-expand`}
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              {...tourAttr('drawing.zoom-fit', widget.id, widget.type)}
+              onClick={viewport.fit}
+              title="Fit"
+              aria-label="Fit"
+              className="touch-target-expand h-7 rounded-md px-2 text-xs font-semibold transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+            >
+              Fit
+            </button>
           </div>
         )}
         {!isStudentView && <input {...fileInputProps} />}

@@ -1,7 +1,10 @@
 import React from 'react';
 import { getLevelData } from '../constants';
 
-export const ThermometerView: React.FC<{ volume: number }> = ({ volume }) => {
+export const ThermometerView: React.FC<{
+  volume: number;
+  limit?: number | null;
+}> = ({ volume, limit = null }) => {
   const { color } = getLevelData(volume);
   return (
     <div className="relative w-full h-full flex items-center justify-center py-4">
@@ -25,6 +28,18 @@ export const ThermometerView: React.FC<{ volume: number }> = ({ volume }) => {
           fill={color}
           className="transition-all duration-75"
         />
+        {limit !== null && (
+          <line
+            data-testid="sound-target-line"
+            x1="9"
+            x2="31"
+            y1={80 - limit * 0.7}
+            y2={80 - limit * 0.7}
+            strokeWidth="1.5"
+            strokeDasharray="3 1.5"
+            className="stroke-slate-800"
+          />
+        )}
         {/* Bottom Bulb */}
         <circle
           cx="20"

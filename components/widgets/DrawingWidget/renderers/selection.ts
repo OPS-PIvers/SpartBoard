@@ -2,6 +2,7 @@ import { DrawableObject } from '@/types';
 import {
   getBoundingBox,
   getHandlePositions,
+  ROTATION_HANDLE_OFFSET,
   objectHonorsRotation,
 } from '../hitTest';
 
@@ -46,10 +47,15 @@ export const renderSelectionChrome = (
   ctx: CanvasRenderingContext2D,
   obj: DrawableObject,
   transformState: TransformChromeState | null,
-  scale: number
+  scale: number,
+  viewZoom = 1
 ): void => {
   const bbox = getBoundingBox(obj);
-  const positions = getHandlePositions(bbox);
+  const positions = getHandlePositions(
+    bbox,
+    0,
+    ROTATION_HANDLE_OFFSET / viewZoom
+  );
   // Inverse-scale all sizes so on-screen pixel dimensions stay constant
   // regardless of canvas zoom.
   const inv = 1 / Math.max(scale, 0.0001);
