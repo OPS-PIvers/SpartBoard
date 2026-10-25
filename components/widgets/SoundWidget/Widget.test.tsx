@@ -485,12 +485,16 @@ describe('SoundWidget', () => {
       act(() => {
         vi.advanceTimersByTime(5000);
       });
-      expect(mockUpdateWidget).toHaveBeenCalledWith('sound-1', {
-        config: expect.objectContaining({
-          noiseFloor: 40,
-          calibratedAt: 5,
-        }) as SoundConfig,
-      });
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'sound-1',
+        {
+          config: expect.objectContaining({
+            noiseFloor: 40,
+            calibratedAt: 5,
+          }) as SoundConfig,
+        },
+        { skipHistory: true }
+      );
     });
 
     it('waits for the mic before saving a calibration', () => {
@@ -501,6 +505,28 @@ describe('SoundWidget', () => {
       });
       expect(mockUpdateWidget).not.toHaveBeenCalled();
       expect(screen.getByText(/Calibrating/)).toBeInTheDocument();
+    });
+
+    it('gives up after 30 seconds without a mic and keeps the old floor', () => {
+      mockGetUserMedia.mockReturnValue(new Promise(() => undefined));
+      render(
+        <SoundWidget
+          widget={createWidget({ noiseFloor: 12, calibrateRequest: 5 })}
+        />
+      );
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'sound-1',
+        {
+          config: expect.objectContaining({
+            noiseFloor: 12,
+            calibratedAt: 5,
+          }) as SoundConfig,
+        },
+        { skipHistory: true }
+      );
     });
 
     it('reads the calibrated quiet room as Silence', async () => {

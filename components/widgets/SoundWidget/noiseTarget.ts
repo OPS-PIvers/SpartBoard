@@ -48,6 +48,8 @@ export const alertDelayMs = (seconds: unknown): number => {
 
 export const CALIBRATE_MS = 5000;
 export const CALIBRATE_SAMPLE_MS = 100;
+// With no live mic by then, the request ends and the old floor stays.
+export const CALIBRATE_GIVE_UP_MS = 30_000;
 
 /** Quiet-room level: the 80th percentile, so ordinary quiet reads as zero. */
 export const noiseFloorFrom = (samples: readonly number[]): number => {

@@ -17047,6 +17047,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Reset calibration button in Sound settings",
     "scope": "widget",
     "panel": true,
+    "destructive": true,
     "routes": [
       {
         "surface": "widgets.sound.settings",

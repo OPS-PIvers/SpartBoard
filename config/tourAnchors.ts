@@ -4070,6 +4070,7 @@ export const TOUR_ANCHORS = {
     label: 'Reset calibration button in Sound settings',
     perWidget: true,
     panel: true,
+    destructive: true,
   },
   'widget-settings.seating-chart.clear-assignments': {
     label: 'Clear assignments button in Seating Chart settings',

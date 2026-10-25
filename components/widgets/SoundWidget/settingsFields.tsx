@@ -27,7 +27,7 @@ export const SoundCalibrateField: React.FC<{ ctx: CustomRenderCtx }> = ({
         type="button"
         disabled={listening}
         onClick={() => ctx.updateConfig({ calibrateRequest: Date.now() })}
-        className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-200 disabled:opacity-60"
+        className="flex items-center gap-2 min-h-11 rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-200 disabled:opacity-60"
         {...tourAttr(
           'widget-settings.sound.calibrate',
           ctx.widget.id,
@@ -37,11 +37,16 @@ export const SoundCalibrateField: React.FC<{ ctx: CustomRenderCtx }> = ({
         <Ear className="h-4 w-4" aria-hidden="true" />
         {translate(ctx, listening ? 'calibrateListening' : 'calibrate')}
       </button>
-      {calibrated && !listening && (
+      {(calibrated || listening) && (
         <button
           type="button"
-          onClick={() => ctx.updateConfig({ noiseFloor: null })}
-          className="flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+          onClick={() =>
+            ctx.updateConfig({
+              noiseFloor: null,
+              calibratedAt: config.calibrateRequest ?? 0,
+            })
+          }
+          className="flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100"
           {...tourAttr(
             'widget-settings.sound.reset-calibration',
             ctx.widget.id,

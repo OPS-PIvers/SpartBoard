@@ -17,6 +17,7 @@ import { SpeedometerView } from './components/SpeedometerView';
 import { PopcornBallsView } from './components/PopcornBallsView';
 import {
   ALERT_SOUND_COOLDOWN_MS,
+  CALIBRATE_GIVE_UP_MS,
   CALIBRATE_MS,
   CALIBRATE_SAMPLE_MS,
   DEFAULT_ALERT_SOUND,
@@ -209,6 +210,7 @@ export const SoundWidget: React.FC<{
         audioContextRef.current = null;
         analyserRef.current = null;
         streamRef.current = null;
+        rawAverageRef.current = null;
       }, RELEASE_AFTER_HIDDEN_MS);
       return undefined;
     }
@@ -313,20 +315,26 @@ export const SoundWidget: React.FC<{
       audioContextRef.current = null;
       analyserRef.current = null;
       streamRef.current = null;
+      rawAverageRef.current = null;
     };
   }, []);
 
   const level = getLevelData(volume);
 
+  // An empty sample list ends the request and keeps the saved floor.
   const finishCalibration = useEffectEvent((samples: number[]) => {
     const config = widget.config as SoundConfig;
-    updateWidget(widget.id, {
-      config: {
-        ...config,
-        noiseFloor: noiseFloorFrom(samples),
-        calibratedAt: config.calibrateRequest ?? Date.now(),
+    updateWidget(
+      widget.id,
+      {
+        config: {
+          ...config,
+          ...(samples.length > 0 && { noiseFloor: noiseFloorFrom(samples) }),
+          calibratedAt: config.calibrateRequest ?? Date.now(),
+        },
       },
-    });
+      { skipHistory: true }
+    );
   });
 
   // Calibrate: sample the quiet room for a few seconds, then save its level as the zero point.
@@ -334,6 +342,11 @@ export const SoundWidget: React.FC<{
     if (!calibrating) return undefined;
     let sampler: ReturnType<typeof setInterval> | undefined;
     let done: ReturnType<typeof setTimeout> | undefined;
+    const giveUp = setTimeout(() => {
+      clearInterval(sampler);
+      clearTimeout(done);
+      finishCalibration([]);
+    }, CALIBRATE_GIVE_UP_MS);
     const listen = () => {
       const samples: number[] = [];
       sampler = setInterval(() => {
@@ -342,14 +355,17 @@ export const SoundWidget: React.FC<{
       }, CALIBRATE_SAMPLE_MS);
       done = setTimeout(() => {
         clearInterval(sampler);
-        if (samples.length > 0) finishCalibration(samples);
-        else listen();
+        if (samples.length > 0) {
+          clearTimeout(giveUp);
+          finishCalibration(samples);
+        } else listen();
       }, CALIBRATE_MS);
     };
     listen();
     return () => {
       clearInterval(sampler);
       clearTimeout(done);
+      clearTimeout(giveUp);
     };
   }, [calibrating]);
 
