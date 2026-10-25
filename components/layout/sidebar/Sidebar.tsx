@@ -35,6 +35,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { DevSyncFromProdButton } from './DevSyncFromProdButton';
 import { DevGradebookDemoButton } from './DevGradebookDemoButton';
 import { useAuth } from '@/context/useAuth';
+import { isOrgOnlyAdmin } from '@/utils/superAdmin';
 import { ShortLinkQuickCreate } from '@/components/admin/ShortLinkQuickCreate';
 import { WhatsNewModal } from '@/components/layout/WhatsNewModal';
 import {
@@ -129,7 +130,10 @@ export const Sidebar: React.FC = () => {
     appSettings,
     isExternalUser,
     canAccessFeature,
+    roleId,
+    orgId,
   } = useAuth();
+  const orgOnlyAdmin = isOrgOnlyAdmin(isAdmin, roleId, orgId);
   const {
     dashboards,
     activeDashboard,
@@ -300,7 +304,7 @@ export const Sidebar: React.FC = () => {
 
         <div className="h-6 w-px bg-slate-200 mx-1" />
 
-        {isAdmin && (
+        {(isAdmin === true || orgOnlyAdmin) && (
           <IconButton
             {...tourAttr('sidebar.admin-settings')}
             onClick={() => setShowAdminSettings(true)}

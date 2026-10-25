@@ -1,19 +1,4 @@
-/**
- * One-off cleanup: delete /admins/{email} docs that organizationMembersSync
- * mirrored from an org other than the operator org (`orono`). The sync now
- * mirrors only operator-org roles, but docs it wrote earlier stay until removed.
- *
- * Only docs carrying `source: 'organizationMembersSync'` are touched; hand-made
- * and pre-sync admin docs (no marker) are never deleted. A doc whose email is
- * also an active orono admin is retargeted to that orono role, not deleted.
- *
- * Usage:
- *   node scripts/remove-non-operator-admin-mirrors.mjs --project <id>          # dry run (default)
- *   node scripts/remove-non-operator-admin-mirrors.mjs --project <id> --apply  # delete
- *
- * Credentials: FIREBASE_SERVICE_ACCOUNT (JSON), else scripts/service-account-key.json
- * for `spartboard`, else applicationDefault() (gcloud ADC, used for spartboard-dev).
- */
+// One-off: retarget or delete organizationMembersSync /admins docs from orgs other than orono; dry run unless --apply.
 
 import { initializeApp, applicationDefault, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
