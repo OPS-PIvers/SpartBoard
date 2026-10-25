@@ -76,6 +76,8 @@ interface UseDrawingCanvasOptions {
   pixelRatio?: number;
   /** Zoom and pan; omitted means the page fills the canvas as it always has. */
   view?: DrawingView;
+  /** Highlighter ink (opaque color) and width; the highlighter tool needs it. */
+  highlighter?: { color: string; width: number };
 }
 
 interface UseDrawingCanvasResult {
@@ -89,10 +91,16 @@ interface UseDrawingCanvasResult {
 
 // Discriminated in-flight state. Captures whichever geometry the active tool
 // needs so handleMove/handleEnd can branch without re-reading activeTool.
+const DEFAULT_HIGHLIGHTER = { color: '#eab308', width: 24 };
+
+/** About 40% opaque, written into the color so every client draws it see-through. */
+export const highlighterInk = (color: string): string =>
+  /^#[0-9a-f]{6}$/i.test(color) ? `${color}66` : color;
+
 type InProgress =
   | {
       kind: 'path';
-      tool: 'pen' | 'eraser';
+      tool: 'pen' | 'eraser' | 'highlighter';
       points: Point[];
       pointTimes: number[];
     }
@@ -135,9 +143,19 @@ export const useDrawingCanvas = ({
   previewObject = null,
   pixelRatio = 1,
   view,
+  highlighter = DEFAULT_HIGHLIGHTER,
 }: UseDrawingCanvasOptions): UseDrawingCanvasResult => {
   const [isDrawing, setIsDrawing] = useState(false);
   const inProgressRef = useRef<InProgress | null>(null);
+  const highlightFrameRef = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (highlightFrameRef.current !== null) {
+        cancelAnimationFrame(highlightFrameRef.current);
+      }
+    },
+    []
+  );
   // Image renderer onload callback: stored as a ref so the (module-level)
   // dispatcher can fire a redraw without us re-binding closures each render.
   // The current draw() effect installs the latest redraw into this ref.
@@ -226,7 +244,7 @@ export const useDrawingCanvas = ({
       );
 
       if (inProgress) {
-        renderInProgress(ctx, inProgress, color, width, shapeFill);
+        renderInProgress(ctx, inProgress, color, width, shapeFill, highlighter);
       }
 
       // Selection chrome paints AFTER the object loop so it sits on top of
@@ -258,6 +276,7 @@ export const useDrawingCanvas = ({
       getLiveScale,
       view,
       pixelRatio,
+      highlighter,
     ]
   );
 
@@ -372,7 +391,7 @@ export const useDrawingCanvas = ({
       ctx.restore();
 
       if (inProgress) {
-        renderInProgress(ctx, inProgress, color, width, shapeFill);
+        renderInProgress(ctx, inProgress, color, width, shapeFill, highlighter);
       }
       if (selectedObject) {
         const chromeTarget =
@@ -391,6 +410,7 @@ export const useDrawingCanvas = ({
     [
       draw,
       view,
+      highlighter,
       color,
       width,
       shapeFill,
@@ -573,6 +593,16 @@ export const useDrawingCanvas = ({
         // Some browsers throw for a pointer that is already released.
       }
 
+      if (activeTool === 'highlighter') {
+        inProgressRef.current = {
+          kind: 'path',
+          tool: 'highlighter',
+          points: [pos],
+          pointTimes: [performance.now()],
+        };
+        return;
+      }
+
       if (activeTool === 'pen' || activeTool === 'eraser') {
         inProgressRef.current = {
           kind: 'path',
@@ -642,12 +672,26 @@ export const useDrawingCanvas = ({
       const inProgress = inProgressRef.current;
       if (!inProgress) return;
 
+      if (inProgress.kind === 'path' && inProgress.tool === 'highlighter') {
+        inProgress.points.push(pos);
+        inProgress.pointTimes.push(performance.now());
+        // Repaint whole (once per frame): segment-by-segment strokes would darken where see-through segments overlap.
+        highlightFrameRef.current ??= requestAnimationFrame(() => {
+          highlightFrameRef.current = null;
+          redrawWithInProgress();
+        });
+        return;
+      }
+
       if (inProgress.kind === 'path') {
         inProgress.points.push(pos);
         inProgress.pointTimes.push(performance.now());
         const ctx = canvasRef.current?.getContext('2d');
         if (ctx && inProgress.points.length > 1) {
-          setPathContextStyles(ctx, inProgress.tool);
+          setPathContextStyles(
+            ctx,
+            inProgress.tool === 'eraser' ? 'eraser' : 'pen'
+          );
           const prev = inProgress.points[inProgress.points.length - 2];
           ctx.beginPath();
           ctx.moveTo(prev.x, prev.y);
@@ -691,7 +735,27 @@ export const useDrawingCanvas = ({
     setIsDrawing(false);
     const inProgress = inProgressRef.current;
     inProgressRef.current = null;
+    if (highlightFrameRef.current !== null) {
+      cancelAnimationFrame(highlightFrameRef.current);
+      highlightFrameRef.current = null;
+    }
     if (!inProgress) return;
+
+    if (inProgress.kind === 'path' && inProgress.tool === 'highlighter') {
+      if (inProgress.points.length > 1) {
+        const completed: PathObject = {
+          id: generateId(),
+          kind: 'path',
+          z: nextZ,
+          points: inProgress.points,
+          color: highlighterInk(highlighter.color),
+          width: highlighter.width,
+          highlight: true,
+        };
+        onObjectComplete(completed, { pointTimes: inProgress.pointTimes });
+      }
+      return;
+    }
 
     if (inProgress.kind === 'path') {
       if (inProgress.points.length > 1) {
@@ -786,7 +850,16 @@ export const useDrawingCanvas = ({
         return;
       }
     }
-  }, [isDrawing, onObjectComplete, color, width, generateId, nextZ, shapeFill]);
+  }, [
+    isDrawing,
+    onObjectComplete,
+    color,
+    width,
+    generateId,
+    nextZ,
+    shapeFill,
+    highlighter,
+  ]);
 
   // Drops the stroke in progress without committing it (a pinch took over).
   const cancel = useCallback(() => {
@@ -806,8 +879,18 @@ const renderInProgress = (
   inProgress: InProgress,
   color: string,
   width: number,
-  shapeFill: boolean
+  shapeFill: boolean,
+  highlighter: { color: string; width: number }
 ): void => {
+  if (inProgress.kind === 'path' && inProgress.tool === 'highlighter') {
+    renderPathPoints(
+      ctx,
+      inProgress.points,
+      highlighterInk(highlighter.color),
+      highlighter.width
+    );
+    return;
+  }
   if (inProgress.kind === 'path') {
     renderPathPoints(
       ctx,

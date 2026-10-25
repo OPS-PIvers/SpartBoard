@@ -34,6 +34,8 @@ const VALID_TOOLS: readonly ShapeTool[] = [
   'arrow',
   'text',
   'select',
+  'highlighter',
+  'laser',
 ];
 
 const VALID_BACKGROUNDS: readonly DrawingBackground[] = [

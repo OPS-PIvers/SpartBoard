@@ -56173,6 +56173,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "drawing.highlighter-colors",
+    "label": "Highlighter color swatches in the Drawing tool options",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "drawing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "drawing.stroke-width",
     "label": "Stroke width slider in the Drawing tool options",
     "scope": "widget type",

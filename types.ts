@@ -1799,6 +1799,8 @@ export interface PathObject extends BaseDrawableObject {
   points: Point[];
   color: string;
   width: number;
+  /** Highlighter stroke. `color` already carries its transparency, so older clients still draw it see-through. */
+  highlight?: boolean;
 }
 
 export interface RectObject extends BaseDrawableObject {
@@ -2165,7 +2167,17 @@ export interface SoundConfig {
 
 /** Active drawing tool. Replaces the legacy `config.color === 'eraser'` overload. */
 export type ShapeTool =
-  'pen' | 'eraser' | 'rect' | 'ellipse' | 'line' | 'arrow' | 'text' | 'select';
+  | 'pen'
+  | 'eraser'
+  | 'rect'
+  | 'ellipse'
+  | 'line'
+  | 'arrow'
+  | 'text'
+  | 'select'
+  /** `whiteboard-pro` only; without the flag the widget treats both as the pen. */
+  | 'highlighter'
+  | 'laser';
 
 /**
  * Eraser sub-tool. The DrawingWidget eraser surfaces three modes:
@@ -2247,6 +2259,9 @@ export interface DrawingConfig {
   eraserMode?: EraserMode;
   /** If true, rect/ellipse render filled with the current color (stroke unchanged). Default false. */
   shapeFill?: boolean;
+  /** Highlighter color (opaque hex) and width, kept apart from the pen's. */
+  highlighterColor?: string;
+  highlighterWidth?: number;
   /**
    * Widget-level default background template applied to a page when the
    * page's own `background` field is unset. Populated by Phase 2 PR 2.5.

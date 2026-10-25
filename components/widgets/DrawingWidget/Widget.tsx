@@ -26,11 +26,13 @@ import {
   Download,
   Eraser,
   Hand,
+  Highlighter,
   ImagePlus,
   Lasso,
   MousePointer2,
   MousePointerClick,
   Pencil,
+  Flashlight,
   Redo2,
   Slash,
   Square,
@@ -53,7 +55,7 @@ import { PageStrip } from './PageStrip';
 import { extractTextWithGemini } from '@/utils/ai';
 import { useAuth } from '@/context/useAuth';
 import { PenColorSwatches } from '@/components/common/PenColorSwatches';
-import { STANDARD_COLORS } from '@/config/colors';
+import { COLOR_HEX_TO_NAME, STANDARD_COLORS } from '@/config/colors';
 import { DRAWING_DEFAULTS } from './constants';
 import { useDrawingCanvas } from './useDrawingCanvas';
 import { migrateDrawingConfig, nextZ } from '@/utils/migrateDrawingConfig';
@@ -64,6 +66,7 @@ import { logError } from '@/utils/logError';
 import type { DrawingPage } from '@/types';
 import { getBackgroundStyle } from './backgroundTemplates';
 import { useDrawingViewport } from './useDrawingViewport';
+import { LaserOverlay, type LaserOverlayHandle } from './LaserOverlay';
 import {
   isIdentityView,
   MAX_VIEW_ZOOM,
@@ -79,6 +82,16 @@ import {
   exportPdf,
 } from './exportCanvas';
 
+const PRO_TOOLS: ReadonlySet<ShapeTool> = new Set(['highlighter', 'laser']);
+const HIGHLIGHTER_COLORS = [
+  STANDARD_COLORS.yellow,
+  STANDARD_COLORS.green,
+  STANDARD_COLORS.cyan,
+  STANDARD_COLORS.pink,
+  STANDARD_COLORS.orange,
+] as const;
+const HIGHLIGHTER_DEFAULT_WIDTH = 24;
+
 const TOOL_BUTTONS: ReadonlyArray<{
   tool: ShapeTool;
   Icon: React.ComponentType<{ className?: string }>;
@@ -91,6 +104,8 @@ const TOOL_BUTTONS: ReadonlyArray<{
   // Pen comes before text: drawing is the primary action on a whiteboard,
   // and the muscle memory ordering teachers expect is select → draw → annotate.
   { tool: 'pen', Icon: Pencil, label: 'Pen' },
+  { tool: 'highlighter', Icon: Highlighter, label: 'Highlighter' },
+  { tool: 'laser', Icon: Flashlight, label: 'Laser pointer' },
   { tool: 'text', Icon: TypeOutline, label: 'Text' },
   { tool: 'eraser', Icon: Eraser, label: 'Eraser' },
   { tool: 'line', Icon: Slash, label: 'Line' },
@@ -133,10 +148,20 @@ export const DrawingWidget: React.FC<{
     width = DRAWING_DEFAULTS.WIDTH,
     pages,
     currentPage,
-    activeTool = DRAWING_DEFAULTS.ACTIVE_TOOL,
+    activeTool: storedTool = DRAWING_DEFAULTS.ACTIVE_TOOL,
     eraserMode = DRAWING_DEFAULTS.ERASER_MODE,
     shapeFill = DRAWING_DEFAULTS.SHAPE_FILL,
+    highlighterColor = STANDARD_COLORS.yellow,
+    highlighterWidth = HIGHLIGHTER_DEFAULT_WIDTH,
   } = config;
+  const proEnabled = !isStudentView && canAccessFeature('whiteboard-pro');
+  // Without the flag a saved highlighter or laser falls back to the pen.
+  const activeTool: ShapeTool =
+    !proEnabled && PRO_TOOLS.has(storedTool) ? 'pen' : storedTool;
+  const highlighterInk = useMemo(
+    () => ({ color: highlighterColor, width: highlighterWidth }),
+    [highlighterColor, highlighterWidth]
+  );
 
   // Page-scoped object slice. `migrateDrawingConfig` guarantees pages is
   // non-empty and currentPage is clamped, so this never falls back to `[]`
@@ -289,7 +314,6 @@ export const DrawingWidget: React.FC<{
     return wrapperSize;
   }, [isStudentView, widget.w, widget.h, wrapperSize]);
 
-  const proEnabled = !isStudentView && canAccessFeature('whiteboard-pro');
   const gestureTakeoverRef = useRef<() => void>(() => undefined);
   const viewport = useDrawingViewport({
     enabled: proEnabled,
@@ -646,12 +670,18 @@ export const DrawingWidget: React.FC<{
       transformState: transformState ? { active: true } : null,
       previewObject,
       view,
+      highlighter: highlighterInk,
     });
+
+  const laserRef = useRef<LaserOverlayHandle>(null);
+  const laserPointerRef = useRef<number | null>(null);
 
   // A pinch drops whatever the first finger had started.
   useLayoutEffect(() => {
     gestureTakeoverRef.current = () => {
       cancel();
+      laserPointerRef.current = null;
+      laserRef.current?.end();
       objectEraseQueueRef.current = new Set();
       setLassoPoints(null);
       // The first finger of a pinch opened a text box that was never typed in.
@@ -683,6 +713,12 @@ export const DrawingWidget: React.FC<{
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (isStudentView) return;
+    if (activeTool === 'laser') {
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+      laserPointerRef.current = e.pointerId;
+      laserRef.current?.start(getCanvasPos(e));
+      return;
+    }
     if (activeTool === 'select') {
       handleSelectPointerDown(e, getCanvasPos(e));
       return;
@@ -703,6 +739,12 @@ export const DrawingWidget: React.FC<{
   };
   const handlePointerMove = (e: React.PointerEvent) => {
     if (isStudentView) return;
+    if (activeTool === 'laser') {
+      if (laserPointerRef.current === e.pointerId) {
+        laserRef.current?.add(getCanvasPos(e));
+      }
+      return;
+    }
     if (activeTool === 'select') {
       handleSelectPointerMove(e, getCanvasPos(e));
       return;
@@ -719,6 +761,13 @@ export const DrawingWidget: React.FC<{
   };
   const handlePointerUp = (e: React.PointerEvent) => {
     if (isStudentView) return;
+    if (activeTool === 'laser') {
+      if (laserPointerRef.current === e.pointerId) {
+        laserPointerRef.current = null;
+        laserRef.current?.end();
+      }
+      return;
+    }
     if (activeTool === 'select') {
       handleSelectPointerUp(e, getCanvasPos(e));
       return;
@@ -1136,8 +1185,8 @@ export const DrawingWidget: React.FC<{
   ) => {
     viewport.setHandActive(false);
     setActiveTool(tool);
-    // Select gets no popover — it has no color/width options.
-    if (tool === 'select') {
+    // Select and the laser get no popover; they have no color/width options.
+    if (tool === 'select' || tool === 'laser') {
       closeToolPopover();
       return;
     }
@@ -1160,6 +1209,20 @@ export const DrawingWidget: React.FC<{
   const setColor = (next: string) => {
     updateWidget(widget.id, {
       config: { ...config, color: next },
+    });
+  };
+
+  const shownWidth = toolPopover === 'highlighter' ? highlighterWidth : width;
+
+  const setHighlighterColor = (next: string) => {
+    updateWidget(widget.id, {
+      config: { ...config, highlighterColor: next },
+    });
+  };
+
+  const setHighlighterWidth = (px: number) => {
+    updateWidget(widget.id, {
+      config: { ...config, highlighterWidth: px },
     });
   };
 
@@ -1196,7 +1259,7 @@ export const DrawingWidget: React.FC<{
   const queueObjectEraseHits = (p: Point) => {
     for (const obj of objects) {
       if (objectEraseQueueRef.current.has(obj.id)) continue;
-      if (hitTestObject(obj, p)) {
+      if (hitTestObject(obj, p, view?.zoom)) {
         objectEraseQueueRef.current.add(obj.id);
       }
     }
@@ -1240,11 +1303,13 @@ export const DrawingWidget: React.FC<{
         aria-label="Drawing tool"
         className="flex w-full items-stretch gap-0.5 rounded-lg bg-slate-950/40 p-1 ring-1 ring-white/5"
       >
-        {TOOL_BUTTONS.map(({ tool, Icon, label }) => {
+        {TOOL_BUTTONS.filter(
+          ({ tool }) => proEnabled || !PRO_TOOLS.has(tool)
+        ).map(({ tool, Icon, label }) => {
           const isActive = activeTool === tool;
           // Each drawing tool also reflects whether its options popover is
           // currently open via `aria-expanded`; select stays a plain toggle.
-          const hasPopover = tool !== 'select';
+          const hasPopover = tool !== 'select' && tool !== 'laser';
           return (
             <button
               key={tool}
@@ -1505,7 +1570,32 @@ export const DrawingWidget: React.FC<{
             )}
 
             {/* Color row — hidden for the eraser, which ignores stroke color. */}
-            {toolPopover !== 'eraser' && (
+            {toolPopover === 'highlighter' && (
+              <div
+                role="group"
+                aria-label="Highlighter color"
+                {...tourTypeAttr('drawing.highlighter-colors', 'drawing')}
+                className="flex items-center justify-between mb-3"
+              >
+                {HIGHLIGHTER_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    // no-tour-anchor: the row carries drawing.highlighter-colors
+                    aria-label={COLOR_HEX_TO_NAME[c] ?? c}
+                    aria-pressed={highlighterColor === c}
+                    onClick={() => setHighlighterColor(c)}
+                    className={`w-6 h-6 rounded-full transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
+                      highlighterColor === c
+                        ? 'ring-2 ring-white scale-110'
+                        : 'ring-1 ring-white/20 hover:scale-110'
+                    }`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+            )}
+            {toolPopover !== 'eraser' && toolPopover !== 'highlighter' && (
               <PenColorSwatches
                 variant="whiteboard"
                 value={color}
@@ -1528,8 +1618,8 @@ export const DrawingWidget: React.FC<{
                   aria-hidden
                   className="block rounded-full bg-white shrink-0"
                   style={{
-                    width: `${Math.max(4, Math.min(28, width))}px`,
-                    height: `${Math.max(4, Math.min(28, width))}px`,
+                    width: `${Math.max(4, Math.min(28, shownWidth))}px`,
+                    height: `${Math.max(4, Math.min(28, shownWidth))}px`,
                   }}
                 />
                 <input
@@ -1537,14 +1627,18 @@ export const DrawingWidget: React.FC<{
                   min={1}
                   max={80}
                   step={1}
-                  value={width}
+                  value={shownWidth}
                   {...tourTypeAttr('drawing.stroke-width', 'drawing')}
-                  onChange={(e) => setWidth(parseInt(e.target.value, 10))}
+                  onChange={(e) => {
+                    const px = parseInt(e.target.value, 10);
+                    if (toolPopover === 'highlighter') setHighlighterWidth(px);
+                    else setWidth(px);
+                  }}
                   aria-label="Stroke width"
                   className="flex-1 h-1.5 rounded-full bg-slate-700 appearance-none cursor-pointer accent-brand-blue-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
                 />
                 <span className="font-mono text-xs text-slate-300 w-10 text-right tabular-nums">
-                  {width}px
+                  {shownWidth}px
                 </span>
               </div>
             )}
@@ -1756,6 +1850,9 @@ export const DrawingWidget: React.FC<{
               </span>
             </div>
           </div>
+        )}
+        {view && activeTool === 'laser' && (
+          <LaserOverlay ref={laserRef} canvasSize={canvasSize} view={view} />
         )}
         {view && (
           <div

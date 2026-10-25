@@ -136,3 +136,22 @@ describe('selection handles while zoomed', () => {
     expect(hitTestHandle(rect, { x: 100, y: 4 }, 0.25, 0.25)).toBe('rotate');
   });
 });
+
+describe('stroke hit tolerance while zoomed', () => {
+  it('stays about the same on screen at 25%', async () => {
+    const { hitTestObject } = await import('./hitTest');
+    const line: DrawableObject = {
+      id: 'l',
+      kind: 'line',
+      z: 0,
+      x1: 0,
+      y1: 0,
+      x2: 100,
+      y2: 0,
+      stroke: '#000',
+      strokeWidth: 2,
+    };
+    expect(hitTestObject(line, { x: 50, y: 10 })).toBe(false);
+    expect(hitTestObject(line, { x: 50, y: 10 }, 0.25)).toBe(true);
+  });
+});
