@@ -32,10 +32,15 @@ import {
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { useDialog } from '@/context/useDialog';
 import { buildPollJoinUrl } from '@/utils/pollCode';
-import { withQuestionAt } from '@/utils/pollQuestions';
+import {
+  isScaleQuestion,
+  scaleAverage,
+  withQuestionAt,
+} from '@/utils/pollQuestions';
 import { usePollSession } from '@/hooks/usePollSession';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { tourAttr } from '@/config/tourAnchors';
+import { ScaleResults } from './components/ScaleResults';
 
 export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget } = useDashboardActions();
@@ -193,6 +198,11 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       : activeQuestion.options;
 
   const total = displayOptions.reduce((sum, o) => sum + o.votes, 0);
+  const isScale = proEnabled && isScaleQuestion(activeQuestion);
+  const average =
+    isScale && !hidden
+      ? scaleAverage(displayOptions.map((o) => o.votes))
+      : null;
 
   // On-board join link/QR/code for the live session (gated by anonymous-join).
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
@@ -271,7 +281,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               </button>
             )}
           </div>
-          {(showNavigation || showAnswered) && (
+          {(showNavigation || showAnswered || average !== null) && (
             <div
               className="flex items-center justify-center font-bold text-slate-400 tabular-nums"
               style={{
@@ -290,6 +300,11 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               )}
               {showAnswered && (
                 <span data-testid="poll-answered-count">{total} answered</span>
+              )}
+              {average !== null && (
+                <span data-testid="poll-scale-average">
+                  Average {average.toFixed(1)}
+                </span>
               )}
               {showAnswered && isLocked && (
                 <span
@@ -325,70 +340,83 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               ✓ Vote recorded!
             </div>
           )}
-          {displayOptions.map((o, i: number) => {
-            const percent =
-              total === 0 ? 0 : Math.round((o.votes / total) * 100);
-            const isVoted = userVoted === i;
+          {isScale && (
+            <ScaleResults
+              options={displayOptions}
+              hidden={hidden}
+              low={activeQuestion.scaleLow}
+              high={activeQuestion.scaleHigh}
+              fontFamily={globalStyle.fontFamily}
+              barColor={barColor}
+              disabled={isLive}
+              onVote={vote}
+            />
+          )}
+          {!isScale &&
+            displayOptions.map((o, i: number) => {
+              const percent =
+                total === 0 ? 0 : Math.round((o.votes / total) * 100);
+              const isVoted = userVoted === i;
 
-            const buttonCls = [
-              'w-full text-left group',
-              isVoted ? 'opacity-100' : '',
-              isAnnouncement && userVoted !== null && !isVoted
-                ? 'opacity-60'
-                : '',
-            ]
-              .filter(Boolean)
-              .join(' ');
+              const buttonCls = [
+                'w-full text-left group',
+                isVoted ? 'opacity-100' : '',
+                isAnnouncement && userVoted !== null && !isVoted
+                  ? 'opacity-60'
+                  : '',
+              ]
+                .filter(Boolean)
+                .join(' ');
 
-            return (
-              <button
-                key={o.id ?? i}
-                onClick={() => {
-                  vote(i);
-                }}
-                disabled={isLive || (isAnnouncement && userVoted !== null)}
-                className={buttonCls}
-              >
-                <div
-                  className={`flex justify-between mb-1 uppercase tracking-wider ${isAnnouncement ? 'text-white/90' : 'text-slate-600'} font-${globalStyle.fontFamily}`}
-                  style={{
-                    fontSize: 'min(16px, 5.5cqmin)',
-                    gap: 'min(16px, 3cqmin)',
+              return (
+                <button
+                  key={o.id ?? i}
+                  onClick={() => {
+                    vote(i);
                   }}
-                >
-                  <span className="font-bold min-w-0 [overflow-wrap:anywhere]">
-                    {markCorrect && o.correct && (
-                      <CircleCheck
-                        aria-label="Correct answer"
-                        className="inline-block align-[-0.15em] text-emerald-700"
-                        style={{
-                          width: '1em',
-                          height: '1em',
-                          marginRight: '0.3em',
-                        }}
-                      />
-                    )}
-                    {o.label}
-                  </span>
-                  {!hidden && (
-                    <span className="font-mono whitespace-nowrap shrink-0">
-                      {o.votes} ({percent}%)
-                    </span>
-                  )}
-                </div>
-
-                <div
-                  className="bg-slate-100 rounded-full overflow-hidden relative border border-slate-200/50"
-                  style={{ height: 'clamp(16px, 5cqmin, 24px)' }}
+                  disabled={isLive || (isAnnouncement && userVoted !== null)}
+                  className={buttonCls}
                 >
                   <div
-                    className={`h-full transition-all duration-500 motion-reduce:transition-none shadow-[inset_0_2px_4px_rgba(255,255,255,0.3)] ${isVoted || (markCorrect && o.correct) ? 'bg-emerald-500' : barColor}`}
-                    style={{ width: hidden ? '0%' : `${percent}%` }}
-                  />
-                </div>
-              </button>
-            );
-          })}
+                    className={`flex justify-between mb-1 uppercase tracking-wider ${isAnnouncement ? 'text-white/90' : 'text-slate-600'} font-${globalStyle.fontFamily}`}
+                    style={{
+                      fontSize: 'min(16px, 5.5cqmin)',
+                      gap: 'min(16px, 3cqmin)',
+                    }}
+                  >
+                    <span className="font-bold min-w-0 [overflow-wrap:anywhere]">
+                      {markCorrect && o.correct && (
+                        <CircleCheck
+                          aria-label="Correct answer"
+                          className="inline-block align-[-0.15em] text-emerald-700"
+                          style={{
+                            width: '1em',
+                            height: '1em',
+                            marginRight: '0.3em',
+                          }}
+                        />
+                      )}
+                      {o.label}
+                    </span>
+                    {!hidden && (
+                      <span className="font-mono whitespace-nowrap shrink-0">
+                        {o.votes} ({percent}%)
+                      </span>
+                    )}
+                  </div>
+
+                  <div
+                    className="bg-slate-100 rounded-full overflow-hidden relative border border-slate-200/50"
+                    style={{ height: 'clamp(16px, 5cqmin, 24px)' }}
+                  >
+                    <div
+                      className={`h-full transition-all duration-500 motion-reduce:transition-none shadow-[inset_0_2px_4px_rgba(255,255,255,0.3)] ${isVoted || (markCorrect && o.correct) ? 'bg-emerald-500' : barColor}`}
+                      style={{ width: hidden ? '0%' : `${percent}%` }}
+                    />
+                  </div>
+                </button>
+              );
+            })}
         </div>
       }
       footer={

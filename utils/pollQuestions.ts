@@ -1,6 +1,6 @@
 // Read-time shim between the legacy single-question PollConfig and `questions[]`.
 
-import type { PollConfig, PollQuestion } from '@/types';
+import type { PollConfig, PollOption, PollQuestion } from '@/types';
 
 export const MAX_POLL_QUESTIONS = 20;
 
@@ -96,3 +96,23 @@ export const withVotesReset = (config: PollConfig): PollConfig =>
       options: q.options.map((o) => ({ ...o, votes: 0 })),
     }))
   );
+
+export const SCALE_SIZES = [5, 10] as const;
+
+export const isScaleQuestion = (q: Pick<PollQuestion, 'kind'>): boolean =>
+  q.kind === 'scale';
+
+/** Numbered options "1".."size" for a rating scale. */
+export const makeScaleOptions = (size: number): PollOption[] =>
+  Array.from({ length: size }, (_, i) => ({
+    id: crypto.randomUUID(),
+    label: String(i + 1),
+    votes: 0,
+  }));
+
+/** Average rating from per-option counts (option i is worth i + 1); null with no votes. */
+export const scaleAverage = (counts: readonly number[]): number | null => {
+  const total = counts.reduce((sum, n) => sum + n, 0);
+  if (total === 0) return null;
+  return counts.reduce((sum, n, i) => sum + n * (i + 1), 0) / total;
+};

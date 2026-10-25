@@ -5,6 +5,7 @@ import { signInAnonymously } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { type PollSessionDoc } from '@/types';
 import { normalizePollCode } from '@/utils/pollCode';
+import { scaleAverage } from '@/utils/pollQuestions';
 import { lookupPollSessionByCode, type PollVoteEntry } from './pollSession';
 import {
   derivePollPhoneView,
@@ -259,57 +260,110 @@ export const PollVoteApp: React.FC = () => {
           </div>
         )}
 
-        {options.map((option, index) => {
-          const count = tally[index] ?? 0;
-          const percent = total === 0 ? 0 : Math.round((count / total) * 100);
-          const isMine = votedIndex === index;
-          return (
-            <button
-              key={option.id}
-              type="button"
-              disabled={submitting || closed}
-              onClick={() => {
-                void castVote(index, questionIndex);
-              }}
-              className={`w-full text-left rounded-xl border p-4 transition-all active:scale-[0.99] disabled:opacity-60 ${
-                isMine
-                  ? 'border-emerald-400 bg-emerald-50'
-                  : 'border-slate-300 bg-white hover:border-brand-blue-primary'
-              }`}
-              aria-pressed={isMine}
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="font-bold text-slate-800 flex items-center gap-1.5">
-                  {correctIndexes?.includes(index) && (
-                    <Check
-                      className="w-4 h-4 text-emerald-600 shrink-0"
-                      aria-label="Correct answer"
-                    />
-                  )}
-                  {option.label}
-                </span>
-                {showTally && (
-                  <span
-                    className="font-mono text-sm text-slate-500 whitespace-nowrap"
-                    data-testid={`poll-tally-${index}`}
-                  >
-                    {count} ({percent}%)
-                  </span>
-                )}
-              </div>
-              {showTally && (
-                <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-500 ${
-                      isMine ? 'bg-emerald-500' : 'bg-indigo-500'
+        {question.kind === 'scale' && (
+          <div data-testid="poll-scale-ballot" className="space-y-2">
+            <div className="grid grid-cols-5 gap-2">
+              {options.map((option, index) => {
+                const isMine = votedIndex === index;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    disabled={submitting || closed}
+                    onClick={() => {
+                      void castVote(index, questionIndex);
+                    }}
+                    aria-pressed={isMine}
+                    className={`rounded-xl border py-3 flex flex-col items-center transition-all active:scale-[0.98] disabled:opacity-60 ${
+                      isMine
+                        ? 'border-emerald-400 bg-emerald-50'
+                        : 'border-slate-300 bg-white hover:border-brand-blue-primary'
                     }`}
-                    style={{ width: `${percent}%` }}
-                  />
+                  >
+                    <span className="text-xl font-black text-slate-800">
+                      {option.label}
+                    </span>
+                    {showTally && (
+                      <span
+                        className="font-mono text-xs text-slate-500"
+                        data-testid={`poll-tally-${index}`}
+                      >
+                        {tally[index] ?? 0}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {(question.scaleLow || question.scaleHigh) && (
+              <div className="flex justify-between gap-4 text-xs font-bold text-slate-500">
+                <span>{question.scaleLow}</span>
+                <span className="text-right">{question.scaleHigh}</span>
+              </div>
+            )}
+            {showTally && total > 0 && (
+              <p
+                data-testid="poll-scale-average"
+                className="text-center text-sm font-bold text-slate-700"
+              >
+                Average {(scaleAverage(tally) ?? 0).toFixed(1)}
+              </p>
+            )}
+          </div>
+        )}
+
+        {question.kind !== 'scale' &&
+          options.map((option, index) => {
+            const count = tally[index] ?? 0;
+            const percent = total === 0 ? 0 : Math.round((count / total) * 100);
+            const isMine = votedIndex === index;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                disabled={submitting || closed}
+                onClick={() => {
+                  void castVote(index, questionIndex);
+                }}
+                className={`w-full text-left rounded-xl border p-4 transition-all active:scale-[0.99] disabled:opacity-60 ${
+                  isMine
+                    ? 'border-emerald-400 bg-emerald-50'
+                    : 'border-slate-300 bg-white hover:border-brand-blue-primary'
+                }`}
+                aria-pressed={isMine}
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                    {correctIndexes?.includes(index) && (
+                      <Check
+                        className="w-4 h-4 text-emerald-600 shrink-0"
+                        aria-label="Correct answer"
+                      />
+                    )}
+                    {option.label}
+                  </span>
+                  {showTally && (
+                    <span
+                      className="font-mono text-sm text-slate-500 whitespace-nowrap"
+                      data-testid={`poll-tally-${index}`}
+                    >
+                      {count} ({percent}%)
+                    </span>
+                  )}
                 </div>
-              )}
-            </button>
-          );
-        })}
+                {showTally && (
+                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-500 ${
+                        isMine ? 'bg-emerald-500' : 'bg-indigo-500'
+                      }`}
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
+                )}
+              </button>
+            );
+          })}
 
         {submitting && (
           <div className="flex items-center justify-center gap-2 text-slate-500 text-sm">

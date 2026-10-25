@@ -254,4 +254,51 @@ describe('PollWidget results controls', () => {
       screen.queryByRole('button', { name: /Show answer/ })
     ).not.toBeInTheDocument();
   });
+
+  describe('rating scale', () => {
+    const scale: PollConfig['questions'] = [
+      {
+        id: 'q1',
+        question: 'How sure are you?',
+        kind: 'scale',
+        scaleLow: 'Not sure',
+        scaleHigh: 'Very sure',
+        options: [1, 3, 0, 0, 1].map((votes, i) => ({
+          id: `s${i}`,
+          label: String(i + 1),
+          votes,
+        })),
+      },
+    ];
+
+    it('shows columns, end labels and the average', () => {
+      render(<PollWidget widget={makeWidget({ questions: scale })} />);
+      expect(screen.getByTestId('poll-scale-results')).toBeInTheDocument();
+      expect(screen.getByText('Very sure')).toBeInTheDocument();
+      expect(screen.getByTestId('poll-scale-average')).toHaveTextContent(
+        'Average 2.4'
+      );
+    });
+
+    it('holds the average back while results are hidden', () => {
+      render(
+        <PollWidget
+          widget={makeWidget({ questions: scale, hideResults: true })}
+        />
+      );
+      expect(
+        screen.queryByTestId('poll-scale-average')
+      ).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '2' })).toBeInTheDocument();
+    });
+
+    it('falls back to the numbered list without the flag', () => {
+      flagOn = false;
+      render(<PollWidget widget={makeWidget({ questions: scale })} />);
+      expect(
+        screen.queryByTestId('poll-scale-results')
+      ).not.toBeInTheDocument();
+      expect(screen.getByText('3 (60%)')).toBeInTheDocument();
+    });
+  });
 });

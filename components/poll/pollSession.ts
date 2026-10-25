@@ -85,12 +85,21 @@ export const aggregateVotes = (
 
 /** Strip vote counts — participants never need them to render their ballot. */
 export const toSessionQuestions = (
-  questions: PollQuestion[]
+  questions: PollQuestion[],
+  /** Without the poll-pro flag phones get plain options, matching the board. */
+  pollPro = true
 ): PollSessionQuestion[] =>
   questions.map((q) => ({
     id: q.id,
     question: q.question,
     options: q.options.map((o) => ({ id: o.id, label: o.label })),
+    ...(pollPro && q.kind === 'scale'
+      ? {
+          kind: 'scale' as const,
+          scaleLow: q.scaleLow ?? '',
+          scaleHigh: q.scaleHigh ?? '',
+        }
+      : {}),
   }));
 
 /** The session-doc mirror of the teacher's reveal and lock choices, keyed by question index. */
@@ -160,7 +169,7 @@ const writeSessionDoc = async (
     id: code,
     teacherUid,
     code,
-    questions: toSessionQuestions(questions),
+    questions: toSessionQuestions(questions, pollPro),
     optionCounts: questions.map((q) => q.options.length),
     currentQuestionIndex,
     active: state.active,

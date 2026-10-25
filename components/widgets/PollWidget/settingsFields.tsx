@@ -11,7 +11,12 @@ import { RosterGroupSelect } from '@/components/common/RosterGroupSelect';
 import { rosterGroupMemberIds } from '@/utils/rosterGroups';
 import { useBoardLinkedShareId } from '@/context/boardLinkedShare';
 import { useAuth } from '@/context/useAuth';
-import { WidgetData, PollConfig, PollQuestion } from '@/types';
+import {
+  WidgetData,
+  PollConfig,
+  PollQuestion,
+  PollQuestionKind,
+} from '@/types';
 import { useDialog } from '@/context/useDialog';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { logError } from '@/utils/logError';
@@ -50,7 +55,10 @@ import {
 import { buildPollJoinUrl } from '@/utils/pollCode';
 import {
   MAX_POLL_QUESTIONS,
+  SCALE_SIZES,
   clampQuestionIndex,
+  isScaleQuestion,
+  makeScaleOptions,
   getPollQuestions,
   withPollQuestions,
   withQuestionAt,
@@ -70,6 +78,7 @@ export const PollSettings: React.FC<{
   const { showConfirm } = useDialog();
   const { canAccessFeature, user } = useAuth();
   const boardShareId = useBoardLinkedShareId();
+  const pollPro = canAccessFeature('poll-pro');
   const config = useMemo(
     () => (widget.config || {}) as PollConfig,
     [widget.config]
@@ -244,11 +253,14 @@ export const PollSettings: React.FC<{
     setLocalQuestion(editing.question);
   }
 
-  const saveEditing = (next: Partial<PollQuestion>) => {
-    const updated = withQuestionAt(config, editIndex, { ...editing, ...next });
+  const saveEditing = (next: Partial<PollQuestion>) =>
+    saveEditingQuestion({ ...editing, ...next });
+
+  const saveEditingQuestion = (question: PollQuestion) => {
+    const updated = withQuestionAt(config, editIndex, question);
     // Changing options hides a shown answer, so phones never keep stale or early ticks.
     if (
-      next.options &&
+      question.options !== editing.options &&
       config.answerShownQuestionIds?.includes(editing.id) === true
     ) {
       const hidden: PollConfig = {
@@ -406,6 +418,34 @@ export const PollSettings: React.FC<{
     saveEditing({ options: options.filter((_, i) => i !== index) });
   };
 
+  const editingScale = pollPro && isScaleQuestion(editing);
+
+  const setQuestionKind = (kind: PollQuestionKind) => {
+    if (kind === (editing.kind ?? 'choice')) return;
+    const { id, question } = editing;
+    saveEditingQuestion(
+      kind === 'scale'
+        ? { id, question, kind, options: makeScaleOptions(5) }
+        : {
+            id,
+            question,
+            kind,
+            options: [
+              {
+                id: crypto.randomUUID(),
+                label: t('widgetSettings.poll.optionA'),
+                votes: 0,
+              },
+              {
+                id: crypto.randomUUID(),
+                label: t('widgetSettings.poll.optionB'),
+                votes: 0,
+              },
+            ],
+          }
+    );
+  };
+
   const toggleCorrect = (index: number) => {
     saveEditing({
       options: options.map((o, i) =>
@@ -453,7 +493,7 @@ export const PollSettings: React.FC<{
                 size="sm"
                 variant="secondary"
                 onClick={importFromRoster}
-                disabled={!activeRoster || isLive}
+                disabled={!activeRoster || isLive || editingScale}
                 {...tourAttr(
                   'widget-settings.poll.import-roster',
                   widget.id,
@@ -667,8 +707,96 @@ export const PollSettings: React.FC<{
               />
             </div>
 
+            {pollPro && (
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="min-w-0">
+                  <SettingsLabel htmlFor={`poll-question-type-${widget.id}`}>
+                    {t('widgetSettings.poll.questionType')}
+                  </SettingsLabel>
+                  <select
+                    id={`poll-question-type-${widget.id}`}
+                    value={editing.kind ?? 'choice'}
+                    onChange={(e) =>
+                      setQuestionKind(e.target.value as PollQuestionKind)
+                    }
+                    className="w-full p-2 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                    {...tourAttr(
+                      'widget-settings.poll.question-type',
+                      widget.id,
+                      widget.type
+                    )}
+                  >
+                    <option value="choice">
+                      {t('widgetSettings.poll.multipleChoice')}
+                    </option>
+                    <option value="scale">
+                      {t('widgetSettings.poll.ratingScale')}
+                    </option>
+                  </select>
+                </div>
+                {editingScale && (
+                  <div className="min-w-0">
+                    <SettingsLabel htmlFor={`poll-scale-size-${widget.id}`}>
+                      {t('widgetSettings.poll.scaleSize')}
+                    </SettingsLabel>
+                    <select
+                      id={`poll-scale-size-${widget.id}`}
+                      value={options.length}
+                      onChange={(e) =>
+                        saveEditing({
+                          options: makeScaleOptions(Number(e.target.value)),
+                        })
+                      }
+                      className="w-full p-2 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                      {...tourAttr(
+                        'widget-settings.poll.scale-size',
+                        widget.id,
+                        widget.type
+                      )}
+                    >
+                      {SCALE_SIZES.map((size) => (
+                        <option key={size} value={size}>
+                          {t('widgetSettings.poll.scaleOneTo', { count: size })}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {editingScale &&
+                  (['scaleLow', 'scaleHigh'] as const).map((field) => (
+                    <div key={field} className="min-w-0">
+                      <SettingsLabel htmlFor={`poll-${field}-${widget.id}`}>
+                        {t(
+                          field === 'scaleLow'
+                            ? 'widgetSettings.poll.scaleLowLabel'
+                            : 'widgetSettings.poll.scaleHighLabel'
+                        )}
+                      </SettingsLabel>
+                      <input
+                        key={`${editing.id}:${editing[field] ?? ''}`}
+                        id={`poll-${field}-${widget.id}`}
+                        type="text"
+                        maxLength={40}
+                        defaultValue={editing[field] ?? ''}
+                        onBlur={(e) => {
+                          if (e.target.value !== (editing[field] ?? '')) {
+                            saveEditing({ [field]: e.target.value });
+                          }
+                        }}
+                        className="w-full p-2 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                        {...tourFieldAttr(
+                          'widget-settings.poll.scale-label',
+                          widget.type,
+                          field === 'scaleLow' ? 'low' : 'high'
+                        )}
+                      />
+                    </div>
+                  ))}
+              </div>
+            )}
+
             {/* Options List */}
-            <div className="mt-4">
+            <div className={editingScale ? 'hidden' : 'mt-4'}>
               <SettingsLabel
                 as="span"
                 id={`pollwidget-options-label-${widget.id}`}
@@ -687,7 +815,7 @@ export const PollSettings: React.FC<{
                       label={option.label}
                       onSave={updateOptionLabel}
                     />
-                    {canAccessFeature('poll-pro') && (
+                    {pollPro && (
                       <button
                         onClick={() => toggleCorrect(idx)}
                         aria-pressed={option.correct === true}

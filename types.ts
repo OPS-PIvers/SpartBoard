@@ -2291,10 +2291,17 @@ export interface PollGlobalConfig {
 }
 
 /** One question in a multi-question poll. */
+/** `scale` questions keep numbered options ("1".."N") so votes, tallies and rules stay the same. */
+export type PollQuestionKind = 'choice' | 'scale';
+
 export interface PollQuestion {
   id: string;
   question: string;
   options: PollOption[];
+  kind?: PollQuestionKind;
+  /** Rating scale end labels, under the lowest and highest numbers. */
+  scaleLow?: string;
+  scaleHigh?: string;
 }
 
 export interface PollConfig {
@@ -2350,6 +2357,9 @@ export interface PollSessionQuestion {
   id: string;
   question: string;
   options: { id: string; label: string }[];
+  kind?: PollQuestionKind;
+  scaleLow?: string;
+  scaleHigh?: string;
 }
 
 /** The `poll_sessions/{teacherUid}_{code}` document. */

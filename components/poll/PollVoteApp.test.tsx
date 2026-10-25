@@ -277,4 +277,50 @@ describe('PollVoteApp', () => {
     );
     expect(screen.queryByText(/voting is closed/i)).not.toBeInTheDocument();
   });
+
+  it('shows a rating scale as number buttons with end labels and an average', async () => {
+    sessionDoc = makeSession({
+      questions: [
+        {
+          id: 'q1',
+          question: 'How sure are you?',
+          kind: 'scale',
+          scaleLow: 'Not sure',
+          scaleHigh: 'Very sure',
+          options: [1, 2, 3, 4, 5].map((n) => ({
+            id: `s${n}`,
+            label: String(n),
+          })),
+        },
+      ],
+      optionCounts: [5],
+    });
+    snapshotDocs = [
+      {
+        id: '0_voter-1',
+        data: { questionIndex: 0, optionIndex: 3, votedAt: 1 },
+      },
+      {
+        id: '0_voter-2',
+        data: { questionIndex: 0, optionIndex: 1, votedAt: 1 },
+      },
+    ];
+    mountWith('?code=K3F9Q');
+    render(<PollVoteApp />);
+    expect(await screen.findByTestId('poll-scale-ballot')).toBeInTheDocument();
+    expect(screen.getByText('Not sure')).toBeInTheDocument();
+    expect(screen.getByText('Very sure')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^4/ })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(screen.getByTestId('poll-scale-average')).toHaveTextContent(
+      'Average 3.0'
+    );
+    await userEvent.click(screen.getByRole('button', { name: /^5/ }));
+    expect(mockSetDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ questionIndex: 0, optionIndex: 4 })
+    );
+  });
 });

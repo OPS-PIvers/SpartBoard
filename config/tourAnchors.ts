@@ -3893,6 +3893,16 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
+  'widget-settings.poll.question-type': {
+    label: 'Question type menu in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.scale-size': {
+    label: 'Rating scale size menu in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
   'widget-settings.poll.hide-results': {
     label: 'Hide results until revealed switch in Poll settings',
     perWidget: true,
@@ -4454,6 +4464,11 @@ export const TOUR_ANCHORS = {
   },
   'schoology-link.cancel': {
     label: 'Done/close button in the Link Schoology dialog',
+    panel: true,
+  },
+  'widget-settings.poll.scale-label': {
+    label: 'Rating scale end label in Poll settings',
+    perField: true,
     panel: true,
   },
   'widget-settings.poll.correct-option': {
