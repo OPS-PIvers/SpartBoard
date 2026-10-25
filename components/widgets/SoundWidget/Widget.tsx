@@ -28,6 +28,7 @@ import { POSTER_LEVELS, getLevelData } from './constants';
 import { ThermometerView } from './components/ThermometerView';
 import { SpeedometerView } from './components/SpeedometerView';
 import { PopcornBallsView } from './components/PopcornBallsView';
+import { LevelNameView } from './components/LevelNameView';
 import {
   ALERT_SOUND_COOLDOWN_MS,
   CALIBRATE_GIVE_UP_MS,
@@ -80,7 +81,7 @@ export const SoundWidget: React.FC<{
 
   const {
     sensitivity = 1,
-    visual = 'thermometer',
+    visual: savedVisual = 'thermometer',
     autoTrafficLight,
     trafficLightThreshold = 4,
     syncExpectations = false,
@@ -92,6 +93,8 @@ export const SoundWidget: React.FC<{
     quietGoalMinutes,
     quietGoalResetOnAlert = false,
   } = widget.config as SoundConfig;
+  // Level name is a pro visual; without the flag it falls back to the default.
+  const visual = savedVisual === 'level' && !pro ? 'thermometer' : savedVisual;
   const floor = pro && typeof noiseFloor === 'number' ? noiseFloor : 0;
   const calibrating =
     pro && isActive && isCalibrating(widget.config as SoundConfig);
@@ -122,15 +125,10 @@ export const SoundWidget: React.FC<{
       ) ?? expectationsWidgets[0]
     )?.config as ExpectationsConfig | undefined
   )?.voiceLevel;
-  const limit = pro
-    ? targetLimit(
-        resolveTargetLevel(
-          targetLevel,
-          syncExpectations,
-          expectationsVoiceLevel
-        )
-      )
+  const targetInForce = pro
+    ? resolveTargetLevel(targetLevel, syncExpectations, expectationsVoiceLevel)
     : null;
+  const limit = targetLimit(targetInForce);
 
   // Nexus Connection: Sync with Expectations
   useEffect(() => {
@@ -502,6 +500,9 @@ export const SoundWidget: React.FC<{
           {visual === 'speedometer' && (
             <SpeedometerView volume={volume} limit={limit} />
           )}
+          {visual === 'level' && (
+            <LevelNameView volume={volume} targetLevel={targetInForce} />
+          )}
           {visual === 'balls' && (
             <PopcornBallsView volume={volume} limit={limit} />
           )}
@@ -685,7 +686,15 @@ export const SoundWidget: React.FC<{
           )}
           {pro ? (
             <span className="relative inline-block">
-              {levelPill}
+              {/* The level name view already shows the level in large type. */}
+              {visual === 'level' ? (
+                <span
+                  className="inline-block"
+                  style={{ height: 'min(32px, 8cqmin)' }}
+                />
+              ) : (
+                levelPill
+              )}
               <button
                 type="button"
                 onClick={() => setShowSummary((open) => !open)}
