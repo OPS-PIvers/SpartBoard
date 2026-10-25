@@ -24,6 +24,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { assertShareAuthorInGroup } from './plcSyncJoinGuards';
 
 // Guard so this module can be loaded standalone in tests/tooling without
 // double-initializing when index.ts already ran initializeApp().
@@ -82,7 +83,8 @@ export async function handleJoinSyncedQuizGroup(
   if (!shareSnap.exists) {
     throw new HttpsError('not-found', 'Shared assignment not found.');
   }
-  const shareData = shareSnap.data() as { syncGroupId?: string } | undefined;
+  const shareData = shareSnap.data() as
+    { syncGroupId?: unknown; originalAuthor?: unknown } | undefined;
   const groupId = shareData?.syncGroupId;
   if (!groupId || typeof groupId !== 'string') {
     throw new HttpsError(
@@ -113,6 +115,7 @@ export async function handleJoinSyncedQuizGroup(
       uid
     );
     if (!alreadyJoined) {
+      assertShareAuthorInGroup(shareData, groupSnap.data());
       const now = Date.now();
       participants[uid] = { joinedAt: now };
       tx.update(groupRef, {

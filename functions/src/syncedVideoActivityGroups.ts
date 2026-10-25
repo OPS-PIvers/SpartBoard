@@ -28,6 +28,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { assertShareAuthorInGroup } from './plcSyncJoinGuards';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -68,7 +69,8 @@ export async function handleJoinSyncedVideoActivityGroup(
   if (!shareSnap.exists) {
     throw new HttpsError('not-found', 'Shared video activity not found.');
   }
-  const shareData = shareSnap.data() as { syncGroupId?: string } | undefined;
+  const shareData = shareSnap.data() as
+    { syncGroupId?: unknown; originalAuthor?: unknown } | undefined;
   const groupId = shareData?.syncGroupId;
   if (!groupId || typeof groupId !== 'string') {
     throw new HttpsError(
@@ -99,6 +101,7 @@ export async function handleJoinSyncedVideoActivityGroup(
       uid
     );
     if (!alreadyJoined) {
+      assertShareAuthorInGroup(shareData, groupSnap.data());
       const now = Date.now();
       participants[uid] = { joinedAt: now };
       tx.update(groupRef, {
