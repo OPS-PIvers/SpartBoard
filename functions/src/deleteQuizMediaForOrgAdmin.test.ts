@@ -391,6 +391,21 @@ describe('assertOrgMediaAdmin', () => {
     ).rejects.toThrow(/not a member/i);
   });
 
+  it('accepts an operator-org domain_admin whose mirror was last stamped by another org', async () => {
+    db.set('admins/both@x.org', {
+      roleId: 'domain_admin',
+      orgId: 'other-org',
+      source: 'organizationMembersSync',
+    });
+    db.set('organizations/orono/members/both@x.org', {
+      roleId: 'domain_admin',
+      status: 'active',
+    });
+    await expect(
+      assertOrgMediaAdmin(asFirestore(db), ORG, 'both@x.org')
+    ).resolves.toBeUndefined();
+  });
+
   it('accepts a domain_admin mirrored from the operator org', async () => {
     db.set('admins/domain@x.org', {
       roleId: 'domain_admin',

@@ -197,6 +197,7 @@ vi.mock('firebase-admin', () => {
     const s = seg(path);
     return {
       _path: path,
+      path,
       id: s[s.length - 1],
       parent: makeCollRef(s.slice(0, -1).join('/')),
       get: async () => makeSnap(path, h.docStore.get(path)),

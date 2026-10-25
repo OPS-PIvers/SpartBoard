@@ -37,7 +37,7 @@ import {
   STUCK_ARCHIVE_AGE_MS,
 } from './quizMediaArchive';
 import { ALLOWED_ORIGINS } from './classlinkShared';
-import { isSuperAdminRoleId } from './authz';
+import { isSiteWideAdmin } from './authz';
 import './functionsInit';
 import { withQuizSessionContent } from './quizSessionContent';
 import { assertViewAsAllowed } from './viewAsGuard';
@@ -491,7 +491,12 @@ export async function assertOrgMediaAdmin(
   const adminSnap = await db.collection('admins').doc(callerEmailLower).get();
   if (
     adminSnap.exists &&
-    isSuperAdminRoleId(adminSnap.get('roleId'), adminSnap.get('orgId'))
+    (await isSiteWideAdmin(
+      db,
+      callerEmailLower,
+      adminSnap.get('roleId'),
+      adminSnap.get('orgId')
+    ))
   )
     return;
   const memberSnap = await db

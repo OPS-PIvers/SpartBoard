@@ -8,14 +8,41 @@ export function isSuperAdminRoleId(roleId: unknown, orgId?: unknown): boolean {
   return roleId === 'super_admin' || roleId === 'domain_admin';
 }
 
-/** True only for a genuine site-wide super/domain admin — see `isSuperAdminRoleId`. */
+/** Site-wide check for an existing /admins doc: a mirror stamped with another org falls back to the operator-org member doc. */
+export async function isSiteWideAdmin(
+  db: admin.firestore.Firestore,
+  emailLower: string,
+  roleId: unknown,
+  orgId: unknown
+): Promise<boolean> {
+  if (isSuperAdminRoleId(roleId, orgId)) return true;
+  if (typeof orgId !== 'string' || orgId === OPERATOR_ORG_ID) return false;
+  const snap = await db
+    .doc(`organizations/${OPERATOR_ORG_ID}/members/${emailLower}`)
+    .get();
+  const data = snap.exists
+    ? (snap.data() as { roleId?: unknown; status?: unknown } | undefined)
+    : undefined;
+  return (
+    (data?.roleId === 'super_admin' || data?.roleId === 'domain_admin') &&
+    data.status === 'active'
+  );
+}
+
+/** True only for a genuine site-wide super/domain admin — see `isSiteWideAdmin`. */
 export async function isSiteSuperAdmin(
   db: admin.firestore.Firestore,
   emailLower: string
 ): Promise<boolean> {
   const snap = await db.collection('admins').doc(emailLower).get();
   return (
-    snap.exists && isSuperAdminRoleId(snap.get('roleId'), snap.get('orgId'))
+    snap.exists &&
+    (await isSiteWideAdmin(
+      db,
+      emailLower,
+      snap.get('roleId'),
+      snap.get('orgId')
+    ))
   );
 }
 

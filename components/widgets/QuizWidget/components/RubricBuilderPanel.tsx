@@ -756,6 +756,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
               { value: false, label: 'Levels' },
               { value: true, label: 'Scoring guide' },
             ].map((opt) => (
+              // no-tour-anchor: one option of the Levels / Scoring guide switch, rendered from a list
               <button
                 key={opt.label}
                 type="button"
@@ -997,6 +998,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
               Import CSV
             </button>
           )}
+          {/* no-tour-anchor: hidden file input opened by the Import CSV button */}
           <input
             ref={fileRef}
             type="file"

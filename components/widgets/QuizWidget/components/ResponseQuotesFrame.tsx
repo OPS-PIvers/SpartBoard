@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Quote } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { QUOTE_ATTR } from '@/utils/quizQuotes';
+import { tourAttr } from '@/config/tourAnchors';
 
 // Tints passage quotes in the response when the teacher turns Show quotes on.
 const QUOTES_VISIBLE_CLASS =
@@ -21,6 +22,7 @@ export const ResponseQuotesFrame: React.FC<{
         <button
           type="button"
           aria-pressed={showQuotes}
+          {...tourAttr('quiz-grader.show-quotes')}
           title={t(
             'quizQuotes.showQuotesHint',
             'Blue is an exact quote. Amber was changed from the passage.'
