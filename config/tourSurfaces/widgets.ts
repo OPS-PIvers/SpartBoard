@@ -483,6 +483,15 @@ export const SURFACES: TourSurfaceMap = {
     widgetType: 'sound',
     needs: ['widget-on-stage'],
   },
+  'widgets.sound.summary': {
+    label: 'Sound session summary',
+    kind: 'panel',
+    files: ['components/widgets/SoundWidget/components/SessionSummary.tsx'],
+    opensWith: 'sound.summary',
+    parent: 'widgets.sound.face',
+    widgetType: 'sound',
+    needs: ['widget-on-stage'],
+  },
   'widgets.sound.settings': {
     label: 'Sound settings',
     kind: 'settings-drawer',

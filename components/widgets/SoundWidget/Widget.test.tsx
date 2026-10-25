@@ -666,4 +666,52 @@ describe('SoundWidget', () => {
       expect(screen.queryByRole('progressbar')).toBeNull();
     });
   });
+
+  describe('session summary (noise-meter-pro)', () => {
+    beforeEach(() => {
+      access.pro = true;
+    });
+    afterEach(() => {
+      access.pro = false;
+    });
+
+    it('shows time at each level and the alert count', async () => {
+      mockGetByteFrequencyData.mockImplementation((array: Uint8Array) => {
+        array.fill(0);
+      });
+      render(<SoundWidget widget={createWidget({ targetLevel: 1 })} />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
+      mockGetByteFrequencyData.mockImplementation((array: Uint8Array) => {
+        array.fill(255);
+      });
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      act(() => {
+        vi.advanceTimersByTime(4500);
+      });
+      act(() => {
+        screen.getByRole('button', { name: 'Summary' }).click();
+      });
+      expect(screen.getByText('Time at each level')).toBeInTheDocument();
+      expect(screen.getByText(/1 Too loud alert\b/)).toBeInTheDocument();
+      expect(screen.getByText(/Listened for 0:15/)).toBeInTheDocument();
+
+      act(() => {
+        screen.getByRole('button', { name: 'Clear summary' }).click();
+      });
+      expect(screen.getByText(/0 Too loud alerts/)).toBeInTheDocument();
+    });
+
+    it('has no Summary button with the flag off', () => {
+      access.pro = false;
+      render(<SoundWidget widget={createWidget()} />);
+      expect(screen.queryByRole('button', { name: 'Summary' })).toBeNull();
+    });
+  });
 });

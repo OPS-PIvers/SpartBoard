@@ -17043,6 +17043,59 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "sound.summary",
+    "label": "Summary button on the Sound widget",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.sound.face",
+        "kind": "widget",
+        "widget_type": "sound",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sound.clear-summary",
+    "label": "Clear summary button in the Sound widget summary",
+    "scope": "widget",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.sound.summary",
+        "kind": "panel",
+        "widget_type": "sound",
+        "path": [
+          "sound.summary"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sound.close-summary",
+    "label": "Close summary button in the Sound widget summary",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.sound.summary",
+        "kind": "panel",
+        "widget_type": "sound",
+        "path": [
+          "sound.summary"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "sound.restart-goal",
     "label": "Restart quiet time goal button on the Sound widget",
     "scope": "widget",

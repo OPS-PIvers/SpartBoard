@@ -2761,7 +2761,15 @@
       "calibrating": "Calibrating. Keep the room quiet.",
       "goalReached": "Goal reached",
       "quietGoal": "Quiet time goal",
-      "restartGoal": "Restart quiet time goal"
+      "restartGoal": "Restart quiet time goal",
+      "summary": "Summary",
+      "timeAtEachLevel": "Time at each level",
+      "clearSummary": "Clear summary",
+      "closeSummary": "Close summary",
+      "timeline": "Noise level over time",
+      "alertCount_one": "{{count}} Too loud alert",
+      "alertCount_other": "{{count}} Too loud alerts",
+      "listenedFor": "Listened for {{time}}"
     }
   },
   "boardBreadcrumb": {

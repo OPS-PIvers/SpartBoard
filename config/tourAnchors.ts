@@ -4066,6 +4066,19 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
+  'sound.summary': {
+    label: 'Summary button on the Sound widget',
+    perWidget: true,
+  },
+  'sound.clear-summary': {
+    label: 'Clear summary button in the Sound widget summary',
+    perWidget: true,
+    destructive: true,
+  },
+  'sound.close-summary': {
+    label: 'Close summary button in the Sound widget summary',
+    perWidget: true,
+  },
   'sound.restart-goal': {
     label: 'Restart quiet time goal button on the Sound widget',
     perWidget: true,
