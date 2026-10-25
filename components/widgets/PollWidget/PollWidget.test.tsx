@@ -29,7 +29,7 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(),
 }));
 
-const { mockOnSnapshot, mockCollection, mockDoc, mockSetDoc, mockGetDocs } =
+const { mockOnSnapshot, mockCollection, mockDoc, mockSetDoc, mockGetDoc } =
   vi.hoisted(() => ({
     mockOnSnapshot: vi.fn(),
     mockCollection: vi.fn(() => 'col'),
@@ -37,7 +37,7 @@ const { mockOnSnapshot, mockCollection, mockDoc, mockSetDoc, mockGetDocs } =
       __path: _args.slice(1).join('/'),
     })),
     mockSetDoc: vi.fn(),
-    mockGetDocs: vi.fn(),
+    mockGetDoc: vi.fn(),
   }));
 
 let pollSnapshotDocs: { id: string; data: Record<string, unknown> }[] = [];
@@ -47,12 +47,8 @@ vi.mock('firebase/firestore', () => ({
   doc: mockDoc,
   onSnapshot: mockOnSnapshot,
   setDoc: mockSetDoc,
-  getDocs: mockGetDocs,
-  limit: vi.fn((n: number) => ({ __limit: n })),
-  query: vi.fn((...args: unknown[]) => ({ __query: args })),
-  where: vi.fn((field: string, _op: string, value: unknown) => ({
-    __where: [field, value],
-  })),
+  getDoc: mockGetDoc,
+  deleteDoc: vi.fn(() => Promise.resolve()),
   increment: (n: number) => ({ __increment: n }),
 }));
 
@@ -122,7 +118,7 @@ describe('PollWidget', () => {
     });
     pollSnapshotDocs = [];
     mockSetDoc.mockResolvedValue(undefined);
-    mockGetDocs.mockResolvedValue({ empty: true, docs: [] });
+    mockGetDoc.mockResolvedValue({ exists: () => false });
     mockOnSnapshot.mockImplementation(
       (
         _ref: unknown,
@@ -749,10 +745,10 @@ describe('PollSettings', () => {
     // The mint is a getDocs + setDoc round-trip. It used to resolve with the
     // config snapshot captured at mount and spread the whole thing back, so an
     // edit landing mid-flight was silently reverted.
-    let releaseMint: (value: { empty: boolean; docs: never[] }) => void = () =>
+    let releaseMint: (value: { exists: () => boolean }) => void = () =>
       undefined;
-    mockGetDocs.mockReturnValue(
-      new Promise<{ empty: boolean; docs: never[] }>((resolve) => {
+    mockGetDoc.mockReturnValue(
+      new Promise<{ exists: () => boolean }>((resolve) => {
         releaseMint = resolve;
       })
     );
@@ -778,7 +774,7 @@ describe('PollSettings', () => {
     };
     rerender(<PollSettings widget={editedWidget} />);
 
-    releaseMint({ empty: true, docs: [] });
+    releaseMint({ exists: () => false });
 
     await waitFor(() => {
       const withCode = mockUpdateWidget.mock.calls.find(
@@ -801,10 +797,10 @@ describe('PollSettings', () => {
     // config.joinCode was still empty. The late mint then overwrote joinCode,
     // leaving the panel showing a code whose session never went live while the
     // real session answered to a code nobody saw.
-    type Deferred = { empty: boolean; docs: never[] };
+    type Deferred = { exists: () => boolean };
     let releaseMint: (value: Deferred) => void = () => undefined;
     let releaseStart: (value: Deferred) => void = () => undefined;
-    mockGetDocs
+    mockGetDoc
       .mockReturnValueOnce(
         new Promise<Deferred>((resolve) => {
           releaseMint = resolve;
@@ -837,8 +833,8 @@ describe('PollSettings', () => {
     );
 
     // Start's own mint (if it makes one) lands first; the reservation lands after.
-    releaseStart({ empty: true, docs: [] });
-    releaseMint({ empty: true, docs: [] });
+    releaseStart({ exists: () => false });
+    releaseMint({ exists: () => false });
 
     await waitFor(() => {
       // Replay the shallow merge DashboardContext performs on every call.

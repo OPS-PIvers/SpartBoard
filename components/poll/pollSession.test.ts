@@ -1,27 +1,21 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { PollConfig } from '@/types';
 
-const { mockSetDoc, mockDoc, mockGetDocs } = vi.hoisted(() => ({
+const { mockSetDoc, mockDoc, mockGetDoc, mockDeleteDoc } = vi.hoisted(() => ({
   mockSetDoc: vi.fn(),
   mockDoc: vi.fn((..._args: unknown[]) => ({
     __path: _args.slice(1).join('/'),
   })),
-  mockGetDocs: vi.fn(),
+  mockGetDoc: vi.fn(),
+  mockDeleteDoc: vi.fn(),
 }));
 
 vi.mock('@/config/firebase', () => ({ db: {} }));
 vi.mock('firebase/firestore', () => ({
   doc: mockDoc,
   setDoc: mockSetDoc,
-  collection: vi.fn((..._args: unknown[]) => ({
-    __path: _args.slice(1).join('/'),
-  })),
-  getDocs: mockGetDocs,
-  limit: vi.fn((n: number) => ({ __limit: n })),
-  query: vi.fn((...args: unknown[]) => ({ __query: args })),
-  where: vi.fn((field: string, _op: string, value: unknown) => ({
-    __where: [field, value],
-  })),
+  getDoc: mockGetDoc,
+  deleteDoc: mockDeleteDoc,
 }));
 
 const mockGeneratePollCode = vi.fn(() => 'AAAAA');
@@ -49,7 +43,8 @@ import {
 beforeEach(() => {
   vi.clearAllMocks();
   mockSetDoc.mockResolvedValue(undefined);
-  mockGetDocs.mockResolvedValue({ empty: true, docs: [] });
+  mockGetDoc.mockResolvedValue({ exists: () => false });
+  mockDeleteDoc.mockResolvedValue(undefined);
   mockGeneratePollCode.mockReturnValue('AAAAA');
 });
 
@@ -159,9 +154,9 @@ describe('ensurePollJoinCode', () => {
     mockGeneratePollCode
       .mockReturnValueOnce('TAKEN')
       .mockReturnValueOnce('FREE1');
-    mockGetDocs
-      .mockResolvedValueOnce({ empty: false, docs: [] })
-      .mockResolvedValueOnce({ empty: true, docs: [] });
+    mockGetDoc
+      .mockResolvedValueOnce({ exists: () => true })
+      .mockResolvedValueOnce({ exists: () => false });
     expect(await ensurePollJoinCode(baseConfig, 'teacher-1')).toBe('FREE1');
   });
 });
@@ -198,6 +193,29 @@ describe('startPollSession', () => {
     expect(next.joinCode).toBe('NEWCD');
     expect(next.activePollSessionId).toBe('NEWCD');
     expect(next.lastPollSessionId).toBeNull();
+    expect(mockSetDoc).toHaveBeenCalledWith(
+      { __path: 'poll_sessions/teacher-1_K3F9Q' },
+      expect.objectContaining({ questions: [], active: false }),
+      { merge: true }
+    );
+  });
+
+  it("leaves a Synced-board colleague's previous session alone on rotation", async () => {
+    mockGeneratePollCode.mockReturnValue('NEWCD');
+    await startPollSession(
+      {
+        ...baseConfig,
+        joinCode: 'K3F9Q',
+        lastPollSessionId: 'K3F9Q',
+        lastPollSessionOwnerUid: 'teacher-2',
+      },
+      'teacher-1',
+      'fresh'
+    );
+    const paths = mockSetDoc.mock.calls.map(
+      (c) => (c[0] as { __path: string }).__path
+    );
+    expect(paths).toEqual(['poll_sessions/teacher-1_NEWCD']);
   });
 
   it('reuses the sticky code (and its votes) on resume', async () => {
@@ -282,44 +300,25 @@ describe('stopPollSession', () => {
 });
 
 describe('lookupPollSessionByCode', () => {
-  const makeSnapDoc = (id: string, data: Record<string, unknown>) => ({
-    id,
-    data: () => data,
-  });
-
   it('returns null for an empty or unmatched code', async () => {
     expect(await lookupPollSessionByCode('   ')).toBeNull();
-    mockGetDocs.mockResolvedValue({ empty: true, docs: [] });
     expect(await lookupPollSessionByCode('K3F9Q')).toBeNull();
   });
 
-  it('normalizes the code before querying', async () => {
-    mockGetDocs.mockResolvedValue({
-      empty: false,
-      docs: [makeSnapDoc('teacher-1_K3F9Q', { code: 'K3F9Q', active: true })],
-    });
+  it('resolves the normalized code through its pointer to one session doc', async () => {
+    mockGetDoc
+      .mockResolvedValueOnce({
+        exists: () => true,
+        data: () => ({ sessionId: 'teacher-1_K3F9Q' }),
+      })
+      .mockResolvedValueOnce({
+        exists: () => true,
+        id: 'teacher-1_K3F9Q',
+        data: () => ({ code: 'K3F9Q', active: true }),
+      });
     const found = await lookupPollSessionByCode(' k3f-9q ');
+    expect(mockDoc).toHaveBeenCalledWith({}, 'poll_codes', 'K3F9Q');
     expect(found?.sessionId).toBe('teacher-1_K3F9Q');
-  });
-
-  it('prefers the active session when a code resolves to more than one doc', async () => {
-    mockGetDocs.mockResolvedValue({
-      empty: false,
-      docs: [
-        makeSnapDoc('teacher-1_K3F9Q', {
-          code: 'K3F9Q',
-          active: false,
-          updatedAt: 9000,
-        }),
-        makeSnapDoc('teacher-2_K3F9Q', {
-          code: 'K3F9Q',
-          active: true,
-          updatedAt: 1000,
-        }),
-      ],
-    });
-    const found = await lookupPollSessionByCode('K3F9Q');
-    expect(found?.sessionId).toBe('teacher-2_K3F9Q');
   });
 });
 
@@ -374,7 +373,10 @@ describe('startPollSession results state', () => {
     lockedQuestionIds: ['q-1'],
   };
   const written = () =>
-    mockSetDoc.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+    mockSetDoc.mock.calls
+      .map((call) => call[1] as Record<string, unknown>)
+      .reverse()
+      .find((data) => 'revealedQuestions' in data);
 
   it('resume keeps reveals and locks for a poll-pro teacher', async () => {
     const next = await startPollSession(

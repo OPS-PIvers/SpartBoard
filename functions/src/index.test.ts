@@ -3824,6 +3824,7 @@ describe('index barrel — deployed export set', () => {
     'markPlcAssessmentDirtyOnSession',
     'markPlcAssessmentDirtyOnResponse',
     'recomputePlcAssessments',
+    'pollCodePointer',
     // Gradebook grade index + student projection
     'gradeIndexQuizResponse',
     'gradeIndexVideoResponse',
