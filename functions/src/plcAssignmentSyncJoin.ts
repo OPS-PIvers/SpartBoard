@@ -18,6 +18,11 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import type { SyncedParticipant } from './syncedQuizGroups';
 import { assertViewAsAllowed } from './viewAsGuard';
+import {
+  assertGroupLinkedToPlc,
+  assertPlcContentEditor,
+  assertPlcMember,
+} from './plcSyncJoinGuards';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -62,24 +67,13 @@ export async function handleJoinPlcAssignmentSyncGroup(
     if (!plcSnap.exists) {
       throw new HttpsError('not-found', 'PLC not found.');
     }
-    const plcData = plcSnap.data() as { memberUids?: unknown } | undefined;
-    const memberUids = Array.isArray(plcData?.memberUids)
-      ? (plcData?.memberUids as unknown[]).filter(
-          (u): u is string => typeof u === 'string'
-        )
-      : [];
-    if (!memberUids.includes(uid)) {
-      throw new HttpsError(
-        'permission-denied',
-        'You are not a member of this PLC.'
-      );
-    }
+    assertPlcMember(plcSnap.data(), uid);
 
     if (!templateSnap.exists) {
       throw new HttpsError('not-found', 'PLC assignment template not found.');
     }
     const templateData = templateSnap.data() as
-      { syncGroupId?: unknown } | undefined;
+      { syncGroupId?: unknown; sharedBy?: unknown } | undefined;
     const groupId = templateData?.syncGroupId;
     if (typeof groupId !== 'string' || groupId.length === 0) {
       throw new HttpsError(
@@ -111,6 +105,13 @@ export async function handleJoinPlcAssignmentSyncGroup(
       uid
     );
     if (!alreadyJoined) {
+      assertPlcContentEditor(plcSnap.data(), uid);
+      assertGroupLinkedToPlc(
+        plcId,
+        plcSnap.data(),
+        templateData,
+        groupSnap.data()
+      );
       const now = Date.now();
       participants[uid] = { joinedAt: now };
       tx.update(groupRef, {

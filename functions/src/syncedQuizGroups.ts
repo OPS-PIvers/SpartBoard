@@ -24,6 +24,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { assertShareAuthorInGroup } from './plcSyncJoinGuards';
 
 // Guard so this module can be loaded standalone in tests/tooling without
 // double-initializing when index.ts already ran initializeApp().
@@ -83,9 +84,8 @@ export async function handleJoinSyncedQuizGroup(
     throw new HttpsError('not-found', 'Shared assignment not found.');
   }
   const shareData = shareSnap.data() as
-    { syncGroupId?: string; originalAuthor?: unknown } | undefined;
+    { syncGroupId?: unknown; originalAuthor?: unknown } | undefined;
   const groupId = shareData?.syncGroupId;
-  const shareAuthor = shareData?.originalAuthor;
   if (!groupId || typeof groupId !== 'string') {
     throw new HttpsError(
       'failed-precondition',
@@ -114,18 +114,8 @@ export async function handleJoinSyncedQuizGroup(
       participants,
       uid
     );
-    // Only a share written by a current participant counts as an invite.
-    if (
-      !alreadyJoined &&
-      (typeof shareAuthor !== 'string' ||
-        !Object.prototype.hasOwnProperty.call(participants, shareAuthor))
-    ) {
-      throw new HttpsError(
-        'permission-denied',
-        'This share is not linked to that synced group.'
-      );
-    }
     if (!alreadyJoined) {
+      assertShareAuthorInGroup(shareData, groupSnap.data());
       const now = Date.now();
       participants[uid] = { joinedAt: now };
       tx.update(groupRef, {

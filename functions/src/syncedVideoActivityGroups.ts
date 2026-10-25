@@ -28,6 +28,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { assertShareAuthorInGroup } from './plcSyncJoinGuards';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -69,9 +70,8 @@ export async function handleJoinSyncedVideoActivityGroup(
     throw new HttpsError('not-found', 'Shared video activity not found.');
   }
   const shareData = shareSnap.data() as
-    { syncGroupId?: string; originalAuthor?: unknown } | undefined;
+    { syncGroupId?: unknown; originalAuthor?: unknown } | undefined;
   const groupId = shareData?.syncGroupId;
-  const shareAuthor = shareData?.originalAuthor;
   if (!groupId || typeof groupId !== 'string') {
     throw new HttpsError(
       'failed-precondition',
@@ -100,18 +100,8 @@ export async function handleJoinSyncedVideoActivityGroup(
       participants,
       uid
     );
-    // Only a share written by a current participant counts as an invite.
-    if (
-      !alreadyJoined &&
-      (typeof shareAuthor !== 'string' ||
-        !Object.prototype.hasOwnProperty.call(participants, shareAuthor))
-    ) {
-      throw new HttpsError(
-        'permission-denied',
-        'This share is not linked to that synced group.'
-      );
-    }
     if (!alreadyJoined) {
+      assertShareAuthorInGroup(shareData, groupSnap.data());
       const now = Date.now();
       participants[uid] = { joinedAt: now };
       tx.update(groupRef, {

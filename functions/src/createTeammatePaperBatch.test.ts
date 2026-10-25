@@ -333,6 +333,39 @@ describe('createTeammatePaperBatchV1 — authorization', () => {
     await expect(run()).rejects.toMatchObject({ code: 'failed-precondition' });
   });
 
+  it.each([
+    ['Drive reachable', {}],
+    ['Drive unreachable', NO_GRANT],
+  ])(
+    'refuses a viewer target outside the group before writing anything (%s)',
+    async (_label, over) => {
+      const state = baseState();
+      state.collections[`users/${TARGET_UID}/quizzes`] = [];
+      (state.docs[`plcs/${PLC_ID}`].members as Record<string, unknown>)[
+        TARGET_UID
+      ] = member('viewer', 'Away Teacher');
+      const d = deps(over);
+      const { run, writes } = create(state, d);
+      await expect(run()).rejects.toMatchObject({ code: 'permission-denied' });
+      expect(writes.sets).toHaveLength(0);
+      expect(d.writeDriveJson).not.toHaveBeenCalled();
+      expect(joinSyncGroup).not.toHaveBeenCalled();
+    }
+  );
+
+  it('prints for a viewer target who already participates in the group', async () => {
+    const state = baseState();
+    (state.docs[`plcs/${PLC_ID}`].members as Record<string, unknown>)[
+      TARGET_UID
+    ] = member('viewer', 'Away Teacher');
+    state.docs[`synced_quizzes/${GROUP_ID}`].participants = {
+      [TARGET_UID]: { joinedAt: 1 },
+    };
+    const { run, writes } = create(state, deps());
+    await run();
+    expect(batchWrite(writes)).toBeDefined();
+  });
+
   it('refuses a target who is not in the PLC', async () => {
     const state = baseState();
     state.docs[`plcs/${PLC_ID}`].members = {

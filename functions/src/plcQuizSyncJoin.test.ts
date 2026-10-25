@@ -47,6 +47,8 @@ interface StubState {
   group: Record<string, unknown> | null;
   /** Captured tx.update() calls — `[ref, patch]` per call. */
   updates: Array<{ path: string; patch: Record<string, unknown> }>;
+  markers?: Record<string, Record<string, unknown>>;
+  deletes?: string[];
 }
 
 function makeDb(state: StubState) {
@@ -59,6 +61,10 @@ function makeDb(state: StubState) {
   });
 
   const get = (ref: { __path: string }): Promise<DocSnap> => {
+    if (ref.__path.includes('/plcDetached/')) {
+      const marker = state.markers?.[ref.__path.split('/').pop() ?? ''];
+      return Promise.resolve({ exists: !!marker, data: () => marker });
+    }
     if (ref.__path.startsWith('plcs/') && !ref.__path.includes('/quizzes/')) {
       return Promise.resolve({
         exists: state.plc !== null,
@@ -89,12 +95,16 @@ function makeDb(state: StubState) {
           ref: { __path: string },
           patch: Record<string, unknown>
         ) => void;
+        delete: (ref: { __path: string }) => void;
       }) => Promise<T>
     ): Promise<T> => {
       return fn({
         get,
         update: (ref, patch) => {
           state.updates.push({ path: ref.__path, patch });
+        },
+        delete: (ref) => {
+          (state.deletes ??= []).push(ref.__path);
         },
       });
     },
@@ -116,8 +126,8 @@ let state: StubState;
 beforeEach(() => {
   state = {
     plc: { memberUids: [MEMBER_UID, 'member-b'] },
-    plcQuiz: { syncGroupId: SYNC_GROUP_ID },
-    group: { version: 3, participants: {} },
+    plcQuiz: { syncGroupId: SYNC_GROUP_ID, sharedBy: 'member-b' },
+    group: { version: 3, participants: { 'member-b': { joinedAt: 1000 } } },
     updates: [],
   };
 });
@@ -276,7 +286,10 @@ describe('handleJoinPlcQuizSyncGroup - join semantics', () => {
   });
 
   it('defaults version to 1 when the synced group doc lacks one', async () => {
-    state.group = { participants: {} }; // no version field
+    state.group = {
+      plcId: PLC_ID,
+      participants: { 'member-b': { joinedAt: 1000 } },
+    }; // no version field
     const db = makeDb(state) as unknown as Parameters<
       typeof handleJoinPlcQuizSyncGroup
     >[0];
@@ -287,5 +300,206 @@ describe('handleJoinPlcQuizSyncGroup - join semantics', () => {
       PLC_QUIZ_ID
     );
     expect(result.version).toBe(1);
+  });
+});
+
+describe('handleJoinPlcQuizSyncGroup - editor and group-link gates', () => {
+  it('rejects a viewer (permission-denied) without writing', async () => {
+    state.plc = {
+      memberUids: [MEMBER_UID, 'member-b'],
+      members: { [MEMBER_UID]: { role: 'viewer', status: 'active' } },
+    };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcQuizSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcQuizSyncGroup(db, MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it('rejects a removed member (permission-denied)', async () => {
+    state.plc = {
+      memberUids: [MEMBER_UID, 'member-b'],
+      members: { [MEMBER_UID]: { role: 'member', status: 'removed' } },
+    };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcQuizSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcQuizSyncGroup(db, MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it('allows a non-viewer keyed member', async () => {
+    state.plc = {
+      memberUids: [MEMBER_UID, 'member-b'],
+      members: { [MEMBER_UID]: { role: 'member', status: 'active' } },
+    };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcQuizSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcQuizSyncGroup(db, MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).resolves.toMatchObject({
+      alreadyJoined: false,
+    });
+  });
+
+  it('rejects a header naming a group its sharer is not in (permission-denied)', async () => {
+    state.plcQuiz = { syncGroupId: SYNC_GROUP_ID, sharedBy: MEMBER_UID };
+    state.group = {
+      version: 3,
+      plcId: 'victim-plc',
+      participants: { 'victim-uid': { joinedAt: 1000 } },
+    };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcQuizSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcQuizSyncGroup(db, MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it('rejects a header with no sharedBy on a group not created for this PLC', async () => {
+    state.plcQuiz = { syncGroupId: SYNC_GROUP_ID };
+    state.group = { version: 3, participants: {} };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcQuizSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcQuizSyncGroup(db, MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it('allows a group created for this PLC when the sharer left but a member remains', async () => {
+    state.plcQuiz = { syncGroupId: SYNC_GROUP_ID, sharedBy: 'gone-uid' };
+    state.group = {
+      version: 3,
+      plcId: PLC_ID,
+      participants: { 'member-b': { joinedAt: 1000 } },
+    };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcQuizSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcQuizSyncGroup(db, MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).resolves.toMatchObject({
+      alreadyJoined: false,
+    });
+  });
+
+  it('rejects a recreated PLC id whose members are not in the group', async () => {
+    state.plc = { memberUids: [MEMBER_UID] };
+    state.plcQuiz = { syncGroupId: SYNC_GROUP_ID, sharedBy: MEMBER_UID };
+    state.group = {
+      version: 3,
+      plcId: PLC_ID,
+      participants: { 'victim-uid': { joinedAt: 1000 } },
+    };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcQuizSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcQuizSyncGroup(db, MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it('ignores memberUids a lead added without a members entry', async () => {
+    state.plc = {
+      memberUids: [MEMBER_UID, 'victim-uid'],
+      members: { [MEMBER_UID]: { role: 'lead', status: 'active' } },
+    };
+    state.plcQuiz = { syncGroupId: SYNC_GROUP_ID, sharedBy: MEMBER_UID };
+    state.group = {
+      version: 3,
+      plcId: PLC_ID,
+      participants: { 'victim-uid': { joinedAt: 1000 } },
+    };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcQuizSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcQuizSyncGroup(db, MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
+  });
+});
+
+describe('handleJoinPlcQuizSyncGroup - re-join and undo', () => {
+  const db = () =>
+    makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcQuizSyncGroup
+    >[0];
+
+  it('lets an already-participating viewer re-join as a no-op', async () => {
+    state.plc = {
+      memberUids: [MEMBER_UID, 'member-b'],
+      members: { [MEMBER_UID]: { role: 'viewer', status: 'active' } },
+    };
+    state.group = {
+      version: 4,
+      participants: { [MEMBER_UID]: { joinedAt: 1000 } },
+    };
+    await expect(
+      handleJoinPlcQuizSyncGroup(db(), MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).resolves.toMatchObject({ alreadyJoined: true, version: 4 });
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it('still rejects an already-participating non-member', async () => {
+    state.group = {
+      version: 4,
+      participants: { [NON_MEMBER_UID]: { joinedAt: 1000 } },
+    };
+    await expect(
+      handleJoinPlcQuizSyncGroup(db(), NON_MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('lets the sharer re-join after detaching from their own sole-participant group', async () => {
+    state.plcQuiz = { syncGroupId: SYNC_GROUP_ID, sharedBy: MEMBER_UID };
+    state.group = { version: 3, participants: {} };
+    state.markers = {
+      [MEMBER_UID]: { plcId: PLC_ID, plcContentId: PLC_QUIZ_ID, detachedAt: 1 },
+    };
+    await expect(
+      handleJoinPlcQuizSyncGroup(db(), MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).resolves.toMatchObject({ alreadyJoined: false });
+    expect(state.updates).toHaveLength(1);
+    expect(state.deletes).toEqual([
+      `synced_quizzes/${SYNC_GROUP_ID}/plcDetached/${MEMBER_UID}`,
+    ]);
+  });
+
+  it('ignores a detach marker left through a different header', async () => {
+    state.plcQuiz = { syncGroupId: SYNC_GROUP_ID, sharedBy: MEMBER_UID };
+    state.group = { version: 3, participants: {} };
+    state.markers = {
+      [MEMBER_UID]: { plcId: PLC_ID, plcContentId: 'other', detachedAt: 1 },
+    };
+    await expect(
+      handleJoinPlcQuizSyncGroup(db(), MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it('does not let a viewer use a detach marker', async () => {
+    state.plc = {
+      memberUids: [MEMBER_UID, 'member-b'],
+      members: { [MEMBER_UID]: { role: 'viewer', status: 'active' } },
+    };
+    state.group = { version: 3, participants: {} };
+    state.markers = {
+      [MEMBER_UID]: { plcId: PLC_ID, plcContentId: PLC_QUIZ_ID, detachedAt: 1 },
+    };
+    await expect(
+      handleJoinPlcQuizSyncGroup(db(), MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
   });
 });

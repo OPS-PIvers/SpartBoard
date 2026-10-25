@@ -334,6 +334,34 @@ describe('authorization ladder', () => {
     expect(await codeOf(run(state))).toBe('failed-precondition');
   });
 
+  it('refuses a viewer target who is not already in the synced group', async () => {
+    const state = stateWithCopy();
+    state.docs[`plcs/${PLC_ID}`] = {
+      members: {
+        [CALLER_UID]: member('member', 'Helper Teacher'),
+        [TARGET_UID]: member('viewer', 'Away Teacher'),
+      },
+      memberUids: [CALLER_UID, TARGET_UID],
+    };
+    expect(await codeOf(run(state))).toBe('permission-denied');
+  });
+
+  it('allows a viewer target who already participates in the group', async () => {
+    const state = stateWithCopy();
+    state.docs[`plcs/${PLC_ID}`] = {
+      members: {
+        [CALLER_UID]: member('member', 'Helper Teacher'),
+        [TARGET_UID]: member('viewer', 'Away Teacher'),
+      },
+      memberUids: [CALLER_UID, TARGET_UID],
+    };
+    state.docs[`synced_quizzes/${GROUP_ID}`] = {
+      ...state.docs[`synced_quizzes/${GROUP_ID}`],
+      participants: { [TARGET_UID]: { joinedAt: 1 } },
+    };
+    expect((await run(state)).hasCopy).toBe(true);
+  });
+
   it('authorizes a legacy PLC that has only memberUids', async () => {
     const state = stateWithCopy();
     state.docs[`plcs/${PLC_ID}`] = { memberUids: [CALLER_UID, TARGET_UID] };
