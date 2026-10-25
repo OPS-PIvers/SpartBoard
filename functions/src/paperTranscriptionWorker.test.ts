@@ -197,12 +197,14 @@ describe('runPaperTranscriptionJob', () => {
         responseKey: 'r1',
         questionId: 'q1',
         artifactId: 'hw_scan1_q1',
+        expectedStoragePath: crop('q1'),
       },
       {
         sessionId: 's1',
         responseKey: 'r1',
         questionId: 'q2',
         artifactId: 'hw_scan1_q2',
+        expectedStoragePath: crop('q2'),
       },
     ]);
   });

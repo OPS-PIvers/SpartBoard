@@ -32,6 +32,7 @@ import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import {
   computeHasStuckArchive,
   deleteQuizArchiveDriveFile,
+  isArtifactStoragePathOwned,
   isArtifactStoragePathValid,
   QUIZ_MEDIA_ARCHIVE_SECRETS,
   STUCK_ARCHIVE_AGE_MS,
@@ -975,7 +976,7 @@ export async function deleteOrgQuizMediaSets(
         });
         continue;
       }
-      const storagePath = isArtifactStoragePathValid({
+      const pathInput = {
         kind: artifact.kind,
         storagePath: artifact.storagePath,
         sessionId: target.sessionId,
@@ -983,15 +984,22 @@ export async function deleteOrgQuizMediaSets(
         studentUid,
         teacherUid,
         questionId: target.questionId,
-      })
-        ? artifact.storagePath
-        : '';
+      };
+      const owned = await isArtifactStoragePathOwned({
+        ...pathInput,
+        responseRef,
+        response: data,
+      });
+      const storagePath = owned ? artifact.storagePath : '';
+      // A crop this response cannot prove is its own is left, so the item must not read as deleted.
+      const cropLeft = !owned && isArtifactStoragePathValid(pathInput);
 
-      const failure = await runPhysicalDelete(
-        { teacherUid, driveFileId: claim.driveFileId, storagePath },
-        deps,
-        tokenFor
-      );
+      const failure =
+        (await runPhysicalDelete(
+          { teacherUid, driveFileId: claim.driveFileId, storagePath },
+          deps,
+          tokenFor
+        )) ?? (cropLeft ? 'Storage delete failed.' : null);
       if (failure) {
         await writeDeleteFailedEntry(
           db,
@@ -1059,7 +1067,7 @@ export async function finishStuckMediaDelete(
   const rawPath = artifact?.storagePath ?? '';
   const storagePath =
     (claimed || entry.storageCleanupPending === true) &&
-    isArtifactStoragePathValid({
+    (await isArtifactStoragePathOwned({
       kind: artifact?.kind,
       storagePath: rawPath,
       sessionId: input.sessionId,
@@ -1067,7 +1075,9 @@ export async function finishStuckMediaDelete(
       studentUid,
       teacherUid,
       questionId: input.questionId,
-    })
+      responseRef,
+      response: data,
+    }))
       ? rawPath
       : '';
 

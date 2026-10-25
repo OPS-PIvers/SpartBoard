@@ -4983,6 +4983,12 @@ service cloud.firestore {
           // Per-student publication and the answer key are teacher-written only.
           incoming().get('resultsOverride', null) == null &&
           incoming().get('revealedAnswers', null) == null &&
+          // Archive state, back-translations and the paper seat are server-written; the archive pipeline and hourly sweep trust them.
+          incoming().get('artifactArchive', null) == null &&
+          incoming().get('hasStuckArchive', null) == null &&
+          incoming().get('backTranslations', null) == null &&
+          incoming().get('paperSeat', null) == null &&
+          incoming().get('paperBatchId', null) == null &&
           // Review games: checkQuizGameAnswerV1 alone writes points, verdicts and answers.
           incoming().get('game', null) == null &&
           // Media archive bookkeeping is server-written; the hourly sweep trusts its Drive ids.

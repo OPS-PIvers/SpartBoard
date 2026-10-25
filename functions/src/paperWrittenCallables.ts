@@ -245,6 +245,13 @@ async function cropForArtifact(
   if (archiveStatus !== 'archived' || typeof entry?.driveFileId !== 'string') {
     return missing;
   }
+  // A Drive copy filed from any other object is never served for this crop.
+  if (
+    typeof entry.sourcePath === 'string' &&
+    entry.sourcePath !== storagePath
+  ) {
+    return missing;
+  }
   let bytes: Buffer;
   try {
     const token = await deps.getAccessToken(teacherUid);
@@ -349,16 +356,14 @@ export async function handleGetPaperWrittenCrop(
     const priv = (
       await privateRefOf(responseRef, target.questionId).get()
     ).data();
+    const seat: unknown =
+      typeof priv?.seat === 'number' ? priv.seat : response.paperSeat;
     if (
       typeof priv?.scanId !== 'string' ||
-      typeof response.paperSeat !== 'number' ||
+      typeof seat !== 'number' ||
+      artifact.id !== `hw_${priv.scanId}_${target.questionId}` ||
       artifact.storagePath !==
-        paperCropStoragePath(
-          teacherUid,
-          priv.scanId,
-          response.paperSeat,
-          target.questionId
-        )
+        paperCropStoragePath(teacherUid, priv.scanId, seat, target.questionId)
     ) {
       return { status: 'not-available', reason: 'no-crop' };
     }
@@ -749,6 +754,7 @@ export async function handleApplyPaperNewerScan(
     });
     const privateDoc: PaperPrivateAnswer = {
       scanId: newScanId,
+      seat,
       status: transcript,
       attempts: 0,
       charged: false,
@@ -794,7 +800,20 @@ export async function handleTranscribePaperBlank(
       'Only handwritten paper answers can be transcribed.'
     );
   }
-  const seat = seatOf(response, answer);
+  // The import's own seat for this scan, as the archive core reads it; a re-import can move `paperSeat`.
+  const privateSeat: unknown = (await privateRef.get()).data()?.seat;
+  const seat =
+    typeof privateSeat === 'number' ? privateSeat : seatOf(response, answer);
+  // Students can edit their answers, so the crop must be this seat's own.
+  if (
+    storagePath !==
+    paperCropStoragePath(caller.uid, scanId, seat, target.questionId)
+  ) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Only handwritten paper answers can be transcribed.'
+    );
+  }
   const page = await findBoxPage(
     deps.db,
     caller.uid,
