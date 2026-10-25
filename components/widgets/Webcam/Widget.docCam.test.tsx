@@ -1,11 +1,20 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import {
+  act,
+  render,
+  screen,
+  waitFor,
+  fireEvent,
+} from '@testing-library/react';
 import { WebcamWidget } from './Widget';
 import type { WebcamConfig, WidgetData } from '@/types';
 
 const flags = vi.hoisted(() => ({ docCam: true }));
 const updateWidget = vi.hoisted(() =>
   vi.fn<(id: string, patch: { config: WebcamConfig }) => void>()
+);
+const getUserMedia = vi.hoisted(() =>
+  vi.fn<(c: MediaStreamConstraints) => Promise<unknown>>()
 );
 const lastSaved = () => updateWidget.mock.calls.at(-1)?.[1].config;
 
@@ -42,13 +51,15 @@ const makeWidget = (config = {}) =>
 beforeEach(() => {
   flags.docCam = true;
   updateWidget.mockReset();
+  getUserMedia.mockReset();
+  getUserMedia.mockResolvedValue({
+    getTracks: () => [{ stop: vi.fn() }],
+    getVideoTracks: () => [{ getSettings: () => ({ deviceId: 'a' }) }],
+  });
   Object.defineProperty(navigator, 'mediaDevices', {
     configurable: true,
     value: {
-      getUserMedia: vi.fn().mockResolvedValue({
-        getTracks: () => [{ stop: vi.fn() }],
-        getVideoTracks: () => [{ getSettings: () => ({ deviceId: 'a' }) }],
-      }),
+      getUserMedia,
       enumerateDevices: vi.fn().mockResolvedValue([]),
     },
   });
@@ -324,6 +335,113 @@ describe('WebcamWidget compare', () => {
     render(<WebcamWidget widget={makeWidget()} />);
     fireEvent.click(await screen.findByTitle('View Gallery'));
     expect(screen.queryByTitle('Compare')).toBeNull();
+  });
+});
+
+describe('WebcamWidget camera quality', () => {
+  const gum = () => getUserMedia;
+
+  it('asks for the saved resolution only with the flag on', async () => {
+    render(<WebcamWidget widget={makeWidget({ resolution: '1080p' })} />);
+    await waitFor(() => expect(gum()).toHaveBeenCalled());
+    expect(gum().mock.calls[0][0]).toMatchObject({
+      video: { width: { ideal: 1920 } },
+    });
+  });
+
+  it('ignores a saved resolution with the flag off', async () => {
+    flags.docCam = false;
+    render(<WebcamWidget widget={makeWidget({ resolution: '1080p' })} />);
+    await waitFor(() => expect(gum()).toHaveBeenCalled());
+    expect(gum().mock.calls[0][0]).toEqual({
+      video: { facingMode: 'user' },
+      audio: false,
+    });
+  });
+
+  it('shows Camera disconnected when the camera is unplugged and reconnects on Retry', async () => {
+    let ended: (() => void) | undefined;
+    gum().mockResolvedValue({
+      getTracks: () => [{ stop: vi.fn() }],
+      getVideoTracks: () => [
+        {
+          getSettings: () => ({}),
+          addEventListener: (_: string, cb: () => void) => {
+            ended = cb;
+          },
+        },
+      ],
+    });
+    render(<WebcamWidget widget={makeWidget()} />);
+    await waitFor(() => expect(ended).toBeDefined());
+    act(() => ended?.());
+    expect(screen.getByText('Camera disconnected')).toBeTruthy();
+    fireEvent.click(screen.getByText('Retry Camera'));
+    await waitFor(() => expect(gum()).toHaveBeenCalledTimes(2));
+  });
+
+  it('keeps waiting for an unplugged camera instead of falling back to another one', async () => {
+    const ended: Record<string, () => void> = {};
+    const streamOf = (deviceId: string) => ({
+      getTracks: () => [{ stop: vi.fn() }],
+      getVideoTracks: () => [
+        {
+          getSettings: () => ({ deviceId }),
+          addEventListener: (_: string, cb: () => void) => {
+            ended[deviceId] = cb;
+          },
+        },
+      ],
+    });
+    gum()
+      .mockResolvedValueOnce(streamOf('a'))
+      .mockResolvedValueOnce(streamOf('b'))
+      .mockRejectedValue(new DOMException('gone', 'OverconstrainedError'));
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia,
+        enumerateDevices: vi.fn().mockResolvedValue([
+          { kind: 'videoinput', deviceId: 'a' },
+          { kind: 'videoinput', deviceId: 'b' },
+        ]),
+      },
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    render(<WebcamWidget widget={makeWidget()} />);
+    fireEvent.click(await screen.findByTitle('Switch Camera'));
+    await waitFor(() => expect(ended.b).toBeDefined());
+    act(() => ended.b());
+    fireEvent.click(screen.getByText('Retry Camera'));
+    await waitFor(() => expect(gum()).toHaveBeenCalledTimes(3));
+    expect(gum().mock.calls[2][0]).toMatchObject({
+      video: { deviceId: { exact: 'b' } },
+    });
+    expect(await screen.findByText('Camera disconnected')).toBeTruthy();
+    expect(gum()).toHaveBeenCalledTimes(3);
+  });
+
+  it('shows the usual error, not Camera disconnected, when a camera is busy at start', async () => {
+    gum().mockRejectedValue(new DOMException('busy', 'NotReadableError'));
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    render(<WebcamWidget widget={makeWidget()} />);
+    expect(await screen.findByText('Could not access webcam')).toBeTruthy();
+    expect(screen.queryByText('Camera disconnected')).toBeNull();
+  });
+
+  it('closes the quality menu on Escape without the key reaching the window', async () => {
+    const onKey = vi.fn();
+    render(
+      <div onKeyDown={onKey}>
+        <WebcamWidget widget={makeWidget()} />
+      </div>
+    );
+    const button = await screen.findByTitle('Camera quality');
+    fireEvent.click(button);
+    expect(screen.getByText('Best available')).toBeTruthy();
+    fireEvent.keyDown(button, { key: 'Escape' });
+    expect(screen.queryByText('Best available')).toBeNull();
+    expect(onKey).not.toHaveBeenCalled();
   });
 });
 

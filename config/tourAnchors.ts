@@ -12122,6 +12122,22 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'webcam.quality': {
+    label: 'Camera quality button in Webcam (resolution, autofocus, exposure)',
+    perWidget: true,
+  },
+  'webcam.autofocus': {
+    label:
+      'Autofocus switch in the Webcam camera quality menu (only on cameras that support it)',
+    perWidget: true,
+    panel: true,
+  },
+  'webcam.auto-exposure': {
+    label:
+      'Auto exposure switch in the Webcam camera quality menu (only on cameras that support it)',
+    perWidget: true,
+    panel: true,
+  },
   'webcam.reset-view': {
     label: 'Reset view button in Webcam (shows once zoomed or turned)',
     perWidget: true,

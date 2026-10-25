@@ -2836,6 +2836,8 @@ export interface WebcamConfig {
   zoomLevel?: number;
   /** Feed rotation in degrees: 0, 90, 180 or 270 (document-camera-pro). */
   rotation?: number;
+  /** Requested camera resolution (document-camera-pro). */
+  resolution?: 'auto' | '720p' | '1080p' | 'max';
   isMirrored?: boolean;
   autoSendToNotes?: boolean;
   isRemoteMode?: boolean;

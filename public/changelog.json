@@ -2554,7 +2554,7 @@
       "id": "webcam-document-camera",
       "widget": "webcam",
       "date": "2026-10-25",
-      "text": "Camera now works like a document camera. Zoom in, turn the picture, freeze it, draw on it, and compare two photos side by side.",
+      "text": "Camera now works like a document camera. Zoom in, turn the picture, freeze it, draw on it, compare two photos side by side, and pick a sharper resolution.",
       "feature": "document-camera-pro"
     }
   ]

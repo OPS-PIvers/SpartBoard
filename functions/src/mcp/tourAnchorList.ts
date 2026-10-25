@@ -54841,6 +54841,56 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "webcam.quality",
+    "label": "Camera quality button in Webcam (resolution, autofocus, exposure)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.autofocus",
+    "label": "Autofocus switch in the Webcam camera quality menu (only on cameras that support it)",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.auto-exposure",
+    "label": "Auto exposure switch in the Webcam camera quality menu (only on cameras that support it)",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "webcam.reset-view",
     "label": "Reset view button in Webcam (shows once zoomed or turned)",
     "scope": "widget",
