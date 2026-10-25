@@ -25,9 +25,16 @@ describe('quiet time goal Scoreboard point', () => {
   });
 
   it('finds the Scoreboard holding the team, skipping live quiz boards', () => {
-    expect(findTeamScoreboard([board({ teams })], 'b')?.id).toBe('sb');
+    expect(findTeamScoreboard([board({ teams })], null, 'b')?.id).toBe('sb');
     expect(
-      findTeamScoreboard([board({ teams, liveQuizWidgetId: 'q' })], 'b')
+      findTeamScoreboard([board({ teams, liveQuizWidgetId: 'q' })], null, 'b')
     ).toBeUndefined();
+  });
+
+  it('matches the saved Scoreboard when team ids repeat', () => {
+    const second = { ...board({ teams }), id: 'sb2' };
+    expect(findTeamScoreboard([board({ teams }), second], 'sb2', 'a')?.id).toBe(
+      'sb2'
+    );
   });
 });

@@ -97,6 +97,7 @@ export const SoundWidget: React.FC<{
     quietGoalMinutes,
     quietGoalResetOnAlert = false,
     quietGoalTeamId,
+    quietGoalScoreboardId,
   } = widget.config as SoundConfig;
   // Level name is a pro visual; without the flag it falls back to the default.
   const visual = savedVisual === 'level' && !pro ? 'thermometer' : savedVisual;
@@ -404,8 +405,11 @@ export const SoundWidget: React.FC<{
     goalMs,
     () => {
       if (!quietGoalTeamId || !activeDashboard) return;
+      // A late report after a board switch must not score on the new board.
+      if (!activeDashboard.widgets.some((w) => w.id === widget.id)) return;
       const scoreboard = findTeamScoreboard(
         activeDashboard.widgets,
+        quietGoalScoreboardId,
         quietGoalTeamId
       );
       if (!scoreboard) return;

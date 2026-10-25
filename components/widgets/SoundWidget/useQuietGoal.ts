@@ -46,14 +46,6 @@ export const useQuietGoal = (
     };
   }, [active, goalMs, done]);
 
-  // Also covers a goal lowered below the time already counted.
-  useEffect(() => {
-    if (done && !reportedRef.current) {
-      reportedRef.current = true;
-      reached();
-    }
-  }, [done]);
-
   const reset = useCallback(() => {
     elapsedRef.current = 0;
     reportedRef.current = false;

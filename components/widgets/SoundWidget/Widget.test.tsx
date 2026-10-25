@@ -661,6 +661,36 @@ describe('SoundWidget', () => {
     });
 
     it('adds a point to the chosen Scoreboard team at the goal', async () => {
+      // Both Scoreboards start with the same team id; the saved one wins.
+      mockActiveDashboard.widgets = [
+        { id: 'sound-1', type: 'sound', config: {} } as unknown as WidgetData,
+        {
+          id: 'scoreboard-0',
+          type: 'scoreboard',
+          config: { teams: [{ id: 't1', name: 'Blue', score: 1 }] },
+        } as unknown as WidgetData,
+        {
+          id: 'scoreboard-1',
+          type: 'scoreboard',
+          config: { teams: [{ id: 't1', name: 'Red', score: 4 }] },
+        } as unknown as WidgetData,
+      ];
+      await mount(0, {
+        quietGoalTeamId: 't1',
+        quietGoalScoreboardId: 'scoreboard-1',
+      });
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      expect(mockUpdateWidget).toHaveBeenCalledTimes(1);
+      expect(mockUpdateWidget).toHaveBeenCalledWith('scoreboard-1', {
+        config: expect.objectContaining({
+          teams: [{ id: 't1', name: 'Red', score: 5 }],
+        }) as unknown,
+      });
+    });
+
+    it('does not score from a board that is no longer shown', async () => {
       mockActiveDashboard.widgets = [
         {
           id: 'scoreboard-1',
@@ -672,12 +702,7 @@ describe('SoundWidget', () => {
       act(() => {
         vi.advanceTimersByTime(60_000);
       });
-      expect(mockUpdateWidget).toHaveBeenCalledTimes(1);
-      expect(mockUpdateWidget).toHaveBeenCalledWith('scoreboard-1', {
-        config: expect.objectContaining({
-          teams: [{ id: 't1', name: 'Red', score: 5 }],
-        }) as unknown,
-      });
+      expect(mockUpdateWidget).not.toHaveBeenCalled();
     });
 
     it('shows no goal with the flag off', async () => {

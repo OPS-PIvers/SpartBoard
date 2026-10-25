@@ -49,7 +49,7 @@ describe('useQuietGoal', () => {
     expect(result.current.elapsedMs).toBe(1000);
   });
 
-  it('reports when the goal is lowered below the time counted', () => {
+  it('reports only when counting reaches the goal, not on a passing edit', () => {
     const onReached = vi.fn();
     const { rerender } = renderHook(
       ({ goal }) => useQuietGoal(true, goal, onReached),
@@ -58,7 +58,13 @@ describe('useQuietGoal', () => {
     act(() => {
       vi.advanceTimersByTime(3000);
     });
-    rerender({ goal: 2000 });
+    // Retyping 10 as 15 passes through 1 on the way.
+    rerender({ goal: 1000 });
+    rerender({ goal: 15_000 });
+    expect(onReached).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(12_000);
+    });
     expect(onReached).toHaveBeenCalledTimes(1);
   });
 });

@@ -66,25 +66,47 @@ export const SoundGoalTeamField: React.FC<{ ctx: CustomRenderCtx }> = ({
   ctx,
 }) => {
   const { activeDashboard } = useDashboard();
-  const teams = (activeDashboard?.widgets ?? [])
-    .filter((w) => w.type === 'scoreboard')
-    .flatMap((w) => {
-      const config = w.config as ScoreboardConfig;
-      return config.liveQuizWidgetId || !Array.isArray(config.teams)
-        ? []
-        : config.teams;
-    });
-  const value = (ctx.config as Partial<SoundConfig>).quietGoalTeamId ?? '';
+  const scoreboards = (activeDashboard?.widgets ?? []).filter((w) => {
+    const config = w.config as ScoreboardConfig;
+    return (
+      w.type === 'scoreboard' &&
+      !config.liveQuizWidgetId &&
+      Array.isArray(config.teams)
+    );
+  });
+  // One option per team per Scoreboard, numbered when there is more than one.
+  const options = scoreboards.flatMap((w, index) =>
+    (w.config as ScoreboardConfig).teams.map((team) => ({
+      value: `${w.id}|${team.id}`,
+      label: scoreboards.length > 1 ? `${team.name} (${index + 1})` : team.name,
+    }))
+  );
+  const config = ctx.config as Partial<SoundConfig>;
+  const stored = config.quietGoalTeamId
+    ? `${config.quietGoalScoreboardId ?? ''}|${config.quietGoalTeamId}`
+    : '';
+  // Older picks saved only the team; show them on the first Scoreboard that has it.
+  const value =
+    options.find((o) => o.value === stored)?.value ??
+    (config.quietGoalTeamId && !config.quietGoalScoreboardId
+      ? options.find((o) => o.value.endsWith(`|${config.quietGoalTeamId}`))
+          ?.value
+      : undefined) ??
+    '';
 
   return (
     <select
       id={ctx.id}
       aria-labelledby={ctx.labelId}
       aria-describedby={ctx.describedBy}
-      value={teams.some((t) => t.id === value) ? value : ''}
-      onChange={(e) =>
-        ctx.updateConfig({ quietGoalTeamId: e.target.value || null })
-      }
+      value={value}
+      onChange={(e) => {
+        const [scoreboardId, teamId] = e.target.value.split('|');
+        ctx.updateConfig({
+          quietGoalScoreboardId: teamId ? scoreboardId : null,
+          quietGoalTeamId: teamId || null,
+        });
+      }}
       className="w-full text-xs bg-white border border-slate-200 rounded-lg px-3 py-2 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
       {...tourAttr(
         'widget-settings.sound.goal-team',
@@ -93,9 +115,9 @@ export const SoundGoalTeamField: React.FC<{ ctx: CustomRenderCtx }> = ({
       )}
     >
       <option value="">{translate(ctx, 'goalTeamNone')}</option>
-      {teams.map((team) => (
-        <option key={team.id} value={team.id}>
-          {team.name}
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
         </option>
       ))}
     </select>

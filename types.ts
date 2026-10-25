@@ -2178,6 +2178,8 @@ export interface SoundConfig {
   quietGoalResetOnAlert?: boolean;
   /** Scoreboard team that gets a point each time the quiet time goal is reached. */
   quietGoalTeamId?: string | null;
+  /** The Scoreboard that holds `quietGoalTeamId`; team ids repeat across Scoreboards. */
+  quietGoalScoreboardId?: string | null;
 }
 
 /** Active drawing tool. Replaces the legacy `config.color === 'eraser'` overload. */
