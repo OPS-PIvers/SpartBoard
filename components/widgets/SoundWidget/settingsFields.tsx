@@ -76,7 +76,7 @@ export const SoundGoalTeamField: React.FC<{ ctx: CustomRenderCtx }> = ({
   });
   // One option per team per Scoreboard, numbered when there is more than one.
   const options = scoreboards.flatMap((w, index) =>
-    (w.config as ScoreboardConfig).teams.map((team) => ({
+    ((w.config as ScoreboardConfig).teams ?? []).map((team) => ({
       value: `${w.id}|${team.id}`,
       label: scoreboards.length > 1 ? `${team.name} (${index + 1})` : team.name,
     }))
