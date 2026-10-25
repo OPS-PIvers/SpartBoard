@@ -26,7 +26,17 @@ describe('parseOverlayState', () => {
     });
   });
 
+  it('accepts a check result in check mode', () => {
+    for (const check of ['found', 'weak', 'ambiguous', 'none', 'pending']) {
+      expect(parseOverlayState({ ...valid, check })).toEqual({
+        ...valid,
+        check,
+      });
+    }
+  });
+
   it.each([
+    ['an unknown check result', { ...valid, check: 'role' }],
     ['an extra key', { ...valid, html: '<b>x</b>' }],
     ['a missing key', { title: 'x', text: 'y', current: 1, total: 1 }],
     ['a step past the end', { ...valid, current: 4 }],
@@ -49,6 +59,21 @@ describe('parseOverlayState', () => {
     ],
   ])('refuses %s', (_, raw) => {
     expect(parseOverlayState(raw)).toBeNull();
+  });
+
+  it('accepts the notice states, and "Go to the start" only while armed', () => {
+    for (const status of ['armed', 'moved', 'stopped'] as const) {
+      expect(parseOverlayState({ ...valid, status })?.status).toBe(status);
+    }
+    expect(
+      parseOverlayState({ ...valid, status: 'armed', goStart: true })?.goStart
+    ).toBe(true);
+    expect(
+      parseOverlayState({ ...valid, status: 'seeking', goStart: true })
+    ).toBeNull();
+    expect(
+      parseOverlayState({ ...valid, status: 'armed', goStart: 'yes' })
+    ).toBeNull();
   });
 
   it('refuses non-objects', () => {

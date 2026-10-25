@@ -16,6 +16,7 @@ import { Star, ArrowLeft, Rocket, HelpCircle } from 'lucide-react';
 import { getNamedLucideIcon, useLucideIconMap } from '@/utils/lucideIconMap';
 import { BLOOMS_DATA } from '@/config/bloomsData';
 import { prepareLaunchConfig } from './constants';
+import { tourAttr } from '@/config/tourAnchors';
 
 // Color mapping for routines
 const ROUTINE_COLORS: Record<
@@ -280,6 +281,7 @@ const RoutineStepItem: React.FC<RoutineStepItemProps> = ({
         }}
       >
         {hasWidget && (
+          // no-tour-anchor: one launch button per routine step
           <button
             onClick={() =>
               onAddWidget(step.attachedWidget?.type as WidgetType, {
@@ -304,6 +306,7 @@ const RoutineStepItem: React.FC<RoutineStepItemProps> = ({
         )}
 
         {hasSticker && (
+          // no-tour-anchor: one sticker button per routine step
           <button
             onClick={() =>
               onStepClick(
@@ -535,6 +538,7 @@ export const InstructionalRoutinesWidget: React.FC<{ widget: WidgetData }> = ({
                   </div>
 
                   <div className="flex items-center" style={{ gap: '0.5em' }}>
+                    {/* no-tour-anchor: one Select button per routine row */}
                     <button
                       onClick={() => selectRoutine(r)}
                       className="bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 rounded-xl transition-colors font-black uppercase tracking-widest"
@@ -672,6 +676,11 @@ export const InstructionalRoutinesWidget: React.FC<{ widget: WidgetData }> = ({
             >
               <button
                 onClick={() => launchBloomsResource('keyWords')}
+                {...tourAttr(
+                  'instructional-routines.blooms-key-words',
+                  widget.id,
+                  widget.type
+                )}
                 className="flex-1 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all font-black uppercase tracking-widest text-slate-700"
                 style={{
                   padding: '0.8em',
@@ -682,6 +691,11 @@ export const InstructionalRoutinesWidget: React.FC<{ widget: WidgetData }> = ({
               </button>
               <button
                 onClick={() => launchBloomsResource('questionStarters')}
+                {...tourAttr(
+                  'instructional-routines.blooms-sentence-starters',
+                  widget.id,
+                  widget.type
+                )}
                 className="flex-1 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all font-black uppercase tracking-widest text-slate-700"
                 style={{
                   padding: '0.8em',

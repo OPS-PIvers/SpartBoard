@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   parseExtensionMessage,
+  type WebTourCheckStartMessage,
   type WebTourStartMessage,
 } from '@/components/tours/web/extensionProtocol';
 import { toPlayback } from './startMessage';
@@ -67,6 +68,25 @@ describe('web-tour/start', () => {
       clues: { text: 'Grades' },
     });
     expect(p.pictures.a.data).toBe('AAAA');
+  });
+
+  it('takes the same tour as web-tour/check and marks it a check run', () => {
+    const parsed = parse({ ...valid(), type: 'web-tour/check', runId: 'r-1' });
+    expect(parsed.kind).toBe('ok');
+    if (parsed.kind !== 'ok') return;
+    expect(parsed.staffOnly).toBe(true);
+    expect(
+      toPlayback(parsed.message as WebTourCheckStartMessage)
+    ).toMatchObject({ check: true, runId: 'r-1' });
+    // A check needs its run id, and only a plain one.
+    expect(parse({ ...valid(), type: 'web-tour/check' }).kind).toBe('invalid');
+    expect(
+      parse({ ...valid(), type: 'web-tour/check', runId: '<b>' }).kind
+    ).toBe('invalid');
+    expect(toPlayback(valid() as WebTourStartMessage).check).toBeUndefined();
+    expect(
+      parse({ ...valid(), type: 'web-tour/check', runId: 'r', extra: 1 }).kind
+    ).toBe('invalid');
   });
 
   it('clamps the step index to the tour', () => {

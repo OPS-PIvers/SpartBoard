@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { ChevronDown, Loader2, Pause, Play } from 'lucide-react';
-import type { PeriodAccess } from '@/types';
+import type { PeriodAccess, QuizSessionStatus } from '@/types';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useServerNow } from '@/hooks/useServerNow';
@@ -89,9 +89,9 @@ const PeriodPicker: React.FC<
       style={{ gap: 'min(10px, 2.5cqmin)' }}
     >
       <select
-        {...anchors?.select}
         aria-label="Class"
-        {...tourTypeAttr('quiz-monitor.period-class-picker', 'quiz')}
+        {...(anchors?.select ??
+          tourTypeAttr('quiz-monitor.period-class-picker', 'quiz'))}
         value={selected}
         onChange={(e) => onSelect(e.target.value)}
         className="min-w-0 max-w-full rounded-md border border-brand-gray-lighter bg-white font-sans font-bold text-brand-blue-dark"
@@ -111,6 +111,111 @@ const PeriodPicker: React.FC<
         >
           {liveCount} of {rows.length} live
         </span>
+      )}
+    </div>
+  );
+};
+
+/** Class picker for classes that share one Pause, with that shared state and its Pause or Resume. */
+export const ClassPicker: React.FC<{
+  names: string[];
+  /** The class name shown, or '' for every class. */
+  selected: string;
+  onSelect: (name: string) => void;
+  status: QuizSessionStatus;
+  /** Pause or Resume for every class at once; omitted when the session can't be paused here. */
+  onToggle?: () => Promise<void>;
+  toggleAnchor?: TourAnchorAttrs;
+  selectAnchor?: TourAnchorAttrs;
+  /** Option labels for each class, when they differ from `names`. */
+  labelFor?: (name: string) => string;
+}> = ({
+  names,
+  selected,
+  onSelect,
+  status,
+  onToggle,
+  toggleAnchor,
+  selectAnchor = tourTypeAttr('quiz-monitor.period-class-picker', 'quiz'),
+  labelFor = (name) => name,
+}) => {
+  const [busy, setBusy] = useState(false);
+  const paused = status === 'paused';
+  const state = paused
+    ? 'Paused'
+    : status === 'waiting'
+      ? 'Not started'
+      : status === 'ended'
+        ? 'Ended'
+        : 'Live';
+  const text = { fontSize: 'min(16px, 5.5cqmin)' };
+  const toggle = async () => {
+    if (!onToggle) return;
+    setBusy(true);
+    try {
+      await onToggle();
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div
+      className="flex flex-wrap items-center justify-between"
+      style={{ gap: 'min(8px, 2cqmin)' }}
+    >
+      <div
+        className="flex flex-wrap items-center min-w-0"
+        style={{ gap: 'min(10px, 2.5cqmin)' }}
+      >
+        <select
+          aria-label="Class"
+          {...selectAnchor}
+          value={selected}
+          onChange={(e) => onSelect(e.target.value)}
+          className="min-w-0 max-w-full rounded-md border border-brand-gray-lighter bg-white font-sans font-bold text-brand-blue-dark"
+          style={{ ...text, padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)' }}
+        >
+          <option value="">All classes</option>
+          {names.map((name) => (
+            <option key={name} value={name}>
+              {labelFor(name)} · {state}
+            </option>
+          ))}
+        </select>
+        {!selected && (
+          <span
+            className="whitespace-nowrap font-sans font-bold text-brand-blue-dark"
+            style={text}
+          >
+            {state}
+          </span>
+        )}
+      </div>
+      {onToggle && (
+        <button
+          {...toggleAnchor}
+          onClick={() => void toggle()}
+          disabled={busy}
+          className={`inline-flex items-center rounded-md font-sans font-semibold transition-colors disabled:opacity-60 ${
+            paused
+              ? 'bg-brand-blue-primary hover:bg-brand-blue-light text-white'
+              : 'border border-brand-blue-primary/40 bg-white text-brand-blue-dark hover:bg-brand-blue-lighter'
+          }`}
+          style={{
+            gap: 'min(6px, 1.5cqmin)',
+            padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+            fontSize: 'min(13px, 4.5cqmin)',
+          }}
+        >
+          {busy ? (
+            <Loader2 className="animate-spin" style={iconStyle} />
+          ) : paused ? (
+            <Play style={iconStyle} />
+          ) : (
+            <Pause style={iconStyle} />
+          )}
+          {paused ? 'Resume' : 'Pause'}
+        </button>
       )}
     </div>
   );
@@ -174,11 +279,11 @@ const PeriodAction: React.FC<
     >
       {live && current.access.closeAt != null && (
         <button
-          {...anchors?.moreTime}
           onClick={() => setMenuOpen((v) => !v)}
           aria-label={`More time for ${current.access.label}`}
           aria-expanded={menuOpen}
-          {...tourTypeAttr('quiz-monitor.period-more-time', 'quiz')}
+          {...(anchors?.moreTime ??
+            tourTypeAttr('quiz-monitor.period-more-time', 'quiz'))}
           className="inline-flex items-center rounded-md border border-brand-blue-primary/40 bg-white font-sans font-semibold text-brand-blue-dark hover:bg-brand-blue-lighter"
           style={{
             gap: 'min(4px, 1cqmin)',

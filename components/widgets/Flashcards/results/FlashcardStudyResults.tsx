@@ -49,7 +49,16 @@ const BUCKET_BARS: {
   { key: 'new', label: 'New', className: 'bg-slate-300' },
 ];
 
-const BucketBar: React.FC<{ buckets: FlashcardStudyRow['buckets'] }> = ({
+/** One line naming how many cards sit in each bucket. */
+export const BucketSummary: React.FC<{
+  buckets: FlashcardStudyRow['buckets'];
+}> = ({ buckets }) => (
+  <>
+    {BUCKET_BARS.map((bar) => `${bar.label} ${buckets[bar.key]}`).join(' · ')}
+  </>
+);
+
+export const BucketBar: React.FC<{ buckets: FlashcardStudyRow['buckets'] }> = ({
   buckets,
 }) => {
   const total =

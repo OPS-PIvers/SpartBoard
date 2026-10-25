@@ -1,5 +1,6 @@
 // What the service worker asks the overlay to draw; checked like any other message (D3).
 import type { WebTourPictureBytes } from '@/components/tours/web/extensionProtocol';
+import type { WebTourCheckResult } from '@/types';
 
 export interface OverlayRect {
   x: number;
@@ -8,8 +9,19 @@ export interface OverlayRect {
   height: number;
 }
 
+/** A check run's verdict on the current step; `pending` while it is still looking. */
+export type OverlayCheck = WebTourCheckResult | 'pending';
+
+/** `armed`, `moved` and `stopped` draw only a small notice chip (WEB_TOURS_HELP_PANEL.md H1-H3). */
 export type OverlayStatus =
-  'wrong-page' | 'seeking' | 'shown' | 'fallback' | 'done';
+  | 'wrong-page'
+  | 'seeking'
+  | 'shown'
+  | 'fallback'
+  | 'done'
+  | 'armed'
+  | 'moved'
+  | 'stopped';
 
 export interface OverlayState {
   title: string;
@@ -25,9 +37,13 @@ export interface OverlayState {
   /** Learner presses Next instead of acting on the target. */
   observe: boolean;
   picture: WebTourPictureBytes | null;
+  /** Set only in check mode (C12). */
+  check?: OverlayCheck;
+  /** Armed only: offer a button that opens the tour's start page. */
+  goStart?: boolean;
 }
 
-export type OverlayAction = 'next' | 'back' | 'exit';
+export type OverlayAction = 'next' | 'back' | 'exit' | 'start';
 
 const MAX_TEXT = 4000;
 const STATUSES: readonly OverlayStatus[] = [
@@ -36,6 +52,16 @@ const STATUSES: readonly OverlayStatus[] = [
   'shown',
   'fallback',
   'done',
+  'armed',
+  'moved',
+  'stopped',
+];
+const CHECKS: readonly OverlayCheck[] = [
+  'found',
+  'weak',
+  'ambiguous',
+  'none',
+  'pending',
 ];
 const MIMES: readonly WebTourPictureBytes['mime'][] = [
   'image/png',
@@ -84,10 +110,20 @@ const KEYS = [
 
 /** The overlay state, or null when the payload doesn't match the schema exactly. */
 export function parseOverlayState(raw: unknown): OverlayState | null {
-  if (typeof raw !== 'object' || raw === null || !hasExactKeys(raw, KEYS)) {
-    return null;
-  }
+  if (typeof raw !== 'object' || raw === null) return null;
+  const checking = 'check' in raw;
+  const offering = 'goStart' in raw;
+  const keys = [
+    ...KEYS,
+    ...(checking ? ['check'] : []),
+    ...(offering ? ['goStart'] : []),
+  ];
+  if (!hasExactKeys(raw, keys)) return null;
   const r = raw as Record<string, unknown>;
+  if (offering && (typeof r.goStart !== 'boolean' || r.status !== 'armed'))
+    return null;
+  const check = CHECKS.find((c) => c === r.check);
+  if (checking && !check) return null;
   const status = STATUSES.find((s) => s === r.status);
   const picture = parsePicture(r.picture);
   if (
@@ -115,5 +151,7 @@ export function parseOverlayState(raw: unknown): OverlayState | null {
     targetHere: r.targetHere,
     observe: r.observe,
     picture,
+    ...(check ? { check } : {}),
+    ...(offering ? { goStart: r.goStart as boolean } : {}),
   };
 }

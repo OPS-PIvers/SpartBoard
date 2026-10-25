@@ -235,6 +235,7 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
   );
   const folderView = useFolderViewSidebar({
     setFolderColor: folderState.setFolderColor,
+    reorderSiblings: folderState.reorderSiblings,
     noun: { one: 'project', many: 'projects' },
     items: libraryProjects,
     deleteItems: async (ids) => {
@@ -261,6 +262,7 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
       userId,
       folders: folderState.folders,
       foldersLoading: folderState.loading,
+      reorderSiblings: folderState.reorderSiblings,
       getId: GET_ID,
       getRecentAt: projectRecentAt,
       itemNoun: PROJECT_NOUN,

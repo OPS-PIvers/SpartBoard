@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import manifestJson from '../manifest.json';
 import { manifestFor, type Manifest } from './manifest';
+import { LISTINGS } from './listings';
 
 const base: Manifest = manifestJson;
 
@@ -21,7 +22,16 @@ describe('manifest', () => {
 
   it('ships no always-on content scripts (T8)', () => {
     expect(base).not.toHaveProperty('content_scripts');
-    expect(base).not.toHaveProperty('web_accessible_resources');
+  });
+
+  it('exposes only the bundled fonts to pages, under per-session URLs', () => {
+    expect(base.web_accessible_resources).toEqual([
+      {
+        resources: ['fonts/*.woff2'],
+        matches: ['<all_urls>'],
+        use_dynamic_url: true,
+      },
+    ]);
   });
 
   it('lets only the prod hosts message the prod listing', () => {
@@ -44,6 +54,20 @@ describe('manifest', () => {
     );
     for (const match of dev.externally_connectable.matches) {
       expect(match).not.toMatch(/\*\./);
+    }
+  });
+
+  it('adds a Google sign-in block only once the listing has an OAuth client', () => {
+    for (const listing of ['prod', 'dev'] as const) {
+      const manifest = manifestFor(base, listing);
+      if (LISTINGS[listing].oauthClientId) {
+        expect(manifest.oauth2).toEqual({
+          client_id: LISTINGS[listing].oauthClientId,
+          scopes: ['https://www.googleapis.com/auth/userinfo.email'],
+        });
+      } else {
+        expect(manifest).not.toHaveProperty('oauth2');
+      }
     }
   });
 });

@@ -4,9 +4,10 @@ import type {
   WebTourAction,
   WebTourLocator,
   WebTourPicture,
+  WebTourStableAttrs,
 } from '@/types';
-import type { RecordedWebStep } from './recorderProtocol';
-import { scrubCapturedText, toUrlPattern } from './studentData';
+import { MAX_NOTE_CHARS, type RecordedWebStep } from './recorderProtocol';
+import { scrubCapturedText, toHrefPattern, toUrlPattern } from './studentData';
 
 const VERB: Record<WebTourAction, string> = {
   observe: 'Look at',
@@ -15,25 +16,40 @@ const VERB: Record<WebTourAction, string> = {
   select: 'Choose from',
 };
 
+/** Drops icon-font glyphs (private-use characters) that show as boxes, and tidies spaces. */
+export const withoutIconGlyphs = (s: string): string =>
+  s
+    .replace(/[\p{Co}\uFFFD]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
 /** A starter step title from what was clicked; the admin rewrites it in the editor. */
 export function draftLabel(
   action: WebTourAction,
   locator: WebTourLocator
 ): string {
-  const what = (
-    locator.name?.trim() ? locator.name : (locator.text ?? '')
-  ).trim();
+  const name = withoutIconGlyphs(locator.name ?? '');
+  const what = name || withoutIconGlyphs(locator.text ?? '');
   return what ? `${VERB[action]} ${what}` : VERB[action];
 }
 
 // The extension already scrubbed these; the page does it again rather than trust it.
-const scrubLocator = (l: WebTourLocator): WebTourLocator => {
+export const scrubLocator = (l: WebTourLocator): WebTourLocator => {
   const out: WebTourLocator = { ...l };
-  for (const key of ['name', 'text'] as const) {
+  for (const key of ['name', 'text', 'heading', 'pageTitle'] as const) {
     const v = scrubCapturedText(l[key]);
     if (v) out[key] = v;
     else delete out[key];
   }
+  const attrs: WebTourStableAttrs = {};
+  for (const key of ['testId', 'ariaLabel', 'name'] as const) {
+    const v = scrubCapturedText(l.attrs?.[key]);
+    if (v) attrs[key] = v;
+  }
+  const href = l.attrs?.href ? toHrefPattern(l.attrs.href) : null;
+  if (href) attrs.href = href;
+  if (Object.keys(attrs).length) out.attrs = attrs;
+  else delete out.attrs;
   if (out.frames)
     out.frames = out.frames.map((f) => ({
       ...f,
@@ -48,6 +64,7 @@ export function toWebStep(
   picture?: WebTourPicture
 ): GuidedLearningStep {
   const locator = scrubLocator(recorded.locator);
+  const note = scrubCapturedText(recorded.note, MAX_NOTE_CHARS);
   return {
     id: recorded.id,
     xPct: 50,
@@ -55,12 +72,13 @@ export function toWebStep(
     imageIndex: 0,
     interactionType: 'tooltip',
     label: draftLabel(recorded.action, locator),
-    text: '',
+    text: recorded.tip?.trim() ?? '',
     web: {
       urlPattern: toUrlPattern(recorded.urlPattern) ?? '*',
       action: recorded.action,
       locator,
       ...(picture ? { picture } : {}),
+      ...(note ? { note } : {}),
     },
   };
 }

@@ -43,6 +43,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1' },
     orgId: null,
     featurePermissions: [],
+    canAccessFeature: () => false,
   }),
 }));
 vi.mock('@/context/useDashboard', () => ({

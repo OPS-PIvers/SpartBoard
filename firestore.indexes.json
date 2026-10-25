@@ -897,6 +897,20 @@
         }
       ],
       "density": "SPARSE_ALL"
+    },
+    {
+      "collectionGroup": "activity_wall_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "teacherUid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "boardAccessAt",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [

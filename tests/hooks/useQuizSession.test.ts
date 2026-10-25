@@ -1189,7 +1189,7 @@ describe('useQuizSessionStudent — joinQuizSession', () => {
       await result.current.joinQuizSession('  abc-123!!  ', '1234');
     });
 
-    expect(findQuizSessionsByCode).toHaveBeenCalledWith('ABC123');
+    expect(findQuizSessionsByCode).toHaveBeenCalledWith('ABC123', undefined);
   });
 
   it('backfills classPeriod on an existing response when it changed', async () => {

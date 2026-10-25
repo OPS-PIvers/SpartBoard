@@ -1582,6 +1582,21 @@
       "play": "Démarrer",
       "pause": "Pause",
       "reset": "Réinitialiser"
+    },
+    "scoreboard": {
+      "undo": "Annuler",
+      "undoShortcut": "Annuler le dernier changement de score (Ctrl+Z)",
+      "history": "Historique",
+      "scores": "Scores",
+      "recentChanges": "Changements récents",
+      "noChanges": "Aucun changement",
+      "reset": "Remise à zéro",
+      "leader": "En tête",
+      "tied": "Égalité",
+      "addPoints_one": "Ajouter {{count}} point",
+      "addPoints_other": "Ajouter {{count}} points",
+      "removePoints_one": "Retirer {{count}} point",
+      "removePoints_other": "Retirer {{count}} points"
     }
   },
   "boardBreadcrumb": {
@@ -1598,6 +1613,7 @@
   "boardsModal": {
     "title": "Tableaux et Collections",
     "close": "Fermer",
+    "backToBoard": "Retour au tableau",
     "searchPlaceholder": "Rechercher des Tableaux et Collections",
     "newBoard": "Nouveau Tableau",
     "newBoardPrompt": "Nom du Tableau",
@@ -1622,6 +1638,9 @@
     "delete": "Supprimer",
     "bulkDeleteConfirm": "Supprimer {{count}} élément(s) ? Cette action est irréversible.",
     "deleteBoardConfirm": "Supprimer ce Tableau ?",
+    "removeSharedBoardConfirm": "Retirer ce tableau pour tout le monde dans la collection partagée ?",
+    "removeSharedBoardConfirmLabel": "Retirer",
+    "removeSharedCollectionConfirm": "Retirer cette collection et ses tableaux pour tout le monde dans la collection partagée ?",
     "deleteCollectionConfirm": "Supprimer cette Collection ? Les Tableaux qu'elle contient seront déplacés vers le niveau parent.",
     "unpinBoard": "Désépingler le Tableau",
     "dragToMove": "Glisser pour déplacer",
@@ -1694,7 +1713,13 @@
     "notFound": "Collection partagée introuvable ou expirée",
     "empty": "La Collection partagée est vide",
     "invalidShareUrl": "Lien de partage invalide — identifiant de partage manquant.",
-    "substituteImportRejected": "Ce lien est destiné aux remplaçants. Ouvrez-le dans le portail des remplaçants."
+    "substituteImportRejected": "Ce lien est destiné aux remplaçants. Ouvrez-le dans le portail des remplaçants.",
+    "modeSynced": "Synchronisé",
+    "modeSyncedHint": "Vous modifiez tous les deux la même collection.",
+    "modeViewOnly": "Lecture seule",
+    "modeViewOnlyHint": "Ils voient vos modifications en direct mais ne peuvent pas modifier.",
+    "modeCopyTitle": "Faire une copie",
+    "boardAlreadyLive": "{{name}} est déjà partagé en direct. Arrêtez d'abord le partage ou faites une copie."
   },
   "importSharedCollection": {
     "title": "Importer une Collection partagée",
@@ -1716,7 +1741,12 @@
   },
   "collectionMenu": {
     "share": "Partager la Collection…",
-    "saveAsTemplate": "Enregistrer comme Modèle…"
+    "saveAsTemplate": "Enregistrer comme Modèle…",
+    "stopSharing": "Arrêter le partage",
+    "stopSharingConfirm": "Arrêter de partager cette collection ? Les enseignants synchronisés gardent leur propre copie. Les enseignants en lecture seule la perdent.",
+    "leaveShared": "Quitter la collection partagée",
+    "leaveSharedConfirm": "Quitter cette collection partagée ? Vous gardez une copie de ses tableaux, mais ils ne seront plus mis à jour.",
+    "leaveSharedViewerConfirm": "Quitter cette collection partagée ? Elle sera retirée de votre compte."
   },
   "templatePicker": {
     "title": "Créer depuis un Modèle",
@@ -3169,7 +3199,8 @@
         "other": "Autres",
         "tours": "Visites guidées"
       },
-      "liveTourBadge": "Visite guidée"
+      "liveTourBadge": "Visite guidée",
+      "webTourBadge": "Visite web"
     },
     "shortcuts": {
       "open-help": "Ouvrir l'aide",
@@ -3737,7 +3768,16 @@
       "replaceTeamsBody_other": "Cela remplace les {{count}} équipes de ce tableau, avec leurs scores.",
       "replaceTeamsConfirm": "Remplacer",
       "classTeamName": "Équipe {{count}}",
-      "membersTitle": "Membres issus du groupe de la classe"
+      "membersTitle": "Membres issus du groupe de la classe",
+      "sortByScore": "Trier par score",
+      "pointButtons": "Boutons de points",
+      "pointPreset": {
+        "1": "+1",
+        "1-2-3": "+1, +2, +3",
+        "1-5-10": "+1, +5, +10",
+        "5-10-25": "+5, +10, +25",
+        "10-50-100": "+10, +50, +100"
+      }
     },
     "checklist": {
       "poolGroup": "Puiser dans",
@@ -4053,7 +4093,17 @@
     },
     "webFindIt": "Cherchez ceci sur la page.",
     "webOtherPage": "Cette étape se trouve sur une autre page. Ouvrez-la pour continuer.",
-    "webPictureAlt": "Image de cette étape"
+    "webArmed": "Connectez-vous. Votre visite commence dès que vous êtes connecté.",
+    "webGoToStart": "Aller au début",
+    "webArmedExit": "Arrêter la visite",
+    "webMoved": "Votre visite est passée dans l'autre onglet.",
+    "webStopped": "Visite arrêtée. Cliquez sur l’icône SpartBoard pour la relancer.",
+    "webDismiss": "Fermer",
+    "webPictureAlt": "Image de cette étape",
+    "webCheckFound": "Trouvé",
+    "webCheckWeak": "Correspondance faible",
+    "webCheckAmbiguous": "Correspond à plusieurs",
+    "webCheckNone": "Introuvable"
   },
   "glPlayer": {
     "modeChip": {
@@ -4248,6 +4298,8 @@
     "loading": "Chargement des visites...",
     "intro": "Vérifie les visites publiées par rapport au registre des ancres.",
     "recordTour": "Enregistrer une visite",
+    "recordWebTour": "Enregistrer une visite web",
+    "recordWebTourFailed": "La visite web n'a pas pu être créée.",
     "checkLive": "Vérifier en direct",
     "empty": "Aucun ensemble Guided Learning n'a encore d'étapes de visite en direct.",
     "untitledSet": "Ensemble sans titre",
@@ -4324,7 +4376,8 @@
       },
       "reason": {
         "missed": "Image affichée dans {{misses}} parcours réels sur {{runs}}",
-        "weak": "Trouvé seulement par un indice plus faible dans {{weak}} parcours réels sur {{runs}}"
+        "weak": "Trouvé seulement par un indice plus faible dans {{weak}} parcours réels sur {{runs}}",
+        "weakScore": "Proche d'une autre commande dans {{weak}} parcours réels sur {{runs}}"
       },
       "copyLink": "Copier le lien",
       "linkCopied": "Copié",
@@ -4440,11 +4493,14 @@
     "startOver": "Recommencer",
     "resume": "Reprendre à l'étape {{number}}",
     "playing": "La visite est ouverte dans un autre onglet. Votre progression s'affiche ici.",
+    "openedTitle": "Votre visite est ouverte dans l'autre onglet",
+    "startAgain": "Recommencer",
     "closed": "L'onglet de la visite a été fermé.",
     "exited": "Vous avez quitté la visite.",
     "done": "Vous avez terminé cette visite.",
     "startFailed": "La visite n'a pas pu démarrer. Réessayez.",
-    "noExtension": "Demandez à votre équipe informatique d'ajouter l'extension SpartBoard pour Chrome afin que cette visite indique chaque étape sur le site. En attendant, suivez les images ci-dessous.",
+    "noExtension": "Ajoutez l'extension SpartBoard pour Chrome afin que cette visite indique chaque étape sur le site. En attendant, suivez les images ci-dessous.",
+    "getExtension": "Obtenir l'extension SpartBoard",
     "wrongProfile": "Cette visite ne fonctionne que dans un profil Chrome connecté avec votre compte du personnel d'Orono. En attendant, suivez les images ci-dessous.",
     "oldExtension": "Votre extension SpartBoard doit être mise à jour pour cette visite. En attendant, suivez les images ci-dessous.",
     "openSite": "Ouvrir {{site}}",
@@ -4453,5 +4509,12 @@
     "pictureAlt": "Image de l'étape {{number}}",
     "unavailableTitle": "Cette visite n'est pas disponible",
     "unavailableBody": "Le lien est peut-être erroné ou la visite a été supprimée. Demandez un nouveau lien à la personne qui l'a partagé."
+  },
+  "linkedCollection": {
+    "stopped": "Partage arrêté",
+    "left": "Vous avez quitté la collection partagée",
+    "leaveFailed": "Impossible de quitter la collection partagée",
+    "hostStopped": "{{name}} a arrêté de partager cette collection.",
+    "hostStoppedNoName": "L'hôte a arrêté de partager cette collection."
   }
 }

@@ -1799,6 +1799,8 @@ export interface PathObject extends BaseDrawableObject {
   points: Point[];
   color: string;
   width: number;
+  /** Highlighter stroke. `color` already carries its transparency, so older clients still draw it see-through. */
+  highlight?: boolean;
 }
 
 export interface RectObject extends BaseDrawableObject {
@@ -1810,6 +1812,8 @@ export interface RectObject extends BaseDrawableObject {
   stroke: string;
   strokeWidth: number;
   fill?: string;
+  /** Dashed outline. Older clients draw it solid. */
+  dashed?: boolean;
 }
 
 export interface EllipseObject extends BaseDrawableObject {
@@ -1821,6 +1825,8 @@ export interface EllipseObject extends BaseDrawableObject {
   stroke: string;
   strokeWidth: number;
   fill?: string;
+  /** Dashed outline. Older clients draw it solid. */
+  dashed?: boolean;
 }
 
 export interface LineObject extends BaseDrawableObject {
@@ -1831,6 +1837,8 @@ export interface LineObject extends BaseDrawableObject {
   y2: number;
   stroke: string;
   strokeWidth: number;
+  /** Dashed stroke. Older clients draw it solid. */
+  dashed?: boolean;
 }
 
 export interface ArrowObject extends BaseDrawableObject {
@@ -1841,6 +1849,10 @@ export interface ArrowObject extends BaseDrawableObject {
   y2: number;
   stroke: string;
   strokeWidth: number;
+  /** Dashed stroke. Older clients draw it solid. */
+  dashed?: boolean;
+  /** A second head at (x1, y1). Older clients draw the end head only. */
+  startHead?: boolean;
 }
 
 export interface TextObject extends BaseDrawableObject {
@@ -1855,6 +1867,8 @@ export interface TextObject extends BaseDrawableObject {
   color: string;
   /** True once a resize handle fixed the width; lines wrap to `w`. */
   wrap?: boolean;
+  /** Sticky note: a filled square whose text shrinks to fit. Older clients draw just the wrapped text. */
+  sticky?: { fill: string };
 }
 
 export interface ImageObject extends BaseDrawableObject {
@@ -1886,6 +1900,8 @@ export interface PollOption {
   id: string;
   label: string;
   votes: number;
+  /** The teacher marked this a correct answer; shown only after Show answer. */
+  correct?: boolean;
 }
 
 export interface ScheduleItem {
@@ -2022,11 +2038,16 @@ export interface ChecklistConfig {
   rowStyle?: 'cards' | 'lines';
 }
 
-export type ArtsLettersAgendaPartId = 'launch' | 'learn' | 'land';
+export type ArtsLettersAgendaPartId = string;
+
+export type ArtsLettersAgendaVersion = 'simple' | 'detailed';
 
 export interface ArtsLettersAgendaConfig {
-  descriptions?: Partial<Record<ArtsLettersAgendaPartId, string>>;
-  completed?: Partial<Record<ArtsLettersAgendaPartId, boolean>>;
+  version?: ArtsLettersAgendaVersion;
+  /** Building whose admin lists this widget uses; set on first edit so other viewers see the same boxes. */
+  buildingId?: string;
+  descriptions?: Record<ArtsLettersAgendaPartId, string>;
+  completed?: Record<ArtsLettersAgendaPartId, boolean>;
   fontFamily?: string;
   fontColor?: string;
   textSizePreset?: TextSizePreset;
@@ -2135,15 +2156,46 @@ export interface SoundboardGlobalConfig {
 
 export interface SoundConfig {
   sensitivity: number;
-  visual: 'thermometer' | 'speedometer' | 'line' | 'balls';
+  /** `level` (big level name) is offered only with noise-meter-pro. */
+  visual: 'thermometer' | 'speedometer' | 'line' | 'balls' | 'level';
   autoTrafficLight?: boolean;
   trafficLightThreshold?: number;
   syncExpectations?: boolean;
+  /** Highest voice level (0-3) the class should stay at; unset means no target. */
+  targetLevel?: number | null;
+  /** Seconds the room must stay over target before the alert shows. */
+  alertDelaySeconds?: number;
+  alertSoundEnabled?: boolean;
+  alertSound?: string;
+  /** Average analyser reading of the quiet room, subtracted before sensitivity. */
+  noiseFloor?: number | null;
+  /** Set by the Calibrate button; the widget listens while it is newer than `calibratedAt`. */
+  calibrateRequest?: number;
+  calibratedAt?: number;
+  /** Minutes the class must stay at or under target; 0 or unset means no goal. */
+  quietGoalMinutes?: number;
+  /** Start the goal over when Too loud shows, instead of pausing it. */
+  quietGoalResetOnAlert?: boolean;
+  /** Scoreboard team that gets a point each time the quiet time goal is reached. */
+  quietGoalTeamId?: string | null;
+  /** The Scoreboard that holds `quietGoalTeamId`; team ids repeat across Scoreboards. */
+  quietGoalScoreboardId?: string | null;
 }
 
 /** Active drawing tool. Replaces the legacy `config.color === 'eraser'` overload. */
 export type ShapeTool =
-  'pen' | 'eraser' | 'rect' | 'ellipse' | 'line' | 'arrow' | 'text' | 'select';
+  | 'pen'
+  | 'eraser'
+  | 'rect'
+  | 'ellipse'
+  | 'line'
+  | 'arrow'
+  | 'text'
+  | 'select'
+  /** `whiteboard-pro` only; without the flag the widget treats both as the pen. */
+  | 'highlighter'
+  | 'laser'
+  | 'sticky';
 
 /**
  * Eraser sub-tool. The DrawingWidget eraser surfaces three modes:
@@ -2225,6 +2277,15 @@ export interface DrawingConfig {
   eraserMode?: EraserMode;
   /** If true, rect/ellipse render filled with the current color (stroke unchanged). Default false. */
   shapeFill?: boolean;
+  /** Highlighter color (opaque hex) and width, kept apart from the pen's. */
+  highlighterColor?: string;
+  highlighterWidth?: number;
+  /** Fill for new sticky notes. */
+  stickyColor?: string;
+  /** New shapes get a dashed stroke. */
+  shapeDashed?: boolean;
+  /** New arrows get a head on both ends. */
+  arrowBothEnds?: boolean;
   /**
    * Widget-level default background template applied to a page when the
    * page's own `background` field is unset. Populated by Phase 2 PR 2.5.
@@ -2272,11 +2333,18 @@ export interface PollGlobalConfig {
   buildingDefaults: Record<string, BuildingPollDefaults>;
 }
 
+/** `scale` keeps numbered options ("1".."N"); `words` and `text` take typed answers and have no options. */
+export type PollQuestionKind = 'choice' | 'scale' | 'words' | 'text';
+
 /** One question in a multi-question poll. */
 export interface PollQuestion {
   id: string;
   question: string;
   options: PollOption[];
+  kind?: PollQuestionKind;
+  /** Rating scale end labels, under the lowest and highest numbers. */
+  scaleLow?: string;
+  scaleHigh?: string;
 }
 
 export interface PollConfig {
@@ -2299,10 +2367,35 @@ export interface PollConfig {
    * mints a fresh id instead.
    */
   lastPollSessionId?: string | null;
+  /** Who ran the session in `lastPollSessionId` on a shared board, so results read the right one. */
+  lastPollSessionOwnerUid?: string | null;
+  /** Who started the live session, so other members of a shared board read its votes. */
+  activePollSessionOwnerUid?: string | null;
   /** Legacy single-question shape — read through `getPollQuestions` only. */
   question?: string;
   /** Legacy single-question shape — read through `getPollQuestions` only. */
   options?: PollOption[];
+  /** Results stay hidden on the board and phones until the teacher reveals each question. */
+  hideResults?: boolean;
+  /** Question ids whose results the teacher has revealed (only read when `hideResults`). */
+  revealedQuestionIds?: string[];
+  /** Question ids whose voting the teacher has locked during a live session. */
+  lockedQuestionIds?: string[];
+  /** Question ids whose correct answer the teacher has shown. */
+  answerShownQuestionIds?: string[];
+  /** Typed answers the teacher hid from the board: `{questionId}:{voteId}`, or `{questionId}#{hash}` for a word cloud word (hashed: board config is shared). */
+  hiddenResponses?: string[];
+  /** Saved polls; lives only in the profile's `savedWidgetPresets.poll`, never on a widget. */
+  savedLibrary?: SavedPollPreset[];
+}
+
+/** A saved poll: its questions with votes zeroed, reloadable on any board. */
+export interface SavedPollPreset {
+  id: string;
+  name: string;
+  questions: PollQuestion[];
+  hideResults?: boolean;
+  createdAt: number;
 }
 
 /**
@@ -2322,6 +2415,9 @@ export interface PollSessionQuestion {
   id: string;
   question: string;
   options: { id: string; label: string }[];
+  kind?: PollQuestionKind;
+  scaleLow?: string;
+  scaleHigh?: string;
 }
 
 /** The `poll_sessions/{teacherUid}_{code}` document. */
@@ -2336,6 +2432,16 @@ export interface PollSessionDoc {
   /** Null until the teacher first opens voting — drives the waiting screen. */
   startedAt: number | null;
   updatedAt: number;
+  /** Mirrors `PollConfig.hideResults` so phones hold tallies back. */
+  hideResults?: boolean;
+  /** Question indexes whose results are revealed. */
+  revealedQuestions?: number[];
+  /** Question indexes the rules refuse votes for. */
+  lockedQuestions?: number[];
+  /** Word cloud and open response question indexes, which take text answers. */
+  textQuestions?: number[];
+  /** `{questionId}:{optionId}` for each correct option, only for questions whose answer is shown (an array so a merge replaces it). */
+  shownAnswers?: string[];
 }
 
 export type ActivityWallMode = 'text' | 'photo';
@@ -2478,6 +2584,8 @@ export interface ActivityWallLibraryEntry {
    * roster metadata; stored for reverse lookup and future migration.
    */
   rosterIds?: string[];
+  /** Shared-board colleagues' own classes by uid; they count only while the owner targets classes. */
+  memberClassIds?: Record<string, string[]>;
   createdAt: number;
   updatedAt: number;
   /** Padlet-lite redesign (P1-1) — all optional so legacy docs still parse. */
@@ -2549,6 +2657,8 @@ export interface ActivityWallConfig {
    */
   activities?: ActivityWallActivity[];
   activeActivityId?: string | null;
+  /** Whose library the active wall is in, so other members of a shared board can find it. */
+  activeActivityOwnerUid?: string | null;
   draftActivity?: ActivityWallActivity;
   /** Photo size on the widget face. */
   imageSize?: 'small' | 'medium' | 'large';
@@ -2587,6 +2697,8 @@ export interface ActivityWallSession extends SessionWorkKindFields {
   id: string;
   activityId: string;
   teacherUid: string;
+  /** Bumped when the owner changes which board shares may read the wall (ids live in `boardAccess/boards`). */
+  boardAccessAt?: number;
   title: string;
   prompt: string;
   mode: ActivityWallMode;
@@ -2624,6 +2736,8 @@ export interface ActivityWallSession extends SessionWorkKindFields {
   allowStudentDelete?: boolean;
   acceptingResponses?: boolean;
   classIds?: string[];
+  /** Colleagues' classes by uid (see ActivityWallLibraryEntry); `classIds` already includes them. */
+  memberClassIds?: Record<string, string[]>;
   rosterIds?: string[];
   /** Computed at mirror time from `allowGuests` (see `mirrorSessionFromEntry`). */
   driveVisibility?: 'domain' | 'anyone';
@@ -2718,7 +2832,12 @@ export interface ActivityWallLike {
 
 export interface WebcamConfig {
   deviceId?: string;
+  /** Digital zoom, 1 to 4 (document-camera-pro). */
   zoomLevel?: number;
+  /** Feed rotation in degrees: 0, 90, 180 or 270 (document-camera-pro). */
+  rotation?: number;
+  /** Requested camera resolution (document-camera-pro). */
+  resolution?: 'auto' | '720p' | '1080p' | 'max';
   isMirrored?: boolean;
   autoSendToNotes?: boolean;
   isRemoteMode?: boolean;
@@ -2743,6 +2862,21 @@ export interface ScoreboardTeam {
   memberStudentIds?: string[];
 }
 
+export interface ScoreboardScoreChange {
+  teamId: string;
+  from: number;
+  to: number;
+}
+
+export interface ScoreboardHistoryEntry {
+  id: string;
+  /** Epoch ms. */
+  at: number;
+  /** `reset` marks a Reset all scores step. */
+  kind?: 'reset';
+  changes: ScoreboardScoreChange[];
+}
+
 export interface ScoreboardConfig {
   /** @deprecated use teams array instead */
   scoreA?: number;
@@ -2757,6 +2891,12 @@ export interface ScoreboardConfig {
   layout?: 'cards' | 'rows';
   /** When set, indicates this scoreboard is being live-synced from a quiz widget */
   liveQuizWidgetId?: string;
+  /** Point button amounts, one of SCOREBOARD_POINT_PRESETS; unset means a single 1. */
+  pointValues?: number[];
+  /** Rows layout only; unset sorts by score. */
+  sortByScore?: boolean;
+  /** Recent score changes, oldest first, capped at SCOREBOARD_HISTORY_LIMIT. */
+  history?: ScoreboardHistoryEntry[];
 }
 
 export interface ExpectationsConfig {
@@ -3095,6 +3235,22 @@ export interface BuildingChecklistDefaults {
 
 export interface ChecklistGlobalConfig {
   buildingDefaults: Record<string, BuildingChecklistDefaults>;
+}
+
+// --- Arts & Letters Agenda Global Config ---
+export interface ArtsLettersAgendaPart {
+  id: string;
+  label: string;
+}
+
+export interface BuildingArtsLettersAgendaDefaults {
+  buildingId: string;
+  simpleParts?: ArtsLettersAgendaPart[];
+  detailedParts?: ArtsLettersAgendaPart[];
+}
+
+export interface ArtsLettersAgendaGlobalConfig {
+  buildingDefaults: Record<string, BuildingArtsLettersAgendaDefaults>;
 }
 
 // --- Stations Global Config ---
@@ -3925,6 +4081,25 @@ export interface SeatingChartConfig {
   rosterPoolGroupId?: string | null;
   template?: SeatingChartTemplate;
   templateColumns?: number; // Number of columns for 'rows' template
+  /** Named seat assignments for this board; furniture is shared across them. */
+  savedPlans?: SeatingPlan[];
+  /** The saved plan whose seats `assignments` currently holds. */
+  activePlanId?: string | null;
+  /** Shuffle rules for this board; student ids, class rosters only. */
+  seatingRules?: SeatingChartRules;
+}
+
+export interface SeatingChartRules {
+  /** Pairs of students who shouldn't sit at the same or neighbouring seats (objects: Firestore has no nested arrays). */
+  keepApart?: { a: string; b: string }[];
+  /** Students who need a front-row seat. */
+  frontSeat?: string[];
+}
+
+export interface SeatingPlan {
+  id: string;
+  name: string;
+  assignments: Record<string, string>;
 }
 
 /**
@@ -4008,6 +4183,8 @@ export interface PlacedNotebookAsset {
 
 export interface SmartNotebookConfig {
   activeNotebookId: string | null;
+  /** Whose library the open notebook is in, so other members of a shared board can find it. */
+  activeNotebookOwnerUid?: string | null;
   storageLimitMb?: number;
   /**
    * Appearance fields, surfaced as `styleKeys` in
@@ -4198,6 +4375,8 @@ export interface QuizQuestion {
   maxWords?: number;
   /** Free Response only. When set, Submit is disabled outside the word range. */
   enforceWordLimit?: boolean;
+  /** Free Response only. True turns off the browser's spelling and grammar underlines in the answer. */
+  noSpellCheck?: boolean;
   /** Free Response only. Size of the lined box on paper answer sheets. */
   paperBoxSize?: PaperBoxSize;
   /**
@@ -4907,6 +5086,8 @@ export interface QuizPublicQuestion {
   maxWords?: number;
   /** Free Response only: when set, Submit is disabled outside the word range */
   enforceWordLimit?: boolean;
+  /** Free Response only: turns off the browser's spelling and grammar underlines */
+  noSpellCheck?: boolean;
   /** Free Response only: max points the teacher can award. */
   points?: number;
   /**
@@ -6389,6 +6570,8 @@ export interface QuizConfig {
   managerTab?: 'library' | 'banks' | 'active' | 'archive';
   selectedQuizId: string | null;
   selectedQuizTitle: string | null;
+  /** Whose library the open quiz is in, so other members of a shared board can find its copy. */
+  selectedQuizOwnerUid?: string | null;
   /** Assignment currently opened in monitor/results views. */
   activeAssignmentId: string | null;
   /** Session code when a live quiz is running (denormalized from the active assignment for display). */
@@ -7109,6 +7292,7 @@ export type VideoActivityQuestion = Omit<
   | 'maxWords'
   | 'minWords'
   | 'enforceWordLimit'
+  | 'noSpellCheck'
   | 'paperBoxSize'
 > & {
   type: VideoActivityQuestionType;
@@ -7203,6 +7387,8 @@ export interface VideoActivityConfig {
   view: VideoActivityView;
   selectedActivityId: string | null;
   selectedActivityTitle: string | null;
+  /** Whose library the open activity is in, so other members of a shared board can find its copy. */
+  selectedActivityOwnerUid?: string | null;
   /** Session ID for the currently viewed results session. */
   resultsSessionId: string | null;
   /** Default settings for sessions created via this widget */
@@ -8289,7 +8475,27 @@ export interface WebTourLocator {
   frames?: WebTourFrame[];
   /** Viewport box when recorded, as fractions 0-1; breaks ties, never matches alone. */
   box?: { x: number; y: number; w: number; h: number };
+  /** Nearest heading or field label text above the control. */
+  heading?: string;
+  /** The page's `document.title` when recorded; context only, never scored. */
+  pageTitle?: string;
+  attrs?: WebTourStableAttrs;
 }
+
+/** Attributes sites keep stable across builds; `href` is a path with ids as `*`. */
+export interface WebTourStableAttrs {
+  testId?: string;
+  ariaLabel?: string;
+  name?: string;
+  href?: string;
+}
+
+export const WEB_TOUR_ATTR_KEYS = [
+  'testId',
+  'ariaLabel',
+  'name',
+  'href',
+] as const;
 
 /** A web step's picture in web_tour_pictures/{setId}/; read through the Storage SDK, never a download URL. */
 export interface WebTourPicture {
@@ -8305,14 +8511,39 @@ export interface WebTourBinding {
   locator: WebTourLocator;
   action: WebTourAction;
   picture?: WebTourPicture;
-  /** The admin's "checked for student data" tick; `sig` fingerprints what it covered, so an edit clears it. */
-  checked?: WebTourStudentDataCheck;
+  /** The admin's private note for Claude; never played or published. */
+  note?: string;
+  /** Claude's question when it couldn't tell why the step happens; editor only, never published. */
+  claudeQuestion?: string;
 }
 
 export interface WebTourStudentDataCheck {
   by: string;
   at: number;
   sig: string;
+}
+
+/** How a check run found a step's target (C12): only `found` passes. */
+export type WebTourCheckResult = 'found' | 'weak' | 'ambiguous' | 'none';
+
+/** The draft's last check run; `sig` fingerprints the targets it played. */
+export interface WebTourCheckRun {
+  by: string;
+  at: number;
+  sig: string;
+  /** By step id; a step the run never reached has none. */
+  results: Record<string, WebTourCheckResult>;
+}
+
+/** Better clues the extension found for a step that missed or played weak (C14); the admin accepts or dismisses them. */
+export interface WebTourSuggestion {
+  locator: WebTourLocator;
+  source: 'admin' | 'check' | 'teacher';
+  /** Runs that suggested these clues. */
+  count: number;
+  at: number;
+  /** Fingerprint of the step's clues it would replace; a changed step hides it. */
+  base: string;
 }
 
 export interface GuidedLearningTourBinding {
@@ -8504,6 +8735,16 @@ export interface GuidedLearningSet {
   hasLiveTour?: boolean;
   /** Tour sets only: 'web' plays on other websites through the Chrome extension; absent = 'spartboard'. */
   surface?: GuidedLearningTourSurface;
+  /** Web tours: the admin confirmed no private data in the pictures; `sig` fingerprints which pictures. */
+  webPicturesChecked?: WebTourStudentDataCheck;
+  /** Web tours: what the tour explains, for Claude; never published. */
+  webGoal?: string;
+  /** Web tours: the last Check tour run, which Publish needs passing for these targets (C13). */
+  webTourChecked?: WebTourCheckRun;
+  /** Web tours: suggested fixes from check runs, by step id; never published. */
+  webSuggestions?: Record<string, WebTourSuggestion>;
+  /** Web tours: the fingerprint of the fix the admin dismissed, by step id; never published. */
+  webFixDismissed?: Record<string, string>;
 }
 
 /** A live tour's notes for Claude and last editor playtest, at building_guided_learning/{setId}/review/current; admins only. */
@@ -8782,6 +9023,8 @@ export interface GuidedLearningConfig {
   view: 'library' | 'editor' | 'player' | 'results';
   /** ID of the set currently loaded in player view */
   playerSetId?: string | null;
+  /** Whose library the player's set is in, so other members of a shared board can find its copy. */
+  playerSetOwnerUid?: string | null;
   /** Session ID when viewing results */
   resultsSessionId?: string | null;
   /** Persisted library grid/list toggle. */
@@ -9252,6 +9495,8 @@ export interface FlashcardsConfig {
   /** Assignment whose teacher results are open in the `results` view. */
   activeAssignmentId?: string;
   presentSetId?: string;
+  /** Whose library the presented set is in, so other members of a shared board can find it. */
+  presentSetOwnerUid?: string | null;
   presentShowFirst: FlashcardSide;
   presentShuffle: boolean;
   lastRosterIdsBySetId?: Record<string, string[]>;
@@ -9461,6 +9706,8 @@ export interface ProjectsConfig {
   managerTab?: 'library' | 'active' | 'archive';
   /** The project open in board view. Not a binding — the manager retargets it. */
   projectId?: string;
+  /** Whose library the open project is in, so other members of a shared board can find it. */
+  projectOwnerUid?: string | null;
   /** Legacy D27 toggle; `false` still reads as collapsed until `boardCollapsed` is written. */
   showStatus?: boolean;
   /** D37 — board drawn as one segmented bar per group. Per board, not an appearance key. */
@@ -10029,6 +10276,8 @@ export interface Dashboard {
   linkedShareRole?: DashboardShareRole;
   /** Cached host display name for the share banner. */
   linkedShareHostName?: string;
+  /** The share's host uid, recorded at join; a share doc naming another host is treated as ended. */
+  linkedShareHostUid?: string;
   /** True after the host has revoked the share — guests see a "share ended" indicator. */
   linkedShareEnded?: boolean;
   /**
@@ -10195,6 +10444,8 @@ export type GlobalFeature =
   | 'quiz-import-versions-plain'
   /** Live tours on other websites, played by the Chrome extension (docs/plans/CHROME_EXTENSION.md T12). */
   | 'web-tours'
+  /** Full pages opened from the sidebar close with a top-left back arrow instead of a top-right X. */
+  | 'full-page-back-arrow'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
@@ -10226,6 +10477,8 @@ export type GlobalFeature =
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
   | 'quiz-attempt-history'
+  /** Per-question "Spell check" switch on quiz Free Response questions. */
+  | 'quiz-spell-check-toggle'
   /** Quiz rubrics are hidden from students unless the teacher shows them per question. */
   | 'quiz-rubric-visibility'
   /** AP-style scoring-guide rubrics with example responses, beside levels rubrics. */
@@ -10259,6 +10512,12 @@ export type GlobalFeature =
   | 'plc-docs-toolbar'
   /** Team action items sync to the assignee's Google Tasks (docs/plans/GOOGLE_TASKS_ACTION_ITEMS.md). */
   | 'google-tasks-sync'
+  /** Move up and Move down in a library folder's menu. */
+  | 'library-folder-reorder'
+  /** Simple/Detailed choice in Arts & Letters Agenda settings. */
+  | 'agenda-versions'
+  /** PLC teams open on a Home page; Data overview becomes a regular tab. */
+  | 'plc-home-tab'
   /** AI coach that checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22). */
   | 'plc-goal-coach'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
@@ -10271,6 +10530,8 @@ export type GlobalFeature =
   | 'mini-app-results'
   /** Quiz live monitor declutter (#4023): footer buttons, Close all, no More actions menu for assessments. */
   | 'quiz-monitor-declutter'
+  /** Same monitor layout across Quiz, Video Activity, Flashcards, Guided Learning and Mini App. */
+  | 'monitor-parity'
   | 'quiz-banks-in-library'
   /** Teachers turn in a quiz for a student who left without submitting. */
   | 'quiz-submit-for-student'
@@ -10280,6 +10541,22 @@ export type GlobalFeature =
   | 'activity-wall-timeline-dates'
   /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
   | 'checklist-small-card'
+  /** Synced and View-Only collection sharing (docs/plans/COLLECTION_SHARING.md). */
+  | 'collection-sync-sharing'
+  /** Members of a shared board see the owner's Activity Wall and its approved posts live. */
+  | 'shared-board-live-walls'
+  /** Seating Chart saved seating plans, shuffle rules and print (poll-pro/SEATING_CHART_PLAN.md). */
+  | 'seating-chart-plans'
+  /** Scoreboard undo, score history, point buttons, leader marker and score motion. */
+  | 'scoreboard-pro'
+  /** Poll: hide results until revealed, lock voting, answered count (docs/plans/shipped/POLL_PRO.md). */
+  | 'poll-pro'
+  /** Sound widget target level, Too loud alert, calibration, quiet time goal and summary (pro-grade-2/NOISE_METER_PLAN.md). */
+  | 'noise-meter-pro'
+  /** Camera as a document camera: zoom, pan, rotate, freeze, draw, compare, resolution. */
+  | 'document-camera-pro'
+  /** Drawing zoom and pan, highlighter, laser pointer, sticky notes, shape polish and copy/paste (pro-grade-2/WHITEBOARD_PLAN.md). */
+  | 'whiteboard-pro'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak';
 
@@ -11542,6 +11819,63 @@ export interface Collection {
   createdAt: number;
   /** Epoch ms at last rename / move / reorder / metadata change. */
   updatedAt?: number;
+  /** `/linked_collections/{id}` this collection mirrors (Synced / View-Only share). */
+  linkedCollectionId?: string;
+  /** This teacher's role in that link; `owner` is the host. */
+  linkedCollectionRole?: DashboardShareRole;
+  /** The link ended or this teacher left; the boards stay as their own copies. */
+  linkedCollectionEnded?: boolean;
+  /** `LinkedCollectionSection.id` this sub-collection mirrors inside a linked collection. */
+  linkedSectionId?: string;
+}
+
+/** Mode of a live collection share; Make a copy stays on `/shared_collections`. */
+export type LinkedCollectionMode = 'synced' | 'view-only';
+
+/** One board in a linked collection; its content is the `/shared_boards/{shareId}` doc. */
+export interface LinkedCollectionBoard {
+  shareId: string;
+  name: string;
+  order: number;
+  /** `LinkedCollectionSection.id`; absent for boards at the top level. */
+  sectionId?: string;
+}
+
+/** A sub-collection inside a linked collection (D1). */
+export interface LinkedCollectionSection {
+  id: string;
+  name: string;
+  /** Parent section id, or `null` for a direct child of the shared collection. */
+  parentId: string | null;
+  order: number;
+  color?: string;
+}
+
+export interface LinkedCollectionParticipant {
+  role: Exclude<DashboardShareRole, 'owner'>;
+  name?: string;
+  joinedAt: number;
+}
+
+/** `/linked_collections/{linkId}`: a collection shared Synced or View-Only. */
+export interface LinkedCollection {
+  linkId: string;
+  hostUid: string;
+  hostName: string | null;
+  mode: LinkedCollectionMode;
+  name: string;
+  color?: string;
+  icon?: string;
+  boards: LinkedCollectionBoard[];
+  sections?: LinkedCollectionSection[];
+  /** Section ids deleted or moved out, newest last (cap 200), so no member lists them again. */
+  deletedSections?: string[];
+  participants: Record<string, LinkedCollectionParticipant>;
+  createdAt: number;
+  updatedAt: number;
+  updatedBy: string;
+  /** Set by the host's Stop sharing. */
+  ended?: boolean;
 }
 
 /**
@@ -11571,6 +11905,8 @@ export interface SharedCollectionSection {
   id: string;
   name: string;
   color?: string;
+  /** Parent section id; absent on the root and on shares written before D1. */
+  parentId?: string;
 }
 
 /** A shared Board's name, section and place in the walk order. */

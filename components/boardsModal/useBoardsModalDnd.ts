@@ -16,6 +16,10 @@ import {
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useTranslation } from 'react-i18next';
+import {
+  useConfirmLinkedBoardRemoval,
+  useConfirmLinkedCollectionMove,
+} from '@/hooks/useConfirmLinkedBoardRemoval';
 import { useDashboard } from '@/context/useDashboard';
 import { logError } from '@/utils/logError';
 import { placeRelative } from '@/utils/reorderIds';
@@ -146,6 +150,8 @@ export const useBoardsModalDnd = ({
     collectionsApi: { collections, moveCollection, reorderSiblings },
   } = useDashboard();
   const { t } = useTranslation();
+  const confirmLinkedRemoval = useConfirmLinkedBoardRemoval();
+  const confirmLinkedCollectionMove = useConfirmLinkedCollectionMove();
   // e.g. 'board:abc' or 'collection:xyz' — drives the DragOverlay preview.
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(
@@ -204,8 +210,18 @@ export const useBoardsModalDnd = ({
       try {
         if (drop.mode === 'into') {
           if (active.kind === 'board') {
+            if (
+              !(await confirmLinkedRemoval([active.id], {
+                kind: 'move',
+                collectionId: destination,
+              }))
+            )
+              return;
             await moveBoardToCollection(active.id, destination);
           } else {
+            if (!(await confirmLinkedCollectionMove(active.id, destination))) {
+              return;
+            }
             await moveCollection(active.id, destination);
           }
           return;
@@ -248,6 +264,8 @@ export const useBoardsModalDnd = ({
     },
     [
       resolveDrop,
+      confirmLinkedRemoval,
+      confirmLinkedCollectionMove,
       moveBoardToCollection,
       moveCollection,
       reorderDashboards,

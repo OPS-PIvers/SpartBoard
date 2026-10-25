@@ -36,6 +36,7 @@ const model = (
   pathByItemId: new Map(),
   folderIdOf: () => null,
   emptyFolder: false,
+  folderReorder: null,
   ...overrides,
 });
 

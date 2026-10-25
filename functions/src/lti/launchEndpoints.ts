@@ -22,7 +22,7 @@ import { verifyLaunchJwt, launchRedirectTarget } from './jwt';
 import type { NrpsEndpoint } from './jwt';
 import { ltiStudentUid } from './identity';
 import { resolveClasslinkIdentity } from './classlinkBridge';
-import { persistLtiLaunchContext } from './nrpsStore';
+import { persistLtiLaunchContext, ltiQuizOwner } from './nrpsStore';
 import type { LtiTargetSessionArgs } from './nrpsStore';
 import { chooseLaunchUid } from './preLinkResponse';
 import {
@@ -216,6 +216,22 @@ export const ltiLaunch = onRequest(
           url.searchParams.set('sessionId', custom['session_id']);
         } else if (typeof custom['quiz_code'] === 'string') {
           url.searchParams.set('code', custom['quiz_code']);
+          const teacher = await ltiQuizOwner(
+            db,
+            custom['quiz_code'],
+            launchTeacherUid(custom),
+            claims.contextId
+          );
+          // Without a provable owner the student could land in another teacher's session.
+          if (!teacher) {
+            res
+              .status(409)
+              .send(
+                'This assignment link needs to be added again by your teacher.'
+              );
+            return;
+          }
+          url.searchParams.set('teacher', teacher);
         }
       }
 
@@ -229,7 +245,8 @@ export const ltiLaunch = onRequest(
 
 /** The session a student launch targets, from the deep-link's custom claim. */
 function launchTargetSession(
-  custom: Record<string, unknown> | null | undefined
+  custom: Record<string, unknown> | null | undefined,
+  contextId: string | null
 ): LtiTargetSessionArgs | null {
   if (custom?.['kind'] === 'va') {
     const sessionId = custom['session_id'];
@@ -239,8 +256,21 @@ function launchTargetSession(
   }
   const quizCode = custom?.['quiz_code'];
   return typeof quizCode === 'string' && quizCode
-    ? { kind: 'quiz', quizCode }
+    ? {
+        kind: 'quiz',
+        quizCode,
+        teacherUid: launchTeacherUid(custom),
+        contextId,
+      }
     : null;
+}
+
+/** The deep-linking teacher's uid from the signed custom claim, or null on older links. */
+function launchTeacherUid(
+  custom: Record<string, unknown> | null | undefined
+): string | null {
+  const uid = custom?.['teacher_uid'];
+  return typeof uid === 'string' && uid ? uid : null;
 }
 
 // ── ltiExchange ───────────────────────────────────────────────────────────────
@@ -337,7 +367,7 @@ export const ltiExchange = onCall(
       ? await chooseLaunchUid(db, {
           subUid,
           bridgedUid: bridged.uid,
-          target: launchTargetSession(launch.custom),
+          target: launchTargetSession(launch.custom, launch.contextId),
         })
       : subUid;
     // Carry BOTH ids when bridged: the ClassLink class id so /my-assignments
@@ -435,6 +465,7 @@ export const ltiExchange = onCall(
           await persistLtiLaunchContext(db, {
             kind: 'quiz',
             quizCode,
+            teacherUid: launchTeacherUid(launch.custom),
             ...common,
           });
         }

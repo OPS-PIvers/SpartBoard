@@ -25,6 +25,7 @@ import { ScheduleConfigurationPanel } from './ScheduleConfigurationPanel';
 import { ClockConfigurationPanel } from './ClockConfigurationPanel';
 import { TimeToolConfigurationPanel } from './TimeToolConfigurationPanel';
 import { ChecklistConfigurationPanel } from './ChecklistConfigurationPanel';
+import { ArtsLettersAgendaConfigurationPanel } from './ArtsLettersAgendaConfigurationPanel';
 import { SoundConfigurationPanel } from './SoundConfigurationPanel';
 import { NoteConfigurationPanel } from './NoteConfigurationPanel';
 import { TrafficLightConfigurationPanel } from './TrafficLightConfigurationPanel';
@@ -102,6 +103,8 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
   clock: ClockConfigurationPanel as unknown as BuildingConfigPanel,
   'time-tool': TimeToolConfigurationPanel as unknown as BuildingConfigPanel,
   checklist: ChecklistConfigurationPanel as unknown as BuildingConfigPanel,
+  'arts-letters-agenda':
+    ArtsLettersAgendaConfigurationPanel as unknown as BuildingConfigPanel,
   sound: SoundConfigurationPanel as unknown as BuildingConfigPanel,
   text: NoteConfigurationPanel as unknown as BuildingConfigPanel,
   traffic: TrafficLightConfigurationPanel as unknown as BuildingConfigPanel,

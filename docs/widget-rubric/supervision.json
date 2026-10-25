@@ -230,6 +230,70 @@
       "widgetType": "checklist",
       "dimension": "layout",
       "openedAt": "2026-10-21T18:35:00Z",
+      "outcome": "changed",
+      "changes": {
+        "S1": {
+          "before": 1,
+          "after": 2
+        },
+        "S3": {
+          "before": 1,
+          "after": 2
+        }
+      }
+    },
+    {
+      "pr": 4502,
+      "widgetType": "schedule",
+      "dimension": "layout",
+      "openedAt": "2026-10-21T18:35:00Z",
+      "outcome": "accepted",
+      "changes": {
+        "S2": {
+          "before": 2,
+          "after": 3
+        },
+        "S3": {
+          "before": 1,
+          "after": 3
+        }
+      }
+    },
+    {
+      "pr": 4533,
+      "widgetType": "countdown",
+      "dimension": "layout",
+      "openedAt": "2026-10-22T04:16:00Z",
+      "outcome": "accepted",
+      "changes": {
+        "S3": {
+          "before": 1,
+          "after": 2
+        },
+        "C1": {
+          "before": 2,
+          "after": 3
+        }
+      }
+    },
+    {
+      "pr": 4594,
+      "widgetType": "countdown",
+      "dimension": "layout",
+      "openedAt": "2026-10-23T04:11:00Z",
+      "outcome": "accepted",
+      "changes": {
+        "S1": {
+          "before": 2,
+          "after": 3
+        }
+      }
+    },
+    {
+      "pr": 4628,
+      "widgetType": "graphic-organizer",
+      "dimension": "layout",
+      "openedAt": "2026-10-24T04:16:30Z",
       "outcome": "open",
       "changes": {
         "S1": {
@@ -239,6 +303,14 @@
         "S3": {
           "before": 1,
           "after": 2
+        },
+        "S7": {
+          "before": 2,
+          "after": 3
+        },
+        "I2": {
+          "before": 2,
+          "after": 3
         }
       }
     }

@@ -131,6 +131,37 @@ function mockHooks() {
   } as unknown as ReturnType<typeof useFolders>);
 }
 
+const boardItemMock = vi.hoisted(() => {
+  const state: {
+    status: 'off' | 'pending' | 'foreign' | 'none';
+    item: { ownerUid: string; payload: unknown } | null;
+  } = { status: 'off', item: null };
+  return {
+    shareId: null as string | null,
+    state,
+    published: [] as {
+      itemId?: string | null;
+      version?: string | null;
+      build?: () => Promise<unknown>;
+    }[],
+  };
+});
+vi.mock('@/hooks/useSharedBoardItem', () => ({
+  useSharedBoardItem: () => boardItemMock.state,
+  useSharedBoardItemPublisher: (args: {
+    itemId?: string | null;
+    version?: string | null;
+    build?: () => Promise<unknown>;
+  }) => {
+    boardItemMock.published.push(args);
+  },
+}));
+
+beforeEach(() => {
+  boardItemMock.shareId = null;
+  boardItemMock.state = { status: 'off', item: null };
+  boardItemMock.published = [];
+});
 // `/subs` renders the teacher's board, so the sub sees the set the teacher was
 // presenting and none of the library, assigning or results around it.
 describe('FlashcardsWidget — inside a sub share', () => {
@@ -297,6 +328,46 @@ describe('FlashcardsWidget — on the teacher’s own board', () => {
     expect(screen.getByText('Back to library')).toBeInTheDocument();
     expect(screen.getByText('settings writable')).toBeInTheDocument();
     expect(vi.mocked(useFlashcardSets)).toHaveBeenCalledWith('teacher-1');
+  });
+});
+
+describe('FlashcardsWidget — on a Synced or View-Only board', () => {
+  beforeEach(mockHooks);
+
+  const hostSet = {
+    id: 'host-set',
+    title: 'Planets',
+    termLanguage: 'en',
+    definitionLanguage: 'en',
+    cards: [{ id: 'h1', term: 'Mars', definition: 'Red planet' }],
+  };
+
+  it("presents another member's set read-only", () => {
+    boardItemMock.state = {
+      status: 'foreign',
+      item: { ownerUid: 'host-1', payload: { set: hostSet } },
+    };
+    render(<FlashcardsWidget widget={widget('host-set')} />);
+
+    expect(screen.getByText('1 cards: Mars')).toBeInTheDocument();
+    expect(screen.queryByText('Back to library')).not.toBeInTheDocument();
+    expect(screen.queryByText('settings writable')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('sub-launch')).not.toBeInTheDocument();
+  });
+
+  it("waits for the board's copy instead of showing the viewer's library", () => {
+    boardItemMock.state = { status: 'pending', item: null };
+    render(<FlashcardsWidget widget={widget('host-set')} />);
+
+    expect(screen.getByText('Opening…')).toBeInTheDocument();
+  });
+
+  it('publishes the set the owner is presenting', () => {
+    render(<FlashcardsWidget widget={widget('s-1')} />);
+    expect(boardItemMock.published.at(-1)).toMatchObject({
+      itemId: 's-1',
+      version: expect.any(String) as unknown,
+    });
   });
 });
 

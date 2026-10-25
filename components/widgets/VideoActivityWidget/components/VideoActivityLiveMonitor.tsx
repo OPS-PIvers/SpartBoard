@@ -64,8 +64,9 @@ import { PeriodAccessStrip } from '@/components/widgets/QuizWidget/components/mo
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import { deriveRunState } from '@/utils/sessionLifecycle';
 import { isVaResponseCompleted } from '@/utils/videoActivityState';
+import { VideoActivityMonitor } from './monitor/VideoActivityMonitor';
 
-interface VideoActivityLiveMonitorProps {
+export interface VideoActivityLiveMonitorProps {
   session: VideoActivitySession;
   responses: VideoActivityResponse[];
   /**
@@ -382,7 +383,19 @@ const StudentRow: React.FC<StudentRowProps> = ({
 
 /* ─── Main component ────────────────────────────────────────────────────── */
 
+// The Quiz-style monitor stays behind 'monitor-parity' until it opens; this one is the default.
 export const VideoActivityLiveMonitor: React.FC<
+  VideoActivityLiveMonitorProps
+> = (props) => {
+  const { canAccessFeature } = useAuth();
+  return canAccessFeature('monitor-parity') ? (
+    <VideoActivityMonitor {...props} />
+  ) : (
+    <LegacyVideoActivityLiveMonitor {...props} />
+  );
+};
+
+const LegacyVideoActivityLiveMonitor: React.FC<
   VideoActivityLiveMonitorProps
 > = ({
   session,

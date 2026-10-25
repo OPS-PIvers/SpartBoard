@@ -1099,6 +1099,10 @@ describe('hiddenToolsFor', () => {
       'get_live_tour',
       'get_mini_app_results_summary',
       'get_mini_app_spec',
+      'get_web_tour',
+      'get_web_tour_step_picture',
+      'list_web_tours',
+      'update_web_tour_text',
     ]);
   });
 

@@ -16,5 +16,6 @@ export default {
     `${root}extension/src/sidepanel/**/*.{ts,tsx}`,
     `${root}components/tours/Tour{Bar,Spotlight,Tip}.tsx`,
     `${root}components/common/lightChrome.ts`,
+    `${root}components/tours/web/BlurBoxes.tsx`,
   ],
 } satisfies Config;

@@ -566,6 +566,8 @@ service cloud.firestore {
           (isSuperAdmin() ||
            (sameId() &&
             unchanged('orgId') &&
+            // A verified domain can't be renamed: that would claim another org's domain unverified.
+            (existing().get('status', '') != 'verified' || unchanged('domain')) &&
             changedOnly([
               'domain', 'authMethod', 'role'
             ])));
@@ -1118,6 +1120,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Rollout switch for blocking the right-click menu — every student page reads it; admins flip it.
+    match /admin_settings/student_context_menu {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
     // Admin audit log — admin-only read; create-only (append-only so an admin
     // can't edit/delete their own trail). Written by GlobalPermissionsManager on
     // sensitive settings changes. timestamp is set server-side via
@@ -1342,14 +1350,17 @@ service cloud.firestore {
       allow create, delete: if isAdmin();
       // The read gate rests on surface, so a republish never changes it.
       allow update: if isAdmin() && incoming().get('surface', 'spartboard') == existing().get('surface', 'spartboard');
-      // Each teacher's latest run of the tour (P7-6): write-only, admins read. Web tour runs add surface and weak (T10).
+      // Each teacher's latest run of the tour (P7-6): write-only, admins read. Web tour runs add surface and weak (T10),
+      // suggested fixes by step (C14), and `admin` on an admin's own run, whose fixes show after one run.
       match /runs/{uid} {
         function validRun(d) {
-          return d.keys().hasOnly(['v', 'startedAt', 'furthest', 'done', 'exit', 'misses', 'surface', 'weak']) &&
+          return d.keys().hasOnly(['v', 'startedAt', 'furthest', 'done', 'exit', 'misses', 'surface', 'weak', 'fixes', 'admin']) &&
             d.v is int && d.startedAt is int && d.done is bool && optInt(d, 'exit') &&
             d.furthest is int && d.furthest >= 0 && d.furthest <= 500 &&
             d.misses is list && d.misses.size() <= 50 &&
-            d.get('surface', 'web') == 'web' && d.get('weak', []) is list && d.get('weak', []).size() <= 50;
+            d.get('surface', 'web') == 'web' && d.get('weak', []) is list && d.get('weak', []).size() <= 50 &&
+            d.get('fixes', {}) is map && d.get('fixes', {}).size() <= 50 &&
+            (!('admin' in d) || (d.admin == true && isAdmin()));
         }
         allow read: if isAdmin();
         allow create, update: if staff() && uid == authUid() && validRun(incoming());
@@ -1408,6 +1419,10 @@ service cloud.firestore {
     // user may append only themselves to participants; intendedMode immutable after
     // create (the recipient flow trusts it to skip the picker).
     match /shared_boards/{shareId} {
+      function sbLinkHostOf(link) {
+        return link.hostUid == authUid()
+          && existing().get('originalAuthor', '') in link.participants;
+      }
       // GET (single doc, `resource` fully bound). Substitute shares carry org-internal
       // routing/Drive-grant metadata, so reads are limited to host, admins, and
       // @orono.k12.mn.us callers AND not past expiresAt for the email branch - otherwise
@@ -1417,8 +1432,10 @@ service cloud.firestore {
       // email_verified is REQUIRED on the @orono branch, same reason as isAdmin() above -
       // otherwise an unverified email/password account could self-report an
       // @orono.k12.mn.us address it doesn't own.
+      // A missing doc reads as missing, so a fixed-id share can be created only if absent (two tabs).
       allow get: if signedIn() && (
-        existing().get('intendedMode', null) != 'substitute'
+        resource == null
+        || existing().get('intendedMode', null) != 'substitute'
         || existing().get('originalAuthor', null) == authUid()
         || isAdmin()
         || (
@@ -1537,13 +1554,18 @@ service cloud.firestore {
         incoming().get('originalAuthorName', null) == existing().get('originalAuthorName', null) &&
         incoming().get('sharedAt', null) == existing().get('sharedAt', null) &&
         incoming().get('intendedMode', null) == existing().get('intendedMode', null) &&
-        incoming().get('plcId', null) == existing().get('plcId', null);
+        incoming().get('plcId', null) == existing().get('plcId', null) &&
+        incoming().get('linkedCollectionId', null) == existing().get('linkedCollectionId', null);
 
-      // Self-join: any authed user may add ONLY their own uid to participants
+      // Self-join: any signed-in teacher (not anonymous, not a student) may add ONLY their own uid to participants
       // (Synced/View-Only importers). Not allowed on substitute shares — subs
       // view via /subs without importing, so a self-join would be a phantom.
-      allow update: if signedIn() &&
+      allow update: if signedIn() && notAnon() && !isStudentRoleUser() &&
         existing().get('intendedMode', null) != 'substitute' &&
+        // A View-Only link only ever makes a viewer; a Copy link makes no member.
+        existing().get('intendedMode', null) != 'copy' &&
+        (existing().get('intendedMode', null) != 'view-only'
+          || incoming().participants[authUid()].get('role', '') == 'viewer') &&
         !(authUid() in existing().get('participants', {})) &&
         authUid() in incoming().get('participants', {}) &&
         incoming().participants.diff(existing().get('participants', {}))
@@ -1559,8 +1581,55 @@ service cloud.firestore {
           .affectedKeys().hasOnly([authUid()]) &&
         changedOnly(['participants']);
 
-      allow delete: if signedIn() &&
-        (existing().get('originalAuthor', null) == authUid() || isAdmin());
+      // The host of the shared collection a board belongs to may end it (Stop sharing),
+      // including boards a current collaborator added (docs/plans/COLLECTION_SHARING.md
+      // step 5). The author must still be a member: a host can't add members, so a link
+      // re-created at an orphaned id never covers another teacher's board.
+      allow delete: if signedIn() && (
+        existing().get('originalAuthor', null) == authUid() || isAdmin()
+        || (existing().get('linkedCollectionId', null) is string
+            && sbLinkHostOf(get(/databases/$(database)/documents/linked_collections/$(existing().linkedCollectionId)).data))
+      );
+
+      // Read-only copies of library items for the share's co-teachers (co-teaching plan slices 4-5).
+      // Id {kind}_{ownerUid}_{itemId}: only the owner writes it, holding the item in their own library.
+      match /items/{itemDocId} {
+        function sbItemShare() {
+          return get(/databases/$(database)/documents/shared_boards/$(shareId)).data;
+        }
+        // Library collection per kind; '' for anything else.
+        function sbItemCollection(kind) {
+          return {'quiz': 'quizzes', 'videoActivity': 'video_activities',
+                  'guidedLearning': 'guided_learning', 'flashcards': 'flashcard_sets',
+                  'notebook': 'notebooks', 'project': 'projects'}.get(kind, '');
+        }
+        function sbItemWriteOk() {
+          let sb = sbItemShare();
+          let d = incoming();
+          return notAnon() && !isStudentRoleUser() && d.ownerUid == authUid()
+            && (sb.originalAuthor == authUid()
+                || sb.get('participants', {}).get(authUid(), {}).get('role', '') == 'collaborator')
+            && d.keys().hasOnly(['kind', 'itemId', 'ownerUid', 'title', 'version', 'publishedAt', 'payload'])
+            && isStr('kind') && isStr('itemId') && itemDocId == d.kind + '_' + authUid() + '_' + d.itemId
+            && sbItemCollection(d.kind) != ''
+            && isStr('title') && d.title.size() <= 500
+            && isStr('version') && d.version.size() <= 200
+            && isMap('payload')
+            && exists(/databases/$(database)/documents/users/$(authUid())/$(sbItemCollection(d.kind))/$(d.itemId));
+        }
+        function sbItemMember(uid) {
+          return sbItemShare().originalAuthor == uid || uid in sbItemShare().get('participants', {});
+        }
+        // The owner must still belong to the share too, so a share recreated at an old id can't read
+        // copies the deleted share left behind.
+        allow get: if signedIn() && notAnon() && !isStudentRoleUser() && isVerifiedDistrictEmail()
+          && sbItemMember(authUid())
+          && (resource == null || sbItemMember(existing().get('ownerUid', '')));
+        allow create: if signedIn() && sbItemWriteOk();
+        allow update: if signedIn() && existing().ownerUid == authUid() && sbItemWriteOk();
+        allow delete: if signedIn() && (existing().get('ownerUid', null) == authUid()
+                                        || sbItemShare().originalAuthor == authUid());
+      }
     }
 
     // Collection-level shares — parent holds metadata, /boards/{boardId}
@@ -1733,6 +1802,71 @@ service cloud.firestore {
         );
         allow create, update, delete: if isShareHost();
       }
+    }
+
+    // Synced / View-Only collection link (docs/plans/COLLECTION_SHARING.md). Board content
+    // lives in /shared_boards; this doc holds the collection's name, board list and members.
+    match /linked_collections/{linkId} {
+      function lcTeacher() {
+        return signedIn() && notAnon() && !isStudentRoleUser();
+      }
+      function lcShape() {
+        return incoming().mode in ['synced', 'view-only']
+          && isStr('name') && incoming().name.size() > 0 && incoming().name.size() <= 200
+          && isList('boards') && incoming().boards.size() <= 200
+          && (!('sections' in incoming())
+              || (isList('sections') && incoming().sections.size() <= 200))
+          && incoming().get('deletedSections', []) is list
+          && incoming().get('deletedSections', []).size() <= 200
+          && isMap('participants') && incoming().participants.size() <= 50
+          && incoming().get('removed', {}) is map && incoming().get('removed', {}).size() <= 200
+          && incoming().get('ended', false) is bool;
+      }
+      function lcLive() { return existing().get('ended', false) == false; }
+
+      // Anyone holding the link id may read it (import), like /shared_boards. Students may not.
+      allow get: if lcTeacher();
+      allow list: if lcTeacher() && existing().get('hostUid', null) == authUid();
+
+      allow create: if lcTeacher() && incoming().hostUid == authUid()
+        && incoming().participants.size() == 0 && incoming().get('ended', false) == false
+        && lcShape();
+
+      // Host: everything but who hosts, the mode and createdAt. Members are only ever
+      // removed here (never added), so a link can't claim another teacher's boards.
+      allow update: if lcTeacher() && existing().hostUid == authUid()
+        && unchanged('hostUid') && unchanged('mode') && unchanged('createdAt')
+        && (lcLive() || incoming().ended == true)
+        && incoming().participants.keys().hasOnly(existing().participants.keys())
+        && lcShape();
+
+      // Synced collaborator: the collection's look and board list, while the share is live.
+      allow update: if lcTeacher() && existing().mode == 'synced' && lcLive()
+        && existing().participants.get(authUid(), {}).get('role', '') == 'collaborator'
+        && changedOnly(['name', 'color', 'icon', 'boards', 'sections', 'deletedSections', 'updatedAt', 'updatedBy'])
+        && incoming().updatedBy == authUid() && lcShape();
+
+      // Self-join, only with the role the mode grants (a View-Only link never makes an editor).
+      allow update: if lcTeacher() && lcLive()
+        && !(authUid() in existing().participants)
+        && !(authUid() in existing().get('removed', {}))
+        && changedOnly(['participants'])
+        && incoming().participants.diff(existing().participants).affectedKeys().hasOnly([authUid()])
+        && incoming().participants[authUid()].keys().hasOnly(['role', 'name', 'joinedAt'])
+        && incoming().participants[authUid()].role
+          == (existing().mode == 'synced' ? 'collaborator' : 'viewer')
+        && incoming().participants[authUid()].get('name', '') is string
+        && incoming().participants[authUid()].get('name', '').size() <= 100
+        && incoming().participants[authUid()].joinedAt is number
+        && lcShape();
+
+      // Self-leave.
+      allow update: if signedIn() && authUid() in existing().participants
+        && !(authUid() in incoming().participants)
+        && changedOnly(['participants'])
+        && existing().participants.diff(incoming().participants).affectedKeys().hasOnly([authUid()]);
+
+      allow delete: if signedIn() && (existing().hostUid == authUid() || isAdmin());
     }
 
     // Preset substitute emails — per-building list of generic sub accounts,
@@ -4308,22 +4442,54 @@ service cloud.firestore {
     }
 
     // Sessions - Teacher owns it, Students can join
+    // Live Session broadcasters: never anonymous or studentRole, and a verified email.
+    function liveTeacher() {
+      return signedIn() && notAnon() && !isStudentRoleUser() &&
+        request.auth.token.get('email_verified', false) == true;
+    }
+
+    // Live Session join code -> broadcaster pointer, create-if-absent, so a code has
+    // exactly one owner and joinSession resolves it to that teacher's session only.
+    match /live_session_codes/{code} {
+      allow get: if signedIn();
+      allow create: if liveTeacher() &&
+        code.matches('^[A-Z0-9]{6}$') &&
+        incoming().keys().hasOnly(['teacherUid', 'createdAt']) &&
+        incoming().teacherUid == authUid() &&
+        isInt('createdAt');
+      allow delete: if signedIn() && existing().teacherUid == authUid();
+    }
+
     match /sessions/{userId} {
-      // Only authenticated users (including anonymous) can read sessions
-      // This allows students to find sessions by code and listen to updates.
-      // Also relied on by hooks/useLiveSession.ts's allocateSessionCode()
-      // for its collision check — narrowing this will break it too.
-      // TODO: For Phase 2/Production, implement Cloud Functions to validate
-      // join codes server-side and remove this broad read permission.
+      // Only authenticated users (including anonymous) can read sessions so a
+      // joined student can follow their teacher's broadcast.
+      // TODO: For Phase 2/Production, remove this broad read permission.
       allow read: if signedIn();
-      allow write: if signedIn() && authUid() == userId; // Teacher controls it
+      // Shape-checks only the keys a write sets, so a legacy doc can still be ended, frozen or switched.
+      function liveSessionOk(k) {
+        return k.hasOnly(['id', 'isActive', 'activeWidgetId', 'activeWidgetType',
+            'activeWidgetConfig', 'background', 'code', 'frozen', 'createdAt']) &&
+          (request.method == 'update' || k.hasAll(['isActive', 'frozen', 'code'])) &&
+          (!('isActive' in k) || isBool('isActive')) && (!('frozen' in k) || isBool('frozen')) &&
+          (!('activeWidgetConfig' in k) || isMap('activeWidgetConfig')) &&
+          (!('background' in k) || isStr('background')) &&
+          (!('code' in k) || (isStr('code') &&
+            getAfter(/databases/$(database)/documents/live_session_codes/$(incoming().code)).data.teacherUid == userId));
+      }
+      // Teacher-only; a new `code` must be a /live_session_codes pointer this teacher owns (getAfter: same batch).
+      allow create, update: if liveTeacher() && authUid() == userId &&
+        liveSessionOk(request.method == 'create' ? incoming().keys() :
+          incoming().diff(existing()).addedKeys().union(incoming().diff(existing()).changedKeys()));
+      allow delete: if signedIn() && authUid() == userId;
 
       match /students/{studentId} {
-        // Student session records store only a PIN - no PII. The anonymous auth UID is the
-        // doc ID so rules can validate ownership without server-side logic. Authed users
-        // read (PIN duplicate checks); students create/update only their own record
-        // (heartbeats/disconnects); only teacher and admins delete.
-        allow read: if signedIn();
+        // Student session records store the roster PIN the student typed, which pinLoginV1
+        // accepts as proof of identity, so only the teacher, admins and the student
+        // themselves read it. The anonymous auth UID is the doc ID so rules can validate
+        // ownership without server-side logic; students create/update only their own
+        // record (heartbeats/disconnects); only teacher and admins delete.
+        allow read: if signedIn() &&
+          (authUid() == userId || authUid() == studentId || isAdmin());
         // Matches the client's exact write shape (useLiveSession.ts `newStudent`) - without
         // it, any caller who learns a sessionId could spray unbounded arbitrary-shape docs
         // into a teacher's live roster. pin is capped at MAX_PIN_LENGTH (10).
@@ -4634,6 +4800,13 @@ service cloud.firestore {
       function sessionTeacherUid() {
         return sessionData().teacherUid;
       }
+      // A served-subset pointer counts only when this session's teacher wrote it for this session.
+      // One list compare, and a missing pointer/field errors (denies): the response update rule
+      // sits at Firestore's 1,000-expression limit.
+      function servedPointerOk(p) {
+        return [p.teacherUid, p.sessionId, p.override.questionIds] ==
+          [sessionTeacherUid(), sessionId, incoming().servedQuestionIds];
+      }
       allow create: if signedIn() &&
         notAnon() &&
         incoming().teacherUid == authUid() &&
@@ -4641,8 +4814,10 @@ service cloud.firestore {
         (!('plcId' in incoming()) || plcLinkOk(incoming()));
       // Update: an unchanged or cleared plcId needs no PLC read; a new/changed
       // non-null plcId re-runs the membership gate.
+      // teacherUid is pinned: Schoology launches trust it to name the session's owner.
       allow update: if signedIn() &&
         existing().teacherUid == authUid() &&
+        unchanged('teacherUid') &&
         subMonitorStampUnchanged() &&
         (!changed(['status']) || incoming().status in ['waiting', 'active', 'paused', 'ended']) &&
         (incoming().get('plcId', null) == existing().get('plcId', null) ||
@@ -4872,9 +5047,7 @@ service cloud.firestore {
              isList('servedQuestionIds') &&
              incoming().servedQuestionIds.size() == sessionData().totalQuestions) ||
             (sessionData().get('assignmentId', '') != '' &&
-             exists(/databases/$(database)/documents/student_assignments/$(existing().studentUid)/items/$(sessionData().assignmentId)) &&
-             incoming().servedQuestionIds ==
-               get(/databases/$(database)/documents/student_assignments/$(existing().studentUid)/items/$(sessionData().assignmentId)).data.get('override', {}).get('questionIds', null))) &&
+             servedPointerOk(get(/databases/$(database)/documents/student_assignments/$(existing().studentUid)/items/$(sessionData().assignmentId)).data))) &&
            // Stimulus telemetry maps (per-attempt play + load-failure counters). Truthfulness
            // is client-enforced diagnostics, not a security boundary - but size is: the teacher
            // monitor reads every response doc in the session, so cap the key count to stop a
@@ -5519,6 +5692,9 @@ service cloud.firestore {
         // encodeResponseKeySegment, closes the cross-auth grief path). studentRole
         // users must be enrolled in the session's class.
         allow create: if signedIn() &&
+          // Join fields only: no session-shaped fields a server reader could trust.
+          incoming().keys().hasOnly(['studentUid', 'joinedAt', 'answers', 'completedAt', 'score',
+            'completedAttempts', 'tabSwitchWarnings', 'pin', 'name', 'classPeriod', 'classId']) &&
           incoming().studentUid == authUid() &&
           incoming().score == null &&
           incoming().completedAt == null &&
@@ -5983,6 +6159,37 @@ service cloud.firestore {
                (awStudentAudienceOk() &&
                 awParentSession().get('studentsCanSeePosts', true) != false);
       }
+      // Teacher on a Synced/View-Only board that shows this wall: the owner lists the board's
+      // share as "shareId/hostUid" in boardAccess/boards (max 3), and both the owner and the
+      // caller belong to it. The ids stay out of the session doc, which students and guests read.
+      // The host pin stops anyone re-creating a deleted share at the same id.
+      // `mod` (approve, hide, pin, move, edit, delete, post) also needs the caller to be the
+      // host or a collaborator on a share that isn't View-Only; members only read approved posts.
+      function awBoardShareOk(entry, mod) {
+        let parts = entry.split('/');
+        let ref = /databases/$(database)/documents/shared_boards/$(parts[0]);
+        let sb = get(ref).data;
+        let members = sb.get('participants', {});
+        return exists(ref) && sb.originalAuthor == parts[1]
+          && (sb.originalAuthor == authUid()
+              || (authUid() in members
+                  && (!mod || (members[authUid()].get('role', '') == 'collaborator'
+                               && sb.get('intendedMode', '') != 'view-only'))))
+          && (sessionId.matches(sb.originalAuthor + '_.*')
+              || sessionId.split('_')[0] in members);
+      }
+      // Verified district accounts only (the /subs rule): Synced and View-Only links self-join.
+      function awBoardMemberOk(mod) {
+        let ids = get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)/boardAccess/boards).data.get('boardShareIds', []);
+        return isVerifiedDistrictEmail() && !isStudentRoleUser() && ids is list && ids.size() <= 3
+          && ((ids.size() > 0 && awBoardShareOk(ids[0], mod))
+              || (ids.size() > 1 && awBoardShareOk(ids[1], mod))
+              || (ids.size() > 2 && awBoardShareOk(ids[2], mod)));
+      }
+      match /boardAccess/{docId} {
+        allow get: if signedIn() && (awIsOwner() || (docId == 'boards' && awBoardMemberOk(false)));
+        allow create, update, delete: if signedIn() && notAnon() && docId == 'boards' && awIsOwner();
+      }
       // Engagement (likes/comments) reads are an unfiltered collection listen
       // (useWallEngagement.ts has no per-post `where`, by design), so the list-query rule
       // can only depend on session-level state: a rule referencing resource.data here
@@ -6141,7 +6348,7 @@ service cloud.firestore {
         // moderation, stamped authorRole 'teacher' so the card is labelled.
         allow create: if signedIn() &&
           notAnon() &&
-          awIsOwner() &&
+          viewAsOk() &&
           awIsPadletSession() &&
           incoming().keys().hasOnly([
             'id', 'activityId', 'content', 'submittedAt', 'status',
@@ -6160,7 +6367,12 @@ service cloud.firestore {
           incoming().authorUid == authUid() &&
           awFieldTypesOk() &&
           awTypeAllowed() &&
-          (!('archiveStatus' in incoming()) || incoming().archiveStatus == 'firebase');
+          (!('archiveStatus' in incoming()) || incoming().archiveStatus == 'firebase') &&
+          // Storage takes uploads only from the owner, so a co-teacher posts text, words and links.
+          (awIsOwner() ||
+           (incoming().get('type', 'text') in ['text', 'word', 'link'] &&
+            !incoming().keys().hasAny(['storagePath', 'fileName', 'mimeType', 'sizeBytes']) &&
+            awBoardMemberOk(true)));
         // Teacher/admins read+delete submissions, EXCEPT a published view-only gallery
         // (publiclyShared) is readable by any authed caller. Delete stays teacher/admin-only.
         // A student can list/get their own posts via where('authorUid','==',uid) even on a
@@ -6178,7 +6390,9 @@ service cloud.firestore {
                              (awStudentAudienceOk() &&
                               awSession().get('studentsCanSeePosts', true) != false &&
                               existing().status == 'approved') ||
-                             existing().authorUid == authUid());
+                             existing().authorUid == authUid() ||
+                             awBoardMemberOk(true) ||
+                             (existing().status == 'approved' && awBoardMemberOk(false)));
         allow delete: if signedIn() &&
                             (isAdmin() || sessionId.matches(authUid() + '_.*'));
         // Students may retract their own post while the wall is open and the
@@ -6188,6 +6402,8 @@ service cloud.firestore {
                             existing().get('authorUid', '') == authUid() &&
                             awSession().get('allowStudentDelete', false) == true &&
                             awAcceptingResponses();
+        // Board co-moderator, after the student branches so a stale share can't crowd them out.
+        allow delete: if signedIn() && viewAsOk() && awBoardMemberOk(true);
         // hasOnly() lists every field this doc can ever carry (create-time fields + the
         // Admin-SDK-written archive fields) since request.resource.data on an update is the
         // doc AFTER merge - untouched existing fields (e.g. driveFileId) stay present and
@@ -6251,6 +6467,26 @@ service cloud.firestore {
                              incoming().archiveStatus == 'firebase') &&
                             (!changed(['storagePath']) ||
                              incoming().storagePath.matches('^activity_wall_media/' + sessionId + '/' + submissionId + '/.+'));
+        // Board co-moderator: moderation and content fields only, never archive or authorship
+        // fields; a content edit is stamped, and an upload's or link's content is its pointer.
+        allow update: if signedIn() &&
+                            viewAsOk() &&
+                            changedOnly([
+                              'status', 'pinned', 'sectionId', 'cellKey', 'order',
+                              'lat', 'lng', 'content', 'title', 'label', 'editedAt'
+                            ]) &&
+                            incoming().status in ['approved', 'pending'] &&
+                            (!changed(['content']) ||
+                             !(existing().get('type', 'text') in ['photo', 'video', 'file', 'link'])) &&
+                            (!changed(['content', 'title', 'label']) || changed(['editedAt'])) &&
+                            (!changed(['editedAt']) ||
+                             (isInt('editedAt') &&
+                              incoming().editedAt > existing().get('editedAt', 0))) &&
+                            isStr('content') &&
+                            incoming().content.size() > 0 &&
+                            incoming().content.size() <= 5000 &&
+                            awFieldTypesOk() &&
+                            awBoardMemberOk(true);
       }
 
       // Likes — one per viewer per post ({submissionId}__{uid} doc id), shared
@@ -6327,6 +6563,7 @@ service cloud.firestore {
           let counts = session.get('optionCounts', []);
           let questionIndex = incoming().questionIndex;
           return session.get('active', false) == true &&
+            !(questionIndex in session.get('lockedQuestions', [])) &&
             questionIndex >= 0 &&
             questionIndex < counts.size() &&
             incoming().optionIndex >= 0 &&
@@ -6336,7 +6573,8 @@ service cloud.firestore {
         // Any authed user (incl. anon) may create/update ONLY the vote doc whose
         // id == `{questionIndex}_{their uid}`. Exactly the three declared keys;
         // questionIndex int in [0, optionCounts.size()); optionIndex int in
-        // [0, optionCounts[questionIndex]); only while active. Re-voting the
+        // [0, optionCounts[questionIndex]); only while active and the question
+        // isn't in lockedQuestions. Re-voting the
         // same question overwrites (one per device per question).
         allow create, update: if signedIn() &&
           incoming().keys().hasOnly(['questionIndex', 'optionIndex', 'votedAt']) &&
@@ -6352,6 +6590,41 @@ service cloud.firestore {
         allow read: if signedIn();
 
         // Delete (reset) is teacher/admin-only.
+        allow delete: if signedIn() &&
+          (isAdmin() || sessionId.matches(authUid() + '_.*'));
+      }
+
+      // Word cloud / open response answers, `{questionIndex}_{uid}`: text
+      // 1-280 chars on a `textQuestions` index of an active session that isn't
+      // locked; votedAt may run a day ahead for a fast student clock. Free text
+      // may identify a student, so only the session owner (or an admin) and the
+      // student who wrote it can read it.
+      match /answers/{answerId} {
+        function answerTargetsOpenTextQuestion() {
+          let session = get(/databases/$(database)/documents/poll_sessions/$(sessionId)).data;
+          let questionIndex = incoming().questionIndex;
+          return session.get('active', false) == true &&
+            questionIndex in session.get('textQuestions', []) &&
+            !(questionIndex in session.get('lockedQuestions', []));
+        }
+
+        allow create, update: if signedIn() &&
+          incoming().keys().hasOnly(['questionIndex', 'text', 'votedAt']) &&
+          isInt('questionIndex') &&
+          isStr('text') &&
+          isInt('votedAt') &&
+          incoming().text.size() > 0 &&
+          incoming().text.size() <= 280 &&
+          incoming().votedAt <= request.time.toMillis() + 86400000 &&
+          answerId == string(incoming().questionIndex) + '_' + authUid() &&
+          exists(/databases/$(database)/documents/poll_sessions/$(sessionId)) &&
+          answerTargetsOpenTextQuestion();
+
+        allow read: if signedIn() &&
+          (isAdmin() ||
+            sessionId.matches(authUid() + '_.*') ||
+            answerId.matches('[0-9]+_' + authUid()));
+
         allow delete: if signedIn() &&
           (isAdmin() || sessionId.matches(authUid() + '_.*'));
       }

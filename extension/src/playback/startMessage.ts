@@ -1,5 +1,6 @@
 import {
   MAX_PICTURE_TOTAL_CHARS,
+  type WebTourCheckStartMessage,
   type WebTourPictureBytes,
   type WebTourStartMessage,
 } from '@/components/tours/web/extensionProtocol';
@@ -10,10 +11,16 @@ export interface ParsedStart {
   stepIndex: number;
   version: number;
   pictures: Record<string, WebTourPictureBytes>;
+  /** Check mode (C12): results go to the page, Next moves on from any step, and nothing counts as a run. */
+  check?: boolean;
+  /** Check mode: the page's id for this run, echoed in every result. */
+  runId?: string;
 }
 
 /** Turns a checked `web-tour/start` message into what playback keeps. */
-export function toPlayback(msg: WebTourStartMessage): ParsedStart {
+export function toPlayback(
+  msg: WebTourStartMessage | WebTourCheckStartMessage
+): ParsedStart {
   const pictures: Record<string, WebTourPictureBytes> = {};
   let pictureChars = 0;
   const steps = msg.tour.steps.map((s) => {
@@ -49,5 +56,6 @@ export function toPlayback(msg: WebTourStartMessage): ParsedStart {
     stepIndex: Math.min(msg.stepIndex, steps.length - 1),
     version: msg.tour.version,
     pictures,
+    ...(msg.type === 'web-tour/check' ? { check: true, runId: msg.runId } : {}),
   };
 }

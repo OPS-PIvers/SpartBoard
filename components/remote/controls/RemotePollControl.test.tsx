@@ -31,6 +31,9 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ user: mockUser, canAccessFeature: mockCanAccessFeature }),
 }));
 vi.mock('@/config/firebase', () => ({ db: {} }));
+vi.mock('@/context/boardLinkedShare', () => ({
+  useBoardLinkedShareId: () => null,
+}));
 vi.mock('firebase/firestore', () => ({
   collection: mockCollection,
   doc: mockDoc,
@@ -112,6 +115,36 @@ beforeEach(() => {
 });
 
 describe('RemotePollControl', () => {
+  it('lets a word cloud question start voting and says answers show on the board', () => {
+    const widget: WidgetData = {
+      ...idleWidget,
+      config: {
+        questions: [
+          { id: 'q1', question: 'One word?', kind: 'words', options: [] },
+        ],
+      },
+    };
+    const { rerender } = render(
+      <RemotePollControl widget={widget} updateWidget={vi.fn()} />
+    );
+    expect(screen.getByRole('button', { name: 'Start voting' })).toBeEnabled();
+    rerender(
+      <RemotePollControl
+        widget={{
+          ...widget,
+          config: {
+            ...widget.config,
+            activePollSessionId: 'K3F9Q',
+            joinCode: 'K3F9Q',
+          },
+        }}
+        updateWidget={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Answers show on the board.')).toBeInTheDocument();
+    expect(screen.queryByText(/No options/)).not.toBeInTheDocument();
+  });
+
   it('shows manual +/- controls when no session is live', () => {
     render(<RemotePollControl widget={idleWidget} updateWidget={vi.fn()} />);
     expect(

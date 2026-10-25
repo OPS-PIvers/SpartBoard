@@ -3,7 +3,7 @@ import { WidgetData, CountdownConfig } from '@/types';
 import { WidgetLayout } from '../WidgetLayout';
 import { getFontClass, hexToRgba } from '@/utils/styles';
 import { useGlobalStyle } from '@/context/dashboardCanvasStore';
-import { parseConfigDate } from './utils';
+import { countDaysBetween, parseConfigDate } from './utils';
 
 interface CountdownDay {
   date: Date;
@@ -14,6 +14,7 @@ interface CountdownDay {
 }
 
 const MAX_PAST_GRID_DAYS = 366;
+const MAX_FUTURE_GRID_DAYS = 366;
 
 // Usable face width in cqw once the title's side padding is taken off.
 const TEXT_CQW = 88;
@@ -101,17 +102,7 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
       return 0;
     }
 
-    let days = 0;
-    const current = new Date(countStart);
-
-    while (current < event) {
-      if (includeWeekends || !isWeekendDate(current)) {
-        days++;
-      }
-      current.setDate(current.getDate() + 1);
-    }
-
-    return days;
+    return countDaysBetween(countStart, event, includeWeekends);
   }, [startDate, eventDate, includeWeekends, countToday, todayMidnightMs]);
 
   const gridData = useMemo(() => {
@@ -130,8 +121,12 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
     const gridStart = new Date(countStart);
     gridStart.setDate(gridStart.getDate() - MAX_PAST_GRID_DAYS);
     const current = new Date(Math.max(start.getTime(), gridStart.getTime()));
+    // Stop a year past the count start so a far-future event can't render millions of cells.
+    const gridEnd = new Date(countStart);
+    gridEnd.setDate(gridEnd.getDate() + MAX_FUTURE_GRID_DAYS);
+    const totalCounted = countDaysBetween(countStart, event, includeWeekends);
 
-    while (current <= event) {
+    while (current <= event && current <= gridEnd) {
       const normalizedCurrent = new Date(current);
 
       const isEvent = normalizedCurrent.getTime() === event.getTime();
@@ -155,10 +150,7 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
     }
 
     const countdownNumbers = new Map(
-      countedDays.map((day, index) => [
-        day.getTime(),
-        countedDays.length - index,
-      ])
+      countedDays.map((day, index) => [day.getTime(), totalCounted - index])
     );
 
     return validDays.map((item) => ({
@@ -180,38 +172,51 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
           }}
         >
           {viewMode === 'number' ? (
-            <div className="flex flex-col items-center justify-center text-center w-full">
+            <div className="flex flex-col items-center justify-center text-center w-full [@container(min-aspect-ratio:2)]:flex-row [@container(min-aspect-ratio:2)]:gap-[4cqw] [@container(max-aspect-ratio:0.6)]:gap-[5cqh]">
               <div
-                className="font-bold leading-none"
-                style={{
-                  fontSize: `min(42cqh, ${(TEXT_CQW / longestWordEm(String(calculatedDays))).toFixed(2)}cqw)`,
-                  color: fontColor,
-                }}
+                className="font-bold leading-none [font-size:var(--num-std)] [@container(max-width:200px)]:[font-size:var(--num-small)] [@container(min-aspect-ratio:2)]:[font-size:var(--num-wide)]"
+                style={
+                  {
+                    '--num-small': `min(52cqh, ${(TEXT_CQW / longestWordEm(String(calculatedDays))).toFixed(2)}cqw)`,
+                    '--num-std': `min(46cqh, ${(TEXT_CQW / longestWordEm(String(calculatedDays))).toFixed(2)}cqw)`,
+                    '--num-wide': `min(68cqh, ${(34 / longestWordEm(String(calculatedDays))).toFixed(2)}cqw)`,
+                    color: fontColor,
+                  } as React.CSSProperties
+                }
               >
                 {calculatedDays}
               </div>
-              <div
-                className="font-medium"
-                style={{
-                  fontSize: 'min(9cqh, 16cqw)',
-                  marginTop: 'min(8px, 2cqmin)',
-                  color: fontColor,
-                  opacity: 0.6,
-                }}
-              >
-                day{calculatedDays !== 1 ? 's' : ''} until
-              </div>
-              <div
-                className="font-bold text-center [overflow-wrap:anywhere]"
-                style={{
-                  fontSize: `min(13cqh, 30cqw, ${(TEXT_CQW / titleWordEm).toFixed(2)}cqw)`,
-                  marginTop: 'min(6px, 1.5cqmin)',
-                  paddingLeft: 'min(16px, 4cqmin)',
-                  paddingRight: 'min(16px, 4cqmin)',
-                  color: eventColor,
-                }}
-              >
-                {title}
+              <div className="flex flex-col items-center [@container(max-aspect-ratio:0.6)]:gap-[3cqh] [@container(min-aspect-ratio:2)]:items-start [@container(min-aspect-ratio:2)]:text-left">
+                <div
+                  className="font-medium [font-size:var(--days-std)] [@container(max-width:200px)]:hidden [@container(min-aspect-ratio:2)]:[font-size:var(--days-wide)] [@container(min-aspect-ratio:2)]:block"
+                  style={
+                    {
+                      '--days-std': 'min(9cqh, 16cqw)',
+                      '--days-wide': 'min(14cqh, 5cqw)',
+                      marginTop: 'min(8px, 2cqmin)',
+                      color: fontColor,
+                      opacity: 0.6,
+                    } as React.CSSProperties
+                  }
+                >
+                  day{calculatedDays !== 1 ? 's' : ''} until
+                </div>
+                <div
+                  className="font-bold [overflow-wrap:anywhere] [font-size:var(--title-std)] [@container(max-width:200px)]:[font-size:var(--title-small)] [@container(min-aspect-ratio:2)]:[font-size:var(--title-wide)]"
+                  style={
+                    {
+                      '--title-small': `min(20cqh, 30cqw, ${(TEXT_CQW / titleWordEm).toFixed(2)}cqw)`,
+                      '--title-std': `min(13cqh, 30cqw, ${(TEXT_CQW / titleWordEm).toFixed(2)}cqw)`,
+                      '--title-wide': `min(24cqh, ${(46 / titleWordEm).toFixed(2)}cqw)`,
+                      marginTop: 'min(6px, 1.5cqmin)',
+                      paddingLeft: 'min(16px, 4cqmin)',
+                      paddingRight: 'min(16px, 4cqmin)',
+                      color: eventColor,
+                    } as React.CSSProperties
+                  }
+                >
+                  {title}
+                </div>
               </div>
             </div>
           ) : (
@@ -245,8 +250,8 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
                                         : 'border-slate-200'
                                 }`}
                       style={{
-                        width: 'min(48px, 15cqmin)',
-                        height: 'min(48px, 15cqmin)',
+                        width: 'clamp(26px, 15cqmin, 48px)',
+                        height: 'clamp(26px, 15cqmin, 48px)',
                         backgroundColor: item.isEvent
                           ? undefined
                           : item.isPast
@@ -277,7 +282,7 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
                       ) : (
                         <span
                           className={`font-bold ${item.isPast ? 'text-slate-400' : 'text-slate-700'}`}
-                          style={{ fontSize: 'min(20px, 6cqmin)' }}
+                          style={{ fontSize: 'clamp(11px, 6cqmin, 20px)' }}
                         >
                           {item.number}
                         </span>

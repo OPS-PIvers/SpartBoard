@@ -1,6 +1,7 @@
 import type { WebTourAction, WebTourLocator } from '@/types';
 import { roleOf } from '@/components/tours/resolveTourAnchor';
 import { scrubCapturedText } from '@/components/tours/web/studentData';
+import { nearestHeading, stableAttrsOf, UNSTABLE } from '../playback/clues';
 
 /** What one recorded click captured in its own frame, before the service worker adds frames and the picture. */
 export interface CapturedTarget {
@@ -14,8 +15,6 @@ export interface CapturedTarget {
 const CLICKABLE =
   'a[href], button, input, select, textarea, summary, label, [role], [tabindex], [onclick], [contenteditable="true"]';
 const MAX_CSS_DEPTH = 4;
-// Ids and classes with digits or long hex runs are per-record or per-build, never stable.
-const UNSTABLE = /\d{2,}|[0-9a-f]{6,}|^css-|^sc-|^jsx-/i;
 
 /** The control a click landed on: the nearest clickable ancestor, else the element itself. */
 export function targetOf(el: Element): Element {
@@ -145,6 +144,9 @@ export function captureTarget(clicked: Element): CapturedTarget {
   const name = scrubCapturedText(nameOf(el)) || undefined;
   const text = scrubCapturedText(visibleText(el));
   const css = shortCssPath(el);
+  const heading = nearestHeading(el);
+  const pageTitle = scrubCapturedText(el.ownerDocument.title);
+  const attrs = stableAttrsOf(el);
   return {
     action: actionOf(el),
     locator: {
@@ -152,6 +154,9 @@ export function captureTarget(clicked: Element): CapturedTarget {
       ...(name ? { name } : {}),
       ...(text && text.toLowerCase() !== name?.toLowerCase() ? { text } : {}),
       ...(css ? { css } : {}),
+      ...(heading ? { heading } : {}),
+      ...(pageTitle ? { pageTitle } : {}),
+      ...(Object.keys(attrs).length ? { attrs } : {}),
     },
     rect: { x: r.x, y: r.y, width: r.width, height: r.height },
     viewport: { w: view?.innerWidth ?? 0, h: view?.innerHeight ?? 0 },

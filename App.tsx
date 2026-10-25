@@ -164,6 +164,11 @@ const RequestRolloutPage = lazy(() =>
     default: module.RequestRolloutPage,
   }))
 );
+const WebTourIntakePage = lazy(() =>
+  import('./components/tours/web/WebTourIntakePage').then((module) => ({
+    default: module.WebTourIntakePage,
+  }))
+);
 const WebTourHubPage = lazy(() =>
   import('./components/tours/web/WebTourHubPage').then((module) => ({
     default: module.WebTourHubPage,
@@ -399,6 +404,13 @@ const StudentLandingDevHarness =
         }))
       )
     : null;
+const SharedBoardItemDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/SharedBoardItemDevHarness').then((module) => ({
+        default: module.SharedBoardItemDevHarness,
+      }))
+    )
+  : null;
 const SessionViewsDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/SessionViewsDevHarness').then((module) => ({
@@ -975,6 +987,17 @@ const App: React.FC = () => {
     );
   }
 
+  // The extension's intake tab (WEB_TOURS_UX.md U17): auth and draft writes only, no dashboard.
+  if (pathname === '/web-tour-intake') {
+    return (
+      <AuthProvider>
+        <Suspense fallback={<FullPageLoader />}>
+          <WebTourIntakePage />
+        </Suspense>
+      </AuthProvider>
+    );
+  }
+
   // Web tour links (CHROME_EXTENSION.md T9): auth and the published tour only, no dashboard.
   if (pathname.startsWith('/tour/')) {
     return (
@@ -1259,6 +1282,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <SessionViewsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: a colleague's item on a shared board, at widget sizes.
+  if (
+    import.meta.env.DEV &&
+    SharedBoardItemDevHarness &&
+    pathname === '/shared-board-item-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <SharedBoardItemDevHarness />
       </Suspense>
     );
   }

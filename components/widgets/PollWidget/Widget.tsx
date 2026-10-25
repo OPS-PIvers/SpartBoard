@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import { useBoardLinkedShareId } from '@/context/boardLinkedShare';
 import {
   useGlobalStyle,
   useDashboardActions,
@@ -18,7 +19,12 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  CircleCheck,
   Copy,
+  Eye,
+  EyeOff,
+  Lock,
+  LockOpen,
   RotateCcw,
   Radio,
 } from 'lucide-react';
@@ -26,10 +32,17 @@ import {
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { useDialog } from '@/context/useDialog';
 import { buildPollJoinUrl } from '@/utils/pollCode';
-import { withPollQuestions, withQuestionAt } from '@/utils/pollQuestions';
+import {
+  isScaleQuestion,
+  isTextQuestion,
+  scaleAverage,
+  withQuestionAt,
+} from '@/utils/pollQuestions';
 import { usePollSession } from '@/hooks/usePollSession';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { tourAttr } from '@/config/tourAnchors';
+import { ScaleResults } from './components/ScaleResults';
+import { TextResponses } from './components/TextResponses';
 
 export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget } = useDashboardActions();
@@ -43,6 +56,14 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // A live session belongs to the teacher's account, so a substitute can
   // neither read its votes nor run it: the widget shows the questions only.
   const inShare = useInSubShare();
+  // On a Synced or View-Only board the live session may be another member's: read its votes, don't steer it.
+  const boardShareId = useBoardLinkedShareId();
+  const sessionOwnerUid = config.activePollSessionOwnerUid ?? null;
+  const foreignSession =
+    !!boardShareId &&
+    !!config.activePollSessionId &&
+    !!sessionOwnerUid &&
+    sessionOwnerUid !== user?.uid;
 
   const applyConfig = useCallback(
     (next: PollConfig) => updateWidget(widget.id, { config: next }),
@@ -55,17 +76,49 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     currentQuestion,
     isLive: sessionLive,
     displayOptions: liveOptions,
+    responses,
     canGoPrev,
     canGoNext,
     goToQuestion,
+    resultsHidden,
+    isLocked,
+    setRevealed,
+    setLocked,
+    resetVotes,
+    hasCorrectAnswer,
+    answerShown,
+    setAnswerShown,
   } = usePollSession({
     config,
     // Announcement embeds have no teacher session — tallies come from the
     // announcement subcollection instead.
-    teacherUid: isAnnouncement || inShare ? undefined : user?.uid,
+    teacherUid:
+      isAnnouncement || inShare
+        ? undefined
+        : foreignSession
+          ? (sessionOwnerUid ?? undefined)
+          : user?.uid,
     onConfigChange: applyConfig,
+    readAnswers: !isAnnouncement && !inShare && !foreignSession,
+    endSessionOnReset: canAccessFeature('poll-pro') && !isAnnouncement,
   });
   const isLive = sessionLive && !inShare;
+  const proEnabled = canAccessFeature('poll-pro') && !isAnnouncement;
+  const hidden = proEnabled && resultsHidden;
+  // Reveal and lock steer the session, so only its owner sees them.
+  // On a linked board only the stamped session owner steers; an unstamped session's owner is unknown.
+  const canSteer =
+    proEnabled &&
+    !inShare &&
+    (!boardShareId ||
+      !config.activePollSessionId ||
+      sessionOwnerUid === user?.uid);
+  const showRevealControl = canSteer && config.hideResults === true;
+  const showLockControl = canSteer && isLive;
+  const showAnswerControl = canSteer && hasCorrectAnswer;
+  const markCorrect = proEnabled && answerShown;
+  const showAnswered = proEnabled && isLive;
+  const barColor = proEnabled ? 'bg-brand-blue-primary' : 'bg-indigo-500';
 
   // Announcements render the first question only — there is no cursor to share.
   const activeQuestion = isAnnouncement ? questions[0] : currentQuestion;
@@ -136,15 +189,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       confirmLabel: 'Reset',
     });
     if (!confirmed) return;
-    applyConfig(
-      withPollQuestions(
-        config,
-        questions.map((q) => ({
-          ...q,
-          options: q.options.map((o) => ({ ...o, votes: 0 })),
-        }))
-      )
-    );
+    resetVotes();
   };
 
   // Three tally modes: live public session > announcement > local config.
@@ -157,7 +202,29 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         }))
       : activeQuestion.options;
 
-  const total = displayOptions.reduce((sum, o) => sum + o.votes, 0);
+  const isText = proEnabled && isTextQuestion(activeQuestion);
+  const total = isText
+    ? responses.length
+    : displayOptions.reduce((sum, o) => sum + o.votes, 0);
+  const isScale = proEnabled && isScaleQuestion(activeQuestion);
+  const hiddenResponses = config.hiddenResponses ?? [];
+  const hideResponse = (key: string) => {
+    if (hiddenResponses.includes(key)) return;
+    applyConfig({ ...config, hiddenResponses: [...hiddenResponses, key] });
+  };
+  const showHiddenResponses = () =>
+    applyConfig({
+      ...config,
+      hiddenResponses: hiddenResponses.filter(
+        (k) =>
+          !k.startsWith(`${activeQuestion.id}:`) &&
+          !k.startsWith(`${activeQuestion.id}#`)
+      ),
+    });
+  const average =
+    isScale && !hidden
+      ? scaleAverage(displayOptions.map((o) => o.votes))
+      : null;
 
   // On-board join link/QR/code for the live session (gated by anonymous-join).
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
@@ -207,9 +274,9 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             {showNavigation && (
               <button
                 onClick={() => goToQuestion(currentQuestionIndex - 1)}
-                disabled={!canGoPrev}
+                disabled={!canGoPrev || foreignSession}
                 aria-label="Previous question"
-                className="shrink-0 text-slate-400 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-slate-400 transition-colors"
+                className={`shrink-0 text-slate-400 ${proEnabled ? 'hover:text-brand-blue-primary' : 'hover:text-indigo-600'} disabled:opacity-30 disabled:hover:text-slate-400 transition-colors`}
               >
                 <ChevronLeft style={arrowStyle} />
               </button>
@@ -228,24 +295,53 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               <button
                 {...tourAttr('poll.next-question', widget.id, widget.type)}
                 onClick={() => goToQuestion(currentQuestionIndex + 1)}
-                disabled={!canGoNext}
+                disabled={!canGoNext || foreignSession}
                 aria-label="Next question"
-                className="shrink-0 text-slate-400 hover:text-indigo-600 disabled:opacity-30 disabled:hover:text-slate-400 transition-colors"
+                className={`shrink-0 text-slate-400 ${proEnabled ? 'hover:text-brand-blue-primary' : 'hover:text-indigo-600'} disabled:opacity-30 disabled:hover:text-slate-400 transition-colors`}
               >
                 <ChevronRight style={arrowStyle} />
               </button>
             )}
           </div>
-          {showNavigation && (
+          {(showNavigation || showAnswered || average !== null) && (
             <div
-              data-testid="poll-question-indicator"
-              className="text-center font-bold text-slate-400 font-mono tabular-nums"
+              className="flex items-center justify-center font-bold text-slate-400 tabular-nums"
               style={{
+                gap: 'min(12px, 3cqmin)',
                 fontSize: 'min(12px, 4cqmin)',
                 marginTop: 'min(4px, 1cqmin)',
               }}
             >
-              {currentQuestionIndex + 1} / {questions.length}
+              {showNavigation && (
+                <span
+                  data-testid="poll-question-indicator"
+                  className="font-mono"
+                >
+                  {currentQuestionIndex + 1} / {questions.length}
+                </span>
+              )}
+              {showAnswered && (
+                <span data-testid="poll-answered-count">{total} answered</span>
+              )}
+              {average !== null && (
+                <span data-testid="poll-scale-average">
+                  Average {average.toFixed(1)}
+                </span>
+              )}
+              {showAnswered && isLocked && (
+                <span
+                  className="flex items-center"
+                  style={{ gap: 'min(4px, 1cqmin)' }}
+                >
+                  <Lock
+                    style={{
+                      width: 'min(12px, 4cqmin)',
+                      height: 'min(12px, 4cqmin)',
+                    }}
+                  />
+                  Voting locked
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -266,169 +362,307 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               ✓ Vote recorded!
             </div>
           )}
-          {displayOptions.map((o, i: number) => {
-            const percent =
-              total === 0 ? 0 : Math.round((o.votes / total) * 100);
-            const isVoted = userVoted === i;
+          {isScale && (
+            <ScaleResults
+              options={displayOptions}
+              hidden={hidden}
+              low={activeQuestion.scaleLow}
+              high={activeQuestion.scaleHigh}
+              fontFamily={globalStyle.fontFamily}
+              barColor={barColor}
+              disabled={isLive}
+              onVote={vote}
+            />
+          )}
+          {isText && !hidden && (
+            <TextResponses
+              kind={activeQuestion.kind === 'words' ? 'words' : 'text'}
+              questionId={activeQuestion.id}
+              responses={responses}
+              hiddenKeys={hiddenResponses}
+              canModerate={canSteer}
+              onHide={hideResponse}
+              onShowHidden={showHiddenResponses}
+              fontFamily={globalStyle.fontFamily}
+              widgetId={widget.id}
+              widgetType={widget.type}
+            />
+          )}
+          {!isScale &&
+            !isText &&
+            displayOptions.map((o, i: number) => {
+              const percent =
+                total === 0 ? 0 : Math.round((o.votes / total) * 100);
+              const isVoted = userVoted === i;
 
-            const buttonCls = [
-              'w-full text-left group',
-              isVoted ? 'opacity-100' : '',
-              isAnnouncement && userVoted !== null && !isVoted
-                ? 'opacity-60'
-                : '',
-            ]
-              .filter(Boolean)
-              .join(' ');
+              const buttonCls = [
+                'w-full text-left group',
+                isVoted ? 'opacity-100' : '',
+                isAnnouncement && userVoted !== null && !isVoted
+                  ? 'opacity-60'
+                  : '',
+              ]
+                .filter(Boolean)
+                .join(' ');
 
-            return (
-              <button
-                key={o.id ?? i}
-                onClick={() => {
-                  vote(i);
-                }}
-                disabled={isLive || (isAnnouncement && userVoted !== null)}
-                className={buttonCls}
-              >
-                <div
-                  className={`flex justify-between mb-1 uppercase tracking-wider ${isAnnouncement ? 'text-white/90' : 'text-slate-600'} font-${globalStyle.fontFamily}`}
-                  style={{
-                    fontSize: 'min(16px, 5.5cqmin)',
-                    gap: 'min(16px, 3cqmin)',
+              return (
+                <button // no-tour-anchor: one per option, tours point at the question
+                  key={o.id ?? i}
+                  onClick={() => {
+                    vote(i);
                   }}
-                >
-                  <span className="font-bold min-w-0 [overflow-wrap:anywhere]">
-                    {o.label}
-                  </span>
-                  <span className="font-mono whitespace-nowrap shrink-0">
-                    {o.votes} ({percent}%)
-                  </span>
-                </div>
-
-                <div
-                  className="bg-slate-100 rounded-full overflow-hidden relative border border-slate-200/50"
-                  style={{ height: 'clamp(16px, 5cqmin, 24px)' }}
+                  disabled={isLive || (isAnnouncement && userVoted !== null)}
+                  className={buttonCls}
                 >
                   <div
-                    className={`h-full transition-all duration-500 shadow-[inset_0_2px_4px_rgba(255,255,255,0.3)] ${isVoted ? 'bg-emerald-500' : 'bg-indigo-500'}`}
-                    style={{ width: `${percent}%` }}
-                  />
-                </div>
-              </button>
-            );
-          })}
+                    className={`flex justify-between mb-1 uppercase tracking-wider ${isAnnouncement ? 'text-white/90' : 'text-slate-600'} font-${globalStyle.fontFamily}`}
+                    style={{
+                      fontSize: 'min(16px, 5.5cqmin)',
+                      gap: 'min(16px, 3cqmin)',
+                    }}
+                  >
+                    <span className="font-bold min-w-0 [overflow-wrap:anywhere]">
+                      {markCorrect && o.correct && (
+                        <CircleCheck
+                          aria-label="Correct answer"
+                          className="inline-block align-[-0.15em] text-emerald-700"
+                          style={{
+                            width: '1em',
+                            height: '1em',
+                            marginRight: '0.3em',
+                          }}
+                        />
+                      )}
+                      {o.label}
+                    </span>
+                    {!hidden && (
+                      <span className="font-mono whitespace-nowrap shrink-0">
+                        {o.votes} ({percent}%)
+                      </span>
+                    )}
+                  </div>
+
+                  <div
+                    className="bg-slate-100 rounded-full overflow-hidden relative border border-slate-200/50"
+                    style={{ height: 'clamp(16px, 5cqmin, 24px)' }}
+                  >
+                    <div
+                      className={`h-full transition-all duration-500 motion-reduce:transition-none shadow-[inset_0_2px_4px_rgba(255,255,255,0.3)] ${isVoted || (markCorrect && o.correct) ? 'bg-emerald-500' : barColor}`}
+                      style={{ width: hidden ? '0%' : `${percent}%` }}
+                    />
+                  </div>
+                </button>
+              );
+            })}
         </div>
       }
       footer={
-        isLive ? (
-          <div
-            className="flex items-center justify-center"
-            style={{
-              gap: 'min(12px, 3cqmin)',
-              paddingLeft: 'min(16px, 3cqmin)',
-              paddingRight: 'min(16px, 3cqmin)',
-              paddingBottom: 'min(8px, 1.5cqmin)',
-            }}
-          >
-            {joinCode ? (
-              <>
-                <img
-                  src={qrUrl}
-                  alt="Join QR code"
-                  className="rounded bg-white"
-                  style={{
-                    width: 'min(72px, 22cqmin)',
-                    height: 'min(72px, 22cqmin)',
-                    padding: 'min(4px, 1cqmin)',
-                  }}
-                />
-                <div className="flex flex-col min-w-0">
-                  <span
-                    className="text-slate-500 uppercase font-bold tracking-wider"
-                    style={{ fontSize: 'min(10px, 3.2cqmin)' }}
-                  >
-                    Join at {window.location.host}/poll
-                  </span>
-                  <code
-                    data-testid="poll-join-url"
-                    className="font-black text-indigo-600 font-mono tracking-[0.15em]"
-                    style={{ fontSize: 'min(28px, 9cqmin)', lineHeight: 1.1 }}
-                  >
-                    {joinCode}
-                  </code>
-                  <button
-                    onClick={handleCopy}
-                    className="flex items-center font-bold text-slate-400 hover:text-indigo-600 transition-colors"
-                    style={{
-                      gap: 'min(4px, 1cqmin)',
-                      fontSize: 'min(11px, 3.5cqmin)',
-                    }}
-                  >
-                    {copied ? (
-                      <Check
-                        style={{
-                          width: 'min(12px, 3.5cqmin)',
-                          height: 'min(12px, 3.5cqmin)',
-                        }}
-                      />
-                    ) : (
-                      <Copy
-                        style={{
-                          width: 'min(12px, 3.5cqmin)',
-                          height: 'min(12px, 3.5cqmin)',
-                        }}
-                      />
-                    )}
-                    {copied ? 'Copied' : 'Copy link'}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <span
-                className="flex items-center font-black uppercase text-emerald-600"
-                style={{
-                  gap: 'min(4px, 1cqmin)',
-                  fontSize: 'min(12px, 4cqmin)',
-                }}
-              >
-                <Radio
-                  style={{
-                    width: 'min(12px, 4cqmin)',
-                    height: 'min(12px, 4cqmin)',
-                  }}
-                />
-                Voting open
-              </span>
-            )}
-          </div>
-        ) : !isAnnouncement && !inShare ? (
-          <div
-            style={{
-              paddingLeft: 'min(16px, 3cqmin)',
-              paddingRight: 'min(16px, 3cqmin)',
-              paddingBottom: 'min(8px, 1.5cqmin)',
-            }}
-          >
-            <button
-              {...tourAttr('poll.reset', widget.id, widget.type)}
-              onClick={handleReset}
-              className="w-full flex items-center justify-center font-black uppercase text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+        <>
+          {(showRevealControl || showLockControl || showAnswerControl) && (
+            <div
+              data-testid="poll-results-controls"
+              className="flex items-center justify-center whitespace-nowrap"
               style={{
                 gap: 'min(8px, 2cqmin)',
-                padding: 'min(8px, 1.5cqmin)',
-                fontSize: 'min(14px, 4cqmin)',
+                paddingLeft: 'min(16px, 3cqmin)',
+                paddingRight: 'min(16px, 3cqmin)',
+                paddingBottom: 'min(8px, 1.5cqmin)',
               }}
             >
-              <RotateCcw
+              {showRevealControl && (
+                <button
+                  {...tourAttr('poll.reveal-results', widget.id, widget.type)}
+                  onClick={() => setRevealed(resultsHidden)}
+                  aria-pressed={!resultsHidden}
+                  className="relative touch-target-expand flex items-center font-bold text-slate-600 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
+                  style={{
+                    gap: 'min(6px, 1.5cqmin)',
+                    padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                    fontSize: 'min(13px, 4cqmin)',
+                  }}
+                >
+                  {resultsHidden ? (
+                    <Eye
+                      style={{
+                        width: 'min(16px, 4.5cqmin)',
+                        height: 'min(16px, 4.5cqmin)',
+                      }}
+                    />
+                  ) : (
+                    <EyeOff
+                      style={{
+                        width: 'min(16px, 4.5cqmin)',
+                        height: 'min(16px, 4.5cqmin)',
+                      }}
+                    />
+                  )}
+                  {resultsHidden ? 'Show results' : 'Hide results'}
+                </button>
+              )}
+              {showLockControl && (
+                <button
+                  {...tourAttr('poll.lock-voting', widget.id, widget.type)}
+                  onClick={() => setLocked(!isLocked)}
+                  aria-pressed={isLocked}
+                  className="relative touch-target-expand flex items-center font-bold text-slate-600 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
+                  style={{
+                    gap: 'min(6px, 1.5cqmin)',
+                    padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                    fontSize: 'min(13px, 4cqmin)',
+                  }}
+                >
+                  {isLocked ? (
+                    <LockOpen
+                      style={{
+                        width: 'min(16px, 4.5cqmin)',
+                        height: 'min(16px, 4.5cqmin)',
+                      }}
+                    />
+                  ) : (
+                    <Lock
+                      style={{
+                        width: 'min(16px, 4.5cqmin)',
+                        height: 'min(16px, 4.5cqmin)',
+                      }}
+                    />
+                  )}
+                  {isLocked ? 'Unlock voting' : 'Lock voting'}
+                </button>
+              )}
+              {showAnswerControl && (
+                <button
+                  {...tourAttr('poll.show-answer', widget.id, widget.type)}
+                  onClick={() => setAnswerShown(!answerShown)}
+                  aria-pressed={answerShown}
+                  className="relative touch-target-expand flex items-center font-bold text-slate-600 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
+                  style={{
+                    gap: 'min(6px, 1.5cqmin)',
+                    padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                    fontSize: 'min(13px, 4cqmin)',
+                  }}
+                >
+                  <CircleCheck
+                    style={{
+                      width: 'min(16px, 4.5cqmin)',
+                      height: 'min(16px, 4.5cqmin)',
+                    }}
+                  />
+                  {answerShown ? 'Hide answer' : 'Show answer'}
+                </button>
+              )}
+            </div>
+          )}
+          {isLive ? (
+            <div
+              className="flex items-center justify-center"
+              style={{
+                gap: 'min(12px, 3cqmin)',
+                paddingLeft: 'min(16px, 3cqmin)',
+                paddingRight: 'min(16px, 3cqmin)',
+                paddingBottom: 'min(8px, 1.5cqmin)',
+              }}
+            >
+              {joinCode ? (
+                <>
+                  <img
+                    src={qrUrl}
+                    alt="Join QR code"
+                    className="rounded bg-white"
+                    style={{
+                      width: 'min(72px, 22cqmin)',
+                      height: 'min(72px, 22cqmin)',
+                      padding: 'min(4px, 1cqmin)',
+                    }}
+                  />
+                  <div className="flex flex-col min-w-0">
+                    <span
+                      className="text-slate-500 uppercase font-bold tracking-wider"
+                      style={{ fontSize: 'min(10px, 3.2cqmin)' }}
+                    >
+                      Join at {window.location.host}/poll
+                    </span>
+                    <code
+                      data-testid="poll-join-url"
+                      className={`font-black ${proEnabled ? 'text-brand-blue-primary' : 'text-indigo-600'} font-mono tracking-[0.15em]`}
+                      style={{ fontSize: 'min(28px, 9cqmin)', lineHeight: 1.1 }}
+                    >
+                      {joinCode}
+                    </code>
+                    {/* no-tour-anchor: tours use widget-settings.poll.copy-link */}
+                    <button
+                      onClick={handleCopy}
+                      className={`flex items-center font-bold text-slate-400 ${proEnabled ? 'hover:text-brand-blue-primary' : 'hover:text-indigo-600'} transition-colors`}
+                      style={{
+                        gap: 'min(4px, 1cqmin)',
+                        fontSize: 'min(11px, 3.5cqmin)',
+                      }}
+                    >
+                      {copied ? (
+                        <Check
+                          style={{
+                            width: 'min(12px, 3.5cqmin)',
+                            height: 'min(12px, 3.5cqmin)',
+                          }}
+                        />
+                      ) : (
+                        <Copy
+                          style={{
+                            width: 'min(12px, 3.5cqmin)',
+                            height: 'min(12px, 3.5cqmin)',
+                          }}
+                        />
+                      )}
+                      {copied ? 'Copied' : 'Copy link'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <span
+                  className="flex items-center font-black uppercase text-emerald-600"
+                  style={{
+                    gap: 'min(4px, 1cqmin)',
+                    fontSize: 'min(12px, 4cqmin)',
+                  }}
+                >
+                  <Radio
+                    style={{
+                      width: 'min(12px, 4cqmin)',
+                      height: 'min(12px, 4cqmin)',
+                    }}
+                  />
+                  {showAnswered && isLocked ? 'Voting locked' : 'Voting open'}
+                </span>
+              )}
+            </div>
+          ) : !isAnnouncement && !inShare ? (
+            <div
+              style={{
+                paddingLeft: 'min(16px, 3cqmin)',
+                paddingRight: 'min(16px, 3cqmin)',
+                paddingBottom: 'min(8px, 1.5cqmin)',
+              }}
+            >
+              <button
+                {...tourAttr('poll.reset', widget.id, widget.type)}
+                onClick={handleReset}
+                className={`w-full flex items-center justify-center font-black uppercase text-slate-400 ${proEnabled ? 'hover:text-brand-blue-primary hover:bg-brand-blue-lighter' : 'hover:text-indigo-600 hover:bg-indigo-50'} rounded-lg transition-all`}
                 style={{
-                  width: 'min(16px, 4cqmin)',
-                  height: 'min(16px, 4cqmin)',
+                  gap: 'min(8px, 2cqmin)',
+                  padding: 'min(8px, 1.5cqmin)',
+                  fontSize: 'min(14px, 4cqmin)',
                 }}
-              />{' '}
-              Reset Poll
-            </button>
-          </div>
-        ) : null
+              >
+                <RotateCcw
+                  style={{
+                    width: 'min(16px, 4cqmin)',
+                    height: 'min(16px, 4cqmin)',
+                  }}
+                />{' '}
+                Reset Poll
+              </button>
+            </div>
+          ) : null}
+        </>
       }
     />
   );

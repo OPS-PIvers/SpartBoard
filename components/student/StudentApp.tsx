@@ -10,6 +10,7 @@ import { WidgetData, DEFAULT_GLOBAL_STYLE, LiveSession } from '@/types';
 import { getDefaultWidgetConfig } from '@/utils/widgetHelpers';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
 import { deriveStudentView } from '@/utils/liveSessionState';
+import { joinErrorMessage } from './joinErrorMessage';
 
 const noop = () => undefined;
 const asyncNoop = async () => {
@@ -202,25 +203,7 @@ const StudentAppInner: React.FC = () => {
       setJoinedCode(sessionId);
     } catch (error) {
       console.error('Join error:', error);
-      let message: string;
-      if (error instanceof Error) {
-        message = error.message;
-      } else if (typeof error === 'string') {
-        message = error;
-      } else {
-        message = 'Failed to join session due to an unexpected error.';
-      }
-
-      if (message.toLowerCase().includes('session not found')) {
-        setError('Session not found. Please check your join code.');
-      } else if (
-        message.toLowerCase().includes('network') ||
-        message.toLowerCase().includes('fetch')
-      ) {
-        setError('Connection error. Please check your internet.');
-      } else {
-        setError(message);
-      }
+      setError(joinErrorMessage(error));
     }
   };
 

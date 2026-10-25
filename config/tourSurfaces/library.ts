@@ -10,6 +10,7 @@ export const SURFACES: TourSurfaceMap = {
     ],
     inner: {
       'library-shell.new-menu-item': 'library-shell.new',
+      'library-shell.secondary-menu-item': 'library-shell.secondary-action',
       'library-shell.sort-option': 'library-shell.sort',
       'library-shell.card-menu-item': 'library-shell.card-menu',
       'library-shell.folder-menu-rename': 'library-shell.folder-menu',
@@ -198,7 +199,10 @@ export const SURFACES: TourSurfaceMap = {
   'library.video-activity.results': {
     label: 'Video Activity results',
     kind: 'panel',
-    files: ['components/widgets/VideoActivityWidget/components/Results.tsx'],
+    files: [
+      'components/widgets/VideoActivityWidget/components/Results.tsx',
+      'components/widgets/VideoActivityWidget/components/results/VaResultsParity.tsx',
+    ],
     opensWith: 'library-shell.archive-primary-action:video-activity#row-1',
     parent: 'library.video-activity',
     needs: ['student-data'],
@@ -208,6 +212,8 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'panel',
     files: [
       'components/widgets/VideoActivityWidget/components/VideoActivityLiveMonitor.tsx',
+      'components/widgets/VideoActivityWidget/components/monitor/VideoActivityMonitor.tsx',
+      'components/widgets/VideoActivityWidget/components/monitor/VaRosterList.tsx',
       'components/widgets/VideoActivityWidget/components/VideoActivityLivePlayer.tsx',
     ],
     opensWith: 'library-shell.archive-primary-action:video-activity#row-1',
@@ -435,7 +441,10 @@ export const SURFACES: TourSurfaceMap = {
   'library.mini-app.submissions': {
     label: 'Mini App submissions dialog',
     kind: 'modal',
-    files: ['components/widgets/MiniApp/components/SubmissionsModal.tsx'],
+    files: [
+      'components/widgets/MiniApp/components/SubmissionsModal.tsx',
+      'components/widgets/MiniApp/components/MiniAppSubmissionsMonitor.tsx',
+    ],
     opensWith: 'mini-app.session-submissions:miniApp',
     needs: ['student-data'],
   },

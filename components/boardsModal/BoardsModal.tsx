@@ -1,11 +1,15 @@
 import { tourAttr } from '@/config/tourAnchors';
 import React, { useEffect, useState, useCallback } from 'react';
-import { X } from 'lucide-react';
+import { ArrowLeft, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { DndContext, DragOverlay } from '@dnd-kit/core';
 import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { useDialog } from '@/context/useDialog';
+import {
+  useConfirmLinkedBoardRemoval,
+  useConfirmLinkedCollectionMove,
+} from '@/hooks/useConfirmLinkedBoardRemoval';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { CollectionTree } from './CollectionTree';
@@ -20,6 +24,10 @@ import { BoardCardDragPreview } from './BoardCard';
 import { CollectionCardDragPreview } from './CollectionCard';
 import { ShareLinkCreatorModal } from '@/components/share/ShareLinkCreatorModal';
 import { ShareCollectionLinkCreatorModal } from '@/components/share/ShareCollectionLinkCreatorModal';
+import {
+  shareCollectionTree,
+  touchesLiveCollectionShare,
+} from '@/utils/sharedCollectionTree';
 import {
   ShareWithSubModal,
   type SubShareTarget,
@@ -51,8 +59,12 @@ interface BoardsModalProps {
 export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   const { t } = useTranslation();
   const { showPrompt, showConfirm } = useDialog();
+  const confirmLinkedRemoval = useConfirmLinkedBoardRemoval();
+  const confirmLinkedCollectionMove = useConfirmLinkedCollectionMove();
   const { isAdmin, canAccessFeature } = useAuth();
   const canShare = canAccessFeature('dashboard-sharing');
+  const backArrow = canAccessFeature('full-page-back-arrow');
+  const collectionSync = canAccessFeature('collection-sync-sharing');
   const {
     dashboards,
     activeDashboard,
@@ -60,6 +72,9 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     createNewDashboard,
     deleteDashboard,
     moveBoardToCollection,
+    countLinkedBoardRemovals,
+    stopSharingCollection,
+    leaveSharedCollection,
     pinBoard,
     unpinBoard,
     renameDashboard,
@@ -338,6 +353,8 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       { title: 'Delete', variant: 'danger', confirmLabel: 'Delete' }
     );
     if (!confirmed) return;
+    const boardIds = ids.filter((id) => dashboards.some((d) => d.id === id));
+    if (!(await confirmLinkedRemoval(boardIds, { kind: 'delete' }))) return;
     // deleteDashboard already toasts on failure internally; we let it stay
     // silent on success and rely on the aggregate report below. For
     // deleteCollection (no built-in toasting yet), the aggregate is the only
@@ -361,6 +378,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     );
   }, [
     showConfirm,
+    confirmLinkedRemoval,
     t,
     multi,
     dashboards,
@@ -443,6 +461,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       if (singleMoveCollectionId) {
         const id = singleMoveCollectionId;
         setSingleMoveCollectionId(null);
+        if (!(await confirmLinkedCollectionMove(id, destId))) return;
         try {
           await moveCollection(id, destId);
           addToast(
@@ -475,6 +494,13 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
         setSingleMoveTargetId(null);
         const isBoard = dashboards.some((d) => d.id === id);
         if (!isBoard) return;
+        if (
+          !(await confirmLinkedRemoval([id], {
+            kind: 'move',
+            collectionId: destId,
+          }))
+        )
+          return;
         try {
           await moveBoardToCollection(id, destId);
         } catch {
@@ -494,6 +520,13 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
         toastNoBoardsInSelection();
         return;
       }
+      if (
+        !(await confirmLinkedRemoval(ids, {
+          kind: 'move',
+          collectionId: destId,
+        }))
+      )
+        return;
       const results = await Promise.allSettled(
         ids.map((id) => moveBoardToCollection(id, destId, { silent: true }))
       );
@@ -513,6 +546,8 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       singleMoveTargetId,
       multi,
       dashboards,
+      confirmLinkedRemoval,
+      confirmLinkedCollectionMove,
       moveBoardToCollection,
       moveCollection,
       addToast,
@@ -543,18 +578,37 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       aria-labelledby="boards-modal-title"
     >
       <div className="bg-white w-full h-full overflow-hidden flex flex-col">
-        <div className="bg-gradient-to-r from-brand-blue-primary to-brand-blue-dark text-white h-14 md:h-16 px-4 flex items-center justify-between shadow-sm shrink-0">
+        <div
+          className={`bg-gradient-to-r from-brand-blue-primary to-brand-blue-dark text-white h-14 md:h-16 px-4 flex items-center shadow-sm shrink-0 ${backArrow ? 'gap-2' : 'justify-between'}`}
+        >
+          {backArrow && (
+            <button
+              onClick={onClose}
+              aria-label={t('boardsModal.backToBoard', {
+                defaultValue: 'Back to board',
+              })}
+              title={t('boardsModal.backToBoard', {
+                defaultValue: 'Back to board',
+              })}
+              {...tourAttr('boards-modal.close')}
+              className="relative touch-target-expand p-2 -ml-2 hover:bg-white/20 rounded-lg transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" aria-hidden />
+            </button>
+          )}
           <h2 id="boards-modal-title" className="text-lg font-bold">
             {t('boardsModal.title', { defaultValue: 'Boards & Collections' })}
           </h2>
-          <button
-            onClick={onClose}
-            aria-label={t('boardsModal.close', { defaultValue: 'Close' })}
-            {...tourAttr('boards-modal.close')}
-            className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {!backArrow && (
+            <button
+              onClick={onClose}
+              aria-label={t('boardsModal.close', { defaultValue: 'Close' })}
+              {...tourAttr('boards-modal.close')}
+              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
         <BoardsModalHeader
@@ -684,12 +738,20 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               subShareEndsAt={subShares.endsAtFor(board.id)}
               onSaveAsTemplate={() => setSaveAsTemplateTarget(board)}
               onDelete={async () => {
-                const ok = await showConfirm(
-                  t('boardsModal.deleteBoardConfirm', {
-                    defaultValue: 'Delete this Board?',
-                  }),
-                  { title: 'Delete', variant: 'danger', confirmLabel: 'Delete' }
-                );
+                // A board leaving a shared collection gets the remove-for-everyone confirm instead.
+                const ok =
+                  countLinkedBoardRemovals([board.id], { kind: 'delete' }) > 0
+                    ? await confirmLinkedRemoval([board.id], { kind: 'delete' })
+                    : await showConfirm(
+                        t('boardsModal.deleteBoardConfirm', {
+                          defaultValue: 'Delete this Board?',
+                        }),
+                        {
+                          title: 'Delete',
+                          variant: 'danger',
+                          confirmLabel: 'Delete',
+                        }
+                      );
                 if (ok) await deleteDashboard(board.id);
               }}
             />
@@ -711,6 +773,46 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
                 setSubShareTarget({ kind: 'collection', collection: c })
               }
               subShareEndsAt={subShares.endsAtFor(c.id)}
+              liveShareRole={
+                collectionSync &&
+                c.linkedCollectionId &&
+                !c.linkedCollectionEnded
+                  ? c.linkedCollectionRole === 'owner'
+                    ? 'host'
+                    : 'member'
+                  : null
+              }
+              onStopSharing={async () => {
+                const label = t('collectionMenu.stopSharing', {
+                  defaultValue: 'Stop sharing',
+                });
+                const ok = await showConfirm(
+                  t('collectionMenu.stopSharingConfirm', {
+                    defaultValue:
+                      'Stop sharing this collection? Synced teachers keep their own copy. View-only teachers lose it.',
+                  }),
+                  { title: label, variant: 'warning', confirmLabel: label }
+                );
+                if (ok) await stopSharingCollection(c.id);
+              }}
+              onLeaveShared={async () => {
+                const label = t('collectionMenu.leaveShared', {
+                  defaultValue: 'Leave shared collection',
+                });
+                const ok = await showConfirm(
+                  c.linkedCollectionRole === 'viewer'
+                    ? t('collectionMenu.leaveSharedViewerConfirm', {
+                        defaultValue:
+                          'Leave this shared collection? It will be removed from your account.',
+                      })
+                    : t('collectionMenu.leaveSharedConfirm', {
+                        defaultValue:
+                          'Leave this shared collection? You keep a copy of its boards, but they stop updating.',
+                      }),
+                  { title: label, variant: 'warning', confirmLabel: label }
+                );
+                if (ok) await leaveSharedCollection(c.id);
+              }}
               canSaveAsTemplate={Boolean(isAdmin)}
               onSaveAsTemplate={() => setSaveAsCollectionTemplateTarget(c)}
               onRename={async () => {
@@ -792,8 +894,20 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
         <ShareCollectionLinkCreatorModal
           isOpen
           collection={shareCollectionTarget}
-          boards={dashboards.filter(
-            (d) => (d.collectionId ?? null) === shareCollectionTarget.id
+          {...(collectionSync
+            ? shareCollectionTree(
+                shareCollectionTarget,
+                collections,
+                dashboards
+              )
+            : {
+                boards: dashboards.filter(
+                  (d) => (d.collectionId ?? null) === shareCollectionTarget.id
+                ),
+              })}
+          inLiveShare={touchesLiveCollectionShare(
+            shareCollectionTarget,
+            collections
           )}
           onClose={() => setShareCollectionTarget(null)}
           onShareWithSub={() => {

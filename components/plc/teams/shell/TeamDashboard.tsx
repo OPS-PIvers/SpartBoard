@@ -8,7 +8,7 @@ import React, {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Target } from 'lucide-react';
+import { Home, Loader2, Target } from 'lucide-react';
 import {
   getPlcFeatures,
   getPlcGroupType,
@@ -50,6 +50,7 @@ import {
   type TeamNav,
 } from '@/components/plc/teams/TeamNavContext';
 import { TeamPagePlaceholder } from '@/components/plc/teams/TeamPlaceholder';
+import { PlcHomePage } from '@/components/plc/teams/home/PlcHomePage';
 import { TeamShellActionsContext } from '@/components/plc/teams/data/teamShellActions';
 import { useTeamMyItems } from '@/components/plc/teams/notes/useTeamNotes';
 import { OPEN_LAYOUT_EDITOR_EVENT } from '@/components/plc/teams/notes/teamNotesNavigation';
@@ -60,6 +61,7 @@ import {
 import {
   resolveTeamRoute,
   teamPageSection,
+  teamUsesPlcHome,
 } from '@/components/plc/teams/teamSections';
 import {
   TeamShellView,
@@ -111,7 +113,8 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
+  const { user, canAccessFeature, globalPermissionsLoaded, isAdmin } =
+    useAuth();
   const { addToast } = useDashboard();
   useGoogleTasksPull(plc.id, canAccessFeature('google-tasks-sync'));
   const uid = user?.uid ?? null;
@@ -133,14 +136,20 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
     requestedSection === 'meeting' && !meetingId ? 'docs' : requestedSection;
   const features = getPlcFeatures(plc);
   const hasTargets = features.quizzes || features.videoActivities;
+  const plcHome = teamUsesPlcHome(layout, canAccessFeature('plc-home-tab'));
   const { route, canonical } = resolveTeamRoute(section, layout, {
     targets: hasTargets,
+    plcHome,
   });
+  // A Data overview link waits for the flag, or it would be rewritten to Home.
+  const flagPending =
+    requestedSection === 'dataOverview' &&
+    (!globalPermissionsLoaded || isAdmin === null);
   useEffect(() => {
-    if (layoutReady && canonical !== requestedSection) {
+    if (layoutReady && !flagPending && canonical !== requestedSection) {
       spaReplace(buildPlcPath(plc.id, canonical));
     }
-  }, [layoutReady, canonical, requestedSection, plc.id]);
+  }, [layoutReady, flagPending, canonical, requestedSection, plc.id]);
 
   const [overlay, setOverlay] = useState<TeamOverlay>(null);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -266,6 +275,13 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
       label: teamPageLabel(t, p.id, isLead),
       icon: TEAM_PAGE_REGISTRY[p.id].icon,
     }));
+  if (plcHome) {
+    railPages.unshift({
+      id: 'home',
+      label: t('teams.pages.home', { defaultValue: 'Home' }),
+      icon: Home,
+    });
+  }
   // Learning Targets sits after Assessments (or the data page), as on the legacy rail.
   if (hasTargets) {
     const after = railPages.findIndex((p) => p.id === 'assessments');
@@ -280,23 +296,27 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
     });
   }
   const activePage =
-    route.kind === 'page'
-      ? route.page
-      : route.section === 'targets'
-        ? 'targets'
-        : null;
+    route.kind === 'plcHome'
+      ? 'home'
+      : route.kind === 'page'
+        ? route.page
+        : route.section === 'targets'
+          ? 'targets'
+          : null;
   const activeLabel =
-    route.kind === 'page'
-      ? teamPageLabel(t, route.page, isLead)
-      : route.section === 'members'
-        ? t('plcDashboard.tabs.members', { defaultValue: 'Members' })
-        : route.section === 'settings'
-          ? t('plcDashboard.tabs.settings', { defaultValue: 'Settings' })
-          : route.section === 'targets'
-            ? t('plcDashboard.tabs.targets', {
-                defaultValue: 'Learning Targets',
-              })
-            : undefined;
+    route.kind === 'plcHome'
+      ? t('teams.pages.home', { defaultValue: 'Home' })
+      : route.kind === 'page'
+        ? teamPageLabel(t, route.page, isLead)
+        : route.section === 'members'
+          ? t('plcDashboard.tabs.members', { defaultValue: 'Members' })
+          : route.section === 'settings'
+            ? t('plcDashboard.tabs.settings', { defaultValue: 'Settings' })
+            : route.section === 'targets'
+              ? t('plcDashboard.tabs.targets', {
+                  defaultValue: 'Learning Targets',
+                })
+              : undefined;
 
   const renderBody = (): React.ReactNode => {
     if (!layoutReady) {
@@ -310,6 +330,9 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
           />
         </div>
       );
+    }
+    if (route.kind === 'plcHome') {
+      return <PlcHomePage plc={plc} layout={layout} isLead={isLead} />;
     }
     if (route.kind === 'section' && route.section === 'meeting') {
       return <PlcMeetingRecordView plc={plc} meetingId={meetingId ?? ''} />;
@@ -335,7 +358,7 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
         plc={plc}
         layout={layout}
         isLead={isLead}
-        onNavigate={(id) => navigate(teamPageSection(id))}
+        onNavigate={(id) => navigate(teamPageSection(id, plcHome))}
         onChangeHero={isLead ? openLayoutEditor : undefined}
       />
     ) : (
@@ -433,11 +456,15 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
             onOverlay={openOverlay}
             onPage={(id) =>
               navigate(
-                id === 'targets' ? 'targets' : teamPageSection(id as TeamPageId)
+                id === 'targets'
+                  ? 'targets'
+                  : id === 'home'
+                    ? 'home'
+                    : teamPageSection(id as TeamPageId, plcHome)
               )
             }
             onClose={onClose}
-            showMobileMenu={showMobileMenu && route.kind === 'page'}
+            showMobileMenu={showMobileMenu && route.kind !== 'section'}
             onMobileMenu={() => setShowMobileMenu(true)}
             panelId={activePage ?? canonical}
             fullBleed={fullBleed}

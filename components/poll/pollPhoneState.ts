@@ -27,8 +27,18 @@ export type PollPhoneEvent =
 
 export const initialPollPhoneState: PollPhoneState = { phase: 'loading' };
 
+const isQuestionLocked = (session: PollSessionDoc): boolean =>
+  (session.lockedQuestions ?? []).includes(
+    clampQuestionIndex(
+      session.currentQuestionIndex,
+      (session.questions ?? []).length
+    )
+  );
+
 const canVote = (session: PollSessionDoc): boolean =>
-  session.startedAt != null && session.active === true;
+  session.startedAt != null &&
+  session.active === true &&
+  !isQuestionLocked(session);
 
 export const pollPhoneReducer = (
   state: PollPhoneState,
@@ -90,6 +100,12 @@ export interface PollBallot {
   total: number;
   votedIndex: number | null;
   submitting: boolean;
+  /** Tallies are held back until the teacher reveals this question. */
+  resultsHidden: boolean;
+  /** The teacher revealed this question's results to everyone, voted or not. */
+  resultsRevealed: boolean;
+  /** Correct option indexes once the teacher shows the answer; null until then. */
+  correctIndexes: number[] | null;
 }
 
 export type PollPhoneView =
@@ -97,7 +113,11 @@ export type PollPhoneView =
   | { k: 'unavailable' }
   | { k: 'waiting' }
   | { k: 'open'; ballot: PollBallot }
-  | { k: 'closed'; reason: 'teacher' | 'rejected'; ballot: PollBallot };
+  | {
+      k: 'closed';
+      reason: 'teacher' | 'locked' | 'rejected';
+      ballot: PollBallot;
+    };
 
 export const derivePollPhoneView = (
   state: PollPhoneState,
@@ -117,7 +137,14 @@ export const derivePollPhoneView = (
   if (session.startedAt == null) return { k: 'waiting' };
 
   const options = question.options ?? [];
+  const revealed = (session.revealedQuestions ?? []).includes(questionIndex);
+  // Matched by id, so an edit after the session snapshot can't move a tick.
+  const shown = new Set(session.shownAnswers ?? []);
+  const shownCorrect = options.flatMap((o, i) =>
+    shown.has(`${question.id}:${o.id}`) ? [i] : []
+  );
   const tally = aggregateVotes(votes, questionIndex, options.length);
+  const mine = votes.find((v) => v.id === `${questionIndex}_${uid}`);
   const ballot: PollBallot = {
     questions,
     questionIndex,
@@ -125,13 +152,16 @@ export const derivePollPhoneView = (
     options,
     tally,
     total: tally.reduce((sum, n) => sum + n, 0),
-    votedIndex:
-      votes.find((v) => v.id === `${questionIndex}_${uid}`)?.optionIndex ??
-      null,
+    votedIndex: mine?.optionIndex ?? null,
     submitting: vote === 'submitting',
+    resultsHidden: session.hideResults === true && !revealed,
+    resultsRevealed: session.hideResults === true && revealed,
+    correctIndexes: shownCorrect.length > 0 ? shownCorrect : null,
   };
   if (session.active !== true)
     return { k: 'closed', reason: 'teacher', ballot };
+  if (isQuestionLocked(session))
+    return { k: 'closed', reason: 'locked', ballot };
   if (vote === 'rejected') return { k: 'closed', reason: 'rejected', ballot };
   return { k: 'open', ballot };
 };

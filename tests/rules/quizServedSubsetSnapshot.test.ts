@@ -6,7 +6,8 @@
 //     is stamped on UPDATE only, where it is validated.
 //   - UPDATE: a student may write `servedQuestionIds` only when it exactly
 //     equals `override.questionIds` on their own pointer doc at
-//     /student_assignments/{uid}/items/{assignmentId}. Anything else would
+//     /student_assignments/{uid}/items/{assignmentId}, and only when that
+//     pointer's teacherUid/sessionId match this session. Anything else would
 //     let a hostile client shrink the publish-time scoring denominator.
 //   - UPDATE: clearing the field (mid-attempt override removal) and writes
 //     that don't touch it are always allowed.
@@ -75,7 +76,13 @@ afterAll(async () => {
 
 const responsePath = `quiz_sessions/${SESSION_ID}/responses/${STUDENT_UID}`;
 
-const seed = async (opts: { pointerSubset?: string[] | null } = {}) => {
+const seed = async (
+  opts: {
+    pointerSubset?: string[] | null;
+    pointerTeacherUid?: string;
+    pointerSessionId?: string;
+  } = {}
+) => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
@@ -101,8 +108,8 @@ const seed = async (opts: { pointerSubset?: string[] | null } = {}) => {
         doc(db, `student_assignments/${STUDENT_UID}/items/${ASSIGNMENT_ID}`),
         {
           kind: 'quiz',
-          sessionId: SESSION_ID,
-          teacherUid: TEACHER_UID,
+          sessionId: opts.pointerSessionId ?? SESSION_ID,
+          teacherUid: opts.pointerTeacherUid ?? TEACHER_UID,
           ...(opts.pointerSubset
             ? { override: { questionIds: opts.pointerSubset } }
             : {}),
@@ -203,6 +210,26 @@ describe('quiz response UPDATE — servedQuestionIds validation', () => {
       updateDoc(
         doc(asStudent(), responsePath),
         answerWrite({ servedQuestionIds: SERVED })
+      )
+    );
+  });
+
+  it('snapshot is REJECTED when another uid wrote the pointer', async () => {
+    await seed({ pointerSubset: ['q0'], pointerTeacherUid: 'forger-uid' });
+    await assertFails(
+      updateDoc(
+        doc(asStudent(), responsePath),
+        answerWrite({ servedQuestionIds: ['q0'] })
+      )
+    );
+  });
+
+  it('snapshot is REJECTED when the pointer names another session', async () => {
+    await seed({ pointerSubset: ['q0'], pointerSessionId: 'other-session' });
+    await assertFails(
+      updateDoc(
+        doc(asStudent(), responsePath),
+        answerWrite({ servedQuestionIds: ['q0'] })
       )
     );
   });

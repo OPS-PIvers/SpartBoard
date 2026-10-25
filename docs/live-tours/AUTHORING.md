@@ -170,6 +170,12 @@ When the admin has played the tour or left notes ("finish the tour", "I played i
 5. Dry-run, then save with `update_live_tour`, passing `resolved_notes` with each note you dealt with: the step id, or `"tour"` for the tour's own note.
 6. Hand back what changed in a few lines, and any note you left open with the reason. Open notes stay for the next pass.
 
+## Web tours
+
+A web tour plays on another website through the SpartBoard Chrome extension. An admin records it; Claude can only finish its words. Find it with `list_web_tours`, read it with `get_web_tour`, look at each step with `get_web_tour_step_picture`, then save new titles and tips with `update_web_tour_text`. Write each tip for what the picture shows, in the same voice as a live tour. Read the tour's `goal` and each step's `note` first: they are the admin's words for why the tour and the step exist. When you still can't tell why a step happens, ask the admin in chat rather than guess. Claude can't change where a step points, re-record, reorder or publish: hand those back to the admin, who publishes in SpartBoard.
+
+A step that missed or matched weakly when someone played the tour may carry a `suggested_fix`: the clues the extension found on the page instead, which clues differ from the step's (`changed`), where they came from (`check` for the admin's Check tour, `admin` for an admin's own run, `teacher` once at least two teachers' runs agree) and how many `runs` found them. A fix never carries words from the page it was found on or its page title, since those can name a student: its name, text and heading are the step's own. Compare it with the step's `locator` and its picture, and tell the admin which fixes look right and why. Claude can't use a fix: the admin presses **Use this fix** on the step in SpartBoard, checks the tour again and republishes. `update_web_tour_text` never changes a step's clues.
+
 ## Examples
 
 Each example is the body of a `create_live_tour` call without its title. The test dry-runs them.

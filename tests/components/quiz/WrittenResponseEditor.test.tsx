@@ -302,4 +302,20 @@ describe('WrittenResponseEditor', () => {
     expect(editor.getAttribute('tabindex')).toBe('-1');
     expect(editor.getAttribute('aria-disabled')).toBe('true');
   });
+
+  it('keeps spell check on unless the question turns it off', () => {
+    const { rerender } = render(
+      <WrittenResponseEditor value="" onChange={vi.fn()} questionKey="q1" />
+    );
+    expect(getEditor()).toHaveAttribute('spellcheck', 'true');
+    rerender(
+      <WrittenResponseEditor
+        value=""
+        onChange={vi.fn()}
+        questionKey="q1"
+        spellCheck={false}
+      />
+    );
+    expect(getEditor()).toHaveAttribute('spellcheck', 'false');
+  });
 });

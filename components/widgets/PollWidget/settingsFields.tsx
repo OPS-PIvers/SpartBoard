@@ -9,8 +9,15 @@ import { useDashboard } from '@/context/useDashboard';
 import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { RosterGroupSelect } from '@/components/common/RosterGroupSelect';
 import { rosterGroupMemberIds } from '@/utils/rosterGroups';
+import { useBoardLinkedShareId } from '@/context/boardLinkedShare';
 import { useAuth } from '@/context/useAuth';
-import { WidgetData, PollConfig, PollQuestion } from '@/types';
+import {
+  WidgetData,
+  PollConfig,
+  PollQuestion,
+  PollQuestionKind,
+  SavedPollPreset,
+} from '@/types';
 import { useDialog } from '@/context/useDialog';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { logError } from '@/utils/logError';
@@ -27,8 +34,11 @@ import {
   Check,
   Copy,
   ListOrdered,
+  EyeOff,
+  CircleCheck,
 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
+import { Toggle } from '@/components/common/Toggle';
 import { MagicInput } from '@/components/common/MagicInput';
 import {
   generatePoll,
@@ -41,17 +51,32 @@ import {
   ensurePollJoinCode,
   startPollSession,
   stopPollSession,
+  syncSessionResultsState,
+  withStoppedSessionEnded,
 } from '@/components/poll/pollSession';
 import { buildPollJoinUrl } from '@/utils/pollCode';
 import {
   MAX_POLL_QUESTIONS,
+  SCALE_SIZES,
   clampQuestionIndex,
+  isScaleQuestion,
+  isTextQuestion,
+  makeScaleOptions,
   getPollQuestions,
   withPollQuestions,
   withQuestionAt,
+  withVotesReset,
 } from '@/utils/pollQuestions';
 
+import { usePollSessionDocs } from '@/hooks/usePollSession';
+import {
+  pollResultsCsv,
+  summarizeLocalPoll,
+  summarizePoll,
+} from '@/utils/pollResults';
 import { OptionInput } from './components/OptionInput';
+import { PollResultsSummary } from './components/PollResultsSummary';
+import { SavedPollsPanel } from './components/SavedPollsPanel';
 import { useTranslation } from 'react-i18next';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
@@ -63,6 +88,8 @@ export const PollSettings: React.FC<{
   const { updateWidget, addToast, rosters, activeRosterId } = useDashboard();
   const { showConfirm } = useDialog();
   const { canAccessFeature, user } = useAuth();
+  const boardShareId = useBoardLinkedShareId();
+  const pollPro = canAccessFeature('poll-pro');
   const config = useMemo(
     () => (widget.config || {}) as PollConfig,
     [widget.config]
@@ -77,6 +104,39 @@ export const PollSettings: React.FC<{
   const showBehavior = section !== 'content';
 
   const questions = useMemo(() => getPollQuestions(config), [config]);
+
+  // Results come from the live or last session the teacher ran, else the board's own tallies.
+  const resultsSessionId =
+    pollPro && showContent
+      ? (activePollSessionId ?? config.lastPollSessionId ?? null)
+      : null;
+  const resultsOwnerUid =
+    (isLive
+      ? config.activePollSessionOwnerUid
+      : config.lastPollSessionOwnerUid) ?? user?.uid;
+  const { votes: sessionVotes, answers: sessionAnswers } = usePollSessionDocs(
+    resultsOwnerUid,
+    resultsSessionId,
+    resultsOwnerUid === user?.uid && questions.some(isTextQuestion)
+  );
+  const summaries = useMemo(
+    () =>
+      resultsSessionId
+        ? summarizePoll(
+            questions,
+            sessionVotes,
+            sessionAnswers,
+            config.hiddenResponses ?? []
+          )
+        : summarizeLocalPoll(questions),
+    [
+      resultsSessionId,
+      questions,
+      sessionVotes,
+      sessionAnswers,
+      config.hiddenResponses,
+    ]
+  );
 
   // Editing cursor — deliberately separate from `currentQuestionIndex`, which
   // is what every joined phone is showing. Clicking a chip to fix a typo must
@@ -98,6 +158,8 @@ export const PollSettings: React.FC<{
 
   // In-flight join-code reservation, shared by the mint effect and Start.
   const mintPromiseRef = useRef<Promise<string | null> | null>(null);
+  // The reserved code reached the config; once Reset or Load clears it, it is spent.
+  const mintAppliedRef = useRef(false);
 
   const beginSession = async (mode: 'fresh' | 'resume') => {
     if (!user) return;
@@ -106,12 +168,20 @@ export const PollSettings: React.FC<{
       // Adopt any in-flight code reservation instead of letting
       // startPollSession mint a second one: two codes would leave the panel
       // showing the reserved code while the live session answers to the other.
-      const reserved = await mintPromiseRef.current;
+      const reserved = mintAppliedRef.current
+        ? null
+        : await mintPromiseRef.current;
       const base =
         reserved && !config.joinCode
           ? { ...config, joinCode: reserved }
           : config;
-      const next = await startPollSession(base, user.uid, mode);
+      const next = await startPollSession(
+        base,
+        user.uid,
+        mode,
+        canAccessFeature('shared-board-live-walls'),
+        canAccessFeature('poll-pro')
+      );
       applyConfig(next);
     } catch (err) {
       // Surface the failure rather than leaving the teacher with a
@@ -140,6 +210,39 @@ export const PollSettings: React.FC<{
     }
   };
 
+  // Push reveal state to the session phones are on (live or stopped), for its owner only.
+  const syncHiddenResults = (next: PollConfig) => {
+    const sessionId = activePollSessionId ?? config.lastPollSessionId ?? null;
+    if (
+      !next.hideResults &&
+      !config.hideResults &&
+      !config.answerShownQuestionIds?.length
+    )
+      return;
+    if (
+      sessionId &&
+      user &&
+      ((activePollSessionId
+        ? config.activePollSessionOwnerUid
+        : config.lastPollSessionOwnerUid) ?? user.uid) === user.uid
+    ) {
+      void syncSessionResultsState(user.uid, sessionId, next).catch((err) =>
+        logError('PollSettings.hideResults', err)
+      );
+    }
+  };
+
+  const handleHideResultsChange = (hideResults: boolean) => {
+    // Turning hiding on starts every question hidden again.
+    const next: PollConfig = {
+      ...config,
+      hideResults,
+      revealedQuestionIds: [],
+    };
+    applyConfig(next);
+    syncHiddenResults(next);
+  };
+
   // Reserve the sticky join code (and its inert session doc) the first time
   // this panel renders, so the link is copyable before voting ever opens.
   // The promise is shared with beginSession so Start can adopt this code
@@ -147,6 +250,10 @@ export const PollSettings: React.FC<{
   useEffect(() => {
     if (!showBehavior || !canOfferAnonymousJoin || !user || config.joinCode)
       return;
+    if (mintAppliedRef.current) {
+      mintPromiseRef.current = null;
+      mintAppliedRef.current = false;
+    }
     if (mintPromiseRef.current) return;
     const pending = ensurePollJoinCode(config, user.uid).catch((err) => {
       logError('PollSettings.ensureJoinCode', err);
@@ -160,7 +267,9 @@ export const PollSettings: React.FC<{
       // Patch ONLY the minted key. `updateWidget` merges config shallowly, so
       // writing back a whole snapshot captured before this round-trip would
       // revert any edit the teacher made while it was in flight.
-      if (code) applyConfig({ joinCode: code });
+      if (!code || mintPromiseRef.current !== pending) return;
+      mintAppliedRef.current = true;
+      applyConfig({ joinCode: code });
     });
   }, [showBehavior, canOfferAnonymousJoin, user, config, applyConfig]);
 
@@ -200,8 +309,27 @@ export const PollSettings: React.FC<{
     setLocalQuestion(editing.question);
   }
 
-  const saveEditing = (next: Partial<PollQuestion>) => {
-    applyConfig(withQuestionAt(config, editIndex, { ...editing, ...next }));
+  const saveEditing = (next: Partial<PollQuestion>) =>
+    saveEditingQuestion({ ...editing, ...next });
+
+  const saveEditingQuestion = (question: PollQuestion) => {
+    const updated = withQuestionAt(config, editIndex, question);
+    // Changing options hides a shown answer, so phones never keep stale or early ticks.
+    if (
+      question.options !== editing.options &&
+      config.answerShownQuestionIds?.includes(editing.id) === true
+    ) {
+      const hidden: PollConfig = {
+        ...updated,
+        answerShownQuestionIds: config.answerShownQuestionIds.filter(
+          (id) => id !== editing.id
+        ),
+      };
+      applyConfig(hidden);
+      syncHiddenResults(hidden);
+      return;
+    }
+    applyConfig(updated);
   };
 
   const saveQuestion = () => {
@@ -311,7 +439,9 @@ export const PollSettings: React.FC<{
         )
       )
       .join('\n');
-    const csvContent = csvHeader + csvRows;
+    const csvContent = pollPro
+      ? pollResultsCsv(summaries)
+      : csvHeader + csvRows;
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -346,6 +476,45 @@ export const PollSettings: React.FC<{
     saveEditing({ options: options.filter((_, i) => i !== index) });
   };
 
+  const editingScale = pollPro && isScaleQuestion(editing);
+  const editingText = pollPro && isTextQuestion(editing);
+
+  const setQuestionKind = (kind: PollQuestionKind) => {
+    if (kind === (editing.kind ?? 'choice')) return;
+    const { id, question } = editing;
+    saveEditingQuestion(
+      kind === 'scale'
+        ? { id, question, kind, options: makeScaleOptions(5) }
+        : kind === 'words' || kind === 'text'
+          ? { id, question, kind, options: [] }
+          : {
+              id,
+              question,
+              kind,
+              options: [
+                {
+                  id: crypto.randomUUID(),
+                  label: t('widgetSettings.poll.optionA'),
+                  votes: 0,
+                },
+                {
+                  id: crypto.randomUUID(),
+                  label: t('widgetSettings.poll.optionB'),
+                  votes: 0,
+                },
+              ],
+            }
+    );
+  };
+
+  const toggleCorrect = (index: number) => {
+    saveEditing({
+      options: options.map((o, i) =>
+        i === index ? { ...o, correct: !o.correct } : o
+      ),
+    });
+  };
+
   const updateOptionLabel = (index: number, label: string) => {
     saveEditing({
       options: options.map((o, i) => (i === index ? { ...o, label } : o)),
@@ -364,14 +533,43 @@ export const PollSettings: React.FC<{
       }
     );
     if (!confirmed) return;
+    const reset = withVotesReset(config);
+    const next = pollPro ? withStoppedSessionEnded(reset) : reset;
+    applyConfig(next);
+    syncHiddenResults(next);
+  };
+
+  const handleLoadSaved = (preset: SavedPollPreset) => {
+    // A different poll starts a new session with a new join code, so old votes never mix in.
     applyConfig(
       withPollQuestions(
-        config,
-        questions.map((q) => ({
+        {
+          ...config,
+          currentQuestionIndex: 0,
+          hideResults: preset.hideResults === true,
+          revealedQuestionIds: [],
+          lockedQuestionIds: [],
+          answerShownQuestionIds: [],
+          hiddenResponses: [],
+          joinCode: null,
+          lastPollSessionId: null,
+          lastPollSessionOwnerUid: null,
+        },
+        preset.questions.map((q) => ({
           ...q,
-          options: q.options.map((o) => ({ ...o, votes: 0 })),
+          id: crypto.randomUUID(),
+          options: q.options.map((o) => ({
+            ...o,
+            id: crypto.randomUUID(),
+            votes: 0,
+          })),
         }))
       )
+    );
+    setRawEditIndex(0);
+    addToast(
+      t('widgetSettings.poll.pollLoaded', { name: preset.name }),
+      'success'
     );
   };
 
@@ -391,7 +589,9 @@ export const PollSettings: React.FC<{
                 size="sm"
                 variant="secondary"
                 onClick={importFromRoster}
-                disabled={!activeRoster || isLive}
+                disabled={
+                  !activeRoster || isLive || editingScale || editingText
+                }
                 {...tourAttr(
                   'widget-settings.poll.import-roster',
                   widget.id,
@@ -605,8 +805,102 @@ export const PollSettings: React.FC<{
               />
             </div>
 
+            {pollPro && (
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div className="min-w-0">
+                  <SettingsLabel htmlFor={`poll-question-type-${widget.id}`}>
+                    {t('widgetSettings.poll.questionType')}
+                  </SettingsLabel>
+                  <select
+                    id={`poll-question-type-${widget.id}`}
+                    value={editing.kind ?? 'choice'}
+                    onChange={(e) =>
+                      setQuestionKind(e.target.value as PollQuestionKind)
+                    }
+                    className="w-full p-2 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                    {...tourAttr(
+                      'widget-settings.poll.question-type',
+                      widget.id,
+                      widget.type
+                    )}
+                  >
+                    <option value="choice">
+                      {t('widgetSettings.poll.multipleChoice')}
+                    </option>
+                    <option value="scale">
+                      {t('widgetSettings.poll.ratingScale')}
+                    </option>
+                    <option value="words">
+                      {t('widgetSettings.poll.wordCloud')}
+                    </option>
+                    <option value="text">
+                      {t('widgetSettings.poll.openResponse')}
+                    </option>
+                  </select>
+                </div>
+                {editingScale && (
+                  <div className="min-w-0">
+                    <SettingsLabel htmlFor={`poll-scale-size-${widget.id}`}>
+                      {t('widgetSettings.poll.scaleSize')}
+                    </SettingsLabel>
+                    <select
+                      id={`poll-scale-size-${widget.id}`}
+                      value={options.length}
+                      onChange={(e) =>
+                        saveEditing({
+                          options: makeScaleOptions(Number(e.target.value)),
+                        })
+                      }
+                      className="w-full p-2 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                      {...tourAttr(
+                        'widget-settings.poll.scale-size',
+                        widget.id,
+                        widget.type
+                      )}
+                    >
+                      {SCALE_SIZES.map((size) => (
+                        <option key={size} value={size}>
+                          {t('widgetSettings.poll.scaleOneTo', { count: size })}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {editingScale &&
+                  (['scaleLow', 'scaleHigh'] as const).map((field) => (
+                    <div key={field} className="min-w-0">
+                      <SettingsLabel htmlFor={`poll-${field}-${widget.id}`}>
+                        {t(
+                          field === 'scaleLow'
+                            ? 'widgetSettings.poll.scaleLowLabel'
+                            : 'widgetSettings.poll.scaleHighLabel'
+                        )}
+                      </SettingsLabel>
+                      <input
+                        key={`${editing.id}:${editing[field] ?? ''}`}
+                        id={`poll-${field}-${widget.id}`}
+                        type="text"
+                        maxLength={40}
+                        defaultValue={editing[field] ?? ''}
+                        onBlur={(e) => {
+                          if (e.target.value !== (editing[field] ?? '')) {
+                            saveEditing({ [field]: e.target.value });
+                          }
+                        }}
+                        className="w-full p-2 text-xs font-bold text-slate-700 bg-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500"
+                        {...tourFieldAttr(
+                          'widget-settings.poll.scale-label',
+                          widget.type,
+                          field === 'scaleLow' ? 'low' : 'high'
+                        )}
+                      />
+                    </div>
+                  ))}
+              </div>
+            )}
+
             {/* Options List */}
-            <div className="mt-4">
+            <div className={editingScale || editingText ? 'hidden' : 'mt-4'}>
               <SettingsLabel
                 as="span"
                 id={`pollwidget-options-label-${widget.id}`}
@@ -625,6 +919,26 @@ export const PollSettings: React.FC<{
                       label={option.label}
                       onSave={updateOptionLabel}
                     />
+                    {pollPro && (
+                      <button
+                        onClick={() => toggleCorrect(idx)}
+                        aria-pressed={option.correct === true}
+                        aria-label={t('widgetSettings.poll.correctAnswer')}
+                        title={t('widgetSettings.poll.correctAnswer')}
+                        className={`relative touch-target-expand p-2 rounded-lg transition-colors ${
+                          option.correct
+                            ? 'text-emerald-700 bg-emerald-50'
+                            : 'text-slate-400 hover:text-emerald-700 hover:bg-emerald-50'
+                        }`}
+                        {...tourFieldAttr(
+                          'widget-settings.poll.correct-option',
+                          widget.type,
+                          `option-${idx + 1}`
+                        )}
+                      >
+                        <CircleCheck className="w-4 h-4" />
+                      </button>
+                    )}
                     <button
                       onClick={() => removeOption(idx)}
                       className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
@@ -655,6 +969,15 @@ export const PollSettings: React.FC<{
               </button>
             </div>
           </fieldset>
+
+          {pollPro && (
+            <div className="pt-4 border-t border-slate-100">
+              <SettingsLabel as="span">
+                {t('widgetSettings.poll.results')}
+              </SettingsLabel>
+              <PollResultsSummary summaries={summaries} />
+            </div>
+          )}
 
           {/* Actions */}
           <div className="pt-4 border-t border-slate-100">
@@ -694,10 +1017,46 @@ export const PollSettings: React.FC<{
               </Button>
             </div>
           </div>
+
+          {pollPro && (
+            <SavedPollsPanel
+              questions={questions}
+              hideResults={config.hideResults === true}
+              isLive={isLive}
+              onLoad={handleLoadSaved}
+              widgetId={widget.id}
+              widgetType={widget.type}
+            />
+          )}
         </>
       )}
 
       {/* Live Device Voting — gated by anonymous-join */}
+      {showBehavior && canAccessFeature('poll-pro') && (
+        <div className="pt-4 border-t border-slate-100 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <SettingsLabel icon={EyeOff}>
+              {t('widgetSettings.poll.hideResults')}
+            </SettingsLabel>
+          </div>
+          <Toggle
+            checked={config.hideResults === true}
+            onChange={handleHideResultsChange}
+            disabled={
+              !!boardShareId &&
+              !!activePollSessionId &&
+              config.activePollSessionOwnerUid !== user?.uid
+            }
+            label={t('widgetSettings.poll.hideResults')}
+            anchor={tourAttr(
+              'widget-settings.poll.hide-results',
+              widget.id,
+              widget.type
+            )}
+          />
+        </div>
+      )}
+
       {showBehavior && canOfferAnonymousJoin && (
         <div className="pt-4 border-t border-slate-100">
           <SettingsLabel icon={Radio}>
@@ -757,6 +1116,12 @@ export const PollSettings: React.FC<{
             <Button
               variant="secondary"
               onClick={() => void handleStopClick()}
+              // A colleague's session on a shared board is theirs to stop.
+              disabled={
+                !!boardShareId &&
+                !!config.activePollSessionOwnerUid &&
+                config.activePollSessionOwnerUid !== user?.uid
+              }
               icon={<Square className="w-3.5 h-3.5" />}
               {...tourAttr(
                 'widget-settings.poll.stop-voting',

@@ -138,6 +138,7 @@ const TYPE_BOUND_EXTRAS = [
   'rubricSnapshot',
   'rubricVisibleToStudents',
   'enforceWordLimit',
+  'noSpellCheck',
   'paperBoxSize',
 ] as const;
 

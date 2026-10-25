@@ -143,10 +143,20 @@ const SLICE_SECTIONS: Record<
   // Common assessments surface on Home (assessment cards / meeting CTA), in
   // Meeting Mode (which assessments are reviewed), and as the Assessments
   // list rows. (§3.6)
-  assessments: new Set<PlcSectionId>(['home', 'meeting', 'assessments']),
+  assessments: new Set<PlcSectionId>([
+    'home',
+    'meeting',
+    'assessments',
+    'dataOverview',
+  ]),
   // Anonymized aggregates are the Meeting-Mode + Assessments data spine, and
   // Home's "results ready" digest reads them too. (Decisions 6.0 + 3.3)
-  aggregates: new Set<PlcSectionId>(['assessments', 'meeting', 'home']),
+  aggregates: new Set<PlcSectionId>([
+    'assessments',
+    'meeting',
+    'home',
+    'dataOverview',
+  ]),
   // Meeting records surface only in Meeting Mode (the archive list + resume a
   // specific record). (§3.7)
   meetings: new Set<PlcSectionId>(['meeting']),

@@ -375,8 +375,10 @@ export const Viewer: React.FC<ViewerProps> = ({
           {/* Assets Panel */}
           {showAssets && hasAssets && (
             <div
-              className="w-1/3 max-w-[240px] min-w-[160px] bg-white border-l border-slate-200 shadow-xl overflow-y-auto custom-scrollbar z-20 flex flex-col"
+              className="w-1/3 bg-white border-l border-slate-200 shadow-xl overflow-y-auto custom-scrollbar z-20 flex flex-col"
               style={{
+                maxWidth: 'min(240px, 45cqmin)',
+                minWidth: 'min(160px, 30cqmin)',
                 padding: 'min(12px, 2.5cqmin)',
                 gap: 'min(12px, 2.5cqmin)',
               }}

@@ -1582,6 +1582,21 @@
     "schedule": {
       "startTimer": "Iniciar Temporizador",
       "startTimerUntil": "Iniciar cuenta regresiva hasta {{time}}"
+    },
+    "scoreboard": {
+      "undo": "Deshacer",
+      "undoShortcut": "Deshacer el último cambio de puntuación (Ctrl+Z)",
+      "history": "Historial",
+      "scores": "Puntuaciones",
+      "recentChanges": "Cambios recientes",
+      "noChanges": "Aún no hay cambios",
+      "reset": "Reinicio",
+      "leader": "Líder",
+      "tied": "Empate",
+      "addPoints_one": "Sumar {{count}} punto",
+      "addPoints_other": "Sumar {{count}} puntos",
+      "removePoints_one": "Quitar {{count}} punto",
+      "removePoints_other": "Quitar {{count}} puntos"
     }
   },
   "boardBreadcrumb": {
@@ -1598,6 +1613,7 @@
   "boardsModal": {
     "title": "Tableros y Colecciones",
     "close": "Cerrar",
+    "backToBoard": "Volver al tablero",
     "searchPlaceholder": "Buscar Tableros y Colecciones",
     "newBoard": "Nuevo Tablero",
     "newBoardPrompt": "Nombre del Tablero",
@@ -1622,6 +1638,9 @@
     "delete": "Eliminar",
     "bulkDeleteConfirm": "¿Eliminar {{count}} elemento(s)? Esta acción no se puede deshacer.",
     "deleteBoardConfirm": "¿Eliminar este Tablero?",
+    "removeSharedBoardConfirm": "¿Quitar este tablero para todos en la colección compartida?",
+    "removeSharedBoardConfirmLabel": "Quitar",
+    "removeSharedCollectionConfirm": "¿Quitar esta colección y sus tableros para todos en la colección compartida?",
     "deleteCollectionConfirm": "¿Eliminar esta Colección? Los Tableros que contiene se moverán al nivel superior.",
     "unpinBoard": "Desanclar Tablero",
     "dragToMove": "Arrastra para mover",
@@ -1694,7 +1713,13 @@
     "notFound": "Colección compartida no encontrada o expirada",
     "empty": "La Colección compartida está vacía",
     "invalidShareUrl": "Enlace de compartición inválido — falta el ID de recurso compartido.",
-    "substituteImportRejected": "Este enlace es para sustitutos. Ábrelo en el Portal de sustitutos."
+    "substituteImportRejected": "Este enlace es para sustitutos. Ábrelo en el Portal de sustitutos.",
+    "modeSynced": "Sincronizado",
+    "modeSyncedHint": "Ambos editan la misma colección.",
+    "modeViewOnly": "Solo lectura",
+    "modeViewOnlyHint": "Ven tus cambios en vivo, pero no pueden editar.",
+    "modeCopyTitle": "Hacer una copia",
+    "boardAlreadyLive": "{{name}} ya se comparte en vivo. Deja de compartirlo primero o haz una copia."
   },
   "importSharedCollection": {
     "title": "Importar Colección compartida",
@@ -1716,7 +1741,12 @@
   },
   "collectionMenu": {
     "share": "Compartir Colección…",
-    "saveAsTemplate": "Guardar como Plantilla…"
+    "saveAsTemplate": "Guardar como Plantilla…",
+    "stopSharing": "Dejar de compartir",
+    "stopSharingConfirm": "¿Dejar de compartir esta colección? Los docentes sincronizados conservan su propia copia. Los docentes de solo lectura la pierden.",
+    "leaveShared": "Salir de la colección compartida",
+    "leaveSharedConfirm": "¿Salir de esta colección compartida? Conservas una copia de sus tableros, pero dejarán de actualizarse.",
+    "leaveSharedViewerConfirm": "¿Salir de esta colección compartida? Se quitará de tu cuenta."
   },
   "templatePicker": {
     "title": "Crear desde Plantilla",
@@ -3169,7 +3199,8 @@
         "other": "Otros",
         "tours": "Recorridos en vivo"
       },
-      "liveTourBadge": "Recorrido en vivo"
+      "liveTourBadge": "Recorrido en vivo",
+      "webTourBadge": "Recorrido web"
     },
     "shortcuts": {
       "open-help": "Abrir la ayuda",
@@ -3737,7 +3768,16 @@
       "replaceTeamsBody_other": "Esto reemplaza los {{count}} equipos de este marcador, incluidas sus puntuaciones.",
       "replaceTeamsConfirm": "Reemplazar",
       "classTeamName": "Equipo {{count}}",
-      "membersTitle": "Integrantes del grupo de la clase"
+      "membersTitle": "Integrantes del grupo de la clase",
+      "sortByScore": "Ordenar por puntuación",
+      "pointButtons": "Botones de puntos",
+      "pointPreset": {
+        "1": "+1",
+        "1-2-3": "+1, +2, +3",
+        "1-5-10": "+1, +5, +10",
+        "5-10-25": "+5, +10, +25",
+        "10-50-100": "+10, +50, +100"
+      }
     },
     "checklist": {
       "poolGroup": "Tomar de",
@@ -4053,7 +4093,17 @@
     },
     "webFindIt": "Busque esto en la página.",
     "webOtherPage": "Este paso está en otra página. Ábrala para continuar.",
-    "webPictureAlt": "Imagen de este paso"
+    "webArmed": "Inicie sesión. Su recorrido empieza en cuanto entre.",
+    "webGoToStart": "Ir al inicio",
+    "webArmedExit": "Detener el recorrido",
+    "webMoved": "Su recorrido pasó a la otra pestaña.",
+    "webStopped": "Recorrido detenido. Haga clic en el icono de SpartBoard para empezarlo de nuevo.",
+    "webDismiss": "Cerrar",
+    "webPictureAlt": "Imagen de este paso",
+    "webCheckFound": "Encontrado",
+    "webCheckWeak": "Coincidencia débil",
+    "webCheckAmbiguous": "Coincide con más de uno",
+    "webCheckNone": "No encontrado"
   },
   "glPlayer": {
     "modeChip": {
@@ -4248,6 +4298,8 @@
     "loading": "Cargando recorridos...",
     "intro": "Compara los recorridos publicados con el registro de anclajes.",
     "recordTour": "Grabar un recorrido",
+    "recordWebTour": "Grabar un recorrido web",
+    "recordWebTourFailed": "No se pudo crear el recorrido web.",
     "checkLive": "Comprobar en vivo",
     "empty": "Ningún conjunto de Guided Learning tiene pasos de recorrido en vivo todavía.",
     "untitledSet": "Conjunto sin título",
@@ -4324,7 +4376,8 @@
       },
       "reason": {
         "missed": "Mostró la imagen en {{misses}} de {{runs}} usos reales",
-        "weak": "Se encontró solo con una pista más débil en {{weak}} de {{runs}} usos reales"
+        "weak": "Se encontró solo con una pista más débil en {{weak}} de {{runs}} usos reales",
+        "weakScore": "Parecido a otro control en {{weak}} de {{runs}} usos reales"
       },
       "copyLink": "Copiar enlace",
       "linkCopied": "Copiado",
@@ -4440,11 +4493,14 @@
     "startOver": "Empezar de nuevo",
     "resume": "Continuar en el paso {{number}}",
     "playing": "El recorrido está abierto en otra pestaña. Tu progreso se muestra aquí.",
+    "openedTitle": "Su recorrido está abierto en la otra pestaña",
+    "startAgain": "Empezar de nuevo",
     "closed": "Se cerró la pestaña del recorrido.",
     "exited": "Saliste del recorrido.",
     "done": "Terminaste este recorrido.",
     "startFailed": "No se pudo iniciar el recorrido. Inténtalo de nuevo.",
-    "noExtension": "Pide a tu equipo de tecnología que agregue la extensión de SpartBoard para Chrome para que este recorrido señale cada paso en el sitio. Por ahora, sigue las imágenes de abajo.",
+    "noExtension": "Agrega la extensión de SpartBoard para Chrome para que este recorrido señale cada paso en el sitio. Por ahora, sigue las imágenes de abajo.",
+    "getExtension": "Obtener la extensión de SpartBoard",
     "wrongProfile": "Este recorrido solo funciona en un perfil de Chrome con tu cuenta de personal de Orono. Por ahora, sigue las imágenes de abajo.",
     "oldExtension": "Tu extensión de SpartBoard necesita una actualización para este recorrido. Por ahora, sigue las imágenes de abajo.",
     "openSite": "Abrir {{site}}",
@@ -4453,5 +4509,12 @@
     "pictureAlt": "Imagen del paso {{number}}",
     "unavailableTitle": "Este recorrido no está disponible",
     "unavailableBody": "Puede que el enlace esté mal o que el recorrido se haya eliminado. Pide un enlace nuevo a quien lo compartió."
+  },
+  "linkedCollection": {
+    "stopped": "Se dejó de compartir",
+    "left": "Saliste de la colección compartida",
+    "leaveFailed": "No se pudo salir de la colección compartida",
+    "hostStopped": "{{name}} dejó de compartir esta colección.",
+    "hostStoppedNoName": "El anfitrión dejó de compartir esta colección."
   }
 }

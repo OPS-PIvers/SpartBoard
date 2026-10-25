@@ -6,6 +6,7 @@ import {
   useState,
 } from 'react';
 import { logError } from '@/utils/logError';
+import { EXTENSION_PROTOCOL_VERSION } from './extensionProtocol';
 import {
   parseRecorderPortMessage,
   RECORDER_PORT,
@@ -41,20 +42,33 @@ export function useWebTourRecorder({
   setId,
   title,
   onStep,
+  onRepicked,
 }: {
   setId: string;
   title: string;
   onStep: (step: RecordedWebStep) => Promise<void>;
-}): { link: RecorderLink; connect: () => void; disconnect: () => void } {
+  /** A step picked again on the site; it carries the id of the step it replaces. */
+  onRepicked?: (step: RecordedWebStep) => Promise<void>;
+}): {
+  link: RecorderLink;
+  connect: () => void;
+  disconnect: () => void;
+  repick: (stepId: string) => void;
+} {
   const [link, setLink] = useState<RecorderLink>('off');
   const port = useRef<ChromePort | null>(null);
   const onStepRef = useRef(onStep);
+  const onRepickedRef = useRef(onRepicked);
+  // Posts on the attached port; null until the extension answers the attach.
+  const attachedPost = useRef<((msg: object) => void) | null>(null);
+  const pendingRepick = useRef<string | null>(null);
   const done = useRef(new Set<string>());
   const queue = useRef<Promise<void>>(Promise.resolve());
 
   useLayoutEffect(() => {
     onStepRef.current = onStep;
-  }, [onStep]);
+    onRepickedRef.current = onRepicked;
+  }, [onStep, onRepicked]);
 
   const wanted = useRef(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -68,6 +82,8 @@ export function useWebTourRecorder({
     clearTimers();
     port.current?.disconnect();
     port.current = null;
+    attachedPost.current = null;
+    pendingRepick.current = null;
     setLink('off');
   }, []);
 
@@ -109,6 +125,7 @@ export function useWebTourRecorder({
           clearInterval(keepAlive);
           if (port.current !== p) return;
           port.current = null;
+          attachedPost.current = null;
           // The worker restarted: reconnect, and unacknowledged steps are re-sent.
           if (attached && wanted.current && left > 0) {
             setLink('connecting');
@@ -124,7 +141,25 @@ export function useWebTourRecorder({
           if (!msg || msg.setId !== setId) return;
           if (msg.type === 'recorder/attached') {
             attached = true;
+            attachedPost.current = post;
             setLink('connected');
+            const stepId = pendingRepick.current;
+            pendingRepick.current = null;
+            if (stepId) post({ type: 'recorder/repick', setId, stepId });
+          }
+          if (msg.type === 'recorder/repicked') {
+            const step = msg.step;
+            queue.current = queue.current.then(async () => {
+              if (port.current !== p || !onRepickedRef.current) return;
+              try {
+                await onRepickedRef.current(step);
+              } catch (err) {
+                logError('web tour recorder repick', err, { setId });
+                return;
+              }
+              post({ type: 'recorder/ack', setId, stepId: step.id });
+            });
+            return;
           }
           if (msg.type !== 'recorder/step') return;
           const step = msg.step;
@@ -144,6 +179,12 @@ export function useWebTourRecorder({
             post({ type: 'recorder/ack', setId, stepId: step.id });
           });
         });
+        // Says which clues this page reviews before any step arrives.
+        post({
+          type: 'recorder/hello',
+          setId,
+          protocol: EXTENSION_PROTOCOL_VERSION,
+        });
         post({ type: 'recorder/attach', setId, title });
       };
       openPort(retries);
@@ -156,7 +197,20 @@ export function useWebTourRecorder({
     open(MAX_RECONNECTS);
   }, [open]);
 
+  const repick = useCallback(
+    (stepId: string) => {
+      if (attachedPost.current) {
+        attachedPost.current({ type: 'recorder/repick', setId, stepId });
+        return;
+      }
+      // Sent once the extension answers the attach.
+      pendingRepick.current = stepId;
+      if (!port.current) connect();
+    },
+    [setId, connect]
+  );
+
   useEffect(() => disconnect, [disconnect, setId]);
 
-  return { link, connect, disconnect };
+  return { link, connect, disconnect, repick };
 }

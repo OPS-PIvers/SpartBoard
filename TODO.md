@@ -36,6 +36,7 @@ Prod moved to the OPSTech billing account on 2026-10-01; a $30/mo budget and Big
 - [ ] **Artifact Registry cleanup**: the dev deploy sets a 1-day policy on `spartboard-dev` (#4332), after which images are rebuilt on every functions deploy. Apply an equivalent policy to prod once its effect on build cache and deploy time is confirmed on dev. ~$2/mo. (S/LOW)
 - [ ] **Unused secrets**: confirm who uses `JULES_API_KEY` (2 versions) and `YOUTUBE_API_KEY` in prod; no deployed function references them. Disable (reversible) rather than delete. Never run `firebase functions:secrets:prune` — it destroys versions irreversibly with no dry run. (S/LOW)
 - [ ] **Stale budget**: the $20 "SpartBoard" budget on the personal billing account (01597B) still filters on the prod project and now covers nothing — delete it. (S/LOW)
+- [ ] **Poll upgrades** (`poll-pro`, docs/plans/shipped/POLL_PRO.md): after testing in prod, open Admin Settings > Access > Previews > Poll upgrades > Public, and OK the new wording listed in #4637, #4651, #4658 and the slice 4 PR. (S/LOW)
 
 ### Spec decisions blocking feature work
 
@@ -51,7 +52,7 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/plans/shipped/LIVE_TOUR_EDITOR.md`
 
-- [ ] After the `main` release that carries PR 1: `node scripts/convert-tour-slides.mjs --project prod` (dry run), then with `--write --confirm-prod`. Moves each tour step's slide into its thumbnail. (S)
+- [x] After the `main` release that carries PR 1: `node scripts/convert-tour-slides.mjs --project prod` (dry run), then with `--write --confirm-prod`. Moves each tour step's slide into its thumbnail. (S)
 
 #### `docs/plans/shipped/ACTIVITY_WALL_REDESIGN.md`
 
@@ -182,6 +183,23 @@ Each item names the plan it came from; the plan holds the detail.
 
 - [ ] Paul saves the "Video Activity live mode" row once in prod, runs a live session (teacher tab plus a student tab, Present popup autoplay), then sets `video-activity-live` to Public in Admin Settings > Access > Previews and adds the changelog entry. (S)
 - [ ] Offer live mode from sub-launched and Library Assign entry points too; v1 only offers it from the widget's own Assign dialog. (M)
+
+#### `docs/plans/shipped/WEB_TOURS_UX.md`
+
+- [ ] Paul tests the dev extension (0.1.4, `extension\dist\dev`) in real Chrome: record on a website, send about ten steps with pictures to a New tour with no editor open, check the background tab saves them and closes, use Open in SpartBoard, then publish and play the tour. (S)
+- [ ] Set `web-tours` to Public in Admin Settings > Access > Previews once Paul has tested in prod, then add the public changelog entry. (S)
+
+#### `docs/plans/shipped/WEB_TOURS_CLAUDE.md`
+
+- [ ] Paul tries the dev extension (0.1.11) in real Chrome: scored matching, blur before capture, Write with Claude, Check tour and the Publish gate, and a Suggested fix from a check run and from two teacher runs. (S)
+- [ ] C15 pictures: save a fresh picture with a suggestion from an admin's own run or a check run (PR 5 sends clues only). (M)
+
+#### `docs/plans/shipped/WEB_TOURS_HELP_PANEL.md`
+
+- [ ] Upload extension 0.1.14 to both Web Store listings (prod is still on 0.1.12; 0.1.13 was never uploaded). (S)
+- [ ] IT marks both "Chrome extension" OAuth clients (prod `759666600376-3588...`, dev `258543092004-9mfh...`) as Trusted in Admin Console > Security > API Controls, so teachers get no consent prompt (H8). (S)
+- [ ] Paul tries the dev extension (0.1.14) in real Chrome: a tour link through ClassLink sign-in (waits, then starts), a LaunchPad new tab, the Tours tab with search and Start, the badge, and the not-signed-in message on a personal profile. (S)
+- [ ] Optional: store each tour's start host and step count at publish time so `webToursListV1` stops reading every step; needs a rules change, so wait until the rules have room. (M)
 
 #### `docs/specs/LO12-nexus-widget-connections-spec.md`
 

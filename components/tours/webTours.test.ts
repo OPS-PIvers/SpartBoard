@@ -37,7 +37,9 @@ vi.mock('firebase/storage', () => ({
     Promise.resolve(void h.deleted.push(path)),
 }));
 
+import { getBytes, uploadBytes } from 'firebase/storage';
 import {
+  duplicateWebTourDraft,
   isWebTourPicturePath,
   publishWebTour,
   uploadWebTourPicture,
@@ -158,5 +160,39 @@ describe('publishWebTour', () => {
 
   it('fails when there is no draft', async () => {
     await expect(publishWebTour('w1', 'admin-uid')).rejects.toThrow();
+  });
+});
+
+describe('duplicateWebTourDraft', () => {
+  it('copies pictures into the new set and saves the copy', async () => {
+    vi.mocked(getBytes).mockResolvedValue(new ArrayBuffer(4));
+    const copy = await duplicateWebTourDraft(
+      draft([{ id: 's1', ...pic('a.png') }]) as never
+    );
+    expect(copy.title).toBe('Gradebook (Copy)');
+    const path = copy.steps[0].web?.picture?.path ?? '';
+    expect(isWebTourPicturePath(copy.id, path)).toBe(true);
+    expect(h.writes.map((w) => w.path)).toEqual([
+      `building_web_tours/${copy.id}`,
+    ]);
+  });
+
+  it('removes the pictures it copied when one upload fails', async () => {
+    vi.mocked(getBytes).mockResolvedValue(new ArrayBuffer(4));
+    vi.mocked(uploadBytes)
+      .mockResolvedValueOnce({} as never)
+      .mockRejectedValueOnce(new Error('offline'));
+    await expect(
+      duplicateWebTourDraft(
+        draft([
+          { id: 's1', ...pic('a.png') },
+          { id: 's2', ...pic('b.png') },
+        ]) as never
+      )
+    ).rejects.toThrow('offline');
+    expect(h.writes).toEqual([]);
+    expect(h.deleted).toHaveLength(1);
+    expect(h.deleted[0].startsWith('web_tour_pictures/')).toBe(true);
+    expect(h.deleted[0]).not.toContain('/w1/');
   });
 });

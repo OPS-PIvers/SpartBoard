@@ -301,6 +301,16 @@ export {
 // PLC goal coach: checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22).
 export { plcGoalCoachV1 } from './plcGoalCoach';
 
+// Web tours: Claude writes step titles and tips (docs/plans/shipped/WEB_TOURS_CLAUDE.md C9).
+export { writeWebTourTextV1 } from './webTourWriting';
+
+// Web tours: the extension lists, loads and records tours with a Google token (docs/plans/shipped/WEB_TOURS_HELP_PANEL.md H7).
+export {
+  webToursListV1,
+  webTourLoadV1,
+  webTourRunV1,
+} from './webTourExtension';
+
 // ── One-shot PLC migration (arrays→members map, orgId inference, aggregates
 // skeleton). Admin-only callable; see functions/src/migratePlcs.ts. ─────────
 export { migratePlcs } from './migratePlcs';
@@ -313,6 +323,7 @@ export { expireSubShares } from './expireSubShares';
 export { launchSubAssignmentV1 } from './subLaunchAssignment';
 export { controlSubAssignmentV1 } from './subControlAssignment';
 export { expireActivityWallShares } from './expireActivityWallShares';
+export { saveSharedActivityWallV1 } from './sharedActivityWallEdit';
 export { finalizeIdleQuizAttempts } from './finalizeIdleQuizAttempts';
 export {
   exchangeGoogleAuthCode,

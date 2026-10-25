@@ -1269,7 +1269,16 @@
       "replaceTeamsBody_other": "This replaces the {{count}} teams on this scoreboard, including their scores.",
       "replaceTeamsConfirm": "Replace",
       "classTeamName": "Team {{count}}",
-      "membersTitle": "Members from the class group"
+      "membersTitle": "Members from the class group",
+      "sortByScore": "Sort by score",
+      "pointButtons": "Point buttons",
+      "pointPreset": {
+        "1": "+1",
+        "1-2-3": "+1, +2, +3",
+        "1-5-10": "+1, +5, +10",
+        "5-10-25": "+5, +10, +25",
+        "10-50-100": "+10, +50, +100"
+      }
     },
     "calendar": {
       "localEvents": "Local manual events",
@@ -1422,6 +1431,12 @@
       "widgetLabel": "Widget label",
       "assignmentArchive": "View archive",
       "managerView": "Reset to manager view"
+    },
+    "arts-letters-agenda": {
+      "version": "Version",
+      "simple": "Simple",
+      "detailed": "Detailed",
+      "sameLists": "Detailed matches Simple until your school sets its own list."
     },
     "breathing": {
       "pattern": "Pattern",
@@ -1617,6 +1632,17 @@
       "addOption": "Add Option",
       "actions": "Actions",
       "liveVotingHelp": "Students vote from their own devices.",
+      "hideResults": "Hide results until revealed",
+      "correctAnswer": "Correct answer",
+      "questionType": "Question type",
+      "multipleChoice": "Multiple choice",
+      "ratingScale": "Rating scale",
+      "wordCloud": "Word cloud",
+      "openResponse": "Open response",
+      "scaleSize": "Scale",
+      "scaleOneTo": "1 to {{count}}",
+      "scaleLowLabel": "Low end label",
+      "scaleHighLabel": "High end label",
       "votingOpen": "Voting open",
       "notStarted": "Not started",
       "copied": "Copied",
@@ -1627,7 +1653,26 @@
       "cancel": "Cancel",
       "importScope": "Import from",
       "importWholeClass": "Whole class",
-      "importGroupEmpty": "That class group has nobody on the roster."
+      "importGroupEmpty": "That class group has nobody on the roster.",
+      "results": "Results",
+      "answeredCount": "{{count}} answered",
+      "averageValue": "Average {{value}}",
+      "savedPolls": "Saved polls",
+      "savePoll": "Save poll",
+      "savePollPrompt": "Name this poll",
+      "save": "Save",
+      "pollSaved": "Saved {{name}}",
+      "pollLoaded": "Loaded {{name}}",
+      "noSavedPolls": "No saved polls yet",
+      "questionCount_one": "{{count}} question",
+      "questionCount_other": "{{count}} questions",
+      "load": "Load",
+      "loadPollTitle": "Load {{name}}?",
+      "loadPollNamed": "Load {{name}}",
+      "loadPollConfirm": "This replaces the questions on this poll and clears its votes.",
+      "deletePollTitle": "Delete {{name}}?",
+      "deletePollNamed": "Delete {{name}}",
+      "deletePollConfirm": "The saved poll is removed. Polls already on your boards stay."
     },
     "instructionalRoutines": {
       "routineTemplate": "Routine template",
@@ -1966,7 +2011,32 @@
       "visualMeter": "Meter",
       "visualGauge": "Gauge",
       "visualGraph": "Graph",
-      "visualPopcorn": "Popcorn"
+      "visualPopcorn": "Popcorn",
+      "visualLevel": "Level",
+      "targetLevel": "Target level",
+      "targetHelp": "Shows Too loud when the class stays above this level. Follows Expectations while synced.",
+      "targetOff": "Off",
+      "level0": "0 Silence",
+      "level1": "1 Whisper",
+      "level2": "2 Conversation",
+      "level3": "3 Presenter",
+      "alertDelaySeconds": "Alert delay (seconds)",
+      "alertSoundEnabled": "Play a sound",
+      "alertSound": "Alert sound",
+      "soundChime": "Chime",
+      "soundBlip": "Blip",
+      "soundGong": "Gong",
+      "soundAlert": "Alert",
+      "calibration": "Calibration",
+      "calibrateHelp": "Keep the room quiet, then select Calibrate. The meter listens for 5 seconds and starts from that level.",
+      "calibrate": "Calibrate",
+      "calibrateListening": "Listening...",
+      "resetCalibration": "Reset",
+      "quietGoalMinutes": "Quiet time goal (minutes)",
+      "quietGoalHelp": "Progress fills while the class stays at or under the target. Set to 0 to turn it off.",
+      "quietGoalResetOnAlert": "Reset progress when Too loud shows",
+      "quietGoalTeamId": "Add a point when the goal is reached",
+      "goalTeamNone": "None"
     },
     "webcam": {
       "autoSendToNotes": "Send OCR text to Notes automatically"
@@ -2701,6 +2771,37 @@
     },
     "dashboard": {
       "emptyBoardHint": "Drag tools from the Dock below to start"
+    },
+    "scoreboard": {
+      "undo": "Undo",
+      "undoShortcut": "Undo the last score change (Ctrl+Z)",
+      "history": "History",
+      "scores": "Scores",
+      "recentChanges": "Recent changes",
+      "noChanges": "No changes yet",
+      "reset": "Reset",
+      "leader": "Leader",
+      "tied": "Tied",
+      "addPoints_one": "Add {{count}} point",
+      "addPoints_other": "Add {{count}} points",
+      "removePoints_one": "Remove {{count}} point",
+      "removePoints_other": "Remove {{count}} points"
+    },
+    "sound": {
+      "tooLoud": "Too loud",
+      "calibrating": "Calibrating. Keep the room quiet.",
+      "goalReached": "Goal reached",
+      "quietGoal": "Quiet time goal",
+      "restartGoal": "Restart quiet time goal",
+      "summary": "Summary",
+      "timeAtEachLevel": "Time at each level",
+      "clearSummary": "Clear summary",
+      "closeSummary": "Close summary",
+      "timeline": "Noise level over time",
+      "alertCount_one": "{{count}} Too loud alert",
+      "alertCount_other": "{{count}} Too loud alerts",
+      "listenedFor": "Listened for {{time}}",
+      "targetIs": "Target: {{level}}"
     }
   },
   "boardBreadcrumb": {
@@ -2717,6 +2818,7 @@
   "boardsModal": {
     "title": "Boards & Collections",
     "close": "Close",
+    "backToBoard": "Back to board",
     "searchPlaceholder": "Search Boards & Collections",
     "newBoard": "New Board",
     "newBoardPrompt": "Board name",
@@ -2741,6 +2843,9 @@
     "delete": "Delete",
     "bulkDeleteConfirm": "Delete {{count}} item(s)? This cannot be undone.",
     "deleteBoardConfirm": "Delete this Board?",
+    "removeSharedBoardConfirm": "Remove this board for everyone in the shared collection?",
+    "removeSharedBoardConfirmLabel": "Remove",
+    "removeSharedCollectionConfirm": "Remove this collection and its boards for everyone in the shared collection?",
     "deleteCollectionConfirm": "Delete this Collection? Boards inside will move to its parent.",
     "unpinBoard": "Unpin Board",
     "dragToMove": "Drag to move",
@@ -2813,7 +2918,13 @@
     "notFound": "Shared Collection not found or expired",
     "empty": "Shared Collection is empty",
     "invalidShareUrl": "Invalid share link — missing share id.",
-    "substituteImportRejected": "This link is for substitutes. Open it in the Substitute Portal."
+    "substituteImportRejected": "This link is for substitutes. Open it in the Substitute Portal.",
+    "modeSynced": "Synced",
+    "modeSyncedHint": "You both edit the same collection.",
+    "modeViewOnly": "View-Only",
+    "modeViewOnlyHint": "They see your changes live but can't edit.",
+    "modeCopyTitle": "Make a copy",
+    "boardAlreadyLive": "{{name}} is already shared live. Stop sharing it first, or make a copy."
   },
   "importSharedCollection": {
     "title": "Import shared Collection",
@@ -2835,7 +2946,12 @@
   },
   "collectionMenu": {
     "share": "Share Collection…",
-    "saveAsTemplate": "Save as Template…"
+    "saveAsTemplate": "Save as Template…",
+    "stopSharing": "Stop sharing",
+    "stopSharingConfirm": "Stop sharing this collection? Synced teachers keep their own copy. View-only teachers lose it.",
+    "leaveShared": "Leave shared collection",
+    "leaveSharedConfirm": "Leave this shared collection? You keep a copy of its boards, but they stop updating.",
+    "leaveSharedViewerConfirm": "Leave this shared collection? It will be removed from your account."
   },
   "templatePicker": {
     "title": "Create from Template",
@@ -4302,7 +4418,8 @@
         "other": "Other",
         "tours": "Live tours"
       },
-      "liveTourBadge": "Live tour"
+      "liveTourBadge": "Live tour",
+      "webTourBadge": "Web tour"
     },
     "shortcuts": {
       "open-help": "Open Help",
@@ -5103,7 +5220,17 @@
     },
     "webFindIt": "Look for this on the page.",
     "webOtherPage": "This step is on another page. Open it to continue.",
-    "webPictureAlt": "Picture of this step"
+    "webArmed": "Sign in. Your tour starts once you're in.",
+    "webGoToStart": "Go to the start",
+    "webArmedExit": "Stop the tour",
+    "webMoved": "Your tour moved to the other tab.",
+    "webStopped": "Tour stopped. Click the SpartBoard icon to start it again.",
+    "webDismiss": "Dismiss",
+    "webPictureAlt": "Picture of this step",
+    "webCheckFound": "Found",
+    "webCheckWeak": "Weak match",
+    "webCheckAmbiguous": "Matches more than one",
+    "webCheckNone": "Not found"
   },
   "glPlayer": {
     "modeChip": {
@@ -5298,6 +5425,8 @@
     "loading": "Loading tours...",
     "intro": "Checks published tours against the anchor registry.",
     "recordTour": "Record a tour",
+    "recordWebTour": "Record a web tour",
+    "recordWebTourFailed": "The web tour couldn't be created.",
     "checkLive": "Check live",
     "empty": "No Guided Learning set has live-tour steps yet.",
     "untitledSet": "Untitled set",
@@ -5374,7 +5503,8 @@
       },
       "reason": {
         "missed": "Showed the picture in {{misses}} of {{runs}} real runs",
-        "weak": "Found only by a weaker clue in {{weak}} of {{runs}} real runs"
+        "weak": "Found only by a weaker clue in {{weak}} of {{runs}} real runs",
+        "weakScore": "Close to another control in {{weak}} of {{runs}} real runs"
       },
       "copyLink": "Copy link",
       "linkCopied": "Copied",
@@ -5490,11 +5620,14 @@
     "startOver": "Start over",
     "resume": "Resume at step {{number}}",
     "playing": "The tour is open in another tab. Your progress shows here.",
+    "openedTitle": "Your tour is open in the other tab",
+    "startAgain": "Start again",
     "closed": "The tour's tab was closed.",
     "exited": "You left the tour.",
     "done": "You finished this tour.",
     "startFailed": "The tour couldn't start. Try again.",
-    "noExtension": "Ask your tech team to add the SpartBoard Chrome extension so this tour can point to each step on the site. For now, follow the pictures below.",
+    "noExtension": "Add the SpartBoard Chrome extension so this tour can point to each step on the site. For now, follow the pictures below.",
+    "getExtension": "Get the SpartBoard extension",
     "wrongProfile": "This tour plays only in a Chrome profile signed in with your Orono staff account. For now, follow the pictures below.",
     "oldExtension": "Your SpartBoard extension needs an update to play this tour. For now, follow the pictures below.",
     "openSite": "Open {{site}}",
@@ -5503,5 +5636,12 @@
     "pictureAlt": "Picture of step {{number}}",
     "unavailableTitle": "This tour isn't available",
     "unavailableBody": "The link may be wrong, or the tour was removed. Ask whoever shared it for a new link."
+  },
+  "linkedCollection": {
+    "stopped": "Stopped sharing",
+    "left": "Left shared collection",
+    "leaveFailed": "Failed to leave shared collection",
+    "hostStopped": "{{name}} stopped sharing this collection.",
+    "hostStoppedNoName": "The host stopped sharing this collection."
   }
 }

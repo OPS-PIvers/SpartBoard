@@ -835,6 +835,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
       userId: user?.uid,
       folders: folderState.folders,
       foldersLoading: folderState.loading,
+      reorderSiblings: folderState.reorderSiblings,
       getId: ROW_ID,
       itemNoun: ASSESSMENT_NOUN,
     },
@@ -860,6 +861,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
   const folderItemCounts = useMemo(() => countRowsByFolder(rows), [rows]);
   const folderSidebarExtras = useFolderViewSidebar({
     setFolderColor: folderState.setFolderColor,
+    reorderSiblings: folderState.reorderSiblings,
     noun: { one: 'assessment', many: 'assessments' },
     items: rows,
   });

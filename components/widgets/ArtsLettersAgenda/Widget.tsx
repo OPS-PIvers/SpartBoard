@@ -1,8 +1,9 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   useDashboardActions,
   useGlobalStyle,
 } from '@/context/dashboardCanvasStore';
+import { useAuth } from '@/context/useAuth';
 import { Button } from '@/components/common/Button';
 import {
   ArtsLettersAgendaConfig,
@@ -14,7 +15,7 @@ import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 import { tourAttr } from '@/config/tourAnchors';
 import { WidgetLayout } from '../WidgetLayout';
 import { AgendaRow } from './components/AgendaRow';
-import { AGENDA_PARTS } from './constants';
+import { partsForVersion, resolveAgendaPartLists } from './utils';
 
 const DEFAULTS = WIDGET_DEFAULTS['arts-letters-agenda']
   .config as Required<ArtsLettersAgendaConfig>;
@@ -23,9 +24,11 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget } = useDashboardActions();
+  const { featurePermissions, selectedBuildings, canAccessFeature } = useAuth();
   const globalStyle = useGlobalStyle();
   const config = widget.config as ArtsLettersAgendaConfig;
   const {
+    version = 'simple',
     descriptions = {},
     completed = {},
     fontFamily = DEFAULTS.fontFamily,
@@ -35,32 +38,52 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
     textSizePreset,
   } = config;
 
+  const buildingId = config.buildingId ?? selectedBuildings[0];
+  const base = useMemo(
+    () => (buildingId ? { ...config, buildingId } : config),
+    [config, buildingId]
+  );
+
   const toggle = useCallback(
     (id: ArtsLettersAgendaPartId) => {
       updateWidget(widget.id, {
         config: {
-          ...config,
+          ...base,
           completed: { ...completed, [id]: !completed[id] },
         },
       });
     },
-    [updateWidget, widget.id, config, completed]
+    [updateWidget, widget.id, base, completed]
   );
 
   const commitDescription = useCallback(
     (id: ArtsLettersAgendaPartId, text: string) => {
       updateWidget(widget.id, {
-        config: { ...config, descriptions: { ...descriptions, [id]: text } },
+        config: { ...base, descriptions: { ...descriptions, [id]: text } },
       });
     },
-    [updateWidget, widget.id, config, descriptions]
+    [updateWidget, widget.id, base, descriptions]
   );
 
   const resetChecks = useCallback(() => {
-    updateWidget(widget.id, { config: { ...config, completed: {} } });
-  }, [updateWidget, widget.id, config]);
+    updateWidget(widget.id, { config: { ...base, completed: {} } });
+  }, [updateWidget, widget.id, base]);
 
-  const anyDone = AGENDA_PARTS.some((p) => completed[p.id]);
+  // Admin-built boxes reach teachers only with the preview on; a Detailed widget keeps its list.
+  const versionsOn =
+    canAccessFeature('agenda-versions') || version === 'detailed';
+  const adminConfig = versionsOn
+    ? featurePermissions.find((p) => p.widgetType === widget.type)?.config
+    : undefined;
+  const lists = useMemo(
+    () => resolveAgendaPartLists(adminConfig, buildingId),
+    [adminConfig, buildingId]
+  );
+  const parts = partsForVersion(lists, version);
+  // The default three boxes shrink to fit, as before; longer admin lists keep a row floor and scroll.
+  const scrolls = parts.length > 3;
+
+  const anyDone = parts.some((p) => completed[p.id]);
   const sm = resolveTextPresetMultiplier(textSizePreset, 1);
   const fontClass =
     fontFamily === 'global'
@@ -93,19 +116,24 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
           </h2>
           <div
             role="list"
-            className="flex-1 overflow-hidden flex flex-col [@container(min-aspect-ratio:2.4)]:flex-row"
+            className={`flex-1 ${scrolls ? 'overflow-y-auto' : 'overflow-hidden'} flex flex-col ${parts.length <= 4 ? '[@container(min-aspect-ratio:2.4)]:flex-row' : ''}`}
             style={{
-              padding: 'min(10px, 2.2cqmin) max(18px, 2.5cqmin) 0',
+              padding: `min(10px, 2.2cqmin) max(18px, 2.5cqmin) ${scrolls ? '8px' : '0'}`,
               gap: 'min(8px, 2cqmin)',
             }}
           >
-            {AGENDA_PARTS.map((part) => (
+            {parts.map((part) => (
               <div
                 key={part.id}
                 role="listitem"
+                className={
+                  scrolls
+                    ? '[@container(min-height:220px)]:min-h-[min(64px,22cqh)]'
+                    : undefined
+                }
                 style={{
                   flex: 1,
-                  minHeight: 0,
+                  ...(scrolls ? {} : { minHeight: 0 }),
                   minWidth: 0,
                   containerType: 'size',
                 }}
@@ -133,26 +161,28 @@ export const ArtsLettersAgendaWidget: React.FC<{ widget: WidgetData }> = ({
               padding: 'min(6px, 1.5cqmin) min(12px, 2.5cqmin) 18px',
             }}
           >
-            <Button
-              {...tourAttr(
-                'arts-letters-agenda.reset-checks',
-                widget.id,
-                widget.type
-              )}
-              variant="secondary"
-              shape="pill"
-              size="sm"
-              onClick={resetChecks}
-              disabled={!anyDone}
-              title="Reset checks"
-              className="relative touch-target-expand [@container(max-height:149px)]:hidden"
-              style={{
-                fontSize: 'clamp(14px, 3.2cqmin, 18px)',
-                minHeight: 'max(24px, min(44px, 12cqmin))',
-              }}
-            >
-              reset checks
-            </Button>
+            <div className="flex flex-wrap items-center justify-center gap-2 [@container(max-height:149px)]:hidden">
+              <Button
+                {...tourAttr(
+                  'arts-letters-agenda.reset-checks',
+                  widget.id,
+                  widget.type
+                )}
+                variant="secondary"
+                shape="pill"
+                size="sm"
+                onClick={resetChecks}
+                disabled={!anyDone}
+                title="Reset checks"
+                className="relative touch-target-expand"
+                style={{
+                  fontSize: 'clamp(14px, 3.2cqmin, 18px)',
+                  minHeight: 'max(24px, min(44px, 12cqmin))',
+                }}
+              >
+                reset checks
+              </Button>
+            </div>
           </div>
         </div>
       }

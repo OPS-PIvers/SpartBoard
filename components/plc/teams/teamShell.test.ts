@@ -5,7 +5,11 @@ import {
   AGGREGATES,
   ASSESSMENTS,
 } from '@/components/plc/redesignMockup/fixtures';
-import { resolveTeamRoute, teamPageSection } from './teamSections';
+import {
+  resolveTeamRoute,
+  teamPageSection,
+  teamUsesPlcHome,
+} from './teamSections';
 import { packLandingRows } from './landing/landingRows';
 import { TEAM_CARD_REGISTRY } from './cardRegistry';
 import { selectNewerHeroData } from './heroes/heroStaleness';
@@ -37,6 +41,36 @@ const plcLayout: PlcTeamLayout = {
 };
 
 describe('resolveTeamRoute', () => {
+  it('opens PLC Home at home and Data overview as its own tab when plcHome is on', () => {
+    expect(resolveTeamRoute('home', plcLayout, { plcHome: true })).toEqual({
+      route: { kind: 'plcHome' },
+      canonical: 'home',
+    });
+    expect(
+      resolveTeamRoute('dataOverview', plcLayout, { plcHome: true })
+    ).toEqual({
+      route: { kind: 'page', page: 'dataOverview' },
+      canonical: 'dataOverview',
+    });
+    expect(resolveTeamRoute('updates', plcLayout, { plcHome: true })).toEqual({
+      route: { kind: 'plcHome' },
+      canonical: 'home',
+    });
+  });
+
+  it('sends the Data overview path home when plcHome is off', () => {
+    expect(resolveTeamRoute('dataOverview', plcLayout)).toEqual({
+      route: { kind: 'page', page: 'dataOverview' },
+      canonical: 'home',
+    });
+  });
+
+  it('only uses PLC Home for a team that lands on Data overview', () => {
+    expect(teamUsesPlcHome({ landing: 'dataOverview' }, true)).toBe(true);
+    expect(teamUsesPlcHome({ landing: 'dataOverview' }, false)).toBe(false);
+    expect(teamUsesPlcHome({ landing: 'hub' }, true)).toBe(false);
+  });
+
   it('opens the landing page at home and folds boards into resources', () => {
     expect(resolveTeamRoute('home', plcLayout)).toEqual({
       route: { kind: 'page', page: 'dataOverview' },
@@ -68,6 +102,8 @@ describe('resolveTeamRoute', () => {
 
   it('maps landing pages to the bare team path', () => {
     expect(teamPageSection('hub')).toBe('home');
+    expect(teamPageSection('dataOverview')).toBe('home');
+    expect(teamPageSection('dataOverview', true)).toBe('dataOverview');
     expect(teamPageSection('docs')).toBe('docs');
   });
 });

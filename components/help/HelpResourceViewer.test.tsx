@@ -18,6 +18,7 @@ vi.mock('@/components/tours/publishedTours', () => ({
   getToursVersion: () => 0,
   isTourRunnable: () => h.published,
   loadRunnableTour: vi.fn(),
+  readPublishedTour: () => ({ loaded: true, tour: null }),
 }));
 
 vi.mock('@/components/tours/useCanRunLiveTour', () => ({

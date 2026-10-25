@@ -540,6 +540,10 @@ export const TOUR_ANCHORS = {
     label: 'Open wall library button in Activity Wall',
     perWidget: true,
   },
+  'activity-wall.edit-shared': {
+    label: "Edit wall button on a colleague's Activity Wall",
+    perWidget: true,
+  },
   'time-tool.start-pause': {
     label: 'Start or pause button in Timer/Stopwatch',
     perWidget: true,
@@ -602,6 +606,25 @@ export const TOUR_ANCHORS = {
     label: 'Reset Poll button',
     perWidget: true,
     destructive: true,
+  },
+  'poll.reveal-results': {
+    label: 'Show results button in Poll',
+    perWidget: true,
+    persists: true,
+  },
+  'poll.show-answer': {
+    label: 'Show answer button in Poll',
+    perWidget: true,
+    persists: true,
+  },
+  'poll.lock-voting': {
+    label: 'Lock voting button in Poll',
+    perWidget: true,
+    persists: true,
+  },
+  'poll.show-hidden': {
+    label: 'Show hidden responses button on the Poll widget',
+    perWidget: true,
   },
   'stations.shuffle': { label: 'Shuffle button in Stations', perWidget: true },
   'stations.rotate': { label: 'Rotate button in Stations', perWidget: true },
@@ -1709,6 +1732,11 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.word-enforce': {
     label: 'Enforce limit toggle in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.spell-check': {
+    label: 'Spell check toggle in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
@@ -3770,6 +3798,13 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'widget-settings.materials.form-delete': {
+    label: 'Delete button in the Materials custom material form',
+    perWidget: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
   'widget-settings.music.sync-time-tool': {
     label: 'Sync with Time Tool toggle in Music settings',
     perWidget: true,
@@ -3782,6 +3817,18 @@ export const TOUR_ANCHORS = {
   'scoreboard.remove-point': {
     label: 'Remove a point for a team in Scoreboard',
     perField: true,
+  },
+  'scoreboard.add-point-amount': {
+    label: 'Second or third point button for a team in Scoreboard',
+    perField: true,
+  },
+  'scoreboard.undo': {
+    label: 'Undo button in Scoreboard',
+    perWidget: true,
+  },
+  'scoreboard.history': {
+    label: 'History button in Scoreboard',
+    perWidget: true,
   },
   'widget-settings.pdf.switch-document': {
     label: 'Switch document button in PDF settings',
@@ -3850,8 +3897,33 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
+  'widget-settings.poll.question-type': {
+    label: 'Question type menu in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.scale-size': {
+    label: 'Rating scale size menu in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.hide-results': {
+    label: 'Hide results until revealed switch in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
   'widget-settings.poll.export-csv': {
     label: 'Export CSV button in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.save-poll': {
+    label: 'Save poll button in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.saved-polls': {
+    label: 'Saved polls list in Poll settings',
     perWidget: true,
     panel: true,
   },
@@ -4014,6 +4086,40 @@ export const TOUR_ANCHORS = {
   },
   'widget-settings.scoreboard.reset-scores': {
     label: 'Reset all scores button in Scoreboard settings',
+    perWidget: true,
+    panel: true,
+    destructive: true,
+  },
+  'sound.summary': {
+    label: 'Summary button on the Sound widget',
+    perWidget: true,
+  },
+  'sound.clear-summary': {
+    label: 'Clear summary button in the Sound widget summary',
+    perWidget: true,
+    destructive: true,
+  },
+  'sound.close-summary': {
+    label: 'Close summary button in the Sound widget summary',
+    perWidget: true,
+  },
+  'sound.restart-goal': {
+    label: 'Restart quiet time goal button on the Sound widget',
+    perWidget: true,
+    destructive: true,
+  },
+  'widget-settings.sound.goal-team': {
+    label: 'Scoreboard team menu for the quiet time goal in Sound settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.sound.calibrate': {
+    label: 'Calibrate button in Sound settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.sound.reset-calibration': {
+    label: 'Reset calibration button in Sound settings',
     perWidget: true,
     panel: true,
     destructive: true,
@@ -4395,6 +4501,16 @@ export const TOUR_ANCHORS = {
   },
   'schoology-link.cancel': {
     label: 'Done/close button in the Link Schoology dialog',
+    panel: true,
+  },
+  'widget-settings.poll.scale-label': {
+    label: 'Rating scale end label in Poll settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.poll.correct-option': {
+    label: 'Mark an option as the correct answer in Poll settings',
+    perField: true,
     panel: true,
   },
   'widget-settings.poll.delete-option': {
@@ -6120,6 +6236,16 @@ export const TOUR_ANCHORS = {
   'teams.data.view-open-items': {
     label: 'View button for open items in the team data meeting strip',
   },
+  'teams.home.latest-assessment': {
+    label: 'Latest assessment title on the team Home page',
+  },
+  'teams.home.see-item-analysis': {
+    label: 'See item analysis link on the team Home page',
+  },
+  'teams.home.tool': {
+    label: 'Team tool link on the team Home page',
+    perField: true,
+  },
   'teams.department.agenda-add': {
     label: 'Add button for agenda items in the department hub',
     persists: true,
@@ -6757,6 +6883,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'library-shell.secondary-menu-item': {
+    label: 'Item in a library shell secondary button menu',
+    perField: true,
+    panel: true,
+  },
   'library-shell.new-menu-item': {
     label: 'Item in the library shell primary button menu',
     perField: true,
@@ -6820,6 +6951,9 @@ export const TOUR_ANCHORS = {
   'help-center.viewer.back': {
     label: 'Back button in the resource viewer',
     panel: true,
+  },
+  'help-center.viewer.open-web-tour': {
+    label: 'Open in a new tab button for a web tour in a Help Center guide',
   },
   'help-center.viewer.fullscreen': {
     label: 'Fullscreen toggle button in the resource viewer',
@@ -6890,6 +7024,10 @@ export const TOUR_ANCHORS = {
   },
   'admin.help-center.record-tour': {
     label: 'Record tour button in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.record-web-tour': {
+    label: 'Record web tour button in Help Center admin',
     panel: true,
   },
   'admin.help-center.check-live': {
@@ -9723,6 +9861,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'mini-app.session-rename-cancel': {
+    label: 'Cancel rename button on a Mini App assignment',
+    perField: true,
+    panel: true,
+  },
   'mini-app.session-copy-link': {
     label: 'Copy Link button on a Mini App assignment',
     perField: true,
@@ -9749,6 +9892,37 @@ export const TOUR_ANCHORS = {
     label: 'End Session button on a Mini App assignment',
     perField: true,
     destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'mini-app.session-end-cancel': {
+    label: 'Cancel button on a Mini App assignment end confirmation',
+    perField: true,
+    panel: true,
+  },
+  'mini-app.try-as-student': {
+    label: 'Try as student button in the Mini App editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.key-add-question': {
+    label: 'Add question button in the Mini App answer key',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.results-back': {
+    label: 'Back button in the Mini App results view',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.results-hide-names': {
+    label: 'Hide student names button in the Mini App results view',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.results-export-sheet': {
+    label: 'Export to Sheets button in the Mini App results view',
+    perWidgetType: true,
     persists: true,
     panel: true,
   },
@@ -9979,6 +10153,58 @@ export const TOUR_ANCHORS = {
   },
   'video-activity.monitor-tab-warnings': {
     label: 'Tab warnings toggle in the live monitor',
+  },
+  'video-activity.monitor-back': {
+    label: 'Back button in the video activity monitor',
+    perWidgetType: true,
+  },
+  'video-activity.monitor-status-bucket': {
+    label: 'Student status count in the video activity monitor',
+    perField: true,
+  },
+  'video-activity.monitor-class-picker': {
+    label: 'Class picker select in the video activity monitor',
+    perWidgetType: true,
+  },
+  'video-activity.monitor-period-start': {
+    label: 'Start button for the picked class in the video activity monitor',
+    perWidgetType: true,
+    persists: true,
+  },
+  'video-activity.monitor-period-pause': {
+    label: 'Pause button for the picked class in the video activity monitor',
+    perWidgetType: true,
+    persists: true,
+  },
+  'video-activity.monitor-period-more-time': {
+    label: 'More time button in the video activity monitor',
+    perWidgetType: true,
+  },
+  'video-activity.monitor-period-extend': {
+    label: 'Extend time option in the video activity monitor More time menu',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'video-activity.monitor-question-results': {
+    label: 'Question results button in the video activity monitor',
+    perWidgetType: true,
+  },
+  'video-activity.monitor-question-result': {
+    label: 'Question result row in the video activity monitor',
+    perField: true,
+  },
+  'video-activity.monitor-roster-sort': {
+    label: 'Sort students select in the video activity monitor',
+    perWidgetType: true,
+  },
+  'video-activity.monitor-roster-filter': {
+    label: 'Filter students select in the video activity monitor',
+    perWidgetType: true,
+  },
+  'video-activity.monitor-row-actions': {
+    label: 'Student actions button in the video activity monitor',
+    perField: true,
   },
   'video-activity.results-tab': {
     label: 'Overview, Questions and Students tabs in video activity results',
@@ -10259,10 +10485,31 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'gl-manager.show-older': { label: 'Show older assignments button' },
-  'web-tours.new': {
-    label: 'New web tour button in the Guided Learning library (admins)',
+  'web-tour-editor.goal': {
+    label: 'What does your tour explain? field in the web tour editor',
+  },
+  'web-tour-editor.write-with-claude': {
+    label: 'Write with Claude button in the web tour editor',
+  },
+  'web-tour-editor.rewrite-all': {
+    label: 'Rewrite all button in the web tour editor',
+  },
+  'web-tour-editor.write-asked': {
+    label: 'Run again for questions button in the web tour editor',
+  },
+  'web-tour-editor.undo-writing': {
+    label: "Undo button for Claude's writing in the web tour editor",
   },
   'web-tour-editor.title': { label: 'Title field in the web tour editor' },
+  'web-tour-editor.play': {
+    label: 'Play button in the web tour editor header',
+  },
+  'web-tour-editor.copy-link': {
+    label: 'Copy link button in the web tour editor header',
+  },
+  'web-tour-editor.check': {
+    label: 'Check tour button in the web tour editor header',
+  },
   'web-tour-editor.record': {
     label: 'Record steps button in the web tour editor',
   },
@@ -10316,6 +10563,28 @@ export const TOUR_ANCHORS = {
   'gl-results.period-pause-all': {
     label: 'Pause all periods button in results',
     persists: true,
+  },
+  'gl-results.class-picker': { label: 'Class picker select in results' },
+  'gl-results.period-start': {
+    label: 'Start class button in results',
+    persists: true,
+  },
+  'gl-results.period-pause': {
+    label: 'Pause class button in results',
+    persists: true,
+  },
+  'gl-results.period-more-time': { label: 'More time button in results' },
+  'gl-results.period-extend': {
+    label: 'Extend time option in the results More time menu',
+    persists: true,
+    panel: true,
+  },
+  'gl-results.status-bucket': {
+    label: 'Student status bucket button in results',
+    perField: true,
+  },
+  'gl-results.question-results': {
+    label: 'Question results button in results',
   },
   'gl-capture.upload': {
     label: 'Upload file button in the capture dialog',
@@ -11347,6 +11616,18 @@ export const TOUR_ANCHORS = {
     label: 'Copy button for the sub share link',
     panel: true,
   },
+  'share-collection.mode-synced': {
+    label: 'Synced option in the collection share dialog',
+    panel: true,
+  },
+  'share-collection.mode-view-only': {
+    label: 'View-Only option in the collection share dialog',
+    panel: true,
+  },
+  'share-collection.mode-copy': {
+    label: 'Make a copy option in the collection share dialog',
+    panel: true,
+  },
   'share-collection.share-with-sub': {
     label: 'Share with a sub option in the collection share dialog',
     panel: true,
@@ -11406,6 +11687,19 @@ export const TOUR_ANCHORS = {
   },
   'import-shared-collection.import': {
     label: 'Import Collection button in the import shared collection dialog',
+    panel: true,
+    persists: true,
+  },
+  'import-linked-collection.close': {
+    label: 'Close button in the import shared collection dialog',
+    panel: true,
+  },
+  'import-linked-collection.cancel': {
+    label: 'Cancel button in the import shared collection dialog',
+    panel: true,
+  },
+  'import-linked-collection.confirm': {
+    label: 'Import button in the import shared collection dialog',
     panel: true,
     persists: true,
   },
@@ -11493,6 +11787,14 @@ export const TOUR_ANCHORS = {
   },
   'library-shell.folder-menu-move-to-root': {
     label: 'Move to root item in the library folder menu',
+    panel: true,
+  },
+  'library-shell.folder-menu-move-up': {
+    label: 'Move up item in the library folder menu',
+    panel: true,
+  },
+  'library-shell.folder-menu-move-down': {
+    label: 'Move down item in the library folder menu',
     panel: true,
   },
   'library-shell.folder-menu-delete': {
@@ -11756,6 +12058,90 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'webcam.zoom-in': {
+    label: 'Zoom in button in Webcam',
+    perWidget: true,
+  },
+  'webcam.zoom-out': {
+    label: 'Zoom out button in Webcam',
+    perWidget: true,
+  },
+  'webcam.rotate': {
+    label: 'Rotate button in Webcam',
+    perWidget: true,
+  },
+  'webcam.freeze': {
+    label: 'Freeze and unfreeze button in Webcam',
+    perWidget: true,
+  },
+  'webcam.draw': {
+    label: 'Draw button in Webcam (turns drawing on the image on and off)',
+    perWidget: true,
+  },
+  'webcam.draw-pen': {
+    label: 'Pen tool in the Webcam drawing tools (shows in draw mode)',
+    perWidget: true,
+  },
+  'webcam.draw-highlighter': {
+    label: 'Highlighter tool in the Webcam drawing tools (shows in draw mode)',
+    perWidget: true,
+  },
+  'webcam.draw-eraser': {
+    label: 'Eraser tool in the Webcam drawing tools (shows in draw mode)',
+    perWidget: true,
+  },
+  'webcam.draw-undo': {
+    label: 'Undo button in the Webcam drawing tools (shows in draw mode)',
+    perWidget: true,
+  },
+  'webcam.clear-drawing': {
+    label:
+      'Clear drawing button in the Webcam drawing tools (shows in draw mode)',
+    perWidget: true,
+    destructive: true,
+  },
+  'webcam.compare': {
+    label:
+      'Compare button in the Webcam gallery (shows with two or more photos)',
+    perWidget: true,
+    panel: true,
+  },
+  'webcam.compare-show': {
+    label:
+      'Show side by side button in the Webcam gallery (while picking two to compare)',
+    perWidget: true,
+    panel: true,
+  },
+  'webcam.compare-cancel': {
+    label: 'Cancel picking photos to compare in the Webcam gallery',
+    perWidget: true,
+    panel: true,
+  },
+  'webcam.compare-exit': {
+    label: 'Exit compare button in Webcam (side by side view)',
+    perWidget: true,
+    panel: true,
+  },
+  'webcam.quality': {
+    label: 'Camera quality button in Webcam (resolution, autofocus, exposure)',
+    perWidget: true,
+  },
+  'webcam.autofocus': {
+    label:
+      'Autofocus switch in the Webcam camera quality menu (only on cameras that support it)',
+    perWidget: true,
+    panel: true,
+  },
+  'webcam.auto-exposure': {
+    label:
+      'Auto exposure switch in the Webcam camera quality menu (only on cameras that support it)',
+    perWidget: true,
+    panel: true,
+  },
+  'webcam.reset-view': {
+    label: 'Reset view button in Webcam (shows once zoomed or turned)',
+    perWidget: true,
+  },
   'classes-widget.manage': {
     label: 'Manage classes button in Classes',
     perWidget: true,
@@ -11868,6 +12254,44 @@ export const TOUR_ANCHORS = {
   },
   'lunch-count.report-cancel': {
     label: 'Cancel button in the Lunch Count report dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'hotspot-image.popover-close': {
+    label: 'Close button on a Hotspot Image popover',
+    perWidget: true,
+    panel: true,
+  },
+  'instructional-routines.blooms-key-words': {
+    label: 'Key Words button in Instructional Routines',
+    perWidget: true,
+  },
+  'instructional-routines.blooms-sentence-starters': {
+    label: 'Sentence Starters button in Instructional Routines',
+    perWidget: true,
+  },
+  'lunch-count.missing-info-close': {
+    label: 'Close button in the Lunch Count missing info dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'lunch-count.school-option': {
+    label: 'School choice in the Lunch Count missing info dialog',
+    perField: true,
+    panel: true,
+  },
+  'lunch-count.grade-option': {
+    label: 'Grade choice in the Lunch Count missing info dialog',
+    perField: true,
+    panel: true,
+  },
+  'lunch-count.extra-pizza': {
+    label: 'Extra pizza count box in the Lunch Count report dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'lunch-count.report-notes': {
+    label: 'Additional notes box in the Lunch Count report dialog',
     perWidgetType: true,
     panel: true,
   },
@@ -12094,6 +12518,30 @@ export const TOUR_ANCHORS = {
       'Tool button in the Drawing toolbar, by tool (select, pen, highlighter, eraser, text, shape)',
     perField: true,
   },
+  'drawing.hand': {
+    label: 'Hand button that pans the Drawing page',
+    perWidget: true,
+  },
+  'drawing.zoom-out': {
+    label: 'Zoom out button in Drawing',
+    perWidget: true,
+  },
+  'drawing.zoom-reset': {
+    label: 'Zoom percentage button in Drawing that returns to 100%',
+    perWidget: true,
+  },
+  'drawing.zoom-in': {
+    label: 'Zoom in button in Drawing',
+    perWidget: true,
+  },
+  'drawing.zoom-fit': {
+    label: 'Fit button in Drawing that shows the whole page',
+    perWidget: true,
+  },
+  'drawing.duplicate': {
+    label: 'Duplicate button in Drawing for the selected item',
+    perWidget: true,
+  },
   'drawing.undo': {
     label: 'Undo button in Drawing',
     perWidget: true,
@@ -12143,6 +12591,26 @@ export const TOUR_ANCHORS = {
     label:
       'Eraser mode button in the Drawing tool options, by mode (stroke, object, lasso)',
     perField: true,
+    panel: true,
+  },
+  'drawing.highlighter-colors': {
+    label: 'Highlighter color swatches in the Drawing tool options',
+    perWidgetType: true,
+    panel: true,
+  },
+  'drawing.shape-dashed': {
+    label: 'Dashed toggle in the Drawing shape tool options',
+    perWidgetType: true,
+    panel: true,
+  },
+  'drawing.arrow-both-ends': {
+    label: 'Both ends toggle in the Drawing arrow tool options',
+    perWidgetType: true,
+    panel: true,
+  },
+  'drawing.sticky-colors': {
+    label: 'Sticky note color swatches in the Drawing tool options',
+    perWidgetType: true,
     panel: true,
   },
   'drawing.stroke-width': {
@@ -12265,6 +12733,56 @@ export const TOUR_ANCHORS = {
   'seating.unseat-student': {
     label:
       'Remove-from-seat button on an assigned student in Seating Chart Assign mode',
+    perWidget: true,
+  },
+  'seating.plan-select': {
+    label: 'Seating plan menu in Seating Chart Assign mode',
+    perWidget: true,
+  },
+  'seating.save-plan': {
+    label: 'Save seating plan button in Seating Chart Assign mode',
+    perWidget: true,
+  },
+  'seating.rename-plan': {
+    label: 'Rename plan button in Seating Chart Assign mode',
+    perWidget: true,
+  },
+  'seating.delete-plan': {
+    label: 'Delete plan button in Seating Chart Assign mode',
+    perWidget: true,
+    destructive: true,
+  },
+  'seating.print': {
+    label: 'Print seating chart button in Seating Chart Assign mode',
+    perWidget: true,
+  },
+  'seating.reshuffle': {
+    label: 'Reshuffle button in Seating Chart Assign mode',
+    perWidget: true,
+    destructive: true,
+  },
+  'seating.rules': {
+    label: 'Rules button in Seating Chart Assign mode',
+    perWidget: true,
+  },
+  'seating.rules-first': {
+    label: 'First student menu in Seating Chart rules',
+    perWidget: true,
+  },
+  'seating.rules-second': {
+    label: 'Second student menu in Seating Chart rules',
+    perWidget: true,
+  },
+  'seating.rules-add-pair': {
+    label: 'Add keep-apart pair button in Seating Chart rules',
+    perWidget: true,
+  },
+  'seating.rules-remove-pair': {
+    label: 'Remove keep-apart pair button in Seating Chart rules',
+    perWidget: true,
+  },
+  'seating.rules-front-seat': {
+    label: 'Front row checkbox for a student in Seating Chart rules',
     perWidget: true,
   },
   'music.play-pause': {
@@ -12869,6 +13387,50 @@ export const TOUR_ANCHORS = {
   'flashcards.results-back': {
     label: 'Back button in Flashcards results',
     perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.class-picker': {
+    label: 'Class picker select in the Flashcards monitor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.period-start': {
+    label: 'Start button for the picked class in the Flashcards monitor',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'flashcards.period-pause': {
+    label: 'Pause button for the picked class in the Flashcards monitor',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'flashcards.period-more-time': {
+    label: 'More time button in the Flashcards monitor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.period-extend': {
+    label: 'Extend time option in the Flashcards monitor More time menu',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'flashcards.status-bucket': {
+    label: 'Student status bucket button in the Flashcards monitor',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.card-results': {
+    label: 'Card results button in the Flashcards monitor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.close-all': {
+    label: 'Close all button in the Flashcards monitor',
+    perWidgetType: true,
+    destructive: true,
     panel: true,
   },
   'mini-app.stepper-class-picker': {
@@ -14464,6 +15026,14 @@ export const TOUR_ANCHORS = {
     label: 'Cancel button when ending a substitute-started run',
     panel: true,
   },
+  // A colleague's quiz, video activity or guided activity open on a shared board.
+  'colleague-item.assign': {
+    label: "Assign button on a colleague's item on a shared board",
+    persists: true,
+  },
+  'colleague-item.back': {
+    label: "Back to the colleague's item after assigning a copy",
+  },
   // Routine Guide widget.
   'routine-guide.search': {
     label: 'Search routines box in the Routine Guide library',
@@ -14594,6 +15164,16 @@ export const TOUR_ANCHORS = {
   'boards-modal.collection-menu-color': {
     label: 'Set color item in the collection card menu',
     panel: true,
+  },
+  'boards-modal.collection-menu-stop-sharing': {
+    label: 'Stop sharing item in the collection card menu',
+    panel: true,
+    destructive: true,
+  },
+  'boards-modal.collection-menu-leave-shared': {
+    label: 'Leave shared collection item in the collection card menu',
+    panel: true,
+    destructive: true,
   },
   'boards-modal.collection-menu-template': {
     label: 'Save as Template item in the collection card menu (admins)',

@@ -10,7 +10,9 @@ import {
   Share2,
   UserCheck,
   LayoutTemplate,
+  LogOut,
   Trash2,
+  Unlink,
 } from 'lucide-react';
 
 interface CollectionContextMenuProps {
@@ -23,6 +25,10 @@ interface CollectionContextMenuProps {
   canShare: boolean;
   onShare: () => void;
   onShareWithSub: () => void;
+  /** This teacher's part in a live Synced / View-Only share of this collection. */
+  liveShareRole?: 'host' | 'member' | null;
+  onStopSharing?: () => void;
+  onLeaveShared?: () => void;
   /** When this board/collection is already shared with a sub: its end time. */
   subShareEndsAt?: number | null;
   canSaveAsTemplate: boolean;
@@ -40,6 +46,9 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
   canShare,
   onShare,
   onShareWithSub,
+  liveShareRole = null,
+  onStopSharing,
+  onLeaveShared,
   subShareEndsAt,
   canSaveAsTemplate,
   onSaveAsTemplate,
@@ -95,6 +104,24 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
         : t('subShare.menu.share', { defaultValue: 'Share with a sub…' }),
       icon: UserCheck,
       action: onShareWithSub,
+    });
+  }
+
+  if (liveShareRole === 'host' && onStopSharing) {
+    items.push({
+      label: t('collectionMenu.stopSharing', { defaultValue: 'Stop sharing' }),
+      icon: Unlink,
+      action: onStopSharing,
+      anchor: tourAttr('boards-modal.collection-menu-stop-sharing'),
+    });
+  } else if (liveShareRole === 'member' && onLeaveShared) {
+    items.push({
+      label: t('collectionMenu.leaveShared', {
+        defaultValue: 'Leave shared collection',
+      }),
+      icon: LogOut,
+      action: onLeaveShared,
+      anchor: tourAttr('boards-modal.collection-menu-leave-shared'),
     });
   }
 

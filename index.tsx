@@ -8,6 +8,7 @@ import { i18nReady } from './i18n';
 import { attemptChunkReload } from './utils/chunkLoadError';
 import { installTranslateDomGuard } from './utils/translateDomGuard';
 import { LocalProdBanner } from './components/common/LocalProdBanner';
+import { StudentContextMenuGuard } from './components/student/StudentContextMenuGuard';
 import { dropSavedPinSignIn } from './utils/pinBridge';
 
 // Vite v5+ fires `vite:preloadError` when a <link rel="modulepreload"> fails —
@@ -44,6 +45,7 @@ void Promise.all([settled(i18nReady), settled(dropSavedPinSignIn())]).then(
       <React.StrictMode>
         {isLocalProd && <LocalProdBanner />}
         <App />
+        <StudentContextMenuGuard />
       </React.StrictMode>
     );
   }

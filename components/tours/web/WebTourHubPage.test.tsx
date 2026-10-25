@@ -1,5 +1,11 @@
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import type { ExtensionStatus, WebTourPortEvent } from './extensionClient';
 import { WebTourHubPage } from './WebTourHubPage';
@@ -15,8 +21,9 @@ interface Hoisted {
   published: unknown;
   ping: ExtensionStatus;
   start: Mock<(...args: unknown[]) => Promise<unknown>>;
+  open: Mock<(...args: unknown[]) => Promise<unknown>>;
   onEvent: ((e: WebTourPortEvent) => void) | null;
-  log: Record<'update' | 'match' | 'miss' | 'end' | 'flush', Mock>;
+  log: Record<'update' | 'match' | 'miss' | 'suggest' | 'end' | 'flush', Mock>;
   startLog: Mock;
 }
 
@@ -31,11 +38,13 @@ const h = vi.hoisted((): Hoisted => ({
   published: null,
   ping: { kind: 'none' },
   start: vi.fn(),
+  open: vi.fn(),
   onEvent: null,
   log: {
     update: vi.fn(),
     match: vi.fn(),
     miss: vi.fn(),
+    suggest: vi.fn(),
     end: vi.fn(),
     flush: vi.fn(),
   },
@@ -64,6 +73,7 @@ vi.mock('./extensionClient', async (orig) => ({
   ...(await orig<typeof import('./extensionClient')>()),
   pingExtension: () => Promise.resolve(h.ping),
   startWebTour: (...args: unknown[]) => h.start(...args),
+  openWebTour: (...args: unknown[]) => h.open(...args),
   watchWebTour: (_id: string, onEvent: (e: WebTourPortEvent) => void) => {
     h.onEvent = onEvent;
     return () => undefined;
@@ -109,10 +119,71 @@ beforeEach(() => {
   h.published = webTour();
   h.ping = { kind: 'none' };
   h.start.mockReset();
+  h.open.mockReset();
   h.startLog.mockReset();
   Object.values(h.log).forEach((fn) => fn.mockReset());
   h.onEvent = null;
   window.sessionStorage.clear();
+});
+
+describe('WebTourHubPage with an extension that opens tours itself (H4)', () => {
+  const staff8: ExtensionStatus = {
+    kind: 'ready',
+    protocol: 8,
+    version: '0.1.13',
+    profile: 'staff',
+  };
+
+  it('opens the tour without asking for SpartBoard sign-in', async () => {
+    h.auth.user = null;
+    h.ping = staff8;
+    h.open.mockResolvedValue({ ok: true, tabId: 7 });
+    render(<WebTourHubPage />);
+    expect(
+      await screen.findByText('Your tour is open in the other tab')
+    ).toBeTruthy();
+    expect(h.open).toHaveBeenCalledWith('s1');
+    expect(h.start).not.toHaveBeenCalled();
+    expect(screen.queryByText('sign in')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Start again' }));
+    await waitFor(() => expect(h.open).toHaveBeenCalledTimes(2));
+  });
+
+  it('says so when Start again fails', async () => {
+    h.ping = staff8;
+    h.open
+      .mockResolvedValueOnce({ ok: true, tabId: 7 })
+      .mockResolvedValueOnce({ ok: false, error: 'unavailable' });
+    render(<WebTourHubPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Start again' }));
+    expect(
+      await screen.findByText("The tour couldn't start. Try again.")
+    ).toBeTruthy();
+  });
+
+  it("falls back to sign-in and the handoff when the extension can't load the tour", async () => {
+    h.auth.user = null;
+    h.ping = staff8;
+    h.open.mockResolvedValue({ ok: false, error: 'unavailable' });
+    render(<WebTourHubPage />);
+    expect(await screen.findByText('sign in')).toBeTruthy();
+  });
+
+  it('keeps the old flow for a 0.1.12 extension', async () => {
+    h.ping = { ...staff8, protocol: 7, version: '0.1.12' };
+    render(<WebTourHubPage />);
+    expect(
+      await screen.findByRole('button', { name: /Start tour/ })
+    ).toBeTruthy();
+    expect(h.open).not.toHaveBeenCalled();
+  });
+
+  it('never opens for a non-staff profile', async () => {
+    h.ping = { ...staff8, profile: 'other' };
+    render(<WebTourHubPage />);
+    expect(await screen.findByText('Post a Schoology update')).toBeTruthy();
+    expect(h.open).not.toHaveBeenCalled();
+  });
 });
 
 describe('WebTourHubPage', () => {
@@ -139,11 +210,12 @@ describe('WebTourHubPage', () => {
   });
 
   it('shows the steps and a site link without the extension', async () => {
+    vi.stubEnv('VITE_SPART_EXTENSION_ID', '');
     render(<WebTourHubPage />);
     expect(await screen.findByText('Post a Schoology update')).toBeTruthy();
     expect(
       await screen.findByText(
-        'Ask your tech team to add the SpartBoard Chrome extension so this tour can point to each step on the site. For now, follow the pictures below.'
+        'Add the SpartBoard Chrome extension so this tour can point to each step on the site. For now, follow the pictures below.'
       )
     ).toBeTruthy();
     expect(screen.getByText('Open the course')).toBeTruthy();
@@ -151,6 +223,18 @@ describe('WebTourHubPage', () => {
       'https://app.schoology.com/home'
     );
     expect(screen.queryByText('Start tour')).toBeNull();
+  });
+
+  it('offers the extension from its store listing when it is missing', async () => {
+    vi.stubEnv('VITE_SPART_EXTENSION_ID', 'abcdefghijklmnopabcdefghijklmnop');
+    render(<WebTourHubPage />);
+    const get = await screen.findByRole('link', {
+      name: 'Get the SpartBoard extension',
+    });
+    expect(get.getAttribute('href')).toBe(
+      'https://chromewebstore.google.com/detail/abcdefghijklmnopabcdefghijklmnop'
+    );
+    vi.unstubAllEnvs();
   });
 
   it('tells a non-staff Chrome profile why the tour will not play', async () => {
@@ -190,7 +274,7 @@ describe('WebTourHubPage', () => {
     expect(h.startLog).toHaveBeenCalledWith(
       's1',
       'u1',
-      { v: 42, furthest: 0, surface: 'web', from: undefined },
+      { v: 42, furthest: 0, surface: 'web', from: undefined, admin: false },
       expect.any(Function)
     );
     expect(
@@ -210,6 +294,21 @@ describe('WebTourHubPage', () => {
     });
     expect(h.log.update).toHaveBeenCalledWith({ furthest: 1 });
     expect(h.log.match).toHaveBeenCalledWith('b', 'text');
+
+    // A suggested fix lands on the run, scrubbed; a check run's never does (C14).
+    act(() => {
+      h.onEvent?.({
+        type: 'web-tour/suggest',
+        setId: 's1',
+        stepIndex: 1,
+        stepId: 'b',
+        locator: { role: 'button', name: 'Post to kid@school.org' },
+      });
+    });
+    expect(h.log.suggest).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(h.log.suggest.mock.calls[0])).not.toContain(
+      'kid@school.org'
+    );
 
     act(() => {
       h.onEvent?.({ type: 'web-tour/closed', setId: 's1', stepIndex: 1 });
@@ -254,6 +353,8 @@ describe('WebTourHubPage', () => {
     h.ping = { kind: 'ready', protocol: 2, version: '1', profile: 'staff' };
     render(<WebTourHubPage />);
     await screen.findByRole('button', { name: /Start tour/ });
+    // The page subscribes in an effect, which can land after the button shows.
+    await waitFor(() => expect(h.onEvent).not.toBeNull());
     act(() => {
       h.onEvent?.({
         type: 'web-tour/step',
@@ -295,7 +396,7 @@ describe('WebTourHubPage', () => {
     expect(h.startLog).toHaveBeenCalledWith(
       's1',
       'u1',
-      { v: 42, furthest: 0, surface: 'web', from: undefined },
+      { v: 42, furthest: 0, surface: 'web', from: undefined, admin: false },
       expect.any(Function)
     );
     expect(h.log.match).toHaveBeenCalledWith('a', 'none');
@@ -314,6 +415,8 @@ describe('WebTourHubPage', () => {
     h.ping = { kind: 'ready', protocol: 2, version: '1', profile: 'staff' };
     render(<WebTourHubPage />);
     await screen.findByRole('button', { name: /Start tour/ });
+    // The page subscribes in an effect, which can land after the button shows.
+    await waitFor(() => expect(h.onEvent).not.toBeNull());
     act(() => {
       h.onEvent?.({
         type: 'web-tour/step',
@@ -348,6 +451,8 @@ describe('WebTourHubPage', () => {
     );
     render(<WebTourHubPage />);
     await screen.findByRole('button', { name: /Start tour/ });
+    // The page subscribes in an effect, which can land after the button shows.
+    await waitFor(() => expect(h.onEvent).not.toBeNull());
     act(() => {
       h.onEvent?.({
         type: 'web-tour/step',
@@ -381,6 +486,8 @@ describe('WebTourHubPage', () => {
     h.start.mockResolvedValue({ ok: false, error: 'no-reply' });
     render(<WebTourHubPage />);
     await screen.findByRole('button', { name: /Start tour/ });
+    // The page subscribes in an effect, which can land after the button shows.
+    await waitFor(() => expect(h.onEvent).not.toBeNull());
     act(() => {
       h.onEvent?.({
         type: 'web-tour/step',

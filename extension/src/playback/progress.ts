@@ -1,8 +1,11 @@
 import type { WebTourAction, WebTourFrame } from '@/types';
-import type { LocatorClue, WebLocatorClues } from './locate';
+import type { WebLocatorClues } from './locate';
 import { matchesUrlPattern } from './urlPattern';
 
 export type WebStepAction = WebTourAction;
+
+/** How a step was found, as the page reads it: `role` a clear match, `score` a weak one (C2). */
+export type FoundMatch = 'role' | 'score';
 
 export interface PlaybackStep {
   id: string;
@@ -23,22 +26,23 @@ export interface PlaybackTour {
   steps: PlaybackStep[];
 }
 
+/** `armed`: started but not yet on the start step's page, e.g. while the learner signs in (WEB_TOURS_HELP_PANEL.md H1). */
 export type PlaybackStatus =
-  'wrong-page' | 'seeking' | 'shown' | 'fallback' | 'done' | 'exited';
+  'armed' | 'wrong-page' | 'seeking' | 'shown' | 'fallback' | 'done' | 'exited';
 
 export interface PlaybackState {
   tour: PlaybackTour;
   index: number;
   furthest: number;
   status: PlaybackStatus;
-  /** Which clue found each step, or 'picture' when only the picture was shown. */
-  matched: Record<string, LocatorClue | 'picture'>;
+  /** How each step was found, or 'picture' when only the picture was shown. */
+  matched: Record<string, FoundMatch | 'picture'>;
   startedAt: number;
 }
 
 export type PlaybackEvent =
   | { type: 'page'; url: string }
-  | { type: 'found'; clue: LocatorClue }
+  | { type: 'found'; match: FoundMatch }
   | { type: 'lost' }
   | { type: 'timeout' }
   | { type: 'acted' }
@@ -87,7 +91,7 @@ function enterStep(
 
 function record(
   state: PlaybackState,
-  how: LocatorClue | 'picture'
+  how: FoundMatch | 'picture'
 ): PlaybackState['matched'] {
   const id = state.tour.steps[state.index]?.id;
   if (!id) return state.matched;
@@ -112,6 +116,13 @@ export function reducePlayback(
     return state;
   }
   const step = state.tour.steps[state.index];
+  if (state.status === 'armed') {
+    // Sign-in, SSO and MFA pages are ignored until the start step's page loads.
+    if (event.type === 'exit') return { ...state, status: 'exited' };
+    if (event.type === 'page' && matchesUrlPattern(step.urlPattern, event.url))
+      return { ...state, status: 'seeking' };
+    return state;
+  }
   switch (event.type) {
     case 'page': {
       if (state.status === 'shown' || state.status === 'fallback') {
@@ -130,7 +141,7 @@ export function reducePlayback(
     }
     case 'found':
       if (state.status === 'wrong-page') return state;
-      return { ...state, status: 'shown', matched: record(state, event.clue) };
+      return { ...state, status: 'shown', matched: record(state, event.match) };
     case 'lost':
       return state.status === 'shown' ? { ...state, status: 'seeking' } : state;
     case 'timeout':

@@ -48,6 +48,8 @@ export interface AiModelConfig {
   standardModel: string;
   /** Per-integration model chosen on the Admin Settings AI tab. */
   integrationModels: Partial<Record<AiIntegrationId, string>>;
+  /** Models the AI tab allows; absent = none saved, which the tab shows as Gemini only. */
+  allowedModels?: readonly string[];
   /** Per-integration input and output limits set on the Admin Settings AI tab. */
   integrationLimits: Partial<Record<AiIntegrationId, AiIntegrationLimits>>;
   /** True when the Firestore read failed and defaults are in use. */
@@ -111,6 +113,13 @@ export async function getAiModelConfig(
         cfg.allowedModels
       ),
       integrationLimits: parseIntegrationLimits(cfg.integrationLimits),
+      ...(Array.isArray(cfg.allowedModels)
+        ? {
+            allowedModels: cfg.allowedModels
+              .map(normalizeAiModelId)
+              .filter((m): m is string => !!m),
+          }
+        : {}),
       usedFallback: false,
     };
     cached = { value, cachedAt: now };

@@ -10,6 +10,7 @@ interface ModerationAndAccessProps {
   showNames: boolean;
   studentsCanSeePosts: boolean;
   classIds: string[];
+  classLock?: { locked: string[]; canAdd: boolean };
   classes: ClassLinkClass[];
   widgetId: string;
   widgetType: string;
@@ -29,6 +30,7 @@ export const ModerationAndAccess: React.FC<ModerationAndAccessProps> = ({
   showNames,
   studentsCanSeePosts,
   classIds,
+  classLock,
   classes,
   widgetId,
   widgetType,
@@ -86,6 +88,11 @@ export const ModerationAndAccess: React.FC<ModerationAndAccessProps> = ({
         <div className="max-h-40 space-y-1 overflow-y-auto pb-1">
           {classes.map((cls) => {
             const checked = classIds.includes(cls.sourcedId);
+            const locked = classLock
+              ? checked
+                ? classLock.locked.includes(cls.sourcedId)
+                : !classLock.canAdd
+              : false;
             return (
               <label
                 key={cls.sourcedId}
@@ -95,6 +102,7 @@ export const ModerationAndAccess: React.FC<ModerationAndAccessProps> = ({
                 <input
                   type="checkbox"
                   checked={checked}
+                  disabled={locked}
                   onChange={() =>
                     onChange({
                       classIds: checked
@@ -102,7 +110,7 @@ export const ModerationAndAccess: React.FC<ModerationAndAccessProps> = ({
                         : [...classIds, cls.sourcedId],
                     })
                   }
-                  className="h-4 w-4 accent-brand-blue-primary"
+                  className="h-4 w-4 accent-brand-blue-primary disabled:opacity-50"
                 />
                 {formatClassLinkClassLabel(cls)}
               </label>

@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { rosterGroupMemberIds } from '@/utils/rosterGroups';
 import { WidgetData, SeatingChartConfig, FurnitureItem } from '@/types';
@@ -20,6 +21,17 @@ import {
 import { FurnitureItemRenderer } from './FurnitureItemRenderer';
 import { SeatingChartToolbar } from './SeatingChartToolbar';
 import { SeatingChartSidebar } from './SeatingChartSidebar';
+import { detachPlan, getActivePlan } from './seatingPlans';
+import { buildSeatingChartPrint } from './seatingChartPrint';
+import { printHtmlDocument } from '@/utils/printHtmlDocument';
+import { SeatingRulesModal } from './SeatingRulesModal';
+import {
+  describeBreaks,
+  isSeat,
+  rulesForRoster,
+  seatWithRules,
+  type SeatResult,
+} from './seatingRules';
 import {
   FURNITURE_TYPES,
   SETUP_SIDEBAR_W,
@@ -49,6 +61,7 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
   const { t } = useTranslation();
   const { updateWidget, rosters, activeRosterId, addToast } = useDashboard();
   const { showConfirm } = useDialog();
+  const plansFlag = useAuth().canAccessFeature('seating-chart-plans');
   const config = widget.config as SeatingChartConfig;
   // Fall back to the legacy templateRows field so existing Firestore widgets
   // preserve their saved column count after the rename to templateColumns.
@@ -63,6 +76,8 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     template = 'freeform',
     templateColumns = legacyTemplateRows ?? DEFAULT_TEMPLATE_COLUMNS,
   } = config;
+  // Custom-roster seat keys are typed names, kept out of Firestore by dashboardPII; plans would copy them.
+  const plansEnabled = plansFlag && rosterMode === 'class';
 
   const [mode, setMode] = useState<'setup' | 'assign' | 'interact'>('interact');
 
@@ -79,6 +94,8 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     width: number;
     height: number;
   } | null>(null);
+
+  const [rulesOpen, setRulesOpen] = useState(false);
 
   const [randomHighlight, setRandomHighlight] = useState<string | null>(null);
 
@@ -194,6 +211,15 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     const assignedIds = new Set(Object.keys(assignments));
     return students.filter((s) => !assignedIds.has(s.id));
   }, [assignments, students]);
+
+  const rules = useMemo(
+    () =>
+      rulesForRoster(
+        config.seatingRules,
+        new Set(allStudents.map((s) => s.id))
+      ),
+    [config.seatingRules, allStudents]
+  );
 
   // --- LEGACY MIGRATION: name-keyed → id-keyed assignments ---
   // Prior to adding roster support, seating-chart assignments used student
@@ -347,7 +373,12 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     );
     if (confirmed) {
       updateWidget(widget.id, {
-        config: { ...config, furniture: [], assignments: {} },
+        config: {
+          ...latestRef.current.config,
+          ...detachPlan(latestRef.current.config),
+          furniture: [],
+          assignments: {},
+        },
       });
       setSelectedIds(new Set());
     }
@@ -479,7 +510,12 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     }
 
     updateWidget(widget.id, {
-      config: { ...config, furniture: newFurniture, assignments: {} },
+      config: {
+        ...config,
+        ...detachPlan(config),
+        furniture: newFurniture,
+        assignments: {},
+      },
     });
     setSelectedIds(new Set());
     addToast(
@@ -789,7 +825,127 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     [widget.id, updateWidget]
   );
 
+  const reportSeating = (result: SeatResult) => {
+    const count = Object.keys(result.placed).length;
+    const allLabels = new Map(allStudents.map((s) => [s.id, s.label]));
+    const broken = describeBreaks(
+      result.broken,
+      (id) => allLabels.get(id) ?? 'a student not shown'
+    );
+    const left =
+      result.unplaced.length > 0
+        ? ` ${result.unplaced.length} still need spots.`
+        : '';
+    if (broken) {
+      addToast(`Seated ${count} students. ${broken}${left}`, 'info');
+    } else if (left) {
+      addToast(`Assigned ${count} students.${left}`, 'info');
+    } else {
+      addToast(`Randomly assigned ${count} students!`, 'success');
+    }
+  };
+
+  const addAllWithRules = () => {
+    const seats = furniture.filter(isSeat);
+    if (seats.length === 0) {
+      addToast('No desks or tables available!', 'error');
+      return;
+    }
+    if (unassignedStudents.length === 0) {
+      addToast('All students are already assigned!', 'info');
+      return;
+    }
+    const occupied = new Set(Object.values(assignments));
+    if (seats.every((f) => occupied.has(f.id))) {
+      addToast('No empty spots available!', 'error');
+      return;
+    }
+    const latest = latestRef.current.config;
+    const current = latest.assignments ?? {};
+    const result = seatWithRules(
+      seats,
+      unassignedStudents.map((s) => s.id),
+      current,
+      rules
+    );
+    updateWidget(widget.id, {
+      config: { ...latest, assignments: { ...current, ...result.placed } },
+    });
+    reportSeating(result);
+  };
+
+  const reshuffle = async () => {
+    const seats = furniture.filter(isSeat);
+    if (seats.length === 0) {
+      addToast('No desks or tables available!', 'error');
+      return;
+    }
+    if (students.length === 0) {
+      addToast(
+        'No students found. Set a class or custom roster first.',
+        'error'
+      );
+      return;
+    }
+    const ok = await showConfirm('Give every student a new random seat?', {
+      title: 'Reshuffle seats',
+      confirmLabel: 'Reshuffle',
+    });
+    if (!ok) return;
+    const latest = latestRef.current.config;
+    const latestSeats = (latest.furniture ?? []).filter(isSeat);
+    const shown = new Set(students.map((s) => s.id));
+    // Students hidden by the class group keep their seats.
+    const fixed = Object.fromEntries(
+      Object.entries(latest.assignments ?? {}).filter(([id]) => !shown.has(id))
+    );
+    const result = seatWithRules(
+      latestSeats,
+      students.map((s) => s.id),
+      fixed,
+      rules
+    );
+    updateWidget(widget.id, {
+      config: { ...latest, assignments: { ...fixed, ...result.placed } },
+    });
+    reportSeating(result);
+  };
+
+  const printChart = () => {
+    const namesBySeat = new Map(
+      [...assignedStudentsByFurnitureId].map(([seatId, list]) => [
+        seatId,
+        list.map((s) => s.label),
+      ])
+    );
+    const customTitle = widget.customTitle?.trim();
+    try {
+      printHtmlDocument(
+        buildSeatingChartPrint({
+          title:
+            customTitle === undefined || customTitle === ''
+              ? 'Seating Chart'
+              : customTitle,
+          planName: getActivePlan(config)?.name,
+          className: activeRoster?.name,
+          date: new Date(),
+          furniture,
+          namesBySeat,
+        })
+      );
+    } catch (err) {
+      addToast(
+        err instanceof Error ? err.message : 'Printing failed.',
+        'error'
+      );
+    }
+  };
+
   const addAllRandomly = () => {
+    if (plansEnabled) {
+      addAllWithRules();
+      return;
+    }
     const targetFurniture = furniture.filter(
       (f) => f.type === 'desk' || f.type.startsWith('table')
     );
@@ -931,7 +1087,40 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
           addAllRandomly={addAllRandomly}
           handleStudentClick={handleStudentClick}
           selectedStudent={selectedStudent}
+          {...(plansEnabled
+            ? {
+                plans: {
+                  onChange: (patch) =>
+                    updateWidget(widget.id, {
+                      config: { ...latestRef.current.config, ...patch },
+                    }),
+                  addToast,
+                  print: printChart,
+                },
+                rules: {
+                  count:
+                    (rules.keepApart?.length ?? 0) +
+                    (rules.frontSeat?.length ?? 0),
+                  open: () => setRulesOpen(true),
+                  reshuffle: () => void reshuffle(),
+                },
+              }
+            : {})}
         />
+        {plansEnabled && (
+          <SeatingRulesModal
+            widgetId={widget.id}
+            isOpen={rulesOpen}
+            onClose={() => setRulesOpen(false)}
+            students={allStudents}
+            rules={config.seatingRules ?? {}}
+            onChange={(next) =>
+              updateWidget(widget.id, {
+                config: { ...latestRef.current.config, seatingRules: next },
+              })
+            }
+          />
+        )}
 
         {/* Canvas */}
         <div

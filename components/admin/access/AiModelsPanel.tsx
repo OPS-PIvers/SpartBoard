@@ -173,7 +173,11 @@ const IntegrationRow: React.FC<{
           unreadable ? 'This model cannot read this input; Gemini runs it.' : ''
         }
       >
-        <option value="">Default ({aiModelLabel(tierModel)})</option>
+        <option value="">
+          {tierModel
+            ? `Default (${aiModelLabel(tierModel)})`
+            : 'Choose a model'}
+        </option>
         {options.map((m) => (
           <option key={m.id} value={m.id}>
             {m.label}
@@ -401,7 +405,13 @@ export const AiModelsPanel: React.FC = () => {
                 key={i.id}
                 integration={i}
                 value={integrationModels[i.id] ?? ''}
-                tierModel={tierModel(i.tier)}
+                tierModel={
+                  i.defaultModel && allowed.includes(i.defaultModel)
+                    ? i.defaultModel
+                    : i.noFallback
+                      ? ''
+                      : tierModel(i.tier)
+                }
                 allowed={allowed}
                 usage={usage[i.id]}
                 onChange={(model) => setIntegrationModel(i.id, model)}

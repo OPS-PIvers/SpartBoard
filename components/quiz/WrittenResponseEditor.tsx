@@ -49,6 +49,8 @@ interface WrittenResponseEditorProps {
   maxWords?: number;
   /** When set, the counter reads as a hard requirement rather than advice. */
   enforceWordLimit?: boolean;
+  /** False turns off the browser's spelling and grammar underlines. */
+  spellCheck?: boolean;
   /** Disable editing (e.g. when the quiz is paused or submitted). */
   disabled?: boolean;
   /**
@@ -90,6 +92,7 @@ const WrittenResponseEditorInner: React.FC<
   minWords,
   maxWords,
   enforceWordLimit,
+  spellCheck = true,
   disabled,
   blockClipboard,
   light = false,
@@ -459,7 +462,7 @@ const WrittenResponseEditorInner: React.FC<
           onCopy={handleClipboardCopyCut}
           onCut={handleClipboardCopyCut}
           onDrop={handleDrop}
-          spellCheck
+          spellCheck={spellCheck}
           className={`rich-text-content w-full px-5 py-4 border-2 border-t-0 ${
             light ? 'bg-white' : 'bg-slate-800'
           } ${

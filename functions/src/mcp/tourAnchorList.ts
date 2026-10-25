@@ -483,6 +483,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "arts-letters-agenda#fontColor",
       "arts-letters-agenda#fontFamily",
       "arts-letters-agenda#textSizePreset",
+      "arts-letters-agenda#version",
       "blending-board#managedNotice",
       "blooms-taxonomy#enabledCategories",
       "breathing#cardColor",
@@ -644,6 +645,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "schedule#schedules",
       "schedule#textSizePreset",
       "scoreboard#layout",
+      "scoreboard#pointValues",
       "scoreboard#teams",
       "seating-chart#furniture",
       "seating-chart#names",
@@ -651,9 +653,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "smartNotebook#cardColor",
       "smartNotebook#fontColor",
       "smartNotebook#fontFamily",
+      "sound#alertDelaySeconds",
+      "sound#alertSound",
       "sound#autoTrafficLight",
+      "sound#noiseFloor",
+      "sound#quietGoalMinutes",
+      "sound#quietGoalTeamId",
       "sound#sensitivity",
       "sound#syncExpectations",
+      "sound#targetLevel",
       "sound#trafficLightThreshold",
       "sound#visual",
       "soundboard#selectedSoundIds",
@@ -746,7 +754,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "schedule#autoScroll",
       "schedule#expandActiveItem",
       "schedule#isBuildingSyncEnabled",
+      "scoreboard#sortByScore",
+      "sound#alertSoundEnabled",
       "sound#autoTrafficLight",
+      "sound#quietGoalResetOnAlert",
       "sound#syncExpectations",
       "time-tool#glow",
       "time-tool#timerEndTriggerNextUp",
@@ -780,6 +791,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "requires": "settings-open",
     "keys": [
       "activity-wall#content",
+      "arts-letters-agenda#content",
       "blending-board#content",
       "blooms-taxonomy#content",
       "breathing#content",
@@ -2548,6 +2560,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "activity-wall.edit-shared",
+    "label": "Edit wall button on a colleague's Activity Wall",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "library.activity-wall",
+        "kind": "widget",
+        "widget_type": "activity-wall",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "time-tool.start-pause",
     "label": "Start or pause button in Timer/Stopwatch",
     "scope": "widget",
@@ -2770,6 +2798,73 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Reset Poll button",
     "scope": "widget",
     "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.face",
+        "kind": "widget",
+        "widget_type": "poll",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "poll.reveal-results",
+    "label": "Show results button in Poll",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.face",
+        "kind": "widget",
+        "widget_type": "poll",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "poll.show-answer",
+    "label": "Show answer button in Poll",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.face",
+        "kind": "widget",
+        "widget_type": "poll",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "poll.lock-voting",
+    "label": "Lock voting button in Poll",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.face",
+        "kind": "widget",
+        "widget_type": "poll",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "poll.show-hidden",
+    "label": "Show hidden responses button on the Poll widget",
+    "scope": "widget",
     "routes": [
       {
         "surface": "widgets.poll.face",
@@ -7088,6 +7183,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-editor.word-enforce",
     "label": "Enforce limit toggle in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.spell-check",
+    "label": "Spell check toggle in the Quiz editor",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -14419,9 +14536,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class picker select in the Quiz monitor",
     "scope": "widget type",
     "keys": [
+      "miniApp",
       "quiz"
     ],
     "routes": [
+      {
+        "surface": "library.mini-app.submissions",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp",
+          "mini-app.session-submissions:miniApp"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "quiz.monitor",
         "kind": "panel",
@@ -14442,9 +14574,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "More time button in the Quiz monitor",
     "scope": "widget type",
     "keys": [
+      "miniApp",
       "quiz"
     ],
     "routes": [
+      {
+        "surface": "library.mini-app.submissions",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp",
+          "mini-app.session-submissions:miniApp"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "quiz.monitor",
         "kind": "panel",
@@ -14552,6 +14699,20 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student status bucket button in the Quiz monitor",
     "scope": "field",
     "routes": [
+      {
+        "surface": "library.mini-app.submissions",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp",
+          "mini-app.session-submissions:miniApp"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "quiz.monitor",
         "kind": "panel",
@@ -14959,9 +15120,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "persists": true,
     "keys": [
+      "miniApp",
       "quiz"
     ],
     "routes": [
+      {
+        "surface": "library.mini-app.submissions",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp",
+          "mini-app.session-submissions:miniApp"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "quiz.monitor",
         "kind": "panel",
@@ -14983,9 +15159,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "persists": true,
     "keys": [
+      "miniApp",
       "quiz"
     ],
     "routes": [
+      {
+        "surface": "library.mini-app.submissions",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp",
+          "mini-app.session-submissions:miniApp"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "quiz.monitor",
         "kind": "panel",
@@ -15008,9 +15199,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "persists": true,
     "keys": [
+      "miniApp",
       "quiz"
     ],
     "routes": [
+      {
+        "surface": "library.mini-app.submissions",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp",
+          "mini-app.session-submissions:miniApp"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      },
       {
         "surface": "quiz.monitor",
         "kind": "panel",
@@ -15850,6 +16056,27 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.materials.form-delete",
+    "label": "Delete button in the Materials custom material form",
+    "scope": "widget",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.materials.settings",
+        "kind": "settings-drawer",
+        "widget_type": "materials",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.music.sync-time-tool",
     "label": "Sync with Time Tool toggle in Music settings",
     "scope": "widget",
@@ -15888,6 +16115,54 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "scoreboard.remove-point",
     "label": "Remove a point for a team in Scoreboard",
     "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.scoreboard.face",
+        "kind": "widget",
+        "widget_type": "scoreboard",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "scoreboard.add-point-amount",
+    "label": "Second or third point button for a team in Scoreboard",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.scoreboard.face",
+        "kind": "widget",
+        "widget_type": "scoreboard",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "scoreboard.undo",
+    "label": "Undo button in Scoreboard",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.scoreboard.face",
+        "kind": "widget",
+        "widget_type": "scoreboard",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "scoreboard.history",
+    "label": "History button in Scoreboard",
+    "scope": "widget",
     "routes": [
       {
         "surface": "widgets.scoreboard.face",
@@ -16150,8 +16425,103 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.poll.question-type",
+    "label": "Question type menu in Poll settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.settings",
+        "kind": "settings-drawer",
+        "widget_type": "poll",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.poll.scale-size",
+    "label": "Rating scale size menu in Poll settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.settings",
+        "kind": "settings-drawer",
+        "widget_type": "poll",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.poll.hide-results",
+    "label": "Hide results until revealed switch in Poll settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.settings",
+        "kind": "settings-drawer",
+        "widget_type": "poll",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.poll.export-csv",
     "label": "Export CSV button in Poll settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.settings",
+        "kind": "settings-drawer",
+        "widget_type": "poll",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.poll.save-poll",
+    "label": "Save poll button in Poll settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.settings",
+        "kind": "settings-drawer",
+        "widget_type": "poll",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.poll.saved-polls",
+    "label": "Saved polls list in Poll settings",
     "scope": "widget",
     "panel": true,
     "routes": [
@@ -16756,6 +17126,134 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "widgets.scoreboard.settings",
         "kind": "settings-drawer",
         "widget_type": "scoreboard",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sound.summary",
+    "label": "Summary button on the Sound widget",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.sound.face",
+        "kind": "widget",
+        "widget_type": "sound",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sound.clear-summary",
+    "label": "Clear summary button in the Sound widget summary",
+    "scope": "widget",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.sound.summary",
+        "kind": "panel",
+        "widget_type": "sound",
+        "path": [
+          "sound.summary"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sound.close-summary",
+    "label": "Close summary button in the Sound widget summary",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.sound.summary",
+        "kind": "panel",
+        "widget_type": "sound",
+        "path": [
+          "sound.summary"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sound.restart-goal",
+    "label": "Restart quiet time goal button on the Sound widget",
+    "scope": "widget",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.sound.face",
+        "kind": "widget",
+        "widget_type": "sound",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.sound.goal-team",
+    "label": "Scoreboard team menu for the quiet time goal in Sound settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.sound.settings",
+        "kind": "settings-drawer",
+        "widget_type": "sound",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.sound.calibrate",
+    "label": "Calibrate button in Sound settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.sound.settings",
+        "kind": "settings-drawer",
+        "widget_type": "sound",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.sound.reset-calibration",
+    "label": "Reset calibration button in Sound settings",
+    "scope": "widget",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.sound.settings",
+        "kind": "settings-drawer",
+        "widget_type": "sound",
         "path": [
           "widget.settings-opener"
         ],
@@ -18489,6 +18987,44 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.classes",
           "classes.link-schoology"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.poll.scale-label",
+    "label": "Rating scale end label in Poll settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.settings",
+        "kind": "settings-drawer",
+        "widget_type": "poll",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.poll.correct-option",
+    "label": "Mark an option as the correct answer in Poll settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.settings",
+        "kind": "settings-drawer",
+        "widget_type": "poll",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
         ]
       }
     ]
@@ -26274,6 +26810,66 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "teams.home.latest-assessment",
+    "label": "Latest assessment title on the team Home page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "plc.teams.home",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.plcs",
+          "plcs.open-plc:plcs",
+          "plc-dashboard.section-tab:plc#home"
+        ],
+        "needs": [
+          "plc"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "teams.home.see-item-analysis",
+    "label": "See item analysis link on the team Home page",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "plc.teams.home",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.plcs",
+          "plcs.open-plc:plcs",
+          "plc-dashboard.section-tab:plc#home"
+        ],
+        "needs": [
+          "plc"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "teams.home.tool",
+    "label": "Team tool link on the team Home page",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "plc.teams.home",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.plcs",
+          "plcs.open-plc:plcs",
+          "plc-dashboard.section-tab:plc#home"
+        ],
+        "needs": [
+          "plc"
+        ]
+      }
+    ]
+  },
+  {
     "id": "teams.department.agenda-add",
     "label": "Add button for agenda items in the department hub",
     "scope": "board",
@@ -29452,6 +30048,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "library-shell.secondary-menu-item",
+    "label": "Item in a library shell secondary button menu",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": [
+          "library-shell.secondary-action"
+        ],
+        "reveal": "library-shell.secondary-action"
+      }
+    ]
+  },
+  {
     "id": "library-shell.new-menu-item",
     "label": "Item in the library shell primary button menu",
     "scope": "field",
@@ -29685,6 +30297,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Back button in the resource viewer",
     "scope": "board",
     "panel": true,
+    "routes": [
+      {
+        "surface": "board.help-viewer",
+        "kind": "panel",
+        "path": [
+          "board-actions.help",
+          "help-center.tab:help#guides",
+          "help-center.guides.item:help"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "help-center.viewer.open-web-tour",
+    "label": "Open in a new tab button for a web tour in a Help Center guide",
+    "scope": "board",
     "routes": [
       {
         "surface": "board.help-viewer",
@@ -29965,6 +30593,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "admin.help-center.record-tour",
     "label": "Record tour button in Help Center admin",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.help-center.tour-health",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#help-center",
+          "admin.help-center.tour-health-toggle"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.help-center.record-web-tour",
+    "label": "Record web tour button in Help Center admin",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -30616,6 +31264,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.admin-settings",
           "admin.settings.tab:admin#widgets",
           "admin.widgets.configure:admin#activity-wall"
+        ],
+        "needs": [
+          "admin"
+        ]
+      },
+      {
+        "surface": "admin.widgets.config.arts-letters-agenda",
+        "kind": "modal",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#arts-letters-agenda"
         ],
         "needs": [
           "admin"
@@ -43485,6 +44145,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "mini-app.session-rename-cancel",
+    "label": "Cancel rename button on a Mini App assignment",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.mini-app.assignments",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "mini-app.session-copy-link",
     "label": "Copy Link button on a Mini App assignment",
     "scope": "field",
@@ -43585,6 +44265,128 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         ],
         "needs": [
           "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mini-app.session-end-cancel",
+    "label": "Cancel button on a Mini App assignment end confirmation",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.mini-app.assignments",
+        "kind": "modal",
+        "path": [
+          "mini-app.card-run:miniApp",
+          "mini-app.toolbar-sessions:miniApp"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mini-app.try-as-student",
+    "label": "Try as student button in the Mini App editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "miniApp"
+    ],
+    "routes": [
+      {
+        "surface": "library.mini-app.editor",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:miniApp"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mini-app.key-add-question",
+    "label": "Add question button in the Mini App answer key",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "miniApp"
+    ],
+    "routes": [
+      {
+        "surface": "library.mini-app",
+        "kind": "widget",
+        "widget_type": "miniApp",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mini-app.results-back",
+    "label": "Back button in the Mini App results view",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "miniApp"
+    ],
+    "routes": [
+      {
+        "surface": "library.mini-app",
+        "kind": "widget",
+        "widget_type": "miniApp",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mini-app.results-hide-names",
+    "label": "Hide student names button in the Mini App results view",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "miniApp"
+    ],
+    "routes": [
+      {
+        "surface": "library.mini-app",
+        "kind": "widget",
+        "widget_type": "miniApp",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "mini-app.results-export-sheet",
+    "label": "Export to Sheets button in the Mini App results view",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "miniApp"
+    ],
+    "routes": [
+      {
+        "surface": "library.mini-app",
+        "kind": "widget",
+        "widget_type": "miniApp",
+        "path": [],
+        "needs": [
           "widget-on-stage"
         ]
       }
@@ -44580,6 +45382,238 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "video-activity.monitor-tab-warnings",
     "label": "Tab warnings toggle in the live monitor",
     "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-back",
+    "label": "Back button in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-status-bucket",
+    "label": "Student status count in the video activity monitor",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-class-picker",
+    "label": "Class picker select in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-period-start",
+    "label": "Start button for the picked class in the video activity monitor",
+    "scope": "widget type",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-period-pause",
+    "label": "Pause button for the picked class in the video activity monitor",
+    "scope": "widget type",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-period-more-time",
+    "label": "More time button in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-period-extend",
+    "label": "Extend time option in the video activity monitor More time menu",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-question-results",
+    "label": "Question results button in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-question-result",
+    "label": "Question result row in the video activity monitor",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-roster-sort",
+    "label": "Sort students select in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-roster-filter",
+    "label": "Filter students select in the video activity monitor",
+    "scope": "widget type",
+    "routes": [
+      {
+        "surface": "library.video-activity.live",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:video-activity#active",
+          "library-shell.archive-primary-action:video-activity#row-1"
+        ],
+        "needs": [
+          "live-session",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.monitor-row-actions",
+    "label": "Student actions button in the video activity monitor",
+    "scope": "field",
     "routes": [
       {
         "surface": "library.video-activity.live",
@@ -46269,16 +47303,92 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "web-tours.new",
-    "label": "New web tour button in the Guided Learning library (admins)",
+    "id": "web-tour-editor.goal",
+    "label": "What does your tour explain? field in the web tour editor",
     "scope": "board",
     "routes": [
       {
-        "surface": "board.web-tours",
-        "kind": "panel",
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.filter:guided-learning#row-1"
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.write-with-claude",
+    "label": "Write with Claude button in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.rewrite-all",
+    "label": "Rewrite all button in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.write-asked",
+    "label": "Run again for questions button in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.undo-writing",
+    "label": "Undo button for Claude's writing in the web tour editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
         ],
         "needs": [
           "widget-on-stage",
@@ -46297,8 +47407,64 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.filter:guided-learning#row-1",
-          "web-tours.new"
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.play",
+    "label": "Play button in the web tour editor header",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.copy-link",
+    "label": "Copy link button in the web tour editor header",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "web-tour-editor.check",
+    "label": "Check tour button in the web tour editor header",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.web-tour-editor",
+        "kind": "modal",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.secondary-menu-item"
         ],
         "needs": [
           "widget-on-stage",
@@ -46317,8 +47483,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.filter:guided-learning#row-1",
-          "web-tours.new"
+          "library-shell.secondary-menu-item"
         ],
         "needs": [
           "widget-on-stage",
@@ -46338,8 +47503,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.filter:guided-learning#row-1",
-          "web-tours.new"
+          "library-shell.secondary-menu-item"
         ],
         "needs": [
           "widget-on-stage",
@@ -46360,8 +47524,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "modal",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.filter:guided-learning#row-1",
-          "web-tours.new"
+          "library-shell.secondary-menu-item"
         ],
         "needs": [
           "widget-on-stage",
@@ -46802,6 +47965,157 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Pause all periods button in results",
     "scope": "board",
     "persists": true,
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.class-picker",
+    "label": "Class picker select in results",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.period-start",
+    "label": "Start class button in results",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.period-pause",
+    "label": "Pause class button in results",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.period-more-time",
+    "label": "More time button in results",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.period-extend",
+    "label": "Extend time option in the results More time menu",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.status-bucket",
+    "label": "Student status bucket button in results",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "guidedLearning.results",
+        "kind": "panel",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.tab:guided-learning#active",
+          "library-shell.card-primary-action:guided-learning#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "student-data"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gl-results.question-results",
+    "label": "Question results button in results",
+    "scope": "board",
     "routes": [
       {
         "surface": "guidedLearning.results",
@@ -51710,6 +53024,66 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "share-collection.mode-synced",
+    "label": "Synced option in the collection share dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.share-collection",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-share"
+        ],
+        "needs": [
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "share-collection.mode-view-only",
+    "label": "View-Only option in the collection share dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.share-collection",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-share"
+        ],
+        "needs": [
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "share-collection.mode-copy",
+    "label": "Make a copy option in the collection share dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.share-collection",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-share"
+        ],
+        "needs": [
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
     "id": "share-collection.share-with-sub",
     "label": "Share with a sub option in the collection share dialog",
     "scope": "board",
@@ -51949,6 +53323,49 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "board.share-collection-import",
         "kind": "page",
         "url": "/share-collection/{shareId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-linked-collection.close",
+    "label": "Close button in the import shared collection dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.linked-collection-import",
+        "kind": "page",
+        "url": "/share/collection/{linkId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-linked-collection.cancel",
+    "label": "Cancel button in the import shared collection dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.linked-collection-import",
+        "kind": "page",
+        "url": "/share/collection/{linkId}",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-linked-collection.confirm",
+    "label": "Import button in the import shared collection dialog",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.linked-collection-import",
+        "kind": "page",
+        "url": "/share/collection/{linkId}",
         "path": []
       }
     ]
@@ -52244,6 +53661,32 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.folder-menu"
         ],
         "reveal": "library-shell.folder-menu"
+      }
+    ]
+  },
+  {
+    "id": "library-shell.folder-menu-move-up",
+    "label": "Move up item in the library folder menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.folder-menu-move-down",
+    "label": "Move down item in the library folder menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.shell",
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -53169,6 +54612,301 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "webcam.zoom-in",
+    "label": "Zoom in button in Webcam",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.zoom-out",
+    "label": "Zoom out button in Webcam",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.rotate",
+    "label": "Rotate button in Webcam",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.freeze",
+    "label": "Freeze and unfreeze button in Webcam",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.draw",
+    "label": "Draw button in Webcam (turns drawing on the image on and off)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.draw-pen",
+    "label": "Pen tool in the Webcam drawing tools (shows in draw mode)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.draw-highlighter",
+    "label": "Highlighter tool in the Webcam drawing tools (shows in draw mode)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.draw-eraser",
+    "label": "Eraser tool in the Webcam drawing tools (shows in draw mode)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.draw-undo",
+    "label": "Undo button in the Webcam drawing tools (shows in draw mode)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.clear-drawing",
+    "label": "Clear drawing button in the Webcam drawing tools (shows in draw mode)",
+    "scope": "widget",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.compare",
+    "label": "Compare button in the Webcam gallery (shows with two or more photos)",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.compare-show",
+    "label": "Show side by side button in the Webcam gallery (while picking two to compare)",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.compare-cancel",
+    "label": "Cancel picking photos to compare in the Webcam gallery",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.compare-exit",
+    "label": "Exit compare button in Webcam (side by side view)",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.quality",
+    "label": "Camera quality button in Webcam (resolution, autofocus, exposure)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.autofocus",
+    "label": "Autofocus switch in the Webcam camera quality menu (only on cameras that support it)",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.auto-exposure",
+    "label": "Auto exposure switch in the Webcam camera quality menu (only on cameras that support it)",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.reset-view",
+    "label": "Reset view button in Webcam (shows once zoomed or turned)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "classes-widget.manage",
     "label": "Manage classes button in Classes",
     "scope": "widget",
@@ -53602,6 +55340,153 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "lunch-count.report-cancel",
     "label": "Cancel button in the Lunch Count report dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "lunchCount"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.lunch-count.report",
+        "kind": "modal",
+        "widget_type": "lunchCount",
+        "path": [
+          "lunch-count.open-report"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "hotspot-image.popover-close",
+    "label": "Close button on a Hotspot Image popover",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.hotspot-image.face",
+        "kind": "widget",
+        "widget_type": "hotspot-image",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "instructional-routines.blooms-key-words",
+    "label": "Key Words button in Instructional Routines",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.face",
+        "kind": "widget",
+        "widget_type": "instructionalRoutines",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "instructional-routines.blooms-sentence-starters",
+    "label": "Sentence Starters button in Instructional Routines",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.face",
+        "kind": "widget",
+        "widget_type": "instructionalRoutines",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "lunch-count.missing-info-close",
+    "label": "Close button in the Lunch Count missing info dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "lunchCount"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.lunch-count.face",
+        "kind": "widget",
+        "widget_type": "lunchCount",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "lunch-count.school-option",
+    "label": "School choice in the Lunch Count missing info dialog",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.lunch-count.face",
+        "kind": "widget",
+        "widget_type": "lunchCount",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "lunch-count.grade-option",
+    "label": "Grade choice in the Lunch Count missing info dialog",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.lunch-count.face",
+        "kind": "widget",
+        "widget_type": "lunchCount",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "lunch-count.extra-pizza",
+    "label": "Extra pizza count box in the Lunch Count report dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "lunchCount"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.lunch-count.report",
+        "kind": "modal",
+        "widget_type": "lunchCount",
+        "path": [
+          "lunch-count.open-report"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "lunch-count.report-notes",
+    "label": "Additional notes box in the Lunch Count report dialog",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -54428,6 +56313,102 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "drawing.hand",
+    "label": "Hand button that pans the Drawing page",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.zoom-out",
+    "label": "Zoom out button in Drawing",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.zoom-reset",
+    "label": "Zoom percentage button in Drawing that returns to 100%",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.zoom-in",
+    "label": "Zoom in button in Drawing",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.zoom-fit",
+    "label": "Fit button in Drawing that shows the whole page",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.duplicate",
+    "label": "Duplicate button in Drawing for the selected item",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "drawing.undo",
     "label": "Undo button in Drawing",
     "scope": "widget",
@@ -54594,6 +56575,86 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Eraser mode button in the Drawing tool options, by mode (stroke, object, lasso)",
     "scope": "field",
     "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.highlighter-colors",
+    "label": "Highlighter color swatches in the Drawing tool options",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "drawing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.shape-dashed",
+    "label": "Dashed toggle in the Drawing shape tool options",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "drawing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.arrow-both-ends",
+    "label": "Both ends toggle in the Drawing arrow tool options",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "drawing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.sticky-colors",
+    "label": "Sticky note color swatches in the Drawing tool options",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "drawing"
+    ],
     "routes": [
       {
         "surface": "widgets.drawing.face",
@@ -55061,6 +57122,200 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "seating.unseat-student",
     "label": "Remove-from-seat button on an assigned student in Seating Chart Assign mode",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.plan-select",
+    "label": "Seating plan menu in Seating Chart Assign mode",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.save-plan",
+    "label": "Save seating plan button in Seating Chart Assign mode",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.rename-plan",
+    "label": "Rename plan button in Seating Chart Assign mode",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.delete-plan",
+    "label": "Delete plan button in Seating Chart Assign mode",
+    "scope": "widget",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.print",
+    "label": "Print seating chart button in Seating Chart Assign mode",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.reshuffle",
+    "label": "Reshuffle button in Seating Chart Assign mode",
+    "scope": "widget",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.rules",
+    "label": "Rules button in Seating Chart Assign mode",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.rules-first",
+    "label": "First student menu in Seating Chart rules",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.rules-second",
+    "label": "Second student menu in Seating Chart rules",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.rules-add-pair",
+    "label": "Add keep-apart pair button in Seating Chart rules",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.rules-remove-pair",
+    "label": "Remove keep-apart pair button in Seating Chart rules",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.rules-front-seat",
+    "label": "Front row checkbox for a student in Seating Chart rules",
     "scope": "widget",
     "routes": [
       {
@@ -57715,6 +59970,191 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Back button in Flashcards results",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.class-picker",
+    "label": "Class picker select in the Flashcards monitor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.period-start",
+    "label": "Start button for the picked class in the Flashcards monitor",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.period-pause",
+    "label": "Pause button for the picked class in the Flashcards monitor",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.period-more-time",
+    "label": "More time button in the Flashcards monitor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.period-extend",
+    "label": "Extend time option in the Flashcards monitor More time menu",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.status-bucket",
+    "label": "Student status bucket button in the Flashcards monitor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.card-results",
+    "label": "Card results button in the Flashcards monitor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "flashcards"
+    ],
+    "routes": [
+      {
+        "surface": "library.flashcards.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:flashcards#archive",
+          "library-shell.archive-primary-action:flashcards#row-1"
+        ],
+        "needs": [
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "flashcards.close-all",
+    "label": "Close all button in the Flashcards monitor",
+    "scope": "widget type",
+    "panel": true,
+    "destructive": true,
     "keys": [
       "flashcards"
     ],
@@ -64772,6 +67212,31 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "colleague-item.assign",
+    "label": "Assign button on a colleague's item on a shared board",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.shared-board-item",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "colleague-item.back",
+    "label": "Back to the colleague's item after assigning a copy",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "board.shared-board-item",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "routine-guide.search",
     "label": "Search routines box in the Routine Guide library",
     "scope": "widget type",
@@ -65294,6 +67759,48 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Set color item in the collection card menu",
     "scope": "board",
     "panel": true,
+    "routes": [
+      {
+        "surface": "board.boards-collection-menu",
+        "kind": "menu",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-edit"
+        ],
+        "needs": [
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boards-modal.collection-menu-stop-sharing",
+    "label": "Stop sharing item in the collection card menu",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.boards-collection-menu",
+        "kind": "menu",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-edit"
+        ],
+        "needs": [
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boards-modal.collection-menu-leave-shared",
+    "label": "Leave shared collection item in the collection card menu",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
     "routes": [
       {
         "surface": "board.boards-collection-menu",

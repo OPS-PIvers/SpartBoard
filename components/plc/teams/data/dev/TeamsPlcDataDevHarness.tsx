@@ -1,7 +1,15 @@
 // The production Data overview views on mockup fixtures at /teams-plc-data-dev (auth-bypass dev builds only).
 
 import React, { useMemo, useState } from 'react';
-import { BarChart3, ClipboardList, FileText, Library } from 'lucide-react';
+import {
+  BarChart3,
+  ClipboardList,
+  FileText,
+  Home,
+  Library,
+  Target,
+} from 'lucide-react';
+import { PlcHomeView } from '@/components/plc/teams/home/PlcHomeView';
 import type { PlcAssessmentAggregate, PlcGoal, TeamHeroRef } from '@/types';
 import type { GoalCoachResult } from '@/config/goalCoachRubric';
 import {
@@ -40,6 +48,28 @@ const PAGES: ShellPage[] = [
   { id: 'docs', label: 'Notes & Docs', icon: FileText },
   { id: 'resources', label: 'Resources', icon: Library },
 ];
+
+const HOME_PAGES: ShellPage[] = [
+  { id: 'home', label: 'Home', icon: Home },
+  { id: 'data', label: 'Data overview', icon: BarChart3 },
+  { id: 'assessments', label: 'Assessments', icon: ClipboardList },
+  { id: 'docs', label: 'Notes & Docs', icon: FileText },
+  { id: 'resources', label: 'Resources', icon: Library },
+];
+
+const HOME_TOOLS = [
+  { id: 'assessments', label: 'Assessments', icon: ClipboardList, meta: '12 assessments · 2 open' },
+  { id: 'docs', label: 'Notes & Docs', icon: FileText, meta: 'Last note Oct 2' },
+  { id: 'targets', label: 'Learning targets', icon: Target, meta: '14 targets' },
+  { id: 'resources', label: 'Resources', icon: Library, meta: '6 links · 3 boards' },
+];
+
+const STRIP = {
+  nextMeeting: 'Thu, Oct 9 · 3:15 PM',
+  openItems: { total: 5, mine: 2 },
+  onOpenNote: () => undefined,
+  onViewItems: () => undefined,
+};
 
 const TEACHERS = ['t1', 't2', 't3', 't4', 't5'];
 
@@ -107,12 +137,14 @@ function readParams() {
     capture: params.get('capture') === '1',
     empty: params.get('empty') === '1',
     edit: params.get('edit'),
+    page: params.get('page') === 'home' ? 'home' : 'data',
   };
 }
 
 export const TeamsPlcDataDevHarness: React.FC = () => {
   const [initial] = useState(readParams);
   const [screen, setScreen] = useState(initial.screen);
+  const [page, setPage] = useState(initial.page);
   const [editing, setEditing] = useState<PlcGoal | 'new' | null>(
     initial.edit === 'new' ? 'new' : initial.edit === '1' ? GOAL : null
   );
@@ -197,12 +229,29 @@ export const TeamsPlcDataDevHarness: React.FC = () => {
       >
         <TeamShell
           team={PLC_TEAM}
-          pages={PAGES}
-          activePage="data"
+          pages={initial.page === 'home' ? HOME_PAGES : PAGES}
+          activePage={page}
+          onPage={(id) => {
+            if (id === 'home' || id === 'data') setPage(id);
+          }}
           overlay={null}
           onOverlay={() => undefined}
           isLead={lead}
         >
+          {page === 'home' ? (
+            <PlcHomeView
+              model={model}
+              goal={goal(false)}
+              tools={HOME_TOOLS.map((tool) => ({
+                ...tool,
+                onOpen: () => undefined,
+              }))}
+              strip={STRIP}
+              onOpenDataOverview={() => setPage('data')}
+              onOpenAssessment={() => undefined}
+              onAllAssessments={() => undefined}
+            />
+          ) : (
           <DataOverviewView
             model={model}
             isLead={lead}
@@ -219,6 +268,7 @@ export const TeamsPlcDataDevHarness: React.FC = () => {
             onOpenAssessment={() => undefined}
             onAllAssessments={() => undefined}
           />
+          )}
           {editing && (
             <GoalEditorModal
               goal={editing === 'new' ? null : editing}

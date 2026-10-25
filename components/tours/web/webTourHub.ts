@@ -1,4 +1,4 @@
-import type { GuidedLearningStep, WebTourLocator } from '@/types';
+import type { GuidedLearningStep } from '@/types';
 import type { WebTourStep } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import { logError } from '@/utils/logError';
 import {
@@ -6,74 +6,19 @@ import {
   loadWebTourPicture,
 } from '@/components/tours/webTours';
 import type { WebTourMatch } from '@/components/tours/tourRuns';
-import {
-  MAX_PICTURE_CHARS,
-  MAX_PICTURE_TOTAL_CHARS,
-  type WebTourPictureBytes,
-  type WebTourStartTour,
+import type {
+  WebTourPictureBytes,
+  WebTourStartTour,
 } from './extensionProtocol';
 import type { WebTourPortEvent } from './extensionClient';
+import { buildStartTour } from './handoff';
 
-// The extension's validator rejects a whole tour over these, so the hub clips first.
-const MAX_TITLE = 500;
-const MAX_TEXT = 4000;
-const MAX_STEPS = 200;
-const MAX_CLUE = 500;
-const MAX_FRAMES = 10;
-
-/** An address pattern the extension accepts. */
-export const isHandoffPattern = (v: string): boolean =>
-  v.length <= 2048 && v.startsWith('https://');
-
-const unit = (v: number) => Number.isFinite(v) && v >= -1 && v <= 2;
-
-function handoffLocator(locator: WebTourLocator): WebTourLocator {
-  const out: WebTourLocator = {};
-  for (const key of ['role', 'name', 'text', 'css'] as const) {
-    const clue = locator[key];
-    if (clue) out[key] = clue.slice(0, MAX_CLUE);
-  }
-  if (locator.frames) {
-    out.frames = locator.frames
-      .filter(
-        (f) => isHandoffPattern(f.urlPattern) && Number.isInteger(f.index)
-      )
-      .slice(0, MAX_FRAMES);
-  }
-  const box = locator.box;
-  if (box && unit(box.x) && unit(box.y) && unit(box.w) && unit(box.h)) {
-    out.box = { x: box.x, y: box.y, w: box.w, h: box.h };
-  }
-  return out;
-}
+export { isHandoffPattern, pageUrlOf, startUrlOf } from './handoff';
 
 export type HubStep = WebTourStep;
 
 export const hubStepsOf = (steps: readonly GuidedLearningStep[]): HubStep[] =>
   steps.filter((s): s is HubStep => !!s.web);
-
-/** The page a step opens on: its address, or its site when the path has wildcards. */
-export function pageUrlOf(
-  steps: readonly HubStep[],
-  index: number
-): string | null {
-  const pattern = steps[index]?.web.urlPattern;
-  // A wildcard in the host can't be opened.
-  const host = pattern ? /^https:\/\/([^/?#]*)/.exec(pattern)?.[1] : undefined;
-  if (!pattern || !host || host.includes('*')) return null;
-  let url: URL;
-  try {
-    url = new URL(pattern.replace(/\*/g, '_'));
-  } catch {
-    return null;
-  }
-  if (url.protocol !== 'https:' || url.username || url.password) return null;
-  return pattern.includes('*') ? `${url.origin}/` : url.href;
-}
-
-/** The page a tour opens on. */
-export const startUrlOf = (steps: readonly HubStep[]): string | null =>
-  pageUrlOf(steps, 0);
 
 /** Ignores extension events that name a step this tour doesn't have. */
 export function eventFitsTour(
@@ -83,7 +28,7 @@ export function eventFitsTour(
   if (event.type === 'web-tour/done') return true;
   if (event.stepIndex >= steps.length) return false;
   return (
-    event.type !== 'web-tour/step' ||
+    (event.type !== 'web-tour/step' && event.type !== 'web-tour/suggest') ||
     steps[event.stepIndex]?.id === event.stepId
   );
 }
@@ -154,34 +99,20 @@ export function buildHandoff(
   version: number,
   title: string,
   steps: readonly HubStep[],
-  pictures: ReadonlyMap<string, LoadedPicture>
+  pictures: ReadonlyMap<string, LoadedPicture>,
+  scored = false
 ): WebTourStartTour {
-  let total = 0;
-  return {
-    setId,
-    version,
-    title: title.slice(0, MAX_TITLE),
-    steps: steps.slice(0, MAX_STEPS).map((step) => {
-      const { urlPattern, action, locator } = step.web;
-      const pic = pictures.get(step.id);
-      const sized = !!pic && pic.w > 0 && pic.h > 0;
-      const data = pic && sized ? toBase64(pic.bytes) : '';
-      const fits =
-        sized &&
-        data.length <= MAX_PICTURE_CHARS &&
-        total + data.length <= MAX_PICTURE_TOTAL_CHARS;
-      if (fits) total += data.length;
-      return {
-        id: step.id,
-        label: (step.label ?? '').slice(0, MAX_TEXT),
-        text: (step.text ?? '').slice(0, MAX_TEXT),
-        web: { urlPattern, action, locator: handoffLocator(locator) },
-        ...(pic && fits
-          ? { picture: { mime: pic.mime, data, w: pic.w, h: pic.h } }
-          : {}),
-      };
-    }),
-  };
+  const encoded = new Map<string, WebTourPictureBytes>();
+  pictures.forEach((pic, id) => {
+    if (pic.w > 0 && pic.h > 0)
+      encoded.set(id, {
+        mime: pic.mime,
+        data: toBase64(pic.bytes),
+        w: pic.w,
+        h: pic.h,
+      });
+  });
+  return buildStartTour(setId, version, title, steps, encoded, scored);
 }
 
 export type HubPlay =
@@ -245,5 +176,7 @@ export function reducePlay(play: HubPlay, event: WebTourPortEvent): HubPlay {
         furthest: p.furthest,
         matches: p.matches,
       };
+    case 'web-tour/suggest':
+      return play;
   }
 }

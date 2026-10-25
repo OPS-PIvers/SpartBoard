@@ -2,11 +2,19 @@ import { describe, expect, it, vi } from 'vitest';
 import type { GuidedLearningStep } from '@/types';
 import { parseTourPath, tourShortLinkCode } from './tourLinks';
 import {
+  canCheckWebTours,
   canPlayWebTours,
   parsePing,
+  parseWebTourCheckEvent,
   parseWebTourPortEvent as parsePortEvent,
+  watchWebTour,
+  watchWebTourCheck,
 } from './extensionClient';
-import { parseWebTourStartTour } from './extensionProtocol';
+import {
+  parseWebTourPortMessage,
+  parseWebTourStartTour,
+  progressForPage,
+} from './extensionProtocol';
 import {
   buildHandoff,
   eventFitsTour,
@@ -114,6 +122,18 @@ describe('extension client', () => {
       stepId: 'a',
       match: 'text',
     });
+    expect(
+      parsePortEvent(
+        {
+          type: 'web-tour/step',
+          setId: 's',
+          stepIndex: 1,
+          stepId: 'a',
+          match: 'score',
+        },
+        's'
+      )
+    ).toMatchObject({ match: 'score' });
     expect(
       parsePortEvent(
         {
@@ -309,6 +329,195 @@ describe('hub', () => {
     expect(parseWebTourStartTour(handoff)).not.toBeNull();
   });
 
+  it("never hands the extension a step's note or Claude's question", () => {
+    const noted = step('a', 'https://x.test/');
+    noted.web = { ...noted.web, note: 'private', claudeQuestion: 'Why?' };
+    const handoff = buildHandoff('s', 1, 'T', [noted], new Map(), true);
+    expect(JSON.stringify(handoff)).not.toMatch(/private|Why\?/);
+  });
+
+  it('sends the newer clues only to an extension that scores them', () => {
+    const rich = step('a', 'https://x.test/');
+    rich.web.locator = {
+      role: 'link',
+      name: 'Materials',
+      heading: 'Biology',
+      pageTitle: 'Materials | Schoology',
+      attrs: { href: '/course/*/materials', testId: 'nav' },
+    };
+    const before = buildHandoff('s', 1, 'T', [rich], new Map());
+    expect(before.steps[0].web.locator).toEqual({
+      role: 'link',
+      name: 'Materials',
+    });
+    const scored = buildHandoff('s', 1, 'T', [rich], new Map(), true);
+    expect(scored.steps[0].web.locator).toEqual(rich.web.locator);
+    expect(parseWebTourStartTour(before)).not.toBeNull();
+    expect(parseWebTourStartTour(scored)).not.toBeNull();
+    expect(
+      parseWebTourStartTour({
+        ...scored,
+        steps: [
+          {
+            ...scored.steps[0],
+            web: {
+              ...scored.steps[0].web,
+              locator: { attrs: { onclick: 'x' } },
+            },
+          },
+        ],
+      })
+    ).toBeNull();
+  });
+
+  it('tells weak matches to an older hub page as text, which it counts as weak', () => {
+    const weak = {
+      type: 'web-tour/step' as const,
+      setId: 's',
+      stepIndex: 0,
+      stepId: 'a',
+      match: 'score' as const,
+    };
+    expect(progressForPage(weak, 0)).toEqual({ ...weak, match: 'text' });
+    expect(progressForPage(weak, 3)).toEqual({ ...weak, match: 'text' });
+    expect(progressForPage(weak, 4)).toEqual(weak);
+    const clear = { ...weak, match: 'role' as const };
+    expect(progressForPage(clear, 0)).toEqual(clear);
+    expect(
+      parseWebTourPortMessage({ type: 'web-tour/watch', setId: 's' })
+    ).toEqual({
+      type: 'web-tour/watch',
+      setId: 's',
+    });
+    expect(
+      parseWebTourPortMessage({
+        type: 'web-tour/watch',
+        setId: 's',
+        protocol: 4,
+      })
+    ).toEqual({ type: 'web-tour/watch', setId: 's', protocol: 4 });
+    expect(
+      parseWebTourPortMessage({
+        type: 'web-tour/watch',
+        setId: 's',
+        protocol: 'x',
+      })
+    ).toBeNull();
+  });
+
+  it('declares its protocol on watch only to an extension that accepts it', () => {
+    vi.stubEnv('VITE_SPART_EXTENSION_ID', 'a'.repeat(32));
+    const posted: unknown[] = [];
+    const port = {
+      postMessage: (m: unknown) => posted.push(m),
+      disconnect: vi.fn(),
+      onMessage: { addListener: vi.fn() },
+      onDisconnect: { addListener: vi.fn() },
+    };
+    (globalThis as { chrome?: unknown }).chrome = {
+      runtime: { sendMessage: vi.fn(), connect: () => port },
+    };
+    try {
+      watchWebTour('s', vi.fn(), vi.fn(), 3)();
+      watchWebTour('s', vi.fn(), vi.fn(), 4)();
+      watchWebTourCheck('s', vi.fn(), vi.fn())();
+      expect(posted).toEqual([
+        { type: 'web-tour/watch', setId: 's' },
+        { type: 'web-tour/watch', setId: 's', protocol: 8 },
+        { type: 'web-tour/watch', setId: 's', protocol: 8 },
+      ]);
+    } finally {
+      delete (globalThis as { chrome?: unknown }).chrome;
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('sends check results only to a page that reads protocol 6', () => {
+    const step = {
+      type: 'web-tour/check-step' as const,
+      setId: 's',
+      runId: 'r1',
+      stepIndex: 0,
+      stepId: 'a',
+      result: 'found' as const,
+    };
+    const end = {
+      type: 'web-tour/check-end' as const,
+      setId: 's',
+      runId: 'r1',
+      stepIndex: 2,
+      done: true,
+    };
+    for (const msg of [step, end]) {
+      expect(progressForPage(msg, 0)).toBeNull();
+      expect(progressForPage(msg, 4)).toBeNull();
+      // Protocol 5 is notes and goals (#4581), not check mode.
+      expect(progressForPage(msg, 5)).toBeNull();
+      expect(progressForPage(msg, 6)).toEqual(msg);
+    }
+    // The hub's own parser drops them, so a check run never reaches a teacher's run log.
+    expect(parsePortEvent(step, 's')).toBeNull();
+    expect(parseWebTourCheckEvent(step, 's')).toEqual(step);
+    expect(parseWebTourCheckEvent(end, 's')).toEqual(end);
+    expect(parseWebTourCheckEvent(step, 'other')).toBeNull();
+    expect(parseWebTourCheckEvent({ ...step, result: 'role' }, 's')).toBeNull();
+    expect(parseWebTourCheckEvent({ ...end, done: 'yes' }, 's')).toBeNull();
+    expect(
+      parseWebTourCheckEvent({ ...end, runId: undefined }, 's')
+    ).toBeNull();
+    expect(
+      parseWebTourCheckEvent(
+        {
+          type: 'web-tour/step',
+          setId: 's',
+          stepIndex: 0,
+          stepId: 'a',
+          match: 'role',
+        },
+        's'
+      )
+    ).toBeNull();
+  });
+
+  it('sends suggested fixes only to a page that reads protocol 7, each to its own run (C14)', () => {
+    const suggest = {
+      type: 'web-tour/suggest' as const,
+      setId: 's',
+      stepIndex: 1,
+      stepId: 'b',
+      locator: { role: 'button', name: 'Save' },
+    };
+    const checked = { ...suggest, runId: 'r1' };
+    for (const msg of [suggest, checked]) {
+      expect(progressForPage(msg, 4)).toBeNull();
+      expect(progressForPage(msg, 6)).toBeNull();
+      expect(progressForPage(msg, 7)).toEqual(msg);
+    }
+    expect(parsePortEvent(suggest, 's')).toEqual(suggest);
+    // A check run's fix never reaches a teacher's run log, nor a run's the editor's check.
+    expect(parsePortEvent(checked, 's')).toBeNull();
+    expect(parseWebTourCheckEvent(checked, 's')).toEqual(checked);
+    expect(parseWebTourCheckEvent(suggest, 's')).toBeNull();
+    for (const bad of [
+      { ...suggest, locator: { role: 'button', evil: 'x' } },
+      { ...suggest, locator: { role: 'button', frames: [] } },
+      { ...suggest, locator: 'button' },
+      { ...suggest, stepId: '' },
+      { ...suggest, stepIndex: -1 },
+      { ...suggest, setId: 'other' },
+    ])
+      expect(parsePortEvent(bad, 's')).toBeNull();
+  });
+
+  it('offers Check tour only on a protocol 6 extension in a staff profile', () => {
+    const ready = (protocol: number, profile: 'staff' | 'other') =>
+      ({ kind: 'ready', protocol, version: '1', profile }) as const;
+    expect(canCheckWebTours(ready(5, 'staff'))).toBe(false);
+    expect(canCheckWebTours(ready(6, 'other'))).toBe(false);
+    expect(canCheckWebTours(ready(6, 'staff'))).toBe(true);
+    expect(canCheckWebTours({ kind: 'none' })).toBe(false);
+  });
+
   it('encodes bytes as base64', () => {
     expect(toBase64(new Uint8Array([104, 105]))).toBe('aGk=');
   });
@@ -371,6 +580,7 @@ describe('web tour health', () => {
     expect(parseWeak('a:b:text')).toEqual({ stepId: 'a:b', clue: 'text' });
     expect(parseWeak('a:role')).toBeNull();
     expect(parseWeak(':css')).toBeNull();
+    expect(parseWeak('a:score')).toEqual({ stepId: 'a', clue: 'score' });
   });
 
   it('counts only web runs of the current version', () => {
@@ -378,21 +588,44 @@ describe('web tour health', () => {
       [
         run({ misses: ['a'], done: true }),
         run({ weak: ['b:text', 'b:text'] }),
+        run({ weak: ['c:score'] }),
         run({ v: 1, misses: ['b'] }),
         { ...run({ misses: ['b'] }), surface: undefined },
       ],
       2
     );
-    expect(stats.runs).toBe(2);
+    expect(stats.runs).toBe(3);
     expect(stats.done).toBe(1);
     expect(stats.misses.get('a')).toBe(1);
     expect(stats.misses.has('b')).toBe(false);
-    expect(stats.weak.get('b')).toEqual({ text: 1, css: 0 });
-    expect(webStepState('a', stats)).toBe('missed');
-    expect(webStepState('b', stats)).toBe('weak');
+    expect(stats.weak.get('b')).toEqual({ text: 1, css: 0, score: 0 });
+    expect(stats.weak.get('c')).toEqual({ text: 0, css: 0, score: 1 });
+    // One run each is not enough to flag a step (C16).
+    expect(webStepState('a', stats)).toBe('ok');
+    expect(webStepState('b', stats)).toBe('ok');
     expect(webStepState('c', stats)).toBe('ok');
+    expect(webStepState('d', stats)).toBe('ok');
     expect(webStepState('a', null)).toBe('ok');
     expect(worstWebState(['ok', 'weak'])).toBe('weak');
     expect(worstWebState(['weak', 'missed', 'ok'])).toBe('missed');
+  });
+
+  it('flags a step only when it struggles in more than one run (C16)', () => {
+    const stats = webFieldStatsOf(
+      [
+        run({ misses: ['a'] }),
+        run({ misses: ['a'] }),
+        run({ weak: ['b:score'] }),
+        run({ weak: ['b:text'] }),
+        run({ misses: ['c'] }),
+        run({ weak: ['c:score'] }),
+        run({ misses: ['d'] }),
+      ],
+      2
+    );
+    expect(webStepState('a', stats)).toBe('missed');
+    expect(webStepState('b', stats)).toBe('weak');
+    expect(webStepState('c', stats)).toBe('missed');
+    expect(webStepState('d', stats)).toBe('ok');
   });
 });

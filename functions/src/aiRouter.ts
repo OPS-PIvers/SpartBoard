@@ -13,7 +13,12 @@ import {
   vertexClientOptions,
   type AiModelConfig,
 } from './aiModelConfig';
-import { AI_INTEGRATIONS, type AiIntegrationId } from './aiIntegrations';
+import {
+  AI_INTEGRATION_DEFAULT_MODELS,
+  AI_INTEGRATIONS,
+  AI_INTEGRATIONS_WITHOUT_FALLBACK,
+  type AiIntegrationId,
+} from './aiIntegrations';
 import { providerOf, type AiProvider, type AiTier } from './aiModels';
 import { CLAUDE_OUTPUT_TOKENS_DEFAULTS } from './aiLimits';
 import { normalizeModelName } from './shared';
@@ -87,19 +92,29 @@ const claudeCanRead = (parts: AiPart[]): boolean =>
       : !p.fileData && p.text !== undefined
   );
 
-/** The configured model for this call and the Gemini model that backs it up. */
+/** A call an integration without fallback can't make: no usable model, or its model failed. */
+export class AiUnavailableError extends Error {}
+
+/** The configured model for this call, the Gemini model that backs it up, and whether the tier picked it. */
 export function chooseModels(
   req: Pick<AiRequest, 'integration' | 'tier' | 'legacyModel'>,
   config: AiModelConfig
-): { model: string; geminiFallback: string } {
+): { model: string; geminiFallback: string; fromTier: boolean } {
   const tier = req.tier ?? AI_INTEGRATIONS[req.integration].tier;
   const geminiFallback =
     tier === 'advanced' ? config.advancedModel : config.standardModel;
+  const preset = AI_INTEGRATION_DEFAULT_MODELS[req.integration];
+  const allowedPreset =
+    preset && config.allowedModels?.includes(preset) ? preset : undefined;
   const model =
     config.integrationModels[req.integration] ??
     normalizeModelName(req.legacyModel) ??
-    geminiFallback;
-  return { model, geminiFallback };
+    allowedPreset;
+  return {
+    model: model ?? geminiFallback,
+    geminiFallback,
+    fromTier: !model,
+  };
 }
 
 /** Gemini's OpenAPI-style schema as the JSON Schema subset Claude's structured outputs accept. */
@@ -321,7 +336,12 @@ export async function generateAi(
 ): Promise<AiResult> {
   const config = await getAiModelConfig(db);
   const tier = req.tier ?? AI_INTEGRATIONS[req.integration].tier;
-  const { model, geminiFallback } = chooseModels(req, config);
+  const { model, geminiFallback, fromTier } = chooseModels(req, config);
+  const noFallback = AI_INTEGRATIONS_WITHOUT_FALLBACK.has(req.integration);
+  if (noFallback && fromTier)
+    throw new AiUnavailableError(
+      `No allowed model is set for ${req.integration}; pick one on the AI tab.`
+    );
   // The admin's output limit for this integration wins over the call site's.
   const adminOutput =
     config.integrationLimits[req.integration]?.maxOutputTokens;
@@ -330,6 +350,10 @@ export async function generateAi(
 
   let fellBack = false;
   if (providerOf(model) === 'claude') {
+    if (noFallback && !claudeConfigured())
+      throw new AiUnavailableError('The Claude API key is not set.');
+    if (noFallback && !claudeCanRead(req.parts))
+      throw new AiUnavailableError(`${model} can't read this input.`);
     if (claudeConfigured() && claudeCanRead(req.parts)) {
       try {
         const result = await callClaude(model, tier, req);
@@ -342,7 +366,7 @@ export async function generateAi(
         return { ...result, fellBack: false, usedFallbackConfig };
       } catch (error) {
         console.warn(
-          `[aiRouter] ${req.integration} on ${model} failed; retrying on ${geminiFallback}`,
+          `[aiRouter] ${req.integration} on ${model} failed; ${noFallback ? 'not retrying' : `retrying on ${geminiFallback}`}`,
           error
         );
         await logAiCall(db, {
@@ -356,6 +380,10 @@ export async function generateAi(
           fellBack: false,
           failed: true,
         });
+        if (noFallback)
+          throw new AiUnavailableError(
+            `${model}: ${error instanceof Error ? error.message : 'failed'}`
+          );
       }
     }
     fellBack = true;

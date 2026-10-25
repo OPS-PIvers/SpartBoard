@@ -177,6 +177,7 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
                 </div>
                 <input
                   id="extra-pizza-input"
+                  {...tourTypeAttr('lunch-count.extra-pizza', 'lunchCount')}
                   type="number"
                   min="0"
                   value={extraPizza}
@@ -199,6 +200,7 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
             </SettingsLabel>
             <textarea
               id="report-notes"
+              {...tourTypeAttr('lunch-count.report-notes', 'lunchCount')}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Gluten Free, Field Trips, etc..."

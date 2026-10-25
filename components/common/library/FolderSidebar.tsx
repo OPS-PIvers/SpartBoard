@@ -42,8 +42,13 @@ import {
 } from './DeleteFolderDialog';
 import type { LibraryFolderViewModel } from './LibraryFolderViewContext';
 import { LIBRARY_ROOT_LABEL } from './FolderViewHeader';
-import { folderPath, sameLocation, type LibraryLocation } from './folderView';
-import { SOURCE_LABELS, SOURCE_ORDER } from './sourceFolders';
+import {
+  buildFolderIndex,
+  folderPath,
+  sameLocation,
+  type LibraryLocation,
+} from './folderView';
+import { SOURCE_LABELS, SOURCE_ORDER, isSourceFolderId } from './sourceFolders';
 import type { PlacedItem } from './useSourceFolders';
 
 export type FolderDeleteMode = 'move-to-parent' | 'delete-all';
@@ -113,6 +118,11 @@ export interface FolderSidebarProps {
     folderId: string,
     color: LibraryFolderColor | null
   ) => Promise<void>;
+  /** Saves a new sibling order; enables Move up and Move down in each folder's menu. */
+  onReorderSiblings?: (
+    parentId: string | null,
+    orderedIds: string[]
+  ) => Promise<void>;
   /** Uses the folder-view delete dialog instead of the legacy one. */
   folderDelete?: FolderDeleteConfig;
 
@@ -151,6 +161,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   onMoveFolder,
   onDeleteFolder,
   onSetFolderColor,
+  onReorderSiblings,
   folderDelete,
   loading = false,
   error = null,
@@ -352,7 +363,10 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
           : `Deleted “${target.name}”`
       );
     }
-    if (selectedFolderId === target.id) onSelectFolder(target.parentId);
+    if (selectedFolderId === target.id) {
+      const parentExists = folders.some((f) => f.id === target.parentId);
+      onSelectFolder(parentExists ? target.parentId : null);
+    }
     setConfirmDelete(null);
     setCommitError(null);
   };
@@ -526,6 +540,34 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
           // Make sure the new folder's parent is expanded so the input shows.
           setExpanded((prev) => ({ ...prev, [parentId]: true }));
         }}
+        onReorder={
+          onReorderSiblings
+            ? (folderId, toIndex) => {
+                const index = buildFolderIndex(folders);
+                const folder = index.byId.get(folderId);
+                if (!folder) return;
+                const parentId =
+                  folder.parentId != null && index.byId.has(folder.parentId)
+                    ? folder.parentId
+                    : null;
+                const ids = (index.childrenOf.get(parentId) ?? [])
+                  .filter((f) => !isSourceFolderId(f.id))
+                  .sort((a, b) => a.order - b.order)
+                  .map((f) => f.id);
+                const from = ids.indexOf(folderId);
+                if (from < 0 || toIndex < 0 || toIndex >= ids.length) return;
+                ids.splice(from, 1);
+                ids.splice(toIndex, 0, folderId);
+                onReorderSiblings(parentId, ids)
+                  .then(() => setCommitError(null))
+                  .catch((err: unknown) =>
+                    setCommitError(
+                      err instanceof Error ? err.message : String(err)
+                    )
+                  );
+              }
+            : undefined
+        }
         onMoveToRoot={async (folderId) => {
           if (!onMoveFolder) return;
           try {

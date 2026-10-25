@@ -107,6 +107,7 @@ const TileEditor: React.FC<{
               style={{ borderLeftColor: accentColor, borderLeftWidth: 3 }}
             >
               {showCheckbox && (
+                // no-tour-anchor: per-item row, generated from the list
                 <input
                   type="checkbox"
                   checked={checked}
@@ -122,6 +123,7 @@ const TileEditor: React.FC<{
                 currentIcon={item.icon}
                 onSelect={(icon) => updateItem(index, { icon })}
               />
+              {/* no-tour-anchor: per-item row, generated from the list */}
               <input
                 type="text"
                 value={item.label}
@@ -137,6 +139,7 @@ const TileEditor: React.FC<{
                 style={{ backgroundColor: item.color, color: textColor }}
                 title={`${translate(ctx, 'pickColor')} ${item.label || translate(ctx, 'item')}`}
               >
+                {/* no-tour-anchor: per-item row, generated from the list */}
                 <input
                   type="color"
                   value={item.color}
@@ -147,6 +150,7 @@ const TileEditor: React.FC<{
                   aria-label={`${translate(ctx, 'pickColor')} ${item.label || translate(ctx, 'item')}`}
                 />
               </label>
+              {/* no-tour-anchor: per-item row, generated from the list */}
               <button
                 type="button"
                 onClick={() => updateItems(items.filter((_, i) => i !== index))}
@@ -233,6 +237,7 @@ const ListField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
             <span className="mt-2 w-5 shrink-0 text-center text-xs font-black text-slate-500">
               {index + 1}.
             </span>
+            {/* no-tour-anchor: per-item row, generated from the list */}
             <textarea
               value={item}
               onChange={(event) =>
@@ -250,6 +255,7 @@ const ListField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
               className="min-w-0 flex-1 resize-none rounded-lg border border-slate-200 px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
             />
             {items.length > MIN_LIST_ITEMS && (
+              // no-tour-anchor: per-item row, generated from the list
               <button
                 type="button"
                 onClick={() =>

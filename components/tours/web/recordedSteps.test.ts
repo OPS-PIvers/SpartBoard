@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { draftLabel, pictureBlob, toWebStep } from './recordedSteps';
+import {
+  draftLabel,
+  pictureBlob,
+  scrubLocator,
+  toWebStep,
+} from './recordedSteps';
 
 describe('toWebStep', () => {
   it('makes a web step with a starter title and no tour binding', () => {
@@ -19,6 +24,37 @@ describe('toWebStep', () => {
       },
     });
     expect(step.tour).toBeUndefined();
+    expect(step.text).toBe('');
+  });
+
+  it('keeps the tip typed in the side panel', () => {
+    const step = toWebStep({
+      id: 's3',
+      urlPattern: 'https://docs.google.com/document/d/*/edit',
+      action: 'click',
+      locator: { role: 'menuitem', name: 'Apps Script' },
+      tip: '  Opens in a new tab. ',
+    });
+    expect(step.text).toBe('Opens in a new tab.');
+  });
+
+  it('keeps the note for Claude, scrubbed', () => {
+    const step = toWebStep({
+      id: 's4',
+      urlPattern: 'https://docs.google.com/document/d/*/edit',
+      action: 'click',
+      locator: { role: 'button', name: 'Share' },
+      note: '  shares with  a@b.org ',
+    });
+    expect(step.web?.note).toBe('shares with •••');
+    const blank = toWebStep({
+      id: 's5',
+      urlPattern: 'https://docs.google.com/document/d/*/edit',
+      action: 'click',
+      locator: {},
+      note: '  ',
+    });
+    expect(blank.web && 'note' in blank.web).toBe(false);
   });
 
   it('scrubs captured text and addresses again on the page side', () => {
@@ -38,12 +74,78 @@ describe('toWebStep', () => {
       frames: [{ urlPattern: 'https://y.example/p/*', index: 0 }],
     });
   });
+
+  it('scrubs the heading, page title and stable attributes again', () => {
+    const step = toWebStep({
+      id: 's4',
+      urlPattern: 'https://x.example/grades',
+      action: 'click',
+      locator: {
+        role: 'link',
+        heading: 'Grades for jane.doe@orono.k12.mn.us',
+        pageTitle: 'Student 2045831 | Schoology',
+        attrs: {
+          testId: 'open-row',
+          ariaLabel: 'Open 2045831',
+          name: '   ',
+          href: '/students/2045831/grades',
+          // @ts-expect-error a key the page never stores
+          onclick: 'x',
+        },
+      },
+    });
+    expect(step.web?.locator).toEqual({
+      role: 'link',
+      heading: 'Grades for •••',
+      pageTitle: 'Student ••• | Schoology',
+      attrs: {
+        testId: 'open-row',
+        ariaLabel: 'Open •••',
+        href: '/students/*/grades',
+      },
+    });
+  });
+
+  it('drops empty stable attributes', () => {
+    const step = toWebStep({
+      id: 's5',
+      urlPattern: 'https://x.example/',
+      action: 'click',
+      locator: { role: 'button', attrs: { ariaLabel: ' ' } },
+    });
+    expect(step.web?.locator).toEqual({ role: 'button' });
+  });
+});
+
+describe('scrubLocator', () => {
+  it('scrubs a repicked target the same way as a new recording', () => {
+    expect(
+      scrubLocator({
+        name: 'Open 2045831',
+        heading: 'Grades for jane.doe@orono.k12.mn.us',
+        attrs: { href: 'https://lms.example/students/2045831/grades' },
+      })
+    ).toEqual({
+      name: 'Open •••',
+      heading: 'Grades for •••',
+      attrs: { href: 'https://lms.example/students/*/grades' },
+    });
+  });
 });
 
 describe('draftLabel', () => {
   it('falls back to the verb alone', () => {
     expect(draftLabel('type', {})).toBe('Type in');
     expect(draftLabel('select', { text: 'Term' })).toBe('Choose from Term');
+  });
+
+  it('drops icon-font glyphs that show as boxes', () => {
+    expect(draftLabel('click', { name: '\uE8B8Connectors\uE5CC' })).toBe(
+      'Click Connectors'
+    );
+    expect(draftLabel('click', { name: '\uE145', text: 'Add' })).toBe(
+      'Click Add'
+    );
   });
 });
 

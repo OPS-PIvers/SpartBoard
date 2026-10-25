@@ -39,7 +39,11 @@ export const RemoteActivityWallControl: React.FC<
   const { user, canAccessFeature } = useAuth();
   const config = (widget.config ?? {}) as ActivityWallConfig;
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
-  const { activities, saveActivity } = useActivityWallLibrary(user?.uid);
+  const {
+    activities,
+    loading: libraryLoading,
+    saveActivity,
+  } = useActivityWallLibrary(user?.uid);
 
   const activeActivity = useMemo(
     () =>
@@ -47,6 +51,13 @@ export const RemoteActivityWallControl: React.FC<
     [activities, config.activeActivityId]
   );
   const isOpen = activeActivity?.acceptingResponses !== false;
+  // A wall that isn't in this teacher's library (a colleague's on a shared board): don't open or replace it.
+  const foreignWall = config.activeActivityOwnerUid
+    ? config.activeActivityOwnerUid !== user?.uid
+    : canAccessFeature('shared-board-live-walls') &&
+      !!config.activeActivityId &&
+      !libraryLoading &&
+      !activeActivity;
 
   const [submissions, setSubmissions] = useState<RemoteSubmission[]>([]);
   const [showQr, setShowQr] = useState(false);
@@ -137,14 +148,18 @@ export const RemoteActivityWallControl: React.FC<
   };
 
   const toggleOpen = () => {
-    if (!user) return;
+    if (!user || foreignWall) return;
     // With no wall selected, the first tap both selects the newest wall and opens it.
     const target = activeActivity ?? activities[0];
     if (!target) return;
     const next = activeActivity ? !isOpen : true;
     if (!activeActivity) {
       updateWidget(widget.id, {
-        config: { ...config, activeActivityId: target.id },
+        config: {
+          ...config,
+          activeActivityId: target.id,
+          activeActivityOwnerUid: user.uid,
+        },
       });
     }
     setActionError(null);
@@ -166,7 +181,7 @@ export const RemoteActivityWallControl: React.FC<
     })();
   };
 
-  const canToggle = activities.length > 0;
+  const canToggle = activities.length > 0 && !foreignWall;
 
   return (
     <div className="flex flex-col gap-5 p-6 h-full">
