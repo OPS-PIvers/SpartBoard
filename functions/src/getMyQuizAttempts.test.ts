@@ -228,4 +228,32 @@ describe('handleGetMyQuizAttempts', () => {
     );
     expect(attempts.map((a) => a.score)).toEqual([null, 80]);
   });
+
+  it('applies the class gate to student tokens', async () => {
+    const asToken = (claims: StubData, over: StubData = {}) =>
+      handleGetMyQuizAttempts(
+        deps(seed({ 'quiz_sessions/qs1': session(over) })),
+        'u1',
+        { sessionId: 'qs1', responseKey: 'u1' },
+        claims
+      );
+    const sso = { studentRole: true, classIds: ['c1', 'c2'] };
+    const pinA = { studentRole: true, pinLogin: true, classIds: ['c1'] };
+    const pinB = { studentRole: true, pinLogin: true, classIds: ['c9'] };
+    expect((await asToken(sso)).attempts).toHaveLength(2);
+    expect((await asToken(pinA)).attempts).toHaveLength(2);
+    await expect(asToken(pinB)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    await expect(
+      asToken({ studentRole: true, classIds: ['c9'] })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(
+      (await asToken(pinA, { classIds: [], classId: 'c1' })).attempts
+    ).toHaveLength(2);
+    expect((await asToken(sso, { classIds: [] })).attempts).toHaveLength(2);
+    await expect(asToken(pinA, { classIds: [] })).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+  });
 });
