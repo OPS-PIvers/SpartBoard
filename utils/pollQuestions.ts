@@ -80,3 +80,13 @@ export const makeEmptyPollQuestion = (label = ''): PollQuestion => ({
     { id: crypto.randomUUID(), label: 'Option B', votes: 0 },
   ],
 });
+
+/** Zero every question's votes; a hidden-results poll also hides each question again. */
+export const withVotesReset = (config: PollConfig): PollConfig =>
+  withPollQuestions(
+    config.hideResults ? { ...config, revealedQuestionIds: [] } : config,
+    getPollQuestions(config).map((q) => ({
+      ...q,
+      options: q.options.map((o) => ({ ...o, votes: 0 })),
+    }))
+  );
