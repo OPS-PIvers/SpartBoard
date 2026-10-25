@@ -11,24 +11,37 @@ const center = (f: FurnitureItem) => ({
   y: f.y + f.height / 2,
 });
 
+// On-screen size, so a desk turned sideways measures as it looks.
+const footprint = (f: FurnitureItem) => {
+  const turned = Math.round(((f.rotation % 180) + 180) % 180) === 90;
+  return turned ? { w: f.height, h: f.width } : { w: f.width, h: f.height };
+};
+
 // Neighbours touch side by side or on a diagonal; the same piece of furniture always counts.
 export const seatsAreClose = (a: FurnitureItem, b: FurnitureItem): boolean => {
   if (a.id === b.id) return true;
   const ca = center(a);
   const cb = center(b);
-  const reach = 1.6 * Math.max(a.width, a.height, b.width, b.height);
-  return Math.hypot(ca.x - cb.x, ca.y - cb.y) <= reach;
+  const fa = footprint(a);
+  const fb = footprint(b);
+  const gapX = Math.max(0, Math.abs(ca.x - cb.x) - (fa.w + fb.w) / 2);
+  const gapY = Math.max(0, Math.abs(ca.y - cb.y) - (fa.h + fb.h) / 2);
+  const reach = 0.6 * Math.min(fa.w, fa.h, fb.w, fb.h);
+  return Math.hypot(gapX, gapY) <= reach;
 };
 
-// The front of the room is the top of the canvas; the front row is the band of seats nearest it.
+// The front of the room is the top of the canvas; the front row is the first band of seats, ending at the first clear gap.
 export const frontRowSeatIds = (seats: FurnitureItem[]): Set<string> => {
   if (seats.length === 0) return new Set();
-  const minY = Math.min(...seats.map((s) => center(s).y));
-  const heights = seats.map((s) => s.height).sort((a, b) => a - b);
-  const band = heights[Math.floor(heights.length / 2)] * 0.75;
-  return new Set(
-    seats.filter((s) => center(s).y <= minY + band).map((s) => s.id)
-  );
+  const heights = seats.map((s) => footprint(s).h).sort((a, b) => a - b);
+  const step = heights[Math.floor(heights.length / 2)] * 0.5;
+  const byY = [...seats].sort((a, b) => center(a).y - center(b).y);
+  const row = [byY[0]];
+  for (let i = 1; i < byY.length; i++) {
+    if (center(byY[i]).y - center(byY[i - 1]).y > step) break;
+    row.push(byY[i]);
+  }
+  return new Set(row.map((s) => s.id));
 };
 
 export interface RuleBreaks {
@@ -65,6 +78,7 @@ const findBreaks = (
   const apart: [string, string][] = [];
   for (const { a, b } of rules.keepApart ?? []) {
     if (!(a in placed) && !(b in placed)) continue;
+    if (!(a in all) || !(b in all)) continue;
     const sa = seatsById.get(all[a]);
     const sb = seatsById.get(all[b]);
     if (sa && sb && seatsAreClose(sa, sb)) apart.push([a, b]);

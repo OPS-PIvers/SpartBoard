@@ -825,9 +825,10 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
 
   const reportSeating = (result: SeatResult) => {
     const count = Object.keys(result.placed).length;
+    const allLabels = new Map(allStudents.map((s) => [s.id, s.label]));
     const broken = describeBreaks(
       result.broken,
-      (id) => studentLabelById.get(id) ?? id
+      (id) => allLabels.get(id) ?? 'a student not shown'
     );
     const left =
       result.unplaced.length > 0
@@ -857,17 +858,16 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
       addToast('No empty spots available!', 'error');
       return;
     }
+    const latest = latestRef.current.config;
+    const current = latest.assignments ?? {};
     const result = seatWithRules(
       seats,
       unassignedStudents.map((s) => s.id),
-      assignments,
+      current,
       rules
     );
     updateWidget(widget.id, {
-      config: {
-        ...config,
-        assignments: { ...assignments, ...result.placed },
-      },
+      config: { ...latest, assignments: { ...current, ...result.placed } },
     });
     reportSeating(result);
   };
@@ -891,13 +891,14 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     });
     if (!ok) return;
     const latest = latestRef.current.config;
+    const latestSeats = (latest.furniture ?? []).filter(isSeat);
     const shown = new Set(students.map((s) => s.id));
     // Students hidden by the class group keep their seats.
     const fixed = Object.fromEntries(
       Object.entries(latest.assignments ?? {}).filter(([id]) => !shown.has(id))
     );
     const result = seatWithRules(
-      seats,
+      latestSeats,
       students.map((s) => s.id),
       fixed,
       rules
@@ -1079,7 +1080,7 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
             isOpen={rulesOpen}
             onClose={() => setRulesOpen(false)}
             students={allStudents}
-            rules={rules}
+            rules={config.seatingRules ?? {}}
             onChange={(next) =>
               updateWidget(widget.id, {
                 config: { ...latestRef.current.config, seatingRules: next },

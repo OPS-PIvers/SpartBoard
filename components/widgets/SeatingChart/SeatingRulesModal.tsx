@@ -77,7 +77,7 @@ export const SeatingRulesModal: React.FC<SeatingRulesModalProps> = ({
             <ul className="divide-y divide-slate-100 border-y border-slate-100">
               {pairs.map((p, i) => (
                 <li
-                  key={`${p.a}-${p.b}`}
+                  key={`${p.a}-${p.b}-${i}`}
                   className="flex items-center justify-between gap-2 py-1.5 text-sm text-slate-700"
                 >
                   <span className="min-w-0">
@@ -105,7 +105,10 @@ export const SeatingRulesModal: React.FC<SeatingRulesModalProps> = ({
               aria-label="First student"
               {...tourAttr('seating.rules-first', widgetId, 'seating-chart')}
               value={first}
-              onChange={(e) => setFirst(e.target.value)}
+              onChange={(e) => {
+                setFirst(e.target.value);
+                if (e.target.value === second) setSecond('');
+              }}
               className={selectClass}
             >
               <option value="">Student</option>
