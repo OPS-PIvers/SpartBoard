@@ -100,8 +100,45 @@ describe('usePlcInvitations — acceptInvite', () => {
     expect(inviteUpdate?.patch).toHaveProperty('respondedAt');
   });
 
+  it('retries with a reset active member entry when the plain accept is denied (rejoin)', async () => {
+    const patches: Array<Record<string, unknown>> = [];
+    let calls = 0;
+    (firestore.runTransaction as unknown as Mock).mockImplementation(
+      async (
+        _db: unknown,
+        fn: (tx: {
+          update: (ref: unknown, patch: Record<string, unknown>) => void;
+        }) => Promise<void>
+      ) => {
+        calls += 1;
+        const attempt: Array<Record<string, unknown>> = [];
+        await fn({ update: (_ref, patch) => attempt.push(patch) });
+        patches.push(attempt[0]);
+        if (calls === 1) {
+          throw Object.assign(new Error('denied'), {
+            code: 'permission-denied',
+          });
+        }
+      }
+    );
+
+    const { result } = renderHook(() => usePlcInvitations());
+    await act(async () => {
+      await result.current.acceptInvite(makeInvite());
+    });
+
+    expect(calls).toBe(2);
+    expect(patches[0]).not.toHaveProperty('members.invitee-uid');
+    expect(patches[1]['members.invitee-uid']).toMatchObject({
+      uid: 'invitee-uid',
+      role: 'member',
+      status: 'active',
+    });
+    expect(firestore.updateDoc).not.toHaveBeenCalled();
+  });
+
   it('falls back to closing out the invite on permission-denied (already-a-member edge case)', async () => {
-    (firestore.runTransaction as unknown as Mock).mockRejectedValueOnce(
+    (firestore.runTransaction as unknown as Mock).mockRejectedValue(
       Object.assign(new Error('denied'), { code: 'permission-denied' })
     );
     (firestore.updateDoc as unknown as Mock).mockResolvedValueOnce(undefined);
@@ -131,7 +168,7 @@ describe('usePlcInvitations — acceptInvite', () => {
     // but the user is NOT actually in memberUids (i.e. the prior assumption
     // "lead added them manually" doesn't hold). Without the verify, the
     // invite would silently mark accepted while the user remains unjoined.
-    (firestore.runTransaction as unknown as Mock).mockRejectedValueOnce(
+    (firestore.runTransaction as unknown as Mock).mockRejectedValue(
       Object.assign(new Error('denied'), { code: 'permission-denied' })
     );
     (firestore.updateDoc as unknown as Mock).mockResolvedValueOnce(undefined);
@@ -149,7 +186,7 @@ describe('usePlcInvitations — acceptInvite', () => {
   it('throws actionable error when fallback membership-verify itself permission-denies', async () => {
     // The PLC read rule requires membership, so a permission-denied on the
     // verify read is definitive evidence the caller is not a member.
-    (firestore.runTransaction as unknown as Mock).mockRejectedValueOnce(
+    (firestore.runTransaction as unknown as Mock).mockRejectedValue(
       Object.assign(new Error('denied'), { code: 'permission-denied' })
     );
     (firestore.updateDoc as unknown as Mock).mockResolvedValueOnce(undefined);

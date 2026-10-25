@@ -325,10 +325,11 @@ export function parseRecordingRequest(data: unknown): {
 export function canEditPlc(plc: Data | undefined, uid: string): boolean {
   if (!plc) return false;
   const memberUids = Array.isArray(plc.memberUids) ? plc.memberUids : [];
+  if (!memberUids.includes(uid)) return false;
   const members = (plc.members ?? {}) as Record<string, Data>;
   const entry = members[uid];
   if (entry) return entry.role !== 'viewer' && entry.status !== 'removed';
-  return memberUids.includes(uid);
+  return true;
 }
 
 export function isPlcMember(plc: Data | undefined, uid: string): boolean {

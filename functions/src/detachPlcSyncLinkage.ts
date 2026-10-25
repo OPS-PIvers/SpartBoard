@@ -102,22 +102,13 @@ export async function handleDetachPlcSyncLinkage(
     }
     const plcData = plcSnap.data() as
       { members?: Record<string, unknown>; memberUids?: unknown } | undefined;
-    // Prefer the canonical `members` map (Decision 1.2); fall back to the
-    // denormalized `memberUids` index. (memberUids is kept active-only in
-    // lockstep post-migration, but checking the map first matches how the rest
-    // of the app reads membership and is robust if the index ever lags.)
-    // Must require an ACTIVE entry — the map keeps `status: 'removed'` records
-    // for audit, and a removed member must NOT be able to detach.
-    const memberEntry = (plcData?.members ?? {})[uid] as
-      { status?: unknown } | undefined;
-    const inMembersMap =
-      memberEntry != null && memberEntry.status !== 'removed';
+    // Current membership is the memberUids index, as in the rules: a lingering map entry grants nothing.
     const memberUids = Array.isArray(plcData?.memberUids)
       ? (plcData?.memberUids as unknown[]).filter(
           (u): u is string => typeof u === 'string'
         )
       : [];
-    if (!inMembersMap && !memberUids.includes(uid)) {
+    if (!memberUids.includes(uid)) {
       throw new HttpsError(
         'permission-denied',
         'You are not a member of this PLC.'
