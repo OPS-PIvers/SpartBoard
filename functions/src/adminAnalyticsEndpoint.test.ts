@@ -177,4 +177,28 @@ describe('adminAnalytics — caller identity verification', () => {
     expect(state.statusCode).toBe(403);
     expect(readAnalyticsSnapshotMock).not.toHaveBeenCalled();
   });
+
+  it('SECURITY: rejects a domain_admin mirrored from another org', async () => {
+    verifyIdTokenMock.mockResolvedValue({
+      email: 'domain@other-org.org',
+      email_verified: true,
+    });
+    adminDocGetMock.mockResolvedValue({
+      exists: true,
+      data: () => ({ roleId: 'domain_admin', orgId: 'other-org' }),
+    });
+    memberDocGetMock.mockResolvedValue({ exists: false });
+
+    const { res, out: state } = makeRes();
+    await handler(
+      {
+        headers: { authorization: 'Bearer faketoken' },
+        body: { orgId: 'org-1' },
+      },
+      res
+    );
+
+    expect(state.statusCode).toBe(403);
+    expect(readAnalyticsSnapshotMock).not.toHaveBeenCalled();
+  });
 });
