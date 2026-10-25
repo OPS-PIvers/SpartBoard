@@ -106,7 +106,8 @@ service firebase.storage {
     }
 
     match /users/{userId}/hotspot_images/{allPaths=**} {
-      allow read: if userFileOwner(userId) && viewAsReadOk();
+      // Any admin may read: building admins edit building Guided Learning sets whose images live here.
+      allow read: if (userFileOwner(userId) || isAdmin()) && viewAsReadOk();
       allow create, update: if userFileUpload(userId, 250 * 1024 * 1024, '.*');
       allow delete: if userFileOwner(userId) && viewAsWriteOk();
     }
@@ -195,8 +196,8 @@ service firebase.storage {
       // download a photo so the gallery page can render it.
       allow read: if request.auth != null &&
         (
-          isSiteAdmin() ||
           sessionId.matches(request.auth.uid + '_.*') ||
+          isSiteAdmin() ||
           firestore.get(
             /databases/(default)/documents/activity_wall_sessions/$(sessionId)
           ).data.get('publiclyShared', false) == true
@@ -212,7 +213,7 @@ service firebase.storage {
         );
       // The owning teacher/admin may delete the temporary Firebase copy after Drive archival.
       allow delete: if request.auth != null && viewAsWriteOk() &&
-        (isSiteAdmin() || sessionId.matches(request.auth.uid + '_.*'));
+        (sessionId.matches(request.auth.uid + '_.*') || isSiteAdmin());
     }
 
     // Activity Wall media (Padlet-lite) — transit buffer only. A server-side
@@ -242,7 +243,8 @@ service firebase.storage {
       // The owning teacher (uid prefix in sessionId) and admins post from the
       // widget face and are never subject to the student/guest audience gates.
       function awIsOwner() {
-        return isSiteAdmin() || sessionId.matches(request.auth.uid + '_.*');
+        // Owner prefix first so the owner never spends a Firestore lookup on the admin check.
+        return sessionId.matches(request.auth.uid + '_.*') || isSiteAdmin();
       }
       // studentRole users always; anyone else only once the teacher opted into
       // guest posting (anonymous callers never carry the studentRole claim).
@@ -275,8 +277,8 @@ service firebase.storage {
       // ownership proof) before archival/publish.
       allow read: if request.auth != null &&
         (
-          isSiteAdmin() ||
           sessionId.matches(request.auth.uid + '_.*') ||
+          isSiteAdmin() ||
           (pinScopeOk(sessionId) &&
            (submissionId == request.auth.uid ||
             submissionId.matches('^' + request.auth.uid + '__.*'))) ||
