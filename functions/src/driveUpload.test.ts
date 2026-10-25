@@ -21,11 +21,35 @@ function makeFakeDrive() {
         headers: { 'Content-Type': 'application/json' },
       })
     );
+  const deleted: string[] = [];
   const fetchImpl = vi.fn(async (input: string, init?: RequestInit) => {
     // Yield so concurrent callers genuinely interleave.
     await new Promise((resolve) => setTimeout(resolve, 0));
     const url = new URL(input);
     const method = init?.method ?? 'GET';
+    const fileId = /\/files\/([^/]+)$/.exec(url.pathname)?.[1];
+    if (method === 'GET' && fileId) {
+      const id = decodeURIComponent(fileId);
+      const folder = folders.find((f) => f.id === id);
+      if (folder) {
+        return json({
+          id,
+          name: folder.name,
+          mimeType: 'application/vnd.google-apps.folder',
+          parents: folder.parent ? [folder.parent] : [],
+        });
+      }
+      const file = files.find((f) => f.id === id);
+      if (file) {
+        return json({
+          id,
+          name: file.name,
+          mimeType: 'image/webp',
+          parents: [file.parent],
+        });
+      }
+      return json({ error: 'not found' }, 404);
+    }
     if (method === 'GET' && url.pathname.endsWith('/files')) {
       const q = url.searchParams.get('q') ?? '';
       const name = /name = '((?:[^'\\]|\\.)*)'/.exec(q)?.[1] ?? '';
@@ -55,11 +79,18 @@ function makeFakeDrive() {
       return json({ id });
     }
     if (method === 'PATCH') return json({});
-    if (method === 'DELETE')
-      return Promise.resolve(new Response(null, { status: 404 }));
+    if (method === 'DELETE') {
+      const id = decodeURIComponent(fileId ?? '');
+      const index = files.findIndex((f) => f.id === id);
+      if (index < 0)
+        return Promise.resolve(new Response(null, { status: 404 }));
+      files.splice(index, 1);
+      deleted.push(id);
+      return Promise.resolve(new Response(null, { status: 204 }));
+    }
     return json({}, 500);
   });
-  return { folders, files, fetchImpl };
+  return { folders, files, deleted, fetchImpl };
 }
 
 describe('createDriveUploader', () => {
@@ -137,5 +168,60 @@ describe('createDriveUploader', () => {
     const drive = makeFakeDrive();
     const uploader = createDriveUploader(drive.fetchImpl);
     await expect(uploader.deleteFile('tok', 'gone')).resolves.toBeUndefined();
+  });
+
+  it('deletes a file filed under SpartBoard/{folderName}/{quiz}', async () => {
+    const drive = makeFakeDrive();
+    const uploader = createDriveUploader(drive.fetchImpl);
+    const file = await uploader.uploadBlob(
+      'tok',
+      Buffer.from('x'),
+      'image/webp',
+      'A__Q1.webp',
+      'Quiz Responses/Unit 3'
+    );
+    await uploader.deleteFileInAppFolder('tok', file.id, 'Quiz Responses');
+    expect(drive.deleted).toEqual([file.id]);
+  });
+
+  it('refuses to delete a file outside the archive folder', async () => {
+    const drive = makeFakeDrive();
+    const uploader = createDriveUploader(drive.fetchImpl);
+    const stimulus = await uploader.uploadBlob(
+      'tok',
+      Buffer.from('x'),
+      'image/webp',
+      'stimulus.webp',
+      'Quiz Media/Unit 3'
+    );
+    const loose = await uploader.uploadBlob(
+      'tok',
+      Buffer.from('x'),
+      'image/webp',
+      'loose.webp',
+      'Quiz Responses'
+    );
+    for (const id of [stimulus.id, loose.id]) {
+      await expect(
+        uploader.deleteFileInAppFolder('tok', id, 'Quiz Responses')
+      ).rejects.toThrow(/not in the SpartBoard\/Quiz Responses folder/);
+    }
+    const unit = drive.folders.find((f) => f.name === 'Unit 3');
+    await expect(
+      uploader.deleteFileInAppFolder('tok', unit?.id ?? '', 'Quiz Responses')
+    ).rejects.toThrow();
+    expect(drive.deleted).toEqual([]);
+    expect(
+      drive.fetchImpl.mock.calls.some(([, init]) => init?.method === 'DELETE')
+    ).toBe(false);
+  });
+
+  it('treats an already-absent archive file as deleted', async () => {
+    const drive = makeFakeDrive();
+    const uploader = createDriveUploader(drive.fetchImpl);
+    await expect(
+      uploader.deleteFileInAppFolder('tok', 'gone', 'Quiz Responses')
+    ).resolves.toBeUndefined();
+    expect(drive.deleted).toEqual([]);
   });
 });

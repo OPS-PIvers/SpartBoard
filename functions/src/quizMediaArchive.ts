@@ -445,6 +445,17 @@ export function parseRefKey(key: string): StudentTargetRef | null {
 /** Permanent delete, not a trash move — this is a compliance delete. */
 export const deleteDriveFileById = defaultDriveUploader.deleteFile;
 
+/** Compliance delete of an id read from a response doc: refuses any file outside the quiz archive folder. */
+export const deleteQuizArchiveDriveFile = (
+  accessToken: string,
+  fileId: string
+): Promise<void> =>
+  defaultDriveUploader.deleteFileInAppFolder(
+    accessToken,
+    fileId,
+    QUIZ_DRIVE_FOLDER
+  );
+
 /** webm never survives to Drive; AAC in an M4A container always previews. */
 export async function transcodeBufferToM4a(input: Buffer): Promise<Buffer> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'quizmedia-'));

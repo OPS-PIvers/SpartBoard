@@ -31,7 +31,7 @@ import * as admin from 'firebase-admin';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import {
   computeHasStuckArchive,
-  deleteDriveFileById,
+  deleteQuizArchiveDriveFile,
   isArtifactStoragePathValid,
   QUIZ_MEDIA_ARCHIVE_SECRETS,
   STUCK_ARCHIVE_AGE_MS,
@@ -1086,7 +1086,7 @@ export function buildDefaultOrgMediaDeps(): OrgMediaDeps {
     db,
     getAccessToken: async (teacherUid) =>
       (await refreshGoogleAccessTokenForUid(teacherUid)).accessToken,
-    deleteDriveFile: deleteDriveFileById,
+    deleteDriveFile: deleteQuizArchiveDriveFile,
     deleteStorageObject: async (storagePath) => {
       await admin
         .storage()
