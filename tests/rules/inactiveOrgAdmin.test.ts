@@ -222,3 +222,59 @@ describe('no self-reactivation or self role change', () => {
     );
   });
 });
+
+describe('admins who keep the tier', () => {
+  const LEGACY_EMAIL = 'legacy.domain@acme.edu';
+  const SUPER_EMAIL = 'super.admin@acme.edu';
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      // Older member docs carry no status field at all.
+      await setDoc(doc(db, memberPath(LEGACY_EMAIL)), {
+        email: LEGACY_EMAIL,
+        orgId: ORG_ID,
+        roleId: 'domain_admin',
+        buildingIds: ['high'],
+      });
+      await setDoc(doc(db, `organizations/orono/members/${SUPER_EMAIL}`), {
+        email: SUPER_EMAIL,
+        orgId: 'orono',
+        roleId: 'super_admin',
+        status: 'active',
+      });
+      await setDoc(
+        doc(db, memberPath(SUPER_EMAIL)),
+        member(SUPER_EMAIL, 'super_admin', 'active')
+      );
+    });
+  });
+
+  it('domain admin with no status field can read analytics', async () => {
+    await assertSucceeds(getDoc(doc(as(LEGACY_EMAIL), analyticsPath)));
+  });
+
+  it('domain admin with no status field can still update another member', async () => {
+    await assertSucceeds(
+      updateDoc(doc(as(LEGACY_EMAIL), memberPath(TEACHER_EMAIL)), {
+        status: 'inactive',
+      })
+    );
+  });
+
+  it('super admin can reactivate an inactive domain admin', async () => {
+    await assertSucceeds(
+      updateDoc(doc(as(SUPER_EMAIL), memberPath(INACTIVE_DOMAIN_EMAIL)), {
+        status: 'active',
+      })
+    );
+  });
+
+  it('super admin can change their own status', async () => {
+    await assertSucceeds(
+      updateDoc(doc(as(SUPER_EMAIL), memberPath(SUPER_EMAIL)), {
+        status: 'inactive',
+      })
+    );
+  });
+});
