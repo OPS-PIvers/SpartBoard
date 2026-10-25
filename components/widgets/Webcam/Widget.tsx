@@ -11,6 +11,8 @@ import {
   Check,
   Video,
   FlipHorizontal,
+  Pause,
+  Play,
 } from 'lucide-react';
 import { WidgetData, WebcamConfig } from '@/types';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -58,6 +60,9 @@ export const WebcamWidget: React.FC<{
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const remoteImgRef = useRef<HTMLImageElement>(null);
+  const frozenImgRef = useRef<HTMLImageElement>(null);
+  const [frozenUrl, setFrozenUrl] = useState<string | null>(null);
+  const frozenUrlRef = useRef<string | null>(null);
   const docCamPro = canAccessFeature('document-camera-pro');
   const {
     attachFeed,
@@ -77,9 +82,23 @@ export const WebcamWidget: React.FC<{
   const isRemoteShown = !!(
     widgetConfig.isRemoteMode && widgetConfig.remoteCaptureDataUrl
   );
+  const isFrozen = docCamPro && !isRemoteShown && frozenUrl !== null;
 
   // Document camera view: the photo matches the turned, zoomed feed.
   const captureDocCamView = useCallback((): string => {
+    const frozen = frozenImgRef.current;
+    if (isFrozen) {
+      // Never fall back to the hidden live video while the frozen frame loads.
+      if (!frozen?.naturalWidth) return '';
+      const canvas = renderView(
+        frozen,
+        { width: frozen.naturalWidth, height: frozen.naturalHeight },
+        docCamView,
+        isMirrored,
+        feedSize
+      );
+      return canvas?.toDataURL('image/png') ?? '';
+    }
     if (isRemoteShown) {
       const img = remoteImgRef.current;
       if (!img?.naturalWidth || isDefaultView(docCamView)) {
@@ -108,10 +127,57 @@ export const WebcamWidget: React.FC<{
   }, [
     feedSize,
     docCamView,
+    isFrozen,
     isMirrored,
     isRemoteShown,
     widgetConfig.remoteCaptureDataUrl,
   ]);
+
+  // Bumped on every freeze/unfreeze so a slow toBlob from an older freeze is dropped.
+  const freezeToken = useRef(0);
+  const unfreeze = useCallback(() => {
+    freezeToken.current += 1;
+    if (frozenUrlRef.current) URL.revokeObjectURL(frozenUrlRef.current);
+    frozenUrlRef.current = null;
+    setFrozenUrl(null);
+  }, []);
+
+  // Holds the current frame on screen so the paper can move while the class keeps seeing it.
+  const freeze = useCallback(() => {
+    const video = videoRef.current;
+    if (!video?.videoWidth) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
+    const token = ++freezeToken.current;
+    canvas.toBlob((blob) => {
+      if (!blob || token !== freezeToken.current) return;
+      if (frozenUrlRef.current) URL.revokeObjectURL(frozenUrlRef.current);
+      const url = URL.createObjectURL(blob);
+      frozenUrlRef.current = url;
+      setFrozenUrl(url);
+    }, 'image/png');
+  }, []);
+
+  useEffect(
+    () => () => {
+      freezeToken.current += 1;
+      if (frozenUrlRef.current) URL.revokeObjectURL(frozenUrlRef.current);
+    },
+    []
+  );
+  // Remote mode or the flag turning off drops a held frame, so coming back shows live video.
+  const freezeAllowed = docCamPro && !isRemoteShown;
+  if (!freezeAllowed && frozenUrl !== null) setFrozenUrl(null);
+  useEffect(() => {
+    if (freezeAllowed) return;
+    freezeToken.current += 1;
+    if (frozenUrlRef.current) URL.revokeObjectURL(frozenUrlRef.current);
+    frozenUrlRef.current = null;
+  }, [freezeAllowed]);
 
   // The doc-cam layout remounts the <video> (flag change, leaving remote mode), so hand it the stream again.
   useEffect(() => {
@@ -186,7 +252,8 @@ export const WebcamWidget: React.FC<{
     const currentIndex = devices.findIndex((d) => d.deviceId === currentId);
     const nextIndex = (currentIndex + 1) % devices.length;
     setSelectedDeviceId(devices[nextIndex].deviceId);
-  }, [devices, selectedDeviceId, stream]);
+    unfreeze();
+  }, [devices, selectedDeviceId, stream, unfreeze]);
 
   const performSendToNotes = useCallback(
     (text: string) => {
@@ -428,7 +495,21 @@ export const WebcamWidget: React.FC<{
                       autoPlay
                       playsInline
                       muted
-                      className="absolute object-cover max-w-none"
+                      className={`absolute object-cover max-w-none ${isFrozen ? 'invisible' : ''}`}
+                      style={{
+                        ...mediaBox(docCamView.rotation, feedSize),
+                        transform: mediaTransform(docCamView, isMirrored),
+                      }}
+                    />
+                  )}
+                  {isFrozen && frozenUrl && (
+                    <img
+                      data-pii=""
+                      ref={frozenImgRef}
+                      src={frozenUrl}
+                      alt="Frozen camera frame"
+                      draggable={false}
+                      className="absolute object-cover max-w-none select-none"
                       style={{
                         ...mediaBox(docCamView.rotation, feedSize),
                         transform: mediaTransform(docCamView, isMirrored),
@@ -453,6 +534,29 @@ export const WebcamWidget: React.FC<{
                   muted
                   className={`w-full h-full object-cover transition-transform duration-500 ${isMirrored ? 'scale-x-[-1]' : 'scale-x-1'}`}
                 />
+              )}
+
+              {isFrozen && (
+                <div
+                  className="absolute flex items-center bg-black/70 text-white font-semibold rounded-lg z-30 pointer-events-none"
+                  style={{
+                    top: 'min(12px, 3cqmin)',
+                    left: 'min(12px, 3cqmin)',
+                    gap: 'min(6px, 1.5cqmin)',
+                    padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                    fontSize: 'min(13px, 3.25cqmin)',
+                  }}
+                  role="status"
+                >
+                  <Pause
+                    aria-hidden="true"
+                    style={{
+                      width: 'min(14px, 3.5cqmin)',
+                      height: 'min(14px, 3.5cqmin)',
+                    }}
+                  />
+                  Frozen
+                </div>
               )}
 
               {docCamPro && (
@@ -489,7 +593,7 @@ export const WebcamWidget: React.FC<{
                     disabled={
                       widgetConfig.isRemoteMode
                         ? !widgetConfig.remoteCaptureDataUrl
-                        : !stream
+                        : !stream && !isFrozen
                     }
                     className="hover:bg-white/30 rounded-2xl text-white disabled:opacity-30 disabled:cursor-not-allowed"
                     style={{ padding: 'min(12px, 2.5cqmin)' }}
@@ -502,6 +606,34 @@ export const WebcamWidget: React.FC<{
                       }}
                     />
                   </button>
+                  {docCamPro && !isRemoteShown && (
+                    <button
+                      {...tourAttr('webcam.freeze', _widget.id, _widget.type)}
+                      onClick={isFrozen ? unfreeze : freeze}
+                      disabled={!isFrozen && !stream}
+                      aria-pressed={isFrozen}
+                      aria-label="Freeze"
+                      className={`rounded-2xl text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed ${isFrozen ? 'bg-blue-500/30 text-blue-400' : 'hover:bg-white/30'}`}
+                      style={{ padding: 'min(12px, 2.5cqmin)' }}
+                      title={isFrozen ? 'Unfreeze' : 'Freeze'}
+                    >
+                      {isFrozen ? (
+                        <Play
+                          style={{
+                            width: 'min(20px, 5cqmin)',
+                            height: 'min(20px, 5cqmin)',
+                          }}
+                        />
+                      ) : (
+                        <Pause
+                          style={{
+                            width: 'min(20px, 5cqmin)',
+                            height: 'min(20px, 5cqmin)',
+                          }}
+                        />
+                      )}
+                    </button>
+                  )}
                   <button
                     {...tourAttr(
                       'webcam.extract-text',
@@ -512,7 +644,7 @@ export const WebcamWidget: React.FC<{
                     disabled={
                       (widgetConfig.isRemoteMode
                         ? !widgetConfig.remoteCaptureDataUrl
-                        : !stream) || isExtracting
+                        : !stream && !isFrozen) || isExtracting
                     }
                     className={`rounded-2xl text-white transition-all ${isExtracting ? 'bg-blue-500/30 text-blue-400 animate-pulse' : 'hover:bg-white/30'}`}
                     style={{ padding: 'min(12px, 2.5cqmin)' }}

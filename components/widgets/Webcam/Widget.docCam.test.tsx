@@ -110,6 +110,66 @@ describe('WebcamWidget document camera gestures', () => {
   });
 });
 
+describe('WebcamWidget freeze', () => {
+  it('holds the frame with a Frozen label and returns to live', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+      drawImage: vi.fn(),
+    } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(
+      (cb: BlobCallback) => cb(new Blob(['x']))
+    );
+    const revoke = vi.fn();
+    URL.createObjectURL = vi.fn(() => 'blob:frame');
+    URL.revokeObjectURL = revoke;
+    const { container } = render(<WebcamWidget widget={makeWidget()} />);
+    Object.defineProperty(video(container), 'videoWidth', { value: 640 });
+    Object.defineProperty(video(container), 'videoHeight', { value: 480 });
+    const freeze = await screen.findByTitle('Freeze');
+    await waitFor(() => expect(freeze).not.toHaveProperty('disabled', true));
+    fireEvent.click(freeze);
+    expect(screen.getByText('Frozen')).toBeTruthy();
+    expect(screen.getByAltText('Frozen camera frame')).toBeTruthy();
+    expect(video(container).className).toContain('invisible');
+    fireEvent.click(screen.getByTitle('Unfreeze'));
+    expect(screen.queryByText('Frozen')).toBeNull();
+    expect(revoke).toHaveBeenCalledWith('blob:frame');
+  });
+
+  it('drops and frees the held frame when a phone photo takes over', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(
+      (cb: BlobCallback) => cb(new Blob(['x']))
+    );
+    const revoke = vi.fn();
+    URL.createObjectURL = vi.fn(() => 'blob:frame');
+    URL.revokeObjectURL = revoke;
+    const { container, rerender } = render(
+      <WebcamWidget widget={makeWidget()} />
+    );
+    Object.defineProperty(video(container), 'videoWidth', { value: 640 });
+    Object.defineProperty(video(container), 'videoHeight', { value: 480 });
+    const freeze = await screen.findByTitle('Freeze');
+    await waitFor(() => expect(freeze).not.toHaveProperty('disabled', true));
+    fireEvent.click(freeze);
+    expect(screen.getByText('Frozen')).toBeTruthy();
+    rerender(
+      <WebcamWidget
+        widget={makeWidget({
+          isRemoteMode: true,
+          remoteCaptureDataUrl: 'data:image/jpeg;base64,AAAA',
+        })}
+      />
+    );
+    expect(screen.queryByText('Frozen')).toBeNull();
+    expect(revoke).toHaveBeenCalledWith('blob:frame');
+  });
+
+  it('has no Freeze button with the flag off', () => {
+    flags.docCam = false;
+    render(<WebcamWidget widget={makeWidget()} />);
+    expect(screen.queryByTitle('Freeze')).toBeNull();
+  });
+});
+
 describe('WebcamWidget flag change', () => {
   it('hands the running camera to the new video when the flag turns on', async () => {
     flags.docCam = false;

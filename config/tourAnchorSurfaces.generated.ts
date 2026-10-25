@@ -2898,6 +2898,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'webcam.zoom-in': ['widgets.webcam.face'],
     'webcam.zoom-out': ['widgets.webcam.face'],
     'webcam.rotate': ['widgets.webcam.face'],
+    'webcam.freeze': ['widgets.webcam.face'],
     'webcam.reset-view': ['widgets.webcam.face'],
     'classes-widget.manage': ['widgets.classes.face'],
     'classes-widget.clear-active': ['widgets.classes.face'],
