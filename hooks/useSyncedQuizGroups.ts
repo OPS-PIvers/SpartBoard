@@ -389,6 +389,20 @@ export async function pullSyncedQuizContent(groupId: string): Promise<{
   };
 }
 
+/** True when `uid` is a current participant of the synced quiz group (a share may only invite to such a group). */
+export async function isSyncedQuizGroupParticipant(
+  groupId: string,
+  uid: string
+): Promise<boolean> {
+  const snap = await getDoc(doc(db, SYNCED_QUIZZES_COLLECTION, groupId));
+  const participants = snap.exists()
+    ? (snap.data() as SyncedQuizGroup).participants
+    : undefined;
+  return (
+    !!participants && Object.prototype.hasOwnProperty.call(participants, uid)
+  );
+}
+
 /**
  * Create the canonical doc for a brand-new synced group. Used by
  * `shareAssignment` when the source quiz has no `syncGroupId` yet — the
