@@ -7,6 +7,7 @@ import {
 } from '@/types';
 import { RefreshCw, Trash2, UserPlus } from 'lucide-react';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { SeatingPlanPicker } from './SeatingPlanPicker';
 import {
   TEMPLATES,
   FURNITURE_TYPES,
@@ -29,6 +30,11 @@ interface SeatingChartSidebarProps {
   addAllRandomly: () => void;
   handleStudentClick: (studentId: string) => void;
   selectedStudent: string | null;
+  /** Present only when the seating plans preview is on for this teacher. */
+  plans?: {
+    onChange: (patch: Partial<SeatingChartConfig>) => void;
+    addToast: (message: string, type: 'success' | 'error' | 'info') => void;
+  };
 }
 
 export const SeatingChartSidebar: React.FC<SeatingChartSidebarProps> = ({
@@ -47,6 +53,7 @@ export const SeatingChartSidebar: React.FC<SeatingChartSidebarProps> = ({
   addAllRandomly,
   handleStudentClick,
   selectedStudent,
+  plans,
 }) => {
   if (mode !== 'setup' && mode !== 'assign') return null;
 
@@ -201,6 +208,14 @@ export const SeatingChartSidebar: React.FC<SeatingChartSidebarProps> = ({
 
       {mode === 'assign' && (
         <div className="flex flex-col h-full">
+          {plans && (
+            <SeatingPlanPicker
+              widgetId={widgetId}
+              config={config}
+              onChange={plans.onChange}
+              addToast={plans.addToast}
+            />
+          )}
           <div className="p-2 border-b border-slate-200 bg-slate-100 text-xxs font-black uppercase text-slate-600 tracking-widest text-center">
             Unassigned Students
           </div>

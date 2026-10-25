@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { rosterGroupMemberIds } from '@/utils/rosterGroups';
 import { WidgetData, SeatingChartConfig, FurnitureItem } from '@/types';
@@ -49,6 +50,7 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
   const { t } = useTranslation();
   const { updateWidget, rosters, activeRosterId, addToast } = useDashboard();
   const { showConfirm } = useDialog();
+  const plansEnabled = useAuth().canAccessFeature('seating-chart-plans');
   const config = widget.config as SeatingChartConfig;
   // Fall back to the legacy templateRows field so existing Firestore widgets
   // preserve their saved column count after the rename to templateColumns.
@@ -931,6 +933,17 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
           addAllRandomly={addAllRandomly}
           handleStudentClick={handleStudentClick}
           selectedStudent={selectedStudent}
+          {...(plansEnabled
+            ? {
+                plans: {
+                  onChange: (patch) =>
+                    updateWidget(widget.id, {
+                      config: { ...latestRef.current.config, ...patch },
+                    }),
+                  addToast,
+                },
+              }
+            : {})}
         />
 
         {/* Canvas */}

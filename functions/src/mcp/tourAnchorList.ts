@@ -56279,6 +56279,27 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "seating.plan-select",
+    "label": "Seating plan menu in Seating Chart Assign mode",
+    "scope": "widget"
+  },
+  {
+    "id": "seating.save-plan",
+    "label": "Save seating plan button in Seating Chart Assign mode",
+    "scope": "widget"
+  },
+  {
+    "id": "seating.rename-plan",
+    "label": "Rename plan button in Seating Chart Assign mode",
+    "scope": "widget"
+  },
+  {
+    "id": "seating.delete-plan",
+    "label": "Delete plan button in Seating Chart Assign mode",
+    "scope": "widget",
+    "destructive": true
+  },
+  {
     "id": "music.play-pause",
     "label": "Play or pause button on the Music widget",
     "scope": "widget",

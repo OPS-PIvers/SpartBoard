@@ -3956,6 +3956,16 @@ export interface SeatingChartConfig {
   rosterPoolGroupId?: string | null;
   template?: SeatingChartTemplate;
   templateColumns?: number; // Number of columns for 'rows' template
+  /** Named seat assignments for this board; furniture is shared across them. */
+  savedPlans?: SeatingPlan[];
+  /** The saved plan whose seats `assignments` currently holds. */
+  activePlanId?: string | null;
+}
+
+export interface SeatingPlan {
+  id: string;
+  name: string;
+  assignments: Record<string, string>;
 }
 
 /**
@@ -10401,6 +10411,8 @@ export type GlobalFeature =
   | 'collection-sync-sharing'
   /** Members of a shared board see the owner's Activity Wall and its approved posts live. */
   | 'shared-board-live-walls'
+  /** Seating Chart saved seating plans, shuffle rules and print (poll-pro/SEATING_CHART_PLAN.md). */
+  | 'seating-chart-plans'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak';
 
