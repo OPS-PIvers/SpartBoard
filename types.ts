@@ -2787,6 +2787,10 @@ export interface ScoreboardConfig {
   layout?: 'cards' | 'rows';
   /** When set, indicates this scoreboard is being live-synced from a quiz widget */
   liveQuizWidgetId?: string;
+  /** Point button amounts, one of SCOREBOARD_POINT_PRESETS; unset means a single 1. */
+  pointValues?: number[];
+  /** Rows layout only; unset sorts by score. */
+  sortByScore?: boolean;
   /** Recent score changes, oldest first, capped at SCOREBOARD_HISTORY_LIMIT. */
   history?: ScoreboardHistoryEntry[];
 }

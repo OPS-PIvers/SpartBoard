@@ -1590,7 +1590,13 @@
       "scores": "Puntuaciones",
       "recentChanges": "Cambios recientes",
       "noChanges": "Aún no hay cambios",
-      "reset": "Reinicio"
+      "reset": "Reinicio",
+      "leader": "Líder",
+      "tied": "Empate",
+      "addPoints_one": "Sumar {{count}} punto",
+      "addPoints_other": "Sumar {{count}} puntos",
+      "removePoints_one": "Quitar {{count}} punto",
+      "removePoints_other": "Quitar {{count}} puntos"
     }
   },
   "boardBreadcrumb": {
@@ -3762,7 +3768,16 @@
       "replaceTeamsBody_other": "Esto reemplaza los {{count}} equipos de este marcador, incluidas sus puntuaciones.",
       "replaceTeamsConfirm": "Reemplazar",
       "classTeamName": "Equipo {{count}}",
-      "membersTitle": "Integrantes del grupo de la clase"
+      "membersTitle": "Integrantes del grupo de la clase",
+      "sortByScore": "Ordenar por puntuación",
+      "pointButtons": "Botones de puntos",
+      "pointPreset": {
+        "1": "+1",
+        "1-2-3": "+1, +2, +3",
+        "1-5-10": "+1, +5, +10",
+        "5-10-25": "+5, +10, +25",
+        "10-50-100": "+10, +50, +100"
+      }
     },
     "checklist": {
       "poolGroup": "Tomar de",

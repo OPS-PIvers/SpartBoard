@@ -134,4 +134,43 @@ describe('ScoreboardWidget undo and history (scoreboard-pro)', () => {
     fireEvent.click(screen.getAllByLabelText('Increase score')[0]);
     expect(lastConfig().history).toBeUndefined();
   });
+
+  it('shows the teacher-set point buttons and adds that amount', () => {
+    render(
+      <ScoreboardWidget
+        widget={makeWidget({ teams, pointValues: [1, 5, 10] })}
+      />
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: 'Add 5 points' })[0]);
+    expect(lastConfig().teams?.[0].score).toBe(7);
+    expect(
+      screen.getAllByRole('button', { name: 'Remove 1 point' })
+    ).toHaveLength(2);
+  });
+
+  it('marks the leader with an icon and text', () => {
+    render(<ScoreboardWidget widget={makeWidget({ teams })} />);
+    const marks = screen
+      .getAllByText('Leader')
+      .filter((el) => !el.classList.contains('invisible'));
+    expect(marks).toHaveLength(1);
+    expect(marks[0].closest('[class*="bg-blue-500"]')).not.toBeNull();
+  });
+
+  it('keeps team order in rows when sort by score is off', () => {
+    const { container } = render(
+      <ScoreboardWidget
+        widget={makeWidget({
+          teams: [
+            { id: 'a', name: 'Low', score: 1 },
+            { id: 'b', name: 'High', score: 9 },
+          ],
+          layout: 'rows',
+          sortByScore: false,
+        })}
+      />
+    );
+    const text = container.textContent ?? '';
+    expect(text.indexOf('Low')).toBeLessThan(text.indexOf('High'));
+  });
 });

@@ -825,6 +825,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'widget-settings.music.sync-time-tool': ['widgets.music.settings'],
     'scoreboard.add-point': ['widgets.scoreboard.face'],
     'scoreboard.remove-point': ['widgets.scoreboard.face'],
+    'scoreboard.add-point-amount': ['widgets.scoreboard.face'],
     'scoreboard.undo': ['widgets.scoreboard.face'],
     'scoreboard.history': ['widgets.scoreboard.face'],
     'widget-settings.pdf.switch-document': ['widgets.pdf.settings'],
