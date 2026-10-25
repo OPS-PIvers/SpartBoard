@@ -98,3 +98,14 @@ describe('WebcamWidget document camera view', () => {
     expect(lastSaved()).toMatchObject({ zoomLevel: 1, rotation: 0 });
   });
 });
+
+describe('WebcamWidget document camera gestures', () => {
+  it('zooms with a plain wheel but leaves Ctrl+wheel to the board', () => {
+    const { container } = render(<WebcamWidget widget={makeWidget()} />);
+    const feed = container.querySelector('[data-inking-surface]') as Element;
+    fireEvent.wheel(feed, { deltaY: -100, ctrlKey: true });
+    expect(video(container).style.transform).toContain('scale(1)');
+    fireEvent.wheel(feed, { deltaY: -100 });
+    expect(video(container).style.transform).not.toContain('scale(1)');
+  });
+});

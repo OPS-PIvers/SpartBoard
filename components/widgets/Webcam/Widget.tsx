@@ -23,7 +23,12 @@ import { CapturedItem } from './types';
 import { tourAttr } from '@/config/tourAnchors';
 import { useDocCamView } from './useDocCamView';
 import { DocCamViewControls } from './DocCamViewControls';
-import { mediaBox, mediaTransform, renderView } from './docCamView';
+import {
+  isDefaultView,
+  mediaBox,
+  mediaTransform,
+  renderView,
+} from './docCamView';
 
 export const WebcamWidget: React.FC<{
   widget: WidgetData;
@@ -78,7 +83,9 @@ export const WebcamWidget: React.FC<{
   const captureDocCamView = useCallback((): string => {
     if (isRemoteShown) {
       const img = remoteImgRef.current;
-      if (!img?.naturalWidth) return widgetConfig.remoteCaptureDataUrl ?? '';
+      if (!img?.naturalWidth || isDefaultView(docCamView)) {
+        return widgetConfig.remoteCaptureDataUrl ?? '';
+      }
       const canvas = renderView(
         img,
         { width: img.naturalWidth, height: img.naturalHeight },

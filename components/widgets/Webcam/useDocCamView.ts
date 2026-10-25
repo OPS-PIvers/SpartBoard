@@ -41,6 +41,12 @@ export function useDocCamView({
     panY: 0,
   }));
   const [isPanning, setIsPanning] = useState(false);
+  const [prevSavedZoom, setPrevSavedZoom] = useState(savedZoom);
+  if (prevSavedZoom !== savedZoom) {
+    setPrevSavedZoom(savedZoom);
+    const zoom = clampZoom(savedZoom ?? 1);
+    if (zoom !== local.zoom) setLocal({ ...local, zoom });
+  }
   const rotation = normalizeRotation(savedRotation);
   const view: DocCamView = enabled
     ? clampPan({ ...local, rotation }, size)
@@ -70,12 +76,9 @@ export function useDocCamView({
   }, [save]);
   useEffect(
     () => () => {
-      if (commitTimer.current) {
-        clearTimeout(commitTimer.current);
-        save(viewRef.current.zoom, viewRef.current.rotation);
-      }
+      if (commitTimer.current) clearTimeout(commitTimer.current);
     },
-    [save]
+    []
   );
 
   useEffect(() => {
@@ -118,25 +121,39 @@ export function useDocCamView({
 
   useEffect(() => {
     if (!enabled || !feedEl) return;
+    // Screen px per layout px, so board zoom doesn't skew pan speed or the zoom anchor.
+    const screenScale = () =>
+      feedEl.offsetWidth > 0
+        ? feedEl.getBoundingClientRect().width / feedEl.offsetWidth
+        : 1;
     const focalOf = (clientX: number, clientY: number) => {
       const r = feedEl.getBoundingClientRect();
+      const k = screenScale();
       return {
-        x: clientX - r.left - r.width / 2,
-        y: clientY - r.top - r.height / 2,
+        x: (clientX - r.left - r.width / 2) / k,
+        y: (clientY - r.top - r.height / 2) / k,
       };
     };
 
     const onWheel = (e: WheelEvent) => {
+      // Ctrl+wheel stays the board's zoom.
+      if (e.ctrlKey || e.metaKey) return;
       e.preventDefault();
       e.stopPropagation();
-      // Trackpad pinches arrive as ctrl+wheel with small deltas; mouse wheels as larger steps.
-      const factor = Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.002));
+      const lines = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
+      const factor = Math.exp(-e.deltaY * lines * 0.002);
       applyZoom(viewRef.current.zoom * factor, focalOf(e.clientX, e.clientY));
       scheduleSave();
     };
 
     const pointers = new Map<number, { x: number; y: number }>();
-    let pan: { x: number; y: number; panX: number; panY: number } | null = null;
+    let pan: {
+      x: number;
+      y: number;
+      panX: number;
+      panY: number;
+      k: number;
+    } | null = null;
     let pinch: { dist: number; zoom: number } | null = null;
     const pinchDist = () => {
       const [a, b] = [...pointers.values()];
@@ -150,24 +167,25 @@ export function useDocCamView({
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
       if ((e.target as Element | null)?.closest?.('button')) return;
+      if (pointers.size >= 2) return;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      // Capture every tracked pointer so a release outside the feed still clears it.
+      feedEl.setPointerCapture?.(e.pointerId);
       if (pointers.size === 2) {
         pan = null;
         setIsPanning(false);
         pinch = { dist: pinchDist(), zoom: viewRef.current.zoom };
-        feedEl.setPointerCapture?.(e.pointerId);
         return;
       }
-      if (pointers.size === 1 && viewRef.current.zoom > 1) {
-        e.stopPropagation();
+      if (viewRef.current.zoom > 1) {
         pan = {
           x: e.clientX,
           y: e.clientY,
           panX: viewRef.current.panX,
           panY: viewRef.current.panY,
+          k: screenScale(),
         };
         setIsPanning(true);
-        feedEl.setPointerCapture?.(e.pointerId);
       }
     };
     const onPointerMove = (e: PointerEvent) => {
@@ -184,8 +202,8 @@ export function useDocCamView({
         const next = clampPan(
           {
             ...viewRef.current,
-            panX: pan.panX + (e.clientX - pan.x),
-            panY: pan.panY + (e.clientY - pan.y),
+            panX: pan.panX + (e.clientX - pan.x) / pan.k,
+            panY: pan.panY + (e.clientY - pan.y) / pan.k,
           },
           sizeRef.current
         );
@@ -210,7 +228,10 @@ export function useDocCamView({
     feedEl.addEventListener('pointermove', onPointerMove);
     feedEl.addEventListener('pointerup', onPointerUp);
     feedEl.addEventListener('pointercancel', onPointerUp);
+    feedEl.addEventListener('lostpointercapture', onPointerUp);
     return () => {
+      setIsPanning(false);
+      feedEl.removeEventListener('lostpointercapture', onPointerUp);
       feedEl.removeEventListener('wheel', onWheel);
       feedEl.removeEventListener('pointerdown', onPointerDown);
       feedEl.removeEventListener('pointermove', onPointerMove);

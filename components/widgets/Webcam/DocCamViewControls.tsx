@@ -60,7 +60,6 @@ export const DocCamViewControls: React.FC<Props> = ({
     <span
       className="text-white/80 font-semibold tabular-nums"
       style={{ fontSize: 'min(11px, 2.75cqmin)' }}
-      aria-live="polite"
     >
       {formatZoom(view.zoom)}
     </span>
