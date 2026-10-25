@@ -1582,6 +1582,15 @@
     "schedule": {
       "startTimer": "Iniciar Temporizador",
       "startTimerUntil": "Iniciar cuenta regresiva hasta {{time}}"
+    },
+    "scoreboard": {
+      "undo": "Deshacer",
+      "undoShortcut": "Deshacer el último cambio de puntuación (Ctrl+Z)",
+      "history": "Historial",
+      "scores": "Puntuaciones",
+      "recentChanges": "Cambios recientes",
+      "noChanges": "Aún no hay cambios",
+      "reset": "Reinicio"
     }
   },
   "boardBreadcrumb": {
