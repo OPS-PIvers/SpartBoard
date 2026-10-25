@@ -25,7 +25,7 @@ export const SeatingChartActionsField: React.FC<{
         confirmLabel: translate(ctx, 'clear'),
       }
     );
-    if (confirmed) updateConfig({ assignments: {} });
+    if (confirmed) updateConfig({ assignments: {}, activePlanId: null });
   };
 
   const handleClearFurniture = async () => {
@@ -37,7 +37,8 @@ export const SeatingChartActionsField: React.FC<{
         confirmLabel: translate(ctx, 'clearAll'),
       }
     );
-    if (confirmed) updateConfig({ furniture: [], assignments: {} });
+    if (confirmed)
+      updateConfig({ furniture: [], assignments: {}, activePlanId: null });
   };
 
   return (

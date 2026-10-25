@@ -57,6 +57,8 @@ export const SeatingPlanPicker: React.FC<SeatingPlanPickerProps> = ({
     if (name === null) return;
     const clean = cleanPlanName(name);
     if (!clean) return;
+    if ((configRef.current.savedPlans ?? []).length >= MAX_SEATING_PLANS)
+      return;
     onChange(saveAsNewPlan(configRef.current, clean));
     addToast(`Saved "${clean}".`, 'success');
   };

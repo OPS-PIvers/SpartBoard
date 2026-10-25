@@ -571,4 +571,18 @@ describe('SeatingChartWidget seating plans', () => {
     fireEvent.click(screen.getByText('Assign'));
     expect(screen.getByText('Save seating plan')).toBeInTheDocument();
   });
+
+  it('keeps seating plans off for a custom roster, whose seat keys are names', () => {
+    flags.plans = true;
+    render(
+      <SeatingChartWidget
+        widget={{
+          ...widget,
+          config: { ...widget.config, rosterMode: 'custom', names: 'Ana' },
+        }}
+      />
+    );
+    fireEvent.click(screen.getByText('Assign'));
+    expect(screen.queryByText('Save seating plan')).toBeNull();
+  });
 });

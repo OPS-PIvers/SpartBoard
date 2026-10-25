@@ -50,7 +50,7 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
   const { t } = useTranslation();
   const { updateWidget, rosters, activeRosterId, addToast } = useDashboard();
   const { showConfirm } = useDialog();
-  const plansEnabled = useAuth().canAccessFeature('seating-chart-plans');
+  const plansFlag = useAuth().canAccessFeature('seating-chart-plans');
   const config = widget.config as SeatingChartConfig;
   // Fall back to the legacy templateRows field so existing Firestore widgets
   // preserve their saved column count after the rename to templateColumns.
@@ -65,6 +65,8 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     template = 'freeform',
     templateColumns = legacyTemplateRows ?? DEFAULT_TEMPLATE_COLUMNS,
   } = config;
+  // Custom-roster seat keys are typed names, kept out of Firestore by dashboardPII; plans would copy them.
+  const plansEnabled = plansFlag && rosterMode === 'class';
 
   const [mode, setMode] = useState<'setup' | 'assign' | 'interact'>('interact');
 
@@ -349,7 +351,12 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     );
     if (confirmed) {
       updateWidget(widget.id, {
-        config: { ...config, furniture: [], assignments: {} },
+        config: {
+          ...latestRef.current.config,
+          furniture: [],
+          assignments: {},
+          activePlanId: null,
+        },
       });
       setSelectedIds(new Set());
     }
@@ -481,7 +488,12 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     }
 
     updateWidget(widget.id, {
-      config: { ...config, furniture: newFurniture, assignments: {} },
+      config: {
+        ...config,
+        furniture: newFurniture,
+        assignments: {},
+        activePlanId: null,
+      },
     });
     setSelectedIds(new Set());
     addToast(
