@@ -632,7 +632,8 @@ service cloud.firestore {
            ]) &&
            // No self-service role or status change (e.g. undoing a deactivation).
            (emailLower != request.auth.token.email.lower() ||
-            (unchanged('roleId') && unchanged('status'))) &&
+            (incoming().get('roleId', '') == existing().get('roleId', '') &&
+             incoming().get('status', '') == existing().get('status', ''))) &&
            // Anti-escalation: roleId=='super_admin' is a live isSuperAdmin() grant
            // (isMemberSuperAdmin()), so a domain admin must not write it (incl.
            // onto their own doc). On a doc that already has it, a domain admin may

@@ -114,6 +114,26 @@ describe('deactivated org admins lose the admin tier', () => {
     await assertFails(getDoc(doc(as(INACTIVE_BUILDING_EMAIL), analyticsPath)));
   });
 
+  it('removed domain admin is DENIED reading analytics', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), memberPath(INACTIVE_DOMAIN_EMAIL)),
+        member(INACTIVE_DOMAIN_EMAIL, 'domain_admin', 'removed')
+      );
+    });
+    await assertFails(getDoc(doc(as(INACTIVE_DOMAIN_EMAIL), analyticsPath)));
+  });
+
+  it('invited domain admin keeps the tier (only inactive/removed revoke it)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), memberPath(INACTIVE_DOMAIN_EMAIL)),
+        member(INACTIVE_DOMAIN_EMAIL, 'domain_admin', 'invited')
+      );
+    });
+    await assertSucceeds(getDoc(doc(as(INACTIVE_DOMAIN_EMAIL), analyticsPath)));
+  });
+
   it('inactive domain admin is DENIED updating another member', async () => {
     await assertFails(
       updateDoc(doc(as(INACTIVE_DOMAIN_EMAIL), memberPath(TEACHER_EMAIL)), {
@@ -172,6 +192,11 @@ describe('no self-reactivation or self role change', () => {
     await assertSucceeds(
       updateDoc(doc(as(DOMAIN_EMAIL), memberPath(DOMAIN_EMAIL)), {
         lastActive: '2026-10-25T00:00:00.000Z',
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(as(DOMAIN_EMAIL), memberPath(DOMAIN_EMAIL)), {
+        buildingIds: ['high', 'middle'],
       })
     );
   });
