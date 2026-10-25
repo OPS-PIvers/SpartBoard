@@ -288,6 +288,37 @@ describe('WebcamWidget compare', () => {
     expect(screen.queryByAltText('Photo 2')).toBeNull();
   });
 
+  it('closes a live comparison for good when a phone photo takes over', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue(
+      'data:image/png;base64,AAAA'
+    );
+    const { container, rerender } = render(
+      <WebcamWidget widget={makeWidget()} />
+    );
+    Object.defineProperty(video(container), 'videoWidth', { value: 640 });
+    Object.defineProperty(video(container), 'videoHeight', { value: 480 });
+    const take = await screen.findByTitle('Take Photo');
+    await waitFor(() => expect(take).not.toHaveProperty('disabled', true));
+    fireEvent.click(take);
+    fireEvent.click(screen.getByTitle('View Gallery'));
+    fireEvent.click(screen.getByTitle('Compare'));
+    fireEvent.click(screen.getByLabelText('Live camera'));
+    fireEvent.click(screen.getByLabelText('Photo 1'));
+    fireEvent.click(screen.getByText('Show side by side'));
+    expect(screen.getByTitle('Exit compare')).toBeTruthy();
+    rerender(
+      <WebcamWidget
+        widget={makeWidget({
+          isRemoteMode: true,
+          remoteCaptureDataUrl: 'data:image/jpeg;base64,AAAA',
+        })}
+      />
+    );
+    expect(screen.queryByTitle('Exit compare')).toBeNull();
+    rerender(<WebcamWidget widget={makeWidget()} />);
+    expect(screen.queryByTitle('Exit compare')).toBeNull();
+  });
+
   it('has no Compare button with the flag off', async () => {
     flags.docCam = false;
     render(<WebcamWidget widget={makeWidget()} />);

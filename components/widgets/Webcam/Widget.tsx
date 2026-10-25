@@ -288,6 +288,10 @@ export const WebcamWidget: React.FC<{
     compareSides.every((side) => side.kind !== 'live' || liveComparable)
       ? compareSides
       : null;
+  if (compareSides && !shownCompare) setCompareSides(null);
+  if (comparePick && validPick && validPick.length !== comparePick.length) {
+    setComparePick(validPick);
+  }
 
   // The doc-cam layout remounts the <video> (flag change, leaving remote mode), so hand it the stream again.
   useEffect(() => {
@@ -1177,7 +1181,7 @@ export const WebcamWidget: React.FC<{
                             _widget.type
                           )}
                           onClick={() => setComparePick([])}
-                          className="hover:bg-white/30 rounded-lg text-white"
+                          className="relative touch-target-expand hover:bg-white/30 rounded-lg text-white"
                           style={{ padding: 'min(8px, 2cqmin)' }}
                           title="Compare"
                           aria-label="Compare"

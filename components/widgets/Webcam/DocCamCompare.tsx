@@ -81,7 +81,7 @@ export const DocCamCompare: React.FC<Props> = ({
     <button
       {...tourAttr('webcam.compare-exit', widgetId, widgetType)}
       onClick={onExit}
-      className="absolute bg-black/70 hover:bg-black/80 text-white rounded-xl border border-white/30 z-10"
+      className="absolute touch-target-expand bg-black/70 hover:bg-black/80 text-white rounded-xl border border-white/30 z-10"
       style={{
         top: 'min(12px, 3cqmin)',
         right: 'min(12px, 3cqmin)',
