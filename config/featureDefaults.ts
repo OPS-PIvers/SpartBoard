@@ -1321,6 +1321,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'whiteboard-pro': {
+    label: 'Drawing: whiteboard tools',
+    icon: PenLine,
+    description:
+      'Zoom and pan, a highlighter, a laser pointer, sticky notes and shape tools.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'drawing',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Fail-closed for admins until Paul saves the row (espeak counsel hold, G19).
   'flashcards-speak': {
     label: 'Flashcards: Speak',

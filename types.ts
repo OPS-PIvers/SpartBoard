@@ -10483,6 +10483,8 @@ export type GlobalFeature =
   | 'noise-meter-pro'
   /** Camera as a document camera: zoom, pan, rotate, freeze, draw, compare, resolution. */
   | 'document-camera-pro'
+  /** Drawing zoom and pan, highlighter, laser pointer, sticky notes, shape polish and copy/paste (pro-grade-2/WHITEBOARD_PLAN.md). */
+  | 'whiteboard-pro'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak';
 

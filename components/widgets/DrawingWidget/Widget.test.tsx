@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
-import { render, fireEvent } from '@testing-library/react';
+import { render, fireEvent, act } from '@testing-library/react';
 import { DrawingWidget } from './Widget';
 import { WidgetData, DrawingConfig, DrawableObject } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
@@ -51,6 +51,7 @@ interface MockContext {
   // region during partial redraws.
   rect: Mock;
   clip: Mock;
+  setTransform: Mock;
   globalAlpha: number;
   canvas: { width: number; height: number };
   lineCap: string;
@@ -100,6 +101,7 @@ describe('DrawingWidget', () => {
       arc: vi.fn(),
       rect: vi.fn(),
       clip: vi.fn(),
+      setTransform: vi.fn(),
       globalAlpha: 1,
       canvas: { width: 800, height: 600 },
       lineCap: 'round',
@@ -1062,5 +1064,190 @@ describe('DrawingWidget', () => {
     if (!popup) throw new Error('Portalled popup not found');
     expect(container.contains(popup)).toBe(false);
     expect(document.body.contains(popup)).toBe(true);
+  });
+});
+
+describe('DrawingWidget zoom and pan (whiteboard-pro)', () => {
+  let mockUpdateWidget: Mock;
+  const proWidget: WidgetData = {
+    id: 'drawing-zoom',
+    type: 'drawing',
+    x: 0,
+    y: 0,
+    w: 400,
+    h: 300,
+    z: 1,
+    flipped: false,
+    config: { color: '#000000', width: 4, objects: [] },
+  };
+
+  const setup = (flagOn: boolean) => {
+    mockUpdateWidget = vi.fn();
+    (useDashboard as Mock).mockReturnValue({
+      updateWidget: mockUpdateWidget,
+      activeDashboard: { background: 'bg-slate-900', widgets: [] },
+      addToast: vi.fn(),
+      addWidget: vi.fn(),
+      drawingWidgetsMigrating: new Set<string>(),
+    });
+    (useAuth as Mock).mockReturnValue({
+      user: { uid: 'user1' },
+      canAccessFeature: vi.fn((id: string) =>
+        id === 'whiteboard-pro' ? flagOn : true
+      ),
+    });
+    const ctx: Record<string, unknown> = {
+      canvas: { width: 400, height: 212 },
+    };
+    for (const fn of [
+      'clearRect',
+      'beginPath',
+      'moveTo',
+      'lineTo',
+      'stroke',
+      'save',
+      'restore',
+      'fill',
+      'closePath',
+      'strokeRect',
+      'fillRect',
+      'ellipse',
+      'fillText',
+      'setLineDash',
+      'arc',
+      'rect',
+      'clip',
+      'setTransform',
+    ]) {
+      ctx[fn] = vi.fn();
+    }
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+      ctx as unknown as CanvasRenderingContext2D
+    );
+    vi.spyOn(
+      HTMLCanvasElement.prototype,
+      'getBoundingClientRect'
+    ).mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 400,
+      height: 212,
+      right: 400,
+      bottom: 212,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    return render(<DrawingWidget widget={proWidget} />);
+  };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const stroke = (canvas: Element, from: number, to: number) => {
+    fireEvent(
+      canvas,
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: from,
+        clientY: from,
+      })
+    );
+    fireEvent(
+      canvas,
+      new PointerEvent('pointermove', {
+        bubbles: true,
+        cancelable: true,
+        clientX: to,
+        clientY: to,
+      })
+    );
+    fireEvent(
+      canvas,
+      new PointerEvent('pointerup', { bubbles: true, cancelable: true })
+    );
+  };
+
+  const lastPathPoints = () => {
+    const calls = mockUpdateWidget.mock.calls;
+    const cfg = (calls[calls.length - 1][1] as Partial<WidgetData>)
+      .config as DrawingConfig;
+    const obj = objectsFromConfig(cfg)[0];
+    return obj.kind === 'path' ? obj.points : [];
+  };
+
+  it('flag off: no zoom controls', () => {
+    const { queryByRole } = setup(false);
+    expect(queryByRole('group', { name: 'Zoom' })).toBeNull();
+  });
+
+  it('flag on: zoom controls start at 100% and step in and out', () => {
+    const { getByRole, getByLabelText } = setup(true);
+    expect(getByRole('group', { name: 'Zoom' })).toBeTruthy();
+    expect(getByLabelText('Zoom to 100%').textContent).toBe('100%');
+    fireEvent.click(getByLabelText('Zoom in'));
+    expect(getByLabelText('Zoom to 100%').textContent).toBe('125%');
+    fireEvent.click(getByLabelText('Zoom out'));
+    fireEvent.click(getByLabelText('Zoom out'));
+    expect(getByLabelText('Zoom to 100%').textContent).toBe('75%');
+    fireEvent.click(getByLabelText('Zoom to 100%'));
+    expect(getByLabelText('Zoom to 100%').textContent).toBe('100%');
+  });
+
+  it('strokes drawn while zoomed are saved in page coordinates', () => {
+    const { container, getByLabelText } = setup(true);
+    const canvas = container.querySelector('canvas');
+    if (!canvas) throw new Error('Canvas not found');
+    fireEvent.click(getByLabelText('Zoom in'));
+    fireEvent.click(getByLabelText('Zoom in'));
+    fireEvent.click(getByLabelText('Zoom in'));
+    expect(getByLabelText('Zoom to 100%').textContent).toBe('200%');
+    // Zoomed 2x around the centre (200, 106): box (0, 0) is page (100, 53).
+    stroke(canvas, 0, 200);
+    expect(lastPathPoints()).toEqual([
+      { x: 100, y: 53 },
+      { x: 200, y: 153 },
+    ]);
+  });
+
+  it('Ctrl+wheel zooms and is kept from the board', () => {
+    const { container, getByLabelText } = setup(true);
+    const canvas = container.querySelector('canvas');
+    if (!canvas) throw new Error('Canvas not found');
+    const event = new WheelEvent('wheel', {
+      bubbles: true,
+      cancelable: true,
+      ctrlKey: true,
+      deltaY: -200,
+      clientX: 100,
+      clientY: 100,
+    });
+    const boardListener = vi.fn();
+    document.addEventListener('wheel', boardListener);
+    act(() => {
+      canvas.dispatchEvent(event);
+    });
+    document.removeEventListener('wheel', boardListener);
+    expect(event.defaultPrevented).toBe(true);
+    expect(boardListener).not.toHaveBeenCalled();
+    expect(getByLabelText('Zoom to 100%').textContent).toBe('149%');
+  });
+
+  it('Hand drags pan the page instead of drawing', () => {
+    const { container, getByLabelText } = setup(true);
+    const canvas = container.querySelector('canvas');
+    if (!canvas) throw new Error('Canvas not found');
+    fireEvent.click(getByLabelText('Hand'));
+    stroke(canvas, 50, 80);
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+    // Back to the pen: a stroke at box 10 now lands 30px further left on the page.
+    fireEvent.click(getByLabelText('Hand'));
+    stroke(canvas, 40, 50);
+    expect(lastPathPoints()).toEqual([
+      { x: 10, y: 10 },
+      { x: 20, y: 20 },
+    ]);
   });
 });

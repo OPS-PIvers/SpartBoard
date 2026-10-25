@@ -2,6 +2,7 @@ import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -24,6 +25,7 @@ import {
   Circle,
   Download,
   Eraser,
+  Hand,
   ImagePlus,
   Lasso,
   MousePointer2,
@@ -36,6 +38,8 @@ import {
   Type,
   TypeOutline,
   Undo2,
+  ZoomIn,
+  ZoomOut,
 } from 'lucide-react';
 import { TextEditorOverlay } from './TextEditorOverlay';
 import { applyTextWrapOnResize } from './renderers/text';
@@ -59,6 +63,15 @@ import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import type { DrawingPage } from '@/types';
 import { getBackgroundStyle } from './backgroundTemplates';
+import { useDrawingViewport } from './useDrawingViewport';
+import {
+  isIdentityView,
+  MAX_VIEW_ZOOM,
+  MIN_VIEW_ZOOM,
+  pageScreenRect,
+  viewBackgroundStyle,
+  visiblePageArea,
+} from './viewport';
 import {
   downloadDataUrl,
   exportAllPagesPng,
@@ -233,6 +246,8 @@ export const DrawingWidget: React.FC<{
   // overlay all flow through this value so they stay aligned with the
   // visible canvas regardless of how the toolbar grows.
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
+  // CSS px per canvas px, for DOM layers that move with the zoomed page.
+  const [layoutRatio, setLayoutRatio] = useState(1);
   const [wrapperSize, setWrapperSize] = useState<{
     width: number;
     height: number;
@@ -254,6 +269,9 @@ export const DrawingWidget: React.FC<{
         width: Math.round(r.width),
         height: Math.round(r.height),
       };
+      // Board zoom scales the measured rect but not CSS layout px.
+      const ratio = node.offsetWidth > 0 ? node.offsetWidth / next.width : 1;
+      setLayoutRatio((prev) => (Math.abs(prev - ratio) < 0.001 ? prev : ratio));
       setWrapperSize((prev) =>
         prev.width === next.width && prev.height === next.height ? prev : next
       );
@@ -270,6 +288,19 @@ export const DrawingWidget: React.FC<{
     }
     return wrapperSize;
   }, [isStudentView, widget.w, widget.h, wrapperSize]);
+
+  const proEnabled = !isStudentView && canAccessFeature('whiteboard-pro');
+  const gestureTakeoverRef = useRef<() => void>(() => undefined);
+  const viewport = useDrawingViewport({
+    enabled: proEnabled,
+    pageId: activePage.id,
+    canvasRef,
+    wrapperRef: canvasWrapperRef,
+    canvasSize,
+    objects,
+    onGestureTakeover: () => gestureTakeoverRef.current(),
+  });
+  const { view } = viewport;
 
   // Page-scoped sink: every command-stack apply (push / undo / redo) lands
   // here. The hook hands us a new `objects[]` for the active page.
@@ -507,6 +538,8 @@ export const DrawingWidget: React.FC<{
   } = useImageInsertion({
     canvasRef,
     onImageReady: handleImageReady,
+    clientToPage: view ? viewport.clientToPage : undefined,
+    getVisibleArea: view ? viewport.getVisibleArea : undefined,
   });
 
   // Selection preview: local-only override applied during a transform drag.
@@ -577,6 +610,7 @@ export const DrawingWidget: React.FC<{
     onTransformCommit: handleTransformCommit,
     onRemoveObject: handleRemoveObject,
     canvasRef,
+    viewZoom: view?.zoom,
   });
 
   // Selection chrome is cleared by `setActiveTool` directly when leaving the
@@ -595,26 +629,47 @@ export const DrawingWidget: React.FC<{
     setPreviewObject(null);
   }
 
-  const { handleStart, handleMove, handleEnd, isDrawing } = useDrawingCanvas({
-    canvasRef,
-    color,
-    width,
-    objects,
-    onObjectComplete: pushAdd,
-    onTextSpawn: handleTextSpawn,
-    disabled: isStudentView,
-    canvasSize,
-    nextZ: nextZ(objects),
-    activeTool,
-    shapeFill,
-    selectedObject,
-    transformState: transformState ? { active: true } : null,
-    previewObject,
+  const { handleStart, handleMove, handleEnd, cancel, isDrawing } =
+    useDrawingCanvas({
+      canvasRef,
+      color,
+      width,
+      objects,
+      onObjectComplete: pushAdd,
+      onTextSpawn: handleTextSpawn,
+      disabled: isStudentView,
+      canvasSize,
+      nextZ: nextZ(objects),
+      activeTool,
+      shapeFill,
+      selectedObject,
+      transformState: transformState ? { active: true } : null,
+      previewObject,
+      view,
+    });
+
+  // A pinch drops whatever the first finger had started.
+  useLayoutEffect(() => {
+    gestureTakeoverRef.current = () => {
+      cancel();
+      objectEraseQueueRef.current = new Set();
+      setLassoPoints(null);
+      // The first finger of a pinch opened a text box that was never typed in.
+      if (editingText && !objects.some((o) => o.id === editingText.id)) {
+        setEditingText(null);
+      }
+      if (transformState) {
+        clearSelection();
+        setPreviewObject(null);
+      }
+    };
   });
 
   // Pointer chooser: route to selection handlers when 'select' is active,
   // to draw handlers otherwise. Keeps the canvas a single event surface.
   const getCanvasPos = (e: React.PointerEvent): { x: number; y: number } => {
+    if (view)
+      return viewport.clientToPage(e.clientX, e.clientY) ?? { x: 0, y: 0 };
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
@@ -700,6 +755,7 @@ export const DrawingWidget: React.FC<{
   // still receives the event for Backspace/Delete/Arrow nudges; we delegate
   // to it for anything that isn't an undo/redo shortcut.
   const handleWrapperKeyDown = (e: React.KeyboardEvent) => {
+    if (viewport.handleKeyDown(e)) return;
     const isMod = e.metaKey || e.ctrlKey;
     const key = e.key.toLowerCase();
     if (isMod && key === 'z') {
@@ -1003,7 +1059,14 @@ export const DrawingWidget: React.FC<{
     try {
       setIsExtracting(true);
       addToast('Scanning handwriting...', 'info');
-      const dataUrl = canvas.toDataURL('image/png');
+      // Zoomed: read the whole page, not the part on screen.
+      const dataUrl =
+        view && !isIdentityView(view)
+          ? await exportPagePng(
+              { ...activePage, objects, background: 'blank' },
+              { w: canvasSize.width, h: canvasSize.height }
+            )
+          : canvas.toDataURL('image/png');
       const extractedText = await extractTextWithGemini(dataUrl, 'drawing');
 
       if (!extractedText || !extractedText.trim()) {
@@ -1071,6 +1134,7 @@ export const DrawingWidget: React.FC<{
     tool: ShapeTool,
     e: React.MouseEvent<HTMLButtonElement>
   ) => {
+    viewport.setHandActive(false);
     setActiveTool(tool);
     // Select gets no popover — it has no color/width options.
     if (tool === 'select') {
@@ -1499,8 +1563,9 @@ export const DrawingWidget: React.FC<{
     const rect = canvas.getBoundingClientRect();
     const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
     const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
-    const px = (e.clientX - rect.left) * scaleX;
-    const py = (e.clientY - rect.top) * scaleY;
+    const viewPos = view ? viewport.clientToPage(e.clientX, e.clientY) : null;
+    const px = viewPos?.x ?? (e.clientX - rect.left) * scaleX;
+    const py = viewPos?.y ?? (e.clientY - rect.top) * scaleY;
     // Iterate top-to-bottom (highest z first) so the front-most text wins.
     // Use the shared `hitTestObject` instead of a raw AABB check — text
     // objects can be rotated, and the renderer/selection pipeline already
@@ -1519,9 +1584,13 @@ export const DrawingWidget: React.FC<{
   // crosshair the freehand tools have always used.
   const cursorClass = isStudentView
     ? ''
-    : activeTool === 'select'
-      ? 'cursor-default'
-      : 'cursor-crosshair';
+    : viewport.grabbing
+      ? 'cursor-grabbing'
+      : viewport.grabReady
+        ? 'cursor-grab'
+        : activeTool === 'select'
+          ? 'cursor-default'
+          : 'cursor-crosshair';
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -1553,6 +1622,7 @@ export const DrawingWidget: React.FC<{
             : handleWrapperKeyDown
         }
         data-selected-id={selectedId ?? ''}
+        {...viewport.pointerCaptureHandlers}
       >
         {/* Background template layer (Wave 7). A sibling div BELOW the
             canvas — keeps the canvas pixel data clean (no full repaint on
@@ -1562,11 +1632,14 @@ export const DrawingWidget: React.FC<{
         <div
           aria-hidden
           className="absolute inset-0 pointer-events-none"
-          style={getBackgroundStyle(
-            activePage.background ??
-              config.background ??
-              DRAWING_DEFAULTS.BACKGROUND
-          )}
+          style={(() => {
+            const bg = getBackgroundStyle(
+              activePage.background ??
+                config.background ??
+                DRAWING_DEFAULTS.BACKGROUND
+            );
+            return view ? viewBackgroundStyle(bg, view, layoutRatio) : bg;
+          })()}
         />
         <canvas
           ref={canvasRef}
@@ -1586,6 +1659,20 @@ export const DrawingWidget: React.FC<{
           className="absolute inset-0 w-full h-full"
           style={{ touchAction: 'none' }}
         />
+        {view && !isIdentityView(view) && (
+          // Page edge while zoomed: what Download and students see.
+          <div
+            aria-hidden
+            className="absolute pointer-events-none rounded-sm ring-1 ring-slate-400/70"
+            style={{
+              left: view.x * layoutRatio,
+              top: view.y * layoutRatio,
+              width: canvasSize.width * view.zoom * layoutRatio,
+              height: canvasSize.height * view.zoom * layoutRatio,
+              boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.06)',
+            }}
+          />
+        )}
         {/* Lasso preview overlay — SVG above the canvas, in canvas-pixel
             coordinates via viewBox. pointer-events:none so the canvas
             still receives the in-flight drag events that build this
@@ -1594,7 +1681,13 @@ export const DrawingWidget: React.FC<{
           <svg
             aria-hidden
             className="absolute inset-0 pointer-events-none"
-            viewBox={`0 0 ${canvasSize.width} ${canvasSize.height}`}
+            viewBox={(() => {
+              const a = visiblePageArea(
+                view ?? { zoom: 1, x: 0, y: 0 },
+                canvasSize
+              );
+              return `${a.x} ${a.y} ${a.width} ${a.height}`;
+            })()}
             preserveAspectRatio="none"
           >
             <polygon
@@ -1636,7 +1729,9 @@ export const DrawingWidget: React.FC<{
         {editingText && canvasRect && (
           <TextEditorOverlay
             object={editingText}
-            canvasRect={canvasRect}
+            canvasRect={
+              view ? pageScreenRect(canvasRect, canvasSize, view) : canvasRect
+            }
             canvasSize={canvasSize}
             onCommit={commitTextEdit}
             onCancel={cancelTextEdit}
@@ -1660,6 +1755,70 @@ export const DrawingWidget: React.FC<{
                 Migrating drawing…
               </span>
             </div>
+          </div>
+        )}
+        {view && (
+          <div
+            role="group"
+            aria-label="Zoom"
+            className="absolute bottom-2 right-2 flex items-center gap-0.5 rounded-lg bg-slate-900/80 p-0.5 text-slate-200 shadow-sm ring-1 ring-white/10 backdrop-blur-md"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              {...tourAttr('drawing.hand', widget.id, widget.type)}
+              aria-pressed={viewport.handActive}
+              onClick={() => viewport.setHandActive(!viewport.handActive)}
+              title="Hand (hold Space)"
+              aria-label="Hand"
+              className={`${actionBtnBase} touch-target-expand ${
+                viewport.handActive ? '!bg-brand-blue-primary text-white' : ''
+              }`}
+            >
+              <Hand className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              {...tourAttr('drawing.zoom-out', widget.id, widget.type)}
+              onClick={viewport.zoomOut}
+              disabled={view.zoom <= MIN_VIEW_ZOOM + 0.001}
+              title="Zoom out (Ctrl -)"
+              aria-label="Zoom out"
+              className={`${actionBtnBase} touch-target-expand`}
+            >
+              <ZoomOut className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              {...tourAttr('drawing.zoom-reset', widget.id, widget.type)}
+              onClick={viewport.resetZoom}
+              title="Zoom to 100% (Ctrl 0)"
+              aria-label="Zoom to 100%"
+              className="touch-target-expand h-7 min-w-[3rem] rounded-md px-1 text-xs font-semibold tabular-nums transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+            >
+              {Math.round(view.zoom * 100)}%
+            </button>
+            <button
+              type="button"
+              {...tourAttr('drawing.zoom-in', widget.id, widget.type)}
+              onClick={viewport.zoomIn}
+              disabled={view.zoom >= MAX_VIEW_ZOOM - 0.001}
+              title="Zoom in (Ctrl +)"
+              aria-label="Zoom in"
+              className={`${actionBtnBase} touch-target-expand`}
+            >
+              <ZoomIn className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              {...tourAttr('drawing.zoom-fit', widget.id, widget.type)}
+              onClick={viewport.fit}
+              title="Fit"
+              aria-label="Fit"
+              className="touch-target-expand h-7 rounded-md px-2 text-xs font-semibold transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+            >
+              Fit
+            </button>
           </div>
         )}
         {!isStudentView && <input {...fileInputProps} />}
