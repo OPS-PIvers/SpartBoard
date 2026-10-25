@@ -355,7 +355,10 @@ export const SURFACES: TourSurfaceMap = {
   'widgets.poll.settings': {
     label: 'Poll settings',
     kind: 'settings-drawer',
-    files: ['components/widgets/PollWidget/settingsFields.tsx'],
+    files: [
+      'components/widgets/PollWidget/settingsFields.tsx',
+      'components/widgets/PollWidget/components/SavedPollsPanel.tsx',
+    ],
     opensWith: 'widget.settings-opener',
     parent: 'widgets.poll.face',
     widgetType: 'poll',

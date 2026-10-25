@@ -70,28 +70,18 @@ const toggleId = (
   return on ? [...rest, id] : rest;
 };
 
-export const usePollSession = ({
-  config,
-  teacherUid,
-  onConfigChange,
-  readAnswers = false,
-}: UsePollSessionArgs): UsePollSessionResult => {
-  const activePollSessionId = config.activePollSessionId ?? null;
-  const isLive = !!activePollSessionId;
-
-  const questions = useMemo(() => getPollQuestions(config), [config]);
-  const currentQuestionIndex = clampQuestionIndex(
-    config.currentQuestionIndex,
-    questions.length
-  );
-  const currentQuestion = questions[currentQuestionIndex];
-
+/** Live vote and typed-answer docs for one session; answers only when the rules let the viewer read them. */
+export const usePollSessionDocs = (
+  teacherUid: string | undefined,
+  pollSessionId: string | null,
+  readAnswers: boolean
+): { votes: PollVoteEntry[]; answers: PollVoteEntry[] } => {
   const [votes, setVotes] = useState<PollVoteEntry[]>([]);
 
   // One listener covers every question — vote docs carry their own index.
   useEffect(() => {
-    if (!activePollSessionId || !teacherUid) return;
-    const sessionId = makePollSessionId(teacherUid, activePollSessionId);
+    if (!pollSessionId || !teacherUid) return;
+    const sessionId = makePollSessionId(teacherUid, pollSessionId);
     const unsub = onSnapshot(
       collection(db, 'poll_sessions', sessionId, 'votes'),
       (snap) => {
@@ -110,15 +100,13 @@ export const usePollSession = ({
       // board when a fresh session starts before its first snapshot arrives.
       setVotes([]);
     };
-  }, [activePollSessionId, teacherUid]);
+  }, [pollSessionId, teacherUid]);
 
   const [answers, setAnswers] = useState<PollVoteEntry[]>([]);
-  const hasTextQuestion = questions.some(isTextQuestion);
 
   useEffect(() => {
-    if (!activePollSessionId || !teacherUid || !readAnswers || !hasTextQuestion)
-      return;
-    const sessionId = makePollSessionId(teacherUid, activePollSessionId);
+    if (!pollSessionId || !teacherUid || !readAnswers) return;
+    const sessionId = makePollSessionId(teacherUid, pollSessionId);
     const unsub = onSnapshot(
       collection(db, 'poll_sessions', sessionId, 'answers'),
       (snap) => {
@@ -135,7 +123,33 @@ export const usePollSession = ({
       unsub();
       setAnswers([]);
     };
-  }, [activePollSessionId, teacherUid, readAnswers, hasTextQuestion]);
+  }, [pollSessionId, teacherUid, readAnswers]);
+
+  return { votes, answers };
+};
+
+export const usePollSession = ({
+  config,
+  teacherUid,
+  onConfigChange,
+  readAnswers = false,
+}: UsePollSessionArgs): UsePollSessionResult => {
+  const activePollSessionId = config.activePollSessionId ?? null;
+  const isLive = !!activePollSessionId;
+
+  const questions = useMemo(() => getPollQuestions(config), [config]);
+  const currentQuestionIndex = clampQuestionIndex(
+    config.currentQuestionIndex,
+    questions.length
+  );
+  const currentQuestion = questions[currentQuestionIndex];
+
+  const hasTextQuestion = questions.some(isTextQuestion);
+  const { votes, answers } = usePollSessionDocs(
+    teacherUid,
+    activePollSessionId,
+    readAnswers && hasTextQuestion
+  );
 
   const displayOptions = useMemo(() => {
     const options = currentQuestion?.options ?? [];

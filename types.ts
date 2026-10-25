@@ -2379,6 +2379,17 @@ export interface PollConfig {
   answerShownQuestionIds?: string[];
   /** Typed answers the teacher hid from the board: `{questionId}:{voteId}`, or `{questionId}#{word}` for a word cloud word. */
   hiddenResponses?: string[];
+  /** Saved polls; lives only in the profile's `savedWidgetPresets.poll`, never on a widget. */
+  savedLibrary?: SavedPollPreset[];
+}
+
+/** A saved poll: its questions with votes zeroed, reloadable on any board. */
+export interface SavedPollPreset {
+  id: string;
+  name: string;
+  questions: PollQuestion[];
+  hideResults?: boolean;
+  createdAt: number;
 }
 
 /**

@@ -16,6 +16,7 @@ import {
   PollConfig,
   PollQuestion,
   PollQuestionKind,
+  SavedPollPreset,
 } from '@/types';
 import { useDialog } from '@/context/useDialog';
 import { getLocalIsoDate } from '@/utils/localDate';
@@ -66,7 +67,15 @@ import {
   withVotesReset,
 } from '@/utils/pollQuestions';
 
+import { usePollSessionDocs } from '@/hooks/usePollSession';
+import {
+  pollResultsCsv,
+  summarizeLocalPoll,
+  summarizePoll,
+} from '@/utils/pollResults';
 import { OptionInput } from './components/OptionInput';
+import { PollResultsSummary } from './components/PollResultsSummary';
+import { SavedPollsPanel } from './components/SavedPollsPanel';
 import { useTranslation } from 'react-i18next';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
@@ -94,6 +103,26 @@ export const PollSettings: React.FC<{
   const showBehavior = section !== 'content';
 
   const questions = useMemo(() => getPollQuestions(config), [config]);
+
+  // Results come from the live or last session the teacher ran, else the board's own tallies.
+  const resultsSessionId =
+    pollPro && showContent
+      ? (activePollSessionId ?? config.lastPollSessionId ?? null)
+      : null;
+  const resultsOwnerUid =
+    (isLive ? config.activePollSessionOwnerUid : null) ?? user?.uid;
+  const { votes: sessionVotes, answers: sessionAnswers } = usePollSessionDocs(
+    resultsOwnerUid,
+    resultsSessionId,
+    resultsOwnerUid === user?.uid && questions.some(isTextQuestion)
+  );
+  const summaries = useMemo(
+    () =>
+      resultsSessionId
+        ? summarizePoll(questions, sessionVotes, sessionAnswers)
+        : summarizeLocalPoll(questions),
+    [resultsSessionId, questions, sessionVotes, sessionAnswers]
+  );
 
   // Editing cursor — deliberately separate from `currentQuestionIndex`, which
   // is what every joined phone is showing. Clicking a chip to fix a typo must
@@ -384,7 +413,9 @@ export const PollSettings: React.FC<{
         )
       )
       .join('\n');
-    const csvContent = csvHeader + csvRows;
+    const csvContent = pollPro
+      ? pollResultsCsv(summaries)
+      : csvHeader + csvRows;
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -479,6 +510,40 @@ export const PollSettings: React.FC<{
     const next = withVotesReset(config);
     applyConfig(next);
     syncHiddenResults(next);
+  };
+
+  const handleLoadSaved = (preset: SavedPollPreset) => {
+    // A different poll starts a new session with a new join code, so old votes never mix in.
+    mintPromiseRef.current = null;
+    applyConfig(
+      withPollQuestions(
+        {
+          ...config,
+          currentQuestionIndex: 0,
+          hideResults: preset.hideResults === true,
+          revealedQuestionIds: [],
+          lockedQuestionIds: [],
+          answerShownQuestionIds: [],
+          hiddenResponses: [],
+          joinCode: null,
+          lastPollSessionId: null,
+        },
+        preset.questions.map((q) => ({
+          ...q,
+          id: crypto.randomUUID(),
+          options: q.options.map((o) => ({
+            ...o,
+            id: crypto.randomUUID(),
+            votes: 0,
+          })),
+        }))
+      )
+    );
+    setRawEditIndex(0);
+    addToast(
+      t('widgetSettings.poll.pollLoaded', { name: preset.name }),
+      'success'
+    );
   };
 
   const atQuestionLimit = questions.length >= MAX_POLL_QUESTIONS;
@@ -878,6 +943,15 @@ export const PollSettings: React.FC<{
             </div>
           </fieldset>
 
+          {pollPro && (
+            <div className="pt-4 border-t border-slate-100">
+              <SettingsLabel as="span">
+                {t('widgetSettings.poll.results')}
+              </SettingsLabel>
+              <PollResultsSummary summaries={summaries} />
+            </div>
+          )}
+
           {/* Actions */}
           <div className="pt-4 border-t border-slate-100">
             <SettingsLabel
@@ -916,6 +990,17 @@ export const PollSettings: React.FC<{
               </Button>
             </div>
           </div>
+
+          {pollPro && (
+            <SavedPollsPanel
+              questions={questions}
+              hideResults={config.hideResults === true}
+              isLive={isLive}
+              onLoad={handleLoadSaved}
+              widgetId={widget.id}
+              widgetType={widget.type}
+            />
+          )}
         </>
       )}
 
