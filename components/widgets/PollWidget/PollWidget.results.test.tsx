@@ -183,4 +183,43 @@ describe('PollWidget results controls', () => {
     fireEvent.click(screen.getByRole('button', { name: /Unlock voting/ }));
     expect(lastConfig().lockedQuestionIds).toEqual([]);
   });
+
+  it('still reaches phones on a stopped session after Show results', () => {
+    render(
+      <PollWidget
+        widget={makeWidget({
+          questions: twoQuestions,
+          hideResults: true,
+          joinCode: 'K3F9Q',
+          lastPollSessionId: 'K3F9Q',
+        })}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Show results/ }));
+    expect(mockSetDoc).toHaveBeenCalledWith(
+      { __path: 'poll_sessions/teacher-1_K3F9Q' },
+      expect.objectContaining({ revealedQuestions: [0] }),
+      { merge: true }
+    );
+  });
+
+  it('hides lock and reveal from a colleague when the live session has no stamped owner', () => {
+    vi.mocked(useActiveBoardLinkedShareId).mockReturnValue('share-1');
+    render(
+      <PollWidget
+        widget={makeWidget({
+          questions: twoQuestions,
+          hideResults: true,
+          joinCode: 'K3F9Q',
+          activePollSessionId: 'K3F9Q',
+        })}
+      />
+    );
+    expect(
+      screen.queryByRole('button', { name: /Lock voting/ })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Show results/ })
+    ).not.toBeInTheDocument();
+  });
 });

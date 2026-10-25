@@ -128,18 +128,20 @@ export const usePollSession = ({
   const isLocked =
     isLive && (config.lockedQuestionIds ?? []).includes(currentId);
 
+  // Phones stay on a stopped session's doc, so a reveal after Stop still reaches them.
+  const resultsSessionId =
+    activePollSessionId ?? config.lastPollSessionId ?? null;
+
   const applyResultsState = useCallback(
     (next: PollConfig) => {
       onConfigChange(next);
-      if (activePollSessionId && teacherUid) {
-        void syncSessionResultsState(
-          teacherUid,
-          activePollSessionId,
-          next
-        ).catch((err) => logError('usePollSession.resultsState', err));
+      if (resultsSessionId && teacherUid) {
+        void syncSessionResultsState(teacherUid, resultsSessionId, next).catch(
+          (err) => logError('usePollSession.resultsState', err)
+        );
       }
     },
-    [onConfigChange, activePollSessionId, teacherUid]
+    [onConfigChange, resultsSessionId, teacherUid]
   );
 
   const setRevealed = useCallback(

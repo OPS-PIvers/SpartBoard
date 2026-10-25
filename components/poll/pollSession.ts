@@ -95,11 +95,16 @@ export const toSessionQuestions = (
 
 /** The session-doc mirror of the teacher's reveal and lock choices, keyed by question index. */
 export const toSessionResultsState = (
-  config: PollConfig
+  config: PollConfig,
+  /** Without the poll-pro flag the session always shows results and never locks. */
+  pollPro = true
 ): Pick<
   PollSessionDoc,
   'hideResults' | 'revealedQuestions' | 'lockedQuestions'
 > => {
+  if (!pollPro) {
+    return { hideResults: false, revealedQuestions: [], lockedQuestions: [] };
+  }
   const questions = getPollQuestions(config);
   const indexesOf = (ids: string[] | undefined): number[] => {
     const wanted = new Set(ids ?? []);
@@ -132,7 +137,8 @@ const writeSessionDoc = async (
   teacherUid: string,
   code: string,
   config: PollConfig,
-  state: { active: boolean; startedAt: number | null }
+  state: { active: boolean; startedAt: number | null },
+  pollPro = false
 ): Promise<number> => {
   const questions = getPollQuestions(config);
   const currentQuestionIndex = clampQuestionIndex(
@@ -149,7 +155,7 @@ const writeSessionDoc = async (
     active: state.active,
     startedAt: state.startedAt,
     updatedAt: Date.now(),
-    ...toSessionResultsState(config),
+    ...toSessionResultsState(config, pollPro),
   };
   await setDoc(
     doc(db, POLL_SESSIONS, makePollSessionId(teacherUid, code)),
@@ -223,7 +229,9 @@ export const startPollSession = async (
   teacherUid: string,
   mode: 'fresh' | 'resume',
   /** Name the starter on the board, so members of a Synced or View-Only board see its votes. */
-  stampOwner = false
+  stampOwner = false,
+  /** The starter has the poll-pro flag, so hidden results and locks reach phones. */
+  pollPro = false
 ): Promise<PollConfig> => {
   const rotate = mode === 'fresh' && !!config.lastPollSessionId;
   const code =
@@ -233,10 +241,13 @@ export const startPollSession = async (
     mode === 'fresh'
       ? { ...config, revealedQuestionIds: [], lockedQuestionIds: [] }
       : config;
-  const currentQuestionIndex = await writeSessionDoc(teacherUid, code, base, {
-    active: true,
-    startedAt: Date.now(),
-  });
+  const currentQuestionIndex = await writeSessionDoc(
+    teacherUid,
+    code,
+    base,
+    { active: true, startedAt: Date.now() },
+    pollPro
+  );
   return {
     ...base,
     joinCode: code,

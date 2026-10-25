@@ -270,7 +270,7 @@ export const PollVoteApp: React.FC = () => {
                 <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
                   <div
                     className={`h-full transition-all duration-500 ${
-                      isMine ? 'bg-emerald-500' : 'bg-brand-blue-primary'
+                      isMine ? 'bg-emerald-500' : 'bg-indigo-500'
                     }`}
                     style={{ width: `${percent}%` }}
                   />

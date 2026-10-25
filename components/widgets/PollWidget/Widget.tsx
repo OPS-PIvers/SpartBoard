@@ -31,7 +31,7 @@ import {
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { useDialog } from '@/context/useDialog';
 import { buildPollJoinUrl } from '@/utils/pollCode';
-import { withPollQuestions, withQuestionAt } from '@/utils/pollQuestions';
+import { withQuestionAt, withVotesReset } from '@/utils/pollQuestions';
 import { usePollSession } from '@/hooks/usePollSession';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { tourAttr } from '@/config/tourAnchors';
@@ -91,7 +91,13 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const proEnabled = canAccessFeature('poll-pro') && !isAnnouncement;
   const hidden = proEnabled && resultsHidden;
   // Reveal and lock steer the session, so only its owner sees them.
-  const canSteer = proEnabled && !inShare && !foreignSession;
+  // On a linked board only the stamped session owner steers; an unstamped session's owner is unknown.
+  const canSteer =
+    proEnabled &&
+    !inShare &&
+    (!boardShareId ||
+      !config.activePollSessionId ||
+      sessionOwnerUid === user?.uid);
   const showRevealControl = canSteer && config.hideResults === true;
   const showLockControl = canSteer && isLive;
   const showAnswered = proEnabled && isLive;
@@ -166,16 +172,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       confirmLabel: 'Reset',
     });
     if (!confirmed) return;
-    applyConfig(
-      withPollQuestions(
-        // Reset hides every question's results again.
-        config.hideResults ? { ...config, revealedQuestionIds: [] } : config,
-        questions.map((q) => ({
-          ...q,
-          options: q.options.map((o) => ({ ...o, votes: 0 })),
-        }))
-      )
-    );
+    applyConfig(withVotesReset(config));
   };
 
   // Three tally modes: live public session > announcement > local config.
@@ -394,7 +391,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   {...tourAttr('poll.reveal-results', widget.id, widget.type)}
                   onClick={() => setRevealed(resultsHidden)}
                   aria-pressed={!resultsHidden}
-                  className="flex items-center font-bold text-slate-600 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
+                  className="relative touch-target-expand flex items-center font-bold text-slate-600 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
                   style={{
                     gap: 'min(6px, 1.5cqmin)',
                     padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
@@ -424,7 +421,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   {...tourAttr('poll.lock-voting', widget.id, widget.type)}
                   onClick={() => setLocked(!isLocked)}
                   aria-pressed={isLocked}
-                  className="flex items-center font-bold text-slate-600 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
+                  className="relative touch-target-expand flex items-center font-bold text-slate-600 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
                   style={{
                     gap: 'min(6px, 1.5cqmin)',
                     padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',

@@ -17,7 +17,7 @@ import { WidgetData, PollConfig } from '@/types';
 import { useBoardLinkedShareId } from '@/context/boardLinkedShare';
 import { useAuth } from '@/context/useAuth';
 import { buildPollJoinUrl } from '@/utils/pollCode';
-import { withPollQuestions, withQuestionAt } from '@/utils/pollQuestions';
+import { withQuestionAt, withVotesReset } from '@/utils/pollQuestions';
 import { usePollSession } from '@/hooks/usePollSession';
 import {
   startPollSession,
@@ -118,15 +118,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
   };
 
   const resetVotes = () => {
-    applyConfig(
-      withPollQuestions(
-        config,
-        questions.map((q) => ({
-          ...q,
-          options: q.options.map((opt) => ({ ...opt, votes: 0 })),
-        }))
-      )
-    );
+    applyConfig(withVotesReset(config));
   };
 
   const beginSession = async (mode: 'fresh' | 'resume') => {
@@ -138,7 +130,8 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
           config,
           user.uid,
           mode,
-          canAccessFeature('shared-board-live-walls')
+          canAccessFeature('shared-board-live-walls'),
+          canAccessFeature('poll-pro')
         )
       );
     } catch (err) {
@@ -269,7 +262,9 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
 
         {/* Reveal and lock — the teacher's phone always shows tallies, the board waits for Show results */}
         {canAccessFeature('poll-pro') &&
-          !foreignSession &&
+          (!boardShareId ||
+            !config.activePollSessionId ||
+            sessionOwnerUid === user?.uid) &&
           (config.hideResults === true || isLive) && (
             <div className="grid grid-cols-2 gap-2">
               {config.hideResults === true && (
@@ -307,7 +302,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
 
         {/* Join QR toggle — gated by anonymous-join, only meaningful while live */}
         {isLive && canOfferAnonymousJoin && (
-          <button
+          <button // no-tour-anchor: phone remote, tours run on the board
             onClick={() => setShowQr((v) => !v)}
             style={{ touchAction: 'manipulation' }}
             className={`touch-manipulation flex items-center justify-center gap-2 px-6 py-3 rounded-xl border font-bold transition-all active:scale-95 ${

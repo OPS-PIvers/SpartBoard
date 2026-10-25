@@ -10413,9 +10413,9 @@ export type GlobalFeature =
   | 'collection-sync-sharing'
   /** Members of a shared board see the owner's Activity Wall and its approved posts live. */
   | 'shared-board-live-walls'
-  /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   /** Poll: hide results until revealed, lock voting, answered count (docs/plans/POLL_PRO.md). */
   | 'poll-pro'
+  /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */

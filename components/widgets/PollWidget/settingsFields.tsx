@@ -53,6 +53,7 @@ import {
   getPollQuestions,
   withPollQuestions,
   withQuestionAt,
+  withVotesReset,
 } from '@/utils/pollQuestions';
 
 import { OptionInput } from './components/OptionInput';
@@ -120,7 +121,8 @@ export const PollSettings: React.FC<{
         base,
         user.uid,
         mode,
-        canAccessFeature('shared-board-live-walls')
+        canAccessFeature('shared-board-live-walls'),
+        canAccessFeature('poll-pro')
       );
       applyConfig(next);
     } catch (err) {
@@ -158,13 +160,14 @@ export const PollSettings: React.FC<{
       revealedQuestionIds: [],
     };
     applyConfig(next);
+    const sessionId = activePollSessionId ?? config.lastPollSessionId ?? null;
     if (
-      activePollSessionId &&
+      sessionId &&
       user &&
       (config.activePollSessionOwnerUid ?? user.uid) === user.uid
     ) {
-      void syncSessionResultsState(user.uid, activePollSessionId, next).catch(
-        (err) => logError('PollSettings.hideResults', err)
+      void syncSessionResultsState(user.uid, sessionId, next).catch((err) =>
+        logError('PollSettings.hideResults', err)
       );
     }
   };
@@ -393,15 +396,7 @@ export const PollSettings: React.FC<{
       }
     );
     if (!confirmed) return;
-    applyConfig(
-      withPollQuestions(
-        config,
-        questions.map((q) => ({
-          ...q,
-          options: q.options.map((o) => ({ ...o, votes: 0 })),
-        }))
-      )
-    );
+    applyConfig(withVotesReset(config));
   };
 
   const atQuestionLimit = questions.length >= MAX_POLL_QUESTIONS;
@@ -733,13 +728,15 @@ export const PollSettings: React.FC<{
             <SettingsLabel icon={EyeOff}>
               {t('widgetSettings.poll.hideResults')}
             </SettingsLabel>
-            <p className="text-xxs text-slate-400 font-medium">
-              {t('widgetSettings.poll.hideResultsHelp')}
-            </p>
           </div>
           <Toggle
             checked={config.hideResults === true}
             onChange={handleHideResultsChange}
+            disabled={
+              !!boardShareId &&
+              !!activePollSessionId &&
+              config.activePollSessionOwnerUid !== user?.uid
+            }
             label={t('widgetSettings.poll.hideResults')}
             anchor={tourAttr(
               'widget-settings.poll.hide-results',

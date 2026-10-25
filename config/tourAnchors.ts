@@ -610,10 +610,12 @@ export const TOUR_ANCHORS = {
   'poll.reveal-results': {
     label: 'Show results button in Poll',
     perWidget: true,
+    persists: true,
   },
   'poll.lock-voting': {
     label: 'Lock voting button in Poll',
     perWidget: true,
+    persists: true,
   },
   'stations.shuffle': { label: 'Shuffle button in Stations', perWidget: true },
   'stations.rotate': { label: 'Rotate button in Stations', perWidget: true },
