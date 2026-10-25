@@ -160,6 +160,20 @@ describe('GoogleDriveService', () => {
       expect(q).toContain("'parent123' in parents");
     });
 
+    it('escapes quotes and backslashes in folder name and parentId', async () => {
+      const fetchSpy = mockFetch({
+        json: () => Promise.resolve({ files: [] }),
+      });
+
+      await service.findFolder("x' or name contains '\\", "p'1");
+
+      const q =
+        new URL(fetchSpy.mock.calls[0][0] as string).searchParams.get('q') ??
+        '';
+      expect(q).toContain("name = 'x\\' or name contains \\'\\\\'");
+      expect(q).toContain("'p\\'1' in parents");
+    });
+
     it('should return folder ID if found', async () => {
       mockFetch({
         json: () =>
@@ -416,6 +430,50 @@ describe('GoogleDriveService', () => {
           body: expect.stringContaining('"name":"Test Dash.spart"'),
         })
       );
+    });
+  });
+
+  describe('exportDashboard name injection', () => {
+    it('escapes the board name and ignores search hits with a different name', async () => {
+      const fetchSpy = vi
+        .spyOn(global, 'fetch')
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ files: [{ id: 'app-folder' }] }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ files: [{ id: 'dashboards-folder' }] }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              files: [{ id: 'victim-file', name: 'Other Board.spart' }],
+            }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ id: 'new-file-id' }),
+        } as Response)
+        .mockResolvedValueOnce({ ok: true } as Response);
+
+      const fileId = await service.exportDashboard({
+        id: 'd2',
+        name: "a' or name contains '",
+        widgets: [],
+        createdAt: 1,
+        background: 'bg-1',
+      });
+
+      expect(fileId).toBe('new-file-id');
+      const q =
+        new URL(fetchSpy.mock.calls[2][0] as string).searchParams.get('q') ??
+        '';
+      expect(q).toContain("name = 'a\\' or name contains \\'.spart'");
+      expect(
+        fetchSpy.mock.calls.some(([u]) => (u as string).includes('victim-file'))
+      ).toBe(false);
     });
   });
 

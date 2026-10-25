@@ -3,7 +3,7 @@
 // Runs from GitHub Actions because Nutrislice refuses requests from Google Cloud IPs (2026-10-02).
 // Usage: PROJECT_ID=spartboard ACCESS_TOKEN=$(gcloud auth print-access-token) node scripts/sync-lunch-menus.mjs [--dry-run]
 
-import { fetchJsonWithRetry } from './nutrisliceFetch.mjs';
+import { fetchJsonWithRetry, patchWithRetry } from './nutrisliceFetch.mjs';
 
 const SCHOOL_SITES = [
   'schumann-elementary',
@@ -66,19 +66,17 @@ const toValue = (v) => {
 
 const writeMenu = async (projectId, token, site, data) => {
   const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/lunch_menus/${site}`;
-  const res = await fetch(url, {
-    method: 'PATCH',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+  await patchWithRetry(
+    url,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ fields: toValue(data).mapValue.fields }),
     },
-    body: JSON.stringify({ fields: toValue(data).mapValue.fields }),
-  });
-  if (!res.ok) {
-    throw new Error(
-      `Firestore ${res.status} writing ${site}: ${await res.text()}`
-    );
-  }
+    site
+  );
 };
 
 const main = async () => {

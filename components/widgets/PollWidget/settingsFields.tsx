@@ -732,6 +732,7 @@ export const PollSettings: React.FC<{
               )}
             >
               {questions.map((q, idx) => (
+                // no-tour-anchor: one chip per question; the chip list carries the select-question anchor
                 <button
                   key={q.id}
                   onClick={() => setRawEditIndex(idx)}
@@ -1169,6 +1170,11 @@ export const PollSettings: React.FC<{
               <button
                 onClick={() => setShowResumePopover(false)}
                 className="text-xxs text-slate-400 hover:text-slate-600 font-semibold"
+                {...tourAttr(
+                  'widget-settings.poll.resume-cancel',
+                  widget.id,
+                  widget.type
+                )}
               >
                 {t('widgetSettings.poll.cancel')}
               </button>

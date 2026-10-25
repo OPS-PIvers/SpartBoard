@@ -375,6 +375,7 @@ export const PaperSheetStimuliSection: React.FC<
           </p>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* no-tour-anchor: hidden file input opened by its visible upload button */}
             <input
               ref={fileInputRef}
               type="file"

@@ -75,19 +75,20 @@ vi.mock('firebase-admin', () => {
       collectionGroup: () => ({
         where: () => ({
           where: () => ({
-            limit: () => ({
-              get: async () => {
-                if (!orgIdForDomain) return { empty: true, docs: [] };
-                return {
-                  empty: false,
-                  docs: [
-                    {
-                      ref: { parent: { parent: { id: orgIdForDomain } } },
+            get: async () => {
+              if (!orgIdForDomain) return { empty: true, docs: [] };
+              return {
+                empty: false,
+                docs: [
+                  {
+                    ref: {
+                      path: `organizations/${orgIdForDomain}/domains/d`,
+                      parent: { parent: { id: orgIdForDomain } },
                     },
-                  ],
-                };
-              },
-            }),
+                  },
+                ],
+              };
+            },
           }),
         }),
       }),
