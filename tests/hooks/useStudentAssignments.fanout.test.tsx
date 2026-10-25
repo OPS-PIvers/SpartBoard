@@ -754,3 +754,31 @@ describe('useStudentAssignments — fan-out channel (M17 C1)', () => {
     expect(pointerRef?.__constraints).toHaveLength(1);
   });
 });
+
+describe('useStudentAssignments — PIN pointer listener chunking', () => {
+  it('queries every class of a PIN student in more than 30 classes', async () => {
+    makeSnapshotRig();
+    makeGetDocRig();
+    const classIds = Array.from({ length: 35 }, (_, i) => `c${i}`);
+    renderHook(() =>
+      useStudentAssignments({
+        classIds,
+        studentUid: 'student-a',
+        pinLogin: true,
+      })
+    );
+    await waitFor(() => {
+      expect(firestore.onSnapshot).toHaveBeenCalled();
+    });
+    const queried = vi
+      .mocked(firestore.onSnapshot)
+      .mock.calls.map(([ref]) => ref as QueryRef)
+      .filter((ref) => ref.__name === 'student_assignments/student-a/items')
+      .flatMap((ref) => ref.__constraints ?? [])
+      .flatMap((c) => {
+        const v = (c as Partial<WhereConstraint>).__where?.value;
+        return Array.isArray(v) ? (v as string[]) : [];
+      });
+    expect(new Set(queried)).toEqual(new Set(classIds));
+  });
+});

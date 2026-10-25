@@ -670,30 +670,51 @@ export function useStudentAssignments({
   useEffect(() => {
     if (isAuthBypass || !studentUid) return;
     const items = collection(db, 'student_assignments', studentUid, 'items');
-    const pinClassIds = pinClassKey.split('|').filter(Boolean).slice(0, 30);
+    const pinClassIds = pinClassKey.split('|').filter(Boolean);
     if (pinLogin && pinClassIds.length === 0) return;
-    const ref = pinLogin
-      ? query(items, where('classId', 'in', pinClassIds))
-      : items;
-    const unsub = onSnapshot(
-      ref,
-      (snap) => {
-        const next: Record<string, StudentAssignmentPointer> = {};
-        for (const d of snap.docs) {
-          next[d.id] = d.data() as StudentAssignmentPointer;
+    // One listener per <=30 class ids (Firestore `in` cap); unfiltered otherwise.
+    const refs = pinLogin
+      ? Array.from(
+          { length: Math.ceil(pinClassIds.length / CLASS_QUERY_CHUNK) },
+          (_, i) =>
+            query(
+              items,
+              where(
+                'classId',
+                'in',
+                pinClassIds.slice(
+                  i * CLASS_QUERY_CHUNK,
+                  (i + 1) * CLASS_QUERY_CHUNK
+                )
+              )
+            )
+        )
+      : [items];
+    const perRef: Array<Record<string, StudentAssignmentPointer> | undefined> =
+      refs.map(() => undefined);
+    const unsubs = refs.map((ref, idx) =>
+      onSnapshot(
+        ref,
+        (snap) => {
+          const mine: Record<string, StudentAssignmentPointer> = {};
+          for (const d of snap.docs) {
+            mine[d.id] = d.data() as StudentAssignmentPointer;
+          }
+          perRef[idx] = mine;
+          if (perRef.some((m) => m === undefined)) return;
+          setPointerItems(Object.assign({}, ...perRef));
+          setPointerErrored(false);
+          setPointerLoadState('ready');
+        },
+        (err) => {
+          console.error('[useStudentAssignments] pointer snapshot failed', err);
+          setPointerItems({});
+          setPointerErrored(true);
+          setPointerLoadState('ready');
         }
-        setPointerItems(next);
-        setPointerErrored(false);
-        setPointerLoadState('ready');
-      },
-      (err) => {
-        console.error('[useStudentAssignments] pointer snapshot failed', err);
-        setPointerItems({});
-        setPointerErrored(true);
-        setPointerLoadState('ready');
-      }
+      )
     );
-    return () => unsub();
+    return () => unsubs.forEach((u) => u());
   }, [studentUid, retryNonce, pinLogin, pinClassKey]);
 
   const studentClassIdsSet = useMemo(
