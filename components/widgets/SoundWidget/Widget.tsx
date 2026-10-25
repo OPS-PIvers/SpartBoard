@@ -1,5 +1,17 @@
-import React, { useState, useEffect, useEffectEvent, useRef } from 'react';
-import { AlertTriangle, Ear, PartyPopper, RotateCcw } from 'lucide-react';
+import React, {
+  useState,
+  useEffect,
+  useEffectEvent,
+  useCallback,
+  useRef,
+} from 'react';
+import {
+  AlertTriangle,
+  BarChart3,
+  Ear,
+  PartyPopper,
+  RotateCcw,
+} from 'lucide-react';
 import { tourAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
@@ -34,6 +46,8 @@ import {
 } from './noiseTarget';
 import { useTooLoudAlert } from './useTooLoudAlert';
 import { useQuietGoal } from './useQuietGoal';
+import { useNoiseSession } from './useNoiseSession';
+import { SessionSummary } from './components/SessionSummary';
 
 // Add type definition for webkitAudioContext
 interface CustomWindow extends Window {
@@ -55,6 +69,8 @@ export const SoundWidget: React.FC<{
   const [volume, setVolume] = useState(0);
   const [history, setHistory] = useState<number[]>(new Array(50).fill(0));
   const [micReady, setMicReady] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
+  const closeSummary = useCallback(() => setShowSummary(false), []);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animationRef = useRef<number | null>(null);
@@ -386,11 +402,17 @@ export const SoundWidget: React.FC<{
     () => undefined
   );
 
+  const noiseSession = useNoiseSession(
+    pro && isActive && micReady && !calibrating,
+    POSTER_LEVELS.indexOf(level)
+  );
+
   const lastChimeRef = useRef(0);
   const alerting = useTooLoudAlert(
     isOver,
     alertDelayMs(alertDelaySeconds),
     () => {
+      noiseSession.addAlert();
       if (quietGoalResetOnAlert && !quietGoal.done) quietGoal.reset();
       if (!alertSoundEnabled) return;
       const now = Date.now();
@@ -434,6 +456,22 @@ export const SoundWidget: React.FC<{
     activeDashboard,
     updateWidget,
   ]);
+
+  const levelPill = (
+    <span
+      className="font-black uppercase tracking-widest rounded-full text-white shadow-md transition-all duration-300 inline-block border-2 border-white/20"
+      style={{
+        backgroundColor: level.color,
+        fontSize: 'min(12px, 3.5cqmin)',
+        paddingLeft: 'min(24px, 6cqmin)',
+        paddingRight: 'min(24px, 6cqmin)',
+        paddingTop: 'min(8px, 2cqmin)',
+        paddingBottom: 'min(8px, 2cqmin)',
+      }}
+    >
+      {level.label}
+    </span>
+  );
 
   return (
     <WidgetLayout
@@ -559,6 +597,15 @@ export const SoundWidget: React.FC<{
               )}
             </div>
           )}
+          {pro && showSummary && (
+            <SessionSummary
+              session={noiseSession.session}
+              widgetId={widget.id}
+              widgetType={widget.type}
+              onClose={closeSummary}
+              onClear={noiseSession.clear}
+            />
+          )}
         </div>
       }
       footer={
@@ -621,19 +668,35 @@ export const SoundWidget: React.FC<{
               </button>
             </div>
           )}
-          <span
-            className="font-black uppercase tracking-widest rounded-full text-white shadow-md transition-all duration-300 inline-block border-2 border-white/20"
-            style={{
-              backgroundColor: level.color,
-              fontSize: 'min(12px, 3.5cqmin)',
-              paddingLeft: 'min(24px, 6cqmin)',
-              paddingRight: 'min(24px, 6cqmin)',
-              paddingTop: 'min(8px, 2cqmin)',
-              paddingBottom: 'min(8px, 2cqmin)',
-            }}
-          >
-            {level.label}
-          </span>
+          {pro ? (
+            <span className="relative inline-block">
+              {levelPill}
+              <button
+                type="button"
+                onClick={() => setShowSummary((open) => !open)}
+                aria-pressed={showSummary}
+                aria-label={t('widgets.sound.summary')}
+                title={t('widgets.sound.summary')}
+                className="absolute left-full top-1/2 -translate-y-1/2 touch-target-expand rounded-full text-slate-600 hover:bg-slate-800/10 flex items-center justify-center"
+                style={{
+                  marginLeft: 'min(8px, 2cqmin)',
+                  width: 'min(32px, 8cqmin)',
+                  height: 'min(32px, 8cqmin)',
+                }}
+                {...tourAttr('sound.summary', widget.id, widget.type)}
+              >
+                <BarChart3
+                  aria-hidden="true"
+                  style={{
+                    width: 'min(18px, 5cqmin)',
+                    height: 'min(18px, 5cqmin)',
+                  }}
+                />
+              </button>
+            </span>
+          ) : (
+            levelPill
+          )}
         </div>
       }
     />
