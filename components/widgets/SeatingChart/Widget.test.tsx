@@ -11,6 +11,10 @@ import { WidgetData, SeatingChartConfig } from '@/types';
 import { DashboardContextValue } from '@/context/DashboardContextValue';
 
 vi.mock('@/context/useDashboard');
+const flags = vi.hoisted(() => ({ plans: false }));
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: () => flags.plans }),
+}));
 // Class groups default OFF here, so these suites keep asserting the
 // pre-feature behaviour (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D23).
 // Flip `gate.enabled` inside a test to exercise the feature.
@@ -528,5 +532,57 @@ describe('SeatingChartWidget — class group pool', () => {
       <SeatingChartWidget widget={seatedWidget({ rosterPoolGroupId: 'g1' })} />
     );
     expect(screen.getByText('Cy Da')).toBeInTheDocument();
+  });
+});
+
+describe('SeatingChartWidget seating plans', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(useDashboard).mockReturnValue(
+      mockDashboardContext as DashboardContextValue
+    );
+  });
+
+  afterEach(() => {
+    flags.plans = false;
+  });
+
+  const widget: WidgetData = {
+    id: 'w1',
+    type: 'seating-chart',
+    config: { furniture: [], assignments: {}, gridSize: 20 },
+    x: 0,
+    y: 0,
+    w: 800,
+    h: 600,
+    z: 1,
+    flipped: false,
+  };
+
+  it('hides seating plans while the preview is off', () => {
+    render(<SeatingChartWidget widget={widget} />);
+    fireEvent.click(screen.getByText('Assign'));
+    expect(screen.queryByText('Save seating plan')).toBeNull();
+  });
+
+  it('shows seating plans in Assign mode when the preview is on', () => {
+    flags.plans = true;
+    render(<SeatingChartWidget widget={widget} />);
+    fireEvent.click(screen.getByText('Assign'));
+    expect(screen.getByText('Save seating plan')).toBeInTheDocument();
+  });
+
+  it('keeps seating plans off for a custom roster, whose seat keys are names', () => {
+    flags.plans = true;
+    render(
+      <SeatingChartWidget
+        widget={{
+          ...widget,
+          config: { ...widget.config, rosterMode: 'custom', names: 'Ana' },
+        }}
+      />
+    );
+    fireEvent.click(screen.getByText('Assign'));
+    expect(screen.queryByText('Save seating plan')).toBeNull();
   });
 });

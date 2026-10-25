@@ -183,6 +183,8 @@ const getStrokeHalfWidth = (obj: DrawableObject): number => {
       return Math.max(12, obj.strokeWidth * 3);
     }
     case 'text':
+      // Covers the sticky note drop shadow.
+      return obj.sticky ? 12 : 0;
     case 'image':
       return 0;
   }
@@ -260,9 +262,9 @@ const distanceToSegment = (p: Point, a: Point, b: Point): number => {
   return Math.sqrt(ddx * ddx + ddy * ddy);
 };
 
-const hitPath = (obj: PathObject, p: Point): boolean => {
+const hitPath = (obj: PathObject, p: Point, viewZoom: number): boolean => {
   if (obj.points.length < 2) return false;
-  const tolerance = obj.width / 2 + STROKE_HIT_PADDING;
+  const tolerance = obj.width / 2 + STROKE_HIT_PADDING / viewZoom;
   for (let i = 1; i < obj.points.length; i++) {
     if (distanceToSegment(p, obj.points[i - 1], obj.points[i]) <= tolerance) {
       return true;
@@ -271,8 +273,12 @@ const hitPath = (obj: PathObject, p: Point): boolean => {
   return false;
 };
 
-const hitLineLike = (obj: LineObject | ArrowObject, p: Point): boolean => {
-  const tolerance = obj.strokeWidth / 2 + STROKE_HIT_PADDING;
+const hitLineLike = (
+  obj: LineObject | ArrowObject,
+  p: Point,
+  viewZoom: number
+): boolean => {
+  const tolerance = obj.strokeWidth / 2 + STROKE_HIT_PADDING / viewZoom;
   return (
     distanceToSegment(p, { x: obj.x1, y: obj.y1 }, { x: obj.x2, y: obj.y2 }) <=
     tolerance
@@ -308,7 +314,12 @@ const hitEllipse = (obj: EllipseObject, p: Point): boolean => {
  * and path encode their geometry in endpoints / points and ignore `rotation`
  * — applying it here would double-rotate.
  */
-export const hitTestObject = (obj: DrawableObject, p: Point): boolean => {
+/** `viewZoom` keeps the stroke tolerance the same on screen when the whiteboard is zoomed. */
+export const hitTestObject = (
+  obj: DrawableObject,
+  p: Point,
+  viewZoom = 1
+): boolean => {
   // Eraser strokes paint nothing, so they must not shadow the objects they erase.
   if (obj.kind === 'path' && obj.color === 'eraser') return false;
   const rot = obj.rotation ?? 0;
@@ -318,7 +329,7 @@ export const hitTestObject = (obj: DrawableObject, p: Point): boolean => {
       : p;
   switch (obj.kind) {
     case 'path':
-      return hitPath(obj, testP);
+      return hitPath(obj, testP, viewZoom);
     case 'rect':
     case 'text':
     case 'image':
@@ -327,7 +338,7 @@ export const hitTestObject = (obj: DrawableObject, p: Point): boolean => {
       return hitEllipse(obj, testP);
     case 'line':
     case 'arrow':
-      return hitLineLike(obj, testP);
+      return hitLineLike(obj, testP, viewZoom);
   }
 };
 
@@ -338,11 +349,12 @@ export const hitTestObject = (obj: DrawableObject, p: Point): boolean => {
  */
 export const hitTestObjects = (
   objects: readonly DrawableObject[],
-  p: Point
+  p: Point,
+  viewZoom = 1
 ): DrawableObject | null => {
   const sorted = [...objects].sort((a, b) => b.z - a.z);
   for (const obj of sorted) {
-    if (hitTestObject(obj, p)) return obj;
+    if (hitTestObject(obj, p, viewZoom)) return obj;
   }
   return null;
 };
@@ -435,7 +447,8 @@ export const ROTATION_HANDLE_OFFSET = 24;
  */
 export const getHandlePositions = (
   bbox: BoundingBox,
-  rotation = 0
+  rotation = 0,
+  rotateOffset = ROTATION_HANDLE_OFFSET
 ): Record<HandleName, Point> => {
   const { x, y, w, h } = bbox;
   const midX = x + w / 2;
@@ -449,7 +462,7 @@ export const getHandlePositions = (
     s: { x: midX, y: y + h },
     sw: { x, y: y + h },
     w: { x, y: midY },
-    rotate: { x: midX, y: y - ROTATION_HANDLE_OFFSET },
+    rotate: { x: midX, y: y - rotateOffset },
   };
   if (!Number.isFinite(rotation) || rotation === 0) return positions;
   const center = { x: midX, y: midY };
@@ -485,7 +498,9 @@ const ROTATE_HANDLE_HIT_MULT = 1.1;
 export const hitTestHandle = (
   obj: DrawableObject,
   p: Point,
-  scale: number
+  scale: number,
+  /** Whiteboard zoom: keeps the rotate handle 24 screen px above the box. */
+  viewZoom = 1
 ): HandleName | null => {
   const bbox = getBoundingBox(obj);
   const rot =
@@ -495,7 +510,11 @@ export const hitTestHandle = (
   // Use UNROTATED handle positions and reverse-rotate the test point. This
   // lets us keep the axis-aligned-square hit math while still resolving
   // correctly for rotated objects.
-  const positions = getHandlePositions(bbox);
+  const positions = getHandlePositions(
+    bbox,
+    0,
+    ROTATION_HANDLE_OFFSET / viewZoom
+  );
   const testP =
     rot !== 0
       ? reverseRotatePoint(
