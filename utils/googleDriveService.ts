@@ -694,6 +694,57 @@ export class GoogleDriveService {
     }
   }
 
+  /** One permission on a file, or null when it (or the file) is already gone. */
+  async getPermission(
+    fileId: string,
+    permissionId: string
+  ): Promise<{
+    id: string;
+    emailAddress?: string;
+    role?: string;
+    type?: string;
+  } | null> {
+    const response = await this.fetchWithRetry(
+      `${DRIVE_API_URL}/files/${fileId}/permissions/${permissionId}?fields=id,type,role,emailAddress`,
+      { headers: this.headers }
+    );
+    if (response.status === 404) return null;
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw authError('Google Drive access expired. Please sign in again.');
+      }
+      const body = await response.text();
+      throw new Error(
+        `Failed to read Drive permission ${permissionId}: ${response.status} ${body.slice(0, 200)}`
+      );
+    }
+    return (await response.json()) as {
+      id: string;
+      emailAddress?: string;
+      role?: string;
+      type?: string;
+    };
+  }
+
+  /** A file's name, or null when the file is already gone. */
+  async getFileNameIfExists(fileId: string): Promise<string | null> {
+    const response = await this.fetchWithRetry(
+      `${DRIVE_API_URL}/files/${fileId}?fields=name`,
+      { headers: this.headers }
+    );
+    if (response.status === 404) return null;
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw authError('Google Drive access expired. Please sign in again.');
+      }
+      throw new Error(
+        `Failed to read Drive file ${fileId}: ${response.status}`
+      );
+    }
+    const data = (await response.json()) as { name?: string };
+    return data.name ?? '';
+  }
+
   /**
    * Update the content of an existing Drive file in-place (PATCH media upload).
    * Use this instead of uploadFile when the file already exists to avoid

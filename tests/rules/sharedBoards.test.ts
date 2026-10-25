@@ -283,6 +283,23 @@ describe('shared_boards — host update', () => {
   it('non-host cannot delete the shared doc', async () => {
     await assertFails(deleteDoc(doc(asCollab(), `shared_boards/${SHARE_ID}`)));
   });
+
+  // The victim's expiry sweep trusts a doc naming them as originalAuthor.
+  it('host CANNOT hand the share to another uid via originalAuthor', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), {
+        originalAuthor: STRANGER_UID,
+      })
+    );
+  });
+
+  it('admin CANNOT change originalAuthor either', async () => {
+    await assertFails(
+      updateDoc(doc(asAdmin(), `shared_boards/${SHARE_ID}`), {
+        originalAuthor: STRANGER_UID,
+      })
+    );
+  });
 });
 
 describe('shared_boards — collaborator update', () => {
@@ -698,6 +715,22 @@ describe('shared_boards — substitute shares can never acquire a plcId', () => 
     await assertFails(
       updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), {
         sharedRosters: [{ id: 'r2', name: 'Other', driveFileId: 'file-2' }],
+      })
+    );
+  });
+
+  it('host CANNOT reassign a substitute share to another uid', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), {
+        originalAuthor: STRANGER_UID,
+      })
+    );
+  });
+
+  it('host cannot add or rewrite namesFileId on a substitute share', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), {
+        namesFileId: 'victim-roster-file',
       })
     );
   });
