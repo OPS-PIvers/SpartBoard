@@ -2707,6 +2707,15 @@
     },
     "dashboard": {
       "emptyBoardHint": "Drag tools from the Dock below to start"
+    },
+    "scoreboard": {
+      "undo": "Undo",
+      "undoShortcut": "Undo the last score change (Ctrl+Z)",
+      "history": "History",
+      "scores": "Scores",
+      "recentChanges": "Recent changes",
+      "noChanges": "No changes yet",
+      "reset": "Reset"
     }
   },
   "boardBreadcrumb": {

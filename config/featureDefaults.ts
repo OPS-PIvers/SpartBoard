@@ -2,6 +2,7 @@
 import type React from 'react';
 import {
   CalendarRange,
+  Trophy,
   FolderSync,
   PenLine,
   BarChart,
@@ -1268,6 +1269,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'seating-chart',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'scoreboard-pro': {
+    label: 'Scoreboard undo and history',
+    icon: Trophy,
+    description: 'Undo score changes and see recent changes for each team.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'scoreboard',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

@@ -16051,6 +16051,38 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "scoreboard.undo",
+    "label": "Undo button in Scoreboard",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.scoreboard.face",
+        "kind": "widget",
+        "widget_type": "scoreboard",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "scoreboard.history",
+    "label": "History button in Scoreboard",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.scoreboard.face",
+        "kind": "widget",
+        "widget_type": "scoreboard",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.pdf.switch-document",
     "label": "Switch document button in PDF settings",
     "scope": "widget",

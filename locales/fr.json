@@ -1582,6 +1582,15 @@
       "play": "Démarrer",
       "pause": "Pause",
       "reset": "Réinitialiser"
+    },
+    "scoreboard": {
+      "undo": "Annuler",
+      "undoShortcut": "Annuler le dernier changement de score (Ctrl+Z)",
+      "history": "Historique",
+      "scores": "Scores",
+      "recentChanges": "Changements récents",
+      "noChanges": "Aucun changement",
+      "reset": "Remise à zéro"
     }
   },
   "boardBreadcrumb": {

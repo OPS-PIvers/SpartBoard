@@ -3799,6 +3799,14 @@ export const TOUR_ANCHORS = {
     label: 'Remove a point for a team in Scoreboard',
     perField: true,
   },
+  'scoreboard.undo': {
+    label: 'Undo button in Scoreboard',
+    perWidget: true,
+  },
+  'scoreboard.history': {
+    label: 'History button in Scoreboard',
+    perWidget: true,
+  },
   'widget-settings.pdf.switch-document': {
     label: 'Switch document button in PDF settings',
     perWidget: true,
