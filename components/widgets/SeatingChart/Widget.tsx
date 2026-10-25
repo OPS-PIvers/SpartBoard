@@ -21,7 +21,9 @@ import {
 import { FurnitureItemRenderer } from './FurnitureItemRenderer';
 import { SeatingChartToolbar } from './SeatingChartToolbar';
 import { SeatingChartSidebar } from './SeatingChartSidebar';
-import { detachPlan } from './seatingPlans';
+import { detachPlan, getActivePlan } from './seatingPlans';
+import { buildSeatingChartPrint } from './seatingChartPrint';
+import { printHtmlDocument } from '@/utils/printHtmlDocument';
 import { SeatingRulesModal } from './SeatingRulesModal';
 import {
   describeBreaks,
@@ -909,6 +911,36 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     reportSeating(result);
   };
 
+  const printChart = () => {
+    const namesBySeat = new Map(
+      [...assignedStudentsByFurnitureId].map(([seatId, list]) => [
+        seatId,
+        list.map((s) => s.label),
+      ])
+    );
+    const customTitle = widget.customTitle?.trim();
+    try {
+      printHtmlDocument(
+        buildSeatingChartPrint({
+          title:
+            customTitle === undefined || customTitle === ''
+              ? 'Seating Chart'
+              : customTitle,
+          planName: getActivePlan(config)?.name,
+          className: activeRoster?.name,
+          date: new Date(),
+          furniture,
+          namesBySeat,
+        })
+      );
+    } catch (err) {
+      addToast(
+        err instanceof Error ? err.message : 'Printing failed.',
+        'error'
+      );
+    }
+  };
+
   const addAllRandomly = () => {
     if (plansEnabled) {
       addAllWithRules();
@@ -1063,6 +1095,7 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
                       config: { ...latestRef.current.config, ...patch },
                     }),
                   addToast,
+                  print: printChart,
                 },
                 rules: {
                   count:

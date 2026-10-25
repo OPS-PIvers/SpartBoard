@@ -358,3 +358,43 @@ describe('teacher and phone disagreement', () => {
     expect(derivePollPhoneView(next, 'u').k).toBe('open');
   });
 });
+
+describe('hidden results and locked questions', () => {
+  it('holds tallies back until the teacher reveals the question', () => {
+    const view = derivePollPhoneView(
+      ready('idle', makeSession({ hideResults: true, revealedQuestions: [] })),
+      'me'
+    );
+    expect(view.k === 'open' && view.ballot.resultsHidden).toBe(true);
+  });
+
+  it('shows revealed results to everyone', () => {
+    const view = derivePollPhoneView(
+      ready('idle', makeSession({ hideResults: true, revealedQuestions: [0] })),
+      'me'
+    );
+    expect(view.k === 'open' && view.ballot).toMatchObject({
+      resultsHidden: false,
+      resultsRevealed: true,
+    });
+  });
+
+  it('closes a locked question without closing the session', () => {
+    const session = makeSession({ lockedQuestions: [0] });
+    expect(derivePollPhoneView(ready('idle', session), 'me')).toMatchObject({
+      k: 'closed',
+      reason: 'locked',
+    });
+    expect(
+      derivePollPhoneView(
+        ready('idle', { ...session, currentQuestionIndex: 1 }),
+        'me'
+      ).k
+    ).toBe('open');
+  });
+
+  it('refuses to start a vote on a locked question', () => {
+    const state = ready('idle', makeSession({ lockedQuestions: [0] }));
+    expect(pollPhoneReducer(state, { type: 'voteStarted' })).toBe(state);
+  });
+});

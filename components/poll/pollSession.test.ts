@@ -40,6 +40,7 @@ import {
   ensurePollJoinCode,
   lookupPollSessionByCode,
   startPollSession,
+  toSessionResultsState,
   stopPollSession,
   setSessionQuestionIndex,
 } from './pollSession';
@@ -315,5 +316,87 @@ describe('setSessionQuestionIndex', () => {
       expect.objectContaining({ currentQuestionIndex: 2 }),
       { merge: true }
     );
+  });
+});
+
+describe('toSessionResultsState', () => {
+  const config: PollConfig = {
+    questions: [
+      { id: 'q1', question: 'A?', options: [] },
+      { id: 'q2', question: 'B?', options: [] },
+    ],
+    hideResults: true,
+    revealedQuestionIds: ['q2', 'gone'],
+    lockedQuestionIds: ['q1'],
+  };
+
+  it('maps question ids to the indexes the rules check', () => {
+    expect(toSessionResultsState(config)).toEqual({
+      hideResults: true,
+      revealedQuestions: [1],
+      lockedQuestions: [0],
+    });
+  });
+
+  it('defaults to visible and unlocked', () => {
+    expect(toSessionResultsState({ questions: config.questions })).toEqual({
+      hideResults: false,
+      revealedQuestions: [],
+      lockedQuestions: [],
+    });
+  });
+});
+
+describe('startPollSession results state', () => {
+  const hidden: PollConfig = {
+    ...baseConfig,
+    joinCode: 'K3F9Q',
+    lastPollSessionId: 'K3F9Q',
+    hideResults: true,
+    revealedQuestionIds: ['q-1'],
+    lockedQuestionIds: ['q-1'],
+  };
+  const written = () =>
+    mockSetDoc.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+
+  it('resume keeps reveals and locks for a poll-pro teacher', async () => {
+    const next = await startPollSession(
+      hidden,
+      'teacher-1',
+      'resume',
+      false,
+      true
+    );
+    expect(next.lockedQuestionIds).toEqual(hidden.lockedQuestionIds);
+    expect(written()).toMatchObject({
+      hideResults: true,
+      revealedQuestions: [0],
+      lockedQuestions: [0],
+    });
+  });
+
+  it('fresh clears reveals and locks', async () => {
+    const next = await startPollSession(
+      hidden,
+      'teacher-1',
+      'fresh',
+      false,
+      true
+    );
+    expect(next.revealedQuestionIds).toEqual([]);
+    expect(next.lockedQuestionIds).toEqual([]);
+    expect(written()).toMatchObject({
+      revealedQuestions: [],
+      lockedQuestions: [],
+    });
+  });
+
+  it('a teacher without poll-pro always opens a visible, unlocked session', async () => {
+    await startPollSession(hidden, 'teacher-1', 'resume');
+    expect(written()).toMatchObject({
+      hideResults: false,
+      revealedQuestions: [],
+      lockedQuestions: [],
+    });
   });
 });
