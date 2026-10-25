@@ -751,6 +751,30 @@ describe('shared_boards — substitute shares can never acquire a plcId', () => 
     );
   });
 
+  it('a collaborator cannot rewrite driveGrants on a substitute share', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `shared_boards/${SHARE_ID}`),
+        subShareDoc({
+          participants: { [COLLAB_UID]: { role: 'collaborator', joinedAt: 1 } },
+        })
+      );
+    });
+    await assertFails(
+      updateDoc(doc(asCollab(), `shared_boards/${SHARE_ID}`), {
+        driveGrants: [{ fileId: 'victim-file', permissionId: 'perm-1' }],
+      })
+    );
+  });
+
+  it('admin can still update lifecycle fields on a substitute share', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asAdmin(), `shared_boards/${SHARE_ID}`), {
+        driveGrants: [],
+      })
+    );
+  });
+
   it('host can still edit content on a substitute share', async () => {
     await assertSucceeds(
       updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), {

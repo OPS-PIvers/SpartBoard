@@ -1531,6 +1531,8 @@ service cloud.firestore {
       allow update: if signedIn() &&
         authUid() in existing().get('participants', {}) &&
         existing().participants[authUid()].get('role', '') == 'collaborator' &&
+        // Substitute shares carry Drive grants the host's sweep revokes; no collaborator edits.
+        existing().get('intendedMode', null) != 'substitute' &&
         incoming().get('participants', {}) == existing().get('participants', {}) &&
         unchanged('originalAuthor') &&
         incoming().get('originalAuthorName', null) == existing().get('originalAuthorName', null) &&
