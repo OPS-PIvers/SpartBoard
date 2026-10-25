@@ -57,9 +57,49 @@ export const SETTINGS_FIELD_LIST: Readonly<
       kind: 'toggle',
     },
     {
+      anchor: 'settings.field:sound#noiseFloor',
+      label: 'Calibration',
+      kind: 'custom',
+    },
+    {
       anchor: 'settings.field:sound#sensitivity',
       label: 'Sensitivity',
       kind: 'slider',
+    },
+    {
+      anchor: 'settings.field:sound#targetLevel',
+      label: 'Target level',
+      kind: 'select',
+    },
+    {
+      anchor: 'settings.field:sound#alertDelaySeconds',
+      label: 'Alert delay (seconds)',
+      kind: 'number',
+    },
+    {
+      anchor: 'settings.toggle:sound#alertSoundEnabled',
+      label: 'Play a sound',
+      kind: 'toggle',
+    },
+    {
+      anchor: 'settings.field:sound#alertSound',
+      label: 'Alert sound',
+      kind: 'soundPicker',
+    },
+    {
+      anchor: 'settings.field:sound#quietGoalMinutes',
+      label: 'Quiet time goal (minutes)',
+      kind: 'number',
+    },
+    {
+      anchor: 'settings.toggle:sound#quietGoalResetOnAlert',
+      label: 'Reset progress when Too loud shows',
+      kind: 'toggle',
+    },
+    {
+      anchor: 'settings.field:sound#quietGoalTeamId',
+      label: 'Add a point when the goal is reached',
+      kind: 'custom',
     },
     {
       anchor: 'settings.field:sound#autoTrafficLight',
@@ -670,6 +710,16 @@ export const SETTINGS_FIELD_LIST: Readonly<
       anchor: 'settings.field:scoreboard#layout',
       label: 'Layout',
       kind: 'segmented',
+    },
+    {
+      anchor: 'settings.toggle:scoreboard#sortByScore',
+      label: 'Sort by score',
+      kind: 'toggle',
+    },
+    {
+      anchor: 'settings.field:scoreboard#pointValues',
+      label: 'Point buttons',
+      kind: 'select',
     },
   ],
   calendar: [

@@ -4,6 +4,7 @@ import type { SeatingChartConfig } from '@/types';
 import { useDialog } from '@/context/useDialog';
 import { Eraser, Trash2 } from 'lucide-react';
 import { tourAttr } from '@/config/tourAnchors';
+import { detachPlan } from './seatingPlans';
 
 const translate = (ctx: CustomRenderCtx, leaf: string) =>
   ctx.t(`widgetSettings.seating-chart.${leaf}`);
@@ -25,7 +26,11 @@ export const SeatingChartActionsField: React.FC<{
         confirmLabel: translate(ctx, 'clear'),
       }
     );
-    if (confirmed) updateConfig({ assignments: {} });
+    if (confirmed)
+      updateConfig({
+        ...detachPlan(ctx.widget.config as SeatingChartConfig),
+        assignments: {},
+      });
   };
 
   const handleClearFurniture = async () => {
@@ -37,7 +42,12 @@ export const SeatingChartActionsField: React.FC<{
         confirmLabel: translate(ctx, 'clearAll'),
       }
     );
-    if (confirmed) updateConfig({ furniture: [], assignments: {} });
+    if (confirmed)
+      updateConfig({
+        ...detachPlan(ctx.widget.config as SeatingChartConfig),
+        furniture: [],
+        assignments: {},
+      });
   };
 
   return (

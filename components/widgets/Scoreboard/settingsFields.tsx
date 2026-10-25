@@ -20,6 +20,8 @@ import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useTranslation } from 'react-i18next';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { groupMakerGroups } from '@/utils/rosterGroups';
+import { useAuth } from '@/context/useAuth';
+import { appendScoreHistory } from './history';
 
 const TeamNameInput: React.FC<
   {
@@ -71,6 +73,7 @@ export const ScoreboardSettings: React.FC<{
     activeRosterId,
   } = useDashboard();
   const { showConfirm } = useDialog();
+  const pro = useAuth().canAccessFeature('scoreboard-pro');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [useGroupNames, setUseGroupNames] = useState(false);
   const config = widget.config as ScoreboardConfig;
@@ -301,12 +304,18 @@ export const ScoreboardSettings: React.FC<{
   };
 
   const handleReset = () => {
-    updateWidget(widget.id, {
-      config: {
-        ...config,
-        teams: teams.map((t) => ({ ...t, score: 0 })),
-      },
-    });
+    const nextConfig: ScoreboardConfig = {
+      ...config,
+      teams: teams.map((t) => ({ ...t, score: 0 })),
+    };
+    if (pro && !config.liveQuizWidgetId) {
+      nextConfig.history = appendScoreHistory(
+        config.history,
+        teams.map((t) => ({ teamId: t.id, from: t.score, to: 0 })),
+        { kind: 'reset' }
+      );
+    }
+    updateWidget(widget.id, { config: nextConfig });
     setShowResetConfirm(false);
     addToast(t('widgetSettings.scoreboard.scoresReset'), 'info');
   };

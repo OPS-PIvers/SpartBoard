@@ -47,6 +47,8 @@ describe('consolidated field-level widget settings migration', () => {
         'lastResult',
         'lastSync',
         'lockedRosterGroupIds',
+        // Sound Calibrate/Reset buttons start a timed listen, not a plain value edit.
+        'noiseFloor',
         'numExpertGroups',
         // Group count is derived from the class size, which the schema ctx
         // does not carry — same reason as the two jigsaw counts above.
