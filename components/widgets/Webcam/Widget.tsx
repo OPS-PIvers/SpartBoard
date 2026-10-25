@@ -1,4 +1,10 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, {
+  useRef,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+} from 'react';
 import {
   Camera,
   Download,
@@ -107,8 +113,31 @@ export const WebcamWidget: React.FC<{
   const [isDrawing, setIsDrawing] = useState(false);
   const [inkTool, setInkTool] = useState<InkTool>('pen');
   const [penColor, setPenColor] = useState<string>(INK_COLORS[0].value);
+  // A new picture (unfreeze, camera switch, another phone photo) starts a fresh drawing and undo history.
+  const [inkPage, setInkPage] = useState(0);
+  const clearInkPage = useCallback(() => {
+    setInkStrokes([]);
+    setInkPage((n) => n + 1);
+  }, []);
+  const inkSourceKey = isRemoteShown
+    ? (widgetConfig.remoteCaptureDataUrl ?? '')
+    : 'live';
+  const [prevInkSourceKey, setPrevInkSourceKey] = useState(inkSourceKey);
+  if (prevInkSourceKey !== inkSourceKey) {
+    setPrevInkSourceKey(inkSourceKey);
+    clearInkPage();
+  }
+  const inkFrame = useMemo(
+    () => ({
+      feed: feedSize,
+      source: isRemoteShown ? remoteSize : videoSize,
+      view: docCamView,
+      mirrored: !isRemoteShown && isMirrored,
+    }),
+    [feedSize, isRemoteShown, remoteSize, videoSize, docCamView, isMirrored]
+  );
   const inkStack = useCommandStack({
-    pageKey: 'camera',
+    pageKey: `camera-${inkPage}`,
     objects: inkStrokes,
     onObjectsChange: (next) =>
       setInkStrokes(next.filter((o): o is PathObject => o.kind === 'path')),
@@ -197,7 +226,8 @@ export const WebcamWidget: React.FC<{
     if (frozenUrlRef.current) URL.revokeObjectURL(frozenUrlRef.current);
     frozenUrlRef.current = null;
     setFrozenUrl(null);
-  }, []);
+    clearInkPage();
+  }, [clearInkPage]);
 
   // Holds the current frame on screen so the paper can move while the class keeps seeing it.
   const freeze = useCallback(() => {
@@ -584,12 +614,7 @@ export const WebcamWidget: React.FC<{
                   )}
                   <DocCamInkLayer
                     strokes={inkStrokes}
-                    frame={{
-                      feed: feedSize,
-                      source: isRemoteShown ? remoteSize : videoSize,
-                      view: docCamView,
-                      mirrored: !isRemoteShown && isMirrored,
-                    }}
+                    frame={inkFrame}
                     active={isDrawing}
                     tool={inkTool}
                     penColor={penColor}

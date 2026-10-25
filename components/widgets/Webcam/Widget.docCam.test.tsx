@@ -173,7 +173,7 @@ describe('WebcamWidget freeze', () => {
 });
 
 describe('WebcamWidget drawing', () => {
-  it('shows drawing tools only in draw mode and keeps strokes off the board', () => {
+  const stubFeedSize = () =>
     vi.stubGlobal(
       'ResizeObserver',
       class {
@@ -193,10 +193,28 @@ describe('WebcamWidget drawing', () => {
         }
       }
     );
-    const { container } = render(<WebcamWidget widget={makeWidget()} />);
+  const drawOn = (container: HTMLElement) => {
     Object.defineProperty(video(container), 'videoWidth', { value: 640 });
     Object.defineProperty(video(container), 'videoHeight', { value: 480 });
     fireEvent.loadedMetadata(video(container));
+    const ink = container.querySelector('[data-doccam-ink]') as HTMLElement;
+    return () => {
+      fireEvent.pointerDown(ink, {
+        button: 0,
+        pointerId: 1,
+        clientX: 5,
+        clientY: 5,
+      });
+      fireEvent.pointerMove(ink, { pointerId: 1, clientX: 20, clientY: 20 });
+      fireEvent.pointerUp(ink, { pointerId: 1, clientX: 20, clientY: 20 });
+    };
+  };
+  const clearButton = () => screen.getByTitle('Clear drawing');
+
+  it('shows drawing tools only in draw mode and keeps strokes off the board', () => {
+    stubFeedSize();
+    const { container } = render(<WebcamWidget widget={makeWidget()} />);
+    const stroke = drawOn(container);
     expect(screen.queryByRole('toolbar', { name: 'Drawing tools' })).toBeNull();
     const ink = container.querySelector('[data-doccam-ink]') as HTMLElement;
     expect(ink.style.pointerEvents).toBe('none');
@@ -205,22 +223,35 @@ describe('WebcamWidget drawing', () => {
     expect(ink.style.pointerEvents).toBe('auto');
     const undo = screen.getByTitle('Undo');
     expect(undo).toHaveProperty('disabled', true);
-    fireEvent.pointerDown(ink, {
-      button: 0,
-      pointerId: 1,
-      clientX: 5,
-      clientY: 5,
-    });
-    fireEvent.pointerMove(ink, { pointerId: 1, clientX: 20, clientY: 20 });
-    fireEvent.pointerUp(ink, { pointerId: 1, clientX: 20, clientY: 20 });
+    stroke();
     expect(undo).toHaveProperty('disabled', false);
-    expect(screen.getByTitle('Clear drawing')).toHaveProperty(
-      'disabled',
-      false
-    );
-    fireEvent.click(screen.getByTitle('Clear drawing'));
-    expect(screen.getByTitle('Clear drawing')).toHaveProperty('disabled', true);
+    fireEvent.click(undo);
+    expect(clearButton()).toHaveProperty('disabled', true);
+    stroke();
+    expect(clearButton()).toHaveProperty('disabled', false);
+    fireEvent.click(clearButton());
+    expect(clearButton()).toHaveProperty('disabled', true);
     expect(updateWidget).not.toHaveBeenCalled();
+  });
+
+  it('starts a fresh drawing when a phone photo replaces the picture', () => {
+    stubFeedSize();
+    const { container, rerender } = render(
+      <WebcamWidget widget={makeWidget()} />
+    );
+    const stroke = drawOn(container);
+    fireEvent.click(screen.getByTitle('Draw'));
+    stroke();
+    expect(clearButton()).toHaveProperty('disabled', false);
+    rerender(
+      <WebcamWidget
+        widget={makeWidget({
+          isRemoteMode: true,
+          remoteCaptureDataUrl: 'data:image/jpeg;base64,AAAA',
+        })}
+      />
+    );
+    expect(clearButton()).toHaveProperty('disabled', true);
   });
 
   it('has no Draw button with the flag off', () => {
