@@ -55,7 +55,12 @@ import type { ShapeStyle } from './useDrawingCanvas';
 import { useCommandStack } from './useCommandStack';
 import { useDrawingObjectsDoc } from './useDrawingObjectsDoc';
 import { useDrawingPages } from './useDrawingPages';
-import { hitTestObject, isObjectEnclosedByPolygon } from './hitTest';
+import {
+  getBoundingBox,
+  hitTestObject,
+  isObjectEnclosedByPolygon,
+} from './hitTest';
+import { readClipboardObjects, writeClipboardObjects } from './clipboard';
 import { PageStrip } from './PageStrip';
 import { extractTextWithGemini } from '@/utils/ai';
 import { useAuth } from '@/context/useAuth';
@@ -103,6 +108,19 @@ const HIGHLIGHTER_COLORS = [
 const HIGHLIGHTER_DEFAULT_WIDTH = 24;
 const DUPLICATE_OFFSET = 16;
 const SHAPE_TOOLS = new Set<ShapeTool>(['line', 'arrow', 'rect', 'ellipse']);
+const TOOL_SHORTCUTS: Partial<Record<ShapeTool, string>> = {
+  select: 'V',
+  pen: 'P',
+  highlighter: 'H',
+  text: 'T',
+  eraser: 'E',
+};
+const SHORTCUT_TOOLS = new Map(
+  Object.entries(TOOL_SHORTCUTS).map(([tool, key]) => [
+    key.toLowerCase(),
+    tool as ShapeTool,
+  ])
+);
 const STICKY_COLORS = [
   STANDARD_COLORS.yellow,
   STANDARD_COLORS.orange,
@@ -692,6 +710,77 @@ export const DrawingWidget: React.FC<{
     selectObject(copy.id);
   };
 
+  // Copy, cut and paste go through the clipboard events, so they work across pages, boards and tabs.
+  // Text fields inside the board keep their own copy and paste.
+  const isTypingTarget = (target: EventTarget) =>
+    target instanceof Element &&
+    target.closest('[contenteditable="true"],input,textarea') !== null;
+
+  const copySelection = (e: React.ClipboardEvent): boolean => {
+    if (!proEnabled || isTypingTarget(e.target)) return false;
+    if (activeTool !== 'select' || !selectedObject) return false;
+    e.clipboardData.setData(
+      'text/plain',
+      writeClipboardObjects([selectedObject])
+    );
+    e.preventDefault();
+    return true;
+  };
+
+  const handleCut = (e: React.ClipboardEvent) => {
+    const target = selectedObject;
+    if (!target || !copySelection(e)) return;
+    handleRemoveObject(target.id);
+    clearSelection();
+  };
+
+  const pasteObjects = (pasted: DrawableObject[]) => {
+    const area = visiblePageArea(view ?? IDENTITY_VIEW, canvasSize);
+    let z = nextZ(objects);
+    let lastId: string | null = null;
+    for (const original of pasted) {
+      // The copy belongs to whoever pastes it.
+      const rest: DrawableObject = { ...original };
+      delete rest.authorUid;
+      // Pasting back onto the same page lands beside the original.
+      let dx = objects.some((o) => o.id === original.id) ? DUPLICATE_OFFSET : 0;
+      let dy = dx;
+      const b = getBoundingBox(rest);
+      const onScreen =
+        b.x + dx < area.x + area.width &&
+        b.x + b.w + dx > area.x &&
+        b.y + dy < area.y + area.height &&
+        b.y + b.h + dy > area.y;
+      if (!onScreen) {
+        dx = area.x + (area.width - b.w) / 2 - b.x;
+        dy = area.y + (area.height - b.h) / 2 - b.y;
+      }
+      const copy: DrawableObject = {
+        ...translateObject(rest, dx, dy),
+        id: crypto.randomUUID(),
+        z: z++,
+      };
+      pushAdd(copy);
+      lastId = copy.id;
+    }
+    if (activeTool !== 'select') setActiveTool('select');
+    if (lastId) selectObject(lastId);
+  };
+
+  const handleWrapperPaste = (e: React.ClipboardEvent) => {
+    if (proEnabled && !isTypingTarget(e.target)) {
+      const pasted = readClipboardObjects(
+        e.clipboardData.getData('text/plain')
+      );
+      if (pasted) {
+        e.preventDefault();
+        pasteObjects(pasted);
+        return;
+      }
+    }
+    handlePaste(e);
+  };
+
   // Selection chrome is cleared by `setActiveTool` directly when leaving the
   // Select tool — see the event-handler path below — so a state-sync effect
   // here is unnecessary.
@@ -887,6 +976,21 @@ export const DrawingWidget: React.FC<{
     ) {
       e.preventDefault();
       duplicateSelected();
+      return;
+    }
+    const shortcutTool =
+      proEnabled &&
+      !isMod &&
+      !e.altKey &&
+      !e.shiftKey &&
+      e.target === e.currentTarget
+        ? SHORTCUT_TOOLS.get(key)
+        : undefined;
+    if (shortcutTool) {
+      e.preventDefault();
+      viewport.setHandActive(false);
+      closeToolPopover();
+      setActiveTool(shortcutTool);
       return;
     }
     handleSelectKeyDown(e);
@@ -1413,8 +1517,15 @@ export const DrawingWidget: React.FC<{
                   ? 'bg-brand-blue-primary text-white shadow-sm'
                   : 'text-slate-300 hover:bg-white/10'
               }`}
-              title={label}
+              title={
+                proEnabled && TOOL_SHORTCUTS[tool]
+                  ? `${label} (${TOOL_SHORTCUTS[tool]})`
+                  : label
+              }
               aria-label={label}
+              aria-keyshortcuts={
+                proEnabled ? TOOL_SHORTCUTS[tool]?.toLowerCase() : undefined
+              }
             >
               <Icon className="w-4 h-4" />
             </button>
@@ -1859,7 +1970,15 @@ export const DrawingWidget: React.FC<{
         // arrow nudges to reach the selection hook without a focused child.
         tabIndex={isStudentView || isMigratingSubcollection ? undefined : 0}
         onPaste={
-          isStudentView || isMigratingSubcollection ? undefined : handlePaste
+          isStudentView || isMigratingSubcollection
+            ? undefined
+            : handleWrapperPaste
+        }
+        onCopy={
+          isStudentView || isMigratingSubcollection ? undefined : copySelection
+        }
+        onCut={
+          isStudentView || isMigratingSubcollection ? undefined : handleCut
         }
         onDrop={
           isStudentView || isMigratingSubcollection ? undefined : handleDrop
