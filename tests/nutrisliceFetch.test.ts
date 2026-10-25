@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fetchJsonWithRetry } from '@/scripts/nutrisliceFetch.mjs';
+import {
+  fetchJsonWithRetry,
+  patchWithRetry,
+} from '@/scripts/nutrisliceFetch.mjs';
 
 describe('fetchJsonWithRetry', () => {
   afterEach(() => vi.unstubAllGlobals());
@@ -62,6 +65,42 @@ describe('fetchJsonWithRetry', () => {
     vi.stubGlobal('fetch', fetchMock);
     await expect(fetchJsonWithRetry('u', { sleep: vi.fn() })).rejects.toThrow(
       '404'
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('patchWithRetry', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('retries a thrown network error and a 503, then succeeds', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('fetch failed'))
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        text: () => Promise.resolve(''),
+      })
+      .mockResolvedValueOnce({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    await expect(
+      patchWithRetry('u', { body: '{}' }, 'site', { sleep })
+    ).resolves.toBeUndefined();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not retry a 4xx', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      text: () => Promise.resolve('denied'),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    await expect(patchWithRetry('u', {}, 'site', { sleep })).rejects.toThrow(
+      'Firestore 403 writing site: denied'
     );
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });

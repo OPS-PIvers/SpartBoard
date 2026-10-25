@@ -2,6 +2,7 @@ import React, { useId, useState } from 'react';
 import { Palette, LucideIcon } from 'lucide-react';
 import { SettingsLabel } from './SettingsLabel';
 import { handleRadioGroupKeyDown } from './radioGroupKeyNav';
+import { isImeComposing } from '@/utils/imeComposing';
 import type { ColorPreset } from '@/config/widgetAppearance';
 
 const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
@@ -177,7 +178,7 @@ export const ColorPresetPicker: React.FC<ColorPresetPickerProps> = ({
           onChange={(e) => setDraft(e.target.value)}
           onBlur={commitDraft}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && !isImeComposing(e)) {
               e.preventDefault();
               commitDraft();
             }

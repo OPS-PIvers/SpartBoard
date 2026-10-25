@@ -186,6 +186,7 @@ export const BankSlotDetail: React.FC<BankSlotDetailProps> = ({
 
         <div>
           <label className={labelClass}>Bank</label>
+          {/* no-tour-anchor: read-only display of the chosen bank's title */}
           <input
             type="text"
             value={slot.bankTitle}

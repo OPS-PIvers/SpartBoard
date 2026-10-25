@@ -25,6 +25,7 @@ import { classroomAddonNet } from '../classroomAddonAuth';
 import { isGlobalFeatureGranted } from '../quizMediaArchive';
 import { loadTestClassMembership } from '../studentAssignmentTargets';
 import { assertViewAsAllowed } from '../viewAsGuard';
+import { isVerifiedDistrictTeacher } from './teacherAuth';
 
 export const SCHOOLOGY_TOOL_COLUMNS_FEATURE = 'schoology-tool-columns';
 
@@ -246,7 +247,7 @@ export const ltiLinkSectionByUrlV1 = onCall(
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
     const email = request.auth.token.email;
-    if (!email || request.auth.token.studentRole === true) {
+    if (!email || !isVerifiedDistrictTeacher(request.auth.token)) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
     const callerUid = request.auth.uid;

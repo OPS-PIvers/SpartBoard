@@ -39,6 +39,9 @@ service cloud.firestore {
     function isNumber(k) { return request.resource.data[k] is number; }
     function isTimestamp(k) { return request.resource.data[k] is timestamp; }
 
+    // Server code trusts any collection-group `domains` doc, so wildcard admin paths may not create one.
+    function notDomainsPath(p) { return !string(p).matches('(.*/)?domains/.*'); }
+
     // True if the caller's email has an /admins/{email} doc.
     // token.get('email','') (not direct .email) avoids a CEL "undefined" throw on
     // tokens with no email claim (anon PIN) - load-bearing because isAdmin() runs
@@ -995,7 +998,8 @@ service cloud.firestore {
 
     // Admin-only collections
     match /admin_settings/{document=**} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      allow write: if isAdmin() && notDomainsPath(document);
     }
 
     // Nutrislice lunch menus, written only by the Sync Lunch Menus GitHub Action (Admin credentials).
@@ -1264,7 +1268,7 @@ service cloud.firestore {
     // Global permissions - all authenticated users can read, only admins can write
     match /global_permissions/{featureId=**} {
       allow read: if signedIn();
-      allow write: if isAdmin();
+      allow write: if isAdmin() && notDomainsPath(featureId);
     }
 
     // Pilot / district-rollout requests submitted from the public /request
@@ -1392,13 +1396,13 @@ service cloud.firestore {
     // Global weather data
     match /global_weather/{document=**} {
       allow read: if signedIn();
-      allow write: if isAdmin();
+      allow write: if isAdmin() && notDomainsPath(document);
     }
 
     // Global music stations - authenticated users can read, only admins can write
     match /global_music_stations/{document=**} {
       allow read: if signedIn();
-      allow write: if isAdmin();
+      allow write: if isAdmin() && notDomainsPath(document);
     }
 
     // Instructional routines - all authenticated users can read, only admins can write

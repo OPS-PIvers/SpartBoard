@@ -49,6 +49,7 @@ const ModeOption: React.FC<ModeOptionProps> = ({
   onPick,
 }) => {
   return (
+    // no-tour-anchor: one card per import mode, rendered from a list
     <button
       type="button"
       onClick={() => onPick(mode)}
@@ -104,6 +105,7 @@ export const QuizAssignmentImportModeModal: React.FC<
             type="button"
             onClick={onClose}
             aria-label="Close"
+            // no-tour-anchor: choose-how-to-import prompt that only appears for a shared assignment link
             className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
           >
             <X className="w-5 h-5" />

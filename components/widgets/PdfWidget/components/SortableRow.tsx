@@ -86,6 +86,7 @@ export const SortableRow: React.FC<SortableRowProps> = React.memo(
           className="flex items-center shrink-0"
           style={{ gap: 'min(4px, 1cqmin)' }}
         >
+          {/* no-tour-anchor: one row per saved PDF, generated from the library list */}
           <button
             onClick={() => onOpen(pdf)}
             className="bg-red-600 hover:bg-red-700 text-white rounded-lg font-black uppercase tracking-wider transition-colors"
@@ -97,6 +98,7 @@ export const SortableRow: React.FC<SortableRowProps> = React.memo(
           >
             Open
           </button>
+          {/* no-tour-anchor: one row per saved PDF, generated from the library list */}
           <button
             onClick={() => onDelete(pdf.id, pdf.storagePath)}
             className="text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"

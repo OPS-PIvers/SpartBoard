@@ -47,6 +47,11 @@ interface DriveFileCreateResponse {
   name: string;
 }
 
+/** Escape backslash then single quote for Drive q-string literals. */
+function driveQueryEscape(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
 export class GoogleDriveService {
   private accessToken: string;
   private onTokenExpire: (() => Promise<string | null>) | undefined;
@@ -165,9 +170,9 @@ export class GoogleDriveService {
     folderName: string,
     parentId?: string
   ): Promise<string | null> {
-    let query = `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+    let query = `name = '${driveQueryEscape(folderName)}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
     if (parentId) {
-      query += ` and '${parentId}' in parents`;
+      query += ` and '${driveQueryEscape(parentId)}' in parents`;
     }
     const folders = await this.listFiles(query);
     return folders.length > 0 ? folders[0].id : null;
@@ -215,9 +220,9 @@ export class GoogleDriveService {
     folderName: string,
     parentId?: string
   ): Promise<string> {
-    let query = `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+    let query = `name = '${driveQueryEscape(folderName)}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
     if (parentId) {
-      query += ` and '${parentId}' in parents`;
+      query += ` and '${driveQueryEscape(parentId)}' in parents`;
     }
 
     const folders = await this.listFiles(query);
@@ -381,9 +386,11 @@ export class GoogleDriveService {
     }
 
     // Fallback: Check if file exists by name to update or create
-    const existingFiles = await this.listFiles(
-      `name = '${fileName}' and '${folderId}' in parents and trashed = false`
-    );
+    const existingFiles = (
+      await this.listFiles(
+        `name = '${driveQueryEscape(fileName)}' and '${driveQueryEscape(folderId)}' in parents and trashed = false`
+      )
+    ).filter((f) => f.name === fileName);
 
     if (existingFiles.length > 0) {
       // Update existing

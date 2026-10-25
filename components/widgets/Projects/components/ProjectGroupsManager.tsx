@@ -229,6 +229,7 @@ const GroupColorPicker: React.FC<{
           className="absolute left-0 top-7 z-20 grid w-44 grid-cols-6 gap-1.5 rounded-xl border border-slate-200 bg-white p-2 shadow-lg"
         >
           {PROJECT_GROUP_COLORS.map((option) => (
+            // no-tour-anchor: one swatch per palette color, generated from the palette
             <button
               key={option}
               type="button"
