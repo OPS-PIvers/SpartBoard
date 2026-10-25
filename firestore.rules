@@ -6536,7 +6536,7 @@ service cloud.firestore {
       // A participant reaches one session by get, via the poll_codes pointer; list is owner/admin only.
       allow get: if signedIn();
       allow list: if signedIn() &&
-                  (isAdmin() || resource.data.teacherUid == authUid());
+                  (isAdmin() || existing().teacherUid == authUid());
       // Only a non-anonymous teacher whose uid prefixes the sessionId (or an
       // admin) may create/update the session doc itself.
       allow create, update: if signedIn() &&

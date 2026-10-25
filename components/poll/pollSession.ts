@@ -235,6 +235,20 @@ export const lookupPollSessionByCode = async (
   return { sessionId: snap.id, data: snap.data() as PollSessionDoc };
 };
 
+/** Write a missing code pointer for a live session started before pointers existed. */
+export const ensurePollCodePointer = async (
+  teacherUid: string,
+  code: string
+): Promise<void> => {
+  const ref = doc(db, POLL_CODES, code);
+  if ((await getDoc(ref)).exists()) return;
+  await setDoc(ref, {
+    sessionId: makePollSessionId(teacherUid, code),
+    teacherUid,
+    updatedAt: Date.now(),
+  });
+};
+
 /** Blank an abandoned session's questions (roster-derived labels) and drop its code pointer. */
 export const retirePollSession = async (
   teacherUid: string,

@@ -219,3 +219,40 @@ describe("colleagues change the owner's wall only through the server", () => {
     await assertSucceeds(getDoc(doc(asTeacher(HOST_UID), LIBRARY_PATH)));
   });
 });
+
+describe('a session names its own teacher', () => {
+  it("a teacher can't plant a wall in a colleague's library list", async () => {
+    const db = asTeacher(COLLAB_UID);
+    await assertFails(
+      setDoc(doc(db, `activity_wall_sessions/${COLLAB_UID}_planted`), {
+        ...sharedSession,
+        id: `${COLLAB_UID}_planted`,
+        teacherUid: HOST_UID,
+      })
+    );
+    await assertSucceeds(
+      setDoc(doc(db, `activity_wall_sessions/${COLLAB_UID}_own`), {
+        ...sharedSession,
+        id: `${COLLAB_UID}_own`,
+        teacherUid: COLLAB_UID,
+      })
+    );
+  });
+
+  it('the owner still updates and lists their own session', async () => {
+    const db = asTeacher(HOST_UID);
+    await assertSucceeds(
+      updateDoc(doc(db, `activity_wall_sessions/${SESSION_ID}`), {
+        title: 'Renamed',
+      })
+    );
+    await assertSucceeds(
+      getDocs(
+        query(
+          collection(db, 'activity_wall_sessions'),
+          where('teacherUid', '==', HOST_UID)
+        )
+      )
+    );
+  });
+});

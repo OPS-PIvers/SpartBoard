@@ -32,6 +32,7 @@ import {
   aggregateVotes,
   toSessionQuestions,
   ensurePollJoinCode,
+  ensurePollCodePointer,
   lookupPollSessionByCode,
   startPollSession,
   toSessionResultsState,
@@ -296,6 +297,25 @@ describe('lookupPollSessionByCode', () => {
     const found = await lookupPollSessionByCode(' k3f-9q ');
     expect(mockDoc).toHaveBeenCalledWith({}, 'poll_codes', 'K3F9Q');
     expect(found?.sessionId).toBe('teacher-1_K3F9Q');
+  });
+});
+
+describe('ensurePollCodePointer', () => {
+  it('writes the pointer for a live session that has none', async () => {
+    await ensurePollCodePointer('teacher-1', 'K3F9Q');
+    expect(mockSetDoc).toHaveBeenCalledWith(
+      { __path: 'poll_codes/K3F9Q' },
+      expect.objectContaining({
+        sessionId: 'teacher-1_K3F9Q',
+        teacherUid: 'teacher-1',
+      })
+    );
+  });
+
+  it('leaves an existing pointer alone', async () => {
+    mockGetDoc.mockResolvedValueOnce({ exists: () => true });
+    await ensurePollCodePointer('teacher-1', 'K3F9Q');
+    expect(mockSetDoc).not.toHaveBeenCalled();
   });
 });
 
