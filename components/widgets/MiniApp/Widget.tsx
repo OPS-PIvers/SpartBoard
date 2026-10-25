@@ -1,3 +1,4 @@
+import { copyText } from '@/utils/copyText';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   DEFAULT_MINI_APP_RESULTS,
@@ -170,7 +171,7 @@ export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
 
   const handleCopy = async () => {
     if (!link) return;
-    await navigator.clipboard.writeText(link);
+    if (!(await copyText(link))) return;
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

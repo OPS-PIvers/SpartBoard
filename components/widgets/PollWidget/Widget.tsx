@@ -1,3 +1,4 @@
+import { copyText } from '@/utils/copyText';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   collection,
@@ -243,9 +244,11 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const handleCopy = () => {
     if (!joinUrl) return;
-    void navigator.clipboard.writeText(joinUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    void copyText(joinUrl).then((ok) => {
+      if (!ok) return;
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   const questionChars = Math.max(1, activeQuestion.question.length);
