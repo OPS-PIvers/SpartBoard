@@ -1,7 +1,8 @@
 import React from 'react';
 import { Ear, RotateCcw } from 'lucide-react';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
-import type { SoundConfig } from '@/types';
+import type { ScoreboardConfig, SoundConfig } from '@/types';
+import { useDashboard } from '@/context/useDashboard';
 import { tourAttr } from '@/config/tourAnchors';
 import { isCalibrating } from './noiseTarget';
 
@@ -58,5 +59,45 @@ export const SoundCalibrateField: React.FC<{ ctx: CustomRenderCtx }> = ({
         </button>
       )}
     </div>
+  );
+};
+
+export const SoundGoalTeamField: React.FC<{ ctx: CustomRenderCtx }> = ({
+  ctx,
+}) => {
+  const { activeDashboard } = useDashboard();
+  const teams = (activeDashboard?.widgets ?? [])
+    .filter((w) => w.type === 'scoreboard')
+    .flatMap((w) => {
+      const config = w.config as ScoreboardConfig;
+      return config.liveQuizWidgetId || !Array.isArray(config.teams)
+        ? []
+        : config.teams;
+    });
+  const value = (ctx.config as Partial<SoundConfig>).quietGoalTeamId ?? '';
+
+  return (
+    <select
+      id={ctx.id}
+      aria-labelledby={ctx.labelId}
+      aria-describedby={ctx.describedBy}
+      value={teams.some((t) => t.id === value) ? value : ''}
+      onChange={(e) =>
+        ctx.updateConfig({ quietGoalTeamId: e.target.value || null })
+      }
+      className="w-full text-xs bg-white border border-slate-200 rounded-lg px-3 py-2 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+      {...tourAttr(
+        'widget-settings.sound.goal-team',
+        ctx.widget.id,
+        ctx.widget.type
+      )}
+    >
+      <option value="">{translate(ctx, 'goalTeamNone')}</option>
+      {teams.map((team) => (
+        <option key={team.id} value={team.id}>
+          {team.name}
+        </option>
+      ))}
+    </select>
   );
 };

@@ -893,6 +893,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'sound.clear-summary': ['widgets.sound.summary'],
     'sound.close-summary': ['widgets.sound.summary'],
     'sound.restart-goal': ['widgets.sound.face'],
+    'widget-settings.sound.goal-team': ['widgets.sound.settings'],
     'widget-settings.sound.calibrate': ['widgets.sound.settings'],
     'widget-settings.sound.reset-calibration': ['widgets.sound.settings'],
     'widget-settings.seating-chart.clear-assignments': [

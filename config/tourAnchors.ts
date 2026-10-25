@@ -4084,6 +4084,11 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'widget-settings.sound.goal-team': {
+    label: 'Scoreboard team menu for the quiet time goal in Sound settings',
+    perWidget: true,
+    panel: true,
+  },
   'widget-settings.sound.calibrate': {
     label: 'Calibrate button in Sound settings',
     perWidget: true,

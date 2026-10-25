@@ -48,4 +48,17 @@ describe('useQuietGoal', () => {
     }
     expect(result.current.elapsedMs).toBe(1000);
   });
+
+  it('reports when the goal is lowered below the time counted', () => {
+    const onReached = vi.fn();
+    const { rerender } = renderHook(
+      ({ goal }) => useQuietGoal(true, goal, onReached),
+      { initialProps: { goal: 10_000 } }
+    );
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+    rerender({ goal: 2000 });
+    expect(onReached).toHaveBeenCalledTimes(1);
+  });
 });

@@ -2176,6 +2176,8 @@ export interface SoundConfig {
   quietGoalMinutes?: number;
   /** Start the goal over when Too loud shows, instead of pausing it. */
   quietGoalResetOnAlert?: boolean;
+  /** Scoreboard team that gets a point each time the quiet time goal is reached. */
+  quietGoalTeamId?: string | null;
 }
 
 /** Active drawing tool. Replaces the legacy `config.color === 'eraser'` overload. */

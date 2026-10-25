@@ -2006,7 +2006,9 @@
       "resetCalibration": "Reset",
       "quietGoalMinutes": "Quiet time goal (minutes)",
       "quietGoalHelp": "Progress fills while the class stays at or under the target. Set to 0 to turn it off.",
-      "quietGoalResetOnAlert": "Reset progress when Too loud shows"
+      "quietGoalResetOnAlert": "Reset progress when Too loud shows",
+      "quietGoalTeamId": "Add a point when the goal is reached",
+      "goalTeamNone": "None"
     },
     "webcam": {
       "autoSendToNotes": "Send OCR text to Notes automatically"

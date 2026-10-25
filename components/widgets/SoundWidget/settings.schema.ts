@@ -13,7 +13,10 @@ import {
   MAX_TARGET_LEVEL,
   NOISE_METER_PRO,
 } from './noiseTarget';
-import { SoundCalibrateField } from './settingsFields';
+import { SoundCalibrateField, SoundGoalTeamField } from './settingsFields';
+
+const renderGoalTeam = (ctx: CustomRenderCtx) =>
+  React.createElement(SoundGoalTeamField, { ctx });
 
 const renderCalibrate = (ctx: CustomRenderCtx) =>
   React.createElement(SoundCalibrateField, { ctx });
@@ -25,6 +28,10 @@ const hasTarget = (ctx: FieldCtx) =>
   isPro(ctx) &&
   (typeof ctx.config.targetLevel === 'number' ||
     isExpectationsSyncEnabled(ctx));
+const hasGoal = (ctx: FieldCtx) =>
+  hasTarget(ctx) &&
+  typeof ctx.config.quietGoalMinutes === 'number' &&
+  ctx.config.quietGoalMinutes > 0;
 const TARGET_OFF = -1;
 const isTrafficAutomationEnabled = (ctx: FieldCtx) =>
   ctx.config.autoTrafficLight === true;
@@ -131,10 +138,20 @@ export default defineSettings<SoundConfig>({
           key: 'quietGoalResetOnAlert',
           type: 'toggle',
           label: 'quietGoalResetOnAlert',
-          visibleWhen: (ctx) =>
-            hasTarget(ctx) &&
-            typeof ctx.config.quietGoalMinutes === 'number' &&
-            ctx.config.quietGoalMinutes > 0,
+          visibleWhen: hasGoal,
+        },
+        {
+          key: 'quietGoalTeamId',
+          type: 'partnerWidget',
+          label: 'quietGoalTeamId',
+          partner: 'scoreboard',
+          visibleWhen: hasGoal,
+          control: {
+            key: 'quietGoalTeamId',
+            type: 'custom',
+            label: 'quietGoalTeamId',
+            render: renderGoalTeam,
+          },
         },
         {
           key: 'autoTrafficLight',

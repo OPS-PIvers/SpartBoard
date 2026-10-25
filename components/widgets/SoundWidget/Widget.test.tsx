@@ -660,6 +660,26 @@ describe('SoundWidget', () => {
       expect(seconds()).toBe(0);
     });
 
+    it('adds a point to the chosen Scoreboard team at the goal', async () => {
+      mockActiveDashboard.widgets = [
+        {
+          id: 'scoreboard-1',
+          type: 'scoreboard',
+          config: { teams: [{ id: 't1', name: 'Red', score: 4 }] },
+        } as unknown as WidgetData,
+      ];
+      await mount(0, { quietGoalTeamId: 't1' });
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      expect(mockUpdateWidget).toHaveBeenCalledTimes(1);
+      expect(mockUpdateWidget).toHaveBeenCalledWith('scoreboard-1', {
+        config: expect.objectContaining({
+          teams: [{ id: 't1', name: 'Red', score: 5 }],
+        }) as unknown,
+      });
+    });
+
     it('shows no goal with the flag off', async () => {
       access.pro = false;
       await mount(0, {});
