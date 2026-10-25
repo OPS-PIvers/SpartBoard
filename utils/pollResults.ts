@@ -35,19 +35,26 @@ const percentOf = (count: number, total: number): number =>
 const cloudKey = (text: string): string =>
   text.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
 
-const summarizeTexts = (
-  kind: PollQuestionKind | undefined,
-  answers: PollVoteEntry[]
-): { text: string; count: number }[] => {
-  const sorted = answers
+const typedAnswers = (answers: PollVoteEntry[]): PollVoteEntry[] =>
+  answers
     .filter((a) => typeof a.text === 'string' && a.text.trim() !== '')
-    .sort((a, b) => (b.votedAt ?? 0) - (a.votedAt ?? 0))
+    .sort((a, b) => (b.votedAt ?? 0) - (a.votedAt ?? 0));
+
+/** Answers the teacher hid on the board stay out of the list, as they do on the board. */
+const summarizeTexts = (
+  q: PollQuestion,
+  answers: PollVoteEntry[],
+  hidden: ReadonlySet<string>
+): { text: string; count: number }[] => {
+  const shown = answers
+    .filter((a) => !hidden.has(`${q.id}:${a.id}`))
     .map((a) => (a.text ?? '').trim());
-  if (kind !== 'words') return sorted.map((text) => ({ text, count: 1 }));
+  if (q.kind !== 'words') return shown.map((text) => ({ text, count: 1 }));
   const counts = new Map<string, number>();
-  for (const text of sorted) {
+  for (const text of shown) {
     const key = cloudKey(text);
-    counts.set(key, (counts.get(key) ?? 0) + 1);
+    if (!hidden.has(`${q.id}#${key}`))
+      counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
@@ -58,20 +65,23 @@ const summarizeTexts = (
 export const summarizePoll = (
   questions: PollQuestion[],
   votes: PollVoteEntry[],
-  answers: PollVoteEntry[]
-): PollQuestionSummary[] =>
-  questions.map((q, index) => {
+  answers: PollVoteEntry[],
+  hiddenResponses: readonly string[] = []
+): PollQuestionSummary[] => {
+  const hidden = new Set(hiddenResponses);
+  return questions.map((q, index) => {
     const kind = q.kind ?? 'choice';
     if (isTextQuestion(q)) {
-      const mine = answers.filter((a) => a.questionIndex === index);
-      const texts = summarizeTexts(q.kind, mine);
+      const mine = typedAnswers(
+        answers.filter((a) => a.questionIndex === index)
+      );
       return {
         question: q.question,
         kind,
-        answered: texts.reduce((sum, t) => sum + t.count, 0),
+        answered: mine.length,
         options: [],
         average: null,
-        texts,
+        texts: summarizeTexts(q, mine, hidden),
       };
     }
     const counts = aggregateVotes(votes, index, q.options.length);
@@ -90,6 +100,7 @@ export const summarizePoll = (
       texts: [],
     };
   });
+};
 
 /** Results from the board's own tallies, for a poll that never ran on devices. */
 export const summarizeLocalPoll = (

@@ -126,3 +126,22 @@ describe('pollResultsCsv', () => {
     expect(csv).toContain(`"'=HYPERLINK(""x"")"`);
   });
 });
+
+describe('hidden answers', () => {
+  it('leaves answers and words the teacher hid out of the list', () => {
+    const [w, t] = summarizePoll(
+      [words, text],
+      [],
+      [
+        { id: '0_u1', questionIndex: 0, text: 'rude', votedAt: 1 },
+        { id: '0_u2', questionIndex: 0, text: 'fun', votedAt: 2 },
+        { id: '1_u1', questionIndex: 1, text: 'keep', votedAt: 1 },
+        { id: '1_u2', questionIndex: 1, text: 'hide me', votedAt: 2 },
+      ],
+      ['q3#rude', 'q4:1_u2']
+    );
+    expect(w.texts).toEqual([{ text: 'fun', count: 1 }]);
+    expect(t.texts.map((x) => x.text)).toEqual(['keep']);
+    expect(t.answered).toBe(2);
+  });
+});

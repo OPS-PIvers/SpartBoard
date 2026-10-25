@@ -52,6 +52,7 @@ import {
   startPollSession,
   stopPollSession,
   syncSessionResultsState,
+  withStoppedSessionEnded,
 } from '@/components/poll/pollSession';
 import { buildPollJoinUrl } from '@/utils/pollCode';
 import {
@@ -110,7 +111,9 @@ export const PollSettings: React.FC<{
       ? (activePollSessionId ?? config.lastPollSessionId ?? null)
       : null;
   const resultsOwnerUid =
-    (isLive ? config.activePollSessionOwnerUid : null) ?? user?.uid;
+    (isLive
+      ? config.activePollSessionOwnerUid
+      : config.lastPollSessionOwnerUid) ?? user?.uid;
   const { votes: sessionVotes, answers: sessionAnswers } = usePollSessionDocs(
     resultsOwnerUid,
     resultsSessionId,
@@ -119,9 +122,20 @@ export const PollSettings: React.FC<{
   const summaries = useMemo(
     () =>
       resultsSessionId
-        ? summarizePoll(questions, sessionVotes, sessionAnswers)
+        ? summarizePoll(
+            questions,
+            sessionVotes,
+            sessionAnswers,
+            config.hiddenResponses ?? []
+          )
         : summarizeLocalPoll(questions),
-    [resultsSessionId, questions, sessionVotes, sessionAnswers]
+    [
+      resultsSessionId,
+      questions,
+      sessionVotes,
+      sessionAnswers,
+      config.hiddenResponses,
+    ]
   );
 
   // Editing cursor — deliberately separate from `currentQuestionIndex`, which
@@ -144,6 +158,8 @@ export const PollSettings: React.FC<{
 
   // In-flight join-code reservation, shared by the mint effect and Start.
   const mintPromiseRef = useRef<Promise<string | null> | null>(null);
+  // The reserved code reached the config; once Reset or Load clears it, it is spent.
+  const mintAppliedRef = useRef(false);
 
   const beginSession = async (mode: 'fresh' | 'resume') => {
     if (!user) return;
@@ -152,7 +168,9 @@ export const PollSettings: React.FC<{
       // Adopt any in-flight code reservation instead of letting
       // startPollSession mint a second one: two codes would leave the panel
       // showing the reserved code while the live session answers to the other.
-      const reserved = await mintPromiseRef.current;
+      const reserved = mintAppliedRef.current
+        ? null
+        : await mintPromiseRef.current;
       const base =
         reserved && !config.joinCode
           ? { ...config, joinCode: reserved }
@@ -230,6 +248,10 @@ export const PollSettings: React.FC<{
   useEffect(() => {
     if (!showBehavior || !canOfferAnonymousJoin || !user || config.joinCode)
       return;
+    if (mintAppliedRef.current) {
+      mintPromiseRef.current = null;
+      mintAppliedRef.current = false;
+    }
     if (mintPromiseRef.current) return;
     const pending = ensurePollJoinCode(config, user.uid).catch((err) => {
       logError('PollSettings.ensureJoinCode', err);
@@ -243,7 +265,9 @@ export const PollSettings: React.FC<{
       // Patch ONLY the minted key. `updateWidget` merges config shallowly, so
       // writing back a whole snapshot captured before this round-trip would
       // revert any edit the teacher made while it was in flight.
-      if (code) applyConfig({ joinCode: code });
+      if (!code || mintPromiseRef.current !== pending) return;
+      mintAppliedRef.current = true;
+      applyConfig({ joinCode: code });
     });
   }, [showBehavior, canOfferAnonymousJoin, user, config, applyConfig]);
 
@@ -507,14 +531,14 @@ export const PollSettings: React.FC<{
       }
     );
     if (!confirmed) return;
-    const next = withVotesReset(config);
+    const reset = withVotesReset(config);
+    const next = pollPro ? withStoppedSessionEnded(reset) : reset;
     applyConfig(next);
     syncHiddenResults(next);
   };
 
   const handleLoadSaved = (preset: SavedPollPreset) => {
     // A different poll starts a new session with a new join code, so old votes never mix in.
-    mintPromiseRef.current = null;
     applyConfig(
       withPollQuestions(
         {
@@ -527,6 +551,7 @@ export const PollSettings: React.FC<{
           hiddenResponses: [],
           joinCode: null,
           lastPollSessionId: null,
+          lastPollSessionOwnerUid: null,
         },
         preset.questions.map((q) => ({
           ...q,

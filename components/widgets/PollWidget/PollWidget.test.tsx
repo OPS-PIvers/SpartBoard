@@ -1514,6 +1514,58 @@ describe('PollSettings', () => {
     expect(summary).toHaveTextContent('Yes1 · 100%');
   });
 
+  it('reads a colleague’s stopped session for results on a shared board', () => {
+    mockOnSnapshot.mockImplementation(() => vi.fn());
+    render(
+      <PollSettings
+        widget={proWidget({
+          lastPollSessionId: 'K3F9Q',
+          lastPollSessionOwnerUid: 'colleague',
+          questions: [
+            { id: 'q1', question: 'Why?', kind: 'text', options: [] },
+          ],
+        })}
+      />
+    );
+    expect(mockCollection).toHaveBeenCalledWith(
+      {},
+      'poll_sessions',
+      'colleague_K3F9Q',
+      'votes'
+    );
+    // Typed answers belong to the colleague, so this teacher never asks for them.
+    expect(mockCollection).not.toHaveBeenCalledWith(
+      {},
+      'poll_sessions',
+      'colleague_K3F9Q',
+      'answers'
+    );
+  });
+
+  it('ends a stopped session on Reset, so its votes cannot come back', async () => {
+    render(
+      <PollSettings
+        widget={proWidget({
+          joinCode: 'K3F9Q',
+          lastPollSessionId: 'K3F9Q',
+          questions: [
+            {
+              id: 'q1',
+              question: 'Best fruit?',
+              options: [{ id: 'a', label: 'Apple', votes: 3 }],
+            },
+          ],
+        })}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    await waitFor(() => expect(mockUpdateWidget).toHaveBeenCalled());
+    const saved = (
+      mockUpdateWidget.mock.calls.at(-1)?.[1] as { config: PollConfig }
+    ).config;
+    expect(saved).toMatchObject({ joinCode: null, lastPollSessionId: null });
+  });
+
   it('saves the poll with its votes cleared', async () => {
     dialog.showPrompt.mockResolvedValue('  Exit ticket ');
     render(

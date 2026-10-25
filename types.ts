@@ -2363,6 +2363,8 @@ export interface PollConfig {
    * mints a fresh id instead.
    */
   lastPollSessionId?: string | null;
+  /** Who ran the session in `lastPollSessionId` on a shared board, so results read the right one. */
+  lastPollSessionOwnerUid?: string | null;
   /** Who started the live session, so other members of a shared board read its votes. */
   activePollSessionOwnerUid?: string | null;
   /** Legacy single-question shape — read through `getPollQuestions` only. */

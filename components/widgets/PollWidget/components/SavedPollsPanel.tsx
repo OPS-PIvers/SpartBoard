@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
 import { Save, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -41,6 +41,15 @@ export const SavedPollsPanel: React.FC<SavedPollsPanelProps> = ({
   const savedLibrary: SavedPollPreset[] =
     (savedWidgetPresets.poll as Partial<PollConfig> | undefined)
       ?.savedLibrary ?? [];
+  // Read after a dialog closes, so a save or delete made meanwhile is not lost.
+  const libraryRef = useRef(savedLibrary);
+  useLayoutEffect(() => {
+    libraryRef.current = savedLibrary;
+  });
+  const writeLibrary = (next: SavedPollPreset[]) => {
+    libraryRef.current = next;
+    saveWidgetPreset('poll', { savedLibrary: next });
+  };
 
   const handleSave = async () => {
     const name = await showPrompt(t('widgetSettings.poll.savePollPrompt'), {
@@ -59,7 +68,7 @@ export const SavedPollsPanel: React.FC<SavedPollsPanelProps> = ({
       hideResults,
       createdAt: Date.now(),
     };
-    saveWidgetPreset('poll', { savedLibrary: [...savedLibrary, preset] });
+    writeLibrary([...libraryRef.current, preset]);
     addToast(
       t('widgetSettings.poll.pollSaved', { name: preset.name }),
       'success'
@@ -82,9 +91,7 @@ export const SavedPollsPanel: React.FC<SavedPollsPanelProps> = ({
       variant: 'danger',
     });
     if (!ok) return;
-    saveWidgetPreset('poll', {
-      savedLibrary: savedLibrary.filter((p) => p.id !== preset.id),
-    });
+    writeLibrary(libraryRef.current.filter((p) => p.id !== preset.id));
   };
 
   return (

@@ -18,6 +18,7 @@ import {
   makePollSessionId,
   setSessionQuestionIndex,
   syncSessionResultsState,
+  withStoppedSessionEnded,
   type PollVoteEntry,
 } from '@/components/poll/pollSession';
 
@@ -27,6 +28,8 @@ interface UsePollSessionArgs {
   onConfigChange: (next: PollConfig) => void;
   /** The viewer owns the session, so the rules let it read typed answers. */
   readAnswers?: boolean;
+  /** Reset also ends a stopped session (poll-pro), so its votes can't come back. */
+  endSessionOnReset?: boolean;
 }
 
 export interface PollResponse {
@@ -133,6 +136,7 @@ export const usePollSession = ({
   teacherUid,
   onConfigChange,
   readAnswers = false,
+  endSessionOnReset = false,
 }: UsePollSessionArgs): UsePollSessionResult => {
   const activePollSessionId = config.activePollSessionId ?? null;
   const isLive = !!activePollSessionId;
@@ -252,11 +256,12 @@ export const usePollSession = ({
   );
 
   const resetVotes = useCallback(() => {
-    const next = withVotesReset(config);
+    const reset = withVotesReset(config);
+    const next = endSessionOnReset ? withStoppedSessionEnded(reset) : reset;
     if (config.hideResults || config.answerShownQuestionIds?.length) {
       applyResultsState(next);
     } else onConfigChange(next);
-  }, [config, applyResultsState, onConfigChange]);
+  }, [config, endSessionOnReset, applyResultsState, onConfigChange]);
 
   const hasCorrectAnswer = (currentQuestion?.options ?? []).some(
     (o) => o.correct === true
