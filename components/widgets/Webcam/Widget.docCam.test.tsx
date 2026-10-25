@@ -61,6 +61,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 const video = (container: HTMLElement) =>
@@ -173,7 +174,29 @@ describe('WebcamWidget freeze', () => {
 
 describe('WebcamWidget drawing', () => {
   it('shows drawing tools only in draw mode and keeps strokes off the board', () => {
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(private cb: ResizeObserverCallback) {}
+        observe() {
+          this.cb(
+            [
+              {
+                contentRect: { width: 400, height: 300 },
+              } as ResizeObserverEntry,
+            ],
+            this as unknown as ResizeObserver
+          );
+        }
+        disconnect() {
+          return undefined;
+        }
+      }
+    );
     const { container } = render(<WebcamWidget widget={makeWidget()} />);
+    Object.defineProperty(video(container), 'videoWidth', { value: 640 });
+    Object.defineProperty(video(container), 'videoHeight', { value: 480 });
+    fireEvent.loadedMetadata(video(container));
     expect(screen.queryByRole('toolbar', { name: 'Drawing tools' })).toBeNull();
     const ink = container.querySelector('[data-doccam-ink]') as HTMLElement;
     expect(ink.style.pointerEvents).toBe('none');

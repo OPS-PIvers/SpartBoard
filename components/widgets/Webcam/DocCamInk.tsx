@@ -4,16 +4,17 @@ import type { PathObject, WidgetType } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
 import {
   type InkTool,
+  type InkFrame,
   INK_COLORS,
+  feedToInk,
+  inkFrameReady,
   paintInk,
   strokeStyleFor,
-  toInkPoint,
 } from './docCamInk';
-import type { Size } from './docCamView';
 
 interface LayerProps {
   strokes: readonly PathObject[];
-  size: Size;
+  frame: InkFrame;
   active: boolean;
   tool: InkTool;
   penColor: string;
@@ -23,7 +24,7 @@ interface LayerProps {
 /** Canvas over the Camera feed that shows ink and, in draw mode, takes pen input. */
 export const DocCamInkLayer: React.FC<LayerProps> = ({
   strokes,
-  size,
+  frame,
   active,
   tool,
   penColor,
@@ -51,6 +52,7 @@ export const DocCamInkLayer: React.FC<LayerProps> = ({
     });
   };
 
+  const size = frame.feed;
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -64,14 +66,14 @@ export const DocCamInkLayer: React.FC<LayerProps> = ({
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, w, h);
     ctx.scale(dpr, dpr);
-    paintInk(ctx, draft ? [...strokes, draft] : strokes, size);
-  }, [strokes, draft, size]);
+    paintInk(ctx, draft ? [...strokes, draft] : strokes, frame);
+  }, [strokes, draft, size, frame]);
 
   const pointOf = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const el = e.currentTarget;
     const r = el.getBoundingClientRect();
     const k = el.offsetWidth > 0 ? r.width / el.offsetWidth : 1;
-    return toInkPoint((e.clientX - r.left) / k, (e.clientY - r.top) / k, size);
+    return feedToInk((e.clientX - r.left) / k, (e.clientY - r.top) / k, frame);
   };
 
   return (
@@ -86,6 +88,7 @@ export const DocCamInkLayer: React.FC<LayerProps> = ({
       }}
       onPointerDown={(e) => {
         if (!active || e.button !== 0 || pointerId.current !== null) return;
+        if (!inkFrameReady(frame)) return;
         e.stopPropagation();
         pointerId.current = e.pointerId;
         e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -120,7 +123,7 @@ export const DocCamInkLayer: React.FC<LayerProps> = ({
 
 const ICON = { width: 'min(18px, 4.5cqmin)', height: 'min(18px, 4.5cqmin)' };
 const BUTTON =
-  'rounded-xl text-white disabled:opacity-30 disabled:cursor-not-allowed';
+  'relative touch-target-expand rounded-xl text-white disabled:opacity-30 disabled:cursor-not-allowed';
 
 interface ToolbarProps {
   widgetId: string;

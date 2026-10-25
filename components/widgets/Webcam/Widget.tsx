@@ -30,11 +30,22 @@ import { DocCamInkLayer, DocCamInkToolbar } from './DocCamInk';
 import { INK_COLORS, type InkTool, paintInk } from './docCamInk';
 import { useCommandStack } from '@/components/widgets/DrawingWidget/useCommandStack';
 import {
+  type Size,
   isDefaultView,
   mediaBox,
   mediaTransform,
   renderView,
 } from './docCamView';
+
+const NO_SIZE: Size = { width: 0, height: 0 };
+const videoSizeOf = (v: HTMLVideoElement): Size => ({
+  width: v.videoWidth,
+  height: v.videoHeight,
+});
+const naturalSizeOf = (img: HTMLImageElement): Size => ({
+  width: img.naturalWidth,
+  height: img.naturalHeight,
+});
 
 export const WebcamWidget: React.FC<{
   widget: WidgetData;
@@ -90,6 +101,9 @@ export const WebcamWidget: React.FC<{
 
   // Ink over the feed is view-only: it never goes on the board, only into photos.
   const [inkStrokes, setInkStrokes] = useState<PathObject[]>([]);
+  // Camera frame sizes, so ink is stored against the picture rather than the widget box.
+  const [videoSize, setVideoSize] = useState<Size>(NO_SIZE);
+  const [remoteSize, setRemoteSize] = useState<Size>(NO_SIZE);
   const [isDrawing, setIsDrawing] = useState(false);
   const [inkTool, setInkTool] = useState<InkTool>('pen');
   const [penColor, setPenColor] = useState<string>(INK_COLORS[0].value);
@@ -103,33 +117,47 @@ export const WebcamWidget: React.FC<{
   // Document camera view: the photo matches the turned, zoomed feed.
   const captureDocCamView = useCallback(
     (withInk = false): string => {
-      const overlay =
+      const overlayFor = (source: Size, mirrored: boolean) =>
         withInk && inkStrokes.length > 0
           ? (ctx: CanvasRenderingContext2D) =>
-              paintInk(ctx, inkStrokes, feedSize)
+              paintInk(ctx, inkStrokes, {
+                feed: feedSize,
+                source,
+                view: docCamView,
+                mirrored,
+              })
           : undefined;
       const frozen = frozenImgRef.current;
       if (isFrozen) {
         // Never fall back to the hidden live video while the frozen frame loads.
         if (!frozen?.naturalWidth) return '';
+        const size = {
+          width: frozen.naturalWidth,
+          height: frozen.naturalHeight,
+        };
         const canvas = renderView(
           frozen,
-          { width: frozen.naturalWidth, height: frozen.naturalHeight },
+          size,
           docCamView,
           isMirrored,
           feedSize,
-          overlay
+          overlayFor(size, isMirrored)
         );
         return canvas?.toDataURL('image/png') ?? '';
       }
       if (isRemoteShown) {
         const img = remoteImgRef.current;
-        if (!img?.naturalWidth || (isDefaultView(docCamView) && !overlay)) {
+        const size = {
+          width: img?.naturalWidth ?? 0,
+          height: img?.naturalHeight ?? 0,
+        };
+        const overlay = overlayFor(size, false);
+        if (!img || !size.width || (isDefaultView(docCamView) && !overlay)) {
           return widgetConfig.remoteCaptureDataUrl ?? '';
         }
         const canvas = renderView(
           img,
-          { width: img.naturalWidth, height: img.naturalHeight },
+          size,
           docCamView,
           false,
           feedSize,
@@ -140,13 +168,14 @@ export const WebcamWidget: React.FC<{
       }
       const video = videoRef.current;
       if (!video) return '';
+      const size = { width: video.videoWidth, height: video.videoHeight };
       const canvas = renderView(
         video,
-        { width: video.videoWidth, height: video.videoHeight },
+        size,
         docCamView,
         isMirrored,
         feedSize,
-        overlay
+        overlayFor(size, isMirrored)
       );
       return canvas?.toDataURL('image/png') ?? '';
     },
@@ -510,6 +539,9 @@ export const WebcamWidget: React.FC<{
                       src={widgetConfig.remoteCaptureDataUrl}
                       alt="Remote Capture"
                       draggable={false}
+                      onLoad={(e) =>
+                        setRemoteSize(naturalSizeOf(e.currentTarget))
+                      }
                       className="absolute object-cover max-w-none select-none"
                       style={{
                         ...mediaBox(docCamView.rotation, feedSize),
@@ -523,6 +555,12 @@ export const WebcamWidget: React.FC<{
                       autoPlay
                       playsInline
                       muted
+                      onLoadedMetadata={(e) =>
+                        setVideoSize(videoSizeOf(e.currentTarget))
+                      }
+                      onResize={(e) =>
+                        setVideoSize(videoSizeOf(e.currentTarget))
+                      }
                       className={`absolute object-cover max-w-none ${isFrozen ? 'invisible' : ''}`}
                       style={{
                         ...mediaBox(docCamView.rotation, feedSize),
@@ -546,7 +584,12 @@ export const WebcamWidget: React.FC<{
                   )}
                   <DocCamInkLayer
                     strokes={inkStrokes}
-                    size={feedSize}
+                    frame={{
+                      feed: feedSize,
+                      source: isRemoteShown ? remoteSize : videoSize,
+                      view: docCamView,
+                      mirrored: !isRemoteShown && isMirrored,
+                    }}
                     active={isDrawing}
                     tool={inkTool}
                     penColor={penColor}
