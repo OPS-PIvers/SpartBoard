@@ -4,6 +4,7 @@ import { Plus, Minus, Crown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { LeaderMark } from '../points';
 import { formatScoreDelta } from '../history';
+import { useCountUp } from '../useCountUp';
 
 import {
   SCOREBOARD_COLORS as TEAM_COLORS,
@@ -121,6 +122,7 @@ export const ScoreboardItem = React.memo(
     pointValues = DEFAULT_POINTS,
     leader = null,
     showLeader = false,
+    pro = false,
   }: {
     team: ScoreboardTeam;
     teamPosition?: number;
@@ -130,8 +132,12 @@ export const ScoreboardItem = React.memo(
     leader?: LeaderMark;
     /** Reserves the leader line on every card so scores stay level. */
     showLeader?: boolean;
+    /** Count-up score and names that wrap to two lines instead of cutting off. */
+    pro?: boolean;
   }) => {
     const { t } = useTranslation();
+    const shownScore = useCountUp(team.score, pro);
+    const nameLength = Math.max(team.name.length, 8);
     const fieldKey = `team-${teamPosition}`;
     const multi = pointValues.length > 1;
     // Normalize the persisted color through the known-palette set before
@@ -174,9 +180,12 @@ export const ScoreboardItem = React.memo(
           style={{ padding: 'clamp(4px, 5cqmin, 24px)' }}
         >
           <div
-            className="font-black uppercase tracking-widest text-white text-center line-clamp-1 w-full shrink-0"
+            title={pro ? team.name : undefined}
+            className={`font-black uppercase text-white text-center w-full shrink-0 ${pro ? `line-clamp-2 break-words leading-tight ${team.name.length > 12 ? 'tracking-wide' : 'tracking-widest'}` : 'line-clamp-1 tracking-widest'}`}
             style={{
-              fontSize: 'clamp(10px, 10cqmin, 48px)',
+              fontSize: pro
+                ? `clamp(9px, min(10cqmin, ${(170 / nameLength).toFixed(1)}cqw), 48px)`
+                : 'clamp(10px, 10cqmin, 48px)',
               marginBottom: 'clamp(2px, 2cqmin, 12px)',
               paddingLeft: 'clamp(2px, 2cqmin, 12px)',
               paddingRight: 'clamp(2px, 2cqmin, 12px)',
@@ -223,7 +232,7 @@ export const ScoreboardItem = React.memo(
                 className="font-black text-white tabular-nums drop-shadow-sm text-center min-w-0 leading-none"
                 style={{ fontSize: multiFontSize }}
               >
-                {team.score}
+                {shownScore}
               </div>
               <div
                 className="flex flex-wrap items-center justify-center w-full"
@@ -307,7 +316,7 @@ export const ScoreboardItem = React.memo(
                   } as React.CSSProperties
                 }
               >
-                {team.score}
+                {shownScore}
               </div>
               <button
                 onClick={() => onUpdateScore(team.id, 1)}
@@ -351,6 +360,7 @@ export const ScoreboardItem = React.memo(
       prevProps.team.linkedGroupId === nextProps.team.linkedGroupId &&
       prevProps.leader === nextProps.leader &&
       prevProps.showLeader === nextProps.showLeader &&
+      prevProps.pro === nextProps.pro &&
       (prevProps.pointValues ?? DEFAULT_POINTS).join() ===
         (nextProps.pointValues ?? DEFAULT_POINTS).join()
     );

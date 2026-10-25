@@ -2516,6 +2516,13 @@
   ],
   "widgetNotes": [
     {
+      "id": "scoreboard-undo-points-2026-10-25",
+      "widget": "scoreboard",
+      "date": "2026-10-25",
+      "text": "Undo takes back the last score change and History shows each team's recent changes. You can also pick point buttons like +5 and +10, and the leading team gets a crown.",
+      "feature": "scoreboard-pro"
+    },
+    {
       "id": "2026-10-25-seating-chart-plans",
       "widget": "seating-chart",
       "date": "2026-10-25",

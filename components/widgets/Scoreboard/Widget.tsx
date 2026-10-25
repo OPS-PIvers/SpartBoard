@@ -313,6 +313,7 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
                   pointValues={pointValues}
                   leader={leaders.get(team.id) ?? null}
                   showLeader={pro && teams.length > 1}
+                  pro={pro}
                 />
               ))}
             </div>
@@ -334,6 +335,7 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
                   onUpdateScore={handleUpdateScore}
                   pointValues={pointValues}
                   leader={leaders.get(team.id) ?? null}
+                  pro={pro}
                 />
               ))}
             </div>
