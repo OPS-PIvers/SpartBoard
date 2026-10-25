@@ -92,13 +92,11 @@ describe('patchWithRetry', () => {
   });
 
   it('does not retry a 4xx', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue({
-        ok: false,
-        status: 403,
-        text: () => Promise.resolve('denied'),
-      });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      text: () => Promise.resolve('denied'),
+    });
     vi.stubGlobal('fetch', fetchMock);
     const sleep = vi.fn().mockResolvedValue(undefined);
     await expect(patchWithRetry('u', {}, 'site', { sleep })).rejects.toThrow(
