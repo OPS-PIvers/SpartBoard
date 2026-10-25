@@ -1744,6 +1744,18 @@ describe('handwriting crops', () => {
     expect(deps.deleteObject).not.toHaveBeenCalled();
   });
 
+  it('archives a kept crop after a re-import moved the seat', async () => {
+    const seed = cropSeed();
+    seed.response!.paperSeat = 5;
+    seed.paperPrivate![QUESTION_ID].seat = 3;
+    const { db } = makeStubDb(seed);
+    const deps = cropDeps(db);
+    await expect(archiveAs(deps, null)).resolves.toMatchObject({
+      archiveStatus: 'archived',
+    });
+    expect(deps.deleteObject).toHaveBeenCalledWith(CROP_PATH);
+  });
+
   it('records the archived source path', async () => {
     const { db, response } = makeStubDb(cropSeed());
     await archiveAs(cropDeps(db), null);

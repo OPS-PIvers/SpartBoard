@@ -746,6 +746,7 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
     expect(answers[3]).toMatchObject({ paperTranscript: 'blank', answer: '' });
     expect(docs[`${RESP}/paperPrivate/q2`]).toEqual({
       scanId: SCAN,
+      seat: 1,
       status: 'pending',
       attempts: 0,
       charged: false,

@@ -400,23 +400,20 @@ export async function ownPaperCropPath(
   teacherUid: string,
   questionId: string
 ): Promise<string | null> {
-  const seat = response.paperSeat;
-  if (
-    !teacherUid ||
-    !questionId ||
-    questionId.includes('/') ||
-    typeof seat !== 'number' ||
-    !Number.isInteger(seat) ||
-    seat < 1
-  ) {
-    return null;
-  }
+  if (!teacherUid || !questionId || questionId.includes('/')) return null;
   const privateSnap = await responseRef
     .collection(PAPER_PRIVATE_SUBCOLLECTION)
     .doc(questionId)
     .get();
   const scanId: unknown = privateSnap.data()?.scanId;
+  const privateSeat: unknown = privateSnap.data()?.seat;
+  // The import's own seat for this scan; a later re-import can move `paperSeat`.
+  const seat =
+    typeof privateSeat === 'number' ? privateSeat : response.paperSeat;
   if (
+    typeof seat !== 'number' ||
+    !Number.isInteger(seat) ||
+    seat < 1 ||
     typeof scanId !== 'string' ||
     !scanId ||
     scanId.includes('/') ||

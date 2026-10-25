@@ -640,6 +640,7 @@ describe('applyPaperNewerScanV1', () => {
     });
     expect(stub.get(PRIV('q1'))).toEqual({
       scanId: 'scan2',
+      seat: 3,
       status: 'pending',
       attempts: 0,
       charged: false,

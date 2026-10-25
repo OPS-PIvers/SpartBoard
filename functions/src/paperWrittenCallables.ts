@@ -356,16 +356,14 @@ export async function handleGetPaperWrittenCrop(
     const priv = (
       await privateRefOf(responseRef, target.questionId).get()
     ).data();
+    const seat: unknown =
+      typeof priv?.seat === 'number' ? priv.seat : response.paperSeat;
     if (
       typeof priv?.scanId !== 'string' ||
-      typeof response.paperSeat !== 'number' ||
+      typeof seat !== 'number' ||
+      artifact.id !== `hw_${priv.scanId}_${target.questionId}` ||
       artifact.storagePath !==
-        paperCropStoragePath(
-          teacherUid,
-          priv.scanId,
-          response.paperSeat,
-          target.questionId
-        )
+        paperCropStoragePath(teacherUid, priv.scanId, seat, target.questionId)
     ) {
       return { status: 'not-available', reason: 'no-crop' };
     }
@@ -756,6 +754,7 @@ export async function handleApplyPaperNewerScan(
     });
     const privateDoc: PaperPrivateAnswer = {
       scanId: newScanId,
+      seat,
       status: transcript,
       attempts: 0,
       charged: false,
