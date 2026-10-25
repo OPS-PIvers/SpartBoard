@@ -657,6 +657,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "sound#alertSound",
       "sound#autoTrafficLight",
       "sound#noiseFloor",
+      "sound#quietGoalMinutes",
       "sound#sensitivity",
       "sound#syncExpectations",
       "sound#targetLevel",
@@ -755,6 +756,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "scoreboard#sortByScore",
       "sound#alertSoundEnabled",
       "sound#autoTrafficLight",
+      "sound#quietGoalResetOnAlert",
       "sound#syncExpectations",
       "time-tool#glow",
       "time-tool#timerEndTriggerNextUp",
@@ -17034,6 +17036,23 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "widget.settings-opener"
         ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sound.restart-goal",
+    "label": "Restart quiet time goal button on the Sound widget",
+    "scope": "widget",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.sound.face",
+        "kind": "widget",
+        "widget_type": "sound",
+        "path": [],
         "needs": [
           "widget-on-stage"
         ]

@@ -64,3 +64,13 @@ export const isCalibrating = (config: {
   calibrateRequest?: number;
   calibratedAt?: number;
 }): boolean => (config.calibrateRequest ?? 0) > (config.calibratedAt ?? 0);
+
+export const quietGoalMs = (minutes: unknown): number =>
+  typeof minutes === 'number' && Number.isFinite(minutes) && minutes > 0
+    ? Math.min(120, minutes) * 60_000
+    : 0;
+
+export const formatGoalTime = (ms: number): string => {
+  const total = Math.floor(ms / 1000);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+};

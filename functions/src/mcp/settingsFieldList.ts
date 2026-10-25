@@ -87,6 +87,16 @@ export const SETTINGS_FIELD_LIST: Readonly<
       kind: 'soundPicker',
     },
     {
+      anchor: 'settings.field:sound#quietGoalMinutes',
+      label: 'Quiet time goal (minutes)',
+      kind: 'number',
+    },
+    {
+      anchor: 'settings.toggle:sound#quietGoalResetOnAlert',
+      label: 'Reset progress when Too loud shows',
+      kind: 'toggle',
+    },
+    {
       anchor: 'settings.field:sound#autoTrafficLight',
       label: 'Control Traffic Light automatically',
       kind: 'toggle',

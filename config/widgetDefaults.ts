@@ -166,6 +166,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       trafficLightThreshold: 4,
       syncExpectations: false,
       alertSoundEnabled: false,
+      quietGoalResetOnAlert: false,
     },
   },
   drawing: {

@@ -117,6 +117,26 @@ export default defineSettings<SoundConfig>({
           readValue: (ctx) => ctx.config.alertSound ?? DEFAULT_ALERT_SOUND,
         },
         {
+          key: 'quietGoalMinutes',
+          type: 'number',
+          label: 'quietGoalMinutes',
+          help: 'quietGoalHelp',
+          min: 0,
+          max: 120,
+          step: 1,
+          visibleWhen: hasTarget,
+          readValue: (ctx) => ctx.config.quietGoalMinutes ?? 0,
+        },
+        {
+          key: 'quietGoalResetOnAlert',
+          type: 'toggle',
+          label: 'quietGoalResetOnAlert',
+          visibleWhen: (ctx) =>
+            hasTarget(ctx) &&
+            typeof ctx.config.quietGoalMinutes === 'number' &&
+            ctx.config.quietGoalMinutes > 0,
+        },
+        {
           key: 'autoTrafficLight',
           type: 'partnerWidget',
           label: 'autoTrafficLight',

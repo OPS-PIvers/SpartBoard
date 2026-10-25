@@ -2002,7 +2002,10 @@
       "calibrateHelp": "Keep the room quiet, then select Calibrate. The meter listens for 5 seconds and starts from that level.",
       "calibrate": "Calibrate",
       "calibrateListening": "Listening...",
-      "resetCalibration": "Reset"
+      "resetCalibration": "Reset",
+      "quietGoalMinutes": "Quiet time goal (minutes)",
+      "quietGoalHelp": "Progress fills while the class stays at or under the target. Set to 0 to turn it off.",
+      "quietGoalResetOnAlert": "Reset progress when Too loud shows"
     },
     "webcam": {
       "autoSendToNotes": "Send OCR text to Notes automatically"
@@ -2755,7 +2758,10 @@
     },
     "sound": {
       "tooLoud": "Too loud",
-      "calibrating": "Calibrating. Keep the room quiet."
+      "calibrating": "Calibrating. Keep the room quiet.",
+      "goalReached": "Goal reached",
+      "quietGoal": "Quiet time goal",
+      "restartGoal": "Restart quiet time goal"
     }
   },
   "boardBreadcrumb": {

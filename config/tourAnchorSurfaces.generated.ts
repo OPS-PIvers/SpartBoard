@@ -889,6 +889,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     ],
     'widget-settings.scoreboard.add-team': ['widgets.scoreboard.settings'],
     'widget-settings.scoreboard.reset-scores': ['widgets.scoreboard.settings'],
+    'sound.restart-goal': ['widgets.sound.face'],
     'widget-settings.sound.calibrate': ['widgets.sound.settings'],
     'widget-settings.sound.reset-calibration': ['widgets.sound.settings'],
     'widget-settings.seating-chart.clear-assignments': [
