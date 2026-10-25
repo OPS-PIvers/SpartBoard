@@ -38,11 +38,13 @@ import {
   USERS_COLLECTION,
   dropLinkedSectionPeriod,
   type LtiSessionKind,
+  contextOwnedBy,
 } from './nrpsStore';
 // Reuse the existing OneRoster seam (and its test-spy point) rather than
 // re-implementing the signed fetch. fetchClassStudents takes the creds as args.
 import { classroomAddonNet } from '../classroomAddonAuth';
 import { assertViewAsAllowed } from '../viewAsGuard';
+import { isVerifiedDistrictTeacher } from './teacherAuth';
 
 /** Firestore collection holding the Schoology section↔class link docs. */
 export const LTI_COURSE_LINKS_COLLECTION = 'lti_course_links';
@@ -116,6 +118,22 @@ async function assertOwnsSchoologyContext(
     );
   }
   const cd = ctxSnap.data() ?? {};
+  // A context filed under a previous owner of a recycled session id is not this caller's.
+  if (
+    !(await contextOwnedBy(
+      db,
+      sessionId,
+      sessSnap.data() ?? {},
+      contextId,
+      cd,
+      callerUid
+    ))
+  ) {
+    throw new HttpsError(
+      'permission-denied',
+      'This Schoology section has not been seen in this session.'
+    );
+  }
   return {
     contextTitle: typeof cd.contextTitle === 'string' ? cd.contextTitle : null,
     membershipUrl:
@@ -151,14 +169,17 @@ async function rejectStaleSeenSection(
   );
 }
 
-/** Require an authed, email-bearing, non-student caller; return their uid. */
+/** Require an authed, verified district teacher; return their uid. */
 function requireTeacher(request: {
-  auth?: { uid: string; token: { email?: string; studentRole?: unknown } };
+  auth?: {
+    uid: string;
+    token: { email?: string; email_verified?: boolean; studentRole?: unknown };
+  };
 }): string {
   if (!request.auth) {
     throw new HttpsError('unauthenticated', 'Sign in required.');
   }
-  if (!request.auth.token.email || request.auth.token.studentRole === true) {
+  if (!isVerifiedDistrictTeacher(request.auth.token)) {
     throw new HttpsError('permission-denied', 'Teacher account required.');
   }
   return request.auth.uid;

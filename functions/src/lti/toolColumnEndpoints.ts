@@ -68,6 +68,7 @@ import {
 } from './linkSectionByUrl';
 import { isGlobalFeatureGranted } from '../quizMediaArchive';
 import { assertViewAsAllowed } from '../viewAsGuard';
+import { isVerifiedDistrictTeacher } from './teacherAuth';
 
 const LTI_TOOL_PRIVATE_KEY = defineSecret('LTI_TOOL_PRIVATE_KEY');
 const STUDENT_PSEUDONYM_HMAC_SECRET = defineSecret(
@@ -121,7 +122,7 @@ function requireTeacher(request: CallableRequest): {
     throw new HttpsError('unauthenticated', 'Sign in required.');
   }
   const email = request.auth.token.email;
-  if (!email || request.auth.token.studentRole === true) {
+  if (!email || !isVerifiedDistrictTeacher(request.auth.token)) {
     throw new HttpsError('permission-denied', 'Teacher account required.');
   }
   return { uid: request.auth.uid, email };

@@ -267,7 +267,20 @@ describe('admin powers under a view-as token', () => {
   it('a real admin still writes admin settings', async () => {
     const db = asAdmin().firestore();
     await assertSucceeds(
-      setDoc(doc(db, 'admin_settings/view_as'), { enabled: false })
+      setDoc(doc(db, 'admin_settings/app_settings'), { a: 1 })
+    );
+  });
+
+  it('only a super admin flips the view-as switch', async () => {
+    await assertFails(
+      setDoc(doc(asAdmin().firestore(), 'admin_settings/view_as'), {
+        enabled: true,
+      })
+    );
+    await assertSucceeds(
+      setDoc(doc(asBoss().firestore(), 'admin_settings/view_as'), {
+        enabled: false,
+      })
     );
   });
 
@@ -275,14 +288,14 @@ describe('admin powers under a view-as token', () => {
     const db = asViewAsAdmin().firestore();
     await assertSucceeds(getDoc(doc(db, 'admin_settings/view_as')));
     await assertFails(
-      setDoc(doc(db, 'admin_settings/view_as'), { enabled: false })
+      setDoc(doc(db, 'admin_settings/app_settings'), { enabled: false })
     );
   });
 
   it('an admin target cannot write admin settings even if the claim says unlocked', async () => {
     const db = asViewAsAdmin({ ro: false }).firestore();
     await assertFails(
-      setDoc(doc(db, 'admin_settings/view_as'), { enabled: false })
+      setDoc(doc(db, 'admin_settings/app_settings'), { enabled: false })
     );
   });
 

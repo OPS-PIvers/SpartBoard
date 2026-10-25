@@ -27,15 +27,20 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-const auth = vi.hoisted(() => ({ superAdmins: ['admin@s.edu'] as string[] }));
+const auth = vi.hoisted(() => ({
+  superAdmins: ['admin@s.edu'] as string[],
+  isAdmin: true,
+  roleId: null as string | null,
+  orgId: 'orono',
+}));
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
-    isAdmin: true,
+    isAdmin: auth.isAdmin,
     user: { uid: 'admin-1', email: 'admin@s.edu' },
     userRoles: { superAdmins: auth.superAdmins },
-    roleId: null,
-    orgId: 'orono',
+    roleId: auth.roleId,
+    orgId: auth.orgId,
     canAccessFeature: () => false,
   }),
 }));
@@ -106,6 +111,46 @@ describe('AdminSettings — PLC Resources tab wiring', () => {
     } finally {
       auth.superAdmins = ['admin@s.edu'];
       window.localStorage.removeItem('spart.adminSettings.lastTab');
+    }
+  });
+
+  it('shows an admin of another org only the Organization tab', () => {
+    Object.assign(auth, {
+      superAdmins: [],
+      isAdmin: false,
+      roleId: 'domain_admin',
+      orgId: 'other-org',
+    });
+    try {
+      render(<AdminSettings onClose={vi.fn()} />);
+      expect(
+        screen.getAllByRole('tab', { name: /organization/i })[0]
+      ).toHaveAttribute('aria-selected', 'true');
+      expect(
+        screen.queryByRole('tab', { name: /widgets/i })
+      ).not.toBeInTheDocument();
+      expect(screen.getByTestId('org-panel')).toBeInTheDocument();
+    } finally {
+      Object.assign(auth, {
+        superAdmins: ['admin@s.edu'],
+        isAdmin: true,
+        roleId: null,
+        orgId: 'orono',
+      });
+    }
+  });
+
+  it('renders nothing for a teacher', () => {
+    Object.assign(auth, {
+      isAdmin: false,
+      roleId: 'teacher',
+      orgId: 'other-org',
+    });
+    try {
+      const { container } = render(<AdminSettings onClose={vi.fn()} />);
+      expect(container).toBeEmptyDOMElement();
+    } finally {
+      Object.assign(auth, { isAdmin: true, roleId: null, orgId: 'orono' });
     }
   });
 });

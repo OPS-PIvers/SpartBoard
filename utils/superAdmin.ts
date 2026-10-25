@@ -23,3 +23,20 @@ export const isSuperAdminActor = (
   const lower = email.toLowerCase();
   return (superAdmins ?? []).some((entry) => entry.toLowerCase() === lower);
 };
+
+const ORG_ADMIN_ROLE_IDS: readonly string[] = [
+  'super_admin',
+  'domain_admin',
+  'building_admin',
+];
+
+// An admin of their own org without an /admins doc: Admin Settings shows them only the Organization tab.
+export const isOrgOnlyAdmin = (
+  isAdmin: boolean | null,
+  memberRoleId: string | null | undefined,
+  memberOrgId: string | null | undefined
+): boolean =>
+  isAdmin === false &&
+  !!memberOrgId &&
+  !!memberRoleId &&
+  ORG_ADMIN_ROLE_IDS.includes(memberRoleId);

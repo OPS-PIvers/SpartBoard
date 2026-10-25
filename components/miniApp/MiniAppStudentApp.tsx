@@ -50,6 +50,7 @@ import {
 import { auth, db, functions } from '@/config/firebase';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
 import { logError } from '@/utils/logError';
+import { dropPinLogin } from '@/utils/pinLoginScope';
 import {
   MiniAppSession,
   MiniAppSubmission,
@@ -116,6 +117,8 @@ export const MiniAppStudentApp: React.FC = () => {
         await auth.authStateReady();
         if (!auth.currentUser) {
           await signInAnonymously(auth);
+        } else {
+          await dropPinLogin(auth);
         }
       } catch (err) {
         logError('MiniAppStudentApp.authInit', err);

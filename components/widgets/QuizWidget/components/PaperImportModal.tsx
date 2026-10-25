@@ -957,6 +957,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
               </div>
             </section>
           )}
+          {/* no-tour-anchor: hidden file input opened by its visible upload button */}
           <input
             ref={fileRef}
             type="file"

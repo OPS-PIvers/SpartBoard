@@ -38,6 +38,14 @@ service firebase.storage {
               request.auth.token.viewAs.get('ro', true) == false);
     }
 
+    // A pinLoginV1 token is its student only in its own session (pre-scope tokens: 12h grace, as firestore.rules).
+    function pinScopeOk(sessionId) {
+      return request.auth.token.get('pinLogin', false) != true ||
+             request.auth.token.get('pinSessionId', '') == sessionId ||
+             (request.auth.token.get('pinSessionId', '') == '' &&
+              request.time.toMillis() < request.auth.token.get('auth_time', 0) * 1000 + 43200000);
+    }
+
     // A verified district staff address (firestore.rules isVerifiedDistrictEmail()); @students addresses never match.
     function isVerifiedDistrictEmail() {
       return request.auth != null &&
@@ -269,8 +277,9 @@ service firebase.storage {
         (
           isSiteAdmin() ||
           sessionId.matches(request.auth.uid + '_.*') ||
-          submissionId == request.auth.uid ||
-          submissionId.matches('^' + request.auth.uid + '__.*') ||
+          (pinScopeOk(sessionId) &&
+           (submissionId == request.auth.uid ||
+            submissionId.matches('^' + request.auth.uid + '__.*'))) ||
           (awSession().get('publiclyShared', false) == true &&
            (!awIsPadletSession() || awSubmissionApproved()))
         );
@@ -282,7 +291,7 @@ service firebase.storage {
       // No per-student object cap here (same limitation as activity_wall_photos):
       // the Firestore submission cap is the enforcement point and the 7-day
       // sweeper reclaims orphaned objects.
-      allow create: if request.auth != null && viewAsWriteOk() &&
+      allow create: if request.auth != null && viewAsWriteOk() && pinScopeOk(sessionId) &&
         (submissionId == request.auth.uid ||
          submissionId.matches('^' + request.auth.uid + '__.*')) &&
         firestore.exists(
@@ -312,7 +321,7 @@ service firebase.storage {
       // The owning teacher/admin (and the Admin SDK archive job) clean up;
       // the uploader can also delete their own object to roll back a failed
       // submission write (same ownership test as the create/read clauses).
-      allow delete: if request.auth != null && viewAsWriteOk() &&
+      allow delete: if request.auth != null && viewAsWriteOk() && pinScopeOk(sessionId) &&
         (isSiteAdmin() ||
          sessionId.matches(request.auth.uid + '_.*') ||
          submissionId == request.auth.uid ||
@@ -325,16 +334,16 @@ service firebase.storage {
       allow read: if request.auth != null &&
         (
           isSiteAdmin() ||
-          firestore.get(
+          (pinScopeOk(sessionId) && firestore.get(
             /databases/(default)/documents/quiz_sessions/$(sessionId)/responses/$(responseKey)
-          ).data.get('studentUid', '') == request.auth.uid ||
+          ).data.get('studentUid', '') == request.auth.uid) ||
           firestore.get(
             /databases/(default)/documents/quiz_sessions/$(sessionId)
           ).data.get('teacherUid', '') == request.auth.uid
         );
       // Create only (no update): the caller must own the response doc at this key.
       // Audio takes, plus a whiteboard take's PNG picture and JSON drawing log.
-      allow create: if request.auth != null && viewAsWriteOk() &&
+      allow create: if request.auth != null && viewAsWriteOk() && pinScopeOk(sessionId) &&
         (
           (request.resource.contentType.matches('audio/.*') &&
             request.resource.size < 5 * 1024 * 1024) ||
@@ -415,7 +424,7 @@ service firebase.storage {
       // Positive membership. A helper that passes every non-student can never
       // stand in for this — it would hand every teacher every group's files.
       function pjIsGroupMember() {
-        return request.auth != null &&
+        return request.auth != null && pinScopeOk(runId) &&
           firestore.exists(
             /databases/(default)/documents/project_runs/$(runId)/groups/$(groupId)
           ) &&

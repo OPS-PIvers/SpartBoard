@@ -135,7 +135,10 @@ const INSTRUCTOR =
   'http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor';
 const LEARNER = 'http://purl.imsglobal.org/vocab/lis/v2/membership#Learner';
 const URL_OK = 'https://orono.schoology.com/course/7660186912/materials';
-const TEACHER = { uid: 'teacher-1', token: { email: 'T@school.edu' } };
+const TEACHER = {
+  uid: 'teacher-1',
+  token: { email: 'T@orono.k12.mn.us', email_verified: true },
+};
 
 const member = (
   email: string,
@@ -170,7 +173,7 @@ beforeEach(() => {
   fetchNrpsMembershipMock.mockReset().mockResolvedValue({
     contextTitle: 'Biology · P2',
     members: [
-      member('t@school.edu', INSTRUCTOR),
+      member('t@orono.k12.mn.us', INSTRUCTOR),
       member('a@school.edu', LEARNER),
       member('b@school.edu', LEARNER),
     ],
@@ -213,17 +216,17 @@ describe('parseSchoologyCourseUrl', () => {
 describe('roster helpers', () => {
   it('ignores an inactive instructor and inactive learners', () => {
     const members = [
-      member('t@school.edu', INSTRUCTOR, 'Inactive'),
+      member('t@orono.k12.mn.us', INSTRUCTOR, 'Inactive'),
       member('a@school.edu', LEARNER, 'Inactive'),
       member('b@school.edu', LEARNER),
     ] as never;
-    expect(isActiveInstructor(members, 'T@school.edu')).toBe(false);
+    expect(isActiveInstructor(members, 'T@orono.k12.mn.us')).toBe(false);
     expect([...activeLearnerEmails(members)]).toEqual(['b@school.edu']);
   });
 
   it('does not treat a learner with the caller email as a teacher', () => {
-    const members = [member('t@school.edu', LEARNER)] as never;
-    expect(isActiveInstructor(members, 't@school.edu')).toBe(false);
+    const members = [member('t@orono.k12.mn.us', LEARNER)] as never;
+    expect(isActiveInstructor(members, 't@orono.k12.mn.us')).toBe(false);
   });
 });
 
@@ -236,6 +239,19 @@ describe('ltiLinkSectionByUrlV1', () => {
         data: { url: URL_OK },
       })
     ).rejects.toThrow(/Teacher account/);
+  });
+
+  it('rejects an unverified or non-district email before any NRPS read', async () => {
+    for (const token of [
+      { email: 'T@orono.k12.mn.us' },
+      { email: 'T@orono.k12.mn.us', email_verified: false },
+      { email: 'T@school.edu', email_verified: true },
+    ]) {
+      await expect(
+        call({ auth: { uid: 'teacher-1', token }, data: { url: URL_OK } })
+      ).rejects.toThrow(/Teacher account/);
+    }
+    expect(fetchNrpsMembershipMock).not.toHaveBeenCalled();
   });
 
   it('rejects a link that is not a Schoology course', async () => {
@@ -325,7 +341,7 @@ describe('ltiLinkSectionByUrlV1', () => {
     expect(res).toMatchObject({ ok: true, overlap: 1 });
     expect(testMembershipMock).toHaveBeenCalledWith(
       expect.anything(),
-      'T@school.edu',
+      'T@orono.k12.mn.us',
       ['mock-p1']
     );
     expect(courseLinks.get('7660186912')).toMatchObject({
@@ -369,7 +385,7 @@ describe('ltiLinkSectionByUrlV1', () => {
     fetchNrpsMembershipMock.mockResolvedValue({
       contextTitle: null,
       members: [
-        member('t@school.edu', INSTRUCTOR),
+        member('t@orono.k12.mn.us', INSTRUCTOR),
         member('a@school.edu', LEARNER),
       ],
     });
