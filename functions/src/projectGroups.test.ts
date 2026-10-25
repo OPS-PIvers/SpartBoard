@@ -97,7 +97,14 @@ vi.mock('firebase-admin', () => {
       domain === '@school.org'
         ? {
             empty: false,
-            docs: [{ ref: { parent: { parent: { id: 'org-1' } } } }],
+            docs: [
+              {
+                ref: {
+                  path: 'organizations/org-1/domains/d',
+                  parent: { parent: { id: 'org-1' } },
+                },
+              },
+            ],
           }
         : { empty: true, docs: [] },
   });
