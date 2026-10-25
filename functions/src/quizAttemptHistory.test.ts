@@ -393,11 +393,11 @@ describe('applyAttemptGradeWrite', () => {
   const ROW_ATTEMPTS = [
     { n: 1, at: T, points: 0, max: 2, state: 'awaiting-grade' },
   ];
-  const rescoreEarlierAttempt = async (indexOn: boolean) => {
+  const rescoreEarlierAttempt = async (indexOn: boolean, kind?: string) => {
     __resetGradeIndexEnabledCache();
     const stub = seed({
       'admin_settings/gradebook_index': { enabled: indexOn },
-      [ROW]: { attempts: ROW_ATTEMPTS },
+      [ROW]: { attempts: ROW_ATTEMPTS, ...(kind ? { kind } : {}) },
     });
     const first = done({ answers: [{ questionId: 'q1', answer: 'B' }] });
     await apply(stub, write(undefined, first));
@@ -418,6 +418,14 @@ describe('applyAttemptGradeWrite', () => {
   it('rescores the Gradebook row’s copy of an earlier attempt too', async () => {
     const stub = await rescoreEarlierAttempt(true);
     expect(stub.get(ROW)?.attempts).toEqual(stub.get(SCORES)?.attempts);
+    expect(stub.get('grade_index_sessions/qs1')).toMatchObject({
+      kind: 'quiz',
+    });
+  });
+
+  it("never writes quiz scores into another kind's row at the same id", async () => {
+    const stub = await rescoreEarlierAttempt(true, 'projects');
+    expect(stub.get(ROW)?.attempts).toEqual(ROW_ATTEMPTS);
     expect(stub.get('grade_index_sessions/qs1')).toMatchObject({
       kind: 'quiz',
     });

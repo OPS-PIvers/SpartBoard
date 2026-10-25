@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
+import { isImeComposing } from '@/utils/imeComposing';
 import { Toggle } from '@/components/common/Toggle';
 
 export const StepRowLabel: React.FC<{ text: string; sub?: boolean }> = ({
@@ -105,7 +106,7 @@ export const StepNumberField: React.FC<{
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') commit();
+          if (e.key === 'Enter' && !isImeComposing(e)) commit();
         }}
         className={`${widthClass} rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-blue-primary`}
       />

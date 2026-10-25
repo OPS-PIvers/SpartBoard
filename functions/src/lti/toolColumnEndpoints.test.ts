@@ -175,12 +175,15 @@ const categories = ltiToolColumnCategoriesV1 as unknown as Fn;
 const createCategories = ltiCreateToolColumnCategoriesV1 as unknown as Fn;
 const del = ltiDeleteToolColumnsV1 as unknown as Fn;
 
-const T = { uid: 'teacher-1', token: { email: 't@school.edu' } };
+const T = {
+  uid: 'teacher-1',
+  token: { email: 't@orono.k12.mn.us', email_verified: true },
+};
 const INSTRUCTOR_MEMBER = {
   userId: '7::x',
   givenName: '',
   familyName: '',
-  email: 't@school.edu',
+  email: 't@orono.k12.mn.us',
   roles: ['http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor'],
   status: 'Active',
 };
@@ -561,7 +564,10 @@ describe('ltiDeleteToolColumnsV1', () => {
   it('refuses another teacher', async () => {
     await expect(
       del({
-        auth: { uid: 'teacher-2', token: { email: 'x@y' } },
+        auth: {
+          uid: 'teacher-2',
+          token: { email: 'x@orono.k12.mn.us', email_verified: true },
+        },
         data: { sessionId: 'S1' },
       })
     ).rejects.toMatchObject({ code: 'permission-denied' });

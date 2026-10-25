@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '@/context/useAuth';
-import { isSuperAdminActor } from '@/utils/superAdmin';
+import { isOrgOnlyAdmin, isSuperAdminActor } from '@/utils/superAdmin';
 import { FeaturePermissionsManager } from './FeaturePermissionsManager';
 import { BackgroundManager } from './BackgroundManager';
 import { FeaturesPanel } from './access/FeaturesPanel';
@@ -303,14 +303,25 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
     roleId,
     orgId
   );
-  const groups = visibleGroups(isSuperAdmin, canAccessFeature);
+  const orgOnly = isOrgOnlyAdmin(isAdmin, roleId, orgId);
+  const groups = orgOnly
+    ? [
+        {
+          id: 'organization',
+          label: 'Organization',
+          tabs: TABS.filter((t) => t.id === 'organization'),
+        },
+      ]
+    : visibleGroups(isSuperAdmin, canAccessFeature);
   const backArrow = canAccessFeature('full-page-back-arrow');
   const tabs = groups.flatMap((group) => group.tabs);
   const [storedTab, setActiveTabState] = useState<TabId>(readLastTab);
-  // A remembered tab this admin can't open falls back to Widgets.
+  // A remembered tab this admin can't open falls back to their first tab.
   const activeTab: TabId = tabs.some((t) => t.id === storedTab)
     ? storedTab
-    : 'widgets';
+    : orgOnly
+      ? 'organization'
+      : 'widgets';
   const setActiveTab = (tab: TabId) => {
     setActiveTabState(tab);
     try {
@@ -347,7 +358,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
     return () => document.removeEventListener('keydown', handleEscape);
   }, [onClose]);
 
-  if (!isAdmin) {
+  if (!isAdmin && !orgOnly) {
     return null;
   }
 

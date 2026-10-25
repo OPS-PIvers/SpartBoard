@@ -334,6 +334,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
         Numbered questions on the test paper are read into this quiz, and scores
         stay the same.
       </p>
+      {/* no-tour-anchor: hidden file input opened by its visible upload button */}
       <input
         ref={fileRef}
         type="file"

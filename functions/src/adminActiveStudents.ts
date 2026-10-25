@@ -16,7 +16,7 @@ import {
   getOAuthHeaders,
   type ClassLinkStudent,
 } from './classlinkShared';
-import { isRevokedMemberStatus, isSuperAdminRoleId } from './authz';
+import { isRevokedMemberStatus, isSiteWideAdmin } from './authz';
 import { assertViewAsAllowed } from './viewAsGuard';
 
 // Admin-only drill-down behind the Active Students KPIs: teachers come from assignments opened; names come live from ClassLink.
@@ -295,7 +295,16 @@ async function assertOrgWideAdmin(
     db.collection('admins').doc(emailLower).get(),
     db.doc(`organizations/${orgId}/members/${emailLower}`).get(),
   ]);
-  if (adminDoc.exists && isSuperAdminRoleId(adminDoc.get('roleId'))) return;
+  if (
+    adminDoc.exists &&
+    (await isSiteWideAdmin(
+      db,
+      emailLower,
+      adminDoc.get('roleId'),
+      adminDoc.get('orgId')
+    ))
+  )
+    return;
   const roleId: unknown = memberDoc.exists ? memberDoc.get('roleId') : null;
   if (
     typeof roleId === 'string' &&

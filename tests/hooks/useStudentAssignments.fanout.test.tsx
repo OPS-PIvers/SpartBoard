@@ -731,10 +731,10 @@ describe('useStudentAssignments — fan-out channel (M17 C1)', () => {
     expect(result.current.hasErrors).toBe(false);
   });
 
-  it("a PIN sign-in token lists only its own classes' pointers", async () => {
+  it('a PIN sign-in token reads no pointers (rules scope it to one session)', async () => {
     makeSnapshotRig();
     makeGetDocRig();
-    renderHook(() =>
+    const { result } = renderHook(() =>
       useStudentAssignments({
         classIds: ['c1', 'c2'],
         studentUid: 'student-a',
@@ -742,15 +742,12 @@ describe('useStudentAssignments — fan-out channel (M17 C1)', () => {
       })
     );
     await waitFor(() => {
-      expect(firestore.where).toHaveBeenCalledWith('classId', 'in', [
-        'c1',
-        'c2',
-      ]);
+      expect(result.current.loadState).toBe('ready');
     });
     const pointerRef = vi
       .mocked(firestore.onSnapshot)
       .mock.calls.map(([ref]) => ref as QueryRef)
       .find((ref) => ref.__name === 'student_assignments/student-a/items');
-    expect(pointerRef?.__constraints).toHaveLength(1);
+    expect(pointerRef).toBeUndefined();
   });
 });

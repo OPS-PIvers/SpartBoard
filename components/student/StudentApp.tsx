@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { signInAnonymously, signOut } from 'firebase/auth';
 import { auth } from '@/config/firebase';
+import { dropPinLogin } from '@/utils/pinLoginScope';
 import { useLiveSession } from '@/hooks/useLiveSession';
 import { StudentLobby } from './StudentLobby';
 import { TeacherPreviewBanner } from './TeacherPreviewBanner';
@@ -130,6 +131,8 @@ const StudentAppInner: React.FC = () => {
         }
         if (!auth.currentUser) {
           await signInAnonymously(auth);
+        } else {
+          await dropPinLogin(auth);
         }
         setAuthInitialized(true);
       } catch (error) {

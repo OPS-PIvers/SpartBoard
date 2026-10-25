@@ -16,6 +16,7 @@ export const OptionInput: React.FC<OptionInputProps> = ({
   const cancelledRef = useRef(false);
 
   return (
+    // no-tour-anchor: one box per answer option, generated from the option list
     <input
       type="text"
       value={val}

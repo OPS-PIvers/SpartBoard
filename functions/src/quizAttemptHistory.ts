@@ -334,6 +334,8 @@ export async function applyAttemptGradeWrite(
         updatedAt: now,
       });
       if (indexRef && indexSnap?.exists) {
+        // Another kind's row at this id never takes quiz scores; the requeued recompute rewrites it.
+        if ((indexSnap.data()?.kind ?? 'quiz') !== 'quiz') return true;
         const rowAttempts: unknown = indexSnap.data()?.attempts;
         tx.update(indexRef, {
           attempts: mergeAttempts(

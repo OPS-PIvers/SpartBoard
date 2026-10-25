@@ -1,3 +1,4 @@
+import { copyText } from '@/utils/copyText';
 import React, { useState } from 'react';
 import { Check, Copy, ExternalLink } from 'lucide-react';
 import { tourTypeAttr } from '@/config/tourAnchors';
@@ -15,9 +16,11 @@ export const JoinCodeScreen: React.FC<{ session: QuizSession }> = ({
 
   const handleCopy = () => {
     if (!joinUrl) return;
-    void navigator.clipboard.writeText(joinUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    void copyText(joinUrl).then((ok) => {
+      if (!ok) return;
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   if (!hasCode) {

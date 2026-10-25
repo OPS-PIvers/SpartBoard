@@ -1,3 +1,4 @@
+import { copyText } from '@/utils/copyText';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   collection,
@@ -243,9 +244,11 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const handleCopy = () => {
     if (!joinUrl) return;
-    void navigator.clipboard.writeText(joinUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    void copyText(joinUrl).then((ok) => {
+      if (!ok) return;
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   const questionChars = Math.max(1, activeQuestion.question.length);
@@ -276,6 +279,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 onClick={() => goToQuestion(currentQuestionIndex - 1)}
                 disabled={!canGoPrev || foreignSession}
                 aria-label="Previous question"
+                {...tourAttr('poll.previous-question', widget.id, widget.type)}
                 className={`shrink-0 text-slate-400 ${proEnabled ? 'hover:text-brand-blue-primary' : 'hover:text-indigo-600'} disabled:opacity-30 disabled:hover:text-slate-400 transition-colors`}
               >
                 <ChevronLeft style={arrowStyle} />

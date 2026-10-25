@@ -612,7 +612,9 @@ function callerFrom(
   return auth
     ? {
         uid: auth.uid,
-        studentRole: auth.token.studentRole === true,
+        // A pinLoginV1 token only works in the quiz or video session it was proven for.
+        studentRole:
+          auth.token.studentRole === true && auth.token.pinLogin !== true,
         classIds: claimClassIds(auth.token.classIds),
       }
     : null;

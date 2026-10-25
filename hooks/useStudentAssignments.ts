@@ -584,15 +584,16 @@ interface UseStudentAssignmentsArgs {
    * fan-out listener (M17 C1); omit to keep today's class-channel-only behavior.
    */
   studentUid?: string | null;
-  /** A pinLoginV1 token may only list its own classes' pointers. */
+  /** A pinLoginV1 token is scoped to one session, so it reads no pointers. */
   pinLogin?: boolean;
 }
 
 export function useStudentAssignments({
   classIds,
-  studentUid,
+  studentUid: claimUid,
   pinLogin = false,
 }: UseStudentAssignmentsArgs): UseStudentAssignmentsResult {
+  const studentUid = pinLogin ? null : claimUid;
   const [byKindChannel, setByKindChannel] = useState<
     Record<string, AssignmentSummary[]>
   >({});
@@ -666,17 +667,11 @@ export function useStudentAssignments({
 
   // Fan-out listener: the student's own pointer docs (M17 C1). Gated purely
   // on `studentUid` — omitting it (or auth-bypass) keeps legacy behavior.
-  const pinClassKey = pinLogin ? classIdsKey : '';
   useEffect(() => {
     if (isAuthBypass || !studentUid) return;
     const items = collection(db, 'student_assignments', studentUid, 'items');
-    const pinClassIds = pinClassKey.split('|').filter(Boolean).slice(0, 30);
-    if (pinLogin && pinClassIds.length === 0) return;
-    const ref = pinLogin
-      ? query(items, where('classId', 'in', pinClassIds))
-      : items;
     const unsub = onSnapshot(
-      ref,
+      items,
       (snap) => {
         const next: Record<string, StudentAssignmentPointer> = {};
         for (const d of snap.docs) {
@@ -694,7 +689,7 @@ export function useStudentAssignments({
       }
     );
     return () => unsub();
-  }, [studentUid, retryNonce, pinLogin, pinClassKey]);
+  }, [studentUid, retryNonce]);
 
   const studentClassIdsSet = useMemo(
     () => new Set(classIdsKey ? classIdsKey.split('|').filter(Boolean) : []),

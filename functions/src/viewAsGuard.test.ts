@@ -65,3 +65,60 @@ describe('assertViewAsAllowed', () => {
     expect(() => assertViewAsAllowed(req({}), { read: true }, NOW)).toThrow();
   });
 });
+
+describe('assertPinLoginSession', () => {
+  const pinReq = (data: unknown, pinSessionId?: string) => ({
+    auth: {
+      uid: 'u',
+      token: {
+        studentRole: true,
+        pinLogin: true,
+        ...(pinSessionId ? { pinSessionId } : {}),
+      },
+    },
+    data,
+  });
+
+  it('lets a PIN token call for the session it was proven for', () => {
+    expect(() =>
+      assertViewAsAllowed(pinReq({ sessionId: 's-a' }, 's-a'))
+    ).not.toThrow();
+    expect(() => assertViewAsAllowed(pinReq({}, 's-a'))).not.toThrow();
+  });
+
+  it('refuses a PIN token naming another session, or a token with no session', () => {
+    expect(() =>
+      assertViewAsAllowed(pinReq({ sessionId: 's-b' }, 's-a'))
+    ).toThrow(expect.objectContaining({ code: 'permission-denied' }));
+    expect(() => assertViewAsAllowed(pinReq({ sessionId: 's-a' }))).toThrow(
+      expect.objectContaining({ code: 'permission-denied' })
+    );
+  });
+
+  it('keeps a pre-scope PIN token working for 12h after sign-in only', () => {
+    const legacy = (authTime: number) => ({
+      auth: {
+        uid: 'u',
+        token: { studentRole: true, pinLogin: true, auth_time: authTime },
+      },
+      data: { sessionId: 's-b' },
+    });
+    const now = 1_800_000_000_000;
+    const hour = 3600;
+    expect(() =>
+      assertViewAsAllowed(legacy(now / 1000 - 11 * hour), {}, now)
+    ).not.toThrow();
+    expect(() =>
+      assertViewAsAllowed(legacy(now / 1000 - 13 * hour), {}, now)
+    ).toThrow(expect.objectContaining({ code: 'permission-denied' }));
+  });
+
+  it('leaves other tokens alone', () => {
+    expect(() =>
+      assertViewAsAllowed({
+        auth: { uid: 'u', token: { studentRole: true, sso: true } },
+        data: { sessionId: 's-b' },
+      })
+    ).not.toThrow();
+  });
+});
