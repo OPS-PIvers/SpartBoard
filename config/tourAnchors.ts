@@ -607,6 +607,16 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'poll.reveal-results': {
+    label: 'Show results button in Poll',
+    perWidget: true,
+    persists: true,
+  },
+  'poll.lock-voting': {
+    label: 'Lock voting button in Poll',
+    perWidget: true,
+    persists: true,
+  },
   'stations.shuffle': { label: 'Shuffle button in Stations', perWidget: true },
   'stations.rotate': { label: 'Rotate button in Stations', perWidget: true },
   'stations.reset-all': {
@@ -3877,6 +3887,11 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
     destructive: true,
+  },
+  'widget-settings.poll.hide-results': {
+    label: 'Hide results until revealed switch in Poll settings',
+    perWidget: true,
+    panel: true,
   },
   'widget-settings.poll.export-csv': {
     label: 'Export CSV button in Poll settings',
@@ -12535,6 +12550,10 @@ export const TOUR_ANCHORS = {
     label: 'Delete plan button in Seating Chart Assign mode',
     perWidget: true,
     destructive: true,
+  },
+  'seating.print': {
+    label: 'Print seating chart button in Seating Chart Assign mode',
+    perWidget: true,
   },
   'seating.reshuffle': {
     label: 'Reshuffle button in Seating Chart Assign mode',

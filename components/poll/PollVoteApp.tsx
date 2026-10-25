@@ -200,9 +200,12 @@ export const PollVoteApp: React.FC = () => {
     total,
     votedIndex,
     submitting,
+    resultsHidden,
+    resultsRevealed,
   } = view.ballot;
   const closed = view.k === 'closed';
   const hasVoted = votedIndex !== null;
+  const showTally = !resultsHidden && (hasVoted || resultsRevealed);
 
   return (
     <Shell>
@@ -227,7 +230,9 @@ export const PollVoteApp: React.FC = () => {
 
         {closed && (
           <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-2 text-amber-700 text-sm font-medium text-center">
-            Voting is closed.
+            {view.k === 'closed' && view.reason === 'locked'
+              ? 'Voting is closed for this question.'
+              : 'Voting is closed.'}
           </div>
         )}
 
@@ -252,7 +257,7 @@ export const PollVoteApp: React.FC = () => {
             >
               <div className="flex items-center justify-between mb-1.5">
                 <span className="font-bold text-slate-800">{option.label}</span>
-                {hasVoted && (
+                {showTally && (
                   <span
                     className="font-mono text-sm text-slate-500 whitespace-nowrap"
                     data-testid={`poll-tally-${index}`}
@@ -261,7 +266,7 @@ export const PollVoteApp: React.FC = () => {
                   </span>
                 )}
               </div>
-              {hasVoted && (
+              {showTally && (
                 <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
                   <div
                     className={`h-full transition-all duration-500 ${

@@ -7,11 +7,16 @@ import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import type { PollConfig, PollOption, PollQuestion } from '@/types';
-import { clampQuestionIndex, getPollQuestions } from '@/utils/pollQuestions';
+import {
+  clampQuestionIndex,
+  getPollQuestions,
+  withVotesReset,
+} from '@/utils/pollQuestions';
 import {
   aggregateVotes,
   makePollSessionId,
   setSessionQuestionIndex,
+  syncSessionResultsState,
   type PollVoteEntry,
 } from '@/components/poll/pollSession';
 
@@ -31,7 +36,24 @@ interface UsePollSessionResult {
   canGoPrev: boolean;
   canGoNext: boolean;
   goToQuestion: (index: number) => void;
+  /** Current question's results are held back until the teacher reveals them. */
+  resultsHidden: boolean;
+  /** Current question refuses new votes (live sessions only). */
+  isLocked: boolean;
+  setRevealed: (revealed: boolean) => void;
+  setLocked: (locked: boolean) => void;
+  /** Zero the votes; a hidden-results poll hides every question again, on phones too. */
+  resetVotes: () => void;
 }
+
+const toggleId = (
+  ids: string[] | undefined,
+  id: string,
+  on: boolean
+): string[] => {
+  const rest = (ids ?? []).filter((x) => x !== id);
+  return on ? [...rest, id] : rest;
+};
 
 export const usePollSession = ({
   config,
@@ -105,6 +127,65 @@ export const usePollSession = ({
     ]
   );
 
+  const currentId = currentQuestion?.id ?? '';
+  const resultsHidden =
+    config.hideResults === true &&
+    !(config.revealedQuestionIds ?? []).includes(currentId);
+  const isLocked =
+    isLive && (config.lockedQuestionIds ?? []).includes(currentId);
+
+  // Phones stay on a stopped session's doc, so a reveal after Stop still reaches them.
+  const resultsSessionId =
+    activePollSessionId ?? config.lastPollSessionId ?? null;
+
+  const applyResultsState = useCallback(
+    (next: PollConfig) => {
+      onConfigChange(next);
+      if (resultsSessionId && teacherUid) {
+        void syncSessionResultsState(teacherUid, resultsSessionId, next).catch(
+          (err) => logError('usePollSession.resultsState', err)
+        );
+      }
+    },
+    [onConfigChange, resultsSessionId, teacherUid]
+  );
+
+  const setRevealed = useCallback(
+    (revealed: boolean) => {
+      if (!currentId) return;
+      applyResultsState({
+        ...config,
+        revealedQuestionIds: toggleId(
+          config.revealedQuestionIds,
+          currentId,
+          revealed
+        ),
+      });
+    },
+    [applyResultsState, config, currentId]
+  );
+
+  const setLocked = useCallback(
+    (locked: boolean) => {
+      if (!currentId) return;
+      applyResultsState({
+        ...config,
+        lockedQuestionIds: toggleId(
+          config.lockedQuestionIds,
+          currentId,
+          locked
+        ),
+      });
+    },
+    [applyResultsState, config, currentId]
+  );
+
+  const resetVotes = useCallback(() => {
+    const next = withVotesReset(config);
+    if (config.hideResults) applyResultsState(next);
+    else onConfigChange(next);
+  }, [config, applyResultsState, onConfigChange]);
+
   return {
     questions,
     currentQuestionIndex,
@@ -114,5 +195,10 @@ export const usePollSession = ({
     canGoPrev: currentQuestionIndex > 0,
     canGoNext: currentQuestionIndex < questions.length - 1,
     goToQuestion,
+    resultsHidden,
+    isLocked,
+    setRevealed,
+    setLocked,
+    resetVotes,
   };
 };

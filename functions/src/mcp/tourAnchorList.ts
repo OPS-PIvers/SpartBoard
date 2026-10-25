@@ -2807,6 +2807,40 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "poll.reveal-results",
+    "label": "Show results button in Poll",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.face",
+        "kind": "widget",
+        "widget_type": "poll",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "poll.lock-voting",
+    "label": "Lock voting button in Poll",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.face",
+        "kind": "widget",
+        "widget_type": "poll",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "stations.shuffle",
     "label": "Shuffle button in Stations",
     "scope": "widget",
@@ -16339,6 +16373,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget",
     "panel": true,
     "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.settings",
+        "kind": "settings-drawer",
+        "widget_type": "poll",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.poll.hide-results",
+    "label": "Hide results until revealed switch in Poll settings",
+    "scope": "widget",
+    "panel": true,
     "routes": [
       {
         "surface": "widgets.poll.settings",
@@ -56385,6 +56438,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Delete plan button in Seating Chart Assign mode",
     "scope": "widget",
     "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.print",
+    "label": "Print seating chart button in Seating Chart Assign mode",
+    "scope": "widget",
     "routes": [
       {
         "surface": "widgets.seating-chart.face",

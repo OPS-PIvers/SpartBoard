@@ -31,6 +31,7 @@ const ACTIVE_POLL_ID = 'poll-active';
 const CLOSED_POLL_ID = 'poll-closed';
 const ACTIVE_SESSION_ID = `${TEACHER_UID}_${ACTIVE_POLL_ID}`;
 const CLOSED_SESSION_ID = `${TEACHER_UID}_${CLOSED_POLL_ID}`;
+const LOCKED_SESSION_ID = `${TEACHER_UID}_poll-locked`;
 const VOTER_UID = 'voter-anon';
 const OTHER_UID = 'voter-other';
 
@@ -112,6 +113,24 @@ beforeEach(async () => {
       startedAt: 1000,
       updatedAt: 1000,
     });
+    // Live, with question 0 locked and question 1 still open.
+    await setDoc(doc(db, `poll_sessions/${LOCKED_SESSION_ID}`), {
+      id: 'poll-locked',
+      teacherUid: TEACHER_UID,
+      code: 'LMNPQ',
+      optionCounts: OPTION_COUNTS,
+      currentQuestionIndex: 0,
+      active: true,
+      startedAt: 1000,
+      updatedAt: 1000,
+      hideResults: true,
+      revealedQuestions: [],
+      lockedQuestions: [0],
+    });
+    await setDoc(
+      doc(db, `poll_sessions/${LOCKED_SESSION_ID}/votes/0_${OTHER_UID}`),
+      { questionIndex: 0, optionIndex: 0, votedAt: 1000 }
+    );
     // A pre-existing vote so read/delete tests have a target.
     await setDoc(
       doc(db, `poll_sessions/${ACTIVE_SESSION_ID}/votes/0_${OTHER_UID}`),
@@ -292,6 +311,67 @@ describe('poll votes — create/update', () => {
         optionIndex: 2,
         votedAt: 3000,
       })
+    );
+  });
+});
+
+describe('poll votes — locked questions', () => {
+  it('rejects a new vote on a locked question', async () => {
+    await assertFails(
+      setDoc(voteRef(asAnonVoter(), `0_${VOTER_UID}`, LOCKED_SESSION_ID), {
+        questionIndex: 0,
+        optionIndex: 1,
+        votedAt: 2000,
+      })
+    );
+  });
+
+  it('rejects changing an existing vote on a locked question', async () => {
+    await assertFails(
+      setDoc(
+        voteRef(asAnonVoter(OTHER_UID), `0_${OTHER_UID}`, LOCKED_SESSION_ID),
+        {
+          questionIndex: 0,
+          optionIndex: 2,
+          votedAt: 2000,
+        }
+      )
+    );
+  });
+
+  it('accepts a vote on a question that is not locked', async () => {
+    await assertSucceeds(
+      setDoc(voteRef(asAnonVoter(), `1_${VOTER_UID}`, LOCKED_SESSION_ID), {
+        questionIndex: 1,
+        optionIndex: 0,
+        votedAt: 2000,
+      })
+    );
+  });
+
+  it('still lets any authed user read votes on a locked question', async () => {
+    await assertSucceeds(
+      getDoc(voteRef(asAnonVoter(), `0_${OTHER_UID}`, LOCKED_SESSION_ID))
+    );
+  });
+
+  it('the teacher can lock and unlock a question on their session', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asTeacher(), `poll_sessions/${LOCKED_SESSION_ID}`),
+        { lockedQuestions: [], revealedQuestions: [0], updatedAt: 3000 },
+        { merge: true }
+      )
+    );
+  });
+
+  it('a participant cannot unlock a question', async () => {
+    await assertFails(
+      setDoc(
+        doc(asAnonVoter(), `poll_sessions/${LOCKED_SESSION_ID}`),
+        { lockedQuestions: [] },
+        { merge: true }
+      )
     );
   });
 });

@@ -2523,6 +2523,13 @@
       "feature": "scoreboard-pro"
     },
     {
+      "id": "2026-10-25-seating-chart-plans",
+      "widget": "seating-chart",
+      "date": "2026-10-25",
+      "text": "With a class roster, save several seating plans per board, keep chosen students apart or up front when shuffling, and print the chart with names in seats.",
+      "feature": "seating-chart-plans"
+    },
+    {
       "id": "sound-noise-meter-pro",
       "widget": "sound",
       "date": "2026-10-25",

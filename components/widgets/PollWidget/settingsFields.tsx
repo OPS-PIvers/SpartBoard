@@ -28,8 +28,10 @@ import {
   Check,
   Copy,
   ListOrdered,
+  EyeOff,
 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
+import { Toggle } from '@/components/common/Toggle';
 import { MagicInput } from '@/components/common/MagicInput';
 import {
   generatePoll,
@@ -42,6 +44,7 @@ import {
   ensurePollJoinCode,
   startPollSession,
   stopPollSession,
+  syncSessionResultsState,
 } from '@/components/poll/pollSession';
 import { buildPollJoinUrl } from '@/utils/pollCode';
 import {
@@ -50,6 +53,7 @@ import {
   getPollQuestions,
   withPollQuestions,
   withQuestionAt,
+  withVotesReset,
 } from '@/utils/pollQuestions';
 
 import { OptionInput } from './components/OptionInput';
@@ -117,7 +121,8 @@ export const PollSettings: React.FC<{
         base,
         user.uid,
         mode,
-        canAccessFeature('shared-board-live-walls')
+        canAccessFeature('shared-board-live-walls'),
+        canAccessFeature('poll-pro')
       );
       applyConfig(next);
     } catch (err) {
@@ -145,6 +150,32 @@ export const PollSettings: React.FC<{
       console.error('[PollSettings] stopPollSession failed:', err);
       addToast(t('widgetSettings.poll.stopError'), 'error');
     }
+  };
+
+  // Push reveal state to the session phones are on (live or stopped), for its owner only.
+  const syncHiddenResults = (next: PollConfig) => {
+    const sessionId = activePollSessionId ?? config.lastPollSessionId ?? null;
+    if (!next.hideResults && !config.hideResults) return;
+    if (
+      sessionId &&
+      user &&
+      (config.activePollSessionOwnerUid ?? user.uid) === user.uid
+    ) {
+      void syncSessionResultsState(user.uid, sessionId, next).catch((err) =>
+        logError('PollSettings.hideResults', err)
+      );
+    }
+  };
+
+  const handleHideResultsChange = (hideResults: boolean) => {
+    // Turning hiding on starts every question hidden again.
+    const next: PollConfig = {
+      ...config,
+      hideResults,
+      revealedQuestionIds: [],
+    };
+    applyConfig(next);
+    syncHiddenResults(next);
   };
 
   // Reserve the sticky join code (and its inert session doc) the first time
@@ -371,15 +402,9 @@ export const PollSettings: React.FC<{
       }
     );
     if (!confirmed) return;
-    applyConfig(
-      withPollQuestions(
-        config,
-        questions.map((q) => ({
-          ...q,
-          options: q.options.map((o) => ({ ...o, votes: 0 })),
-        }))
-      )
-    );
+    const next = withVotesReset(config);
+    applyConfig(next);
+    syncHiddenResults(next);
   };
 
   const atQuestionLimit = questions.length >= MAX_POLL_QUESTIONS;
@@ -705,6 +730,31 @@ export const PollSettings: React.FC<{
       )}
 
       {/* Live Device Voting — gated by anonymous-join */}
+      {showBehavior && canAccessFeature('poll-pro') && (
+        <div className="pt-4 border-t border-slate-100 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <SettingsLabel icon={EyeOff}>
+              {t('widgetSettings.poll.hideResults')}
+            </SettingsLabel>
+          </div>
+          <Toggle
+            checked={config.hideResults === true}
+            onChange={handleHideResultsChange}
+            disabled={
+              !!boardShareId &&
+              !!activePollSessionId &&
+              config.activePollSessionOwnerUid !== user?.uid
+            }
+            label={t('widgetSettings.poll.hideResults')}
+            anchor={tourAttr(
+              'widget-settings.poll.hide-results',
+              widget.id,
+              widget.type
+            )}
+          />
+        </div>
+      )}
+
       {showBehavior && canOfferAnonymousJoin && (
         <div className="pt-4 border-t border-slate-100">
           <SettingsLabel icon={Radio}>

@@ -62,6 +62,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'shared-board-live-walls',
   'seating-chart-plans',
   'scoreboard-pro',
+  'poll-pro',
   'noise-meter-pro',
 ];
 

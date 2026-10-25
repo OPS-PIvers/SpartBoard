@@ -1285,6 +1285,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'poll-pro': {
+    label: 'Poll upgrades',
+    icon: BarChart,
+    description:
+      'Hide results until you reveal them, lock voting and see how many have answered.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'noise-meter-pro': {
     label: 'Sound: noise meter upgrades',
     icon: Gauge,
