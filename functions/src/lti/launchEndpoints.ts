@@ -430,8 +430,18 @@ export const ltiExchange = onCall(
           gradeLinkData && typeof gradeLinkData.contextId === 'string'
             ? gradeLinkData.contextId
             : null;
+        // Bind the link to the session owner; never overwrite an existing owner.
+        const target = launchTargetSession(launch.custom, launch.contextId);
+        const owner =
+          typeof gradeLinkData?.teacherUid === 'string' || !target
+            ? null
+            : ((await resolveLtiTargetSession(db, target))?.sessionData
+                .teacherUid as unknown);
         await gradeLinkRef.set(
           {
+            ...(typeof owner === 'string' && owner
+              ? { teacherUid: owner }
+              : {}),
             sub: launch.sub,
             contextId: launch.contextId ?? storedContextId,
             resourceLinkId: launch.resourceLinkId,
@@ -466,7 +476,6 @@ export const ltiExchange = onCall(
         membershipUrl,
         deploymentId: launch.deploymentId,
         bridgedClassId: bridged?.classlinkClassId ?? null,
-        studentUid: uid,
       };
       try {
         if (launch.custom?.['kind'] === 'va') {

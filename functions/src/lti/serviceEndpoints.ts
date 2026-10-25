@@ -304,8 +304,11 @@ export const ltiPushGradesForAssignmentV1 = onCall(
           teacherUid?: string;
           ags?: { lineitem?: string };
         };
-        // Grade links are bound to the teacher who owned the session at launch.
-        if (link.teacherUid !== sessTeacherUid) {
+        // Grade links are bound to the session owner at launch; pre-stamp links are tolerated until relaunch.
+        if (
+          link.teacherUid !== undefined &&
+          link.teacherUid !== sessTeacherUid
+        ) {
           return {
             pseudonymUid,
             ok: false,

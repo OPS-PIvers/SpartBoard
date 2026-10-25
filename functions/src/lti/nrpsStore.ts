@@ -306,8 +306,6 @@ export type PersistLtiLaunchContextArgs = {
   deploymentId: string;
   /** ClassLink class the launch was bridged to (classlinkBridge.ts), if any. */
   bridgedClassId?: string | null;
-  /** The launching student's uid, used to bind their grade link to the session owner. */
-  studentUid?: string | null;
 } & (
   | {
       kind: 'quiz';
@@ -512,19 +510,6 @@ export async function persistLtiLaunchContext(
         },
         { merge: true }
       );
-      hasWrites = true;
-    }
-  }
-
-  const gradeOwner =
-    typeof sessionData.teacherUid === 'string' ? sessionData.teacherUid : '';
-  if (args.resourceLinkId && args.studentUid && gradeOwner) {
-    const gradeRef = db.doc(
-      `lti_grade_links/${args.studentUid}/resources/${args.resourceLinkId}`
-    );
-    const gradeSnap = await gradeRef.get();
-    if (gradeSnap.exists && gradeSnap.data()?.teacherUid !== gradeOwner) {
-      batch.set(gradeRef, { teacherUid: gradeOwner }, { merge: true });
       hasWrites = true;
     }
   }

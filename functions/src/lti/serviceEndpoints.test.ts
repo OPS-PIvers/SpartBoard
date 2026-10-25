@@ -559,6 +559,24 @@ describe('ltiPushGradesForAssignmentV1 — push', () => {
     expect(postScoreMock).not.toHaveBeenCalled();
   });
 
+  it('refuses a grade link bound to a different teacher', async () => {
+    gradeLinks.set('lti_grade_links/uid-A/resources/rl-1', {
+      teacherUid: 'someone-else',
+      sub: 'sub-A',
+      ags: { lineitem: 'https://lms/lineitems/1' },
+    });
+    const res = await callPush({
+      auth: TEACHER,
+      data: {
+        sessionId: 's1',
+        maxPoints: 20,
+        grades: [{ pseudonymUid: 'uid-A', pointsEarned: 10 }],
+      },
+    });
+    expect(res.pushed).toBe(0);
+    expect(postScoreMock).not.toHaveBeenCalled();
+  });
+
   it('sets isRedirect:false when the student has no line item on record', async () => {
     gradeLinks.set('lti_grade_links/uid-A/resources/rl-1', {
       teacherUid: 'teacher-1',
