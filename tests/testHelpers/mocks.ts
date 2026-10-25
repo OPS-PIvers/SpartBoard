@@ -85,6 +85,10 @@ function mock2dContext() {
     drawImage: vi.fn(),
     setTransform: vi.fn(),
     rect: vi.fn(),
+    scale: vi.fn(),
+    translate: vi.fn(),
+    rotate: vi.fn(),
+    clip: vi.fn(),
     globalAlpha: 1,
     canvas: {
       width: 800,

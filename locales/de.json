@@ -1582,6 +1582,21 @@
       "play": "Abspielen",
       "pause": "Pause",
       "reset": "Zurücksetzen"
+    },
+    "scoreboard": {
+      "undo": "Rückgängig",
+      "undoShortcut": "Letzte Punkteänderung rückgängig machen (Strg+Z)",
+      "history": "Verlauf",
+      "scores": "Punkte",
+      "recentChanges": "Letzte Änderungen",
+      "noChanges": "Noch keine Änderungen",
+      "reset": "Zurückgesetzt",
+      "leader": "Führt",
+      "tied": "Gleichstand",
+      "addPoints_one": "{{count}} Punkt hinzufügen",
+      "addPoints_other": "{{count}} Punkte hinzufügen",
+      "removePoints_one": "{{count}} Punkt abziehen",
+      "removePoints_other": "{{count}} Punkte abziehen"
     }
   },
   "boardBreadcrumb": {
@@ -3753,7 +3768,16 @@
       "replaceTeamsBody_other": "Das ersetzt die {{count}} Teams auf dieser Anzeigetafel samt Punkteständen.",
       "replaceTeamsConfirm": "Ersetzen",
       "classTeamName": "Team {{count}}",
-      "membersTitle": "Mitglieder aus der Klassengruppe"
+      "membersTitle": "Mitglieder aus der Klassengruppe",
+      "sortByScore": "Nach Punkten sortieren",
+      "pointButtons": "Punkte-Schaltflächen",
+      "pointPreset": {
+        "1": "+1",
+        "1-2-3": "+1, +2, +3",
+        "1-5-10": "+1, +5, +10",
+        "5-10-25": "+5, +10, +25",
+        "10-50-100": "+10, +50, +100"
+      }
     },
     "checklist": {
       "poolGroup": "Auswählen aus",

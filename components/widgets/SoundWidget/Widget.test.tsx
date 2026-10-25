@@ -9,6 +9,13 @@ vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
 }));
 
+const access = { pro: false };
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({
+    canAccessFeature: (id: string) => id === 'noise-meter-pro' && access.pro,
+  }),
+}));
+
 describe('SoundWidget', () => {
   let mockUpdateWidget: Mock;
   let mockActiveDashboard: Partial<Dashboard>;
@@ -332,5 +339,481 @@ describe('SoundWidget', () => {
     expect(mockTrackStop).not.toHaveBeenCalled();
     expect(mockAudioContextClose).not.toHaveBeenCalled();
     expect(mockGetUserMedia).toHaveBeenCalledTimes(1);
+  });
+
+  describe('target level and Too loud alert (noise-meter-pro)', () => {
+    beforeEach(() => {
+      access.pro = true;
+    });
+    afterEach(() => {
+      access.pro = false;
+    });
+
+    const startLoud = async (config: Partial<SoundConfig>) => {
+      mockGetByteFrequencyData.mockImplementation((array: Uint8Array) => {
+        array.fill(255);
+      });
+      render(<SoundWidget widget={createWidget(config)} />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+    };
+
+    it('draws no target line with the flag off', () => {
+      access.pro = false;
+      render(<SoundWidget widget={createWidget({ targetLevel: 1 })} />);
+      expect(screen.queryByTestId('sound-target-line')).toBeNull();
+    });
+
+    it.each(['thermometer', 'speedometer', 'line'] as const)(
+      'draws the target line on the %s visual',
+      (visual) => {
+        render(
+          <SoundWidget widget={createWidget({ targetLevel: 1, visual })} />
+        );
+        expect(screen.getByTestId('sound-target-line')).toBeInTheDocument();
+      }
+    );
+
+    it('shows Too loud only after the room stays over target for the delay', async () => {
+      await startLoud({ targetLevel: 1 });
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      expect(screen.queryByText('Too loud')).toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.getByText('Too loud')).toBeInTheDocument();
+    });
+
+    it('ignores the sensitivity an old sync saved while pro sync sets the target', async () => {
+      mockActiveDashboard.widgets = [
+        {
+          id: 'expectations-1',
+          type: 'expectations',
+          config: { voiceLevel: 0 },
+        } as unknown as WidgetData,
+      ];
+      mockGetByteFrequencyData.mockImplementation((array: Uint8Array) => {
+        array.fill(3);
+      });
+      render(
+        <SoundWidget
+          widget={createWidget({ syncExpectations: true, sensitivity: 5 })}
+        />
+      );
+      await act(async () => {
+        await Promise.resolve();
+      });
+      act(() => {
+        vi.advanceTimersByTime(6000);
+      });
+      expect(screen.queryByText('Too loud')).toBeNull();
+      expect(screen.getByText(/Silence/)).toBeInTheDocument();
+    });
+
+    it('drops the alert while the board is hidden', async () => {
+      mockGetByteFrequencyData.mockImplementation((array: Uint8Array) => {
+        array.fill(255);
+      });
+      const widget = createWidget({ targetLevel: 1 });
+      const { rerender } = render(<SoundWidget widget={widget} isActive />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      act(() => {
+        vi.advanceTimersByTime(3500);
+      });
+      expect(screen.getByText('Too loud')).toBeInTheDocument();
+      rerender(<SoundWidget widget={widget} isActive={false} />);
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      expect(screen.queryByText('Too loud')).toBeNull();
+    });
+
+    it('drops the alert while the browser tab is hidden', async () => {
+      await startLoud({ targetLevel: 1 });
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      act(() => {
+        vi.advanceTimersByTime(3500);
+      });
+      expect(screen.getByText('Too loud')).toBeInTheDocument();
+      const visibility = vi
+        .spyOn(document, 'visibilityState', 'get')
+        .mockReturnValue('hidden');
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      expect(screen.queryByText('Too loud')).toBeNull();
+      visibility.mockRestore();
+    });
+
+    it('never alerts with the flag off', async () => {
+      access.pro = false;
+      await startLoud({ targetLevel: 0 });
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
+      expect(screen.queryByText('Too loud')).toBeNull();
+    });
+
+    it('follows the Expectations voice level instead of changing sensitivity', async () => {
+      mockActiveDashboard.widgets = [
+        {
+          id: 'expectations-1',
+          type: 'expectations',
+          config: { voiceLevel: 1 },
+        } as unknown as WidgetData,
+      ];
+      await startLoud({ syncExpectations: true, targetLevel: null });
+      expect(screen.getByTestId('sound-target-line')).toBeInTheDocument();
+      expect(mockUpdateWidget).not.toHaveBeenCalledWith(
+        'sound-1',
+        expect.anything()
+      );
+    });
+  });
+
+  describe('calibration (noise-meter-pro)', () => {
+    beforeEach(() => {
+      access.pro = true;
+      mockGetByteFrequencyData.mockImplementation((array: Uint8Array) => {
+        array.fill(40);
+      });
+    });
+    afterEach(() => {
+      access.pro = false;
+    });
+
+    it('listens for 5 seconds and saves the quiet level as the zero point', async () => {
+      render(<SoundWidget widget={createWidget({ calibrateRequest: 5 })} />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(screen.getByText(/Calibrating/)).toBeInTheDocument();
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'sound-1',
+        {
+          config: expect.objectContaining({
+            noiseFloor: 40,
+            calibratedAt: 5,
+          }) as SoundConfig,
+        },
+        { skipHistory: true }
+      );
+    });
+
+    it('waits for the mic before saving a calibration', () => {
+      mockGetUserMedia.mockReturnValue(new Promise(() => undefined));
+      render(<SoundWidget widget={createWidget({ calibrateRequest: 5 })} />);
+      act(() => {
+        vi.advanceTimersByTime(12_000);
+      });
+      expect(mockUpdateWidget).not.toHaveBeenCalled();
+      expect(screen.getByText(/Calibrating/)).toBeInTheDocument();
+    });
+
+    it('gives up after 30 seconds without a mic and keeps the old floor', () => {
+      mockGetUserMedia.mockReturnValue(new Promise(() => undefined));
+      render(
+        <SoundWidget
+          widget={createWidget({ noiseFloor: 12, calibrateRequest: 5 })}
+        />
+      );
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'sound-1',
+        {
+          config: expect.objectContaining({
+            noiseFloor: 12,
+            calibratedAt: 5,
+          }) as SoundConfig,
+        },
+        { skipHistory: true }
+      );
+    });
+
+    it('reads the calibrated quiet room as Silence', async () => {
+      render(
+        <SoundWidget
+          widget={createWidget({ noiseFloor: 40, sensitivity: 5 })}
+        />
+      );
+      await act(async () => {
+        await Promise.resolve();
+      });
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.getByText(/Silence/)).toBeInTheDocument();
+    });
+
+    it('ignores the calibration with the flag off', async () => {
+      access.pro = false;
+      render(
+        <SoundWidget
+          widget={createWidget({ noiseFloor: 40, calibrateRequest: 5 })}
+        />
+      );
+      await act(async () => {
+        await Promise.resolve();
+      });
+      act(() => {
+        vi.advanceTimersByTime(6000);
+      });
+      expect(screen.queryByText(/Calibrating/)).toBeNull();
+      expect(screen.getByText(/Outside/)).toBeInTheDocument();
+      expect(mockUpdateWidget).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('quiet time goal (noise-meter-pro)', () => {
+    beforeEach(() => {
+      access.pro = true;
+    });
+    afterEach(() => {
+      access.pro = false;
+    });
+
+    const mount = async (fill: number, config: Partial<SoundConfig>) => {
+      mockGetByteFrequencyData.mockImplementation((array: Uint8Array) => {
+        array.fill(fill);
+      });
+      render(
+        <SoundWidget
+          widget={createWidget({
+            targetLevel: 1,
+            quietGoalMinutes: 1,
+            ...config,
+          })}
+        />
+      );
+      await act(async () => {
+        await Promise.resolve();
+      });
+    };
+
+    const seconds = () =>
+      Number(screen.getByRole('progressbar').getAttribute('aria-valuenow'));
+
+    it('fills while the room is quiet and celebrates at the goal', async () => {
+      await mount(0, {});
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+      expect(seconds()).toBe(30);
+      expect(screen.queryByText('Goal reached')).toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+      expect(seconds()).toBe(60);
+      expect(screen.getByText('Goal reached')).toBeInTheDocument();
+    });
+
+    it('pauses while the room is over target', async () => {
+      await mount(255, {});
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
+      expect(seconds()).toBe(0);
+    });
+
+    it('does not count before the mic is live', () => {
+      mockGetUserMedia.mockReturnValue(new Promise(() => undefined));
+      render(
+        <SoundWidget
+          widget={createWidget({ targetLevel: 1, quietGoalMinutes: 1 })}
+        />
+      );
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+      expect(seconds()).toBe(0);
+    });
+
+    it('restarts from the button', async () => {
+      await mount(0, {});
+      act(() => {
+        vi.advanceTimersByTime(20_000);
+      });
+      act(() => {
+        screen.getByRole('button', { name: 'Restart quiet time goal' }).click();
+      });
+      expect(seconds()).toBe(0);
+    });
+
+    it('starts over when Too loud shows, if set to', async () => {
+      await mount(0, { quietGoalResetOnAlert: true });
+      act(() => {
+        vi.advanceTimersByTime(20_000);
+      });
+      expect(seconds()).toBe(20);
+      mockGetByteFrequencyData.mockImplementation((array: Uint8Array) => {
+        array.fill(255);
+      });
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      act(() => {
+        vi.advanceTimersByTime(3500);
+      });
+      expect(screen.getByText('Too loud')).toBeInTheDocument();
+      expect(seconds()).toBe(0);
+    });
+
+    it('adds a point to the chosen Scoreboard team at the goal', async () => {
+      // Both Scoreboards start with the same team id; the saved one wins.
+      mockActiveDashboard.widgets = [
+        { id: 'sound-1', type: 'sound', config: {} } as unknown as WidgetData,
+        {
+          id: 'scoreboard-0',
+          type: 'scoreboard',
+          config: { teams: [{ id: 't1', name: 'Blue', score: 1 }] },
+        } as unknown as WidgetData,
+        {
+          id: 'scoreboard-1',
+          type: 'scoreboard',
+          config: { teams: [{ id: 't1', name: 'Red', score: 4 }] },
+        } as unknown as WidgetData,
+      ];
+      await mount(0, {
+        quietGoalTeamId: 't1',
+        quietGoalScoreboardId: 'scoreboard-1',
+      });
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      expect(mockUpdateWidget).toHaveBeenCalledTimes(1);
+      expect(mockUpdateWidget).toHaveBeenCalledWith('scoreboard-1', {
+        config: expect.objectContaining({
+          teams: [{ id: 't1', name: 'Red', score: 5 }],
+        }) as unknown,
+      });
+    });
+
+    it('does not score from a board that is no longer shown', async () => {
+      mockActiveDashboard.widgets = [
+        {
+          id: 'scoreboard-1',
+          type: 'scoreboard',
+          config: { teams: [{ id: 't1', name: 'Red', score: 4 }] },
+        } as unknown as WidgetData,
+      ];
+      await mount(0, { quietGoalTeamId: 't1' });
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      expect(mockUpdateWidget).not.toHaveBeenCalled();
+    });
+
+    it('shows no goal with the flag off', async () => {
+      access.pro = false;
+      await mount(0, {});
+      expect(screen.queryByRole('progressbar')).toBeNull();
+    });
+  });
+
+  describe('session summary (noise-meter-pro)', () => {
+    beforeEach(() => {
+      access.pro = true;
+    });
+    afterEach(() => {
+      access.pro = false;
+    });
+
+    it('shows time at each level and the alert count', async () => {
+      mockGetByteFrequencyData.mockImplementation((array: Uint8Array) => {
+        array.fill(0);
+      });
+      render(<SoundWidget widget={createWidget({ targetLevel: 1 })} />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
+      mockGetByteFrequencyData.mockImplementation((array: Uint8Array) => {
+        array.fill(255);
+      });
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      act(() => {
+        vi.advanceTimersByTime(4500);
+      });
+      act(() => {
+        screen.getByRole('button', { name: 'Summary' }).click();
+      });
+      expect(screen.getByText('Time at each level')).toBeInTheDocument();
+      expect(screen.getByText(/1 Too loud alert\b/)).toBeInTheDocument();
+      expect(screen.getByText(/Listened for 0:15/)).toBeInTheDocument();
+
+      act(() => {
+        screen.getByRole('button', { name: 'Clear summary' }).click();
+      });
+      expect(screen.getByText(/0 Too loud alerts/)).toBeInTheDocument();
+    });
+
+    it('has no Summary button with the flag off', () => {
+      access.pro = false;
+      render(<SoundWidget widget={createWidget()} />);
+      expect(screen.queryByRole('button', { name: 'Summary' })).toBeNull();
+    });
+  });
+
+  describe('level name view (noise-meter-pro)', () => {
+    afterEach(() => {
+      access.pro = false;
+    });
+
+    it('shows the level number and name in large type with the target', async () => {
+      access.pro = true;
+      mockGetByteFrequencyData.mockImplementation((array: Uint8Array) => {
+        array.fill(25);
+      });
+      render(
+        <SoundWidget
+          widget={createWidget({ visual: 'level', targetLevel: 1 })}
+        />
+      );
+      await act(async () => {
+        await Promise.resolve();
+      });
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      expect(screen.getByText('Conversation')).toBeInTheDocument();
+      expect(screen.getByText('Target: Whisper')).toBeInTheDocument();
+    });
+
+    it('falls back to the meter with the flag off', () => {
+      access.pro = false;
+      const { container } = render(
+        <SoundWidget widget={createWidget({ visual: 'level' })} />
+      );
+      expect(screen.queryByText('Silence')).toBeNull();
+      expect(container.querySelector('svg')).not.toBeNull();
+    });
   });
 });
