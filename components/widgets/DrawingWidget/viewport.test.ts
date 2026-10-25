@@ -117,3 +117,22 @@ describe('whiteboard viewport math', () => {
     ).toBe('100% 16px');
   });
 });
+
+describe('selection handles while zoomed', () => {
+  it('the top handle still resizes at 25% instead of rotating', async () => {
+    const { hitTestHandle } = await import('./hitTest');
+    const rect: DrawableObject = {
+      id: 'r',
+      kind: 'rect',
+      z: 0,
+      x: 0,
+      y: 100,
+      w: 200,
+      h: 100,
+      stroke: '#000',
+      strokeWidth: 2,
+    };
+    expect(hitTestHandle(rect, { x: 100, y: 100 }, 0.25, 0.25)).toBe('n');
+    expect(hitTestHandle(rect, { x: 100, y: 4 }, 0.25, 0.25)).toBe('rotate');
+  });
+});

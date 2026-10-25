@@ -159,19 +159,22 @@ export const fitView = (
 /** Scales and offsets a background template's tile so it moves with the page. */
 export const viewBackgroundStyle = (
   style: CSSProperties,
-  view: DrawingView
+  view: DrawingView,
+  layoutRatio = 1
 ): CSSProperties => {
   const size = style.backgroundSize;
   if (typeof size !== 'string') return style;
   const scaled = size
     .split(' ')
     .map((part) =>
-      part.endsWith('px') ? `${parseFloat(part) * view.zoom}px` : part
+      part.endsWith('px')
+        ? `${parseFloat(part) * view.zoom * layoutRatio}px`
+        : part
     )
     .join(' ');
   return {
     ...style,
     backgroundSize: scaled,
-    backgroundPosition: `${view.x}px ${view.y}px`,
+    backgroundPosition: `${view.x * layoutRatio}px ${view.y * layoutRatio}px`,
   };
 };

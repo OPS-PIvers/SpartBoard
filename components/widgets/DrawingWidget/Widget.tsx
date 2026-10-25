@@ -65,6 +65,7 @@ import type { DrawingPage } from '@/types';
 import { getBackgroundStyle } from './backgroundTemplates';
 import { useDrawingViewport } from './useDrawingViewport';
 import {
+  isIdentityView,
   MAX_VIEW_ZOOM,
   MIN_VIEW_ZOOM,
   pageScreenRect,
@@ -245,6 +246,8 @@ export const DrawingWidget: React.FC<{
   // overlay all flow through this value so they stay aligned with the
   // visible canvas regardless of how the toolbar grows.
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
+  // CSS px per canvas px, for DOM layers that move with the zoomed page.
+  const [layoutRatio, setLayoutRatio] = useState(1);
   const [wrapperSize, setWrapperSize] = useState<{
     width: number;
     height: number;
@@ -266,6 +269,9 @@ export const DrawingWidget: React.FC<{
         width: Math.round(r.width),
         height: Math.round(r.height),
       };
+      // Board zoom scales the measured rect but not CSS layout px.
+      const ratio = node.offsetWidth > 0 ? node.offsetWidth / next.width : 1;
+      setLayoutRatio((prev) => (Math.abs(prev - ratio) < 0.001 ? prev : ratio));
       setWrapperSize((prev) =>
         prev.width === next.width && prev.height === next.height ? prev : next
       );
@@ -1054,12 +1060,13 @@ export const DrawingWidget: React.FC<{
       setIsExtracting(true);
       addToast('Scanning handwriting...', 'info');
       // Zoomed: read the whole page, not the part on screen.
-      const dataUrl = view
-        ? await exportPagePng(
-            { ...activePage, objects },
-            { w: canvasSize.width, h: canvasSize.height }
-          )
-        : canvas.toDataURL('image/png');
+      const dataUrl =
+        view && !isIdentityView(view)
+          ? await exportPagePng(
+              { ...activePage, objects, background: 'blank' },
+              { w: canvasSize.width, h: canvasSize.height }
+            )
+          : canvas.toDataURL('image/png');
       const extractedText = await extractTextWithGemini(dataUrl, 'drawing');
 
       if (!extractedText || !extractedText.trim()) {
@@ -1631,7 +1638,7 @@ export const DrawingWidget: React.FC<{
                 config.background ??
                 DRAWING_DEFAULTS.BACKGROUND
             );
-            return view ? viewBackgroundStyle(bg, view) : bg;
+            return view ? viewBackgroundStyle(bg, view, layoutRatio) : bg;
           })()}
         />
         <canvas
@@ -1652,6 +1659,20 @@ export const DrawingWidget: React.FC<{
           className="absolute inset-0 w-full h-full"
           style={{ touchAction: 'none' }}
         />
+        {view && !isIdentityView(view) && (
+          // Page edge while zoomed: what Download and students see.
+          <div
+            aria-hidden
+            className="absolute pointer-events-none rounded-sm ring-1 ring-slate-400/70"
+            style={{
+              left: view.x * layoutRatio,
+              top: view.y * layoutRatio,
+              width: canvasSize.width * view.zoom * layoutRatio,
+              height: canvasSize.height * view.zoom * layoutRatio,
+              boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.06)',
+            }}
+          />
+        )}
         {/* Lasso preview overlay — SVG above the canvas, in canvas-pixel
             coordinates via viewBox. pointer-events:none so the canvas
             still receives the in-flight drag events that build this
@@ -1750,7 +1771,7 @@ export const DrawingWidget: React.FC<{
               onClick={() => viewport.setHandActive(!viewport.handActive)}
               title="Hand (hold Space)"
               aria-label="Hand"
-              className={`${actionBtnBase} ${
+              className={`${actionBtnBase} touch-target-expand ${
                 viewport.handActive ? '!bg-brand-blue-primary text-white' : ''
               }`}
             >
@@ -1763,7 +1784,7 @@ export const DrawingWidget: React.FC<{
               disabled={view.zoom <= MIN_VIEW_ZOOM + 0.001}
               title="Zoom out (Ctrl -)"
               aria-label="Zoom out"
-              className={actionBtnBase}
+              className={`${actionBtnBase} touch-target-expand`}
             >
               <ZoomOut className="w-4 h-4" />
             </button>
@@ -1773,7 +1794,7 @@ export const DrawingWidget: React.FC<{
               onClick={viewport.resetZoom}
               title="Zoom to 100% (Ctrl 0)"
               aria-label="Zoom to 100%"
-              className="h-7 min-w-[3rem] rounded-md px-1 text-xs font-semibold tabular-nums transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+              className="touch-target-expand h-7 min-w-[3rem] rounded-md px-1 text-xs font-semibold tabular-nums transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
             >
               {Math.round(view.zoom * 100)}%
             </button>
@@ -1784,7 +1805,7 @@ export const DrawingWidget: React.FC<{
               disabled={view.zoom >= MAX_VIEW_ZOOM - 0.001}
               title="Zoom in (Ctrl +)"
               aria-label="Zoom in"
-              className={actionBtnBase}
+              className={`${actionBtnBase} touch-target-expand`}
             >
               <ZoomIn className="w-4 h-4" />
             </button>
@@ -1794,7 +1815,7 @@ export const DrawingWidget: React.FC<{
               onClick={viewport.fit}
               title="Fit"
               aria-label="Fit"
-              className="h-7 rounded-md px-2 text-xs font-semibold transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+              className="touch-target-expand h-7 rounded-md px-2 text-xs font-semibold transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
             >
               Fit
             </button>

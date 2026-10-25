@@ -166,7 +166,7 @@ export const useSelection = ({
       // selected — a small handle inside the bbox of its own object would
       // otherwise be unreachable.
       if (selectedObject) {
-        const handle = hitTestHandle(selectedObject, pos, getScale());
+        const handle = hitTestHandle(selectedObject, pos, getScale(), viewZoom);
         if (handle) {
           const bbox = getBoundingBox(selectedObject);
           setTransformState({
@@ -197,7 +197,7 @@ export const useSelection = ({
         shift: e.shiftKey,
       });
     },
-    [activeTool, objects, selectedObject, clearSelection, getScale]
+    [activeTool, objects, selectedObject, clearSelection, getScale, viewZoom]
   );
 
   const handleSelectPointerMove = useCallback(

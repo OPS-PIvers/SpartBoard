@@ -154,6 +154,7 @@ export const useDrawingCanvas = ({
   // identity through the reducer's `map(o => o.id === ... ? next : o)`.
   const prevObjectsRef = useRef<Map<string, DrawableObject>>(new Map());
   const prevViewRef = useRef<DrawingView | undefined>(view);
+  const viewAppliedRef = useRef(false);
 
   const setPathContextStyles = useCallback(
     (ctx: CanvasRenderingContext2D, tool: 'pen' | 'eraser') => {
@@ -194,6 +195,7 @@ export const useDrawingCanvas = ({
       if (view) {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        viewAppliedRef.current = true;
         ctx.setTransform(
           pixelRatio * view.zoom,
           0,
@@ -203,6 +205,11 @@ export const useDrawingCanvas = ({
           pixelRatio * view.y
         );
       } else {
+        // A view that just went away (flag switched off) must not leave its matrix behind.
+        if (viewAppliedRef.current) {
+          ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+          viewAppliedRef.current = false;
+        }
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
       }
 
@@ -236,7 +243,8 @@ export const useDrawingCanvas = ({
           ctx,
           chromeTarget,
           transformState,
-          getLiveScale()
+          getLiveScale(),
+          view?.zoom
         );
       }
     },
@@ -375,12 +383,14 @@ export const useDrawingCanvas = ({
           ctx,
           chromeTarget,
           transformState,
-          getLiveScale()
+          getLiveScale(),
+          view?.zoom
         );
       }
     },
     [
       draw,
+      view,
       color,
       width,
       shapeFill,

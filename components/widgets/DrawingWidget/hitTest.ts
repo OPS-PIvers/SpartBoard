@@ -435,7 +435,8 @@ export const ROTATION_HANDLE_OFFSET = 24;
  */
 export const getHandlePositions = (
   bbox: BoundingBox,
-  rotation = 0
+  rotation = 0,
+  rotateOffset = ROTATION_HANDLE_OFFSET
 ): Record<HandleName, Point> => {
   const { x, y, w, h } = bbox;
   const midX = x + w / 2;
@@ -449,7 +450,7 @@ export const getHandlePositions = (
     s: { x: midX, y: y + h },
     sw: { x, y: y + h },
     w: { x, y: midY },
-    rotate: { x: midX, y: y - ROTATION_HANDLE_OFFSET },
+    rotate: { x: midX, y: y - rotateOffset },
   };
   if (!Number.isFinite(rotation) || rotation === 0) return positions;
   const center = { x: midX, y: midY };
@@ -485,7 +486,9 @@ const ROTATE_HANDLE_HIT_MULT = 1.1;
 export const hitTestHandle = (
   obj: DrawableObject,
   p: Point,
-  scale: number
+  scale: number,
+  /** Whiteboard zoom: keeps the rotate handle 24 screen px above the box. */
+  viewZoom = 1
 ): HandleName | null => {
   const bbox = getBoundingBox(obj);
   const rot =
@@ -495,7 +498,11 @@ export const hitTestHandle = (
   // Use UNROTATED handle positions and reverse-rotate the test point. This
   // lets us keep the axis-aligned-square hit math while still resolving
   // correctly for rotated objects.
-  const positions = getHandlePositions(bbox);
+  const positions = getHandlePositions(
+    bbox,
+    0,
+    ROTATION_HANDLE_OFFSET / viewZoom
+  );
   const testP =
     rot !== 0
       ? reverseRotatePoint(

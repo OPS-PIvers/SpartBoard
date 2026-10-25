@@ -181,8 +181,9 @@ export const useImageInsertion = ({
       const canvas = canvasRef.current;
       if (!canvas) return;
       const area = getVisibleArea?.();
-      const canvasW = area?.width ?? canvas.width;
-      const canvasH = area?.height ?? canvas.height;
+      // Zoomed out, the visible area is bigger than the page; size against whichever is smaller.
+      const canvasW = Math.min(area?.width ?? canvas.width, canvas.width);
+      const canvasH = Math.min(area?.height ?? canvas.height, canvas.height);
 
       // Kick natural-size decode + upload in parallel. Decode is local and
       // typically faster than upload, so neither blocks the other.
@@ -197,7 +198,12 @@ export const useImageInsertion = ({
         canvasW,
         canvasH,
         focal,
-        area ? { x: area.x, y: area.y } : undefined
+        area
+          ? {
+              x: area.x + (area.width - canvasW) / 2,
+              y: area.y + (area.height - canvasH) / 2,
+            }
+          : undefined
       );
       onImageReady({ src: url, ...geom });
     },
