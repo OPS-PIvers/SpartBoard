@@ -22,6 +22,7 @@
 import React from 'react';
 import type { WrittenAnswerAnnotation } from '@/types';
 import { QUOTE_ATTR, QUOTE_TEXT_ATTR, isQuoteEdited } from './quizQuotes';
+import { sanitizeQuizResponse } from './security';
 
 const BLOCK_TAGS = new Set(['P', 'LI', 'UL', 'OL', 'DIV']);
 
@@ -38,12 +39,7 @@ const BLOCK_TAGS = new Set(['P', 'LI', 'UL', 'OL', 'DIV']);
  */
 export const htmlToPlainText = (html: string): string => {
   if (!html) return '';
-  if (typeof DOMParser === 'undefined') return '';
-  const doc = new DOMParser().parseFromString(
-    `<div>${html}</div>`,
-    'text/html'
-  );
-  const root = doc.body.firstChild as Element | null;
+  const root = parseSnapshotRoot(html);
   if (!root) return '';
   let out = '';
   walkPlaintext(root, (chunk) => {
@@ -232,8 +228,9 @@ export const annotatedSnapshotToHtml = (
 export const parseSnapshotRoot = (html: string): Element | null => {
   if (!html) return null;
   if (typeof DOMParser === 'undefined') return null;
+  // Stored snapshots are teacher-writable, so re-sanitize; idempotent for real ones.
   const doc = new DOMParser().parseFromString(
-    `<div>${html}</div>`,
+    `<div>${sanitizeQuizResponse(html)}</div>`,
     'text/html'
   );
   return (doc.body.firstChild as Element | null) ?? null;
@@ -375,6 +372,21 @@ const sliceTextWithAnnotations = (
   return out;
 };
 
+// Closed set of inert tags React may create; anything else renders only its text.
+const RENDER_TAGS = new Set([
+  'p',
+  'li',
+  'ul',
+  'ol',
+  'div',
+  'b',
+  'strong',
+  'i',
+  'em',
+  'u',
+  'span',
+]);
+
 const segmentsToReact = (
   segments: AnnotatedSegment[],
   ctx: { keyCounter: number }
@@ -385,6 +397,13 @@ const segmentsToReact = (
     }
     if (seg.kind === 'element') {
       const key = `n${ctx.keyCounter++}`;
+      if (!RENDER_TAGS.has(seg.tag)) {
+        return React.createElement(
+          React.Fragment,
+          { key },
+          ...segmentsToReact(seg.children, ctx)
+        );
+      }
       return React.createElement(
         seg.tag,
         seg.quote ? { key, 'data-quote-state': seg.quote } : { key },
