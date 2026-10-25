@@ -1309,6 +1309,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'noise-meter-pro': {
+    label: 'Sound: noise meter upgrades',
+    icon: Gauge,
+    description:
+      'Target level, Too loud alert, calibration, quiet time goal and a summary of how loud the class was.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'sound',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Fail-closed for admins until Paul saves the row (espeak counsel hold, G19).
   'flashcards-speak': {
     label: 'Flashcards: Speak',

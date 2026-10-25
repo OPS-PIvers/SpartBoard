@@ -2530,6 +2530,13 @@
       "feature": "seating-chart-plans"
     },
     {
+      "id": "sound-noise-meter-pro",
+      "widget": "sound",
+      "date": "2026-10-25",
+      "text": "Set a target level in settings. The meter marks it, and shows Too loud when the class stays above it.",
+      "feature": "noise-meter-pro"
+    },
+    {
       "id": "webcam-document-camera",
       "widget": "webcam",
       "date": "2026-10-25",
