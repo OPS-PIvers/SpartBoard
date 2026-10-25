@@ -439,10 +439,17 @@ export const OrganizationPanel: React.FC = () => {
       : ids.filter(
           (id) => users.find((u) => u.id === id)?.role !== 'super_admin'
         );
+  // Rules also refuse a non-super admin's change to their own role/status.
+  const withoutSelf = (ids: string[]) =>
+    actorRole === 'super_admin'
+      ? ids
+      : ids.filter((id) => id !== user?.email?.toLowerCase());
   const handleBulkUpdateUsers = (ids: string[], patch: Partial<UserRecord>) => {
     if (!writesEnabled) return comingSoon('Bulk update users');
     const targetIds =
-      'role' in patch || 'status' in patch ? withoutSuperAdmins(ids) : ids;
+      'role' in patch || 'status' in patch
+        ? withoutSelf(withoutSuperAdmins(ids))
+        : ids;
     run(
       'Bulk update users',
       () => bulkUpdateMembers(targetIds, patch),

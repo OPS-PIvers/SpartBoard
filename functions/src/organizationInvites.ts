@@ -29,7 +29,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
 import { assertViewAsAllowed } from './viewAsGuard';
-import { isStrictSuperAdmin } from './authz';
+import { isRevokedMemberStatus, isStrictSuperAdmin } from './authz';
 
 // Guard against double-initialization. The main index.ts module calls
 // initializeApp() at load time; if that module is loaded first (normal
@@ -655,7 +655,10 @@ async function assertCallerIsOrgAdmin(
     );
   }
   const data = snap.data() as MemberRecord;
-  if (!ADMIN_ROLE_IDS.includes(data.roleId)) {
+  if (
+    !ADMIN_ROLE_IDS.includes(data.roleId) ||
+    isRevokedMemberStatus(data.status)
+  ) {
     throw new HttpsError(
       'permission-denied',
       'Caller does not have permission to invite members.'

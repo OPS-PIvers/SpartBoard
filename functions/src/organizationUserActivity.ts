@@ -15,6 +15,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { type MemberRecord } from './organizationInvites';
+import { isRevokedMemberStatus } from './authz';
 import { assertViewAsAllowed } from './viewAsGuard';
 
 if (!admin.apps.length) {
@@ -88,7 +89,10 @@ async function assertCallerIsAdminMember(
     );
   }
   const data = snap.data() as MemberRecord;
-  if (!ACTIVITY_ROLE_IDS.includes(data.roleId)) {
+  if (
+    !ACTIVITY_ROLE_IDS.includes(data.roleId) ||
+    isRevokedMemberStatus(data.status)
+  ) {
     throw new HttpsError(
       'permission-denied',
       'Caller does not have permission to view member activity.'

@@ -97,6 +97,7 @@ import {
 import { LANGUAGE_TAG_RE } from './languageTag';
 import { ttsLanguageForTranslationLocale } from './quizReadAloudVoices';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { isRevokedMemberStatus } from './authz';
 
 /** BCP-47 practical maximum; caps an unbounded string before it reaches Firestore. */
 const LANGUAGE_TAG_MAX = 35;
@@ -1358,7 +1359,10 @@ export async function isTestClassAuthority(
     return true;
   }
   if (roleIdOf(operatorMemberDoc) === 'super_admin') return true;
-  return roleIdOf(memberDoc) === 'domain_admin';
+  return (
+    roleIdOf(memberDoc) === 'domain_admin' &&
+    !isRevokedMemberStatus(memberDoc.get('status'))
+  );
 }
 
 function roleIdOf(snap: admin.firestore.DocumentSnapshot): string {
