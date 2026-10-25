@@ -77,11 +77,11 @@ describe('toOcrDataUrl', () => {
     return c;
   };
 
-  it('keeps a small capture as PNG', () => {
-    const c = canvasOf(1280, 720);
-    const spy = vi.spyOn(c, 'toDataURL').mockReturnValue('data:image/png;x');
-    expect(toOcrDataUrl(c)).toBe('data:image/png;x');
-    expect(spy).toHaveBeenCalledWith('image/png');
+  it('sends a small capture as JPEG at full size', () => {
+    const c = canvasOf(1280, 1707);
+    const spy = vi.spyOn(c, 'toDataURL').mockReturnValue('data:image/jpeg;x');
+    expect(toOcrDataUrl(c)).toBe('data:image/jpeg;x');
+    expect(spy).toHaveBeenCalledWith('image/jpeg', 0.9);
   });
 
   it('scales a 4K capture down to the OCR limit as JPEG', () => {

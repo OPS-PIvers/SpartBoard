@@ -183,12 +183,12 @@ function mapFeedToOutput(
   ctx.translate(-feedSize.width / 2, -feedSize.height / 2);
 }
 
-// The OCR callable takes at most 5MB; a full-resolution PNG from a 4K camera is far over that.
+// The OCR callable takes at most 5MB; a 2048px JPEG stays well under it for any camera or photo.
 export const OCR_MAX_SIDE = 2048;
 
 export function toOcrDataUrl(canvas: HTMLCanvasElement): string {
   const longest = Math.max(canvas.width, canvas.height);
-  if (longest <= OCR_MAX_SIDE) return canvas.toDataURL('image/png');
+  if (longest <= OCR_MAX_SIDE) return canvas.toDataURL('image/jpeg', 0.9);
   const scale = OCR_MAX_SIDE / longest;
   const out = document.createElement('canvas');
   out.width = Math.round(canvas.width * scale);
