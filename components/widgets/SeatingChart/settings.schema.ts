@@ -6,6 +6,7 @@ import type {
 } from '@/components/settings/schema/types';
 import type { SeatingChartConfig } from '@/types';
 import { SeatingChartActionsField } from './settingsFields';
+import { detachPlan } from './seatingPlans';
 
 const isCustomRoster = (ctx: FieldCtx) => ctx.config.rosterMode === 'custom';
 
@@ -21,6 +22,11 @@ export default defineSettings<SeatingChartConfig>({
           key: 'rosterMode',
           type: 'rosterPicker',
           label: 'rosterMode',
+          // Seats change meaning with the roster, so the plan on screen is saved and let go.
+          toPatch: (value, ctx) => ({
+            ...detachPlan(ctx.config as unknown as SeatingChartConfig),
+            rosterMode: value,
+          }),
         },
         {
           key: 'names',

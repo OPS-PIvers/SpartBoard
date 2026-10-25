@@ -101,7 +101,7 @@ export const SeatingPlanPicker: React.FC<SeatingPlanPickerProps> = ({
   };
 
   const iconButton =
-    'p-1.5 rounded-md text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors disabled:opacity-40 disabled:hover:bg-transparent';
+    'relative touch-target-expand p-1.5 rounded-md text-slate-500 hover:bg-slate-200 hover:text-slate-700 transition-colors disabled:opacity-40 disabled:hover:bg-transparent';
 
   return (
     <div className="p-2 border-b border-slate-200 space-y-1.5">

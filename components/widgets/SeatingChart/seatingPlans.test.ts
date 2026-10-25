@@ -154,3 +154,17 @@ describe('detachPlan', () => {
     });
   });
 });
+
+describe('custom rosters', () => {
+  it('never snapshots name-keyed seats into a plan', () => {
+    const cfg: SeatingChartConfig = {
+      furniture: [],
+      gridSize: 20,
+      rosterMode: 'custom',
+      assignments: { 'Ana Ba': 'd1' },
+      savedPlans: [{ id: 'p1', name: 'A', assignments: { s1: 'd2' } }],
+      activePlanId: 'p1',
+    };
+    expect(detachPlan(cfg).savedPlans).toEqual(cfg.savedPlans);
+  });
+});

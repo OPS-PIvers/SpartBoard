@@ -18,7 +18,8 @@ export const getActivePlan = (config: SeatingChartConfig): SeatingPlan | null =>
 const withActiveSnapshot = (config: SeatingChartConfig): SeatingPlan[] => {
   const plans = config.savedPlans ?? [];
   const active = getActivePlan(config);
-  if (!active) return plans;
+  // Custom-roster seats are keyed by typed names; they never go into a plan.
+  if (!active || config.rosterMode === 'custom') return plans;
   return plans.map((p) =>
     p.id === active.id
       ? { ...p, assignments: { ...(config.assignments ?? {}) } }
