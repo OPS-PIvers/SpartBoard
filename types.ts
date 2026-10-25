@@ -1857,6 +1857,8 @@ export interface TextObject extends BaseDrawableObject {
   color: string;
   /** True once a resize handle fixed the width; lines wrap to `w`. */
   wrap?: boolean;
+  /** Sticky note: a filled square whose text shrinks to fit. Older clients draw just the wrapped text. */
+  sticky?: { fill: string };
 }
 
 export interface ImageObject extends BaseDrawableObject {
@@ -2177,7 +2179,8 @@ export type ShapeTool =
   | 'select'
   /** `whiteboard-pro` only; without the flag the widget treats both as the pen. */
   | 'highlighter'
-  | 'laser';
+  | 'laser'
+  | 'sticky';
 
 /**
  * Eraser sub-tool. The DrawingWidget eraser surfaces three modes:
@@ -2262,6 +2265,8 @@ export interface DrawingConfig {
   /** Highlighter color (opaque hex) and width, kept apart from the pen's. */
   highlighterColor?: string;
   highlighterWidth?: number;
+  /** Fill for new sticky notes. */
+  stickyColor?: string;
   /**
    * Widget-level default background template applied to a page when the
    * page's own `background` field is unset. Populated by Phase 2 PR 2.5.

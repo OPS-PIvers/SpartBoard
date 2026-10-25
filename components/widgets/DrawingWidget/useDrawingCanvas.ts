@@ -22,6 +22,7 @@ import {
   TransformChromeState,
 } from './renderers/selection';
 import { DRAWING_DEFAULTS } from './constants';
+import { STICKY_SIZE } from './renderers/text';
 import { getStrokedBoundingBox, type BoundingBox } from './hitTest';
 import { isIdentityView, type DrawingView } from './viewport';
 
@@ -78,6 +79,8 @@ interface UseDrawingCanvasOptions {
   view?: DrawingView;
   /** Highlighter ink (opaque color) and width; the highlighter tool needs it. */
   highlighter?: { color: string; width: number };
+  /** Fill for notes the sticky tool spawns. */
+  stickyFill?: string;
 }
 
 interface UseDrawingCanvasResult {
@@ -144,6 +147,7 @@ export const useDrawingCanvas = ({
   pixelRatio = 1,
   view,
   highlighter = DEFAULT_HIGHLIGHTER,
+  stickyFill = '#eab308',
 }: UseDrawingCanvasOptions): UseDrawingCanvasResult => {
   const [isDrawing, setIsDrawing] = useState(false);
   const inProgressRef = useRef<InProgress | null>(null);
@@ -584,6 +588,26 @@ export const useDrawingCanvas = ({
         return;
       }
 
+      if (activeTool === 'sticky') {
+        if (!onTextSpawn) return;
+        onTextSpawn({
+          id: generateId(),
+          kind: 'text',
+          z: nextZ,
+          x: pos.x - STICKY_SIZE / 2,
+          y: pos.y - STICKY_SIZE / 2,
+          w: STICKY_SIZE,
+          h: STICKY_SIZE,
+          content: '',
+          fontFamily: DRAWING_DEFAULTS.TEXT_FONT_FAMILY,
+          fontSize: DRAWING_DEFAULTS.TEXT_FONT_SIZE_PX,
+          color: DRAWING_DEFAULTS.TEXT_COLOR,
+          wrap: true,
+          sticky: { fill: stickyFill },
+        });
+        return;
+      }
+
       setIsDrawing(true);
       // Capture the pointer so a stroke that crosses the Dock, a widget, or
       // the window edge keeps streaming to this canvas instead of truncating.
@@ -656,6 +680,7 @@ export const useDrawingCanvas = ({
       generateId,
       nextZ,
       color,
+      stickyFill,
     ]
   );
 

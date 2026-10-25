@@ -1388,4 +1388,44 @@ describe('DrawingWidget highlighter and laser (whiteboard-pro)', () => {
     stroke(canvases[0]);
     expect(mockUpdateWidget).not.toHaveBeenCalled();
   });
+
+  it('sticky note: a click opens a filled square editor and saves a sticky text object', () => {
+    const { container, getByLabelText } = setup(true, 'sticky');
+    expect(getByLabelText('Sticky note').getAttribute('aria-pressed')).toBe(
+      'true'
+    );
+    const canvas = container.querySelector('canvas') as Element;
+    fireEvent(
+      canvas,
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 200,
+        clientY: 100,
+      })
+    );
+    const editor = container.querySelector<HTMLElement>('[role="textbox"]');
+    if (!editor) throw new Error('Editor not found');
+    expect(editor.style.backgroundColor).not.toBe('');
+    editor.innerText = 'Exit ticket';
+    fireEvent.keyDown(editor, { key: 'Enter', metaKey: true });
+    const calls = mockUpdateWidget.mock.calls;
+    const cfg = (calls[calls.length - 1][1] as Partial<WidgetData>)
+      .config as DrawingConfig;
+    expect(objectsFromConfig(cfg)[0]).toMatchObject({
+      kind: 'text',
+      content: 'Exit ticket',
+      x: 110,
+      y: 10,
+      w: 180,
+      h: 180,
+      wrap: true,
+      sticky: { fill: '#eab308' },
+    });
+  });
+
+  it('flag off: no sticky note button', () => {
+    const { queryByLabelText } = setup(false, 'pen');
+    expect(queryByLabelText('Sticky note')).toBeNull();
+  });
 });

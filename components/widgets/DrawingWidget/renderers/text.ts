@@ -101,14 +101,111 @@ export const applyTextWrapOnResize = (
   before: DrawableObject
 ): DrawableObject => {
   if (next.kind !== 'text' || before.kind !== 'text') return next;
+  // A sticky keeps the size it was dragged to; its text refits instead.
+  if (next.sticky) return next;
   if (next.w === before.w) return next;
   const wrapped: TextObject = { ...next, wrap: true };
   return { ...wrapped, h: measureTextObject(wrapped).h };
 };
 
+export const STICKY_SIZE = 180;
+export const STICKY_PAD = 12;
+const STICKY_MIN_FONT = 10;
+
+/** The sticky's text box inside its padding, as a wrapping TextObject. */
+const stickyInner = (obj: TextObject, fontSize: number): TextObject => ({
+  ...obj,
+  x: obj.x + STICKY_PAD - TEXT_PAD_X,
+  y: obj.y + STICKY_PAD,
+  w: Math.max(1, obj.w - (STICKY_PAD - TEXT_PAD_X) * 2),
+  h: Math.max(1, obj.h - STICKY_PAD * 2),
+  fontSize,
+  wrap: true,
+});
+
+/** Largest font size, up to the note's own, at which the text fits inside the note. */
+const fitCache = new Map<string, number>();
+
+/** Cached: every repaint during a drag would otherwise re-measure each note. */
+export const fitStickyFontSize = (obj: TextObject): number => {
+  // Font load state is in the key so a fallback-font fit is re-measured once Lexend arrives.
+  const fonts = typeof document === 'undefined' ? '' : document.fonts?.status;
+  const key = `${fonts}|${obj.w}|${obj.h}|${obj.fontSize}|${obj.fontFamily}|${obj.content}`;
+  const hit = fitCache.get(key);
+  if (hit !== undefined) return hit;
+  const size = measureStickyFontSize(obj);
+  if (fitCache.size > 500) fitCache.clear();
+  fitCache.set(key, size);
+  return size;
+};
+
+const measureStickyFontSize = (obj: TextObject): number => {
+  const innerH = obj.h - STICKY_PAD * 2;
+  // Capped so a corrupt font size can't spin this loop.
+  const start = Math.min(Math.floor(obj.fontSize), 400);
+  for (let size = start; size > STICKY_MIN_FONT; size -= 1) {
+    const inner = stickyInner(obj, size);
+    const m = measureTextObject(inner);
+    if (m.h <= innerH && m.w <= inner.w + 1) return size;
+  }
+  return STICKY_MIN_FONT;
+};
+
+const renderSticky = (
+  ctx: CanvasRenderingContext2D,
+  obj: TextObject,
+  fill: string
+): void => {
+  ctx.save();
+  ctx.globalCompositeOperation = 'source-over';
+  const rot = obj.rotation ?? 0;
+  if (Number.isFinite(rot) && rot !== 0) {
+    const cx = obj.x + obj.w / 2;
+    const cy = obj.y + obj.h / 2;
+    ctx.translate(cx, cy);
+    ctx.rotate(rot);
+    ctx.translate(-cx, -cy);
+  }
+  ctx.shadowColor = 'rgba(15, 23, 42, 0.18)';
+  ctx.shadowBlur = 8;
+  ctx.shadowOffsetY = 2;
+  ctx.fillStyle = fill;
+  ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
+  ctx.restore();
+  if (obj.content === '') return;
+  const cx = obj.x + obj.w / 2;
+  const cy = obj.y + obj.h / 2;
+  // Text that still overflows at the smallest size stays inside the note.
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(Number.isFinite(rot) ? rot : 0);
+  ctx.beginPath();
+  ctx.rect(-obj.w / 2, -obj.h / 2, obj.w, obj.h);
+  ctx.clip();
+  ctx.rotate(Number.isFinite(rot) ? -rot : 0);
+  ctx.translate(-cx, -cy);
+  renderPlainText(ctx, stickyInner(obj, fitStickyFontSize(obj)), {
+    x: cx,
+    y: cy,
+  });
+  ctx.restore();
+};
+
 export const renderText = (
   ctx: CanvasRenderingContext2D,
   obj: TextObject
+): void => {
+  if (obj.sticky) {
+    renderSticky(ctx, obj, obj.sticky.fill);
+    return;
+  }
+  renderPlainText(ctx, obj);
+};
+
+const renderPlainText = (
+  ctx: CanvasRenderingContext2D,
+  obj: TextObject,
+  pivot?: { x: number; y: number }
 ): void => {
   ctx.save();
   ctx.globalCompositeOperation = 'source-over';
@@ -119,8 +216,8 @@ export const renderText = (
   // Rotation pivots around the bbox center.
   const rot = obj.rotation ?? 0;
   if (Number.isFinite(rot) && rot !== 0) {
-    const cx = obj.x + obj.w / 2;
-    const cy = obj.y + obj.h / 2;
+    const cx = pivot?.x ?? obj.x + obj.w / 2;
+    const cy = pivot?.y ?? obj.y + obj.h / 2;
     ctx.translate(cx, cy);
     ctx.rotate(rot);
     ctx.translate(-cx, -cy);

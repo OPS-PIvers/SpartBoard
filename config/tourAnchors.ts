@@ -12483,6 +12483,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'drawing.sticky-colors': {
+    label: 'Sticky note color swatches in the Drawing tool options',
+    perWidgetType: true,
+    panel: true,
+  },
   'drawing.stroke-width': {
     label: 'Stroke width slider in the Drawing tool options',
     perWidgetType: true,
