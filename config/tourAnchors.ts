@@ -12536,6 +12536,35 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'seating.reshuffle': {
+    label: 'Reshuffle button in Seating Chart Assign mode',
+    perWidget: true,
+    destructive: true,
+  },
+  'seating.rules': {
+    label: 'Rules button in Seating Chart Assign mode',
+    perWidget: true,
+  },
+  'seating.rules-first': {
+    label: 'First student menu in Seating Chart rules',
+    perWidget: true,
+  },
+  'seating.rules-second': {
+    label: 'Second student menu in Seating Chart rules',
+    perWidget: true,
+  },
+  'seating.rules-add-pair': {
+    label: 'Add keep-apart pair button in Seating Chart rules',
+    perWidget: true,
+  },
+  'seating.rules-remove-pair': {
+    label: 'Remove keep-apart pair button in Seating Chart rules',
+    perWidget: true,
+  },
+  'seating.rules-front-seat': {
+    label: 'Front row checkbox for a student in Seating Chart rules',
+    perWidget: true,
+  },
   'music.play-pause': {
     label: 'Play or pause button on the Music widget',
     perWidget: true,
