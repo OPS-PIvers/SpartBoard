@@ -2516,6 +2516,13 @@
   ],
   "widgetNotes": [
     {
+      "id": "poll-pro-2026-10-25",
+      "widget": "poll",
+      "date": "2026-10-25",
+      "feature": "poll-pro",
+      "text": "Hide results until you reveal them, lock voting on a question, see how many students answered and show the correct answer."
+    },
+    {
       "id": "scoreboard-undo-points-2026-10-25",
       "widget": "scoreboard",
       "date": "2026-10-25",

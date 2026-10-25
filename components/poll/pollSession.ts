@@ -100,10 +100,15 @@ export const toSessionResultsState = (
   pollPro = true
 ): Pick<
   PollSessionDoc,
-  'hideResults' | 'revealedQuestions' | 'lockedQuestions'
+  'hideResults' | 'revealedQuestions' | 'lockedQuestions' | 'shownAnswers'
 > => {
   if (!pollPro) {
-    return { hideResults: false, revealedQuestions: [], lockedQuestions: [] };
+    return {
+      hideResults: false,
+      revealedQuestions: [],
+      lockedQuestions: [],
+      shownAnswers: [],
+    };
   }
   const questions = getPollQuestions(config);
   const indexesOf = (ids: string[] | undefined): number[] => {
@@ -114,6 +119,10 @@ export const toSessionResultsState = (
     hideResults: config.hideResults === true,
     revealedQuestions: indexesOf(config.revealedQuestionIds),
     lockedQuestions: indexesOf(config.lockedQuestionIds),
+    // Answers stay off the session doc until shown, since phones can read it.
+    shownAnswers: indexesOf(config.answerShownQuestionIds).flatMap((i) =>
+      questions[i].options.flatMap((o, j) => (o.correct ? [`${i}:${j}`] : []))
+    ),
   };
 };
 
@@ -239,7 +248,12 @@ export const startPollSession = async (
   // A fresh start hides and unlocks every question again; resume keeps them.
   const base: PollConfig =
     mode === 'fresh'
-      ? { ...config, revealedQuestionIds: [], lockedQuestionIds: [] }
+      ? {
+          ...config,
+          revealedQuestionIds: [],
+          lockedQuestionIds: [],
+          answerShownQuestionIds: [],
+        }
       : config;
   const currentQuestionIndex = await writeSessionDoc(
     teacherUid,

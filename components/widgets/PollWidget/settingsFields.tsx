@@ -29,6 +29,7 @@ import {
   Copy,
   ListOrdered,
   EyeOff,
+  CircleCheck,
 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { Toggle } from '@/components/common/Toggle';
@@ -155,7 +156,12 @@ export const PollSettings: React.FC<{
   // Push reveal state to the session phones are on (live or stopped), for its owner only.
   const syncHiddenResults = (next: PollConfig) => {
     const sessionId = activePollSessionId ?? config.lastPollSessionId ?? null;
-    if (!next.hideResults && !config.hideResults) return;
+    if (
+      !next.hideResults &&
+      !config.hideResults &&
+      !config.answerShownQuestionIds?.length
+    )
+      return;
     if (
       sessionId &&
       user &&
@@ -382,6 +388,14 @@ export const PollSettings: React.FC<{
 
   const removeOption = (index: number) => {
     saveEditing({ options: options.filter((_, i) => i !== index) });
+  };
+
+  const toggleCorrect = (index: number) => {
+    saveEditing({
+      options: options.map((o, i) =>
+        i === index ? { ...o, correct: !o.correct } : o
+      ),
+    });
   };
 
   const updateOptionLabel = (index: number, label: string) => {
@@ -657,6 +671,26 @@ export const PollSettings: React.FC<{
                       label={option.label}
                       onSave={updateOptionLabel}
                     />
+                    {canAccessFeature('poll-pro') && (
+                      <button
+                        onClick={() => toggleCorrect(idx)}
+                        aria-pressed={option.correct === true}
+                        aria-label={t('widgetSettings.poll.correctAnswer')}
+                        title={t('widgetSettings.poll.correctAnswer')}
+                        className={`p-2 rounded-lg transition-colors ${
+                          option.correct
+                            ? 'text-emerald-700 bg-emerald-50'
+                            : 'text-slate-400 hover:text-emerald-700 hover:bg-emerald-50'
+                        }`}
+                        {...tourFieldAttr(
+                          'widget-settings.poll.correct-option',
+                          widget.type,
+                          `option-${idx + 1}`
+                        )}
+                      >
+                        <CircleCheck className="w-4 h-4" />
+                      </button>
+                    )}
                     <button
                       onClick={() => removeOption(idx)}
                       className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"

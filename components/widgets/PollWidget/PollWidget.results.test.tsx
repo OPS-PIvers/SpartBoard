@@ -222,4 +222,35 @@ describe('PollWidget results controls', () => {
       screen.queryByRole('button', { name: /Show results/ })
     ).not.toBeInTheDocument();
   });
+
+  it('shows the correct answer on demand', () => {
+    const questions = [
+      {
+        ...twoQuestions[0],
+        options: [
+          { id: 'a', label: 'Apple', votes: 3, correct: true },
+          { id: 'b', label: 'Banana', votes: 1 },
+        ],
+      },
+    ];
+    const { rerender } = render(
+      <PollWidget widget={makeWidget({ questions })} />
+    );
+    expect(screen.queryByLabelText('Correct answer')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Show answer/ }));
+    expect(lastConfig().answerShownQuestionIds).toEqual(['q1']);
+    rerender(
+      <PollWidget
+        widget={makeWidget({ questions, answerShownQuestionIds: ['q1'] })}
+      />
+    );
+    expect(screen.getByLabelText('Correct answer')).toBeInTheDocument();
+  });
+
+  it('offers no Show answer when no option is marked correct', () => {
+    render(<PollWidget widget={makeWidget({ questions: twoQuestions })} />);
+    expect(
+      screen.queryByRole('button', { name: /Show answer/ })
+    ).not.toBeInTheDocument();
+  });
 });

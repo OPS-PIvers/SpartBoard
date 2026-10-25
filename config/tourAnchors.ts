@@ -612,6 +612,11 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     persists: true,
   },
+  'poll.show-answer': {
+    label: 'Show answer button in Poll',
+    perWidget: true,
+    persists: true,
+  },
   'poll.lock-voting': {
     label: 'Lock voting button in Poll',
     perWidget: true,
@@ -4438,6 +4443,11 @@ export const TOUR_ANCHORS = {
   },
   'schoology-link.cancel': {
     label: 'Done/close button in the Link Schoology dialog',
+    panel: true,
+  },
+  'widget-settings.poll.correct-option': {
+    label: 'Mark an option as the correct answer in Poll settings',
+    perField: true,
     panel: true,
   },
   'widget-settings.poll.delete-option': {
