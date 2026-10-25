@@ -282,7 +282,7 @@ export type LtiTargetSessionArgs =
       teacherUid: string | null;
       contextId: string | null;
     }
-  | { kind: 'va'; sessionId: string };
+  | { kind: 'va'; sessionId: string; teacherUid?: string | null };
 
 /**
  * Fields common to both launch kinds, plus a discriminated `kind`→id pairing so
@@ -306,6 +306,8 @@ export type PersistLtiLaunchContextArgs = {
   deploymentId: string;
   /** ClassLink class the launch was bridged to (classlinkBridge.ts), if any. */
   bridgedClassId?: string | null;
+  /** The launching student's uid, used to bind their grade link to the session owner. */
+  studentUid?: string | null;
 } & (
   | {
       kind: 'quiz';
@@ -318,6 +320,8 @@ export type PersistLtiLaunchContextArgs = {
       kind: 'va';
       /** The video-activity session id (`custom.session_id`). */
       sessionId: string;
+      /** The deep-linking teacher's uid (`custom.teacher_uid`); null on links signed before it existed. */
+      teacherUid?: string | null;
     }
 );
 
@@ -335,7 +339,22 @@ export async function resolveLtiTargetSession(
     if (!sid) return null;
     const snap = await db.collection(collectionName).doc(sid).get();
     if (!snap.exists) return null;
-    return { sessionId: snap.id, sessionData: snap.data() ?? {} };
+    const sessionData = snap.data() ?? {};
+    const owner =
+      typeof sessionData.teacherUid === 'string' ? sessionData.teacherUid : '';
+    if (!owner) return null;
+    // A recreated session id must not inherit the previous owner's launches.
+    if (args.teacherUid) {
+      if (owner !== args.teacherUid) return null;
+    } else {
+      const ctxs = await db
+        .collection(LTI_SESSION_MEMBERSHIPS_COLLECTION)
+        .doc(snap.id)
+        .collection('contexts')
+        .get();
+      if (ctxs.docs.some((d) => d.data().teacherUid !== owner)) return null;
+    }
+    return { sessionId: snap.id, sessionData };
   }
   const docs = await quizSessionsByCode(db, args.quizCode);
   const owner = await quizLinkOwner(db, docs, args.teacherUid, args.contextId);
@@ -465,12 +484,15 @@ export async function persistLtiLaunchContext(
     // the section name shown in the linking UI permanently until a titled
     // launch occurs again — the same preservation logic the seen-section
     // inventory (below) already applies to its own copy.
+    const ctxOwner =
+      typeof sessionData.teacherUid === 'string' ? sessionData.teacherUid : '';
     const storedCtxTitle =
       typeof ex?.contextTitle === 'string' ? ex.contextTitle : null;
     const nextCtxTitle = args.contextTitle ?? storedCtxTitle;
     // Only write when new or changed — bounds writes to actual changes.
     if (
       !existing.exists ||
+      ex?.teacherUid !== ctxOwner ||
       ex?.contextMembershipsUrl !== membershipUrl ||
       ex?.contextTitle !== nextCtxTitle
     ) {
@@ -480,10 +502,24 @@ export async function persistLtiLaunchContext(
           contextMembershipsUrl: membershipUrl,
           contextTitle: nextCtxTitle,
           deploymentId: args.deploymentId,
+          teacherUid: ctxOwner,
           updatedAt: Date.now(),
         },
         { merge: true }
       );
+      hasWrites = true;
+    }
+  }
+
+  const gradeOwner =
+    typeof sessionData.teacherUid === 'string' ? sessionData.teacherUid : '';
+  if (args.resourceLinkId && args.studentUid && gradeOwner) {
+    const gradeRef = db.doc(
+      `lti_grade_links/${args.studentUid}/resources/${args.resourceLinkId}`
+    );
+    const gradeSnap = await gradeRef.get();
+    if (gradeSnap.exists && gradeSnap.data()?.teacherUid !== gradeOwner) {
+      batch.set(gradeRef, { teacherUid: gradeOwner }, { merge: true });
       hasWrites = true;
     }
   }

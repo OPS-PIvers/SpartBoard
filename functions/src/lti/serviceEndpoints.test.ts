@@ -235,7 +235,10 @@ describe('ltiResolveNamesForAssignmentV1 — resolution', () => {
     contextDocs = [
       {
         id: 'ctx-1',
-        data: () => ({ contextMembershipsUrl: 'https://lms/m1' }),
+        data: () => ({
+          contextMembershipsUrl: 'https://lms/m1',
+          teacherUid: 'teacher-1',
+        }),
       },
     ];
     vi.spyOn(nrpsNet, 'fetchMembershipPage').mockResolvedValue({
@@ -264,7 +267,10 @@ describe('ltiResolveNamesForAssignmentV1 — resolution', () => {
     contextDocs = [
       {
         id: 'ctx-1',
-        data: () => ({ contextMembershipsUrl: 'https://lms/m1' }),
+        data: () => ({
+          contextMembershipsUrl: 'https://lms/m1',
+          teacherUid: 'teacher-1',
+        }),
       },
     ];
     vi.spyOn(nrpsNet, 'fetchMembershipPage').mockResolvedValue({
@@ -293,7 +299,10 @@ describe('ltiResolveNamesForAssignmentV1 — resolution', () => {
     contextDocs = [
       {
         id: 'ctx-1',
-        data: () => ({ contextMembershipsUrl: 'https://lms/m1' }),
+        data: () => ({
+          contextMembershipsUrl: 'https://lms/m1',
+          teacherUid: 'teacher-1',
+        }),
       },
     ];
     vi.spyOn(nrpsNet, 'fetchMembershipPage').mockResolvedValue({
@@ -322,7 +331,10 @@ describe('ltiResolveNamesForAssignmentV1 — resolution', () => {
     contextDocs = [
       {
         id: 'ctx-1',
-        data: () => ({ contextMembershipsUrl: 'https://lms/m1' }),
+        data: () => ({
+          contextMembershipsUrl: 'https://lms/m1',
+          teacherUid: 'teacher-1',
+        }),
       },
     ];
     vi.spyOn(nrpsNet, 'fetchMembershipPage')
@@ -428,6 +440,7 @@ describe('ltiPushGradesForAssignmentV1 — push', () => {
 
   it('resolves each student line item from the session resource link and clamps the score', async () => {
     gradeLinks.set('lti_grade_links/uid-A/resources/rl-1', {
+      teacherUid: 'teacher-1',
       sub: 'sub-A',
       ags: { lineitem: 'https://lms/lineitems/1' },
     });
@@ -466,6 +479,7 @@ describe('ltiPushGradesForAssignmentV1 — push', () => {
   // retry-safety) would silently never fire against `undefined`.
   it('sets isRedirect:false explicitly on the GradeResult for an ordinary successful push', async () => {
     gradeLinks.set('lti_grade_links/uid-A/resources/rl-1', {
+      teacherUid: 'teacher-1',
       sub: 'sub-A',
       ags: { lineitem: 'https://lms/lineitems/1' },
     });
@@ -488,6 +502,7 @@ describe('ltiPushGradesForAssignmentV1 — push', () => {
   // token toward the redirect target on every attempt.
   it('propagates isRedirect:true onto the GradeResult when postScore refuses a redirect (SSRF guard)', async () => {
     gradeLinks.set('lti_grade_links/uid-A/resources/rl-1', {
+      teacherUid: 'teacher-1',
       sub: 'sub-A',
       ags: { lineitem: 'https://lms/lineitems/1' },
     });
@@ -546,6 +561,7 @@ describe('ltiPushGradesForAssignmentV1 — push', () => {
 
   it('sets isRedirect:false when the student has no line item on record', async () => {
     gradeLinks.set('lti_grade_links/uid-A/resources/rl-1', {
+      teacherUid: 'teacher-1',
       sub: 'sub-A',
       // No `ags.lineitem` — student launched but the deep-link never
       // attached a gradable line item.

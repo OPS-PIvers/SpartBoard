@@ -183,6 +183,7 @@ const seenSession = () => {
     data: () => ({
       contextTitle: 'Algebra 1 · P1',
       contextMembershipsUrl: 'https://lms/ctx/members',
+      teacherUid: 'teacher-1',
     }),
   };
 };
@@ -194,6 +195,7 @@ const seenSessionNullTitle = () => {
     data: () => ({
       contextTitle: null,
       contextMembershipsUrl: 'https://lms/ctx/members',
+      teacherUid: 'teacher-1',
     }),
   };
 };

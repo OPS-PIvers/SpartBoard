@@ -251,7 +251,7 @@ function launchTargetSession(
   if (custom?.['kind'] === 'va') {
     const sessionId = custom['session_id'];
     return typeof sessionId === 'string' && sessionId
-      ? { kind: 'va', sessionId }
+      ? { kind: 'va', sessionId, teacherUid: launchTeacherUid(custom) }
       : null;
   }
   const quizCode = custom?.['quiz_code'];
@@ -445,6 +445,7 @@ export const ltiExchange = onCall(
         membershipUrl,
         deploymentId: launch.deploymentId,
         bridgedClassId: bridged?.classlinkClassId ?? null,
+        studentUid: uid,
       };
       try {
         if (launch.custom?.['kind'] === 'va') {
@@ -455,6 +456,7 @@ export const ltiExchange = onCall(
           await persistLtiLaunchContext(db, {
             kind: 'va',
             sessionId,
+            teacherUid: launchTeacherUid(launch.custom),
             ...common,
           });
         } else {

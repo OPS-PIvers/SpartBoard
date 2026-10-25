@@ -101,6 +101,13 @@ function docRef(path: string) {
     },
     collection: (sub: string) => ({
       doc: (id: string) => docRef(`${path}/${sub}/${id}`),
+      get: async () => {
+        const prefix = `${path}/${sub}/`;
+        const docs = [...contextDocs.entries()]
+          .filter(([k]) => k.startsWith(prefix))
+          .map(([k, v]) => ({ id: k.slice(prefix.length), data: () => v }));
+        return { empty: docs.length === 0, docs };
+      },
       where: (field: string, _op: string, value: string) => {
         const sid = path.split('/')[1];
         const rows = [
@@ -217,6 +224,7 @@ describe('persistLtiLaunchContext — quiz', () => {
       'contextMembershipsUrl',
       'contextTitle',
       'deploymentId',
+      'teacherUid',
       'updatedAt',
     ]);
     expect(ctx?.data.contextMembershipsUrl).toBe(QUIZ_ARGS.membershipUrl);
@@ -270,7 +278,11 @@ describe('persistLtiLaunchContext — quiz', () => {
     ];
     contextDocs.set(
       `${LTI_SESSION_MEMBERSHIPS_COLLECTION}/sess-1/contexts/ctx-1`,
-      { contextMembershipsUrl: QUIZ_ARGS.membershipUrl, contextTitle: 'Math 7' }
+      {
+        contextMembershipsUrl: QUIZ_ARGS.membershipUrl,
+        contextTitle: 'Math 7',
+        teacherUid: 'teacher-1',
+      }
     );
     // The seen-section inventory is already current too, so nothing rewrites.
     seenDocs.set('users/teacher-1/lti_seen_sections/ctx-1', {
@@ -469,7 +481,11 @@ describe('persistLtiLaunchContext — quiz', () => {
     ];
     contextDocs.set(
       `${LTI_SESSION_MEMBERSHIPS_COLLECTION}/sess-1/contexts/ctx-1`,
-      { contextMembershipsUrl: QUIZ_ARGS.membershipUrl, contextTitle: 'Math 7' }
+      {
+        contextMembershipsUrl: QUIZ_ARGS.membershipUrl,
+        contextTitle: 'Math 7',
+        teacherUid: 'teacher-1',
+      }
     );
     // The seen-section already has the title from an earlier titled launch.
     seenDocs.set('users/teacher-1/lti_seen_sections/ctx-1', {
@@ -508,7 +524,11 @@ describe('persistLtiLaunchContext — quiz', () => {
     ];
     contextDocs.set(
       `${LTI_SESSION_MEMBERSHIPS_COLLECTION}/sess-1/contexts/ctx-1`,
-      { contextMembershipsUrl: QUIZ_ARGS.membershipUrl, contextTitle: 'Math 7' }
+      {
+        contextMembershipsUrl: QUIZ_ARGS.membershipUrl,
+        contextTitle: 'Math 7',
+        teacherUid: 'teacher-1',
+      }
     );
     seenDocs.set('users/teacher-1/lti_seen_sections/ctx-1', {
       contextId: 'ctx-1',
@@ -562,7 +582,11 @@ describe('persistLtiLaunchContext — quiz', () => {
   const fileSection = (sessionId: string) =>
     contextDocs.set(
       `${LTI_SESSION_MEMBERSHIPS_COLLECTION}/${sessionId}/contexts/ctx-1`,
-      { contextMembershipsUrl: QUIZ_ARGS.membershipUrl, contextTitle: 'Math 7' }
+      {
+        contextMembershipsUrl: QUIZ_ARGS.membershipUrl,
+        contextTitle: 'Math 7',
+        teacherUid: 'teacher-1',
+      }
     );
 
   it("files an older link under the code's sole teacher", async () => {
@@ -670,6 +694,24 @@ describe('persistLtiLaunchContext — video activity', () => {
     membershipUrl: 'https://lms/contexts/ctx-9/memberships',
     deploymentId: 'dep-1',
   };
+
+  it('files nothing when a different teacher recreated the signed session id', async () => {
+    vaSessions.set('va-1', { teacherUid: 'attacker', status: 'active' });
+    expect(
+      await persistLtiLaunchContext(db(), { ...VA_ARGS, teacherUid: 't1' })
+    ).toBeNull();
+    expect(writes).toHaveLength(0);
+  });
+
+  it('refuses an unsigned link when orphaned contexts belong to another owner', async () => {
+    vaSessions.set('va-1', { teacherUid: 'attacker', status: 'active' });
+    contextDocs.set(
+      `${LTI_SESSION_MEMBERSHIPS_COLLECTION}/va-1/contexts/ctx-old`,
+      { contextMembershipsUrl: 'https://lms/old', teacherUid: 't1' }
+    );
+    expect(await persistLtiLaunchContext(db(), VA_ARGS)).toBeNull();
+    expect(writes).toHaveLength(0);
+  });
 
   it('files under the VA session id and denormalizes it (no archive mirror)', async () => {
     vaSessions.set('va-1', { teacherUid: 't1', status: 'active' });

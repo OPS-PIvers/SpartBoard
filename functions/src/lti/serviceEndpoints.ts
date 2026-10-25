@@ -120,6 +120,8 @@ export const ltiSignDeepLinkResponseV1 = onCall(
         throw new HttpsError('invalid-argument', 'Invalid session id.');
       }
       custom.session_id = sid;
+      // Session ids can be recreated after deletion; launches file only under the signer's session.
+      custom.teacher_uid = request.auth.uid;
     }
 
     const cfg = await getLtiPlatformConfig(admin.firestore());
@@ -299,8 +301,18 @@ export const ltiPushGradesForAssignmentV1 = onCall(
         }
         const link = snap.data() as {
           sub?: string;
+          teacherUid?: string;
           ags?: { lineitem?: string };
         };
+        // Grade links are bound to the teacher who owned the session at launch.
+        if (link.teacherUid !== sessTeacherUid) {
+          return {
+            pseudonymUid,
+            ok: false,
+            reason: 'student never launched',
+            isRedirect: false,
+          };
+        }
         const lineitem = link.ags?.lineitem;
         if (!lineitem || !link.sub) {
           return {
@@ -465,6 +477,8 @@ export const ltiResolveNamesForAssignmentV1 = onCall(
     let contextsFetched = 0;
     let contextsFailed = 0;
     for (const doc of ctxSnap.docs) {
+      // Contexts filed for a previous owner of a recycled session id are not ours.
+      if (doc.data().teacherUid !== request.auth.uid) continue;
       const url =
         typeof doc.data().contextMembershipsUrl === 'string'
           ? (doc.data().contextMembershipsUrl as string)
