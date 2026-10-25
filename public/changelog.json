@@ -2540,7 +2540,7 @@
       "id": "webcam-document-camera",
       "widget": "webcam",
       "date": "2026-10-25",
-      "text": "Camera now works like a document camera. Zoom in, drag to move around, and turn the picture.",
+      "text": "Camera now works like a document camera. Zoom in, drag to move around, turn the picture, and freeze it while you move the paper.",
       "feature": "document-camera-pro"
     }
   ]

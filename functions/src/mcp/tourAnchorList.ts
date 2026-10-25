@@ -54381,6 +54381,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "webcam.freeze",
+    "label": "Freeze and unfreeze button in Webcam",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "webcam.reset-view",
     "label": "Reset view button in Webcam (shows once zoomed or turned)",
     "scope": "widget",

@@ -11997,6 +11997,10 @@ export const TOUR_ANCHORS = {
     label: 'Rotate button in Webcam',
     perWidget: true,
   },
+  'webcam.freeze': {
+    label: 'Freeze and unfreeze button in Webcam',
+    perWidget: true,
+  },
   'webcam.reset-view': {
     label: 'Reset view button in Webcam (shows once zoomed or turned)',
     perWidget: true,
