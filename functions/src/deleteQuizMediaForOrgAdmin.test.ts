@@ -1282,6 +1282,28 @@ describe('handwriting crops', () => {
     );
     expect(deps.deleteStorageObject).not.toHaveBeenCalled();
   });
+
+  it('does not tombstone as deleted when a moved-seat crop is left in Storage', async () => {
+    const response = db.docs.get('quiz_sessions/s1/responses/r1') as Doc;
+    response.paperSeat = 5;
+    const deps = makeDeps(db);
+    const { results } = await deleteOrgQuizMediaSets(
+      {
+        orgId: ORG,
+        targets: [{ sessionId: 's1', responseKey: 'r1', questionId: 'q1' }],
+        deletedBy: 'admin-uid',
+      },
+      deps
+    );
+    expect(deps.deleteStorageObject).not.toHaveBeenCalled();
+    expect(results[0]?.status).toBe('failed');
+    const entry = (
+      db.docs.get('quiz_sessions/s1/responses/r1') as {
+        artifactArchive: Record<string, Record<string, unknown>>;
+      }
+    ).artifactArchive.h1;
+    expect(entry.archiveStatus).toBe('delete-failed');
+  });
 });
 
 describe('whiteboard takes (D21)', () => {

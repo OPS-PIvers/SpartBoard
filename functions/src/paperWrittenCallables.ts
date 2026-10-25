@@ -800,7 +800,10 @@ export async function handleTranscribePaperBlank(
       'Only handwritten paper answers can be transcribed.'
     );
   }
-  const seat = seatOf(response, answer);
+  // The import's own seat for this scan, as the archive core reads it; a re-import can move `paperSeat`.
+  const privateSeat: unknown = (await privateRef.get()).data()?.seat;
+  const seat =
+    typeof privateSeat === 'number' ? privateSeat : seatOf(response, answer);
   // Students can edit their answers, so the crop must be this seat's own.
   if (
     storagePath !==

@@ -848,6 +848,43 @@ export function isLostArchiveError(error: unknown): boolean {
   return details?.artifactLost === true;
 }
 
+/** A refusal no retry can pass: settles a pending entry at 'lost' so the sweep stops; true when it did. */
+async function settleRefusedArchive(
+  deps: ArchiveDeps,
+  responseRef: admin.firestore.DocumentReference,
+  artifactId: string,
+  message: string
+): Promise<boolean> {
+  return deps.db.runTransaction(async (tx) => {
+    const fresh = await tx.get(responseRef);
+    const archive = readArchiveMap(fresh.data());
+    const previous = archive[artifactId];
+    if (
+      !previous ||
+      isDeleteTombstoned(previous) ||
+      typeof previous.driveFileId === 'string'
+    ) {
+      return false;
+    }
+    archive[artifactId] = { ...previous, archiveStatus: 'lost' };
+    tx.set(
+      responseRef,
+      {
+        artifactArchive: {
+          [artifactId]: {
+            archiveStatus: 'lost',
+            archiveError: message.slice(0, 180),
+            lastAttemptAt: deps.now(),
+          },
+        },
+        hasStuckArchive: computeHasStuckArchive(archive),
+      },
+      { merge: true }
+    );
+    return true;
+  });
+}
+
 /** Rethrow shape: tags a terminal failure so the sweep can mail it just once. */
 function toArchiveFailure(error: unknown, lost: boolean): HttpsError {
   const message =
@@ -1021,9 +1058,13 @@ export async function archiveQuizArtifactCore(
       storagePath !==
         (await ownPaperCropPath(responseRef, response, teacherUid, questionId)))
   ) {
-    throw new HttpsError(
+    const refused = new HttpsError(
       'permission-denied',
       'Artifact storage path is outside this response.'
+    );
+    throw toArchiveFailure(
+      refused,
+      await settleRefusedArchive(deps, responseRef, artifactId, refused.message)
     );
   }
 
@@ -1540,6 +1581,28 @@ export async function retryStorageCleanup(
       response: data,
     }))
   ) {
+    // No retry can resolve it: drop the flag so the sweep stops; the object is left in place.
+    await db.runTransaction(async (tx) => {
+      const fresh = await tx.get(responseRef);
+      const archive = readArchiveMap(fresh.data());
+      const entry = archive[input.artifactId];
+      if (!entry || isDeleteTombstoned(entry)) return;
+      archive[input.artifactId] = { ...entry, storageCleanupPending: false };
+      tx.set(
+        responseRef,
+        {
+          artifactArchive: {
+            [input.artifactId]: {
+              storageCleanupPending: admin.firestore.FieldValue.delete(),
+              archiveError:
+                'Cannot resolve the transit object for this artifact.',
+            },
+          },
+          hasStuckArchive: computeHasStuckArchive(archive),
+        },
+        { merge: true }
+      );
+    });
     throw new HttpsError(
       'failed-precondition',
       'Cannot resolve the transit object for this artifact.'

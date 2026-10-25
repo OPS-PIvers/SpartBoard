@@ -33,6 +33,7 @@ import {
   computeHasStuckArchive,
   deleteQuizArchiveDriveFile,
   isArtifactStoragePathOwned,
+  isArtifactStoragePathValid,
   QUIZ_MEDIA_ARCHIVE_SECRETS,
   STUCK_ARCHIVE_AGE_MS,
 } from './quizMediaArchive';
@@ -966,7 +967,7 @@ export async function deleteOrgQuizMediaSets(
         });
         continue;
       }
-      const storagePath = (await isArtifactStoragePathOwned({
+      const pathInput = {
         kind: artifact.kind,
         storagePath: artifact.storagePath,
         sessionId: target.sessionId,
@@ -974,17 +975,22 @@ export async function deleteOrgQuizMediaSets(
         studentUid,
         teacherUid,
         questionId: target.questionId,
+      };
+      const owned = await isArtifactStoragePathOwned({
+        ...pathInput,
         responseRef,
         response: data,
-      }))
-        ? artifact.storagePath
-        : '';
+      });
+      const storagePath = owned ? artifact.storagePath : '';
+      // A crop this response cannot prove is its own is left, so the item must not read as deleted.
+      const cropLeft = !owned && isArtifactStoragePathValid(pathInput);
 
-      const failure = await runPhysicalDelete(
-        { teacherUid, driveFileId: claim.driveFileId, storagePath },
-        deps,
-        tokenFor
-      );
+      const failure =
+        (await runPhysicalDelete(
+          { teacherUid, driveFileId: claim.driveFileId, storagePath },
+          deps,
+          tokenFor
+        )) ?? (cropLeft ? 'Storage delete failed.' : null);
       if (failure) {
         await writeDeleteFailedEntry(
           db,

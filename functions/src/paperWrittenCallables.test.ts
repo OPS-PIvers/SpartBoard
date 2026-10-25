@@ -761,6 +761,16 @@ describe('transcribePaperBlankV1', () => {
     );
   });
 
+  it('checks the crop against the seat recorded with the scan after a re-import moved the seat', async () => {
+    const store = seed();
+    store[RESPONSE] = { ...store[RESPONSE], paperSeat: 4 };
+    store[PRIV('q2')] = { ...store[PRIV('q2')], seat: 3 };
+    const { deps } = makeDeps(store);
+    await expect(
+      handleTranscribePaperBlank(deps, TEACHER, blank)
+    ).resolves.toEqual({ jobId: 'scan1_3_1_1' });
+  });
+
   it('refuses an answer that is not blank', async () => {
     const { deps } = makeDeps(seed());
     await expectCode(
