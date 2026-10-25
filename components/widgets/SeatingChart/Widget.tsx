@@ -21,6 +21,7 @@ import {
 import { FurnitureItemRenderer } from './FurnitureItemRenderer';
 import { SeatingChartToolbar } from './SeatingChartToolbar';
 import { SeatingChartSidebar } from './SeatingChartSidebar';
+import { detachPlan } from './seatingPlans';
 import {
   FURNITURE_TYPES,
   SETUP_SIDEBAR_W,
@@ -353,9 +354,9 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
       updateWidget(widget.id, {
         config: {
           ...latestRef.current.config,
+          ...detachPlan(latestRef.current.config),
           furniture: [],
           assignments: {},
-          activePlanId: null,
         },
       });
       setSelectedIds(new Set());
@@ -490,9 +491,9 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     updateWidget(widget.id, {
       config: {
         ...config,
+        ...detachPlan(config),
         furniture: newFurniture,
         assignments: {},
-        activePlanId: null,
       },
     });
     setSelectedIds(new Set());

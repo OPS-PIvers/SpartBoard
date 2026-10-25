@@ -105,6 +105,14 @@ export const deletePlan = (
   };
 };
 
+// Before seats are cleared or the layout rebuilt: save the live seats into their plan, then detach it.
+export const detachPlan = (
+  config: SeatingChartConfig
+): Pick<SeatingChartConfig, 'savedPlans' | 'activePlanId'> => ({
+  savedPlans: withActiveSnapshot(config),
+  activePlanId: null,
+});
+
 export const hasUnsavedSeats = (config: SeatingChartConfig): boolean =>
   getActivePlan(config) === null &&
   Object.keys(config.assignments ?? {}).length > 0;

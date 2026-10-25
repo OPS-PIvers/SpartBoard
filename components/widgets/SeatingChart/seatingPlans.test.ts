@@ -3,6 +3,7 @@ import type { SeatingChartConfig, FurnitureItem } from '@/types';
 import {
   cleanPlanName,
   deletePlan,
+  detachPlan,
   hasUnsavedSeats,
   renamePlan,
   saveAsNewPlan,
@@ -135,5 +136,21 @@ describe('seatingPlans', () => {
 
   it('caps plan names', () => {
     expect(cleanPlanName('x'.repeat(80))).toHaveLength(40);
+  });
+});
+
+describe('detachPlan', () => {
+  it('saves the live seats into the plan before detaching', () => {
+    const cfg: SeatingChartConfig = {
+      furniture: [],
+      gridSize: 20,
+      assignments: { s1: 'd2' },
+      savedPlans: [{ id: 'p1', name: 'A', assignments: { s1: 'd1' } }],
+      activePlanId: 'p1',
+    };
+    expect(detachPlan(cfg)).toEqual({
+      savedPlans: [{ id: 'p1', name: 'A', assignments: { s1: 'd2' } }],
+      activePlanId: null,
+    });
   });
 });
