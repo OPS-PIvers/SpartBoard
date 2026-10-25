@@ -1387,6 +1387,40 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "pdf.back-to-library",
+    "label": "Back to library button in PDF",
+    "scope": "widget",
+    "requires": "widget-restored",
+    "routes": [
+      {
+        "surface": "widgets.pdf.face",
+        "kind": "widget",
+        "widget_type": "pdf",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "pdf.upload",
+    "label": "Upload button in PDF",
+    "scope": "widget",
+    "requires": "widget-restored",
+    "routes": [
+      {
+        "surface": "widgets.pdf.face",
+        "kind": "widget",
+        "widget_type": "pdf",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "projects.board-grid",
     "label": "Projects step grid",
     "scope": "widget",
@@ -2794,6 +2828,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "poll.previous-question",
+    "label": "Previous question button in Poll",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.poll.face",
+        "kind": "widget",
+        "widget_type": "poll",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "poll.reset",
     "label": "Reset Poll button",
     "scope": "widget",
@@ -2870,6 +2920,23 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "widgets.poll.face",
         "kind": "widget",
         "widget_type": "poll",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grader.show-quotes",
+    "label": "Show quotes toggle on a written response in the grader",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
         "path": [],
         "needs": [
           "widget-on-stage"
@@ -5052,6 +5119,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "review-start.custom-minutes",
+    "label": "Custom minutes box in the Start review dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.review-start",
+        "kind": "modal",
+        "path": [
+          "library-shell.card-primary-action:review#row-1"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "review-start.auto-advance",
     "label": "Advance automatically toggle in the Start review dialog",
     "scope": "board",
@@ -5431,6 +5517,95 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "keys": [
       "quiz"
     ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "answer-key-fill.close",
+    "label": "Close button in the Fill answer key dialog",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "answer-key-fill.back",
+    "label": "Back button on the Fill answer key review step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "answer-key-fill.apply",
+    "label": "Fill answers button on the Fill answer key review step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "answer-key-fill.cancel",
+    "label": "Cancel button in the Fill answer key dialog",
+    "scope": "board",
+    "panel": true,
+    "closes": "own",
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.prompt-standards-undo",
+    "label": "Undo link after a standard is tagged from the question text",
+    "scope": "board",
+    "panel": true,
     "routes": [
       {
         "surface": "quiz.editor",
@@ -16623,6 +16798,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget",
     "panel": true,
     "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.settings",
+        "kind": "settings-drawer",
+        "widget_type": "poll",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.poll.resume-cancel",
+    "label": "Cancel link on the Poll resume prompt",
+    "scope": "widget",
+    "panel": true,
     "routes": [
       {
         "surface": "widgets.poll.settings",

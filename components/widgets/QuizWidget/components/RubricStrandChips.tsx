@@ -127,7 +127,7 @@ export const RubricStrandPills: React.FC<PillsProps> = ({
     tone === 'dark'
       ? 'border-violet-400/50 bg-violet-500/15 text-violet-200'
       : 'border-violet-200 bg-violet-50 text-violet-700';
-  // Deliberately not a list role: these render inside a <button> in the
+  // Deliberately not a list role: these render inside a button in the
   // grader's highlights rail, where list semantics are dropped anyway. A
   // visually-hidden prefix carries the meaning instead.
   return (
