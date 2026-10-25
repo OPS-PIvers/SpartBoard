@@ -1,6 +1,11 @@
 import React, { useEffect, useImperativeHandle, useRef } from 'react';
 import { TextObject } from '@/types';
-import { LINE_HEIGHT_RATIO, measureTextObject } from './renderers/text';
+import {
+  LINE_HEIGHT_RATIO,
+  STICKY_PAD,
+  fitStickyFontSize,
+  measureTextObject,
+} from './renderers/text';
 
 export interface TextEditorHandle {
   /** Commit the editor's current content now (e.g. before Exit). */
@@ -100,11 +105,14 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
   const topPx = canvasRect.top + object.y * scaleY;
   const widthPx = object.w * scaleX;
   const heightPx = object.h * scaleY;
-  const fontSizePx = object.fontSize * scaleY;
+  const sticky = object.sticky;
+  const fontSizePx =
+    (sticky ? fitStickyFontSize(object) : object.fontSize) * scaleY;
 
   // Natural content size in object (canvas) units. `pre` mode grows the
   // box with content; `wrap` mode keeps the handle-set width.
   const measure = (node: HTMLDivElement, obj: TextObject) => {
+    if (obj.sticky) return { w: obj.w, h: obj.h };
     const w = obj.wrap
       ? obj.w
       : Math.max(Math.ceil(node.offsetWidth / scaleX), obj.fontSize);
@@ -128,7 +136,9 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
     // when the cursor sits on an empty trailing line.
     const sanitized = raw.replace(/\r\n/g, '\n').replace(/\n+$/u, '');
     let size = { w: obj.w, h: obj.h };
-    if (fromContent) {
+    if (obj.sticky) {
+      size = { w: obj.w, h: obj.h };
+    } else if (fromContent) {
       const natural = measureTextObject({ ...obj, content: sanitized });
       size = { w: obj.wrap ? obj.w : natural.w, h: natural.h };
     } else if (node) {
@@ -232,10 +242,17 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
       // editor doesn't spawn a second TextObject under it when the text tool
       // is active).
       onPointerDown={(e) => e.stopPropagation()}
-      className={`fixed outline-none ring-2 ring-indigo-500 rounded-sm bg-white/95 px-1 py-0 overflow-hidden ${
-        object.wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'
-      }`}
+      className={`fixed outline-none ring-2 ring-indigo-500 rounded-sm ${
+        sticky ? 'overflow-auto' : 'bg-white/95 px-1 py-0 overflow-hidden'
+      } ${object.wrap ? 'whitespace-pre-wrap break-words' : 'whitespace-pre'}`}
       style={{
+        ...(sticky
+          ? {
+              backgroundColor: sticky.fill,
+              padding: `${STICKY_PAD * scaleY}px ${STICKY_PAD * scaleX}px`,
+              height: `${heightPx}px`,
+            }
+          : {}),
         left: `${leftPx}px`,
         top: `${topPx}px`,
         // Wrap mode pins the handle-set width; otherwise the box grows with

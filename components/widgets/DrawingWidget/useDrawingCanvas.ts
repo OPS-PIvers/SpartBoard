@@ -22,7 +22,10 @@ import {
   TransformChromeState,
 } from './renderers/selection';
 import { DRAWING_DEFAULTS } from './constants';
+import { STICKY_SIZE } from './renderers/text';
 import { getStrokedBoundingBox, type BoundingBox } from './hitTest';
+import { isIdentityView, type DrawingView } from './viewport';
+import { snapLineEnd, squareCorner } from './shapeSnap';
 
 interface UseDrawingCanvasOptions {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -73,6 +76,19 @@ interface UseDrawingCanvasOptions {
   previewObject?: DrawableObject | null;
   /** Bitmap px per object px; canvasSize stays in object space. Defaults to 1. */
   pixelRatio?: number;
+  /** Zoom and pan; omitted means the page fills the canvas as it always has. */
+  view?: DrawingView;
+  /** Highlighter ink (opaque color) and width; the highlighter tool needs it. */
+  highlighter?: { color: string; width: number };
+  /** Fill for notes the sticky tool spawns. */
+  stickyFill?: string;
+  /** Dashed and double-headed new shapes; when set, Shift also squares boxes and snaps lines to 15°. */
+  shapeStyle?: ShapeStyle;
+}
+
+export interface ShapeStyle {
+  dashed: boolean;
+  bothEnds: boolean;
 }
 
 interface UseDrawingCanvasResult {
@@ -86,10 +102,16 @@ interface UseDrawingCanvasResult {
 
 // Discriminated in-flight state. Captures whichever geometry the active tool
 // needs so handleMove/handleEnd can branch without re-reading activeTool.
+const DEFAULT_HIGHLIGHTER = { color: '#eab308', width: 24 };
+
+/** About 40% opaque, written into the color so every client draws it see-through. */
+export const highlighterInk = (color: string): string =>
+  /^#[0-9a-f]{6}$/i.test(color) ? `${color}66` : color;
+
 type InProgress =
   | {
       kind: 'path';
-      tool: 'pen' | 'eraser';
+      tool: 'pen' | 'eraser' | 'highlighter';
       points: Point[];
       pointTimes: number[];
     }
@@ -131,9 +153,22 @@ export const useDrawingCanvas = ({
   transformState = null,
   previewObject = null,
   pixelRatio = 1,
+  view,
+  highlighter = DEFAULT_HIGHLIGHTER,
+  stickyFill = '#eab308',
+  shapeStyle,
 }: UseDrawingCanvasOptions): UseDrawingCanvasResult => {
   const [isDrawing, setIsDrawing] = useState(false);
   const inProgressRef = useRef<InProgress | null>(null);
+  const highlightFrameRef = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (highlightFrameRef.current !== null) {
+        cancelAnimationFrame(highlightFrameRef.current);
+      }
+    },
+    []
+  );
   // Image renderer onload callback: stored as a ref so the (module-level)
   // dispatcher can fire a redraw without us re-binding closures each render.
   // The current draw() effect installs the latest redraw into this ref.
@@ -149,6 +184,8 @@ export const useDrawingCanvas = ({
   // always produce a new object on update; an unchanged object retains its
   // identity through the reducer's `map(o => o.id === ... ? next : o)`.
   const prevObjectsRef = useRef<Map<string, DrawableObject>>(new Map());
+  const prevViewRef = useRef<DrawingView | undefined>(view);
+  const viewAppliedRef = useRef(false);
 
   const setPathContextStyles = useCallback(
     (ctx: CanvasRenderingContext2D, tool: 'pen' | 'eraser') => {
@@ -177,8 +214,8 @@ export const useDrawingCanvas = ({
     if (!canvas) return 1;
     const rect = canvas.getBoundingClientRect();
     if (rect.width <= 0) return 1;
-    return canvas.width / pixelRatio / rect.width;
-  }, [canvasRef, pixelRatio]);
+    return (canvas.width / pixelRatio / rect.width) * (view?.zoom ?? 1);
+  }, [canvasRef, pixelRatio, view]);
 
   const draw = useCallback(
     (
@@ -186,7 +223,26 @@ export const useDrawingCanvas = ({
       allObjects: DrawableObject[],
       inProgress: InProgress | null
     ) => {
-      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      if (view) {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        viewAppliedRef.current = true;
+        ctx.setTransform(
+          pixelRatio * view.zoom,
+          0,
+          0,
+          pixelRatio * view.zoom,
+          pixelRatio * view.x,
+          pixelRatio * view.y
+        );
+      } else {
+        // A view that just went away (flag switched off) must not leave its matrix behind.
+        if (viewAppliedRef.current) {
+          ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+          viewAppliedRef.current = false;
+        }
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      }
 
       // Render in z-order so later PRs (text, image) can layer cleanly
       // without needing to touch this call site. When a transform preview is
@@ -201,7 +257,15 @@ export const useDrawingCanvas = ({
       );
 
       if (inProgress) {
-        renderInProgress(ctx, inProgress, color, width, shapeFill);
+        renderInProgress(
+          ctx,
+          inProgress,
+          color,
+          width,
+          shapeFill,
+          highlighter,
+          shapeStyle
+        );
       }
 
       // Selection chrome paints AFTER the object loop so it sits on top of
@@ -218,7 +282,8 @@ export const useDrawingCanvas = ({
           ctx,
           chromeTarget,
           transformState,
-          getLiveScale()
+          getLiveScale(),
+          view?.zoom
         );
       }
     },
@@ -230,6 +295,10 @@ export const useDrawingCanvas = ({
       transformState,
       previewObject,
       getLiveScale,
+      view,
+      pixelRatio,
+      highlighter,
+      shapeStyle,
     ]
   );
 
@@ -344,7 +413,15 @@ export const useDrawingCanvas = ({
       ctx.restore();
 
       if (inProgress) {
-        renderInProgress(ctx, inProgress, color, width, shapeFill);
+        renderInProgress(
+          ctx,
+          inProgress,
+          color,
+          width,
+          shapeFill,
+          highlighter,
+          shapeStyle
+        );
       }
       if (selectedObject) {
         const chromeTarget =
@@ -355,12 +432,16 @@ export const useDrawingCanvas = ({
           ctx,
           chromeTarget,
           transformState,
-          getLiveScale()
+          getLiveScale(),
+          view?.zoom
         );
       }
     },
     [
       draw,
+      view,
+      highlighter,
+      shapeStyle,
       color,
       width,
       shapeFill,
@@ -384,10 +465,14 @@ export const useDrawingCanvas = ({
 
     const bitmapW = Math.round(canvasSize.width * pixelRatio);
     const bitmapH = Math.round(canvasSize.height * pixelRatio);
-    const sizeChanged = canvas.width !== bitmapW || canvas.height !== bitmapH;
+    const viewChanged = prevViewRef.current !== view;
+    prevViewRef.current = view;
+    const sizeChanged =
+      canvas.width !== bitmapW || canvas.height !== bitmapH || viewChanged;
     if (canvas.width !== bitmapW) canvas.width = bitmapW;
     if (canvas.height !== bitmapH) canvas.height = bitmapH;
-    if (pixelRatio !== 1) ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    if (pixelRatio !== 1 && !view)
+      ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 
     // Install the latest redraw closure for renderImage's onload callback.
     // Async image decodes resolve via this ref, so a freshly-pasted image
@@ -444,6 +529,7 @@ export const useDrawingCanvas = ({
 
     const fallbackFull =
       sizeChanged ||
+      (view !== undefined && !isIdentityView(view)) ||
       prev.size === 0 ||
       dirtyIds.size === 0 ||
       // m7: skip incremental for tiny scenes — clearing the full canvas is
@@ -472,6 +558,7 @@ export const useDrawingCanvas = ({
     drawIncremental,
     previewObject,
     selectedObject,
+    view,
   ]);
 
   // Translate a pointer event's client coords into the canvas's internal
@@ -488,12 +575,17 @@ export const useDrawingCanvas = ({
         rect.width > 0 ? canvas.width / pixelRatio / rect.width : 1;
       const scaleY =
         rect.height > 0 ? canvas.height / pixelRatio / rect.height : 1;
-      return {
+      const box = {
         x: (e.clientX - rect.left) * scaleX,
         y: (e.clientY - rect.top) * scaleY,
       };
+      if (!view) return box;
+      return {
+        x: (box.x - view.x) / view.zoom,
+        y: (box.y - view.y) / view.zoom,
+      };
     },
-    [canvasRef, pixelRatio]
+    [canvasRef, pixelRatio, view]
   );
 
   const handleStart = useCallback(
@@ -523,6 +615,26 @@ export const useDrawingCanvas = ({
         return;
       }
 
+      if (activeTool === 'sticky') {
+        if (!onTextSpawn) return;
+        onTextSpawn({
+          id: generateId(),
+          kind: 'text',
+          z: nextZ,
+          x: pos.x - STICKY_SIZE / 2,
+          y: pos.y - STICKY_SIZE / 2,
+          w: STICKY_SIZE,
+          h: STICKY_SIZE,
+          content: '',
+          fontFamily: DRAWING_DEFAULTS.TEXT_FONT_FAMILY,
+          fontSize: DRAWING_DEFAULTS.TEXT_FONT_SIZE_PX,
+          color: DRAWING_DEFAULTS.TEXT_COLOR,
+          wrap: true,
+          sticky: { fill: stickyFill },
+        });
+        return;
+      }
+
       setIsDrawing(true);
       // Capture the pointer so a stroke that crosses the Dock, a widget, or
       // the window edge keeps streaming to this canvas instead of truncating.
@@ -530,6 +642,16 @@ export const useDrawingCanvas = ({
         canvasRef.current?.setPointerCapture?.(e.pointerId);
       } catch {
         // Some browsers throw for a pointer that is already released.
+      }
+
+      if (activeTool === 'highlighter') {
+        inProgressRef.current = {
+          kind: 'path',
+          tool: 'highlighter',
+          points: [pos],
+          pointTimes: [performance.now()],
+        };
+        return;
       }
 
       if (activeTool === 'pen' || activeTool === 'eraser') {
@@ -585,6 +707,7 @@ export const useDrawingCanvas = ({
       generateId,
       nextZ,
       color,
+      stickyFill,
     ]
   );
 
@@ -601,12 +724,26 @@ export const useDrawingCanvas = ({
       const inProgress = inProgressRef.current;
       if (!inProgress) return;
 
+      if (inProgress.kind === 'path' && inProgress.tool === 'highlighter') {
+        inProgress.points.push(pos);
+        inProgress.pointTimes.push(performance.now());
+        // Repaint whole (once per frame): segment-by-segment strokes would darken where see-through segments overlap.
+        highlightFrameRef.current ??= requestAnimationFrame(() => {
+          highlightFrameRef.current = null;
+          redrawWithInProgress();
+        });
+        return;
+      }
+
       if (inProgress.kind === 'path') {
         inProgress.points.push(pos);
         inProgress.pointTimes.push(performance.now());
         const ctx = canvasRef.current?.getContext('2d');
         if (ctx && inProgress.points.length > 1) {
-          setPathContextStyles(ctx, inProgress.tool);
+          setPathContextStyles(
+            ctx,
+            inProgress.tool === 'eraser' ? 'eraser' : 'pen'
+          );
           const prev = inProgress.points[inProgress.points.length - 2];
           ctx.beginPath();
           ctx.moveTo(prev.x, prev.y);
@@ -624,12 +761,19 @@ export const useDrawingCanvas = ({
         return;
       }
 
+      const constrain = shapeStyle !== undefined && e.shiftKey;
       if (inProgress.kind === 'rect' || inProgress.kind === 'ellipse') {
-        inProgress.x1 = pos.x;
-        inProgress.y1 = pos.y;
+        const end = constrain
+          ? squareCorner({ x: inProgress.x0, y: inProgress.y0 }, pos)
+          : pos;
+        inProgress.x1 = end.x;
+        inProgress.y1 = end.y;
       } else if (inProgress.kind === 'line' || inProgress.kind === 'arrow') {
-        inProgress.x2 = pos.x;
-        inProgress.y2 = pos.y;
+        const end = constrain
+          ? snapLineEnd({ x: inProgress.x1, y: inProgress.y1 }, pos)
+          : pos;
+        inProgress.x2 = end.x;
+        inProgress.y2 = end.y;
       }
       // Shape preview re-renders the full scene; pen/eraser intentionally
       // skip this to avoid clearing every prior in-flight stroke segment.
@@ -642,6 +786,7 @@ export const useDrawingCanvas = ({
       canvasRef,
       setPathContextStyles,
       redrawWithInProgress,
+      shapeStyle,
     ]
   );
 
@@ -650,7 +795,27 @@ export const useDrawingCanvas = ({
     setIsDrawing(false);
     const inProgress = inProgressRef.current;
     inProgressRef.current = null;
+    if (highlightFrameRef.current !== null) {
+      cancelAnimationFrame(highlightFrameRef.current);
+      highlightFrameRef.current = null;
+    }
     if (!inProgress) return;
+
+    if (inProgress.kind === 'path' && inProgress.tool === 'highlighter') {
+      if (inProgress.points.length > 1) {
+        const completed: PathObject = {
+          id: generateId(),
+          kind: 'path',
+          z: nextZ,
+          points: inProgress.points,
+          color: highlighterInk(highlighter.color),
+          width: highlighter.width,
+          highlight: true,
+        };
+        onObjectComplete(completed, { pointTimes: inProgress.pointTimes });
+      }
+      return;
+    }
 
     if (inProgress.kind === 'path') {
       if (inProgress.points.length > 1) {
@@ -692,6 +857,7 @@ export const useDrawingCanvas = ({
             stroke: color,
             strokeWidth: width,
             fill,
+            ...dashedField(shapeStyle),
           };
           onObjectComplete(completed);
         } else {
@@ -706,6 +872,7 @@ export const useDrawingCanvas = ({
             stroke: color,
             strokeWidth: width,
             fill,
+            ...dashedField(shapeStyle),
           };
           onObjectComplete(completed);
         }
@@ -726,6 +893,7 @@ export const useDrawingCanvas = ({
             y2,
             stroke: color,
             strokeWidth: width,
+            ...dashedField(shapeStyle),
           };
           onObjectComplete(completed);
         } else {
@@ -739,13 +907,25 @@ export const useDrawingCanvas = ({
             y2,
             stroke: color,
             strokeWidth: width,
+            ...dashedField(shapeStyle),
+            ...(shapeStyle?.bothEnds ? { startHead: true } : {}),
           };
           onObjectComplete(completed);
         }
         return;
       }
     }
-  }, [isDrawing, onObjectComplete, color, width, generateId, nextZ, shapeFill]);
+  }, [
+    isDrawing,
+    onObjectComplete,
+    color,
+    width,
+    generateId,
+    nextZ,
+    shapeFill,
+    highlighter,
+    shapeStyle,
+  ]);
 
   // Drops the stroke in progress without committing it (a pinch took over).
   const cancel = useCallback(() => {
@@ -758,6 +938,10 @@ export const useDrawingCanvas = ({
   return { handleStart, handleMove, handleEnd, cancel, isDrawing };
 };
 
+// Omitted rather than false so flag-off shapes save exactly as before.
+const dashedField = (style?: ShapeStyle): { dashed?: true } =>
+  style?.dashed ? { dashed: true } : {};
+
 // Live-preview renderer for the in-flight shape. Uses the same renderers as
 // committed objects so what-you-see-is-what-you-get during the drag.
 const renderInProgress = (
@@ -765,8 +949,19 @@ const renderInProgress = (
   inProgress: InProgress,
   color: string,
   width: number,
-  shapeFill: boolean
+  shapeFill: boolean,
+  highlighter: { color: string; width: number },
+  shapeStyle?: ShapeStyle
 ): void => {
+  if (inProgress.kind === 'path' && inProgress.tool === 'highlighter') {
+    renderPathPoints(
+      ctx,
+      inProgress.points,
+      highlighterInk(highlighter.color),
+      highlighter.width
+    );
+    return;
+  }
   if (inProgress.kind === 'path') {
     renderPathPoints(
       ctx,
@@ -797,6 +992,7 @@ const renderInProgress = (
           stroke: color,
           strokeWidth: width,
           fill,
+          ...dashedField(shapeStyle),
         });
       } else {
         renderEllipse(ctx, {
@@ -810,6 +1006,7 @@ const renderInProgress = (
           stroke: color,
           strokeWidth: width,
           fill,
+          ...dashedField(shapeStyle),
         });
       }
       return;
@@ -831,11 +1028,16 @@ const renderInProgress = (
         y2,
         stroke: color,
         strokeWidth: width,
+        ...dashedField(shapeStyle),
       } as const;
       if (inProgress.kind === 'line') {
         renderLine(ctx, { ...base, kind: 'line' });
       } else {
-        renderArrow(ctx, { ...base, kind: 'arrow' });
+        renderArrow(ctx, {
+          ...base,
+          kind: 'arrow',
+          ...(shapeStyle?.bothEnds ? { startHead: true } : {}),
+        });
       }
       return;
     }

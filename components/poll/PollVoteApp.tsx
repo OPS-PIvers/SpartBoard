@@ -1,10 +1,15 @@
 import React, { useEffect, useMemo, useReducer, useState } from 'react';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, Loader2, X } from 'lucide-react';
 import { auth, db } from '@/config/firebase';
 import { signInAnonymously } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { type PollSessionDoc } from '@/types';
 import { normalizePollCode } from '@/utils/pollCode';
+import {
+  MAX_POLL_TEXT,
+  MAX_POLL_WORDS_TEXT,
+  scaleAverage,
+} from '@/utils/pollQuestions';
 import { lookupPollSessionByCode, type PollVoteEntry } from './pollSession';
 import {
   derivePollPhoneView,
@@ -21,6 +26,66 @@ const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
     </div>
   </div>
 );
+
+/** Up to three words for a word cloud. */
+const firstWords = (text: string): string =>
+  text.trim().split(/\s+/).slice(0, 3).join(' ');
+
+const TextAnswerForm: React.FC<{
+  kind: 'words' | 'text';
+  initial: string;
+  disabled: boolean;
+  onSend: (text: string) => void;
+}> = ({ kind, initial, disabled, onSend }) => {
+  const [value, setValue] = useState(initial);
+  const answer = kind === 'words' ? firstWords(value) : value.trim();
+  const send = () => {
+    if (answer && answer !== initial) onSend(answer);
+  };
+  const fieldClass =
+    'w-full rounded-xl border border-slate-300 p-3 text-slate-800 font-semibold outline-none focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/30 disabled:opacity-60';
+  return (
+    <form
+      className="space-y-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        send();
+      }}
+    >
+      {kind === 'words' ? (
+        <input // no-tour-anchor: student phone page, tours run on the board
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          maxLength={MAX_POLL_WORDS_TEXT}
+          disabled={disabled}
+          placeholder="Up to 3 words"
+          aria-label="Your answer"
+          className={fieldClass}
+        />
+      ) : (
+        <textarea // no-tour-anchor: student phone page, tours run on the board
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          maxLength={MAX_POLL_TEXT}
+          rows={3}
+          disabled={disabled}
+          placeholder="Type your answer"
+          aria-label="Your answer"
+          className={`${fieldClass} resize-none`}
+        />
+      )}
+      <button // no-tour-anchor: student phone page, tours run on the board
+        type="button"
+        onClick={send}
+        disabled={disabled || !answer || answer === initial}
+        className="w-full rounded-xl bg-brand-blue-primary py-3 font-bold text-white transition-colors hover:bg-brand-blue-dark disabled:opacity-50"
+      >
+        Send
+      </button>
+    </form>
+  );
+};
 
 /**
  * Anonymous, audience-facing poll voting app served at `/poll?code=XXXXX`.
@@ -110,8 +175,44 @@ export const PollVoteApp: React.FC = () => {
   }, [sessionId]);
 
   const view = derivePollPhoneView(state, uid);
+  const openBallot =
+    view.k === 'open' || view.k === 'closed' ? view.ballot : null;
+  const answerKey =
+    uid &&
+    (openBallot?.question.kind === 'words' ||
+      openBallot?.question.kind === 'text')
+      ? `${openBallot.questionIndex}_${uid}`
+      : '';
+  const [myAnswer, setMyAnswer] = useState<{
+    key: string;
+    text: string;
+  } | null>(null);
 
-  const castVote = async (index: number, questionIndex: number) => {
+  // This device's own typed answer; nobody else's is readable.
+  useEffect(() => {
+    if (!sessionId || !answerKey) return;
+    return onSnapshot(
+      doc(db, 'poll_sessions', sessionId, 'answers', answerKey),
+      (snap) => {
+        const text: unknown = snap.exists() ? snap.data().text : undefined;
+        setMyAnswer(typeof text === 'string' ? { key: answerKey, text } : null);
+      },
+      () => setMyAnswer(null)
+    );
+  }, [sessionId, answerKey]);
+
+  const castVote = (index: number, questionIndex: number) =>
+    saveAnswer(questionIndex, 'votes', { optionIndex: index });
+
+  // Typed answers live in `answers`, which only the teacher and their author can read.
+  const castText = (text: string, questionIndex: number) =>
+    saveAnswer(questionIndex, 'answers', { text });
+
+  const saveAnswer = async (
+    questionIndex: number,
+    target: 'votes' | 'answers',
+    answer: { optionIndex: number } | { text: string }
+  ) => {
     if (!sessionId || view.k !== 'open' || view.ballot.submitting) return;
     dispatch({ type: 'voteStarted' });
     try {
@@ -128,12 +229,12 @@ export const PollVoteApp: React.FC = () => {
           db,
           'poll_sessions',
           sessionId,
-          'votes',
+          target,
           `${questionIndex}_${voterUid}`
         ),
         {
           questionIndex,
-          optionIndex: index,
+          ...answer,
           // eslint-disable-next-line react-hooks/purity -- runs in the vote click handler, not render
           votedAt: Date.now(),
         }
@@ -200,9 +301,25 @@ export const PollVoteApp: React.FC = () => {
     total,
     votedIndex,
     submitting,
+    resultsHidden,
+    resultsRevealed,
+    correctIndexes,
   } = view.ballot;
+  const myText = myAnswer?.key === answerKey ? myAnswer.text : null;
+  const textKind =
+    question.kind === 'words' || question.kind === 'text'
+      ? question.kind
+      : null;
   const closed = view.k === 'closed';
-  const hasVoted = votedIndex !== null;
+  const hasVoted =
+    votedIndex !== null &&
+    question.kind !== 'words' &&
+    question.kind !== 'text';
+  const showTally = !resultsHidden && (hasVoted || resultsRevealed);
+  const votedCorrect =
+    correctIndexes !== null && votedIndex !== null
+      ? correctIndexes.includes(votedIndex)
+      : null;
 
   return (
     <Shell>
@@ -216,6 +333,25 @@ export const PollVoteApp: React.FC = () => {
       </div>
 
       <div className="p-5 space-y-3">
+        {textKind && myText !== null && (
+          <div className="flex items-center justify-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-2 text-emerald-700 text-sm font-bold">
+            <Check className="w-4 h-4" />
+            Your answer is in!
+          </div>
+        )}
+
+        {textKind && (
+          <TextAnswerForm
+            key={`${questionIndex}:${myText ?? ''}`}
+            kind={textKind}
+            initial={myText ?? ''}
+            disabled={submitting || closed}
+            onSend={(text) => {
+              void castText(text, questionIndex);
+            }}
+          />
+        )}
+
         {hasVoted && (
           <div className="flex items-center justify-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-2 text-emerald-700 text-sm font-bold">
             <Check className="w-4 h-4" />
@@ -225,55 +361,137 @@ export const PollVoteApp: React.FC = () => {
           </div>
         )}
 
-        {closed && (
-          <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-2 text-amber-700 text-sm font-medium text-center">
-            Voting is closed.
+        {votedCorrect !== null && (
+          <div
+            data-testid="poll-answer-result"
+            className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold ${
+              votedCorrect
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'bg-slate-50 border-slate-200 text-slate-700'
+            }`}
+          >
+            {votedCorrect ? (
+              <Check className="w-4 h-4" />
+            ) : (
+              <X className="w-4 h-4" />
+            )}
+            {votedCorrect ? 'Correct' : 'Incorrect'}
           </div>
         )}
 
-        {options.map((option, index) => {
-          const count = tally[index] ?? 0;
-          const percent = total === 0 ? 0 : Math.round((count / total) * 100);
-          const isMine = votedIndex === index;
-          return (
-            <button
-              key={option.id}
-              type="button"
-              disabled={submitting || closed}
-              onClick={() => {
-                void castVote(index, questionIndex);
-              }}
-              className={`w-full text-left rounded-xl border p-4 transition-all active:scale-[0.99] disabled:opacity-60 ${
-                isMine
-                  ? 'border-emerald-400 bg-emerald-50'
-                  : 'border-slate-300 bg-white hover:border-brand-blue-primary'
-              }`}
-              aria-pressed={isMine}
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="font-bold text-slate-800">{option.label}</span>
-                {hasVoted && (
-                  <span
-                    className="font-mono text-sm text-slate-500 whitespace-nowrap"
-                    data-testid={`poll-tally-${index}`}
-                  >
-                    {count} ({percent}%)
-                  </span>
-                )}
-              </div>
-              {hasVoted && (
-                <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-500 ${
-                      isMine ? 'bg-emerald-500' : 'bg-indigo-500'
+        {closed && (
+          <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-2 text-amber-700 text-sm font-medium text-center">
+            {view.k === 'closed' && view.reason === 'locked'
+              ? 'Voting is closed for this question.'
+              : 'Voting is closed.'}
+          </div>
+        )}
+
+        {question.kind === 'scale' && (
+          <div data-testid="poll-scale-ballot" className="space-y-2">
+            <div className="grid grid-cols-5 gap-2">
+              {options.map((option, index) => {
+                const isMine = votedIndex === index;
+                return (
+                  <button // no-tour-anchor: student phone page, tours run on the board
+                    key={option.id}
+                    type="button"
+                    disabled={submitting || closed}
+                    onClick={() => {
+                      void castVote(index, questionIndex);
+                    }}
+                    aria-pressed={isMine}
+                    className={`rounded-xl border py-3 flex flex-col items-center transition-all active:scale-[0.98] disabled:opacity-60 ${
+                      isMine
+                        ? 'border-emerald-400 bg-emerald-50'
+                        : 'border-slate-300 bg-white hover:border-brand-blue-primary'
                     }`}
-                    style={{ width: `${percent}%` }}
-                  />
+                  >
+                    <span className="text-xl font-black text-slate-800">
+                      {option.label}
+                    </span>
+                    {showTally && (
+                      <span
+                        className="font-mono text-xs text-slate-500"
+                        data-testid={`poll-tally-${index}`}
+                      >
+                        {tally[index] ?? 0}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {(!!question.scaleLow || !!question.scaleHigh) && (
+              <div className="flex justify-between gap-4 text-xs font-bold text-slate-500">
+                <span>{question.scaleLow}</span>
+                <span className="text-right">{question.scaleHigh}</span>
+              </div>
+            )}
+            {showTally && total > 0 && (
+              <p
+                data-testid="poll-scale-average"
+                className="text-center text-sm font-bold text-slate-700"
+              >
+                Average {(scaleAverage(tally) ?? 0).toFixed(1)}
+              </p>
+            )}
+          </div>
+        )}
+
+        {question.kind !== 'scale' &&
+          !textKind &&
+          options.map((option, index) => {
+            const count = tally[index] ?? 0;
+            const percent = total === 0 ? 0 : Math.round((count / total) * 100);
+            const isMine = votedIndex === index;
+            return (
+              <button // no-tour-anchor: student phone page, tours run on the board
+                key={option.id}
+                type="button"
+                disabled={submitting || closed}
+                onClick={() => {
+                  void castVote(index, questionIndex);
+                }}
+                className={`w-full text-left rounded-xl border p-4 transition-all active:scale-[0.99] disabled:opacity-60 ${
+                  isMine
+                    ? 'border-emerald-400 bg-emerald-50'
+                    : 'border-slate-300 bg-white hover:border-brand-blue-primary'
+                }`}
+                aria-pressed={isMine}
+              >
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                    {correctIndexes?.includes(index) && (
+                      <Check
+                        className="w-4 h-4 text-emerald-600 shrink-0"
+                        aria-label="Correct answer"
+                      />
+                    )}
+                    {option.label}
+                  </span>
+                  {showTally && (
+                    <span
+                      className="font-mono text-sm text-slate-500 whitespace-nowrap"
+                      data-testid={`poll-tally-${index}`}
+                    >
+                      {count} ({percent}%)
+                    </span>
+                  )}
                 </div>
-              )}
-            </button>
-          );
-        })}
+                {showTally && (
+                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-500 ${
+                        isMine ? 'bg-emerald-500' : 'bg-indigo-500'
+                      }`}
+                      style={{ width: `${percent}%` }}
+                    />
+                  </div>
+                )}
+              </button>
+            );
+          })}
 
         {submitting && (
           <div className="flex items-center justify-center gap-2 text-slate-500 text-sm">

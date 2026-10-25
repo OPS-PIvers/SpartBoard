@@ -11,6 +11,19 @@ import { ArrowObject, EllipseObject, LineObject, RectObject } from '@/types';
 // intentionally ignore `obj.rotation` (applying it here would double-rotate
 // because rotation is already encoded in the endpoints).
 
+/** Dash and gap lengths for a dashed stroke; the gap allows for round caps. */
+export const dashPattern = (strokeWidth: number): number[] => {
+  const dash = Math.max(6, strokeWidth * 3);
+  return [dash, dash + strokeWidth];
+};
+
+const applyDash = (
+  ctx: CanvasRenderingContext2D,
+  obj: { dashed?: boolean; strokeWidth: number }
+): void => {
+  if (obj.dashed) ctx.setLineDash?.(dashPattern(obj.strokeWidth));
+};
+
 /**
  * Apply `obj.rotation` to the current context, pivoting around the center of
  * the unrotated bbox. Caller must already be inside a save()/restore() pair
@@ -47,6 +60,7 @@ export const renderRect = (
   }
   ctx.strokeStyle = obj.stroke;
   ctx.lineWidth = obj.strokeWidth;
+  applyDash(ctx, obj);
   ctx.strokeRect(obj.x, obj.y, obj.w, obj.h);
   ctx.restore();
 };
@@ -72,6 +86,7 @@ export const renderEllipse = (
   }
   ctx.strokeStyle = obj.stroke;
   ctx.lineWidth = obj.strokeWidth;
+  applyDash(ctx, obj);
   ctx.stroke();
   ctx.restore();
 };
@@ -93,6 +108,7 @@ export const renderLine = (
   ctx.lineJoin = 'round';
   ctx.strokeStyle = obj.stroke;
   ctx.lineWidth = obj.strokeWidth;
+  applyDash(ctx, obj);
   ctx.beginPath();
   ctx.moveTo(obj.x1, obj.y1);
   ctx.lineTo(obj.x2, obj.y2);
@@ -120,31 +136,47 @@ export const renderArrow = (
   ctx.fillStyle = obj.stroke;
   ctx.lineWidth = obj.strokeWidth;
 
+  applyDash(ctx, obj);
   ctx.beginPath();
   ctx.moveTo(obj.x1, obj.y1);
   ctx.lineTo(obj.x2, obj.y2);
   ctx.stroke();
+  // Heads stay solid.
+  if (obj.dashed) ctx.setLineDash?.([]);
 
   // Head: isoceles triangle pointed at (x2, y2). Length scales with stroke
   // width so thin arrows get small heads and thick ones get big heads.
   // Wing angle 30° (Math.PI/6) matches the Phase 2 design plan's arrowhead
   // proportions.
   const headLen = Math.max(12, obj.strokeWidth * 3);
-  const angle = Math.atan2(obj.y2 - obj.y1, obj.x2 - obj.x1);
-  const wingAngle = Math.PI / 6; // 30°
-  const leftX = obj.x2 - headLen * Math.cos(angle - wingAngle);
-  const leftY = obj.y2 - headLen * Math.sin(angle - wingAngle);
-  const rightX = obj.x2 - headLen * Math.cos(angle + wingAngle);
-  const rightY = obj.y2 - headLen * Math.sin(angle + wingAngle);
+  drawArrowHead(ctx, obj.x1, obj.y1, obj.x2, obj.y2, headLen);
+  if (obj.startHead) {
+    drawArrowHead(ctx, obj.x2, obj.y2, obj.x1, obj.y1, headLen);
+  }
+  ctx.restore();
+};
 
+// Filled 30° head at (tipX, tipY), pointing away from (fromX, fromY).
+const drawArrowHead = (
+  ctx: CanvasRenderingContext2D,
+  fromX: number,
+  fromY: number,
+  tipX: number,
+  tipY: number,
+  headLen: number
+): void => {
+  const angle = Math.atan2(tipY - fromY, tipX - fromX);
+  const wingAngle = Math.PI / 6;
   ctx.beginPath();
-  // Reset fillStyle right before fill in case any intervening branch above
-  // mutated it — keeps the head triangle visibly the same color as the shaft.
-  ctx.fillStyle = obj.stroke;
-  ctx.moveTo(obj.x2, obj.y2);
-  ctx.lineTo(leftX, leftY);
-  ctx.lineTo(rightX, rightY);
+  ctx.moveTo(tipX, tipY);
+  ctx.lineTo(
+    tipX - headLen * Math.cos(angle - wingAngle),
+    tipY - headLen * Math.sin(angle - wingAngle)
+  );
+  ctx.lineTo(
+    tipX - headLen * Math.cos(angle + wingAngle),
+    tipY - headLen * Math.sin(angle + wingAngle)
+  );
   ctx.closePath();
   ctx.fill();
-  ctx.restore();
 };

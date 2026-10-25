@@ -23,6 +23,7 @@ const {
 }));
 
 let snapshotDocs: { id: string; data: Record<string, unknown> }[] = [];
+let myAnswerText: string | null = null;
 let sessionDoc: PollSessionDoc;
 
 vi.mock('@/config/firebase', () => ({
@@ -85,6 +86,7 @@ const mountWith = (search: string) =>
 beforeEach(() => {
   vi.clearAllMocks();
   snapshotDocs = [];
+  myAnswerText = null;
   sessionDoc = makeSession();
   mockSignInAnonymously.mockResolvedValue(undefined);
   mockSetDoc.mockResolvedValue(undefined);
@@ -98,6 +100,11 @@ beforeEach(() => {
       if (ref === 'votes-col') {
         cb({
           docs: snapshotDocs.map((d) => ({ id: d.id, data: () => d.data })),
+        });
+      } else if ((ref as { __path?: string }).__path?.includes('/answers/')) {
+        cb({
+          exists: () => myAnswerText !== null,
+          data: () => ({ text: myAnswerText }),
         });
       } else {
         cb({ exists: () => true, data: () => sessionDoc });
@@ -276,5 +283,96 @@ describe('PollVoteApp', () => {
       expect(screen.getByRole('button', { name: /Apple/i })).toBeEnabled()
     );
     expect(screen.queryByText(/voting is closed/i)).not.toBeInTheDocument();
+  });
+
+  it('shows a rating scale as number buttons with end labels and an average', async () => {
+    sessionDoc = makeSession({
+      questions: [
+        {
+          id: 'q1',
+          question: 'How sure are you?',
+          kind: 'scale',
+          scaleLow: 'Not sure',
+          scaleHigh: 'Very sure',
+          options: [1, 2, 3, 4, 5].map((n) => ({
+            id: `s${n}`,
+            label: String(n),
+          })),
+        },
+      ],
+      optionCounts: [5],
+    });
+    snapshotDocs = [
+      {
+        id: '0_voter-1',
+        data: { questionIndex: 0, optionIndex: 3, votedAt: 1 },
+      },
+      {
+        id: '0_voter-2',
+        data: { questionIndex: 0, optionIndex: 1, votedAt: 1 },
+      },
+    ];
+    mountWith('?code=K3F9Q');
+    render(<PollVoteApp />);
+    expect(await screen.findByTestId('poll-scale-ballot')).toBeInTheDocument();
+    expect(screen.getByText('Not sure')).toBeInTheDocument();
+    expect(screen.getByText('Very sure')).toBeInTheDocument();
+    // The voter's uid arrives after sign-in resolves, so wait for the pressed state.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^4/ })).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      )
+    );
+    expect(screen.getByTestId('poll-scale-average')).toHaveTextContent(
+      'Average 3.0'
+    );
+    await userEvent.click(screen.getByRole('button', { name: /^5/ }));
+    expect(mockSetDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ questionIndex: 0, optionIndex: 4 })
+    );
+  });
+
+  it('sends up to three words on a word cloud question', async () => {
+    sessionDoc = makeSession({
+      questions: [
+        {
+          id: 'q1',
+          question: 'One word for today?',
+          kind: 'words',
+          options: [],
+        },
+      ],
+      optionCounts: [0],
+      textQuestions: [0],
+    });
+    mountWith('?code=K3F9Q');
+    render(<PollVoteApp />);
+    const input = await screen.findByRole('textbox', { name: 'Your answer' });
+    await userEvent.type(input, '  sunny and   warm today ');
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() =>
+      expect(mockSetDoc).toHaveBeenCalledWith(
+        { __path: 'poll_sessions/teacher-1_K3F9Q/answers/0_voter-1' },
+        expect.objectContaining({ questionIndex: 0, text: 'sunny and warm' })
+      )
+    );
+  });
+
+  it('shows an open response answer already sent', async () => {
+    sessionDoc = makeSession({
+      questions: [{ id: 'q1', question: 'Why?', kind: 'text', options: [] }],
+      optionCounts: [0],
+      textQuestions: [0],
+    });
+    myAnswerText = 'Because';
+    mountWith('?code=K3F9Q');
+    render(<PollVoteApp />);
+    expect(await screen.findByText('Your answer is in!')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveValue(
+      'Because'
+    );
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
   });
 });

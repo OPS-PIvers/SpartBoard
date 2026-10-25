@@ -2,7 +2,10 @@ import React from 'react';
 import { POSTER_LEVELS } from '../constants';
 import { STANDARD_COLORS } from '@/config/colors';
 
-export const SpeedometerView: React.FC<{ volume: number }> = ({ volume }) => {
+export const SpeedometerView: React.FC<{
+  volume: number;
+  limit?: number | null;
+}> = ({ volume, limit = null }) => {
   const ANGLE_OFFSET = 180; // Start angle for the gauge (Left)
   const VOLUME_TO_ANGLE_RATIO = 1.8; // 180 degrees / 100 volume units
   const degToRad = (degrees: number) => (degrees * Math.PI) / 180;
@@ -14,6 +17,10 @@ export const SpeedometerView: React.FC<{ volume: number }> = ({ volume }) => {
   const centerY = 55;
   const radius = 40;
   const needleLen = 35;
+  const limitAngle =
+    limit === null
+      ? null
+      : degToRad(ANGLE_OFFSET + limit * VOLUME_TO_ANGLE_RATIO);
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center p-4">
@@ -49,6 +56,18 @@ export const SpeedometerView: React.FC<{ volume: number }> = ({ volume }) => {
           className="stroke-white/10"
           strokeWidth="8"
         />
+        {limitAngle !== null && (
+          <line
+            data-testid="sound-target-line"
+            x1={centerX + (radius - 7) * Math.cos(limitAngle)}
+            y1={centerY + (radius - 7) * Math.sin(limitAngle)}
+            x2={centerX + (radius + 7) * Math.cos(limitAngle)}
+            y2={centerY + (radius + 7) * Math.sin(limitAngle)}
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            className="stroke-slate-800"
+          />
+        )}
         {/* Needle */}
         <line
           x1={centerX}
