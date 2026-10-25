@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -48,9 +49,13 @@ export function useDocCamView({
     if (zoom !== local.zoom) setLocal({ ...local, zoom });
   }
   const rotation = normalizeRotation(savedRotation);
-  const view: DocCamView = enabled
-    ? clampPan({ ...local, rotation }, size)
-    : { zoom: 1, rotation: 0, panX: 0, panY: 0 };
+  const view: DocCamView = useMemo(
+    () =>
+      enabled
+        ? clampPan({ ...local, rotation }, size)
+        : { zoom: 1, rotation: 0, panX: 0, panY: 0 },
+    [enabled, local, rotation, size]
+  );
 
   const viewRef = useRef(view);
   const sizeRef = useRef(size);
@@ -166,7 +171,8 @@ export function useDocCamView({
 
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
-      if ((e.target as Element | null)?.closest?.('button')) return;
+      if ((e.target as Element | null)?.closest?.('button, [data-doccam-ink]'))
+        return;
       if (pointers.size >= 2) return;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       // Capture every tracked pointer so a release outside the feed still clears it.

@@ -103,7 +103,8 @@ export function renderView(
   sourceSize: Size,
   view: DocCamView,
   mirrored: boolean,
-  feedSize: Size
+  feedSize: Size,
+  overlay?: (ctx: CanvasRenderingContext2D) => void
 ): HTMLCanvasElement | null {
   const { width: sw, height: sh } = sourceSize;
   if (!sw || !sh) return null;
@@ -125,6 +126,7 @@ export function renderView(
   canvas.height = Math.max(1, Math.round(fh / scale));
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
+  ctx.save();
   ctx.scale(canvas.width / fw, canvas.height / fh);
   ctx.translate(
     fw / 2 + (zoomed ? view.panX : 0),
@@ -143,5 +145,40 @@ export function renderView(
     sw * cover,
     sh * cover
   );
+  ctx.restore();
+  if (overlay && feedSize.width > 0 && feedSize.height > 0) {
+    // Overlay is drawn in feed pixels on its own layer so an eraser can't cut into the photo.
+    const layer = document.createElement('canvas');
+    layer.width = canvas.width;
+    layer.height = canvas.height;
+    const lctx = layer.getContext('2d');
+    if (lctx) {
+      mapFeedToOutput(lctx, view, sourceSize, feedSize, layer);
+      overlay(lctx);
+      ctx.drawImage(layer, 0, 0);
+    }
+  }
   return canvas;
+}
+
+/** Sets `ctx` so feed pixel coordinates land where renderView put that part of the image. */
+function mapFeedToOutput(
+  ctx: CanvasRenderingContext2D,
+  view: DocCamView,
+  sourceSize: Size,
+  feedSize: Size,
+  out: { width: number; height: number }
+): void {
+  if (view.zoom > 1) {
+    ctx.scale(out.width / feedSize.width, out.height / feedSize.height);
+    return;
+  }
+  const box = mediaBox(view.rotation, feedSize);
+  const cover = Math.max(
+    box.width / sourceSize.width,
+    box.height / sourceSize.height
+  );
+  ctx.translate(out.width / 2, out.height / 2);
+  ctx.scale(1 / cover, 1 / cover);
+  ctx.translate(-feedSize.width / 2, -feedSize.height / 2);
 }

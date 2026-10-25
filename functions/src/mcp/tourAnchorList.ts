@@ -54545,6 +54545,103 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "webcam.draw",
+    "label": "Draw button in Webcam (turns drawing on the image on and off)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.draw-pen",
+    "label": "Pen tool in the Webcam drawing tools (shows in draw mode)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.draw-highlighter",
+    "label": "Highlighter tool in the Webcam drawing tools (shows in draw mode)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.draw-eraser",
+    "label": "Eraser tool in the Webcam drawing tools (shows in draw mode)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.draw-undo",
+    "label": "Undo button in the Webcam drawing tools (shows in draw mode)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.clear-drawing",
+    "label": "Clear drawing button in the Webcam drawing tools (shows in draw mode)",
+    "scope": "widget",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "webcam.reset-view",
     "label": "Reset view button in Webcam (shows once zoomed or turned)",
     "scope": "widget",
