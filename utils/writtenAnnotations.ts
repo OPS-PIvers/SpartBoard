@@ -39,12 +39,7 @@ const BLOCK_TAGS = new Set(['P', 'LI', 'UL', 'OL', 'DIV']);
  */
 export const htmlToPlainText = (html: string): string => {
   if (!html) return '';
-  if (typeof DOMParser === 'undefined') return '';
-  const doc = new DOMParser().parseFromString(
-    `<div>${html}</div>`,
-    'text/html'
-  );
-  const root = doc.body.firstChild as Element | null;
+  const root = parseSnapshotRoot(html);
   if (!root) return '';
   let out = '';
   walkPlaintext(root, (chunk) => {
@@ -378,7 +373,19 @@ const sliceTextWithAnnotations = (
 };
 
 // Closed set of inert tags React may create; anything else renders only its text.
-const RENDER_TAGS = new Set([...PRINT_TAGS, 'span']);
+const RENDER_TAGS = new Set([
+  'p',
+  'li',
+  'ul',
+  'ol',
+  'div',
+  'b',
+  'strong',
+  'i',
+  'em',
+  'u',
+  'span',
+]);
 
 const segmentsToReact = (
   segments: AnnotatedSegment[],
