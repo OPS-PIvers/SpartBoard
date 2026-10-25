@@ -82,11 +82,12 @@ export const WebcamWidget: React.FC<{
   const isRemoteShown = !!(
     widgetConfig.isRemoteMode && widgetConfig.remoteCaptureDataUrl
   );
+  const isFrozen = docCamPro && !isRemoteShown && frozenUrl !== null;
 
   // Document camera view: the photo matches the turned, zoomed feed.
   const captureDocCamView = useCallback((): string => {
     const frozen = frozenImgRef.current;
-    if (frozenUrl && !isRemoteShown) {
+    if (isFrozen) {
       // Never fall back to the hidden live video while the frozen frame loads.
       if (!frozen?.naturalWidth) return '';
       const canvas = renderView(
@@ -126,7 +127,7 @@ export const WebcamWidget: React.FC<{
   }, [
     feedSize,
     docCamView,
-    frozenUrl,
+    isFrozen,
     isMirrored,
     isRemoteShown,
     widgetConfig.remoteCaptureDataUrl,
@@ -168,9 +169,15 @@ export const WebcamWidget: React.FC<{
     },
     []
   );
-  // Remote mode drops a held frame so leaving it returns to live video.
-  if (isRemoteShown && frozenUrl !== null) setFrozenUrl(null);
-  const isFrozen = docCamPro && !isRemoteShown && frozenUrl !== null;
+  // Remote mode or the flag turning off drops a held frame, so coming back shows live video.
+  const freezeAllowed = docCamPro && !isRemoteShown;
+  if (!freezeAllowed && frozenUrl !== null) setFrozenUrl(null);
+  useEffect(() => {
+    if (freezeAllowed) return;
+    freezeToken.current += 1;
+    if (frozenUrlRef.current) URL.revokeObjectURL(frozenUrlRef.current);
+    frozenUrlRef.current = null;
+  }, [freezeAllowed]);
 
   // The doc-cam layout remounts the <video> (flag change, leaving remote mode), so hand it the stream again.
   useEffect(() => {
