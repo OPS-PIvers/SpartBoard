@@ -640,8 +640,8 @@ describe('plcs/{plcId} — members map + orgId/buildingId fields', () => {
 // ---------------------------------------------------------------------------
 
 describe('plcs/{plcId} — T6 members-map read gate + create + dual-accept', () => {
-  // A members-map-only PLC (no denormalized memberUids) still authorizes its
-  // members via the canonical map-key gate.
+  // A members-map-only PLC (empty memberUids): the map entry alone grants no read,
+  // because removed members keep theirs; memberUids is the membership gate.
   const seedMapOnly = async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
@@ -674,9 +674,9 @@ describe('plcs/{plcId} — T6 members-map read gate + create + dual-accept', () 
     });
   };
 
-  it('a member keyed only in the members map can read the PLC', async () => {
+  it('a uid keyed only in the members map (not in memberUids) cannot read the PLC', async () => {
     await seedMapOnly();
-    await assertSucceeds(getDoc(doc(asMemberB(), `plcs/${PLC_ID}`)));
+    await assertFails(getDoc(doc(asMemberB(), `plcs/${PLC_ID}`)));
   });
 
   it('a non-member (not in map or memberUids) cannot read the PLC', async () => {

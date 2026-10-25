@@ -148,8 +148,8 @@ describe('plcs/{plcId}/aggregates — read', () => {
     );
   });
 
-  it('a member of a map-only PLC can read via the members-map key', async () => {
-    await assertSucceeds(
+  it('a uid keyed only in the members map (not in memberUids) cannot read', async () => {
+    await assertFails(
       getDoc(
         doc(asMemberA(), `plcs/${MAP_ONLY_PLC_ID}/aggregates/${ASSESSMENT_ID}`)
       )
@@ -164,7 +164,9 @@ describe('plcs/{plcId}/aggregates — read', () => {
 
   it('a departed member whose entry is removed cannot read', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await updateDoc(doc(ctx.firestore(), `plcs/${MAP_ONLY_PLC_ID}`), {
+      await updateDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
+        memberUids: [MEMBER_A_UID],
+        memberEmails: { [MEMBER_A_UID]: 'member-a@example.com' },
         [`members.${MEMBER_B_UID}`]: {
           uid: MEMBER_B_UID,
           email: 'member-b@example.com',
@@ -176,9 +178,7 @@ describe('plcs/{plcId}/aggregates — read', () => {
       });
     });
     await assertFails(
-      getDoc(
-        doc(asMemberB(), `plcs/${MAP_ONLY_PLC_ID}/aggregates/${ASSESSMENT_ID}`)
-      )
+      getDoc(doc(asMemberB(), `plcs/${PLC_ID}/aggregates/${ASSESSMENT_ID}`))
     );
   });
 

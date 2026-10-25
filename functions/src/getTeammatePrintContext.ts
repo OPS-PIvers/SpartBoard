@@ -182,30 +182,29 @@ const legacyMemberUids = (plcData: Record<string, unknown>): string[] =>
     : [];
 
 /**
- * Current member of this PLC? Mirrors `getPlcMembers`: the canonical map wins,
- * and a legacy (map-less) PLC falls back to the denormalized index.
+ * Current member of this PLC? In the `memberUids` index (as the rules require),
+ * and not marked removed in the canonical map.
  */
 export function isCurrentPlcMember(
   plcData: Record<string, unknown>,
   uid: string
 ): boolean {
+  if (!legacyMemberUids(plcData).includes(uid)) return false;
   const entry = memberRecord(plcData, uid);
-  if (entry) return entry.status !== 'removed';
-  return legacyMemberUids(plcData).includes(uid);
+  return !entry || entry.status !== 'removed';
 }
 
 /**
  * May this uid write PLC content? Mirrors `plcCanEditContent` in
- * `firestore.rules`: a keyed member whose role is not `viewer`, or any uid in
- * `memberUids` on a legacy PLC (which has no viewers).
+ * `firestore.rules`: a uid in `memberUids` whose map role (if any) is not `viewer`.
  */
 export function canEditPlcContent(
   plcData: Record<string, unknown>,
   uid: string
 ): boolean {
+  if (!legacyMemberUids(plcData).includes(uid)) return false;
   const entry = memberRecord(plcData, uid);
-  if (entry) return entry.status !== 'removed' && entry.role !== 'viewer';
-  return legacyMemberUids(plcData).includes(uid);
+  return !entry || (entry.status !== 'removed' && entry.role !== 'viewer');
 }
 
 /** Display-name snapshot from the PLC's own member record. */
