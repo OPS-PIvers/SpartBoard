@@ -226,17 +226,12 @@ export async function reconcileExpiredSubShares(
         continue;
       }
       try {
-        // Revoke only a reader grant to the email the share recorded, never another permission.
+        // Revoke only a user reader grant (Drive may report an alias's primary email, so no email match).
         const perm = await driveService.getPermission(g.fileId, g.permissionId);
         if (!perm) continue;
-        if (
-          perm.type !== 'user' ||
-          perm.role !== 'reader' ||
-          !g.email ||
-          perm.emailAddress?.toLowerCase() !== g.email.toLowerCase()
-        ) {
+        if (perm.type !== 'user' || perm.role !== 'reader') {
           console.warn(
-            `[reconcileExpiredSubShares] skipping permission ${g.permissionId} on ${g.fileId}: not the recorded sub grant`
+            `[reconcileExpiredSubShares] skipping permission ${g.permissionId} on ${g.fileId}: not a user reader grant`
           );
           continue;
         }

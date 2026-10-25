@@ -229,7 +229,7 @@ describe('useReconcileExpiredSubShares', () => {
     expect(trashFile).not.toHaveBeenCalled();
   });
 
-  it('never revokes a permission that is not a reader grant to the recorded email', async () => {
+  it('revokes only user reader grants, including an alias, and skips a gone one', async () => {
     const now = Date.now();
     const planted = makeShareSnap({
       id: 'planted',
@@ -238,6 +238,7 @@ describe('useReconcileExpiredSubShares', () => {
         { email: 's@x', fileId: 'file-1', permissionId: 'perm-owner' },
         { email: 's@x', fileId: 'file-2', permissionId: 'perm-coteacher' },
         { email: 'x', fileId: 'file-3', permissionId: 'perm-x' },
+        { email: 's@x', fileId: 'file-4', permissionId: 'perm-gone' },
       ],
     });
     (paging.readAllDocsPaged as unknown as ReturnType<typeof vi.fn>)
@@ -259,9 +260,11 @@ describe('useReconcileExpiredSubShares', () => {
                 id: permissionId,
                 type: 'user',
                 role: 'reader',
-                emailAddress: 'coteacher@x',
+                emailAddress: 'primary@x',
               }
-            : { id: permissionId, type: 'anyone', role: 'reader' }
+            : permissionId === 'perm-gone'
+              ? null
+              : { id: permissionId, type: 'anyone', role: 'reader' }
       )
     );
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
@@ -271,8 +274,9 @@ describe('useReconcileExpiredSubShares', () => {
     );
 
     await waitFor(() => expect(firestore.deleteDoc).toHaveBeenCalledTimes(1));
-    expect(getPermission).toHaveBeenCalledTimes(3);
-    expect(deletePermission).not.toHaveBeenCalled();
+    expect(getPermission).toHaveBeenCalledTimes(4);
+    expect(deletePermission).toHaveBeenCalledTimes(1);
+    expect(deletePermission).toHaveBeenCalledWith('file-2', 'perm-coteacher');
   });
 
   it('does NOT revoke a permissionId still referenced by an active share', async () => {

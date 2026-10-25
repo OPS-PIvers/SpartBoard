@@ -735,6 +735,22 @@ describe('shared_boards — substitute shares can never acquire a plcId', () => 
     );
   });
 
+  it('a collaborator cannot rewrite originalAuthor on a substitute share', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `shared_boards/${SHARE_ID}`),
+        subShareDoc({
+          participants: { [COLLAB_UID]: { role: 'collaborator', joinedAt: 1 } },
+        })
+      );
+    });
+    await assertFails(
+      updateDoc(doc(asCollab(), `shared_boards/${SHARE_ID}`), {
+        originalAuthor: STRANGER_UID,
+      })
+    );
+  });
+
   it('host can still edit content on a substitute share', async () => {
     await assertSucceeds(
       updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), {
