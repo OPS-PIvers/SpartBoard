@@ -1812,6 +1812,8 @@ export interface RectObject extends BaseDrawableObject {
   stroke: string;
   strokeWidth: number;
   fill?: string;
+  /** Dashed outline. Older clients draw it solid. */
+  dashed?: boolean;
 }
 
 export interface EllipseObject extends BaseDrawableObject {
@@ -1823,6 +1825,8 @@ export interface EllipseObject extends BaseDrawableObject {
   stroke: string;
   strokeWidth: number;
   fill?: string;
+  /** Dashed outline. Older clients draw it solid. */
+  dashed?: boolean;
 }
 
 export interface LineObject extends BaseDrawableObject {
@@ -1833,6 +1837,8 @@ export interface LineObject extends BaseDrawableObject {
   y2: number;
   stroke: string;
   strokeWidth: number;
+  /** Dashed stroke. Older clients draw it solid. */
+  dashed?: boolean;
 }
 
 export interface ArrowObject extends BaseDrawableObject {
@@ -1843,6 +1849,10 @@ export interface ArrowObject extends BaseDrawableObject {
   y2: number;
   stroke: string;
   strokeWidth: number;
+  /** Dashed stroke. Older clients draw it solid. */
+  dashed?: boolean;
+  /** A second head at (x1, y1). Older clients draw the end head only. */
+  startHead?: boolean;
 }
 
 export interface TextObject extends BaseDrawableObject {
@@ -2267,6 +2277,10 @@ export interface DrawingConfig {
   highlighterWidth?: number;
   /** Fill for new sticky notes. */
   stickyColor?: string;
+  /** New shapes get a dashed stroke. */
+  shapeDashed?: boolean;
+  /** New arrows get a head on both ends. */
+  arrowBothEnds?: boolean;
   /**
    * Widget-level default background template applied to a page when the
    * page's own `background` field is unset. Populated by Phase 2 PR 2.5.

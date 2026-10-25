@@ -56047,6 +56047,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "drawing.duplicate",
+    "label": "Duplicate button in Drawing for the selected item",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "drawing.undo",
     "label": "Undo button in Drawing",
     "scope": "widget",
@@ -56228,6 +56244,46 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "drawing.highlighter-colors",
     "label": "Highlighter color swatches in the Drawing tool options",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "drawing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.shape-dashed",
+    "label": "Dashed toggle in the Drawing shape tool options",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "drawing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.arrow-both-ends",
+    "label": "Both ends toggle in the Drawing arrow tool options",
     "scope": "widget type",
     "panel": true,
     "keys": [

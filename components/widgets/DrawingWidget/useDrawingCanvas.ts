@@ -25,6 +25,7 @@ import { DRAWING_DEFAULTS } from './constants';
 import { STICKY_SIZE } from './renderers/text';
 import { getStrokedBoundingBox, type BoundingBox } from './hitTest';
 import { isIdentityView, type DrawingView } from './viewport';
+import { snapLineEnd, squareCorner } from './shapeSnap';
 
 interface UseDrawingCanvasOptions {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -81,6 +82,13 @@ interface UseDrawingCanvasOptions {
   highlighter?: { color: string; width: number };
   /** Fill for notes the sticky tool spawns. */
   stickyFill?: string;
+  /** Dashed and double-headed new shapes; when set, Shift also squares boxes and snaps lines to 15°. */
+  shapeStyle?: ShapeStyle;
+}
+
+export interface ShapeStyle {
+  dashed: boolean;
+  bothEnds: boolean;
 }
 
 interface UseDrawingCanvasResult {
@@ -148,6 +156,7 @@ export const useDrawingCanvas = ({
   view,
   highlighter = DEFAULT_HIGHLIGHTER,
   stickyFill = '#eab308',
+  shapeStyle,
 }: UseDrawingCanvasOptions): UseDrawingCanvasResult => {
   const [isDrawing, setIsDrawing] = useState(false);
   const inProgressRef = useRef<InProgress | null>(null);
@@ -248,7 +257,15 @@ export const useDrawingCanvas = ({
       );
 
       if (inProgress) {
-        renderInProgress(ctx, inProgress, color, width, shapeFill, highlighter);
+        renderInProgress(
+          ctx,
+          inProgress,
+          color,
+          width,
+          shapeFill,
+          highlighter,
+          shapeStyle
+        );
       }
 
       // Selection chrome paints AFTER the object loop so it sits on top of
@@ -281,6 +298,7 @@ export const useDrawingCanvas = ({
       view,
       pixelRatio,
       highlighter,
+      shapeStyle,
     ]
   );
 
@@ -395,7 +413,15 @@ export const useDrawingCanvas = ({
       ctx.restore();
 
       if (inProgress) {
-        renderInProgress(ctx, inProgress, color, width, shapeFill, highlighter);
+        renderInProgress(
+          ctx,
+          inProgress,
+          color,
+          width,
+          shapeFill,
+          highlighter,
+          shapeStyle
+        );
       }
       if (selectedObject) {
         const chromeTarget =
@@ -415,6 +441,7 @@ export const useDrawingCanvas = ({
       draw,
       view,
       highlighter,
+      shapeStyle,
       color,
       width,
       shapeFill,
@@ -734,12 +761,19 @@ export const useDrawingCanvas = ({
         return;
       }
 
+      const constrain = shapeStyle !== undefined && e.shiftKey;
       if (inProgress.kind === 'rect' || inProgress.kind === 'ellipse') {
-        inProgress.x1 = pos.x;
-        inProgress.y1 = pos.y;
+        const end = constrain
+          ? squareCorner({ x: inProgress.x0, y: inProgress.y0 }, pos)
+          : pos;
+        inProgress.x1 = end.x;
+        inProgress.y1 = end.y;
       } else if (inProgress.kind === 'line' || inProgress.kind === 'arrow') {
-        inProgress.x2 = pos.x;
-        inProgress.y2 = pos.y;
+        const end = constrain
+          ? snapLineEnd({ x: inProgress.x1, y: inProgress.y1 }, pos)
+          : pos;
+        inProgress.x2 = end.x;
+        inProgress.y2 = end.y;
       }
       // Shape preview re-renders the full scene; pen/eraser intentionally
       // skip this to avoid clearing every prior in-flight stroke segment.
@@ -752,6 +786,7 @@ export const useDrawingCanvas = ({
       canvasRef,
       setPathContextStyles,
       redrawWithInProgress,
+      shapeStyle,
     ]
   );
 
@@ -822,6 +857,7 @@ export const useDrawingCanvas = ({
             stroke: color,
             strokeWidth: width,
             fill,
+            ...dashedField(shapeStyle),
           };
           onObjectComplete(completed);
         } else {
@@ -836,6 +872,7 @@ export const useDrawingCanvas = ({
             stroke: color,
             strokeWidth: width,
             fill,
+            ...dashedField(shapeStyle),
           };
           onObjectComplete(completed);
         }
@@ -856,6 +893,7 @@ export const useDrawingCanvas = ({
             y2,
             stroke: color,
             strokeWidth: width,
+            ...dashedField(shapeStyle),
           };
           onObjectComplete(completed);
         } else {
@@ -869,6 +907,8 @@ export const useDrawingCanvas = ({
             y2,
             stroke: color,
             strokeWidth: width,
+            ...dashedField(shapeStyle),
+            ...(shapeStyle?.bothEnds ? { startHead: true } : {}),
           };
           onObjectComplete(completed);
         }
@@ -884,6 +924,7 @@ export const useDrawingCanvas = ({
     nextZ,
     shapeFill,
     highlighter,
+    shapeStyle,
   ]);
 
   // Drops the stroke in progress without committing it (a pinch took over).
@@ -897,6 +938,10 @@ export const useDrawingCanvas = ({
   return { handleStart, handleMove, handleEnd, cancel, isDrawing };
 };
 
+// Omitted rather than false so flag-off shapes save exactly as before.
+const dashedField = (style?: ShapeStyle): { dashed?: true } =>
+  style?.dashed ? { dashed: true } : {};
+
 // Live-preview renderer for the in-flight shape. Uses the same renderers as
 // committed objects so what-you-see-is-what-you-get during the drag.
 const renderInProgress = (
@@ -905,7 +950,8 @@ const renderInProgress = (
   color: string,
   width: number,
   shapeFill: boolean,
-  highlighter: { color: string; width: number }
+  highlighter: { color: string; width: number },
+  shapeStyle?: ShapeStyle
 ): void => {
   if (inProgress.kind === 'path' && inProgress.tool === 'highlighter') {
     renderPathPoints(
@@ -946,6 +992,7 @@ const renderInProgress = (
           stroke: color,
           strokeWidth: width,
           fill,
+          ...dashedField(shapeStyle),
         });
       } else {
         renderEllipse(ctx, {
@@ -959,6 +1006,7 @@ const renderInProgress = (
           stroke: color,
           strokeWidth: width,
           fill,
+          ...dashedField(shapeStyle),
         });
       }
       return;
@@ -980,11 +1028,16 @@ const renderInProgress = (
         y2,
         stroke: color,
         strokeWidth: width,
+        ...dashedField(shapeStyle),
       } as const;
       if (inProgress.kind === 'line') {
         renderLine(ctx, { ...base, kind: 'line' });
       } else {
-        renderArrow(ctx, { ...base, kind: 'arrow' });
+        renderArrow(ctx, {
+          ...base,
+          kind: 'arrow',
+          ...(shapeStyle?.bothEnds ? { startHead: true } : {}),
+        });
       }
       return;
     }

@@ -12440,6 +12440,10 @@ export const TOUR_ANCHORS = {
     label: 'Fit button in Drawing that shows the whole page',
     perWidget: true,
   },
+  'drawing.duplicate': {
+    label: 'Duplicate button in Drawing for the selected item',
+    perWidget: true,
+  },
   'drawing.undo': {
     label: 'Undo button in Drawing',
     perWidget: true,
@@ -12493,6 +12497,16 @@ export const TOUR_ANCHORS = {
   },
   'drawing.highlighter-colors': {
     label: 'Highlighter color swatches in the Drawing tool options',
+    perWidgetType: true,
+    panel: true,
+  },
+  'drawing.shape-dashed': {
+    label: 'Dashed toggle in the Drawing shape tool options',
+    perWidgetType: true,
+    panel: true,
+  },
+  'drawing.arrow-both-ends': {
+    label: 'Both ends toggle in the Drawing arrow tool options',
     perWidgetType: true,
     panel: true,
   },

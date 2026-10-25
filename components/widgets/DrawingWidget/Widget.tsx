@@ -23,6 +23,7 @@ import {
 import {
   ArrowRight,
   Circle,
+  CopyPlus,
   Download,
   Eraser,
   Hand,
@@ -31,11 +32,13 @@ import {
   Lasso,
   MousePointer2,
   MousePointerClick,
+  MoveHorizontal,
   Pencil,
   Flashlight,
   Redo2,
   Slash,
   Square,
+  SquareDashed,
   StickyNote,
   Trash2,
   Type,
@@ -47,7 +50,8 @@ import {
 import { TextEditorOverlay } from './TextEditorOverlay';
 import { applyTextWrapOnResize } from './renderers/text';
 import { useImageInsertion } from './useImageInsertion';
-import { useSelection } from './useSelection';
+import { translateObject, useSelection } from './useSelection';
+import type { ShapeStyle } from './useDrawingCanvas';
 import { useCommandStack } from './useCommandStack';
 import { useDrawingObjectsDoc } from './useDrawingObjectsDoc';
 import { useDrawingPages } from './useDrawingPages';
@@ -97,6 +101,8 @@ const HIGHLIGHTER_COLORS = [
   STANDARD_COLORS.orange,
 ] as const;
 const HIGHLIGHTER_DEFAULT_WIDTH = 24;
+const DUPLICATE_OFFSET = 16;
+const SHAPE_TOOLS = new Set<ShapeTool>(['line', 'arrow', 'rect', 'ellipse']);
 const STICKY_COLORS = [
   STANDARD_COLORS.yellow,
   STANDARD_COLORS.orange,
@@ -168,6 +174,8 @@ export const DrawingWidget: React.FC<{
     highlighterColor = STANDARD_COLORS.yellow,
     highlighterWidth = HIGHLIGHTER_DEFAULT_WIDTH,
     stickyColor = STANDARD_COLORS.yellow,
+    shapeDashed = false,
+    arrowBothEnds = false,
   } = config;
   const proEnabled = !isStudentView && canAccessFeature('whiteboard-pro');
   // Without the flag a saved highlighter or laser falls back to the pen.
@@ -176,6 +184,11 @@ export const DrawingWidget: React.FC<{
   const highlighterInk = useMemo(
     () => ({ color: highlighterColor, width: highlighterWidth }),
     [highlighterColor, highlighterWidth]
+  );
+  const shapeStyle = useMemo<ShapeStyle | undefined>(
+    () =>
+      proEnabled ? { dashed: shapeDashed, bothEnds: arrowBothEnds } : undefined,
+    [proEnabled, shapeDashed, arrowBothEnds]
   );
 
   // Page-scoped object slice. `migrateDrawingConfig` guarantees pages is
@@ -654,6 +667,8 @@ export const DrawingWidget: React.FC<{
     handleSelectPointerUp,
     handleKeyDown: handleSelectKeyDown,
     clearSelection,
+    selectObject,
+    guides,
   } = useSelection({
     objects,
     activeTool,
@@ -662,7 +677,20 @@ export const DrawingWidget: React.FC<{
     onRemoveObject: handleRemoveObject,
     canvasRef,
     viewZoom: view?.zoom,
+    snapping: proEnabled ? canvasSize : undefined,
   });
+
+  // A copy just below and to the right, selected so it can be dragged straight away.
+  const duplicateSelected = () => {
+    if (!selectedObject) return;
+    const copy: DrawableObject = {
+      ...translateObject(selectedObject, DUPLICATE_OFFSET, DUPLICATE_OFFSET),
+      id: crypto.randomUUID(),
+      z: nextZ(objects),
+    };
+    pushAdd(copy);
+    selectObject(copy.id);
+  };
 
   // Selection chrome is cleared by `setActiveTool` directly when leaving the
   // Select tool — see the event-handler path below — so a state-sync effect
@@ -699,6 +727,7 @@ export const DrawingWidget: React.FC<{
       view,
       highlighter: highlighterInk,
       stickyFill: stickyColor,
+      shapeStyle,
     });
 
   const laserRef = useRef<LaserOverlayHandle>(null);
@@ -847,6 +876,17 @@ export const DrawingWidget: React.FC<{
     if (isMod && key === 'y') {
       e.preventDefault();
       redo();
+      return;
+    }
+    if (
+      proEnabled &&
+      isMod &&
+      key === 'd' &&
+      activeTool === 'select' &&
+      selectedObject
+    ) {
+      e.preventDefault();
+      duplicateSelected();
       return;
     }
     handleSelectKeyDown(e);
@@ -1248,6 +1288,18 @@ export const DrawingWidget: React.FC<{
     });
   };
 
+  const setShapeDashed = (next: boolean) => {
+    updateWidget(widget.id, {
+      config: { ...config, shapeDashed: next },
+    });
+  };
+
+  const setArrowBothEnds = (next: boolean) => {
+    updateWidget(widget.id, {
+      config: { ...config, arrowBothEnds: next },
+    });
+  };
+
   const setStickyColor = (next: string) => {
     updateWidget(widget.id, {
       config: { ...config, stickyColor: next },
@@ -1326,6 +1378,9 @@ export const DrawingWidget: React.FC<{
   const actionBtnBase =
     'w-7 h-7 rounded-md flex items-center justify-center transition-colors text-slate-200 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900';
 
+  const shapeToggleBase =
+    'h-8 px-2.5 rounded-md flex items-center gap-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900';
+
   const PaletteUI = (
     <div ref={toolBarRef} className="flex flex-col gap-1.5 px-2 py-2">
       {/* Row 1 — tool segmented control. One row, full width. Uses
@@ -1397,6 +1452,18 @@ export const DrawingWidget: React.FC<{
           >
             <Redo2 className="w-4 h-4" />
           </button>
+          {proEnabled && activeTool === 'select' && selectedObject && (
+            <button
+              type="button"
+              {...tourAttr('drawing.duplicate', widget.id, widget.type)}
+              onClick={duplicateSelected}
+              title="Duplicate (Ctrl+D)"
+              aria-label="Duplicate"
+              className={actionBtnBase}
+            >
+              <CopyPlus className="w-4 h-4" />
+            </button>
+          )}
           <button
             type="button"
             {...tourAttr('drawing.clear', widget.id, widget.type)}
@@ -1698,6 +1765,40 @@ export const DrawingWidget: React.FC<{
                   </span>
                 </div>
               )}
+            {proEnabled && SHAPE_TOOLS.has(toolPopover) && (
+              <div className="flex items-center gap-1 mt-3">
+                <button
+                  type="button"
+                  aria-pressed={shapeDashed}
+                  {...tourTypeAttr('drawing.shape-dashed', 'drawing')}
+                  onClick={() => setShapeDashed(!shapeDashed)}
+                  className={`${shapeToggleBase} ${
+                    shapeDashed
+                      ? 'bg-brand-blue-primary text-white'
+                      : 'text-slate-300 hover:bg-white/10'
+                  }`}
+                >
+                  <SquareDashed className="w-4 h-4" aria-hidden />
+                  Dashed
+                </button>
+                {toolPopover === 'arrow' && (
+                  <button
+                    type="button"
+                    aria-pressed={arrowBothEnds}
+                    {...tourTypeAttr('drawing.arrow-both-ends', 'drawing')}
+                    onClick={() => setArrowBothEnds(!arrowBothEnds)}
+                    className={`${shapeToggleBase} ${
+                      arrowBothEnds
+                        ? 'bg-brand-blue-primary text-white'
+                        : 'text-slate-300 hover:bg-white/10'
+                    }`}
+                  >
+                    <MoveHorizontal className="w-4 h-4" aria-hidden />
+                    Both ends
+                  </button>
+                )}
+              </div>
+            )}
           </div>,
           document.body
         )}
@@ -1848,6 +1949,31 @@ export const DrawingWidget: React.FC<{
               strokeDasharray="6 4"
               vectorEffect="non-scaling-stroke"
             />
+          </svg>
+        )}
+        {guides.length > 0 && (
+          <svg
+            aria-hidden
+            data-testid="drawing-alignment-guides"
+            className="absolute inset-0 pointer-events-none"
+            viewBox={(() => {
+              const a = visiblePageArea(view ?? IDENTITY_VIEW, canvasSize);
+              return `${a.x} ${a.y} ${a.width} ${a.height}`;
+            })()}
+            preserveAspectRatio="none"
+          >
+            {guides.map((g, i) => (
+              <line
+                key={i}
+                x1={g.axis === 'x' ? g.at : g.from}
+                x2={g.axis === 'x' ? g.at : g.to}
+                y1={g.axis === 'x' ? g.from : g.at}
+                y2={g.axis === 'x' ? g.to : g.at}
+                stroke="rgb(236, 72, 153)"
+                strokeWidth={1}
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
           </svg>
         )}
         {/* Loading state — only shown while the subcollection subscription

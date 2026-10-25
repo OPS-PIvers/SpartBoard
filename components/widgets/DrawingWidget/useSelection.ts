@@ -21,6 +21,7 @@ import {
   reverseRotatePoint,
   rotatePoint,
 } from './hitTest';
+import { snapRotation, snapToGuides, type AlignmentGuide } from './shapeSnap';
 
 export type TransformMode = 'translate' | 'rotate' | HandleName;
 
@@ -73,6 +74,8 @@ interface UseSelectionOptions {
   canvasRef?: React.RefObject<HTMLCanvasElement | null>;
   /** Whiteboard zoom, so handles keep their on-screen size. Defaults to 1. */
   viewZoom?: number;
+  /** Page size in page px; when set, drags snap to alignment guides (Alt skips) and Shift rotates in 15° steps. */
+  snapping?: { width: number; height: number };
 }
 
 interface UseSelectionResult {
@@ -86,7 +89,13 @@ interface UseSelectionResult {
   /** Imperatively clear the selection. Wired from Widget when active tool
    *  switches away from 'select'. */
   clearSelection: () => void;
+  /** Selects an object, waiting for it to arrive when it was just added. */
+  selectObject: (id: string) => void;
+  /** Alignment guides for the drag in progress. */
+  guides: readonly AlignmentGuide[];
 }
+
+const GUIDE_SNAP_SCREEN_PX = 6;
 
 const ARROW_NUDGE_PX = 1;
 const ARROW_NUDGE_SHIFT_PX = 10;
@@ -107,6 +116,7 @@ export const useSelection = ({
   scale = 1,
   canvasRef,
   viewZoom = 1,
+  snapping,
 }: UseSelectionOptions): UseSelectionResult => {
   // Live canvas-to-CSS scale. When a `canvasRef` is supplied we always
   // prefer the bounding-rect-derived value — that handles parent
@@ -139,7 +149,14 @@ export const useSelection = ({
   // state — preferable to a useEffect here because it commits in the same
   // render pass that observed the missing object, avoiding a flash of
   // stale `data-selected-id` on the canvas wrapper.
-  if (selectedId !== null && selectedObject === null) {
+  const [awaitingId, setAwaitingId] = useState<string | null>(null);
+  const [guides, setGuides] = useState<readonly AlignmentGuide[]>([]);
+  if (awaitingId !== null && selectedObject !== null) setAwaitingId(null);
+  if (
+    selectedId !== null &&
+    selectedObject === null &&
+    selectedId !== awaitingId
+  ) {
     setSelectedId(null);
     setTransformState(null);
   }
@@ -156,8 +173,63 @@ export const useSelection = ({
 
   const clearSelection = useCallback(() => {
     setSelectedId(null);
+    setAwaitingId(null);
+    setTransformState(null);
+    setGuides((g) => (g.length === 0 ? g : []));
+  }, []);
+
+  const selectObject = useCallback((id: string) => {
+    setSelectedId(id);
+    setAwaitingId(id);
     setTransformState(null);
   }, []);
+
+  // Other objects' boxes don't change during a drag; measure them once per objects change.
+  const otherBoxes = useMemo(
+    () =>
+      snapping && activeTool === 'select'
+        ? objects
+            .filter((o) => o.id !== selectedId)
+            .map((o) => getBoundingBox(o))
+        : [],
+    [snapping, activeTool, objects, selectedId]
+  );
+
+  // Pro snapping on top of the plain transform: guides on drags, 15° steps on Shift-rotate.
+  const snapTransform = useCallback(
+    (
+      state: TransformState,
+      next: DrawableObject,
+      e: React.PointerEvent
+    ): { obj: DrawableObject; guides: readonly AlignmentGuide[] } => {
+      if (!snapping) return { obj: next, guides: [] };
+      if (state.mode === 'rotate') {
+        return {
+          obj: e.shiftKey
+            ? { ...next, rotation: snapRotation(next.rotation ?? 0) }
+            : next,
+          guides: [],
+        };
+      }
+      if (state.mode !== 'translate' || e.altKey) {
+        return { obj: next, guides: [] };
+      }
+      const rect = canvasRef?.current?.getBoundingClientRect();
+      const pagePerScreen =
+        rect && rect.width > 0 ? snapping.width / rect.width / viewZoom : 1;
+      const snap = snapToGuides(
+        getBoundingBox(next),
+        otherBoxes,
+        snapping,
+        GUIDE_SNAP_SCREEN_PX * pagePerScreen
+      );
+      return {
+        obj: translateObject(next, snap.dx, snap.dy),
+        guides: snap.guides,
+      };
+    },
+    [snapping, canvasRef, viewZoom, otherBoxes]
+  );
 
   const handleSelectPointerDown = useCallback(
     (e: React.PointerEvent, pos: Point) => {
@@ -205,11 +277,16 @@ export const useSelection = ({
       if (activeTool !== 'select') return;
       const state = transformState;
       if (!state) return;
-      const next = applyTransform(state, pos, e.shiftKey || state.shift);
+      const snapped = snapTransform(
+        state,
+        applyTransform(state, pos, e.shiftKey || state.shift),
+        e
+      );
+      if (snapping) setGuides(snapped.guides);
       // Preview only — never persist.
-      onTransformPreview(next);
+      onTransformPreview(snapped.obj);
     },
-    [activeTool, transformState, onTransformPreview]
+    [activeTool, transformState, onTransformPreview, snapTransform, snapping]
   );
 
   const handleSelectPointerUp = useCallback(
@@ -217,15 +294,20 @@ export const useSelection = ({
       if (activeTool !== 'select') return;
       const state = transformState;
       if (!state) return;
-      const final = applyTransform(state, pos, e.shiftKey || state.shift);
+      const final = snapTransform(
+        state,
+        applyTransform(state, pos, e.shiftKey || state.shift),
+        e
+      ).obj;
       setTransformState(null);
+      if (snapping) setGuides((g) => (g.length === 0 ? g : []));
       // Skip the commit if the geometry didn't actually change (e.g. a bare
       // click that picked a body but never moved) — avoids a no-op write.
       if (!objectsEqual(state.startObj, final)) {
         onTransformCommit(final, state.startObj);
       }
     },
-    [activeTool, transformState, onTransformCommit]
+    [activeTool, transformState, onTransformCommit, snapTransform, snapping]
   );
 
   const handleKeyDown = useCallback(
@@ -274,6 +356,8 @@ export const useSelection = ({
     handleSelectPointerUp,
     handleKeyDown,
     clearSelection,
+    selectObject,
+    guides,
   };
 };
 
@@ -302,7 +386,7 @@ const objectsEqual = (a: DrawableObject, b: DrawableObject): boolean => {
   return a.x === br.x && a.y === br.y && a.w === br.w && a.h === br.h;
 };
 
-const translateObject = (
+export const translateObject = (
   obj: DrawableObject,
   dx: number,
   dy: number
