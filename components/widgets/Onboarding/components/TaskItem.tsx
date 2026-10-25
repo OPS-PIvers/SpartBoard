@@ -10,6 +10,7 @@ interface TaskItemProps {
 
 export const TaskItem: React.FC<TaskItemProps> = ({ task, done, markDone }) => {
   return (
+    // no-tour-anchor: one row per onboarding task, generated from the task list
     <button
       onClick={() => markDone(task.id)}
       className={`w-full text-left rounded-lg border transition-all ${
