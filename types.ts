@@ -2359,7 +2359,7 @@ export interface PollSessionDoc {
   revealedQuestions?: number[];
   /** Question indexes the rules refuse votes for. */
   lockedQuestions?: number[];
-  /** `{questionIndex}:{optionIndex}` for each correct option, only for questions whose answer is shown (an array so a merge replaces it). */
+  /** `{questionId}:{optionId}` for each correct option, only for questions whose answer is shown (an array so a merge replaces it). */
   shownAnswers?: string[];
 }
 

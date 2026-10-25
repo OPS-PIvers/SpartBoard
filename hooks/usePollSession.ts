@@ -202,6 +202,7 @@ export const usePollSession = ({
   const setAnswerShown = useCallback(
     (shown: boolean) => {
       if (!currentId) return;
+      // Showing the answer also locks voting, so no one switches to it afterwards.
       applyResultsState({
         ...config,
         answerShownQuestionIds: toggleId(
@@ -209,6 +210,15 @@ export const usePollSession = ({
           currentId,
           shown
         ),
+        ...(shown
+          ? {
+              lockedQuestionIds: toggleId(
+                config.lockedQuestionIds,
+                currentId,
+                true
+              ),
+            }
+          : {}),
       });
     },
     [applyResultsState, config, currentId]

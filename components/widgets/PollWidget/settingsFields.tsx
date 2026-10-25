@@ -693,7 +693,7 @@ export const PollSettings: React.FC<{
                         aria-pressed={option.correct === true}
                         aria-label={t('widgetSettings.poll.correctAnswer')}
                         title={t('widgetSettings.poll.correctAnswer')}
-                        className={`p-2 rounded-lg transition-colors ${
+                        className={`relative touch-target-expand p-2 rounded-lg transition-colors ${
                           option.correct
                             ? 'text-emerald-700 bg-emerald-50'
                             : 'text-slate-400 hover:text-emerald-700 hover:bg-emerald-50'

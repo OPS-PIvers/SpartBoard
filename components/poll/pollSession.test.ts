@@ -426,11 +426,11 @@ describe('toSessionResultsState shown answers', () => {
     expect(toSessionResultsState(config).shownAnswers).toEqual([]);
   });
 
-  it('writes only shown questions as question:option keys', () => {
+  it('writes only shown questions as question:option id keys', () => {
     expect(
       toSessionResultsState({ ...config, answerShownQuestionIds: ['q1'] })
         .shownAnswers
-    ).toEqual(['0:1']);
+    ).toEqual(['q1:b']);
   });
 
   it('never writes answers without the flag', () => {

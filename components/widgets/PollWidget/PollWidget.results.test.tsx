@@ -239,6 +239,7 @@ describe('PollWidget results controls', () => {
     expect(screen.queryByLabelText('Correct answer')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /Show answer/ }));
     expect(lastConfig().answerShownQuestionIds).toEqual(['q1']);
+    expect(lastConfig().lockedQuestionIds).toEqual(['q1']);
     rerender(
       <PollWidget
         widget={makeWidget({ questions, answerShownQuestionIds: ['q1'] })}

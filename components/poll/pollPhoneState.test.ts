@@ -407,9 +407,17 @@ describe('shown answers', () => {
 
   it('marks the current question’s correct options once shown', () => {
     const view = derivePollPhoneView(
-      ready('idle', makeSession({ shownAnswers: ['0:1', '1:0'] })),
+      ready('idle', makeSession({ shownAnswers: ['q1:o2', 'q2:o3'] })),
       'me'
     );
     expect(view.k === 'open' && view.ballot.correctIndexes).toEqual([1]);
+  });
+
+  it('ignores answer keys for options the session snapshot does not have', () => {
+    const view = derivePollPhoneView(
+      ready('idle', makeSession({ shownAnswers: ['q1:gone'] })),
+      'me'
+    );
+    expect(view.k === 'open' && view.ballot.correctIndexes).toBeNull();
   });
 });

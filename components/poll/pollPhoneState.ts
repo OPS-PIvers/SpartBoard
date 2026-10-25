@@ -138,10 +138,11 @@ export const derivePollPhoneView = (
 
   const options = question.options ?? [];
   const revealed = (session.revealedQuestions ?? []).includes(questionIndex);
-  const shownCorrect = (session.shownAnswers ?? []).flatMap((key) => {
-    const [q, o] = key.split(':').map(Number);
-    return q === questionIndex && Number.isInteger(o) ? [o] : [];
-  });
+  // Matched by id, so an edit after the session snapshot can't move a tick.
+  const shown = new Set(session.shownAnswers ?? []);
+  const shownCorrect = options.flatMap((o, i) =>
+    shown.has(`${question.id}:${o.id}`) ? [i] : []
+  );
   const tally = aggregateVotes(votes, questionIndex, options.length);
   const ballot: PollBallot = {
     questions,

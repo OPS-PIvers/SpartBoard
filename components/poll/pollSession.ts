@@ -121,7 +121,9 @@ export const toSessionResultsState = (
     lockedQuestions: indexesOf(config.lockedQuestionIds),
     // Answers stay off the session doc until shown, since phones can read it.
     shownAnswers: indexesOf(config.answerShownQuestionIds).flatMap((i) =>
-      questions[i].options.flatMap((o, j) => (o.correct ? [`${i}:${j}`] : []))
+      questions[i].options.flatMap((o) =>
+        o.correct ? [`${questions[i].id}:${o.id}`] : []
+      )
     ),
   };
 };
