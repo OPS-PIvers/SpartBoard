@@ -175,15 +175,42 @@ export const PollVoteApp: React.FC = () => {
   }, [sessionId]);
 
   const view = derivePollPhoneView(state, uid);
+  const openBallot =
+    view.k === 'open' || view.k === 'closed' ? view.ballot : null;
+  const answerKey =
+    uid &&
+    (openBallot?.question.kind === 'words' ||
+      openBallot?.question.kind === 'text')
+      ? `${openBallot.questionIndex}_${uid}`
+      : '';
+  const [myAnswer, setMyAnswer] = useState<{
+    key: string;
+    text: string;
+  } | null>(null);
+
+  // This device's own typed answer; nobody else's is readable.
+  useEffect(() => {
+    if (!sessionId || !answerKey) return;
+    return onSnapshot(
+      doc(db, 'poll_sessions', sessionId, 'answers', answerKey),
+      (snap) => {
+        const text: unknown = snap.exists() ? snap.data().text : undefined;
+        setMyAnswer(typeof text === 'string' ? { key: answerKey, text } : null);
+      },
+      () => setMyAnswer(null)
+    );
+  }, [sessionId, answerKey]);
 
   const castVote = (index: number, questionIndex: number) =>
-    saveAnswer(questionIndex, { optionIndex: index });
+    saveAnswer(questionIndex, 'votes', { optionIndex: index });
 
+  // Typed answers live in `answers`, which only the teacher and their author can read.
   const castText = (text: string, questionIndex: number) =>
-    saveAnswer(questionIndex, { text });
+    saveAnswer(questionIndex, 'answers', { text });
 
   const saveAnswer = async (
     questionIndex: number,
+    target: 'votes' | 'answers',
     answer: { optionIndex: number } | { text: string }
   ) => {
     if (!sessionId || view.k !== 'open' || view.ballot.submitting) return;
@@ -202,7 +229,7 @@ export const PollVoteApp: React.FC = () => {
           db,
           'poll_sessions',
           sessionId,
-          'votes',
+          target,
           `${questionIndex}_${voterUid}`
         ),
         {
@@ -277,14 +304,17 @@ export const PollVoteApp: React.FC = () => {
     resultsHidden,
     resultsRevealed,
     correctIndexes,
-    myText,
   } = view.ballot;
+  const myText = myAnswer?.key === answerKey ? myAnswer.text : null;
   const textKind =
     question.kind === 'words' || question.kind === 'text'
       ? question.kind
       : null;
   const closed = view.k === 'closed';
-  const hasVoted = votedIndex !== null;
+  const hasVoted =
+    votedIndex !== null &&
+    question.kind !== 'words' &&
+    question.kind !== 'text';
   const showTally = !resultsHidden && (hasVoted || resultsRevealed);
   const votedCorrect =
     correctIndexes !== null && votedIndex !== null

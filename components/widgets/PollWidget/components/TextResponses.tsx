@@ -1,6 +1,5 @@
 import React from 'react';
 import { Eye, X } from 'lucide-react';
-import { buildWordCloud } from '@/utils/activityWallWordCloud';
 import type { PollResponse } from '@/hooks/usePollSession';
 import type { WidgetType } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
@@ -37,6 +36,28 @@ const wordClass = (word: string): string => {
   return WORD_COLORS[Math.abs(hash) % WORD_COLORS.length];
 };
 
+const MAX_CLOUD_ENTRIES = 80;
+
+/** One cloud entry per whole answer, matched case-insensitively in any script. */
+const cloudKey = (text: string): string =>
+  text.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+
+const buildAnswerCloud = (
+  texts: string[],
+  hidden: (word: string) => boolean
+): { word: string; count: number; weight: number }[] => {
+  const counts = new Map<string, number>();
+  for (const t of texts) {
+    const key = cloudKey(t);
+    if (key && !hidden(key)) counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const entries = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, MAX_CLOUD_ENTRIES);
+  const top = entries[0]?.[1] ?? 1;
+  return entries.map(([word, count]) => ({ word, count, weight: count / top }));
+};
+
 const iconStyle = { width: 'min(14px, 4cqmin)', height: 'min(14px, 4cqmin)' };
 
 /** Word cloud and open response answers on the board, with per-answer hiding. */
@@ -56,14 +77,15 @@ export const TextResponses: React.FC<TextResponsesProps> = ({
   const visible = responses.filter((r) => !hidden.has(`${questionId}:${r.id}`));
   const words =
     kind === 'words'
-      ? buildWordCloud(visible.map((r) => ({ content: r.text }))).filter(
-          (w) => !hidden.has(`${questionId}#${w.word}`)
+      ? buildAnswerCloud(
+          visible.map((r) => r.text),
+          (word) => hidden.has(`${questionId}#${word}`)
         )
       : [];
   const hiddenCount = hiddenKeys.filter(
     (k) => k.startsWith(`${questionId}:`) || k.startsWith(`${questionId}#`)
   ).length;
-  const empty = kind === 'words' ? words.length === 0 : visible.length === 0;
+  const empty = responses.length === 0;
 
   return (
     <div

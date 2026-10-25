@@ -6560,9 +6560,21 @@ service cloud.firestore {
           exists(/databases/$(database)/documents/poll_sessions/$(sessionId)) &&
           voteTargetsActiveInRangeOption();
 
-        // Word cloud / open response questions (session `textQuestions`)
-        // take {questionIndex, text, votedAt} instead, text 1-280 chars.
-        function voteTargetsActiveTextQuestion() {
+        // Reads open to any authed user — vote docs are anonymous tallies
+        // (no PII), which is what powers the live results on phones + board.
+        allow read: if signedIn();
+
+        // Delete (reset) is teacher/admin-only.
+        allow delete: if signedIn() &&
+          (isAdmin() || sessionId.matches(authUid() + '_.*'));
+      }
+
+      // Word cloud / open response answers, `{questionIndex}_{uid}`: text
+      // 1-280 chars on a `textQuestions` index of an active session that isn't
+      // locked. Free text may identify a student, so only the session owner
+      // (or an admin) and the student who wrote it can read it.
+      match /answers/{answerId} {
+        function answerTargetsOpenTextQuestion() {
           let session = get(/databases/$(database)/documents/poll_sessions/$(sessionId)).data;
           let questionIndex = incoming().questionIndex;
           return session.get('active', false) == true &&
@@ -6577,15 +6589,16 @@ service cloud.firestore {
           isInt('votedAt') &&
           incoming().text.size() > 0 &&
           incoming().text.size() <= 280 &&
-          voteId == string(incoming().questionIndex) + '_' + authUid() &&
+          incoming().votedAt <= request.time.toMillis() + 60000 &&
+          answerId == string(incoming().questionIndex) + '_' + authUid() &&
           exists(/databases/$(database)/documents/poll_sessions/$(sessionId)) &&
-          voteTargetsActiveTextQuestion();
+          answerTargetsOpenTextQuestion();
 
-        // Reads open to any authed user — vote docs are anonymous tallies
-        // (no PII), which is what powers the live results on phones + board.
-        allow read: if signedIn();
+        allow read: if signedIn() &&
+          (isAdmin() ||
+            sessionId.matches(authUid() + '_.*') ||
+            answerId.matches('[0-9]+_' + authUid()));
 
-        // Delete (reset) is teacher/admin-only.
         allow delete: if signedIn() &&
           (isAdmin() || sessionId.matches(authUid() + '_.*'));
       }

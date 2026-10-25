@@ -10,6 +10,7 @@ import type { PollConfig, PollOption, PollQuestion } from '@/types';
 import {
   clampQuestionIndex,
   getPollQuestions,
+  isTextQuestion,
   withVotesReset,
 } from '@/utils/pollQuestions';
 import {
@@ -24,6 +25,8 @@ interface UsePollSessionArgs {
   config: PollConfig;
   teacherUid?: string;
   onConfigChange: (next: PollConfig) => void;
+  /** The viewer owns the session, so the rules let it read typed answers. */
+  readAnswers?: boolean;
 }
 
 export interface PollResponse {
@@ -71,6 +74,7 @@ export const usePollSession = ({
   config,
   teacherUid,
   onConfigChange,
+  readAnswers = false,
 }: UsePollSessionArgs): UsePollSessionResult => {
   const activePollSessionId = config.activePollSessionId ?? null;
   const isLive = !!activePollSessionId;
@@ -108,6 +112,31 @@ export const usePollSession = ({
     };
   }, [activePollSessionId, teacherUid]);
 
+  const [answers, setAnswers] = useState<PollVoteEntry[]>([]);
+  const hasTextQuestion = questions.some(isTextQuestion);
+
+  useEffect(() => {
+    if (!activePollSessionId || !teacherUid || !readAnswers || !hasTextQuestion)
+      return;
+    const sessionId = makePollSessionId(teacherUid, activePollSessionId);
+    const unsub = onSnapshot(
+      collection(db, 'poll_sessions', sessionId, 'answers'),
+      (snap) => {
+        setAnswers(
+          snap.docs.map((d) => ({
+            id: d.id,
+            ...(d.data() as Omit<PollVoteEntry, 'id'>),
+          }))
+        );
+      },
+      (err) => logError('usePollSession.answers', err, { sessionId })
+    );
+    return () => {
+      unsub();
+      setAnswers([]);
+    };
+  }, [activePollSessionId, teacherUid, readAnswers, hasTextQuestion]);
+
   const displayOptions = useMemo(() => {
     const options = currentQuestion?.options ?? [];
     if (!isLive) return options;
@@ -118,7 +147,7 @@ export const usePollSession = ({
   const responses = useMemo(
     () =>
       isLive
-        ? votes
+        ? answers
             .filter(
               (v) =>
                 v.questionIndex === currentQuestionIndex &&
@@ -128,7 +157,7 @@ export const usePollSession = ({
             .sort((a, b) => (b.votedAt ?? 0) - (a.votedAt ?? 0))
             .map((v) => ({ id: v.id, text: (v.text ?? '').trim() }))
         : [],
-    [isLive, votes, currentQuestionIndex]
+    [isLive, answers, currentQuestionIndex]
   );
 
   const goToQuestion = useCallback(

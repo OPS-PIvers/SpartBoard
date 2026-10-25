@@ -23,6 +23,7 @@ const {
 }));
 
 let snapshotDocs: { id: string; data: Record<string, unknown> }[] = [];
+let myAnswerText: string | null = null;
 let sessionDoc: PollSessionDoc;
 
 vi.mock('@/config/firebase', () => ({
@@ -85,6 +86,7 @@ const mountWith = (search: string) =>
 beforeEach(() => {
   vi.clearAllMocks();
   snapshotDocs = [];
+  myAnswerText = null;
   sessionDoc = makeSession();
   mockSignInAnonymously.mockResolvedValue(undefined);
   mockSetDoc.mockResolvedValue(undefined);
@@ -98,6 +100,11 @@ beforeEach(() => {
       if (ref === 'votes-col') {
         cb({
           docs: snapshotDocs.map((d) => ({ id: d.id, data: () => d.data })),
+        });
+      } else if ((ref as { __path?: string }).__path?.includes('/answers/')) {
+        cb({
+          exists: () => myAnswerText !== null,
+          data: () => ({ text: myAnswerText }),
         });
       } else {
         cb({ exists: () => true, data: () => sessionDoc });
@@ -344,7 +351,7 @@ describe('PollVoteApp', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Send' }));
     await waitFor(() =>
       expect(mockSetDoc).toHaveBeenCalledWith(
-        { __path: 'poll_sessions/teacher-1_K3F9Q/votes/0_voter-1' },
+        { __path: 'poll_sessions/teacher-1_K3F9Q/answers/0_voter-1' },
         expect.objectContaining({ questionIndex: 0, text: 'sunny and warm' })
       )
     );
@@ -356,12 +363,7 @@ describe('PollVoteApp', () => {
       optionCounts: [0],
       textQuestions: [0],
     });
-    snapshotDocs = [
-      {
-        id: '0_voter-1',
-        data: { questionIndex: 0, text: 'Because', votedAt: 1 },
-      },
-    ];
+    myAnswerText = 'Because';
     mountWith('?code=K3F9Q');
     render(<PollVoteApp />);
     expect(await screen.findByText('Your answer is in!')).toBeInTheDocument();

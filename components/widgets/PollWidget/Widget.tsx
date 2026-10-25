@@ -99,6 +99,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           ? (sessionOwnerUid ?? undefined)
           : user?.uid,
     onConfigChange: applyConfig,
+    readAnswers: !isAnnouncement && !inShare && !foreignSession,
   });
   const isLive = sessionLive && !inShare;
   const proEnabled = canAccessFeature('poll-pro') && !isAnnouncement;

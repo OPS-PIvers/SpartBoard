@@ -315,9 +315,9 @@ describe('PollWidget results controls', () => {
       liveVotes = [
         {
           id: '0_p1',
-          data: { questionIndex: 0, text: 'gravity rocks', votedAt: 1 },
+          data: { questionIndex: 0, text: 'Gravity  ', votedAt: 1 },
         },
-        { id: '0_p2', data: { questionIndex: 0, text: 'Gravity', votedAt: 2 } },
+        { id: '0_p2', data: { questionIndex: 0, text: 'gravity', votedAt: 2 } },
         {
           id: '0_p3',
           data: { questionIndex: 0, text: 'friction', votedAt: 3 },
@@ -331,8 +331,8 @@ describe('PollWidget results controls', () => {
         '3 answered'
       );
       expect(screen.getByTitle('gravity (2)')).toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: 'Hide rocks' }));
-      expect(lastConfig().hiddenResponses).toEqual(['q1#rocks']);
+      fireEvent.click(screen.getByRole('button', { name: 'Hide friction' }));
+      expect(lastConfig().hiddenResponses).toEqual(['q1#friction']);
     });
 
     it('lists open responses newest first and hides one', () => {

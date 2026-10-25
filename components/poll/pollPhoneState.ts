@@ -106,8 +106,6 @@ export interface PollBallot {
   resultsRevealed: boolean;
   /** Correct option indexes once the teacher shows the answer; null until then. */
   correctIndexes: number[] | null;
-  /** This device's typed answer on a word cloud or open response question. */
-  myText: string | null;
 }
 
 export type PollPhoneView =
@@ -155,7 +153,6 @@ export const derivePollPhoneView = (
     tally,
     total: tally.reduce((sum, n) => sum + n, 0),
     votedIndex: mine?.optionIndex ?? null,
-    myText: typeof mine?.text === 'string' ? mine.text : null,
     submitting: vote === 'submitting',
     resultsHidden: session.hideResults === true && !revealed,
     resultsRevealed: session.hideResults === true && revealed,
