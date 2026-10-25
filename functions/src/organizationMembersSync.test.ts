@@ -314,4 +314,68 @@ describe('computeAdminAction', () => {
     );
     expect(action.type).toBe('noop');
   });
+
+  describe('non-operator org', () => {
+    const OTHER = 'other-org';
+
+    it('never creates an admin doc for a domain_admin of another org', () => {
+      const action = computeAdminAction(
+        null,
+        member({ roleId: 'domain_admin', status: 'active' }),
+        null,
+        OTHER,
+        EMAIL,
+        NOW
+      );
+      expect(action.type).toBe('noop');
+    });
+
+    it('never retargets an operator-org admin doc to another org', () => {
+      const action = computeAdminAction(
+        member({ roleId: 'teacher' }),
+        member({ roleId: 'domain_admin', status: 'active' }),
+        { source: PROVENANCE_SOURCE, orgId: ORG_ID },
+        OTHER,
+        EMAIL,
+        NOW
+      );
+      expect(action.type).toBe('noop');
+    });
+
+    it('never deletes an operator-org admin doc when another org demotes the member', () => {
+      const action = computeAdminAction(
+        member({ roleId: 'domain_admin', status: 'active' }),
+        member({ roleId: 'domain_admin', status: 'inactive' }),
+        { source: PROVENANCE_SOURCE, orgId: ORG_ID },
+        OTHER,
+        EMAIL,
+        NOW
+      );
+      expect(action.type).toBe('noop');
+    });
+
+    it('never deletes a pre-existing admin doc without the marker', () => {
+      const action = computeAdminAction(
+        member({ roleId: 'domain_admin', status: 'active' }),
+        member({ roleId: 'teacher' }),
+        preExisting,
+        OTHER,
+        EMAIL,
+        NOW
+      );
+      expect(action.type).toBe('noop');
+    });
+
+    it('removes its own stale mirror on the next admin-relevant change', () => {
+      const action = computeAdminAction(
+        member({ roleId: 'domain_admin', status: 'active' }),
+        member({ roleId: 'teacher' }),
+        { source: PROVENANCE_SOURCE, orgId: OTHER },
+        OTHER,
+        EMAIL,
+        NOW
+      );
+      expect(action).toEqual({ type: 'delete' });
+    });
+  });
 });

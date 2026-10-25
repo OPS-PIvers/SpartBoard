@@ -1,6 +1,7 @@
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
+import { OPERATOR_ORG_ID } from './authz';
 
 // Ensure admin is initialized exactly once. `index.ts` also calls
 // `initializeApp()`; guarding on `admin.apps.length` makes this module
@@ -65,11 +66,25 @@ export type AdminAction =
 export function computeAdminAction(
   before: MemberDocFields | null,
   after: MemberDocFields | null,
-  existingAdmin: { source?: string } | null,
+  existingAdmin: { source?: string; orgId?: string } | null,
   orgId: string,
   emailLower: string,
   now: string
 ): AdminAction {
+  // /admins grants site-wide admin, so only the operator org's roles mirror; another org's own stale mirror is removed.
+  if (orgId !== OPERATOR_ORG_ID) {
+    if (
+      existingAdmin?.source === PROVENANCE_SOURCE &&
+      existingAdmin.orgId === orgId
+    ) {
+      return { type: 'delete' };
+    }
+    return {
+      type: 'noop',
+      reason: 'Only operator-org roles mirror into /admins.',
+    };
+  }
+
   const shouldBeAdmin =
     after !== null &&
     typeof after.roleId === 'string' &&
@@ -210,11 +225,11 @@ export const organizationMembersSync = onDocumentWritten(
     const db = admin.firestore();
     const adminRef = db.doc(`admins/${emailLower}`);
 
-    let existingAdmin: { source?: string } | null = null;
+    let existingAdmin: { source?: string; orgId?: string } | null = null;
     try {
       const adminSnap = await adminRef.get();
       existingAdmin = adminSnap.exists
-        ? (adminSnap.data() as { source?: string })
+        ? (adminSnap.data() as { source?: string; orgId?: string })
         : null;
     } catch (err) {
       logger.error(
