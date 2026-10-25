@@ -703,6 +703,18 @@ describe('persistLtiLaunchContext — video activity', () => {
     expect(writes).toHaveLength(0);
   });
 
+  it('stamps legacy contexts that have no owner on an unsigned launch', async () => {
+    vaSessions.set('va-1', { teacherUid: 't1', status: 'active' });
+    contextDocs.set(
+      `${LTI_SESSION_MEMBERSHIPS_COLLECTION}/va-1/contexts/ctx-9`,
+      { contextMembershipsUrl: VA_ARGS.membershipUrl }
+    );
+    expect(await persistLtiLaunchContext(db(), VA_ARGS)).toBe('va-1');
+    expect(
+      writeAt(`${LTI_SESSION_MEMBERSHIPS_COLLECTION}/va-1/contexts/`)?.data
+    ).toMatchObject({ teacherUid: 't1' });
+  });
+
   it('refuses an unsigned link when orphaned contexts belong to another owner', async () => {
     vaSessions.set('va-1', { teacherUid: 'attacker', status: 'active' });
     contextDocs.set(

@@ -22,7 +22,11 @@ import { verifyLaunchJwt, launchRedirectTarget } from './jwt';
 import type { NrpsEndpoint } from './jwt';
 import { ltiStudentUid } from './identity';
 import { resolveClasslinkIdentity } from './classlinkBridge';
-import { persistLtiLaunchContext, ltiQuizOwner } from './nrpsStore';
+import {
+  persistLtiLaunchContext,
+  ltiQuizOwner,
+  resolveLtiTargetSession,
+} from './nrpsStore';
 import type { LtiTargetSessionArgs } from './nrpsStore';
 import { chooseLaunchUid } from './preLinkResponse';
 import {
@@ -213,6 +217,23 @@ export const ltiLaunch = onRequest(
           typeof custom['kind'] === 'string' ? custom['kind'] : 'quiz';
         url.searchParams.set('kind', kind);
         if (kind === 'va' && typeof custom['session_id'] === 'string') {
+          // A signed link must not send students into a session another teacher recreated at the id.
+          const signer = launchTeacherUid(custom);
+          if (
+            signer &&
+            !(await resolveLtiTargetSession(db, {
+              kind: 'va',
+              sessionId: custom['session_id'],
+              teacherUid: signer,
+            }))
+          ) {
+            res
+              .status(409)
+              .send(
+                'This assignment link needs to be added again by your teacher.'
+              );
+            return;
+          }
           url.searchParams.set('sessionId', custom['session_id']);
         } else if (typeof custom['quiz_code'] === 'string') {
           url.searchParams.set('code', custom['quiz_code']);

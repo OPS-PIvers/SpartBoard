@@ -352,7 +352,12 @@ export async function resolveLtiTargetSession(
         .doc(snap.id)
         .collection('contexts')
         .get();
-      if (ctxs.docs.some((d) => d.data().teacherUid !== owner)) return null;
+      // Pre-stamp contexts carry no owner; they are stamped on this launch.
+      const foreign = ctxs.docs.some((d) => {
+        const t: unknown = d.data().teacherUid;
+        return typeof t === 'string' && t !== owner;
+      });
+      if (foreign) return null;
     }
     return { sessionId: snap.id, sessionData };
   }
