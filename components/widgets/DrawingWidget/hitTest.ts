@@ -183,6 +183,8 @@ const getStrokeHalfWidth = (obj: DrawableObject): number => {
       return Math.max(12, obj.strokeWidth * 3);
     }
     case 'text':
+      // Covers the sticky note drop shadow.
+      return obj.sticky ? 12 : 0;
     case 'image':
       return 0;
   }

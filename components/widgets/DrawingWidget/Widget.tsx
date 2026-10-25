@@ -36,6 +36,7 @@ import {
   Redo2,
   Slash,
   Square,
+  StickyNote,
   Trash2,
   Type,
   TypeOutline,
@@ -68,6 +69,7 @@ import { getBackgroundStyle } from './backgroundTemplates';
 import { useDrawingViewport } from './useDrawingViewport';
 import { LaserOverlay, type LaserOverlayHandle } from './LaserOverlay';
 import {
+  IDENTITY_VIEW,
   isIdentityView,
   MAX_VIEW_ZOOM,
   MIN_VIEW_ZOOM,
@@ -82,7 +84,11 @@ import {
   exportPdf,
 } from './exportCanvas';
 
-const PRO_TOOLS: ReadonlySet<ShapeTool> = new Set(['highlighter', 'laser']);
+const PRO_TOOLS: ReadonlySet<ShapeTool> = new Set([
+  'highlighter',
+  'laser',
+  'sticky',
+]);
 const HIGHLIGHTER_COLORS = [
   STANDARD_COLORS.yellow,
   STANDARD_COLORS.green,
@@ -91,6 +97,13 @@ const HIGHLIGHTER_COLORS = [
   STANDARD_COLORS.orange,
 ] as const;
 const HIGHLIGHTER_DEFAULT_WIDTH = 24;
+const STICKY_COLORS = [
+  STANDARD_COLORS.yellow,
+  STANDARD_COLORS.orange,
+  STANDARD_COLORS.green,
+  STANDARD_COLORS.cyan,
+  STANDARD_COLORS.pink,
+] as const;
 
 const TOOL_BUTTONS: ReadonlyArray<{
   tool: ShapeTool;
@@ -107,6 +120,7 @@ const TOOL_BUTTONS: ReadonlyArray<{
   { tool: 'highlighter', Icon: Highlighter, label: 'Highlighter' },
   { tool: 'laser', Icon: Flashlight, label: 'Laser pointer' },
   { tool: 'text', Icon: TypeOutline, label: 'Text' },
+  { tool: 'sticky', Icon: StickyNote, label: 'Sticky note' },
   { tool: 'eraser', Icon: Eraser, label: 'Eraser' },
   { tool: 'line', Icon: Slash, label: 'Line' },
   { tool: 'arrow', Icon: ArrowRight, label: 'Arrow' },
@@ -153,6 +167,7 @@ export const DrawingWidget: React.FC<{
     shapeFill = DRAWING_DEFAULTS.SHAPE_FILL,
     highlighterColor = STANDARD_COLORS.yellow,
     highlighterWidth = HIGHLIGHTER_DEFAULT_WIDTH,
+    stickyColor = STANDARD_COLORS.yellow,
   } = config;
   const proEnabled = !isStudentView && canAccessFeature('whiteboard-pro');
   // Without the flag a saved highlighter or laser falls back to the pen.
@@ -486,6 +501,18 @@ export const DrawingWidget: React.FC<{
   const handleTextSpawn = (obj: TextObject) => {
     // Clicking away from an open editor only commits it via blur.
     if (editingText) return;
+    if (obj.sticky) {
+      // Keep a new note fully on screen so its editor never scrolls the page.
+      const area = visiblePageArea(view ?? IDENTITY_VIEW, canvasSize);
+      const clamp = (v: number, min: number, span: number, size: number) =>
+        span > size ? Math.min(Math.max(v, min), min + span - size) : min;
+      setEditingText({
+        ...obj,
+        x: clamp(obj.x, area.x, area.width, obj.w),
+        y: clamp(obj.y, area.y, area.height, obj.h),
+      });
+      return;
+    }
     setEditingText(obj);
   };
 
@@ -671,6 +698,7 @@ export const DrawingWidget: React.FC<{
       previewObject,
       view,
       highlighter: highlighterInk,
+      stickyFill: stickyColor,
     });
 
   const laserRef = useRef<LaserOverlayHandle>(null);
@@ -1220,6 +1248,12 @@ export const DrawingWidget: React.FC<{
     });
   };
 
+  const setStickyColor = (next: string) => {
+    updateWidget(widget.id, {
+      config: { ...config, stickyColor: next },
+    });
+  };
+
   const setHighlighterWidth = (px: number) => {
     updateWidget(widget.id, {
       config: { ...config, highlighterWidth: px },
@@ -1570,40 +1604,60 @@ export const DrawingWidget: React.FC<{
             )}
 
             {/* Color row — hidden for the eraser, which ignores stroke color. */}
-            {toolPopover === 'highlighter' && (
-              <div
-                role="group"
-                aria-label="Highlighter color"
-                {...tourTypeAttr('drawing.highlighter-colors', 'drawing')}
-                className="flex items-center justify-between mb-3"
-              >
-                {HIGHLIGHTER_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    // no-tour-anchor: the row carries drawing.highlighter-colors
-                    aria-label={COLOR_HEX_TO_NAME[c] ?? c}
-                    aria-pressed={highlighterColor === c}
-                    onClick={() => setHighlighterColor(c)}
-                    className={`w-6 h-6 rounded-full transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
-                      highlighterColor === c
-                        ? 'ring-2 ring-white scale-110'
-                        : 'ring-1 ring-white/20 hover:scale-110'
+            {(toolPopover === 'highlighter' || toolPopover === 'sticky') &&
+              (() => {
+                const isSticky = toolPopover === 'sticky';
+                const current = isSticky ? stickyColor : highlighterColor;
+                const pick = isSticky ? setStickyColor : setHighlighterColor;
+                return (
+                  <div
+                    role="group"
+                    aria-label={
+                      isSticky ? 'Sticky note color' : 'Highlighter color'
+                    }
+                    {...(isSticky
+                      ? tourTypeAttr('drawing.sticky-colors', 'drawing')
+                      : tourTypeAttr('drawing.highlighter-colors', 'drawing'))}
+                    className={`flex items-center justify-between ${
+                      isSticky ? '' : 'mb-3'
                     }`}
-                    style={{ backgroundColor: c }}
-                  />
-                ))}
-              </div>
-            )}
-            {toolPopover !== 'eraser' && toolPopover !== 'highlighter' && (
-              <PenColorSwatches
-                variant="whiteboard"
-                value={color}
-                onSelect={setColor}
-                anchor={tourAttr('drawing.pen-colors', widget.id, widget.type)}
-                className="flex items-center justify-between mb-3"
-              />
-            )}
+                  >
+                    {(isSticky ? STICKY_COLORS : HIGHLIGHTER_COLORS).map(
+                      (c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          // no-tour-anchor: the row carries the colors anchor
+                          aria-label={COLOR_HEX_TO_NAME[c] ?? c}
+                          aria-pressed={current === c}
+                          onClick={() => pick(c)}
+                          className={`w-6 h-6 rounded-full transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
+                            current === c
+                              ? 'ring-2 ring-white scale-110'
+                              : 'ring-1 ring-white/20 hover:scale-110'
+                          }`}
+                          style={{ backgroundColor: c }}
+                        />
+                      )
+                    )}
+                  </div>
+                );
+              })()}
+            {toolPopover !== 'eraser' &&
+              toolPopover !== 'highlighter' &&
+              toolPopover !== 'sticky' && (
+                <PenColorSwatches
+                  variant="whiteboard"
+                  value={color}
+                  onSelect={setColor}
+                  anchor={tourAttr(
+                    'drawing.pen-colors',
+                    widget.id,
+                    widget.type
+                  )}
+                  className="flex items-center justify-between mb-3"
+                />
+              )}
 
             {/* Stroke width slider — full 1–80px range, matched to the
                 Settings panel. The thumb preview on the left shows the
@@ -1612,36 +1666,38 @@ export const DrawingWidget: React.FC<{
                 stroke doesn't overflow the popover, while the px count
                 still tells the truth. Hidden for the Lasso eraser
                 (selection-by-region, not by hit radius). */}
-            {!(toolPopover === 'eraser' && eraserMode === 'lasso') && (
-              <div className="flex items-center gap-3">
-                <span
-                  aria-hidden
-                  className="block rounded-full bg-white shrink-0"
-                  style={{
-                    width: `${Math.max(4, Math.min(28, shownWidth))}px`,
-                    height: `${Math.max(4, Math.min(28, shownWidth))}px`,
-                  }}
-                />
-                <input
-                  type="range"
-                  min={1}
-                  max={80}
-                  step={1}
-                  value={shownWidth}
-                  {...tourTypeAttr('drawing.stroke-width', 'drawing')}
-                  onChange={(e) => {
-                    const px = parseInt(e.target.value, 10);
-                    if (toolPopover === 'highlighter') setHighlighterWidth(px);
-                    else setWidth(px);
-                  }}
-                  aria-label="Stroke width"
-                  className="flex-1 h-1.5 rounded-full bg-slate-700 appearance-none cursor-pointer accent-brand-blue-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
-                />
-                <span className="font-mono text-xs text-slate-300 w-10 text-right tabular-nums">
-                  {shownWidth}px
-                </span>
-              </div>
-            )}
+            {!(toolPopover === 'eraser' && eraserMode === 'lasso') &&
+              toolPopover !== 'sticky' && (
+                <div className="flex items-center gap-3">
+                  <span
+                    aria-hidden
+                    className="block rounded-full bg-white shrink-0"
+                    style={{
+                      width: `${Math.max(4, Math.min(28, shownWidth))}px`,
+                      height: `${Math.max(4, Math.min(28, shownWidth))}px`,
+                    }}
+                  />
+                  <input
+                    type="range"
+                    min={1}
+                    max={80}
+                    step={1}
+                    value={shownWidth}
+                    {...tourTypeAttr('drawing.stroke-width', 'drawing')}
+                    onChange={(e) => {
+                      const px = parseInt(e.target.value, 10);
+                      if (toolPopover === 'highlighter')
+                        setHighlighterWidth(px);
+                      else setWidth(px);
+                    }}
+                    aria-label="Stroke width"
+                    className="flex-1 h-1.5 rounded-full bg-slate-700 appearance-none cursor-pointer accent-brand-blue-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+                  />
+                  <span className="font-mono text-xs text-slate-300 w-10 text-right tabular-nums">
+                    {shownWidth}px
+                  </span>
+                </div>
+              )}
           </div>,
           document.body
         )}
