@@ -6538,6 +6538,7 @@ service cloud.firestore {
           let counts = session.get('optionCounts', []);
           let questionIndex = incoming().questionIndex;
           return session.get('active', false) == true &&
+            !(questionIndex in session.get('lockedQuestions', [])) &&
             questionIndex >= 0 &&
             questionIndex < counts.size() &&
             incoming().optionIndex >= 0 &&
@@ -6547,7 +6548,8 @@ service cloud.firestore {
         // Any authed user (incl. anon) may create/update ONLY the vote doc whose
         // id == `{questionIndex}_{their uid}`. Exactly the three declared keys;
         // questionIndex int in [0, optionCounts.size()); optionIndex int in
-        // [0, optionCounts[questionIndex]); only while active. Re-voting the
+        // [0, optionCounts[questionIndex]); only while active and the question
+        // isn't in lockedQuestions. Re-voting the
         // same question overwrites (one per device per question).
         allow create, update: if signedIn() &&
           incoming().keys().hasOnly(['questionIndex', 'optionIndex', 'votedAt']) &&
@@ -6563,6 +6565,41 @@ service cloud.firestore {
         allow read: if signedIn();
 
         // Delete (reset) is teacher/admin-only.
+        allow delete: if signedIn() &&
+          (isAdmin() || sessionId.matches(authUid() + '_.*'));
+      }
+
+      // Word cloud / open response answers, `{questionIndex}_{uid}`: text
+      // 1-280 chars on a `textQuestions` index of an active session that isn't
+      // locked; votedAt may run a day ahead for a fast student clock. Free text
+      // may identify a student, so only the session owner (or an admin) and the
+      // student who wrote it can read it.
+      match /answers/{answerId} {
+        function answerTargetsOpenTextQuestion() {
+          let session = get(/databases/$(database)/documents/poll_sessions/$(sessionId)).data;
+          let questionIndex = incoming().questionIndex;
+          return session.get('active', false) == true &&
+            questionIndex in session.get('textQuestions', []) &&
+            !(questionIndex in session.get('lockedQuestions', []));
+        }
+
+        allow create, update: if signedIn() &&
+          incoming().keys().hasOnly(['questionIndex', 'text', 'votedAt']) &&
+          isInt('questionIndex') &&
+          isStr('text') &&
+          isInt('votedAt') &&
+          incoming().text.size() > 0 &&
+          incoming().text.size() <= 280 &&
+          incoming().votedAt <= request.time.toMillis() + 86400000 &&
+          answerId == string(incoming().questionIndex) + '_' + authUid() &&
+          exists(/databases/$(database)/documents/poll_sessions/$(sessionId)) &&
+          answerTargetsOpenTextQuestion();
+
+        allow read: if signedIn() &&
+          (isAdmin() ||
+            sessionId.matches(authUid() + '_.*') ||
+            answerId.matches('[0-9]+_' + authUid()));
+
         allow delete: if signedIn() &&
           (isAdmin() || sessionId.matches(authUid() + '_.*'));
       }

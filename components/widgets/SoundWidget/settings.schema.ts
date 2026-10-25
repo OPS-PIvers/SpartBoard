@@ -1,9 +1,38 @@
+import React from 'react';
 import { defineSettings } from '@/components/settings/schema/defineSettings';
-import type { FieldCtx } from '@/components/settings/schema/types';
+import type {
+  CustomRenderCtx,
+  FieldCtx,
+} from '@/components/settings/schema/types';
 import type { SoundConfig } from '@/types';
+import { TIME_TOOL_SOUNDS } from '@/config/timeTool';
+import { playTimerAlert, resumeAudio } from '@/utils/timeToolAudio';
+import {
+  DEFAULT_ALERT_DELAY_SECONDS,
+  DEFAULT_ALERT_SOUND,
+  MAX_TARGET_LEVEL,
+  NOISE_METER_PRO,
+} from './noiseTarget';
+import { SoundCalibrateField, SoundGoalTeamField } from './settingsFields';
 
+const renderGoalTeam = (ctx: CustomRenderCtx) =>
+  React.createElement(SoundGoalTeamField, { ctx });
+
+const renderCalibrate = (ctx: CustomRenderCtx) =>
+  React.createElement(SoundCalibrateField, { ctx });
+
+const isPro = (ctx: FieldCtx) => ctx.canAccessFeature(NOISE_METER_PRO);
 const isExpectationsSyncEnabled = (ctx: FieldCtx) =>
   ctx.config.syncExpectations === true;
+const hasTarget = (ctx: FieldCtx) =>
+  isPro(ctx) &&
+  (typeof ctx.config.targetLevel === 'number' ||
+    isExpectationsSyncEnabled(ctx));
+const hasGoal = (ctx: FieldCtx) =>
+  hasTarget(ctx) &&
+  typeof ctx.config.quietGoalMinutes === 'number' &&
+  ctx.config.quietGoalMinutes > 0;
+const TARGET_OFF = -1;
 const isTrafficAutomationEnabled = (ctx: FieldCtx) =>
   ctx.config.autoTrafficLight === true;
 
@@ -24,6 +53,14 @@ export default defineSettings<SoundConfig>({
           },
         },
         {
+          key: 'noiseFloor',
+          type: 'custom',
+          label: 'calibration',
+          help: 'calibrateHelp',
+          visibleWhen: isPro,
+          render: renderCalibrate,
+        },
+        {
           key: 'sensitivity',
           type: 'slider',
           label: 'sensitivity',
@@ -31,6 +68,90 @@ export default defineSettings<SoundConfig>({
           max: 5,
           step: 0.1,
           disabledWhen: isExpectationsSyncEnabled,
+        },
+        {
+          key: 'targetLevel',
+          type: 'select',
+          label: 'targetLevel',
+          help: 'targetHelp',
+          visibleWhen: isPro,
+          disabledWhen: isExpectationsSyncEnabled,
+          options: [
+            { value: TARGET_OFF, label: 'targetOff' },
+            ...Array.from({ length: MAX_TARGET_LEVEL + 1 }, (_, level) => ({
+              value: level,
+              label: `level${level}`,
+            })),
+          ],
+          readValue: (ctx) =>
+            typeof ctx.config.targetLevel === 'number'
+              ? ctx.config.targetLevel
+              : TARGET_OFF,
+          toPatch: (value) => ({
+            targetLevel: value === TARGET_OFF ? null : Number(value),
+          }),
+        },
+        {
+          key: 'alertDelaySeconds',
+          type: 'number',
+          label: 'alertDelaySeconds',
+          min: 0,
+          max: 30,
+          step: 1,
+          visibleWhen: hasTarget,
+          readValue: (ctx) =>
+            ctx.config.alertDelaySeconds ?? DEFAULT_ALERT_DELAY_SECONDS,
+        },
+        {
+          key: 'alertSoundEnabled',
+          type: 'toggle',
+          label: 'alertSoundEnabled',
+          visibleWhen: hasTarget,
+        },
+        {
+          key: 'alertSound',
+          type: 'soundPicker',
+          label: 'alertSound',
+          visibleWhen: (ctx) =>
+            hasTarget(ctx) && ctx.config.alertSoundEnabled === true,
+          options: TIME_TOOL_SOUNDS.map((sound) => ({
+            value: sound,
+            label: `sound${sound}`,
+          })),
+          preview: (sound) => {
+            void resumeAudio().then(() => playTimerAlert(sound));
+          },
+          readValue: (ctx) => ctx.config.alertSound ?? DEFAULT_ALERT_SOUND,
+        },
+        {
+          key: 'quietGoalMinutes',
+          type: 'number',
+          label: 'quietGoalMinutes',
+          help: 'quietGoalHelp',
+          min: 0,
+          max: 120,
+          step: 1,
+          visibleWhen: hasTarget,
+          readValue: (ctx) => ctx.config.quietGoalMinutes ?? 0,
+        },
+        {
+          key: 'quietGoalResetOnAlert',
+          type: 'toggle',
+          label: 'quietGoalResetOnAlert',
+          visibleWhen: hasGoal,
+        },
+        {
+          key: 'quietGoalTeamId',
+          type: 'partnerWidget',
+          label: 'quietGoalTeamId',
+          partner: 'scoreboard',
+          visibleWhen: hasGoal,
+          control: {
+            key: 'quietGoalTeamId',
+            type: 'custom',
+            label: 'quietGoalTeamId',
+            render: renderGoalTeam,
+          },
         },
         {
           key: 'autoTrafficLight',
@@ -69,6 +190,23 @@ export default defineSettings<SoundConfig>({
             { value: 'speedometer', label: 'visualGauge' },
             { value: 'line', label: 'visualGraph' },
             { value: 'balls', label: 'visualPopcorn' },
+          ],
+          visibleWhen: (ctx) => !isPro(ctx),
+          // Matches the face, which shows the Meter for a saved Level without the flag.
+          readValue: (ctx) =>
+            ctx.config.visual === 'level' ? 'thermometer' : ctx.config.visual,
+        },
+        {
+          key: 'visual',
+          type: 'segmented',
+          label: 'visual',
+          visibleWhen: isPro,
+          options: [
+            { value: 'thermometer', label: 'visualMeter' },
+            { value: 'speedometer', label: 'visualGauge' },
+            { value: 'line', label: 'visualGraph' },
+            { value: 'balls', label: 'visualPopcorn' },
+            { value: 'level', label: 'visualLevel' },
           ],
         },
       ],

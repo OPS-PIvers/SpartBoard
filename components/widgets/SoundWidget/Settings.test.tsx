@@ -20,6 +20,7 @@ describe('Sound Meter settings schema', () => {
     );
     expect(partnerFields?.map((field) => field.key)).toEqual([
       'syncExpectations',
+      'quietGoalTeamId',
       'autoTrafficLight',
     ]);
   });

@@ -1,5 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { POSTER_LEVELS } from '../constants';
+import { STANDARD_COLORS } from '@/config/colors';
+
+const TARGET_LINE_COLOR = STANDARD_COLORS.slate;
 
 /**
  * Bouncing-balls noise visualizer. Renders to a `<canvas>`, whose 2D drawing
@@ -11,7 +14,8 @@ import { POSTER_LEVELS } from '../constants';
  */
 export const PopcornBallsView: React.FC<{
   volume: number;
-}> = ({ volume }) => {
+  limit?: number | null;
+}> = ({ volume, limit = null }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [{ width, height }, setSize] = useState({ width: 0, height: 0 });
@@ -26,9 +30,11 @@ export const PopcornBallsView: React.FC<{
   // lint rule rejects mutating a ref during render. Matches the sibling
   // `sensitivityRef` pattern in SoundWidget/Widget.tsx.
   const volumeRef = useRef(volume);
+  const limitRef = useRef(limit);
   useEffect(() => {
     volumeRef.current = volume;
-  }, [volume]);
+    limitRef.current = limit;
+  }, [volume, limit]);
 
   // Measure the actual rendered canvas area. The container fills the widget
   // content region, so its size already excludes header/footer chrome — no
@@ -91,6 +97,22 @@ export const PopcornBallsView: React.FC<{
         ctx.arc(b.x, b.y, 6, 0, Math.PI * 2);
         ctx.fill();
       });
+
+      // Target: about how high a typical ball jumps when the room is at the limit.
+      const limitNow = limitRef.current;
+      if (limitNow !== null) {
+        const jump = Math.pow((limitNow / 100) * height * 0.1, 2);
+        const y = Math.max(8, height - 10 - jump);
+        ctx.save();
+        ctx.setLineDash([8, 5]);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = TARGET_LINE_COLOR;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+        ctx.restore();
+      }
       animId = requestAnimationFrame(render);
     };
     render();

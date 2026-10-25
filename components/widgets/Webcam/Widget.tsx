@@ -1,5 +1,12 @@
 import { copyText } from '@/utils/copyText';
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, {
+  useRef,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useEffectEvent,
+} from 'react';
 import {
   Camera,
   Download,
@@ -12,8 +19,12 @@ import {
   Check,
   Video,
   FlipHorizontal,
+  Pause,
+  Play,
+  Pencil,
+  Columns2,
 } from 'lucide-react';
-import { WidgetData, WebcamConfig } from '@/types';
+import { PathObject, WidgetData, WebcamConfig } from '@/types';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useAuth } from '@/context/useAuth';
 import { useDashboardActions } from '@/context/dashboardCanvasStore';
@@ -22,6 +33,43 @@ import { extractTextWithGemini } from '@/utils/ai';
 import { WidgetLayout } from '../WidgetLayout';
 import { CapturedItem } from './types';
 import { tourAttr } from '@/config/tourAnchors';
+import { useDocCamView } from './useDocCamView';
+import { DocCamViewControls } from './DocCamViewControls';
+import { DocCamInkLayer, DocCamInkToolbar } from './DocCamInk';
+import {
+  type CompareSide,
+  DocCamCompare,
+  LIVE_COMPARE_ID,
+} from './DocCamCompare';
+import { INK_COLORS, type InkTool, paintInk } from './docCamInk';
+import { DocCamQualityMenu } from './DocCamQualityMenu';
+import {
+  type CameraControls,
+  normalizeResolution,
+  NO_CAMERA_CONTROLS,
+  readCameraControls,
+  resolutionConstraints,
+  setAutoMode,
+} from './docCamQuality';
+import { useCommandStack } from '@/components/widgets/DrawingWidget/useCommandStack';
+import {
+  type Size,
+  isDefaultView,
+  mediaBox,
+  mediaTransform,
+  renderView,
+  toOcrDataUrl,
+} from './docCamView';
+
+const NO_SIZE: Size = { width: 0, height: 0 };
+const videoSizeOf = (v: HTMLVideoElement): Size => ({
+  width: v.videoWidth,
+  height: v.videoHeight,
+});
+const naturalSizeOf = (img: HTMLImageElement): Size => ({
+  width: img.naturalWidth,
+  height: img.naturalHeight,
+});
 
 export const WebcamWidget: React.FC<{
   widget: WidgetData;
@@ -40,6 +88,10 @@ export const WebcamWidget: React.FC<{
   const [isMirrored, setIsMirrored] = useState(true);
   const [capturedItems, setCapturedItems] = useState<CapturedItem[]>([]);
   const [showGallery, setShowGallery] = useState(false);
+  const [comparePick, setComparePick] = useState<string[] | null>(null);
+  const [compareSides, setCompareSides] = useState<
+    readonly [CompareSide, CompareSide] | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedText, setExtractedText] = useState<string | null>(null);
@@ -50,6 +102,274 @@ export const WebcamWidget: React.FC<{
   const [showCaptureSuccess, setShowCaptureSuccess] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const resolution = normalizeResolution(widgetConfig.resolution);
+  const constraintsKey = canAccessFeature('document-camera-pro')
+    ? resolution
+    : 'auto';
+  const [retryKey, setRetryKey] = useState(0);
+  const [cameraLost, setCameraLost] = useState(false);
+  const [cameraControls, setCameraControls] =
+    useState<CameraControls>(NO_CAMERA_CONTROLS);
+  const startedStreamRef = useRef<MediaStream | null>(null);
+  const remoteImgRef = useRef<HTMLImageElement>(null);
+  const frozenImgRef = useRef<HTMLImageElement>(null);
+  const [frozenUrl, setFrozenUrl] = useState<string | null>(null);
+  const frozenUrlRef = useRef<string | null>(null);
+  const docCamPro = canAccessFeature('document-camera-pro');
+  const {
+    attachFeed,
+    size: feedSize,
+    view: docCamView,
+    isPanning,
+    zoomIn,
+    zoomOut,
+    rotate,
+    resetView,
+  } = useDocCamView({
+    enabled: docCamPro,
+    savedZoom: widgetConfig.zoomLevel,
+    savedRotation: widgetConfig.rotation,
+    onSave: (patch) => updateWidget(_widget.id, { config: patch }),
+  });
+  const isRemoteShown = !!(
+    widgetConfig.isRemoteMode && widgetConfig.remoteCaptureDataUrl
+  );
+  const isFrozen = docCamPro && !isRemoteShown && frozenUrl !== null;
+
+  // Ink over the feed is view-only: it never goes on the board, only into photos.
+  const [inkStrokes, setInkStrokes] = useState<PathObject[]>([]);
+  // Camera frame sizes, so ink is stored against the picture rather than the widget box.
+  const [videoSize, setVideoSize] = useState<Size>(NO_SIZE);
+  const [remoteSize, setRemoteSize] = useState<Size>(NO_SIZE);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [inkTool, setInkTool] = useState<InkTool>('pen');
+  const [penColor, setPenColor] = useState<string>(INK_COLORS[0].value);
+  // A new picture (unfreeze, camera switch, another phone photo) starts a fresh drawing and undo history.
+  const [inkPage, setInkPage] = useState(0);
+  const clearInkPage = useCallback(() => {
+    setInkStrokes([]);
+    setInkPage((n) => n + 1);
+  }, []);
+  const inkSourceKey = isRemoteShown
+    ? (widgetConfig.remoteCaptureDataUrl ?? '')
+    : 'live';
+  const [prevInkSourceKey, setPrevInkSourceKey] = useState(inkSourceKey);
+  if (prevInkSourceKey !== inkSourceKey) {
+    setPrevInkSourceKey(inkSourceKey);
+    clearInkPage();
+  }
+  const inkFrame = useMemo(
+    () => ({
+      feed: feedSize,
+      source: isRemoteShown ? remoteSize : videoSize,
+      view: docCamView,
+      mirrored: !isRemoteShown && isMirrored,
+    }),
+    [feedSize, isRemoteShown, remoteSize, videoSize, docCamView, isMirrored]
+  );
+  const inkStack = useCommandStack({
+    pageKey: `camera-${inkPage}`,
+    objects: inkStrokes,
+    onObjectsChange: (next) =>
+      setInkStrokes(next.filter((o): o is PathObject => o.kind === 'path')),
+  });
+
+  // Document camera view: the photo matches the turned, zoomed feed.
+  const captureDocCamView = useCallback(
+    (withInk = false, forOcr = false): string => {
+      const encode = (canvas: HTMLCanvasElement | null, type = 'image/png') =>
+        !canvas
+          ? ''
+          : forOcr
+            ? toOcrDataUrl(canvas)
+            : canvas.toDataURL(type, 0.9);
+      const overlayFor = (source: Size, mirrored: boolean) =>
+        withInk && inkStrokes.length > 0
+          ? (ctx: CanvasRenderingContext2D) =>
+              paintInk(ctx, inkStrokes, {
+                feed: feedSize,
+                source,
+                view: docCamView,
+                mirrored,
+              })
+          : undefined;
+      const frozen = frozenImgRef.current;
+      if (isFrozen) {
+        // Never fall back to the hidden live video while the frozen frame loads.
+        if (!frozen?.naturalWidth) return '';
+        const size = {
+          width: frozen.naturalWidth,
+          height: frozen.naturalHeight,
+        };
+        const canvas = renderView(
+          frozen,
+          size,
+          docCamView,
+          isMirrored,
+          feedSize,
+          overlayFor(size, isMirrored)
+        );
+        return encode(canvas);
+      }
+      if (isRemoteShown) {
+        const img = remoteImgRef.current;
+        const size = {
+          width: img?.naturalWidth ?? 0,
+          height: img?.naturalHeight ?? 0,
+        };
+        const overlay = overlayFor(size, false);
+        if (!img || !size.width || (isDefaultView(docCamView) && !overlay)) {
+          return widgetConfig.remoteCaptureDataUrl ?? '';
+        }
+        const canvas = renderView(
+          img,
+          size,
+          docCamView,
+          false,
+          feedSize,
+          overlay
+        );
+        // JPEG keeps a phone photo near the size the phone sent.
+        return encode(canvas, 'image/jpeg');
+      }
+      const video = videoRef.current;
+      if (!video) return '';
+      const size = { width: video.videoWidth, height: video.videoHeight };
+      const canvas = renderView(
+        video,
+        size,
+        docCamView,
+        isMirrored,
+        feedSize,
+        overlayFor(size, isMirrored)
+      );
+      return encode(canvas);
+    },
+    [
+      feedSize,
+      docCamView,
+      isFrozen,
+      inkStrokes,
+      isMirrored,
+      isRemoteShown,
+      widgetConfig.remoteCaptureDataUrl,
+    ]
+  );
+
+  // Bumped on every freeze/unfreeze so a slow toBlob from an older freeze is dropped.
+  const freezeToken = useRef(0);
+  const unfreeze = useCallback(() => {
+    freezeToken.current += 1;
+    if (frozenUrlRef.current) URL.revokeObjectURL(frozenUrlRef.current);
+    frozenUrlRef.current = null;
+    setFrozenUrl(null);
+    clearInkPage();
+  }, [clearInkPage]);
+
+  // Holds the current frame on screen so the paper can move while the class keeps seeing it.
+  const freeze = useCallback(() => {
+    const video = videoRef.current;
+    if (!video?.videoWidth) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0);
+    const token = ++freezeToken.current;
+    canvas.toBlob((blob) => {
+      if (!blob || token !== freezeToken.current) return;
+      if (frozenUrlRef.current) URL.revokeObjectURL(frozenUrlRef.current);
+      const url = URL.createObjectURL(blob);
+      frozenUrlRef.current = url;
+      setFrozenUrl(url);
+    }, 'image/png');
+  }, []);
+
+  useEffect(
+    () => () => {
+      freezeToken.current += 1;
+      if (frozenUrlRef.current) URL.revokeObjectURL(frozenUrlRef.current);
+    },
+    []
+  );
+  // Remote mode or the flag turning off drops a held frame, so coming back shows live video.
+  const freezeAllowed = docCamPro && !isRemoteShown;
+  if (!freezeAllowed && frozenUrl !== null) setFrozenUrl(null);
+  useEffect(() => {
+    if (freezeAllowed) return;
+    freezeToken.current += 1;
+    if (frozenUrlRef.current) URL.revokeObjectURL(frozenUrlRef.current);
+    frozenUrlRef.current = null;
+  }, [freezeAllowed]);
+  const liveComparable = docCamPro && !isRemoteShown && !!stream;
+  // Picks and a shown comparison drop the live camera once it is gone.
+  const validPick = comparePick?.filter(
+    (id) =>
+      (id === LIVE_COMPARE_ID && liveComparable) ||
+      capturedItems.some((c) => c.id === id)
+  );
+  const shownCompare =
+    docCamPro &&
+    compareSides &&
+    compareSides.every((side) => side.kind !== 'live' || liveComparable)
+      ? compareSides
+      : null;
+  if (compareSides && !shownCompare) setCompareSides(null);
+  if (comparePick && validPick && validPick.length !== comparePick.length) {
+    setComparePick(validPick);
+  }
+
+  const onCameraStarted = useEffectEvent((mediaStream: MediaStream) => {
+    if (!docCamPro) return;
+    setCameraLost(false);
+    startedStreamRef.current = mediaStream;
+    const track = mediaStream.getVideoTracks()[0];
+    setCameraControls(readCameraControls(track));
+    track?.addEventListener?.('ended', () => {
+      if (startedStreamRef.current !== mediaStream) return;
+      setCameraControls(NO_CAMERA_CONTROLS);
+      setCameraLost(true);
+      setStream(null);
+      setError('Camera disconnected');
+    });
+  });
+  // True when the failure was handled: an unplugged camera waits to come back, a stale remembered one falls back.
+  const onCameraFailed = useEffectEvent((err: unknown): boolean => {
+    if (!docCamPro) return false;
+    const name = err instanceof DOMException ? err.name : '';
+    const gone = name === 'NotFoundError' || name === 'OverconstrainedError';
+    // Only a camera that was working before counts as unplugged.
+    if (startedStreamRef.current && (gone || name === 'NotReadableError')) {
+      setCameraControls(NO_CAMERA_CONTROLS);
+      setCameraLost(true);
+      setError('Camera disconnected');
+      return true;
+    }
+    if (selectedDeviceId && gone) {
+      setSelectedDeviceId('');
+      return true;
+    }
+    setCameraControls(NO_CAMERA_CONTROLS);
+    return false;
+  });
+
+  const applyAutoMode = useCallback(
+    async (kind: 'focusMode' | 'exposureMode', on: boolean) => {
+      const track = stream?.getVideoTracks()[0];
+      if (!track) return;
+      const ok = await setAutoMode(track, kind, on);
+      if (ok) setCameraControls(readCameraControls(track));
+      else addToast('This camera did not accept that change.', 'info');
+    },
+    [addToast, stream]
+  );
+
+  // The doc-cam layout remounts the <video> (flag change, leaving remote mode), so hand it the stream again.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video && stream && video.srcObject !== stream) video.srcObject = stream;
+  }, [stream, docCamPro, isRemoteShown]);
 
   useEffect(() => {
     // When the host Board becomes inactive, release the camera immediately so
@@ -60,6 +380,7 @@ export const WebcamWidget: React.FC<{
         existing.getTracks().forEach((track) => track.stop());
         if (videoRef.current) videoRef.current.srcObject = null;
       }
+      startedStreamRef.current = null;
       // eslint-disable-next-line react-hooks/set-state-in-effect -- clears state after releasing the camera
       setStream(null);
       return;
@@ -71,9 +392,12 @@ export const WebcamWidget: React.FC<{
     async function startCamera() {
       try {
         const constraints: MediaStreamConstraints = {
-          video: selectedDeviceId
-            ? { deviceId: { exact: selectedDeviceId } }
-            : { facingMode: 'user' },
+          video: {
+            ...(selectedDeviceId
+              ? { deviceId: { exact: selectedDeviceId } }
+              : { facingMode: 'user' }),
+            ...resolutionConstraints(constraintsKey),
+          },
           audio: false,
         };
 
@@ -89,6 +413,7 @@ export const WebcamWidget: React.FC<{
           videoRef.current.srcObject = mediaStream;
         }
         setError(null);
+        onCameraStarted(mediaStream);
         // Enumerate after the grant so ids are populated without a second getUserMedia.
         const allDevices = await navigator.mediaDevices
           .enumerateDevices()
@@ -96,7 +421,9 @@ export const WebcamWidget: React.FC<{
         if (cancelled) return;
         setDevices(allDevices.filter((d) => d.kind === 'videoinput'));
       } catch (err) {
+        if (cancelled) return;
         console.error('Error accessing webcam:', err);
+        if (onCameraFailed(err)) return;
         setError('Could not access webcam');
       }
     }
@@ -109,7 +436,16 @@ export const WebcamWidget: React.FC<{
         currentStream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [isActive, selectedDeviceId]);
+  }, [isActive, selectedDeviceId, constraintsKey, retryKey]);
+
+  // A Chromebook doc cam that is unplugged comes back on its own when plugged in again.
+  useEffect(() => {
+    if (!cameraLost || !isActive) return;
+    const media = navigator.mediaDevices;
+    const onChange = () => setRetryKey((k) => k + 1);
+    media.addEventListener?.('devicechange', onChange);
+    return () => media.removeEventListener?.('devicechange', onChange);
+  }, [cameraLost, isActive]);
 
   const switchCamera = useCallback(() => {
     if (devices.length < 2) return;
@@ -117,8 +453,11 @@ export const WebcamWidget: React.FC<{
       stream?.getVideoTracks()[0]?.getSettings().deviceId ?? selectedDeviceId;
     const currentIndex = devices.findIndex((d) => d.deviceId === currentId);
     const nextIndex = (currentIndex + 1) % devices.length;
+    // A different camera that fails to start is busy, not unplugged.
+    startedStreamRef.current = null;
     setSelectedDeviceId(devices[nextIndex].deviceId);
-  }, [devices, selectedDeviceId, stream]);
+    unfreeze();
+  }, [devices, selectedDeviceId, stream, unfreeze]);
 
   const performSendToNotes = useCallback(
     (text: string) => {
@@ -158,7 +497,10 @@ export const WebcamWidget: React.FC<{
     setIsExtracting(true);
     try {
       let dataUrl = '';
-      if (isRemote && widgetConfig.remoteCaptureDataUrl) {
+      if (docCamPro) {
+        dataUrl = captureDocCamView(false, true);
+        if (!dataUrl) throw new Error('Could not capture the camera view');
+      } else if (isRemote && widgetConfig.remoteCaptureDataUrl) {
         dataUrl = widgetConfig.remoteCaptureDataUrl;
       } else if (videoRef.current) {
         const canvas = document.createElement('canvas');
@@ -201,6 +543,8 @@ export const WebcamWidget: React.FC<{
       setIsExtracting(false);
     }
   }, [
+    captureDocCamView,
+    docCamPro,
     isMirrored,
     ocrMode,
     showAlert,
@@ -229,7 +573,9 @@ export const WebcamWidget: React.FC<{
   const takePhoto = useCallback(() => {
     let dataUrl = '';
 
-    if (widgetConfig.isRemoteMode && widgetConfig.remoteCaptureDataUrl) {
+    if (docCamPro) {
+      dataUrl = captureDocCamView(true);
+    } else if (widgetConfig.isRemoteMode && widgetConfig.remoteCaptureDataUrl) {
       dataUrl = widgetConfig.remoteCaptureDataUrl;
     } else if (videoRef.current) {
       const canvas = document.createElement('canvas');
@@ -260,6 +606,8 @@ export const WebcamWidget: React.FC<{
       setTimeout(() => setShowCaptureSuccess(false), 1500);
     }
   }, [
+    captureDocCamView,
+    docCamPro,
     isMirrored,
     widgetConfig.isRemoteMode,
     widgetConfig.remoteCaptureDataUrl,
@@ -288,6 +636,33 @@ export const WebcamWidget: React.FC<{
     }
   }, [showConfirm]);
 
+  const togglePick = useCallback((id: string) => {
+    setComparePick((prev) => {
+      if (!prev) return prev;
+      if (prev.includes(id)) return prev.filter((p) => p !== id);
+      return prev.length < 2 ? [...prev, id] : prev;
+    });
+  }, []);
+
+  const showCompare = useCallback(
+    (picks: readonly string[]) => {
+      if (picks.length !== 2) return;
+      const sides = picks.map((id): CompareSide | null => {
+        if (id === LIVE_COMPARE_ID) return { kind: 'live' };
+        const index = capturedItems.findIndex((c) => c.id === id);
+        if (index < 0) return null;
+        const { dataUrl } = capturedItems[index];
+        return { kind: 'photo', id, dataUrl, label: `Photo ${index + 1}` };
+      });
+      const [a, b] = sides;
+      if (!a || !b) return;
+      setCompareSides([a, b]);
+      setComparePick(null);
+      setShowGallery(false);
+    },
+    [capturedItems]
+  );
+
   const deletePhoto = useCallback((id: string) => {
     setCapturedItems((prev) => prev.filter((item) => item.id !== id));
   }, []);
@@ -306,7 +681,19 @@ export const WebcamWidget: React.FC<{
               action={
                 <button
                   {...tourAttr('webcam.retry-camera', _widget.id, _widget.type)}
-                  onClick={() => window.location.reload()}
+                  onClick={() => {
+                    if (!docCamPro) {
+                      window.location.reload();
+                      return;
+                    }
+                    setError(null);
+                    // A camera that never started gets the default camera, as the old reload did.
+                    if (!cameraLost) {
+                      startedStreamRef.current = null;
+                      setSelectedDeviceId('');
+                    }
+                    setRetryKey((k) => k + 1);
+                  }}
                   className="bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
                   style={{
                     fontSize: 'min(12px, 3cqmin)',
@@ -319,8 +706,83 @@ export const WebcamWidget: React.FC<{
             />
           ) : (
             <>
-              {widgetConfig.isRemoteMode &&
-              widgetConfig.remoteCaptureDataUrl ? (
+              {docCamPro ? (
+                <div
+                  ref={attachFeed}
+                  data-inking-surface=""
+                  className="absolute inset-0 overflow-hidden"
+                  style={{
+                    cursor:
+                      docCamView.zoom > 1
+                        ? isPanning
+                          ? 'grabbing'
+                          : 'grab'
+                        : undefined,
+                  }}
+                >
+                  {isRemoteShown ? (
+                    <img
+                      data-pii=""
+                      ref={remoteImgRef}
+                      src={widgetConfig.remoteCaptureDataUrl}
+                      alt="Remote Capture"
+                      draggable={false}
+                      onLoad={(e) =>
+                        setRemoteSize(naturalSizeOf(e.currentTarget))
+                      }
+                      className="absolute object-cover max-w-none select-none"
+                      style={{
+                        ...mediaBox(docCamView.rotation, feedSize),
+                        transform: mediaTransform(docCamView, false),
+                      }}
+                    />
+                  ) : (
+                    <video
+                      data-pii=""
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      onLoadedMetadata={(e) =>
+                        setVideoSize(videoSizeOf(e.currentTarget))
+                      }
+                      onResize={(e) =>
+                        setVideoSize(videoSizeOf(e.currentTarget))
+                      }
+                      className={`absolute object-cover max-w-none ${isFrozen ? 'invisible' : ''}`}
+                      style={{
+                        ...mediaBox(docCamView.rotation, feedSize),
+                        transform: mediaTransform(docCamView, isMirrored),
+                      }}
+                    />
+                  )}
+                  {isFrozen && frozenUrl && (
+                    <img
+                      data-pii=""
+                      ref={frozenImgRef}
+                      src={frozenUrl}
+                      alt="Frozen camera frame"
+                      draggable={false}
+                      className="absolute object-cover max-w-none select-none"
+                      style={{
+                        ...mediaBox(docCamView.rotation, feedSize),
+                        transform: mediaTransform(docCamView, isMirrored),
+                      }}
+                    />
+                  )}
+                  <DocCamInkLayer
+                    strokes={inkStrokes}
+                    frame={inkFrame}
+                    active={isDrawing}
+                    tool={inkTool}
+                    penColor={penColor}
+                    onStroke={(stroke) =>
+                      inkStack.push({ kind: 'add', object: stroke })
+                    }
+                  />
+                </div>
+              ) : widgetConfig.isRemoteMode &&
+                widgetConfig.remoteCaptureDataUrl ? (
                 <img
                   data-pii=""
                   src={widgetConfig.remoteCaptureDataUrl}
@@ -336,6 +798,77 @@ export const WebcamWidget: React.FC<{
                   muted
                   className={`w-full h-full object-cover transition-transform duration-500 ${isMirrored ? 'scale-x-[-1]' : 'scale-x-1'}`}
                 />
+              )}
+
+              {isFrozen && (
+                <div
+                  className="absolute flex items-center bg-black/70 text-white font-semibold rounded-lg z-30 pointer-events-none"
+                  style={{
+                    top: 'min(12px, 3cqmin)',
+                    left: 'min(12px, 3cqmin)',
+                    gap: 'min(6px, 1.5cqmin)',
+                    padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                    fontSize: 'min(13px, 3.25cqmin)',
+                  }}
+                  role="status"
+                >
+                  <Pause
+                    aria-hidden="true"
+                    style={{
+                      width: 'min(14px, 3.5cqmin)',
+                      height: 'min(14px, 3.5cqmin)',
+                    }}
+                  />
+                  Frozen
+                </div>
+              )}
+
+              {docCamPro && isDrawing && (
+                <DocCamInkToolbar
+                  widgetId={_widget.id}
+                  widgetType={_widget.type}
+                  tool={inkTool}
+                  penColor={penColor}
+                  canUndo={inkStack.canUndo}
+                  hasInk={inkStrokes.length > 0}
+                  onTool={setInkTool}
+                  onPenColor={setPenColor}
+                  onUndo={inkStack.undo}
+                  onClear={() =>
+                    inkStack.push({ kind: 'clear', objects: inkStrokes })
+                  }
+                />
+              )}
+
+              {docCamPro && (
+                <DocCamViewControls
+                  widgetId={_widget.id}
+                  widgetType={_widget.type}
+                  view={docCamView}
+                  disabled={isRemoteShown ? false : !stream}
+                  onZoomIn={zoomIn}
+                  onZoomOut={zoomOut}
+                  onRotate={rotate}
+                  onReset={resetView}
+                >
+                  {!isRemoteShown && (
+                    <DocCamQualityMenu
+                      widgetId={_widget.id}
+                      widgetType={_widget.type}
+                      resolution={resolution}
+                      controls={cameraControls}
+                      onResolution={(r) => {
+                        // The restart may find the old stream still holding the camera; that isn't an unplug.
+                        startedStreamRef.current = null;
+                        updateWidget(_widget.id, { config: { resolution: r } });
+                      }}
+                      onAutoFocus={(on) => void applyAutoMode('focusMode', on)}
+                      onAutoExposure={(on) =>
+                        void applyAutoMode('exposureMode', on)
+                      }
+                    />
+                  )}
+                </DocCamViewControls>
               )}
 
               {/* Controls Overlay */}
@@ -359,7 +892,7 @@ export const WebcamWidget: React.FC<{
                     disabled={
                       widgetConfig.isRemoteMode
                         ? !widgetConfig.remoteCaptureDataUrl
-                        : !stream
+                        : !stream && !isFrozen
                     }
                     className="hover:bg-white/30 rounded-2xl text-white disabled:opacity-30 disabled:cursor-not-allowed"
                     style={{ padding: 'min(12px, 2.5cqmin)' }}
@@ -372,6 +905,52 @@ export const WebcamWidget: React.FC<{
                       }}
                     />
                   </button>
+                  {docCamPro && !isRemoteShown && (
+                    <button
+                      {...tourAttr('webcam.freeze', _widget.id, _widget.type)}
+                      onClick={isFrozen ? unfreeze : freeze}
+                      disabled={!isFrozen && !stream}
+                      aria-pressed={isFrozen}
+                      aria-label="Freeze"
+                      className={`rounded-2xl text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed ${isFrozen ? 'bg-blue-500/30 text-blue-400' : 'hover:bg-white/30'}`}
+                      style={{ padding: 'min(12px, 2.5cqmin)' }}
+                      title={isFrozen ? 'Unfreeze' : 'Freeze'}
+                    >
+                      {isFrozen ? (
+                        <Play
+                          style={{
+                            width: 'min(20px, 5cqmin)',
+                            height: 'min(20px, 5cqmin)',
+                          }}
+                        />
+                      ) : (
+                        <Pause
+                          style={{
+                            width: 'min(20px, 5cqmin)',
+                            height: 'min(20px, 5cqmin)',
+                          }}
+                        />
+                      )}
+                    </button>
+                  )}
+                  {docCamPro && (
+                    <button
+                      {...tourAttr('webcam.draw', _widget.id, _widget.type)}
+                      onClick={() => setIsDrawing((on) => !on)}
+                      aria-pressed={isDrawing}
+                      aria-label="Draw"
+                      className={`rounded-2xl text-white transition-all ${isDrawing ? 'bg-blue-500/30 text-blue-400' : 'hover:bg-white/30'}`}
+                      style={{ padding: 'min(12px, 2.5cqmin)' }}
+                      title="Draw"
+                    >
+                      <Pencil
+                        style={{
+                          width: 'min(20px, 5cqmin)',
+                          height: 'min(20px, 5cqmin)',
+                        }}
+                      />
+                    </button>
+                  )}
                   <button
                     {...tourAttr(
                       'webcam.extract-text',
@@ -382,7 +961,7 @@ export const WebcamWidget: React.FC<{
                     disabled={
                       (widgetConfig.isRemoteMode
                         ? !widgetConfig.remoteCaptureDataUrl
-                        : !stream) || isExtracting
+                        : !stream && !isFrozen) || isExtracting
                     }
                     className={`rounded-2xl text-white transition-all ${isExtracting ? 'bg-blue-500/30 text-blue-400 animate-pulse' : 'hover:bg-white/30'}`}
                     style={{ padding: 'min(12px, 2.5cqmin)' }}
@@ -650,6 +1229,18 @@ export const WebcamWidget: React.FC<{
             </div>
           )}
 
+          {shownCompare && (
+            <DocCamCompare
+              widgetId={_widget.id}
+              widgetType={_widget.type}
+              sides={shownCompare}
+              stream={stream}
+              isMirrored={isMirrored}
+              rotation={docCamView.rotation}
+              onExit={() => setCompareSides(null)}
+            />
+          )}
+
           {/* Gallery Overlay */}
           {showGallery && (
             <div className="absolute inset-0 z-widget-internal-overlay bg-slate-950/95 backdrop-blur-md flex flex-col animate-in slide-in-from-bottom duration-300">
@@ -661,55 +1252,189 @@ export const WebcamWidget: React.FC<{
                   className="text-white uppercase tracking-widest"
                   style={{ fontSize: 'min(12px, 3cqmin)' }}
                 >
-                  Photo Gallery
+                  {comparePick ? 'Pick two to compare' : 'Photo Gallery'}
                 </h3>
-                <div
-                  className="flex items-center"
-                  style={{ gap: 'min(8px, 2cqmin)' }}
-                >
-                  <button
-                    {...tourAttr(
-                      'webcam.clear-gallery',
-                      _widget.id,
-                      _widget.type
-                    )}
-                    onClick={clearPhotos}
-                    className="hover:bg-white/30 rounded-lg text-red-400"
-                    style={{ padding: 'min(8px, 2cqmin)' }}
-                    title="Clear All"
+                {comparePick ? (
+                  <div
+                    className="flex items-center"
+                    style={{ gap: 'min(8px, 2cqmin)' }}
                   >
-                    <Trash2
+                    <button
+                      {...tourAttr(
+                        'webcam.compare-show',
+                        _widget.id,
+                        _widget.type
+                      )}
+                      onClick={() => showCompare(validPick ?? [])}
+                      disabled={validPick?.length !== 2}
+                      className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
                       style={{
-                        width: 'min(16px, 4cqmin)',
-                        height: 'min(16px, 4cqmin)',
+                        fontSize: 'min(12px, 3cqmin)',
+                        padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
                       }}
-                    />
-                  </button>
-                  <button
-                    {...tourAttr(
-                      'webcam.gallery-close',
-                      _widget.id,
-                      _widget.type
-                    )}
-                    onClick={() => setShowGallery(false)}
-                    className="hover:bg-white/30 rounded-lg text-white"
-                    style={{ padding: 'min(8px, 2cqmin)' }}
+                    >
+                      Show side by side
+                    </button>
+                    <button
+                      {...tourAttr(
+                        'webcam.compare-cancel',
+                        _widget.id,
+                        _widget.type
+                      )}
+                      onClick={() => setComparePick(null)}
+                      className="hover:bg-white/30 rounded-lg text-white"
+                      style={{
+                        fontSize: 'min(12px, 3cqmin)',
+                        padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className="flex items-center"
+                    style={{ gap: 'min(8px, 2cqmin)' }}
                   >
-                    <X
-                      style={{
-                        width: 'min(16px, 4cqmin)',
-                        height: 'min(16px, 4cqmin)',
+                    {docCamPro &&
+                      capturedItems.length + (liveComparable ? 1 : 0) >= 2 && (
+                        <button
+                          {...tourAttr(
+                            'webcam.compare',
+                            _widget.id,
+                            _widget.type
+                          )}
+                          onClick={() => setComparePick([])}
+                          className="relative touch-target-expand hover:bg-white/30 rounded-lg text-white"
+                          style={{ padding: 'min(8px, 2cqmin)' }}
+                          title="Compare"
+                          aria-label="Compare"
+                        >
+                          <Columns2
+                            style={{
+                              width: 'min(16px, 4cqmin)',
+                              height: 'min(16px, 4cqmin)',
+                            }}
+                          />
+                        </button>
+                      )}
+                    <button
+                      {...tourAttr(
+                        'webcam.clear-gallery',
+                        _widget.id,
+                        _widget.type
+                      )}
+                      onClick={clearPhotos}
+                      className="hover:bg-white/30 rounded-lg text-red-400"
+                      style={{ padding: 'min(8px, 2cqmin)' }}
+                      title="Clear All"
+                    >
+                      <Trash2
+                        style={{
+                          width: 'min(16px, 4cqmin)',
+                          height: 'min(16px, 4cqmin)',
+                        }}
+                      />
+                    </button>
+                    <button
+                      {...tourAttr(
+                        'webcam.gallery-close',
+                        _widget.id,
+                        _widget.type
+                      )}
+                      onClick={() => {
+                        setShowGallery(false);
+                        setComparePick(null);
                       }}
-                    />
-                  </button>
-                </div>
+                      className="hover:bg-white/30 rounded-lg text-white"
+                      style={{ padding: 'min(8px, 2cqmin)' }}
+                    >
+                      <X
+                        style={{
+                          width: 'min(16px, 4cqmin)',
+                          height: 'min(16px, 4cqmin)',
+                        }}
+                      />
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div
                 className="flex-1 overflow-y-auto custom-scrollbar"
                 style={{ padding: 'min(16px, 3.5cqmin)' }}
               >
-                {capturedItems.length === 0 ? (
+                {comparePick ? (
+                  <div
+                    className="grid grid-cols-2"
+                    style={{ gap: 'min(16px, 3.5cqmin)' }}
+                  >
+                    {[
+                      ...(liveComparable
+                        ? [{ id: LIVE_COMPARE_ID, dataUrl: null }]
+                        : []),
+                      ...capturedItems.map((c) => ({
+                        id: c.id,
+                        dataUrl: c.dataUrl,
+                      })),
+                    ].map((tile, index) => {
+                      const order = (validPick ?? []).indexOf(tile.id);
+                      const picked = order !== -1;
+                      return (
+                        // no-tour-anchor: one tile per photo; tours point at Compare and Show side by side
+                        <button
+                          key={tile.id}
+                          onClick={() => togglePick(tile.id)}
+                          aria-pressed={picked}
+                          aria-label={
+                            tile.dataUrl
+                              ? `Photo ${liveComparable ? index : index + 1}`
+                              : 'Live camera'
+                          }
+                          className={`relative aspect-video bg-white/10 rounded-xl overflow-hidden border-2 ${picked ? 'border-blue-400' : 'border-white/20 hover:border-white/50'}`}
+                        >
+                          {tile.dataUrl ? (
+                            <img
+                              data-pii=""
+                              src={tile.dataUrl}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span
+                              className="flex flex-col items-center justify-center h-full text-white/80"
+                              style={{
+                                gap: 'min(6px, 1.5cqmin)',
+                                fontSize: 'min(12px, 3cqmin)',
+                              }}
+                            >
+                              <Video
+                                style={{
+                                  width: 'min(20px, 5cqmin)',
+                                  height: 'min(20px, 5cqmin)',
+                                }}
+                              />
+                              Live camera
+                            </span>
+                          )}
+                          {picked && (
+                            <span
+                              className="absolute bg-blue-500 text-white font-bold rounded-md"
+                              style={{
+                                top: 'min(6px, 1.5cqmin)',
+                                left: 'min(6px, 1.5cqmin)',
+                                fontSize: 'min(12px, 3cqmin)',
+                                padding: '0 min(6px, 1.5cqmin)',
+                              }}
+                            >
+                              {order + 1}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : capturedItems.length === 0 ? (
                   <ScaledEmptyState
                     icon={FileText}
                     title="No photos yet"

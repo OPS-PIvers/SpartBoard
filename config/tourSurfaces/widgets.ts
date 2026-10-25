@@ -355,7 +355,10 @@ export const SURFACES: TourSurfaceMap = {
   'widgets.poll.settings': {
     label: 'Poll settings',
     kind: 'settings-drawer',
-    files: ['components/widgets/PollWidget/settingsFields.tsx'],
+    files: [
+      'components/widgets/PollWidget/settingsFields.tsx',
+      'components/widgets/PollWidget/components/SavedPollsPanel.tsx',
+    ],
     opensWith: 'widget.settings-opener',
     parent: 'widgets.poll.face',
     widgetType: 'poll',
@@ -474,6 +477,31 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'widget.settings-opener',
     parent: 'widgets.seating-chart.face',
     widgetType: 'seating-chart',
+    needs: ['widget-on-stage'],
+  },
+  'widgets.sound.face': {
+    label: 'Sound widget',
+    kind: 'widget',
+    files: ['components/widgets/SoundWidget/'],
+    widgetType: 'sound',
+    needs: ['widget-on-stage'],
+  },
+  'widgets.sound.summary': {
+    label: 'Sound session summary',
+    kind: 'panel',
+    files: ['components/widgets/SoundWidget/components/SessionSummary.tsx'],
+    opensWith: 'sound.summary',
+    parent: 'widgets.sound.face',
+    widgetType: 'sound',
+    needs: ['widget-on-stage'],
+  },
+  'widgets.sound.settings': {
+    label: 'Sound settings',
+    kind: 'settings-drawer',
+    files: ['components/widgets/SoundWidget/settingsFields.tsx'],
+    opensWith: 'widget.settings-opener',
+    parent: 'widgets.sound.face',
+    widgetType: 'sound',
     needs: ['widget-on-stage'],
   },
   'widgets.smart-notebook.face': {

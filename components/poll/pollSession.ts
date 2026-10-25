@@ -23,7 +23,11 @@ import type {
   PollSessionQuestion,
 } from '@/types';
 import { generatePollCode, normalizePollCode } from '@/utils/pollCode';
-import { clampQuestionIndex, getPollQuestions } from '@/utils/pollQuestions';
+import {
+  clampQuestionIndex,
+  getPollQuestions,
+  isTextQuestion,
+} from '@/utils/pollQuestions';
 
 const POLL_SESSIONS = 'poll_sessions';
 const CODE_MINT_RETRIES = 5;
@@ -38,7 +42,10 @@ export const makePollSessionId = (
 export interface PollVoteEntry {
   id: string;
   questionIndex?: number;
-  optionIndex: number;
+  /** Absent on word cloud and open response answers. */
+  optionIndex?: number;
+  text?: string;
+  votedAt?: number;
 }
 
 /**
@@ -50,8 +57,8 @@ export const aggregateVotes = (
   questionIndex: number,
   optionCount: number
 ): number[] => {
-  const explicit = new Map<string, number>();
-  const legacy = new Map<string, number>();
+  const explicit = new Map<string, number | undefined>();
+  const legacy = new Map<string, number | undefined>();
 
   for (const vote of votes) {
     // Pre-multi-question docs are keyed by uid alone and carry no
@@ -73,6 +80,7 @@ export const aggregateVotes = (
   const tally = new Array<number>(optionCount).fill(0);
   for (const optionIndex of explicit.values()) {
     if (
+      optionIndex !== undefined &&
       Number.isInteger(optionIndex) &&
       optionIndex >= 0 &&
       optionIndex < optionCount
@@ -85,13 +93,60 @@ export const aggregateVotes = (
 
 /** Strip vote counts — participants never need them to render their ballot. */
 export const toSessionQuestions = (
-  questions: PollQuestion[]
+  questions: PollQuestion[],
+  /** Without the poll-pro flag phones get plain options, matching the board. */
+  pollPro = true
 ): PollSessionQuestion[] =>
   questions.map((q) => ({
     id: q.id,
     question: q.question,
     options: q.options.map((o) => ({ id: o.id, label: o.label })),
+    ...(pollPro && q.kind === 'scale'
+      ? {
+          kind: 'scale' as const,
+          scaleLow: q.scaleLow ?? '',
+          scaleHigh: q.scaleHigh ?? '',
+        }
+      : {}),
+    ...(pollPro && (q.kind === 'words' || q.kind === 'text')
+      ? { kind: q.kind }
+      : {}),
   }));
+
+/** The session-doc mirror of the teacher's reveal and lock choices, keyed by question index. */
+export const toSessionResultsState = (
+  config: PollConfig,
+  /** Without the poll-pro flag the session always shows results and never locks. */
+  pollPro = true
+): Pick<
+  PollSessionDoc,
+  'hideResults' | 'revealedQuestions' | 'lockedQuestions' | 'shownAnswers'
+> => {
+  if (!pollPro) {
+    return {
+      hideResults: false,
+      revealedQuestions: [],
+      lockedQuestions: [],
+      shownAnswers: [],
+    };
+  }
+  const questions = getPollQuestions(config);
+  const indexesOf = (ids: string[] | undefined): number[] => {
+    const wanted = new Set(ids ?? []);
+    return questions.flatMap((q, i) => (wanted.has(q.id) ? [i] : []));
+  };
+  return {
+    hideResults: config.hideResults === true,
+    revealedQuestions: indexesOf(config.revealedQuestionIds),
+    lockedQuestions: indexesOf(config.lockedQuestionIds),
+    // Answers stay off the session doc until shown, since phones can read it.
+    shownAnswers: indexesOf(config.answerShownQuestionIds).flatMap((i) =>
+      questions[i].options.flatMap((o) =>
+        o.correct ? [`${questions[i].id}:${o.id}`] : []
+      )
+    ),
+  };
+};
 
 /** Mint a code no other session is already using. */
 const mintUniquePollCode = async (): Promise<string> => {
@@ -113,7 +168,8 @@ const writeSessionDoc = async (
   teacherUid: string,
   code: string,
   config: PollConfig,
-  state: { active: boolean; startedAt: number | null }
+  state: { active: boolean; startedAt: number | null },
+  pollPro = false
 ): Promise<number> => {
   const questions = getPollQuestions(config);
   const currentQuestionIndex = clampQuestionIndex(
@@ -124,12 +180,16 @@ const writeSessionDoc = async (
     id: code,
     teacherUid,
     code,
-    questions: toSessionQuestions(questions),
+    questions: toSessionQuestions(questions, pollPro),
     optionCounts: questions.map((q) => q.options.length),
+    textQuestions: pollPro
+      ? questions.flatMap((q, i) => (isTextQuestion(q) ? [i] : []))
+      : [],
     currentQuestionIndex,
     active: state.active,
     startedAt: state.startedAt,
     updatedAt: Date.now(),
+    ...toSessionResultsState(config, pollPro),
   };
   await setDoc(
     doc(db, POLL_SESSIONS, makePollSessionId(teacherUid, code)),
@@ -203,17 +263,33 @@ export const startPollSession = async (
   teacherUid: string,
   mode: 'fresh' | 'resume',
   /** Name the starter on the board, so members of a Synced or View-Only board see its votes. */
-  stampOwner = false
+  stampOwner = false,
+  /** The starter has the poll-pro flag, so hidden results and locks reach phones. */
+  pollPro = false
 ): Promise<PollConfig> => {
   const rotate = mode === 'fresh' && !!config.lastPollSessionId;
   const code =
     rotate || !config.joinCode ? await mintUniquePollCode() : config.joinCode;
-  const currentQuestionIndex = await writeSessionDoc(teacherUid, code, config, {
-    active: true,
-    startedAt: Date.now(),
-  });
+  // A fresh start hides and unlocks every question again; resume keeps them.
+  const base: PollConfig =
+    mode === 'fresh'
+      ? {
+          ...config,
+          revealedQuestionIds: [],
+          lockedQuestionIds: [],
+          answerShownQuestionIds: [],
+          hiddenResponses: [],
+        }
+      : config;
+  const currentQuestionIndex = await writeSessionDoc(
+    teacherUid,
+    code,
+    base,
+    { active: true, startedAt: Date.now() },
+    pollPro
+  );
   return {
-    ...config,
+    ...base,
     joinCode: code,
     activePollSessionId: code,
     activePollSessionOwnerUid: stampOwner ? teacherUid : null,
@@ -249,8 +325,22 @@ export const stopPollSession = async (
     activePollSessionId: null,
     activePollSessionOwnerUid: null,
     lastPollSessionId: active ?? config.lastPollSessionId ?? null,
+    lastPollSessionOwnerUid: active
+      ? (config.activePollSessionOwnerUid ?? null)
+      : (config.lastPollSessionOwnerUid ?? null),
   };
 };
+
+/** Drop a stopped session and its join code, so a later Start can't bring its votes back. */
+export const withStoppedSessionEnded = (config: PollConfig): PollConfig =>
+  config.activePollSessionId || !config.lastPollSessionId
+    ? config
+    : {
+        ...config,
+        joinCode: null,
+        lastPollSessionId: null,
+        lastPollSessionOwnerUid: null,
+      };
 
 /** Push the teacher's presentation cursor to every joined device. */
 export const setSessionQuestionIndex = async (
@@ -261,6 +351,19 @@ export const setSessionQuestionIndex = async (
   await setDoc(
     doc(db, POLL_SESSIONS, makePollSessionId(teacherUid, sessionId)),
     { currentQuestionIndex: questionIndex, updatedAt: Date.now() },
+    { merge: true }
+  );
+};
+
+/** Push the teacher's reveal and lock choices to every joined device (and the vote rules). */
+export const syncSessionResultsState = async (
+  teacherUid: string,
+  sessionId: string,
+  config: PollConfig
+): Promise<void> => {
+  await setDoc(
+    doc(db, POLL_SESSIONS, makePollSessionId(teacherUid, sessionId)),
+    { ...toSessionResultsState(config), updatedAt: Date.now() },
     { merge: true }
   );
 };
