@@ -15,7 +15,7 @@ describe('staleMirrors', () => {
       doc('d', { source: 'manual', orgId: 'other-org' }),
       doc('e', { source: 'organizationMembersSync' }),
     ];
-    expect(staleMirrors(docs).map((d) => d.id)).toEqual(['a']);
+    expect(staleMirrors(docs).map((d: { id: string }) => d.id)).toEqual(['a']);
   });
 });
 
