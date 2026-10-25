@@ -43,16 +43,19 @@ function makeCollectionSnap(share: FakeShare) {
   };
 }
 
+type FakePermission = Awaited<ReturnType<GoogleDriveService['getPermission']>>;
+
 function makeDriveService() {
   const deletePermission = vi.fn().mockResolvedValue(undefined);
   const trashFile = vi.fn().mockResolvedValue(undefined);
-  const getPermission = vi.fn((_fileId: string, permissionId: string) =>
-    Promise.resolve({
-      id: permissionId,
-      type: 'user',
-      role: 'reader',
-      emailAddress: 's@x',
-    })
+  const getPermission = vi.fn(
+    (_fileId: string, permissionId: string): Promise<FakePermission | null> =>
+      Promise.resolve({
+        id: permissionId,
+        type: 'user',
+        role: 'reader',
+        emailAddress: 's@x',
+      })
   );
   const getFileNameIfExists = vi.fn((fileId: string): Promise<string | null> =>
     Promise.resolve(`${fileId.replace(/^names-/, '')}-names.json`)
