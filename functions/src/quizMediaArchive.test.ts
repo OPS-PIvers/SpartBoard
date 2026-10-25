@@ -111,6 +111,7 @@ const LEGACY_PATH = `quiz_response_media/${SESSION_ID}/${STUDENT_UID}/${ARTIFACT
 interface SeedOptions {
   session?: Record<string, unknown>;
   response?: Record<string, unknown>;
+  paperPrivate?: Record<string, Record<string, unknown>>;
 }
 
 type Bag = Record<string, unknown>;
@@ -156,6 +157,20 @@ function makeStubDb(seed: SeedOptions) {
       writes.push(data);
       if (response) mergeInto(response, data);
       return Promise.resolve();
+    },
+    collection: (name: string) => {
+      if (name !== 'paperPrivate') {
+        throw new Error(`Unexpected subcollection ${name}`);
+      }
+      return {
+        doc: (id: string) => ({
+          get: () =>
+            Promise.resolve({
+              exists: !!seed.paperPrivate?.[id],
+              data: () => seed.paperPrivate?.[id],
+            }),
+        }),
+      };
     },
   };
   const sessionRef = {
@@ -1398,9 +1413,11 @@ describe('handwriting crops', () => {
         quizTitle: 'Unit 3 Essay',
         publicQuestions: [{ id: 'q0' }, { id: QUESTION_ID }],
       },
+      paperPrivate: { [QUESTION_ID]: { scanId: SCAN_ID, status: 'pending' } },
       response: {
         studentUid: 'pseudonym-1',
         pin: '12',
+        paperSeat: 3,
         answers: [
           {
             questionId: QUESTION_ID,
@@ -1658,6 +1675,101 @@ describe('handwriting crops', () => {
     expect(deps.deleteObject).toHaveBeenCalledWith(CROP_PATH);
     const entry = (response!.artifactArchive as Bag)[ARTIFACT_ID] as Bag;
     expect(entry.storageCleanupPending).toBeUndefined();
+  });
+
+  const VICTIM_PATH = `paper_written_crops/${TEACHER_UID}/${SCAN_ID}/4/${QUESTION_ID}.webp`;
+
+  it('refuses to archive another seat crop named in the artifacts', async () => {
+    const { db } = makeStubDb(cropSeed({ storagePath: VICTIM_PATH }));
+    const deps = cropDeps(db);
+    await expect(archiveAs(deps, null)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    expect(deps.uploadToDrive).not.toHaveBeenCalled();
+    expect(deps.deleteObject).not.toHaveBeenCalled();
+  });
+
+  it('refuses a seeded driveFileId entry pointing at another seat crop', async () => {
+    const seed = cropSeed({ storagePath: VICTIM_PATH });
+    seed.response!.artifactArchive = {
+      [ARTIFACT_ID]: { archiveStatus: 'failed', driveFileId: 'forged' },
+    };
+    const { db } = makeStubDb(seed);
+    const deps = cropDeps(db);
+    await expect(archiveAs(deps, null)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    expect(deps.deleteObject).not.toHaveBeenCalled();
+  });
+
+  it('refuses a crop when the response has no server-written seat or scan', async () => {
+    for (const mutate of [
+      (seed: SeedOptions) => delete seed.response!.paperSeat,
+      (seed: SeedOptions) => delete seed.paperPrivate,
+    ]) {
+      const seed = cropSeed();
+      mutate(seed);
+      const { db } = makeStubDb(seed);
+      const deps = cropDeps(db);
+      await expect(archiveAs(deps, null)).rejects.toMatchObject({
+        code: 'permission-denied',
+      });
+      expect(deps.deleteObject).not.toHaveBeenCalled();
+    }
+  });
+
+  it('archives only the expected object when a same-id artifact comes first', async () => {
+    const seed = cropSeed();
+    const answer = (seed.response!.answers as Bag[])[0];
+    answer.artifacts = [
+      { ...(answer.artifacts as Bag[])[0], storagePath: VICTIM_PATH },
+      ...(answer.artifacts as Bag[]),
+    ];
+    const { db } = makeStubDb(seed);
+    const deps = cropDeps(db);
+    await expect(
+      archiveQuizArtifactCore(
+        {
+          sessionId: SESSION_ID,
+          responseKey: RESPONSE_KEY,
+          questionId: QUESTION_ID,
+          artifactId: ARTIFACT_ID,
+          expectedStoragePath: CROP_PATH,
+          callerUid: null,
+        },
+        deps
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(deps.uploadToDrive).not.toHaveBeenCalled();
+    expect(deps.deleteObject).not.toHaveBeenCalled();
+  });
+
+  it('records the archived source path', async () => {
+    const { db, response } = makeStubDb(cropSeed());
+    await archiveAs(cropDeps(db), null);
+    const entry = (response!.artifactArchive as Bag)[ARTIFACT_ID] as Bag;
+    expect(entry.sourcePath).toBe(CROP_PATH);
+  });
+
+  it('refuses to clean up another seat crop', async () => {
+    const seed = cropSeed({ storagePath: VICTIM_PATH });
+    seed.response!.artifactArchive = {
+      [ARTIFACT_ID]: { storageCleanupPending: true },
+    };
+    const { db } = makeStubDb(seed);
+    const deps = cropDeps(db);
+    await expect(
+      retryStorageCleanup(
+        {
+          sessionId: SESSION_ID,
+          responseKey: RESPONSE_KEY,
+          questionId: QUESTION_ID,
+          artifactId: ARTIFACT_ID,
+        },
+        deps
+      )
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    expect(deps.deleteObject).not.toHaveBeenCalled();
   });
 });
 

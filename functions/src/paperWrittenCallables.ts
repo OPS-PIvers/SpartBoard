@@ -245,6 +245,13 @@ async function cropForArtifact(
   if (archiveStatus !== 'archived' || typeof entry?.driveFileId !== 'string') {
     return missing;
   }
+  // A Drive copy filed from any other object is never served for this crop.
+  if (
+    typeof entry.sourcePath === 'string' &&
+    entry.sourcePath !== storagePath
+  ) {
+    return missing;
+  }
   let bytes: Buffer;
   try {
     const token = await deps.getAccessToken(teacherUid);
@@ -795,6 +802,16 @@ export async function handleTranscribePaperBlank(
     );
   }
   const seat = seatOf(response, answer);
+  // Students can edit their answers, so the crop must be this seat's own.
+  if (
+    storagePath !==
+    paperCropStoragePath(caller.uid, scanId, seat, target.questionId)
+  ) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Only handwritten paper answers can be transcribed.'
+    );
+  }
   const page = await findBoxPage(
     deps.db,
     caller.uid,

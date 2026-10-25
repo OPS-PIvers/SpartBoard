@@ -4918,6 +4918,11 @@ service cloud.firestore {
           // Per-student publication and the answer key are teacher-written only.
           incoming().get('resultsOverride', null) == null &&
           incoming().get('revealedAnswers', null) == null &&
+          // Archive state and the paper seat are server-written; the archive pipeline trusts them.
+          incoming().get('artifactArchive', null) == null &&
+          incoming().get('hasStuckArchive', null) == null &&
+          incoming().get('paperSeat', null) == null &&
+          incoming().get('paperBatchId', null) == null &&
           // Review games: checkQuizGameAnswerV1 alone writes points, verdicts and answers.
           incoming().get('game', null) == null &&
           (sessionData().get('sessionMode', '') != 'game' ||

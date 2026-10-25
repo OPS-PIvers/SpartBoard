@@ -32,7 +32,7 @@ import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import {
   computeHasStuckArchive,
   deleteDriveFileById,
-  isArtifactStoragePathValid,
+  isArtifactStoragePathOwned,
   QUIZ_MEDIA_ARCHIVE_SECRETS,
   STUCK_ARCHIVE_AGE_MS,
 } from './quizMediaArchive';
@@ -958,7 +958,7 @@ export async function deleteOrgQuizMediaSets(
         });
         continue;
       }
-      const storagePath = isArtifactStoragePathValid({
+      const storagePath = (await isArtifactStoragePathOwned({
         kind: artifact.kind,
         storagePath: artifact.storagePath,
         sessionId: target.sessionId,
@@ -966,7 +966,9 @@ export async function deleteOrgQuizMediaSets(
         studentUid,
         teacherUid,
         questionId: target.questionId,
-      })
+        responseRef,
+        response: data,
+      }))
         ? artifact.storagePath
         : '';
 
@@ -1042,7 +1044,7 @@ export async function finishStuckMediaDelete(
   const rawPath = artifact?.storagePath ?? '';
   const storagePath =
     (claimed || entry.storageCleanupPending === true) &&
-    isArtifactStoragePathValid({
+    (await isArtifactStoragePathOwned({
       kind: artifact?.kind,
       storagePath: rawPath,
       sessionId: input.sessionId,
@@ -1050,7 +1052,9 @@ export async function finishStuckMediaDelete(
       studentUid,
       teacherUid,
       questionId: input.questionId,
-    })
+      responseRef,
+      response: data,
+    }))
       ? rawPath
       : '';
 

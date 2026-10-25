@@ -321,6 +321,25 @@ describe('getPaperWrittenCropV1', () => {
     expect(deps.getAccessToken).toHaveBeenCalledWith('t1');
   });
 
+  it('never serves a Drive copy archived from another crop', async () => {
+    const store = seed();
+    store[RESPONSE] = {
+      ...store[RESPONSE],
+      artifactArchive: {
+        hw_scan1_q1: {
+          archiveStatus: 'archived',
+          driveFileId: 'd1',
+          sourcePath: 'paper_written_crops/t1/scan1/4/q1.webp',
+        },
+      },
+    };
+    const { deps } = makeDeps(store, {}, { d1: 'victim-img' });
+    await expect(
+      handleGetPaperWrittenCrop(deps, TEACHER, target)
+    ).resolves.toEqual({ status: 'not-available', reason: 'missing' });
+    expect(deps.getAccessToken).not.toHaveBeenCalled();
+  });
+
   it('reports a deleted crop without reading anything', async () => {
     const store = seed();
     store[RESPONSE] = {
@@ -718,6 +737,27 @@ describe('transcribePaperBlankV1', () => {
     });
     // A finished job is left alone.
     expect(stub.get(`${JOBS}/scan1_3_1_0`)?.status).toBe('done');
+  });
+
+  it('refuses a blank answer whose artifact names another seat crop', async () => {
+    const store = seed();
+    const answers = (store[RESPONSE].answers as StubData[]).map((a) =>
+      a.questionId === 'q2'
+        ? {
+            ...a,
+            artifacts: (a.artifacts as StubData[]).map((art) => ({
+              ...art,
+              storagePath: 'paper_written_crops/t1/scan1/4/q2.webp',
+            })),
+          }
+        : a
+    );
+    store[RESPONSE] = { ...store[RESPONSE], answers };
+    const { deps } = makeDeps(store);
+    await expectCode(
+      handleTranscribePaperBlank(deps, TEACHER, blank),
+      'failed-precondition'
+    );
   });
 
   it('refuses an answer that is not blank', async () => {

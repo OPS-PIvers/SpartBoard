@@ -20,6 +20,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import {
+  hasQuizMediaStoragePrefix,
   isQuizMediaResponseGranted,
   isQuizWhiteboardResponseGranted,
   QUIZ_MEDIA_GOOGLE_SECRETS,
@@ -93,6 +94,7 @@ export interface PlaybackDeps {
 
 interface StoredArtifact {
   id?: unknown;
+  storagePath?: unknown;
   slot?: unknown;
   kind?: unknown;
   part?: unknown;
@@ -374,11 +376,24 @@ export async function resolveArtifactPlayback(
   const artifactId = take.artifact.id as string;
   const archive = (response.artifactArchive ?? {}) as Record<
     string,
-    { archiveStatus?: unknown; driveFileId?: unknown }
+    { archiveStatus?: unknown; driveFileId?: unknown; sourcePath?: unknown }
   >;
   const entry = archive[artifactId];
   const blocked = playbackBlockReason(entry);
   if (blocked) return { status: 'not-available', reason: blocked };
+  // A Drive copy filed from any object but this take's own transit file is never served.
+  if (
+    typeof entry.sourcePath === 'string' &&
+    (entry.sourcePath !== take.artifact.storagePath ||
+      !hasQuizMediaStoragePrefix(
+        entry.sourcePath,
+        sessionId,
+        responseKey,
+        callerUid
+      ))
+  ) {
+    return { status: 'not-available', reason: 'no-recording' };
+  }
 
   const driveFileId = entry.driveFileId as string;
   let bytes: Buffer;

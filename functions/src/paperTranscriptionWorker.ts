@@ -363,6 +363,7 @@ async function archiveBoxes(
         responseKey: job.responseKey,
         questionId: box.questionId,
         artifactId,
+        expectedStoragePath: box.storagePath,
       });
     } catch (error) {
       console.error('[paperTranscriptionWorker] archive failed', jobId, error);

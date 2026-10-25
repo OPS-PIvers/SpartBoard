@@ -407,6 +407,34 @@ describe('resolveArtifactPlayback', () => {
     );
   });
 
+  it('never serves a Drive copy archived from another object', async () => {
+    const own = 'quiz_response_media/s1/r1/a1.webm';
+    const docs = makeDocs({
+      response: {
+        studentUid: STUDENT,
+        answers: makeAnswers([1]).map((answer) => ({
+          ...answer,
+          artifacts: answer.artifacts.map((a) => ({ ...a, storagePath: own })),
+        })),
+        artifactArchive: {
+          a1: {
+            archiveStatus: 'archived',
+            driveFileId: 'drive-victim',
+            sourcePath: 'paper_written_crops/teacher/scan-1/4/q1.webp',
+          },
+        },
+      },
+    });
+    const download = vi.fn();
+    await expect(
+      resolveArtifactPlayback(
+        REQ,
+        makeDeps(docs, { downloadDriveFile: download })
+      )
+    ).resolves.toEqual({ status: 'not-available', reason: 'no-recording' });
+    expect(download).not.toHaveBeenCalled();
+  });
+
   it('returns the bytes for the owning student once published and archived', async () => {
     const result = await resolveArtifactPlayback(REQ, makeDeps(makeDocs()));
     expect(result).toMatchObject({
