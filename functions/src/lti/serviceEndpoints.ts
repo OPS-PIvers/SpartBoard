@@ -40,28 +40,13 @@ import {
   type LtiSessionKind,
 } from './nrpsStore';
 import { assertViewAsAllowed } from '../viewAsGuard';
+import { isVerifiedDistrictTeacher } from './teacherAuth';
 
 /** The Firestore session collection a launch `kind` targets. */
 function sessionCollectionForKind(kind: LtiSessionKind): string {
   return kind === 'va'
     ? VIDEO_ACTIVITY_SESSIONS_COLLECTION
     : QUIZ_SESSIONS_COLLECTION;
-}
-
-const DISTRICT_EMAIL = /^[^@]+@orono\.k12\.mn\.us$/i;
-
-/** True only for a verified district email that is not a student token. */
-function isVerifiedDistrictTeacher(token: {
-  email?: string;
-  email_verified?: boolean;
-  studentRole?: boolean;
-}): boolean {
-  return (
-    token.email_verified === true &&
-    typeof token.email === 'string' &&
-    DISTRICT_EMAIL.test(token.email) &&
-    token.studentRole !== true
-  );
 }
 
 const LTI_TOOL_PRIVATE_KEY = defineSecret('LTI_TOOL_PRIVATE_KEY');
