@@ -67,7 +67,7 @@ export const DocCamQualityMenu: React.FC<Props> = ({
         {...tourAttr('webcam.quality', widgetId, widgetType)}
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="hover:bg-white/30 rounded-xl text-white"
+        className="relative touch-target-expand hover:bg-white/30 rounded-xl text-white"
         style={{ padding: 'min(8px, 2cqmin)' }}
         title="Camera quality"
         aria-label="Camera quality"

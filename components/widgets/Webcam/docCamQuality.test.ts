@@ -30,4 +30,8 @@ describe('resolutionConstraints', () => {
   it('adds nothing for Automatic', () => {
     expect(resolutionConstraints('auto')).toEqual({});
   });
+
+  it('asks only for a width so a 4:3 camera keeps its shape', () => {
+    expect(resolutionConstraints('720p')).toEqual({ width: { ideal: 1280 } });
+  });
 });

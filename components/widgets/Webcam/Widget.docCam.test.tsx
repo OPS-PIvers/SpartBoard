@@ -345,7 +345,7 @@ describe('WebcamWidget camera quality', () => {
     render(<WebcamWidget widget={makeWidget({ resolution: '1080p' })} />);
     await waitFor(() => expect(gum()).toHaveBeenCalled());
     expect(gum().mock.calls[0][0]).toMatchObject({
-      video: { width: { ideal: 1920 }, height: { ideal: 1080 } },
+      video: { width: { ideal: 1920 } },
     });
   });
 
@@ -378,6 +378,47 @@ describe('WebcamWidget camera quality', () => {
     expect(screen.getByText('Camera disconnected')).toBeTruthy();
     fireEvent.click(screen.getByText('Retry Camera'));
     await waitFor(() => expect(gum()).toHaveBeenCalledTimes(2));
+  });
+
+  it('keeps waiting for an unplugged camera instead of falling back to another one', async () => {
+    const ended: Record<string, () => void> = {};
+    const streamOf = (deviceId: string) => ({
+      getTracks: () => [{ stop: vi.fn() }],
+      getVideoTracks: () => [
+        {
+          getSettings: () => ({ deviceId }),
+          addEventListener: (_: string, cb: () => void) => {
+            ended[deviceId] = cb;
+          },
+        },
+      ],
+    });
+    gum()
+      .mockResolvedValueOnce(streamOf('a'))
+      .mockResolvedValueOnce(streamOf('b'))
+      .mockRejectedValue(new DOMException('gone', 'OverconstrainedError'));
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia,
+        enumerateDevices: vi.fn().mockResolvedValue([
+          { kind: 'videoinput', deviceId: 'a' },
+          { kind: 'videoinput', deviceId: 'b' },
+        ]),
+      },
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    render(<WebcamWidget widget={makeWidget()} />);
+    fireEvent.click(await screen.findByTitle('Switch Camera'));
+    await waitFor(() => expect(ended.b).toBeDefined());
+    act(() => ended.b());
+    fireEvent.click(screen.getByText('Retry Camera'));
+    await waitFor(() => expect(gum()).toHaveBeenCalledTimes(3));
+    expect(gum().mock.calls[2][0]).toMatchObject({
+      video: { deviceId: { exact: 'b' } },
+    });
+    expect(await screen.findByText('Camera disconnected')).toBeTruthy();
+    expect(gum()).toHaveBeenCalledTimes(3);
   });
 
   it('shows the usual error, not Camera disconnected, when a camera is busy at start', async () => {

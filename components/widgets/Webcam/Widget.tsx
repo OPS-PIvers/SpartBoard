@@ -326,27 +326,23 @@ export const WebcamWidget: React.FC<{
       setError('Camera disconnected');
     });
   });
-  // True when the failure was handled: a remembered camera that's gone falls back to any camera.
+  // True when the failure was handled: an unplugged camera waits to come back, a stale remembered one falls back.
   const onCameraFailed = useEffectEvent((err: unknown): boolean => {
     if (!docCamPro) return false;
     const name = err instanceof DOMException ? err.name : '';
-    if (
-      selectedDeviceId &&
-      (name === 'OverconstrainedError' || name === 'NotFoundError')
-    ) {
-      setSelectedDeviceId('');
-      return true;
-    }
-    setCameraControls(NO_CAMERA_CONTROLS);
+    const gone = name === 'NotFoundError' || name === 'OverconstrainedError';
     // Only a camera that was working before counts as unplugged.
-    if (
-      startedStreamRef.current &&
-      (name === 'NotFoundError' || name === 'NotReadableError')
-    ) {
+    if (startedStreamRef.current && (gone || name === 'NotReadableError')) {
+      setCameraControls(NO_CAMERA_CONTROLS);
       setCameraLost(true);
       setError('Camera disconnected');
       return true;
     }
+    if (selectedDeviceId && gone) {
+      setSelectedDeviceId('');
+      return true;
+    }
+    setCameraControls(NO_CAMERA_CONTROLS);
     return false;
   });
 
@@ -376,6 +372,7 @@ export const WebcamWidget: React.FC<{
         existing.getTracks().forEach((track) => track.stop());
         if (videoRef.current) videoRef.current.srcObject = null;
       }
+      startedStreamRef.current = null;
       // eslint-disable-next-line react-hooks/set-state-in-effect -- clears state after releasing the camera
       setStream(null);
       return;
@@ -680,6 +677,8 @@ export const WebcamWidget: React.FC<{
                       return;
                     }
                     setError(null);
+                    // A camera that never started gets the default camera, as the old reload did.
+                    if (!cameraLost) setSelectedDeviceId('');
                     setRetryKey((k) => k + 1);
                   }}
                   className="bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"

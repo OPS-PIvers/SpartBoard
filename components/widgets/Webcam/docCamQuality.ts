@@ -7,10 +7,10 @@ export const RESOLUTION_OPTIONS: { id: DocCamResolution; label: string }[] = [
   { id: 'max', label: 'Best available' },
 ];
 
-const SIZES: Record<Exclude<DocCamResolution, 'auto'>, [number, number]> = {
-  '720p': [1280, 720],
-  '1080p': [1920, 1080],
-  max: [4096, 2160],
+const WIDTHS: Record<Exclude<DocCamResolution, 'auto'>, number> = {
+  '720p': 1280,
+  '1080p': 1920,
+  max: 4096,
 };
 
 export const normalizeResolution = (r: unknown): DocCamResolution =>
@@ -21,8 +21,8 @@ export const resolutionConstraints = (
   r: DocCamResolution
 ): MediaTrackConstraints => {
   if (r === 'auto') return {};
-  const [width, height] = SIZES[r];
-  return { width: { ideal: width }, height: { ideal: height } };
+  // Width only, so a 4:3 document camera keeps its own frame shape.
+  return { width: { ideal: WIDTHS[r] } };
 };
 
 // Focus and exposure aren't in TypeScript's DOM lib yet; Chrome reports them on camera tracks.
