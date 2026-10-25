@@ -314,6 +314,35 @@ describe('applyDocWrite', () => {
     expect(stub.has('grade_index/qs1__u1')).toBe(false);
   });
 
+  it("never deletes or overwrites another kind's row with the same id", async () => {
+    const other = { kind: 'mini-app', sessionId: 'qs1', studentUid: 'u1' };
+    const stub = seed({ 'grade_index/qs1__u1': other });
+    await applyWrite(
+      stub,
+      {
+        kind: 'quiz',
+        sessionId: 'qs1',
+        docId: 'u1',
+        before: completed(),
+        after: undefined,
+      },
+      NOW
+    );
+    expect(stub.get('grade_index/qs1__u1')).toEqual(other);
+    await applyWrite(
+      stub,
+      {
+        kind: 'quiz',
+        sessionId: 'qs1',
+        docId: 'u1',
+        before: undefined,
+        after: completed(),
+      },
+      NOW
+    );
+    expect(stub.get('grade_index/qs1__u1')).toEqual(other);
+  });
+
   it('builds one row per project group member', async () => {
     const stub = makeStubFirestore({
       'project_runs/t1_p1': {

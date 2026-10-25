@@ -300,6 +300,8 @@ async function writeRow(
   previous: Doc | undefined
 ): Promise<boolean> {
   if (sameRow(row, previous)) return false;
+  // Row ids carry no kind, so never overwrite another kind's row that shares the session id.
+  if (previous && previous.kind !== row.kind) return false;
   await db
     .collection(GRADE_INDEX)
     .doc(rowId(row.sessionId, row.studentUid))
@@ -320,6 +322,7 @@ async function writeRowIfNotNewer(
     const snap = await tx.get(ref);
     const current = snap.data();
     if (sameRow(row, current)) return false;
+    if (current && current.kind !== row.kind) return false;
     if (typeof current?.updatedAt === 'number' && current.updatedAt > startedAt)
       return false;
     tx.set(ref, row as unknown as Doc);
@@ -354,10 +357,15 @@ export function stableStringify(v: unknown): string {
 
 async function deleteRow(
   db: Firestore,
+  kind: GradeKind,
   sessionId: string,
   studentUid: string
 ): Promise<void> {
-  await db.collection(GRADE_INDEX).doc(rowId(sessionId, studentUid)).delete();
+  const ref = db.collection(GRADE_INDEX).doc(rowId(sessionId, studentUid));
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists && snap.data()?.kind === kind) tx.delete(ref);
+  });
 }
 
 /** Activity Wall: one row per author from their earliest submission. */
@@ -492,7 +500,8 @@ export async function applyDocWrite(
         ).data()
     );
     if (!w.after) {
-      for (const uid of memberUids) await deleteRow(db, w.sessionId, uid);
+      for (const uid of memberUids)
+        await deleteRow(db, w.kind, w.sessionId, uid);
       return memberUids.length;
     }
     for (const row of upserts) {
@@ -510,7 +519,7 @@ export async function applyDocWrite(
   if (!studentUid) return 0;
   const beforeUid = w.before ? studentUidFor(w.kind, w.docId, w.before) : null;
   if (beforeUid && beforeUid !== studentUid)
-    await deleteRow(db, w.sessionId, beforeUid);
+    await deleteRow(db, w.kind, w.sessionId, beforeUid);
 
   let score: RowScore | null;
   if (w.kind === 'activity-wall') {
@@ -520,7 +529,7 @@ export async function applyDocWrite(
     score = w.after ? ctx.score(studentUid, w.after) : null;
   }
   if (!score) {
-    await deleteRow(db, w.sessionId, studentUid);
+    await deleteRow(db, w.kind, w.sessionId, studentUid);
     return 1;
   }
   const prevSnap = await db
