@@ -144,6 +144,33 @@ describe.each(kinds)('%s syncGroupId', (shareColl) => {
     );
   });
 
+  it('the author can edit other fields while keeping syncGroupId', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `${shareColl}/linked`), {
+        originalAuthor: MEMBER_UID,
+        syncGroupId: GROUP_ID,
+        title: 'old',
+      });
+      await setDoc(doc(ctx.firestore(), `${shareColl}/plain`), {
+        originalAuthor: OUTSIDER_UID,
+        title: 'old',
+      });
+    });
+    await assertSucceeds(
+      setDoc(doc(as(MEMBER_UID), `${shareColl}/linked`), {
+        originalAuthor: MEMBER_UID,
+        syncGroupId: GROUP_ID,
+        title: 'new',
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(as(OUTSIDER_UID), `${shareColl}/plain`), { title: 'new' })
+    );
+    await assertFails(
+      updateDoc(doc(as(OUTSIDER_UID), `${shareColl}/linked`), { title: 'x' })
+    );
+  });
+
   it('the author cannot reassign originalAuthor on a linked share', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), `${shareColl}/forged`), {

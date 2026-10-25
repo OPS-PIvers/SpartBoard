@@ -2351,10 +2351,17 @@ export const useQuizAssignments = (
     const settings: QuizAssignmentSettings = migrateLegacyAssignmentShape(
       data.assignmentSettings as QuizAssignmentSettings & LegacyPlcShape
     );
+    // Hide Synced when the share's author has left the group; joining would be refused.
+    const offerSync =
+      !!data.syncGroupId &&
+      (await isSyncedQuizGroupParticipant(
+        data.syncGroupId,
+        data.originalAuthor
+      ));
     return {
       title: data.title,
       originalAuthor: data.originalAuthor,
-      ...(data.syncGroupId ? { syncGroupId: data.syncGroupId } : {}),
+      ...(offerSync ? { syncGroupId: data.syncGroupId } : {}),
       ...(settings.plc ? { plc: settings.plc } : {}),
     };
   }, []);
