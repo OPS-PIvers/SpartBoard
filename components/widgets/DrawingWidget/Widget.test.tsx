@@ -1706,6 +1706,96 @@ describe('DrawingWidget shape polish (whiteboard-pro)', () => {
     });
   });
 
+  it('tool shortcuts switch tools and show in tooltips', () => {
+    const { container, getByLabelText } = setup(true, { activeTool: 'pen' });
+    expect(getByLabelText('Pen').getAttribute('title')).toBe('Pen (P)');
+    const wrapper = container.querySelector('[data-selected-id]') as Element;
+    fireEvent.keyDown(wrapper, { key: 'h' });
+    expect(mockUpdateWidget).toHaveBeenLastCalledWith(
+      'drawing-shapes',
+      expect.objectContaining({
+        config: expect.objectContaining({
+          activeTool: 'highlighter',
+        }) as unknown,
+      })
+    );
+  });
+
+  it('flag off: no shortcuts and plain tooltips', () => {
+    const { container, getByLabelText } = setup(false, { activeTool: 'pen' });
+    expect(getByLabelText('Pen').getAttribute('title')).toBe('Pen');
+    const wrapper = container.querySelector('[data-selected-id]') as Element;
+    fireEvent.keyDown(wrapper, { key: 'e' });
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+
+  it('copy then paste on the same page adds an offset copy', () => {
+    const rect = {
+      id: 'r1',
+      kind: 'rect' as const,
+      z: 0,
+      x: 50,
+      y: 50,
+      w: 60,
+      h: 40,
+      stroke: '#000000',
+      strokeWidth: 4,
+    };
+    const { container } = setup(true, {
+      activeTool: 'select',
+      objects: [rect],
+    });
+    drag(container.querySelector('canvas') as Element, [80, 70], [80, 70]);
+    const wrapper = container.querySelector('[data-selected-id]') as Element;
+    const store = new Map<string, string>();
+    const clipboardData = {
+      setData: (t: string, v: string) => store.set(t, v),
+      getData: (t: string) => store.get(t) ?? '',
+      items: [],
+      files: [],
+    };
+    fireEvent.copy(wrapper, { clipboardData });
+    expect(store.get('text/plain')).toContain('"r1"');
+    fireEvent.paste(wrapper, { clipboardData });
+    const objs = lastObjects();
+    expect(objs).toHaveLength(2);
+    expect(objs[1]).toMatchObject({ kind: 'rect', x: 66, y: 66 });
+    expect(objs[1].id).not.toBe('r1');
+  });
+
+  it('pasting an object from a far-off spot centres it on screen', () => {
+    const { container } = setup(true, { activeTool: 'pen' });
+    const wrapper = container.querySelector('[data-selected-id]') as Element;
+    const text = JSON.stringify({
+      spartboardDrawing: 1,
+      objects: [
+        {
+          id: 'elsewhere',
+          kind: 'rect',
+          z: 3,
+          x: 2000,
+          y: 2000,
+          w: 100,
+          h: 50,
+          stroke: '#000000',
+          strokeWidth: 4,
+          authorUid: 'someone',
+        },
+      ],
+    });
+    fireEvent.paste(wrapper, {
+      clipboardData: { getData: () => text, items: [], files: [] },
+    });
+    const calls = mockUpdateWidget.mock.calls.map(
+      (c) => (c[1] as Partial<WidgetData>).config as DrawingConfig
+    );
+    const withObjects = calls.find((c) => objectsFromConfig(c).length === 1);
+    const pasted = objectsFromConfig(withObjects as DrawingConfig)[0];
+    expect(pasted).toMatchObject({ x: 150, y: 81, w: 100, h: 50 });
+    expect(pasted).not.toHaveProperty('authorUid');
+    expect(calls.some((c) => c.activeTool === 'select')).toBe(true);
+  });
+
   it('flag off: Ctrl+D does nothing', () => {
     const { container } = setup(false, {
       activeTool: 'select',

@@ -2523,6 +2523,13 @@
       "text": "Hide results until you reveal them, lock voting on a question, see how many students answered and show the correct answer."
     },
     {
+      "id": "drawing-whiteboard-tools-2026-10-25",
+      "widget": "drawing",
+      "date": "2026-10-25",
+      "text": "Zoom in and move around the page, mark up with a highlighter, point with a laser pointer and add sticky notes. Hold Shift for straight lines and even shapes, and duplicate, copy and paste items between boards.",
+      "feature": "whiteboard-pro"
+    },
+    {
       "id": "scoreboard-undo-points-2026-10-25",
       "widget": "scoreboard",
       "date": "2026-10-25",
