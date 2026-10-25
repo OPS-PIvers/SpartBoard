@@ -166,7 +166,7 @@ describe('ScheduleConfigurationPanel', () => {
       <ScheduleConfigurationPanel config={config} onChange={mockOnChange} />
     );
 
-    fireEvent.click(screen.getByTitle('Delete schedule'));
+    fireEvent.click(screen.getAllByTitle('Delete schedule')[0]);
 
     await waitFor(() => expect(mockOnChange).toHaveBeenCalled());
     const saved = mockOnChange.mock.calls[0][0] as ScheduleGlobalConfig;
