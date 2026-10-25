@@ -36,6 +36,7 @@ Prod moved to the OPSTech billing account on 2026-10-01; a $30/mo budget and Big
 - [ ] **Artifact Registry cleanup**: the dev deploy sets a 1-day policy on `spartboard-dev` (#4332), after which images are rebuilt on every functions deploy. Apply an equivalent policy to prod once its effect on build cache and deploy time is confirmed on dev. ~$2/mo. (S/LOW)
 - [ ] **Unused secrets**: confirm who uses `JULES_API_KEY` (2 versions) and `YOUTUBE_API_KEY` in prod; no deployed function references them. Disable (reversible) rather than delete. Never run `firebase functions:secrets:prune` — it destroys versions irreversibly with no dry run. (S/LOW)
 - [ ] **Stale budget**: the $20 "SpartBoard" budget on the personal billing account (01597B) still filters on the prod project and now covers nothing — delete it. (S/LOW)
+- [ ] **Poll upgrades** (`poll-pro`, docs/plans/shipped/POLL_PRO.md): after testing in prod, open Admin Settings > Access > Previews > Poll upgrades > Public, and OK the new wording listed in #4637, #4651, #4658 and the slice 4 PR. (S/LOW)
 
 ### Spec decisions blocking feature work
 
@@ -51,7 +52,7 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/plans/shipped/LIVE_TOUR_EDITOR.md`
 
-- [ ] After the `main` release that carries PR 1: `node scripts/convert-tour-slides.mjs --project prod` (dry run), then with `--write --confirm-prod`. Moves each tour step's slide into its thumbnail. (S)
+- [x] After the `main` release that carries PR 1: `node scripts/convert-tour-slides.mjs --project prod` (dry run), then with `--write --confirm-prod`. Moves each tour step's slide into its thumbnail. (S)
 
 #### `docs/plans/shipped/ACTIVITY_WALL_REDESIGN.md`
 

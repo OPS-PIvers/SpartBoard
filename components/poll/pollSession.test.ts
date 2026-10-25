@@ -40,8 +40,10 @@ import {
   ensurePollJoinCode,
   lookupPollSessionByCode,
   startPollSession,
+  toSessionResultsState,
   stopPollSession,
   setSessionQuestionIndex,
+  withStoppedSessionEnded,
 } from './pollSession';
 
 beforeEach(() => {
@@ -245,6 +247,20 @@ describe('startPollSession', () => {
 });
 
 describe('stopPollSession', () => {
+  it('remembers who ran a shared board session after it stops', async () => {
+    const next = await stopPollSession(
+      {
+        ...baseConfig,
+        joinCode: 'K3F9Q',
+        activePollSessionId: 'K3F9Q',
+        activePollSessionOwnerUid: 'colleague',
+      },
+      'colleague'
+    );
+    expect(next.activePollSessionOwnerUid).toBeNull();
+    expect(next.lastPollSessionOwnerUid).toBe('colleague');
+  });
+
   it('closes the session and parks the id for resume', async () => {
     const next = await stopPollSession(
       { ...baseConfig, joinCode: 'K3F9Q', activePollSessionId: 'K3F9Q' },
@@ -315,5 +331,242 @@ describe('setSessionQuestionIndex', () => {
       expect.objectContaining({ currentQuestionIndex: 2 }),
       { merge: true }
     );
+  });
+});
+
+describe('toSessionResultsState', () => {
+  const config: PollConfig = {
+    questions: [
+      { id: 'q1', question: 'A?', options: [] },
+      { id: 'q2', question: 'B?', options: [] },
+    ],
+    hideResults: true,
+    revealedQuestionIds: ['q2', 'gone'],
+    lockedQuestionIds: ['q1'],
+  };
+
+  it('maps question ids to the indexes the rules check', () => {
+    expect(toSessionResultsState(config)).toEqual({
+      hideResults: true,
+      revealedQuestions: [1],
+      lockedQuestions: [0],
+      shownAnswers: [],
+    });
+  });
+
+  it('defaults to visible and unlocked', () => {
+    expect(toSessionResultsState({ questions: config.questions })).toEqual({
+      hideResults: false,
+      revealedQuestions: [],
+      lockedQuestions: [],
+      shownAnswers: [],
+    });
+  });
+});
+
+describe('startPollSession results state', () => {
+  const hidden: PollConfig = {
+    ...baseConfig,
+    joinCode: 'K3F9Q',
+    lastPollSessionId: 'K3F9Q',
+    hideResults: true,
+    revealedQuestionIds: ['q-1'],
+    lockedQuestionIds: ['q-1'],
+  };
+  const written = () =>
+    mockSetDoc.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+
+  it('resume keeps reveals and locks for a poll-pro teacher', async () => {
+    const next = await startPollSession(
+      hidden,
+      'teacher-1',
+      'resume',
+      false,
+      true
+    );
+    expect(next.lockedQuestionIds).toEqual(hidden.lockedQuestionIds);
+    expect(written()).toMatchObject({
+      hideResults: true,
+      revealedQuestions: [0],
+      lockedQuestions: [0],
+    });
+  });
+
+  it('fresh clears reveals and locks', async () => {
+    const next = await startPollSession(
+      hidden,
+      'teacher-1',
+      'fresh',
+      false,
+      true
+    );
+    expect(next.revealedQuestionIds).toEqual([]);
+    expect(next.lockedQuestionIds).toEqual([]);
+    expect(written()).toMatchObject({
+      revealedQuestions: [],
+      lockedQuestions: [],
+    });
+  });
+
+  it('a teacher without poll-pro always opens a visible, unlocked session', async () => {
+    await startPollSession(hidden, 'teacher-1', 'resume');
+    expect(written()).toMatchObject({
+      hideResults: false,
+      revealedQuestions: [],
+      lockedQuestions: [],
+    });
+  });
+});
+
+describe('toSessionResultsState shown answers', () => {
+  const config: PollConfig = {
+    questions: [
+      {
+        id: 'q1',
+        question: 'A?',
+        options: [
+          { id: 'a', label: 'A', votes: 0 },
+          { id: 'b', label: 'B', votes: 0, correct: true },
+        ],
+      },
+      {
+        id: 'q2',
+        question: 'B?',
+        options: [{ id: 'c', label: 'C', votes: 0, correct: true }],
+      },
+    ],
+  };
+
+  it('writes no answers until a question is shown', () => {
+    expect(toSessionResultsState(config).shownAnswers).toEqual([]);
+  });
+
+  it('writes only shown questions as question:option id keys', () => {
+    expect(
+      toSessionResultsState({ ...config, answerShownQuestionIds: ['q1'] })
+        .shownAnswers
+    ).toEqual(['q1:b']);
+  });
+
+  it('never writes answers without the flag', () => {
+    expect(
+      toSessionResultsState(
+        { ...config, answerShownQuestionIds: ['q1'] },
+        false
+      ).shownAnswers
+    ).toEqual([]);
+  });
+
+  it('keeps correct flags out of the session questions', () => {
+    expect(
+      JSON.stringify(toSessionQuestions(config.questions ?? []))
+    ).not.toContain('correct');
+  });
+
+  it('keeps a rating scale and its end labels on the session question', () => {
+    const [q] = toSessionQuestions([
+      {
+        id: 'q-scale',
+        question: 'How sure?',
+        kind: 'scale',
+        scaleLow: 'Not sure',
+        options: [{ id: 'a', label: '1', votes: 2 }],
+      },
+    ]);
+    expect(q).toEqual({
+      id: 'q-scale',
+      question: 'How sure?',
+      kind: 'scale',
+      scaleLow: 'Not sure',
+      scaleHigh: '',
+      options: [{ id: 'a', label: '1' }],
+    });
+  });
+
+  it('sends a rating scale as plain options without the flag', () => {
+    const [q] = toSessionQuestions(
+      [
+        {
+          id: 'q-scale',
+          question: 'How sure?',
+          kind: 'scale',
+          options: [{ id: 'a', label: '1', votes: 0 }],
+        },
+      ],
+      false
+    );
+    expect(q.kind).toBeUndefined();
+  });
+});
+
+describe('word cloud and open response sessions', () => {
+  it('lists text questions for the rules only with the flag', async () => {
+    const config: PollConfig = {
+      joinCode: 'K3F9Q',
+      questions: [
+        {
+          id: 'q1',
+          question: 'Pick',
+          options: [{ id: 'a', label: 'A', votes: 0 }],
+        },
+        { id: 'q2', question: 'One word?', kind: 'words', options: [] },
+        { id: 'q3', question: 'Why?', kind: 'text', options: [] },
+      ],
+    };
+    await startPollSession(config, 'teacher-1', 'resume', false, true);
+    expect(mockSetDoc).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        optionCounts: [1, 0, 0],
+        textQuestions: [1, 2],
+      }),
+      { merge: true }
+    );
+    await startPollSession(config, 'teacher-1', 'resume', false, false);
+    expect(mockSetDoc).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ textQuestions: [] }),
+      { merge: true }
+    );
+  });
+
+  it('leaves typed answers out of option tallies', () => {
+    expect(
+      aggregateVotes(
+        [
+          { id: '0_a', questionIndex: 0, text: 'hello' },
+          { id: '0_b', questionIndex: 0, optionIndex: 1 },
+        ],
+        0,
+        2
+      )
+    ).toEqual([0, 1]);
+  });
+});
+
+describe('withStoppedSessionEnded', () => {
+  it('drops a stopped session and its code so Start mints a new one', () => {
+    expect(
+      withStoppedSessionEnded({
+        ...baseConfig,
+        joinCode: 'K3F9Q',
+        lastPollSessionId: 'K3F9Q',
+        lastPollSessionOwnerUid: 'teacher-1',
+      })
+    ).toMatchObject({
+      joinCode: null,
+      lastPollSessionId: null,
+      lastPollSessionOwnerUid: null,
+    });
+  });
+
+  it('leaves a live session alone', () => {
+    const live = {
+      ...baseConfig,
+      joinCode: 'K3F9Q',
+      activePollSessionId: 'K3F9Q',
+      lastPollSessionId: 'K3F9Q',
+    };
+    expect(withStoppedSessionEnded(live)).toBe(live);
   });
 });

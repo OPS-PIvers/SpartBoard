@@ -2,6 +2,11 @@ import React, { useCallback, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
+  CircleCheck,
+  Eye,
+  EyeOff,
+  Lock,
+  LockOpen,
   Plus,
   Minus,
   QrCode,
@@ -13,7 +18,7 @@ import { WidgetData, PollConfig } from '@/types';
 import { useBoardLinkedShareId } from '@/context/boardLinkedShare';
 import { useAuth } from '@/context/useAuth';
 import { buildPollJoinUrl } from '@/utils/pollCode';
-import { withPollQuestions, withQuestionAt } from '@/utils/pollQuestions';
+import { isTextQuestion, withQuestionAt } from '@/utils/pollQuestions';
 import { usePollSession } from '@/hooks/usePollSession';
 import {
   startPollSession,
@@ -71,13 +76,24 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
     canGoPrev,
     canGoNext,
     goToQuestion,
+    resultsHidden,
+    isLocked,
+    setRevealed,
+    setLocked,
+    resetVotes,
+    hasCorrectAnswer,
+    answerShown,
+    setAnswerShown,
   } = usePollSession({
     config,
     teacherUid: foreignSession ? (sessionOwnerUid ?? undefined) : user?.uid,
     onConfigChange: applyConfig,
+    endSessionOnReset: canAccessFeature('poll-pro'),
   });
 
   const options = currentQuestion?.options ?? [];
+  // Word cloud and open response questions take typed answers, so they have no options.
+  const isText = !!currentQuestion && isTextQuestion(currentQuestion);
   const showNavigation = questions.length > 1;
 
   const [showQr, setShowQr] = useState(false);
@@ -109,18 +125,6 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
     );
   };
 
-  const resetVotes = () => {
-    applyConfig(
-      withPollQuestions(
-        config,
-        questions.map((q) => ({
-          ...q,
-          options: q.options.map((opt) => ({ ...opt, votes: 0 })),
-        }))
-      )
-    );
-  };
-
   const beginSession = async (mode: 'fresh' | 'resume') => {
     if (!user) return;
     setShowResumePopover(false);
@@ -130,7 +134,8 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
           config,
           user.uid,
           mode,
-          canAccessFeature('shared-board-live-walls')
+          canAccessFeature('shared-board-live-walls'),
+          canAccessFeature('poll-pro')
         )
       );
     } catch (err) {
@@ -250,7 +255,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
         ) : (
           <button
             onClick={handleStartClick}
-            disabled={options.length === 0}
+            disabled={options.length === 0 && !isText}
             style={{ touchAction: 'manipulation' }}
             className="touch-manipulation flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-black text-lg shadow-lg transition-all active:scale-95 disabled:opacity-40 bg-green-500 hover:bg-green-600 text-white"
             aria-label="Start voting"
@@ -259,9 +264,60 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
           </button>
         )}
 
+        {/* Reveal and lock — the teacher's phone always shows tallies, the board waits for Show results */}
+        {canAccessFeature('poll-pro') &&
+          (!boardShareId ||
+            !config.activePollSessionId ||
+            sessionOwnerUid === user?.uid) &&
+          (config.hideResults === true || isLive || hasCorrectAnswer) && (
+            <div className="grid grid-cols-2 gap-2">
+              {config.hideResults === true && (
+                <button // no-tour-anchor: phone remote, tours run on the board
+                  onClick={() => setRevealed(resultsHidden)}
+                  style={{ touchAction: 'manipulation' }}
+                  className="touch-manipulation flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold transition-all active:scale-95"
+                  aria-pressed={!resultsHidden}
+                >
+                  {resultsHidden ? (
+                    <Eye className="w-5 h-5" />
+                  ) : (
+                    <EyeOff className="w-5 h-5" />
+                  )}
+                  {resultsHidden ? 'Show results' : 'Hide results'}
+                </button>
+              )}
+              {isLive && (
+                <button // no-tour-anchor: phone remote, tours run on the board
+                  onClick={() => setLocked(!isLocked)}
+                  style={{ touchAction: 'manipulation' }}
+                  className="touch-manipulation flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold transition-all active:scale-95"
+                  aria-pressed={isLocked}
+                >
+                  {isLocked ? (
+                    <LockOpen className="w-5 h-5" />
+                  ) : (
+                    <Lock className="w-5 h-5" />
+                  )}
+                  {isLocked ? 'Unlock voting' : 'Lock voting'}
+                </button>
+              )}
+              {hasCorrectAnswer && (
+                <button // no-tour-anchor: phone remote, tours run on the board
+                  onClick={() => setAnswerShown(!answerShown)}
+                  style={{ touchAction: 'manipulation' }}
+                  className="touch-manipulation flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold transition-all active:scale-95"
+                  aria-pressed={answerShown}
+                >
+                  <CircleCheck className="w-5 h-5" />
+                  {answerShown ? 'Hide answer' : 'Show answer'}
+                </button>
+              )}
+            </div>
+          )}
+
         {/* Join QR toggle — gated by anonymous-join, only meaningful while live */}
         {isLive && canOfferAnonymousJoin && (
-          <button
+          <button // no-tour-anchor: phone remote, tours run on the board
             onClick={() => setShowQr((v) => !v)}
             style={{ touchAction: 'manipulation' }}
             className={`touch-manipulation flex items-center justify-center gap-2 px-6 py-3 rounded-xl border font-bold transition-all active:scale-95 ${
@@ -309,7 +365,11 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
 
       {/* Tallies */}
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
-        {options.length === 0 ? (
+        {isText ? (
+          <div className="flex-1 flex items-center justify-center text-white/40 text-sm">
+            Answers show on the board.
+          </div>
+        ) : options.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-white/40 text-sm italic">
             No options — configure in widget settings.
           </div>

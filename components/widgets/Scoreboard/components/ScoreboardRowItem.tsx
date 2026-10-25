@@ -1,6 +1,10 @@
 import React from 'react';
 import { ScoreboardTeam } from '@/types';
-import { Plus, Minus } from 'lucide-react';
+import { Plus, Minus, Crown } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import type { LeaderMark } from '../points';
+import { formatScoreDelta } from '../history';
+import { useCountUp } from '../useCountUp';
 
 import { ScoreboardColor, normalizeScoreboardColor } from '@/config/scoreboard';
 import { tourFieldAttr } from '@/config/tourAnchors';
@@ -29,6 +33,8 @@ const COLOR_TEXT: Record<ScoreboardColor, string> = {
   'bg-slate-600': 'text-slate-700',
 };
 
+const DEFAULT_POINTS: readonly number[] = [1];
+
 const getText = (color: string) =>
   COLOR_TEXT[color as ScoreboardColor] ?? 'text-blue-700';
 
@@ -38,13 +44,32 @@ export const ScoreboardRowItem = React.memo(
     rank,
     widgetId,
     onUpdateScore,
+    position,
+    pointValues = DEFAULT_POINTS,
+    leader = null,
+    pro = false,
   }: {
     team: ScoreboardTeam;
     rank: number;
     widgetId?: string;
     onUpdateScore: (id: string, delta: number) => void;
+    /** Row position for tour keys; defaults to rank. */
+    position?: number;
+    pointValues?: readonly number[];
+    leader?: LeaderMark;
+    /** Count-up score and names that wrap to two lines instead of cutting off. */
+    pro?: boolean;
   }) => {
-    const fieldKey = `team-${rank}`;
+    const { t } = useTranslation();
+    const shownScore = useCountUp(team.score, pro);
+    const fieldKey = `team-${position ?? rank}`;
+    const multi = pointValues.length > 1;
+    const amountButtonClass = `bg-white ${getText(normalizeScoreboardColor(team.color))} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all font-black tabular-nums leading-none`;
+    const amountButtonStyle: React.CSSProperties = {
+      fontSize: 'min(11px, 3.5cqmin)',
+      padding: 'min(4px, 1cqmin) min(6px, 1.5cqmin)',
+      minWidth: 'min(28px, 7cqmin)',
+    };
     // Normalize the persisted color through the known-palette set before
     // it lands in className — an unknown value would interpolate into
     // `bg-something-500` that Tailwind has no rule for, leaving white
@@ -74,11 +99,31 @@ export const ScoreboardRowItem = React.memo(
 
         {/* Name */}
         <span
-          className="flex-1 font-bold text-white truncate min-w-0"
+          className={`flex-1 font-bold text-white min-w-0 ${pro ? 'line-clamp-2 break-words leading-tight' : 'truncate'}`}
           style={{ fontSize: 'min(13px, 4cqmin)' }}
         >
           {team.name}
         </span>
+
+        {leader && (
+          <span
+            className="flex items-center font-bold text-white shrink-0"
+            style={{
+              fontSize: 'min(11px, 3.5cqmin)',
+              gap: 'min(3px, 0.8cqmin)',
+            }}
+          >
+            <Crown
+              aria-hidden="true"
+              style={{ width: '1.1em', height: '1.1em' }}
+            />
+            <span className="[@container(max-width:359px)]:sr-only">
+              {leader === 'tied'
+                ? t('widgets.scoreboard.tied')
+                : t('widgets.scoreboard.leader')}
+            </span>
+          </span>
+        )}
 
         {/* Score */}
         <span
@@ -89,53 +134,102 @@ export const ScoreboardRowItem = React.memo(
             textAlign: 'right',
           }}
         >
-          {team.score}
+          {shownScore}
         </span>
 
         {/* Buttons */}
-        <div
-          className="flex items-center shrink-0"
-          style={{ gap: 'min(4px, 1cqmin)' }}
-        >
-          <button
-            onClick={() => onUpdateScore(team.id, -1)}
-            aria-label="Decrease score"
-            {...tourFieldAttr(
-              'scoreboard.remove-point',
-              'scoreboard',
-              fieldKey
-            )}
-            data-tour-widget={widgetId}
-            className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all`}
-            style={{
-              padding: 'min(4px, 1cqmin)',
-            }}
+        {multi ? (
+          <div
+            className="flex items-center shrink-0"
+            style={{ gap: 'min(4px, 1cqmin)' }}
           >
-            <Minus
-              style={{
-                width: 'min(12px, 3.5cqmin)',
-                height: 'min(12px, 3.5cqmin)',
-              }}
-            />
-          </button>
-          <button
-            onClick={() => onUpdateScore(team.id, 1)}
-            aria-label="Increase score"
-            {...tourFieldAttr('scoreboard.add-point', 'scoreboard', fieldKey)}
-            data-tour-widget={widgetId}
-            className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all`}
-            style={{
-              padding: 'min(4px, 1cqmin)',
-            }}
+            <button
+              onClick={() => onUpdateScore(team.id, -pointValues[0])}
+              aria-label={t('widgets.scoreboard.removePoints', {
+                count: pointValues[0],
+              })}
+              {...tourFieldAttr(
+                'scoreboard.remove-point',
+                'scoreboard',
+                fieldKey
+              )}
+              data-tour-widget={widgetId}
+              className={amountButtonClass}
+              style={amountButtonStyle}
+            >
+              {formatScoreDelta(-pointValues[0])}
+            </button>
+            {pointValues.map((value, i) => (
+              <button
+                key={value}
+                onClick={() => onUpdateScore(team.id, value)}
+                aria-label={t('widgets.scoreboard.addPoints', {
+                  count: value,
+                })}
+                {...(i === 0
+                  ? tourFieldAttr(
+                      'scoreboard.add-point',
+                      'scoreboard',
+                      fieldKey
+                    )
+                  : tourFieldAttr(
+                      'scoreboard.add-point-amount',
+                      'scoreboard',
+                      `${fieldKey}-${i + 1}`
+                    ))}
+                data-tour-widget={widgetId}
+                className={amountButtonClass}
+                style={amountButtonStyle}
+              >
+                {formatScoreDelta(value)}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div
+            className="flex items-center shrink-0"
+            style={{ gap: 'min(4px, 1cqmin)' }}
           >
-            <Plus
+            <button
+              onClick={() => onUpdateScore(team.id, -1)}
+              aria-label="Decrease score"
+              {...tourFieldAttr(
+                'scoreboard.remove-point',
+                'scoreboard',
+                fieldKey
+              )}
+              data-tour-widget={widgetId}
+              className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all`}
               style={{
-                width: 'min(12px, 3.5cqmin)',
-                height: 'min(12px, 3.5cqmin)',
+                padding: 'min(4px, 1cqmin)',
               }}
-            />
-          </button>
-        </div>
+            >
+              <Minus
+                style={{
+                  width: 'min(12px, 3.5cqmin)',
+                  height: 'min(12px, 3.5cqmin)',
+                }}
+              />
+            </button>
+            <button
+              onClick={() => onUpdateScore(team.id, 1)}
+              aria-label="Increase score"
+              {...tourFieldAttr('scoreboard.add-point', 'scoreboard', fieldKey)}
+              data-tour-widget={widgetId}
+              className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all`}
+              style={{
+                padding: 'min(4px, 1cqmin)',
+              }}
+            >
+              <Plus
+                style={{
+                  width: 'min(12px, 3.5cqmin)',
+                  height: 'min(12px, 3.5cqmin)',
+                }}
+              />
+            </button>
+          </div>
+        )}
       </div>
     );
   },
@@ -148,7 +242,12 @@ export const ScoreboardRowItem = React.memo(
       prevProps.team.name === nextProps.team.name &&
       prevProps.team.score === nextProps.team.score &&
       prevProps.team.color === nextProps.team.color &&
-      prevProps.team.linkedGroupId === nextProps.team.linkedGroupId
+      prevProps.team.linkedGroupId === nextProps.team.linkedGroupId &&
+      prevProps.position === nextProps.position &&
+      prevProps.pro === nextProps.pro &&
+      prevProps.leader === nextProps.leader &&
+      (prevProps.pointValues ?? DEFAULT_POINTS).join() ===
+        (nextProps.pointValues ?? DEFAULT_POINTS).join()
     );
   }
 );

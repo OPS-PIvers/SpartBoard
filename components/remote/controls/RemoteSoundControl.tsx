@@ -1,5 +1,7 @@
 import React from 'react';
 import { WidgetData, SoundConfig } from '@/types';
+import { useAuth } from '@/context/useAuth';
+import { NOISE_METER_PRO } from '@/components/widgets/SoundWidget/noiseTarget';
 
 interface RemoteSoundControlProps {
   widget: WidgetData;
@@ -13,12 +15,18 @@ const VISUALS: { value: SoundConfig['visual']; label: string; icon: string }[] =
     { value: 'line', label: 'Line', icon: '〰️' },
     { value: 'balls', label: 'Balls', icon: '⚫' },
   ];
+const LEVEL_VISUAL = { value: 'level', label: 'Level', icon: '🔢' } as const;
 
 export const RemoteSoundControl: React.FC<RemoteSoundControlProps> = ({
   widget,
   updateWidget,
 }) => {
   const config = widget.config as SoundConfig;
+  const pro = useAuth().canAccessFeature(NOISE_METER_PRO);
+  const visuals = pro ? [...VISUALS, LEVEL_VISUAL] : VISUALS;
+  // Without the flag a saved Level face shows the Thermometer, so the remote does too.
+  const shownVisual =
+    config.visual === 'level' && !pro ? 'thermometer' : config.visual;
 
   const setSensitivity = (value: number) =>
     updateWidget(widget.id, { config: { ...config, sensitivity: value } });
@@ -73,8 +81,8 @@ export const RemoteSoundControl: React.FC<RemoteSoundControlProps> = ({
           Visual Style
         </div>
         <div className="grid grid-cols-2 gap-2">
-          {VISUALS.map(({ value, label, icon }) => {
-            const isActive = config.visual === value;
+          {visuals.map(({ value, label, icon }) => {
+            const isActive = shownVisual === value;
             return (
               <button
                 key={value}

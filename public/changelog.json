@@ -2514,5 +2514,48 @@
       ]
     }
   ],
-  "widgetNotes": []
+  "widgetNotes": [
+    {
+      "id": "poll-pro-2026-10-25",
+      "widget": "poll",
+      "date": "2026-10-25",
+      "feature": "poll-pro",
+      "text": "Hide results until you reveal them, lock voting, show the correct answer, and ask rating scale, word cloud and open response questions. Settings show every question's results, export them, and save a poll to use again."
+    },
+    {
+      "id": "drawing-whiteboard-tools-2026-10-25",
+      "widget": "drawing",
+      "date": "2026-10-25",
+      "text": "Zoom in and move around the page, mark up with a highlighter, point with a laser pointer and add sticky notes. Hold Shift for straight lines and even shapes, and duplicate, copy and paste items between boards.",
+      "feature": "whiteboard-pro"
+    },
+    {
+      "id": "scoreboard-undo-points-2026-10-25",
+      "widget": "scoreboard",
+      "date": "2026-10-25",
+      "text": "Undo takes back the last score change and History shows each team's recent changes. You can also pick point buttons like +5 and +10, and the leading team gets a crown.",
+      "feature": "scoreboard-pro"
+    },
+    {
+      "id": "2026-10-25-seating-chart-plans",
+      "widget": "seating-chart",
+      "date": "2026-10-25",
+      "text": "With a class roster, save several seating plans per board, keep chosen students apart or up front when shuffling, and print the chart with names in seats.",
+      "feature": "seating-chart-plans"
+    },
+    {
+      "id": "sound-noise-meter-pro",
+      "widget": "sound",
+      "date": "2026-10-25",
+      "text": "Set a target level and the meter shows Too loud when the class goes over. You can also calibrate to your room, set a quiet time goal that adds a Scoreboard point, see time at each level, or show the level in large type.",
+      "feature": "noise-meter-pro"
+    },
+    {
+      "id": "webcam-document-camera",
+      "widget": "webcam",
+      "date": "2026-10-25",
+      "text": "Camera now works like a document camera. Zoom in, turn the picture, freeze it, draw on it, compare two photos side by side, and pick a sharper resolution.",
+      "feature": "document-camera-pro"
+    }
+  ]
 }

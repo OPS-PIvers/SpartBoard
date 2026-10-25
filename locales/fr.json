@@ -1582,6 +1582,21 @@
       "play": "Démarrer",
       "pause": "Pause",
       "reset": "Réinitialiser"
+    },
+    "scoreboard": {
+      "undo": "Annuler",
+      "undoShortcut": "Annuler le dernier changement de score (Ctrl+Z)",
+      "history": "Historique",
+      "scores": "Scores",
+      "recentChanges": "Changements récents",
+      "noChanges": "Aucun changement",
+      "reset": "Remise à zéro",
+      "leader": "En tête",
+      "tied": "Égalité",
+      "addPoints_one": "Ajouter {{count}} point",
+      "addPoints_other": "Ajouter {{count}} points",
+      "removePoints_one": "Retirer {{count}} point",
+      "removePoints_other": "Retirer {{count}} points"
     }
   },
   "boardBreadcrumb": {
@@ -3753,7 +3768,16 @@
       "replaceTeamsBody_other": "Cela remplace les {{count}} équipes de ce tableau, avec leurs scores.",
       "replaceTeamsConfirm": "Remplacer",
       "classTeamName": "Équipe {{count}}",
-      "membersTitle": "Membres issus du groupe de la classe"
+      "membersTitle": "Membres issus du groupe de la classe",
+      "sortByScore": "Trier par score",
+      "pointButtons": "Boutons de points",
+      "pointPreset": {
+        "1": "+1",
+        "1-2-3": "+1, +2, +3",
+        "1-5-10": "+1, +5, +10",
+        "5-10-25": "+5, +10, +25",
+        "10-50-100": "+10, +50, +100"
+      }
     },
     "checklist": {
       "poolGroup": "Puiser dans",
