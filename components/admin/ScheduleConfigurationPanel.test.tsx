@@ -148,6 +148,36 @@ describe('ScheduleConfigurationPanel', () => {
     expect(saved.buildingDefaults.b1.items).toEqual([]);
   });
 
+  it('drops special-day overrides that point at a deleted schedule', async () => {
+    const base = mockConfig.buildingDefaults.b1;
+    const config: ScheduleGlobalConfig = {
+      buildingDefaults: {
+        b1: {
+          ...base,
+          schedules: [
+            ...(base.schedules ?? []),
+            { id: 's2', name: 'Early', items: [], days: [] },
+          ],
+          dateOverrides: { '2026-11-01': 's1', '2026-11-02': 's2' },
+        },
+      },
+    };
+    render(
+      <ScheduleConfigurationPanel config={config} onChange={mockOnChange} />
+    );
+
+    fireEvent.click(screen.getAllByTitle('Delete schedule')[0]);
+
+    await waitFor(() => expect(mockOnChange).toHaveBeenCalled());
+    const saved = mockOnChange.mock.calls[0][0] as ScheduleGlobalConfig;
+    expect(saved.buildingDefaults.b1.schedules?.map((s) => s.id)).toEqual([
+      's2',
+    ]);
+    expect(saved.buildingDefaults.b1.dateOverrides).toEqual({
+      '2026-11-02': 's2',
+    });
+  });
+
   it('sorts items by time when Sort button is clicked', () => {
     const StatefulWrapper = () => {
       const [config, setConfig] = useState(mockConfig);

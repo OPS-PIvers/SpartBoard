@@ -9,6 +9,7 @@ import { KeyRound, Loader2, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { TestAndKeyUploader } from '@/components/common/library/importer/TestAndKeyUploader';
 import type { QuizData, QuizQuestion } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 import type { SavedKeyFill } from '@/utils/quizDocumentImport';
 import { readKeyDocument } from '@/utils/quizDocumentImport/readTestAndKey';
 import type { UploadedDocument } from '@/utils/quizDocumentImport/uploadIntake';
@@ -181,6 +182,7 @@ export const AnswerKeyFillModal: React.FC<AnswerKeyFillModalProps> = ({
         onClick={onClose}
         aria-label="Close"
         className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+        {...tourAttr('answer-key-fill.close')}
       >
         <X className="h-5 w-5" />
       </button>
@@ -194,6 +196,7 @@ export const AnswerKeyFillModal: React.FC<AnswerKeyFillModalProps> = ({
           type="button"
           onClick={() => setStep('setup')}
           className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+          {...tourAttr('answer-key-fill.back')}
         >
           Back
         </button>
@@ -202,6 +205,7 @@ export const AnswerKeyFillModal: React.FC<AnswerKeyFillModalProps> = ({
           onClick={() => void apply()}
           disabled={result.filled.length === 0}
           className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
+          {...tourAttr('answer-key-fill.apply')}
         >
           {keyFillLabel(result.filled.length)}
         </button>
@@ -212,6 +216,7 @@ export const AnswerKeyFillModal: React.FC<AnswerKeyFillModalProps> = ({
           type="button"
           onClick={onClose}
           className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+          {...tourAttr('answer-key-fill.cancel')}
         >
           Cancel
         </button>

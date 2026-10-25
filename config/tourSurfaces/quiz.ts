@@ -153,6 +153,12 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'quiz-editor.whiteboard-preview:quiz',
     files: [`${C}WhiteboardStartingPagePreviewModal.tsx`],
   },
+  // Opens from the editor and the library card menu, only for imported keyless questions, so it has no single opener.
+  'quiz.answer-key-fill': {
+    label: 'Fill answer key dialog',
+    kind: 'shared',
+    files: [`${C}AnswerKeyFill.tsx`],
+  },
   'quiz.editor.save-to-bank': {
     label: 'Save questions to bank dialog',
     kind: 'modal',
@@ -300,6 +306,7 @@ export const SURFACES: TourSurfaceMap = {
       `${C}RubricStrandChips.tsx`,
       `${C}TimedNotesList.tsx`,
       `${C}WhiteboardAnnotatedResponseView.tsx`,
+      `${C}ResponseQuotesFrame.tsx`,
     ],
   },
   'quiz.rubric-scoring': {
