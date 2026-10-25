@@ -7,8 +7,8 @@ describe('noise meter target', () => {
     expect(resolveTargetLevel(0, false, 2)).toBe(0);
   });
 
-  it('falls back to its own target when Expectations has no level', () => {
-    expect(resolveTargetLevel(1, true, null)).toBe(1);
+  it('has no target while synced to Expectations with no level', () => {
+    expect(resolveTargetLevel(1, true, null)).toBeNull();
   });
 
   it('has no target at Outside, which nothing can exceed', () => {

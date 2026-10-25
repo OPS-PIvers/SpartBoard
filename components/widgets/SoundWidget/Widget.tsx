@@ -69,14 +69,22 @@ export const SoundWidget: React.FC<{
   // Pro smooths the reading so the meter and the alert don't flicker.
   const smoothRef = useRef(pro);
   const smoothedRef = useRef(0);
+  // Pro sync sets the target, so the sensitivity the old sync saved stays out of it.
+  const effectiveSensitivity = pro && syncExpectations ? 1 : sensitivity;
   useEffect(() => {
-    sensitivityRef.current = sensitivity;
+    sensitivityRef.current = effectiveSensitivity;
     smoothRef.current = pro;
-  }, [sensitivity, pro]);
+  }, [effectiveSensitivity, pro]);
 
+  const expectationsWidgets =
+    activeDashboard?.widgets.filter((w) => w.type === 'expectations') ?? [];
+  // Prefer the Expectations widget the teacher synced, as its settings intend.
   const expectationsVoiceLevel = (
-    activeDashboard?.widgets.find((w) => w.type === 'expectations')?.config as
-      ExpectationsConfig | undefined
+    (
+      expectationsWidgets.find(
+        (w) => (w.config as ExpectationsConfig).syncSoundWidget
+      ) ?? expectationsWidgets[0]
+    )?.config as ExpectationsConfig | undefined
   )?.voiceLevel;
   const limit = pro
     ? targetLimit(

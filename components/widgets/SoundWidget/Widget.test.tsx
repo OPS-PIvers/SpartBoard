@@ -390,6 +390,32 @@ describe('SoundWidget', () => {
       expect(screen.getByText('Too loud')).toBeInTheDocument();
     });
 
+    it('ignores the sensitivity an old sync saved while pro sync sets the target', async () => {
+      mockActiveDashboard.widgets = [
+        {
+          id: 'expectations-1',
+          type: 'expectations',
+          config: { voiceLevel: 0 },
+        } as unknown as WidgetData,
+      ];
+      mockGetByteFrequencyData.mockImplementation((array: Uint8Array) => {
+        array.fill(3);
+      });
+      render(
+        <SoundWidget
+          widget={createWidget({ syncExpectations: true, sensitivity: 5 })}
+        />
+      );
+      await act(async () => {
+        await Promise.resolve();
+      });
+      act(() => {
+        vi.advanceTimersByTime(6000);
+      });
+      expect(screen.queryByText('Too loud')).toBeNull();
+      expect(screen.getByText(/Silence/)).toBeInTheDocument();
+    });
+
     it('drops the alert while the board is hidden', async () => {
       mockGetByteFrequencyData.mockImplementation((array: Uint8Array) => {
         array.fill(255);

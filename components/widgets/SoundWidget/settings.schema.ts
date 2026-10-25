@@ -43,8 +43,7 @@ export default defineSettings<SoundConfig>({
           min: 0.5,
           max: 5,
           step: 0.1,
-          // Pro sync sets the target instead, so the slider stays usable.
-          disabledWhen: (ctx) => isExpectationsSyncEnabled(ctx) && !isPro(ctx),
+          disabledWhen: isExpectationsSyncEnabled,
         },
         {
           key: 'targetLevel',

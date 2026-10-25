@@ -25,13 +25,9 @@ export const resolveTargetLevel = (
   syncExpectations: boolean,
   expectationsVoiceLevel: unknown
 ): number | null => {
-  if (
-    syncExpectations &&
-    typeof expectationsVoiceLevel === 'number' &&
-    Number.isInteger(expectationsVoiceLevel)
-  ) {
+  // While synced the widget's own target is hidden, so it never applies.
+  if (syncExpectations)
     return isLevel(expectationsVoiceLevel) ? expectationsVoiceLevel : null;
-  }
   return isLevel(targetLevel) ? targetLevel : null;
 };
 
