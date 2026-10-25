@@ -300,8 +300,6 @@ async function writeRow(
   previous: Doc | undefined
 ): Promise<boolean> {
   if (sameRow(row, previous)) return false;
-  // Row ids carry no kind, so never overwrite another kind's row that shares the session id.
-  if (previous && (previous.kind ?? row.kind) !== row.kind) return false;
   await db
     .collection(GRADE_INDEX)
     .doc(rowId(row.sessionId, row.studentUid))
@@ -322,7 +320,6 @@ async function writeRowIfNotNewer(
     const snap = await tx.get(ref);
     const current = snap.data();
     if (sameRow(row, current)) return false;
-    if (current && (current.kind ?? row.kind) !== row.kind) return false;
     if (typeof current?.updatedAt === 'number' && current.updatedAt > startedAt)
       return false;
     tx.set(ref, row as unknown as Doc);

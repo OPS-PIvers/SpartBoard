@@ -314,8 +314,8 @@ describe('applyDocWrite', () => {
     expect(stub.has('grade_index/qs1__u1')).toBe(false);
   });
 
-  it("never deletes or overwrites another kind's row with the same id", async () => {
-    const other = { kind: 'mini-app', sessionId: 'qs1', studentUid: 'u1' };
+  it("never deletes another kind's row, and the session's own write takes the id back", async () => {
+    const other = { kind: 'projects', sessionId: 'qs1', studentUid: 'u1' };
     const stub = seed({ 'grade_index/qs1__u1': other });
     await applyWrite(
       stub,
@@ -340,7 +340,7 @@ describe('applyDocWrite', () => {
       },
       NOW
     );
-    expect(stub.get('grade_index/qs1__u1')).toEqual(other);
+    expect(stub.get('grade_index/qs1__u1')).toMatchObject({ kind: 'quiz' });
   });
 
   it('builds one row per project group member', async () => {
