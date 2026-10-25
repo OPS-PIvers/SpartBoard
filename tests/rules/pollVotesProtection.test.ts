@@ -30,6 +30,8 @@ import {
   deleteDoc,
   doc,
   collection,
+  query,
+  where,
 } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-poll-votes-protection-test';
@@ -618,5 +620,60 @@ describe('poll answers — word cloud and open response', () => {
   it('lets only the teacher delete answers', async () => {
     await assertFails(deleteDoc(answerRef(asAnonVoter(), `1_${OTHER_UID}`)));
     await assertSucceeds(deleteDoc(answerRef(asTeacher(), `1_${OTHER_UID}`)));
+  });
+});
+
+describe('poll session discovery', () => {
+  const sessions = (db: ReturnType<typeof asTeacher>) =>
+    collection(db, 'poll_sessions');
+
+  it('denies an unfiltered list to anonymous users and other teachers', async () => {
+    await assertFails(getDocs(sessions(asAnonVoter())));
+    await assertFails(getDocs(sessions(asOtherTeacher())));
+  });
+
+  it('lets the owner list only their own sessions', async () => {
+    await assertSucceeds(
+      getDocs(
+        query(sessions(asTeacher()), where('teacherUid', '==', TEACHER_UID))
+      )
+    );
+    await assertFails(getDocs(sessions(asTeacher())));
+  });
+
+  it('resolves a session by code pointer but never lists pointers', async () => {
+    const pointer = {
+      sessionId: `${TEACHER_UID}_ABCDE`,
+      teacherUid: TEACHER_UID,
+      updatedAt: 1,
+    };
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'poll_codes/ABCDE'), pointer);
+    });
+    await assertSucceeds(getDoc(doc(asAnonVoter(), 'poll_codes/ABCDE')));
+    await assertSucceeds(getDoc(doc(asTeacher(), 'poll_codes/ABCDE')));
+    await assertSucceeds(
+      getDoc(doc(asAnonVoter(), `poll_sessions/${ACTIVE_SESSION_ID}`))
+    );
+    await assertFails(getDocs(collection(asAnonVoter(), 'poll_codes')));
+    await assertFails(getDocs(collection(asTeacher(), 'poll_codes')));
+  });
+
+  it('leaves every pointer write to the server', async () => {
+    const pointer = {
+      sessionId: `${TEACHER_UID}_ABCDE`,
+      teacherUid: TEACHER_UID,
+      updatedAt: 1,
+    };
+    for (const db of [asAnonVoter(), asTeacher(), asOtherTeacher()]) {
+      await assertFails(setDoc(doc(db, 'poll_codes/ABCDE'), pointer));
+      await assertFails(deleteDoc(doc(db, 'poll_codes/ABCDE')));
+    }
+    await assertFails(
+      setDoc(doc(asOtherTeacher(), `poll_sessions/teacher-other_ZZZZZ`), {
+        teacherUid: TEACHER_UID,
+        code: 'ZZZZZ',
+      })
+    );
   });
 });

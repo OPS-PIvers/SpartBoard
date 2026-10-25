@@ -40,8 +40,14 @@ vi.mock('firebase/firestore', () => ({
     }),
 }));
 
+const { authState } = vi.hoisted(() => ({
+  authState: { superAdmins: ['admin@test.com'] as string[] },
+}));
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ user: { email: 'admin@test.com' } }),
+  useAuth: () => ({
+    user: { email: 'admin@test.com' },
+    userRoles: { superAdmins: authState.superAdmins },
+  }),
 }));
 
 const { addToast } = vi.hoisted(() => ({ addToast: vi.fn() }));
@@ -251,6 +257,18 @@ describe('PreviewsPanel', () => {
     expect(setDocMock.mock.calls[0][0].path).toBe('admin_settings/view_as');
     expect(setDocMock.mock.calls[0][1]).toEqual({ allowUnlock: true });
     expect(setDocMock.mock.calls[0][2]).toEqual({ merge: true });
+  });
+
+  it('locks super-admin-only switches for an org admin', async () => {
+    authState.superAdmins = [];
+    try {
+      await renderPanel();
+      fireEvent.click(district('Super admin View as'));
+      fireEvent.click(district('Substitutes can start an activity'));
+      expect(setDocMock).not.toHaveBeenCalled();
+    } finally {
+      authState.superAdmins = ['admin@test.com'];
+    }
   });
 
   it('writes {enabled:false} when a switch is turned off', async () => {

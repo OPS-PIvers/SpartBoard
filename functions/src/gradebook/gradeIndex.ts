@@ -354,10 +354,15 @@ export function stableStringify(v: unknown): string {
 
 async function deleteRow(
   db: Firestore,
+  kind: GradeKind,
   sessionId: string,
   studentUid: string
 ): Promise<void> {
-  await db.collection(GRADE_INDEX).doc(rowId(sessionId, studentUid)).delete();
+  const ref = db.collection(GRADE_INDEX).doc(rowId(sessionId, studentUid));
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists && (snap.data()?.kind ?? kind) === kind) tx.delete(ref);
+  });
 }
 
 /** Activity Wall: one row per author from their earliest submission. */
@@ -492,7 +497,8 @@ export async function applyDocWrite(
         ).data()
     );
     if (!w.after) {
-      for (const uid of memberUids) await deleteRow(db, w.sessionId, uid);
+      for (const uid of memberUids)
+        await deleteRow(db, w.kind, w.sessionId, uid);
       return memberUids.length;
     }
     for (const row of upserts) {
@@ -510,7 +516,7 @@ export async function applyDocWrite(
   if (!studentUid) return 0;
   const beforeUid = w.before ? studentUidFor(w.kind, w.docId, w.before) : null;
   if (beforeUid && beforeUid !== studentUid)
-    await deleteRow(db, w.sessionId, beforeUid);
+    await deleteRow(db, w.kind, w.sessionId, beforeUid);
 
   let score: RowScore | null;
   if (w.kind === 'activity-wall') {
@@ -520,7 +526,7 @@ export async function applyDocWrite(
     score = w.after ? ctx.score(studentUid, w.after) : null;
   }
   if (!score) {
-    await deleteRow(db, w.sessionId, studentUid);
+    await deleteRow(db, w.kind, w.sessionId, studentUid);
     return 1;
   }
   const prevSnap = await db
@@ -543,7 +549,11 @@ export async function recomputeSession(
     .collection(GRADE_INDEX)
     .where('sessionId', '==', sessionId)
     .get();
-  const existing = new Map(existingSnap.docs.map((d) => [d.id, d.data()]));
+  const existing = new Map(
+    existingSnap.docs
+      .filter((d) => (d.data().kind ?? kind) === kind)
+      .map((d) => [d.id, d.data()])
+  );
   const startedAt = now;
   const ctx = await loadSessionContext(db, kind, sessionId);
   const keep = new Set<string>();

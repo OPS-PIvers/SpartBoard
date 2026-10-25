@@ -26,3 +26,37 @@ export const fetchJsonWithRetry = async (
     await sleep(2000 * attempt);
   }
 };
+
+// PATCH replaces the whole doc, so retrying network errors and 5xx is idempotent.
+export const patchWithRetry = async (
+  url,
+  init,
+  label,
+  {
+    maxAttempts = 3,
+    timeoutMs = 20_000,
+    sleep = (ms) => new Promise((r) => setTimeout(r, ms)),
+  } = {}
+) => {
+  for (let attempt = 1; ; attempt++) {
+    let res;
+    try {
+      res = await fetch(url, {
+        ...init,
+        method: 'PATCH',
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (res.ok) return;
+    } catch (err) {
+      if (attempt >= maxAttempts) throw err;
+      await sleep(2000 * attempt);
+      continue;
+    }
+    if (attempt >= maxAttempts || res.status < 500) {
+      throw new Error(
+        `Firestore ${res.status} writing ${label}: ${await res.text()}`
+      );
+    }
+    await sleep(2000 * attempt);
+  }
+};

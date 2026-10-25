@@ -47,6 +47,11 @@ interface DriveFileCreateResponse {
   name: string;
 }
 
+/** Escape backslash then single quote for Drive q-string literals. */
+function driveQueryEscape(s: string): string {
+  return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
 export class GoogleDriveService {
   private accessToken: string;
   private onTokenExpire: (() => Promise<string | null>) | undefined;
@@ -165,9 +170,9 @@ export class GoogleDriveService {
     folderName: string,
     parentId?: string
   ): Promise<string | null> {
-    let query = `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+    let query = `name = '${driveQueryEscape(folderName)}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
     if (parentId) {
-      query += ` and '${parentId}' in parents`;
+      query += ` and '${driveQueryEscape(parentId)}' in parents`;
     }
     const folders = await this.listFiles(query);
     return folders.length > 0 ? folders[0].id : null;
@@ -215,9 +220,9 @@ export class GoogleDriveService {
     folderName: string,
     parentId?: string
   ): Promise<string> {
-    let query = `name = '${folderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+    let query = `name = '${driveQueryEscape(folderName)}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
     if (parentId) {
-      query += ` and '${parentId}' in parents`;
+      query += ` and '${driveQueryEscape(parentId)}' in parents`;
     }
 
     const folders = await this.listFiles(query);
@@ -381,9 +386,11 @@ export class GoogleDriveService {
     }
 
     // Fallback: Check if file exists by name to update or create
-    const existingFiles = await this.listFiles(
-      `name = '${fileName}' and '${folderId}' in parents and trashed = false`
-    );
+    const existingFiles = (
+      await this.listFiles(
+        `name = '${driveQueryEscape(fileName)}' and '${driveQueryEscape(folderId)}' in parents and trashed = false`
+      )
+    ).filter((f) => f.name === fileName);
 
     if (existingFiles.length > 0) {
       // Update existing
@@ -692,6 +699,57 @@ export class GoogleDriveService {
         `Failed to delete Drive permission ${permissionId}: ${response.status} ${body.slice(0, 200)}`
       );
     }
+  }
+
+  /** One permission on a file, or null when it (or the file) is already gone. */
+  async getPermission(
+    fileId: string,
+    permissionId: string
+  ): Promise<{
+    id: string;
+    emailAddress?: string;
+    role?: string;
+    type?: string;
+  } | null> {
+    const response = await this.fetchWithRetry(
+      `${DRIVE_API_URL}/files/${fileId}/permissions/${permissionId}?fields=id,type,role,emailAddress`,
+      { headers: this.headers }
+    );
+    if (response.status === 404) return null;
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw authError('Google Drive access expired. Please sign in again.');
+      }
+      const body = await response.text();
+      throw new Error(
+        `Failed to read Drive permission ${permissionId}: ${response.status} ${body.slice(0, 200)}`
+      );
+    }
+    return (await response.json()) as {
+      id: string;
+      emailAddress?: string;
+      role?: string;
+      type?: string;
+    };
+  }
+
+  /** A file's name, or null when the file is already gone. */
+  async getFileNameIfExists(fileId: string): Promise<string | null> {
+    const response = await this.fetchWithRetry(
+      `${DRIVE_API_URL}/files/${fileId}?fields=name`,
+      { headers: this.headers }
+    );
+    if (response.status === 404) return null;
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw authError('Google Drive access expired. Please sign in again.');
+      }
+      throw new Error(
+        `Failed to read Drive file ${fileId}: ${response.status}`
+      );
+    }
+    const data = (await response.json()) as { name?: string };
+    return data.name ?? '';
   }
 
   /**

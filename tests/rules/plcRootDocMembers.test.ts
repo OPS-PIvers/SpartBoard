@@ -175,12 +175,12 @@ const seedPendingInvite = async (emailLower: string, status = 'pending') => {
 };
 
 // ===========================================================================
-// (1) READ gate — members-map key OR denormalized memberUids; non-member denied
+// (1) READ gate — denormalized memberUids only; a bare map entry or non-member denied
 // ===========================================================================
 
 describe('plcs/{plcId} read — members-map gate', () => {
-  it('a member keyed only in the members map (no memberUids) can read', async () => {
-    // Map-only PLC: authorize purely via the canonical `members` map key.
+  it('a uid keyed only in the members map (no memberUids) cannot read', async () => {
+    // Removed members keep a map entry, so the map key alone authorizes nothing.
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
         name: 'Map-only PLC',
@@ -196,7 +196,7 @@ describe('plcs/{plcId} read — members-map gate', () => {
         updatedAt: 1,
       });
     });
-    await assertSucceeds(getDoc(doc(asMember(), `plcs/${PLC_ID}`)));
+    await assertFails(getDoc(doc(asMember(), `plcs/${PLC_ID}`)));
   });
 
   it('a member keyed only in memberUids (no members map) can read', async () => {

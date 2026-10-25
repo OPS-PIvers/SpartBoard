@@ -42,6 +42,7 @@ import {
   planBalancedDeal,
 } from '@/utils/quizBalancedDeal';
 import { encodeResponseKeySegment } from '@/utils/quizResponseKey';
+import { dropPinLoginFromOtherSession } from '@/utils/pinLoginScope';
 import { db, auth, functions } from '@/config/firebase';
 import { signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
@@ -2558,6 +2559,17 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         const sessionDoc = joinable[0];
         const sessionData = sessionDoc.data;
 
+        if (!isAnonymous) {
+          const user = await dropPinLoginFromOtherSession(auth, sessionDoc.id);
+          if (user && user !== currentUser) {
+            currentUser = user;
+            studentUid = user.uid;
+            isAnonymous = user.isAnonymous;
+            if (isAnonymous && !sanitizedPin)
+              throw new Error('PIN is required');
+          }
+        }
+
         if (isAnonymous && isAnonymousJoinBlocked(sessionData)) {
           throw new Error(ANONYMOUS_JOIN_BLOCKED_MESSAGE);
         }
@@ -2584,6 +2596,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               {
                 kind: 'quiz';
                 code: string;
+                sessionId: string;
                 pin: string;
                 period?: string;
               },
@@ -2593,6 +2606,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               callable({
                 kind: 'quiz',
                 code: normCode,
+                sessionId: sessionDoc.id,
                 pin: sanitizedPin,
                 period: classPeriod,
               });

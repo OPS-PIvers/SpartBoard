@@ -34,6 +34,7 @@ import {
   gradeIndexMark,
   handlePointerWrite,
   handleSharedConfigWrite,
+  handleSideDocWrite,
   handleStudentDocWrite,
 } from './gradeIndexTriggers';
 import { makeStubFirestore, type StubData } from '../testing/stubFirestore';
@@ -444,6 +445,40 @@ describe('triggers', () => {
     expect(stub.get('grade_index_sessions/qs1')).toMatchObject({
       kind: 'quiz',
     });
+  });
+});
+
+describe('side-doc ownership', () => {
+  const sideEvent = {
+    params: {},
+    data: {
+      before: { exists: false, data: () => undefined },
+      after: { exists: true, data: () => ({ stepTargets: [1] }) },
+    },
+  };
+  const run = async (
+    docs: StubData,
+    ownerUid: string
+  ): Promise<ReturnType<typeof makeStubFirestore>> => {
+    const stub = makeStubFirestore({
+      'admin_settings/gradebook_index': { enabled: true },
+      ...docs,
+    });
+    vi.mocked(admin.firestore).mockReturnValue(stub.db as never);
+    await handleSideDocWrite('quiz', 'qs1', sideEvent, null, ownerUid);
+    return stub;
+  };
+
+  it('queues when the writer owns the session', async () => {
+    const stub = await run({ 'quiz_sessions/qs1': { teacherUid: 't1' } }, 't1');
+    expect(stub.has('grade_index_sessions/qs1')).toBe(true);
+  });
+
+  it('ignores a non-owner and a missing session', async () => {
+    const other = await run({ 'quiz_sessions/qs1': { teacherUid: 't1' } }, 'x');
+    expect(other.has('grade_index_sessions/qs1')).toBe(false);
+    const missing = await run({}, 'x');
+    expect(missing.has('grade_index_sessions/qs1')).toBe(false);
   });
 });
 

@@ -15,6 +15,17 @@ service firebase.storage {
              firestore.exists(/databases/(default)/documents/admins/$(request.auth.token.email.lower()));
     }
 
+    // Site-wide admin: a hand-made /admins doc, or one organizationMembersSync mirrored from an orono super/domain admin.
+    function isSiteAdmin() {
+      return isAdmin() &&
+             siteAdminRecord(firestore.get(/databases/(default)/documents/admins/$(request.auth.token.email.lower())).data);
+    }
+    function siteAdminRecord(adminDoc) {
+      return adminDoc.get('source', '') != 'organizationMembersSync' ||
+             (adminDoc.get('orgId', '') == 'orono' &&
+              adminDoc.get('roleId', '') in ['super_admin', 'domain_admin']);
+    }
+
     // Super admin "View as" (docs/plans/ADMIN_VIEW_AS.md D7): a view-as token
     // writes only while unlocked and before exp, and never with admin powers.
     function viewAsReadOk() {
@@ -25,6 +36,14 @@ service firebase.storage {
       return request.auth.token.get('viewAs', null) == null ||
              (request.time.toMillis() < request.auth.token.viewAs.get('exp', 0) &&
               request.auth.token.viewAs.get('ro', true) == false);
+    }
+
+    // A pinLoginV1 token is its student only in its own session (pre-scope tokens: 12h grace, as firestore.rules).
+    function pinScopeOk(sessionId) {
+      return request.auth.token.get('pinLogin', false) != true ||
+             request.auth.token.get('pinSessionId', '') == sessionId ||
+             (request.auth.token.get('pinSessionId', '') == '' &&
+              request.time.toMillis() < request.auth.token.get('auth_time', 0) * 1000 + 43200000);
     }
 
     // A verified district staff address (firestore.rules isVerifiedDistrictEmail()); @students addresses never match.
@@ -50,7 +69,7 @@ service firebase.storage {
     // Per-user teacher files. Only a signed-in teacher account (never an anonymous
     // or studentRole one) uploads, within a per-folder size and type cap.
     function userFileOwner(userId) {
-      return request.auth != null && (request.auth.uid == userId || isAdmin());
+      return request.auth != null && (request.auth.uid == userId || isSiteAdmin());
     }
     function userFileUpload(userId, maxBytes, typePattern) {
       return userFileOwner(userId) && viewAsWriteOk() &&
@@ -87,7 +106,8 @@ service firebase.storage {
     }
 
     match /users/{userId}/hotspot_images/{allPaths=**} {
-      allow read: if userFileOwner(userId) && viewAsReadOk();
+      // Any admin may read: building admins edit building Guided Learning sets whose images live here.
+      allow read: if (userFileOwner(userId) || isAdmin()) && viewAsReadOk();
       allow create, update: if userFileUpload(userId, 250 * 1024 * 1024, '.*');
       allow delete: if userFileOwner(userId) && viewAsWriteOk();
     }
@@ -176,8 +196,8 @@ service firebase.storage {
       // download a photo so the gallery page can render it.
       allow read: if request.auth != null &&
         (
-          isAdmin() ||
           sessionId.matches(request.auth.uid + '_.*') ||
+          isSiteAdmin() ||
           firestore.get(
             /databases/(default)/documents/activity_wall_sessions/$(sessionId)
           ).data.get('publiclyShared', false) == true
@@ -193,7 +213,7 @@ service firebase.storage {
         );
       // The owning teacher/admin may delete the temporary Firebase copy after Drive archival.
       allow delete: if request.auth != null && viewAsWriteOk() &&
-        (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
+        (sessionId.matches(request.auth.uid + '_.*') || isSiteAdmin());
     }
 
     // Activity Wall media (Padlet-lite) — transit buffer only. A server-side
@@ -223,7 +243,8 @@ service firebase.storage {
       // The owning teacher (uid prefix in sessionId) and admins post from the
       // widget face and are never subject to the student/guest audience gates.
       function awIsOwner() {
-        return isAdmin() || sessionId.matches(request.auth.uid + '_.*');
+        // Owner prefix first so the owner never spends a Firestore lookup on the admin check.
+        return sessionId.matches(request.auth.uid + '_.*') || isSiteAdmin();
       }
       // studentRole users always; anyone else only once the teacher opted into
       // guest posting (anonymous callers never carry the studentRole claim).
@@ -256,10 +277,11 @@ service firebase.storage {
       // ownership proof) before archival/publish.
       allow read: if request.auth != null &&
         (
-          isAdmin() ||
           sessionId.matches(request.auth.uid + '_.*') ||
-          submissionId == request.auth.uid ||
-          submissionId.matches('^' + request.auth.uid + '__.*') ||
+          isSiteAdmin() ||
+          (pinScopeOk(sessionId) &&
+           (submissionId == request.auth.uid ||
+            submissionId.matches('^' + request.auth.uid + '__.*'))) ||
           (awSession().get('publiclyShared', false) == true &&
            (!awIsPadletSession() || awSubmissionApproved()))
         );
@@ -271,7 +293,7 @@ service firebase.storage {
       // No per-student object cap here (same limitation as activity_wall_photos):
       // the Firestore submission cap is the enforcement point and the 7-day
       // sweeper reclaims orphaned objects.
-      allow create: if request.auth != null && viewAsWriteOk() &&
+      allow create: if request.auth != null && viewAsWriteOk() && pinScopeOk(sessionId) &&
         (submissionId == request.auth.uid ||
          submissionId.matches('^' + request.auth.uid + '__.*')) &&
         firestore.exists(
@@ -301,8 +323,8 @@ service firebase.storage {
       // The owning teacher/admin (and the Admin SDK archive job) clean up;
       // the uploader can also delete their own object to roll back a failed
       // submission write (same ownership test as the create/read clauses).
-      allow delete: if request.auth != null && viewAsWriteOk() &&
-        (isAdmin() ||
+      allow delete: if request.auth != null && viewAsWriteOk() && pinScopeOk(sessionId) &&
+        (isSiteAdmin() ||
          sessionId.matches(request.auth.uid + '_.*') ||
          submissionId == request.auth.uid ||
          submissionId.matches('^' + request.auth.uid + '__.*'));
@@ -313,17 +335,17 @@ service firebase.storage {
     match /quiz_response_media/{sessionId}/{responseKey}/{fileName} {
       allow read: if request.auth != null &&
         (
-          isAdmin() ||
-          firestore.get(
+          isSiteAdmin() ||
+          (pinScopeOk(sessionId) && firestore.get(
             /databases/(default)/documents/quiz_sessions/$(sessionId)/responses/$(responseKey)
-          ).data.get('studentUid', '') == request.auth.uid ||
+          ).data.get('studentUid', '') == request.auth.uid) ||
           firestore.get(
             /databases/(default)/documents/quiz_sessions/$(sessionId)
           ).data.get('teacherUid', '') == request.auth.uid
         );
       // Create only (no update): the caller must own the response doc at this key.
       // Audio takes, plus a whiteboard take's PNG picture and JSON drawing log.
-      allow create: if request.auth != null && viewAsWriteOk() &&
+      allow create: if request.auth != null && viewAsWriteOk() && pinScopeOk(sessionId) &&
         (
           (request.resource.contentType.matches('audio/.*') &&
             request.resource.size < 5 * 1024 * 1024) ||
@@ -337,7 +359,7 @@ service firebase.storage {
         ).data.get('studentUid', '') == request.auth.uid;
       allow delete: if request.auth != null && viewAsWriteOk() &&
         (
-          isAdmin() ||
+          isSiteAdmin() ||
           firestore.get(
             /databases/(default)/documents/quiz_sessions/$(sessionId)
           ).data.get('teacherUid', '') == request.auth.uid
@@ -404,7 +426,7 @@ service firebase.storage {
       // Positive membership. A helper that passes every non-student can never
       // stand in for this — it would hand every teacher every group's files.
       function pjIsGroupMember() {
-        return request.auth != null &&
+        return request.auth != null && pinScopeOk(runId) &&
           firestore.exists(
             /databases/(default)/documents/project_runs/$(runId)/groups/$(groupId)
           ) &&
@@ -414,7 +436,7 @@ service firebase.storage {
       }
       // Mirrors the Firestore upload doc: the teacher and the group's own
       // members, nobody else — not a classmate in another group.
-      allow read: if isAdmin() || pjOwnsRun() || pjIsGroupMember();
+      allow read: if isSiteAdmin() || pjOwnsRun() || pjIsGroupMember();
       // Work products are wider than Activity Wall's three fixed kinds, so the
       // gate is a family allowlist rather than an exact MIME list. Anything
       // outside it (executables, archives) is refused.
@@ -437,7 +459,7 @@ service firebase.storage {
           firestore.get(
             /databases/(default)/documents/project_runs/$(runId)
           ).data.get('acceptingUpdates', false) == true));
-      allow delete: if viewAsWriteOk() && (isAdmin() || pjOwnsRun() || pjIsGroupMember());
+      allow delete: if viewAsWriteOk() && (isSiteAdmin() || pjOwnsRun() || pjIsGroupMember());
     }
 
     // Web tour step pictures (CHROME_EXTENSION.md T6): district staff and admins get through the SDK, admins list and write.

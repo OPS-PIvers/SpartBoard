@@ -1,3 +1,4 @@
+import { copyText } from '@/utils/copyText';
 import React, {
   useCallback,
   useContext,
@@ -555,10 +556,13 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
 
   const copyJoinLink = () => {
     if (!showJoinCode) return;
-    void navigator.clipboard.writeText(
-      `${window.location.origin}/quiz?code=${session.code}`
+    void copyText(`${window.location.origin}/quiz?code=${session.code}`).then(
+      (ok) =>
+        addToast(
+          ok ? 'Join link copied.' : 'Could not copy the link.',
+          ok ? 'success' : 'error'
+        )
     );
-    addToast('Join link copied.', 'success');
   };
 
   const currentQ = data.currentQ;

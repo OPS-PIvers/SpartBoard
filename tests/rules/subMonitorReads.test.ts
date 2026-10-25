@@ -225,8 +225,8 @@ const READS: {
 
 describe('admin_settings/sub_launch_as_teacher', () => {
   // The sub's board reads the switch to decide whether to offer Launch, so a
-  // signed-in reader must get it; only an admin may flip it.
-  it('is readable by a signed-in caller and writable only by an admin', async () => {
+  // signed-in reader must get it; only a super admin may flip it.
+  it('is readable by a signed-in caller and writable only by a super admin', async () => {
     const ref = (db: ReturnType<typeof asSub>) =>
       doc(db, 'admin_settings/sub_launch_as_teacher');
     await assertSucceeds(getDoc(ref(asSub())));

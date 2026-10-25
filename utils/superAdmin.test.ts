@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { OPERATOR_ORG_ID } from '@/config/organization';
-import { isSuperAdminActor } from './superAdmin';
+import { isOrgOnlyAdmin, isSuperAdminActor } from './superAdmin';
 
 describe('isSuperAdminActor', () => {
   it('accepts a member doc with the super_admin role in the operator org', () => {
@@ -54,5 +54,19 @@ describe('isSuperAdminActor', () => {
     expect(isSuperAdminActor('a@b.c', undefined, null, OPERATOR_ORG_ID)).toBe(
       false
     );
+  });
+});
+
+describe('isOrgOnlyAdmin', () => {
+  it('admits an admin of their own org without an /admins doc', () => {
+    expect(isOrgOnlyAdmin(false, 'domain_admin', 'other-org')).toBe(true);
+    expect(isOrgOnlyAdmin(false, 'building_admin', 'other-org')).toBe(true);
+  });
+
+  it('refuses while loading, for site admins, teachers and users without an org', () => {
+    expect(isOrgOnlyAdmin(null, 'domain_admin', 'other-org')).toBe(false);
+    expect(isOrgOnlyAdmin(true, 'domain_admin', 'orono')).toBe(false);
+    expect(isOrgOnlyAdmin(false, 'teacher', 'other-org')).toBe(false);
+    expect(isOrgOnlyAdmin(false, 'domain_admin', null)).toBe(false);
   });
 });

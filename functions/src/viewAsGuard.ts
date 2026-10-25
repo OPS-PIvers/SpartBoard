@@ -12,6 +12,7 @@ export interface ViewAsClaim {
 
 interface RequestWithAuth {
   auth?: { uid?: string; token?: unknown } | null;
+  data?: unknown;
 }
 
 export interface ViewAsGuardOptions {
@@ -37,12 +38,45 @@ export function readViewAsClaim(request: RequestWithAuth): ViewAsClaim | null {
   };
 }
 
+// A pre-scope PIN token (no pinSessionId) keeps its old reach this long after sign-in, as firestore.rules does.
+export const LEGACY_PIN_TOKEN_GRACE_MS = 12 * 60 * 60 * 1000;
+
+/** A pinLoginV1 token is proven for one session, so it may not name any other `sessionId`. */
+export function assertPinLoginSession(
+  request: RequestWithAuth,
+  now: number = Date.now()
+): void {
+  const token = request.auth?.token;
+  if (!token || typeof token !== 'object') return;
+  const claims = token as Record<string, unknown>;
+  if (claims.pinLogin !== true) return;
+  if (
+    claims.pinSessionId === undefined &&
+    typeof claims.auth_time === 'number' &&
+    now < claims.auth_time * 1000 + LEGACY_PIN_TOKEN_GRACE_MS
+  ) {
+    return;
+  }
+  const data = request.data;
+  const sessionId =
+    data && typeof data === 'object'
+      ? (data as Record<string, unknown>).sessionId
+      : undefined;
+  if (sessionId !== undefined && sessionId !== claims.pinSessionId) {
+    throw new HttpsError(
+      'permission-denied',
+      'Join this activity with your PIN.'
+    );
+  }
+}
+
 /** Throws when a view-as token may not run this callable; returns the claim (or null) so callers can audit. */
 export function assertViewAsAllowed(
   request: RequestWithAuth,
   options: ViewAsGuardOptions = {},
   now: number = Date.now()
 ): ViewAsClaim | null {
+  assertPinLoginSession(request, now);
   const claim = readViewAsClaim(request);
   if (!claim) return null;
   if (!claim.sid || !claim.by || now >= claim.exp) {
