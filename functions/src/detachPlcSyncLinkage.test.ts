@@ -56,6 +56,7 @@ interface StubState {
   group: Record<string, unknown> | null;
   /** Captured tx.update() calls — `[path, patch]` per call. */
   updates: Array<{ path: string; patch: Record<string, unknown> }>;
+  sets?: Array<{ path: string; data: Record<string, unknown> }>;
 }
 
 /** Header subcollection name for a given kind (mirrors KIND_CONFIG). */
@@ -114,12 +115,16 @@ function makeDb(state: StubState, kind: PlcSyncLinkageKind) {
           ref: { __path: string },
           patch: Record<string, unknown>
         ) => void;
+        set: (ref: { __path: string }, data: Record<string, unknown>) => void;
       }) => Promise<T>
     ): Promise<T> => {
       return fn({
         get,
         update: (ref, patch) => {
           state.updates.push({ path: ref.__path, patch });
+        },
+        set: (ref, data) => {
+          (state.sets ??= []).push({ path: ref.__path, data });
         },
       });
     },
@@ -243,6 +248,12 @@ describe('handleDetachPlcSyncLinkage - detach semantics', () => {
     // The caller is gone; the teammate remains untouched.
     expect(Object.keys(patch.participants)).toEqual(['member-b']);
     expect(typeof patch.updatedAt).toBe('number');
+    // Leaves a server-only marker so Undo can re-join through this header.
+    expect(state.sets).toHaveLength(1);
+    expect(state.sets?.[0]).toMatchObject({
+      path: `synced_quizzes/${SYNC_GROUP_ID}/plcDetached/${MEMBER_UID}`,
+      data: { plcId: PLC_ID, plcContentId: CONTENT_ID },
+    });
   });
 
   it('leaves an empty group doc in place when the last participant detaches', async () => {
@@ -292,6 +303,7 @@ describe('handleDetachPlcSyncLinkage - detach semantics', () => {
     // bump version. A no-op write would race the owning client's
     // strictly-monotonic version rule.
     expect(state.updates).toHaveLength(0);
+    expect(state.sets).toBeUndefined();
   });
 
   it('tolerates a group doc with no participants map (treated as empty)', async () => {

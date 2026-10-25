@@ -13,7 +13,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, updateDoc, doc } from 'firebase/firestore';
+import { setDoc, updateDoc, doc, getDoc } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-share-sync-group';
 const GROUP_ID = 'group-1';
@@ -183,5 +183,22 @@ describe.each(kinds)('%s syncGroupId', (shareColl) => {
         originalAuthor: MEMBER_UID,
       })
     );
+  });
+});
+
+describe.each(kinds)('%s plcDetached markers', (_shareColl, groupColl) => {
+  it('a participant can neither forge nor read an Undo re-join marker', async () => {
+    const path = `${groupColl}/${GROUP_ID}/plcDetached/${MEMBER_UID}`;
+    await assertFails(
+      setDoc(doc(as(MEMBER_UID), path), {
+        plcId: 'p',
+        plcContentId: 'c',
+        detachedAt: 1,
+      })
+    );
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), path), { plcId: 'p' });
+    });
+    await assertFails(getDoc(doc(as(MEMBER_UID), path)));
   });
 });

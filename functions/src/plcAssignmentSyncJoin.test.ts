@@ -422,3 +422,40 @@ describe('handleJoinPlcAssignmentSyncGroup - editor and group-link gates', () =>
     expect(state.updates).toHaveLength(0);
   });
 });
+
+describe('handleJoinPlcAssignmentSyncGroup - re-join and undo', () => {
+  const db = () =>
+    makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcAssignmentSyncGroup
+    >[0];
+
+  it('lets an already-participating viewer re-join as a no-op', async () => {
+    state.plc = {
+      memberUids: [MEMBER_UID, 'member-b'],
+      members: { [MEMBER_UID]: { role: 'viewer', status: 'active' } },
+    };
+    state.group = {
+      version: 4,
+      participants: { [MEMBER_UID]: { joinedAt: 1000 } },
+    };
+    await expect(
+      handleJoinPlcAssignmentSyncGroup(db(), MEMBER_UID, PLC_ID, TEMPLATE_ID)
+    ).resolves.toMatchObject({ alreadyJoined: true, version: 4 });
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it('still rejects an already-participating non-member', async () => {
+    state.group = {
+      version: 4,
+      participants: { [NON_MEMBER_UID]: { joinedAt: 1000 } },
+    };
+    await expect(
+      handleJoinPlcAssignmentSyncGroup(
+        db(),
+        NON_MEMBER_UID,
+        PLC_ID,
+        TEMPLATE_ID
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+});

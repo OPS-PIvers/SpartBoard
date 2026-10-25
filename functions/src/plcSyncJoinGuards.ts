@@ -8,13 +8,8 @@ import { HttpsError } from 'firebase-functions/v2/https';
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
-/**
- * Throws `permission-denied` unless the caller may write PLC content. Mirrors
- * `plcCanEditContent` in firestore.rules: a keyed member whose role is not
- * `viewer` (and not removed), or any uid in `memberUids` on a member-map-less
- * legacy PLC.
- */
-export function assertPlcContentEditor(
+/** Throws `permission-denied` unless `uid` is in the PLC's `memberUids`. */
+export function assertPlcMember(
   plcData: Record<string, unknown> | undefined,
   uid: string
 ): void {
@@ -29,6 +24,19 @@ export function assertPlcContentEditor(
       'You are not a member of this PLC.'
     );
   }
+}
+
+/**
+ * Throws `permission-denied` unless the caller may write PLC content. Mirrors
+ * `plcCanEditContent` in firestore.rules: a keyed member whose role is not
+ * `viewer` (and not removed), or any uid in `memberUids` on a member-map-less
+ * legacy PLC.
+ */
+export function assertPlcContentEditor(
+  plcData: Record<string, unknown> | undefined,
+  uid: string
+): void {
+  assertPlcMember(plcData, uid);
   const members = plcData?.members;
   const entry = isRecord(members) ? members[uid] : undefined;
   if (
@@ -40,6 +48,18 @@ export function assertPlcContentEditor(
       'Viewers cannot edit shared PLC content.'
     );
   }
+}
+
+/** Server-only marker `detachPlcSyncLinkage` leaves so Undo can re-join through the same header. */
+export const PLC_DETACHED_SUBCOLLECTION = 'plcDetached';
+
+/** True when a detach marker records this caller leaving the group via this PLC header. */
+export function isDetachMarkerFor(
+  marker: Record<string, unknown> | undefined,
+  plcId: string,
+  plcContentId: string
+): boolean {
+  return marker?.plcId === plcId && marker?.plcContentId === plcContentId;
 }
 
 const hasKey = (obj: unknown, key: unknown): boolean =>

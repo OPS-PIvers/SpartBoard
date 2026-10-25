@@ -32,6 +32,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import './functionsInit';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { PLC_DETACHED_SUBCOLLECTION } from './plcSyncJoinGuards';
 
 export type PlcSyncLinkageKind = 'quiz' | 'video-activity';
 
@@ -157,6 +158,12 @@ export async function handleDetachPlcSyncLinkage(
         // left at the last content-writer's uid so attribution doesn't
         // flicker on membership changes. Mirrors `syncedQuizGroups.ts`.
         updatedAt: Date.now(),
+      });
+      // Lets the unshare's Undo re-join through this header (plcSyncJoinGuards).
+      tx.set(groupRef.collection(PLC_DETACHED_SUBCOLLECTION).doc(uid), {
+        plcId,
+        plcContentId,
+        detachedAt: Date.now(),
       });
     }
     return {

@@ -19,8 +19,11 @@ import * as admin from 'firebase-admin';
 import type { SyncedVideoActivityParticipant } from './syncedVideoActivityGroups';
 import { assertViewAsAllowed } from './viewAsGuard';
 import {
+  PLC_DETACHED_SUBCOLLECTION,
   assertGroupLinkedToPlc,
   assertPlcContentEditor,
+  assertPlcMember,
+  isDetachMarkerFor,
 } from './plcSyncJoinGuards';
 
 if (!admin.apps.length) {
@@ -68,7 +71,7 @@ export async function handleJoinPlcVideoActivitySyncGroup(
     if (!plcSnap.exists) {
       throw new HttpsError('not-found', 'PLC not found.');
     }
-    assertPlcContentEditor(plcSnap.data(), uid);
+    assertPlcMember(plcSnap.data(), uid);
 
     if (!entrySnap.exists) {
       throw new HttpsError('not-found', 'PLC video activity not found.');
@@ -100,12 +103,21 @@ export async function handleJoinPlcVideoActivitySyncGroup(
       uid
     );
     if (!alreadyJoined) {
-      assertGroupLinkedToPlc(
-        plcId,
-        plcSnap.data(),
-        entryData,
-        groupSnap.data()
-      );
+      assertPlcContentEditor(plcSnap.data(), uid);
+      const markerRef = groupRef
+        .collection(PLC_DETACHED_SUBCOLLECTION)
+        .doc(uid);
+      const markerSnap = await tx.get(markerRef);
+      if (isDetachMarkerFor(markerSnap.data(), plcId, plcVideoActivityId)) {
+        tx.delete(markerRef);
+      } else {
+        assertGroupLinkedToPlc(
+          plcId,
+          plcSnap.data(),
+          entryData,
+          groupSnap.data()
+        );
+      }
       const now = Date.now();
       participants[uid] = { joinedAt: now };
       tx.update(groupRef, {

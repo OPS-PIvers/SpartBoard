@@ -303,6 +303,20 @@ export async function authorizeDelegatedPrint(
       'PLC quiz is not linked to a synced group.'
     );
 
+  // 6. A viewer TARGET can't be joined to the group, so must already be in it.
+  if (!canEditPlcContent(plcData, input.targetUid)) {
+    const group = await db.collection('synced_quizzes').doc(groupId).get();
+    const participants: unknown = group.data()?.participants;
+    if (
+      !isRecord(participants) ||
+      !Object.prototype.hasOwnProperty.call(participants, input.targetUid)
+    )
+      throw new HttpsError(
+        'permission-denied',
+        'Viewers cannot edit shared PLC content.'
+      );
+  }
+
   return {
     groupId,
     targetName: memberName(plcData, input.targetUid, 'your teammate'),

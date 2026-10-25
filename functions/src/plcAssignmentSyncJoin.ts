@@ -21,6 +21,7 @@ import { assertViewAsAllowed } from './viewAsGuard';
 import {
   assertGroupLinkedToPlc,
   assertPlcContentEditor,
+  assertPlcMember,
 } from './plcSyncJoinGuards';
 
 if (!admin.apps.length) {
@@ -66,7 +67,7 @@ export async function handleJoinPlcAssignmentSyncGroup(
     if (!plcSnap.exists) {
       throw new HttpsError('not-found', 'PLC not found.');
     }
-    assertPlcContentEditor(plcSnap.data(), uid);
+    assertPlcMember(plcSnap.data(), uid);
 
     if (!templateSnap.exists) {
       throw new HttpsError('not-found', 'PLC assignment template not found.');
@@ -104,6 +105,7 @@ export async function handleJoinPlcAssignmentSyncGroup(
       uid
     );
     if (!alreadyJoined) {
+      assertPlcContentEditor(plcSnap.data(), uid);
       assertGroupLinkedToPlc(
         plcId,
         plcSnap.data(),
