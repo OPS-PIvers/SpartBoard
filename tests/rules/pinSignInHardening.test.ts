@@ -345,6 +345,25 @@ describe('PIN sign-in token scope', () => {
     await assertFails(getDocs(collection(asPin(), items)));
   });
 
+  it("reads its own session's pointer, and no other", async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `${items}/sess-a`), {
+        ...pointer(CLASS_A),
+        sessionId: 'sess-a',
+        override: { language: 'es' },
+      });
+    });
+    await assertSucceeds(getDoc(doc(asPin(), `${items}/sess-a`)));
+    await assertSucceeds(getDoc(doc(asPin(), `${items}/missing`)));
+    await assertFails(getDoc(doc(asPin('sess-b'), `${items}/sess-a`)));
+    await assertFails(getDoc(doc(asPin(), `${items}/in-a`)));
+    await assertFails(
+      getDocs(
+        query(collection(asPin(), items), where('sessionId', '==', 'sess-a'))
+      )
+    );
+  });
+
   it('leaves the SSO student response reads unchanged', async () => {
     await assertSucceeds(getDoc(doc(asSso(), response('sess-a'))));
     await assertSucceeds(getDoc(doc(asSso(), response('sess-b'))));

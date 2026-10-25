@@ -4694,6 +4694,11 @@ service cloud.firestore {
           isStudentRoleUser() &&
           (!isPinLoginToken() || resource == null ||
            existing().get('classId', '') in request.auth.token.classIds);
+        // A PIN token reads only its own session's pointer (accommodation override, window).
+        allow get: if signedIn() && isPinLoginToken() &&
+          request.auth.uid == studentUid &&
+          (resource == null ||
+           existing().get('sessionId', '') == request.auth.token.get('pinSessionId', ''));
         allow write: if false;
       }
     }
