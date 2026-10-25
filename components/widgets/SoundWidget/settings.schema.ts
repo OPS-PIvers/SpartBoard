@@ -175,6 +175,9 @@ export default defineSettings<SoundConfig>({
             { value: 'balls', label: 'visualPopcorn' },
           ],
           visibleWhen: (ctx) => !isPro(ctx),
+          // Matches the face, which shows the Meter for a saved Level without the flag.
+          readValue: (ctx) =>
+            ctx.config.visual === 'level' ? 'thermometer' : ctx.config.visual,
         },
         {
           key: 'visual',

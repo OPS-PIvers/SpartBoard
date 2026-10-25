@@ -27,7 +27,7 @@ export const LevelNameView: React.FC<{
     >
       <span
         className="font-black leading-none tabular-nums"
-        style={{ fontSize: 'min(45cqh, 40cqw)' }}
+        style={{ fontSize: '40cqmin' }}
       >
         {number}
       </span>
@@ -35,7 +35,7 @@ export const LevelNameView: React.FC<{
         className="font-black uppercase tracking-wide leading-tight text-center"
         // Sized by length so the longest name (Conversation) still fits the width.
         style={{
-          fontSize: `min(14cqh, ${Math.min(12, 76 / name.length).toFixed(1)}cqw)`,
+          fontSize: `${Math.min(13, 110 / name.length).toFixed(1)}cqmin`,
         }}
       >
         {name}
@@ -43,7 +43,7 @@ export const LevelNameView: React.FC<{
       {targetLevel !== null && (
         <span
           className="font-bold leading-tight"
-          style={{ fontSize: 'min(7cqh, 6cqw)' }}
+          style={{ fontSize: '6cqmin' }}
         >
           {t('widgets.sound.targetIs', {
             level: splitLabel(POSTER_LEVELS[targetLevel].label).name,

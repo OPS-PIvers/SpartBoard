@@ -688,10 +688,10 @@ export const SoundWidget: React.FC<{
             <span className="relative inline-block">
               {/* The level name view already shows the level in large type. */}
               {visual === 'level' ? (
-                <span
-                  className="inline-block"
-                  style={{ height: 'min(32px, 8cqmin)' }}
-                />
+                // Holds the pill's space so the Summary button keeps its place.
+                <span className="invisible" aria-hidden="true">
+                  {levelPill}
+                </span>
               ) : (
                 levelPill
               )}
