@@ -448,6 +448,8 @@ export const WebcamWidget: React.FC<{
       stream?.getVideoTracks()[0]?.getSettings().deviceId ?? selectedDeviceId;
     const currentIndex = devices.findIndex((d) => d.deviceId === currentId);
     const nextIndex = (currentIndex + 1) % devices.length;
+    // A different camera that fails to start is busy, not unplugged.
+    startedStreamRef.current = null;
     setSelectedDeviceId(devices[nextIndex].deviceId);
     unfreeze();
   }, [devices, selectedDeviceId, stream, unfreeze]);
