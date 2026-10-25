@@ -54491,17 +54491,50 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "webcam.draw-pen",
     "label": "Pen tool in the Webcam drawing tools (shows in draw mode)",
-    "scope": "widget"
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "webcam.draw-highlighter",
     "label": "Highlighter tool in the Webcam drawing tools (shows in draw mode)",
-    "scope": "widget"
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "webcam.draw-eraser",
     "label": "Eraser tool in the Webcam drawing tools (shows in draw mode)",
-    "scope": "widget"
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "webcam.draw-undo",
