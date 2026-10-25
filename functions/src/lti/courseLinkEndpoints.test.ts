@@ -175,7 +175,10 @@ const callSuggest = ltiSuggestClassLinkMatchV1 as unknown as (
   ambiguous?: boolean;
 }>;
 
-const TEACHER = { uid: 'teacher-1', token: { email: 't@s.edu' } };
+const TEACHER = {
+  uid: 'teacher-1',
+  token: { email: 't@orono.k12.mn.us', email_verified: true },
+};
 const seenSession = () => {
   sessionDoc = { exists: true, data: () => ({ teacherUid: 'teacher-1' }) };
   contextDoc = {
