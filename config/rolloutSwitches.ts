@@ -62,6 +62,8 @@ export interface RolloutSwitch {
   feature?: GlobalFeature;
   /** The boolean field this switch writes; defaults to `enabled`. */
   field?: string;
+  /** Rules let only super admins write this doc. */
+  superAdminOnly?: boolean;
   normalize: (raw: unknown) => { enabled: boolean };
 }
 
@@ -114,6 +116,7 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     docId: SUB_LAUNCH_AS_TEACHER_SETTINGS_DOC,
     title: 'Substitutes can start an activity',
     description: 'Subs can start activities. Results go to the teacher.',
+    superAdminOnly: true,
     normalize: normalizeSubLaunchAsTeacherSettings,
   },
   {
@@ -135,6 +138,7 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     docId: VIEW_AS_SETTINGS_DOC,
     title: 'Super admin View as',
     description: "Super admins open a user's account to troubleshoot.",
+    superAdminOnly: true,
     normalize: normalizeViewAsSettings,
   },
   {
@@ -142,6 +146,7 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     field: 'allowUnlock',
     title: 'View as: unlock edits',
     description: 'Super admins can unlock edits and save changes for a user.',
+    superAdminOnly: true,
     normalize: normalizeViewAsUnlockSettings,
   },
   {

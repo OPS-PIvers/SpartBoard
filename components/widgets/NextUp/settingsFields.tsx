@@ -1,3 +1,4 @@
+import { copyText } from '@/utils/copyText';
 import React, { useEffect, useState } from 'react';
 import { Check, Copy, Plus, RefreshCcw, Trash2, Users } from 'lucide-react';
 import { doc, setDoc, updateDoc } from 'firebase/firestore';
@@ -182,11 +183,13 @@ export const NextUpSessionField: React.FC<{ ctx: CustomRenderCtx }> = ({
   const copyLink = () => {
     if (!user) return;
     const safeWidgetId = ctx.widget.id.replace(/[^a-zA-Z0-9_-]/g, '');
-    void navigator.clipboard.writeText(
+    void copyText(
       `${window.location.origin}/nextup?id=${user.uid}_${safeWidgetId}`
-    );
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2000);
+    ).then((ok) => {
+      if (!ok) return;
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   const importRoster = async () => {

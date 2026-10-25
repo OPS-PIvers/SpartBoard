@@ -6,14 +6,14 @@
  *  - joinSyncedQuizGroup: invoked when a teacher pastes a synced share URL
  *    and picks "Synced" in the import-mode picker. Validates that the
  *    presented `shareId` resolves to a `/shared_assignments/{shareId}` doc
- *    carrying a `syncGroupId`, then adds the caller's uid to that group's
+ *    carrying a `syncGroupId` whose author is still a participant, then adds the caller's uid to that group's
  *    `participants` map. Admin SDK bypasses Firestore rules — clients can't
  *    write to `participants` directly (see firestore.rules → synced_quizzes).
  *
  *  - leaveSyncedQuizGroup: invoked when a teacher chooses "Stop syncing" on
  *    a synced quiz card. Removes the caller from `participants`. Empty
- *    groups are left intact so future paste of the same share URL still
- *    resolves a bootstrap snapshot.
+ *    groups are left intact; a share whose author has left no longer
+ *    admits joiners.
  *
  * Business logic is exposed via thin handlers that take an Admin SDK
  * Firestore reference plus the validated request fields, so the unit tests
@@ -137,9 +137,8 @@ export async function handleJoinSyncedQuizGroup(
 /**
  * Remove `uid` from `/synced_quizzes/{groupId}.participants`. Idempotent:
  * leaving a group the caller isn't in returns the current participant count
- * without throwing. Empty groups are intentionally left in place — a future
- * paste of the same share URL should still resolve the doc and reseed a
- * fresh participant list rather than 404.
+ * without throwing. Empty groups are intentionally left in place; a share
+ * whose author has left no longer admits joiners.
  *
  * Throws `HttpsError('not-found')` if the group itself is missing.
  */
@@ -181,6 +180,15 @@ export const joinSyncedQuizGroup = onCall<JoinSyncedQuizGroupRequest>(
     const uid = request.auth?.uid;
     if (!uid) {
       throw new HttpsError('unauthenticated', 'Sign in to join a synced quiz.');
+    }
+    if (
+      request.auth?.token.firebase?.sign_in_provider === 'anonymous' ||
+      request.auth?.token.studentRole === true
+    ) {
+      throw new HttpsError(
+        'permission-denied',
+        'Only teacher accounts can join a synced quiz.'
+      );
     }
     const shareId = request.data?.shareId;
     if (typeof shareId !== 'string' || shareId.length === 0) {

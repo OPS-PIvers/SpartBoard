@@ -1358,7 +1358,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 
     // While a pull is in flight, show a disabled "Syncing…" pill with a
     // spinning icon. `disabled: true` makes BadgeChip render as a
-    // <button disabled> — the browser swallows user clicks so the event
+    // disabled button — the browser swallows user clicks so the event
     // doesn't bubble to the card body and accidentally open the editor
     // (which a plain <span> would let happen).
     if (syncingQuizIds.has(quiz.id)) {

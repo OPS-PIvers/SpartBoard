@@ -40,6 +40,8 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: mockOnSnapshot,
   setDoc: mockSetDoc,
   getDocs: mockGetDocs,
+  getDoc: vi.fn(() => Promise.resolve({ exists: () => false })),
+  deleteDoc: vi.fn(() => Promise.resolve()),
   limit: vi.fn((n: number) => ({ __limit: n })),
   query: vi.fn((...args: unknown[]) => ({ __query: args })),
   where: vi.fn((field: string, _op: string, value: unknown) => ({

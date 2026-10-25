@@ -42,3 +42,4 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | 2026-10-22 | claude/tour-anchors-2026-10-22 | Widgets (Drawing, Guided Learning player, studio and editors) | 0 | 21 | 1 area | 720 in 295 files |
 | 2026-10-23 | claude/tour-anchors-2026-10-23 | Widgets (HotspotImage, InstructionalRoutines, LunchCount) | 8 | 11 | 4 files | 699 in 287 files |
 | 2026-10-24 | claude/tour-anchors-2026-10-24 | Widgets (MaterialsWidget, MathToolInstance, MiniApp, NeedDoPutThen) | 8 | 22 | 0 | 669 in 280 files |
+| 2026-10-25 | claude/tour-anchors-2026-10-25 | Widgets (Onboarding, PdfWidget, PollWidget, Projects, QuizWidget through StartReviewModal) | 12 | 19 | 0 | 634 in 259 files |

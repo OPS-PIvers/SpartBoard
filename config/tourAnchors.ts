@@ -259,6 +259,16 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
 
+  'pdf.back-to-library': {
+    label: 'Back to library button in PDF',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'pdf.upload': {
+    label: 'Upload button in PDF',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
   'projects.board-grid': {
     label: 'Projects step grid',
     perWidget: true,
@@ -602,6 +612,10 @@ export const TOUR_ANCHORS = {
     label: 'Next question button in Poll',
     perWidget: true,
   },
+  'poll.previous-question': {
+    label: 'Previous question button in Poll',
+    perWidget: true,
+  },
   'poll.reset': {
     label: 'Reset Poll button',
     perWidget: true,
@@ -625,6 +639,10 @@ export const TOUR_ANCHORS = {
   'poll.show-hidden': {
     label: 'Show hidden responses button on the Poll widget',
     perWidget: true,
+  },
+  'quiz-grader.show-quotes': {
+    label: 'Show quotes toggle on a written response in the grader',
+    panel: true,
   },
   'stations.shuffle': { label: 'Shuffle button in Stations', perWidget: true },
   'stations.rotate': { label: 'Rotate button in Stations', perWidget: true },
@@ -1221,6 +1239,10 @@ export const TOUR_ANCHORS = {
     label: 'Game length row in the Start review dialog',
     panel: true,
   },
+  'review-start.custom-minutes': {
+    label: 'Custom minutes box in the Start review dialog',
+    panel: true,
+  },
   'review-start.auto-advance': {
     label: 'Advance automatically toggle in the Start review dialog',
     panel: true,
@@ -1306,6 +1328,29 @@ export const TOUR_ANCHORS = {
   'quiz-editor.add-answer-key': {
     label: 'Add answer key in the Quiz editor',
     perWidgetType: true,
+    panel: true,
+  },
+  'answer-key-fill.close': {
+    label: 'Close button in the Fill answer key dialog',
+    panel: true,
+    closes: 'own',
+  },
+  'answer-key-fill.back': {
+    label: 'Back button on the Fill answer key review step',
+    panel: true,
+  },
+  'answer-key-fill.apply': {
+    label: 'Fill answers button on the Fill answer key review step',
+    persists: true,
+    panel: true,
+  },
+  'answer-key-fill.cancel': {
+    label: 'Cancel button in the Fill answer key dialog',
+    panel: true,
+    closes: 'own',
+  },
+  'quiz-editor.prompt-standards-undo': {
+    label: 'Undo link after a standard is tagged from the question text',
     panel: true,
   },
   'quiz-editor.bank-notice-dismiss': {
@@ -3953,6 +3998,11 @@ export const TOUR_ANCHORS = {
   'widget-settings.poll.start-fresh': {
     label: 'Start fresh button in Poll settings',
     persists: true,
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.resume-cancel': {
+    label: 'Cancel link on the Poll resume prompt',
     perWidget: true,
     panel: true,
   },

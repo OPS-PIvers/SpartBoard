@@ -9,15 +9,15 @@
  *
  *  - joinSyncedVideoActivityGroup: invoked when a teacher pastes a synced
  *    share URL and picks "Synced" in the import-mode picker. Validates that
- *    the presented `shareId` resolves to a doc carrying a `syncGroupId`,
- *    then adds the caller's uid to that group's `participants` map. Admin
+ *    the presented `shareId` resolves to a doc carrying a `syncGroupId`
+ *    whose author is still a participant, then adds the caller's uid to that group's `participants` map. Admin
  *    SDK bypasses Firestore rules — clients can't write to `participants`
  *    directly.
  *
  *  - leaveSyncedVideoActivityGroup: invoked when a teacher chooses "Stop
  *    syncing" on a synced activity card. Removes the caller from
- *    `participants`. Empty groups are left intact so future paste of the
- *    same share URL still resolves a bootstrap snapshot.
+ *    `participants`. Empty groups are left intact; a share whose author has
+ *    left no longer admits joiners.
  *
  * Business logic is exposed via thin handlers that take an Admin SDK
  * Firestore reference plus the validated request fields, so unit tests can
@@ -159,6 +159,15 @@ export const joinSyncedVideoActivityGroup =
         throw new HttpsError(
           'unauthenticated',
           'Sign in to join a synced video activity.'
+        );
+      }
+      if (
+        request.auth?.token.firebase?.sign_in_provider === 'anonymous' ||
+        request.auth?.token.studentRole === true
+      ) {
+        throw new HttpsError(
+          'permission-denied',
+          'Only teacher accounts can join a synced video activity.'
         );
       }
       const shareId = request.data?.shareId;

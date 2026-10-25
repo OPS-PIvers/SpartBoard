@@ -41,6 +41,14 @@ export interface MyAttempt {
   servedQuestionIds?: string[];
 }
 
+/** Auth token claims that limit which classes a student caller proved. */
+export interface MyAttemptsClaims {
+  studentRole?: unknown;
+  pinLogin?: unknown;
+  classIds?: unknown;
+  [claim: string]: unknown;
+}
+
 export interface MyAttemptsDeps {
   db: Firestore;
   now: () => number;
@@ -64,6 +72,23 @@ const pctOf = (points: number | null, max: number | null): number | null =>
     ? Math.round((points / max) * 100)
     : null;
 
+const nonEmptyIds = (v: unknown): string[] =>
+  Array.isArray(v)
+    ? v.filter((c): c is string => typeof c === 'string' && c.length > 0)
+    : [];
+
+/** Mirrors the rules' passesStudentClassGateCompat; a PIN token must also match a targeted class. */
+function passesClassGate(session: Doc, claims: MyAttemptsClaims): boolean {
+  if (claims.studentRole !== true && claims.pinLogin !== true) return true;
+  const listed = Array.isArray(session.classIds) && session.classIds.length > 0;
+  const sessionClasses = listed
+    ? nonEmptyIds(session.classIds)
+    : nonEmptyIds([session.classId]);
+  if (!listed && sessionClasses.length === 0) return claims.pinLogin !== true;
+  const tokenClasses = nonEmptyIds(claims.classIds);
+  return sessionClasses.some((c) => tokenClasses.includes(c));
+}
+
 /** The scored list entry for attempt `n`, which follows teacher grading of earlier attempts. */
 function listScore(list: Doc | undefined, n: number): number | null {
   const entries: unknown = list?.attempts;
@@ -76,7 +101,8 @@ function listScore(list: Doc | undefined, n: number): number | null {
 export async function handleGetMyQuizAttempts(
   deps: MyAttemptsDeps,
   callerUid: string | null,
-  raw: unknown
+  raw: unknown,
+  claims: MyAttemptsClaims = {}
 ): Promise<{ attempts: MyAttempt[] }> {
   if (!callerUid) throw new HttpsError('unauthenticated', 'Sign in first.');
   const data = asRecord(raw);
@@ -91,7 +117,12 @@ export async function handleGetMyQuizAttempts(
   const session = sessionSnap.data();
   const response = responseSnap.data();
   // The doc's own studentUid is the only ownership fact trusted.
-  if (!session || !response || response.studentUid !== callerUid)
+  if (
+    !session ||
+    !response ||
+    response.studentUid !== callerUid ||
+    !passesClassGate(session, claims)
+  )
     throw new HttpsError('permission-denied', 'Not your quiz.');
   const none = { attempts: [] };
   const teacherUid =
@@ -208,7 +239,8 @@ export const getMyQuizAttemptsV1 = onCall(
         },
       },
       request.auth?.uid ?? null,
-      request.data
+      request.data,
+      request.auth?.token ?? {}
     );
   }
 );

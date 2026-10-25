@@ -143,11 +143,12 @@ export async function resolveOrgIdForDomain(
     .collectionGroup('domains')
     .where('domain', '==', domainWithAt)
     .where('status', '==', 'verified')
-    .limit(1)
     .get();
-  if (snap.empty) return null;
-  const orgRef = snap.docs[0].ref.parent.parent;
-  return orgRef ? orgRef.id : null;
+  const hit = snap.docs.find((d) => {
+    const seg = d.ref.path.split('/');
+    return seg.length === 4 && seg[0] === 'organizations';
+  });
+  return hit?.ref.parent.parent?.id ?? null;
 }
 
 /** Generate OAuth 1.0 (HMAC-SHA1) headers for a ClassLink OneRoster request. */

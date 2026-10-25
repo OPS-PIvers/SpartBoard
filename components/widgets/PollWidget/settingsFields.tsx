@@ -1,3 +1,4 @@
+import { copyText } from '@/utils/copyText';
 import React, {
   useCallback,
   useEffect,
@@ -53,6 +54,7 @@ import {
   stopPollSession,
   syncSessionResultsState,
   withStoppedSessionEnded,
+  retirePollSession,
 } from '@/components/poll/pollSession';
 import { buildPollJoinUrl } from '@/utils/pollCode';
 import {
@@ -277,9 +279,11 @@ export const PollSettings: React.FC<{
 
   const handleCopy = () => {
     if (!joinUrl) return;
-    void navigator.clipboard.writeText(joinUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    void copyText(joinUrl).then((ok) => {
+      if (!ok) return;
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   const options = editing.options;
@@ -535,6 +539,14 @@ export const PollSettings: React.FC<{
     if (!confirmed) return;
     const reset = withVotesReset(config);
     const next = pollPro ? withStoppedSessionEnded(reset) : reset;
+    if (
+      next.joinCode !== config.joinCode &&
+      config.joinCode &&
+      user &&
+      (config.lastPollSessionOwnerUid ?? user.uid) === user.uid
+    ) {
+      void retirePollSession(user.uid, config.joinCode);
+    }
     applyConfig(next);
     syncHiddenResults(next);
   };
@@ -728,6 +740,7 @@ export const PollSettings: React.FC<{
               )}
             >
               {questions.map((q, idx) => (
+                // no-tour-anchor: one chip per question; the chip list carries the select-question anchor
                 <button
                   key={q.id}
                   onClick={() => setRawEditIndex(idx)}
@@ -1165,6 +1178,11 @@ export const PollSettings: React.FC<{
               <button
                 onClick={() => setShowResumePopover(false)}
                 className="text-xxs text-slate-400 hover:text-slate-600 font-semibold"
+                {...tourAttr(
+                  'widget-settings.poll.resume-cancel',
+                  widget.id,
+                  widget.type
+                )}
               >
                 {t('widgetSettings.poll.cancel')}
               </button>

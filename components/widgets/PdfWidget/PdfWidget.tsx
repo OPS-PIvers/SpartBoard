@@ -33,6 +33,7 @@ import { WidgetData, PdfItem, PdfConfig } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { SortableRow } from './components/SortableRow';
+import { tourAttr } from '@/config/tourAnchors';
 import { useDialog } from '@/context/useDialog';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 
@@ -210,6 +211,7 @@ export const PdfWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       gap: 'min(4px, 1cqmin)',
                     }}
                     title="Back to library"
+                    {...tourAttr('pdf.back-to-library', widget.id, widget.type)}
                   >
                     <ArrowLeft
                       style={{
@@ -299,6 +301,7 @@ export const PdfWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               fontSize: 'min(10px, 2.5cqmin)',
             }}
             title="Upload PDF"
+            {...tourAttr('pdf.upload', widget.id, widget.type)}
           >
             {uploading ? (
               <Loader2
@@ -319,6 +322,7 @@ export const PdfWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             {uploading ? 'Uploading…' : 'Upload'}
           </button>
 
+          {/* no-tour-anchor: hidden file input opened by the Upload button */}
           <input
             type="file"
             ref={fileInputRef}

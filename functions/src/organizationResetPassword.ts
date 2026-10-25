@@ -125,6 +125,12 @@ async function assertCallerOutranksTarget(
   );
 }
 
+// Only organizations/{orgId}/domains/{doc} counts: admin_settings and similar wildcards let admins write nested `domains` docs.
+function isOrgDomainPath(path: string): boolean {
+  const seg = path.split('/');
+  return seg.length === 4 && seg[0] === 'organizations' && seg[2] === 'domains';
+}
+
 // Every verified claim must be this org's: a second org claiming the domain could otherwise win a first-match lookup.
 async function isDomainVerifiedOnlyFor(
   db: admin.firestore.Firestore,
@@ -136,8 +142,9 @@ async function isDomainVerifiedOnlyFor(
     .where('domain', '==', domainWithAt)
     .where('status', '==', 'verified')
     .get();
+  const claims = snap.docs.filter((d) => isOrgDomainPath(d.ref.path));
   return (
-    !snap.empty && snap.docs.every((d) => d.ref.parent.parent?.id === orgId)
+    claims.length > 0 && claims.every((d) => d.ref.parent.parent?.id === orgId)
   );
 }
 
