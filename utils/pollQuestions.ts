@@ -1,6 +1,6 @@
 // Read-time shim between the legacy single-question PollConfig and `questions[]`.
 
-import type { PollConfig, PollQuestion } from '@/types';
+import type { PollConfig, PollOption, PollQuestion } from '@/types';
 
 export const MAX_POLL_QUESTIONS = 20;
 
@@ -81,7 +81,7 @@ export const makeEmptyPollQuestion = (label = ''): PollQuestion => ({
   ],
 });
 
-/** Zero every question's votes and hide every shown answer; a hidden-results poll also hides each question again. */
+/** Zero every question's votes and hide every shown answer; a hidden-results poll also hides each question again. Hidden typed answers stay hidden, since Resume reads the same answers. */
 export const withVotesReset = (config: PollConfig): PollConfig =>
   withPollQuestions(
     {
@@ -96,3 +96,32 @@ export const withVotesReset = (config: PollConfig): PollConfig =>
       options: q.options.map((o) => ({ ...o, votes: 0 })),
     }))
   );
+
+export const SCALE_SIZES = [5, 10] as const;
+
+export const isScaleQuestion = (q: Pick<PollQuestion, 'kind'>): boolean =>
+  q.kind === 'scale';
+
+/** Word cloud and open response questions take typed answers instead of options. */
+export const isTextQuestion = (q: Pick<PollQuestion, 'kind'>): boolean =>
+  q.kind === 'words' || q.kind === 'text';
+
+/** Longest typed answer the rules accept. */
+export const MAX_POLL_TEXT = 280;
+/** Word cloud answers are a few words. */
+export const MAX_POLL_WORDS_TEXT = 40;
+
+/** Numbered options "1".."size" for a rating scale. */
+export const makeScaleOptions = (size: number): PollOption[] =>
+  Array.from({ length: size }, (_, i) => ({
+    id: crypto.randomUUID(),
+    label: String(i + 1),
+    votes: 0,
+  }));
+
+/** Average rating from per-option counts (option i is worth i + 1); null with no votes. */
+export const scaleAverage = (counts: readonly number[]): number | null => {
+  const total = counts.reduce((sum, n) => sum + n, 0);
+  if (total === 0) return null;
+  return counts.reduce((sum, n, i) => sum + n * (i + 1), 0) / total;
+};

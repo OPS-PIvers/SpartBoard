@@ -2329,11 +2329,18 @@ export interface PollGlobalConfig {
   buildingDefaults: Record<string, BuildingPollDefaults>;
 }
 
+/** `scale` keeps numbered options ("1".."N"); `words` and `text` take typed answers and have no options. */
+export type PollQuestionKind = 'choice' | 'scale' | 'words' | 'text';
+
 /** One question in a multi-question poll. */
 export interface PollQuestion {
   id: string;
   question: string;
   options: PollOption[];
+  kind?: PollQuestionKind;
+  /** Rating scale end labels, under the lowest and highest numbers. */
+  scaleLow?: string;
+  scaleHigh?: string;
 }
 
 export interface PollConfig {
@@ -2370,6 +2377,8 @@ export interface PollConfig {
   lockedQuestionIds?: string[];
   /** Question ids whose correct answer the teacher has shown. */
   answerShownQuestionIds?: string[];
+  /** Typed answers the teacher hid from the board: `{questionId}:{voteId}`, or `{questionId}#{word}` for a word cloud word. */
+  hiddenResponses?: string[];
 }
 
 /**
@@ -2389,6 +2398,9 @@ export interface PollSessionQuestion {
   id: string;
   question: string;
   options: { id: string; label: string }[];
+  kind?: PollQuestionKind;
+  scaleLow?: string;
+  scaleHigh?: string;
 }
 
 /** The `poll_sessions/{teacherUid}_{code}` document. */
@@ -2409,6 +2421,8 @@ export interface PollSessionDoc {
   revealedQuestions?: number[];
   /** Question indexes the rules refuse votes for. */
   lockedQuestions?: number[];
+  /** Word cloud and open response question indexes, which take text answers. */
+  textQuestions?: number[];
   /** `{questionId}:{optionId}` for each correct option, only for questions whose answer is shown (an array so a merge replaces it). */
   shownAnswers?: string[];
 }

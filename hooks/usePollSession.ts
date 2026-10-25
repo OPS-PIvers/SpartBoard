@@ -10,6 +10,7 @@ import type { PollConfig, PollOption, PollQuestion } from '@/types';
 import {
   clampQuestionIndex,
   getPollQuestions,
+  isTextQuestion,
   withVotesReset,
 } from '@/utils/pollQuestions';
 import {
@@ -24,6 +25,13 @@ interface UsePollSessionArgs {
   config: PollConfig;
   teacherUid?: string;
   onConfigChange: (next: PollConfig) => void;
+  /** The viewer owns the session, so the rules let it read typed answers. */
+  readAnswers?: boolean;
+}
+
+export interface PollResponse {
+  id: string;
+  text: string;
 }
 
 interface UsePollSessionResult {
@@ -33,6 +41,8 @@ interface UsePollSessionResult {
   isLive: boolean;
   /** Current question's options, with live device tallies when a session runs. */
   displayOptions: PollOption[];
+  /** Current question's typed answers (word cloud, open response), newest first. */
+  responses: PollResponse[];
   canGoPrev: boolean;
   canGoNext: boolean;
   goToQuestion: (index: number) => void;
@@ -64,6 +74,7 @@ export const usePollSession = ({
   config,
   teacherUid,
   onConfigChange,
+  readAnswers = false,
 }: UsePollSessionArgs): UsePollSessionResult => {
   const activePollSessionId = config.activePollSessionId ?? null;
   const isLive = !!activePollSessionId;
@@ -101,12 +112,53 @@ export const usePollSession = ({
     };
   }, [activePollSessionId, teacherUid]);
 
+  const [answers, setAnswers] = useState<PollVoteEntry[]>([]);
+  const hasTextQuestion = questions.some(isTextQuestion);
+
+  useEffect(() => {
+    if (!activePollSessionId || !teacherUid || !readAnswers || !hasTextQuestion)
+      return;
+    const sessionId = makePollSessionId(teacherUid, activePollSessionId);
+    const unsub = onSnapshot(
+      collection(db, 'poll_sessions', sessionId, 'answers'),
+      (snap) => {
+        setAnswers(
+          snap.docs.map((d) => ({
+            id: d.id,
+            ...(d.data() as Omit<PollVoteEntry, 'id'>),
+          }))
+        );
+      },
+      (err) => logError('usePollSession.answers', err, { sessionId })
+    );
+    return () => {
+      unsub();
+      setAnswers([]);
+    };
+  }, [activePollSessionId, teacherUid, readAnswers, hasTextQuestion]);
+
   const displayOptions = useMemo(() => {
     const options = currentQuestion?.options ?? [];
     if (!isLive) return options;
     const tally = aggregateVotes(votes, currentQuestionIndex, options.length);
     return options.map((o, i) => ({ ...o, votes: tally[i] ?? 0 }));
   }, [currentQuestion, isLive, votes, currentQuestionIndex]);
+
+  const responses = useMemo(
+    () =>
+      isLive
+        ? answers
+            .filter(
+              (v) =>
+                v.questionIndex === currentQuestionIndex &&
+                typeof v.text === 'string' &&
+                v.text.trim() !== ''
+            )
+            .sort((a, b) => (b.votedAt ?? 0) - (a.votedAt ?? 0))
+            .map((v) => ({ id: v.id, text: (v.text ?? '').trim() }))
+        : [],
+    [isLive, answers, currentQuestionIndex]
+  );
 
   const goToQuestion = useCallback(
     (index: number) => {
@@ -230,6 +282,7 @@ export const usePollSession = ({
     currentQuestion,
     isLive,
     displayOptions,
+    responses,
     canGoPrev: currentQuestionIndex > 0,
     canGoNext: currentQuestionIndex < questions.length - 1,
     goToQuestion,

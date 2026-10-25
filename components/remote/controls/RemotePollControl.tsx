@@ -18,7 +18,7 @@ import { WidgetData, PollConfig } from '@/types';
 import { useBoardLinkedShareId } from '@/context/boardLinkedShare';
 import { useAuth } from '@/context/useAuth';
 import { buildPollJoinUrl } from '@/utils/pollCode';
-import { withQuestionAt } from '@/utils/pollQuestions';
+import { isTextQuestion, withQuestionAt } from '@/utils/pollQuestions';
 import { usePollSession } from '@/hooks/usePollSession';
 import {
   startPollSession,
@@ -91,6 +91,8 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
   });
 
   const options = currentQuestion?.options ?? [];
+  // Word cloud and open response questions take typed answers, so they have no options.
+  const isText = !!currentQuestion && isTextQuestion(currentQuestion);
   const showNavigation = questions.length > 1;
 
   const [showQr, setShowQr] = useState(false);
@@ -252,7 +254,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
         ) : (
           <button
             onClick={handleStartClick}
-            disabled={options.length === 0}
+            disabled={options.length === 0 && !isText}
             style={{ touchAction: 'manipulation' }}
             className="touch-manipulation flex items-center justify-center gap-3 px-8 py-4 rounded-2xl font-black text-lg shadow-lg transition-all active:scale-95 disabled:opacity-40 bg-green-500 hover:bg-green-600 text-white"
             aria-label="Start voting"
@@ -362,7 +364,11 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
 
       {/* Tallies */}
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
-        {options.length === 0 ? (
+        {isText ? (
+          <div className="flex-1 flex items-center justify-center text-white/40 text-sm">
+            Answers show on the board.
+          </div>
+        ) : options.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-white/40 text-sm italic">
             No options — configure in widget settings.
           </div>

@@ -633,7 +633,7 @@ describe('PollWidget', () => {
 describe('PollSettings', () => {
   const mockUpdateWidget = vi.fn();
   const mockAddToast = vi.fn();
-  const mockCanAccessFeature = vi.fn(() => true);
+  const mockCanAccessFeature = vi.fn((_id: string) => true);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -1362,6 +1362,102 @@ describe('PollSettings', () => {
         { merge: true }
       )
     );
+  });
+
+  it('turns a question into a 1 to 5 rating scale and back', () => {
+    const widget: WidgetData = {
+      id: 'poll-1',
+      type: 'poll',
+      w: 2,
+      h: 2,
+      x: 0,
+      y: 0,
+      z: 1,
+      flipped: false,
+      config: {
+        questions: [
+          {
+            id: 'q1',
+            question: 'How sure?',
+            options: [{ id: 'a', label: 'A', votes: 4, correct: true }],
+          },
+        ],
+      },
+    };
+    const { rerender } = render(<PollSettings widget={widget} />);
+    fireEvent.change(screen.getByLabelText(/question type/i), {
+      target: { value: 'scale' },
+    });
+    const saved = (
+      mockUpdateWidget.mock.calls.at(-1)?.[1] as { config: PollConfig }
+    ).config;
+    const [q] = saved.questions ?? [];
+    expect(q.kind).toBe('scale');
+    expect(q.options.map((o) => o.label)).toEqual(['1', '2', '3', '4', '5']);
+    expect(q.options.every((o) => o.votes === 0 && !o.correct)).toBe(true);
+
+    rerender(<PollSettings widget={{ ...widget, config: saved }} />);
+    fireEvent.change(screen.getByLabelText(/^scale$/i), {
+      target: { value: '10' },
+    });
+    const resized = (
+      mockUpdateWidget.mock.calls.at(-1)?.[1] as { config: PollConfig }
+    ).config;
+    expect(resized.questions?.[0].options).toHaveLength(10);
+  });
+
+  it('turns a question into a word cloud with no options', () => {
+    render(
+      <PollSettings
+        widget={{
+          id: 'poll-1',
+          type: 'poll',
+          w: 2,
+          h: 2,
+          x: 0,
+          y: 0,
+          z: 1,
+          flipped: false,
+          config: {
+            questions: [
+              {
+                id: 'q1',
+                question: 'One word?',
+                options: [{ id: 'a', label: 'A', votes: 2 }],
+              },
+            ],
+          },
+        }}
+      />
+    );
+    fireEvent.change(screen.getByLabelText(/question type/i), {
+      target: { value: 'words' },
+    });
+    const saved = (
+      mockUpdateWidget.mock.calls.at(-1)?.[1] as { config: PollConfig }
+    ).config;
+    expect(saved.questions?.[0]).toMatchObject({ kind: 'words', options: [] });
+  });
+
+  it('hides the question type menu without the flag', () => {
+    mockCanAccessFeature.mockImplementation((id: string) => id !== 'poll-pro');
+    render(
+      <PollSettings
+        widget={{
+          id: 'poll-1',
+          type: 'poll',
+          w: 2,
+          h: 2,
+          x: 0,
+          y: 0,
+          z: 1,
+          flipped: false,
+          config: { question: 'Pick one', options: [] },
+        }}
+      />
+    );
+    expect(screen.queryByLabelText(/question type/i)).not.toBeInTheDocument();
+    mockCanAccessFeature.mockImplementation(() => true);
   });
 });
 

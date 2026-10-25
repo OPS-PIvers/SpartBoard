@@ -447,4 +447,84 @@ describe('toSessionResultsState shown answers', () => {
       JSON.stringify(toSessionQuestions(config.questions ?? []))
     ).not.toContain('correct');
   });
+
+  it('keeps a rating scale and its end labels on the session question', () => {
+    const [q] = toSessionQuestions([
+      {
+        id: 'q-scale',
+        question: 'How sure?',
+        kind: 'scale',
+        scaleLow: 'Not sure',
+        options: [{ id: 'a', label: '1', votes: 2 }],
+      },
+    ]);
+    expect(q).toEqual({
+      id: 'q-scale',
+      question: 'How sure?',
+      kind: 'scale',
+      scaleLow: 'Not sure',
+      scaleHigh: '',
+      options: [{ id: 'a', label: '1' }],
+    });
+  });
+
+  it('sends a rating scale as plain options without the flag', () => {
+    const [q] = toSessionQuestions(
+      [
+        {
+          id: 'q-scale',
+          question: 'How sure?',
+          kind: 'scale',
+          options: [{ id: 'a', label: '1', votes: 0 }],
+        },
+      ],
+      false
+    );
+    expect(q.kind).toBeUndefined();
+  });
+});
+
+describe('word cloud and open response sessions', () => {
+  it('lists text questions for the rules only with the flag', async () => {
+    const config: PollConfig = {
+      joinCode: 'K3F9Q',
+      questions: [
+        {
+          id: 'q1',
+          question: 'Pick',
+          options: [{ id: 'a', label: 'A', votes: 0 }],
+        },
+        { id: 'q2', question: 'One word?', kind: 'words', options: [] },
+        { id: 'q3', question: 'Why?', kind: 'text', options: [] },
+      ],
+    };
+    await startPollSession(config, 'teacher-1', 'resume', false, true);
+    expect(mockSetDoc).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        optionCounts: [1, 0, 0],
+        textQuestions: [1, 2],
+      }),
+      { merge: true }
+    );
+    await startPollSession(config, 'teacher-1', 'resume', false, false);
+    expect(mockSetDoc).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ textQuestions: [] }),
+      { merge: true }
+    );
+  });
+
+  it('leaves typed answers out of option tallies', () => {
+    expect(
+      aggregateVotes(
+        [
+          { id: '0_a', questionIndex: 0, text: 'hello' },
+          { id: '0_b', questionIndex: 0, optionIndex: 1 },
+        ],
+        0,
+        2
+      )
+    ).toEqual([0, 1]);
+  });
 });

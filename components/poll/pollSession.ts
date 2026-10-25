@@ -23,7 +23,11 @@ import type {
   PollSessionQuestion,
 } from '@/types';
 import { generatePollCode, normalizePollCode } from '@/utils/pollCode';
-import { clampQuestionIndex, getPollQuestions } from '@/utils/pollQuestions';
+import {
+  clampQuestionIndex,
+  getPollQuestions,
+  isTextQuestion,
+} from '@/utils/pollQuestions';
 
 const POLL_SESSIONS = 'poll_sessions';
 const CODE_MINT_RETRIES = 5;
@@ -38,7 +42,10 @@ export const makePollSessionId = (
 export interface PollVoteEntry {
   id: string;
   questionIndex?: number;
-  optionIndex: number;
+  /** Absent on word cloud and open response answers. */
+  optionIndex?: number;
+  text?: string;
+  votedAt?: number;
 }
 
 /**
@@ -50,8 +57,8 @@ export const aggregateVotes = (
   questionIndex: number,
   optionCount: number
 ): number[] => {
-  const explicit = new Map<string, number>();
-  const legacy = new Map<string, number>();
+  const explicit = new Map<string, number | undefined>();
+  const legacy = new Map<string, number | undefined>();
 
   for (const vote of votes) {
     // Pre-multi-question docs are keyed by uid alone and carry no
@@ -73,6 +80,7 @@ export const aggregateVotes = (
   const tally = new Array<number>(optionCount).fill(0);
   for (const optionIndex of explicit.values()) {
     if (
+      optionIndex !== undefined &&
       Number.isInteger(optionIndex) &&
       optionIndex >= 0 &&
       optionIndex < optionCount
@@ -85,12 +93,24 @@ export const aggregateVotes = (
 
 /** Strip vote counts — participants never need them to render their ballot. */
 export const toSessionQuestions = (
-  questions: PollQuestion[]
+  questions: PollQuestion[],
+  /** Without the poll-pro flag phones get plain options, matching the board. */
+  pollPro = true
 ): PollSessionQuestion[] =>
   questions.map((q) => ({
     id: q.id,
     question: q.question,
     options: q.options.map((o) => ({ id: o.id, label: o.label })),
+    ...(pollPro && q.kind === 'scale'
+      ? {
+          kind: 'scale' as const,
+          scaleLow: q.scaleLow ?? '',
+          scaleHigh: q.scaleHigh ?? '',
+        }
+      : {}),
+    ...(pollPro && (q.kind === 'words' || q.kind === 'text')
+      ? { kind: q.kind }
+      : {}),
   }));
 
 /** The session-doc mirror of the teacher's reveal and lock choices, keyed by question index. */
@@ -160,8 +180,11 @@ const writeSessionDoc = async (
     id: code,
     teacherUid,
     code,
-    questions: toSessionQuestions(questions),
+    questions: toSessionQuestions(questions, pollPro),
     optionCounts: questions.map((q) => q.options.length),
+    textQuestions: pollPro
+      ? questions.flatMap((q, i) => (isTextQuestion(q) ? [i] : []))
+      : [],
     currentQuestionIndex,
     active: state.active,
     startedAt: state.startedAt,
@@ -255,6 +278,7 @@ export const startPollSession = async (
           revealedQuestionIds: [],
           lockedQuestionIds: [],
           answerShownQuestionIds: [],
+          hiddenResponses: [],
         }
       : config;
   const currentQuestionIndex = await writeSessionDoc(

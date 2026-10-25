@@ -23,7 +23,14 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, getDoc, deleteDoc, doc } from 'firebase/firestore';
+import {
+  setDoc,
+  getDoc,
+  getDocs,
+  deleteDoc,
+  doc,
+  collection,
+} from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-poll-votes-protection-test';
 const TEACHER_UID = 'teacher-poll';
@@ -32,6 +39,7 @@ const CLOSED_POLL_ID = 'poll-closed';
 const ACTIVE_SESSION_ID = `${TEACHER_UID}_${ACTIVE_POLL_ID}`;
 const CLOSED_SESSION_ID = `${TEACHER_UID}_${CLOSED_POLL_ID}`;
 const LOCKED_SESSION_ID = `${TEACHER_UID}_poll-locked`;
+const TEXT_SESSION_ID = `${TEACHER_UID}_poll-text`;
 const VOTER_UID = 'voter-anon';
 const OTHER_UID = 'voter-other';
 
@@ -130,6 +138,30 @@ beforeEach(async () => {
     await setDoc(
       doc(db, `poll_sessions/${LOCKED_SESSION_ID}/votes/0_${OTHER_UID}`),
       { questionIndex: 0, optionIndex: 0, votedAt: 1000 }
+    );
+    // Q0 choice, Q1 word cloud, Q2 open response (locked).
+    await setDoc(doc(db, `poll_sessions/${TEXT_SESSION_ID}`), {
+      id: 'poll-text',
+      teacherUid: TEACHER_UID,
+      code: 'RSTVW',
+      optionCounts: [2, 0, 0],
+      textQuestions: [1, 2],
+      currentQuestionIndex: 1,
+      active: true,
+      startedAt: 1000,
+      updatedAt: 1000,
+      lockedQuestions: [2],
+    });
+    await setDoc(
+      doc(db, `poll_sessions/${TEXT_SESSION_ID}/answers/1_${OTHER_UID}`),
+      { questionIndex: 1, text: 'gravity', votedAt: 1000 }
+    );
+    await setDoc(
+      doc(db, `poll_sessions/${CLOSED_SESSION_ID}`),
+      {
+        textQuestions: [1],
+      },
+      { merge: true }
     );
     // A pre-existing vote so read/delete tests have a target.
     await setDoc(
@@ -472,5 +504,112 @@ describe('poll session doc', () => {
         updatedAt: 5000,
       })
     );
+  });
+});
+
+describe('poll answers — word cloud and open response', () => {
+  const answerRef = (
+    db: ReturnType<typeof asAnonVoter>,
+    id: string,
+    session = TEXT_SESSION_ID
+  ) => doc(db, `poll_sessions/${session}/answers/${id}`);
+  const answer = (questionIndex: number, text: string) => ({
+    questionIndex,
+    text,
+    votedAt: Date.now(),
+  });
+
+  it('accepts a text answer on a text question, and a changed one', async () => {
+    const ref = answerRef(asAnonVoter(), `1_${VOTER_UID}`);
+    await assertSucceeds(setDoc(ref, answer(1, 'friction')));
+    await assertSucceeds(setDoc(ref, answer(1, 'air resistance')));
+  });
+
+  it('refuses text on a multiple choice question, in answers or votes', async () => {
+    await assertFails(
+      setDoc(answerRef(asAnonVoter(), `0_${VOTER_UID}`), answer(0, 'x'))
+    );
+    await assertFails(
+      setDoc(
+        voteRef(asAnonVoter(), `1_${VOTER_UID}`, TEXT_SESSION_ID),
+        answer(1, 'friction')
+      )
+    );
+  });
+
+  it('refuses an option vote on a text question', async () => {
+    await assertFails(
+      setDoc(voteRef(asAnonVoter(), `1_${VOTER_UID}`, TEXT_SESSION_ID), {
+        questionIndex: 1,
+        optionIndex: 0,
+        votedAt: 2000,
+      })
+    );
+  });
+
+  it('refuses empty, over-long, mixed, extra-key or future-dated answers', async () => {
+    const ref = answerRef(asAnonVoter(), `1_${VOTER_UID}`);
+    await assertFails(setDoc(ref, answer(1, '')));
+    await assertFails(setDoc(ref, answer(1, 'x'.repeat(281))));
+    await assertFails(setDoc(ref, { ...answer(1, 'a'), optionIndex: 0 }));
+    await assertFails(setDoc(ref, { ...answer(1, 'a'), name: 'Sam' }));
+    await assertFails(setDoc(ref, { questionIndex: 1, text: 5, votedAt: 1 }));
+    await assertFails(
+      setDoc(ref, { ...answer(1, 'a'), votedAt: Date.now() + 3_600_000 })
+    );
+  });
+
+  it("refuses writing someone else's answer", async () => {
+    await assertFails(
+      setDoc(answerRef(asAnonVoter(), `1_${OTHER_UID}`), answer(1, 'x'))
+    );
+  });
+
+  it('refuses a locked text question and a closed session', async () => {
+    await assertFails(
+      setDoc(answerRef(asAnonVoter(), `2_${VOTER_UID}`), answer(2, 'because'))
+    );
+    await assertFails(
+      setDoc(
+        answerRef(asAnonVoter(), `1_${VOTER_UID}`, CLOSED_SESSION_ID),
+        answer(1, 'friction')
+      )
+    );
+  });
+
+  it('lets the session owner and the author read an answer, nobody else', async () => {
+    await assertSucceeds(getDoc(answerRef(asTeacher(), `1_${OTHER_UID}`)));
+    await assertSucceeds(
+      getDoc(answerRef(asAnonVoter(OTHER_UID), `1_${OTHER_UID}`))
+    );
+    await assertSucceeds(getDoc(answerRef(asAnonVoter(), `1_${VOTER_UID}`)));
+    await assertFails(getDoc(answerRef(asAnonVoter(), `1_${OTHER_UID}`)));
+    await assertFails(getDoc(answerRef(asOtherTeacher(), `1_${OTHER_UID}`)));
+    await assertFails(
+      getDoc(
+        doc(
+          asUnauthed(),
+          `poll_sessions/${TEXT_SESSION_ID}/answers/1_${OTHER_UID}`
+        )
+      )
+    );
+  });
+
+  it('lets only the owner list every answer', async () => {
+    await assertSucceeds(
+      getDocs(
+        collection(asTeacher(), `poll_sessions/${TEXT_SESSION_ID}/answers`)
+      )
+    );
+    await assertFails(
+      getDocs(
+        collection(asAnonVoter(), `poll_sessions/${TEXT_SESSION_ID}/answers`)
+      )
+    );
+  });
+
+  it('lets only the teacher delete answers', async () => {
+    await assertFails(deleteDoc(answerRef(asAnonVoter(), `1_${OTHER_UID}`)));
+    await assertSucceeds(deleteDoc(answerRef(asTeacher(), `1_${OTHER_UID}`)));
   });
 });

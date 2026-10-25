@@ -2861,6 +2861,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "poll.show-hidden",
+    "label": "Show hidden responses button on the Poll widget",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.poll.face",
+        "kind": "widget",
+        "widget_type": "poll",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "stations.shuffle",
     "label": "Shuffle button in Stations",
     "scope": "widget",
@@ -16408,6 +16424,44 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.poll.question-type",
+    "label": "Question type menu in Poll settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.settings",
+        "kind": "settings-drawer",
+        "widget_type": "poll",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.poll.scale-size",
+    "label": "Rating scale size menu in Poll settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.settings",
+        "kind": "settings-drawer",
+        "widget_type": "poll",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.poll.hide-results",
     "label": "Hide results until revealed switch in Poll settings",
     "scope": "widget",
@@ -18875,6 +18929,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.classes",
           "classes.link-schoology"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.poll.scale-label",
+    "label": "Rating scale end label in Poll settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.settings",
+        "kind": "settings-drawer",
+        "widget_type": "poll",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
         ]
       }
     ]

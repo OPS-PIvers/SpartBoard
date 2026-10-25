@@ -2520,7 +2520,7 @@
       "widget": "poll",
       "date": "2026-10-25",
       "feature": "poll-pro",
-      "text": "Hide results until you reveal them, lock voting on a question, see how many students answered and show the correct answer."
+      "text": "Hide results until you reveal them, lock voting on a question, see how many students answered, show the correct answer, and ask rating scale, word cloud and open response questions."
     },
     {
       "id": "drawing-whiteboard-tools-2026-10-25",
