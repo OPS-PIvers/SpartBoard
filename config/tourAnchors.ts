@@ -1341,6 +1341,7 @@ export const TOUR_ANCHORS = {
   },
   'answer-key-fill.apply': {
     label: 'Fill answers button on the Fill answer key review step',
+    persists: true,
     panel: true,
   },
   'answer-key-fill.cancel': {

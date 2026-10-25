@@ -153,6 +153,12 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'quiz-editor.whiteboard-preview:quiz',
     files: [`${C}WhiteboardStartingPagePreviewModal.tsx`],
   },
+  'quiz.editor.answer-key-fill': {
+    label: 'Fill answer key dialog',
+    kind: 'modal',
+    opensWith: 'quiz-editor.add-answer-key:quiz',
+    files: [`${C}AnswerKeyFill.tsx`],
+  },
   'quiz.editor.save-to-bank': {
     label: 'Save questions to bank dialog',
     kind: 'modal',
@@ -300,6 +306,7 @@ export const SURFACES: TourSurfaceMap = {
       `${C}RubricStrandChips.tsx`,
       `${C}TimedNotesList.tsx`,
       `${C}WhiteboardAnnotatedResponseView.tsx`,
+      `${C}ResponseQuotesFrame.tsx`,
     ],
   },
   'quiz.rubric-scoring': {
