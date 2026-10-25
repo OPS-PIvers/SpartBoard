@@ -4,6 +4,7 @@ import { Plus, Minus, Crown } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import type { LeaderMark } from '../points';
 import { formatScoreDelta } from '../history';
+import { useCountUp } from '../useCountUp';
 
 import { ScoreboardColor, normalizeScoreboardColor } from '@/config/scoreboard';
 import { tourFieldAttr } from '@/config/tourAnchors';
@@ -46,6 +47,7 @@ export const ScoreboardRowItem = React.memo(
     position,
     pointValues = DEFAULT_POINTS,
     leader = null,
+    pro = false,
   }: {
     team: ScoreboardTeam;
     rank: number;
@@ -55,8 +57,11 @@ export const ScoreboardRowItem = React.memo(
     position?: number;
     pointValues?: readonly number[];
     leader?: LeaderMark;
+    /** Count-up score and names that wrap to two lines instead of cutting off. */
+    pro?: boolean;
   }) => {
     const { t } = useTranslation();
+    const shownScore = useCountUp(team.score, pro);
     const fieldKey = `team-${position ?? rank}`;
     const multi = pointValues.length > 1;
     const amountButtonClass = `bg-white ${getText(normalizeScoreboardColor(team.color))} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all font-black tabular-nums leading-none`;
@@ -94,7 +99,7 @@ export const ScoreboardRowItem = React.memo(
 
         {/* Name */}
         <span
-          className="flex-1 font-bold text-white truncate min-w-0"
+          className={`flex-1 font-bold text-white min-w-0 ${pro ? 'line-clamp-2 break-words leading-tight' : 'truncate'}`}
           style={{ fontSize: 'min(13px, 4cqmin)' }}
         >
           {team.name}
@@ -129,7 +134,7 @@ export const ScoreboardRowItem = React.memo(
             textAlign: 'right',
           }}
         >
-          {team.score}
+          {shownScore}
         </span>
 
         {/* Buttons */}
@@ -239,6 +244,7 @@ export const ScoreboardRowItem = React.memo(
       prevProps.team.color === nextProps.team.color &&
       prevProps.team.linkedGroupId === nextProps.team.linkedGroupId &&
       prevProps.position === nextProps.position &&
+      prevProps.pro === nextProps.pro &&
       prevProps.leader === nextProps.leader &&
       (prevProps.pointValues ?? DEFAULT_POINTS).join() ===
         (nextProps.pointValues ?? DEFAULT_POINTS).join()
