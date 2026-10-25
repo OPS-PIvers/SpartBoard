@@ -4,16 +4,10 @@ import {
   useEffectEvent,
   useRef,
   useState,
-  useSyncExternalStore,
 } from 'react';
+import { usePageVisible } from './usePageVisible';
 
 const TICK_MS = 250;
-
-const subscribeVisibility = (onChange: () => void) => {
-  document.addEventListener('visibilitychange', onChange);
-  return () => document.removeEventListener('visibilitychange', onChange);
-};
-const isPageVisible = () => document.visibilityState !== 'hidden';
 
 /** Quiet time progress: counts real time while `counting` and the page is visible, and reports the goal once. */
 export const useQuietGoal = (
@@ -26,11 +20,7 @@ export const useQuietGoal = (
   // One report per run, even if the goal minutes change after it is reached.
   const reportedRef = useRef(false);
   const reached = useEffectEvent(onReached);
-  const visible = useSyncExternalStore(
-    subscribeVisibility,
-    isPageVisible,
-    () => true
-  );
+  const visible = usePageVisible();
   const active = counting && visible;
   const done = goalMs > 0 && elapsedMs >= goalMs;
 

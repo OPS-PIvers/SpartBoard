@@ -17065,10 +17065,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "destructive": true,
     "routes": [
       {
-        "surface": "widgets.sound.face",
-        "kind": "widget",
+        "surface": "widgets.sound.summary",
+        "kind": "panel",
         "widget_type": "sound",
-        "path": [],
+        "path": [
+          "sound.summary"
+        ],
         "needs": [
           "widget-on-stage"
         ]
@@ -17081,10 +17083,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget",
     "routes": [
       {
-        "surface": "widgets.sound.face",
-        "kind": "widget",
+        "surface": "widgets.sound.summary",
+        "kind": "panel",
         "widget_type": "sound",
-        "path": [],
+        "path": [
+          "sound.summary"
+        ],
         "needs": [
           "widget-on-stage"
         ]

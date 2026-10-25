@@ -469,7 +469,22 @@ export const SoundWidget: React.FC<{
         paddingBottom: 'min(8px, 2cqmin)',
       }}
     >
-      {level.label}
+      {pro ? (
+        // All labels share one cell, so the pill and Summary button keep still.
+        <span className="grid justify-items-center">
+          {POSTER_LEVELS.map((l) => (
+            <span
+              key={l.label}
+              className={l === level ? undefined : 'invisible'}
+              style={{ gridArea: '1 / 1' }}
+            >
+              {l.label}
+            </span>
+          ))}
+        </span>
+      ) : (
+        level.label
+      )}
     </span>
   );
 

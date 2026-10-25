@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useEffectEvent, useState } from 'react';
 import { POSTER_LEVELS } from './constants';
+import { usePageVisible } from './usePageVisible';
 
 export interface NoiseRun {
   level: number;
@@ -37,15 +38,18 @@ export const addSample = (
 /** In-memory record of how loud the room was, one sample a second while listening. */
 export const useNoiseSession = (listening: boolean, currentLevel: number) => {
   const [session, setSession] = useState(emptySession);
+  // A hidden tab freezes the meter, so its frozen level is not recorded.
+  const visible = usePageVisible();
+  const active = listening && visible;
   const sample = useEffectEvent(() => {
     setSession((prev) => addSample(prev, currentLevel));
   });
 
   useEffect(() => {
-    if (!listening) return undefined;
+    if (!active) return undefined;
     const timer = setInterval(sample, 1000);
     return () => clearInterval(timer);
-  }, [listening]);
+  }, [active]);
 
   const addAlert = useCallback(() => {
     setSession((prev) => ({ ...prev, alerts: prev.alerts + 1 }));
