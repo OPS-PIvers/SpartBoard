@@ -37,6 +37,8 @@ export const scoreboardPointPresetId = (
   return SCOREBOARD_POINT_PRESETS.find((p) => p.id === key)?.id ?? '1';
 };
 
+const MAX_TIED_MARKS = 3;
+
 export type LeaderMark = 'leader' | 'tied' | null;
 
 /** Teams sharing the top score above zero; one team leads, several are tied. */
@@ -48,6 +50,8 @@ export const scoreboardLeaders = (
   const top = Math.max(...teams.map((t) => t.score));
   if (top <= 0) return marks;
   const leaders = teams.filter((t) => t.score === top);
+  // A big tie (a whole quiz class on full marks) marks nothing.
+  if (leaders.length > MAX_TIED_MARKS) return marks;
   const mark = leaders.length > 1 ? 'tied' : 'leader';
   for (const team of leaders) marks.set(team.id, mark);
   return marks;

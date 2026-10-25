@@ -226,7 +226,7 @@ export const ScoreboardItem = React.memo(
                 {team.score}
               </div>
               <div
-                className="flex flex-nowrap items-center justify-center w-full"
+                className="flex flex-wrap items-center justify-center w-full"
                 style={{ gap: 'clamp(2px, 2cqw, 14px)' }}
               >
                 <button

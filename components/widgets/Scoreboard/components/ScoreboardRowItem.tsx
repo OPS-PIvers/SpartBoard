@@ -112,9 +112,11 @@ export const ScoreboardRowItem = React.memo(
               aria-hidden="true"
               style={{ width: '1.1em', height: '1.1em' }}
             />
-            {leader === 'tied'
-              ? t('widgets.scoreboard.tied')
-              : t('widgets.scoreboard.leader')}
+            <span className="[@container(max-width:359px)]:sr-only">
+              {leader === 'tied'
+                ? t('widgets.scoreboard.tied')
+                : t('widgets.scoreboard.leader')}
+            </span>
           </span>
         )}
 

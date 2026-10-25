@@ -33,6 +33,9 @@ describe('scoreboard points', () => {
     ]);
     expect(scoreboardLeaders([team('a', 0), team('b', 0)]).size).toBe(0);
     expect(scoreboardLeaders([team('a', 4)]).size).toBe(0);
+    expect(
+      scoreboardLeaders(['a', 'b', 'c', 'd'].map((id) => team(id, 2))).size
+    ).toBe(0);
   });
 
   it('gives tied scores the same rank', () => {
