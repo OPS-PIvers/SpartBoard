@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import {
   addSample,
+  MAX_RUNS,
   useNoiseSession,
   type NoiseSession,
 } from './useNoiseSession';
@@ -20,6 +21,30 @@ describe('addSample', () => {
       { level: 2, seconds: 3 },
       { level: 0, seconds: 1 },
     ]);
+  });
+});
+
+describe('addSample timeline', () => {
+  const empty = (): NoiseSession => ({
+    seconds: [0, 0, 0, 0, 0],
+    runs: [],
+    alerts: 0,
+  });
+
+  it('folds a short blip back into the stretch around it', () => {
+    let session = empty();
+    for (const level of [1, 1, 1, 2, 1]) session = addSample(session, level);
+    expect(session.runs).toEqual([{ level: 1, seconds: 5 }]);
+    expect(session.seconds).toEqual([0, 4, 1, 0, 0]);
+  });
+
+  it('stays bounded when the level keeps changing', () => {
+    let session = empty();
+    for (let i = 0; i < 5000; i++)
+      session = addSample(session, (i / 3) % 2 < 1 ? 0 : 3);
+    expect(session.runs.length).toBeLessThanOrEqual(MAX_RUNS);
+    const total = session.runs.reduce((sum, run) => sum + run.seconds, 0);
+    expect(total).toBe(5000);
   });
 });
 

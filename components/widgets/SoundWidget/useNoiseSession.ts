@@ -15,6 +15,10 @@ export interface NoiseSession {
   alerts: number;
 }
 
+const BLIP_SECONDS = 3;
+// Keeps the timeline small on an all-day session; the oldest runs merge first.
+export const MAX_RUNS = 300;
+
 const emptySession = (): NoiseSession => ({
   seconds: POSTER_LEVELS.map(() => 0),
   runs: [],
@@ -27,11 +31,24 @@ export const addSample = (
 ): NoiseSession => {
   const seconds = [...session.seconds];
   seconds[level] += 1;
-  const last = session.runs.at(-1);
-  const runs =
-    last && last.level === level
-      ? [...session.runs.slice(0, -1), { level, seconds: last.seconds + 1 }]
-      : [...session.runs, { level, seconds: 1 }];
+  const runs = session.runs.slice();
+  const last = runs.at(-1);
+  const before = runs.at(-2);
+  if (last?.level === level) {
+    runs[runs.length - 1] = { level, seconds: last.seconds + 1 };
+  } else if (last && before?.level === level && last.seconds < BLIP_SECONDS) {
+    // A brief blip between two stretches at one level folds into them.
+    runs.splice(-2, 2, { level, seconds: before.seconds + last.seconds + 1 });
+  } else {
+    runs.push({ level, seconds: 1 });
+  }
+  if (runs.length > MAX_RUNS) {
+    const [first, second] = runs;
+    runs.splice(0, 2, {
+      level: first.seconds >= second.seconds ? first.level : second.level,
+      seconds: first.seconds + second.seconds,
+    });
+  }
   return { ...session, seconds, runs };
 };
 
