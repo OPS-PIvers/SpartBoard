@@ -63,6 +63,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'seating-chart-plans',
   'scoreboard-pro',
   'poll-pro',
+  'noise-meter-pro',
 ];
 
 /** Plan D7: admins pass a default-off flag (preview, or admin-default like `guided-learning-ai`) that has no saved doc yet. */

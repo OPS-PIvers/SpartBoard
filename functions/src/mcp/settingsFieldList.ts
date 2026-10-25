@@ -62,6 +62,26 @@ export const SETTINGS_FIELD_LIST: Readonly<
       kind: 'slider',
     },
     {
+      anchor: 'settings.field:sound#targetLevel',
+      label: 'Target level',
+      kind: 'select',
+    },
+    {
+      anchor: 'settings.field:sound#alertDelaySeconds',
+      label: 'Alert delay (seconds)',
+      kind: 'number',
+    },
+    {
+      anchor: 'settings.toggle:sound#alertSoundEnabled',
+      label: 'Play a sound',
+      kind: 'toggle',
+    },
+    {
+      anchor: 'settings.field:sound#alertSound',
+      label: 'Alert sound',
+      kind: 'soundPicker',
+    },
+    {
       anchor: 'settings.field:sound#autoTrafficLight',
       label: 'Control Traffic Light automatically',
       kind: 'toggle',
