@@ -4,6 +4,7 @@
  * Modeled after VideoActivityWidget/components/Manager.tsx ResultsModal.
  */
 
+import { copyText } from '@/utils/copyText';
 import React, { useState } from 'react';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import {
@@ -51,7 +52,7 @@ export const AssignmentsModal: React.FC<AssignmentsModalProps> = ({
     `${window.location.origin}/miniapp/${sessionId}`;
 
   const handleCopy = async (sessionId: string) => {
-    await navigator.clipboard.writeText(getLink(sessionId));
+    if (!(await copyText(getLink(sessionId)))) return;
     setCopiedId(sessionId);
     setTimeout(() => setCopiedId(null), 2000);
   };

@@ -1,3 +1,4 @@
+import { copyText } from '@/utils/copyText';
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   Camera,
@@ -211,9 +212,11 @@ export const WebcamWidget: React.FC<{
 
   const handleCopy = useCallback(() => {
     if (extractedText) {
-      void navigator.clipboard.writeText(extractedText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      void copyText(extractedText).then((ok) => {
+        if (!ok) return;
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
     }
   }, [extractedText]);
 

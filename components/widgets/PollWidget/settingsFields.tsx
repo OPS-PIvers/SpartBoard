@@ -1,3 +1,4 @@
+import { copyText } from '@/utils/copyText';
 import React, {
   useCallback,
   useEffect,
@@ -175,9 +176,11 @@ export const PollSettings: React.FC<{
 
   const handleCopy = () => {
     if (!joinUrl) return;
-    void navigator.clipboard.writeText(joinUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    void copyText(joinUrl).then((ok) => {
+      if (!ok) return;
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   const options = editing.options;
