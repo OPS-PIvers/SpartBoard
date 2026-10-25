@@ -2934,11 +2934,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
-        "surface": "quiz.face",
-        "kind": "widget",
-        "widget_type": "quiz",
-        "path": [],
+        "surface": "quiz.grader",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
         "needs": [
+          "student-data",
+          "library-item",
           "widget-on-stage"
         ]
       }
@@ -5539,13 +5544,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "closes": "own",
     "routes": [
       {
-        "surface": "quiz.face",
-        "kind": "widget",
-        "widget_type": "quiz",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
+        "surface": "quiz.answer-key-fill",
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -5556,13 +5557,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
-        "surface": "quiz.face",
-        "kind": "widget",
-        "widget_type": "quiz",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
+        "surface": "quiz.answer-key-fill",
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -5571,15 +5568,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Fill answers button on the Fill answer key review step",
     "scope": "board",
     "panel": true,
+    "persists": true,
     "routes": [
       {
-        "surface": "quiz.face",
-        "kind": "widget",
-        "widget_type": "quiz",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
+        "surface": "quiz.answer-key-fill",
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -5591,13 +5585,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "closes": "own",
     "routes": [
       {
-        "surface": "quiz.face",
-        "kind": "widget",
-        "widget_type": "quiz",
-        "path": [],
-        "needs": [
-          "widget-on-stage"
-        ]
+        "surface": "quiz.answer-key-fill",
+        "kind": "shared",
+        "path": []
       }
     ]
   },
