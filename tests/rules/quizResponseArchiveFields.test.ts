@@ -1,5 +1,4 @@
-// Rules tests: archive state and the paper seat on a quiz response are server-written only.
-// Requires a running Firestore emulator (pnpm run test:rules).
+// Rules tests: a quiz response create cannot seed server-owned media archive fields (needs the emulator).
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -10,17 +9,12 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, updateDoc, doc } from 'firebase/firestore';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 
-const PROJECT_ID = 'spartboard-quiz-archive-fields-test';
-const SESSION_ID = 'session-archive-fields';
-const TEACHER_UID = 'teacher-uid-archive';
-const ANON_UID = 'anon-archive-uid';
-const SSO_UID = 'sso-archive-uid';
-const CLASS_ID = 'class-archive';
+const PROJECT_ID = 'spartboard-quiz-response-archive-fields';
+const TEACHER_UID = 'teacher-uid-qraf';
+const SESSION_PATH = 'quiz_sessions/quiz-qraf';
 const PIN_KEY = 'pin-period_1-01';
-const RESPONSE_PATH = `quiz_sessions/${SESSION_ID}/responses/${PIN_KEY}`;
-const TEACHER_RESPONSE_PATH = `quiz_sessions/${SESSION_ID}/responses/pin-period_1-02`;
 
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
@@ -28,63 +22,58 @@ const RULES_PATH = fileURLToPath(
 
 let testEnv: RulesTestEnvironment;
 
-const asAnonStudent = () =>
+const asAnon = (uid: string) =>
   testEnv
-    .authenticatedContext(ANON_UID, {
-      email: '',
-      studentRole: false,
-      classIds: [],
-      firebase: { sign_in_provider: 'anonymous' },
-    })
+    .authenticatedContext(uid, { firebase: { sign_in_provider: 'anonymous' } })
     .firestore();
-
-const asStudentRole = () =>
+const asStudentRole = (uid: string) =>
   testEnv
-    .authenticatedContext(SSO_UID, {
-      email: 'kid@school.edu',
+    .authenticatedContext(uid, {
+      email: '',
       studentRole: true,
-      classIds: [CLASS_ID],
+      classIds: [],
       firebase: { sign_in_provider: 'custom' },
     })
     .firestore();
-
-const asTeacher = () =>
+const asTeacher = (uid: string) =>
   testEnv
-    .authenticatedContext(TEACHER_UID, {
-      email: 'teacher@school.edu',
+    .authenticatedContext(uid, {
+      email: `${uid}@school.edu`,
       firebase: { sign_in_provider: 'google.com' },
     })
     .firestore();
 
-const baseResponse = (studentUid: string = ANON_UID) => ({
-  studentUid,
-  pin: '01',
-  classPeriod: 'period_1',
+const baseResponse = (uid: string) => ({
+  studentUid: uid,
   joinedAt: 1000,
+  status: 'joined',
+  answers: [{ questionId: 'q1', artifacts: [{ id: 'art-1', kind: 'audio' }] }],
   score: null,
-  answers: [],
-  status: 'joined' as const,
+  submittedAt: null,
   completedAttempts: 0,
   preSyncVersion: 0,
-  tabSwitchWarnings: 0,
 });
 
-const SEEDED_FIELDS: Record<string, unknown> = {
-  artifactArchive: { hw_scan_q1: { storageCleanupPending: true } },
-  hasStuckArchive: true,
-  paperSeat: 4,
-  paperBatchId: 'batch-1',
+const forgedArchive = {
+  'art-1': { archiveStatus: 'deleting', driveFileId: 'victim-drive-id' },
 };
 
+const callers: Array<
+  [string, (uid: string) => ReturnType<typeof asAnon>, string, string]
+> = [
+  ['anonymous PIN joiner', asAnon, 'anon-qraf', PIN_KEY],
+  ['studentRole user', asStudentRole, 'sso-qraf', 'sso-qraf'],
+  ['another teacher', asTeacher, 'other-teacher-qraf', PIN_KEY],
+];
+
 beforeAll(async () => {
-  const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
-  const [hostPart, portPart] = emulatorHost ? emulatorHost.split(':') : [];
+  const [host, port] = (process.env.FIRESTORE_EMULATOR_HOST ?? '').split(':');
   testEnv = await initializeTestEnvironment({
     projectId: PROJECT_ID,
     firestore: {
       rules: readFileSync(RULES_PATH, 'utf8'),
-      host: hostPart || '127.0.0.1',
-      port: portPart ? Number(portPart) : 8080,
+      host: host || '127.0.0.1',
+      port: port ? Number(port) : 8080,
     },
   });
 });
@@ -96,80 +85,91 @@ afterAll(async () => {
 beforeEach(async () => {
   await testEnv.clearFirestore();
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
-    await setDoc(doc(ctx.firestore(), `quiz_sessions/${SESSION_ID}`), {
+    await setDoc(doc(ctx.firestore(), SESSION_PATH), {
       teacherUid: TEACHER_UID,
       status: 'active',
-      code: 'ARCHIV',
-      classId: CLASS_ID,
-      classIds: [CLASS_ID],
+      mode: 'submissions',
+      code: 'QRAF01',
     });
   });
 });
 
-describe('quiz response CREATE — server-owned archive fields', () => {
-  it('control: minimal valid CREATE succeeds', async () => {
-    await assertSucceeds(
-      setDoc(doc(asAnonStudent(), RESPONSE_PATH), baseResponse())
-    );
-  });
+describe.each(callers)(
+  'quiz response create by %s',
+  (_label, ctxFor, uid, key) => {
+    const path = `${SESSION_PATH}/responses/${key}`;
 
-  it('control: studentRole and teacher CREATE without them succeed', async () => {
-    await assertSucceeds(
-      setDoc(
-        doc(
-          asStudentRole(),
-          `quiz_sessions/${SESSION_ID}/responses/${SSO_UID}`
-        ),
-        baseResponse(SSO_UID)
-      )
-    );
-    await assertSucceeds(
-      setDoc(doc(asTeacher(), TEACHER_RESPONSE_PATH), baseResponse(TEACHER_UID))
-    );
-  });
+    it('accepts a plain join', async () => {
+      await assertSucceeds(setDoc(doc(ctxFor(uid), path), baseResponse(uid)));
+    });
 
-  for (const [field, value] of Object.entries(SEEDED_FIELDS)) {
-    it(`anonymous CREATE with ${field} is REJECTED`, async () => {
+    it('refuses a forged artifactArchive', async () => {
       await assertFails(
-        setDoc(doc(asAnonStudent(), RESPONSE_PATH), {
-          ...baseResponse(),
-          [field]: value,
+        setDoc(doc(ctxFor(uid), path), {
+          ...baseResponse(uid),
+          artifactArchive: forgedArchive,
         })
       );
     });
 
-    it(`studentRole CREATE with ${field} is REJECTED`, async () => {
+    it('refuses a forged hasStuckArchive flag', async () => {
       await assertFails(
-        setDoc(
-          doc(
-            asStudentRole(),
-            `quiz_sessions/${SESSION_ID}/responses/${SSO_UID}`
-          ),
-          { ...baseResponse(SSO_UID), [field]: value }
-        )
+        setDoc(doc(ctxFor(uid), path), {
+          ...baseResponse(uid),
+          hasStuckArchive: true,
+        })
       );
     });
 
-    it(`teacher CREATE with ${field} is REJECTED`, async () => {
+    it('refuses forged backTranslations', async () => {
       await assertFails(
-        setDoc(doc(asTeacher(), TEACHER_RESPONSE_PATH), {
-          ...baseResponse(TEACHER_UID),
-          [field]: value,
+        setDoc(doc(ctxFor(uid), path), {
+          ...baseResponse(uid),
+          backTranslations: { q1: 'forged' },
         })
       );
     });
   }
+);
+
+describe('quiz response update by its owning student', () => {
+  const path = `${SESSION_PATH}/responses/${PIN_KEY}`;
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), path), baseResponse('anon-qraf'));
+    });
+  });
+
+  it('refuses adding artifactArchive', async () => {
+    await assertFails(
+      updateDoc(doc(asAnon('anon-qraf'), path), {
+        artifactArchive: forgedArchive,
+      })
+    );
+  });
+
+  it('refuses setting hasStuckArchive', async () => {
+    await assertFails(
+      updateDoc(doc(asAnon('anon-qraf'), path), { hasStuckArchive: true })
+    );
+  });
 });
 
-describe('quiz response UPDATE — server-owned archive fields', () => {
-  it('student cannot add archive state or a seat', async () => {
+describe('quiz response update by the session teacher', () => {
+  const path = `${SESSION_PATH}/responses/${PIN_KEY}`;
+
+  beforeEach(async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), RESPONSE_PATH), baseResponse());
+      await setDoc(doc(ctx.firestore(), path), baseResponse('anon-qraf'));
     });
-    for (const [field, value] of Object.entries(SEEDED_FIELDS)) {
-      await assertFails(
-        updateDoc(doc(asAnonStudent(), RESPONSE_PATH), { [field]: value })
-      );
-    }
+  });
+
+  it('can still cache a back-translation', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(TEACHER_UID), path), {
+        'backTranslations.h1a2b3': 'The answer in English',
+      })
+    );
   });
 });

@@ -884,6 +884,21 @@ describe('archiveQuizArtifactCore', () => {
     );
   });
 
+  it('files a title that sanitizes to empty under Untitled Quiz', async () => {
+    const seed = baseSeed();
+    (seed.session as Record<string, unknown>).quizTitle = '...';
+    const { db } = makeStubDb(seed);
+    const deps = makeDeps(db);
+    await call(deps);
+    expect(deps.uploadToDrive).toHaveBeenCalledWith(
+      'token',
+      expect.anything(),
+      'audio/mp4',
+      'Nguyen_Ava__Q1_take1.m4a',
+      'Quiz Responses/Untitled Quiz'
+    );
+  });
+
   it('falls back to the PIN label when no real name resolves', async () => {
     const seed = baseSeed();
     (seed.response as Record<string, unknown>).pin = '4821';
