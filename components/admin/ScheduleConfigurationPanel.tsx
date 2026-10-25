@@ -456,10 +456,15 @@ export const ScheduleConfigurationPanel: React.FC<
     if (confirmed) {
       const newSchedules = schedules.filter((s) => s.id !== id);
       // An emptied list falls back to legacy items, so drop them too.
+      const dateOverrides = Object.fromEntries(
+        Object.entries(currentBuildingConfig.dateOverrides ?? {}).filter(
+          ([, scheduleId]) => scheduleId !== id
+        )
+      );
       handleUpdateBuilding(
         newSchedules.length
-          ? { schedules: newSchedules }
-          : { schedules: [], items: [] }
+          ? { schedules: newSchedules, dateOverrides }
+          : { schedules: [], items: [], dateOverrides }
       );
       if (activeScheduleId === id) setActiveScheduleId(null);
     }
