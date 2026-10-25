@@ -6,7 +6,10 @@ vi.mock('firebase/auth', () => ({
   signInAnonymously: (auth: Auth) => signInAnonymously(auth) as unknown,
 }));
 
-import { dropPinLoginFromOtherSession } from '@/utils/pinLoginScope';
+import {
+  dropPinLogin,
+  dropPinLoginFromOtherSession,
+} from '@/utils/pinLoginScope';
 
 const anon = { isAnonymous: true } as User;
 const custom = (claims: Record<string, unknown>) =>
@@ -43,6 +46,27 @@ describe('dropPinLoginFromOtherSession', () => {
         user
       );
     }
+    expect(signInAnonymously).not.toHaveBeenCalled();
+  });
+});
+
+describe('dropPinLogin', () => {
+  beforeEach(() => signInAnonymously.mockReset());
+
+  it('swaps any PIN token, scoped or not, back to anonymous', async () => {
+    for (const claims of [
+      { pinLogin: true, pinSessionId: 's-a' },
+      { pinLogin: true },
+    ]) {
+      expect(await dropPinLogin(authWith(custom(claims)))).toBe(anon);
+    }
+    expect(signInAnonymously).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps an SSO token and an anonymous user', async () => {
+    const sso = custom({ studentRole: true, sso: true });
+    expect(await dropPinLogin(authWith(sso))).toBe(sso);
+    expect(await dropPinLogin(authWith(anon))).toBe(anon);
     expect(signInAnonymously).not.toHaveBeenCalled();
   });
 });

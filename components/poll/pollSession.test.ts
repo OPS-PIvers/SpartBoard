@@ -301,8 +301,38 @@ describe('stopPollSession', () => {
 
 describe('lookupPollSessionByCode', () => {
   it('returns null for an empty or unmatched code', async () => {
-    expect(await lookupPollSessionByCode('   ')).toBeNull();
-    expect(await lookupPollSessionByCode('K3F9Q')).toBeNull();
+    vi.useFakeTimers();
+    try {
+      expect(await lookupPollSessionByCode('   ')).toBeNull();
+      const lookup = lookupPollSessionByCode('K3F9Q');
+      await vi.runAllTimersAsync();
+      expect(await lookup).toBeNull();
+      expect(mockGetDoc).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('retries a pointer the server has not written yet', async () => {
+    vi.useFakeTimers();
+    try {
+      mockGetDoc
+        .mockResolvedValueOnce({ exists: () => false })
+        .mockResolvedValueOnce({
+          exists: () => true,
+          data: () => ({ sessionId: 'teacher-1_K3F9Q' }),
+        })
+        .mockResolvedValueOnce({
+          exists: () => true,
+          id: 'teacher-1_K3F9Q',
+          data: () => ({ code: 'K3F9Q', active: true }),
+        });
+      const lookup = lookupPollSessionByCode('K3F9Q');
+      await vi.runAllTimersAsync();
+      expect((await lookup)?.sessionId).toBe('teacher-1_K3F9Q');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('resolves the normalized code through its pointer to one session doc', async () => {

@@ -215,13 +215,21 @@ export const ensurePollJoinCode = async (
   return code;
 };
 
+const POINTER_RETRY_MS = [1500, 3000];
+
 /** Resolve a participant-entered code to its session doc. */
 export const lookupPollSessionByCode = async (
   rawCode: string
 ): Promise<{ sessionId: string; data: PollSessionDoc } | null> => {
   const code = normalizePollCode(rawCode);
   if (!code) return null;
-  const pointer = await getDoc(doc(db, POLL_CODES, code));
+  let pointer = await getDoc(doc(db, POLL_CODES, code));
+  // The server writes the pointer just after Start, so a quick scan can beat it.
+  for (const wait of POINTER_RETRY_MS) {
+    if (pointer.exists()) break;
+    await new Promise((resolve) => setTimeout(resolve, wait));
+    pointer = await getDoc(doc(db, POLL_CODES, code));
+  }
   if (!pointer.exists()) return null;
   const sessionId = (pointer.data() as { sessionId?: string }).sessionId;
   if (!sessionId) return null;
