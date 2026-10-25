@@ -2156,7 +2156,8 @@ export interface SoundboardGlobalConfig {
 
 export interface SoundConfig {
   sensitivity: number;
-  visual: 'thermometer' | 'speedometer' | 'line' | 'balls';
+  /** `level` (big level name) is offered only with noise-meter-pro. */
+  visual: 'thermometer' | 'speedometer' | 'line' | 'balls' | 'level';
   autoTrafficLight?: boolean;
   trafficLightThreshold?: number;
   syncExpectations?: boolean;

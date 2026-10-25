@@ -174,6 +174,23 @@ export default defineSettings<SoundConfig>({
             { value: 'line', label: 'visualGraph' },
             { value: 'balls', label: 'visualPopcorn' },
           ],
+          visibleWhen: (ctx) => !isPro(ctx),
+          // Matches the face, which shows the Meter for a saved Level without the flag.
+          readValue: (ctx) =>
+            ctx.config.visual === 'level' ? 'thermometer' : ctx.config.visual,
+        },
+        {
+          key: 'visual',
+          type: 'segmented',
+          label: 'visual',
+          visibleWhen: isPro,
+          options: [
+            { value: 'thermometer', label: 'visualMeter' },
+            { value: 'speedometer', label: 'visualGauge' },
+            { value: 'line', label: 'visualGraph' },
+            { value: 'balls', label: 'visualPopcorn' },
+            { value: 'level', label: 'visualLevel' },
+          ],
         },
       ],
     },

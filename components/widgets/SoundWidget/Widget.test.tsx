@@ -714,4 +714,39 @@ describe('SoundWidget', () => {
       expect(screen.queryByRole('button', { name: 'Summary' })).toBeNull();
     });
   });
+
+  describe('level name view (noise-meter-pro)', () => {
+    afterEach(() => {
+      access.pro = false;
+    });
+
+    it('shows the level number and name in large type with the target', async () => {
+      access.pro = true;
+      mockGetByteFrequencyData.mockImplementation((array: Uint8Array) => {
+        array.fill(25);
+      });
+      render(
+        <SoundWidget
+          widget={createWidget({ visual: 'level', targetLevel: 1 })}
+        />
+      );
+      await act(async () => {
+        await Promise.resolve();
+      });
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      expect(screen.getByText('Conversation')).toBeInTheDocument();
+      expect(screen.getByText('Target: Whisper')).toBeInTheDocument();
+    });
+
+    it('falls back to the meter with the flag off', () => {
+      access.pro = false;
+      const { container } = render(
+        <SoundWidget widget={createWidget({ visual: 'level' })} />
+      );
+      expect(screen.queryByText('Silence')).toBeNull();
+      expect(container.querySelector('svg')).not.toBeNull();
+    });
+  });
 });

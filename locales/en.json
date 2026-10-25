@@ -1984,6 +1984,7 @@
       "visualGauge": "Gauge",
       "visualGraph": "Graph",
       "visualPopcorn": "Popcorn",
+      "visualLevel": "Level",
       "targetLevel": "Target level",
       "targetHelp": "Shows Too loud when the class stays above this level. Follows Expectations while synced.",
       "targetOff": "Off",
@@ -2769,7 +2770,8 @@
       "timeline": "Noise level over time",
       "alertCount_one": "{{count}} Too loud alert",
       "alertCount_other": "{{count}} Too loud alerts",
-      "listenedFor": "Listened for {{time}}"
+      "listenedFor": "Listened for {{time}}",
+      "targetIs": "Target: {{level}}"
     }
   },
   "boardBreadcrumb": {
