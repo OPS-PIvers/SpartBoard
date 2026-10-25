@@ -2670,6 +2670,10 @@ service cloud.firestore {
              request.resource.data.members.diff(resource.data.get('members', {}))
                .affectedKeys().hasOnly([request.auth.uid])
              && request.resource.data.members[request.auth.uid].status == 'removed'
+             // The leaver's role is pinned, so leaving can't mint a lead or coLead.
+             && (request.auth.uid in resource.data.get('members', {}))
+             && request.resource.data.members[request.auth.uid].get('role', '')
+                  == resource.data.members[request.auth.uid].get('role', '')
            );
       return (request.auth.uid in oldMembers)
         && !(request.auth.uid in newMembers)
