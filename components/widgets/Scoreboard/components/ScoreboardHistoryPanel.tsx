@@ -18,7 +18,7 @@ export const ScoreboardHistoryPanel: React.FC<{
 
   return (
     <div
-      className="h-full w-full overflow-y-auto custom-scrollbar text-slate-700"
+      className="h-full w-full overflow-y-auto custom-scrollbar bg-white text-slate-700"
       style={{ padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)' }}
     >
       <div
