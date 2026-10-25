@@ -557,8 +557,10 @@ export const WebcamWidget: React.FC<{
       if (picks.length !== 2) return;
       const sides = picks.map((id): CompareSide | null => {
         if (id === LIVE_COMPARE_ID) return { kind: 'live' };
-        const item = capturedItems.find((c) => c.id === id);
-        return item ? { kind: 'photo', id, dataUrl: item.dataUrl } : null;
+        const index = capturedItems.findIndex((c) => c.id === id);
+        if (index < 0) return null;
+        const { dataUrl } = capturedItems[index];
+        return { kind: 'photo', id, dataUrl, label: `Photo ${index + 1}` };
       });
       const [a, b] = sides;
       if (!a || !b) return;

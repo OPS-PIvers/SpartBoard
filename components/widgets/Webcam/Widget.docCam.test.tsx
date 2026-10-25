@@ -282,10 +282,10 @@ describe('WebcamWidget compare', () => {
     fireEvent.click(screen.getByLabelText('Photo 1'));
     expect(show).toHaveProperty('disabled', false);
     fireEvent.click(show);
-    expect(screen.getByAltText('Photo 2')).toBeTruthy();
+    expect(screen.getByAltText('Photo 1')).toBeTruthy();
     expect(screen.queryByText('Pick two to compare')).toBeNull();
     fireEvent.click(screen.getByTitle('Exit compare'));
-    expect(screen.queryByAltText('Photo 2')).toBeNull();
+    expect(screen.queryByAltText('Photo 1')).toBeNull();
   });
 
   it('closes a live comparison for good when a phone photo takes over', async () => {

@@ -7,7 +7,8 @@ import { type DocCamRotation, isSideways } from './docCamView';
 export const LIVE_COMPARE_ID = 'live';
 
 export type CompareSide =
-  { kind: 'live' } | { kind: 'photo'; id: string; dataUrl: string };
+  | { kind: 'live' }
+  | { kind: 'photo'; id: string; dataUrl: string; label: string };
 
 interface Props {
   widgetId: string;
@@ -72,7 +73,7 @@ export const DocCamCompare: React.FC<Props> = ({
           <img
             data-pii=""
             src={side.dataUrl}
-            alt={`Photo ${i + 1}`}
+            alt={side.label}
             className="w-full h-full object-contain"
           />
         )}
