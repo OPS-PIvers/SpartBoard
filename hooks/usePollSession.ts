@@ -212,17 +212,22 @@ export const usePollSession = ({
   // Phones stay on a stopped session's doc, so a reveal after Stop still reaches them.
   const resultsSessionId =
     activePollSessionId ?? config.lastPollSessionId ?? null;
+  // On a shared board only the member who ran the session can update its doc.
+  const resultsOwnerUid =
+    (activePollSessionId
+      ? config.activePollSessionOwnerUid
+      : config.lastPollSessionOwnerUid) ?? teacherUid;
 
   const applyResultsState = useCallback(
     (next: PollConfig) => {
       onConfigChange(next);
-      if (resultsSessionId && teacherUid) {
+      if (resultsSessionId && teacherUid && resultsOwnerUid === teacherUid) {
         void syncSessionResultsState(teacherUid, resultsSessionId, next).catch(
           (err) => logError('usePollSession.resultsState', err)
         );
       }
     },
-    [onConfigChange, resultsSessionId, teacherUid]
+    [onConfigChange, resultsSessionId, resultsOwnerUid, teacherUid]
   );
 
   const setRevealed = useCallback(

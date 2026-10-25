@@ -49,6 +49,7 @@ import {
 import { useTooLoudAlert } from './useTooLoudAlert';
 import { useQuietGoal } from './useQuietGoal';
 import { useNoiseSession } from './useNoiseSession';
+import { usePageVisible } from './usePageVisible';
 import { awardPoint, findTeamScoreboard } from './scoreboardAward';
 import { SessionSummary } from './components/SessionSummary';
 
@@ -380,7 +381,12 @@ export const SoundWidget: React.FC<{
       const samples: number[] = [];
       sampler = setInterval(() => {
         // Null until the mic is live, so a pending permission prompt adds no zeros.
-        if (rawAverageRef.current !== null) samples.push(rawAverageRef.current);
+        // A hidden tab pauses the meter loop, so its frozen reading is skipped.
+        if (
+          rawAverageRef.current !== null &&
+          document.visibilityState !== 'hidden'
+        )
+          samples.push(rawAverageRef.current);
       }, CALIBRATE_SAMPLE_MS);
       done = setTimeout(() => {
         clearInterval(sampler);
@@ -399,7 +405,14 @@ export const SoundWidget: React.FC<{
   }, [calibrating]);
 
   const goalMs = limit === null ? 0 : quietGoalMs(quietGoalMinutes);
-  const isOver = isActive && !calibrating && limit !== null && volume >= limit;
+  // The level freezes while the tab is hidden, so it can't count as too loud.
+  const pageVisible = usePageVisible();
+  const isOver =
+    pageVisible &&
+    isActive &&
+    !calibrating &&
+    limit !== null &&
+    volume >= limit;
   const quietGoal = useQuietGoal(
     isActive && micReady && !calibrating && goalMs > 0 && !isOver,
     goalMs,
