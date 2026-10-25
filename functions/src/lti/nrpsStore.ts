@@ -324,6 +324,49 @@ export type PersistLtiLaunchContextArgs = {
 );
 
 /** The session a Schoology launch joins: the VA session by id, or the deep-linking teacher's most recently started joinable quiz session for the code. */
+/** Whether a session's launch context belongs to `ownerUid`; a pre-stamp context with server-written evidence is stamped on the way. */
+export async function contextOwnedBy(
+  db: Db,
+  sessionId: string,
+  sessionData: Record<string, unknown>,
+  contextId: string,
+  contextData: Record<string, unknown>,
+  ownerUid: string
+): Promise<boolean> {
+  if (!ownerUid) return false;
+  const stamped = contextData.teacherUid;
+  if (typeof stamped === 'string') return stamped === ownerUid;
+  try {
+    const att = sessionData.ltiAttachment as
+      { contextId?: unknown } | undefined;
+    let evidence = att?.contextId === contextId;
+    if (!evidence) {
+      const seen = await db
+        .collection(USERS_COLLECTION)
+        .doc(ownerUid)
+        .collection(LTI_SEEN_SECTIONS_SUBCOLLECTION)
+        .doc(contextId)
+        .get();
+      evidence = seen.exists && seen.data()?.sessionId === sessionId;
+    }
+    if (!evidence) return false;
+  } catch (err) {
+    console.warn('[lti] context owner check failed', err);
+    return false;
+  }
+  try {
+    await db
+      .collection(LTI_SESSION_MEMBERSHIPS_COLLECTION)
+      .doc(sessionId)
+      .collection('contexts')
+      .doc(contextId)
+      .set({ teacherUid: ownerUid }, { merge: true });
+  } catch (err) {
+    console.warn('[lti] context owner stamp failed', err);
+  }
+  return true;
+}
+
 export async function resolveLtiTargetSession(
   db: Db,
   args: LtiTargetSessionArgs

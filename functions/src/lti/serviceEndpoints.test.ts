@@ -239,6 +239,40 @@ describe('ltiResolveNamesForAssignmentV1 — resolution', () => {
     expect(res.names).toEqual({});
   });
 
+  it('resolves a pre-stamp context only with server-written evidence it is this session', async () => {
+    contextDocs = [
+      {
+        id: 'ctx-1',
+        data: () => ({ contextMembershipsUrl: 'https://lms/m1' }),
+      },
+    ];
+    vi.spyOn(nrpsNet, 'fetchMembershipPage').mockResolvedValue({
+      ok: true,
+      status: 200,
+      members: [{ user_id: 'sub-A', given_name: 'Ada', family_name: 'L' }],
+      nextUrl: null,
+      isRedirect: false,
+    });
+    const uidA = ltiStudentUid('sub-A', 'test-hmac-secret');
+    const orphan = await callResolve({
+      auth: TEACHER,
+      data: { sessionId: 's1' },
+    });
+    expect(orphan.names[uidA]).toBeUndefined();
+    sessionDoc = {
+      exists: true,
+      data: () => ({
+        teacherUid: 'teacher-1',
+        ltiAttachment: { resourceLinkId: 'rl-1', contextId: 'ctx-1' },
+      }),
+    };
+    const owned = await callResolve({
+      auth: TEACHER,
+      data: { sessionId: 's1' },
+    });
+    expect(owned.names[uidA]).toEqual({ givenName: 'Ada', familyName: 'L' });
+  });
+
   it('maps members onto the response-doc pseudonym uid', async () => {
     contextDocs = [
       {

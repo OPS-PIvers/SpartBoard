@@ -38,6 +38,7 @@ import {
   VIDEO_ACTIVITY_SESSIONS_COLLECTION,
   LTI_SESSION_MEMBERSHIPS_COLLECTION,
   type LtiSessionKind,
+  contextOwnedBy,
 } from './nrpsStore';
 import { assertViewAsAllowed } from '../viewAsGuard';
 import { isVerifiedDistrictTeacher } from './teacherAuth';
@@ -480,7 +481,17 @@ export const ltiResolveNamesForAssignmentV1 = onCall(
     let contextsFailed = 0;
     for (const doc of ctxSnap.docs) {
       // Contexts filed for a previous owner of a recycled session id are not ours.
-      if (doc.data().teacherUid !== request.auth.uid) continue;
+      if (
+        !(await contextOwnedBy(
+          db,
+          sessionId,
+          sessSnap.data() ?? {},
+          doc.id,
+          doc.data(),
+          request.auth.uid
+        ))
+      )
+        continue;
       const url =
         typeof doc.data().contextMembershipsUrl === 'string'
           ? (doc.data().contextMembershipsUrl as string)
