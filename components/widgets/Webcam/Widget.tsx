@@ -21,6 +21,14 @@ import { extractTextWithGemini } from '@/utils/ai';
 import { WidgetLayout } from '../WidgetLayout';
 import { CapturedItem } from './types';
 import { tourAttr } from '@/config/tourAnchors';
+import { useDocCamView } from './useDocCamView';
+import { DocCamViewControls } from './DocCamViewControls';
+import {
+  isDefaultView,
+  mediaBox,
+  mediaTransform,
+  renderView,
+} from './docCamView';
 
 export const WebcamWidget: React.FC<{
   widget: WidgetData;
@@ -49,6 +57,67 @@ export const WebcamWidget: React.FC<{
   const [showCaptureSuccess, setShowCaptureSuccess] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const remoteImgRef = useRef<HTMLImageElement>(null);
+  const docCamPro = canAccessFeature('document-camera-pro');
+  const {
+    attachFeed,
+    size: feedSize,
+    view: docCamView,
+    isPanning,
+    zoomIn,
+    zoomOut,
+    rotate,
+    resetView,
+  } = useDocCamView({
+    enabled: docCamPro,
+    savedZoom: widgetConfig.zoomLevel,
+    savedRotation: widgetConfig.rotation,
+    onSave: (patch) => updateWidget(_widget.id, { config: patch }),
+  });
+  const isRemoteShown = !!(
+    widgetConfig.isRemoteMode && widgetConfig.remoteCaptureDataUrl
+  );
+
+  // Document camera view: the photo matches the turned, zoomed feed.
+  const captureDocCamView = useCallback((): string => {
+    if (isRemoteShown) {
+      const img = remoteImgRef.current;
+      if (!img?.naturalWidth || isDefaultView(docCamView)) {
+        return widgetConfig.remoteCaptureDataUrl ?? '';
+      }
+      const canvas = renderView(
+        img,
+        { width: img.naturalWidth, height: img.naturalHeight },
+        docCamView,
+        false,
+        feedSize
+      );
+      // JPEG keeps a phone photo near the size the phone sent.
+      return canvas?.toDataURL('image/jpeg', 0.9) ?? '';
+    }
+    const video = videoRef.current;
+    if (!video) return '';
+    const canvas = renderView(
+      video,
+      { width: video.videoWidth, height: video.videoHeight },
+      docCamView,
+      isMirrored,
+      feedSize
+    );
+    return canvas?.toDataURL('image/png') ?? '';
+  }, [
+    feedSize,
+    docCamView,
+    isMirrored,
+    isRemoteShown,
+    widgetConfig.remoteCaptureDataUrl,
+  ]);
+
+  // The doc-cam layout remounts the <video> (flag change, leaving remote mode), so hand it the stream again.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video && stream && video.srcObject !== stream) video.srcObject = stream;
+  }, [stream, docCamPro, isRemoteShown]);
 
   useEffect(() => {
     // When the host Board becomes inactive, release the camera immediately so
@@ -157,7 +226,10 @@ export const WebcamWidget: React.FC<{
     setIsExtracting(true);
     try {
       let dataUrl = '';
-      if (isRemote && widgetConfig.remoteCaptureDataUrl) {
+      if (docCamPro) {
+        dataUrl = captureDocCamView();
+        if (!dataUrl) throw new Error('Could not capture the camera view');
+      } else if (isRemote && widgetConfig.remoteCaptureDataUrl) {
         dataUrl = widgetConfig.remoteCaptureDataUrl;
       } else if (videoRef.current) {
         const canvas = document.createElement('canvas');
@@ -200,6 +272,8 @@ export const WebcamWidget: React.FC<{
       setIsExtracting(false);
     }
   }, [
+    captureDocCamView,
+    docCamPro,
     isMirrored,
     ocrMode,
     showAlert,
@@ -226,7 +300,9 @@ export const WebcamWidget: React.FC<{
   const takePhoto = useCallback(() => {
     let dataUrl = '';
 
-    if (widgetConfig.isRemoteMode && widgetConfig.remoteCaptureDataUrl) {
+    if (docCamPro) {
+      dataUrl = captureDocCamView();
+    } else if (widgetConfig.isRemoteMode && widgetConfig.remoteCaptureDataUrl) {
       dataUrl = widgetConfig.remoteCaptureDataUrl;
     } else if (videoRef.current) {
       const canvas = document.createElement('canvas');
@@ -257,6 +333,8 @@ export const WebcamWidget: React.FC<{
       setTimeout(() => setShowCaptureSuccess(false), 1500);
     }
   }, [
+    captureDocCamView,
+    docCamPro,
     isMirrored,
     widgetConfig.isRemoteMode,
     widgetConfig.remoteCaptureDataUrl,
@@ -316,8 +394,50 @@ export const WebcamWidget: React.FC<{
             />
           ) : (
             <>
-              {widgetConfig.isRemoteMode &&
-              widgetConfig.remoteCaptureDataUrl ? (
+              {docCamPro ? (
+                <div
+                  ref={attachFeed}
+                  data-inking-surface=""
+                  className="absolute inset-0 overflow-hidden"
+                  style={{
+                    cursor:
+                      docCamView.zoom > 1
+                        ? isPanning
+                          ? 'grabbing'
+                          : 'grab'
+                        : undefined,
+                  }}
+                >
+                  {isRemoteShown ? (
+                    <img
+                      data-pii=""
+                      ref={remoteImgRef}
+                      src={widgetConfig.remoteCaptureDataUrl}
+                      alt="Remote Capture"
+                      draggable={false}
+                      className="absolute object-cover max-w-none select-none"
+                      style={{
+                        ...mediaBox(docCamView.rotation, feedSize),
+                        transform: mediaTransform(docCamView, false),
+                      }}
+                    />
+                  ) : (
+                    <video
+                      data-pii=""
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="absolute object-cover max-w-none"
+                      style={{
+                        ...mediaBox(docCamView.rotation, feedSize),
+                        transform: mediaTransform(docCamView, isMirrored),
+                      }}
+                    />
+                  )}
+                </div>
+              ) : widgetConfig.isRemoteMode &&
+                widgetConfig.remoteCaptureDataUrl ? (
                 <img
                   data-pii=""
                   src={widgetConfig.remoteCaptureDataUrl}
@@ -332,6 +452,19 @@ export const WebcamWidget: React.FC<{
                   playsInline
                   muted
                   className={`w-full h-full object-cover transition-transform duration-500 ${isMirrored ? 'scale-x-[-1]' : 'scale-x-1'}`}
+                />
+              )}
+
+              {docCamPro && (
+                <DocCamViewControls
+                  widgetId={_widget.id}
+                  widgetType={_widget.type}
+                  view={docCamView}
+                  disabled={isRemoteShown ? false : !stream}
+                  onZoomIn={zoomIn}
+                  onZoomOut={zoomOut}
+                  onRotate={rotate}
+                  onReset={resetView}
                 />
               )}
 

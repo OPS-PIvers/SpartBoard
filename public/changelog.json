@@ -2535,6 +2535,13 @@
       "date": "2026-10-25",
       "text": "Set a target level in settings. The meter marks it, and shows Too loud when the class stays above it.",
       "feature": "noise-meter-pro"
+    },
+    {
+      "id": "webcam-document-camera",
+      "widget": "webcam",
+      "date": "2026-10-25",
+      "text": "Camera now works like a document camera. Zoom in, drag to move around, and turn the picture.",
+      "feature": "document-camera-pro"
     }
   ]
 }

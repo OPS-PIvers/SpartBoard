@@ -2751,7 +2751,10 @@ export interface ActivityWallLike {
 
 export interface WebcamConfig {
   deviceId?: string;
+  /** Digital zoom, 1 to 4 (document-camera-pro). */
   zoomLevel?: number;
+  /** Feed rotation in degrees: 0, 90, 180 or 270 (document-camera-pro). */
+  rotation?: number;
   isMirrored?: boolean;
   autoSendToNotes?: boolean;
   isRemoteMode?: boolean;
@@ -10467,6 +10470,8 @@ export type GlobalFeature =
   | 'poll-pro'
   /** Sound widget target level, Too loud alert, calibration, quiet time goal and summary (pro-grade-2/NOISE_METER_PLAN.md). */
   | 'noise-meter-pro'
+  /** Camera as a document camera: zoom, pan, rotate, freeze, draw, compare, resolution. */
+  | 'document-camera-pro'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak';
 
