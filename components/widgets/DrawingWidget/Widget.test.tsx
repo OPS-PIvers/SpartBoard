@@ -1429,3 +1429,303 @@ describe('DrawingWidget highlighter and laser (whiteboard-pro)', () => {
     expect(queryByLabelText('Sticky note')).toBeNull();
   });
 });
+
+describe('DrawingWidget shape polish (whiteboard-pro)', () => {
+  let mockUpdateWidget: Mock;
+
+  const setup = (
+    flagOn: boolean,
+    config: Partial<DrawingConfig>
+  ): ReturnType<typeof render> => {
+    mockUpdateWidget = vi.fn();
+    (useDashboard as Mock).mockReturnValue({
+      updateWidget: mockUpdateWidget,
+      activeDashboard: { background: 'bg-slate-900', widgets: [] },
+      addToast: vi.fn(),
+      addWidget: vi.fn(),
+      drawingWidgetsMigrating: new Set<string>(),
+    });
+    (useAuth as Mock).mockReturnValue({
+      user: { uid: 'user1' },
+      canAccessFeature: vi.fn((id: string) =>
+        id === 'whiteboard-pro' ? flagOn : true
+      ),
+    });
+    const ctx: Record<string, unknown> = {
+      canvas: { width: 400, height: 212 },
+    };
+    for (const fn of [
+      'clearRect',
+      'beginPath',
+      'moveTo',
+      'lineTo',
+      'stroke',
+      'save',
+      'restore',
+      'fill',
+      'closePath',
+      'strokeRect',
+      'fillRect',
+      'ellipse',
+      'fillText',
+      'setLineDash',
+      'arc',
+      'rect',
+      'clip',
+      'setTransform',
+      'translate',
+      'rotate',
+    ]) {
+      ctx[fn] = vi.fn();
+    }
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+      ctx as unknown as CanvasRenderingContext2D
+    );
+    vi.spyOn(
+      HTMLCanvasElement.prototype,
+      'getBoundingClientRect'
+    ).mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 400,
+      height: 212,
+      right: 400,
+      bottom: 212,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    return render(
+      <DrawingWidget
+        widget={{
+          id: 'drawing-shapes',
+          type: 'drawing',
+          x: 0,
+          y: 0,
+          w: 400,
+          h: 300,
+          z: 1,
+          flipped: false,
+          config: { color: '#000000', width: 4, objects: [], ...config },
+        }}
+      />
+    );
+  };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const drag = (
+    canvas: Element,
+    from: [number, number],
+    to: [number, number],
+    shiftKey = false
+  ) => {
+    for (const [type, [x, y]] of [
+      ['pointerdown', from],
+      ['pointermove', to],
+      ['pointerup', to],
+    ] as const) {
+      fireEvent(
+        canvas,
+        new PointerEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          clientX: x,
+          clientY: y,
+          shiftKey,
+        })
+      );
+    }
+  };
+
+  const lastObjects = () => {
+    const calls = mockUpdateWidget.mock.calls;
+    const cfg = (calls[calls.length - 1][1] as Partial<WidgetData>)
+      .config as DrawingConfig;
+    return objectsFromConfig(cfg);
+  };
+
+  it('flag off: Shift does not snap, shapes save as before, and the popover has no shape toggles', () => {
+    const { container, getByLabelText, queryByText } = setup(false, {
+      activeTool: 'arrow',
+      shapeDashed: true,
+      arrowBothEnds: true,
+    });
+    drag(
+      container.querySelector('canvas') as Element,
+      [10, 10],
+      [100, 30],
+      true
+    );
+    expect(lastObjects()[0]).toEqual({
+      id: expect.any(String) as string,
+      kind: 'arrow',
+      z: expect.any(Number) as number,
+      x1: 10,
+      y1: 10,
+      x2: 100,
+      y2: 30,
+      stroke: '#000000',
+      strokeWidth: 4,
+    });
+    fireEvent.click(getByLabelText('Arrow'));
+    expect(queryByText('Dashed')).toBeNull();
+    expect(queryByText('Both ends')).toBeNull();
+  });
+
+  it('Shift makes a rectangle square', () => {
+    const { container } = setup(true, { activeTool: 'rect' });
+    drag(
+      container.querySelector('canvas') as Element,
+      [10, 10],
+      [100, 40],
+      true
+    );
+    expect(lastObjects()[0]).toMatchObject({ x: 10, y: 10, w: 90, h: 90 });
+  });
+
+  it('Shift snaps a line to the nearest 15 degrees', () => {
+    const { container } = setup(true, { activeTool: 'line' });
+    drag(
+      container.querySelector('canvas') as Element,
+      [10, 10],
+      [110, 14],
+      true
+    );
+    const line = lastObjects()[0];
+    expect(line.kind === 'line' && line.y2).toBe(10);
+  });
+
+  it('dashed and both-ends settings land on new arrows', () => {
+    const { container } = setup(true, {
+      activeTool: 'arrow',
+      shapeDashed: true,
+      arrowBothEnds: true,
+    });
+    drag(container.querySelector('canvas') as Element, [10, 10], [100, 30]);
+    expect(lastObjects()[0]).toMatchObject({
+      kind: 'arrow',
+      dashed: true,
+      startHead: true,
+    });
+  });
+
+  it('the shape popover toggles dashed and both ends', () => {
+    const { getByLabelText, getByText } = setup(true, { activeTool: 'arrow' });
+    fireEvent.click(getByLabelText('Arrow'));
+    fireEvent.click(getByText('Dashed'));
+    expect(mockUpdateWidget).toHaveBeenLastCalledWith(
+      'drawing-shapes',
+      expect.objectContaining({
+        config: expect.objectContaining({ shapeDashed: true }) as unknown,
+      })
+    );
+    fireEvent.click(getByText('Both ends'));
+    expect(mockUpdateWidget).toHaveBeenLastCalledWith(
+      'drawing-shapes',
+      expect.objectContaining({
+        config: expect.objectContaining({ arrowBothEnds: true }) as unknown,
+      })
+    );
+  });
+
+  it('Ctrl+D and the Duplicate button copy the selected object', () => {
+    const rect = {
+      id: 'r1',
+      kind: 'rect' as const,
+      z: 0,
+      x: 50,
+      y: 50,
+      w: 60,
+      h: 40,
+      stroke: '#000000',
+      strokeWidth: 4,
+    };
+    const { container, getByLabelText, queryByLabelText } = setup(true, {
+      activeTool: 'select',
+      objects: [rect],
+    });
+    expect(queryByLabelText('Duplicate')).toBeNull();
+    const canvas = container.querySelector('canvas') as Element;
+    drag(canvas, [80, 70], [80, 70]);
+    const wrapper = container.querySelector('[data-selected-id]') as Element;
+    expect(wrapper.getAttribute('data-selected-id')).toBe('r1');
+    fireEvent.click(getByLabelText('Duplicate'));
+    const objs = lastObjects();
+    expect(objs).toHaveLength(2);
+    expect(objs[1]).toMatchObject({ kind: 'rect', x: 66, y: 66, w: 60, h: 40 });
+    expect(objs[1].id).not.toBe('r1');
+    // The copy is selected once it arrives; this mock never echoes it back.
+    drag(canvas, [80, 70], [80, 70]);
+    mockUpdateWidget.mockClear();
+    fireEvent.keyDown(wrapper, { key: 'd', ctrlKey: true });
+    expect(lastObjects()).toHaveLength(2);
+  });
+
+  it('dragging near another object shows a guide and snaps to its edge', () => {
+    const box = (id: string, x: number, y: number) => ({
+      id,
+      kind: 'rect' as const,
+      z: 0,
+      x,
+      y,
+      w: 40,
+      h: 20,
+      stroke: '#000000',
+      strokeWidth: 4,
+    });
+    const { container } = setup(true, {
+      activeTool: 'select',
+      objects: [box('a', 50, 30), box('b', 200, 150)],
+    });
+    const canvas = container.querySelector('canvas') as Element;
+    const fire = (type: string, x: number, y: number) =>
+      fireEvent(
+        canvas,
+        new PointerEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          clientX: x,
+          clientY: y,
+        })
+      );
+    fire('pointerdown', 210, 160);
+    fire('pointermove', 63, 160);
+    expect(
+      container.querySelector('[data-testid="drawing-alignment-guides"]')
+    ).not.toBeNull();
+    fire('pointerup', 63, 160);
+    expect(
+      container.querySelector('[data-testid="drawing-alignment-guides"]')
+    ).toBeNull();
+    expect(lastObjects().find((o) => o.id === 'b')).toMatchObject({
+      x: 50,
+      y: 150,
+    });
+  });
+
+  it('flag off: Ctrl+D does nothing', () => {
+    const { container } = setup(false, {
+      activeTool: 'select',
+      objects: [
+        {
+          id: 'r1',
+          kind: 'rect',
+          z: 0,
+          x: 50,
+          y: 50,
+          w: 60,
+          h: 40,
+          stroke: '#000000',
+          strokeWidth: 4,
+        },
+      ],
+    });
+    drag(container.querySelector('canvas') as Element, [80, 70], [80, 70]);
+    const wrapper = container.querySelector('[data-selected-id]') as Element;
+    fireEvent.keyDown(wrapper, { key: 'd', ctrlKey: true });
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+});

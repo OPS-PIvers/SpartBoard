@@ -123,10 +123,9 @@ const stickyInner = (obj: TextObject, fontSize: number): TextObject => ({
   wrap: true,
 });
 
-/** Largest font size, up to the note's own, at which the text fits inside the note. */
 const fitCache = new Map<string, number>();
 
-/** Cached: every repaint during a drag would otherwise re-measure each note. */
+/** Largest font size, up to the note's own, at which the text fits; cached so drags don't re-measure. */
 export const fitStickyFontSize = (obj: TextObject): number => {
   // Font load state is in the key so a fallback-font fit is re-measured once Lexend arrives.
   const fonts = typeof document === 'undefined' ? '' : document.fonts?.status;
