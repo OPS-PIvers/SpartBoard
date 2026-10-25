@@ -39,7 +39,6 @@ const wordClass = (word: string): string => {
 
 const MAX_CLOUD_ENTRIES = 80;
 
-
 const buildAnswerCloud = (
   texts: string[],
   hidden: (word: string) => boolean
