@@ -3984,6 +3984,15 @@ export interface SeatingChartConfig {
   savedPlans?: SeatingPlan[];
   /** The saved plan whose seats `assignments` currently holds. */
   activePlanId?: string | null;
+  /** Shuffle rules for this board; student ids, class rosters only. */
+  seatingRules?: SeatingChartRules;
+}
+
+export interface SeatingChartRules {
+  /** Pairs of students who shouldn't sit at the same or neighbouring seats (objects: Firestore has no nested arrays). */
+  keepApart?: { a: string; b: string }[];
+  /** Students who need a front-row seat. */
+  frontSeat?: string[];
 }
 
 export interface SeatingPlan {
