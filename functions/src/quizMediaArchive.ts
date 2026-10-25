@@ -1212,10 +1212,11 @@ export async function archiveQuizArtifactCore(
         ? null
         : takeNumberFor(answers, questionId, artifactId)
     );
+    // A title that sanitizes to empty would land loose in Quiz Responses/, where deletes are refused.
     const quizTitle =
-      typeof session.quizTitle === 'string' && session.quizTitle.trim()
+      (typeof session.quizTitle === 'string'
         ? sanitizeDriveNameSegment(session.quizTitle)
-        : 'Untitled Quiz';
+        : '') || 'Untitled Quiz';
 
     const driveFile = await deps.uploadToDrive(
       accessToken ?? (await deps.getAccessToken(teacherUid)),

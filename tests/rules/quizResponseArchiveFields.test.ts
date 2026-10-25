@@ -155,3 +155,21 @@ describe('quiz response update by its owning student', () => {
     );
   });
 });
+
+describe('quiz response update by the session teacher', () => {
+  const path = `${SESSION_PATH}/responses/${PIN_KEY}`;
+
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), path), baseResponse('anon-qraf'));
+    });
+  });
+
+  it('can still cache a back-translation', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(TEACHER_UID), path), {
+        'backTranslations.h1a2b3': 'The answer in English',
+      })
+    );
+  });
+});
