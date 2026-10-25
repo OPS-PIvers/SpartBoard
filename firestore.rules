@@ -2346,9 +2346,9 @@ service cloud.firestore {
       // Map present + caller keyed: role governs (viewer => denied).
       // Map absent / caller not keyed: fall back to the denormalized index
       // (legacy PLCs have no viewers, so membership == edit rights).
-      return mapHasCaller
-        ? role != 'viewer'
-        : authUid() in plcData.memberUids;
+      // A members entry alone never grants edit rights: the caller must still be in memberUids.
+      return authUid() in plcData.memberUids
+        && (!mapHasCaller || role != 'viewer');
     }
     function plcEditor(id) { return signedIn() && plcCanEditContent(id); }
     function plcReader(id) { return signedIn() && plcMember(id); }
@@ -2357,10 +2357,14 @@ service cloud.firestore {
     // (Decision 1.2). Falls back to the denormalized leadUid so legacy (map-less)
     // PLCs still authorize their lead; coLeads exist only once the map is present.
     function isPlcMembershipManager(plcData) {
-      let role = plcRoleOf(plcData, authUid());
-      return authUid() == plcData.get('leadUid', '')
-        || role == 'lead'
-        || role == 'coLead';
+      let entry = plcData.get('members', {}).get(authUid(), {});
+      // A removed or departed entry keeps no authority, whatever role it records.
+      return authUid() in plcData.get('memberUids', [])
+        && (
+          authUid() == plcData.get('leadUid', '')
+          || (entry.get('role', '') in ['lead', 'coLead']
+              && entry.get('status', '') == 'active')
+        );
     }
 
     // Exactly-one-lead invariant (Decision 1.2): a role change must never mint a
@@ -2638,6 +2642,10 @@ service cloud.firestore {
              request.resource.data.members.diff(resource.data.get('members', {}))
                .affectedKeys().hasOnly([request.auth.uid])
              && request.resource.data.members[request.auth.uid].status == 'removed'
+             // The leaver's role is pinned, so leaving can't mint a lead or coLead.
+             && (request.auth.uid in resource.data.get('members', {}))
+             && request.resource.data.members[request.auth.uid].get('role', '')
+                  == resource.data.members[request.auth.uid].get('role', '')
            );
       return (request.auth.uid in oldMembers)
         && !(request.auth.uid in newMembers)
@@ -2968,7 +2976,7 @@ service cloud.firestore {
       // runs the same kind of unfiltered list query against this collection.
       allow read: if signedIn()
         && (
-          authUid() in existing().get('members', {})
+          existing().get('members', {}).get(authUid(), {}).get('status', '') == 'active'
           || authUid() in existing().memberUids
           || (
             isAdmin()
