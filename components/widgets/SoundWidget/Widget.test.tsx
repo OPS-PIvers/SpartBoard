@@ -439,6 +439,28 @@ describe('SoundWidget', () => {
       expect(screen.queryByText('Too loud')).toBeNull();
     });
 
+    it('drops the alert while the browser tab is hidden', async () => {
+      await startLoud({ targetLevel: 1 });
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      act(() => {
+        vi.advanceTimersByTime(3500);
+      });
+      expect(screen.getByText('Too loud')).toBeInTheDocument();
+      const visibility = vi
+        .spyOn(document, 'visibilityState', 'get')
+        .mockReturnValue('hidden');
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      expect(screen.queryByText('Too loud')).toBeNull();
+      visibility.mockRestore();
+    });
+
     it('never alerts with the flag off', async () => {
       access.pro = false;
       await startLoud({ targetLevel: 0 });

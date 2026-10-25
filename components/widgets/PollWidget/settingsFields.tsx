@@ -222,7 +222,9 @@ export const PollSettings: React.FC<{
     if (
       sessionId &&
       user &&
-      (config.activePollSessionOwnerUid ?? user.uid) === user.uid
+      ((activePollSessionId
+        ? config.activePollSessionOwnerUid
+        : config.lastPollSessionOwnerUid) ?? user.uid) === user.uid
     ) {
       void syncSessionResultsState(user.uid, sessionId, next).catch((err) =>
         logError('PollSettings.hideResults', err)
