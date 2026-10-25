@@ -260,9 +260,9 @@ const distanceToSegment = (p: Point, a: Point, b: Point): number => {
   return Math.sqrt(ddx * ddx + ddy * ddy);
 };
 
-const hitPath = (obj: PathObject, p: Point): boolean => {
+const hitPath = (obj: PathObject, p: Point, viewZoom: number): boolean => {
   if (obj.points.length < 2) return false;
-  const tolerance = obj.width / 2 + STROKE_HIT_PADDING;
+  const tolerance = obj.width / 2 + STROKE_HIT_PADDING / viewZoom;
   for (let i = 1; i < obj.points.length; i++) {
     if (distanceToSegment(p, obj.points[i - 1], obj.points[i]) <= tolerance) {
       return true;
@@ -271,8 +271,12 @@ const hitPath = (obj: PathObject, p: Point): boolean => {
   return false;
 };
 
-const hitLineLike = (obj: LineObject | ArrowObject, p: Point): boolean => {
-  const tolerance = obj.strokeWidth / 2 + STROKE_HIT_PADDING;
+const hitLineLike = (
+  obj: LineObject | ArrowObject,
+  p: Point,
+  viewZoom: number
+): boolean => {
+  const tolerance = obj.strokeWidth / 2 + STROKE_HIT_PADDING / viewZoom;
   return (
     distanceToSegment(p, { x: obj.x1, y: obj.y1 }, { x: obj.x2, y: obj.y2 }) <=
     tolerance
@@ -308,7 +312,12 @@ const hitEllipse = (obj: EllipseObject, p: Point): boolean => {
  * and path encode their geometry in endpoints / points and ignore `rotation`
  * — applying it here would double-rotate.
  */
-export const hitTestObject = (obj: DrawableObject, p: Point): boolean => {
+/** `viewZoom` keeps the stroke tolerance the same on screen when the whiteboard is zoomed. */
+export const hitTestObject = (
+  obj: DrawableObject,
+  p: Point,
+  viewZoom = 1
+): boolean => {
   // Eraser strokes paint nothing, so they must not shadow the objects they erase.
   if (obj.kind === 'path' && obj.color === 'eraser') return false;
   const rot = obj.rotation ?? 0;
@@ -318,7 +327,7 @@ export const hitTestObject = (obj: DrawableObject, p: Point): boolean => {
       : p;
   switch (obj.kind) {
     case 'path':
-      return hitPath(obj, testP);
+      return hitPath(obj, testP, viewZoom);
     case 'rect':
     case 'text':
     case 'image':
@@ -327,7 +336,7 @@ export const hitTestObject = (obj: DrawableObject, p: Point): boolean => {
       return hitEllipse(obj, testP);
     case 'line':
     case 'arrow':
-      return hitLineLike(obj, testP);
+      return hitLineLike(obj, testP, viewZoom);
   }
 };
 
@@ -338,11 +347,12 @@ export const hitTestObject = (obj: DrawableObject, p: Point): boolean => {
  */
 export const hitTestObjects = (
   objects: readonly DrawableObject[],
-  p: Point
+  p: Point,
+  viewZoom = 1
 ): DrawableObject | null => {
   const sorted = [...objects].sort((a, b) => b.z - a.z);
   for (const obj of sorted) {
-    if (hitTestObject(obj, p)) return obj;
+    if (hitTestObject(obj, p, viewZoom)) return obj;
   }
   return null;
 };

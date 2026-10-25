@@ -1251,3 +1251,141 @@ describe('DrawingWidget zoom and pan (whiteboard-pro)', () => {
     ]);
   });
 });
+
+describe('DrawingWidget highlighter and laser (whiteboard-pro)', () => {
+  let mockUpdateWidget: Mock;
+  const base: WidgetData = {
+    id: 'drawing-hl',
+    type: 'drawing',
+    x: 0,
+    y: 0,
+    w: 400,
+    h: 300,
+    z: 1,
+    flipped: false,
+    config: { color: '#000000', width: 4, objects: [] },
+  };
+
+  const setup = (flagOn: boolean, activeTool: string) => {
+    mockUpdateWidget = vi.fn();
+    (useDashboard as Mock).mockReturnValue({
+      updateWidget: mockUpdateWidget,
+      activeDashboard: { background: 'bg-slate-900', widgets: [] },
+      addToast: vi.fn(),
+      addWidget: vi.fn(),
+      drawingWidgetsMigrating: new Set<string>(),
+    });
+    (useAuth as Mock).mockReturnValue({
+      user: { uid: 'user1' },
+      canAccessFeature: vi.fn((id: string) =>
+        id === 'whiteboard-pro' ? flagOn : true
+      ),
+    });
+    const ctx: Record<string, unknown> = {
+      canvas: { width: 400, height: 212 },
+    };
+    for (const fn of [
+      'clearRect',
+      'beginPath',
+      'moveTo',
+      'lineTo',
+      'stroke',
+      'save',
+      'restore',
+      'fill',
+      'closePath',
+      'strokeRect',
+      'fillRect',
+      'ellipse',
+      'fillText',
+      'setLineDash',
+      'arc',
+      'rect',
+      'clip',
+      'setTransform',
+    ]) {
+      ctx[fn] = vi.fn();
+    }
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+      ctx as unknown as CanvasRenderingContext2D
+    );
+    vi.spyOn(
+      HTMLCanvasElement.prototype,
+      'getBoundingClientRect'
+    ).mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 400,
+      height: 212,
+      right: 400,
+      bottom: 212,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    return render(
+      <DrawingWidget
+        widget={{ ...base, config: { ...base.config, activeTool } }}
+      />
+    );
+  };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const stroke = (canvas: Element) => {
+    for (const [type, x] of [
+      ['pointerdown', 10],
+      ['pointermove', 30],
+      ['pointerup', 30],
+    ] as const) {
+      fireEvent(
+        canvas,
+        new PointerEvent(type, {
+          bubbles: true,
+          cancelable: true,
+          clientX: x,
+          clientY: x,
+        })
+      );
+    }
+  };
+
+  it('flag off: no highlighter or laser buttons, and a saved highlighter draws with the pen', () => {
+    const { container, queryByLabelText } = setup(false, 'highlighter');
+    expect(queryByLabelText('Highlighter')).toBeNull();
+    expect(queryByLabelText('Laser pointer')).toBeNull();
+    stroke(container.querySelector('canvas') as Element);
+    const cfg = (mockUpdateWidget.mock.calls[0][1] as Partial<WidgetData>)
+      .config as DrawingConfig;
+    const obj = objectsFromConfig(cfg)[0];
+    expect(obj.kind === 'path' && obj.highlight).toBeFalsy();
+    expect(obj.kind === 'path' && obj.color).toBe('#000000');
+  });
+
+  it('highlighter saves a wide see-through stroke marked as highlight', () => {
+    const { container, getByLabelText } = setup(true, 'highlighter');
+    expect(getByLabelText('Highlighter').getAttribute('aria-pressed')).toBe(
+      'true'
+    );
+    stroke(container.querySelector('canvas') as Element);
+    const cfg = (mockUpdateWidget.mock.calls[0][1] as Partial<WidgetData>)
+      .config as DrawingConfig;
+    const obj = objectsFromConfig(cfg)[0];
+    expect(obj).toMatchObject({
+      kind: 'path',
+      highlight: true,
+      color: '#eab30866',
+      width: 24,
+    });
+  });
+
+  it('laser pointer never saves anything', () => {
+    const { container } = setup(true, 'laser');
+    const canvases = container.querySelectorAll('canvas');
+    expect(canvases).toHaveLength(2);
+    stroke(canvases[0]);
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+});

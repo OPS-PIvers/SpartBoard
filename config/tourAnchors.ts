@@ -12473,6 +12473,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'drawing.highlighter-colors': {
+    label: 'Highlighter color swatches in the Drawing tool options',
+    perWidgetType: true,
+    panel: true,
+  },
   'drawing.stroke-width': {
     label: 'Stroke width slider in the Drawing tool options',
     perWidgetType: true,

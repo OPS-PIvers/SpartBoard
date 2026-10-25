@@ -3001,6 +3001,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'drawing.export-pdf': ['widgets.drawing.face'],
     'drawing.extract-text': ['widgets.drawing.face'],
     'drawing.eraser-mode': ['widgets.drawing.face'],
+    'drawing.highlighter-colors': ['widgets.drawing.face'],
     'drawing.stroke-width': ['widgets.drawing.face'],
     'drawing.page-prev': ['widgets.drawing.face'],
     'drawing.page-next': ['widgets.drawing.face'],

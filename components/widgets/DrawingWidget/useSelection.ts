@@ -179,7 +179,7 @@ export const useSelection = ({
           return;
         }
       }
-      const hit = hitTestObjects(objects, pos);
+      const hit = hitTestObjects(objects, pos, viewZoom);
       if (!hit) {
         // Click-empty clears selection.
         clearSelection();
