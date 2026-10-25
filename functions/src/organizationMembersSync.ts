@@ -30,6 +30,17 @@ export const ADMIN_ROLES: readonly string[] = [
   'building_admin',
 ];
 
+function isAdminEligible(
+  m: MemberDocFields | null
+): m is MemberDocFields & { roleId: string } {
+  return (
+    m !== null &&
+    typeof m.roleId === 'string' &&
+    ADMIN_ROLES.includes(m.roleId) &&
+    m.status === 'active'
+  );
+}
+
 /** Provenance marker written on every CF-created admin doc. */
 export const PROVENANCE_SOURCE = 'organizationMembersSync';
 
@@ -69,7 +80,8 @@ export function computeAdminAction(
   existingAdmin: { source?: string; orgId?: string } | null,
   orgId: string,
   emailLower: string,
-  now: string
+  now: string,
+  operatorMember: MemberDocFields | null = null
 ): AdminAction {
   // /admins grants site-wide admin, so only the operator org's roles mirror; another org's own stale mirror is removed.
   if (orgId !== OPERATOR_ORG_ID) {
@@ -77,6 +89,17 @@ export function computeAdminAction(
       existingAdmin?.source === PROVENANCE_SOURCE &&
       existingAdmin.orgId === orgId
     ) {
+      // Someone who is also an active operator-org admin keeps the doc, retargeted to their operator role.
+      if (isAdminEligible(operatorMember)) {
+        return {
+          type: 'update',
+          payload: {
+            orgId: OPERATOR_ORG_ID,
+            roleId: operatorMember.roleId,
+            updatedAt: now,
+          },
+        };
+      }
       return { type: 'delete' };
     }
     return {
@@ -246,6 +269,33 @@ export const organizationMembersSync = onDocumentWritten(
       return;
     }
 
+    // A stale non-operator mirror is retargeted, not deleted, when the person is also an operator-org admin.
+    let operatorMember: MemberDocFields | null = null;
+    if (
+      orgId !== OPERATOR_ORG_ID &&
+      existingAdmin?.source === PROVENANCE_SOURCE &&
+      existingAdmin.orgId === orgId
+    ) {
+      try {
+        const opSnap = await db
+          .doc(`organizations/${OPERATOR_ORG_ID}/members/${emailLower}`)
+          .get();
+        operatorMember = opSnap.exists
+          ? (opSnap.data() as MemberDocFields)
+          : null;
+      } catch (err) {
+        logger.error(
+          'organizationMembersSync: failed to read operator-org member doc',
+          {
+            orgId,
+            emailLower,
+            error: err instanceof Error ? err.message : String(err),
+          }
+        );
+        return;
+      }
+    }
+
     const now = new Date().toISOString();
     const action = computeAdminAction(
       beforeData,
@@ -253,7 +303,8 @@ export const organizationMembersSync = onDocumentWritten(
       existingAdmin,
       orgId,
       emailLower,
-      now
+      now,
+      operatorMember
     );
 
     try {

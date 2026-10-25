@@ -377,5 +377,34 @@ describe('computeAdminAction', () => {
       );
       expect(action).toEqual({ type: 'delete' });
     });
+
+    it('retargets its stale mirror to the operator org when the person is an operator-org admin there', () => {
+      const action = computeAdminAction(
+        member({ roleId: 'domain_admin', status: 'active' }),
+        member({ roleId: 'teacher' }),
+        { source: PROVENANCE_SOURCE, orgId: OTHER },
+        OTHER,
+        EMAIL,
+        NOW,
+        member({ roleId: 'building_admin', status: 'active' })
+      );
+      expect(action).toEqual({
+        type: 'update',
+        payload: { orgId: ORG_ID, roleId: 'building_admin', updatedAt: NOW },
+      });
+    });
+
+    it('still deletes its stale mirror when the operator-org membership is inactive', () => {
+      const action = computeAdminAction(
+        member({ roleId: 'domain_admin', status: 'active' }),
+        member({ roleId: 'teacher' }),
+        { source: PROVENANCE_SOURCE, orgId: OTHER },
+        OTHER,
+        EMAIL,
+        NOW,
+        member({ roleId: 'domain_admin', status: 'inactive' })
+      );
+      expect(action).toEqual({ type: 'delete' });
+    });
   });
 });

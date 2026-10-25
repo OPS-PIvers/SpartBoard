@@ -4,7 +4,8 @@
  * mirrors only operator-org roles, but docs it wrote earlier stay until removed.
  *
  * Only docs carrying `source: 'organizationMembersSync'` are touched; hand-made
- * and pre-sync admin docs (no marker) are never deleted.
+ * and pre-sync admin docs (no marker) are never deleted. A doc whose email is
+ * also an active orono admin is retargeted to that orono role, not deleted.
  *
  * Usage:
  *   node scripts/remove-non-operator-admin-mirrors.mjs --project <id>          # dry run (default)
@@ -31,6 +32,16 @@ export function staleMirrors(docs) {
       typeof d.data.orgId === 'string' &&
       d.data.orgId !== OPERATOR_ORG_ID
   );
+}
+
+const ADMIN_ROLES = ['super_admin', 'domain_admin', 'building_admin'];
+
+/** The orono role to retarget to, or null to delete. */
+export function operatorAdminRole(member) {
+  if (!member) return null;
+  return ADMIN_ROLES.includes(member.roleId) && member.status === 'active'
+    ? member.roleId
+    : null;
 }
 
 function parseArgs(argv) {
@@ -82,21 +93,42 @@ async function main() {
     snap.docs.map((d) => ({ id: d.id, ref: d.ref, data: d.data() }))
   );
 
+  const plans = [];
+  for (const d of stale) {
+    const opSnap = await db
+      .doc(`organizations/${OPERATOR_ORG_ID}/members/${d.id}`)
+      .get();
+    plans.push({ ...d, keepRole: operatorAdminRole(opSnap.exists ? opSnap.data() : null) });
+  }
+
   console.log(
     `${args.project}: ${snap.size} synced admin docs, ${stale.length} mirrored from another org.`
   );
-  for (const d of stale) {
-    console.log(`  ${d.id}  orgId=${d.data.orgId}  roleId=${d.data.roleId}`);
+  for (const d of plans) {
+    const what = d.keepRole ? `retarget to ${OPERATOR_ORG_ID}/${d.keepRole}` : 'delete';
+    console.log(`  ${d.id}  orgId=${d.data.orgId}  roleId=${d.data.roleId}  -> ${what}`);
   }
 
   if (!args.apply) {
-    console.log('Dry run: nothing deleted. Re-run with --apply to delete.');
+    console.log('Dry run: nothing changed. Re-run with --apply to apply.');
     return;
   }
-  for (const d of stale) {
-    await d.ref.delete();
+  let deleted = 0;
+  let retargeted = 0;
+  for (const d of plans) {
+    if (d.keepRole) {
+      await d.ref.update({
+        orgId: OPERATOR_ORG_ID,
+        roleId: d.keepRole,
+        updatedAt: new Date().toISOString(),
+      });
+      retargeted++;
+    } else {
+      await d.ref.delete();
+      deleted++;
+    }
   }
-  console.log(`Deleted ${stale.length} admin docs.`);
+  console.log(`Deleted ${deleted}, retargeted ${retargeted} admin docs.`);
 }
 
 if (resolve(process.argv[1] ?? '') === fileURLToPath(import.meta.url)) {
