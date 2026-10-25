@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
+  useEffectEvent,
 } from 'react';
 import {
   Camera,
@@ -40,6 +41,15 @@ import {
   LIVE_COMPARE_ID,
 } from './DocCamCompare';
 import { INK_COLORS, type InkTool, paintInk } from './docCamInk';
+import { DocCamQualityMenu } from './DocCamQualityMenu';
+import {
+  type CameraControls,
+  normalizeResolution,
+  NO_CAMERA_CONTROLS,
+  readCameraControls,
+  resolutionConstraints,
+  setAutoMode,
+} from './docCamQuality';
 import { useCommandStack } from '@/components/widgets/DrawingWidget/useCommandStack';
 import {
   type Size,
@@ -90,6 +100,15 @@ export const WebcamWidget: React.FC<{
   const [showCaptureSuccess, setShowCaptureSuccess] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const resolution = normalizeResolution(widgetConfig.resolution);
+  const constraintsKey = canAccessFeature('document-camera-pro')
+    ? resolution
+    : 'auto';
+  const [retryKey, setRetryKey] = useState(0);
+  const [cameraLost, setCameraLost] = useState(false);
+  const [cameraControls, setCameraControls] =
+    useState<CameraControls>(NO_CAMERA_CONTROLS);
+  const startedStreamRef = useRef<MediaStream | null>(null);
   const remoteImgRef = useRef<HTMLImageElement>(null);
   const frozenImgRef = useRef<HTMLImageElement>(null);
   const [frozenUrl, setFrozenUrl] = useState<string | null>(null);
@@ -293,6 +312,55 @@ export const WebcamWidget: React.FC<{
     setComparePick(validPick);
   }
 
+  const onCameraStarted = useEffectEvent((mediaStream: MediaStream) => {
+    if (!docCamPro) return;
+    setCameraLost(false);
+    startedStreamRef.current = mediaStream;
+    const track = mediaStream.getVideoTracks()[0];
+    setCameraControls(readCameraControls(track));
+    track?.addEventListener?.('ended', () => {
+      if (startedStreamRef.current !== mediaStream) return;
+      setCameraControls(NO_CAMERA_CONTROLS);
+      setCameraLost(true);
+      setStream(null);
+      setError('Camera disconnected');
+    });
+  });
+  // True when the failure was handled: a remembered camera that's gone falls back to any camera.
+  const onCameraFailed = useEffectEvent((err: unknown): boolean => {
+    if (!docCamPro) return false;
+    const name = err instanceof DOMException ? err.name : '';
+    if (
+      selectedDeviceId &&
+      (name === 'OverconstrainedError' || name === 'NotFoundError')
+    ) {
+      setSelectedDeviceId('');
+      return true;
+    }
+    setCameraControls(NO_CAMERA_CONTROLS);
+    // Only a camera that was working before counts as unplugged.
+    if (
+      startedStreamRef.current &&
+      (name === 'NotFoundError' || name === 'NotReadableError')
+    ) {
+      setCameraLost(true);
+      setError('Camera disconnected');
+      return true;
+    }
+    return false;
+  });
+
+  const applyAutoMode = useCallback(
+    async (kind: 'focusMode' | 'exposureMode', on: boolean) => {
+      const track = stream?.getVideoTracks()[0];
+      if (!track) return;
+      const ok = await setAutoMode(track, kind, on);
+      if (ok) setCameraControls(readCameraControls(track));
+      else addToast('This camera did not accept that change.', 'info');
+    },
+    [addToast, stream]
+  );
+
   // The doc-cam layout remounts the <video> (flag change, leaving remote mode), so hand it the stream again.
   useEffect(() => {
     const video = videoRef.current;
@@ -319,9 +387,12 @@ export const WebcamWidget: React.FC<{
     async function startCamera() {
       try {
         const constraints: MediaStreamConstraints = {
-          video: selectedDeviceId
-            ? { deviceId: { exact: selectedDeviceId } }
-            : { facingMode: 'user' },
+          video: {
+            ...(selectedDeviceId
+              ? { deviceId: { exact: selectedDeviceId } }
+              : { facingMode: 'user' }),
+            ...resolutionConstraints(constraintsKey),
+          },
           audio: false,
         };
 
@@ -337,6 +408,7 @@ export const WebcamWidget: React.FC<{
           videoRef.current.srcObject = mediaStream;
         }
         setError(null);
+        onCameraStarted(mediaStream);
         // Enumerate after the grant so ids are populated without a second getUserMedia.
         const allDevices = await navigator.mediaDevices
           .enumerateDevices()
@@ -344,7 +416,9 @@ export const WebcamWidget: React.FC<{
         if (cancelled) return;
         setDevices(allDevices.filter((d) => d.kind === 'videoinput'));
       } catch (err) {
+        if (cancelled) return;
         console.error('Error accessing webcam:', err);
+        if (onCameraFailed(err)) return;
         setError('Could not access webcam');
       }
     }
@@ -357,7 +431,16 @@ export const WebcamWidget: React.FC<{
         currentStream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [isActive, selectedDeviceId]);
+  }, [isActive, selectedDeviceId, constraintsKey, retryKey]);
+
+  // A Chromebook doc cam that is unplugged comes back on its own when plugged in again.
+  useEffect(() => {
+    if (!cameraLost || !isActive) return;
+    const media = navigator.mediaDevices;
+    const onChange = () => setRetryKey((k) => k + 1);
+    media.addEventListener?.('devicechange', onChange);
+    return () => media.removeEventListener?.('devicechange', onChange);
+  }, [cameraLost, isActive]);
 
   const switchCamera = useCallback(() => {
     if (devices.length < 2) return;
@@ -589,7 +672,14 @@ export const WebcamWidget: React.FC<{
               action={
                 <button
                   {...tourAttr('webcam.retry-camera', _widget.id, _widget.type)}
-                  onClick={() => window.location.reload()}
+                  onClick={() => {
+                    if (!docCamPro) {
+                      window.location.reload();
+                      return;
+                    }
+                    setError(null);
+                    setRetryKey((k) => k + 1);
+                  }}
                   className="bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
                   style={{
                     fontSize: 'min(12px, 3cqmin)',
@@ -746,7 +836,23 @@ export const WebcamWidget: React.FC<{
                   onZoomOut={zoomOut}
                   onRotate={rotate}
                   onReset={resetView}
-                />
+                >
+                  {!isRemoteShown && (
+                    <DocCamQualityMenu
+                      widgetId={_widget.id}
+                      widgetType={_widget.type}
+                      resolution={resolution}
+                      controls={cameraControls}
+                      onResolution={(r) =>
+                        updateWidget(_widget.id, { config: { resolution: r } })
+                      }
+                      onAutoFocus={(on) => void applyAutoMode('focusMode', on)}
+                      onAutoExposure={(on) =>
+                        void applyAutoMode('exposureMode', on)
+                      }
+                    />
+                  )}
+                </DocCamViewControls>
               )}
 
               {/* Controls Overlay */}

@@ -22,6 +22,7 @@ interface Props {
   onZoomOut: () => void;
   onRotate: () => void;
   onReset: () => void;
+  children?: React.ReactNode;
 }
 
 const formatZoom = (z: number) => `${Math.round(z * 10) / 10}x`;
@@ -35,9 +36,10 @@ export const DocCamViewControls: React.FC<Props> = ({
   onZoomOut,
   onRotate,
   onReset,
+  children,
 }) => (
   <div
-    className="absolute flex flex-col items-center bg-black/60 backdrop-blur-2xl rounded-2xl border border-white/30 shadow-2xl opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-300 z-30"
+    className="absolute flex flex-col items-center bg-black/60 backdrop-blur-2xl rounded-2xl border border-white/30 shadow-2xl opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-300 z-40"
     style={{
       top: '50%',
       transform: 'translateY(-50%)',
@@ -101,5 +103,6 @@ export const DocCamViewControls: React.FC<Props> = ({
         <Maximize style={ICON} />
       </button>
     )}
+    {children}
   </div>
 );
