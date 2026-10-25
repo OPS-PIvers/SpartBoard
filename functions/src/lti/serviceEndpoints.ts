@@ -38,6 +38,7 @@ import {
   VIDEO_ACTIVITY_SESSIONS_COLLECTION,
   LTI_SESSION_MEMBERSHIPS_COLLECTION,
   type LtiSessionKind,
+  contextOwnedBy,
 } from './nrpsStore';
 import { assertViewAsAllowed } from '../viewAsGuard';
 import { isVerifiedDistrictTeacher } from './teacherAuth';
@@ -121,6 +122,8 @@ export const ltiSignDeepLinkResponseV1 = onCall(
         throw new HttpsError('invalid-argument', 'Invalid session id.');
       }
       custom.session_id = sid;
+      // Session ids can be recreated after deletion; launches file only under the signer's session.
+      custom.teacher_uid = request.auth.uid;
     }
 
     const cfg = await getLtiPlatformConfig(admin.firestore());
@@ -300,8 +303,21 @@ export const ltiPushGradesForAssignmentV1 = onCall(
         }
         const link = snap.data() as {
           sub?: string;
+          teacherUid?: string;
           ags?: { lineitem?: string };
         };
+        // Grade links are bound to the session owner at launch; pre-stamp links are tolerated until relaunch.
+        if (
+          link.teacherUid !== undefined &&
+          link.teacherUid !== sessTeacherUid
+        ) {
+          return {
+            pseudonymUid,
+            ok: false,
+            reason: 'student never launched',
+            isRedirect: false,
+          };
+        }
         const lineitem = link.ags?.lineitem;
         if (!lineitem || !link.sub) {
           return {
@@ -464,6 +480,18 @@ export const ltiResolveNamesForAssignmentV1 = onCall(
     let contextsFetched = 0;
     let contextsFailed = 0;
     for (const doc of ctxSnap.docs) {
+      // Contexts filed for a previous owner of a recycled session id are not ours.
+      if (
+        !(await contextOwnedBy(
+          db,
+          sessionId,
+          sessSnap.data() ?? {},
+          doc.id,
+          doc.data(),
+          request.auth.uid
+        ))
+      )
+        continue;
       const url =
         typeof doc.data().contextMembershipsUrl === 'string'
           ? (doc.data().contextMembershipsUrl as string)

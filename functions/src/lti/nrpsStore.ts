@@ -282,7 +282,7 @@ export type LtiTargetSessionArgs =
       teacherUid: string | null;
       contextId: string | null;
     }
-  | { kind: 'va'; sessionId: string };
+  | { kind: 'va'; sessionId: string; teacherUid?: string | null };
 
 /**
  * Fields common to both launch kinds, plus a discriminated `kind`→id pairing so
@@ -318,10 +318,55 @@ export type PersistLtiLaunchContextArgs = {
       kind: 'va';
       /** The video-activity session id (`custom.session_id`). */
       sessionId: string;
+      /** The deep-linking teacher's uid (`custom.teacher_uid`); null on links signed before it existed. */
+      teacherUid?: string | null;
     }
 );
 
 /** The session a Schoology launch joins: the VA session by id, or the deep-linking teacher's most recently started joinable quiz session for the code. */
+/** Whether a session's launch context belongs to `ownerUid`; a pre-stamp context with server-written evidence is stamped on the way. */
+export async function contextOwnedBy(
+  db: Db,
+  sessionId: string,
+  sessionData: Record<string, unknown>,
+  contextId: string,
+  contextData: Record<string, unknown>,
+  ownerUid: string
+): Promise<boolean> {
+  if (!ownerUid) return false;
+  const stamped = contextData.teacherUid;
+  if (typeof stamped === 'string') return stamped === ownerUid;
+  try {
+    const att = sessionData.ltiAttachment as
+      { contextId?: unknown } | undefined;
+    let evidence = att?.contextId === contextId;
+    if (!evidence) {
+      const seen = await db
+        .collection(USERS_COLLECTION)
+        .doc(ownerUid)
+        .collection(LTI_SEEN_SECTIONS_SUBCOLLECTION)
+        .doc(contextId)
+        .get();
+      evidence = seen.exists && seen.data()?.sessionId === sessionId;
+    }
+    if (!evidence) return false;
+  } catch (err) {
+    console.warn('[lti] context owner check failed', err);
+    return false;
+  }
+  try {
+    await db
+      .collection(LTI_SESSION_MEMBERSHIPS_COLLECTION)
+      .doc(sessionId)
+      .collection('contexts')
+      .doc(contextId)
+      .set({ teacherUid: ownerUid }, { merge: true });
+  } catch (err) {
+    console.warn('[lti] context owner stamp failed', err);
+  }
+  return true;
+}
+
 export async function resolveLtiTargetSession(
   db: Db,
   args: LtiTargetSessionArgs
@@ -335,7 +380,27 @@ export async function resolveLtiTargetSession(
     if (!sid) return null;
     const snap = await db.collection(collectionName).doc(sid).get();
     if (!snap.exists) return null;
-    return { sessionId: snap.id, sessionData: snap.data() ?? {} };
+    const sessionData = snap.data() ?? {};
+    const owner =
+      typeof sessionData.teacherUid === 'string' ? sessionData.teacherUid : '';
+    if (!owner) return null;
+    // A recreated session id must not inherit the previous owner's launches.
+    if (args.teacherUid) {
+      if (owner !== args.teacherUid) return null;
+    } else {
+      const ctxs = await db
+        .collection(LTI_SESSION_MEMBERSHIPS_COLLECTION)
+        .doc(snap.id)
+        .collection('contexts')
+        .get();
+      // Pre-stamp contexts carry no owner; they are stamped on this launch.
+      const foreign = ctxs.docs.some((d) => {
+        const t: unknown = d.data().teacherUid;
+        return typeof t === 'string' && t !== owner;
+      });
+      if (foreign) return null;
+    }
+    return { sessionId: snap.id, sessionData };
   }
   const docs = await quizSessionsByCode(db, args.quizCode);
   const owner = await quizLinkOwner(db, docs, args.teacherUid, args.contextId);
@@ -465,12 +530,15 @@ export async function persistLtiLaunchContext(
     // the section name shown in the linking UI permanently until a titled
     // launch occurs again — the same preservation logic the seen-section
     // inventory (below) already applies to its own copy.
+    const ctxOwner =
+      typeof sessionData.teacherUid === 'string' ? sessionData.teacherUid : '';
     const storedCtxTitle =
       typeof ex?.contextTitle === 'string' ? ex.contextTitle : null;
     const nextCtxTitle = args.contextTitle ?? storedCtxTitle;
     // Only write when new or changed — bounds writes to actual changes.
     if (
       !existing.exists ||
+      ex?.teacherUid !== ctxOwner ||
       ex?.contextMembershipsUrl !== membershipUrl ||
       ex?.contextTitle !== nextCtxTitle
     ) {
@@ -480,6 +548,7 @@ export async function persistLtiLaunchContext(
           contextMembershipsUrl: membershipUrl,
           contextTitle: nextCtxTitle,
           deploymentId: args.deploymentId,
+          teacherUid: ctxOwner,
           updatedAt: Date.now(),
         },
         { merge: true }

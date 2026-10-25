@@ -186,6 +186,7 @@ const seenSession = () => {
     data: () => ({
       contextTitle: 'Algebra 1 · P1',
       contextMembershipsUrl: 'https://lms/ctx/members',
+      teacherUid: 'teacher-1',
     }),
   };
 };
@@ -197,6 +198,7 @@ const seenSessionNullTitle = () => {
     data: () => ({
       contextTitle: null,
       contextMembershipsUrl: 'https://lms/ctx/members',
+      teacherUid: 'teacher-1',
     }),
   };
 };
@@ -262,6 +264,22 @@ describe('linkLtiCourseV1', () => {
     await expect(callLink({ auth: TEACHER, data: base })).rejects.toThrow(
       /has not been seen/
     );
+  });
+
+  it("accepts a pre-stamp context only when the caller's seen-section names this session", async () => {
+    sessionDoc = { exists: true, data: () => ({ teacherUid: 'teacher-1' }) };
+    contextDoc = {
+      exists: true,
+      data: () => ({ contextMembershipsUrl: 'https://lms/ctx/members' }),
+    };
+    await expect(callLink({ auth: TEACHER, data: base })).rejects.toThrow(
+      /has not been seen/
+    );
+    seenSections.set('ctx-1', { sessionId: 'S1' });
+    await expect(callLink({ auth: TEACHER, data: base })).resolves.toEqual({
+      ok: true,
+      contextId: 'ctx-1',
+    });
   });
 
   it('rejects a classlinkClassId the caller does not own', async () => {

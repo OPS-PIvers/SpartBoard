@@ -38,6 +38,7 @@ import {
   USERS_COLLECTION,
   dropLinkedSectionPeriod,
   type LtiSessionKind,
+  contextOwnedBy,
 } from './nrpsStore';
 // Reuse the existing OneRoster seam (and its test-spy point) rather than
 // re-implementing the signed fetch. fetchClassStudents takes the creds as args.
@@ -117,6 +118,22 @@ async function assertOwnsSchoologyContext(
     );
   }
   const cd = ctxSnap.data() ?? {};
+  // A context filed under a previous owner of a recycled session id is not this caller's.
+  if (
+    !(await contextOwnedBy(
+      db,
+      sessionId,
+      sessSnap.data() ?? {},
+      contextId,
+      cd,
+      callerUid
+    ))
+  ) {
+    throw new HttpsError(
+      'permission-denied',
+      'This Schoology section has not been seen in this session.'
+    );
+  }
   return {
     contextTitle: typeof cd.contextTitle === 'string' ? cd.contextTitle : null,
     membershipUrl:
