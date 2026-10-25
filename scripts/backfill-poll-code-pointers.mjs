@@ -1,5 +1,5 @@
 // One-off: write poll_codes/{code} for joinable poll sessions last written before the pointer trigger shipped; dry run unless --apply.
-// Usage: node scripts/backfill-poll-code-pointers.mjs --project <id> [--apply]   (run right after the functions deploy)
+// Usage: node scripts/backfill-poll-code-pointers.mjs --project dev|prod [--apply]   (run right after the functions deploy)
 
 import { initializeApp, applicationDefault, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -9,6 +9,7 @@ import { dirname, join, resolve } from 'path';
 
 const CODE_RE = /^[A-Z0-9]{1,16}$/;
 const BATCH_LIMIT = 400;
+const PROJECTS = { dev: 'spartboard-dev', prod: 'spartboard' };
 
 // Mirrors functions/src/pollCodePointer.ts.
 export function codeOfSessionId(sessionId) {
@@ -60,8 +61,10 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--apply') args.apply = true;
-    else if (a === '--project') args.project = argv[++i] ?? null;
-    else if (a === '--help' || a === '-h') args.help = true;
+    else if (a === '--project') {
+      const id = argv[++i] ?? null;
+      args.project = PROJECTS[id] ?? id;
+    } else if (a === '--help' || a === '-h') args.help = true;
   }
   return args;
 }

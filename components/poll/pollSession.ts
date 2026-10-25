@@ -215,9 +215,9 @@ export const ensurePollJoinCode = async (
   return code;
 };
 
-/** Resolve a participant-entered code to its session doc. */
 const POINTER_RETRY_MS = [1500, 3000];
 
+/** Resolve a participant-entered code to its session doc. */
 export const lookupPollSessionByCode = async (
   rawCode: string
 ): Promise<{ sessionId: string; data: PollSessionDoc } | null> => {
