@@ -555,6 +555,13 @@ describe('poll answers — word cloud and open response', () => {
     await assertFails(setDoc(ref, { ...answer(1, 'a'), name: 'Sam' }));
     await assertFails(setDoc(ref, { questionIndex: 1, text: 5, votedAt: 1 }));
     await assertFails(
+      setDoc(ref, { ...answer(1, 'a'), votedAt: Date.now() + 2 * 86_400_000 })
+    );
+  });
+
+  it('accepts an answer from a device whose clock runs fast', async () => {
+    const ref = answerRef(asAnonVoter(), `1_${VOTER_UID}`);
+    await assertSucceeds(
       setDoc(ref, { ...answer(1, 'a'), votedAt: Date.now() + 3_600_000 })
     );
   });

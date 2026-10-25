@@ -6571,8 +6571,9 @@ service cloud.firestore {
 
       // Word cloud / open response answers, `{questionIndex}_{uid}`: text
       // 1-280 chars on a `textQuestions` index of an active session that isn't
-      // locked. Free text may identify a student, so only the session owner
-      // (or an admin) and the student who wrote it can read it.
+      // locked; votedAt may run a day ahead for a fast student clock. Free text
+      // may identify a student, so only the session owner (or an admin) and the
+      // student who wrote it can read it.
       match /answers/{answerId} {
         function answerTargetsOpenTextQuestion() {
           let session = get(/databases/$(database)/documents/poll_sessions/$(sessionId)).data;
@@ -6589,7 +6590,7 @@ service cloud.firestore {
           isInt('votedAt') &&
           incoming().text.size() > 0 &&
           incoming().text.size() <= 280 &&
-          incoming().votedAt <= request.time.toMillis() + 60000 &&
+          incoming().votedAt <= request.time.toMillis() + 86400000 &&
           answerId == string(incoming().questionIndex) + '_' + authUid() &&
           exists(/databases/$(database)/documents/poll_sessions/$(sessionId)) &&
           answerTargetsOpenTextQuestion();

@@ -57,6 +57,7 @@ import {
   mediaBox,
   mediaTransform,
   renderView,
+  toOcrDataUrl,
 } from './docCamView';
 
 const NO_SIZE: Size = { width: 0, height: 0 };
@@ -174,7 +175,13 @@ export const WebcamWidget: React.FC<{
 
   // Document camera view: the photo matches the turned, zoomed feed.
   const captureDocCamView = useCallback(
-    (withInk = false): string => {
+    (withInk = false, forOcr = false): string => {
+      const encode = (canvas: HTMLCanvasElement | null, type = 'image/png') =>
+        !canvas
+          ? ''
+          : forOcr
+            ? toOcrDataUrl(canvas)
+            : canvas.toDataURL(type, 0.9);
       const overlayFor = (source: Size, mirrored: boolean) =>
         withInk && inkStrokes.length > 0
           ? (ctx: CanvasRenderingContext2D) =>
@@ -201,7 +208,7 @@ export const WebcamWidget: React.FC<{
           feedSize,
           overlayFor(size, isMirrored)
         );
-        return canvas?.toDataURL('image/png') ?? '';
+        return encode(canvas);
       }
       if (isRemoteShown) {
         const img = remoteImgRef.current;
@@ -222,7 +229,7 @@ export const WebcamWidget: React.FC<{
           overlay
         );
         // JPEG keeps a phone photo near the size the phone sent.
-        return canvas?.toDataURL('image/jpeg', 0.9) ?? '';
+        return encode(canvas, 'image/jpeg');
       }
       const video = videoRef.current;
       if (!video) return '';
@@ -235,7 +242,7 @@ export const WebcamWidget: React.FC<{
         feedSize,
         overlayFor(size, isMirrored)
       );
-      return canvas?.toDataURL('image/png') ?? '';
+      return encode(canvas);
     },
     [
       feedSize,
@@ -490,7 +497,7 @@ export const WebcamWidget: React.FC<{
     try {
       let dataUrl = '';
       if (docCamPro) {
-        dataUrl = captureDocCamView();
+        dataUrl = captureDocCamView(false, true);
         if (!dataUrl) throw new Error('Could not capture the camera view');
       } else if (isRemote && widgetConfig.remoteCaptureDataUrl) {
         dataUrl = widgetConfig.remoteCaptureDataUrl;
