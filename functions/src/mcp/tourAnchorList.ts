@@ -5544,16 +5544,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "closes": "own",
     "routes": [
       {
-        "surface": "quiz.editor.answer-key-fill",
-        "kind": "modal",
-        "path": [
-          "library-shell.new:quiz",
-          "library-shell.new-menu-item:quiz#item-1",
-          "quiz-editor.add-answer-key:quiz"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
+        "surface": "quiz.answer-key-fill",
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -5564,16 +5557,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
-        "surface": "quiz.editor.answer-key-fill",
-        "kind": "modal",
-        "path": [
-          "library-shell.new:quiz",
-          "library-shell.new-menu-item:quiz#item-1",
-          "quiz-editor.add-answer-key:quiz"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
+        "surface": "quiz.answer-key-fill",
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -5585,16 +5571,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "routes": [
       {
-        "surface": "quiz.editor.answer-key-fill",
-        "kind": "modal",
-        "path": [
-          "library-shell.new:quiz",
-          "library-shell.new-menu-item:quiz#item-1",
-          "quiz-editor.add-answer-key:quiz"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
+        "surface": "quiz.answer-key-fill",
+        "kind": "shared",
+        "path": []
       }
     ]
   },
@@ -5606,16 +5585,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "closes": "own",
     "routes": [
       {
-        "surface": "quiz.editor.answer-key-fill",
-        "kind": "modal",
-        "path": [
-          "library-shell.new:quiz",
-          "library-shell.new-menu-item:quiz#item-1",
-          "quiz-editor.add-answer-key:quiz"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
+        "surface": "quiz.answer-key-fill",
+        "kind": "shared",
+        "path": []
       }
     ]
   },
