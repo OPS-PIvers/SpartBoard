@@ -12066,6 +12066,28 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'webcam.compare': {
+    label:
+      'Compare button in the Webcam gallery (shows with two or more photos)',
+    perWidget: true,
+    panel: true,
+  },
+  'webcam.compare-show': {
+    label:
+      'Show side by side button in the Webcam gallery (while picking two to compare)',
+    perWidget: true,
+    panel: true,
+  },
+  'webcam.compare-cancel': {
+    label: 'Cancel picking photos to compare in the Webcam gallery',
+    perWidget: true,
+    panel: true,
+  },
+  'webcam.compare-exit': {
+    label: 'Exit compare button in Webcam (side by side view)',
+    perWidget: true,
+    panel: true,
+  },
   'webcam.reset-view': {
     label: 'Reset view button in Webcam (shows once zoomed or turned)',
     perWidget: true,
