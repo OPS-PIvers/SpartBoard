@@ -155,7 +155,10 @@ export const SoundWidget: React.FC<{
   // The mic indicator stays visible during a short hide (stream still live)
   // for instant resume; after a long hide the mic is released automatically.
   useEffect(() => {
-    const measure = (analyser: AnalyserNode, dataArray: Uint8Array) => {
+    const measure = (
+      analyser: AnalyserNode,
+      dataArray: Uint8Array<ArrayBuffer>
+    ) => {
       analyser.getByteFrequencyData(dataArray);
       const sum = dataArray.reduce((a, b) => a + b, 0);
       const average = sum / dataArray.length;
