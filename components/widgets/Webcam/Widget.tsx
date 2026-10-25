@@ -92,7 +92,8 @@ export const WebcamWidget: React.FC<{
         false,
         feedSize
       );
-      return canvas?.toDataURL('image/png') ?? '';
+      // JPEG keeps a phone photo near the size the phone sent.
+      return canvas?.toDataURL('image/jpeg', 0.9) ?? '';
     }
     const video = videoRef.current;
     if (!video) return '';
@@ -111,6 +112,12 @@ export const WebcamWidget: React.FC<{
     isRemoteShown,
     widgetConfig.remoteCaptureDataUrl,
   ]);
+
+  // The doc-cam layout remounts the <video> (flag change, leaving remote mode), so hand it the stream again.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video && stream && video.srcObject !== stream) video.srcObject = stream;
+  }, [stream, docCamPro, isRemoteShown]);
 
   useEffect(() => {
     // When the host Board becomes inactive, release the camera immediately so

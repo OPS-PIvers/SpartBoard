@@ -172,12 +172,15 @@ export function useDocCamView({
       // Capture every tracked pointer so a release outside the feed still clears it.
       feedEl.setPointerCapture?.(e.pointerId);
       if (pointers.size === 2) {
+        // Keep the window's drag handle from taking the gesture.
+        e.stopPropagation();
         pan = null;
         setIsPanning(false);
         pinch = { dist: pinchDist(), zoom: viewRef.current.zoom };
         return;
       }
       if (viewRef.current.zoom > 1) {
+        e.stopPropagation();
         pan = {
           x: e.clientX,
           y: e.clientY,

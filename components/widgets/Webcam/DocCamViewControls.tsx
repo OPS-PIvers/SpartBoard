@@ -11,7 +11,7 @@ import {
 
 const ICON = { width: 'min(18px, 4.5cqmin)', height: 'min(18px, 4.5cqmin)' };
 const BUTTON =
-  'hover:bg-white/30 rounded-xl text-white disabled:opacity-30 disabled:cursor-not-allowed';
+  'relative touch-target-expand hover:bg-white/30 rounded-xl text-white disabled:opacity-30 disabled:cursor-not-allowed';
 
 interface Props {
   widgetId: string;

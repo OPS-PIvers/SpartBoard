@@ -109,3 +109,18 @@ describe('WebcamWidget document camera gestures', () => {
     expect(video(container).style.transform).not.toContain('scale(1)');
   });
 });
+
+describe('WebcamWidget flag change', () => {
+  it('hands the running camera to the new video when the flag turns on', async () => {
+    flags.docCam = false;
+    const { container, rerender } = render(
+      <WebcamWidget widget={makeWidget()} />
+    );
+    await waitFor(() => expect(video(container).srcObject).toBeTruthy());
+    const stream = video(container).srcObject;
+    flags.docCam = true;
+    rerender(<WebcamWidget widget={makeWidget({ zoomLevel: 1 })} />);
+    expect(container.querySelector('[data-inking-surface]')).toBeTruthy();
+    expect(video(container).srcObject).toBe(stream);
+  });
+});
