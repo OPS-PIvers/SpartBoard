@@ -92,7 +92,10 @@ async function main() {
     );
     process.exit(args.help ? 0 : 1);
   }
-  initializeApp({ credential: credential(args.project), projectId: args.project });
+  initializeApp({
+    credential: credential(args.project),
+    projectId: args.project,
+  });
   const db = getFirestore();
 
   const [sessionsSnap, pointersSnap] = await Promise.all([
@@ -120,7 +123,9 @@ async function main() {
       });
     }
     await batch.commit();
-    console.log(`Wrote ${Math.min(i + BATCH_LIMIT, missing.length)} / ${missing.length}`);
+    console.log(
+      `Wrote ${Math.min(i + BATCH_LIMIT, missing.length)} / ${missing.length}`
+    );
   }
   console.log('Done. Re-run the dry run to confirm 0 remain.');
 }
