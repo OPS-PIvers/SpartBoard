@@ -5,8 +5,9 @@ import {
   SeatingChartTemplate,
   WidgetData,
 } from '@/types';
-import { RefreshCw, Trash2, UserPlus } from 'lucide-react';
+import { ListChecks, RefreshCw, Shuffle, Trash2, UserPlus } from 'lucide-react';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { SeatingPlanPicker } from './SeatingPlanPicker';
 import {
   TEMPLATES,
   FURNITURE_TYPES,
@@ -29,6 +30,18 @@ interface SeatingChartSidebarProps {
   addAllRandomly: () => void;
   handleStudentClick: (studentId: string) => void;
   selectedStudent: string | null;
+  /** Present only when the seating plans preview is on for this teacher. */
+  plans?: {
+    onChange: (patch: Partial<SeatingChartConfig>) => void;
+    addToast: (message: string, type: 'success' | 'error' | 'info') => void;
+    print: () => void;
+  };
+  /** Shuffle rules; present with `plans`. */
+  rules?: {
+    count: number;
+    open: () => void;
+    reshuffle: () => void;
+  };
 }
 
 export const SeatingChartSidebar: React.FC<SeatingChartSidebarProps> = ({
@@ -47,6 +60,8 @@ export const SeatingChartSidebar: React.FC<SeatingChartSidebarProps> = ({
   addAllRandomly,
   handleStudentClick,
   selectedStudent,
+  plans,
+  rules,
 }) => {
   if (mode !== 'setup' && mode !== 'assign') return null;
 
@@ -201,6 +216,15 @@ export const SeatingChartSidebar: React.FC<SeatingChartSidebarProps> = ({
 
       {mode === 'assign' && (
         <div className="flex flex-col h-full">
+          {plans && (
+            <SeatingPlanPicker
+              widgetId={widgetId}
+              config={config}
+              onChange={plans.onChange}
+              addToast={plans.addToast}
+              onPrint={plans.print}
+            />
+          )}
           <div className="p-2 border-b border-slate-200 bg-slate-100 text-xxs font-black uppercase text-slate-600 tracking-widest text-center">
             Unassigned Students
           </div>
@@ -213,6 +237,28 @@ export const SeatingChartSidebar: React.FC<SeatingChartSidebarProps> = ({
               <UserPlus className="w-3.5 h-3.5" />
               Add All Random
             </button>
+            {rules && (
+              <div className="mt-1.5 flex flex-col gap-1.5">
+                <button
+                  type="button"
+                  {...tourAttr('seating.reshuffle', widgetId, 'seating-chart')}
+                  onClick={rules.reshuffle}
+                  className="w-full flex items-center justify-center gap-2 p-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg transition-colors text-xxs font-black uppercase tracking-wider"
+                >
+                  <Shuffle className="w-3.5 h-3.5 shrink-0" />
+                  Reshuffle
+                </button>
+                <button
+                  type="button"
+                  {...tourAttr('seating.rules', widgetId, 'seating-chart')}
+                  onClick={rules.open}
+                  className="w-full flex items-center justify-center gap-2 p-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg transition-colors text-xxs font-black uppercase tracking-wider"
+                >
+                  <ListChecks className="w-3.5 h-3.5 shrink-0" />
+                  Rules{rules.count > 0 ? ` (${rules.count})` : ''}
+                </button>
+              </div>
+            )}
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-2 custom-scrollbar">
             {unassignedStudents.length === 0 ? (

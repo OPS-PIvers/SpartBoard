@@ -1799,6 +1799,8 @@ export interface PathObject extends BaseDrawableObject {
   points: Point[];
   color: string;
   width: number;
+  /** Highlighter stroke. `color` already carries its transparency, so older clients still draw it see-through. */
+  highlight?: boolean;
 }
 
 export interface RectObject extends BaseDrawableObject {
@@ -1810,6 +1812,8 @@ export interface RectObject extends BaseDrawableObject {
   stroke: string;
   strokeWidth: number;
   fill?: string;
+  /** Dashed outline. Older clients draw it solid. */
+  dashed?: boolean;
 }
 
 export interface EllipseObject extends BaseDrawableObject {
@@ -1821,6 +1825,8 @@ export interface EllipseObject extends BaseDrawableObject {
   stroke: string;
   strokeWidth: number;
   fill?: string;
+  /** Dashed outline. Older clients draw it solid. */
+  dashed?: boolean;
 }
 
 export interface LineObject extends BaseDrawableObject {
@@ -1831,6 +1837,8 @@ export interface LineObject extends BaseDrawableObject {
   y2: number;
   stroke: string;
   strokeWidth: number;
+  /** Dashed stroke. Older clients draw it solid. */
+  dashed?: boolean;
 }
 
 export interface ArrowObject extends BaseDrawableObject {
@@ -1841,6 +1849,10 @@ export interface ArrowObject extends BaseDrawableObject {
   y2: number;
   stroke: string;
   strokeWidth: number;
+  /** Dashed stroke. Older clients draw it solid. */
+  dashed?: boolean;
+  /** A second head at (x1, y1). Older clients draw the end head only. */
+  startHead?: boolean;
 }
 
 export interface TextObject extends BaseDrawableObject {
@@ -1855,6 +1867,8 @@ export interface TextObject extends BaseDrawableObject {
   color: string;
   /** True once a resize handle fixed the width; lines wrap to `w`. */
   wrap?: boolean;
+  /** Sticky note: a filled square whose text shrinks to fit. Older clients draw just the wrapped text. */
+  sticky?: { fill: string };
 }
 
 export interface ImageObject extends BaseDrawableObject {
@@ -1886,6 +1900,8 @@ export interface PollOption {
   id: string;
   label: string;
   votes: number;
+  /** The teacher marked this a correct answer; shown only after Show answer. */
+  correct?: boolean;
 }
 
 export interface ScheduleItem {
@@ -2140,15 +2156,46 @@ export interface SoundboardGlobalConfig {
 
 export interface SoundConfig {
   sensitivity: number;
-  visual: 'thermometer' | 'speedometer' | 'line' | 'balls';
+  /** `level` (big level name) is offered only with noise-meter-pro. */
+  visual: 'thermometer' | 'speedometer' | 'line' | 'balls' | 'level';
   autoTrafficLight?: boolean;
   trafficLightThreshold?: number;
   syncExpectations?: boolean;
+  /** Highest voice level (0-3) the class should stay at; unset means no target. */
+  targetLevel?: number | null;
+  /** Seconds the room must stay over target before the alert shows. */
+  alertDelaySeconds?: number;
+  alertSoundEnabled?: boolean;
+  alertSound?: string;
+  /** Average analyser reading of the quiet room, subtracted before sensitivity. */
+  noiseFloor?: number | null;
+  /** Set by the Calibrate button; the widget listens while it is newer than `calibratedAt`. */
+  calibrateRequest?: number;
+  calibratedAt?: number;
+  /** Minutes the class must stay at or under target; 0 or unset means no goal. */
+  quietGoalMinutes?: number;
+  /** Start the goal over when Too loud shows, instead of pausing it. */
+  quietGoalResetOnAlert?: boolean;
+  /** Scoreboard team that gets a point each time the quiet time goal is reached. */
+  quietGoalTeamId?: string | null;
+  /** The Scoreboard that holds `quietGoalTeamId`; team ids repeat across Scoreboards. */
+  quietGoalScoreboardId?: string | null;
 }
 
 /** Active drawing tool. Replaces the legacy `config.color === 'eraser'` overload. */
 export type ShapeTool =
-  'pen' | 'eraser' | 'rect' | 'ellipse' | 'line' | 'arrow' | 'text' | 'select';
+  | 'pen'
+  | 'eraser'
+  | 'rect'
+  | 'ellipse'
+  | 'line'
+  | 'arrow'
+  | 'text'
+  | 'select'
+  /** `whiteboard-pro` only; without the flag the widget treats both as the pen. */
+  | 'highlighter'
+  | 'laser'
+  | 'sticky';
 
 /**
  * Eraser sub-tool. The DrawingWidget eraser surfaces three modes:
@@ -2230,6 +2277,15 @@ export interface DrawingConfig {
   eraserMode?: EraserMode;
   /** If true, rect/ellipse render filled with the current color (stroke unchanged). Default false. */
   shapeFill?: boolean;
+  /** Highlighter color (opaque hex) and width, kept apart from the pen's. */
+  highlighterColor?: string;
+  highlighterWidth?: number;
+  /** Fill for new sticky notes. */
+  stickyColor?: string;
+  /** New shapes get a dashed stroke. */
+  shapeDashed?: boolean;
+  /** New arrows get a head on both ends. */
+  arrowBothEnds?: boolean;
   /**
    * Widget-level default background template applied to a page when the
    * page's own `background` field is unset. Populated by Phase 2 PR 2.5.
@@ -2277,11 +2333,18 @@ export interface PollGlobalConfig {
   buildingDefaults: Record<string, BuildingPollDefaults>;
 }
 
+/** `scale` keeps numbered options ("1".."N"); `words` and `text` take typed answers and have no options. */
+export type PollQuestionKind = 'choice' | 'scale' | 'words' | 'text';
+
 /** One question in a multi-question poll. */
 export interface PollQuestion {
   id: string;
   question: string;
   options: PollOption[];
+  kind?: PollQuestionKind;
+  /** Rating scale end labels, under the lowest and highest numbers. */
+  scaleLow?: string;
+  scaleHigh?: string;
 }
 
 export interface PollConfig {
@@ -2304,12 +2367,35 @@ export interface PollConfig {
    * mints a fresh id instead.
    */
   lastPollSessionId?: string | null;
+  /** Who ran the session in `lastPollSessionId` on a shared board, so results read the right one. */
+  lastPollSessionOwnerUid?: string | null;
   /** Who started the live session, so other members of a shared board read its votes. */
   activePollSessionOwnerUid?: string | null;
   /** Legacy single-question shape — read through `getPollQuestions` only. */
   question?: string;
   /** Legacy single-question shape — read through `getPollQuestions` only. */
   options?: PollOption[];
+  /** Results stay hidden on the board and phones until the teacher reveals each question. */
+  hideResults?: boolean;
+  /** Question ids whose results the teacher has revealed (only read when `hideResults`). */
+  revealedQuestionIds?: string[];
+  /** Question ids whose voting the teacher has locked during a live session. */
+  lockedQuestionIds?: string[];
+  /** Question ids whose correct answer the teacher has shown. */
+  answerShownQuestionIds?: string[];
+  /** Typed answers the teacher hid from the board: `{questionId}:{voteId}`, or `{questionId}#{hash}` for a word cloud word (hashed: board config is shared). */
+  hiddenResponses?: string[];
+  /** Saved polls; lives only in the profile's `savedWidgetPresets.poll`, never on a widget. */
+  savedLibrary?: SavedPollPreset[];
+}
+
+/** A saved poll: its questions with votes zeroed, reloadable on any board. */
+export interface SavedPollPreset {
+  id: string;
+  name: string;
+  questions: PollQuestion[];
+  hideResults?: boolean;
+  createdAt: number;
 }
 
 /**
@@ -2329,6 +2415,9 @@ export interface PollSessionQuestion {
   id: string;
   question: string;
   options: { id: string; label: string }[];
+  kind?: PollQuestionKind;
+  scaleLow?: string;
+  scaleHigh?: string;
 }
 
 /** The `poll_sessions/{teacherUid}_{code}` document. */
@@ -2343,6 +2432,16 @@ export interface PollSessionDoc {
   /** Null until the teacher first opens voting — drives the waiting screen. */
   startedAt: number | null;
   updatedAt: number;
+  /** Mirrors `PollConfig.hideResults` so phones hold tallies back. */
+  hideResults?: boolean;
+  /** Question indexes whose results are revealed. */
+  revealedQuestions?: number[];
+  /** Question indexes the rules refuse votes for. */
+  lockedQuestions?: number[];
+  /** Word cloud and open response question indexes, which take text answers. */
+  textQuestions?: number[];
+  /** `{questionId}:{optionId}` for each correct option, only for questions whose answer is shown (an array so a merge replaces it). */
+  shownAnswers?: string[];
 }
 
 export type ActivityWallMode = 'text' | 'photo';
@@ -2733,7 +2832,12 @@ export interface ActivityWallLike {
 
 export interface WebcamConfig {
   deviceId?: string;
+  /** Digital zoom, 1 to 4 (document-camera-pro). */
   zoomLevel?: number;
+  /** Feed rotation in degrees: 0, 90, 180 or 270 (document-camera-pro). */
+  rotation?: number;
+  /** Requested camera resolution (document-camera-pro). */
+  resolution?: 'auto' | '720p' | '1080p' | 'max';
   isMirrored?: boolean;
   autoSendToNotes?: boolean;
   isRemoteMode?: boolean;
@@ -2758,6 +2862,21 @@ export interface ScoreboardTeam {
   memberStudentIds?: string[];
 }
 
+export interface ScoreboardScoreChange {
+  teamId: string;
+  from: number;
+  to: number;
+}
+
+export interface ScoreboardHistoryEntry {
+  id: string;
+  /** Epoch ms. */
+  at: number;
+  /** `reset` marks a Reset all scores step. */
+  kind?: 'reset';
+  changes: ScoreboardScoreChange[];
+}
+
 export interface ScoreboardConfig {
   /** @deprecated use teams array instead */
   scoreA?: number;
@@ -2772,6 +2891,12 @@ export interface ScoreboardConfig {
   layout?: 'cards' | 'rows';
   /** When set, indicates this scoreboard is being live-synced from a quiz widget */
   liveQuizWidgetId?: string;
+  /** Point button amounts, one of SCOREBOARD_POINT_PRESETS; unset means a single 1. */
+  pointValues?: number[];
+  /** Rows layout only; unset sorts by score. */
+  sortByScore?: boolean;
+  /** Recent score changes, oldest first, capped at SCOREBOARD_HISTORY_LIMIT. */
+  history?: ScoreboardHistoryEntry[];
 }
 
 export interface ExpectationsConfig {
@@ -3956,6 +4081,25 @@ export interface SeatingChartConfig {
   rosterPoolGroupId?: string | null;
   template?: SeatingChartTemplate;
   templateColumns?: number; // Number of columns for 'rows' template
+  /** Named seat assignments for this board; furniture is shared across them. */
+  savedPlans?: SeatingPlan[];
+  /** The saved plan whose seats `assignments` currently holds. */
+  activePlanId?: string | null;
+  /** Shuffle rules for this board; student ids, class rosters only. */
+  seatingRules?: SeatingChartRules;
+}
+
+export interface SeatingChartRules {
+  /** Pairs of students who shouldn't sit at the same or neighbouring seats (objects: Firestore has no nested arrays). */
+  keepApart?: { a: string; b: string }[];
+  /** Students who need a front-row seat. */
+  frontSeat?: string[];
+}
+
+export interface SeatingPlan {
+  id: string;
+  name: string;
+  assignments: Record<string, string>;
 }
 
 /**
@@ -10401,6 +10545,18 @@ export type GlobalFeature =
   | 'collection-sync-sharing'
   /** Members of a shared board see the owner's Activity Wall and its approved posts live. */
   | 'shared-board-live-walls'
+  /** Seating Chart saved seating plans, shuffle rules and print (poll-pro/SEATING_CHART_PLAN.md). */
+  | 'seating-chart-plans'
+  /** Scoreboard undo, score history, point buttons, leader marker and score motion. */
+  | 'scoreboard-pro'
+  /** Poll: hide results until revealed, lock voting, answered count (docs/plans/shipped/POLL_PRO.md). */
+  | 'poll-pro'
+  /** Sound widget target level, Too loud alert, calibration, quiet time goal and summary (pro-grade-2/NOISE_METER_PLAN.md). */
+  | 'noise-meter-pro'
+  /** Camera as a document camera: zoom, pan, rotate, freeze, draw, compare, resolution. */
+  | 'document-camera-pro'
+  /** Drawing zoom and pan, highlighter, laser pointer, sticky notes, shape polish and copy/paste (pro-grade-2/WHITEBOARD_PLAN.md). */
+  | 'whiteboard-pro'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak';
 

@@ -15,6 +15,7 @@ import {
   PaperBatch,
   QuizQuestion,
   QuizSessionBankSlot,
+  ScoreboardConfig,
   ScoreboardTeam,
   QuizBehaviorSettings,
   QuizWidgetKind,
@@ -1523,11 +1524,15 @@ const TeacherQuizWidget: React.FC<{
           : widgets?.find((w) => w.type === 'scoreboard');
 
         if (existingScoreboard) {
+          // Manual score history no longer matches quiz-built teams.
+          const staleHistory = (existingScoreboard.config as ScoreboardConfig)
+            .history?.length;
           updateWidget(existingScoreboard.id, {
             config: {
               ...existingScoreboard.config,
               teams: newTeams,
               liveQuizWidgetId: widget.id,
+              ...(staleHistory ? { history: [] } : {}),
             },
           });
           if (currentConfig.liveScoreboardWidgetId !== existingScoreboard.id) {

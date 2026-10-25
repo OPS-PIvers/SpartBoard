@@ -607,6 +607,25 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'poll.reveal-results': {
+    label: 'Show results button in Poll',
+    perWidget: true,
+    persists: true,
+  },
+  'poll.show-answer': {
+    label: 'Show answer button in Poll',
+    perWidget: true,
+    persists: true,
+  },
+  'poll.lock-voting': {
+    label: 'Lock voting button in Poll',
+    perWidget: true,
+    persists: true,
+  },
+  'poll.show-hidden': {
+    label: 'Show hidden responses button on the Poll widget',
+    perWidget: true,
+  },
   'stations.shuffle': { label: 'Shuffle button in Stations', perWidget: true },
   'stations.rotate': { label: 'Rotate button in Stations', perWidget: true },
   'stations.reset-all': {
@@ -3799,6 +3818,18 @@ export const TOUR_ANCHORS = {
     label: 'Remove a point for a team in Scoreboard',
     perField: true,
   },
+  'scoreboard.add-point-amount': {
+    label: 'Second or third point button for a team in Scoreboard',
+    perField: true,
+  },
+  'scoreboard.undo': {
+    label: 'Undo button in Scoreboard',
+    perWidget: true,
+  },
+  'scoreboard.history': {
+    label: 'History button in Scoreboard',
+    perWidget: true,
+  },
   'widget-settings.pdf.switch-document': {
     label: 'Switch document button in PDF settings',
     perWidget: true,
@@ -3866,8 +3897,33 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
+  'widget-settings.poll.question-type': {
+    label: 'Question type menu in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.scale-size': {
+    label: 'Rating scale size menu in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.hide-results': {
+    label: 'Hide results until revealed switch in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
   'widget-settings.poll.export-csv': {
     label: 'Export CSV button in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.save-poll': {
+    label: 'Save poll button in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.saved-polls': {
+    label: 'Saved polls list in Poll settings',
     perWidget: true,
     panel: true,
   },
@@ -4030,6 +4086,40 @@ export const TOUR_ANCHORS = {
   },
   'widget-settings.scoreboard.reset-scores': {
     label: 'Reset all scores button in Scoreboard settings',
+    perWidget: true,
+    panel: true,
+    destructive: true,
+  },
+  'sound.summary': {
+    label: 'Summary button on the Sound widget',
+    perWidget: true,
+  },
+  'sound.clear-summary': {
+    label: 'Clear summary button in the Sound widget summary',
+    perWidget: true,
+    destructive: true,
+  },
+  'sound.close-summary': {
+    label: 'Close summary button in the Sound widget summary',
+    perWidget: true,
+  },
+  'sound.restart-goal': {
+    label: 'Restart quiet time goal button on the Sound widget',
+    perWidget: true,
+    destructive: true,
+  },
+  'widget-settings.sound.goal-team': {
+    label: 'Scoreboard team menu for the quiet time goal in Sound settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.sound.calibrate': {
+    label: 'Calibrate button in Sound settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.sound.reset-calibration': {
+    label: 'Reset calibration button in Sound settings',
     perWidget: true,
     panel: true,
     destructive: true,
@@ -4411,6 +4501,16 @@ export const TOUR_ANCHORS = {
   },
   'schoology-link.cancel': {
     label: 'Done/close button in the Link Schoology dialog',
+    panel: true,
+  },
+  'widget-settings.poll.scale-label': {
+    label: 'Rating scale end label in Poll settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.poll.correct-option': {
+    label: 'Mark an option as the correct answer in Poll settings',
+    perField: true,
     panel: true,
   },
   'widget-settings.poll.delete-option': {
@@ -11958,6 +12058,90 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'webcam.zoom-in': {
+    label: 'Zoom in button in Webcam',
+    perWidget: true,
+  },
+  'webcam.zoom-out': {
+    label: 'Zoom out button in Webcam',
+    perWidget: true,
+  },
+  'webcam.rotate': {
+    label: 'Rotate button in Webcam',
+    perWidget: true,
+  },
+  'webcam.freeze': {
+    label: 'Freeze and unfreeze button in Webcam',
+    perWidget: true,
+  },
+  'webcam.draw': {
+    label: 'Draw button in Webcam (turns drawing on the image on and off)',
+    perWidget: true,
+  },
+  'webcam.draw-pen': {
+    label: 'Pen tool in the Webcam drawing tools (shows in draw mode)',
+    perWidget: true,
+  },
+  'webcam.draw-highlighter': {
+    label: 'Highlighter tool in the Webcam drawing tools (shows in draw mode)',
+    perWidget: true,
+  },
+  'webcam.draw-eraser': {
+    label: 'Eraser tool in the Webcam drawing tools (shows in draw mode)',
+    perWidget: true,
+  },
+  'webcam.draw-undo': {
+    label: 'Undo button in the Webcam drawing tools (shows in draw mode)',
+    perWidget: true,
+  },
+  'webcam.clear-drawing': {
+    label:
+      'Clear drawing button in the Webcam drawing tools (shows in draw mode)',
+    perWidget: true,
+    destructive: true,
+  },
+  'webcam.compare': {
+    label:
+      'Compare button in the Webcam gallery (shows with two or more photos)',
+    perWidget: true,
+    panel: true,
+  },
+  'webcam.compare-show': {
+    label:
+      'Show side by side button in the Webcam gallery (while picking two to compare)',
+    perWidget: true,
+    panel: true,
+  },
+  'webcam.compare-cancel': {
+    label: 'Cancel picking photos to compare in the Webcam gallery',
+    perWidget: true,
+    panel: true,
+  },
+  'webcam.compare-exit': {
+    label: 'Exit compare button in Webcam (side by side view)',
+    perWidget: true,
+    panel: true,
+  },
+  'webcam.quality': {
+    label: 'Camera quality button in Webcam (resolution, autofocus, exposure)',
+    perWidget: true,
+  },
+  'webcam.autofocus': {
+    label:
+      'Autofocus switch in the Webcam camera quality menu (only on cameras that support it)',
+    perWidget: true,
+    panel: true,
+  },
+  'webcam.auto-exposure': {
+    label:
+      'Auto exposure switch in the Webcam camera quality menu (only on cameras that support it)',
+    perWidget: true,
+    panel: true,
+  },
+  'webcam.reset-view': {
+    label: 'Reset view button in Webcam (shows once zoomed or turned)',
+    perWidget: true,
+  },
   'classes-widget.manage': {
     label: 'Manage classes button in Classes',
     perWidget: true,
@@ -12334,6 +12518,30 @@ export const TOUR_ANCHORS = {
       'Tool button in the Drawing toolbar, by tool (select, pen, highlighter, eraser, text, shape)',
     perField: true,
   },
+  'drawing.hand': {
+    label: 'Hand button that pans the Drawing page',
+    perWidget: true,
+  },
+  'drawing.zoom-out': {
+    label: 'Zoom out button in Drawing',
+    perWidget: true,
+  },
+  'drawing.zoom-reset': {
+    label: 'Zoom percentage button in Drawing that returns to 100%',
+    perWidget: true,
+  },
+  'drawing.zoom-in': {
+    label: 'Zoom in button in Drawing',
+    perWidget: true,
+  },
+  'drawing.zoom-fit': {
+    label: 'Fit button in Drawing that shows the whole page',
+    perWidget: true,
+  },
+  'drawing.duplicate': {
+    label: 'Duplicate button in Drawing for the selected item',
+    perWidget: true,
+  },
   'drawing.undo': {
     label: 'Undo button in Drawing',
     perWidget: true,
@@ -12383,6 +12591,26 @@ export const TOUR_ANCHORS = {
     label:
       'Eraser mode button in the Drawing tool options, by mode (stroke, object, lasso)',
     perField: true,
+    panel: true,
+  },
+  'drawing.highlighter-colors': {
+    label: 'Highlighter color swatches in the Drawing tool options',
+    perWidgetType: true,
+    panel: true,
+  },
+  'drawing.shape-dashed': {
+    label: 'Dashed toggle in the Drawing shape tool options',
+    perWidgetType: true,
+    panel: true,
+  },
+  'drawing.arrow-both-ends': {
+    label: 'Both ends toggle in the Drawing arrow tool options',
+    perWidgetType: true,
+    panel: true,
+  },
+  'drawing.sticky-colors': {
+    label: 'Sticky note color swatches in the Drawing tool options',
+    perWidgetType: true,
     panel: true,
   },
   'drawing.stroke-width': {
@@ -12505,6 +12733,56 @@ export const TOUR_ANCHORS = {
   'seating.unseat-student': {
     label:
       'Remove-from-seat button on an assigned student in Seating Chart Assign mode',
+    perWidget: true,
+  },
+  'seating.plan-select': {
+    label: 'Seating plan menu in Seating Chart Assign mode',
+    perWidget: true,
+  },
+  'seating.save-plan': {
+    label: 'Save seating plan button in Seating Chart Assign mode',
+    perWidget: true,
+  },
+  'seating.rename-plan': {
+    label: 'Rename plan button in Seating Chart Assign mode',
+    perWidget: true,
+  },
+  'seating.delete-plan': {
+    label: 'Delete plan button in Seating Chart Assign mode',
+    perWidget: true,
+    destructive: true,
+  },
+  'seating.print': {
+    label: 'Print seating chart button in Seating Chart Assign mode',
+    perWidget: true,
+  },
+  'seating.reshuffle': {
+    label: 'Reshuffle button in Seating Chart Assign mode',
+    perWidget: true,
+    destructive: true,
+  },
+  'seating.rules': {
+    label: 'Rules button in Seating Chart Assign mode',
+    perWidget: true,
+  },
+  'seating.rules-first': {
+    label: 'First student menu in Seating Chart rules',
+    perWidget: true,
+  },
+  'seating.rules-second': {
+    label: 'Second student menu in Seating Chart rules',
+    perWidget: true,
+  },
+  'seating.rules-add-pair': {
+    label: 'Add keep-apart pair button in Seating Chart rules',
+    perWidget: true,
+  },
+  'seating.rules-remove-pair': {
+    label: 'Remove keep-apart pair button in Seating Chart rules',
+    perWidget: true,
+  },
+  'seating.rules-front-seat': {
+    label: 'Front row checkbox for a student in Seating Chart rules',
     perWidget: true,
   },
   'music.play-pause': {

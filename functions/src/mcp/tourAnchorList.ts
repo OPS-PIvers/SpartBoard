@@ -645,6 +645,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "schedule#schedules",
       "schedule#textSizePreset",
       "scoreboard#layout",
+      "scoreboard#pointValues",
       "scoreboard#teams",
       "seating-chart#furniture",
       "seating-chart#names",
@@ -652,9 +653,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "smartNotebook#cardColor",
       "smartNotebook#fontColor",
       "smartNotebook#fontFamily",
+      "sound#alertDelaySeconds",
+      "sound#alertSound",
       "sound#autoTrafficLight",
+      "sound#noiseFloor",
+      "sound#quietGoalMinutes",
+      "sound#quietGoalTeamId",
       "sound#sensitivity",
       "sound#syncExpectations",
+      "sound#targetLevel",
       "sound#trafficLightThreshold",
       "sound#visual",
       "soundboard#selectedSoundIds",
@@ -747,7 +754,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "schedule#autoScroll",
       "schedule#expandActiveItem",
       "schedule#isBuildingSyncEnabled",
+      "scoreboard#sortByScore",
+      "sound#alertSoundEnabled",
       "sound#autoTrafficLight",
+      "sound#quietGoalResetOnAlert",
       "sound#syncExpectations",
       "time-tool#glow",
       "time-tool#timerEndTriggerNextUp",
@@ -2788,6 +2798,73 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Reset Poll button",
     "scope": "widget",
     "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.face",
+        "kind": "widget",
+        "widget_type": "poll",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "poll.reveal-results",
+    "label": "Show results button in Poll",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.face",
+        "kind": "widget",
+        "widget_type": "poll",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "poll.show-answer",
+    "label": "Show answer button in Poll",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.face",
+        "kind": "widget",
+        "widget_type": "poll",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "poll.lock-voting",
+    "label": "Lock voting button in Poll",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.face",
+        "kind": "widget",
+        "widget_type": "poll",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "poll.show-hidden",
+    "label": "Show hidden responses button on the Poll widget",
+    "scope": "widget",
     "routes": [
       {
         "surface": "widgets.poll.face",
@@ -16051,6 +16128,54 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "scoreboard.add-point-amount",
+    "label": "Second or third point button for a team in Scoreboard",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.scoreboard.face",
+        "kind": "widget",
+        "widget_type": "scoreboard",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "scoreboard.undo",
+    "label": "Undo button in Scoreboard",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.scoreboard.face",
+        "kind": "widget",
+        "widget_type": "scoreboard",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "scoreboard.history",
+    "label": "History button in Scoreboard",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.scoreboard.face",
+        "kind": "widget",
+        "widget_type": "scoreboard",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.pdf.switch-document",
     "label": "Switch document button in PDF settings",
     "scope": "widget",
@@ -16300,8 +16425,103 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.poll.question-type",
+    "label": "Question type menu in Poll settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.settings",
+        "kind": "settings-drawer",
+        "widget_type": "poll",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.poll.scale-size",
+    "label": "Rating scale size menu in Poll settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.settings",
+        "kind": "settings-drawer",
+        "widget_type": "poll",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.poll.hide-results",
+    "label": "Hide results until revealed switch in Poll settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.settings",
+        "kind": "settings-drawer",
+        "widget_type": "poll",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.poll.export-csv",
     "label": "Export CSV button in Poll settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.settings",
+        "kind": "settings-drawer",
+        "widget_type": "poll",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.poll.save-poll",
+    "label": "Save poll button in Poll settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.settings",
+        "kind": "settings-drawer",
+        "widget_type": "poll",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.poll.saved-polls",
+    "label": "Saved polls list in Poll settings",
     "scope": "widget",
     "panel": true,
     "routes": [
@@ -16906,6 +17126,134 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "widgets.scoreboard.settings",
         "kind": "settings-drawer",
         "widget_type": "scoreboard",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sound.summary",
+    "label": "Summary button on the Sound widget",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.sound.face",
+        "kind": "widget",
+        "widget_type": "sound",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sound.clear-summary",
+    "label": "Clear summary button in the Sound widget summary",
+    "scope": "widget",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.sound.summary",
+        "kind": "panel",
+        "widget_type": "sound",
+        "path": [
+          "sound.summary"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sound.close-summary",
+    "label": "Close summary button in the Sound widget summary",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.sound.summary",
+        "kind": "panel",
+        "widget_type": "sound",
+        "path": [
+          "sound.summary"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sound.restart-goal",
+    "label": "Restart quiet time goal button on the Sound widget",
+    "scope": "widget",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.sound.face",
+        "kind": "widget",
+        "widget_type": "sound",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.sound.goal-team",
+    "label": "Scoreboard team menu for the quiet time goal in Sound settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.sound.settings",
+        "kind": "settings-drawer",
+        "widget_type": "sound",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.sound.calibrate",
+    "label": "Calibrate button in Sound settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.sound.settings",
+        "kind": "settings-drawer",
+        "widget_type": "sound",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.sound.reset-calibration",
+    "label": "Reset calibration button in Sound settings",
+    "scope": "widget",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.sound.settings",
+        "kind": "settings-drawer",
+        "widget_type": "sound",
         "path": [
           "widget.settings-opener"
         ],
@@ -18639,6 +18987,44 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.classes",
           "classes.link-schoology"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.poll.scale-label",
+    "label": "Rating scale end label in Poll settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.settings",
+        "kind": "settings-drawer",
+        "widget_type": "poll",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.poll.correct-option",
+    "label": "Mark an option as the correct answer in Poll settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.settings",
+        "kind": "settings-drawer",
+        "widget_type": "poll",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
         ]
       }
     ]
@@ -54226,6 +54612,301 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "webcam.zoom-in",
+    "label": "Zoom in button in Webcam",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.zoom-out",
+    "label": "Zoom out button in Webcam",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.rotate",
+    "label": "Rotate button in Webcam",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.freeze",
+    "label": "Freeze and unfreeze button in Webcam",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.draw",
+    "label": "Draw button in Webcam (turns drawing on the image on and off)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.draw-pen",
+    "label": "Pen tool in the Webcam drawing tools (shows in draw mode)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.draw-highlighter",
+    "label": "Highlighter tool in the Webcam drawing tools (shows in draw mode)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.draw-eraser",
+    "label": "Eraser tool in the Webcam drawing tools (shows in draw mode)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.draw-undo",
+    "label": "Undo button in the Webcam drawing tools (shows in draw mode)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.clear-drawing",
+    "label": "Clear drawing button in the Webcam drawing tools (shows in draw mode)",
+    "scope": "widget",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.compare",
+    "label": "Compare button in the Webcam gallery (shows with two or more photos)",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.compare-show",
+    "label": "Show side by side button in the Webcam gallery (while picking two to compare)",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.compare-cancel",
+    "label": "Cancel picking photos to compare in the Webcam gallery",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.compare-exit",
+    "label": "Exit compare button in Webcam (side by side view)",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.quality",
+    "label": "Camera quality button in Webcam (resolution, autofocus, exposure)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.autofocus",
+    "label": "Autofocus switch in the Webcam camera quality menu (only on cameras that support it)",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.auto-exposure",
+    "label": "Auto exposure switch in the Webcam camera quality menu (only on cameras that support it)",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.reset-view",
+    "label": "Reset view button in Webcam (shows once zoomed or turned)",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "classes-widget.manage",
     "label": "Manage classes button in Classes",
     "scope": "widget",
@@ -55632,6 +56313,102 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "drawing.hand",
+    "label": "Hand button that pans the Drawing page",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.zoom-out",
+    "label": "Zoom out button in Drawing",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.zoom-reset",
+    "label": "Zoom percentage button in Drawing that returns to 100%",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.zoom-in",
+    "label": "Zoom in button in Drawing",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.zoom-fit",
+    "label": "Fit button in Drawing that shows the whole page",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.duplicate",
+    "label": "Duplicate button in Drawing for the selected item",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "drawing.undo",
     "label": "Undo button in Drawing",
     "scope": "widget",
@@ -55798,6 +56575,86 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Eraser mode button in the Drawing tool options, by mode (stroke, object, lasso)",
     "scope": "field",
     "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.highlighter-colors",
+    "label": "Highlighter color swatches in the Drawing tool options",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "drawing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.shape-dashed",
+    "label": "Dashed toggle in the Drawing shape tool options",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "drawing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.arrow-both-ends",
+    "label": "Both ends toggle in the Drawing arrow tool options",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "drawing"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.sticky-colors",
+    "label": "Sticky note color swatches in the Drawing tool options",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "drawing"
+    ],
     "routes": [
       {
         "surface": "widgets.drawing.face",
@@ -56265,6 +57122,200 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "seating.unseat-student",
     "label": "Remove-from-seat button on an assigned student in Seating Chart Assign mode",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.plan-select",
+    "label": "Seating plan menu in Seating Chart Assign mode",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.save-plan",
+    "label": "Save seating plan button in Seating Chart Assign mode",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.rename-plan",
+    "label": "Rename plan button in Seating Chart Assign mode",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.delete-plan",
+    "label": "Delete plan button in Seating Chart Assign mode",
+    "scope": "widget",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.print",
+    "label": "Print seating chart button in Seating Chart Assign mode",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.reshuffle",
+    "label": "Reshuffle button in Seating Chart Assign mode",
+    "scope": "widget",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.rules",
+    "label": "Rules button in Seating Chart Assign mode",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.rules-first",
+    "label": "First student menu in Seating Chart rules",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.rules-second",
+    "label": "Second student menu in Seating Chart rules",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.rules-add-pair",
+    "label": "Add keep-apart pair button in Seating Chart rules",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.rules-remove-pair",
+    "label": "Remove keep-apart pair button in Seating Chart rules",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.rules-front-seat",
+    "label": "Front row checkbox for a student in Seating Chart rules",
     "scope": "widget",
     "routes": [
       {
