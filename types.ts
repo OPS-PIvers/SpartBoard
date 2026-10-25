@@ -2144,6 +2144,12 @@ export interface SoundConfig {
   autoTrafficLight?: boolean;
   trafficLightThreshold?: number;
   syncExpectations?: boolean;
+  /** Highest voice level (0-3) the class should stay at; unset means no target. */
+  targetLevel?: number | null;
+  /** Seconds the room must stay over target before the alert shows. */
+  alertDelaySeconds?: number;
+  alertSoundEnabled?: boolean;
+  alertSound?: string;
 }
 
 /** Active drawing tool. Replaces the legacy `config.color === 'eraser'` overload. */
@@ -10445,6 +10451,8 @@ export type GlobalFeature =
   | 'seating-chart-plans'
   /** Scoreboard undo, score history, point buttons, leader marker and score motion. */
   | 'scoreboard-pro'
+  /** Sound widget target level, Too loud alert, calibration, quiet time goal and summary (pro-grade-2/NOISE_METER_PLAN.md). */
+  | 'noise-meter-pro'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak';
 

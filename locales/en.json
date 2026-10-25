@@ -1981,7 +1981,21 @@
       "visualMeter": "Meter",
       "visualGauge": "Gauge",
       "visualGraph": "Graph",
-      "visualPopcorn": "Popcorn"
+      "visualPopcorn": "Popcorn",
+      "targetLevel": "Target level",
+      "targetHelp": "Shows Too loud when the class stays above this level. Follows Expectations while synced.",
+      "targetOff": "Off",
+      "level0": "0 Silence",
+      "level1": "1 Whisper",
+      "level2": "2 Conversation",
+      "level3": "3 Presenter",
+      "alertDelaySeconds": "Alert delay (seconds)",
+      "alertSoundEnabled": "Play a sound",
+      "alertSound": "Alert sound",
+      "soundChime": "Chime",
+      "soundBlip": "Blip",
+      "soundGong": "Gong",
+      "soundAlert": "Alert"
     },
     "webcam": {
       "autoSendToNotes": "Send OCR text to Notes automatically"
@@ -2731,6 +2745,9 @@
       "addPoints_other": "Add {{count}} points",
       "removePoints_one": "Remove {{count}} point",
       "removePoints_other": "Remove {{count}} points"
+    },
+    "sound": {
+      "tooLoud": "Too loud"
     }
   },
   "boardBreadcrumb": {

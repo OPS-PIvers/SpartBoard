@@ -2521,6 +2521,13 @@
       "date": "2026-10-25",
       "text": "Undo takes back the last score change and History shows each team's recent changes. You can also pick point buttons like +5 and +10, and the leading team gets a crown.",
       "feature": "scoreboard-pro"
+    },
+    {
+      "id": "sound-noise-meter-pro",
+      "widget": "sound",
+      "date": "2026-10-25",
+      "text": "Set a target level in settings. The meter marks it, and shows Too loud when the class stays above it.",
+      "feature": "noise-meter-pro"
     }
   ]
 }

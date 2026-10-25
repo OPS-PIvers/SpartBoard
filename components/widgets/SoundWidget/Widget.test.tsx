@@ -9,6 +9,13 @@ vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
 }));
 
+const access = { pro: false };
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({
+    canAccessFeature: (id: string) => id === 'noise-meter-pro' && access.pro,
+  }),
+}));
+
 describe('SoundWidget', () => {
   let mockUpdateWidget: Mock;
   let mockActiveDashboard: Partial<Dashboard>;
@@ -332,5 +339,80 @@ describe('SoundWidget', () => {
     expect(mockTrackStop).not.toHaveBeenCalled();
     expect(mockAudioContextClose).not.toHaveBeenCalled();
     expect(mockGetUserMedia).toHaveBeenCalledTimes(1);
+  });
+
+  describe('target level and Too loud alert (noise-meter-pro)', () => {
+    beforeEach(() => {
+      access.pro = true;
+    });
+    afterEach(() => {
+      access.pro = false;
+    });
+
+    const startLoud = async (config: Partial<SoundConfig>) => {
+      mockGetByteFrequencyData.mockImplementation((array: Uint8Array) => {
+        array.fill(255);
+      });
+      render(<SoundWidget widget={createWidget(config)} />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+    };
+
+    it('draws no target line with the flag off', () => {
+      access.pro = false;
+      render(<SoundWidget widget={createWidget({ targetLevel: 1 })} />);
+      expect(screen.queryByTestId('sound-target-line')).toBeNull();
+    });
+
+    it.each(['thermometer', 'speedometer', 'line'] as const)(
+      'draws the target line on the %s visual',
+      (visual) => {
+        render(
+          <SoundWidget widget={createWidget({ targetLevel: 1, visual })} />
+        );
+        expect(screen.getByTestId('sound-target-line')).toBeInTheDocument();
+      }
+    );
+
+    it('shows Too loud only after the room stays over target for the delay', async () => {
+      await startLoud({ targetLevel: 1 });
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      expect(screen.queryByText('Too loud')).toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.getByText('Too loud')).toBeInTheDocument();
+    });
+
+    it('never alerts with the flag off', async () => {
+      access.pro = false;
+      await startLoud({ targetLevel: 0 });
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
+      expect(screen.queryByText('Too loud')).toBeNull();
+    });
+
+    it('follows the Expectations voice level instead of changing sensitivity', async () => {
+      mockActiveDashboard.widgets = [
+        {
+          id: 'expectations-1',
+          type: 'expectations',
+          config: { voiceLevel: 1 },
+        } as unknown as WidgetData,
+      ];
+      await startLoud({ syncExpectations: true, targetLevel: null });
+      expect(screen.getByTestId('sound-target-line')).toBeInTheDocument();
+      expect(mockUpdateWidget).not.toHaveBeenCalledWith(
+        'sound-1',
+        expect.anything()
+      );
+    });
   });
 });

@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { AlertTriangle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
+import { playTimerAlert, resumeAudio } from '@/utils/timeToolAudio';
 import {
   WidgetData,
   SoundConfig,
@@ -11,6 +15,16 @@ import { POSTER_LEVELS, getLevelData } from './constants';
 import { ThermometerView } from './components/ThermometerView';
 import { SpeedometerView } from './components/SpeedometerView';
 import { PopcornBallsView } from './components/PopcornBallsView';
+import {
+  ALERT_SOUND_COOLDOWN_MS,
+  DEFAULT_ALERT_SOUND,
+  NOISE_METER_PRO,
+  alertDelayMs,
+  resolveTargetLevel,
+  smoothVolume,
+  targetLimit,
+} from './noiseTarget';
+import { useTooLoudAlert } from './useTooLoudAlert';
 
 // Add type definition for webkitAudioContext
 interface CustomWindow extends Window {
@@ -27,6 +41,8 @@ export const SoundWidget: React.FC<{
   isActive?: boolean;
 }> = ({ widget, isActive = true }) => {
   const { updateWidget, activeDashboard } = useDashboard();
+  const { t } = useTranslation();
+  const pro = useAuth().canAccessFeature(NOISE_METER_PRO);
   const [volume, setVolume] = useState(0);
   const [history, setHistory] = useState<number[]>(new Array(50).fill(0));
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -42,17 +58,40 @@ export const SoundWidget: React.FC<{
     autoTrafficLight,
     trafficLightThreshold = 4,
     syncExpectations = false,
+    targetLevel,
+    alertDelaySeconds,
+    alertSoundEnabled = false,
+    alertSound = DEFAULT_ALERT_SOUND,
   } = widget.config as SoundConfig;
 
   // Use ref for sensitivity to prevent audio stream restart on sensitivity changes
   const sensitivityRef = useRef(sensitivity);
+  // Pro smooths the reading so the meter and the alert don't flicker.
+  const smoothRef = useRef(pro);
+  const smoothedRef = useRef(0);
   useEffect(() => {
     sensitivityRef.current = sensitivity;
-  }, [sensitivity]);
+    smoothRef.current = pro;
+  }, [sensitivity, pro]);
+
+  const expectationsVoiceLevel = (
+    activeDashboard?.widgets.find((w) => w.type === 'expectations')?.config as
+      ExpectationsConfig | undefined
+  )?.voiceLevel;
+  const limit = pro
+    ? targetLimit(
+        resolveTargetLevel(
+          targetLevel,
+          syncExpectations,
+          expectationsVoiceLevel
+        )
+      )
+    : null;
 
   // Nexus Connection: Sync with Expectations
   useEffect(() => {
-    if (!syncExpectations || !activeDashboard) return;
+    // With pro, the voice level sets the target instead of the sensitivity.
+    if (pro || !syncExpectations || !activeDashboard) return;
 
     const expectationsWidget = activeDashboard.widgets.find(
       (w) => w.type === 'expectations'
@@ -88,6 +127,7 @@ export const SoundWidget: React.FC<{
       });
     }
   }, [
+    pro,
     syncExpectations,
     activeDashboard,
     sensitivity,
@@ -115,6 +155,16 @@ export const SoundWidget: React.FC<{
   // The mic indicator stays visible during a short hide (stream still live)
   // for instant resume; after a long hide the mic is released automatically.
   useEffect(() => {
+    const measure = (analyser: AnalyserNode, dataArray: Uint8Array) => {
+      analyser.getByteFrequencyData(dataArray);
+      const sum = dataArray.reduce((a, b) => a + b, 0);
+      const average = sum / dataArray.length;
+      const raw = Math.min(100, average * (sensitivityRef.current * 2));
+      if (!smoothRef.current) return raw;
+      smoothedRef.current = smoothVolume(smoothedRef.current, raw);
+      return smoothedRef.current;
+    };
+
     if (!isActive) {
       if (animationRef.current !== null) {
         cancelAnimationFrame(animationRef.current);
@@ -154,13 +204,7 @@ export const SoundWidget: React.FC<{
 
       const resumeLoop = () => {
         if (!analyserRef.current) return;
-        analyserRef.current.getByteFrequencyData(dataArray);
-        const sum = dataArray.reduce((a, b) => a + b, 0);
-        const average = sum / bufferLength;
-        const normalized = Math.min(
-          100,
-          average * (sensitivityRef.current * 2)
-        );
+        const normalized = measure(analyserRef.current, dataArray);
         setVolume(normalized);
         setHistory((prev) => [...prev.slice(-49), normalized]);
         animationRef.current = requestAnimationFrame(resumeLoop);
@@ -204,13 +248,7 @@ export const SoundWidget: React.FC<{
 
         const update = () => {
           if (!analyserRef.current) return;
-          analyserRef.current.getByteFrequencyData(dataArray);
-          const sum = dataArray.reduce((a, b) => a + b, 0);
-          const average = sum / bufferLength;
-          const normalized = Math.min(
-            100,
-            average * (sensitivityRef.current * 2)
-          );
+          const normalized = measure(analyserRef.current, dataArray);
 
           setVolume(normalized);
           setHistory((prev) => [...prev.slice(-49), normalized]);
@@ -251,6 +289,19 @@ export const SoundWidget: React.FC<{
   }, []);
 
   const level = getLevelData(volume);
+
+  const lastChimeRef = useRef(0);
+  const alerting = useTooLoudAlert(
+    limit !== null && volume >= limit,
+    alertDelayMs(alertDelaySeconds),
+    () => {
+      if (!alertSoundEnabled) return;
+      const now = Date.now();
+      if (now - lastChimeRef.current < ALERT_SOUND_COOLDOWN_MS) return;
+      lastChimeRef.current = now;
+      void resumeAudio().then(() => playTimerAlert(alertSound));
+    }
+  );
 
   // Nexus Connection: Auto Traffic Light
   useEffect(() => {
@@ -295,9 +346,15 @@ export const SoundWidget: React.FC<{
           className="flex-1 min-h-0 relative w-full h-full"
           style={{ padding: 'min(8px, 2cqmin)' }}
         >
-          {visual === 'thermometer' && <ThermometerView volume={volume} />}
-          {visual === 'speedometer' && <SpeedometerView volume={volume} />}
-          {visual === 'balls' && <PopcornBallsView volume={volume} />}
+          {visual === 'thermometer' && (
+            <ThermometerView volume={volume} limit={limit} />
+          )}
+          {visual === 'speedometer' && (
+            <SpeedometerView volume={volume} limit={limit} />
+          )}
+          {visual === 'balls' && (
+            <PopcornBallsView volume={volume} limit={limit} />
+          )}
           {visual === 'line' && (
             <div
               className="w-full h-full bg-black/20 rounded-2xl"
@@ -317,9 +374,45 @@ export const SoundWidget: React.FC<{
                     .join(' ')}
                   className="transition-colors duration-300"
                 />
+                {limit !== null && (
+                  <line
+                    data-testid="sound-target-line"
+                    x1="0"
+                    x2="100"
+                    y1={100 - limit}
+                    y2={100 - limit}
+                    strokeWidth="1.5"
+                    strokeDasharray="4 3"
+                    vectorEffect="non-scaling-stroke"
+                    className="stroke-slate-800"
+                  />
+                )}
               </svg>
             </div>
           )}
+          <div role="status" aria-live="polite" className="contents">
+            {alerting && (
+              <div
+                className="absolute inset-x-0 top-0 flex items-center justify-center bg-brand-red-primary text-white font-black uppercase tracking-wide shadow-md"
+                style={{
+                  margin: 'min(8px, 2cqmin)',
+                  gap: 'min(10px, 2.5cqmin)',
+                  padding: 'min(10px, 2.5cqmin)',
+                  borderRadius: 'min(12px, 3cqmin)',
+                  fontSize: 'min(40px, 11cqmin)',
+                }}
+              >
+                <AlertTriangle
+                  aria-hidden="true"
+                  style={{
+                    width: 'min(40px, 11cqmin)',
+                    height: 'min(40px, 11cqmin)',
+                  }}
+                />
+                {t('widgets.sound.tooLoud')}
+              </div>
+            )}
+          </div>
         </div>
       }
       footer={
