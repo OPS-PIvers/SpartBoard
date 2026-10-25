@@ -42,10 +42,10 @@ export function canReadPlc(plc: Data | undefined, uid: string): boolean {
 
 /** Mirrors `plcCanEditContent` in firestore.rules: members except viewers. */
 export function canEditPlc(plc: Data | undefined, uid: string): boolean {
-  if (!plc) return false;
+  if (!plc || !canReadPlc(plc, uid)) return false;
   const entry = ((plc.members ?? {}) as Record<string, Data | undefined>)[uid];
   if (entry) return entry.role !== 'viewer' && entry.status !== 'removed';
-  return canReadPlc(plc, uid);
+  return true;
 }
 
 function activeMembers(plc: Data | undefined): GroupMember[] {

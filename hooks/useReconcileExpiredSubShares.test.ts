@@ -30,14 +30,49 @@ function makeShareSnap(share: FakeShare) {
   };
 }
 
+/** A /shared_collections parent with no sub-docs to reap. */
+function makeCollectionSnap(share: FakeShare) {
+  const { id, ...data } = share;
+  return {
+    id,
+    ref: {
+      id,
+      parent: { id: 'shared_collections' },
+    } as unknown as firestore.DocumentReference,
+    data: () => data,
+  };
+}
+
+type FakePermission = Awaited<ReturnType<GoogleDriveService['getPermission']>>;
+
 function makeDriveService() {
   const deletePermission = vi.fn().mockResolvedValue(undefined);
   const trashFile = vi.fn().mockResolvedValue(undefined);
+  const getPermission = vi.fn(
+    (_fileId: string, permissionId: string): Promise<FakePermission | null> =>
+      Promise.resolve({
+        id: permissionId,
+        type: 'user',
+        role: 'reader',
+        emailAddress: 's@x',
+      })
+  );
+  const getFileNameIfExists = vi.fn((fileId: string): Promise<string | null> =>
+    Promise.resolve(`${fileId.replace(/^names-/, '')}-names.json`)
+  );
   const driveService = {
     deletePermission,
     trashFile,
+    getPermission,
+    getFileNameIfExists,
   } as unknown as GoogleDriveService;
-  return { driveService, deletePermission, trashFile };
+  return {
+    driveService,
+    deletePermission,
+    trashFile,
+    getPermission,
+    getFileNameIfExists,
+  };
 }
 
 describe('useReconcileExpiredSubShares', () => {
@@ -56,6 +91,9 @@ describe('useReconcileExpiredSubShares', () => {
     (
       firestore.deleteDoc as unknown as ReturnType<typeof vi.fn>
     ).mockResolvedValue(undefined);
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValue({ docs: [] });
   });
 
   it('reads shares via readAllDocsPaged (bounded) for BOTH share surfaces, never an unbounded getDocs', async () => {
@@ -115,19 +153,19 @@ describe('useReconcileExpiredSubShares', () => {
   // goes with the share rather than sitting in the teacher's Drive.
   it('trashes an expired share’s names file and keeps an active one', async () => {
     const now = Date.now();
-    const expired = makeShareSnap({
-      id: 'expired-1',
+    const expired = makeCollectionSnap({
+      id: 'expired',
       expiresAt: now - 1000,
       namesFileId: 'names-expired',
     });
-    const active = makeShareSnap({
-      id: 'active-1',
+    const active = makeCollectionSnap({
+      id: 'active',
       expiresAt: now + 60_000,
       namesFileId: 'names-active',
     });
     (paging.readAllDocsPaged as unknown as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce([expired, active])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([expired, active]);
     const { driveService, trashFile } = makeDriveService();
 
     renderHook(() =>
@@ -144,14 +182,14 @@ describe('useReconcileExpiredSubShares', () => {
   // Otherwise the share doc goes and nothing is left to say the file exists.
   it('keeps the share doc when its names file cannot be trashed', async () => {
     const now = Date.now();
-    const expired = makeShareSnap({
-      id: 'expired-1',
+    const expired = makeCollectionSnap({
+      id: 'expired',
       expiresAt: now - 1000,
       namesFileId: 'names-expired',
     });
     (paging.readAllDocsPaged as unknown as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce([expired])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([expired]);
     const { driveService, trashFile } = makeDriveService();
     trashFile.mockRejectedValue(new Error('drive down'));
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
@@ -162,6 +200,86 @@ describe('useReconcileExpiredSubShares', () => {
 
     await waitFor(() => expect(trashFile).toHaveBeenCalled());
     expect(firestore.deleteDoc).not.toHaveBeenCalled();
+  });
+
+  // A doc the teacher did not write must not steer their Drive token at other files.
+  it('never trashes a names file on a board share or one not named for the share', async () => {
+    const now = Date.now();
+    const boardShare = makeShareSnap({
+      id: 'planted-board',
+      expiresAt: now - 1000,
+      namesFileId: 'victim-roster',
+    });
+    const collectionShare = makeCollectionSnap({
+      id: 'planted-coll',
+      expiresAt: now - 1000,
+      namesFileId: 'victim-roster-2',
+    });
+    (paging.readAllDocsPaged as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce([boardShare])
+      .mockResolvedValueOnce([collectionShare]);
+    const { driveService, trashFile, getFileNameIfExists } = makeDriveService();
+    getFileNameIfExists.mockResolvedValue('Period 3 roster.json');
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    renderHook(() =>
+      useReconcileExpiredSubShares({ uid: 'teacher-1', driveService })
+    );
+
+    await waitFor(() => expect(firestore.deleteDoc).toHaveBeenCalledTimes(2));
+    expect(getFileNameIfExists).toHaveBeenCalledTimes(1);
+    expect(getFileNameIfExists).toHaveBeenCalledWith('victim-roster-2');
+    expect(trashFile).not.toHaveBeenCalled();
+  });
+
+  it('revokes only user reader grants, including an alias, and skips a gone one', async () => {
+    const now = Date.now();
+    const planted = makeShareSnap({
+      id: 'planted',
+      expiresAt: now - 1000,
+      driveGrants: [
+        { email: 's@x', fileId: 'file-1', permissionId: 'perm-owner' },
+        { email: 's@x', fileId: 'file-2', permissionId: 'perm-coteacher' },
+        { email: 'x', fileId: 'file-3', permissionId: 'perm-x' },
+        { email: 's@x', fileId: 'file-4', permissionId: 'perm-gone' },
+      ],
+    });
+    (paging.readAllDocsPaged as unknown as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce([planted])
+      .mockResolvedValueOnce([]);
+    const { driveService, deletePermission, getPermission } =
+      makeDriveService();
+    getPermission.mockImplementation((_fileId, permissionId) =>
+      Promise.resolve(
+        permissionId === 'perm-owner'
+          ? {
+              id: permissionId,
+              type: 'user',
+              role: 'owner',
+              emailAddress: 's@x',
+            }
+          : permissionId === 'perm-coteacher'
+            ? {
+                id: permissionId,
+                type: 'user',
+                role: 'reader',
+                emailAddress: 'primary@x',
+              }
+            : permissionId === 'perm-gone'
+              ? null
+              : { id: permissionId, type: 'anyone', role: 'reader' }
+      )
+    );
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    renderHook(() =>
+      useReconcileExpiredSubShares({ uid: 'teacher-1', driveService })
+    );
+
+    await waitFor(() => expect(firestore.deleteDoc).toHaveBeenCalledTimes(1));
+    expect(getPermission).toHaveBeenCalledTimes(4);
+    expect(deletePermission).toHaveBeenCalledTimes(1);
+    expect(deletePermission).toHaveBeenCalledWith('file-2', 'perm-coteacher');
   });
 
   it('does NOT revoke a permissionId still referenced by an active share', async () => {

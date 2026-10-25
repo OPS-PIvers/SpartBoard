@@ -5,6 +5,13 @@ const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 export const APP_DRIVE_FOLDER = 'SpartBoard';
 
+interface DriveMeta {
+  id?: string;
+  name?: string;
+  mimeType?: string;
+  parents?: string[];
+}
+
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
 export interface DriveUploader {
@@ -29,6 +36,12 @@ export interface DriveUploader {
     ownerKey?: string
   ) => Promise<{ id: string }>;
   deleteFile: (accessToken: string, fileId: string) => Promise<void>;
+  /** Deletes only a file filed in a folder inside `SpartBoard/{folderName}`; throws for any other file. */
+  deleteFileInAppFolder: (
+    accessToken: string,
+    fileId: string,
+    folderName: string
+  ) => Promise<void>;
 }
 
 const jsonHeaders = (accessToken: string) => ({
@@ -180,7 +193,74 @@ export function createDriveUploader(
     throw new Error(`Drive responded ${response.status}`);
   };
 
-  return { getOrCreateFolder, getFolderPath, uploadBlob, deleteFile };
+  const getMetadata = async (
+    accessToken: string,
+    id: string
+  ): Promise<DriveMeta | null> => {
+    const url = new URL(`${DRIVE_API_URL}/files/${encodeURIComponent(id)}`);
+    url.searchParams.set('fields', 'id,name,mimeType,parents');
+    const response = await fetchImpl(url.toString(), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (response.status === 404 || response.status === 410) return null;
+    if (!response.ok) {
+      throw new Error(`Failed to read Drive file (${response.status})`);
+    }
+    return (await response.json()) as DriveMeta;
+  };
+
+  const isFolderNamed = async (
+    accessToken: string,
+    id: string,
+    name: string
+  ): Promise<DriveMeta | null> => {
+    const meta = await getMetadata(accessToken, id);
+    return meta?.mimeType === FOLDER_MIME && meta.name === name ? meta : null;
+  };
+
+  const deleteFileInAppFolder: DriveUploader['deleteFileInAppFolder'] = async (
+    accessToken,
+    fileId,
+    folderName
+  ) => {
+    const file = await getMetadata(accessToken, fileId);
+    // Already gone: the obligation is satisfied.
+    if (!file) return;
+    let filed = false;
+    if (file.mimeType !== FOLDER_MIME) {
+      outer: for (const parentId of file.parents ?? []) {
+        const parent = await getMetadata(accessToken, parentId);
+        if (parent?.mimeType !== FOLDER_MIME) continue;
+        for (const archiveId of parent.parents ?? []) {
+          const archive = await isFolderNamed(
+            accessToken,
+            archiveId,
+            folderName
+          );
+          for (const rootId of archive?.parents ?? []) {
+            if (await isFolderNamed(accessToken, rootId, APP_DRIVE_FOLDER)) {
+              filed = true;
+              break outer;
+            }
+          }
+        }
+      }
+    }
+    if (!filed) {
+      throw new Error(
+        `Drive file is not in the ${APP_DRIVE_FOLDER}/${folderName} folder`
+      );
+    }
+    await deleteFile(accessToken, fileId);
+  };
+
+  return {
+    getOrCreateFolder,
+    getFolderPath,
+    uploadBlob,
+    deleteFile,
+    deleteFileInAppFolder,
+  };
 }
 
 export const defaultDriveUploader = createDriveUploader();

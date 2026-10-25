@@ -193,6 +193,9 @@ export function isActivePlcMember(
   uid: string
 ): boolean {
   if (!plc) return false;
+  if (!Array.isArray(plc.memberUids) || !plc.memberUids.includes(uid)) {
+    return false;
+  }
   const members = plc.members;
   if (members && typeof members === 'object') {
     const m = (members as Record<string, unknown>)[uid];
@@ -200,5 +203,5 @@ export function isActivePlcMember(
       return (m as { status?: unknown }).status !== 'removed';
     }
   }
-  return Array.isArray(plc.memberUids) && plc.memberUids.includes(uid);
+  return true;
 }
