@@ -3,6 +3,7 @@ import { Eye, X } from 'lucide-react';
 import type { PollResponse } from '@/hooks/usePollSession';
 import type { WidgetType } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
+import { cloudKey, hiddenWordKey } from '@/utils/pollResults';
 
 interface TextResponsesProps {
   kind: 'words' | 'text';
@@ -37,10 +38,6 @@ const wordClass = (word: string): string => {
 };
 
 const MAX_CLOUD_ENTRIES = 80;
-
-/** One cloud entry per whole answer, matched case-insensitively in any script. */
-const cloudKey = (text: string): string =>
-  text.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
 
 const buildAnswerCloud = (
   texts: string[],
@@ -79,7 +76,7 @@ export const TextResponses: React.FC<TextResponsesProps> = ({
     kind === 'words'
       ? buildAnswerCloud(
           visible.map((r) => r.text),
-          (word) => hidden.has(`${questionId}#${word}`)
+          (word) => hidden.has(hiddenWordKey(questionId, word))
         )
       : [];
   const hiddenCount = hiddenKeys.filter(
@@ -118,7 +115,7 @@ export const TextResponses: React.FC<TextResponsesProps> = ({
               {canModerate && (
                 <button // no-tour-anchor: one per word, tours point at the question
                   type="button"
-                  onClick={() => onHide(`${questionId}#${word}`)}
+                  onClick={() => onHide(hiddenWordKey(questionId, word))}
                   aria-label={`Hide ${word}`}
                   className="relative touch-target-expand text-slate-400 hover:text-red-600 transition-colors"
                   style={{ marginLeft: '0.15em' }}

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { PollQuestion } from '@/types';
 import {
   pollResultsCsv,
+  hiddenWordKey,
   summarizeLocalPoll,
   summarizePoll,
 } from '@/utils/pollResults';
@@ -138,10 +139,20 @@ describe('hidden answers', () => {
         { id: '1_u1', questionIndex: 1, text: 'keep', votedAt: 1 },
         { id: '1_u2', questionIndex: 1, text: 'hide me', votedAt: 2 },
       ],
-      ['q3#rude', 'q4:1_u2']
+      [hiddenWordKey('q3', 'rude'), 'q4:1_u2']
     );
     expect(w.texts).toEqual([{ text: 'fun', count: 1 }]);
     expect(t.texts.map((x) => x.text)).toEqual(['keep']);
     expect(t.answered).toBe(2);
+  });
+});
+
+describe('hiddenWordKey', () => {
+  it('never stores the typed word itself', () => {
+    const key = hiddenWordKey('q3', 'sam jones');
+    expect(key.startsWith('q3#')).toBe(true);
+    expect(key).not.toContain('sam');
+    expect(key).toBe(hiddenWordKey('q3', 'sam jones'));
+    expect(key).not.toBe(hiddenWordKey('q3', 'sam jone'));
   });
 });

@@ -2,6 +2,7 @@ import React, {
   useState,
   useEffect,
   useEffectEvent,
+  useLayoutEffect,
   useCallback,
   useRef,
 } from 'react';
@@ -116,7 +117,7 @@ export const SoundWidget: React.FC<{
   const floorRef = useRef(floor);
   // Latest analyser average before the floor, read by calibration.
   const rawAverageRef = useRef<number | null>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     sensitivityRef.current = effectiveSensitivity;
     smoothRef.current = pro;
     floorRef.current = floor;

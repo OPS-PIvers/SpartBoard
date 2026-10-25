@@ -10,6 +10,7 @@ import {
 } from '@/context/dashboardCanvasStore';
 import { useAuth } from '@/context/useAuth';
 import { WidgetData, DEFAULT_GLOBAL_STYLE, PollConfig } from '@/types';
+import { hiddenWordKey } from '@/utils/pollResults';
 
 vi.mock('@/context/dashboardCanvasStore');
 vi.mock('@/context/useAuth', () => ({ useAuth: vi.fn() }));
@@ -332,7 +333,9 @@ describe('PollWidget results controls', () => {
       );
       expect(screen.getByTitle('gravity (2)')).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Hide friction' }));
-      expect(lastConfig().hiddenResponses).toEqual(['q1#friction']);
+      expect(lastConfig().hiddenResponses).toEqual([
+        hiddenWordKey('q1', 'friction'),
+      ]);
     });
 
     it('lists open responses newest first and hides one', () => {
