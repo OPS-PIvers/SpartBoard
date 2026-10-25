@@ -56447,6 +56447,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "seating.print",
+    "label": "Print seating chart button in Seating Chart Assign mode",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "seating.reshuffle",
     "label": "Reshuffle button in Seating Chart Assign mode",
     "scope": "widget",

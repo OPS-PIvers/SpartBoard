@@ -34,6 +34,7 @@ interface SeatingChartSidebarProps {
   plans?: {
     onChange: (patch: Partial<SeatingChartConfig>) => void;
     addToast: (message: string, type: 'success' | 'error' | 'info') => void;
+    print: () => void;
   };
   /** Shuffle rules; present with `plans`. */
   rules?: {
@@ -221,6 +222,7 @@ export const SeatingChartSidebar: React.FC<SeatingChartSidebarProps> = ({
               config={config}
               onChange={plans.onChange}
               addToast={plans.addToast}
+              onPrint={plans.print}
             />
           )}
           <div className="p-2 border-b border-slate-200 bg-slate-100 text-xxs font-black uppercase text-slate-600 tracking-widest text-center">

@@ -3018,6 +3018,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'seating.save-plan': ['widgets.seating-chart.face'],
     'seating.rename-plan': ['widgets.seating-chart.face'],
     'seating.delete-plan': ['widgets.seating-chart.face'],
+    'seating.print': ['widgets.seating-chart.face'],
     'seating.reshuffle': ['widgets.seating-chart.face'],
     'seating.rules': ['widgets.seating-chart.face'],
     'seating.rules-first': ['widgets.seating-chart.face'],
