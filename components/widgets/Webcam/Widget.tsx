@@ -20,6 +20,7 @@ import {
   Pause,
   Play,
   Pencil,
+  Columns2,
 } from 'lucide-react';
 import { PathObject, WidgetData, WebcamConfig } from '@/types';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -33,6 +34,11 @@ import { tourAttr } from '@/config/tourAnchors';
 import { useDocCamView } from './useDocCamView';
 import { DocCamViewControls } from './DocCamViewControls';
 import { DocCamInkLayer, DocCamInkToolbar } from './DocCamInk';
+import {
+  type CompareSide,
+  DocCamCompare,
+  LIVE_COMPARE_ID,
+} from './DocCamCompare';
 import { INK_COLORS, type InkTool, paintInk } from './docCamInk';
 import { useCommandStack } from '@/components/widgets/DrawingWidget/useCommandStack';
 import {
@@ -70,6 +76,10 @@ export const WebcamWidget: React.FC<{
   const [isMirrored, setIsMirrored] = useState(true);
   const [capturedItems, setCapturedItems] = useState<CapturedItem[]>([]);
   const [showGallery, setShowGallery] = useState(false);
+  const [comparePick, setComparePick] = useState<string[] | null>(null);
+  const [compareSides, setCompareSides] = useState<
+    readonly [CompareSide, CompareSide] | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedText, setExtractedText] = useState<string | null>(null);
@@ -265,6 +275,19 @@ export const WebcamWidget: React.FC<{
     if (frozenUrlRef.current) URL.revokeObjectURL(frozenUrlRef.current);
     frozenUrlRef.current = null;
   }, [freezeAllowed]);
+  const liveComparable = docCamPro && !isRemoteShown && !!stream;
+  // Picks and a shown comparison drop the live camera once it is gone.
+  const validPick = comparePick?.filter(
+    (id) =>
+      (id === LIVE_COMPARE_ID && liveComparable) ||
+      capturedItems.some((c) => c.id === id)
+  );
+  const shownCompare =
+    docCamPro &&
+    compareSides &&
+    compareSides.every((side) => side.kind !== 'live' || liveComparable)
+      ? compareSides
+      : null;
 
   // The doc-cam layout remounts the <video> (flag change, leaving remote mode), so hand it the stream again.
   useEffect(() => {
@@ -516,6 +539,31 @@ export const WebcamWidget: React.FC<{
       setCapturedItems([]);
     }
   }, [showConfirm]);
+
+  const togglePick = useCallback((id: string) => {
+    setComparePick((prev) => {
+      if (!prev) return prev;
+      if (prev.includes(id)) return prev.filter((p) => p !== id);
+      return prev.length < 2 ? [...prev, id] : prev;
+    });
+  }, []);
+
+  const showCompare = useCallback(
+    (picks: readonly string[]) => {
+      if (picks.length !== 2) return;
+      const sides = picks.map((id): CompareSide | null => {
+        if (id === LIVE_COMPARE_ID) return { kind: 'live' };
+        const item = capturedItems.find((c) => c.id === id);
+        return item ? { kind: 'photo', id, dataUrl: item.dataUrl } : null;
+      });
+      const [a, b] = sides;
+      if (!a || !b) return;
+      setCompareSides([a, b]);
+      setComparePick(null);
+      setShowGallery(false);
+    },
+    [capturedItems]
+  );
 
   const deletePhoto = useCallback((id: string) => {
     setCapturedItems((prev) => prev.filter((item) => item.id !== id));
@@ -1053,6 +1101,18 @@ export const WebcamWidget: React.FC<{
             </div>
           )}
 
+          {shownCompare && (
+            <DocCamCompare
+              widgetId={_widget.id}
+              widgetType={_widget.type}
+              sides={shownCompare}
+              stream={stream}
+              isMirrored={isMirrored}
+              rotation={docCamView.rotation}
+              onExit={() => setCompareSides(null)}
+            />
+          )}
+
           {/* Gallery Overlay */}
           {showGallery && (
             <div className="absolute inset-0 z-widget-internal-overlay bg-slate-950/95 backdrop-blur-md flex flex-col animate-in slide-in-from-bottom duration-300">
@@ -1064,55 +1124,189 @@ export const WebcamWidget: React.FC<{
                   className="text-white uppercase tracking-widest"
                   style={{ fontSize: 'min(12px, 3cqmin)' }}
                 >
-                  Photo Gallery
+                  {comparePick ? 'Pick two to compare' : 'Photo Gallery'}
                 </h3>
-                <div
-                  className="flex items-center"
-                  style={{ gap: 'min(8px, 2cqmin)' }}
-                >
-                  <button
-                    {...tourAttr(
-                      'webcam.clear-gallery',
-                      _widget.id,
-                      _widget.type
-                    )}
-                    onClick={clearPhotos}
-                    className="hover:bg-white/30 rounded-lg text-red-400"
-                    style={{ padding: 'min(8px, 2cqmin)' }}
-                    title="Clear All"
+                {comparePick ? (
+                  <div
+                    className="flex items-center"
+                    style={{ gap: 'min(8px, 2cqmin)' }}
                   >
-                    <Trash2
+                    <button
+                      {...tourAttr(
+                        'webcam.compare-show',
+                        _widget.id,
+                        _widget.type
+                      )}
+                      onClick={() => showCompare(validPick ?? [])}
+                      disabled={validPick?.length !== 2}
+                      className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
                       style={{
-                        width: 'min(16px, 4cqmin)',
-                        height: 'min(16px, 4cqmin)',
+                        fontSize: 'min(12px, 3cqmin)',
+                        padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
                       }}
-                    />
-                  </button>
-                  <button
-                    {...tourAttr(
-                      'webcam.gallery-close',
-                      _widget.id,
-                      _widget.type
-                    )}
-                    onClick={() => setShowGallery(false)}
-                    className="hover:bg-white/30 rounded-lg text-white"
-                    style={{ padding: 'min(8px, 2cqmin)' }}
+                    >
+                      Show side by side
+                    </button>
+                    <button
+                      {...tourAttr(
+                        'webcam.compare-cancel',
+                        _widget.id,
+                        _widget.type
+                      )}
+                      onClick={() => setComparePick(null)}
+                      className="hover:bg-white/30 rounded-lg text-white"
+                      style={{
+                        fontSize: 'min(12px, 3cqmin)',
+                        padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className="flex items-center"
+                    style={{ gap: 'min(8px, 2cqmin)' }}
                   >
-                    <X
-                      style={{
-                        width: 'min(16px, 4cqmin)',
-                        height: 'min(16px, 4cqmin)',
+                    {docCamPro &&
+                      capturedItems.length + (liveComparable ? 1 : 0) >= 2 && (
+                        <button
+                          {...tourAttr(
+                            'webcam.compare',
+                            _widget.id,
+                            _widget.type
+                          )}
+                          onClick={() => setComparePick([])}
+                          className="hover:bg-white/30 rounded-lg text-white"
+                          style={{ padding: 'min(8px, 2cqmin)' }}
+                          title="Compare"
+                          aria-label="Compare"
+                        >
+                          <Columns2
+                            style={{
+                              width: 'min(16px, 4cqmin)',
+                              height: 'min(16px, 4cqmin)',
+                            }}
+                          />
+                        </button>
+                      )}
+                    <button
+                      {...tourAttr(
+                        'webcam.clear-gallery',
+                        _widget.id,
+                        _widget.type
+                      )}
+                      onClick={clearPhotos}
+                      className="hover:bg-white/30 rounded-lg text-red-400"
+                      style={{ padding: 'min(8px, 2cqmin)' }}
+                      title="Clear All"
+                    >
+                      <Trash2
+                        style={{
+                          width: 'min(16px, 4cqmin)',
+                          height: 'min(16px, 4cqmin)',
+                        }}
+                      />
+                    </button>
+                    <button
+                      {...tourAttr(
+                        'webcam.gallery-close',
+                        _widget.id,
+                        _widget.type
+                      )}
+                      onClick={() => {
+                        setShowGallery(false);
+                        setComparePick(null);
                       }}
-                    />
-                  </button>
-                </div>
+                      className="hover:bg-white/30 rounded-lg text-white"
+                      style={{ padding: 'min(8px, 2cqmin)' }}
+                    >
+                      <X
+                        style={{
+                          width: 'min(16px, 4cqmin)',
+                          height: 'min(16px, 4cqmin)',
+                        }}
+                      />
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div
                 className="flex-1 overflow-y-auto custom-scrollbar"
                 style={{ padding: 'min(16px, 3.5cqmin)' }}
               >
-                {capturedItems.length === 0 ? (
+                {comparePick ? (
+                  <div
+                    className="grid grid-cols-2"
+                    style={{ gap: 'min(16px, 3.5cqmin)' }}
+                  >
+                    {[
+                      ...(liveComparable
+                        ? [{ id: LIVE_COMPARE_ID, dataUrl: null }]
+                        : []),
+                      ...capturedItems.map((c) => ({
+                        id: c.id,
+                        dataUrl: c.dataUrl,
+                      })),
+                    ].map((tile, index) => {
+                      const order = (validPick ?? []).indexOf(tile.id);
+                      const picked = order !== -1;
+                      return (
+                        // no-tour-anchor: one tile per photo; tours point at Compare and Show side by side
+                        <button
+                          key={tile.id}
+                          onClick={() => togglePick(tile.id)}
+                          aria-pressed={picked}
+                          aria-label={
+                            tile.dataUrl
+                              ? `Photo ${liveComparable ? index : index + 1}`
+                              : 'Live camera'
+                          }
+                          className={`relative aspect-video bg-white/10 rounded-xl overflow-hidden border-2 ${picked ? 'border-blue-400' : 'border-white/20 hover:border-white/50'}`}
+                        >
+                          {tile.dataUrl ? (
+                            <img
+                              data-pii=""
+                              src={tile.dataUrl}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span
+                              className="flex flex-col items-center justify-center h-full text-white/80"
+                              style={{
+                                gap: 'min(6px, 1.5cqmin)',
+                                fontSize: 'min(12px, 3cqmin)',
+                              }}
+                            >
+                              <Video
+                                style={{
+                                  width: 'min(20px, 5cqmin)',
+                                  height: 'min(20px, 5cqmin)',
+                                }}
+                              />
+                              Live camera
+                            </span>
+                          )}
+                          {picked && (
+                            <span
+                              className="absolute bg-blue-500 text-white font-bold rounded-md"
+                              style={{
+                                top: 'min(6px, 1.5cqmin)',
+                                left: 'min(6px, 1.5cqmin)',
+                                fontSize: 'min(12px, 3cqmin)',
+                                padding: '0 min(6px, 1.5cqmin)',
+                              }}
+                            >
+                              {order + 1}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : capturedItems.length === 0 ? (
                   <ScaledEmptyState
                     icon={FileText}
                     title="No photos yet"

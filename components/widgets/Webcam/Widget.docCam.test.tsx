@@ -262,6 +262,40 @@ describe('WebcamWidget drawing', () => {
   });
 });
 
+describe('WebcamWidget compare', () => {
+  it('picks a photo and the live camera and shows them side by side', async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue(
+      'data:image/png;base64,AAAA'
+    );
+    const { container } = render(<WebcamWidget widget={makeWidget()} />);
+    Object.defineProperty(video(container), 'videoWidth', { value: 640 });
+    Object.defineProperty(video(container), 'videoHeight', { value: 480 });
+    const take = await screen.findByTitle('Take Photo');
+    await waitFor(() => expect(take).not.toHaveProperty('disabled', true));
+    fireEvent.click(take);
+    fireEvent.click(screen.getByTitle('View Gallery'));
+    fireEvent.click(screen.getByTitle('Compare'));
+    expect(screen.getByText('Pick two to compare')).toBeTruthy();
+    const show = screen.getByText('Show side by side');
+    expect(show).toHaveProperty('disabled', true);
+    fireEvent.click(screen.getByLabelText('Live camera'));
+    fireEvent.click(screen.getByLabelText('Photo 1'));
+    expect(show).toHaveProperty('disabled', false);
+    fireEvent.click(show);
+    expect(screen.getByAltText('Photo 2')).toBeTruthy();
+    expect(screen.queryByText('Pick two to compare')).toBeNull();
+    fireEvent.click(screen.getByTitle('Exit compare'));
+    expect(screen.queryByAltText('Photo 2')).toBeNull();
+  });
+
+  it('has no Compare button with the flag off', async () => {
+    flags.docCam = false;
+    render(<WebcamWidget widget={makeWidget()} />);
+    fireEvent.click(await screen.findByTitle('View Gallery'));
+    expect(screen.queryByTitle('Compare')).toBeNull();
+  });
+});
+
 describe('WebcamWidget flag change', () => {
   it('hands the running camera to the new video when the flag turns on', async () => {
     flags.docCam = false;

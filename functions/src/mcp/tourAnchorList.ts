@@ -54642,6 +54642,74 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "webcam.compare",
+    "label": "Compare button in the Webcam gallery (shows with two or more photos)",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.compare-show",
+    "label": "Show side by side button in the Webcam gallery (while picking two to compare)",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.compare-cancel",
+    "label": "Cancel picking photos to compare in the Webcam gallery",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.compare-exit",
+    "label": "Exit compare button in Webcam (side by side view)",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "webcam.reset-view",
     "label": "Reset view button in Webcam (shows once zoomed or turned)",
     "scope": "widget",
