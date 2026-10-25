@@ -1511,11 +1511,14 @@ service cloud.firestore {
       // Host or admin: full update, but intendedMode is locked to its create value and
       // any plcId change requires current membership of the target PLC (admins bypass).
       // Substitute addendum: all lifecycle fields (buildingId, initialState, expiresAt,
-      // subEmails, driveGrants, sharedRosters) are pinned to create-time values so the frozen,
+      // subEmails, driveGrants, sharedRosters, namesFileId) are pinned to create-time values so the frozen,
       // time-boxed snapshot can't drift. Admin-overridable.
       allow update: if signedIn() &&
         (existing().get('originalAuthor', null) == authUid() || isAdmin()) &&
         incoming().get('intendedMode', null) == existing().get('intendedMode', null) &&
+        // originalAuthor is pinned for everyone, admins included: the expiry sweep runs
+        // in the named teacher's browser and trusts the doc's Drive metadata as theirs.
+        incoming().get('originalAuthor', null) == existing().get('originalAuthor', null) &&
         // "substitute + plcId" must stay an impossible state. The `list` rule's plcId
         // branch admits any member of that PLC with no @orono/expiry gate and CANNOT
         // re-check intendedMode (the PLC query doesn't pin it, so in query scope it
@@ -1536,7 +1539,8 @@ service cloud.firestore {
             incoming().get('expiresAt', null) == existing().get('expiresAt', null) &&
             incoming().get('subEmails', null) == existing().get('subEmails', null) &&
             incoming().get('driveGrants', null) == existing().get('driveGrants', null) &&
-            incoming().get('sharedRosters', null) == existing().get('sharedRosters', null)
+            incoming().get('sharedRosters', null) == existing().get('sharedRosters', null) &&
+            incoming().get('namesFileId', null) == existing().get('namesFileId', null)
           )
         ) &&
         (
@@ -1558,6 +1562,8 @@ service cloud.firestore {
       allow update: if signedIn() &&
         authUid() in existing().get('participants', {}) &&
         existing().participants[authUid()].get('role', '') == 'collaborator' &&
+        // Substitute shares carry Drive grants the host's sweep revokes; no collaborator edits.
+        existing().get('intendedMode', null) != 'substitute' &&
         incoming().get('participants', {}) == existing().get('participants', {}) &&
         unchanged('originalAuthor') &&
         incoming().get('originalAuthorName', null) == existing().get('originalAuthorName', null) &&
@@ -1918,11 +1924,25 @@ service cloud.firestore {
     // Shared quiz assignments - like shared_quizzes but also carries assignment
     // settings (class label, PLC sheet URL, session toggles) so a receiving
     // teacher can get a pre-configured, paused assignment when they paste the link.
+    // A share's syncGroupId is a join invite, so only a group participant may set it, once.
+    function shareSyncGroupOk(coll) {
+      return !('syncGroupId' in incoming()) ||
+        authUid() in get(/databases/$(database)/documents/$(coll)/$(incoming().syncGroupId)).data.participants;
+    }
+    function shareSyncGroupKept() {
+      return incoming().get('syncGroupId', null) == existing().get('syncGroupId', null) &&
+        incoming().get('originalAuthor', null) == existing().get('originalAuthor', null);
+    }
+
     match /shared_assignments/{shareId} {
       allow get: if signedIn();
       allow create: if signedIn() &&
-        incoming().originalAuthor == authUid();
-      allow update, delete: if signedIn() &&
+        incoming().originalAuthor == authUid() &&
+        shareSyncGroupOk('synced_quizzes');
+      allow update: if signedIn() &&
+        (existing().get('originalAuthor', null) == authUid() || isAdmin()) &&
+        shareSyncGroupKept();
+      allow delete: if signedIn() &&
         (existing().get('originalAuthor', null) == authUid() || isAdmin());
     }
 
@@ -2255,8 +2275,12 @@ service cloud.firestore {
     match /shared_video_activity_assignments/{shareId} {
       allow get: if signedIn();
       allow create: if signedIn() &&
-        incoming().originalAuthor == authUid();
-      allow update, delete: if signedIn() &&
+        incoming().originalAuthor == authUid() &&
+        shareSyncGroupOk('synced_video_activities');
+      allow update: if signedIn() &&
+        (existing().get('originalAuthor', null) == authUid() || isAdmin()) &&
+        shareSyncGroupKept();
+      allow delete: if signedIn() &&
         (existing().get('originalAuthor', null) == authUid() || isAdmin());
     }
 
@@ -2338,24 +2362,17 @@ service cloud.firestore {
       return plcData.get('members', {}).get(uid, {}).get('role', '');
     }
 
-    // True when the caller may WRITE PLC content (Decision 3.2). An editor is a member
-    // whose role in `members` is not 'viewer'. Legacy (map-less) PLCs treat any uid in
-    // memberUids as an editor, so un-migrated members aren't locked out during rollout.
-    // Content subcollections thread this into write branches; reads stay open.
+    // True when the caller may WRITE PLC content (Decision 3.2): a current member
+    // (in memberUids, so removed/left members whose map entry lingers are denied)
+    // whose role in `members` is not 'viewer'. Unkeyed (legacy/array-only) members edit.
     // The caller is in the PLC's denormalized member index.
     function plcMember(id) {
       return authUid() in get(/databases/$(database)/documents/plcs/$(id)).data.memberUids;
     }
     function plcCanEditContent(plcId) {
       let plcData = get(/databases/$(database)/documents/plcs/$(plcId)).data;
-      let role = plcRoleOf(plcData, authUid());
-      let mapHasCaller = authUid() in plcData.get('members', {});
-      // Map present + caller keyed: role governs (viewer => denied).
-      // Map absent / caller not keyed: fall back to the denormalized index
-      // (legacy PLCs have no viewers, so membership == edit rights).
-      return mapHasCaller
-        ? role != 'viewer'
-        : authUid() in plcData.memberUids;
+      return authUid() in plcData.memberUids
+        && plcRoleOf(plcData, authUid()) != 'viewer';
     }
     function plcEditor(id) { return signedIn() && plcCanEditContent(id); }
     function plcReader(id) { return signedIn() && plcMember(id); }
@@ -2363,11 +2380,18 @@ service cloud.firestore {
     // True when the caller is a membership manager — the sitting lead OR a coLead
     // (Decision 1.2). Falls back to the denormalized leadUid so legacy (map-less)
     // PLCs still authorize their lead; coLeads exist only once the map is present.
+    // Requires current membership: a removed co-lead's lingering map entry grants nothing,
+    // nor does a coLead entry left 'removed' by a rejoin that never reset it.
     function isPlcMembershipManager(plcData) {
-      let role = plcRoleOf(plcData, authUid());
-      return authUid() == plcData.get('leadUid', '')
-        || role == 'lead'
-        || role == 'coLead';
+      let entry = plcData.get('members', {}).get(authUid(), {});
+      return authUid() in plcData.get('memberUids', [])
+        && (
+          authUid() == plcData.get('leadUid', '')
+          || (
+            entry.get('role', '') in ['lead', 'coLead']
+            && entry.get('status', 'active') != 'removed'
+          )
+        );
     }
 
     // Exactly-one-lead invariant (Decision 1.2): a role change must never mint a
@@ -2422,16 +2446,21 @@ service cloud.firestore {
       let newEmails = request.resource.data.memberEmails;
       // members map moves in lockstep with the denormalized indexes: accepting
       // appends only the caller's own entry (role 'member', status 'active').
-      // OPTIONAL in the diff (legacy array-only PLCs still accept); when present,
-      // may add only the caller's uid as an active self record.
+      // OPTIONAL in the diff (legacy array-only PLCs still accept) unless the caller
+      // already has a stale entry, which must be reset so an old coLead role can't return.
       let membersUntouchedOrSelfAppended =
-        !('members' in request.resource.data.diff(resource.data).affectedKeys())
+        (
+          !('members' in request.resource.data.diff(resource.data).affectedKeys())
+          && !(request.auth.uid in resource.data.get('members', {}))
+        )
         || (
              request.resource.data.members.diff(resource.data.get('members', {}))
                .affectedKeys().hasOnly([request.auth.uid])
              && request.resource.data.members[request.auth.uid].role == 'member'
              && request.resource.data.members[request.auth.uid].status == 'active'
              && request.resource.data.members[request.auth.uid].uid == request.auth.uid
+             // Only the keys acceptInvite writes, so a rejoin can't smuggle in e.g. mentorRole.
+             && request.resource.data.members[request.auth.uid].keys().hasOnly(['uid', 'email', 'displayName', 'role', 'status', 'joinedAt'])
            );
       return request.auth.token.get('email_verified', false) == true
         && emailLower != ''
@@ -2638,9 +2667,12 @@ service cloud.firestore {
       let newEmails = request.resource.data.memberEmails;
       // members map moves in lockstep: when in the diff, only the leaver's own
       // entry may change (flip to status 'removed'), so the branch can't rewrite a
-      // teammate while self-removing. OPTIONAL (legacy array-only PLCs still leave).
+      // teammate while self-removing. OPTIONAL only when the caller has no entry to flip.
       let membersUntouchedOrSelfRemoved =
-        !('members' in request.resource.data.diff(resource.data).affectedKeys())
+        (
+          !('members' in request.resource.data.diff(resource.data).affectedKeys())
+          && !(request.auth.uid in resource.data.get('members', {}))
+        )
         || (
              request.resource.data.members.diff(resource.data.get('members', {}))
                .affectedKeys().hasOnly([request.auth.uid])
@@ -2961,10 +2993,10 @@ service cloud.firestore {
     match /plcs/{plcId} {
       // Members + same-org admins only. The root doc carries member PII
       // (emails/names), so it's NOT exposed to same-org peers — discovery reads
-      // the PII-free /plcIndex mirror instead. The gate reads BOTH the canonical
-      // members map and the denormalized memberUids index (either shape
-      // authorizes during rollout). isAdmin() is a bare /admins/{email} doc,
-      // which also mirrors org-scoped building_admin (see
+      // the PII-free /plcIndex mirror instead. The gate is the memberUids index alone:
+      // removed members keep a members-map entry for audit, which grants nothing.
+      // isAdmin() is a bare /admins/{email} doc, which also mirrors org-scoped
+      // building_admin (see
       // functions/src/organizationMembersSync.ts) — used bare it let a
       // building_admin of one org read another org's member emails/names off
       // this doc. Scoped to same-org, matching isAdminManagingPlc() and the
@@ -2975,8 +3007,7 @@ service cloud.firestore {
       // runs the same kind of unfiltered list query against this collection.
       allow read: if signedIn()
         && (
-          authUid() in existing().get('members', {})
-          || authUid() in existing().memberUids
+          authUid() in existing().memberUids
           || (
             isAdmin()
             && existing().get('orgId', null) is string
@@ -3159,18 +3190,14 @@ service cloud.firestore {
 
       // Anonymized per-assessment aggregates (Decisions 6.0+3.3) — member-readable,
       // PII-free rollups of every teacher's contributions. Writes are server-only
-      // (aggregatePlcAssessment + migratePlcs via Admin SDK). Members read (gated
-      // on members map OR memberUids); never create/update/delete, so the
+      // (aggregatePlcAssessment + migratePlcs via Admin SDK). Current members read (gated
+      // on memberUids); never create/update/delete, so the
       // raw-contribution PII boundary holds.
       match /aggregates/{aggregateId} {
         function plcRootData() {
           return get(/databases/$(database)/documents/plcs/$(plcId)).data;
         }
-        allow read: if signedIn()
-          && (
-            authUid() in plcRootData().get('members', {})
-            || authUid() in plcRootData().memberUids
-          );
+        allow read: if signedIn() && authUid() in plcRootData().get('memberUids', []);
         // No client writes — server-only (Admin SDK bypasses rules).
         allow create, update, delete: if false;
       }
@@ -4961,6 +4988,10 @@ service cloud.firestore {
           incoming().get('revealedAnswers', null) == null &&
           // Review games: checkQuizGameAnswerV1 alone writes points, verdicts and answers.
           incoming().get('game', null) == null &&
+          // Media archive bookkeeping is server-written; the hourly sweep trusts its Drive ids.
+          incoming().get('artifactArchive', null) == null &&
+          incoming().get('hasStuckArchive', null) == null &&
+          incoming().get('backTranslations', null) == null &&
           (sessionData().get('sessionMode', '') != 'game' ||
            incoming().get('answers', []).size() == 0) &&
           // studentRole users must be enrolled in the session's class

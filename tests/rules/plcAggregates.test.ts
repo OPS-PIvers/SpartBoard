@@ -148,8 +148,8 @@ describe('plcs/{plcId}/aggregates — read', () => {
     );
   });
 
-  it('a member of a map-only PLC can read via the members-map key', async () => {
-    await assertSucceeds(
+  it('a uid keyed only in the members map (not in memberUids) cannot read', async () => {
+    await assertFails(
       getDoc(
         doc(asMemberA(), `plcs/${MAP_ONLY_PLC_ID}/aggregates/${ASSESSMENT_ID}`)
       )

@@ -31,7 +31,7 @@ import * as admin from 'firebase-admin';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import {
   computeHasStuckArchive,
-  deleteDriveFileById,
+  deleteQuizArchiveDriveFile,
   isArtifactStoragePathValid,
   QUIZ_MEDIA_ARCHIVE_SECRETS,
   STUCK_ARCHIVE_AGE_MS,
@@ -848,27 +848,35 @@ async function runPhysicalDelete(
   deps: OrgMediaDeps,
   tokenFor: (teacherUid: string) => Promise<TokenResult>
 ): Promise<string | null> {
+  let driveFailure: string | null = null;
   if (input.driveFileId) {
     const token = await tokenFor(input.teacherUid);
-    if ('error' in token) return token.error;
-    try {
-      await deps.deleteDriveFile(token.token, input.driveFileId);
-    } catch (err) {
-      return err instanceof Error
-        ? `Drive delete failed: ${err.message}`
-        : 'Drive delete failed.';
+    if ('error' in token) driveFailure = token.error;
+    else {
+      try {
+        await deps.deleteDriveFile(token.token, input.driveFileId);
+      } catch (err) {
+        driveFailure =
+          err instanceof Error
+            ? `Drive delete failed: ${err.message}`
+            : 'Drive delete failed.';
+      }
     }
   }
+  // A Drive failure still deletes the validated Storage copy; the item stays failed.
   if (input.storagePath) {
     try {
       await deps.deleteStorageObject(input.storagePath);
     } catch (err) {
-      return err instanceof Error
-        ? `Storage delete failed: ${err.message}`
-        : 'Storage delete failed.';
+      return (
+        driveFailure ??
+        (err instanceof Error
+          ? `Storage delete failed: ${err.message}`
+          : 'Storage delete failed.')
+      );
     }
   }
-  return null;
+  return driveFailure;
 }
 
 /**
@@ -1098,7 +1106,7 @@ export function buildDefaultOrgMediaDeps(): OrgMediaDeps {
     db,
     getAccessToken: async (teacherUid) =>
       (await refreshGoogleAccessTokenForUid(teacherUid)).accessToken,
-    deleteDriveFile: deleteDriveFileById,
+    deleteDriveFile: deleteQuizArchiveDriveFile,
     deleteStorageObject: async (storagePath) => {
       await admin
         .storage()

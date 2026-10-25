@@ -442,8 +442,16 @@ export function parseRefKey(key: string): StudentTargetRef | null {
 
 // ── Default dependency implementations ─────────────────────────────────────
 
-/** Permanent delete, not a trash move — this is a compliance delete. */
-export const deleteDriveFileById = defaultDriveUploader.deleteFile;
+/** Compliance delete of an id read from a response doc: refuses any file outside the quiz archive folder. */
+export const deleteQuizArchiveDriveFile = (
+  accessToken: string,
+  fileId: string
+): Promise<void> =>
+  defaultDriveUploader.deleteFileInAppFolder(
+    accessToken,
+    fileId,
+    QUIZ_DRIVE_FOLDER
+  );
 
 /** webm never survives to Drive; AAC in an M4A container always previews. */
 export async function transcodeBufferToM4a(input: Buffer): Promise<Buffer> {
@@ -721,7 +729,7 @@ export function buildDefaultArchiveDeps(): ArchiveDeps {
         folderPath,
         tokenOwners.get(accessToken)
       ),
-    deleteDriveFile: deleteDriveFileById,
+    deleteDriveFile: deleteQuizArchiveDriveFile,
     resolveStudentName: (teacherUid, studentUid) =>
       resolveStudentRealName(db, teacherUid, studentUid),
     isFeatureGranted: async (teacherUid) => {
@@ -1204,10 +1212,11 @@ export async function archiveQuizArtifactCore(
         ? null
         : takeNumberFor(answers, questionId, artifactId)
     );
+    // A title that sanitizes to empty would land loose in Quiz Responses/, where deletes are refused.
     const quizTitle =
-      typeof session.quizTitle === 'string' && session.quizTitle.trim()
+      (typeof session.quizTitle === 'string'
         ? sanitizeDriveNameSegment(session.quizTitle)
-        : 'Untitled Quiz';
+        : '') || 'Untitled Quiz';
 
     const driveFile = await deps.uploadToDrive(
       accessToken ?? (await deps.getAccessToken(teacherUid)),

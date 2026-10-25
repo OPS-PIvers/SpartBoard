@@ -11,6 +11,7 @@ import {
   runTransaction,
   arrayUnion,
   updateDoc,
+  serverTimestamp,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
@@ -261,11 +262,24 @@ export const usePlcInvitations = (
       // which they can't, because non-members can't read `/plcs/{plcId}`.
       // `arrayUnion` satisfies the rule's size-delta check and dotted-path
       // `memberEmails.<uid>` keeps the diff scoped to a single key.
-      try {
-        await runTransaction(db, (tx) => {
+      const commitAccept = (resetMemberEntry: boolean) =>
+        runTransaction(db, (tx) => {
           tx.update(plcRef, {
             memberUids: arrayUnion(user.uid),
             [`memberEmails.${user.uid}`]: myEmailLower,
+            // Rejoining over a stale (removed) entry must reset it to an active member.
+            ...(resetMemberEntry
+              ? {
+                  [`members.${user.uid}`]: {
+                    uid: user.uid,
+                    email: myEmailLower,
+                    displayName: user.displayName ?? myEmailLower.split('@')[0],
+                    role: 'member',
+                    status: 'active',
+                    joinedAt: serverTimestamp(),
+                  },
+                }
+              : {}),
             updatedAt: Date.now(),
           });
           tx.update(inviteRef, {
@@ -274,6 +288,14 @@ export const usePlcInvitations = (
           });
           return Promise.resolve();
         });
+      try {
+        try {
+          await commitAccept(false);
+        } catch (firstErr) {
+          const firstCode = (firstErr as { code?: string } | null)?.code;
+          if (firstCode !== 'permission-denied') throw firstErr;
+          await commitAccept(true);
+        }
       } catch (err) {
         // Edge case: the lead added this teacher to memberUids manually
         // between send and accept. The rule's `newMembers.size() ==
