@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { doc, onSnapshot, collection, addDoc } from 'firebase/firestore';
 import { signInAnonymously } from 'firebase/auth';
 import { db, auth } from '@/config/firebase';
+import { dropPinLogin } from '@/utils/pinLoginScope';
 import { NextUpSession } from '@/types';
 import { useDialog } from '@/context/useDialog';
 import {
@@ -38,6 +39,8 @@ export const NextUpStudentApp: React.FC = () => {
         await auth.authStateReady();
         if (!auth.currentUser) {
           await signInAnonymously(auth);
+        } else {
+          await dropPinLogin(auth);
         }
         setAuthInitialized(true);
       } catch (err) {

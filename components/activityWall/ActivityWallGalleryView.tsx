@@ -22,6 +22,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
+import { dropPinLogin } from '@/utils/pinLoginScope';
 import { useResolvedFirebaseUser } from '@/hooks/useResolvedFirebaseUser';
 import {
   normalizeActivityWallSession,
@@ -124,8 +125,8 @@ const resolveEngagementFlags = (
 const useAnonymousFirebaseUser = (): User | null => {
   const { user, resolved } = useResolvedFirebaseUser();
   useEffect(() => {
-    if (!resolved || user) return;
-    void signInAnonymously(auth).catch((err) => {
+    if (!resolved) return;
+    void (user ? dropPinLogin(auth) : signInAnonymously(auth)).catch((err) => {
       console.error('[ActivityWallGallery] Anonymous sign-in failed:', err);
     });
   }, [resolved, user]);

@@ -33,6 +33,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import { dropPinLogin } from '@/utils/pinLoginScope';
 import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 import { useDialog } from '@/context/useDialog';
 import { useGuidedLearningSessionStudent } from '@/hooks/useGuidedLearningSession';
@@ -130,6 +131,7 @@ export const GuidedLearningStudentApp: React.FC = () => {
         // race hydration and demote an SSO user to a fresh anonymous
         // session. See QuizStudentApp for the same fix.
         await auth.authStateReady();
+        await dropPinLogin(auth);
         if (!auth.currentUser) {
           const cred = await signInAnonymously(auth);
           setAnonymousUid(cred.user.uid);

@@ -5,6 +5,7 @@ import { signInAnonymously } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { type PollSessionDoc } from '@/types';
 import { normalizePollCode } from '@/utils/pollCode';
+import { dropPinLogin } from '@/utils/pinLoginScope';
 import {
   MAX_POLL_TEXT,
   MAX_POLL_WORDS_TEXT,
@@ -119,6 +120,8 @@ export const PollVoteApp: React.FC = () => {
       try {
         if (!auth.currentUser) {
           await signInAnonymously(auth);
+        } else {
+          await dropPinLogin(auth);
         }
         if (cancelled) return;
         setUid(auth.currentUser?.uid ?? '');
