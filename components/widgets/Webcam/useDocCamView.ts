@@ -166,7 +166,8 @@ export function useDocCamView({
 
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
-      if ((e.target as Element | null)?.closest?.('button')) return;
+      if ((e.target as Element | null)?.closest?.('button, [data-doccam-ink]'))
+        return;
       if (pointers.size >= 2) return;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       // Capture every tracked pointer so a release outside the feed still clears it.

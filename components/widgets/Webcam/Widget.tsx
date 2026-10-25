@@ -13,8 +13,9 @@ import {
   FlipHorizontal,
   Pause,
   Play,
+  Pencil,
 } from 'lucide-react';
-import { WidgetData, WebcamConfig } from '@/types';
+import { PathObject, WidgetData, WebcamConfig } from '@/types';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useAuth } from '@/context/useAuth';
 import { useDashboardActions } from '@/context/dashboardCanvasStore';
@@ -25,6 +26,9 @@ import { CapturedItem } from './types';
 import { tourAttr } from '@/config/tourAnchors';
 import { useDocCamView } from './useDocCamView';
 import { DocCamViewControls } from './DocCamViewControls';
+import { DocCamInkLayer, DocCamInkToolbar } from './DocCamInk';
+import { INK_COLORS, type InkTool, paintInk } from './docCamInk';
+import { useCommandStack } from '@/components/widgets/DrawingWidget/useCommandStack';
 import {
   isDefaultView,
   mediaBox,
@@ -84,54 +88,78 @@ export const WebcamWidget: React.FC<{
   );
   const isFrozen = docCamPro && !isRemoteShown && frozenUrl !== null;
 
+  // Ink over the feed is view-only: it never goes on the board, only into photos.
+  const [inkStrokes, setInkStrokes] = useState<PathObject[]>([]);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [inkTool, setInkTool] = useState<InkTool>('pen');
+  const [penColor, setPenColor] = useState<string>(INK_COLORS[0].value);
+  const inkStack = useCommandStack({
+    pageKey: 'camera',
+    objects: inkStrokes,
+    onObjectsChange: (next) =>
+      setInkStrokes(next.filter((o): o is PathObject => o.kind === 'path')),
+  });
+
   // Document camera view: the photo matches the turned, zoomed feed.
-  const captureDocCamView = useCallback((): string => {
-    const frozen = frozenImgRef.current;
-    if (isFrozen) {
-      // Never fall back to the hidden live video while the frozen frame loads.
-      if (!frozen?.naturalWidth) return '';
+  const captureDocCamView = useCallback(
+    (withInk = false): string => {
+      const overlay =
+        withInk && inkStrokes.length > 0
+          ? (ctx: CanvasRenderingContext2D) =>
+              paintInk(ctx, inkStrokes, feedSize)
+          : undefined;
+      const frozen = frozenImgRef.current;
+      if (isFrozen) {
+        // Never fall back to the hidden live video while the frozen frame loads.
+        if (!frozen?.naturalWidth) return '';
+        const canvas = renderView(
+          frozen,
+          { width: frozen.naturalWidth, height: frozen.naturalHeight },
+          docCamView,
+          isMirrored,
+          feedSize,
+          overlay
+        );
+        return canvas?.toDataURL('image/png') ?? '';
+      }
+      if (isRemoteShown) {
+        const img = remoteImgRef.current;
+        if (!img?.naturalWidth || (isDefaultView(docCamView) && !overlay)) {
+          return widgetConfig.remoteCaptureDataUrl ?? '';
+        }
+        const canvas = renderView(
+          img,
+          { width: img.naturalWidth, height: img.naturalHeight },
+          docCamView,
+          false,
+          feedSize,
+          overlay
+        );
+        // JPEG keeps a phone photo near the size the phone sent.
+        return canvas?.toDataURL('image/jpeg', 0.9) ?? '';
+      }
+      const video = videoRef.current;
+      if (!video) return '';
       const canvas = renderView(
-        frozen,
-        { width: frozen.naturalWidth, height: frozen.naturalHeight },
+        video,
+        { width: video.videoWidth, height: video.videoHeight },
         docCamView,
         isMirrored,
-        feedSize
+        feedSize,
+        overlay
       );
       return canvas?.toDataURL('image/png') ?? '';
-    }
-    if (isRemoteShown) {
-      const img = remoteImgRef.current;
-      if (!img?.naturalWidth || isDefaultView(docCamView)) {
-        return widgetConfig.remoteCaptureDataUrl ?? '';
-      }
-      const canvas = renderView(
-        img,
-        { width: img.naturalWidth, height: img.naturalHeight },
-        docCamView,
-        false,
-        feedSize
-      );
-      // JPEG keeps a phone photo near the size the phone sent.
-      return canvas?.toDataURL('image/jpeg', 0.9) ?? '';
-    }
-    const video = videoRef.current;
-    if (!video) return '';
-    const canvas = renderView(
-      video,
-      { width: video.videoWidth, height: video.videoHeight },
+    },
+    [
+      feedSize,
       docCamView,
+      isFrozen,
+      inkStrokes,
       isMirrored,
-      feedSize
-    );
-    return canvas?.toDataURL('image/png') ?? '';
-  }, [
-    feedSize,
-    docCamView,
-    isFrozen,
-    isMirrored,
-    isRemoteShown,
-    widgetConfig.remoteCaptureDataUrl,
-  ]);
+      isRemoteShown,
+      widgetConfig.remoteCaptureDataUrl,
+    ]
+  );
 
   // Bumped on every freeze/unfreeze so a slow toBlob from an older freeze is dropped.
   const freezeToken = useRef(0);
@@ -368,7 +396,7 @@ export const WebcamWidget: React.FC<{
     let dataUrl = '';
 
     if (docCamPro) {
-      dataUrl = captureDocCamView();
+      dataUrl = captureDocCamView(true);
     } else if (widgetConfig.isRemoteMode && widgetConfig.remoteCaptureDataUrl) {
       dataUrl = widgetConfig.remoteCaptureDataUrl;
     } else if (videoRef.current) {
@@ -516,6 +544,16 @@ export const WebcamWidget: React.FC<{
                       }}
                     />
                   )}
+                  <DocCamInkLayer
+                    strokes={inkStrokes}
+                    size={feedSize}
+                    active={isDrawing}
+                    tool={inkTool}
+                    penColor={penColor}
+                    onStroke={(stroke) =>
+                      inkStack.push({ kind: 'add', object: stroke })
+                    }
+                  />
                 </div>
               ) : widgetConfig.isRemoteMode &&
                 widgetConfig.remoteCaptureDataUrl ? (
@@ -557,6 +595,23 @@ export const WebcamWidget: React.FC<{
                   />
                   Frozen
                 </div>
+              )}
+
+              {docCamPro && isDrawing && (
+                <DocCamInkToolbar
+                  widgetId={_widget.id}
+                  widgetType={_widget.type}
+                  tool={inkTool}
+                  penColor={penColor}
+                  canUndo={inkStack.canUndo}
+                  hasInk={inkStrokes.length > 0}
+                  onTool={setInkTool}
+                  onPenColor={setPenColor}
+                  onUndo={inkStack.undo}
+                  onClear={() =>
+                    inkStack.push({ kind: 'clear', objects: inkStrokes })
+                  }
+                />
               )}
 
               {docCamPro && (
@@ -632,6 +687,24 @@ export const WebcamWidget: React.FC<{
                           }}
                         />
                       )}
+                    </button>
+                  )}
+                  {docCamPro && (
+                    <button
+                      {...tourAttr('webcam.draw', _widget.id, _widget.type)}
+                      onClick={() => setIsDrawing((on) => !on)}
+                      aria-pressed={isDrawing}
+                      aria-label="Draw"
+                      className={`rounded-2xl text-white transition-all ${isDrawing ? 'bg-blue-500/30 text-blue-400' : 'hover:bg-white/30'}`}
+                      style={{ padding: 'min(12px, 2.5cqmin)' }}
+                      title="Draw"
+                    >
+                      <Pencil
+                        style={{
+                          width: 'min(20px, 5cqmin)',
+                          height: 'min(20px, 5cqmin)',
+                        }}
+                      />
                     </button>
                   )}
                   <button

@@ -12022,6 +12022,32 @@ export const TOUR_ANCHORS = {
     label: 'Freeze and unfreeze button in Webcam',
     perWidget: true,
   },
+  'webcam.draw': {
+    label: 'Draw button in Webcam (turns drawing on the image on and off)',
+    perWidget: true,
+  },
+  'webcam.draw-pen': {
+    label: 'Pen tool in the Webcam drawing tools (shows in draw mode)',
+    perWidget: true,
+  },
+  'webcam.draw-highlighter': {
+    label: 'Highlighter tool in the Webcam drawing tools (shows in draw mode)',
+    perWidget: true,
+  },
+  'webcam.draw-eraser': {
+    label: 'Eraser tool in the Webcam drawing tools (shows in draw mode)',
+    perWidget: true,
+  },
+  'webcam.draw-undo': {
+    label: 'Undo button in the Webcam drawing tools (shows in draw mode)',
+    perWidget: true,
+  },
+  'webcam.clear-drawing': {
+    label:
+      'Clear drawing button in the Webcam drawing tools (shows in draw mode)',
+    perWidget: true,
+    destructive: true,
+  },
   'webcam.reset-view': {
     label: 'Reset view button in Webcam (shows once zoomed or turned)',
     perWidget: true,

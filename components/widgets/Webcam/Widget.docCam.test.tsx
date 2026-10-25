@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { WebcamWidget } from './Widget';
 import type { WebcamConfig, WidgetData } from '@/types';
@@ -59,6 +59,10 @@ beforeEach(() => {
   } as unknown as typeof ResizeObserver;
 });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 const video = (container: HTMLElement) =>
   container.querySelector('video') as HTMLVideoElement;
 
@@ -112,9 +116,6 @@ describe('WebcamWidget document camera gestures', () => {
 
 describe('WebcamWidget freeze', () => {
   it('holds the frame with a Frozen label and returns to live', async () => {
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
-      drawImage: vi.fn(),
-    } as unknown as CanvasRenderingContext2D);
     vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(
       (cb: BlobCallback) => cb(new Blob(['x']))
     );
@@ -167,6 +168,43 @@ describe('WebcamWidget freeze', () => {
     flags.docCam = false;
     render(<WebcamWidget widget={makeWidget()} />);
     expect(screen.queryByTitle('Freeze')).toBeNull();
+  });
+});
+
+describe('WebcamWidget drawing', () => {
+  it('shows drawing tools only in draw mode and keeps strokes off the board', () => {
+    const { container } = render(<WebcamWidget widget={makeWidget()} />);
+    expect(screen.queryByRole('toolbar', { name: 'Drawing tools' })).toBeNull();
+    const ink = container.querySelector('[data-doccam-ink]') as HTMLElement;
+    expect(ink.style.pointerEvents).toBe('none');
+    fireEvent.click(screen.getByTitle('Draw'));
+    expect(screen.getByRole('toolbar', { name: 'Drawing tools' })).toBeTruthy();
+    expect(ink.style.pointerEvents).toBe('auto');
+    const undo = screen.getByTitle('Undo');
+    expect(undo).toHaveProperty('disabled', true);
+    fireEvent.pointerDown(ink, {
+      button: 0,
+      pointerId: 1,
+      clientX: 5,
+      clientY: 5,
+    });
+    fireEvent.pointerMove(ink, { pointerId: 1, clientX: 20, clientY: 20 });
+    fireEvent.pointerUp(ink, { pointerId: 1, clientX: 20, clientY: 20 });
+    expect(undo).toHaveProperty('disabled', false);
+    expect(screen.getByTitle('Clear drawing')).toHaveProperty(
+      'disabled',
+      false
+    );
+    fireEvent.click(screen.getByTitle('Clear drawing'));
+    expect(screen.getByTitle('Clear drawing')).toHaveProperty('disabled', true);
+    expect(updateWidget).not.toHaveBeenCalled();
+  });
+
+  it('has no Draw button with the flag off', () => {
+    flags.docCam = false;
+    const { container } = render(<WebcamWidget widget={makeWidget()} />);
+    expect(screen.queryByTitle('Draw')).toBeNull();
+    expect(container.querySelector('[data-doccam-ink]')).toBeNull();
   });
 });
 
