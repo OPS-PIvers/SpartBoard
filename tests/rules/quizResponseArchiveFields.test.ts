@@ -9,7 +9,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { doc, setDoc, updateDoc, type Firestore } from 'firebase/firestore';
+import { doc, setDoc, updateDoc } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-quiz-response-archive-fields';
 const TEACHER_UID = 'teacher-uid-qraf';
@@ -58,7 +58,9 @@ const forgedArchive = {
   'art-1': { archiveStatus: 'deleting', driveFileId: 'victim-drive-id' },
 };
 
-const callers: Array<[string, (uid: string) => Firestore, string, string]> = [
+const callers: Array<
+  [string, (uid: string) => ReturnType<typeof asAnon>, string, string]
+> = [
   ['anonymous PIN joiner', asAnon, 'anon-qraf', PIN_KEY],
   ['studentRole user', asStudentRole, 'sso-qraf', 'sso-qraf'],
   ['another teacher', asTeacher, 'other-teacher-qraf', PIN_KEY],
