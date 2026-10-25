@@ -2,10 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 
 const DURATION_MS = 350;
 
-const prefersReducedMotion = () =>
-  typeof window !== 'undefined' &&
-  typeof window.matchMedia === 'function' &&
-  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let reducedMotionQuery: MediaQueryList | null = null;
+const prefersReducedMotion = () => {
+  if (!reducedMotionQuery && typeof window.matchMedia === 'function') {
+    reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+  }
+  return !!reducedMotionQuery?.matches;
+};
 
 /** Counts the shown number toward `value` over a short ease-out; instant with reduced motion. */
 export const useCountUp = (value: number, enabled: boolean): number => {
@@ -17,13 +20,17 @@ export const useCountUp = (value: number, enabled: boolean): number => {
     const from = displayRef.current;
     let raf = 0;
     if (!animate || from === value) {
-      displayRef.current = value;
-      if (from !== value) raf = requestAnimationFrame(() => setDisplay(value));
+      if (from !== value) {
+        raf = requestAnimationFrame(() => {
+          displayRef.current = value;
+          setDisplay(value);
+        });
+      }
       return () => cancelAnimationFrame(raf);
     }
     const start = performance.now();
     const step = (now: number) => {
-      const t = Math.min(1, (now - start) / DURATION_MS);
+      const t = Math.max(0, Math.min(1, (now - start) / DURATION_MS));
       const eased = 1 - Math.pow(1 - t, 3);
       const next = t < 1 ? Math.round(from + (value - from) * eased) : value;
       displayRef.current = next;

@@ -56,4 +56,23 @@ describe('useCountUp', () => {
     reduced.rerender({ v: 5 });
     expect(reduced.result.current).toBe(5);
   });
+
+  it('starts from the shown number when animation turns on mid-change', () => {
+    const { result, rerender } = renderHook(({ v, on }) => useCountUp(v, on), {
+      initialProps: { v: 0, on: false },
+    });
+    rerender({ v: 4, on: false });
+    rerender({ v: 4, on: true });
+    act(() => flush(500));
+    expect(result.current).toBe(4);
+  });
+
+  it('never steps backwards on an early first frame', () => {
+    const { result, rerender } = renderHook(({ v }) => useCountUp(v, true), {
+      initialProps: { v: 4 },
+    });
+    rerender({ v: 5 });
+    act(() => flush(-16));
+    expect(result.current).toBeGreaterThanOrEqual(4);
+  });
 });
