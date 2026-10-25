@@ -245,7 +245,23 @@ export const PollSettings: React.FC<{
   }
 
   const saveEditing = (next: Partial<PollQuestion>) => {
-    applyConfig(withQuestionAt(config, editIndex, { ...editing, ...next }));
+    const updated = withQuestionAt(config, editIndex, { ...editing, ...next });
+    // Changing options hides a shown answer, so phones never keep stale or early ticks.
+    if (
+      next.options &&
+      config.answerShownQuestionIds?.includes(editing.id) === true
+    ) {
+      const hidden: PollConfig = {
+        ...updated,
+        answerShownQuestionIds: config.answerShownQuestionIds.filter(
+          (id) => id !== editing.id
+        ),
+      };
+      applyConfig(hidden);
+      syncHiddenResults(hidden);
+      return;
+    }
+    applyConfig(updated);
   };
 
   const saveQuestion = () => {
