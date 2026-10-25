@@ -38,6 +38,7 @@ import { signInWithCustomToken } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import { db, auth, functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import { dropPinLoginFromOtherSession } from '@/utils/pinLoginScope';
 import { tabAwaySessionFields } from '@/utils/tabAwayLimit';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
@@ -923,6 +924,16 @@ export const useVideoActivitySessionStudent =
           }
 
           let isAnonymous = currentUser.isAnonymous;
+          if (!isAnonymous) {
+            const user = await dropPinLoginFromOtherSession(
+              auth,
+              targetSessionId
+            );
+            if (user) {
+              currentUser = user;
+              isAnonymous = user.isAnonymous;
+            }
+          }
 
           // Anonymous (PIN) joiners must supply a PIN and pass the allowedPins
           // gate. SSO joiners (studentRole custom-token users) skip both checks

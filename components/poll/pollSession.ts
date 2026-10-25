@@ -6,15 +6,7 @@
  * all four drive the same state.
  */
 
-import {
-  collection,
-  doc,
-  getDocs,
-  limit,
-  query,
-  setDoc,
-  where,
-} from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type {
   PollConfig,
@@ -30,6 +22,7 @@ import {
 } from '@/utils/pollQuestions';
 
 const POLL_SESSIONS = 'poll_sessions';
+const POLL_CODES = 'poll_codes';
 const CODE_MINT_RETRIES = 5;
 
 /** `poll_sessions` doc id: `{teacherUid}_{pollSessionId}`. */
@@ -152,14 +145,15 @@ export const toSessionResultsState = (
 const mintUniquePollCode = async (): Promise<string> => {
   for (let attempt = 0; attempt < CODE_MINT_RETRIES; attempt += 1) {
     const candidate = generatePollCode();
-    const snap = await getDocs(
-      query(
-        collection(db, POLL_SESSIONS),
-        where('code', '==', candidate),
-        limit(1)
-      )
+    const taken = await getDoc(doc(db, POLL_CODES, candidate)).then(
+      (snap) => snap.exists(),
+      // Offline: treat as free; the server never moves a live session's code.
+      (err: unknown) => {
+        if ((err as { code?: string })?.code === 'unavailable') return false;
+        throw err;
+      }
     );
-    if (snap.empty) return candidate;
+    if (!taken) return candidate;
   }
   throw new Error('Could not generate a unique poll join code.');
 };
@@ -221,30 +215,49 @@ export const ensurePollJoinCode = async (
   return code;
 };
 
+const POINTER_RETRY_MS = [1500, 3000];
+
 /** Resolve a participant-entered code to its session doc. */
 export const lookupPollSessionByCode = async (
   rawCode: string
 ): Promise<{ sessionId: string; data: PollSessionDoc } | null> => {
   const code = normalizePollCode(rawCode);
   if (!code) return null;
-  const snap = await getDocs(
-    query(collection(db, POLL_SESSIONS), where('code', '==', code), limit(5))
-  );
-  if (snap.empty) return null;
-  // Codes are unique at mint time, but a stale doc can survive a rotation —
-  // prefer an open session, then the most recently touched one.
-  const ranked = snap.docs.slice().sort((a, b) => {
-    const left = a.data() as PollSessionDoc;
-    const right = b.data() as PollSessionDoc;
-    if ((left.active === true) !== (right.active === true)) {
-      return left.active === true ? -1 : 1;
-    }
-    return (right.updatedAt ?? 0) - (left.updatedAt ?? 0);
-  });
-  return {
-    sessionId: ranked[0].id,
-    data: ranked[0].data() as PollSessionDoc,
-  };
+  let pointer = await getDoc(doc(db, POLL_CODES, code));
+  // The server writes the pointer just after Start, so a quick scan can beat it.
+  for (const wait of POINTER_RETRY_MS) {
+    if (pointer.exists()) break;
+    await new Promise((resolve) => setTimeout(resolve, wait));
+    pointer = await getDoc(doc(db, POLL_CODES, code));
+  }
+  if (!pointer.exists()) return null;
+  const sessionId = (pointer.data() as { sessionId?: string }).sessionId;
+  if (!sessionId) return null;
+  const snap = await getDoc(doc(db, POLL_SESSIONS, sessionId));
+  if (!snap.exists()) return null;
+  return { sessionId: snap.id, data: snap.data() as PollSessionDoc };
+};
+
+/** Blank an abandoned session's questions (roster-derived labels); the server then drops its code pointer. */
+export const retirePollSession = async (
+  teacherUid: string,
+  code: string
+): Promise<void> => {
+  try {
+    await setDoc(
+      doc(db, POLL_SESSIONS, makePollSessionId(teacherUid, code)),
+      {
+        questions: [],
+        optionCounts: [],
+        textQuestions: [],
+        active: false,
+        updatedAt: Date.now(),
+      },
+      { merge: true }
+    );
+  } catch {
+    // Best effort: the new session must still start.
+  }
 };
 
 /**
@@ -253,10 +266,8 @@ export const lookupPollSessionByCode = async (
  * empty session doc) — but only once a previous session has actually run, so a
  * link shared before the first Start keeps working.
  *
- * Note: a rotation abandons the previous session's doc (left at
- * `active: false`, which blocks further votes server-side). Those inert docs +
- * their votes are intentionally left in place — no TTL/cleanup — which is an
- * accepted cost trade-off for this classroom-scale feature.
+ * A rotation blanks the previous session doc's questions and drops its code
+ * pointer; its votes are left in place.
  */
 export const startPollSession = async (
   config: PollConfig,
@@ -288,6 +299,16 @@ export const startPollSession = async (
     { active: true, startedAt: Date.now() },
     pollPro
   );
+  const previousCode = config.joinCode;
+  const previousOwner = config.lastPollSessionOwnerUid ?? teacherUid;
+  if (
+    rotate &&
+    previousCode &&
+    previousCode !== code &&
+    previousOwner === teacherUid
+  ) {
+    await retirePollSession(teacherUid, previousCode);
+  }
   return {
     ...base,
     joinCode: code,

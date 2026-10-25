@@ -38,7 +38,7 @@ import {
   isFreeResponseType,
 } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
-import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { BankSlotDetail, BankSlotRow } from './BankSlotRow';
 import { SectionRow } from './SectionRow';
 import { sectionQuestionCounts } from '@/utils/quizSections';
@@ -1042,6 +1042,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 type="button"
                 onClick={promptStandards.undo}
                 className="font-semibold text-brand-blue-primary hover:underline"
+                {...tourAttr('quiz-editor.prompt-standards-undo')}
               >
                 Undo
               </button>

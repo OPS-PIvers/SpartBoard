@@ -157,7 +157,15 @@ const callSign = ltiSignDeepLinkResponseV1 as unknown as (req: {
   data: unknown;
 }) => Promise<SignResult>;
 
-const TEACHER = { uid: 'teacher-1', token: { email: 't@orono.k12.mn.us' } };
+const TEACHER = {
+  uid: 'teacher-1',
+  token: { email: 't@orono.k12.mn.us', email_verified: true },
+};
+
+const UNTRUSTED_TOKENS = [
+  { email: 'x@orono.k12.mn.us' },
+  { email: 'x@gmail.com', email_verified: true },
+];
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -231,11 +239,48 @@ describe('ltiResolveNamesForAssignmentV1 — resolution', () => {
     expect(res.names).toEqual({});
   });
 
-  it('maps members onto the response-doc pseudonym uid', async () => {
+  it('resolves a pre-stamp context only with server-written evidence it is this session', async () => {
     contextDocs = [
       {
         id: 'ctx-1',
         data: () => ({ contextMembershipsUrl: 'https://lms/m1' }),
+      },
+    ];
+    vi.spyOn(nrpsNet, 'fetchMembershipPage').mockResolvedValue({
+      ok: true,
+      status: 200,
+      members: [{ user_id: 'sub-A', given_name: 'Ada', family_name: 'L' }],
+      nextUrl: null,
+      isRedirect: false,
+    });
+    const uidA = ltiStudentUid('sub-A', 'test-hmac-secret');
+    const orphan = await callResolve({
+      auth: TEACHER,
+      data: { sessionId: 's1' },
+    });
+    expect(orphan.names[uidA]).toBeUndefined();
+    sessionDoc = {
+      exists: true,
+      data: () => ({
+        teacherUid: 'teacher-1',
+        ltiAttachment: { resourceLinkId: 'rl-1', contextId: 'ctx-1' },
+      }),
+    };
+    const owned = await callResolve({
+      auth: TEACHER,
+      data: { sessionId: 's1' },
+    });
+    expect(owned.names[uidA]).toEqual({ givenName: 'Ada', familyName: 'L' });
+  });
+
+  it('maps members onto the response-doc pseudonym uid', async () => {
+    contextDocs = [
+      {
+        id: 'ctx-1',
+        data: () => ({
+          contextMembershipsUrl: 'https://lms/m1',
+          teacherUid: 'teacher-1',
+        }),
       },
     ];
     vi.spyOn(nrpsNet, 'fetchMembershipPage').mockResolvedValue({
@@ -264,7 +309,10 @@ describe('ltiResolveNamesForAssignmentV1 — resolution', () => {
     contextDocs = [
       {
         id: 'ctx-1',
-        data: () => ({ contextMembershipsUrl: 'https://lms/m1' }),
+        data: () => ({
+          contextMembershipsUrl: 'https://lms/m1',
+          teacherUid: 'teacher-1',
+        }),
       },
     ];
     vi.spyOn(nrpsNet, 'fetchMembershipPage').mockResolvedValue({
@@ -293,7 +341,10 @@ describe('ltiResolveNamesForAssignmentV1 — resolution', () => {
     contextDocs = [
       {
         id: 'ctx-1',
-        data: () => ({ contextMembershipsUrl: 'https://lms/m1' }),
+        data: () => ({
+          contextMembershipsUrl: 'https://lms/m1',
+          teacherUid: 'teacher-1',
+        }),
       },
     ];
     vi.spyOn(nrpsNet, 'fetchMembershipPage').mockResolvedValue({
@@ -322,7 +373,10 @@ describe('ltiResolveNamesForAssignmentV1 — resolution', () => {
     contextDocs = [
       {
         id: 'ctx-1',
-        data: () => ({ contextMembershipsUrl: 'https://lms/m1' }),
+        data: () => ({
+          contextMembershipsUrl: 'https://lms/m1',
+          teacherUid: 'teacher-1',
+        }),
       },
     ];
     vi.spyOn(nrpsNet, 'fetchMembershipPage')
@@ -428,6 +482,7 @@ describe('ltiPushGradesForAssignmentV1 — push', () => {
 
   it('resolves each student line item from the session resource link and clamps the score', async () => {
     gradeLinks.set('lti_grade_links/uid-A/resources/rl-1', {
+      teacherUid: 'teacher-1',
       sub: 'sub-A',
       ags: { lineitem: 'https://lms/lineitems/1' },
     });
@@ -466,6 +521,7 @@ describe('ltiPushGradesForAssignmentV1 — push', () => {
   // retry-safety) would silently never fire against `undefined`.
   it('sets isRedirect:false explicitly on the GradeResult for an ordinary successful push', async () => {
     gradeLinks.set('lti_grade_links/uid-A/resources/rl-1', {
+      teacherUid: 'teacher-1',
       sub: 'sub-A',
       ags: { lineitem: 'https://lms/lineitems/1' },
     });
@@ -488,6 +544,7 @@ describe('ltiPushGradesForAssignmentV1 — push', () => {
   // token toward the redirect target on every attempt.
   it('propagates isRedirect:true onto the GradeResult when postScore refuses a redirect (SSRF guard)', async () => {
     gradeLinks.set('lti_grade_links/uid-A/resources/rl-1', {
+      teacherUid: 'teacher-1',
       sub: 'sub-A',
       ags: { lineitem: 'https://lms/lineitems/1' },
     });
@@ -544,8 +601,27 @@ describe('ltiPushGradesForAssignmentV1 — push', () => {
     expect(postScoreMock).not.toHaveBeenCalled();
   });
 
+  it('refuses a grade link bound to a different teacher', async () => {
+    gradeLinks.set('lti_grade_links/uid-A/resources/rl-1', {
+      teacherUid: 'someone-else',
+      sub: 'sub-A',
+      ags: { lineitem: 'https://lms/lineitems/1' },
+    });
+    const res = await callPush({
+      auth: TEACHER,
+      data: {
+        sessionId: 's1',
+        maxPoints: 20,
+        grades: [{ pseudonymUid: 'uid-A', pointsEarned: 10 }],
+      },
+    });
+    expect(res.pushed).toBe(0);
+    expect(postScoreMock).not.toHaveBeenCalled();
+  });
+
   it('sets isRedirect:false when the student has no line item on record', async () => {
     gradeLinks.set('lti_grade_links/uid-A/resources/rl-1', {
+      teacherUid: 'teacher-1',
       sub: 'sub-A',
       // No `ags.lineitem` — student launched but the deep-link never
       // attached a gradable line item.
@@ -613,6 +689,17 @@ describe('ltiSignDeepLinkResponseV1 — security gate', () => {
     );
     expect(signToolJwtMock).not.toHaveBeenCalled();
   });
+
+  it.each(UNTRUSTED_TOKENS)(
+    'rejects unverified or non-district %o',
+    async (token) => {
+      await expectCode(
+        callSign({ auth: { uid: 'teacher-1', token }, data: goodData }),
+        'permission-denied'
+      );
+      expect(signToolJwtMock).not.toHaveBeenCalled();
+    }
+  );
 
   it('signs and returns a JWT for a properly authenticated teacher', async () => {
     const res = await callSign({ auth: TEACHER, data: goodData });

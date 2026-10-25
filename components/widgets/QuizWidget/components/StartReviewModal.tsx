@@ -145,6 +145,7 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
               <div className="flex items-center gap-2">
                 <select
                   aria-label={t('reviewStart.gameLength', 'Game length')}
+                  // no-tour-anchor: the game-length row above already carries the anchor
                   value={customMinutes ? 'custom' : String(gameMinutes)}
                   onChange={(e) => {
                     if (e.target.value === 'custom') {
@@ -175,6 +176,7 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
                     max={MAX_GAME_MINUTES}
                     value={gameMinutes}
                     aria-label={t('reviewStart.customMinutes', 'Minutes')}
+                    {...tourAttr('review-start.custom-minutes')}
                     onChange={(e) =>
                       setGameMinutes(clampGameMinutes(Number(e.target.value)))
                     }
@@ -246,6 +248,7 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
               {RANK_LIMITS.map((opt) => {
                 const active = rankLimit === opt.value;
                 return (
+                  // no-tour-anchor: one option of the leaderboard switch; the row carries rank-limit
                   <button
                     key={String(opt.value)}
                     type="button"
