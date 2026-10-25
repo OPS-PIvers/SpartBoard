@@ -487,6 +487,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     >
                       {joinCode}
                     </code>
+                    {/* no-tour-anchor: tours use widget-settings.poll.copy-link */}
                     <button
                       onClick={handleCopy}
                       className={`flex items-center font-bold text-slate-400 ${proEnabled ? 'hover:text-brand-blue-primary' : 'hover:text-indigo-600'} transition-colors`}

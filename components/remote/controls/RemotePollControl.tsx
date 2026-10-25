@@ -273,7 +273,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
           (config.hideResults === true || isLive) && (
             <div className="grid grid-cols-2 gap-2">
               {config.hideResults === true && (
-                <button
+                <button // no-tour-anchor: phone remote, tours run on the board
                   onClick={() => setRevealed(resultsHidden)}
                   style={{ touchAction: 'manipulation' }}
                   className="touch-manipulation flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold transition-all active:scale-95"
@@ -288,7 +288,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
                 </button>
               )}
               {isLive && (
-                <button
+                <button // no-tour-anchor: phone remote, tours run on the board
                   onClick={() => setLocked(!isLocked)}
                   style={{ touchAction: 'manipulation' }}
                   className="touch-manipulation flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold transition-all active:scale-95"
