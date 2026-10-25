@@ -71,6 +71,8 @@ interface UseSelectionOptions {
    *  preferred way to thread scale through — a snapshotted `scale` prop
    *  can be stale if the canvas resizes between renders. */
   canvasRef?: React.RefObject<HTMLCanvasElement | null>;
+  /** Whiteboard zoom, so handles keep their on-screen size. Defaults to 1. */
+  viewZoom?: number;
 }
 
 interface UseSelectionResult {
@@ -104,6 +106,7 @@ export const useSelection = ({
   onRemoveObject,
   scale = 1,
   canvasRef,
+  viewZoom = 1,
 }: UseSelectionOptions): UseSelectionResult => {
   // Live canvas-to-CSS scale. When a `canvasRef` is supplied we always
   // prefer the bounding-rect-derived value — that handles parent
@@ -111,11 +114,11 @@ export const useSelection = ({
   // is the fallback for callers that don't have a canvas ref handy.
   const getScale = useCallback((): number => {
     const canvas = canvasRef?.current;
-    if (!canvas) return scale;
+    if (!canvas) return scale * viewZoom;
     const rect = canvas.getBoundingClientRect();
-    if (rect.width <= 0) return scale;
-    return canvas.width / rect.width;
-  }, [canvasRef, scale]);
+    if (rect.width <= 0) return scale * viewZoom;
+    return (canvas.width / rect.width) * viewZoom;
+  }, [canvasRef, scale, viewZoom]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [transformState, setTransformState] = useState<TransformState | null>(
     null

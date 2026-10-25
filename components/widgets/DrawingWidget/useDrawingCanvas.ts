@@ -23,6 +23,7 @@ import {
 } from './renderers/selection';
 import { DRAWING_DEFAULTS } from './constants';
 import { getStrokedBoundingBox, type BoundingBox } from './hitTest';
+import { isIdentityView, type DrawingView } from './viewport';
 
 interface UseDrawingCanvasOptions {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -73,6 +74,8 @@ interface UseDrawingCanvasOptions {
   previewObject?: DrawableObject | null;
   /** Bitmap px per object px; canvasSize stays in object space. Defaults to 1. */
   pixelRatio?: number;
+  /** Zoom and pan; omitted means the page fills the canvas as it always has. */
+  view?: DrawingView;
 }
 
 interface UseDrawingCanvasResult {
@@ -131,6 +134,7 @@ export const useDrawingCanvas = ({
   transformState = null,
   previewObject = null,
   pixelRatio = 1,
+  view,
 }: UseDrawingCanvasOptions): UseDrawingCanvasResult => {
   const [isDrawing, setIsDrawing] = useState(false);
   const inProgressRef = useRef<InProgress | null>(null);
@@ -149,6 +153,7 @@ export const useDrawingCanvas = ({
   // always produce a new object on update; an unchanged object retains its
   // identity through the reducer's `map(o => o.id === ... ? next : o)`.
   const prevObjectsRef = useRef<Map<string, DrawableObject>>(new Map());
+  const prevViewRef = useRef<DrawingView | undefined>(view);
 
   const setPathContextStyles = useCallback(
     (ctx: CanvasRenderingContext2D, tool: 'pen' | 'eraser') => {
@@ -177,8 +182,8 @@ export const useDrawingCanvas = ({
     if (!canvas) return 1;
     const rect = canvas.getBoundingClientRect();
     if (rect.width <= 0) return 1;
-    return canvas.width / pixelRatio / rect.width;
-  }, [canvasRef, pixelRatio]);
+    return (canvas.width / pixelRatio / rect.width) * (view?.zoom ?? 1);
+  }, [canvasRef, pixelRatio, view]);
 
   const draw = useCallback(
     (
@@ -186,7 +191,20 @@ export const useDrawingCanvas = ({
       allObjects: DrawableObject[],
       inProgress: InProgress | null
     ) => {
-      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      if (view) {
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.setTransform(
+          pixelRatio * view.zoom,
+          0,
+          0,
+          pixelRatio * view.zoom,
+          pixelRatio * view.x,
+          pixelRatio * view.y
+        );
+      } else {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      }
 
       // Render in z-order so later PRs (text, image) can layer cleanly
       // without needing to touch this call site. When a transform preview is
@@ -230,6 +248,8 @@ export const useDrawingCanvas = ({
       transformState,
       previewObject,
       getLiveScale,
+      view,
+      pixelRatio,
     ]
   );
 
@@ -384,10 +404,14 @@ export const useDrawingCanvas = ({
 
     const bitmapW = Math.round(canvasSize.width * pixelRatio);
     const bitmapH = Math.round(canvasSize.height * pixelRatio);
-    const sizeChanged = canvas.width !== bitmapW || canvas.height !== bitmapH;
+    const viewChanged = prevViewRef.current !== view;
+    prevViewRef.current = view;
+    const sizeChanged =
+      canvas.width !== bitmapW || canvas.height !== bitmapH || viewChanged;
     if (canvas.width !== bitmapW) canvas.width = bitmapW;
     if (canvas.height !== bitmapH) canvas.height = bitmapH;
-    if (pixelRatio !== 1) ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    if (pixelRatio !== 1 && !view)
+      ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 
     // Install the latest redraw closure for renderImage's onload callback.
     // Async image decodes resolve via this ref, so a freshly-pasted image
@@ -444,6 +468,7 @@ export const useDrawingCanvas = ({
 
     const fallbackFull =
       sizeChanged ||
+      (view !== undefined && !isIdentityView(view)) ||
       prev.size === 0 ||
       dirtyIds.size === 0 ||
       // m7: skip incremental for tiny scenes — clearing the full canvas is
@@ -472,6 +497,7 @@ export const useDrawingCanvas = ({
     drawIncremental,
     previewObject,
     selectedObject,
+    view,
   ]);
 
   // Translate a pointer event's client coords into the canvas's internal
@@ -488,12 +514,17 @@ export const useDrawingCanvas = ({
         rect.width > 0 ? canvas.width / pixelRatio / rect.width : 1;
       const scaleY =
         rect.height > 0 ? canvas.height / pixelRatio / rect.height : 1;
-      return {
+      const box = {
         x: (e.clientX - rect.left) * scaleX,
         y: (e.clientY - rect.top) * scaleY,
       };
+      if (!view) return box;
+      return {
+        x: (box.x - view.x) / view.zoom,
+        y: (box.y - view.y) / view.zoom,
+      };
     },
-    [canvasRef, pixelRatio]
+    [canvasRef, pixelRatio, view]
   );
 
   const handleStart = useCallback(

@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
 import { useImageUpload } from '@/hooks/useImageUpload';
+import type { Point } from '@/types';
 
 /**
  * Geometry handed back to `onImageReady` once an upload finishes. Coordinates
@@ -21,6 +22,15 @@ interface UseImageInsertionOptions {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   /** Called once a file has uploaded and the renderer-ready geometry is known. */
   onImageReady: (result: ImageInsertionResult) => void;
+  /** Zoomed whiteboards: maps a client point to page coordinates. */
+  clientToPage?: (clientX: number, clientY: number) => Point | null;
+  /** Zoomed whiteboards: the page area on screen, where new images land. */
+  getVisibleArea?: () => {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
 }
 
 interface UseImageInsertionResult {
@@ -90,7 +100,8 @@ const computeGeometry = (
   natural: { width: number; height: number } | null,
   canvasWidth: number,
   canvasHeight: number,
-  focal: { x: number; y: number } | null
+  focal: { x: number; y: number } | null,
+  origin: Point = { x: 0, y: 0 }
 ): Pick<ImageInsertionResult, 'x' | 'y' | 'w' | 'h'> => {
   const nw = natural?.width && natural.width > 0 ? natural.width : 200;
   const nh = natural?.height && natural.height > 0 ? natural.height : 200;
@@ -101,8 +112,8 @@ const computeGeometry = (
   const w = nw * scale;
   const h = nh * scale;
 
-  const cx = focal?.x ?? canvasWidth / 2;
-  const cy = focal?.y ?? canvasHeight / 2;
+  const cx = focal?.x ?? origin.x + canvasWidth / 2;
+  const cy = focal?.y ?? origin.y + canvasHeight / 2;
   return {
     x: cx - w / 2,
     y: cy - h / 2,
@@ -149,6 +160,8 @@ const pageToCanvas = (
 export const useImageInsertion = ({
   canvasRef,
   onImageReady,
+  clientToPage,
+  getVisibleArea,
 }: UseImageInsertionOptions): UseImageInsertionResult => {
   const { user } = useAuth();
   const { uploadDisplayImage } = useStorage();
@@ -167,8 +180,9 @@ export const useImageInsertion = ({
       if (!file.type.startsWith('image/')) return;
       const canvas = canvasRef.current;
       if (!canvas) return;
-      const canvasW = canvas.width;
-      const canvasH = canvas.height;
+      const area = getVisibleArea?.();
+      const canvasW = area?.width ?? canvas.width;
+      const canvasH = area?.height ?? canvas.height;
 
       // Kick natural-size decode + upload in parallel. Decode is local and
       // typically faster than upload, so neither blocks the other.
@@ -178,10 +192,16 @@ export const useImageInsertion = ({
       ]);
       if (!url) return;
 
-      const geom = computeGeometry(natural, canvasW, canvasH, focal);
+      const geom = computeGeometry(
+        natural,
+        canvasW,
+        canvasH,
+        focal,
+        area ? { x: area.x, y: area.y } : undefined
+      );
       onImageReady({ src: url, ...geom });
     },
-    [canvasRef, onImageReady, processAndUploadImage]
+    [canvasRef, onImageReady, processAndUploadImage, getVisibleArea]
   );
 
   const openPicker = useCallback(() => {
@@ -280,10 +300,14 @@ export const useImageInsertion = ({
       if (!file || !file.type.startsWith('image/')) return;
       e.preventDefault();
       const canvas = canvasRef.current;
-      const focal = canvas ? pageToCanvas(canvas, e.clientX, e.clientY) : null;
+      const focal = clientToPage
+        ? clientToPage(e.clientX, e.clientY)
+        : canvas
+          ? pageToCanvas(canvas, e.clientX, e.clientY)
+          : null;
       void ingestFile(file, focal);
     },
-    [canvasRef, ingestFile]
+    [canvasRef, ingestFile, clientToPage]
   );
 
   return {

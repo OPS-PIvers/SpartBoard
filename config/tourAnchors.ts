@@ -12388,6 +12388,26 @@ export const TOUR_ANCHORS = {
       'Tool button in the Drawing toolbar, by tool (select, pen, highlighter, eraser, text, shape)',
     perField: true,
   },
+  'drawing.hand': {
+    label: 'Hand button that pans the Drawing page',
+    perWidget: true,
+  },
+  'drawing.zoom-out': {
+    label: 'Zoom out button in Drawing',
+    perWidget: true,
+  },
+  'drawing.zoom-reset': {
+    label: 'Zoom percentage button in Drawing that returns to 100%',
+    perWidget: true,
+  },
+  'drawing.zoom-in': {
+    label: 'Zoom in button in Drawing',
+    perWidget: true,
+  },
+  'drawing.zoom-fit': {
+    label: 'Fit button in Drawing that shows the whole page',
+    perWidget: true,
+  },
   'drawing.undo': {
     label: 'Undo button in Drawing',
     perWidget: true,

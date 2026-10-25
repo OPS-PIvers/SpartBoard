@@ -55843,6 +55843,86 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "drawing.hand",
+    "label": "Hand button that pans the Drawing page",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.zoom-out",
+    "label": "Zoom out button in Drawing",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.zoom-reset",
+    "label": "Zoom percentage button in Drawing that returns to 100%",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.zoom-in",
+    "label": "Zoom in button in Drawing",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "drawing.zoom-fit",
+    "label": "Fit button in Drawing that shows the whole page",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.drawing.face",
+        "kind": "widget",
+        "widget_type": "drawing",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "drawing.undo",
     "label": "Undo button in Drawing",
     "scope": "widget",
