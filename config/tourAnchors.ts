@@ -12536,6 +12536,10 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'seating.print': {
+    label: 'Print seating chart button in Seating Chart Assign mode',
+    perWidget: true,
+  },
   'seating.reshuffle': {
     label: 'Reshuffle button in Seating Chart Assign mode',
     perWidget: true,

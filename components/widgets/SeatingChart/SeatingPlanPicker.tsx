@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef } from 'react';
-import { Pencil, Save, Trash2 } from 'lucide-react';
+import { Pencil, Printer, Save, Trash2 } from 'lucide-react';
 import type { SeatingChartConfig } from '@/types';
 import { useDialog } from '@/context/useDialog';
 import { tourAttr } from '@/config/tourAnchors';
@@ -19,6 +19,7 @@ interface SeatingPlanPickerProps {
   config: SeatingChartConfig;
   onChange: (patch: Partial<SeatingChartConfig>) => void;
   addToast: (message: string, type: 'success' | 'error' | 'info') => void;
+  onPrint?: () => void;
 }
 
 export const SeatingPlanPicker: React.FC<SeatingPlanPickerProps> = ({
@@ -26,6 +27,7 @@ export const SeatingPlanPicker: React.FC<SeatingPlanPickerProps> = ({
   config,
   onChange,
   addToast,
+  onPrint,
 }) => {
   const { showPrompt, showConfirm } = useDialog();
   // Dialogs are async; read the newest config when they resolve.
@@ -161,6 +163,18 @@ export const SeatingPlanPicker: React.FC<SeatingPlanPickerProps> = ({
         <Save className="w-3.5 h-3.5 shrink-0" />
         {active ? 'Duplicate plan' : 'Save seating plan'}
       </button>
+      {onPrint && (
+        <button
+          type="button"
+          {...tourAttr('seating.print', widgetId, 'seating-chart')}
+          onClick={onPrint}
+          disabled={(config.furniture ?? []).length === 0}
+          className="w-full flex items-center justify-center gap-1.5 p-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg transition-colors text-xxs font-black uppercase tracking-wider disabled:opacity-50 disabled:hover:bg-white"
+        >
+          <Printer className="w-3.5 h-3.5 shrink-0" />
+          Print seating chart
+        </button>
+      )}
     </div>
   );
 };
