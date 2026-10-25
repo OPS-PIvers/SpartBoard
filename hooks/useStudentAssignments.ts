@@ -702,7 +702,12 @@ export function useStudentAssignments({
           }
           perRef[idx] = mine;
           if (perRef.some((m) => m === undefined)) return;
-          setPointerItems(Object.assign({}, ...perRef));
+          setPointerItems(
+            perRef.reduce<Record<string, StudentAssignmentPointer>>(
+              (acc, m) => ({ ...acc, ...m }),
+              {}
+            )
+          );
           setPointerErrored(false);
           setPointerLoadState('ready');
         },
