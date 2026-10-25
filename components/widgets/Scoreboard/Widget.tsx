@@ -21,6 +21,11 @@ import { ScoreboardRowItem } from './components/ScoreboardRowItem';
 import { ScoreboardHistoryPanel } from './components/ScoreboardHistoryPanel';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { appendScoreHistory, undoLastScoreChange } from './history';
+import {
+  scoreboardLeaders,
+  scoreboardPointValues,
+  scoreboardRank,
+} from './points';
 
 const isTypingFieldActive = (): boolean => {
   const activeEl = document.activeElement as HTMLElement | null;
@@ -73,10 +78,18 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
   const teams = Array.isArray(config.teams) ? config.teams : DEFAULT_TEAMS;
   const layout = config.layout ?? 'cards';
 
+  const sortRows = !pro || config.sortByScore !== false;
   const sortedTeams = useMemo(
     () =>
-      layout === 'rows' ? [...teams].sort((a, b) => b.score - a.score) : teams,
-    [teams, layout]
+      layout === 'rows' && sortRows
+        ? [...teams].sort((a, b) => b.score - a.score)
+        : teams,
+    [teams, layout, sortRows]
+  );
+  const pointValues = scoreboardPointValues(config, pro);
+  const leaders = useMemo(
+    () => (pro ? scoreboardLeaders(teams) : new Map<string, never>()),
+    [teams, pro]
   );
 
   // Keep a ref to the latest config to ensure handleUpdateScore is stable.
@@ -297,6 +310,9 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
                   teamPosition={index + 1}
                   widgetId={widget.id}
                   onUpdateScore={handleUpdateScore}
+                  pointValues={pointValues}
+                  leader={leaders.get(team.id) ?? null}
+                  showLeader={pro && teams.length > 1}
                 />
               ))}
             </div>
@@ -312,9 +328,12 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
                 <ScoreboardRowItem
                   key={team.id}
                   team={team}
-                  rank={index + 1}
+                  rank={pro ? scoreboardRank(teams, team) : index + 1}
+                  position={index + 1}
                   widgetId={widget.id}
                   onUpdateScore={handleUpdateScore}
+                  pointValues={pointValues}
+                  leader={leaders.get(team.id) ?? null}
                 />
               ))}
             </div>

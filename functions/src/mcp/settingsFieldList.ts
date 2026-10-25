@@ -671,6 +671,16 @@ export const SETTINGS_FIELD_LIST: Readonly<
       label: 'Layout',
       kind: 'segmented',
     },
+    {
+      anchor: 'settings.toggle:scoreboard#sortByScore',
+      label: 'Sort by score',
+      kind: 'toggle',
+    },
+    {
+      anchor: 'settings.field:scoreboard#pointValues',
+      label: 'Point buttons',
+      kind: 'select',
+    },
   ],
   calendar: [
     {

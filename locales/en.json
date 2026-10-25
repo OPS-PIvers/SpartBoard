@@ -1269,7 +1269,16 @@
       "replaceTeamsBody_other": "This replaces the {{count}} teams on this scoreboard, including their scores.",
       "replaceTeamsConfirm": "Replace",
       "classTeamName": "Team {{count}}",
-      "membersTitle": "Members from the class group"
+      "membersTitle": "Members from the class group",
+      "sortByScore": "Sort by score",
+      "pointButtons": "Point buttons",
+      "pointPreset": {
+        "1": "+1",
+        "1-2-3": "+1, +2, +3",
+        "1-5-10": "+1, +5, +10",
+        "5-10-25": "+5, +10, +25",
+        "10-50-100": "+10, +50, +100"
+      }
     },
     "calendar": {
       "localEvents": "Local manual events",
@@ -2715,7 +2724,13 @@
       "scores": "Scores",
       "recentChanges": "Recent changes",
       "noChanges": "No changes yet",
-      "reset": "Reset"
+      "reset": "Reset",
+      "leader": "Leader",
+      "tied": "Tied",
+      "addPoints_one": "Add {{count}} point",
+      "addPoints_other": "Add {{count}} points",
+      "removePoints_one": "Remove {{count}} point",
+      "removePoints_other": "Remove {{count}} points"
     }
   },
   "boardBreadcrumb": {

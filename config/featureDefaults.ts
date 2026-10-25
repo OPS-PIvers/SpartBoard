@@ -1261,9 +1261,10 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
   },
   'scoreboard-pro': {
-    label: 'Scoreboard undo and history',
+    label: 'Scoreboard upgrades',
     icon: Trophy,
-    description: 'Undo score changes and see recent changes for each team.',
+    description:
+      'Undo, recent changes for each team, point buttons and a leader marker.',
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'scoreboard',

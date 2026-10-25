@@ -1,6 +1,9 @@
 import React from 'react';
 import { ScoreboardTeam } from '@/types';
-import { Plus, Minus } from 'lucide-react';
+import { Plus, Minus, Crown } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import type { LeaderMark } from '../points';
+import { formatScoreDelta } from '../history';
 
 import {
   SCOREBOARD_COLORS as TEAM_COLORS,
@@ -105,6 +108,8 @@ const COLOR_STYLES: Record<
   },
 };
 
+const DEFAULT_POINTS: readonly number[] = [1];
+
 const getStyles = (colorClass: ScoreboardColor) => COLOR_STYLES[colorClass];
 
 export const ScoreboardItem = React.memo(
@@ -113,13 +118,22 @@ export const ScoreboardItem = React.memo(
     teamPosition = 1,
     widgetId,
     onUpdateScore,
+    pointValues = DEFAULT_POINTS,
+    leader = null,
+    showLeader = false,
   }: {
     team: ScoreboardTeam;
     teamPosition?: number;
     widgetId?: string;
     onUpdateScore: (id: string, delta: number) => void;
+    pointValues?: readonly number[];
+    leader?: LeaderMark;
+    /** Reserves the leader line on every card so scores stay level. */
+    showLeader?: boolean;
   }) => {
+    const { t } = useTranslation();
     const fieldKey = `team-${teamPosition}`;
+    const multi = pointValues.length > 1;
     // Normalize the persisted color through the known-palette set before
     // it lands in className — an unknown value would interpolate into
     // `bg-something-500` that Tailwind has no rule for, leaving white
@@ -135,6 +149,16 @@ export const ScoreboardItem = React.memo(
       70,
       125 / digitCount
     ).toFixed(1)}cqw, 40cqh), 220px)`;
+    const multiFontSize = `clamp(16px, min(${Math.min(
+      60,
+      110 / digitCount
+    ).toFixed(1)}cqw, 42cqh), 200px)`;
+    const amountButtonClass = `bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all shrink min-w-0 font-black tabular-nums leading-none`;
+    const amountButtonStyle: React.CSSProperties = {
+      fontSize: 'clamp(9px, min(8cqmin, 6.5cqw), 40px)',
+      padding: 'clamp(3px, 3cqmin, 16px) clamp(3px, 2.5cqw, 22px)',
+      minWidth: 'clamp(20px, min(16cqmin, 18cqw), 80px)',
+    };
     const sideFontSize = `clamp(16px, min(calc((100cqw - 72cqh) / ${(
       0.62 * digitCount
     ).toFixed(2)}), 50cqh), 220px)`;
@@ -158,60 +182,154 @@ export const ScoreboardItem = React.memo(
               paddingRight: 'clamp(2px, 2cqmin, 12px)',
             }}
           >
+            {leader && (
+              <Crown
+                aria-hidden="true"
+                className="hidden [@container(max-height:139px)]:inline-block align-[-0.1em]"
+                style={{
+                  width: '0.9em',
+                  height: '0.9em',
+                  marginRight: '0.3em',
+                }}
+              />
+            )}
             {team.name}
           </div>
-          {/* Wraps to score-over-buttons on portrait cards; one row once the card is clearly wider than tall. */}
-          <div
-            className="flex flex-wrap content-center items-center justify-center w-full flex-1 min-h-0 [@container(min-aspect-ratio:1.4)]:flex-nowrap"
-            style={{ gap: 'clamp(4px, 4cqmin, 24px)' }}
-          >
-            <button
-              onClick={() => onUpdateScore(team.id, -1)}
-              aria-label="Decrease score"
-              {...tourFieldAttr(
-                'scoreboard.remove-point',
-                'scoreboard',
-                fieldKey
-              )}
-              data-tour-widget={widgetId}
-              className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all shrink-0 flex items-center justify-center`}
-              style={{ padding: 'clamp(4px, 6cqmin, 28px)' }}
-            >
-              <Minus
-                style={{
-                  width: 'clamp(12px, 14cqmin, 56px)',
-                  height: 'clamp(12px, 14cqmin, 56px)',
-                }}
-              />
-            </button>
-            {/* --fs-pick is only set inside the container query, so the fallback picks the stacked size. */}
+          {showLeader && (
             <div
-              className="order-first basis-full font-black text-white tabular-nums drop-shadow-sm text-center min-w-0 leading-none [@container(min-aspect-ratio:1.4)]:order-none [@container(min-aspect-ratio:1.4)]:basis-auto [@container(min-aspect-ratio:1.4)]:flex-1 [@container(min-aspect-ratio:1.4)]:[--fs-pick:var(--fs-side)]"
-              style={
-                {
-                  '--fs-side': sideFontSize,
-                  fontSize: `var(--fs-pick, ${stackedFontSize})`,
-                } as React.CSSProperties
-              }
+              className={`flex items-center justify-center font-bold text-white shrink-0 leading-none [@container(max-height:139px)]:sr-only ${leader ? '' : 'invisible'}`}
+              style={{
+                fontSize: 'clamp(9px, 6cqmin, 28px)',
+                gap: 'clamp(2px, 1.5cqmin, 8px)',
+                marginBottom: 'clamp(2px, 2cqmin, 12px)',
+              }}
+              aria-hidden={!leader}
             >
-              {team.score}
-            </div>
-            <button
-              onClick={() => onUpdateScore(team.id, 1)}
-              aria-label="Increase score"
-              {...tourFieldAttr('scoreboard.add-point', 'scoreboard', fieldKey)}
-              data-tour-widget={widgetId}
-              className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all shrink-0 flex items-center justify-center`}
-              style={{ padding: 'clamp(4px, 6cqmin, 28px)' }}
-            >
-              <Plus
-                style={{
-                  width: 'clamp(12px, 14cqmin, 56px)',
-                  height: 'clamp(12px, 14cqmin, 56px)',
-                }}
+              <Crown
+                aria-hidden="true"
+                style={{ width: '1.1em', height: '1.1em' }}
               />
-            </button>
-          </div>
+              {leader === 'tied'
+                ? t('widgets.scoreboard.tied')
+                : t('widgets.scoreboard.leader')}
+            </div>
+          )}
+          {multi ? (
+            <div
+              className="flex flex-col items-center justify-center w-full flex-1 min-h-0"
+              style={{ gap: 'clamp(4px, 4cqmin, 20px)' }}
+            >
+              <div
+                className="font-black text-white tabular-nums drop-shadow-sm text-center min-w-0 leading-none"
+                style={{ fontSize: multiFontSize }}
+              >
+                {team.score}
+              </div>
+              <div
+                className="flex flex-nowrap items-center justify-center w-full"
+                style={{ gap: 'clamp(2px, 2cqw, 14px)' }}
+              >
+                <button
+                  onClick={() => onUpdateScore(team.id, -pointValues[0])}
+                  aria-label={t('widgets.scoreboard.removePoints', {
+                    count: pointValues[0],
+                  })}
+                  {...tourFieldAttr(
+                    'scoreboard.remove-point',
+                    'scoreboard',
+                    fieldKey
+                  )}
+                  data-tour-widget={widgetId}
+                  className={amountButtonClass}
+                  style={amountButtonStyle}
+                >
+                  {formatScoreDelta(-pointValues[0])}
+                </button>
+                {pointValues.map((value, i) => (
+                  <button
+                    key={value}
+                    onClick={() => onUpdateScore(team.id, value)}
+                    aria-label={t('widgets.scoreboard.addPoints', {
+                      count: value,
+                    })}
+                    {...(i === 0
+                      ? tourFieldAttr(
+                          'scoreboard.add-point',
+                          'scoreboard',
+                          fieldKey
+                        )
+                      : tourFieldAttr(
+                          'scoreboard.add-point-amount',
+                          'scoreboard',
+                          `${fieldKey}-${i + 1}`
+                        ))}
+                    data-tour-widget={widgetId}
+                    className={amountButtonClass}
+                    style={amountButtonStyle}
+                  >
+                    {formatScoreDelta(value)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            /* Wraps to score-over-buttons on portrait cards; one row once the card is clearly wider than tall. */
+            <div
+              className="flex flex-wrap content-center items-center justify-center w-full flex-1 min-h-0 [@container(min-aspect-ratio:1.4)]:flex-nowrap"
+              style={{ gap: 'clamp(4px, 4cqmin, 24px)' }}
+            >
+              <button
+                onClick={() => onUpdateScore(team.id, -1)}
+                aria-label="Decrease score"
+                {...tourFieldAttr(
+                  'scoreboard.remove-point',
+                  'scoreboard',
+                  fieldKey
+                )}
+                data-tour-widget={widgetId}
+                className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all shrink-0 flex items-center justify-center`}
+                style={{ padding: 'clamp(4px, 6cqmin, 28px)' }}
+              >
+                <Minus
+                  style={{
+                    width: 'clamp(12px, 14cqmin, 56px)',
+                    height: 'clamp(12px, 14cqmin, 56px)',
+                  }}
+                />
+              </button>
+              {/* --fs-pick is only set inside the container query, so the fallback picks the stacked size. */}
+              <div
+                className="order-first basis-full font-black text-white tabular-nums drop-shadow-sm text-center min-w-0 leading-none [@container(min-aspect-ratio:1.4)]:order-none [@container(min-aspect-ratio:1.4)]:basis-auto [@container(min-aspect-ratio:1.4)]:flex-1 [@container(min-aspect-ratio:1.4)]:[--fs-pick:var(--fs-side)]"
+                style={
+                  {
+                    '--fs-side': sideFontSize,
+                    fontSize: `var(--fs-pick, ${stackedFontSize})`,
+                  } as React.CSSProperties
+                }
+              >
+                {team.score}
+              </div>
+              <button
+                onClick={() => onUpdateScore(team.id, 1)}
+                aria-label="Increase score"
+                {...tourFieldAttr(
+                  'scoreboard.add-point',
+                  'scoreboard',
+                  fieldKey
+                )}
+                data-tour-widget={widgetId}
+                className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all shrink-0 flex items-center justify-center`}
+                style={{ padding: 'clamp(4px, 6cqmin, 28px)' }}
+              >
+                <Plus
+                  style={{
+                    width: 'clamp(12px, 14cqmin, 56px)',
+                    height: 'clamp(12px, 14cqmin, 56px)',
+                  }}
+                />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -230,7 +348,11 @@ export const ScoreboardItem = React.memo(
       prevProps.team.name === nextProps.team.name &&
       prevProps.team.score === nextProps.team.score &&
       prevProps.team.color === nextProps.team.color &&
-      prevProps.team.linkedGroupId === nextProps.team.linkedGroupId
+      prevProps.team.linkedGroupId === nextProps.team.linkedGroupId &&
+      prevProps.leader === nextProps.leader &&
+      prevProps.showLeader === nextProps.showLeader &&
+      (prevProps.pointValues ?? DEFAULT_POINTS).join() ===
+        (nextProps.pointValues ?? DEFAULT_POINTS).join()
     );
   }
 );

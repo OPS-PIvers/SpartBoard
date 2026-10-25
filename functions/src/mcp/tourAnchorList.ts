@@ -645,6 +645,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "schedule#schedules",
       "schedule#textSizePreset",
       "scoreboard#layout",
+      "scoreboard#pointValues",
       "scoreboard#teams",
       "seating-chart#furniture",
       "seating-chart#names",
@@ -747,6 +748,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "schedule#autoScroll",
       "schedule#expandActiveItem",
       "schedule#isBuildingSyncEnabled",
+      "scoreboard#sortByScore",
       "sound#autoTrafficLight",
       "sound#syncExpectations",
       "time-tool#glow",
@@ -16037,6 +16039,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "scoreboard.remove-point",
     "label": "Remove a point for a team in Scoreboard",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.scoreboard.face",
+        "kind": "widget",
+        "widget_type": "scoreboard",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "scoreboard.add-point-amount",
+    "label": "Second or third point button for a team in Scoreboard",
     "scope": "field",
     "routes": [
       {

@@ -3799,6 +3799,10 @@ export const TOUR_ANCHORS = {
     label: 'Remove a point for a team in Scoreboard',
     perField: true,
   },
+  'scoreboard.add-point-amount': {
+    label: 'Second or third point button for a team in Scoreboard',
+    perField: true,
+  },
   'scoreboard.undo': {
     label: 'Undo button in Scoreboard',
     perWidget: true,
