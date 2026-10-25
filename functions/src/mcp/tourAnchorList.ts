@@ -645,6 +645,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "schedule#schedules",
       "schedule#textSizePreset",
       "scoreboard#layout",
+      "scoreboard#pointValues",
       "scoreboard#teams",
       "seating-chart#furniture",
       "seating-chart#names",
@@ -747,6 +748,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "schedule#autoScroll",
       "schedule#expandActiveItem",
       "schedule#isBuildingSyncEnabled",
+      "scoreboard#sortByScore",
       "sound#autoTrafficLight",
       "sound#syncExpectations",
       "time-tool#glow",
@@ -16072,6 +16074,54 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "scoreboard.remove-point",
     "label": "Remove a point for a team in Scoreboard",
     "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.scoreboard.face",
+        "kind": "widget",
+        "widget_type": "scoreboard",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "scoreboard.add-point-amount",
+    "label": "Second or third point button for a team in Scoreboard",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.scoreboard.face",
+        "kind": "widget",
+        "widget_type": "scoreboard",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "scoreboard.undo",
+    "label": "Undo button in Scoreboard",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.scoreboard.face",
+        "kind": "widget",
+        "widget_type": "scoreboard",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "scoreboard.history",
+    "label": "History button in Scoreboard",
+    "scope": "widget",
     "routes": [
       {
         "surface": "widgets.scoreboard.face",
@@ -56319,6 +56369,71 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "seating.unseat-student",
     "label": "Remove-from-seat button on an assigned student in Seating Chart Assign mode",
     "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.plan-select",
+    "label": "Seating plan menu in Seating Chart Assign mode",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.save-plan",
+    "label": "Save seating plan button in Seating Chart Assign mode",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.rename-plan",
+    "label": "Rename plan button in Seating Chart Assign mode",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.seating-chart.face",
+        "kind": "widget",
+        "widget_type": "seating-chart",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "seating.delete-plan",
+    "label": "Delete plan button in Seating Chart Assign mode",
+    "scope": "widget",
+    "destructive": true,
     "routes": [
       {
         "surface": "widgets.seating-chart.face",

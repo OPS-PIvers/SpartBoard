@@ -1,14 +1,39 @@
-import React, { useEffect, useRef, useCallback, useMemo } from 'react';
+import React, {
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useCallback,
+  useMemo,
+  useState,
+} from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   useGlobalStyle,
   useDashboardActions,
 } from '@/context/dashboardCanvasStore';
 import { WidgetData, ScoreboardConfig, ScoreboardTeam } from '@/types';
-import { Trophy } from 'lucide-react';
+import { History, Trophy, Undo2 } from 'lucide-react';
+import { useAuth } from '@/context/useAuth';
+import { tourAttr } from '@/config/tourAnchors';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { ScoreboardItem } from './components/ScoreboardItem';
 import { ScoreboardRowItem } from './components/ScoreboardRowItem';
+import { ScoreboardHistoryPanel } from './components/ScoreboardHistoryPanel';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
+import { appendScoreHistory, undoLastScoreChange } from './history';
+import {
+  scoreboardLeaders,
+  scoreboardPointValues,
+  scoreboardRank,
+} from './points';
+
+const isTypingFieldActive = (): boolean => {
+  const activeEl = document.activeElement as HTMLElement | null;
+  return (
+    ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl?.tagName ?? '') ||
+    !!activeEl?.isContentEditable
+  );
+};
 
 const DEFAULT_TEAMS: ScoreboardTeam[] = [
   { id: 'team-a', name: 'Team A', score: 0, color: 'bg-blue-500' },
@@ -21,6 +46,11 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
   const { updateWidget } = useDashboardActions();
   const globalStyle = useGlobalStyle();
   const config = widget.config as ScoreboardConfig;
+  const { t } = useTranslation();
+  const pro = useAuth().canAccessFeature('scoreboard-pro');
+  const isLive = !!config.liveQuizWidgetId;
+  const [showHistory, setShowHistory] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
 
   // Auto-migration: If no teams array, convert legacy A/B to teams
   useEffect(() => {
@@ -48,10 +78,18 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
   const teams = Array.isArray(config.teams) ? config.teams : DEFAULT_TEAMS;
   const layout = config.layout ?? 'cards';
 
+  const sortRows = !pro || config.sortByScore !== false;
   const sortedTeams = useMemo(
     () =>
-      layout === 'rows' ? [...teams].sort((a, b) => b.score - a.score) : teams,
-    [teams, layout]
+      layout === 'rows' && sortRows
+        ? [...teams].sort((a, b) => b.score - a.score)
+        : teams,
+    [teams, layout, sortRows]
+  );
+  const pointValues = scoreboardPointValues(config, pro);
+  const leaders = useMemo(
+    () => (pro ? scoreboardLeaders(teams) : new Map<string, never>()),
+    [teams, pro]
   );
 
   // Keep a ref to the latest config to ensure handleUpdateScore is stable.
@@ -97,7 +135,19 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
       const newTeams = currentTeams.map((t) =>
         t.id === teamId ? { ...t, score: Math.max(0, t.score + delta) } : t
       );
-      const nextConfig = { ...currentConfig, teams: newTeams };
+      const nextConfig: ScoreboardConfig = {
+        ...currentConfig,
+        teams: newTeams,
+      };
+      if (pro && !currentConfig.liveQuizWidgetId) {
+        const before = currentTeams.find((t) => t.id === teamId);
+        const after = newTeams.find((t) => t.id === teamId);
+        if (before && after) {
+          nextConfig.history = appendScoreHistory(currentConfig.history, [
+            { teamId, from: before.score, to: after.score },
+          ]);
+        }
+      }
 
       // Update ref synchronously to prevent stale state on rapid clicks
       configRef.current = nextConfig;
@@ -106,14 +156,109 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
         config: nextConfig,
       });
     },
-    [widget.id, updateWidget]
+    [widget.id, updateWidget, pro]
   );
+
+  const canUndo =
+    pro &&
+    !isLive &&
+    Array.isArray(config.history) &&
+    config.history.length > 0;
+
+  const handleUndo = useCallback(() => {
+    const currentConfig = configRef.current;
+    if (currentConfig.liveQuizWidgetId || !Array.isArray(currentConfig.teams))
+      return;
+    const result = undoLastScoreChange(
+      currentConfig.teams,
+      currentConfig.history
+    );
+    if (!result) return;
+    const nextConfig = { ...currentConfig, ...result };
+    configRef.current = nextConfig;
+    updateWidget(widget.id, { config: nextConfig });
+  }, [widget.id, updateWidget]);
+
+  // Capture phase so the board-level Ctrl+Z listener sees defaultPrevented and stands down.
+  const onUndoKey = useEffectEvent((e: KeyboardEvent) => {
+    if (!canUndo || widget.flipped) return;
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+    if (e.key.toLowerCase() !== 'z' || e.defaultPrevented) return;
+    if (isTypingFieldActive()) return;
+    const windowEl = rootRef.current?.closest('[data-draggable-window]');
+    if (!windowEl || !windowEl.contains(document.activeElement)) return;
+    e.preventDefault();
+    handleUndo();
+  });
+
+  useEffect(() => {
+    if (!pro) return;
+    const listener = (e: KeyboardEvent) => onUndoKey(e);
+    window.addEventListener('keydown', listener, true);
+    return () => window.removeEventListener('keydown', listener, true);
+  }, [pro]);
+
+  const historyOpen = pro && !isLive && showHistory;
+  const showFooter = pro && !isLive && teams.length > 0;
+  const footerButtonClass =
+    'flex items-center justify-center bg-white border border-slate-200 shadow-sm rounded-lg font-bold text-slate-700 hover:bg-slate-50 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-default disabled:active:scale-100';
+  const footerButtonStyle: React.CSSProperties = {
+    padding: 'min(5px, 1.2cqmin) min(10px, 2.5cqmin)',
+    gap: 'min(5px, 1.2cqmin)',
+    fontSize: 'max(11px, min(13px, 3cqmin))',
+    minHeight: 'max(28px, min(36px, 8cqmin))',
+  };
+  const footerIconStyle: React.CSSProperties = {
+    width: 'max(12px, min(16px, 3.5cqmin))',
+    height: 'max(12px, min(16px, 3.5cqmin))',
+  };
 
   return (
     <WidgetLayout
       padding="p-0"
+      footer={
+        showFooter ? (
+          <div
+            className={`flex items-center justify-end font-${globalStyle.fontFamily}`}
+            style={{
+              gap: 'min(8px, 2cqmin)',
+              padding: '0 min(16px, 3.5cqmin) min(10px, 2.5cqmin)',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setShowHistory((open) => !open)}
+              className={footerButtonClass}
+              style={footerButtonStyle}
+              {...tourAttr('scoreboard.history', widget.id, widget.type)}
+            >
+              {historyOpen ? (
+                <Trophy style={footerIconStyle} aria-hidden="true" />
+              ) : (
+                <History style={footerIconStyle} aria-hidden="true" />
+              )}
+              {historyOpen
+                ? t('widgets.scoreboard.scores')
+                : t('widgets.scoreboard.history')}
+            </button>
+            <button
+              type="button"
+              onClick={handleUndo}
+              disabled={!canUndo}
+              title={t('widgets.scoreboard.undoShortcut')}
+              className={footerButtonClass}
+              style={footerButtonStyle}
+              {...tourAttr('scoreboard.undo', widget.id, widget.type)}
+            >
+              <Undo2 style={footerIconStyle} aria-hidden="true" />
+              {t('widgets.scoreboard.undo')}
+            </button>
+          </div>
+        ) : undefined
+      }
       content={
         <div
+          ref={rootRef}
           className={`relative h-full w-full font-${globalStyle.fontFamily}`}
         >
           {/* LIVE badge when being synced from a quiz widget */}
@@ -139,7 +284,9 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
             </div>
           )}
 
-          {teams.length === 0 ? (
+          {historyOpen ? (
+            <ScoreboardHistoryPanel teams={teams} history={config.history} />
+          ) : teams.length === 0 ? (
             <div className="h-full">
               <ScaledEmptyState
                 icon={Trophy}
@@ -163,6 +310,9 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
                   teamPosition={index + 1}
                   widgetId={widget.id}
                   onUpdateScore={handleUpdateScore}
+                  pointValues={pointValues}
+                  leader={leaders.get(team.id) ?? null}
+                  showLeader={pro && teams.length > 1}
                 />
               ))}
             </div>
@@ -178,9 +328,12 @@ export const ScoreboardWidget: React.FC<{ widget: WidgetData }> = ({
                 <ScoreboardRowItem
                   key={team.id}
                   team={team}
-                  rank={index + 1}
+                  rank={pro ? scoreboardRank(teams, team) : index + 1}
+                  position={index + 1}
                   widgetId={widget.id}
                   onUpdateScore={handleUpdateScore}
+                  pointValues={pointValues}
+                  leader={leaders.get(team.id) ?? null}
                 />
               ))}
             </div>

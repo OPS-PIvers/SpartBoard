@@ -15,6 +15,10 @@ vi.mock('@/context/useDashboard', () => ({
   }),
 }));
 
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: () => false }),
+}));
+
 // Mock heavy sub-components so the test is hermetic and fast. The toolbar mock
 // exposes the `setMode` callback via buttons so tests can toggle the widget
 // between assign/setup modes and verify the correct empty state renders.

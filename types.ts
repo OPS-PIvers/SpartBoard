@@ -2770,6 +2770,21 @@ export interface ScoreboardTeam {
   memberStudentIds?: string[];
 }
 
+export interface ScoreboardScoreChange {
+  teamId: string;
+  from: number;
+  to: number;
+}
+
+export interface ScoreboardHistoryEntry {
+  id: string;
+  /** Epoch ms. */
+  at: number;
+  /** `reset` marks a Reset all scores step. */
+  kind?: 'reset';
+  changes: ScoreboardScoreChange[];
+}
+
 export interface ScoreboardConfig {
   /** @deprecated use teams array instead */
   scoreA?: number;
@@ -2784,6 +2799,12 @@ export interface ScoreboardConfig {
   layout?: 'cards' | 'rows';
   /** When set, indicates this scoreboard is being live-synced from a quiz widget */
   liveQuizWidgetId?: string;
+  /** Point button amounts, one of SCOREBOARD_POINT_PRESETS; unset means a single 1. */
+  pointValues?: number[];
+  /** Rows layout only; unset sorts by score. */
+  sortByScore?: boolean;
+  /** Recent score changes, oldest first, capped at SCOREBOARD_HISTORY_LIMIT. */
+  history?: ScoreboardHistoryEntry[];
 }
 
 export interface ExpectationsConfig {
@@ -3968,6 +3989,16 @@ export interface SeatingChartConfig {
   rosterPoolGroupId?: string | null;
   template?: SeatingChartTemplate;
   templateColumns?: number; // Number of columns for 'rows' template
+  /** Named seat assignments for this board; furniture is shared across them. */
+  savedPlans?: SeatingPlan[];
+  /** The saved plan whose seats `assignments` currently holds. */
+  activePlanId?: string | null;
+}
+
+export interface SeatingPlan {
+  id: string;
+  name: string;
+  assignments: Record<string, string>;
 }
 
 /**
@@ -10413,6 +10444,10 @@ export type GlobalFeature =
   | 'collection-sync-sharing'
   /** Members of a shared board see the owner's Activity Wall and its approved posts live. */
   | 'shared-board-live-walls'
+  /** Seating Chart saved seating plans, shuffle rules and print (poll-pro/SEATING_CHART_PLAN.md). */
+  | 'seating-chart-plans'
+  /** Scoreboard undo, score history, point buttons, leader marker and score motion. */
+  | 'scoreboard-pro'
   /** Poll: hide results until revealed, lock voting, answered count (docs/plans/POLL_PRO.md). */
   | 'poll-pro'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */

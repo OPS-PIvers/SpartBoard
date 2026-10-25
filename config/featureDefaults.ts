@@ -2,6 +2,7 @@
 import type React from 'react';
 import {
   CalendarRange,
+  Trophy,
   FolderSync,
   PenLine,
   BarChart,
@@ -27,6 +28,7 @@ import {
   Languages,
   Layers,
   LayoutDashboard,
+  LayoutGrid,
   Library,
   Link2,
   ListChecks,
@@ -1255,6 +1257,30 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
       'Colleagues on a Synced or View-Only board see your Activity Walls, quizzes, video activities and guided activities.',
     stage: 'preview',
     afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'seating-chart-plans': {
+    label: 'Seating Chart: seating plans',
+    icon: LayoutGrid,
+    description:
+      'Save several seating plans per board and switch between them.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'seating-chart',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'scoreboard-pro': {
+    label: 'Scoreboard upgrades',
+    icon: Trophy,
+    description:
+      'Undo, recent changes for each team, point buttons and a leader marker.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'scoreboard',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
