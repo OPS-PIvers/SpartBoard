@@ -192,4 +192,28 @@ describe('storage isAdmin()', () => {
       "request.auth.token.get('email_verified', false) == true"
     );
   });
+
+  it('never grants a mirrored building admin or another org admin the private prefixes', () => {
+    const rules = readFileSync(STORAGE_RULES, 'utf8');
+    const record =
+      /function siteAdminRecord\(adminDoc\) \{([\s\S]*?)\n {4}\}/.exec(
+        rules
+      )?.[1] ?? '';
+    expect(record).toContain(
+      "adminDoc.get('source', '') != 'organizationMembersSync'"
+    );
+    expect(record).toContain("adminDoc.get('orgId', '') == 'orono'");
+    expect(record).toContain("in ['super_admin', 'domain_admin']");
+    expect(record).not.toContain('building_admin');
+    const block = (from: string, to: string) =>
+      rules.slice(rules.indexOf(from), rules.indexOf(to, rules.indexOf(from)));
+    for (const scoped of [
+      block('function userFileOwner', 'match /admin_backgrounds/'),
+      block('match /activity_wall_photos/', 'match /paper_written_crops/'),
+      block('match /project_uploads/', 'match /web_tour_pictures/'),
+    ]) {
+      expect(scoped).toContain('isSiteAdmin()');
+      expect(scoped).not.toMatch(/[^e]isAdmin\(\)/);
+    }
+  });
 });
