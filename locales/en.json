@@ -1637,6 +1637,8 @@
       "questionType": "Question type",
       "multipleChoice": "Multiple choice",
       "ratingScale": "Rating scale",
+      "wordCloud": "Word cloud",
+      "openResponse": "Open response",
       "scaleSize": "Scale",
       "scaleOneTo": "1 to {{count}}",
       "scaleLowLabel": "Low end label",

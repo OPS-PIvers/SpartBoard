@@ -5,7 +5,11 @@ import { signInAnonymously } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { type PollSessionDoc } from '@/types';
 import { normalizePollCode } from '@/utils/pollCode';
-import { scaleAverage } from '@/utils/pollQuestions';
+import {
+  MAX_POLL_TEXT,
+  MAX_POLL_WORDS_TEXT,
+  scaleAverage,
+} from '@/utils/pollQuestions';
 import { lookupPollSessionByCode, type PollVoteEntry } from './pollSession';
 import {
   derivePollPhoneView,
@@ -30,6 +34,66 @@ const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
  * writing one `{questionIndex}_{uid}` vote doc per question. Re-tapping a
  * different option overwrites that question's vote (one per device).
  */
+/** Up to three words for a word cloud. */
+const firstWords = (text: string): string =>
+  text.trim().split(/\s+/).slice(0, 3).join(' ');
+
+const TextAnswerForm: React.FC<{
+  kind: 'words' | 'text';
+  initial: string;
+  disabled: boolean;
+  onSend: (text: string) => void;
+}> = ({ kind, initial, disabled, onSend }) => {
+  const [value, setValue] = useState(initial);
+  const answer = kind === 'words' ? firstWords(value) : value.trim();
+  const send = () => {
+    if (answer && answer !== initial) onSend(answer);
+  };
+  const fieldClass =
+    'w-full rounded-xl border border-slate-300 p-3 text-slate-800 font-semibold outline-none focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/30 disabled:opacity-60';
+  return (
+    <form
+      className="space-y-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        send();
+      }}
+    >
+      {kind === 'words' ? (
+        <input // no-tour-anchor: student phone page, tours run on the board
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          maxLength={MAX_POLL_WORDS_TEXT}
+          disabled={disabled}
+          placeholder="Up to 3 words"
+          aria-label="Your answer"
+          className={fieldClass}
+        />
+      ) : (
+        <textarea // no-tour-anchor: student phone page, tours run on the board
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          maxLength={MAX_POLL_TEXT}
+          rows={3}
+          disabled={disabled}
+          placeholder="Type your answer"
+          aria-label="Your answer"
+          className={`${fieldClass} resize-none`}
+        />
+      )}
+      <button // no-tour-anchor: student phone page, tours run on the board
+        type="button"
+        onClick={send}
+        disabled={disabled || !answer || answer === initial}
+        className="w-full rounded-xl bg-brand-blue-primary py-3 font-bold text-white transition-colors hover:bg-brand-blue-dark disabled:opacity-50"
+      >
+        Send
+      </button>
+    </form>
+  );
+};
+
 export const PollVoteApp: React.FC = () => {
   const code = useMemo(
     () =>
@@ -112,7 +176,16 @@ export const PollVoteApp: React.FC = () => {
 
   const view = derivePollPhoneView(state, uid);
 
-  const castVote = async (index: number, questionIndex: number) => {
+  const castVote = (index: number, questionIndex: number) =>
+    saveAnswer(questionIndex, { optionIndex: index });
+
+  const castText = (text: string, questionIndex: number) =>
+    saveAnswer(questionIndex, { text });
+
+  const saveAnswer = async (
+    questionIndex: number,
+    answer: { optionIndex: number } | { text: string }
+  ) => {
     if (!sessionId || view.k !== 'open' || view.ballot.submitting) return;
     dispatch({ type: 'voteStarted' });
     try {
@@ -134,7 +207,7 @@ export const PollVoteApp: React.FC = () => {
         ),
         {
           questionIndex,
-          optionIndex: index,
+          ...answer,
           // eslint-disable-next-line react-hooks/purity -- runs in the vote click handler, not render
           votedAt: Date.now(),
         }
@@ -204,7 +277,12 @@ export const PollVoteApp: React.FC = () => {
     resultsHidden,
     resultsRevealed,
     correctIndexes,
+    myText,
   } = view.ballot;
+  const textKind =
+    question.kind === 'words' || question.kind === 'text'
+      ? question.kind
+      : null;
   const closed = view.k === 'closed';
   const hasVoted = votedIndex !== null;
   const showTally = !resultsHidden && (hasVoted || resultsRevealed);
@@ -225,6 +303,25 @@ export const PollVoteApp: React.FC = () => {
       </div>
 
       <div className="p-5 space-y-3">
+        {textKind && myText !== null && (
+          <div className="flex items-center justify-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-2 text-emerald-700 text-sm font-bold">
+            <Check className="w-4 h-4" />
+            Your answer is in!
+          </div>
+        )}
+
+        {textKind && (
+          <TextAnswerForm
+            key={`${questionIndex}:${myText ?? ''}`}
+            kind={textKind}
+            initial={myText ?? ''}
+            disabled={submitting || closed}
+            onSend={(text) => {
+              void castText(text, questionIndex);
+            }}
+          />
+        )}
+
         {hasVoted && (
           <div className="flex items-center justify-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-2 text-emerald-700 text-sm font-bold">
             <Check className="w-4 h-4" />
@@ -266,7 +363,7 @@ export const PollVoteApp: React.FC = () => {
               {options.map((option, index) => {
                 const isMine = votedIndex === index;
                 return (
-                  <button
+                  <button // no-tour-anchor: student phone page, tours run on the board
                     key={option.id}
                     type="button"
                     disabled={submitting || closed}
@@ -313,12 +410,13 @@ export const PollVoteApp: React.FC = () => {
         )}
 
         {question.kind !== 'scale' &&
+          !textKind &&
           options.map((option, index) => {
             const count = tally[index] ?? 0;
             const percent = total === 0 ? 0 : Math.round((count / total) * 100);
             const isMine = votedIndex === index;
             return (
-              <button
+              <button // no-tour-anchor: student phone page, tours run on the board
                 key={option.id}
                 type="button"
                 disabled={submitting || closed}

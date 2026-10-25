@@ -2859,6 +2859,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "poll.show-hidden",
+    "label": "Show hidden responses button on the Poll widget",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.poll.face",
+        "kind": "widget",
+        "widget_type": "poll",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "stations.shuffle",
     "label": "Shuffle button in Stations",
     "scope": "widget",

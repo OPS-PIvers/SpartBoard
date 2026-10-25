@@ -58,6 +58,7 @@ import {
   SCALE_SIZES,
   clampQuestionIndex,
   isScaleQuestion,
+  isTextQuestion,
   makeScaleOptions,
   getPollQuestions,
   withPollQuestions,
@@ -419,6 +420,7 @@ export const PollSettings: React.FC<{
   };
 
   const editingScale = pollPro && isScaleQuestion(editing);
+  const editingText = pollPro && isTextQuestion(editing);
 
   const setQuestionKind = (kind: PollQuestionKind) => {
     if (kind === (editing.kind ?? 'choice')) return;
@@ -426,23 +428,25 @@ export const PollSettings: React.FC<{
     saveEditingQuestion(
       kind === 'scale'
         ? { id, question, kind, options: makeScaleOptions(5) }
-        : {
-            id,
-            question,
-            kind,
-            options: [
-              {
-                id: crypto.randomUUID(),
-                label: t('widgetSettings.poll.optionA'),
-                votes: 0,
-              },
-              {
-                id: crypto.randomUUID(),
-                label: t('widgetSettings.poll.optionB'),
-                votes: 0,
-              },
-            ],
-          }
+        : kind === 'words' || kind === 'text'
+          ? { id, question, kind, options: [] }
+          : {
+              id,
+              question,
+              kind,
+              options: [
+                {
+                  id: crypto.randomUUID(),
+                  label: t('widgetSettings.poll.optionA'),
+                  votes: 0,
+                },
+                {
+                  id: crypto.randomUUID(),
+                  label: t('widgetSettings.poll.optionB'),
+                  votes: 0,
+                },
+              ],
+            }
     );
   };
 
@@ -493,7 +497,9 @@ export const PollSettings: React.FC<{
                 size="sm"
                 variant="secondary"
                 onClick={importFromRoster}
-                disabled={!activeRoster || isLive || editingScale}
+                disabled={
+                  !activeRoster || isLive || editingScale || editingText
+                }
                 {...tourAttr(
                   'widget-settings.poll.import-roster',
                   widget.id,
@@ -732,6 +738,12 @@ export const PollSettings: React.FC<{
                     <option value="scale">
                       {t('widgetSettings.poll.ratingScale')}
                     </option>
+                    <option value="words">
+                      {t('widgetSettings.poll.wordCloud')}
+                    </option>
+                    <option value="text">
+                      {t('widgetSettings.poll.openResponse')}
+                    </option>
                   </select>
                 </div>
                 {editingScale && (
@@ -796,7 +808,7 @@ export const PollSettings: React.FC<{
             )}
 
             {/* Options List */}
-            <div className={editingScale ? 'hidden' : 'mt-4'}>
+            <div className={editingScale || editingText ? 'hidden' : 'mt-4'}>
               <SettingsLabel
                 as="span"
                 id={`pollwidget-options-label-${widget.id}`}

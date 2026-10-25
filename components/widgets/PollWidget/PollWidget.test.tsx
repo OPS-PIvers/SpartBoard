@@ -1406,6 +1406,39 @@ describe('PollSettings', () => {
     expect(resized.questions?.[0].options).toHaveLength(10);
   });
 
+  it('turns a question into a word cloud with no options', () => {
+    render(
+      <PollSettings
+        widget={{
+          id: 'poll-1',
+          type: 'poll',
+          w: 2,
+          h: 2,
+          x: 0,
+          y: 0,
+          z: 1,
+          flipped: false,
+          config: {
+            questions: [
+              {
+                id: 'q1',
+                question: 'One word?',
+                options: [{ id: 'a', label: 'A', votes: 2 }],
+              },
+            ],
+          },
+        }}
+      />
+    );
+    fireEvent.change(screen.getByLabelText(/question type/i), {
+      target: { value: 'words' },
+    });
+    const saved = (
+      mockUpdateWidget.mock.calls.at(-1)?.[1] as { config: PollConfig }
+    ).config;
+    expect(saved.questions?.[0]).toMatchObject({ kind: 'words', options: [] });
+  });
+
   it('hides the question type menu without the flag', () => {
     mockCanAccessFeature.mockImplementation((id: string) => id !== 'poll-pro');
     render(

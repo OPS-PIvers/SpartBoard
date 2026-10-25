@@ -6560,6 +6560,27 @@ service cloud.firestore {
           exists(/databases/$(database)/documents/poll_sessions/$(sessionId)) &&
           voteTargetsActiveInRangeOption();
 
+        // Word cloud / open response questions (session `textQuestions`)
+        // take {questionIndex, text, votedAt} instead, text 1-280 chars.
+        function voteTargetsActiveTextQuestion() {
+          let session = get(/databases/$(database)/documents/poll_sessions/$(sessionId)).data;
+          let questionIndex = incoming().questionIndex;
+          return session.get('active', false) == true &&
+            questionIndex in session.get('textQuestions', []) &&
+            !(questionIndex in session.get('lockedQuestions', []));
+        }
+
+        allow create, update: if signedIn() &&
+          incoming().keys().hasOnly(['questionIndex', 'text', 'votedAt']) &&
+          isInt('questionIndex') &&
+          isStr('text') &&
+          isInt('votedAt') &&
+          incoming().text.size() > 0 &&
+          incoming().text.size() <= 280 &&
+          voteId == string(incoming().questionIndex) + '_' + authUid() &&
+          exists(/databases/$(database)/documents/poll_sessions/$(sessionId)) &&
+          voteTargetsActiveTextQuestion();
+
         // Reads open to any authed user — vote docs are anonymous tallies
         // (no PII), which is what powers the live results on phones + board.
         allow read: if signedIn();

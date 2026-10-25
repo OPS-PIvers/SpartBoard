@@ -323,4 +323,51 @@ describe('PollVoteApp', () => {
       expect.objectContaining({ questionIndex: 0, optionIndex: 4 })
     );
   });
+
+  it('sends up to three words on a word cloud question', async () => {
+    sessionDoc = makeSession({
+      questions: [
+        {
+          id: 'q1',
+          question: 'One word for today?',
+          kind: 'words',
+          options: [],
+        },
+      ],
+      optionCounts: [0],
+      textQuestions: [0],
+    });
+    mountWith('?code=K3F9Q');
+    render(<PollVoteApp />);
+    const input = await screen.findByRole('textbox', { name: 'Your answer' });
+    await userEvent.type(input, '  sunny and   warm today ');
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() =>
+      expect(mockSetDoc).toHaveBeenCalledWith(
+        { __path: 'poll_sessions/teacher-1_K3F9Q/votes/0_voter-1' },
+        expect.objectContaining({ questionIndex: 0, text: 'sunny and warm' })
+      )
+    );
+  });
+
+  it('shows an open response answer already sent', async () => {
+    sessionDoc = makeSession({
+      questions: [{ id: 'q1', question: 'Why?', kind: 'text', options: [] }],
+      optionCounts: [0],
+      textQuestions: [0],
+    });
+    snapshotDocs = [
+      {
+        id: '0_voter-1',
+        data: { questionIndex: 0, text: 'Because', votedAt: 1 },
+      },
+    ];
+    mountWith('?code=K3F9Q');
+    render(<PollVoteApp />);
+    expect(await screen.findByText('Your answer is in!')).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Your answer' })).toHaveValue(
+      'Because'
+    );
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+  });
 });

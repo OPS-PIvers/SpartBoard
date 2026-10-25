@@ -622,6 +622,10 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     persists: true,
   },
+  'poll.show-hidden': {
+    label: 'Show hidden responses button on the Poll widget',
+    perWidget: true,
+  },
   'stations.shuffle': { label: 'Shuffle button in Stations', perWidget: true },
   'stations.rotate': { label: 'Rotate button in Stations', perWidget: true },
   'stations.reset-all': {

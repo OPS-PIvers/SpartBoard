@@ -32,6 +32,7 @@ const CLOSED_POLL_ID = 'poll-closed';
 const ACTIVE_SESSION_ID = `${TEACHER_UID}_${ACTIVE_POLL_ID}`;
 const CLOSED_SESSION_ID = `${TEACHER_UID}_${CLOSED_POLL_ID}`;
 const LOCKED_SESSION_ID = `${TEACHER_UID}_poll-locked`;
+const TEXT_SESSION_ID = `${TEACHER_UID}_poll-text`;
 const VOTER_UID = 'voter-anon';
 const OTHER_UID = 'voter-other';
 
@@ -130,6 +131,30 @@ beforeEach(async () => {
     await setDoc(
       doc(db, `poll_sessions/${LOCKED_SESSION_ID}/votes/0_${OTHER_UID}`),
       { questionIndex: 0, optionIndex: 0, votedAt: 1000 }
+    );
+    // Q0 choice, Q1 word cloud, Q2 open response (locked).
+    await setDoc(doc(db, `poll_sessions/${TEXT_SESSION_ID}`), {
+      id: 'poll-text',
+      teacherUid: TEACHER_UID,
+      code: 'RSTVW',
+      optionCounts: [2, 0, 0],
+      textQuestions: [1, 2],
+      currentQuestionIndex: 1,
+      active: true,
+      startedAt: 1000,
+      updatedAt: 1000,
+      lockedQuestions: [2],
+    });
+    await setDoc(
+      doc(db, `poll_sessions/${TEXT_SESSION_ID}/votes/1_${OTHER_UID}`),
+      { questionIndex: 1, text: 'gravity', votedAt: 1000 }
+    );
+    await setDoc(
+      doc(db, `poll_sessions/${CLOSED_SESSION_ID}`),
+      {
+        textQuestions: [1],
+      },
+      { merge: true }
     );
     // A pre-existing vote so read/delete tests have a target.
     await setDoc(
@@ -471,6 +496,100 @@ describe('poll session doc', () => {
         startedAt: 1000,
         updatedAt: 5000,
       })
+    );
+  });
+});
+
+describe('poll votes — word cloud and open response', () => {
+  const textVote = (questionIndex: number, text: string) => ({
+    questionIndex,
+    text,
+    votedAt: 2000,
+  });
+
+  it('accepts a text answer on a text question, and a changed one', async () => {
+    const ref = voteRef(asAnonVoter(), `1_${VOTER_UID}`, TEXT_SESSION_ID);
+    await assertSucceeds(setDoc(ref, textVote(1, 'friction')));
+    await assertSucceeds(setDoc(ref, textVote(1, 'air resistance')));
+  });
+
+  it('refuses text on a multiple choice question', async () => {
+    await assertFails(
+      setDoc(
+        voteRef(asAnonVoter(), `0_${VOTER_UID}`, TEXT_SESSION_ID),
+        textVote(0, 'friction')
+      )
+    );
+  });
+
+  it('refuses an option vote on a text question', async () => {
+    await assertFails(
+      setDoc(voteRef(asAnonVoter(), `1_${VOTER_UID}`, TEXT_SESSION_ID), {
+        questionIndex: 1,
+        optionIndex: 0,
+        votedAt: 2000,
+      })
+    );
+  });
+
+  it('refuses empty, over-long, mixed or extra-key answers', async () => {
+    const ref = voteRef(asAnonVoter(), `1_${VOTER_UID}`, TEXT_SESSION_ID);
+    await assertFails(setDoc(ref, textVote(1, '')));
+    await assertFails(setDoc(ref, textVote(1, 'x'.repeat(281))));
+    await assertFails(setDoc(ref, { ...textVote(1, 'a'), optionIndex: 0 }));
+    await assertFails(setDoc(ref, { ...textVote(1, 'a'), name: 'Sam' }));
+    await assertFails(setDoc(ref, { questionIndex: 1, text: 5, votedAt: 1 }));
+  });
+
+  it("refuses writing someone else's answer", async () => {
+    await assertFails(
+      setDoc(
+        voteRef(asAnonVoter(), `1_${OTHER_UID}`, TEXT_SESSION_ID),
+        textVote(1, 'friction')
+      )
+    );
+  });
+
+  it('refuses a locked text question and a closed session', async () => {
+    await assertFails(
+      setDoc(
+        voteRef(asAnonVoter(), `2_${VOTER_UID}`, TEXT_SESSION_ID),
+        textVote(2, 'because')
+      )
+    );
+    await assertFails(
+      setDoc(
+        voteRef(asAnonVoter(), `1_${VOTER_UID}`, CLOSED_SESSION_ID),
+        textVote(1, 'friction')
+      )
+    );
+  });
+
+  it('lets signed-in users read answers, not signed-out ones', async () => {
+    await assertSucceeds(
+      getDoc(voteRef(asAnonVoter(), `1_${OTHER_UID}`, TEXT_SESSION_ID))
+    );
+    await assertFails(
+      getDoc(
+        doc(
+          asUnauthed(),
+          `poll_sessions/${TEXT_SESSION_ID}/votes/1_${OTHER_UID}`
+        )
+      )
+    );
+  });
+
+  it('lets only the teacher delete answers', async () => {
+    await assertFails(
+      deleteDoc(voteRef(asAnonVoter(), `1_${OTHER_UID}`, TEXT_SESSION_ID))
+    );
+    await assertSucceeds(
+      deleteDoc(
+        doc(
+          asTeacher(),
+          `poll_sessions/${TEXT_SESSION_ID}/votes/1_${OTHER_UID}`
+        )
+      )
     );
   });
 });

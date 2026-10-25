@@ -2291,8 +2291,8 @@ export interface PollGlobalConfig {
 }
 
 /** One question in a multi-question poll. */
-/** `scale` questions keep numbered options ("1".."N") so votes, tallies and rules stay the same. */
-export type PollQuestionKind = 'choice' | 'scale';
+/** `scale` keeps numbered options ("1".."N"); `words` and `text` take typed answers and have no options. */
+export type PollQuestionKind = 'choice' | 'scale' | 'words' | 'text';
 
 export interface PollQuestion {
   id: string;
@@ -2338,6 +2338,8 @@ export interface PollConfig {
   lockedQuestionIds?: string[];
   /** Question ids whose correct answer the teacher has shown. */
   answerShownQuestionIds?: string[];
+  /** Typed answers the teacher hid from the board: `{questionId}:{voteId}`, or `{questionId}#{word}` for a word cloud word. */
+  hiddenResponses?: string[];
 }
 
 /**
@@ -2380,6 +2382,8 @@ export interface PollSessionDoc {
   revealedQuestions?: number[];
   /** Question indexes the rules refuse votes for. */
   lockedQuestions?: number[];
+  /** Word cloud and open response question indexes, which take text answers. */
+  textQuestions?: number[];
   /** `{questionId}:{optionId}` for each correct option, only for questions whose answer is shown (an array so a merge replaces it). */
   shownAnswers?: string[];
 }

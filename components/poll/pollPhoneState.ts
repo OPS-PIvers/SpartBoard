@@ -106,6 +106,8 @@ export interface PollBallot {
   resultsRevealed: boolean;
   /** Correct option indexes once the teacher shows the answer; null until then. */
   correctIndexes: number[] | null;
+  /** This device's typed answer on a word cloud or open response question. */
+  myText: string | null;
 }
 
 export type PollPhoneView =
@@ -144,6 +146,7 @@ export const derivePollPhoneView = (
     shown.has(`${question.id}:${o.id}`) ? [i] : []
   );
   const tally = aggregateVotes(votes, questionIndex, options.length);
+  const mine = votes.find((v) => v.id === `${questionIndex}_${uid}`);
   const ballot: PollBallot = {
     questions,
     questionIndex,
@@ -151,9 +154,8 @@ export const derivePollPhoneView = (
     options,
     tally,
     total: tally.reduce((sum, n) => sum + n, 0),
-    votedIndex:
-      votes.find((v) => v.id === `${questionIndex}_${uid}`)?.optionIndex ??
-      null,
+    votedIndex: mine?.optionIndex ?? null,
+    myText: typeof mine?.text === 'string' ? mine.text : null,
     submitting: vote === 'submitting',
     resultsHidden: session.hideResults === true && !revealed,
     resultsRevealed: session.hideResults === true && revealed,

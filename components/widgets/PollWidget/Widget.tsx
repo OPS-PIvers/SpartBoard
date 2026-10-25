@@ -34,6 +34,7 @@ import { useDialog } from '@/context/useDialog';
 import { buildPollJoinUrl } from '@/utils/pollCode';
 import {
   isScaleQuestion,
+  isTextQuestion,
   scaleAverage,
   withQuestionAt,
 } from '@/utils/pollQuestions';
@@ -41,6 +42,7 @@ import { usePollSession } from '@/hooks/usePollSession';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { tourAttr } from '@/config/tourAnchors';
 import { ScaleResults } from './components/ScaleResults';
+import { TextResponses } from './components/TextResponses';
 
 export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget } = useDashboardActions();
@@ -74,6 +76,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     currentQuestion,
     isLive: sessionLive,
     displayOptions: liveOptions,
+    responses,
     canGoPrev,
     canGoNext,
     goToQuestion,
@@ -197,8 +200,25 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         }))
       : activeQuestion.options;
 
-  const total = displayOptions.reduce((sum, o) => sum + o.votes, 0);
+  const isText = proEnabled && isTextQuestion(activeQuestion);
+  const total = isText
+    ? responses.length
+    : displayOptions.reduce((sum, o) => sum + o.votes, 0);
   const isScale = proEnabled && isScaleQuestion(activeQuestion);
+  const hiddenResponses = config.hiddenResponses ?? [];
+  const hideResponse = (key: string) => {
+    if (hiddenResponses.includes(key)) return;
+    applyConfig({ ...config, hiddenResponses: [...hiddenResponses, key] });
+  };
+  const showHiddenResponses = () =>
+    applyConfig({
+      ...config,
+      hiddenResponses: hiddenResponses.filter(
+        (k) =>
+          !k.startsWith(`${activeQuestion.id}:`) &&
+          !k.startsWith(`${activeQuestion.id}#`)
+      ),
+    });
   const average =
     isScale && !hidden
       ? scaleAverage(displayOptions.map((o) => o.votes))
@@ -352,7 +372,22 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               onVote={vote}
             />
           )}
+          {isText && !hidden && (
+            <TextResponses
+              kind={activeQuestion.kind === 'words' ? 'words' : 'text'}
+              questionId={activeQuestion.id}
+              responses={responses}
+              hiddenKeys={hiddenResponses}
+              canModerate={canSteer}
+              onHide={hideResponse}
+              onShowHidden={showHiddenResponses}
+              fontFamily={globalStyle.fontFamily}
+              widgetId={widget.id}
+              widgetType={widget.type}
+            />
+          )}
           {!isScale &&
+            !isText &&
             displayOptions.map((o, i: number) => {
               const percent =
                 total === 0 ? 0 : Math.round((o.votes / total) * 100);
@@ -369,7 +404,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 .join(' ');
 
               return (
-                <button
+                <button // no-tour-anchor: one per option, tours point at the question
                   key={o.id ?? i}
                   onClick={() => {
                     vote(i);

@@ -483,3 +483,48 @@ describe('toSessionResultsState shown answers', () => {
     expect(q.kind).toBeUndefined();
   });
 });
+
+describe('word cloud and open response sessions', () => {
+  it('lists text questions for the rules only with the flag', async () => {
+    const config: PollConfig = {
+      joinCode: 'K3F9Q',
+      questions: [
+        {
+          id: 'q1',
+          question: 'Pick',
+          options: [{ id: 'a', label: 'A', votes: 0 }],
+        },
+        { id: 'q2', question: 'One word?', kind: 'words', options: [] },
+        { id: 'q3', question: 'Why?', kind: 'text', options: [] },
+      ],
+    };
+    await startPollSession(config, 'teacher-1', 'resume', false, true);
+    expect(mockSetDoc).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        optionCounts: [1, 0, 0],
+        textQuestions: [1, 2],
+      }),
+      { merge: true }
+    );
+    await startPollSession(config, 'teacher-1', 'resume', false, false);
+    expect(mockSetDoc).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ textQuestions: [] }),
+      { merge: true }
+    );
+  });
+
+  it('leaves typed answers out of option tallies', () => {
+    expect(
+      aggregateVotes(
+        [
+          { id: '0_a', questionIndex: 0, text: 'hello' },
+          { id: '0_b', questionIndex: 0, optionIndex: 1 },
+        ],
+        0,
+        2
+      )
+    ).toEqual([0, 1]);
+  });
+});

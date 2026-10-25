@@ -145,6 +145,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'poll.reveal-results': ['widgets.poll.face'],
     'poll.show-answer': ['widgets.poll.face'],
     'poll.lock-voting': ['widgets.poll.face'],
+    'poll.show-hidden': ['widgets.poll.face'],
     'stations.shuffle': ['widgets.stations.face'],
     'stations.rotate': ['widgets.stations.face'],
     'stations.reset-all': ['widgets.stations.face'],

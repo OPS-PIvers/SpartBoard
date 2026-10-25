@@ -301,4 +301,64 @@ describe('PollWidget results controls', () => {
       expect(screen.getByText('3 (60%)')).toBeInTheDocument();
     });
   });
+
+  describe('word cloud and open response', () => {
+    const live = (kind: 'words' | 'text', extra: Partial<PollConfig> = {}) =>
+      makeWidget({
+        questions: [{ id: 'q1', question: 'Say it', kind, options: [] }],
+        joinCode: 'K3F9Q',
+        activePollSessionId: 'K3F9Q',
+        ...extra,
+      });
+
+    beforeEach(() => {
+      liveVotes = [
+        {
+          id: '0_p1',
+          data: { questionIndex: 0, text: 'gravity rocks', votedAt: 1 },
+        },
+        { id: '0_p2', data: { questionIndex: 0, text: 'Gravity', votedAt: 2 } },
+        {
+          id: '0_p3',
+          data: { questionIndex: 0, text: 'friction', votedAt: 3 },
+        },
+      ];
+    });
+
+    it('builds a word cloud and hides a word', () => {
+      render(<PollWidget widget={live('words')} />);
+      expect(screen.getByTestId('poll-answered-count')).toHaveTextContent(
+        '3 answered'
+      );
+      expect(screen.getByTitle('gravity (2)')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Hide rocks' }));
+      expect(lastConfig().hiddenResponses).toEqual(['q1#rocks']);
+    });
+
+    it('lists open responses newest first and hides one', () => {
+      render(<PollWidget widget={live('text')} />);
+      const items = screen.getAllByRole('listitem');
+      expect(items[0]).toHaveTextContent('friction');
+      fireEvent.click(
+        screen.getAllByRole('button', { name: 'Hide response' })[0]
+      );
+      expect(lastConfig().hiddenResponses).toEqual(['q1:0_p3']);
+    });
+
+    it('brings hidden responses back', () => {
+      render(
+        <PollWidget
+          widget={live('text', { hiddenResponses: ['q1:0_p3', 'q9:x'] })}
+        />
+      );
+      expect(screen.queryByText('friction')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /Show 1 hidden/ }));
+      expect(lastConfig().hiddenResponses).toEqual(['q9:x']);
+    });
+
+    it('holds answers back while results are hidden', () => {
+      render(<PollWidget widget={live('text', { hideResults: true })} />);
+      expect(screen.queryByText('friction')).not.toBeInTheDocument();
+    });
+  });
 });

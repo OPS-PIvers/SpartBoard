@@ -26,6 +26,11 @@ interface UsePollSessionArgs {
   onConfigChange: (next: PollConfig) => void;
 }
 
+export interface PollResponse {
+  id: string;
+  text: string;
+}
+
 interface UsePollSessionResult {
   questions: PollQuestion[];
   currentQuestionIndex: number;
@@ -33,6 +38,8 @@ interface UsePollSessionResult {
   isLive: boolean;
   /** Current question's options, with live device tallies when a session runs. */
   displayOptions: PollOption[];
+  /** Current question's typed answers (word cloud, open response), newest first. */
+  responses: PollResponse[];
   canGoPrev: boolean;
   canGoNext: boolean;
   goToQuestion: (index: number) => void;
@@ -107,6 +114,22 @@ export const usePollSession = ({
     const tally = aggregateVotes(votes, currentQuestionIndex, options.length);
     return options.map((o, i) => ({ ...o, votes: tally[i] ?? 0 }));
   }, [currentQuestion, isLive, votes, currentQuestionIndex]);
+
+  const responses = useMemo(
+    () =>
+      isLive
+        ? votes
+            .filter(
+              (v) =>
+                v.questionIndex === currentQuestionIndex &&
+                typeof v.text === 'string' &&
+                v.text.trim() !== ''
+            )
+            .sort((a, b) => (b.votedAt ?? 0) - (a.votedAt ?? 0))
+            .map((v) => ({ id: v.id, text: (v.text ?? '').trim() }))
+        : [],
+    [isLive, votes, currentQuestionIndex]
+  );
 
   const goToQuestion = useCallback(
     (index: number) => {
@@ -230,6 +253,7 @@ export const usePollSession = ({
     currentQuestion,
     isLive,
     displayOptions,
+    responses,
     canGoPrev: currentQuestionIndex > 0,
     canGoNext: currentQuestionIndex < questions.length - 1,
     goToQuestion,
