@@ -12,6 +12,7 @@ export interface ViewAsClaim {
 
 interface RequestWithAuth {
   auth?: { uid?: string; token?: unknown } | null;
+  data?: unknown;
 }
 
 export interface ViewAsGuardOptions {
@@ -37,12 +38,32 @@ export function readViewAsClaim(request: RequestWithAuth): ViewAsClaim | null {
   };
 }
 
+/** A pinLoginV1 token is proven for one session, so it may not name any other `sessionId`. */
+export function assertPinLoginSession(request: RequestWithAuth): void {
+  const token = request.auth?.token;
+  if (!token || typeof token !== 'object') return;
+  const claims = token as Record<string, unknown>;
+  if (claims.pinLogin !== true) return;
+  const data = request.data;
+  const sessionId =
+    data && typeof data === 'object'
+      ? (data as Record<string, unknown>).sessionId
+      : undefined;
+  if (sessionId !== undefined && sessionId !== claims.pinSessionId) {
+    throw new HttpsError(
+      'permission-denied',
+      'Join this activity with your PIN.'
+    );
+  }
+}
+
 /** Throws when a view-as token may not run this callable; returns the claim (or null) so callers can audit. */
 export function assertViewAsAllowed(
   request: RequestWithAuth,
   options: ViewAsGuardOptions = {},
   now: number = Date.now()
 ): ViewAsClaim | null {
+  assertPinLoginSession(request);
   const claim = readViewAsClaim(request);
   if (!claim) return null;
   if (!claim.sid || !claim.by || now >= claim.exp) {

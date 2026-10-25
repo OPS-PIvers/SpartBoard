@@ -44,7 +44,7 @@ export interface StudentAuthValue {
    * not available — UI must render a sensible fallback.
    */
   firstName: string | null;
-  /** True for a pinLoginV1 token, which rules keep to its one class. */
+  /** True for a pinLoginV1 token, which rules keep to its one session. */
   pinLogin: boolean;
   /**
    * Sign out of Firebase and redirect to `/student/login`. Also clears the

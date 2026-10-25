@@ -1476,6 +1476,11 @@ const PIN_LOGIN_ATTEMPTS_COLLECTION = 'pin_login_attempts';
 const PIN_LOGIN_WINDOW_MS = 15 * 60 * 1000;
 export const PIN_LOGIN_MAX_FAILURES = 10;
 export const PIN_LOGIN_MAX_IDENTITIES = 3;
+// Per-session limits that fresh anonymous uids can't reset: misses from every
+// caller share one budget, and each student can be bridged from only a few uids.
+export const PIN_LOGIN_SESSION_MAX_FAILURES = 30;
+export const PIN_LOGIN_MAX_CALLERS_PER_STUDENT = 2;
+const PIN_LOGIN_CLAIM_TTL_MS = 24 * 60 * 60 * 1000;
 
 interface PinLoginAttempts {
   windowStart: number;
@@ -1503,6 +1508,14 @@ function readPinLoginAttempts(
   };
 }
 
+function readPinLoginCallers(
+  data: admin.firestore.DocumentData | undefined
+): string[] {
+  return Array.isArray(data?.callerUids)
+    ? data.callerUids.filter((u: unknown): u is string => typeof u === 'string')
+    : [];
+}
+
 function pinLoginBlocked(a: PinLoginAttempts, indexKey: string): boolean {
   if (a.failures >= PIN_LOGIN_MAX_FAILURES) return true;
   return (
@@ -1511,29 +1524,79 @@ function pinLoginBlocked(a: PinLoginAttempts, indexKey: string): boolean {
   );
 }
 
+function pinLoginSessionBlocked(s: PinLoginAttempts): boolean {
+  return s.failures >= PIN_LOGIN_SESSION_MAX_FAILURES;
+}
+
+function pinLoginExpireAt(windowStart: number): admin.firestore.Timestamp {
+  // TTL field (firestore.indexes.json) so stale counters delete themselves.
+  return admin.firestore.Timestamp.fromMillis(
+    windowStart + 2 * PIN_LOGIN_WINDOW_MS
+  );
+}
+
+interface PinLoginRefs {
+  caller: admin.firestore.DocumentReference;
+  session: admin.firestore.DocumentReference;
+  claim: admin.firestore.DocumentReference;
+}
+
+function pinLoginRefs(
+  db: admin.firestore.Firestore,
+  sessionId: string,
+  callerUid: string,
+  indexKey: string
+): PinLoginRefs {
+  const col = db.collection(PIN_LOGIN_ATTEMPTS_COLLECTION);
+  return {
+    caller: col.doc(`${sessionId}__${callerUid}`),
+    session: col.doc(`session__${sessionId}`),
+    claim: col.doc(`claim__${sessionId}__${indexKey}`),
+  };
+}
+
 async function recordPinLoginAttempt(
   db: admin.firestore.Firestore,
-  ref: admin.firestore.DocumentReference,
+  refs: PinLoginRefs,
+  callerUid: string,
   indexKey: string,
   success: boolean
 ): Promise<boolean> {
   return db.runTransaction(async (tx) => {
+    const callerSnap = await tx.get(refs.caller);
+    const sessionSnap = await tx.get(refs.session);
+    const claimSnap = success ? await tx.get(refs.claim) : null;
     const now = Date.now();
-    const a = readPinLoginAttempts((await tx.get(ref)).data(), now);
-    // Re-checked here so parallel calls from one caller can't overshoot the caps.
-    const allowed = !pinLoginBlocked(a, indexKey);
+    const a = readPinLoginAttempts(callerSnap.data(), now);
+    const s = readPinLoginAttempts(sessionSnap.data(), now);
+    const callers = readPinLoginCallers(claimSnap?.data());
+    // Re-checked here so parallel calls can't overshoot the caps.
+    const allowed =
+      !pinLoginBlocked(a, indexKey) &&
+      !pinLoginSessionBlocked(s) &&
+      (!success ||
+        callers.includes(callerUid) ||
+        callers.length < PIN_LOGIN_MAX_CALLERS_PER_STUDENT);
     if (!success) {
       a.failures += 1;
-    } else if (allowed && !a.indexKeys.includes(indexKey)) {
-      a.indexKeys.push(indexKey);
+      s.failures += 1;
+      tx.set(refs.session, {
+        windowStart: s.windowStart,
+        failures: s.failures,
+        expireAt: pinLoginExpireAt(s.windowStart),
+      });
+    } else if (allowed) {
+      if (!a.indexKeys.includes(indexKey)) a.indexKeys.push(indexKey);
+      if (!callers.includes(callerUid)) {
+        tx.set(refs.claim, {
+          callerUids: [...callers, callerUid],
+          expireAt: admin.firestore.Timestamp.fromMillis(
+            now + PIN_LOGIN_CLAIM_TTL_MS
+          ),
+        });
+      }
     }
-    tx.set(ref, {
-      ...a,
-      // TTL field (firestore.indexes.json) so stale counters delete themselves.
-      expireAt: admin.firestore.Timestamp.fromMillis(
-        a.windowStart + 2 * PIN_LOGIN_WINDOW_MS
-      ),
-    });
+    tx.set(refs.caller, { ...a, expireAt: pinLoginExpireAt(a.windowStart) });
     return allowed;
   });
 }
@@ -1704,16 +1767,21 @@ export const pinLoginV1 = onCall(
 
     const indexKey = pinIndexKey(period, pin);
 
-    const attemptsRef = db
-      .collection(PIN_LOGIN_ATTEMPTS_COLLECTION)
-      .doc(`${sessionRef.id}__${callerUid}`);
-    // Fail open: a counter outage must not lock real students out of the bridge.
-    const attemptsData = await attemptsRef
-      .get()
-      .then((snap) => snap.data())
-      .catch(() => undefined);
-    const attempts = readPinLoginAttempts(attemptsData, Date.now());
-    if (pinLoginBlocked(attempts, indexKey)) {
+    const attemptRefs = pinLoginRefs(db, sessionRef.id, callerUid, indexKey);
+    // Fail closed: if the counters can't be read, the student takes the plain PIN join.
+    const counters = await Promise.all([
+      attemptRefs.caller.get(),
+      attemptRefs.session.get(),
+    ]).catch((err: unknown) => {
+      console.error('[pinLoginV1] attempt check failed:', err);
+      return null;
+    });
+    const now = Date.now();
+    if (
+      !counters ||
+      pinLoginBlocked(readPinLoginAttempts(counters[0].data(), now), indexKey) ||
+      pinLoginSessionBlocked(readPinLoginAttempts(counters[1].data(), now))
+    ) {
       console.warn('[pinLoginV1] fallback', {
         kind,
         reason: 'rate-limited',
@@ -1771,12 +1839,13 @@ export const pinLoginV1 = onCall(
 
     const allowed = await recordPinLoginAttempt(
       db,
-      attemptsRef,
+      attemptRefs,
+      callerUid,
       indexKey,
       matched !== null
     ).catch((err: unknown) => {
       console.error('[pinLoginV1] attempt record failed:', err);
-      return true;
+      return false;
     });
     if (matched && !allowed) {
       console.warn('[pinLoginV1] fallback', {
@@ -1812,8 +1881,9 @@ export const pinLoginV1 = onCall(
         studentRole: true,
         orgId: matched.orgId,
         classIds: [matched.classId],
-        // Rules keep a PIN-proven token to this one class (see student_grades).
+        // Rules keep a PIN-proven token to this one session (see pinSessionOk).
         pinLogin: true,
+        pinSessionId: sessionRef.id,
       });
     } catch (err) {
       console.error('[pinLoginV1] createCustomToken failed:', err);

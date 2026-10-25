@@ -1,5 +1,5 @@
 // Student sign-in hardening: who may create a quiz session, and what a
-// pinLoginV1 token (studentRole + pinLogin, one class) may read.
+// pinLoginV1 token (studentRole + pinLogin, one session) may read.
 //
 // Requires a running Firestore emulator. Invoke via:
 //   pnpm run test:rules
@@ -61,12 +61,13 @@ const asSso = () =>
     })
     .firestore();
 
-const asPin = () =>
+const asPin = (pinSessionId: string | null = 'sess-a') =>
   testEnv
     .authenticatedContext(STUDENT_UID, {
       studentRole: true,
       classIds: [CLASS_A],
       pinLogin: true,
+      ...(pinSessionId ? { pinSessionId } : {}),
       firebase: { sign_in_provider: 'custom' },
     })
     .firestore();
@@ -112,6 +113,19 @@ beforeEach(async () => {
     const items = `student_assignments/${STUDENT_UID}/items`;
     await setDoc(doc(db, `${items}/in-a`), pointer(CLASS_A));
     await setDoc(doc(db, `${items}/in-b`), pointer(CLASS_B));
+    for (const id of ['sess-a', 'sess-b']) {
+      await setDoc(doc(db, `quiz_sessions/${id}`), {
+        ...session(TEACHER_UID),
+        classId: CLASS_A,
+        status: 'active',
+      });
+      await setDoc(doc(db, `quiz_sessions/${id}/responses/${STUDENT_UID}`), {
+        studentUid: STUDENT_UID,
+        status: 'in-progress',
+        answers: [],
+        score: null,
+      });
+    }
     await setDoc(doc(db, `student_grades/${STUDENT_UID}/classes/${CLASS_A}`), {
       studentUid: STUDENT_UID,
       entries: {},
@@ -155,24 +169,41 @@ describe('PIN sign-in token scope', () => {
   const items = `student_assignments/${STUDENT_UID}/items`;
   const grades = `student_grades/${STUDENT_UID}/classes/${CLASS_A}`;
 
-  it('reads its own pointer in its class and a missing pointer', async () => {
-    await assertSucceeds(getDoc(doc(asPin(), `${items}/in-a`)));
-    await assertSucceeds(getDoc(doc(asPin(), `${items}/missing`)));
+  const response = (sessionId: string) =>
+    `quiz_sessions/${sessionId}/responses/${STUDENT_UID}`;
+
+  it('reads and writes its own response in the session it was proven for', async () => {
+    await assertSucceeds(getDoc(doc(asPin(), response('sess-a'))));
     await assertSucceeds(
+      updateDoc(doc(asPin(), response('sess-a')), { status: 'in-progress' })
+    );
+  });
+
+  it("cannot read or write the same student's response in another session", async () => {
+    await assertFails(getDoc(doc(asPin(), response('sess-b'))));
+    await assertFails(
+      updateDoc(doc(asPin(), response('sess-b')), { status: 'in-progress' })
+    );
+  });
+
+  it('denies a PIN token that names no session', async () => {
+    await assertFails(getDoc(doc(asPin(null), response('sess-a'))));
+  });
+
+  it("cannot read the student's assignment pointers", async () => {
+    await assertFails(getDoc(doc(asPin(), `${items}/in-a`)));
+    await assertFails(getDoc(doc(asPin(), `${items}/in-b`)));
+    await assertFails(
       getDocs(
         query(collection(asPin(), items), where('classId', '==', CLASS_A))
       )
     );
-    await assertSucceeds(
-      getDocs(
-        query(collection(asPin(), items), where('classId', 'in', [CLASS_A]))
-      )
-    );
+    await assertFails(getDocs(collection(asPin(), items)));
   });
 
-  it("cannot read the same student's pointers in other classes", async () => {
-    await assertFails(getDoc(doc(asPin(), `${items}/in-b`)));
-    await assertFails(getDocs(collection(asPin(), items)));
+  it('leaves the SSO student response reads unchanged', async () => {
+    await assertSucceeds(getDoc(doc(asSso(), response('sess-a'))));
+    await assertSucceeds(getDoc(doc(asSso(), response('sess-b'))));
   });
 
   it('cannot read grades', async () => {

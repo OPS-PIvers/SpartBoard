@@ -8,11 +8,17 @@ service cloud.firestore {
     function existing() { return resource.data; }
     // A view-as token that may not make this request (read-only write, or past exp)
     // has no uid: the missing-key error denies every owner comparison built on it.
+    // A pinLoginV1 token likewise has no uid outside the one session it was proven for.
     // shorthands: off (the one place the raw uid is read)
     function authUid() {
-      return viewAsOk() ? request.auth.uid : request.auth.token.viewAs.noUid;
+      return viewAsOk() && pinSessionOk() ? request.auth.uid : request.auth.token.viewAs.noUid;
     }
     // shorthands: on
+    // request.path[4] is the top-level doc id: the session for every session subcollection.
+    function pinSessionOk() {
+      return request.auth.token.get('pinLogin', false) != true ||
+             request.path[4] == request.auth.token.get('pinSessionId', '');
+    }
     function unchanged(k) { return request.resource.data[k] == resource.data[k]; }
     function isStr(k) { return request.resource.data[k] is string; }
     function isInt(k) { return request.resource.data[k] is int; }
