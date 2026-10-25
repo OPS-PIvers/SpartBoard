@@ -1,6 +1,4 @@
-// Rules tests: a quiz response create can't seed the server-owned media archive bookkeeping
-// (the hourly sweep deletes the Drive ids in `artifactArchive` with the teacher's token).
-// Requires a running Firestore emulator (pnpm run test:rules).
+// Rules tests: a quiz response create cannot seed server-owned media archive fields (needs the emulator).
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';

@@ -442,9 +442,6 @@ export function parseRefKey(key: string): StudentTargetRef | null {
 
 // ── Default dependency implementations ─────────────────────────────────────
 
-/** Permanent delete, not a trash move — this is a compliance delete. */
-export const deleteDriveFileById = defaultDriveUploader.deleteFile;
-
 /** Compliance delete of an id read from a response doc: refuses any file outside the quiz archive folder. */
 export const deleteQuizArchiveDriveFile = (
   accessToken: string,
@@ -732,7 +729,7 @@ export function buildDefaultArchiveDeps(): ArchiveDeps {
         folderPath,
         tokenOwners.get(accessToken)
       ),
-    deleteDriveFile: deleteDriveFileById,
+    deleteDriveFile: deleteQuizArchiveDriveFile,
     resolveStudentName: (teacherUid, studentUid) =>
       resolveStudentRealName(db, teacherUid, studentUid),
     isFeatureGranted: async (teacherUid) => {
