@@ -2514,5 +2514,13 @@
       ]
     }
   ],
-  "widgetNotes": []
+  "widgetNotes": [
+    {
+      "id": "2026-10-25-seating-chart-plans",
+      "widget": "seating-chart",
+      "date": "2026-10-25",
+      "text": "Save more than one seating plan per board, keep chosen students apart or up front when you shuffle, and print the chart with names in seats.",
+      "feature": "seating-chart-plans"
+    }
+  ]
 }
