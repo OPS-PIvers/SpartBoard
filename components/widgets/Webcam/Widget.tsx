@@ -72,8 +72,7 @@ export const WebcamWidget: React.FC<{
     enabled: docCamPro,
     savedZoom: widgetConfig.zoomLevel,
     savedRotation: widgetConfig.rotation,
-    onSave: (patch) =>
-      updateWidget(_widget.id, { config: { ...widgetConfig, ...patch } }),
+    onSave: (patch) => updateWidget(_widget.id, { config: patch }),
   });
   const isRemoteShown = !!(
     widgetConfig.isRemoteMode && widgetConfig.remoteCaptureDataUrl
