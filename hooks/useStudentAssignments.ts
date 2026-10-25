@@ -713,6 +713,7 @@ export function useStudentAssignments({
         },
         (err) => {
           console.error('[useStudentAssignments] pointer snapshot failed', err);
+          perRef[idx] = undefined;
           setPointerItems({});
           setPointerErrored(true);
           setPointerLoadState('ready');

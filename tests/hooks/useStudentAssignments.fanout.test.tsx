@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import * as firestore from 'firebase/firestore';
 import { useStudentAssignments } from '@/hooks/useStudentAssignments';
 
@@ -780,5 +780,49 @@ describe('useStudentAssignments — PIN pointer listener chunking', () => {
         return Array.isArray(v) ? (v as string[]) : [];
       });
     expect(new Set(queried)).toEqual(new Set(classIds));
+  });
+
+  it('waits for every chunk before ready, and a failed chunk keeps the error after others re-deliver', async () => {
+    makeGetDocRig();
+    const pointerRegs: {
+      onNext: SnapshotCallback;
+      onError: (err: Error) => void;
+    }[] = [];
+    vi.mocked(firestore.onSnapshot).mockImplementation(((
+      ref: unknown,
+      onNext: SnapshotCallback,
+      onError: (err: Error) => void
+    ) => {
+      if ((ref as QueryRef).__name === 'student_assignments/student-a/items') {
+        pointerRegs.push({ onNext, onError });
+      } else {
+        onNext({ docs: [] });
+      }
+      return () => undefined;
+    }) as unknown as typeof firestore.onSnapshot);
+    const classIds = Array.from({ length: 35 }, (_, i) => `c${i}`);
+    const { result } = renderHook(() =>
+      useStudentAssignments({
+        classIds,
+        studentUid: 'student-a',
+        pinLogin: true,
+      })
+    );
+    await waitFor(() => {
+      expect(pointerRegs).toHaveLength(2);
+    });
+
+    act(() => pointerRegs[0].onNext({ docs: [] }));
+    expect(result.current.loadState).toBe('loading');
+    act(() => pointerRegs[1].onNext({ docs: [] }));
+    await waitFor(() => {
+      expect(result.current.loadState).toBe('ready');
+    });
+
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    act(() => pointerRegs[1].onError(new Error('permission-denied')));
+    expect(result.current.hasErrors).toBe(true);
+    act(() => pointerRegs[0].onNext({ docs: [] }));
+    expect(result.current.hasErrors).toBe(true);
   });
 });
