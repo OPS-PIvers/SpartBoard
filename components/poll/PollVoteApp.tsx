@@ -422,7 +422,7 @@ export const PollVoteApp: React.FC = () => {
                 );
               })}
             </div>
-            {(question.scaleLow || question.scaleHigh) && (
+            {(!!question.scaleLow || !!question.scaleHigh) && (
               <div className="flex justify-between gap-4 text-xs font-bold text-slate-500">
                 <span>{question.scaleLow}</span>
                 <span className="text-right">{question.scaleHigh}</span>

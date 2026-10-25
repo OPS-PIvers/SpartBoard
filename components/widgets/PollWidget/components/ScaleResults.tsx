@@ -70,7 +70,7 @@ export const ScaleResults: React.FC<ScaleResultsProps> = ({
           </button>
         ))}
       </div>
-      {(low || high) && (
+      {(!!low || !!high) && (
         <div
           className="shrink-0 flex justify-between font-bold uppercase tracking-wider text-slate-500"
           style={{ fontSize: 'min(12px, 4cqmin)', gap: 'min(16px, 3cqmin)' }}

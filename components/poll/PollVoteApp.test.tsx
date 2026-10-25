@@ -317,9 +317,12 @@ describe('PollVoteApp', () => {
     expect(await screen.findByTestId('poll-scale-ballot')).toBeInTheDocument();
     expect(screen.getByText('Not sure')).toBeInTheDocument();
     expect(screen.getByText('Very sure')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^4/ })).toHaveAttribute(
-      'aria-pressed',
-      'true'
+    // The voter's uid arrives after sign-in resolves, so wait for the pressed state.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /^4/ })).toHaveAttribute(
+        'aria-pressed',
+        'true'
+      )
     );
     expect(screen.getByTestId('poll-scale-average')).toHaveTextContent(
       'Average 3.0'
