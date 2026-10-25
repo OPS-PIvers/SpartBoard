@@ -12,6 +12,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import { setDoc, doc } from 'firebase/firestore';
 
+const PROJECT_ID = 'spartboard-admin-domains-forgery';
 const ADMIN_EMAIL = 'admin@orono.k12.mn.us';
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
@@ -21,7 +22,7 @@ let testEnv: RulesTestEnvironment;
 
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
-    projectId: 'spartboard-admin-domains-forgery',
+    projectId: PROJECT_ID,
     firestore: { rules: readFileSync(RULES_PATH, 'utf8') },
   });
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
