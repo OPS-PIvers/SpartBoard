@@ -31,7 +31,7 @@ import {
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { useDialog } from '@/context/useDialog';
 import { buildPollJoinUrl } from '@/utils/pollCode';
-import { withQuestionAt, withVotesReset } from '@/utils/pollQuestions';
+import { withQuestionAt } from '@/utils/pollQuestions';
 import { usePollSession } from '@/hooks/usePollSession';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { tourAttr } from '@/config/tourAnchors';
@@ -75,6 +75,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     isLocked,
     setRevealed,
     setLocked,
+    resetVotes,
   } = usePollSession({
     config,
     // Announcement embeds have no teacher session — tallies come from the
@@ -172,7 +173,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       confirmLabel: 'Reset',
     });
     if (!confirmed) return;
-    applyConfig(withVotesReset(config));
+    resetVotes();
   };
 
   // Three tally modes: live public session > announcement > local config.

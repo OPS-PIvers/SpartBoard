@@ -17,7 +17,7 @@ import { WidgetData, PollConfig } from '@/types';
 import { useBoardLinkedShareId } from '@/context/boardLinkedShare';
 import { useAuth } from '@/context/useAuth';
 import { buildPollJoinUrl } from '@/utils/pollCode';
-import { withQuestionAt, withVotesReset } from '@/utils/pollQuestions';
+import { withQuestionAt } from '@/utils/pollQuestions';
 import { usePollSession } from '@/hooks/usePollSession';
 import {
   startPollSession,
@@ -79,6 +79,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
     isLocked,
     setRevealed,
     setLocked,
+    resetVotes,
   } = usePollSession({
     config,
     teacherUid: foreignSession ? (sessionOwnerUid ?? undefined) : user?.uid,
@@ -115,10 +116,6 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
         ),
       })
     );
-  };
-
-  const resetVotes = () => {
-    applyConfig(withVotesReset(config));
   };
 
   const beginSession = async (mode: 'fresh' | 'resume') => {

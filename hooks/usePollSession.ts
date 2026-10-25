@@ -7,7 +7,11 @@ import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import type { PollConfig, PollOption, PollQuestion } from '@/types';
-import { clampQuestionIndex, getPollQuestions } from '@/utils/pollQuestions';
+import {
+  clampQuestionIndex,
+  getPollQuestions,
+  withVotesReset,
+} from '@/utils/pollQuestions';
 import {
   aggregateVotes,
   makePollSessionId,
@@ -38,6 +42,8 @@ interface UsePollSessionResult {
   isLocked: boolean;
   setRevealed: (revealed: boolean) => void;
   setLocked: (locked: boolean) => void;
+  /** Zero the votes; a hidden-results poll hides every question again, on phones too. */
+  resetVotes: () => void;
 }
 
 const toggleId = (
@@ -174,6 +180,12 @@ export const usePollSession = ({
     [applyResultsState, config, currentId]
   );
 
+  const resetVotes = useCallback(() => {
+    const next = withVotesReset(config);
+    if (config.hideResults) applyResultsState(next);
+    else onConfigChange(next);
+  }, [config, applyResultsState, onConfigChange]);
+
   return {
     questions,
     currentQuestionIndex,
@@ -187,5 +199,6 @@ export const usePollSession = ({
     isLocked,
     setRevealed,
     setLocked,
+    resetVotes,
   };
 };

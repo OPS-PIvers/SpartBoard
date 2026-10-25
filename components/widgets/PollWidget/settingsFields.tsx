@@ -152,15 +152,10 @@ export const PollSettings: React.FC<{
     }
   };
 
-  const handleHideResultsChange = (hideResults: boolean) => {
-    // Turning hiding on starts every question hidden again.
-    const next: PollConfig = {
-      ...config,
-      hideResults,
-      revealedQuestionIds: [],
-    };
-    applyConfig(next);
+  // Push reveal state to the session phones are on (live or stopped), for its owner only.
+  const syncHiddenResults = (next: PollConfig) => {
     const sessionId = activePollSessionId ?? config.lastPollSessionId ?? null;
+    if (!next.hideResults && !config.hideResults) return;
     if (
       sessionId &&
       user &&
@@ -170,6 +165,17 @@ export const PollSettings: React.FC<{
         logError('PollSettings.hideResults', err)
       );
     }
+  };
+
+  const handleHideResultsChange = (hideResults: boolean) => {
+    // Turning hiding on starts every question hidden again.
+    const next: PollConfig = {
+      ...config,
+      hideResults,
+      revealedQuestionIds: [],
+    };
+    applyConfig(next);
+    syncHiddenResults(next);
   };
 
   // Reserve the sticky join code (and its inert session doc) the first time
@@ -396,7 +402,9 @@ export const PollSettings: React.FC<{
       }
     );
     if (!confirmed) return;
-    applyConfig(withVotesReset(config));
+    const next = withVotesReset(config);
+    applyConfig(next);
+    syncHiddenResults(next);
   };
 
   const atQuestionLimit = questions.length >= MAX_POLL_QUESTIONS;
