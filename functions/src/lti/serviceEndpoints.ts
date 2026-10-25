@@ -40,6 +40,7 @@ import {
   type LtiSessionKind,
 } from './nrpsStore';
 import { assertViewAsAllowed } from '../viewAsGuard';
+import { isVerifiedDistrictTeacher } from './teacherAuth';
 
 /** The Firestore session collection a launch `kind` targets. */
 function sessionCollectionForKind(kind: LtiSessionKind): string {
@@ -71,7 +72,7 @@ export const ltiSignDeepLinkResponseV1 = onCall(
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
-    if (!request.auth.token.email || request.auth.token.studentRole === true) {
+    if (!isVerifiedDistrictTeacher(request.auth.token)) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
 
@@ -176,12 +177,12 @@ export const ltiPushGradesForAssignmentV1 = onCall(
     // SECURITY: gated on session OWNERSHIP — the teacher pushes from the
     // dashboard Results view, signed in with their own SpartBoard account (same
     // model as the NRPS name resolver). Mirrors getPseudonymsForAssignmentV1:
-    // require an email-bearing token, reject studentRole, then verify the caller
+    // require a verified district teacher token, then verify the caller
     // teaches the session below. No launch-minted credential needed.
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
-    if (!request.auth.token.email || request.auth.token.studentRole === true) {
+    if (!isVerifiedDistrictTeacher(request.auth.token)) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
 
@@ -404,11 +405,9 @@ export const ltiResolveNamesForAssignmentV1 = onCall(
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
-    // Teachers only. Teachers authenticate with standard Firebase Auth (email
-    // present on the token); students never have email and carry `studentRole`.
-    // Require email + reject studentRole (mirrors getPseudonymsForAssignmentV1)
-    // — defense in depth on top of the session-ownership gate below.
-    if (!request.auth.token.email || request.auth.token.studentRole === true) {
+    // Teachers only: verified district email, no studentRole — defense in depth
+    // on top of the session-ownership gate below.
+    if (!isVerifiedDistrictTeacher(request.auth.token)) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
     const data = (request.data ?? {}) as {

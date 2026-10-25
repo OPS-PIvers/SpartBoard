@@ -157,7 +157,15 @@ const callSign = ltiSignDeepLinkResponseV1 as unknown as (req: {
   data: unknown;
 }) => Promise<SignResult>;
 
-const TEACHER = { uid: 'teacher-1', token: { email: 't@orono.k12.mn.us' } };
+const TEACHER = {
+  uid: 'teacher-1',
+  token: { email: 't@orono.k12.mn.us', email_verified: true },
+};
+
+const UNTRUSTED_TOKENS = [
+  { email: 'x@orono.k12.mn.us' },
+  { email: 'x@gmail.com', email_verified: true },
+];
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -647,6 +655,17 @@ describe('ltiSignDeepLinkResponseV1 — security gate', () => {
     );
     expect(signToolJwtMock).not.toHaveBeenCalled();
   });
+
+  it.each(UNTRUSTED_TOKENS)(
+    'rejects unverified or non-district %o',
+    async (token) => {
+      await expectCode(
+        callSign({ auth: { uid: 'teacher-1', token }, data: goodData }),
+        'permission-denied'
+      );
+      expect(signToolJwtMock).not.toHaveBeenCalled();
+    }
+  );
 
   it('signs and returns a JWT for a properly authenticated teacher', async () => {
     const res = await callSign({ auth: TEACHER, data: goodData });

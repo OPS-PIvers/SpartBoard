@@ -182,7 +182,19 @@ function buildFirestoreStub(opts: {
           get: () => {
             const docs = ([] as string[])
               .concat(verifiedDomains[domain] ?? [])
-              .map((id) => ({ ref: { parent: { parent: { id } } } }));
+              .map((entry) => {
+                // An entry with '/' is a full doc path, otherwise an org id.
+                const path = entry.includes('/')
+                  ? entry
+                  : `organizations/${entry}/domains/d`;
+                const seg = path.split('/');
+                return {
+                  ref: {
+                    path,
+                    parent: { parent: { id: seg[seg.length - 3] } },
+                  },
+                };
+              });
             return Promise.resolve({ empty: docs.length === 0, docs });
           },
         }),
@@ -468,6 +480,28 @@ describe('resetOrganizationUserPassword — target must be on a verified org dom
     ).rejects.toMatchObject({ code: 'permission-denied' });
     expect(generatePasswordResetLinkMock).not.toHaveBeenCalled();
   });
+
+  it.each([
+    'admin_settings/district-b/domains/x',
+    'global_permissions/district-b/domains/x',
+  ])(
+    'a forged domains doc at %s does not verify the domain for the caller',
+    async (forgedPath) => {
+      firestoreMock.mockReturnValue(
+        buildFirestoreStub({
+          emailEnabled: false,
+          callerEmail: 'admin@district-b.org',
+          callerRole: 'domain_admin',
+          callerOperatorRole: null,
+          verifiedDomains: { '@victim.tld': forgedPath },
+        })
+      );
+      await expect(
+        call('district-b', 'teacher@victim.tld', 'admin@district-b.org')
+      ).rejects.toMatchObject({ code: 'permission-denied' });
+      expect(generatePasswordResetLinkMock).not.toHaveBeenCalled();
+    }
+  );
 
   it("an org-level super_admin outside the operator org cannot reset another org's account", async () => {
     firestoreMock.mockReturnValue(

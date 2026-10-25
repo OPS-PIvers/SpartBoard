@@ -33,7 +33,7 @@ import { MAX_STEPS, parseStepLines } from '../projectSteps';
 import { tourAttr } from '@/config/tourAnchors';
 import { stripRubricExamples } from '@/utils/rubricGuide';
 
-/** ms epoch <-> `<input type="datetime-local">` value (local time, no seconds). */
+/** ms epoch <-> datetime-local input value (local time, no seconds). */
 const msToLocalInputValue = (ms: number | undefined): string => {
   if (!ms) return '';
   const tzOffsetMs = new Date(ms).getTimezoneOffset() * 60_000;
