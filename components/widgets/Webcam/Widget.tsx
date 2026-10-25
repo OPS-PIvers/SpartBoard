@@ -847,9 +847,11 @@ export const WebcamWidget: React.FC<{
                       widgetType={_widget.type}
                       resolution={resolution}
                       controls={cameraControls}
-                      onResolution={(r) =>
-                        updateWidget(_widget.id, { config: { resolution: r } })
-                      }
+                      onResolution={(r) => {
+                        // The restart may find the old stream still holding the camera; that isn't an unplug.
+                        startedStreamRef.current = null;
+                        updateWidget(_widget.id, { config: { resolution: r } });
+                      }}
                       onAutoFocus={(on) => void applyAutoMode('focusMode', on)}
                       onAutoExposure={(on) =>
                         void applyAutoMode('exposureMode', on)
