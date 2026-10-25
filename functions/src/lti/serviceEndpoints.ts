@@ -48,6 +48,22 @@ function sessionCollectionForKind(kind: LtiSessionKind): string {
     : QUIZ_SESSIONS_COLLECTION;
 }
 
+const DISTRICT_EMAIL = /^[^@]+@orono\.k12\.mn\.us$/i;
+
+/** True only for a verified district email that is not a student token. */
+function isVerifiedDistrictTeacher(token: {
+  email?: string;
+  email_verified?: boolean;
+  studentRole?: boolean;
+}): boolean {
+  return (
+    token.email_verified === true &&
+    typeof token.email === 'string' &&
+    DISTRICT_EMAIL.test(token.email) &&
+    token.studentRole !== true
+  );
+}
+
 const LTI_TOOL_PRIVATE_KEY = defineSecret('LTI_TOOL_PRIVATE_KEY');
 const STUDENT_PSEUDONYM_HMAC_SECRET = defineSecret(
   'STUDENT_PSEUDONYM_HMAC_SECRET'
@@ -71,7 +87,7 @@ export const ltiSignDeepLinkResponseV1 = onCall(
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
-    if (!request.auth.token.email || request.auth.token.studentRole === true) {
+    if (!isVerifiedDistrictTeacher(request.auth.token)) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
 
@@ -179,7 +195,7 @@ export const ltiPushGradesForAssignmentV1 = onCall(
     if (!request.auth) {
       throw new HttpsError('unauthenticated', 'Sign in required.');
     }
-    if (!request.auth.token.email || request.auth.token.studentRole === true) {
+    if (!isVerifiedDistrictTeacher(request.auth.token)) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
 
@@ -393,7 +409,7 @@ export const ltiResolveNamesForAssignmentV1 = onCall(
     // present on the token); students never have email and carry `studentRole`.
     // Require email + reject studentRole (mirrors getPseudonymsForAssignmentV1)
     // — defense in depth on top of the session-ownership gate below.
-    if (!request.auth.token.email || request.auth.token.studentRole === true) {
+    if (!isVerifiedDistrictTeacher(request.auth.token)) {
       throw new HttpsError('permission-denied', 'Teacher account required.');
     }
     const data = (request.data ?? {}) as {
