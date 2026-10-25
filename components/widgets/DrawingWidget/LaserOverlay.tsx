@@ -2,6 +2,7 @@ import React, {
   forwardRef,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useImperativeHandle,
   useRef,
 } from 'react';
@@ -35,7 +36,7 @@ export const LaserOverlay = forwardRef<LaserOverlayHandle, LaserOverlayProps>(
     const activeRef = useRef<TrailPoint[] | null>(null);
     const frameRef = useRef<number | null>(null);
     const viewRef = useRef(view);
-    useEffect(() => {
+    useLayoutEffect(() => {
       viewRef.current = view;
     }, [view]);
 

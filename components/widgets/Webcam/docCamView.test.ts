@@ -1,12 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   DEFAULT_VIEW,
+  OCR_MAX_SIDE,
   clampPan,
   clampZoom,
   mediaBox,
   normalizeRotation,
   nextRotation,
   stepZoom,
+  toOcrDataUrl,
   zoomAt,
 } from './docCamView';
 
@@ -64,5 +66,44 @@ describe('docCamView', () => {
       width: 300,
       height: 400,
     });
+  });
+});
+
+describe('toOcrDataUrl', () => {
+  const canvasOf = (width: number, height: number) => {
+    const c = document.createElement('canvas');
+    c.width = width;
+    c.height = height;
+    return c;
+  };
+
+  it('keeps a small capture as PNG', () => {
+    const c = canvasOf(1280, 720);
+    const spy = vi.spyOn(c, 'toDataURL').mockReturnValue('data:image/png;x');
+    expect(toOcrDataUrl(c)).toBe('data:image/png;x');
+    expect(spy).toHaveBeenCalledWith('image/png');
+  });
+
+  it('scales a 4K capture down to the OCR limit as JPEG', () => {
+    const big = canvasOf(3840, 2160);
+    const made: HTMLCanvasElement[] = [];
+    const create = document.createElement.bind(document);
+    const createSpy = vi
+      .spyOn(document, 'createElement')
+      .mockImplementation((tag: string) => {
+        const el = create(tag);
+        if (el instanceof HTMLCanvasElement) {
+          vi.spyOn(el, 'getContext').mockReturnValue({
+            drawImage: vi.fn(),
+          } as unknown as CanvasRenderingContext2D);
+          vi.spyOn(el, 'toDataURL').mockReturnValue('data:image/jpeg;x');
+          made.push(el);
+        }
+        return el;
+      });
+    expect(toOcrDataUrl(big)).toBe('data:image/jpeg;x');
+    expect(made[0].width).toBe(OCR_MAX_SIDE);
+    expect(made[0].height).toBe(1152);
+    createSpy.mockRestore();
   });
 });
