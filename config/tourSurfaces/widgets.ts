@@ -476,6 +476,22 @@ export const SURFACES: TourSurfaceMap = {
     widgetType: 'seating-chart',
     needs: ['widget-on-stage'],
   },
+  'widgets.sound.face': {
+    label: 'Sound widget',
+    kind: 'widget',
+    files: ['components/widgets/SoundWidget/'],
+    widgetType: 'sound',
+    needs: ['widget-on-stage'],
+  },
+  'widgets.sound.settings': {
+    label: 'Sound settings',
+    kind: 'settings-drawer',
+    files: ['components/widgets/SoundWidget/settingsFields.tsx'],
+    opensWith: 'widget.settings-opener',
+    parent: 'widgets.sound.face',
+    widgetType: 'sound',
+    needs: ['widget-on-stage'],
+  },
   'widgets.smart-notebook.face': {
     label: 'Smart Notebook widget',
     kind: 'widget',

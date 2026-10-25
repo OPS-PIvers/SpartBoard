@@ -2150,6 +2150,11 @@ export interface SoundConfig {
   alertDelaySeconds?: number;
   alertSoundEnabled?: boolean;
   alertSound?: string;
+  /** Average analyser reading of the quiet room, subtracted before sensitivity. */
+  noiseFloor?: number | null;
+  /** Set by the Calibrate button; the widget listens while it is newer than `calibratedAt`. */
+  calibrateRequest?: number;
+  calibratedAt?: number;
 }
 
 /** Active drawing tool. Replaces the legacy `config.color === 'eraser'` overload. */

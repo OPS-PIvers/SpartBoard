@@ -4061,6 +4061,17 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
+  'widget-settings.sound.calibrate': {
+    label: 'Calibrate button in Sound settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.sound.reset-calibration': {
+    label: 'Reset calibration button in Sound settings',
+    perWidget: true,
+    panel: true,
+    destructive: true,
+  },
   'widget-settings.seating-chart.clear-assignments': {
     label: 'Clear assignments button in Seating Chart settings',
     perWidget: true,

@@ -57,6 +57,11 @@ export const SETTINGS_FIELD_LIST: Readonly<
       kind: 'toggle',
     },
     {
+      anchor: 'settings.field:sound#noiseFloor',
+      label: 'Calibration',
+      kind: 'custom',
+    },
+    {
       anchor: 'settings.field:sound#sensitivity',
       label: 'Sensitivity',
       kind: 'slider',

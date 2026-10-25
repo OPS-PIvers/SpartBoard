@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect, useEffectEvent, useRef } from 'react';
+import { AlertTriangle, Ear } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -17,7 +17,12 @@ import { SpeedometerView } from './components/SpeedometerView';
 import { PopcornBallsView } from './components/PopcornBallsView';
 import {
   ALERT_SOUND_COOLDOWN_MS,
+  CALIBRATE_GIVE_UP_MS,
+  CALIBRATE_MS,
+  CALIBRATE_SAMPLE_MS,
   DEFAULT_ALERT_SOUND,
+  isCalibrating,
+  noiseFloorFrom,
   NOISE_METER_PRO,
   alertDelayMs,
   resolveTargetLevel,
@@ -62,7 +67,11 @@ export const SoundWidget: React.FC<{
     alertDelaySeconds,
     alertSoundEnabled = false,
     alertSound = DEFAULT_ALERT_SOUND,
+    noiseFloor,
   } = widget.config as SoundConfig;
+  const floor = pro && typeof noiseFloor === 'number' ? noiseFloor : 0;
+  const calibrating =
+    pro && isActive && isCalibrating(widget.config as SoundConfig);
 
   // Use ref for sensitivity to prevent audio stream restart on sensitivity changes
   const sensitivityRef = useRef(sensitivity);
@@ -71,10 +80,14 @@ export const SoundWidget: React.FC<{
   const smoothedRef = useRef(0);
   // Pro sync sets the target, so the sensitivity the old sync saved stays out of it.
   const effectiveSensitivity = pro && syncExpectations ? 1 : sensitivity;
+  const floorRef = useRef(floor);
+  // Latest analyser average before the floor, read by calibration.
+  const rawAverageRef = useRef<number | null>(null);
   useEffect(() => {
     sensitivityRef.current = effectiveSensitivity;
     smoothRef.current = pro;
-  }, [effectiveSensitivity, pro]);
+    floorRef.current = floor;
+  }, [effectiveSensitivity, pro, floor]);
 
   const expectationsWidgets =
     activeDashboard?.widgets.filter((w) => w.type === 'expectations') ?? [];
@@ -170,7 +183,11 @@ export const SoundWidget: React.FC<{
       analyser.getByteFrequencyData(dataArray);
       const sum = dataArray.reduce((a, b) => a + b, 0);
       const average = sum / dataArray.length;
-      const raw = Math.min(100, average * (sensitivityRef.current * 2));
+      rawAverageRef.current = average;
+      const raw = Math.min(
+        100,
+        Math.max(0, average - floorRef.current) * (sensitivityRef.current * 2)
+      );
       if (!smoothRef.current) return raw;
       smoothedRef.current = smoothVolume(smoothedRef.current, raw);
       return smoothedRef.current;
@@ -193,6 +210,7 @@ export const SoundWidget: React.FC<{
         audioContextRef.current = null;
         analyserRef.current = null;
         streamRef.current = null;
+        rawAverageRef.current = null;
       }, RELEASE_AFTER_HIDDEN_MS);
       return undefined;
     }
@@ -297,14 +315,63 @@ export const SoundWidget: React.FC<{
       audioContextRef.current = null;
       analyserRef.current = null;
       streamRef.current = null;
+      rawAverageRef.current = null;
     };
   }, []);
 
   const level = getLevelData(volume);
 
+  // An empty sample list ends the request and keeps the saved floor.
+  const finishCalibration = useEffectEvent((samples: number[]) => {
+    const config = widget.config as SoundConfig;
+    updateWidget(
+      widget.id,
+      {
+        config: {
+          ...config,
+          ...(samples.length > 0 && { noiseFloor: noiseFloorFrom(samples) }),
+          calibratedAt: config.calibrateRequest ?? Date.now(),
+        },
+      },
+      { skipHistory: true }
+    );
+  });
+
+  // Calibrate: sample the quiet room for a few seconds, then save its level as the zero point.
+  useEffect(() => {
+    if (!calibrating) return undefined;
+    let sampler: ReturnType<typeof setInterval> | undefined;
+    let done: ReturnType<typeof setTimeout> | undefined;
+    const giveUp = setTimeout(() => {
+      clearInterval(sampler);
+      clearTimeout(done);
+      finishCalibration([]);
+    }, CALIBRATE_GIVE_UP_MS);
+    const listen = () => {
+      const samples: number[] = [];
+      sampler = setInterval(() => {
+        // Null until the mic is live, so a pending permission prompt adds no zeros.
+        if (rawAverageRef.current !== null) samples.push(rawAverageRef.current);
+      }, CALIBRATE_SAMPLE_MS);
+      done = setTimeout(() => {
+        clearInterval(sampler);
+        if (samples.length > 0) {
+          clearTimeout(giveUp);
+          finishCalibration(samples);
+        } else listen();
+      }, CALIBRATE_MS);
+    };
+    listen();
+    return () => {
+      clearInterval(sampler);
+      clearTimeout(done);
+      clearTimeout(giveUp);
+    };
+  }, [calibrating]);
+
   const lastChimeRef = useRef(0);
   const alerting = useTooLoudAlert(
-    isActive && limit !== null && volume >= limit,
+    isActive && !calibrating && limit !== null && volume >= limit,
     alertDelayMs(alertDelaySeconds),
     () => {
       if (!alertSoundEnabled) return;
@@ -408,7 +475,29 @@ export const SoundWidget: React.FC<{
               aria-live="polite"
               className="absolute inset-x-0 top-0"
             >
-              {alerting && (
+              {calibrating && (
+                <div
+                  className="flex items-center justify-center bg-slate-800 text-white font-bold shadow-md text-center"
+                  style={{
+                    margin: 'min(8px, 2cqmin)',
+                    gap: 'min(8px, 2cqmin)',
+                    padding: 'min(10px, 2.5cqmin)',
+                    borderRadius: 'min(12px, 3cqmin)',
+                    fontSize: 'min(20px, 6cqmin)',
+                  }}
+                >
+                  <Ear
+                    aria-hidden="true"
+                    className="shrink-0"
+                    style={{
+                      width: 'min(22px, 6.5cqmin)',
+                      height: 'min(22px, 6.5cqmin)',
+                    }}
+                  />
+                  {t('widgets.sound.calibrating')}
+                </div>
+              )}
+              {!calibrating && alerting && (
                 <div
                   className="flex items-center justify-center bg-brand-red-primary text-white font-black uppercase tracking-wide shadow-md"
                   style={{

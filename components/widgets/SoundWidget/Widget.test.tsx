@@ -464,4 +464,102 @@ describe('SoundWidget', () => {
       );
     });
   });
+
+  describe('calibration (noise-meter-pro)', () => {
+    beforeEach(() => {
+      access.pro = true;
+      mockGetByteFrequencyData.mockImplementation((array: Uint8Array) => {
+        array.fill(40);
+      });
+    });
+    afterEach(() => {
+      access.pro = false;
+    });
+
+    it('listens for 5 seconds and saves the quiet level as the zero point', async () => {
+      render(<SoundWidget widget={createWidget({ calibrateRequest: 5 })} />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(screen.getByText(/Calibrating/)).toBeInTheDocument();
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'sound-1',
+        {
+          config: expect.objectContaining({
+            noiseFloor: 40,
+            calibratedAt: 5,
+          }) as SoundConfig,
+        },
+        { skipHistory: true }
+      );
+    });
+
+    it('waits for the mic before saving a calibration', () => {
+      mockGetUserMedia.mockReturnValue(new Promise(() => undefined));
+      render(<SoundWidget widget={createWidget({ calibrateRequest: 5 })} />);
+      act(() => {
+        vi.advanceTimersByTime(12_000);
+      });
+      expect(mockUpdateWidget).not.toHaveBeenCalled();
+      expect(screen.getByText(/Calibrating/)).toBeInTheDocument();
+    });
+
+    it('gives up after 30 seconds without a mic and keeps the old floor', () => {
+      mockGetUserMedia.mockReturnValue(new Promise(() => undefined));
+      render(
+        <SoundWidget
+          widget={createWidget({ noiseFloor: 12, calibrateRequest: 5 })}
+        />
+      );
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'sound-1',
+        {
+          config: expect.objectContaining({
+            noiseFloor: 12,
+            calibratedAt: 5,
+          }) as SoundConfig,
+        },
+        { skipHistory: true }
+      );
+    });
+
+    it('reads the calibrated quiet room as Silence', async () => {
+      render(
+        <SoundWidget
+          widget={createWidget({ noiseFloor: 40, sensitivity: 5 })}
+        />
+      );
+      await act(async () => {
+        await Promise.resolve();
+      });
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(screen.getByText(/Silence/)).toBeInTheDocument();
+    });
+
+    it('ignores the calibration with the flag off', async () => {
+      access.pro = false;
+      render(
+        <SoundWidget
+          widget={createWidget({ noiseFloor: 40, calibrateRequest: 5 })}
+        />
+      );
+      await act(async () => {
+        await Promise.resolve();
+      });
+      act(() => {
+        vi.advanceTimersByTime(6000);
+      });
+      expect(screen.queryByText(/Calibrating/)).toBeNull();
+      expect(screen.getByText(/Outside/)).toBeInTheDocument();
+      expect(mockUpdateWidget).not.toHaveBeenCalled();
+    });
+  });
 });
