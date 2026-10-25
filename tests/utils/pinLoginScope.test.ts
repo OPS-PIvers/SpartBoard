@@ -16,7 +16,7 @@ const custom = (claims: Record<string, unknown>) =>
   }) as unknown as User;
 
 function authWith(user: User | null) {
-  const auth = { currentUser: user } as { currentUser: User | null };
+  const auth: { currentUser: User | null } = { currentUser: user };
   signInAnonymously.mockImplementation(() => {
     auth.currentUser = anon;
     return Promise.resolve();

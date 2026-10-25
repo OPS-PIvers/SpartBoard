@@ -9,11 +9,10 @@ service cloud.firestore {
     // A view-as token that may not make this request (read-only write, or past exp)
     // has no uid: the missing-key error denies every owner comparison built on it.
     // A pinLoginV1 token likewise has no uid outside the one session it was proven for.
-    // shorthands: off (the one place the raw uid is read)
+    // shorthands: off (the raw uid is read only here, in the PIN scope helpers and the PIN pointer get)
     function authUid() {
       return viewAsOk() && pinSessionOk() ? request.auth.uid : request.auth.token.viewAs.noUid;
     }
-    // shorthands: on
     // A pre-scope PIN token (no pinSessionId) keeps its old reach for 12h after sign-in so open tabs survive the release.
     function pinSessionOk() {
       let t = request.auth.token;
@@ -30,6 +29,7 @@ service cloud.firestore {
           (request.path[4] == sid + '__' + request.auth.uid &&
            request.path[3] in ['quiz_attempt_ledger', 'video_activity_attempt_ledger']);
     }
+    // shorthands: on
     function unchanged(k) { return request.resource.data[k] == resource.data[k]; }
     function isStr(k) { return request.resource.data[k] is string; }
     function isInt(k) { return request.resource.data[k] is int; }
@@ -4699,10 +4699,12 @@ service cloud.firestore {
           (!isPinLoginToken() || resource == null ||
            existing().get('classId', '') in request.auth.token.classIds);
         // A PIN token reads only its own session's pointer (accommodation override, window).
+        // shorthands: off (authUid() has no uid here for a PIN token)
         allow get: if signedIn() && isPinLoginToken() &&
           request.auth.uid == studentUid &&
           (resource == null ||
            existing().get('sessionId', '') == request.auth.token.get('pinSessionId', ''));
+        // shorthands: on
         allow write: if false;
       }
     }
