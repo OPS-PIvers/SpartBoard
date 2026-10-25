@@ -350,7 +350,10 @@ describe('startPollSession results state', () => {
     lockedQuestionIds: ['q-1'],
   };
   const written = () =>
-    mockSetDoc.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+    mockSetDoc.mock.calls
+      .map((call) => call[1] as Record<string, unknown>)
+      .reverse()
+      .find((data) => 'revealedQuestions' in data);
 
   it('resume keeps reveals and locks for a poll-pro teacher', async () => {
     const next = await startPollSession(

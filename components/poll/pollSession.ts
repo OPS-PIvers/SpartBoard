@@ -145,8 +145,15 @@ export const toSessionResultsState = (
 const mintUniquePollCode = async (): Promise<string> => {
   for (let attempt = 0; attempt < CODE_MINT_RETRIES; attempt += 1) {
     const candidate = generatePollCode();
-    const snap = await getDoc(doc(db, POLL_CODES, candidate));
-    if (!snap.exists()) return candidate;
+    const taken = await getDoc(doc(db, POLL_CODES, candidate)).then(
+      (snap) => snap.exists(),
+      // Offline: the pointer create below still rejects a real collision.
+      (err: unknown) => {
+        if ((err as { code?: string })?.code === 'unavailable') return false;
+        throw err;
+      }
+    );
+    if (!taken) return candidate;
   }
   throw new Error('Could not generate a unique poll join code.');
 };
