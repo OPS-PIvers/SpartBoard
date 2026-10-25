@@ -2404,6 +2404,8 @@ service cloud.firestore {
              && request.resource.data.members[request.auth.uid].role == 'member'
              && request.resource.data.members[request.auth.uid].status == 'active'
              && request.resource.data.members[request.auth.uid].uid == request.auth.uid
+             // Only the keys acceptInvite writes, so a rejoin can't smuggle in e.g. mentorRole.
+             && request.resource.data.members[request.auth.uid].keys().hasOnly(['uid', 'email', 'displayName', 'role', 'status', 'joinedAt'])
            );
       return request.auth.token.get('email_verified', false) == true
         && emailLower != ''

@@ -3,7 +3,7 @@
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   initializeTestEnvironment,
   assertSucceeds,
@@ -36,6 +36,14 @@ const EX_COLEAD_UID = 'ex-colead-uid';
 const EX_COLEAD_EMAIL = 'ex-colead@example.com';
 const STALE_COLEAD_UID = 'stale-colead-uid';
 const STALE_COLEAD_EMAIL = 'stale-colead@example.com';
+const VIEWER_UID = 'viewer-uid';
+const VIEWER_EMAIL = 'viewer@example.com';
+const UNKEYED_UID = 'unkeyed-uid';
+const UNKEYED_EMAIL = 'unkeyed@example.com';
+const EX_VIEWER_UID = 'ex-viewer-uid';
+const EX_VIEWER_EMAIL = 'ex-viewer@example.com';
+const NEW_UID = 'new-uid';
+const NEW_EMAIL = 'newcomer@example.com';
 
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
@@ -104,16 +112,29 @@ beforeEach(async () => {
     await setDoc(doc(db, `plcs/${PLC_ID}`), {
       name: 'Test PLC',
       leadUid: LEAD_UID,
-      memberUids: [LEAD_UID, MEMBER_UID, COLEAD_UID],
+      memberUids: [LEAD_UID, MEMBER_UID, COLEAD_UID, VIEWER_UID, UNKEYED_UID],
       memberEmails: {
         [LEAD_UID]: LEAD_EMAIL,
         [MEMBER_UID]: MEMBER_EMAIL,
         [COLEAD_UID]: COLEAD_EMAIL,
+        [VIEWER_UID]: VIEWER_EMAIL,
+        [UNKEYED_UID]: UNKEYED_EMAIL,
       },
       members: {
         [LEAD_UID]: entry(LEAD_UID, LEAD_EMAIL, 'lead'),
         [MEMBER_UID]: entry(MEMBER_UID, MEMBER_EMAIL, 'member'),
         [COLEAD_UID]: entry(COLEAD_UID, COLEAD_EMAIL, 'coLead'),
+        // Auto-roster building-group viewer.
+        [VIEWER_UID]: {
+          ...entry(VIEWER_UID, VIEWER_EMAIL, 'viewer'),
+          addedBy: 'autoRoster',
+        },
+        [EX_VIEWER_UID]: entry(
+          EX_VIEWER_UID,
+          EX_VIEWER_EMAIL,
+          'viewer',
+          'removed'
+        ),
         // What removeMember / leavePlc leave behind.
         [EX_MEMBER_UID]: entry(
           EX_MEMBER_UID,
@@ -292,6 +313,109 @@ describe('re-accepting an invite resets a stale entry', () => {
           EX_COLEAD_EMAIL,
           'coLead'
         ),
+        updatedAt: 2,
+      })
+    );
+  });
+});
+
+describe('current members keep their access', () => {
+  it('an auto-roster viewer reads the root doc and aggregates but cannot write content', async () => {
+    const db = as(VIEWER_UID, VIEWER_EMAIL);
+    await assertSucceeds(getDoc(doc(db, `plcs/${PLC_ID}`)));
+    await assertSucceeds(getDoc(doc(db, `plcs/${PLC_ID}/aggregates/a1`)));
+    await assertSucceeds(getDocs(collection(db, `plcs/${PLC_ID}/aggregates`)));
+    await assertFails(
+      setDoc(doc(db, `plcs/${PLC_ID}/meta/learningTargets`), learningTargets)
+    );
+    await assertFails(deleteDoc(doc(db, `plcs/${PLC_ID}/notes/n1`)));
+  });
+
+  it('an unkeyed member on a mapped PLC reads and edits content', async () => {
+    const db = as(UNKEYED_UID, UNKEYED_EMAIL);
+    await assertSucceeds(getDoc(doc(db, `plcs/${PLC_ID}`)));
+    await assertSucceeds(getDoc(doc(db, `plcs/${PLC_ID}/aggregates/a1`)));
+    await assertSucceeds(
+      setDoc(doc(db, `plcs/${PLC_ID}/meta/learningTargets`), learningTargets)
+    );
+    await assertSucceeds(deleteDoc(doc(db, `plcs/${PLC_ID}/notes/n1`)));
+  });
+});
+
+describe('accepting an invite on a mapped PLC', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(
+        doc(db, `plc_invitations/${inviteId(NEW_EMAIL)}`),
+        invite(NEW_EMAIL, LEAD_UID)
+      );
+      await setDoc(
+        doc(db, `plc_invitations/${inviteId(EX_VIEWER_EMAIL)}`),
+        invite(EX_VIEWER_EMAIL, LEAD_UID)
+      );
+    });
+  });
+
+  it('allows a first-time arrays-only accept', async () => {
+    const db = as(NEW_UID, NEW_EMAIL);
+    await assertSucceeds(
+      updateDoc(doc(db, `plcs/${PLC_ID}`), {
+        memberUids: arrayUnion(NEW_UID),
+        [`memberEmails.${NEW_UID}`]: NEW_EMAIL,
+        updatedAt: 2,
+      })
+    );
+    await assertSucceeds(getDoc(doc(db, `plcs/${PLC_ID}`)));
+  });
+
+  it('denies a self entry carrying keys the client never writes', async () => {
+    await assertFails(
+      updateDoc(doc(as(NEW_UID, NEW_EMAIL), `plcs/${PLC_ID}`), {
+        memberUids: arrayUnion(NEW_UID),
+        [`memberEmails.${NEW_UID}`]: NEW_EMAIL,
+        [`members.${NEW_UID}`]: {
+          ...entry(NEW_UID, NEW_EMAIL, 'member'),
+          mentorRole: 'mentor',
+        },
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('a rejoin over a removed viewer entry resets it to an active member who can edit', async () => {
+    const db = as(EX_VIEWER_UID, EX_VIEWER_EMAIL);
+    await assertSucceeds(
+      updateDoc(doc(db, `plcs/${PLC_ID}`), {
+        memberUids: arrayUnion(EX_VIEWER_UID),
+        [`memberEmails.${EX_VIEWER_UID}`]: EX_VIEWER_EMAIL,
+        [`members.${EX_VIEWER_UID}`]: entry(
+          EX_VIEWER_UID,
+          EX_VIEWER_EMAIL,
+          'member'
+        ),
+        updatedAt: 2,
+      })
+    );
+    const snap = await assertSucceeds(getDoc(doc(db, `plcs/${PLC_ID}`)));
+    const mine = (
+      snap.data()?.members as Record<string, { role: string; status: string }>
+    )[EX_VIEWER_UID];
+    expect(mine).toMatchObject({ role: 'member', status: 'active' });
+    await assertSucceeds(
+      setDoc(doc(db, `plcs/${PLC_ID}/meta/learningTargets`), learningTargets)
+    );
+  });
+
+  it('a rejoin over a removed viewer entry cannot add a mentor tag', async () => {
+    await assertFails(
+      updateDoc(doc(as(EX_VIEWER_UID, EX_VIEWER_EMAIL), `plcs/${PLC_ID}`), {
+        memberUids: arrayUnion(EX_VIEWER_UID),
+        [`memberEmails.${EX_VIEWER_UID}`]: EX_VIEWER_EMAIL,
+        [`members.${EX_VIEWER_UID}`]: {
+          ...entry(EX_VIEWER_UID, EX_VIEWER_EMAIL, 'member'),
+          mentorRole: 'mentor',
+        },
         updatedAt: 2,
       })
     );
