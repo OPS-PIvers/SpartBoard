@@ -60,6 +60,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'checklist-small-card',
   'collection-sync-sharing',
   'shared-board-live-walls',
+  'seating-chart-plans',
   'scoreboard-pro',
 ];
 

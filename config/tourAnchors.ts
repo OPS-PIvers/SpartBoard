@@ -12519,6 +12519,23 @@ export const TOUR_ANCHORS = {
       'Remove-from-seat button on an assigned student in Seating Chart Assign mode',
     perWidget: true,
   },
+  'seating.plan-select': {
+    label: 'Seating plan menu in Seating Chart Assign mode',
+    perWidget: true,
+  },
+  'seating.save-plan': {
+    label: 'Save seating plan button in Seating Chart Assign mode',
+    perWidget: true,
+  },
+  'seating.rename-plan': {
+    label: 'Rename plan button in Seating Chart Assign mode',
+    perWidget: true,
+  },
+  'seating.delete-plan': {
+    label: 'Delete plan button in Seating Chart Assign mode',
+    perWidget: true,
+    destructive: true,
+  },
   'music.play-pause': {
     label: 'Play or pause button on the Music widget',
     perWidget: true,

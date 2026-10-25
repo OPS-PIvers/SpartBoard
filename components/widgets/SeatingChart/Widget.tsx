@@ -8,6 +8,7 @@ import React, {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { rosterGroupMemberIds } from '@/utils/rosterGroups';
 import { WidgetData, SeatingChartConfig, FurnitureItem } from '@/types';
@@ -20,6 +21,7 @@ import {
 import { FurnitureItemRenderer } from './FurnitureItemRenderer';
 import { SeatingChartToolbar } from './SeatingChartToolbar';
 import { SeatingChartSidebar } from './SeatingChartSidebar';
+import { detachPlan } from './seatingPlans';
 import {
   FURNITURE_TYPES,
   SETUP_SIDEBAR_W,
@@ -49,6 +51,7 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
   const { t } = useTranslation();
   const { updateWidget, rosters, activeRosterId, addToast } = useDashboard();
   const { showConfirm } = useDialog();
+  const plansFlag = useAuth().canAccessFeature('seating-chart-plans');
   const config = widget.config as SeatingChartConfig;
   // Fall back to the legacy templateRows field so existing Firestore widgets
   // preserve their saved column count after the rename to templateColumns.
@@ -63,6 +66,8 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     template = 'freeform',
     templateColumns = legacyTemplateRows ?? DEFAULT_TEMPLATE_COLUMNS,
   } = config;
+  // Custom-roster seat keys are typed names, kept out of Firestore by dashboardPII; plans would copy them.
+  const plansEnabled = plansFlag && rosterMode === 'class';
 
   const [mode, setMode] = useState<'setup' | 'assign' | 'interact'>('interact');
 
@@ -347,7 +352,12 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     );
     if (confirmed) {
       updateWidget(widget.id, {
-        config: { ...config, furniture: [], assignments: {} },
+        config: {
+          ...latestRef.current.config,
+          ...detachPlan(latestRef.current.config),
+          furniture: [],
+          assignments: {},
+        },
       });
       setSelectedIds(new Set());
     }
@@ -479,7 +489,12 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
     }
 
     updateWidget(widget.id, {
-      config: { ...config, furniture: newFurniture, assignments: {} },
+      config: {
+        ...config,
+        ...detachPlan(config),
+        furniture: newFurniture,
+        assignments: {},
+      },
     });
     setSelectedIds(new Set());
     addToast(
@@ -931,6 +946,17 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
           addAllRandomly={addAllRandomly}
           handleStudentClick={handleStudentClick}
           selectedStudent={selectedStudent}
+          {...(plansEnabled
+            ? {
+                plans: {
+                  onChange: (patch) =>
+                    updateWidget(widget.id, {
+                      config: { ...latestRef.current.config, ...patch },
+                    }),
+                  addToast,
+                },
+              }
+            : {})}
         />
 
         {/* Canvas */}
