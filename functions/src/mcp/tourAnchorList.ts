@@ -2801,6 +2801,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "poll.reveal-results",
+    "label": "Show results button in Poll",
+    "scope": "widget"
+  },
+  {
+    "id": "poll.lock-voting",
+    "label": "Lock voting button in Poll",
+    "scope": "widget"
+  },
+  {
     "id": "stations.shuffle",
     "label": "Shuffle button in Stations",
     "scope": "widget",
@@ -16298,6 +16308,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         ]
       }
     ]
+  },
+  {
+    "id": "widget-settings.poll.hide-results",
+    "label": "Hide results until revealed switch in Poll settings",
+    "scope": "widget",
+    "panel": true
   },
   {
     "id": "widget-settings.poll.export-csv",

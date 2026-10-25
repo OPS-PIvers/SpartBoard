@@ -2310,6 +2310,12 @@ export interface PollConfig {
   question?: string;
   /** Legacy single-question shape — read through `getPollQuestions` only. */
   options?: PollOption[];
+  /** Results stay hidden on the board and phones until the teacher reveals each question. */
+  hideResults?: boolean;
+  /** Question ids whose results the teacher has revealed (only read when `hideResults`). */
+  revealedQuestionIds?: string[];
+  /** Question ids whose voting the teacher has locked during a live session. */
+  lockedQuestionIds?: string[];
 }
 
 /**
@@ -2343,6 +2349,12 @@ export interface PollSessionDoc {
   /** Null until the teacher first opens voting — drives the waiting screen. */
   startedAt: number | null;
   updatedAt: number;
+  /** Mirrors `PollConfig.hideResults` so phones hold tallies back. */
+  hideResults?: boolean;
+  /** Question indexes whose results are revealed. */
+  revealedQuestions?: number[];
+  /** Question indexes the rules refuse votes for. */
+  lockedQuestions?: number[];
 }
 
 export type ActivityWallMode = 'text' | 'photo';
@@ -10402,6 +10414,8 @@ export type GlobalFeature =
   /** Members of a shared board see the owner's Activity Wall and its approved posts live. */
   | 'shared-board-live-walls'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
+  /** Poll: hide results until revealed, lock voting, answered count (docs/plans/POLL_PRO.md). */
+  | 'poll-pro'
   | 'flashcards-speak';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */

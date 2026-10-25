@@ -93,6 +93,25 @@ export const toSessionQuestions = (
     options: q.options.map((o) => ({ id: o.id, label: o.label })),
   }));
 
+/** The session-doc mirror of the teacher's reveal and lock choices, keyed by question index. */
+export const toSessionResultsState = (
+  config: PollConfig
+): Pick<
+  PollSessionDoc,
+  'hideResults' | 'revealedQuestions' | 'lockedQuestions'
+> => {
+  const questions = getPollQuestions(config);
+  const indexesOf = (ids: string[] | undefined): number[] => {
+    const wanted = new Set(ids ?? []);
+    return questions.flatMap((q, i) => (wanted.has(q.id) ? [i] : []));
+  };
+  return {
+    hideResults: config.hideResults === true,
+    revealedQuestions: indexesOf(config.revealedQuestionIds),
+    lockedQuestions: indexesOf(config.lockedQuestionIds),
+  };
+};
+
 /** Mint a code no other session is already using. */
 const mintUniquePollCode = async (): Promise<string> => {
   for (let attempt = 0; attempt < CODE_MINT_RETRIES; attempt += 1) {
@@ -130,6 +149,7 @@ const writeSessionDoc = async (
     active: state.active,
     startedAt: state.startedAt,
     updatedAt: Date.now(),
+    ...toSessionResultsState(config),
   };
   await setDoc(
     doc(db, POLL_SESSIONS, makePollSessionId(teacherUid, code)),
@@ -208,12 +228,17 @@ export const startPollSession = async (
   const rotate = mode === 'fresh' && !!config.lastPollSessionId;
   const code =
     rotate || !config.joinCode ? await mintUniquePollCode() : config.joinCode;
-  const currentQuestionIndex = await writeSessionDoc(teacherUid, code, config, {
+  // A fresh start hides and unlocks every question again; resume keeps them.
+  const base: PollConfig =
+    mode === 'fresh'
+      ? { ...config, revealedQuestionIds: [], lockedQuestionIds: [] }
+      : config;
+  const currentQuestionIndex = await writeSessionDoc(teacherUid, code, base, {
     active: true,
     startedAt: Date.now(),
   });
   return {
-    ...config,
+    ...base,
     joinCode: code,
     activePollSessionId: code,
     activePollSessionOwnerUid: stampOwner ? teacherUid : null,
@@ -261,6 +286,19 @@ export const setSessionQuestionIndex = async (
   await setDoc(
     doc(db, POLL_SESSIONS, makePollSessionId(teacherUid, sessionId)),
     { currentQuestionIndex: questionIndex, updatedAt: Date.now() },
+    { merge: true }
+  );
+};
+
+/** Push the teacher's reveal and lock choices to every joined device (and the vote rules). */
+export const syncSessionResultsState = async (
+  teacherUid: string,
+  sessionId: string,
+  config: PollConfig
+): Promise<void> => {
+  await setDoc(
+    doc(db, POLL_SESSIONS, makePollSessionId(teacherUid, sessionId)),
+    { ...toSessionResultsState(config), updatedAt: Date.now() },
     { merge: true }
   );
 };

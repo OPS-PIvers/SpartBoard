@@ -607,6 +607,14 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     destructive: true,
   },
+  'poll.reveal-results': {
+    label: 'Show results button in Poll',
+    perWidget: true,
+  },
+  'poll.lock-voting': {
+    label: 'Lock voting button in Poll',
+    perWidget: true,
+  },
   'stations.shuffle': { label: 'Shuffle button in Stations', perWidget: true },
   'stations.rotate': { label: 'Rotate button in Stations', perWidget: true },
   'stations.reset-all': {
@@ -3865,6 +3873,11 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
     destructive: true,
+  },
+  'widget-settings.poll.hide-results': {
+    label: 'Hide results until revealed switch in Poll settings',
+    perWidget: true,
+    panel: true,
   },
   'widget-settings.poll.export-csv': {
     label: 'Export CSV button in Poll settings',

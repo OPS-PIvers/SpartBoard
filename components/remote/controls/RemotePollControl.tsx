@@ -2,6 +2,10 @@ import React, { useCallback, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
+  Eye,
+  EyeOff,
+  Lock,
+  LockOpen,
   Plus,
   Minus,
   QrCode,
@@ -71,6 +75,10 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
     canGoPrev,
     canGoNext,
     goToQuestion,
+    resultsHidden,
+    isLocked,
+    setRevealed,
+    setLocked,
   } = usePollSession({
     config,
     teacherUid: foreignSession ? (sessionOwnerUid ?? undefined) : user?.uid,
@@ -258,6 +266,44 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
             <Radio className="w-6 h-6" /> Start Voting
           </button>
         )}
+
+        {/* Reveal and lock — the teacher's phone always shows tallies, the board waits for Show results */}
+        {canAccessFeature('poll-pro') &&
+          !foreignSession &&
+          (config.hideResults === true || isLive) && (
+            <div className="grid grid-cols-2 gap-2">
+              {config.hideResults === true && (
+                <button
+                  onClick={() => setRevealed(resultsHidden)}
+                  style={{ touchAction: 'manipulation' }}
+                  className="touch-manipulation flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold transition-all active:scale-95"
+                  aria-pressed={!resultsHidden}
+                >
+                  {resultsHidden ? (
+                    <Eye className="w-5 h-5" />
+                  ) : (
+                    <EyeOff className="w-5 h-5" />
+                  )}
+                  {resultsHidden ? 'Show results' : 'Hide results'}
+                </button>
+              )}
+              {isLive && (
+                <button
+                  onClick={() => setLocked(!isLocked)}
+                  style={{ touchAction: 'manipulation' }}
+                  className="touch-manipulation flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold transition-all active:scale-95"
+                  aria-pressed={isLocked}
+                >
+                  {isLocked ? (
+                    <LockOpen className="w-5 h-5" />
+                  ) : (
+                    <Lock className="w-5 h-5" />
+                  )}
+                  {isLocked ? 'Unlock voting' : 'Lock voting'}
+                </button>
+              )}
+            </div>
+          )}
 
         {/* Join QR toggle — gated by anonymous-join, only meaningful while live */}
         {isLive && canOfferAnonymousJoin && (

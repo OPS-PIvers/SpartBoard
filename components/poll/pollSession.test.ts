@@ -40,6 +40,7 @@ import {
   ensurePollJoinCode,
   lookupPollSessionByCode,
   startPollSession,
+  toSessionResultsState,
   stopPollSession,
   setSessionQuestionIndex,
 } from './pollSession';
@@ -315,5 +316,33 @@ describe('setSessionQuestionIndex', () => {
       expect.objectContaining({ currentQuestionIndex: 2 }),
       { merge: true }
     );
+  });
+});
+
+describe('toSessionResultsState', () => {
+  const config: PollConfig = {
+    questions: [
+      { id: 'q1', question: 'A?', options: [] },
+      { id: 'q2', question: 'B?', options: [] },
+    ],
+    hideResults: true,
+    revealedQuestionIds: ['q2', 'gone'],
+    lockedQuestionIds: ['q1'],
+  };
+
+  it('maps question ids to the indexes the rules check', () => {
+    expect(toSessionResultsState(config)).toEqual({
+      hideResults: true,
+      revealedQuestions: [1],
+      lockedQuestions: [0],
+    });
+  });
+
+  it('defaults to visible and unlocked', () => {
+    expect(toSessionResultsState({ questions: config.questions })).toEqual({
+      hideResults: false,
+      revealedQuestions: [],
+      lockedQuestions: [],
+    });
   });
 });

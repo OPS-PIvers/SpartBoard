@@ -1623,6 +1623,8 @@
       "addOption": "Add Option",
       "actions": "Actions",
       "liveVotingHelp": "Students vote from their own devices.",
+      "hideResults": "Hide results until revealed",
+      "hideResultsHelp": "Results stay hidden on the board and on phones until you select Show results.",
       "votingOpen": "Voting open",
       "notStarted": "Not started",
       "copied": "Copied",

@@ -28,8 +28,10 @@ import {
   Check,
   Copy,
   ListOrdered,
+  EyeOff,
 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
+import { Toggle } from '@/components/common/Toggle';
 import { MagicInput } from '@/components/common/MagicInput';
 import {
   generatePoll,
@@ -42,6 +44,7 @@ import {
   ensurePollJoinCode,
   startPollSession,
   stopPollSession,
+  syncSessionResultsState,
 } from '@/components/poll/pollSession';
 import { buildPollJoinUrl } from '@/utils/pollCode';
 import {
@@ -144,6 +147,25 @@ export const PollSettings: React.FC<{
     } catch (err) {
       console.error('[PollSettings] stopPollSession failed:', err);
       addToast(t('widgetSettings.poll.stopError'), 'error');
+    }
+  };
+
+  const handleHideResultsChange = (hideResults: boolean) => {
+    // Turning hiding on starts every question hidden again.
+    const next: PollConfig = {
+      ...config,
+      hideResults,
+      revealedQuestionIds: [],
+    };
+    applyConfig(next);
+    if (
+      activePollSessionId &&
+      user &&
+      (config.activePollSessionOwnerUid ?? user.uid) === user.uid
+    ) {
+      void syncSessionResultsState(user.uid, activePollSessionId, next).catch(
+        (err) => logError('PollSettings.hideResults', err)
+      );
     }
   };
 
@@ -705,6 +727,29 @@ export const PollSettings: React.FC<{
       )}
 
       {/* Live Device Voting — gated by anonymous-join */}
+      {showBehavior && canAccessFeature('poll-pro') && (
+        <div className="pt-4 border-t border-slate-100 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <SettingsLabel icon={EyeOff}>
+              {t('widgetSettings.poll.hideResults')}
+            </SettingsLabel>
+            <p className="text-xxs text-slate-400 font-medium">
+              {t('widgetSettings.poll.hideResultsHelp')}
+            </p>
+          </div>
+          <Toggle
+            checked={config.hideResults === true}
+            onChange={handleHideResultsChange}
+            label={t('widgetSettings.poll.hideResults')}
+            anchor={tourAttr(
+              'widget-settings.poll.hide-results',
+              widget.id,
+              widget.type
+            )}
+          />
+        </div>
+      )}
+
       {showBehavior && canOfferAnonymousJoin && (
         <div className="pt-4 border-t border-slate-100">
           <SettingsLabel icon={Radio}>
