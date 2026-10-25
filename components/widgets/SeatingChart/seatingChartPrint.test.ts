@@ -88,4 +88,36 @@ describe('buildSeatingChartPrint', () => {
     expect(bad.body).not.toContain('background:red');
     expect(bad.body).not.toContain('NaN');
   });
+
+  it('sizes names so every wrapped line fits the seat', () => {
+    const names = [
+      'Alexandria Montgomery-Smith',
+      'Bo Li',
+      'Maximilian Featherstonehaugh',
+      'Ana Ruiz',
+    ];
+    const fit = buildSeatingChartPrint({
+      title: 'T',
+      date: new Date(2026, 9, 25),
+      furniture: [
+        item('t', { type: 'table-rect', x: 0, y: 0, width: 160, height: 120 }),
+        item('far', { x: 840, y: 480, width: 160, height: 120 }),
+      ],
+      namesBySeat: new Map([['t', names]]),
+    });
+    const pt = Number(/font-size:([\d.]+)pt/.exec(fit.body)?.[1]);
+    const box =
+      /width:([\d.]+)mm;height:([\d.]+)mm;transform:rotate\(0deg\)">/.exec(
+        fit.body
+      );
+    const w = Number(box?.[1]) - 1;
+    const h = Number(box?.[2]) - 1;
+    const charMm = (pt / 2.835) * 0.6;
+    const lines = names.reduce(
+      (sum, n) => sum + Math.ceil((n.length * charMm) / w),
+      0
+    );
+    expect(pt).toBeLessThan(14);
+    expect(lines * (pt / 2.835) * 1.15).toBeLessThanOrEqual(h);
+  });
 });

@@ -48,6 +48,23 @@ const extents = (b: Box) => {
   return { minX: cx - hw, maxX: cx + hw, minY: cy - hh, maxY: cy + hh };
 };
 
+// Largest size (6-14pt) where every word fits the width and all wrapped lines fit the height.
+const fitNamePt = (names: string[], innerW: number, innerH: number): number => {
+  const words = names.flatMap((n) => n.split(/[\s-]+/));
+  const longestWord = Math.max(1, ...words.map((w) => w.length));
+  for (let pt = 14; pt > 6; pt -= 0.5) {
+    const charMm = (pt / PT_PER_MM) * 0.6;
+    if (longestWord * charMm > innerW) continue;
+    const lines = names.reduce(
+      (sum, n) =>
+        sum + Math.max(1, Math.ceil((n.length * charMm) / Math.max(innerW, 1))),
+      0
+    );
+    if (lines * (pt / PT_PER_MM) * 1.15 <= innerH) return pt;
+  }
+  return 6;
+};
+
 export const buildSeatingChartPrint = (
   job: SeatingChartPrintJob
 ): PrintableDocument => {
@@ -76,20 +93,7 @@ export const buildSeatingChartPrint = (
       const quarter = Math.round(((b.rotation % 180) + 180) % 180) === 90;
       const textW = (quarter ? b.h : b.w) * scale;
       const textH = (quarter ? b.w : b.h) * scale;
-      const lines = Math.max(1, names.length);
-      const longest = Math.max(1, ...names.map((n) => n.length));
-      const longestWord = Math.max(
-        1,
-        ...names.flatMap((n) => n.split(/[\s-]+/).map((w) => w.length))
-      );
-      // Fit the lines by height, each word on one line, and a long name over up to three lines.
-      const byHeight = (textH / (lines * 1.25)) * PT_PER_MM;
-      const byWord = (textW / (longestWord * 0.6)) * PT_PER_MM;
-      const byName = ((textW * 3) / (longest * 0.6)) * PT_PER_MM;
-      const namePt = Math.max(
-        6,
-        Math.min(14, byHeight, byWord, byName)
-      ).toFixed(1);
+      const namePt = fitNamePt(names, textW - 1, textH - 1).toFixed(1);
       const text =
         names.length > 0
           ? names
