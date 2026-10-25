@@ -22,6 +22,7 @@ const BUILDING_ADMIN_EMAIL = 'principal@school.edu';
 const DOMAIN_ADMIN_EMAIL = 'district@school.edu';
 const MEMBER_SUPER_EMAIL = 'boss@school.edu';
 const LEGACY_SUPER_EMAIL = 'legacy@school.edu';
+const TEACHER_EMAIL = 'teacher@school.edu';
 
 const RULES_PATH = fileURLToPath(
   new URL('../../firestore.rules', import.meta.url)
@@ -52,6 +53,7 @@ const asBuildingAdmin = () => as('building-admin-uid', BUILDING_ADMIN_EMAIL);
 const asDomainAdmin = () => as('domain-admin-uid', DOMAIN_ADMIN_EMAIL);
 const asMemberSuper = () => as('member-super-uid', MEMBER_SUPER_EMAIL);
 const asLegacySuper = () => as('legacy-super-uid', LEGACY_SUPER_EMAIL);
+const asTeacher = () => as('teacher-uid', TEACHER_EMAIL);
 
 beforeAll(async () => {
   const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
@@ -162,6 +164,33 @@ describe('other security-bearing settings docs', () => {
   it('leaves ordinary settings docs writable by any admin', async () => {
     await assertSucceeds(
       setDoc(doc(asBuildingAdmin(), 'admin_settings/app_settings'), { a: 1 })
+    );
+  });
+});
+
+describe('reads after the match split', () => {
+  it('lets any admin read every protected doc and a subcollection under one', async () => {
+    for (const path of [...PROTECTED_DOCS, 'admin_settings/view_as/x/y']) {
+      await assertSucceeds(getDoc(doc(asBuildingAdmin(), path)));
+      await assertSucceeds(getDoc(doc(asDomainAdmin(), path)));
+    }
+  });
+
+  it('keeps admin-only settings unreadable by a teacher', async () => {
+    for (const path of [
+      'admin_settings/user_roles',
+      'admin_settings/view_as',
+      'admin_settings/lti_config',
+      'admin_settings/classlink_sync',
+      'admin_settings/app_settings',
+    ]) {
+      await assertFails(getDoc(doc(asTeacher(), path)));
+    }
+  });
+
+  it('still lets a teacher read the substitute launch switch', async () => {
+    await assertSucceeds(
+      getDoc(doc(asTeacher(), 'admin_settings/sub_launch_as_teacher'))
     );
   });
 });

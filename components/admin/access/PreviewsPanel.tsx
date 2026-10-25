@@ -24,33 +24,44 @@ import { retireIssueUrl } from './retireIssue';
 import { useAuth } from '@/context/useAuth';
 import { isSuperAdminActor } from '@/utils/superAdmin';
 
+// True when the rules refuse this switch's write for the signed-in admin.
+const useSuperAdminLock = (sw: RolloutSwitch): boolean => {
+  const { user, userRoles, roleId, orgId } = useAuth();
+  return (
+    !!sw.superAdminOnly &&
+    !isSuperAdminActor(user?.email, userRoles?.superAdmins, roleId, orgId)
+  );
+};
+
 const DistrictSwitch: React.FC<{
   sw: RolloutSwitch;
   state: ReturnType<typeof useRolloutSwitch>;
-  locked?: boolean;
-}> = ({ sw, state, locked = false }) => (
-  <span className="flex items-center gap-1.5">
-    <span className="text-xxs font-bold text-slate-400 uppercase">
-      District
+}> = ({ sw, state }) => {
+  const locked = useSuperAdminLock(sw);
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className="text-xxs font-bold text-slate-400 uppercase">
+        District
+      </span>
+      {state.enabled === null ? (
+        <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+      ) : (
+        <Toggle
+          checked={state.enabled}
+          disabled={state.saving || locked}
+          onChange={(next) => void state.change(next)}
+          size="sm"
+          label={`${sw.title} district switch`}
+          anchor={tourFieldAttr(
+            'admin.previews.district-switch',
+            'admin',
+            rolloutSwitchKey(sw)
+          )}
+        />
+      )}
     </span>
-    {state.enabled === null ? (
-      <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
-    ) : (
-      <Toggle
-        checked={state.enabled}
-        disabled={state.saving || locked}
-        onChange={(next) => void state.change(next)}
-        size="sm"
-        label={`${sw.title} district switch`}
-        anchor={tourFieldAttr(
-          'admin.previews.district-switch',
-          'admin',
-          rolloutSwitchKey(sw)
-        )}
-      />
-    )}
-  </span>
-);
+  );
+};
 
 export const PreviewRow: React.FC<{
   featureId: GlobalFeature;
@@ -132,10 +143,7 @@ export const PreviewRow: React.FC<{
 
 const RolloutOnlyRow: React.FC<{ sw: RolloutSwitch }> = ({ sw }) => {
   const state = useRolloutSwitch(sw);
-  const { user, userRoles, roleId, orgId } = useAuth();
-  const locked =
-    !!sw.superAdminOnly &&
-    !isSuperAdminActor(user?.email, userRoles?.superAdmins, roleId, orgId);
+  const locked = useSuperAdminLock(sw);
   return (
     <div
       data-testid={`rollout-row-${rolloutSwitchKey(sw)}`}
@@ -158,7 +166,7 @@ const RolloutOnlyRow: React.FC<{ sw: RolloutSwitch }> = ({ sw }) => {
           {locked ? ' · Super admins only' : ''}
         </span>
       </span>
-      <DistrictSwitch sw={sw} state={state} locked={locked} />
+      <DistrictSwitch sw={sw} state={state} />
     </div>
   );
 };
