@@ -56,6 +56,20 @@ vi.mock('firebase/firestore', () => ({
   increment: (n: number) => ({ __increment: n }),
 }));
 
+const dialog = vi.hoisted(() => ({
+  showConfirm: vi.fn((..._args: unknown[]) => Promise.resolve(true)),
+  showPrompt: vi.fn((..._args: unknown[]) =>
+    Promise.resolve<string | null>(null)
+  ),
+}));
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({
+    showAlert: vi.fn(),
+    showConfirm: dialog.showConfirm,
+    showPrompt: dialog.showPrompt,
+  }),
+}));
+
 // Mock MagicInput to simulate interaction
 vi.mock('@/components/common/MagicInput', () => ({
   MagicInput: ({
@@ -634,6 +648,8 @@ describe('PollSettings', () => {
   const mockUpdateWidget = vi.fn();
   const mockAddToast = vi.fn();
   const mockCanAccessFeature = vi.fn((_id: string) => true);
+  const mockSaveWidgetPreset = vi.fn();
+  let savedPresets: Record<string, unknown> = {};
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -643,9 +659,14 @@ describe('PollSettings', () => {
       rosters: [],
       activeRosterId: null,
     });
+    savedPresets = {};
+    dialog.showConfirm.mockResolvedValue(true);
+    dialog.showPrompt.mockResolvedValue(null);
     (useAuth as Mock).mockReturnValue({
       user: { uid: 'teacher-1' },
       canAccessFeature: mockCanAccessFeature,
+      savedWidgetPresets: savedPresets,
+      saveWidgetPreset: mockSaveWidgetPreset,
     });
   });
 
@@ -1437,6 +1458,214 @@ describe('PollSettings', () => {
       mockUpdateWidget.mock.calls.at(-1)?.[1] as { config: PollConfig }
     ).config;
     expect(saved.questions?.[0]).toMatchObject({ kind: 'words', options: [] });
+  });
+
+  const proWidget = (config: PollConfig): WidgetData => ({
+    id: 'poll-1',
+    type: 'poll',
+    w: 2,
+    h: 2,
+    x: 0,
+    y: 0,
+    z: 1,
+    flipped: false,
+    config,
+  });
+
+  it('summarizes every question from the last session', () => {
+    mockOnSnapshot.mockImplementation(
+      (_ref: unknown, cb: (snap: unknown) => void) => {
+        cb({
+          docs: [
+            { id: '0_s1', data: () => ({ questionIndex: 0, optionIndex: 1 }) },
+            { id: '0_s2', data: () => ({ questionIndex: 0, optionIndex: 1 }) },
+            { id: '1_s1', data: () => ({ questionIndex: 1, optionIndex: 0 }) },
+          ],
+        });
+        return vi.fn();
+      }
+    );
+    render(
+      <PollSettings
+        widget={proWidget({
+          lastPollSessionId: 'K3F9Q',
+          questions: [
+            {
+              id: 'q1',
+              question: 'Best fruit?',
+              options: [
+                { id: 'a', label: 'Apple', votes: 0 },
+                { id: 'b', label: 'Banana', votes: 0 },
+              ],
+            },
+            {
+              id: 'q2',
+              question: 'Ready?',
+              options: [{ id: 'y', label: 'Yes', votes: 0 }],
+            },
+          ],
+        })}
+      />
+    );
+    const summary = screen.getByTestId('poll-results-summary');
+    expect(summary).toHaveTextContent('1. Best fruit?');
+    expect(summary).toHaveTextContent('2 answered');
+    expect(summary).toHaveTextContent('Banana2 · 100%');
+    expect(summary).toHaveTextContent('Yes1 · 100%');
+  });
+
+  it('reads a colleague’s stopped session for results on a shared board', () => {
+    mockOnSnapshot.mockImplementation(() => vi.fn());
+    render(
+      <PollSettings
+        widget={proWidget({
+          lastPollSessionId: 'K3F9Q',
+          lastPollSessionOwnerUid: 'colleague',
+          questions: [
+            { id: 'q1', question: 'Why?', kind: 'text', options: [] },
+          ],
+        })}
+      />
+    );
+    expect(mockCollection).toHaveBeenCalledWith(
+      {},
+      'poll_sessions',
+      'colleague_K3F9Q',
+      'votes'
+    );
+    // Typed answers belong to the colleague, so this teacher never asks for them.
+    expect(mockCollection).not.toHaveBeenCalledWith(
+      {},
+      'poll_sessions',
+      'colleague_K3F9Q',
+      'answers'
+    );
+  });
+
+  it('ends a stopped session on Reset, so its votes cannot come back', async () => {
+    render(
+      <PollSettings
+        widget={proWidget({
+          joinCode: 'K3F9Q',
+          lastPollSessionId: 'K3F9Q',
+          questions: [
+            {
+              id: 'q1',
+              question: 'Best fruit?',
+              options: [{ id: 'a', label: 'Apple', votes: 3 }],
+            },
+          ],
+        })}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    await waitFor(() => expect(mockUpdateWidget).toHaveBeenCalled());
+    const saved = (
+      mockUpdateWidget.mock.calls.at(-1)?.[1] as { config: PollConfig }
+    ).config;
+    expect(saved).toMatchObject({ joinCode: null, lastPollSessionId: null });
+  });
+
+  it('saves the poll with its votes cleared', async () => {
+    dialog.showPrompt.mockResolvedValue('  Exit ticket ');
+    render(
+      <PollSettings
+        widget={proWidget({
+          hideResults: true,
+          questions: [
+            {
+              id: 'q1',
+              question: 'Best fruit?',
+              options: [{ id: 'a', label: 'Apple', votes: 4, correct: true }],
+            },
+          ],
+        })}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save poll' }));
+    await waitFor(() => expect(mockSaveWidgetPreset).toHaveBeenCalled());
+    expect(mockSaveWidgetPreset).toHaveBeenCalledWith('poll', {
+      savedLibrary: [
+        expect.objectContaining({
+          name: 'Exit ticket',
+          hideResults: true,
+          questions: [
+            expect.objectContaining({
+              question: 'Best fruit?',
+              options: [{ id: 'a', label: 'Apple', votes: 0, correct: true }],
+            }),
+          ],
+        }),
+      ],
+    });
+  });
+
+  it('loads a saved poll as a new session', async () => {
+    savedPresets.poll = {
+      savedLibrary: [
+        {
+          id: 'p1',
+          name: 'Exit ticket',
+          createdAt: 1,
+          questions: [
+            {
+              id: 'old-q',
+              question: 'Why?',
+              kind: 'text',
+              options: [],
+            },
+          ],
+        },
+      ],
+    };
+    render(
+      <PollSettings
+        widget={proWidget({
+          joinCode: 'K3F9Q',
+          lastPollSessionId: 'K3F9Q',
+          revealedQuestionIds: ['q1'],
+          questions: [{ id: 'q1', question: 'Old', options: [] }],
+        })}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Load Exit ticket' }));
+    await waitFor(() => expect(mockUpdateWidget).toHaveBeenCalled());
+    const saved = (
+      mockUpdateWidget.mock.calls.at(-1)?.[1] as { config: PollConfig }
+    ).config;
+    expect(saved).toMatchObject({
+      joinCode: null,
+      lastPollSessionId: null,
+      revealedQuestionIds: [],
+      currentQuestionIndex: 0,
+      hideResults: false,
+    });
+    expect(saved.questions).toHaveLength(1);
+    expect(saved.questions?.[0]).toMatchObject({
+      question: 'Why?',
+      kind: 'text',
+    });
+    expect(saved.questions?.[0].id).not.toBe('old-q');
+  });
+
+  it('keeps saved polls from loading while students vote', () => {
+    savedPresets.poll = {
+      savedLibrary: [
+        { id: 'p1', name: 'Exit ticket', createdAt: 1, questions: [] },
+      ],
+    };
+    mockOnSnapshot.mockImplementation(() => vi.fn());
+    render(
+      <PollSettings
+        widget={proWidget({
+          activePollSessionId: 'K3F9Q',
+          questions: [{ id: 'q1', question: 'Now', options: [] }],
+        })}
+      />
+    );
+    expect(
+      screen.getByRole('button', { name: 'Load Exit ticket' })
+    ).toBeDisabled();
   });
 
   it('hides the question type menu without the flag', () => {

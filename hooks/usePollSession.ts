@@ -18,6 +18,7 @@ import {
   makePollSessionId,
   setSessionQuestionIndex,
   syncSessionResultsState,
+  withStoppedSessionEnded,
   type PollVoteEntry,
 } from '@/components/poll/pollSession';
 
@@ -27,6 +28,8 @@ interface UsePollSessionArgs {
   onConfigChange: (next: PollConfig) => void;
   /** The viewer owns the session, so the rules let it read typed answers. */
   readAnswers?: boolean;
+  /** Reset also ends a stopped session (poll-pro), so its votes can't come back. */
+  endSessionOnReset?: boolean;
 }
 
 export interface PollResponse {
@@ -70,28 +73,18 @@ const toggleId = (
   return on ? [...rest, id] : rest;
 };
 
-export const usePollSession = ({
-  config,
-  teacherUid,
-  onConfigChange,
-  readAnswers = false,
-}: UsePollSessionArgs): UsePollSessionResult => {
-  const activePollSessionId = config.activePollSessionId ?? null;
-  const isLive = !!activePollSessionId;
-
-  const questions = useMemo(() => getPollQuestions(config), [config]);
-  const currentQuestionIndex = clampQuestionIndex(
-    config.currentQuestionIndex,
-    questions.length
-  );
-  const currentQuestion = questions[currentQuestionIndex];
-
+/** Live vote and typed-answer docs for one session; answers only when the rules let the viewer read them. */
+export const usePollSessionDocs = (
+  teacherUid: string | undefined,
+  pollSessionId: string | null,
+  readAnswers: boolean
+): { votes: PollVoteEntry[]; answers: PollVoteEntry[] } => {
   const [votes, setVotes] = useState<PollVoteEntry[]>([]);
 
   // One listener covers every question — vote docs carry their own index.
   useEffect(() => {
-    if (!activePollSessionId || !teacherUid) return;
-    const sessionId = makePollSessionId(teacherUid, activePollSessionId);
+    if (!pollSessionId || !teacherUid) return;
+    const sessionId = makePollSessionId(teacherUid, pollSessionId);
     const unsub = onSnapshot(
       collection(db, 'poll_sessions', sessionId, 'votes'),
       (snap) => {
@@ -110,15 +103,13 @@ export const usePollSession = ({
       // board when a fresh session starts before its first snapshot arrives.
       setVotes([]);
     };
-  }, [activePollSessionId, teacherUid]);
+  }, [pollSessionId, teacherUid]);
 
   const [answers, setAnswers] = useState<PollVoteEntry[]>([]);
-  const hasTextQuestion = questions.some(isTextQuestion);
 
   useEffect(() => {
-    if (!activePollSessionId || !teacherUid || !readAnswers || !hasTextQuestion)
-      return;
-    const sessionId = makePollSessionId(teacherUid, activePollSessionId);
+    if (!pollSessionId || !teacherUid || !readAnswers) return;
+    const sessionId = makePollSessionId(teacherUid, pollSessionId);
     const unsub = onSnapshot(
       collection(db, 'poll_sessions', sessionId, 'answers'),
       (snap) => {
@@ -135,7 +126,34 @@ export const usePollSession = ({
       unsub();
       setAnswers([]);
     };
-  }, [activePollSessionId, teacherUid, readAnswers, hasTextQuestion]);
+  }, [pollSessionId, teacherUid, readAnswers]);
+
+  return { votes, answers };
+};
+
+export const usePollSession = ({
+  config,
+  teacherUid,
+  onConfigChange,
+  readAnswers = false,
+  endSessionOnReset = false,
+}: UsePollSessionArgs): UsePollSessionResult => {
+  const activePollSessionId = config.activePollSessionId ?? null;
+  const isLive = !!activePollSessionId;
+
+  const questions = useMemo(() => getPollQuestions(config), [config]);
+  const currentQuestionIndex = clampQuestionIndex(
+    config.currentQuestionIndex,
+    questions.length
+  );
+  const currentQuestion = questions[currentQuestionIndex];
+
+  const hasTextQuestion = questions.some(isTextQuestion);
+  const { votes, answers } = usePollSessionDocs(
+    teacherUid,
+    activePollSessionId,
+    readAnswers && hasTextQuestion
+  );
 
   const displayOptions = useMemo(() => {
     const options = currentQuestion?.options ?? [];
@@ -238,11 +256,12 @@ export const usePollSession = ({
   );
 
   const resetVotes = useCallback(() => {
-    const next = withVotesReset(config);
+    const reset = withVotesReset(config);
+    const next = endSessionOnReset ? withStoppedSessionEnded(reset) : reset;
     if (config.hideResults || config.answerShownQuestionIds?.length) {
       applyResultsState(next);
     } else onConfigChange(next);
-  }, [config, applyResultsState, onConfigChange]);
+  }, [config, endSessionOnReset, applyResultsState, onConfigChange]);
 
   const hasCorrectAnswer = (currentQuestion?.options ?? []).some(
     (o) => o.correct === true

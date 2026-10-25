@@ -16,6 +16,7 @@ import {
   PollConfig,
   PollQuestion,
   PollQuestionKind,
+  SavedPollPreset,
 } from '@/types';
 import { useDialog } from '@/context/useDialog';
 import { getLocalIsoDate } from '@/utils/localDate';
@@ -51,6 +52,7 @@ import {
   startPollSession,
   stopPollSession,
   syncSessionResultsState,
+  withStoppedSessionEnded,
 } from '@/components/poll/pollSession';
 import { buildPollJoinUrl } from '@/utils/pollCode';
 import {
@@ -66,7 +68,15 @@ import {
   withVotesReset,
 } from '@/utils/pollQuestions';
 
+import { usePollSessionDocs } from '@/hooks/usePollSession';
+import {
+  pollResultsCsv,
+  summarizeLocalPoll,
+  summarizePoll,
+} from '@/utils/pollResults';
 import { OptionInput } from './components/OptionInput';
+import { PollResultsSummary } from './components/PollResultsSummary';
+import { SavedPollsPanel } from './components/SavedPollsPanel';
 import { useTranslation } from 'react-i18next';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
@@ -95,6 +105,39 @@ export const PollSettings: React.FC<{
 
   const questions = useMemo(() => getPollQuestions(config), [config]);
 
+  // Results come from the live or last session the teacher ran, else the board's own tallies.
+  const resultsSessionId =
+    pollPro && showContent
+      ? (activePollSessionId ?? config.lastPollSessionId ?? null)
+      : null;
+  const resultsOwnerUid =
+    (isLive
+      ? config.activePollSessionOwnerUid
+      : config.lastPollSessionOwnerUid) ?? user?.uid;
+  const { votes: sessionVotes, answers: sessionAnswers } = usePollSessionDocs(
+    resultsOwnerUid,
+    resultsSessionId,
+    resultsOwnerUid === user?.uid && questions.some(isTextQuestion)
+  );
+  const summaries = useMemo(
+    () =>
+      resultsSessionId
+        ? summarizePoll(
+            questions,
+            sessionVotes,
+            sessionAnswers,
+            config.hiddenResponses ?? []
+          )
+        : summarizeLocalPoll(questions),
+    [
+      resultsSessionId,
+      questions,
+      sessionVotes,
+      sessionAnswers,
+      config.hiddenResponses,
+    ]
+  );
+
   // Editing cursor — deliberately separate from `currentQuestionIndex`, which
   // is what every joined phone is showing. Clicking a chip to fix a typo must
   // not yank the class to a different question.
@@ -115,6 +158,8 @@ export const PollSettings: React.FC<{
 
   // In-flight join-code reservation, shared by the mint effect and Start.
   const mintPromiseRef = useRef<Promise<string | null> | null>(null);
+  // The reserved code reached the config; once Reset or Load clears it, it is spent.
+  const mintAppliedRef = useRef(false);
 
   const beginSession = async (mode: 'fresh' | 'resume') => {
     if (!user) return;
@@ -123,7 +168,9 @@ export const PollSettings: React.FC<{
       // Adopt any in-flight code reservation instead of letting
       // startPollSession mint a second one: two codes would leave the panel
       // showing the reserved code while the live session answers to the other.
-      const reserved = await mintPromiseRef.current;
+      const reserved = mintAppliedRef.current
+        ? null
+        : await mintPromiseRef.current;
       const base =
         reserved && !config.joinCode
           ? { ...config, joinCode: reserved }
@@ -201,6 +248,10 @@ export const PollSettings: React.FC<{
   useEffect(() => {
     if (!showBehavior || !canOfferAnonymousJoin || !user || config.joinCode)
       return;
+    if (mintAppliedRef.current) {
+      mintPromiseRef.current = null;
+      mintAppliedRef.current = false;
+    }
     if (mintPromiseRef.current) return;
     const pending = ensurePollJoinCode(config, user.uid).catch((err) => {
       logError('PollSettings.ensureJoinCode', err);
@@ -214,7 +265,9 @@ export const PollSettings: React.FC<{
       // Patch ONLY the minted key. `updateWidget` merges config shallowly, so
       // writing back a whole snapshot captured before this round-trip would
       // revert any edit the teacher made while it was in flight.
-      if (code) applyConfig({ joinCode: code });
+      if (!code || mintPromiseRef.current !== pending) return;
+      mintAppliedRef.current = true;
+      applyConfig({ joinCode: code });
     });
   }, [showBehavior, canOfferAnonymousJoin, user, config, applyConfig]);
 
@@ -384,7 +437,9 @@ export const PollSettings: React.FC<{
         )
       )
       .join('\n');
-    const csvContent = csvHeader + csvRows;
+    const csvContent = pollPro
+      ? pollResultsCsv(summaries)
+      : csvHeader + csvRows;
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -476,9 +531,44 @@ export const PollSettings: React.FC<{
       }
     );
     if (!confirmed) return;
-    const next = withVotesReset(config);
+    const reset = withVotesReset(config);
+    const next = pollPro ? withStoppedSessionEnded(reset) : reset;
     applyConfig(next);
     syncHiddenResults(next);
+  };
+
+  const handleLoadSaved = (preset: SavedPollPreset) => {
+    // A different poll starts a new session with a new join code, so old votes never mix in.
+    applyConfig(
+      withPollQuestions(
+        {
+          ...config,
+          currentQuestionIndex: 0,
+          hideResults: preset.hideResults === true,
+          revealedQuestionIds: [],
+          lockedQuestionIds: [],
+          answerShownQuestionIds: [],
+          hiddenResponses: [],
+          joinCode: null,
+          lastPollSessionId: null,
+          lastPollSessionOwnerUid: null,
+        },
+        preset.questions.map((q) => ({
+          ...q,
+          id: crypto.randomUUID(),
+          options: q.options.map((o) => ({
+            ...o,
+            id: crypto.randomUUID(),
+            votes: 0,
+          })),
+        }))
+      )
+    );
+    setRawEditIndex(0);
+    addToast(
+      t('widgetSettings.poll.pollLoaded', { name: preset.name }),
+      'success'
+    );
   };
 
   const atQuestionLimit = questions.length >= MAX_POLL_QUESTIONS;
@@ -878,6 +968,15 @@ export const PollSettings: React.FC<{
             </div>
           </fieldset>
 
+          {pollPro && (
+            <div className="pt-4 border-t border-slate-100">
+              <SettingsLabel as="span">
+                {t('widgetSettings.poll.results')}
+              </SettingsLabel>
+              <PollResultsSummary summaries={summaries} />
+            </div>
+          )}
+
           {/* Actions */}
           <div className="pt-4 border-t border-slate-100">
             <SettingsLabel
@@ -916,6 +1015,17 @@ export const PollSettings: React.FC<{
               </Button>
             </div>
           </div>
+
+          {pollPro && (
+            <SavedPollsPanel
+              questions={questions}
+              hideResults={config.hideResults === true}
+              isLive={isLive}
+              onLoad={handleLoadSaved}
+              widgetId={widget.id}
+              widgetType={widget.type}
+            />
+          )}
         </>
       )}
 

@@ -3917,6 +3917,16 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'widget-settings.poll.save-poll': {
+    label: 'Save poll button in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.poll.saved-polls': {
+    label: 'Saved polls list in Poll settings',
+    perWidget: true,
+    panel: true,
+  },
   'widget-settings.poll.copy-link': {
     label: 'Copy link button in Poll settings',
     perWidget: true,

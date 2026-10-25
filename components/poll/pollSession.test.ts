@@ -43,6 +43,7 @@ import {
   toSessionResultsState,
   stopPollSession,
   setSessionQuestionIndex,
+  withStoppedSessionEnded,
 } from './pollSession';
 
 beforeEach(() => {
@@ -246,6 +247,20 @@ describe('startPollSession', () => {
 });
 
 describe('stopPollSession', () => {
+  it('remembers who ran a shared board session after it stops', async () => {
+    const next = await stopPollSession(
+      {
+        ...baseConfig,
+        joinCode: 'K3F9Q',
+        activePollSessionId: 'K3F9Q',
+        activePollSessionOwnerUid: 'colleague',
+      },
+      'colleague'
+    );
+    expect(next.activePollSessionOwnerUid).toBeNull();
+    expect(next.lastPollSessionOwnerUid).toBe('colleague');
+  });
+
   it('closes the session and parks the id for resume', async () => {
     const next = await stopPollSession(
       { ...baseConfig, joinCode: 'K3F9Q', activePollSessionId: 'K3F9Q' },
@@ -526,5 +541,32 @@ describe('word cloud and open response sessions', () => {
         2
       )
     ).toEqual([0, 1]);
+  });
+});
+
+describe('withStoppedSessionEnded', () => {
+  it('drops a stopped session and its code so Start mints a new one', () => {
+    expect(
+      withStoppedSessionEnded({
+        ...baseConfig,
+        joinCode: 'K3F9Q',
+        lastPollSessionId: 'K3F9Q',
+        lastPollSessionOwnerUid: 'teacher-1',
+      })
+    ).toMatchObject({
+      joinCode: null,
+      lastPollSessionId: null,
+      lastPollSessionOwnerUid: null,
+    });
+  });
+
+  it('leaves a live session alone', () => {
+    const live = {
+      ...baseConfig,
+      joinCode: 'K3F9Q',
+      activePollSessionId: 'K3F9Q',
+      lastPollSessionId: 'K3F9Q',
+    };
+    expect(withStoppedSessionEnded(live)).toBe(live);
   });
 });

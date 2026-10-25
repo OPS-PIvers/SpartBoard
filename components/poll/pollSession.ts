@@ -325,8 +325,22 @@ export const stopPollSession = async (
     activePollSessionId: null,
     activePollSessionOwnerUid: null,
     lastPollSessionId: active ?? config.lastPollSessionId ?? null,
+    lastPollSessionOwnerUid: active
+      ? (config.activePollSessionOwnerUid ?? null)
+      : (config.lastPollSessionOwnerUid ?? null),
   };
 };
+
+/** Drop a stopped session and its join code, so a later Start can't bring its votes back. */
+export const withStoppedSessionEnded = (config: PollConfig): PollConfig =>
+  config.activePollSessionId || !config.lastPollSessionId
+    ? config
+    : {
+        ...config,
+        joinCode: null,
+        lastPollSessionId: null,
+        lastPollSessionOwnerUid: null,
+      };
 
 /** Push the teacher's presentation cursor to every joined device. */
 export const setSessionQuestionIndex = async (

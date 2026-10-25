@@ -851,6 +851,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'widget-settings.poll.scale-size': ['widgets.poll.settings'],
     'widget-settings.poll.hide-results': ['widgets.poll.settings'],
     'widget-settings.poll.export-csv': ['widgets.poll.settings'],
+    'widget-settings.poll.save-poll': ['widgets.poll.settings'],
+    'widget-settings.poll.saved-polls': ['widgets.poll.settings'],
     'widget-settings.poll.copy-link': ['widgets.poll.settings'],
     'widget-settings.poll.stop-voting': ['widgets.poll.settings'],
     'widget-settings.poll.start-voting': ['widgets.poll.settings'],
