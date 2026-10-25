@@ -2637,7 +2637,9 @@ service cloud.firestore {
       // entry may change (flip to status 'removed'), so the branch can't rewrite a
       // teammate while self-removing. OPTIONAL (legacy array-only PLCs still leave).
       let membersUntouchedOrSelfRemoved =
-        !('members' in request.resource.data.diff(resource.data).affectedKeys())
+        // Untouched is only for a leaver with no entry, so an entry can't stay active after leaving.
+        (!('members' in request.resource.data.diff(resource.data).affectedKeys())
+          && !(request.auth.uid in resource.data.get('members', {})))
         || (
              request.resource.data.members.diff(resource.data.get('members', {}))
                .affectedKeys().hasOnly([request.auth.uid])
@@ -3170,7 +3172,8 @@ service cloud.firestore {
         }
         allow read: if signedIn()
           && (
-            authUid() in plcRootData().get('members', {})
+            plcRootData().get('members', {}).get(authUid(), {'status': 'removed'})
+              .get('status', 'active') == 'active'
             || authUid() in plcRootData().memberUids
           );
         // No client writes — server-only (Admin SDK bypasses rules).

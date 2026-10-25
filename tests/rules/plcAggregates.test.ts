@@ -162,6 +162,26 @@ describe('plcs/{plcId}/aggregates — read', () => {
     );
   });
 
+  it('a departed member whose entry is removed cannot read', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `plcs/${MAP_ONLY_PLC_ID}`), {
+        [`members.${MEMBER_B_UID}`]: {
+          uid: MEMBER_B_UID,
+          email: 'member-b@example.com',
+          displayName: 'Member B',
+          role: 'member',
+          status: 'removed',
+          joinedAt: 1,
+        },
+      });
+    });
+    await assertFails(
+      getDoc(
+        doc(asMemberB(), `plcs/${MAP_ONLY_PLC_ID}/aggregates/${ASSESSMENT_ID}`)
+      )
+    );
+  });
+
   it('a non-member of the map-only PLC cannot read it', async () => {
     await assertFails(
       getDoc(

@@ -659,6 +659,19 @@ describe('plcs/{plcId} update — leavePlc (members-map aware)', () => {
     }
   );
 
+  it('rejects a leaver with an entry leaving it active (arrays-only leave)', async () => {
+    await assertFails(
+      updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
+        memberUids: [LEAD_UID, OTHER_UID],
+        memberEmails: {
+          [LEAD_UID]: LEAD_EMAIL,
+          [OTHER_UID]: OTHER_EMAIL,
+        },
+        updatedAt: 2,
+      })
+    );
+  });
+
   it('rejects a non-member driving the leave path', async () => {
     await assertFails(
       updateDoc(doc(asNonMember(), `plcs/${PLC_ID}`), {
