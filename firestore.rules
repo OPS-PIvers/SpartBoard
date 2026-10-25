@@ -2363,7 +2363,7 @@ service cloud.firestore {
         && (
           authUid() == plcData.get('leadUid', '')
           || (entry.get('role', '') in ['lead', 'coLead']
-              && entry.get('status', '') == 'active')
+              && entry.get('status', 'active') == 'active')
         );
     }
 
@@ -2976,7 +2976,8 @@ service cloud.firestore {
       // runs the same kind of unfiltered list query against this collection.
       allow read: if signedIn()
         && (
-          existing().get('members', {}).get(authUid(), {}).get('status', '') == 'active'
+          (authUid() in existing().get('members', {})
+            && existing().members[authUid()].get('status', 'active') == 'active')
           || authUid() in existing().memberUids
           || (
             isAdmin()
