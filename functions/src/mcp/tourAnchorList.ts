@@ -17029,6 +17029,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "sound.restart-goal",
     "label": "Restart quiet time goal button on the Sound widget",
     "scope": "widget",
+    "destructive": true,
     "routes": [
       {
         "surface": "widgets.sound.face",

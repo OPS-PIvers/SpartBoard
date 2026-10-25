@@ -54,6 +54,7 @@ export const SoundWidget: React.FC<{
   const pro = useAuth().canAccessFeature(NOISE_METER_PRO);
   const [volume, setVolume] = useState(0);
   const [history, setHistory] = useState<number[]>(new Array(50).fill(0));
+  const [micReady, setMicReady] = useState(false);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animationRef = useRef<number | null>(null);
@@ -217,6 +218,7 @@ export const SoundWidget: React.FC<{
         analyserRef.current = null;
         streamRef.current = null;
         rawAverageRef.current = null;
+        setMicReady(false);
       }, RELEASE_AFTER_HIDDEN_MS);
       return undefined;
     }
@@ -278,6 +280,7 @@ export const SoundWidget: React.FC<{
         analyser.fftSize = 256;
         source.connect(analyser);
         analyserRef.current = analyser;
+        setMicReady(true);
 
         const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
@@ -378,7 +381,7 @@ export const SoundWidget: React.FC<{
   const goalMs = limit === null ? 0 : quietGoalMs(quietGoalMinutes);
   const isOver = isActive && !calibrating && limit !== null && volume >= limit;
   const quietGoal = useQuietGoal(
-    isActive && !calibrating && goalMs > 0 && !isOver,
+    isActive && micReady && !calibrating && goalMs > 0 && !isOver,
     goalMs,
     () => undefined
   );
@@ -601,7 +604,7 @@ export const SoundWidget: React.FC<{
                 onClick={quietGoal.reset}
                 aria-label={t('widgets.sound.restartGoal')}
                 title={t('widgets.sound.restartGoal')}
-                className="rounded-full text-slate-600 hover:bg-slate-800/10 flex items-center justify-center"
+                className="relative touch-target-expand rounded-full text-slate-600 hover:bg-slate-800/10 flex items-center justify-center"
                 style={{
                   width: 'min(32px, 8cqmin)',
                   height: 'min(32px, 8cqmin)',

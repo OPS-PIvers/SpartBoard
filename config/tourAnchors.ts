@@ -4064,6 +4064,7 @@ export const TOUR_ANCHORS = {
   'sound.restart-goal': {
     label: 'Restart quiet time goal button on the Sound widget',
     perWidget: true,
+    destructive: true,
   },
   'widget-settings.sound.calibrate': {
     label: 'Calibrate button in Sound settings',

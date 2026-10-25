@@ -33,4 +33,19 @@ describe('useQuietGoal', () => {
     });
     expect(onReached).toHaveBeenCalledTimes(2);
   });
+
+  it('keeps partial time when counting flickers off and on', () => {
+    const { rerender, result } = renderHook(
+      ({ counting }) => useQuietGoal(counting, 10_000, () => undefined),
+      { initialProps: { counting: true } }
+    );
+    for (let i = 0; i < 10; i++) {
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+      rerender({ counting: false });
+      rerender({ counting: true });
+    }
+    expect(result.current.elapsedMs).toBe(1000);
+  });
 });

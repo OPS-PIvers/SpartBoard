@@ -617,6 +617,19 @@ describe('SoundWidget', () => {
       expect(seconds()).toBe(0);
     });
 
+    it('does not count before the mic is live', () => {
+      mockGetUserMedia.mockReturnValue(new Promise(() => undefined));
+      render(
+        <SoundWidget
+          widget={createWidget({ targetLevel: 1, quietGoalMinutes: 1 })}
+        />
+      );
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+      expect(seconds()).toBe(0);
+    });
+
     it('restarts from the button', async () => {
       await mount(0, {});
       act(() => {
