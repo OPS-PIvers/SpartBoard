@@ -301,7 +301,7 @@ async function writeRow(
 ): Promise<boolean> {
   if (sameRow(row, previous)) return false;
   // Row ids carry no kind, so never overwrite another kind's row that shares the session id.
-  if (previous && previous.kind !== row.kind) return false;
+  if (previous && (previous.kind ?? row.kind) !== row.kind) return false;
   await db
     .collection(GRADE_INDEX)
     .doc(rowId(row.sessionId, row.studentUid))
@@ -322,7 +322,7 @@ async function writeRowIfNotNewer(
     const snap = await tx.get(ref);
     const current = snap.data();
     if (sameRow(row, current)) return false;
-    if (current && current.kind !== row.kind) return false;
+    if (current && (current.kind ?? row.kind) !== row.kind) return false;
     if (typeof current?.updatedAt === 'number' && current.updatedAt > startedAt)
       return false;
     tx.set(ref, row as unknown as Doc);
@@ -364,7 +364,7 @@ async function deleteRow(
   const ref = db.collection(GRADE_INDEX).doc(rowId(sessionId, studentUid));
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
-    if (snap.exists && snap.data()?.kind === kind) tx.delete(ref);
+    if (snap.exists && (snap.data()?.kind ?? kind) === kind) tx.delete(ref);
   });
 }
 
@@ -554,7 +554,7 @@ export async function recomputeSession(
     .get();
   const existing = new Map(
     existingSnap.docs
-      .filter((d) => d.data().kind === kind)
+      .filter((d) => (d.data().kind ?? kind) === kind)
       .map((d) => [d.id, d.data()])
   );
   const startedAt = now;
