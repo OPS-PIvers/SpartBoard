@@ -276,6 +276,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 onClick={() => goToQuestion(currentQuestionIndex - 1)}
                 disabled={!canGoPrev || foreignSession}
                 aria-label="Previous question"
+                {...tourAttr('poll.previous-question', widget.id, widget.type)}
                 className={`shrink-0 text-slate-400 ${proEnabled ? 'hover:text-brand-blue-primary' : 'hover:text-indigo-600'} disabled:opacity-30 disabled:hover:text-slate-400 transition-colors`}
               >
                 <ChevronLeft style={arrowStyle} />
