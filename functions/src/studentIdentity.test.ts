@@ -1452,6 +1452,50 @@ describe('pinLoginV1', () => {
     });
   });
 
+  it('scopes a quiz token to the session the client resolved from the code', async () => {
+    for (const id of ['qs-a', 'qs-b']) {
+      h.docStore.set(`quiz_sessions/${id}`, {
+        code: 'ABC123',
+        status: 'active',
+        teacherUid: 'teacher1',
+        rosterIds: ['r1'],
+      });
+    }
+    h.docStore.set('users/teacher1/rosters/r1/pin_index/1__1234', {
+      pseudonym: 'PS1',
+      classId: 'CL1',
+      orgId: 'org-orono',
+    });
+
+    await callPinLogin({
+      data: {
+        kind: 'quiz',
+        code: 'ABC123',
+        sessionId: 'qs-b',
+        pin: '1234',
+        period: '1',
+      },
+    });
+
+    expect(h.lastCustomToken?.claims).toMatchObject({
+      pinSessionId: 'qs-b',
+    });
+
+    // A session the code does not resolve to gets no token rather than another session's.
+    h.lastCustomToken = null;
+    expect(
+      await callPinLogin({
+        data: {
+          kind: 'quiz',
+          code: 'ABC123',
+          sessionId: 'qs-other',
+          pin: '1234',
+          period: '1',
+        },
+      })
+    ).toEqual({ matched: false, reason: 'no-joinable-session' });
+    expect(h.lastCustomToken).toBeNull();
+  });
   it('mints a token for a resolved video-activity PIN', async () => {
     h.docStore.set('video_activity_sessions/vs1', {
       teacherUid: 'teacher1',

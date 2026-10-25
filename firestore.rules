@@ -14,10 +14,21 @@ service cloud.firestore {
       return viewAsOk() && pinSessionOk() ? request.auth.uid : request.auth.token.viewAs.noUid;
     }
     // shorthands: on
-    // request.path[4] is the top-level doc id: the session for every session subcollection.
+    // A pre-scope PIN token (no pinSessionId) keeps its old reach for 12h after sign-in so open tabs survive the release.
     function pinSessionOk() {
-      return request.auth.token.get('pinLogin', false) != true ||
-             request.path[4] == request.auth.token.get('pinSessionId', '');
+      let t = request.auth.token;
+      return t.get('pinLogin', false) != true ||
+             (t.get('pinSessionId', '') == ''
+               ? request.time.toMillis() < t.get('auth_time', 0) * 1000 + 43200000
+               : pinPathOk(t.pinSessionId));
+    }
+    // request.path[4] is the top-level doc id: the session's own docs, its attempt ledger, or the clock probe.
+    function pinPathOk(sid) {
+      return request.path[4] == sid
+        ? request.path[3] in ['quiz_sessions', 'video_activity_sessions']
+        : request.path[3] == 'server_time_probe' ||
+          (request.path[4] == sid + '__' + request.auth.uid &&
+           request.path[3] in ['quiz_attempt_ledger', 'video_activity_attempt_ledger']);
     }
     function unchanged(k) { return request.resource.data[k] == resource.data[k]; }
     function isStr(k) { return request.resource.data[k] is string; }
@@ -4942,9 +4953,8 @@ service cloud.firestore {
             // PIN joins honor the teacher's anonymous-join stamp.
             : responseKey.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$') &&
               sessionData().get('allowAnonymousJoin', true) != false);
+        // The student branch runs first so a student's write skips the teacher and admin checks.
         allow update: if signedIn() && (
-          // Teacher and admins can update any field
-          authUid() == sessionTeacherUid() || isAdmin() ||
           // Students update only their own response (ownership via studentUid, not the key).
           // Mutable: answers, status, submittedAt, tabSwitchWarnings, completedAttempts,
           // classPeriod, score (reset to null on rejoin). pin/join metadata immutable.
@@ -4952,14 +4962,16 @@ service cloud.firestore {
           (authUid() == existing().studentUid &&
            passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
            // Student writes stop at the session close time (M17) or the run's end.
-           // The teacher branch above is unaffected — grading continues after close.
+           // The teacher branch below is unaffected — grading continues after close.
            (runOpen(sessionData()) ||
             isResultsProtectionOnlyWrite() ||
             existing().get('unlocked', false) == true) &&
            // Pause is enforced here for every session, and per period where set.
            (frozenWriteOk(sessionData(), existing().get('classId', null)) ||
             (sessionData().status != 'paused' &&
-             (periodOpen(sessionData(), existing().get('classId', null)) || studentLetIn(sessionData())))) &&
+             // studentUid is authUid() here and cheaper: a PIN token's authUid() costs more expressions.
+             (periodOpen(sessionData(), existing().get('classId', null)) ||
+              sessionData().get('studentAccess', {}).get(existing().studentUid, 0) > request.time.toMillis()))) &&
            unchanged('studentUid') &&
            // SSO studentRole responses omit `pin` entirely, so direct dot-access on
            // `resource.data.pin` would throw a Null-value error and deny the write. Use
@@ -5030,7 +5042,7 @@ service cloud.firestore {
              isList('servedQuestionIds') &&
              incoming().servedQuestionIds.size() == sessionData().totalQuestions) ||
             (sessionData().get('assignmentId', '') != '' &&
-             servedPointerOk(get(/databases/$(database)/documents/student_assignments/$(authUid())/items/$(sessionData().assignmentId)).data))) &&
+             servedPointerOk(get(/databases/$(database)/documents/student_assignments/$(existing().studentUid)/items/$(sessionData().assignmentId)).data))) &&
            // Stimulus telemetry maps (per-attempt play + load-failure counters). Truthfulness
            // is client-enforced diagnostics, not a security boundary - but size is: the teacher
            // monitor reads every response doc in the session, so cap the key count to stop a
@@ -5084,7 +5096,9 @@ service cloud.firestore {
            // else a hostile client could increment past the cap.
            (sessionAttemptLimit() == null ||
             incoming().get('completedAttempts', 0) <= sessionAttemptLimit()) &&
-           (!changed(['status']) || statusMoveOk(existing(), incoming(), sessionAttemptLimit())))
+           (!changed(['status']) || statusMoveOk(existing(), incoming(), sessionAttemptLimit()))) ||
+          // Teacher and admins can update any field
+          authUid() == sessionTeacherUid() || isAdmin()
         );
         allow delete: if signedIn() &&
           (authUid() == sessionTeacherUid() || isAdmin());

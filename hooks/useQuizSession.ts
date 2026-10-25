@@ -2565,7 +2565,8 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             currentUser = user;
             studentUid = user.uid;
             isAnonymous = user.isAnonymous;
-            if (isAnonymous && !sanitizedPin) throw new Error('PIN is required');
+            if (isAnonymous && !sanitizedPin)
+              throw new Error('PIN is required');
           }
         }
 
@@ -2595,6 +2596,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               {
                 kind: 'quiz';
                 code: string;
+                sessionId: string;
                 pin: string;
                 period?: string;
               },
@@ -2604,6 +2606,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               callable({
                 kind: 'quiz',
                 code: normCode,
+                sessionId: sessionDoc.id,
                 pin: sanitizedPin,
                 period: classPeriod,
               });

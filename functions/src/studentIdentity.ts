@@ -1479,7 +1479,7 @@ export const PIN_LOGIN_MAX_IDENTITIES = 3;
 // Per-session limits that fresh anonymous uids can't reset: misses from every
 // caller share one budget, and each student can be bridged from only a few uids.
 export const PIN_LOGIN_SESSION_MAX_FAILURES = 30;
-export const PIN_LOGIN_MAX_CALLERS_PER_STUDENT = 2;
+export const PIN_LOGIN_MAX_CALLERS_PER_STUDENT = 3;
 const PIN_LOGIN_CLAIM_TTL_MS = 24 * 60 * 60 * 1000;
 
 interface PinLoginAttempts {
@@ -1564,16 +1564,17 @@ async function recordPinLoginAttempt(
 ): Promise<boolean> {
   return db.runTransaction(async (tx) => {
     const callerSnap = await tx.get(refs.caller);
-    const sessionSnap = await tx.get(refs.session);
+    // Only a miss locks the shared session doc, so a class joining at once doesn't contend on it.
+    const sessionSnap = success ? null : await tx.get(refs.session);
     const claimSnap = success ? await tx.get(refs.claim) : null;
     const now = Date.now();
     const a = readPinLoginAttempts(callerSnap.data(), now);
-    const s = readPinLoginAttempts(sessionSnap.data(), now);
+    const s = readPinLoginAttempts(sessionSnap?.data(), now);
     const callers = readPinLoginCallers(claimSnap?.data());
     // Re-checked here so parallel calls can't overshoot the caps.
     const allowed =
       !pinLoginBlocked(a, indexKey) &&
-      !pinLoginSessionBlocked(s) &&
+      (success || !pinLoginSessionBlocked(s)) &&
       (!success ||
         callers.includes(callerUid) ||
         callers.length < PIN_LOGIN_MAX_CALLERS_PER_STUDENT);
@@ -1615,7 +1616,7 @@ interface PinLoginRequestData {
  * Input:
  *   {
  *     kind: 'quiz' | 'video-activity',
- *     sessionId?: string,    // required for video-activity
+ *     sessionId?: string,    // required for video-activity; for quiz, which code match
  *     code?: string,         // required for quiz
  *     pin: string,
  *     period?: string,       // optional, picks one when the session has
@@ -1676,7 +1677,7 @@ export const pinLoginV1 = onCall(
         .collection('quiz_sessions')
         .where('code', '==', code)
         .where('status', 'in', ['waiting', 'active', 'paused'])
-        .limit(1)
+        .limit(10)
         .get();
       if (codeMatch.empty) {
         // Cheap existence check purely for log clarity: was this code never
@@ -1694,7 +1695,24 @@ export const pinLoginV1 = onCall(
         });
         return { matched: false, reason: 'no-joinable-session' };
       }
-      sessionRef = codeMatch.docs[0].ref;
+      // The token is scoped to one session, so bridge only the one the client resolved from this code.
+      const wanted =
+        typeof data.sessionId === 'string' && data.sessionId
+          ? data.sessionId
+          : null;
+      const picked = wanted
+        ? codeMatch.docs.find((d) => d.id === wanted)
+        : codeMatch.docs[0];
+      if (!picked) {
+        console.warn('[pinLoginV1] fallback', {
+          kind,
+          reason: 'no-joinable-session',
+          sessionId: wanted,
+          period,
+        });
+        return { matched: false, reason: 'no-joinable-session' };
+      }
+      sessionRef = picked.ref;
     } else {
       const sessionId =
         typeof data.sessionId === 'string' ? data.sessionId : '';
@@ -1779,7 +1797,10 @@ export const pinLoginV1 = onCall(
     const now = Date.now();
     if (
       !counters ||
-      pinLoginBlocked(readPinLoginAttempts(counters[0].data(), now), indexKey) ||
+      pinLoginBlocked(
+        readPinLoginAttempts(counters[0].data(), now),
+        indexKey
+      ) ||
       pinLoginSessionBlocked(readPinLoginAttempts(counters[1].data(), now))
     ) {
       console.warn('[pinLoginV1] fallback', {

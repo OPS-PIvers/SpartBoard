@@ -95,6 +95,24 @@ describe('assertPinLoginSession', () => {
     );
   });
 
+  it('keeps a pre-scope PIN token working for 12h after sign-in only', () => {
+    const legacy = (authTime: number) => ({
+      auth: {
+        uid: 'u',
+        token: { studentRole: true, pinLogin: true, auth_time: authTime },
+      },
+      data: { sessionId: 's-b' },
+    });
+    const now = 1_800_000_000_000;
+    const hour = 3600;
+    expect(() =>
+      assertViewAsAllowed(legacy(now / 1000 - 11 * hour), {}, now)
+    ).not.toThrow();
+    expect(() =>
+      assertViewAsAllowed(legacy(now / 1000 - 13 * hour), {}, now)
+    ).toThrow(expect.objectContaining({ code: 'permission-denied' }));
+  });
+
   it('leaves other tokens alone', () => {
     expect(() =>
       assertViewAsAllowed({
