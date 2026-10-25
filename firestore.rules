@@ -4785,9 +4785,11 @@ service cloud.firestore {
         return [p.teacherUid, p.sessionId, p.override.questionIds] ==
           [sessionTeacherUid(), sessionId, incoming().servedQuestionIds];
       }
+      // ltiAttachment names the Schoology grade column; only the launch handler writes it.
       allow create: if signedIn() &&
         notAnon() &&
         incoming().teacherUid == authUid() &&
+        !('ltiAttachment' in incoming()) &&
         subMonitorStampAbsent() &&
         (!('plcId' in incoming()) || plcLinkOk(incoming()));
       // Update: an unchanged or cleared plcId needs no PLC read; a new/changed
@@ -4796,6 +4798,7 @@ service cloud.firestore {
       allow update: if signedIn() &&
         existing().teacherUid == authUid() &&
         unchanged('teacherUid') &&
+        !changed(['ltiAttachment']) &&
         subMonitorStampUnchanged() &&
         (!changed(['status']) || incoming().status in ['waiting', 'active', 'paused', 'ended']) &&
         (incoming().get('plcId', null) == existing().get('plcId', null) ||
@@ -5598,7 +5601,8 @@ service cloud.firestore {
       allow create: if signedIn() &&
         notAnon() &&
         subMonitorStampAbsent() &&
-        incoming().teacherUid == authUid();
+        incoming().teacherUid == authUid() &&
+        !('ltiAttachment' in incoming());
       // Teacher owners update their own session (renames, status, sync-pull, PLC
       // attach, score-publish, sharing fields); identity immutable. Looser
       // allowlist like Quiz sessions (ownership + immutable identity, no per-field
@@ -5611,6 +5615,7 @@ service cloud.firestore {
         unchanged('activityId') &&
         unchanged('teacherUid') &&
         unchanged('createdAt') &&
+        !changed(['ltiAttachment']) &&
         (!changed(['status']) || incoming().status in ['waiting', 'active', 'ended']) &&
         // An ended live (board-paced) run stays ended, pacing included: its students have already been finished.
         !(existing().get('sessionMode', 'student') == 'teacher' &&
