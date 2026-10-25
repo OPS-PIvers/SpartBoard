@@ -656,6 +656,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "sound#alertDelaySeconds",
       "sound#alertSound",
       "sound#autoTrafficLight",
+      "sound#noiseFloor",
       "sound#sensitivity",
       "sound#syncExpectations",
       "sound#targetLevel",
@@ -17013,6 +17014,44 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "widgets.scoreboard.settings",
         "kind": "settings-drawer",
         "widget_type": "scoreboard",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.sound.calibrate",
+    "label": "Calibrate button in Sound settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.sound.settings",
+        "kind": "settings-drawer",
+        "widget_type": "sound",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.sound.reset-calibration",
+    "label": "Reset calibration button in Sound settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.sound.settings",
+        "kind": "settings-drawer",
+        "widget_type": "sound",
         "path": [
           "widget.settings-opener"
         ],

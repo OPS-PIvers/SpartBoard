@@ -1,13 +1,22 @@
+import React from 'react';
 import { defineSettings } from '@/components/settings/schema/defineSettings';
-import type { FieldCtx } from '@/components/settings/schema/types';
+import type {
+  CustomRenderCtx,
+  FieldCtx,
+} from '@/components/settings/schema/types';
 import type { SoundConfig } from '@/types';
 import { TIME_TOOL_SOUNDS } from '@/config/timeTool';
 import { playTimerAlert, resumeAudio } from '@/utils/timeToolAudio';
 import {
   DEFAULT_ALERT_DELAY_SECONDS,
+  DEFAULT_ALERT_SOUND,
   MAX_TARGET_LEVEL,
   NOISE_METER_PRO,
 } from './noiseTarget';
+import { SoundCalibrateField } from './settingsFields';
+
+const renderCalibrate = (ctx: CustomRenderCtx) =>
+  React.createElement(SoundCalibrateField, { ctx });
 
 const isPro = (ctx: FieldCtx) => ctx.canAccessFeature(NOISE_METER_PRO);
 const isExpectationsSyncEnabled = (ctx: FieldCtx) =>
@@ -35,6 +44,14 @@ export default defineSettings<SoundConfig>({
             type: 'toggle',
             label: 'syncExpectations',
           },
+        },
+        {
+          key: 'noiseFloor',
+          type: 'custom',
+          label: 'calibration',
+          help: 'calibrateHelp',
+          visibleWhen: isPro,
+          render: renderCalibrate,
         },
         {
           key: 'sensitivity',
@@ -97,7 +114,7 @@ export default defineSettings<SoundConfig>({
           preview: (sound) => {
             void resumeAudio().then(() => playTimerAlert(sound));
           },
-          readValue: (ctx) => ctx.config.alertSound ?? 'Chime',
+          readValue: (ctx) => ctx.config.alertSound ?? DEFAULT_ALERT_SOUND,
         },
         {
           key: 'autoTrafficLight',

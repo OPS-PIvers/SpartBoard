@@ -45,3 +45,20 @@ export const alertDelayMs = (seconds: unknown): number => {
       : DEFAULT_ALERT_DELAY_SECONDS;
   return Math.min(30, Math.max(0, value)) * 1000;
 };
+
+export const CALIBRATE_MS = 5000;
+export const CALIBRATE_SAMPLE_MS = 100;
+
+/** Quiet-room level: the 80th percentile, so ordinary quiet reads as zero. */
+export const noiseFloorFrom = (samples: readonly number[]): number => {
+  if (samples.length === 0) return 0;
+  const sorted = [...samples].sort((a, b) => a - b);
+  const value =
+    sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.8))];
+  return Math.round(Math.min(128, Math.max(0, value)) * 10) / 10;
+};
+
+export const isCalibrating = (config: {
+  calibrateRequest?: number;
+  calibratedAt?: number;
+}): boolean => (config.calibrateRequest ?? 0) > (config.calibratedAt ?? 0);

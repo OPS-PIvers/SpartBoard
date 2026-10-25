@@ -1996,7 +1996,12 @@
       "soundChime": "Chime",
       "soundBlip": "Blip",
       "soundGong": "Gong",
-      "soundAlert": "Alert"
+      "soundAlert": "Alert",
+      "calibration": "Calibration",
+      "calibrateHelp": "Keep the room quiet, then select Calibrate. The meter listens for 5 seconds and starts from that level.",
+      "calibrate": "Calibrate",
+      "calibrateListening": "Listening...",
+      "resetCalibration": "Reset"
     },
     "webcam": {
       "autoSendToNotes": "Send OCR text to Notes automatically"
@@ -2748,7 +2753,8 @@
       "removePoints_other": "Remove {{count}} points"
     },
     "sound": {
-      "tooLoud": "Too loud"
+      "tooLoud": "Too loud",
+      "calibrating": "Calibrating. Keep the room quiet."
     }
   },
   "boardBreadcrumb": {
