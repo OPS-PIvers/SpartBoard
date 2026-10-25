@@ -10,7 +10,13 @@
  * people's work only.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Loader2, Image as ImageIcon } from 'lucide-react';
 import { signInAnonymously, type User } from 'firebase/auth';
 import {
@@ -124,8 +130,13 @@ const resolveEngagementFlags = (
  */
 const useAnonymousFirebaseUser = (): User | null => {
   const { user, resolved } = useResolvedFirebaseUser();
+  // Only the user found at open is checked: a PIN sign-in made later belongs to a quiz in another tab.
+  const openChecked = useRef(false);
   useEffect(() => {
     if (!resolved) return;
+    const atOpen = !openChecked.current;
+    openChecked.current = true;
+    if (user && !atOpen) return;
     void (user ? dropPinLogin(auth) : signInAnonymously(auth)).catch((err) => {
       console.error('[ActivityWallGallery] Anonymous sign-in failed:', err);
     });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { signInAnonymously } from 'firebase/auth';
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
@@ -111,8 +111,13 @@ export function useActivityWallStudentSession(
   const uid = user?.uid ?? null;
 
   // The session doc requires auth to read, so guests get an anonymous identity first.
+  // Only the user found at open is checked: a PIN sign-in made later belongs to a quiz in another tab.
+  const openChecked = useRef(false);
   useEffect(() => {
     if (!resolved) return;
+    const atOpen = !openChecked.current;
+    openChecked.current = true;
+    if (user && !atOpen) return;
     void (user ? dropPinLogin(auth) : signInAnonymously(auth)).catch(
       (error) => {
         console.error('[ActivityWallStudentApp] Guest sign-in failed:', error);
