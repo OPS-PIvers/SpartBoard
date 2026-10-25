@@ -725,6 +725,16 @@ describe('persistLtiLaunchContext — video activity', () => {
     expect(writes).toHaveLength(0);
   });
 
+  it('refuses an unsigned link over a context the backfill marked orphaned', async () => {
+    vaSessions.set('va-1', { teacherUid: 'attacker', status: 'active' });
+    contextDocs.set(
+      `${LTI_SESSION_MEMBERSHIPS_COLLECTION}/va-1/contexts/ctx-old`,
+      { contextMembershipsUrl: 'https://lms/old', teacherUid: '' }
+    );
+    expect(await persistLtiLaunchContext(db(), VA_ARGS)).toBeNull();
+    expect(writes).toHaveLength(0);
+  });
+
   it('files under the VA session id and denormalizes it (no archive mirror)', async () => {
     vaSessions.set('va-1', { teacherUid: 't1', status: 'active' });
     expect(await persistLtiLaunchContext(db(), VA_ARGS)).toBe('va-1');
