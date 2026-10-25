@@ -1633,6 +1633,7 @@
       "actions": "Actions",
       "liveVotingHelp": "Students vote from their own devices.",
       "hideResults": "Hide results until revealed",
+      "correctAnswer": "Correct answer",
       "votingOpen": "Voting open",
       "notStarted": "Not started",
       "copied": "Copied",

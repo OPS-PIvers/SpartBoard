@@ -12,7 +12,7 @@ import { useAuth } from '@/context/useAuth';
 import { SubShareContentContext } from '@/context/SubShareContentContextValue';
 import { noSubShareKey } from '@/tests/testHelpers/subShareContent';
 import { vi, describe, it, expect, Mock, beforeEach, afterEach } from 'vitest';
-import { WidgetData, DEFAULT_GLOBAL_STYLE } from '@/types';
+import { WidgetData, DEFAULT_GLOBAL_STYLE, PollConfig } from '@/types';
 import { GeneratedPoll } from '@/utils/ai';
 import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
@@ -1314,6 +1314,54 @@ describe('PollSettings', () => {
       screen.getByRole('button', { name: /import class/i })
     ).toBeDisabled();
     expect(screen.getByText(/stop voting to add/i)).toBeInTheDocument();
+  });
+
+  it('hides a shown answer again when its options change', async () => {
+    mockSetDoc.mockResolvedValue(undefined);
+    render(
+      <PollSettings
+        widget={{
+          id: 'poll-1',
+          type: 'poll',
+          w: 2,
+          h: 2,
+          x: 0,
+          y: 0,
+          z: 1,
+          flipped: false,
+          config: {
+            questions: [
+              {
+                id: 'q1',
+                question: 'Pick one',
+                options: [
+                  { id: 'a', label: 'A', votes: 0, correct: true },
+                  { id: 'b', label: 'B', votes: 0 },
+                ],
+              },
+            ],
+            joinCode: 'K3F9Q',
+            lastPollSessionId: 'K3F9Q',
+            answerShownQuestionIds: ['q1'],
+          },
+        }}
+      />
+    );
+
+    fireEvent.click(
+      screen.getAllByRole('button', { name: /correct answer/i })[1]
+    );
+    const saved = (
+      mockUpdateWidget.mock.calls.at(-1)?.[1] as { config: PollConfig }
+    ).config;
+    expect(saved.answerShownQuestionIds).toEqual([]);
+    await waitFor(() =>
+      expect(mockSetDoc).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ shownAnswers: [] }),
+        { merge: true }
+      )
+    );
   });
 });
 

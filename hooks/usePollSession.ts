@@ -44,6 +44,11 @@ interface UsePollSessionResult {
   setLocked: (locked: boolean) => void;
   /** Zero the votes; a hidden-results poll hides every question again, on phones too. */
   resetVotes: () => void;
+  /** The current question has at least one option marked correct. */
+  hasCorrectAnswer: boolean;
+  /** The current question's correct answer is shown on the board and phones. */
+  answerShown: boolean;
+  setAnswerShown: (shown: boolean) => void;
 }
 
 const toggleId = (
@@ -182,9 +187,42 @@ export const usePollSession = ({
 
   const resetVotes = useCallback(() => {
     const next = withVotesReset(config);
-    if (config.hideResults) applyResultsState(next);
-    else onConfigChange(next);
+    if (config.hideResults || config.answerShownQuestionIds?.length) {
+      applyResultsState(next);
+    } else onConfigChange(next);
   }, [config, applyResultsState, onConfigChange]);
+
+  const hasCorrectAnswer = (currentQuestion?.options ?? []).some(
+    (o) => o.correct === true
+  );
+  const answerShown =
+    hasCorrectAnswer &&
+    (config.answerShownQuestionIds ?? []).includes(currentId);
+
+  const setAnswerShown = useCallback(
+    (shown: boolean) => {
+      if (!currentId) return;
+      // Showing the answer also locks voting, so no one switches to it afterwards.
+      applyResultsState({
+        ...config,
+        answerShownQuestionIds: toggleId(
+          config.answerShownQuestionIds,
+          currentId,
+          shown
+        ),
+        ...(shown
+          ? {
+              lockedQuestionIds: toggleId(
+                config.lockedQuestionIds,
+                currentId,
+                true
+              ),
+            }
+          : {}),
+      });
+    },
+    [applyResultsState, config, currentId]
+  );
 
   return {
     questions,
@@ -200,5 +238,8 @@ export const usePollSession = ({
     setRevealed,
     setLocked,
     resetVotes,
+    hasCorrectAnswer,
+    answerShown,
+    setAnswerShown,
   };
 };

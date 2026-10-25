@@ -2825,6 +2825,23 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "poll.show-answer",
+    "label": "Show answer button in Poll",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.face",
+        "kind": "widget",
+        "widget_type": "poll",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "poll.lock-voting",
     "label": "Lock voting button in Poll",
     "scope": "widget",
@@ -18786,6 +18803,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.classes",
           "classes.link-schoology"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.poll.correct-option",
+    "label": "Mark an option as the correct answer in Poll settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.poll.settings",
+        "kind": "settings-drawer",
+        "widget_type": "poll",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
         ]
       }
     ]

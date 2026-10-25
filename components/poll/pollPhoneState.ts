@@ -104,6 +104,8 @@ export interface PollBallot {
   resultsHidden: boolean;
   /** The teacher revealed this question's results to everyone, voted or not. */
   resultsRevealed: boolean;
+  /** Correct option indexes once the teacher shows the answer; null until then. */
+  correctIndexes: number[] | null;
 }
 
 export type PollPhoneView =
@@ -136,6 +138,11 @@ export const derivePollPhoneView = (
 
   const options = question.options ?? [];
   const revealed = (session.revealedQuestions ?? []).includes(questionIndex);
+  // Matched by id, so an edit after the session snapshot can't move a tick.
+  const shown = new Set(session.shownAnswers ?? []);
+  const shownCorrect = options.flatMap((o, i) =>
+    shown.has(`${question.id}:${o.id}`) ? [i] : []
+  );
   const tally = aggregateVotes(votes, questionIndex, options.length);
   const ballot: PollBallot = {
     questions,
@@ -150,6 +157,7 @@ export const derivePollPhoneView = (
     submitting: vote === 'submitting',
     resultsHidden: session.hideResults === true && !revealed,
     resultsRevealed: session.hideResults === true && revealed,
+    correctIndexes: shownCorrect.length > 0 ? shownCorrect : null,
   };
   if (session.active !== true)
     return { k: 'closed', reason: 'teacher', ballot };

@@ -81,10 +81,16 @@ export const makeEmptyPollQuestion = (label = ''): PollQuestion => ({
   ],
 });
 
-/** Zero every question's votes; a hidden-results poll also hides each question again. */
+/** Zero every question's votes and hide every shown answer; a hidden-results poll also hides each question again. */
 export const withVotesReset = (config: PollConfig): PollConfig =>
   withPollQuestions(
-    config.hideResults ? { ...config, revealedQuestionIds: [] } : config,
+    {
+      ...config,
+      ...(config.hideResults ? { revealedQuestionIds: [] } : {}),
+      ...(config.answerShownQuestionIds?.length
+        ? { answerShownQuestionIds: [] }
+        : {}),
+    },
     getPollQuestions(config).map((q) => ({
       ...q,
       options: q.options.map((o) => ({ ...o, votes: 0 })),

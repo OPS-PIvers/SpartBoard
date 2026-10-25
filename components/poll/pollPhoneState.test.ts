@@ -398,3 +398,26 @@ describe('hidden results and locked questions', () => {
     expect(pollPhoneReducer(state, { type: 'voteStarted' })).toBe(state);
   });
 });
+
+describe('shown answers', () => {
+  it('keeps correct answers off the ballot until the teacher shows them', () => {
+    const view = derivePollPhoneView(ready('idle', makeSession()), 'me');
+    expect(view.k === 'open' && view.ballot.correctIndexes).toBeNull();
+  });
+
+  it('marks the current question’s correct options once shown', () => {
+    const view = derivePollPhoneView(
+      ready('idle', makeSession({ shownAnswers: ['q1:o2', 'q2:o3'] })),
+      'me'
+    );
+    expect(view.k === 'open' && view.ballot.correctIndexes).toEqual([1]);
+  });
+
+  it('ignores answer keys for options the session snapshot does not have', () => {
+    const view = derivePollPhoneView(
+      ready('idle', makeSession({ shownAnswers: ['q1:gone'] })),
+      'me'
+    );
+    expect(view.k === 'open' && view.ballot.correctIndexes).toBeNull();
+  });
+});

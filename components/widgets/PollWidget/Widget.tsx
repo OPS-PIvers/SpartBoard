@@ -19,6 +19,7 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  CircleCheck,
   Copy,
   Eye,
   EyeOff,
@@ -76,6 +77,9 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     setRevealed,
     setLocked,
     resetVotes,
+    hasCorrectAnswer,
+    answerShown,
+    setAnswerShown,
   } = usePollSession({
     config,
     // Announcement embeds have no teacher session — tallies come from the
@@ -101,6 +105,8 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       sessionOwnerUid === user?.uid);
   const showRevealControl = canSteer && config.hideResults === true;
   const showLockControl = canSteer && isLive;
+  const showAnswerControl = canSteer && hasCorrectAnswer;
+  const markCorrect = proEnabled && answerShown;
   const showAnswered = proEnabled && isLive;
   const barColor = proEnabled ? 'bg-brand-blue-primary' : 'bg-indigo-500';
 
@@ -351,6 +357,17 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   }}
                 >
                   <span className="font-bold min-w-0 [overflow-wrap:anywhere]">
+                    {markCorrect && o.correct && (
+                      <CircleCheck
+                        aria-label="Correct answer"
+                        className="inline-block align-[-0.15em] text-emerald-700"
+                        style={{
+                          width: '1em',
+                          height: '1em',
+                          marginRight: '0.3em',
+                        }}
+                      />
+                    )}
                     {o.label}
                   </span>
                   {!hidden && (
@@ -365,7 +382,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   style={{ height: 'clamp(16px, 5cqmin, 24px)' }}
                 >
                   <div
-                    className={`h-full transition-all duration-500 motion-reduce:transition-none shadow-[inset_0_2px_4px_rgba(255,255,255,0.3)] ${isVoted ? 'bg-emerald-500' : barColor}`}
+                    className={`h-full transition-all duration-500 motion-reduce:transition-none shadow-[inset_0_2px_4px_rgba(255,255,255,0.3)] ${isVoted || (markCorrect && o.correct) ? 'bg-emerald-500' : barColor}`}
                     style={{ width: hidden ? '0%' : `${percent}%` }}
                   />
                 </div>
@@ -376,7 +393,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       }
       footer={
         <>
-          {(showRevealControl || showLockControl) && (
+          {(showRevealControl || showLockControl || showAnswerControl) && (
             <div
               data-testid="poll-results-controls"
               className="flex items-center justify-center whitespace-nowrap"
@@ -445,6 +462,27 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     />
                   )}
                   {isLocked ? 'Unlock voting' : 'Lock voting'}
+                </button>
+              )}
+              {showAnswerControl && (
+                <button
+                  {...tourAttr('poll.show-answer', widget.id, widget.type)}
+                  onClick={() => setAnswerShown(!answerShown)}
+                  aria-pressed={answerShown}
+                  className="relative touch-target-expand flex items-center font-bold text-slate-600 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
+                  style={{
+                    gap: 'min(6px, 1.5cqmin)',
+                    padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                    fontSize: 'min(13px, 4cqmin)',
+                  }}
+                >
+                  <CircleCheck
+                    style={{
+                      width: 'min(16px, 4.5cqmin)',
+                      height: 'min(16px, 4.5cqmin)',
+                    }}
+                  />
+                  {answerShown ? 'Hide answer' : 'Show answer'}
                 </button>
               )}
             </div>

@@ -335,6 +335,7 @@ describe('toSessionResultsState', () => {
       hideResults: true,
       revealedQuestions: [1],
       lockedQuestions: [0],
+      shownAnswers: [],
     });
   });
 
@@ -343,6 +344,7 @@ describe('toSessionResultsState', () => {
       hideResults: false,
       revealedQuestions: [],
       lockedQuestions: [],
+      shownAnswers: [],
     });
   });
 });
@@ -398,5 +400,51 @@ describe('startPollSession results state', () => {
       revealedQuestions: [],
       lockedQuestions: [],
     });
+  });
+});
+
+describe('toSessionResultsState shown answers', () => {
+  const config: PollConfig = {
+    questions: [
+      {
+        id: 'q1',
+        question: 'A?',
+        options: [
+          { id: 'a', label: 'A', votes: 0 },
+          { id: 'b', label: 'B', votes: 0, correct: true },
+        ],
+      },
+      {
+        id: 'q2',
+        question: 'B?',
+        options: [{ id: 'c', label: 'C', votes: 0, correct: true }],
+      },
+    ],
+  };
+
+  it('writes no answers until a question is shown', () => {
+    expect(toSessionResultsState(config).shownAnswers).toEqual([]);
+  });
+
+  it('writes only shown questions as question:option id keys', () => {
+    expect(
+      toSessionResultsState({ ...config, answerShownQuestionIds: ['q1'] })
+        .shownAnswers
+    ).toEqual(['q1:b']);
+  });
+
+  it('never writes answers without the flag', () => {
+    expect(
+      toSessionResultsState(
+        { ...config, answerShownQuestionIds: ['q1'] },
+        false
+      ).shownAnswers
+    ).toEqual([]);
+  });
+
+  it('keeps correct flags out of the session questions', () => {
+    expect(
+      JSON.stringify(toSessionQuestions(config.questions ?? []))
+    ).not.toContain('correct');
   });
 });

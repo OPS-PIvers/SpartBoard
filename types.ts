@@ -1886,6 +1886,8 @@ export interface PollOption {
   id: string;
   label: string;
   votes: number;
+  /** The teacher marked this a correct answer; shown only after Show answer. */
+  correct?: boolean;
 }
 
 export interface ScheduleItem {
@@ -2327,6 +2329,8 @@ export interface PollConfig {
   revealedQuestionIds?: string[];
   /** Question ids whose voting the teacher has locked during a live session. */
   lockedQuestionIds?: string[];
+  /** Question ids whose correct answer the teacher has shown. */
+  answerShownQuestionIds?: string[];
 }
 
 /**
@@ -2366,6 +2370,8 @@ export interface PollSessionDoc {
   revealedQuestions?: number[];
   /** Question indexes the rules refuse votes for. */
   lockedQuestions?: number[];
+  /** `{questionId}:{optionId}` for each correct option, only for questions whose answer is shown (an array so a merge replaces it). */
+  shownAnswers?: string[];
 }
 
 export type ActivityWallMode = 'text' | 'photo';

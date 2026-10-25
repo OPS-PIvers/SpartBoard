@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
+  CircleCheck,
   Eye,
   EyeOff,
   Lock,
@@ -80,6 +81,9 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
     setRevealed,
     setLocked,
     resetVotes,
+    hasCorrectAnswer,
+    answerShown,
+    setAnswerShown,
   } = usePollSession({
     config,
     teacherUid: foreignSession ? (sessionOwnerUid ?? undefined) : user?.uid,
@@ -262,7 +266,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
           (!boardShareId ||
             !config.activePollSessionId ||
             sessionOwnerUid === user?.uid) &&
-          (config.hideResults === true || isLive) && (
+          (config.hideResults === true || isLive || hasCorrectAnswer) && (
             <div className="grid grid-cols-2 gap-2">
               {config.hideResults === true && (
                 <button // no-tour-anchor: phone remote, tours run on the board
@@ -292,6 +296,17 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
                     <Lock className="w-5 h-5" />
                   )}
                   {isLocked ? 'Unlock voting' : 'Lock voting'}
+                </button>
+              )}
+              {hasCorrectAnswer && (
+                <button // no-tour-anchor: phone remote, tours run on the board
+                  onClick={() => setAnswerShown(!answerShown)}
+                  style={{ touchAction: 'manipulation' }}
+                  className="touch-manipulation flex items-center justify-center gap-2 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold transition-all active:scale-95"
+                  aria-pressed={answerShown}
+                >
+                  <CircleCheck className="w-5 h-5" />
+                  {answerShown ? 'Hide answer' : 'Show answer'}
                 </button>
               )}
             </div>

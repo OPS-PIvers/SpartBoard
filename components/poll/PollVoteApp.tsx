@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useReducer, useState } from 'react';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, Loader2, X } from 'lucide-react';
 import { auth, db } from '@/config/firebase';
 import { signInAnonymously } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore';
@@ -202,10 +202,15 @@ export const PollVoteApp: React.FC = () => {
     submitting,
     resultsHidden,
     resultsRevealed,
+    correctIndexes,
   } = view.ballot;
   const closed = view.k === 'closed';
   const hasVoted = votedIndex !== null;
   const showTally = !resultsHidden && (hasVoted || resultsRevealed);
+  const votedCorrect =
+    correctIndexes !== null && votedIndex !== null
+      ? correctIndexes.includes(votedIndex)
+      : null;
 
   return (
     <Shell>
@@ -225,6 +230,24 @@ export const PollVoteApp: React.FC = () => {
             {closed
               ? 'Your vote is in!'
               : 'Your vote is in! Tap another option to change it.'}
+          </div>
+        )}
+
+        {votedCorrect !== null && (
+          <div
+            data-testid="poll-answer-result"
+            className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold ${
+              votedCorrect
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'bg-slate-50 border-slate-200 text-slate-700'
+            }`}
+          >
+            {votedCorrect ? (
+              <Check className="w-4 h-4" />
+            ) : (
+              <X className="w-4 h-4" />
+            )}
+            {votedCorrect ? 'Correct' : 'Incorrect'}
           </div>
         )}
 
@@ -256,7 +279,15 @@ export const PollVoteApp: React.FC = () => {
               aria-pressed={isMine}
             >
               <div className="flex items-center justify-between mb-1.5">
-                <span className="font-bold text-slate-800">{option.label}</span>
+                <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                  {correctIndexes?.includes(index) && (
+                    <Check
+                      className="w-4 h-4 text-emerald-600 shrink-0"
+                      aria-label="Correct answer"
+                    />
+                  )}
+                  {option.label}
+                </span>
                 {showTally && (
                   <span
                     className="font-mono text-sm text-slate-500 whitespace-nowrap"
