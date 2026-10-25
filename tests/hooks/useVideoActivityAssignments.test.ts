@@ -57,6 +57,7 @@ const mockCallJoin = vi.fn();
 const mockCallLeave = vi.fn();
 const mockCreateGroup = vi.fn();
 const mockPullContent = vi.fn();
+const mockIsParticipant = vi.fn();
 vi.mock('@/hooks/useSyncedVideoActivityGroups', () => ({
   callJoinSyncedVideoActivityGroup: (shareId: string): unknown =>
     mockCallJoin(shareId) as unknown,
@@ -66,6 +67,10 @@ vi.mock('@/hooks/useSyncedVideoActivityGroups', () => ({
     mockCreateGroup(input) as unknown,
   pullSyncedVideoActivityContent: (groupId: string): unknown =>
     mockPullContent(groupId) as unknown,
+  isSyncedVideoActivityGroupParticipant: (
+    groupId: string,
+    uid: string
+  ): unknown => mockIsParticipant(groupId, uid) as unknown,
 }));
 
 const mockAddDoc = addDoc as Mock;
@@ -380,6 +385,8 @@ describe('useVideoActivityAssignments — shareAssignment + import', () => {
     mockCallJoin.mockReset();
     mockCallLeave.mockReset().mockResolvedValue({ remainingParticipants: 0 });
     mockPullContent.mockReset();
+    mockIsParticipant.mockReset();
+    mockIsParticipant.mockResolvedValue(true);
   });
 
   const ACTIVITY_DATA = {
@@ -497,6 +504,30 @@ describe('useVideoActivityAssignments — shareAssignment + import', () => {
     expect(mockUpdateDoc).not.toHaveBeenCalled();
     const sharePayload = mockAddDoc.mock.calls[0][1] as Record<string, unknown>;
     expect(sharePayload.syncGroupId).toBe('existing-group');
+  });
+
+  it('shareAssignment omits syncGroupId when the sharer has left the existing group', async () => {
+    mockGetDoc
+      .mockResolvedValueOnce(seedAssignmentSnap())
+      .mockResolvedValueOnce(
+        seedMetadataSnap({
+          sync: { groupId: 'left-group', lastSyncedVersion: 3 },
+        })
+      );
+    mockIsParticipant.mockResolvedValue(false);
+    mockAddDoc.mockResolvedValue({ id: 'share-xyz' });
+
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    await act(async () => {
+      await result.current.shareAssignment('assign-1', ACTIVITY_DATA);
+    });
+
+    expect(mockIsParticipant).toHaveBeenCalledWith('left-group', TEACHER_UID);
+    expect(mockCreateGroup).not.toHaveBeenCalled();
+    const sharePayload = mockAddDoc.mock.calls[0][1] as Record<string, unknown>;
+    expect(sharePayload).not.toHaveProperty('syncGroupId');
   });
 
   it('shareAssignment throws when source activity is missing from local library', async () => {

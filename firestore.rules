@@ -1911,11 +1911,25 @@ service cloud.firestore {
     // Shared quiz assignments - like shared_quizzes but also carries assignment
     // settings (class label, PLC sheet URL, session toggles) so a receiving
     // teacher can get a pre-configured, paused assignment when they paste the link.
+    // A share's syncGroupId is a join invite, so only a group participant may set it, once.
+    function shareSyncGroupOk(coll) {
+      return !('syncGroupId' in incoming()) ||
+        authUid() in get(/databases/$(database)/documents/$(coll)/$(incoming().syncGroupId)).data.participants;
+    }
+    function shareSyncGroupKept() {
+      return incoming().get('syncGroupId', null) == existing().get('syncGroupId', null) &&
+        incoming().get('originalAuthor', null) == existing().get('originalAuthor', null);
+    }
+
     match /shared_assignments/{shareId} {
       allow get: if signedIn();
       allow create: if signedIn() &&
-        incoming().originalAuthor == authUid();
-      allow update, delete: if signedIn() &&
+        incoming().originalAuthor == authUid() &&
+        shareSyncGroupOk('synced_quizzes');
+      allow update: if signedIn() &&
+        (existing().get('originalAuthor', null) == authUid() || isAdmin()) &&
+        shareSyncGroupKept();
+      allow delete: if signedIn() &&
         (existing().get('originalAuthor', null) == authUid() || isAdmin());
     }
 
@@ -2248,8 +2262,12 @@ service cloud.firestore {
     match /shared_video_activity_assignments/{shareId} {
       allow get: if signedIn();
       allow create: if signedIn() &&
-        incoming().originalAuthor == authUid();
-      allow update, delete: if signedIn() &&
+        incoming().originalAuthor == authUid() &&
+        shareSyncGroupOk('synced_video_activities');
+      allow update: if signedIn() &&
+        (existing().get('originalAuthor', null) == authUid() || isAdmin()) &&
+        shareSyncGroupKept();
+      allow delete: if signedIn() &&
         (existing().get('originalAuthor', null) == authUid() || isAdmin());
     }
 

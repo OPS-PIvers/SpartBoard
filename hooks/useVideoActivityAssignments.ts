@@ -33,6 +33,7 @@ import {
   callJoinSyncedVideoActivityGroup,
   callLeaveSyncedVideoActivityGroup,
   createSyncedVideoActivityGroup,
+  isSyncedVideoActivityGroupParticipant,
   pullSyncedVideoActivityContent,
 } from './useSyncedVideoActivityGroups';
 import { logError } from '@/utils/logError';
@@ -708,8 +709,17 @@ export const useVideoActivityAssignments = (
       // whether to clear it. If the source already had a `sync.groupId` we
       // leave it alone on rollback — that linkage predates this share call.
       let mintedLinkage = false;
+      // A group the sharer has since left can't be offered as Synced; share as a copy.
+      let shareSyncGroupId: string | undefined = syncGroupId;
+      if (
+        syncGroupId &&
+        !(await isSyncedVideoActivityGroupParticipant(syncGroupId, userId))
+      ) {
+        shareSyncGroupId = undefined;
+      }
       if (!syncGroupId) {
         syncGroupId = crypto.randomUUID();
+        shareSyncGroupId = syncGroupId;
         await createSyncedVideoActivityGroup({
           groupId: syncGroupId,
           uid: userId,
@@ -752,7 +762,7 @@ export const useVideoActivityAssignments = (
         },
         originalAuthor: userId,
         sharedAt: Date.now(),
-        syncGroupId,
+        ...(shareSyncGroupId ? { syncGroupId: shareSyncGroupId } : {}),
       };
       // Best-effort rollback: if `addDoc` fails AFTER we've minted the
       // synced-group linkage, clear the local metadata patch so the
