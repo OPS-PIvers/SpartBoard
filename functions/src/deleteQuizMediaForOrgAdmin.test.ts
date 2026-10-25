@@ -379,6 +379,28 @@ describe('assertOrgMediaAdmin', () => {
       assertOrgMediaAdmin(asFirestore(db), ORG, 'building@z.org')
     ).rejects.toThrow(/not a member/i);
   });
+
+  it('rejects a domain_admin mirrored from another org', async () => {
+    db.set('admins/domain@z.org', {
+      roleId: 'domain_admin',
+      orgId: 'other-org',
+      source: 'organizationMembersSync',
+    });
+    await expect(
+      assertOrgMediaAdmin(asFirestore(db), ORG, 'domain@z.org')
+    ).rejects.toThrow(/not a member/i);
+  });
+
+  it('accepts a domain_admin mirrored from the operator org', async () => {
+    db.set('admins/domain@x.org', {
+      roleId: 'domain_admin',
+      orgId: 'orono',
+      source: 'organizationMembersSync',
+    });
+    await expect(
+      assertOrgMediaAdmin(asFirestore(db), ORG, 'domain@x.org')
+    ).resolves.toBeUndefined();
+  });
 });
 
 describe('listOrgQuizMedia', () => {

@@ -489,7 +489,11 @@ export async function assertOrgMediaAdmin(
     );
   }
   const adminSnap = await db.collection('admins').doc(callerEmailLower).get();
-  if (adminSnap.exists && isSuperAdminRoleId(adminSnap.get('roleId'))) return;
+  if (
+    adminSnap.exists &&
+    isSuperAdminRoleId(adminSnap.get('roleId'), adminSnap.get('orgId'))
+  )
+    return;
   const memberSnap = await db
     .doc(`organizations/${orgId}/members/${callerEmailLower}`)
     .get();

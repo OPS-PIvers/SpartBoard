@@ -1,8 +1,10 @@
 import type * as admin from 'firebase-admin';
 
 /** `/admins/{email}` also mirrors building_admin (org-scoped) — bare doc existence isn't proof of super-admin; a missing roleId means a legacy pre-sync doc. */
-export function isSuperAdminRoleId(roleId: unknown): boolean {
+export function isSuperAdminRoleId(roleId: unknown, orgId?: unknown): boolean {
   if (typeof roleId !== 'string') return true; // legacy doc, no mirror marker
+  // A role mirrored from any org but the operator's is scoped to that org, never site-wide.
+  if (typeof orgId === 'string' && orgId !== OPERATOR_ORG_ID) return false;
   return roleId === 'super_admin' || roleId === 'domain_admin';
 }
 
@@ -12,7 +14,9 @@ export async function isSiteSuperAdmin(
   emailLower: string
 ): Promise<boolean> {
   const snap = await db.collection('admins').doc(emailLower).get();
-  return snap.exists && isSuperAdminRoleId(snap.get('roleId'));
+  return (
+    snap.exists && isSuperAdminRoleId(snap.get('roleId'), snap.get('orgId'))
+  );
 }
 
 // Operator org: the fixed path the rules' isMemberSuperAdmin() reads.

@@ -295,7 +295,11 @@ async function assertOrgWideAdmin(
     db.collection('admins').doc(emailLower).get(),
     db.doc(`organizations/${orgId}/members/${emailLower}`).get(),
   ]);
-  if (adminDoc.exists && isSuperAdminRoleId(adminDoc.get('roleId'))) return;
+  if (
+    adminDoc.exists &&
+    isSuperAdminRoleId(adminDoc.get('roleId'), adminDoc.get('orgId'))
+  )
+    return;
   const roleId: unknown = memberDoc.exists ? memberDoc.get('roleId') : null;
   if (typeof roleId === 'string' && ORG_WIDE_ROLE_IDS.has(roleId)) return;
   throw new HttpsError(

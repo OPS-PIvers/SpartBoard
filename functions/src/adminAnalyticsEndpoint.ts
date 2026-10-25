@@ -112,10 +112,11 @@ export const adminAnalytics = onRequest(
     const memberRoleId =
       typeof memberData?.roleId === 'string' ? memberData.roleId.trim() : '';
     const adminData = adminDoc.exists
-      ? (adminDoc.data?.() as { roleId?: unknown } | undefined)
+      ? (adminDoc.data?.() as { roleId?: unknown; orgId?: unknown } | undefined)
       : undefined;
     const isSuperAdmin =
-      adminDoc.exists && isSuperAdminRoleId(adminData?.roleId);
+      adminDoc.exists &&
+      isSuperAdminRoleId(adminData?.roleId, adminData?.orgId);
     const isOrgAdmin = memberDoc.exists && ORG_ADMIN_ROLE_IDS.has(memberRoleId);
     if (!isSuperAdmin && !isOrgAdmin) {
       console.error('[getAdminAnalytics] Unauthorized access', {
