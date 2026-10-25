@@ -294,7 +294,11 @@ describe('applyDocWrite', () => {
 
   it('deletes the row when the response goes', async () => {
     const stub = seed({
-      'grade_index/qs1__u1': { sessionId: 'qs1', studentUid: 'u1' },
+      'grade_index/qs1__u1': {
+        kind: 'quiz',
+        sessionId: 'qs1',
+        studentUid: 'u1',
+      },
     });
     await applyWrite(
       stub,
@@ -401,7 +405,11 @@ describe('recomputeSession and the dirty queue', () => {
     const stub = seed({
       'quiz_sessions/qs1/responses/u1': completed(),
       'quiz_sessions/qs1/responses/pin-1-99': completed({ studentUid: 'anon' }),
-      'grade_index/qs1__gone': { sessionId: 'qs1', studentUid: 'gone' },
+      'grade_index/qs1__gone': {
+        kind: 'quiz',
+        sessionId: 'qs1',
+        studentUid: 'gone',
+      },
     });
     const result = await recomputeSession(
       stub.db as unknown as Db,
@@ -426,11 +434,34 @@ describe('recomputeSession and the dirty queue', () => {
 
   it('removes every row once the session is deleted', async () => {
     const stub = makeStubFirestore({
-      'grade_index/qs9__u1': { sessionId: 'qs9', studentUid: 'u1' },
+      'grade_index/qs9__u1': {
+        kind: 'quiz',
+        sessionId: 'qs9',
+        studentUid: 'u1',
+      },
     });
     expect(
       await recomputeSession(stub.db as unknown as Db, 'quiz', 'qs9', NOW)
     ).toEqual({ written: 0, deleted: 1 });
+  });
+
+  it("leaves another kind's rows alone when queued with the wrong kind", async () => {
+    const stub = makeStubFirestore({
+      'grade_index/qs9__u1': {
+        kind: 'quiz',
+        sessionId: 'qs9',
+        studentUid: 'u1',
+      },
+    });
+    expect(
+      await recomputeSession(
+        stub.db as unknown as Db,
+        'guided-learning',
+        'qs9',
+        NOW
+      )
+    ).toEqual({ written: 0, deleted: 0 });
+    expect(stub.has('grade_index/qs9__u1')).toBe(true);
   });
 
   it('moves a failing session behind newer work, then drops it', async () => {
@@ -470,7 +501,11 @@ describe('Review sessions', () => {
       'quiz_sessions/qs1': { ...quizSession, ...session },
       'users/t1/quiz_assignments/qs1': { questionSnapshot: [], ...assignment },
       'quiz_sessions/qs1/responses/u1': completed(),
-      'grade_index/qs1__u1': { sessionId: 'qs1', studentUid: 'u1' },
+      'grade_index/qs1__u1': {
+        kind: 'quiz',
+        sessionId: 'qs1',
+        studentUid: 'u1',
+      },
     });
     return recomputeSession(stub.db as unknown as Db, 'quiz', 'qs1', NOW).then(
       (result) => ({ result, has: stub.has('grade_index/qs1__u1') })
@@ -506,7 +541,11 @@ describe('Resource sessions', () => {
     const stub = seed({
       'quiz_sessions/qs1': { ...quizSession, ...session },
       'quiz_sessions/qs1/responses/u1': completed(),
-      'grade_index/qs1__u1': { sessionId: 'qs1', studentUid: 'u1' },
+      'grade_index/qs1__u1': {
+        kind: 'quiz',
+        sessionId: 'qs1',
+        studentUid: 'u1',
+      },
     });
     return recomputeSession(stub.db as unknown as Db, 'quiz', 'qs1', NOW).then(
       () => stub.has('grade_index/qs1__u1')
@@ -525,7 +564,11 @@ describe('Resource sessions', () => {
         studentUid: 'u1',
         submittedAt: NOW - DAY,
       },
-      'grade_index/m1__u1': { sessionId: 'm1', studentUid: 'u1' },
+      'grade_index/m1__u1': {
+        kind: 'mini-app',
+        sessionId: 'm1',
+        studentUid: 'u1',
+      },
     });
     return recomputeSession(
       stub.db as unknown as Db,

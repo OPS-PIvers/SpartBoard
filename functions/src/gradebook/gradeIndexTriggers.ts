@@ -191,7 +191,8 @@ export async function handleSideDocWrite(
   kind: GradeKind,
   sessionId: string,
   event: WriteEvent,
-  fields: string[] | null
+  fields: string[] | null,
+  ownerUid?: string
 ): Promise<void> {
   const before = dataOf(event.data?.before);
   const after = dataOf(event.data?.after);
@@ -204,9 +205,17 @@ export async function handleSideDocWrite(
     )
   )
     return;
-  await guarded('side doc', { kind, sessionId }, () =>
-    markSessionDirty(admin.firestore(), kind, sessionId)
-  );
+  await guarded('side doc', { kind, sessionId }, async () => {
+    const db = admin.firestore();
+    if (ownerUid !== undefined) {
+      const owner = await db
+        .collection(SESSION_COLLECTION[kind])
+        .doc(sessionId)
+        .get();
+      if (!owner.exists || owner.data()?.teacherUid !== ownerUid) return;
+    }
+    await markSessionDirty(db, kind, sessionId);
+  });
 }
 
 export const gradeIndexQuizKey = onDocumentWritten(
@@ -219,7 +228,8 @@ export const gradeIndexQuizKey = onDocumentWritten(
       'quiz',
       event.params.assignmentId,
       event as unknown as WriteEvent,
-      ['questions']
+      ['questions'],
+      event.params.uid
     )
 );
 
@@ -236,7 +246,8 @@ export const gradeIndexQuizAssignment = onDocumentWritten(
         'overridesByStudentUid',
         'localizedFibAnswers',
         'servedLanguageByStudentUid',
-      ]
+      ],
+      event.params.uid
     )
 );
 
@@ -264,7 +275,8 @@ export const gradeIndexGuidedLearningAssignment = onDocumentWritten(
       'guided-learning',
       event.params.sessionId,
       event as unknown as WriteEvent,
-      ['stepTargets']
+      ['stepTargets'],
+      event.params.uid
     )
 );
 

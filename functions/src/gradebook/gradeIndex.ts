@@ -543,7 +543,11 @@ export async function recomputeSession(
     .collection(GRADE_INDEX)
     .where('sessionId', '==', sessionId)
     .get();
-  const existing = new Map(existingSnap.docs.map((d) => [d.id, d.data()]));
+  const existing = new Map(
+    existingSnap.docs
+      .filter((d) => d.data().kind === kind)
+      .map((d) => [d.id, d.data()])
+  );
   const startedAt = now;
   const ctx = await loadSessionContext(db, kind, sessionId);
   const keep = new Set<string>();
