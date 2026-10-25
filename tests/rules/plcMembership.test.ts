@@ -618,6 +618,19 @@ describe('plcs/{plcId} update — leavePlc (members-map aware)', () => {
     );
   });
 
+  it('rejects a keyed member leaving without flipping their own map entry', async () => {
+    await assertFails(
+      updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
+        memberUids: [LEAD_UID, OTHER_UID],
+        memberEmails: {
+          [LEAD_UID]: LEAD_EMAIL,
+          [OTHER_UID]: OTHER_EMAIL,
+        },
+        updatedAt: 2,
+      })
+    );
+  });
+
   it('rejects the leave path being used to seize leadership', async () => {
     // Even though the leaver drops themselves, flipping leadUid via the leave
     // branch must be rejected (leadUid is immutable there).
