@@ -2290,10 +2290,10 @@ export interface PollGlobalConfig {
   buildingDefaults: Record<string, BuildingPollDefaults>;
 }
 
-/** One question in a multi-question poll. */
 /** `scale` keeps numbered options ("1".."N"); `words` and `text` take typed answers and have no options. */
 export type PollQuestionKind = 'choice' | 'scale' | 'words' | 'text';
 
+/** One question in a multi-question poll. */
 export interface PollQuestion {
   id: string;
   question: string;

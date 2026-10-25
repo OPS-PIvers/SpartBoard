@@ -27,13 +27,6 @@ const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </div>
 );
 
-/**
- * Anonymous, audience-facing poll voting app served at `/poll?code=XXXXX`.
- * The code resolves to a `poll_sessions` doc; the participant signs in
- * anonymously, then follows the teacher's `currentQuestionIndex` in lockstep,
- * writing one `{questionIndex}_{uid}` vote doc per question. Re-tapping a
- * different option overwrites that question's vote (one per device).
- */
 /** Up to three words for a word cloud. */
 const firstWords = (text: string): string =>
   text.trim().split(/\s+/).slice(0, 3).join(' ');
@@ -94,6 +87,13 @@ const TextAnswerForm: React.FC<{
   );
 };
 
+/**
+ * Anonymous, audience-facing poll voting app served at `/poll?code=XXXXX`.
+ * The code resolves to a `poll_sessions` doc; the participant signs in
+ * anonymously, then follows the teacher's `currentQuestionIndex` in lockstep,
+ * writing one `{questionIndex}_{uid}` vote doc per question. Re-tapping a
+ * different option overwrites that question's vote (one per device).
+ */
 export const PollVoteApp: React.FC = () => {
   const code = useMemo(
     () =>

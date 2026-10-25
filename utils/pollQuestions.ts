@@ -81,7 +81,7 @@ export const makeEmptyPollQuestion = (label = ''): PollQuestion => ({
   ],
 });
 
-/** Zero every question's votes and hide every shown answer; a hidden-results poll also hides each question again. */
+/** Zero every question's votes and hide every shown answer; a hidden-results poll also hides each question again. Hidden typed answers stay hidden, since Resume reads the same answers. */
 export const withVotesReset = (config: PollConfig): PollConfig =>
   withPollQuestions(
     {
@@ -90,7 +90,6 @@ export const withVotesReset = (config: PollConfig): PollConfig =>
       ...(config.answerShownQuestionIds?.length
         ? { answerShownQuestionIds: [] }
         : {}),
-      ...(config.hiddenResponses?.length ? { hiddenResponses: [] } : {}),
     },
     getPollQuestions(config).map((q) => ({
       ...q,
