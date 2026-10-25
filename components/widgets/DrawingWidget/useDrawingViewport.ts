@@ -123,15 +123,24 @@ export const useDrawingViewport = ({
       // Ours, not the board's: the board zooms on Ctrl+wheel too.
       e.preventDefault();
       e.stopPropagation();
+      // Firefox mouse wheels report lines (deltaMode 1) or pages (2), not pixels.
+      const unit =
+        e.deltaMode === 1
+          ? 16
+          : e.deltaMode === 2
+            ? latest.current.canvasSize.height
+            : 1;
+      const deltaX = e.deltaX * unit;
+      const deltaY = e.deltaY * unit;
       if (e.ctrlKey || e.metaKey) {
         updateView((v) =>
-          zoomViewAround(v, v.zoom * wheelZoomFactor(e.deltaY), box)
+          zoomViewAround(v, v.zoom * wheelZoomFactor(deltaY), box)
         );
         return;
       }
       const k = boxPerScreen();
-      const dx = (e.shiftKey && e.deltaX === 0 ? e.deltaY : e.deltaX) * k;
-      const dy = (e.shiftKey && e.deltaX === 0 ? 0 : e.deltaY) * k;
+      const dx = (e.shiftKey && deltaX === 0 ? deltaY : deltaX) * k;
+      const dy = (e.shiftKey && deltaX === 0 ? 0 : deltaY) * k;
       updateView((v) => ({ ...v, x: v.x - dx, y: v.y - dy }));
     };
     node.addEventListener('wheel', onWheel, { passive: false });

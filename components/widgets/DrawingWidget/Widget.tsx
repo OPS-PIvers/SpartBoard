@@ -648,6 +648,10 @@ export const DrawingWidget: React.FC<{
       cancel();
       objectEraseQueueRef.current = new Set();
       setLassoPoints(null);
+      // The first finger of a pinch opened a text box that was never typed in.
+      if (editingText && !objects.some((o) => o.id === editingText.id)) {
+        setEditingText(null);
+      }
       if (transformState) {
         clearSelection();
         setPreviewObject(null);
@@ -1049,7 +1053,13 @@ export const DrawingWidget: React.FC<{
     try {
       setIsExtracting(true);
       addToast('Scanning handwriting...', 'info');
-      const dataUrl = canvas.toDataURL('image/png');
+      // Zoomed: read the whole page, not the part on screen.
+      const dataUrl = view
+        ? await exportPagePng(
+            { ...activePage, objects },
+            { w: canvasSize.width, h: canvasSize.height }
+          )
+        : canvas.toDataURL('image/png');
       const extractedText = await extractTextWithGemini(dataUrl, 'drawing');
 
       if (!extractedText || !extractedText.trim()) {
