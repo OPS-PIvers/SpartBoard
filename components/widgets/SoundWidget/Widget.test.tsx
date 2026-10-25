@@ -390,6 +390,29 @@ describe('SoundWidget', () => {
       expect(screen.getByText('Too loud')).toBeInTheDocument();
     });
 
+    it('drops the alert while the board is hidden', async () => {
+      mockGetByteFrequencyData.mockImplementation((array: Uint8Array) => {
+        array.fill(255);
+      });
+      const widget = createWidget({ targetLevel: 1 });
+      const { rerender } = render(<SoundWidget widget={widget} isActive />);
+      await act(async () => {
+        await Promise.resolve();
+      });
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      act(() => {
+        vi.advanceTimersByTime(3500);
+      });
+      expect(screen.getByText('Too loud')).toBeInTheDocument();
+      rerender(<SoundWidget widget={widget} isActive={false} />);
+      act(() => {
+        vi.advanceTimersByTime(2000);
+      });
+      expect(screen.queryByText('Too loud')).toBeNull();
+    });
+
     it('never alerts with the flag off', async () => {
       access.pro = false;
       await startLoud({ targetLevel: 0 });

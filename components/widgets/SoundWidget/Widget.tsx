@@ -198,6 +198,7 @@ export const SoundWidget: React.FC<{
     // re-acquiring the mic.
     if (audioContextRef.current && analyserRef.current) {
       void audioContextRef.current.resume();
+      smoothedRef.current = 0;
 
       const bufferLength = analyserRef.current.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
@@ -292,7 +293,7 @@ export const SoundWidget: React.FC<{
 
   const lastChimeRef = useRef(0);
   const alerting = useTooLoudAlert(
-    limit !== null && volume >= limit,
+    isActive && limit !== null && volume >= limit,
     alertDelayMs(alertDelaySeconds),
     () => {
       if (!alertSoundEnabled) return;
@@ -390,29 +391,35 @@ export const SoundWidget: React.FC<{
               </svg>
             </div>
           )}
-          <div role="status" aria-live="polite" className="contents">
-            {alerting && (
-              <div
-                className="absolute inset-x-0 top-0 flex items-center justify-center bg-brand-red-primary text-white font-black uppercase tracking-wide shadow-md"
-                style={{
-                  margin: 'min(8px, 2cqmin)',
-                  gap: 'min(10px, 2.5cqmin)',
-                  padding: 'min(10px, 2.5cqmin)',
-                  borderRadius: 'min(12px, 3cqmin)',
-                  fontSize: 'min(40px, 11cqmin)',
-                }}
-              >
-                <AlertTriangle
-                  aria-hidden="true"
+          {pro && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="absolute inset-x-0 top-0"
+            >
+              {alerting && (
+                <div
+                  className="flex items-center justify-center bg-brand-red-primary text-white font-black uppercase tracking-wide shadow-md"
                   style={{
-                    width: 'min(40px, 11cqmin)',
-                    height: 'min(40px, 11cqmin)',
+                    margin: 'min(8px, 2cqmin)',
+                    gap: 'min(10px, 2.5cqmin)',
+                    padding: 'min(10px, 2.5cqmin)',
+                    borderRadius: 'min(12px, 3cqmin)',
+                    fontSize: 'min(40px, 11cqmin)',
                   }}
-                />
-                {t('widgets.sound.tooLoud')}
-              </div>
-            )}
-          </div>
+                >
+                  <AlertTriangle
+                    aria-hidden="true"
+                    style={{
+                      width: 'min(40px, 11cqmin)',
+                      height: 'min(40px, 11cqmin)',
+                    }}
+                  />
+                  {t('widgets.sound.tooLoud')}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       }
       footer={
