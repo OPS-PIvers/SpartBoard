@@ -270,6 +270,8 @@ import {
   getStudentClassDirectoryV1,
   commitRosterPinIndexV1,
   pinLoginV1,
+  PIN_LOGIN_MAX_CALLERS_PER_STUDENT,
+  PIN_LOGIN_SESSION_MAX_FAILURES,
 } from './studentIdentity';
 import { computeStudentUid } from './classlinkShared';
 
@@ -1260,6 +1262,49 @@ describe('pinLoginV1', () => {
       }
     });
 
+    it('caps misses across every caller of one session', async () => {
+      seedSession();
+      for (let i = 0; i < PIN_LOGIN_SESSION_MAX_FAILURES; i++) {
+        expect(await login('9' + i, `fresh-${i}`)).toMatchObject({
+          reason: 'no-index-entry',
+        });
+      }
+      expect(await login('01', 'fresh-next')).toEqual({
+        matched: false,
+        reason: 'rate-limited',
+      });
+    });
+
+    it('bridges each student from only a few fresh uids', async () => {
+      seedSession();
+      const resolved = new Set<string>();
+      for (let i = 0; i < 20; i++) {
+        const res = await login('01', `fresh-${i}`);
+        if (res.matched) resolved.add(`fresh-${i}`);
+      }
+      expect(resolved.size).toBe(PIN_LOGIN_MAX_CALLERS_PER_STUDENT);
+      // A uid already bound to the student can still rejoin.
+      expect(await login('01', 'fresh-0')).toMatchObject({ matched: true });
+    });
+
+    it('fails closed when the counters cannot be read', async () => {
+      seedSession();
+      const realGet = h.docStore.get.bind(h.docStore);
+      h.docStore.get = ((p: string) => {
+        if (p.startsWith('pin_login_attempts/')) throw new Error('down');
+        return realGet(p);
+      }) as typeof h.docStore.get;
+      try {
+        expect(await login('01')).toEqual({
+          matched: false,
+          reason: 'rate-limited',
+        });
+      } finally {
+        h.docStore.get = Map.prototype.get.bind(h.docStore);
+      }
+      expect(h.lastCustomToken).toBeNull();
+    });
+
     it('resets after the window passes', async () => {
       seedSession();
       for (let i = 0; i < 10; i++) await login('9' + i);
@@ -1404,9 +1449,54 @@ describe('pinLoginV1', () => {
       orgId: 'org-orono',
       classIds: ['CL1'],
       pinLogin: true,
+      pinSessionId: 'qs1',
     });
   });
 
+  it('scopes a quiz token to the session the client resolved from the code', async () => {
+    for (const id of ['qs-a', 'qs-b']) {
+      h.docStore.set(`quiz_sessions/${id}`, {
+        code: 'ABC123',
+        status: 'active',
+        teacherUid: 'teacher1',
+        rosterIds: ['r1'],
+      });
+    }
+    h.docStore.set('users/teacher1/rosters/r1/pin_index/1__1234', {
+      pseudonym: 'PS1',
+      classId: 'CL1',
+      orgId: 'org-orono',
+    });
+
+    await callPinLogin({
+      data: {
+        kind: 'quiz',
+        code: 'ABC123',
+        sessionId: 'qs-b',
+        pin: '1234',
+        period: '1',
+      },
+    });
+
+    expect(h.lastCustomToken?.claims).toMatchObject({
+      pinSessionId: 'qs-b',
+    });
+
+    // A session the code does not resolve to gets no token rather than another session's.
+    h.lastCustomToken = null;
+    expect(
+      await callPinLogin({
+        data: {
+          kind: 'quiz',
+          code: 'ABC123',
+          sessionId: 'qs-other',
+          pin: '1234',
+          period: '1',
+        },
+      })
+    ).toEqual({ matched: false, reason: 'no-joinable-session' });
+    expect(h.lastCustomToken).toBeNull();
+  });
   it('mints a token for a resolved video-activity PIN', async () => {
     h.docStore.set('video_activity_sessions/vs1', {
       teacherUid: 'teacher1',
