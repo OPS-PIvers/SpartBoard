@@ -1,7 +1,8 @@
 import React from 'react';
 import { Ear, RotateCcw } from 'lucide-react';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
-import type { SoundConfig } from '@/types';
+import type { ScoreboardConfig, SoundConfig } from '@/types';
+import { useDashboard } from '@/context/useDashboard';
 import { tourAttr } from '@/config/tourAnchors';
 import { isCalibrating } from './noiseTarget';
 
@@ -58,5 +59,67 @@ export const SoundCalibrateField: React.FC<{ ctx: CustomRenderCtx }> = ({
         </button>
       )}
     </div>
+  );
+};
+
+export const SoundGoalTeamField: React.FC<{ ctx: CustomRenderCtx }> = ({
+  ctx,
+}) => {
+  const { activeDashboard } = useDashboard();
+  const scoreboards = (activeDashboard?.widgets ?? []).filter((w) => {
+    const config = w.config as ScoreboardConfig;
+    return (
+      w.type === 'scoreboard' &&
+      !config.liveQuizWidgetId &&
+      Array.isArray(config.teams)
+    );
+  });
+  // One option per team per Scoreboard, numbered when there is more than one.
+  const options = scoreboards.flatMap((w, index) =>
+    ((w.config as ScoreboardConfig).teams ?? []).map((team) => ({
+      value: `${w.id}|${team.id}`,
+      label: scoreboards.length > 1 ? `${team.name} (${index + 1})` : team.name,
+    }))
+  );
+  const config = ctx.config as Partial<SoundConfig>;
+  const stored = config.quietGoalTeamId
+    ? `${config.quietGoalScoreboardId ?? ''}|${config.quietGoalTeamId}`
+    : '';
+  // Older picks saved only the team; show them on the first Scoreboard that has it.
+  const value =
+    options.find((o) => o.value === stored)?.value ??
+    (config.quietGoalTeamId && !config.quietGoalScoreboardId
+      ? options.find((o) => o.value.endsWith(`|${config.quietGoalTeamId}`))
+          ?.value
+      : undefined) ??
+    '';
+
+  return (
+    <select
+      id={ctx.id}
+      aria-labelledby={ctx.labelId}
+      aria-describedby={ctx.describedBy}
+      value={value}
+      onChange={(e) => {
+        const [scoreboardId, teamId] = e.target.value.split('|');
+        ctx.updateConfig({
+          quietGoalScoreboardId: teamId ? scoreboardId : null,
+          quietGoalTeamId: teamId || null,
+        });
+      }}
+      className="w-full text-xs bg-white border border-slate-200 rounded-lg px-3 py-2 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+      {...tourAttr(
+        'widget-settings.sound.goal-team',
+        ctx.widget.id,
+        ctx.widget.type
+      )}
+    >
+      <option value="">{translate(ctx, 'goalTeamNone')}</option>
+      {options.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </select>
   );
 };

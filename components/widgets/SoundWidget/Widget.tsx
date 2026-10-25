@@ -22,6 +22,7 @@ import {
   SoundConfig,
   TrafficConfig,
   ExpectationsConfig,
+  ScoreboardConfig,
 } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { POSTER_LEVELS, getLevelData } from './constants';
@@ -48,6 +49,7 @@ import {
 import { useTooLoudAlert } from './useTooLoudAlert';
 import { useQuietGoal } from './useQuietGoal';
 import { useNoiseSession } from './useNoiseSession';
+import { awardPoint, findTeamScoreboard } from './scoreboardAward';
 import { SessionSummary } from './components/SessionSummary';
 
 // Add type definition for webkitAudioContext
@@ -66,7 +68,9 @@ export const SoundWidget: React.FC<{
 }> = ({ widget, isActive = true }) => {
   const { updateWidget, activeDashboard } = useDashboard();
   const { t } = useTranslation();
-  const pro = useAuth().canAccessFeature(NOISE_METER_PRO);
+  const { canAccessFeature } = useAuth();
+  const pro = canAccessFeature(NOISE_METER_PRO);
+  const scoreboardPro = canAccessFeature('scoreboard-pro');
   const [volume, setVolume] = useState(0);
   const [history, setHistory] = useState<number[]>(new Array(50).fill(0));
   const [micReady, setMicReady] = useState(false);
@@ -92,6 +96,8 @@ export const SoundWidget: React.FC<{
     noiseFloor,
     quietGoalMinutes,
     quietGoalResetOnAlert = false,
+    quietGoalTeamId,
+    quietGoalScoreboardId,
   } = widget.config as SoundConfig;
   // Level name is a pro visual; without the flag it falls back to the default.
   const visual = savedVisual === 'level' && !pro ? 'thermometer' : savedVisual;
@@ -397,7 +403,24 @@ export const SoundWidget: React.FC<{
   const quietGoal = useQuietGoal(
     isActive && micReady && !calibrating && goalMs > 0 && !isOver,
     goalMs,
-    () => undefined
+    () => {
+      if (!quietGoalTeamId || !activeDashboard) return;
+      // A late report after a board switch must not score on the new board.
+      if (!activeDashboard.widgets.some((w) => w.id === widget.id)) return;
+      const scoreboard = findTeamScoreboard(
+        activeDashboard.widgets,
+        quietGoalScoreboardId,
+        quietGoalTeamId
+      );
+      if (!scoreboard) return;
+      updateWidget(scoreboard.id, {
+        config: awardPoint(
+          scoreboard.config as ScoreboardConfig,
+          quietGoalTeamId,
+          scoreboardPro
+        ),
+      });
+    }
   );
 
   const noiseSession = useNoiseSession(

@@ -97,6 +97,11 @@ export const SETTINGS_FIELD_LIST: Readonly<
       kind: 'toggle',
     },
     {
+      anchor: 'settings.field:sound#quietGoalTeamId',
+      label: 'Add a point when the goal is reached',
+      kind: 'custom',
+    },
+    {
       anchor: 'settings.field:sound#autoTrafficLight',
       label: 'Control Traffic Light automatically',
       kind: 'toggle',

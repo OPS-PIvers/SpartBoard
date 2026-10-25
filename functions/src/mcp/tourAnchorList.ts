@@ -658,6 +658,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "sound#autoTrafficLight",
       "sound#noiseFloor",
       "sound#quietGoalMinutes",
+      "sound#quietGoalTeamId",
       "sound#sensitivity",
       "sound#syncExpectations",
       "sound#targetLevel",
@@ -17198,6 +17199,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "widget",
         "widget_type": "sound",
         "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.sound.goal-team",
+    "label": "Scoreboard team menu for the quiet time goal in Sound settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.sound.settings",
+        "kind": "settings-drawer",
+        "widget_type": "sound",
+        "path": [
+          "widget.settings-opener"
+        ],
         "needs": [
           "widget-on-stage"
         ]

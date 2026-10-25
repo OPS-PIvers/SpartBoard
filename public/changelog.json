@@ -2547,7 +2547,7 @@
       "id": "sound-noise-meter-pro",
       "widget": "sound",
       "date": "2026-10-25",
-      "text": "Set a target level in settings. The meter marks it, and shows Too loud when the class stays above it.",
+      "text": "Set a target level and the meter shows Too loud when the class goes over. You can also calibrate to your room, set a quiet time goal that adds a Scoreboard point, see time at each level, or show the level in large type.",
       "feature": "noise-meter-pro"
     },
     {
