@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useEffectEvent, useRef } from 'react';
-import { AlertTriangle, Ear } from 'lucide-react';
+import { AlertTriangle, Ear, PartyPopper, RotateCcw } from 'lucide-react';
+import { tourAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -23,6 +24,8 @@ import {
   DEFAULT_ALERT_SOUND,
   isCalibrating,
   noiseFloorFrom,
+  formatGoalTime,
+  quietGoalMs,
   NOISE_METER_PRO,
   alertDelayMs,
   resolveTargetLevel,
@@ -30,6 +33,7 @@ import {
   targetLimit,
 } from './noiseTarget';
 import { useTooLoudAlert } from './useTooLoudAlert';
+import { useQuietGoal } from './useQuietGoal';
 
 // Add type definition for webkitAudioContext
 interface CustomWindow extends Window {
@@ -68,6 +72,8 @@ export const SoundWidget: React.FC<{
     alertSoundEnabled = false,
     alertSound = DEFAULT_ALERT_SOUND,
     noiseFloor,
+    quietGoalMinutes,
+    quietGoalResetOnAlert = false,
   } = widget.config as SoundConfig;
   const floor = pro && typeof noiseFloor === 'number' ? noiseFloor : 0;
   const calibrating =
@@ -369,11 +375,20 @@ export const SoundWidget: React.FC<{
     };
   }, [calibrating]);
 
+  const goalMs = limit === null ? 0 : quietGoalMs(quietGoalMinutes);
+  const isOver = isActive && !calibrating && limit !== null && volume >= limit;
+  const quietGoal = useQuietGoal(
+    isActive && !calibrating && goalMs > 0 && !isOver,
+    goalMs,
+    () => undefined
+  );
+
   const lastChimeRef = useRef(0);
   const alerting = useTooLoudAlert(
-    isActive && !calibrating && limit !== null && volume >= limit,
+    isOver,
     alertDelayMs(alertDelaySeconds),
     () => {
+      if (quietGoalResetOnAlert && !quietGoal.done) quietGoal.reset();
       if (!alertSoundEnabled) return;
       const now = Date.now();
       if (now - lastChimeRef.current < ALERT_SOUND_COOLDOWN_MS) return;
@@ -497,6 +512,27 @@ export const SoundWidget: React.FC<{
                   {t('widgets.sound.calibrating')}
                 </div>
               )}
+              {!calibrating && !alerting && quietGoal.done && (
+                <div
+                  className="flex items-center justify-center bg-emerald-600 text-white font-black uppercase tracking-wide shadow-md motion-safe:animate-in motion-safe:zoom-in-95"
+                  style={{
+                    margin: 'min(8px, 2cqmin)',
+                    gap: 'min(10px, 2.5cqmin)',
+                    padding: 'min(10px, 2.5cqmin)',
+                    borderRadius: 'min(12px, 3cqmin)',
+                    fontSize: 'min(32px, 9cqmin)',
+                  }}
+                >
+                  <PartyPopper
+                    aria-hidden="true"
+                    style={{
+                      width: 'min(32px, 9cqmin)',
+                      height: 'min(32px, 9cqmin)',
+                    }}
+                  />
+                  {t('widgets.sound.goalReached')}
+                </div>
+              )}
               {!calibrating && alerting && (
                 <div
                   className="flex items-center justify-center bg-brand-red-primary text-white font-black uppercase tracking-wide shadow-md"
@@ -527,6 +563,61 @@ export const SoundWidget: React.FC<{
           className="text-center"
           style={{ paddingBottom: 'min(12px, 3cqmin)' }}
         >
+          {goalMs > 0 && (
+            <div
+              className="flex items-center mx-auto"
+              style={{
+                gap: 'min(8px, 2cqmin)',
+                paddingLeft: 'min(12px, 3cqmin)',
+                paddingRight: 'min(12px, 3cqmin)',
+                marginBottom: 'min(8px, 2cqmin)',
+              }}
+            >
+              <div
+                role="progressbar"
+                aria-label={t('widgets.sound.quietGoal')}
+                aria-valuemin={0}
+                aria-valuemax={goalMs / 1000}
+                aria-valuenow={Math.floor(quietGoal.elapsedMs / 1000)}
+                aria-valuetext={`${formatGoalTime(quietGoal.elapsedMs)} / ${formatGoalTime(goalMs)}`}
+                className="flex-1 rounded-full bg-slate-800/15 overflow-hidden"
+                style={{ height: 'min(10px, 3cqmin)' }}
+              >
+                <div
+                  className="h-full bg-emerald-600 transition-[width] duration-300"
+                  style={{
+                    width: `${(quietGoal.elapsedMs / goalMs) * 100}%`,
+                  }}
+                />
+              </div>
+              <span
+                className="font-bold tabular-nums text-slate-700 whitespace-nowrap"
+                style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+              >
+                {formatGoalTime(quietGoal.elapsedMs)} / {formatGoalTime(goalMs)}
+              </span>
+              <button
+                type="button"
+                onClick={quietGoal.reset}
+                aria-label={t('widgets.sound.restartGoal')}
+                title={t('widgets.sound.restartGoal')}
+                className="rounded-full text-slate-600 hover:bg-slate-800/10 flex items-center justify-center"
+                style={{
+                  width: 'min(32px, 8cqmin)',
+                  height: 'min(32px, 8cqmin)',
+                }}
+                {...tourAttr('sound.restart-goal', widget.id, widget.type)}
+              >
+                <RotateCcw
+                  aria-hidden="true"
+                  style={{
+                    width: 'min(16px, 4.5cqmin)',
+                    height: 'min(16px, 4.5cqmin)',
+                  }}
+                />
+              </button>
+            </div>
+          )}
           <span
             className="font-black uppercase tracking-widest rounded-full text-white shadow-md transition-all duration-300 inline-block border-2 border-white/20"
             style={{

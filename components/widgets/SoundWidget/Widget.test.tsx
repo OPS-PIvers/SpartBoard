@@ -562,4 +562,95 @@ describe('SoundWidget', () => {
       expect(mockUpdateWidget).not.toHaveBeenCalled();
     });
   });
+
+  describe('quiet time goal (noise-meter-pro)', () => {
+    beforeEach(() => {
+      access.pro = true;
+    });
+    afterEach(() => {
+      access.pro = false;
+    });
+
+    const mount = async (fill: number, config: Partial<SoundConfig>) => {
+      mockGetByteFrequencyData.mockImplementation((array: Uint8Array) => {
+        array.fill(fill);
+      });
+      render(
+        <SoundWidget
+          widget={createWidget({
+            targetLevel: 1,
+            quietGoalMinutes: 1,
+            ...config,
+          })}
+        />
+      );
+      await act(async () => {
+        await Promise.resolve();
+      });
+    };
+
+    const seconds = () =>
+      Number(screen.getByRole('progressbar').getAttribute('aria-valuenow'));
+
+    it('fills while the room is quiet and celebrates at the goal', async () => {
+      await mount(0, {});
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+      expect(seconds()).toBe(30);
+      expect(screen.queryByText('Goal reached')).toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+      expect(seconds()).toBe(60);
+      expect(screen.getByText('Goal reached')).toBeInTheDocument();
+    });
+
+    it('pauses while the room is over target', async () => {
+      await mount(255, {});
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
+      expect(seconds()).toBe(0);
+    });
+
+    it('restarts from the button', async () => {
+      await mount(0, {});
+      act(() => {
+        vi.advanceTimersByTime(20_000);
+      });
+      act(() => {
+        screen.getByRole('button', { name: 'Restart quiet time goal' }).click();
+      });
+      expect(seconds()).toBe(0);
+    });
+
+    it('starts over when Too loud shows, if set to', async () => {
+      await mount(0, { quietGoalResetOnAlert: true });
+      act(() => {
+        vi.advanceTimersByTime(20_000);
+      });
+      expect(seconds()).toBe(20);
+      mockGetByteFrequencyData.mockImplementation((array: Uint8Array) => {
+        array.fill(255);
+      });
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      act(() => {
+        vi.advanceTimersByTime(3500);
+      });
+      expect(screen.getByText('Too loud')).toBeInTheDocument();
+      expect(seconds()).toBe(0);
+    });
+
+    it('shows no goal with the flag off', async () => {
+      access.pro = false;
+      await mount(0, {});
+      expect(screen.queryByRole('progressbar')).toBeNull();
+    });
+  });
 });

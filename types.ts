@@ -2155,6 +2155,10 @@ export interface SoundConfig {
   /** Set by the Calibrate button; the widget listens while it is newer than `calibratedAt`. */
   calibrateRequest?: number;
   calibratedAt?: number;
+  /** Minutes the class must stay at or under target; 0 or unset means no goal. */
+  quietGoalMinutes?: number;
+  /** Start the goal over when Too loud shows, instead of pausing it. */
+  quietGoalResetOnAlert?: boolean;
 }
 
 /** Active drawing tool. Replaces the legacy `config.color === 'eraser'` overload. */
