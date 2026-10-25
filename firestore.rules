@@ -4960,6 +4960,10 @@ service cloud.firestore {
           incoming().get('revealedAnswers', null) == null &&
           // Review games: checkQuizGameAnswerV1 alone writes points, verdicts and answers.
           incoming().get('game', null) == null &&
+          // Media archive bookkeeping is server-written; the hourly sweep trusts its Drive ids.
+          incoming().get('artifactArchive', null) == null &&
+          incoming().get('hasStuckArchive', null) == null &&
+          incoming().get('backTranslations', null) == null &&
           (sessionData().get('sessionMode', '') != 'game' ||
            incoming().get('answers', []).size() == 0) &&
           // studentRole users must be enrolled in the session's class
