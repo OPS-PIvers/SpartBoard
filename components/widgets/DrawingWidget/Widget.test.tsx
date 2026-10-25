@@ -51,6 +51,7 @@ interface MockContext {
   // region during partial redraws.
   rect: Mock;
   clip: Mock;
+  setTransform: Mock;
   globalAlpha: number;
   canvas: { width: number; height: number };
   lineCap: string;
