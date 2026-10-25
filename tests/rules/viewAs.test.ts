@@ -267,7 +267,20 @@ describe('admin powers under a view-as token', () => {
   it('a real admin still writes admin settings', async () => {
     const db = asAdmin().firestore();
     await assertSucceeds(
-      setDoc(doc(db, 'admin_settings/view_as'), { enabled: false })
+      setDoc(doc(db, 'admin_settings/app_settings'), { a: 1 })
+    );
+  });
+
+  it('only a super admin flips the view-as switch', async () => {
+    await assertFails(
+      setDoc(doc(asAdmin().firestore(), 'admin_settings/view_as'), {
+        enabled: true,
+      })
+    );
+    await assertSucceeds(
+      setDoc(doc(asBoss().firestore(), 'admin_settings/view_as'), {
+        enabled: false,
+      })
     );
   });
 

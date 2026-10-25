@@ -21,11 +21,14 @@ import { useGlobalPermissionsEditor } from './useGlobalPermissionsEditor';
 import { useRolloutSwitch } from './useRolloutSwitch';
 import { isReadyToGraduate, previewStatus } from './previewStatus';
 import { retireIssueUrl } from './retireIssue';
+import { useAuth } from '@/context/useAuth';
+import { isSuperAdminActor } from '@/utils/superAdmin';
 
 const DistrictSwitch: React.FC<{
   sw: RolloutSwitch;
   state: ReturnType<typeof useRolloutSwitch>;
-}> = ({ sw, state }) => (
+  locked?: boolean;
+}> = ({ sw, state, locked = false }) => (
   <span className="flex items-center gap-1.5">
     <span className="text-xxs font-bold text-slate-400 uppercase">
       District
@@ -35,7 +38,7 @@ const DistrictSwitch: React.FC<{
     ) : (
       <Toggle
         checked={state.enabled}
-        disabled={state.saving}
+        disabled={state.saving || locked}
         onChange={(next) => void state.change(next)}
         size="sm"
         label={`${sw.title} district switch`}
@@ -129,6 +132,10 @@ export const PreviewRow: React.FC<{
 
 const RolloutOnlyRow: React.FC<{ sw: RolloutSwitch }> = ({ sw }) => {
   const state = useRolloutSwitch(sw);
+  const { user, userRoles, roleId, orgId } = useAuth();
+  const locked =
+    !!sw.superAdminOnly &&
+    !isSuperAdminActor(user?.email, userRoles?.superAdmins, roleId, orgId);
   return (
     <div
       data-testid={`rollout-row-${rolloutSwitchKey(sw)}`}
@@ -148,9 +155,10 @@ const RolloutOnlyRow: React.FC<{ sw: RolloutSwitch }> = ({ sw }) => {
               ? 'Live for: everyone'
               : 'Off everywhere'}
           {state.error ? ` · ${state.error}` : ''}
+          {locked ? ' · Super admins only' : ''}
         </span>
       </span>
-      <DistrictSwitch sw={sw} state={state} />
+      <DistrictSwitch sw={sw} state={state} locked={locked} />
     </div>
   );
 };

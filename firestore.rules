@@ -976,9 +976,11 @@ service cloud.firestore {
       allow read, write: if ownsUser(userId);
     }
 
-    // Admin-only collections
-    match /admin_settings/{document=**} {
-      allow read, write: if isAdmin();
+    // Admin-only collections. Docs that define super admins or that a super-admin/server gate trusts take isSuperAdmin() to write.
+    match /admin_settings/{docId}/{rest=**} {
+      allow read: if isAdmin();
+      allow write: if (isAdmin() && !(docId in ['user_roles', 'view_as', 'lti_config', 'sub_launch_as_teacher', 'classlink_sync'])) ||
+                      isSuperAdmin();
     }
 
     // Nutrislice lunch menus, written only by the Sync Lunch Menus GitHub Action (Admin credentials).
@@ -1028,10 +1030,10 @@ service cloud.firestore {
 
     // Rollout switch for a substitute starting an activity in the teacher's
     // account — the sub's board reads it to decide whether to offer Launch at
-    // all; the callable re-checks it server-side. Admins flip it.
+    // all; the callable re-checks it server-side. Super admins flip it.
     match /admin_settings/sub_launch_as_teacher {
       allow read: if signedIn();
-      allow write: if isAdmin();
+      allow write: if isSuperAdmin();
     }
 
     // Rollout switch for printing a PLC teammate's paper answer sheets — a
@@ -1138,9 +1140,10 @@ service cloud.firestore {
       allow read: if isSuperAdmin();
     }
 
-    // User Roles - stored in admin_settings for global access but restricted to admins
+    // User Roles - admins read; only super admins write, since superAdmins[] is what isSuperAdmin() trusts.
     match /admin_settings/user_roles {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      allow write: if isSuperAdmin();
     }
 
     // Explicitly allow all authenticated users to read user roles

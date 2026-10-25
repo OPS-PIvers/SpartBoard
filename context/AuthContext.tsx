@@ -1397,7 +1397,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Listen to user roles + app settings.
   //
   // Both docs live under `/admin_settings/*`, which Firestore rules restrict
-  // to admins (firestore.rules: `match /admin_settings/{document=**}` requires
+  // to admins (firestore.rules: `match /admin_settings/{docId}/{rest=**}` requires
   // isAdmin()). Subscribing for non-admins fired permission-denied errors on
   // every page load. Gate on `isAdmin === true` so the listeners only attach
   // once admin status has resolved positively; for `null` (loading) and
