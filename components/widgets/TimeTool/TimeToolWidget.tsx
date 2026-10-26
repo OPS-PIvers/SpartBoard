@@ -669,7 +669,7 @@ export const TimeToolWidget: React.FC<{
                           ? 'widgets.timeTool.pause'
                           : 'widgets.timeTool.play'
                       )}
-                      className={`flex items-center justify-center rounded-xl transition-all select-none active:scale-95 shadow-lg disabled:opacity-30 disabled:cursor-not-allowed ${
+                      className={`${isCompact ? 'relative touch-target-expand ' : ''}flex items-center justify-center rounded-xl transition-all select-none active:scale-95 shadow-lg disabled:opacity-30 disabled:cursor-not-allowed ${
                         isRunning
                           ? 'bg-slate-200/60 text-slate-500'
                           : 'bg-brand-blue-primary text-white shadow-brand-blue-primary/20'
@@ -698,7 +698,7 @@ export const TimeToolWidget: React.FC<{
                     <button
                       {...tourAttr('time-tool.reset', widget.id, widget.type)}
                       onClick={handleReset}
-                      className="flex items-center justify-center rounded-xl bg-slate-200/60 text-slate-400 hover:bg-slate-300/70 hover:text-brand-blue-primary transition-all select-none active:scale-95 shadow-sm"
+                      className={`${isCompact ? 'relative touch-target-expand ' : ''}flex items-center justify-center rounded-xl bg-slate-200/60 text-slate-400 hover:bg-slate-300/70 hover:text-brand-blue-primary transition-all select-none active:scale-95 shadow-sm`}
                       style={{
                         width: ctrlSize,
                         height: ctrlSize,
