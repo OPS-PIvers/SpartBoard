@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { NeedDoPutThenWidget } from './Widget';
 import {
   useGlobalStyle,
@@ -74,5 +74,43 @@ describe('NeedDoPutThenWidget', () => {
     expect(screen.getByText('Pencil')).toBeInTheDocument();
     // Only the Put drawer is still empty now.
     expect(screen.getAllByText('Flip to add items')).toHaveLength(1);
+  });
+
+  describe('Do list touch dragging', () => {
+    // DraggableWindow skips touch drags that start inside these.
+    const TOUCH_DRAG_BLOCKING =
+      '.overflow-y-auto, .overflow-auto, [data-scrollable="true"]';
+    const stubHeights = (scrollHeight: number, clientHeight: number) => {
+      vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(
+        scrollHeight
+      );
+      vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(
+        clientHeight
+      );
+    };
+    const widget = createWidgetData({
+      doItems: ['Sharpen pencil', 'Open notebook'],
+      thenItems: DEFAULT_THEN_ITEMS,
+    });
+
+    afterEach(() => vi.restoreAllMocks());
+
+    it('is not a scroller when the steps fit, so a finger on it drags the widget', () => {
+      stubHeights(200, 200);
+      renderWidget(widget);
+      const list = screen.getByTestId('need-do-put-then-do-list');
+      expect(
+        screen.getByText('Sharpen pencil').closest(TOUCH_DRAG_BLOCKING)
+      ).toBeNull();
+      expect(list).toHaveClass('overflow-hidden');
+    });
+
+    it('scrolls when the steps overflow', () => {
+      stubHeights(400, 200);
+      renderWidget(widget);
+      expect(screen.getByTestId('need-do-put-then-do-list')).toHaveClass(
+        'overflow-y-auto'
+      );
+    });
   });
 });
