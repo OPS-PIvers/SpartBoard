@@ -302,6 +302,20 @@ describe('recomputeOnePlcAssessment', () => {
     expect(stub.get('plcs/plc-1/assessments/grp-1')?.dirtyAt).toBeNull();
   });
 
+  it('leaves out a class the teacher removed from the quiz', async () => {
+    const stub = seedPipeline();
+    stub.store.set('quiz_sessions/sess-b', {
+      ...stub.get('quiz_sessions/sess-b'),
+      classIds: ['class-8'],
+      removedClasses: { classIds: ['class-7'], periodNames: [] },
+    });
+    await recomputeOnePlcAssessment(stub.db as unknown as Db, 'plc-1', 'grp-1');
+    expect(stub.get('plcs/plc-1/aggregates/grp-1')).toMatchObject({
+      studentCount: 1,
+      teamAveragePercent: 100,
+    });
+  });
+
   it('falls back to session public questions when no synced doc exists', async () => {
     const stub = seedPipeline();
     stub.store.delete('synced_quizzes/grp-1');

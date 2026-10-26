@@ -5447,6 +5447,8 @@ export interface QuizSession
    * enrichment in `QuizResults`.
    */
   classPeriodByClassId?: Record<string, string>;
+  /** Classes taken off this assignment; their students' work is hidden until re-added. */
+  removedClasses?: { classIds: string[]; periodNames: string[] };
 
   /**
    * Max completed submissions allowed per student (mirrored from the

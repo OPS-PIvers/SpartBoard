@@ -159,6 +159,10 @@ import { viewAsDirectSave } from '@/utils/viewAsAudit';
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import type { PeriodAccessWindowEdits } from '@/utils/assignAvailability';
 import {
+  nextRemovedClasses,
+  withLinkedSections,
+} from '@/utils/sessionClassFilter';
+import {
   batchUpdateWithPaths,
   periodAccessWrites,
 } from '@/utils/periodAccessWrites';
@@ -407,7 +411,9 @@ export interface UseQuizAssignmentsResult {
     assignmentId: string,
     targets: SessionTargets,
     /** Per-period rows for the class change, in the same batch; null removes a row. */
-    periodAccessRows?: Record<string, PeriodAccess | null>
+    periodAccessRows?: Record<string, PeriodAccess | null>,
+    /** Names of the rosters this change takes off, so their PIN work is hidden. */
+    removedRosterNames?: string[]
   ) => Promise<void>;
   /**
    * Persist the Drive export URL onto the assignment doc so re-entering
@@ -2240,19 +2246,33 @@ export const useQuizAssignments = (
   const setAssignmentRosters = useCallback<
     UseQuizAssignmentsResult['setAssignmentRosters']
   >(
-    async (assignmentId, targets, periodAccessRows) => {
+    async (assignmentId, targets, periodAccessRows, removedRosterNames) => {
       if (!userId) throw new Error('Not authenticated');
       const now = Date.now();
       const rowWrites = periodAccessWrites(periodAccessRows);
       const cleanedRosterIds = targets.rosterIds.filter(
         (id): id is string => typeof id === 'string' && id.length > 0
       );
-      const cleanedClassIds = targets.classIds.filter(
+      const pickedClassIds = targets.classIds.filter(
         (id): id is string => typeof id === 'string' && id.length > 0
       );
-      const cleanedPeriodNames = targets.periodNames.filter(
+      const pickedPeriodNames = targets.periodNames.filter(
         (n): n is string => typeof n === 'string' && n.length > 0
       );
+      // Fails the save rather than dropping linked sections on a bad read.
+      const currentSession = (
+        await getDoc(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId))
+      ).data() as QuizSession | undefined;
+      const carried = withLinkedSections(currentSession, {
+        classIds: pickedClassIds,
+        periodNames: pickedPeriodNames,
+        classPeriodByClassId: sanitizeClassPeriodByClassId(
+          targets.classPeriodByClassId,
+          pickedClassIds
+        ),
+      });
+      const cleanedClassIds = carried.classIds;
+      const cleanedPeriodNames = carried.periodNames;
 
       const assignmentPatch: Record<string, unknown> = {
         updatedAt: now,
@@ -2275,11 +2295,25 @@ export const useQuizAssignments = (
       // prior map rather than leaving it lingering. Sanitization keeps
       // the keyset in lock-step with `cleanedClassIds` even if the
       // caller's map drifted.
-      const cleanedClassPeriodByClassId = sanitizeClassPeriodByClassId(
-        targets.classPeriodByClassId,
-        cleanedClassIds
+      const cleanedClassPeriodByClassId = carried.classPeriodByClassId;
+      const nextRowKeys = new Set(
+        Object.keys(currentSession?.periodAccess ?? {})
+      );
+      for (const [key, row] of Object.entries(periodAccessRows ?? {})) {
+        if (row) nextRowKeys.add(key);
+        else nextRowKeys.delete(key);
+      }
+      const removedClasses = nextRemovedClasses(
+        currentSession,
+        {
+          classIds: cleanedClassIds,
+          periodNames: cleanedPeriodNames,
+          periodAccessKeys: [...nextRowKeys],
+        },
+        removedRosterNames ?? []
       );
       const sessionPatch: Record<string, unknown> = {
+        removedClasses,
         rosterIds: cleanedRosterIds,
         classIds: cleanedClassIds,
         classId: cleanedClassIds[0] ?? '',

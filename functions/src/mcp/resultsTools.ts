@@ -118,22 +118,30 @@ async function quizSessionSummary(
   sessionDoc: admin.firestore.DocumentSnapshot,
   keyCache: Map<string, unknown[]>
 ) {
-  const [{ withQuizSessionContent }, recompute, { parseChooseSections }] =
-    await Promise.all([
-      import('../quizSessionContent'),
-      import('../recomputePlcAssessments'),
-      import('../quizSectionsChosen'),
-    ]);
+  const [
+    { withQuizSessionContent },
+    recompute,
+    { parseChooseSections },
+    { sessionClassPredicate },
+  ] = await Promise.all([
+    import('../quizSessionContent'),
+    import('../recomputePlcAssessments'),
+    import('../quizSectionsChosen'),
+    import('../sessionClassFilter'),
+  ]);
   const sessionData: Data = sessionDoc.data() ?? {};
   const s = await withQuizSessionContent(sessionDoc.ref, sessionData);
   const assignmentId = asText(s.assignmentId, sessionDoc.id);
-  const [responses, assignmentSnap] = await Promise.all([
+  const [responsesSnap, assignmentSnap] = await Promise.all([
     sessionDoc.ref
       .collection('responses')
       .where('status', '==', 'completed')
       .get(),
     ctx.db.doc(`users/${ctx.uid}/quiz_assignments/${assignmentId}`).get(),
   ]);
+  // Classes removed from the quiz are left out, as in Quiz Results.
+  const keepClass = sessionClassPredicate(s);
+  const responses = responsesSnap.docs.filter((d) => keepClass(d.data()));
   const assignment: Data = assignmentSnap.data() ?? {};
   const header = {
     assignment_id: sessionDoc.id,
@@ -143,8 +151,8 @@ async function quizSessionSummary(
     ended_at: iso(s.endedAt),
     scores_published: s.scorePublishedAt != null,
   };
-  if (responses.size < MIN_RESPONSES) {
-    return { ...header, ...suppressed(responses.size) };
+  if (responses.length < MIN_RESPONSES) {
+    return { ...header, ...suppressed(responses.length) };
   }
   const keyQuestions = await quizKey(ctx, s, assignment, keyCache);
   return {
@@ -159,7 +167,7 @@ async function quizSessionSummary(
         teacherUid: ctx.uid,
         publicQuestions: asArray(s.publicQuestions),
         questionSnapshot: asArray(assignment.questionSnapshot),
-        responses: responses.docs.map((d): CompletedResponse =>
+        responses: responses.map((d): CompletedResponse =>
           recompute.parseCompletedResponse(d.data())
         ),
         scorePublishedAt:
