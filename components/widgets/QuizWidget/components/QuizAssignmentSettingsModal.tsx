@@ -44,6 +44,12 @@ import {
 } from '@/components/common/library/assignStepper/assignSteps';
 import { AssignWhenStep } from '@/components/common/library/assignStepper/AssignWhenStep';
 import { formatWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
+import { ClassPickerMenu } from '@/components/common/library/assignStepper/ClassPickerMenu';
+import {
+  formatClassesValue,
+  type AssignClassesValue,
+} from '@/components/common/library/assignStepper/assignClassesValue';
+import { periodAccessClassEdits } from '@/utils/periodPlan';
 import { useQuizRuleGates } from '@/components/common/library/assignStepper/QuizRuleStepGates';
 import { quizRuleStepDefs } from '@/components/common/library/assignStepper/quizRuleStepDefs';
 import { useTranslation } from 'react-i18next';
@@ -189,6 +195,20 @@ export const QuizAssignmentSettingsModal: React.FC<
           closesBeforeOpens(specForRoster(availability, r.id), [r], undefined)
         )
       : closesBeforeOpens(availability.all, selectedRostersForDue, undefined);
+  // Down to one class there is no per-class plan, so the shared window moves the kept rows.
+  const singleClassRowEdits = (
+    changed: ReturnType<typeof changedWindow>
+  ): Record<string, number | null> => {
+    const out: Record<string, number | null> = {};
+    for (const [key, row] of Object.entries(assignment.periodAccess ?? {})) {
+      if (!selectedRostersForDue.some((r) => r.id === row.rosterId)) continue;
+      if ('openAt' in changed)
+        out[`periodAccess.${key}.openAt`] = changed.openAt ?? null;
+      if ('closeAt' in changed)
+        out[`periodAccess.${key}.closeAt`] = changed.closeAt ?? null;
+    }
+    return out;
+  };
   const windowFields = (): QuizAssignmentSettingsPatch => {
     const resolved = resolveAvailability(
       availability,
@@ -197,13 +217,15 @@ export const QuizAssignmentSettingsModal: React.FC<
     );
     const changed = changedWindow(availabilityBaseline.resolved, resolved);
     const dueChanged = 'dueAt' in changed || 'dueAtByRosterId' in changed;
-    const rowEdits = perPeriod
-      ? periodAccessWindowEdits(
-          assignment.periodAccess ?? {},
-          availabilityBaseline.resolved,
-          resolved
-        )
-      : {};
+    const rowEdits = !perPeriod
+      ? {}
+      : resolved.periodPlan
+        ? periodAccessWindowEdits(
+            assignment.periodAccess ?? {},
+            availabilityBaseline.resolved,
+            resolved
+          )
+        : singleClassRowEdits(changed);
     // A per-class session gates on its rows; a shared window would add a second gate.
     const edit: QuizAssignmentSettingsPatch = perPeriod
       ? Object.keys(rowEdits).length > 0
@@ -224,6 +246,28 @@ export const QuizAssignmentSettingsModal: React.FC<
     };
     if (perClass || assignment.dueAtByRosterId) out.dueAtByRosterId = perClass;
     return out;
+  };
+
+  const [initialClassIds] = useState(() =>
+    options.picker.rosterIds.slice().sort()
+  );
+  // A per-period session gates each class on its row, so a class change adds or removes rows.
+  const hasPeriodRows =
+    !!assignment.accessMode &&
+    Object.keys(assignment.periodAccess ?? {}).length > 0;
+  const classRowFields = (
+    selected: ClassRoster[]
+  ): Pick<QuizAssignmentSettingsPatch, 'periodAccessRows'> => {
+    if (!hasPeriodRows || !assignment.accessMode) return {};
+    const ids = selected.map((r) => r.id).sort();
+    if (ids.join() === initialClassIds.join()) return {};
+    const rows = periodAccessClassEdits({
+      periodAccess: assignment.periodAccess ?? {},
+      accessMode: assignment.accessMode,
+      rosters: selected,
+      window: resolveAvailability(availability, selected, undefined),
+    });
+    return Object.keys(rows).length > 0 ? { periodAccessRows: rows } : {};
   };
 
   const handleAssign = async () => {
@@ -249,6 +293,7 @@ export const QuizAssignmentSettingsModal: React.FC<
       periodName: targets.periodNames[0] ?? '',
       periodNames: targets.periodNames,
       ...windowFields(),
+      ...classRowFields(selectedRosters),
       // Behavior rides the patch only when edited; sessionMode never does.
       ...(JSON.stringify(behavior.sessionOptions) !==
       JSON.stringify(initialBehavior.sessionOptions)
@@ -354,12 +399,34 @@ export const QuizAssignmentSettingsModal: React.FC<
             },
           ]
         : [];
+    const classesValue: AssignClassesValue = {
+      classIds: options.picker.rosterIds,
+      studentsByClass: {},
+    };
+    const classesStep: AssignStepDef = {
+      id: 'classes',
+      title: getAssignStepTitle('classes', 'quiz', { kind: 'work' }),
+      value: formatClassesValue(classesValue, rosters),
+      body: (
+        <ClassPickerMenu
+          rosters={rosters}
+          value={classesValue}
+          onChange={(next) =>
+            setOptions((prev) => ({
+              ...prev,
+              picker: { ...prev.picker, rosterIds: next.classIds },
+            }))
+          }
+        />
+      ),
+    };
     return (
       <AssignStepper
         isOpen
         onClose={onClose}
         title={assignment.quizTitle}
         steps={[
+          classesStep,
           whenStep,
           ...quizRuleStepDefs({
             value: shownBehavior,
@@ -372,7 +439,10 @@ export const QuizAssignmentSettingsModal: React.FC<
         submitLabel="Save"
         submitIcon={Save}
         onSubmit={handleAssign}
-        disabled={availabilityBackwards}
+        disabled={
+          availabilityBackwards ||
+          (hasPeriodRows && selectedRostersForDue.length === 0)
+        }
       />
     );
   }
@@ -389,7 +459,10 @@ export const QuizAssignmentSettingsModal: React.FC<
         setOptions((prev) => ({ ...prev, className: v }))
       }
       confirmLabel="Save"
-      confirmDisabled={availabilityBackwards}
+      confirmDisabled={
+        availabilityBackwards ||
+        (hasPeriodRows && selectedRostersForDue.length === 0)
+      }
       onAssign={handleAssign}
       extraSlot={
         <>

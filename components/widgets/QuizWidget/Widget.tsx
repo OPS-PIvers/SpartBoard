@@ -3649,6 +3649,7 @@ const TeacherQuizWidget: React.FC<{
                 rosterIds,
                 periodName: _periodName,
                 periodNames: _periodNames,
+                periodAccessRows,
                 ...settingsPatch
               } = patch;
               // These are two separate writeBatch.commit()s, not one
@@ -3679,7 +3680,12 @@ const TeacherQuizWidget: React.FC<{
                 const targets = deriveSessionTargetsFromRosters(
                   rosters.filter((r) => selectedRosterIds.has(r.id))
                 );
-                await setAssignmentRosters(editingAssignment.id, targets);
+                // Per-period rows ride the targeting batch so a class and its row move together.
+                await setAssignmentRosters(
+                  editingAssignment.id,
+                  targets,
+                  periodAccessRows
+                );
               }
               addToast('Assignment settings saved.', 'success');
               setEditingAssignment(null);

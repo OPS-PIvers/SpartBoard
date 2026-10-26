@@ -8,8 +8,8 @@
  *   3. Clicking Monitor opens PlcAssignmentSessionModal with view=monitor.
  *   4. Clicking Results opens PlcAssignmentSessionModal with view=results.
  *   5. Clicking "Assign to my classes" opens the PlcAssignmentImportModal.
- *   6. Picking "sync" in the modal calls callJoinPlcAssignmentSyncGroup and
- *      createAssignment, then shows the class-period picker.
+ *   6. Picking "sync" in the modal opens the assign stepper; submitting it
+ *      calls callJoinPlcAssignmentSyncGroup and createAssignment.
  *   7. Owner video-activity rows ALSO show Monitor/Results, and opening one
  *      threads kind='video-activity' into the session modal.
  *   8. Non-owner rows with no matching template hide "Assign to my classes".
@@ -52,6 +52,7 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'owner-1', displayName: 'Teacher One' },
     canAccessFeature: () => false,
+    getAssignmentMode: () => 'submissions',
   }),
 }));
 
@@ -199,14 +200,59 @@ const createAssignment = vi.fn(
       createAssignmentResolver = resolve;
     })
 );
-const setAssignmentRosters = vi.fn().mockResolvedValue(undefined);
-
 vi.mock('@/hooks/useQuizAssignments', () => ({
   useQuizAssignments: () => ({
     assignments: [],
     createAssignment,
-    setAssignmentRosters,
+    setAssignmentTargetSkippedCount: vi.fn(),
   }),
+}));
+
+vi.mock('@/hooks/useSetAssignmentTargets', () => ({
+  useSetAssignmentTargets: () => ({ setAssignmentTargets: vi.fn() }),
+}));
+
+const stepperBehavior = {
+  sessionMode: 'student',
+  sessionOptions: { shuffleQuestions: false },
+  attemptLimit: 1,
+};
+let stepperInitialBehavior: unknown = null;
+vi.mock('@/components/plc/PlcQuizPickupStepper', () => ({
+  PlcQuizPickupStepper: ({
+    initialBehavior,
+    onAssign,
+    onClose,
+  }: {
+    initialBehavior: unknown;
+    onAssign: (plan: unknown, behavior: unknown) => Promise<void>;
+    onClose: () => void;
+  }) => {
+    stepperInitialBehavior = initialBehavior;
+    return (
+      <button
+        data-testid="pickup-stepper"
+        onClick={() =>
+          void onAssign(
+            {
+              rosters: [{ id: 'r1', name: 'Math 1', students: [] }],
+              dueAt: null,
+              mixed: { targeting: undefined },
+            },
+            stepperBehavior
+          ).then(onClose, () => undefined)
+        }
+      >
+        StepperAssign
+      </button>
+    );
+  },
+}));
+vi.mock('@/components/plc/plcQuizStepperAssign', async (importActual) => ({
+  ...(await importActual<
+    typeof import('@/components/plc/plcQuizStepperAssign')
+  >()),
+  applyPlcStepperStudentPicks: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/hooks/useSyncedQuizGroups', () => ({
@@ -219,39 +265,6 @@ vi.mock('@/hooks/useSyncedQuizGroups', () => ({
     .fn()
     .mockResolvedValue({ groupId: 'sync-2', version: 1 }),
   callLeaveSyncedQuizGroup: vi.fn().mockResolvedValue(undefined),
-}));
-
-// Stub AssignClassPicker so roster selection works in tests without full UI.
-vi.mock('@/components/common/AssignClassPicker', () => ({
-  AssignClassPicker: ({
-    rosters,
-    value,
-    onChange,
-  }: {
-    rosters: ClassRoster[];
-    value: { rosterIds: string[] };
-    onChange: (next: { rosterIds: string[] }) => void;
-  }) => (
-    <div data-testid="picker">
-      {rosters.map((r) => (
-        <label key={r.id}>
-          <input
-            type="checkbox"
-            data-testid={`roster-${r.id}`}
-            checked={value.rosterIds.includes(r.id)}
-            onChange={(e) =>
-              onChange({
-                rosterIds: e.target.checked
-                  ? [...value.rosterIds, r.id]
-                  : value.rosterIds.filter((id) => id !== r.id),
-              })
-            }
-          />
-          {r.name}
-        </label>
-      ))}
-    </div>
-  ),
 }));
 
 // ---------------------------------------------------------------------------
@@ -383,12 +396,8 @@ describe('PlcAssignmentsInProgressSubTab', () => {
     expect(screen.getByText(/Make a copy/i)).toBeInTheDocument();
   });
 
-  it('picking sync mode calls callJoinPlcAssignmentSyncGroup then createAssignment', async () => {
-    renderSubject();
-
+  const pickSyncAndAssign = async () => {
     fireEvent.click(screen.getByTestId('row-action-assign-to-my-classes'));
-
-    // Pick the "Synced" option in the modal (the button text is "Synced").
     const syncButton = screen
       .getAllByRole('button')
       .find((b) => b.textContent?.includes('Synced'));
@@ -397,6 +406,14 @@ describe('PlcAssignmentsInProgressSubTab', () => {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       fireEvent.click(syncButton!);
     });
+    const stepper = await screen.findByTestId('pickup-stepper');
+    expect(createAssignment).not.toHaveBeenCalled();
+    fireEvent.click(stepper);
+  };
+
+  it('picking sync mode opens the stepper, then joins and creates on submit', async () => {
+    renderSubject();
+    await pickSyncAndAssign();
 
     await waitFor(() => {
       expect(
@@ -406,32 +423,43 @@ describe('PlcAssignmentsInProgressSubTab', () => {
     await waitFor(() => {
       expect(createAssignment).toHaveBeenCalled();
     });
+    expect(createAssignment).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ periodNames: ['Math 1'] }),
+      expect.objectContaining({ rosterIds: ['r1'], initialStatus: 'paused' })
+    );
   });
 
-  it('a pickup carries PLC linkage to the originator sheet and the canonical behavior', async () => {
+  it('a pickup prefills the canonical behavior and carries PLC linkage to the originator sheet', async () => {
     const behavior = {
       sessionMode: 'student' as const,
       sessionOptions: { shuffleQuestions: true },
       attemptLimit: 2,
     };
-    vi.mocked(syncedQuizGroupsMod.pullSyncedQuizContent).mockResolvedValueOnce({
-      title: 'Cell Division Quiz',
-      questions: [],
-      version: 3,
-      behavior,
-    });
+    const pull = vi.mocked(syncedQuizGroupsMod.pullSyncedQuizContent);
+    pull
+      .mockResolvedValueOnce({
+        title: 'Cell Division Quiz',
+        questions: [],
+        version: 3,
+        behavior,
+      })
+      .mockResolvedValueOnce({
+        title: 'Cell Division Quiz',
+        questions: [],
+        version: 4,
+        behavior,
+      });
     renderSubject();
-
-    fireEvent.click(screen.getByTestId('row-action-assign-to-my-classes'));
-    const syncButton = screen
-      .getAllByRole('button')
-      .find((b) => b.textContent?.includes('Synced'));
-    act(() => {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      fireEvent.click(syncButton!);
-    });
+    await pickSyncAndAssign();
 
     await waitFor(() => expect(createAssignment).toHaveBeenCalledTimes(1));
+    expect(stepperInitialBehavior).toMatchObject({
+      sessionMode: 'student',
+      attemptLimit: 2,
+    });
+    // Pulled again at submit, so the copy carries what the author published since.
+    expect(pull).toHaveBeenCalledTimes(2);
     expect(saveQuiz).toHaveBeenCalledWith(
       expect.anything(),
       undefined,
@@ -440,7 +468,7 @@ describe('PlcAssignmentsInProgressSubTab', () => {
     expect(createAssignment).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
-        ...behavior,
+        ...stepperBehavior,
         plc: expect.objectContaining({
           id: 'plc-1',
           name: 'Test PLC',
@@ -451,29 +479,20 @@ describe('PlcAssignmentsInProgressSubTab', () => {
     );
   });
 
-  it('after createAssignment resolves, import modal is dismissed', async () => {
+  it('closes the stepper once the assignment is created', async () => {
     renderSubject();
-    fireEvent.click(screen.getByTestId('row-action-assign-to-my-classes'));
+    await pickSyncAndAssign();
+    await waitFor(() => expect(createAssignmentResolver).not.toBeNull());
 
-    const syncButton = screen
-      .getAllByRole('button')
-      .find((b) => b.textContent?.includes('Synced'));
-    act(() => {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      fireEvent.click(syncButton!);
-    });
-
-    // Resolve createAssignment to trigger pendingSetup.
     await act(async () => {
       createAssignmentResolver?.({ id: 'assign-new', code: 'ABC123' });
       await Promise.resolve();
     });
 
-    // The sync/copy picker modal should be dismissed after the import
-    // resolves and pendingSetup is set.
     await waitFor(() => {
-      expect(screen.queryByText(/Make a copy/i)).not.toBeInTheDocument();
+      expect(screen.queryByTestId('pickup-stepper')).not.toBeInTheDocument();
     });
+    expect(screen.queryByText(/Make a copy/i)).not.toBeInTheDocument();
   });
 
   // -------------------------------------------------------------------------

@@ -4,7 +4,6 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   Plc,
-  QuizAssignment,
   QuizBehaviorSettings,
   QuizData,
   QuizMetadata,
@@ -41,7 +40,13 @@ import {
   type PlcSharePickerItem,
 } from '@/components/plc/PlcSharePickerModal';
 import { QuizEditorModal } from '@/components/widgets/QuizWidget/components/QuizEditorModal';
-import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
+import { PlcQuizPickupStepper } from '@/components/plc/PlcQuizPickupStepper';
+import {
+  applyPlcStepperStudentPicks,
+  plcStepperCreateFields,
+  type PlcQuizStepperPlan,
+} from '@/components/plc/plcQuizStepperAssign';
+import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
 import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
 
 /** The slice of an assessment row these actions need. */
@@ -61,7 +66,7 @@ export interface PlcQuizActionsApi {
   openVersionHistory: (target: PlcQuizActionTarget) => void;
   openSharePicker: () => void;
   busyRowId: string | null;
-  /** True while an import/assign is mid-flight or the class picker is open. */
+  /** True while an import/assign is mid-flight or the assign stepper is open. */
   busy: boolean;
   isDriveConnected: boolean;
   isInLibrary: (syncGroupId: string) => boolean;
@@ -80,18 +85,23 @@ function formatDate(ms: number): string {
   }
 }
 
-export function usePlcQuizActions(
-  plc: Plc,
-  onCloseDashboard: () => void
-): PlcQuizActionsApi {
+export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, getAssignmentMode } = useAuth();
   // D11: an assign uses this teacher's last-used settings, not the author's.
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
     user?.uid,
     true
   );
-  const { addToast, rosters, setPendingAssignmentEdit } = useDashboard();
+  const { addToast, rosters } = useDashboard();
+  // Assign always runs in Assessment Mode.
+  const assignPrefill = useMemo<QuizBehaviorSettings>(
+    () => ({
+      ...getQuizAssignPrefill(lastAssignSettings),
+      sessionMode: 'student',
+    }),
+    [lastAssignSettings]
+  );
   const { quizzes: plcQuizzes, mirrorPlcQuizHeader } = usePlcQuizzes(plc.id);
   const {
     quizzes: personalQuizzes,
@@ -122,16 +132,18 @@ export function usePlcQuizActions(
   } | null>(null);
   const [savingReplicaId, setSavingReplicaId] = useState<string | null>(null);
   const [sharePickerOpen, setSharePickerOpen] = useState(false);
-  const [pendingSetup, setPendingSetup] = useState<{
-    id: string;
-    quizTitle: string;
+  // Picked sync-or-copy, waiting on the assign stepper.
+  const [pickup, setPickup] = useState<{
+    target: PlcQuizActionTarget;
+    mode: SharedAssignmentImportMode;
   } | null>(null);
 
   // Cost guard: only subscribe to quiz_assignments while an assign is live.
-  const { assignments, createAssignment, setAssignmentRosters } =
-    useQuizAssignments(assignTarget || pendingSetup ? user?.uid : undefined);
+  const { createAssignment, setAssignmentTargetSkippedCount } =
+    useQuizAssignments(assignTarget || pickup ? user?.uid : undefined);
+  const { setAssignmentTargets } = useSetAssignmentTargets();
   const { loadBankContentsForQuiz } = useBankSources(
-    assignTarget || busyRowId ? user?.uid : undefined
+    assignTarget || pickup || busyRowId ? user?.uid : undefined
   );
 
   const canEdit = useMemo(
@@ -377,10 +389,9 @@ export function usePlcQuizActions(
     ]
   );
 
-  const handleAssign = useCallback(
-    async (target: PlcQuizActionTarget, mode: SharedAssignmentImportMode) => {
-      if (!user) return;
-      if (busyRowId) return;
+  const handlePickMode = useCallback(
+    (target: PlcQuizActionTarget, mode: SharedAssignmentImportMode) => {
+      setAssignTarget(null);
       if (!isDriveConnected) {
         addToast(
           t('plcDashboard.assignmentsLibrary.driveRequired', {
@@ -391,8 +402,21 @@ export function usePlcQuizActions(
         );
         return;
       }
+      setPickup({ target, mode });
+    },
+    [addToast, isDriveConnected, t]
+  );
 
-      setAssignTarget(null);
+  // Nothing is saved until the teacher submits the stepper; a failure rolls back and rethrows.
+  const handleAssign = useCallback(
+    async (
+      target: PlcQuizActionTarget,
+      mode: SharedAssignmentImportMode,
+      plan: PlcQuizStepperPlan,
+      behavior: QuizBehaviorSettings
+    ) => {
+      // Rejecting keeps the stepper open instead of closing on a no-op.
+      if (!user || busyRowId) throw new Error('Assign already in progress');
       setBusyRowId(target.plcQuizId);
       let savedMeta: Awaited<ReturnType<typeof saveQuiz>> | null = null;
       let joinedGroupId: string | null = null;
@@ -428,6 +452,7 @@ export function usePlcQuizActions(
           { loadBankContentsForQuiz, saveDriveSnapshot }
         );
         const plcLinkage = buildPlcLinkage(plc);
+        const fields = plcStepperCreateFields(plan, rosters);
         const created = await createAssignment(
           {
             id: savedMeta.id,
@@ -441,16 +466,19 @@ export function usePlcQuizActions(
               : {}),
           },
           {
-            ...getQuizAssignPrefill(lastAssignSettings),
-            // Assign always runs in Assessment Mode.
-            sessionMode: 'student',
+            sessionMode: behavior.sessionMode,
+            sessionOptions: behavior.sessionOptions,
+            attemptLimit: behavior.attemptLimit,
+            teacherName: (user.displayName ?? '').trim() || undefined,
+            ...fields.settings,
             ...(plcLinkage ? { plc: plcLinkage } : {}),
             ...(content.resolvedDriveFileId
               ? { resolvedDriveFileId: content.resolvedDriveFileId }
               : {}),
           },
           {
-            initialStatus: 'paused',
+            ...fields.options,
+            mode: getAssignmentMode('quiz'),
             skipPlcTemplateWrite: true,
             ...(content.bankSlots ? { bankSlots: content.bankSlots } : {}),
             ...(mode === 'sync' && liveVersion !== undefined
@@ -464,21 +492,33 @@ export function usePlcQuizActions(
           }
         );
 
+        await applyPlcStepperStudentPicks({
+          assignmentId: created.id,
+          plan,
+          setAssignmentTargets,
+          setAssignmentTargetSkippedCount,
+          addToast,
+          logScope: 'usePlcQuizActions.assign',
+        });
         addToast(
-          mode === 'sync'
-            ? t('plcDashboard.assignmentsLibrary.importedSync', {
-                title: target.title,
-                defaultValue:
-                  '"{{title}}" added to your board (paused, synced).',
+          plan.rosters.length > 0
+            ? t('plcDashboard.assignmentsLibrary.assignedToClasses', {
+                count: plan.rosters.length,
+                defaultValue: 'Assigned to {{count}} class.',
+                defaultValue_other: 'Assigned to {{count}} classes.',
               })
-            : t('plcDashboard.assignmentsLibrary.importedCopy', {
-                title: target.title,
-                defaultValue: '"{{title}}" copied to your board (paused).',
-              }),
+            : mode === 'sync'
+              ? t('plcDashboard.assignmentsLibrary.importedSync', {
+                  title: target.title,
+                  defaultValue:
+                    '"{{title}}" added to your board (paused, synced).',
+                })
+              : t('plcDashboard.assignmentsLibrary.importedCopy', {
+                  title: target.title,
+                  defaultValue: '"{{title}}" copied to your board (paused).',
+                }),
           'success'
         );
-
-        setPendingSetup({ id: created.id, quizTitle: target.title });
       } catch (err) {
         logError('usePlcQuizActions.assign', err, {
           plcId: plc.id,
@@ -514,6 +554,7 @@ export function usePlcQuizActions(
               }),
           'error'
         );
+        throw err;
       } finally {
         setBusyRowId(null);
       }
@@ -524,12 +565,14 @@ export function usePlcQuizActions(
       busyRowId,
       createAssignment,
       deleteQuiz,
-      isDriveConnected,
+      getAssignmentMode,
       plc,
+      rosters,
       saveQuiz,
+      setAssignmentTargets,
+      setAssignmentTargetSkippedCount,
       t,
       user,
-      lastAssignSettings,
       loadBankContentsForQuiz,
       saveDriveSnapshot,
     ]
@@ -869,54 +912,20 @@ export function usePlcQuizActions(
         <PlcAssignmentImportModal
           quizTitle={assignTarget.title}
           sharedByName={assignTarget.sharedByName ?? ''}
-          onPick={(mode) => void handleAssign(assignTarget, mode)}
+          onPick={(mode) => handlePickMode(assignTarget, mode)}
           onClose={() => setAssignTarget(null)}
         />
       )}
-      {pendingSetup &&
-        (() => {
-          // Fall back to an import-time stub while the assignments snapshot catches up.
-          const live = assignments.find((a) => a.id === pendingSetup.id);
-          const stub = {
-            id: pendingSetup.id,
-            quizTitle: pendingSetup.quizTitle,
-          } as unknown as QuizAssignment;
-          return (
-            <QuizAssignmentImportSetupModal
-              assignment={live ?? stub}
-              rosters={rosters}
-              onSave={async (targets) => {
-                try {
-                  await setAssignmentRosters(pendingSetup.id, targets);
-                  addToast(
-                    t('plcDashboard.assignmentsLibrary.assignedToClasses', {
-                      count: targets.rosterIds.length,
-                      defaultValue: 'Assigned to {{count}} class.',
-                      defaultValue_other: 'Assigned to {{count}} classes.',
-                    }),
-                    'success'
-                  );
-                } catch (err) {
-                  addToast(
-                    err instanceof Error
-                      ? err.message
-                      : t('plcDashboard.assignmentsLibrary.assignFailed', {
-                          defaultValue: 'Failed to save class selection.',
-                        }),
-                    'error'
-                  );
-                  throw err;
-                }
-              }}
-              onEditAllSettings={() => {
-                setPendingAssignmentEdit(pendingSetup.id);
-                setPendingSetup(null);
-                onCloseDashboard();
-              }}
-              onClose={() => setPendingSetup(null)}
-            />
-          );
-        })()}
+      {pickup && (
+        <PlcQuizPickupStepper
+          title={pickup.target.title}
+          initialBehavior={assignPrefill}
+          onClose={() => setPickup(null)}
+          onAssign={(plan, behavior) =>
+            handleAssign(pickup.target, pickup.mode, plan, behavior)
+          }
+        />
+      )}
       <QuizEditorModal
         isOpen={editing !== null}
         quiz={editing?.quiz ?? null}
@@ -969,7 +978,7 @@ export function usePlcQuizActions(
     openVersionHistory,
     openSharePicker: () => setSharePickerOpen(true),
     busyRowId,
-    busy: busyRowId !== null || pendingSetup !== null,
+    busy: busyRowId !== null || pickup !== null,
     isDriveConnected,
     isInLibrary,
     modals,

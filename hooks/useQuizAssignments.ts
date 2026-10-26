@@ -330,7 +330,20 @@ export type QuizAssignmentSettingsPatch = Partial<QuizAssignmentSettings> &
   Pick<QuizAssignment, 'openAt' | 'closeAt'> & {
     /** `periodAccess.<key>.openAt|closeAt` dot paths, written to both docs. */
     periodAccessEdits?: Record<string, number | null>;
+    /** Whole per-period rows by key for a class change; null removes the row. */
+    periodAccessRows?: Record<string, PeriodAccess | null>;
   };
+
+/** `periodAccess.<key>` writes for whole rows; null deletes the row. */
+const periodAccessRowWrites = (
+  rows: Record<string, PeriodAccess | null> | undefined
+): Record<string, unknown> =>
+  Object.fromEntries(
+    Object.entries(rows ?? {}).map(([key, row]) => [
+      `periodAccess.${key}`,
+      row ?? deleteField(),
+    ])
+  );
 
 export interface UseQuizAssignmentsResult {
   assignments: QuizAssignment[];
@@ -398,7 +411,9 @@ export interface UseQuizAssignmentsResult {
    */
   setAssignmentRosters: (
     assignmentId: string,
-    targets: SessionTargets
+    targets: SessionTargets,
+    /** Per-period rows for the class change, in the same batch; null removes a row. */
+    periodAccessRows?: Record<string, PeriodAccess | null>
   ) => Promise<void>;
   /**
    * Persist the Drive export URL onto the assignment doc so re-entering
@@ -2110,10 +2125,12 @@ export const useQuizAssignments = (
       // existing field stays on the doc. Translate explicit-undefined on
       // the `plc` key to `deleteField()` so the doc actually loses PLC
       // mode. (Final-review finding on PR #1442.)
-      const { periodAccessEdits, ...settings } = patch;
+      const { periodAccessEdits, periodAccessRows, ...settings } = patch;
+      const rowWrites = periodAccessRowWrites(periodAccessRows);
       const assignmentPatch: Record<string, unknown> = {
         ...settings,
         ...periodAccessEdits,
+        ...rowWrites,
         updatedAt: now,
       };
       const clearingPlc =
@@ -2148,7 +2165,7 @@ export const useQuizAssignments = (
       if ('dueAt' in patch) sessionPatch.dueAt = patch.dueAt ?? null;
       if ('openAt' in patch) sessionPatch.openAt = patch.openAt ?? null;
       if ('closeAt' in patch) sessionPatch.closeAt = patch.closeAt ?? null;
-      Object.assign(sessionPatch, periodAccessEdits);
+      Object.assign(sessionPatch, periodAccessEdits, rowWrites);
       if (clearingPerClassDue) sessionPatch.dueAtByClassId = deleteField();
       else if (dueAtByClassId) sessionPatch.dueAtByClassId = dueAtByClassId;
       if (patch.sessionOptions) {
@@ -2225,9 +2242,10 @@ export const useQuizAssignments = (
   const setAssignmentRosters = useCallback<
     UseQuizAssignmentsResult['setAssignmentRosters']
   >(
-    async (assignmentId, targets) => {
+    async (assignmentId, targets, periodAccessRows) => {
       if (!userId) throw new Error('Not authenticated');
       const now = Date.now();
+      const rowWrites = periodAccessRowWrites(periodAccessRows);
       const cleanedRosterIds = targets.rosterIds.filter(
         (id): id is string => typeof id === 'string' && id.length > 0
       );
@@ -2248,6 +2266,7 @@ export const useQuizAssignments = (
         // Mirror periodName legacy field to the first selected period so
         // pre-Phase-5A consumers (if any remain) still see a value.
         periodName: cleanedPeriodNames[0] ?? '',
+        ...rowWrites,
       };
 
       // Session doc carries the same targeting. classIds[0] is mirrored
@@ -2269,6 +2288,7 @@ export const useQuizAssignments = (
         classId: cleanedClassIds[0] ?? '',
         periodNames: cleanedPeriodNames,
         classPeriodByClassId: cleanedClassPeriodByClassId,
+        ...rowWrites,
       };
 
       const batch = writeBatch(db);

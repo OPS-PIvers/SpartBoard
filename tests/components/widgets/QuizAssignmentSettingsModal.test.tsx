@@ -571,13 +571,16 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
       sessionMode: 'student',
       ...overrides,
     });
+  // Classes opens first, as in the assign flow.
+  const openWhen = () =>
+    fireEvent.click(screen.getByRole('button', { name: /^\d\s*When/ }));
   const savePatch = async (onSave: ReturnType<typeof vi.fn>) => {
     fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     return onSave.mock.calls[0][0] as Record<string, unknown>;
   };
 
-  it('shows When, the three rule steps and Sharing, with no Classes step or name', () => {
+  it('shows Classes, When, the three rule steps and Sharing, with no name', () => {
     render(
       <QuizAssignmentSettingsModal
         assignment={saved()}
@@ -586,12 +589,14 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
         onClose={vi.fn()}
       />
     );
+    openWhen();
     const headers = screen
       .getAllByRole('button', { expanded: false })
       .concat(screen.getAllByRole('button', { expanded: true }))
       .map((b) => b.textContent ?? '')
       .join('|');
     for (const title of [
+      'Classes',
       'When',
       'Attempts and order',
       'Quiz integrity',
@@ -599,7 +604,7 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
       'Sharing',
     ])
       expect(headers).toContain(title);
-    expect(headers).not.toContain('Classes');
+    expect(headers).toContain('Period 1');
     expect(screen.queryByTestId('assign-class-picker')).not.toBeInTheDocument();
     expect(screen.getByText('Shared with Test PLC')).toBeInTheDocument();
     expect(screen.getByLabelText('Closes')).toHaveValue('2026-06-02');
@@ -631,6 +636,7 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
         onClose={vi.fn()}
       />
     );
+    openWhen();
     fireEvent.change(screen.getByLabelText('Closes'), {
       target: { value: '2026-06-05' },
     });
@@ -649,11 +655,161 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
         onClose={vi.fn()}
       />
     );
+    openWhen();
     fireEvent.click(
       screen.getByRole('button', { name: 'Different time for each class' })
     );
     expect(screen.getAllByLabelText('Opens')).toHaveLength(1);
     expect(screen.getAllByLabelText('Closes')).toHaveLength(2);
+  });
+
+  const openClasses = () => {
+    const trigger = document.querySelector(
+      '[data-tour="assign-classes.trigger"]'
+    );
+    if (!trigger) throw new Error('class picker missing');
+    fireEvent.click(trigger);
+  };
+  const toggleClass = (name: string) =>
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: new RegExp(`^${name}`) })
+    );
+
+  it('adds a class and retargets on save', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={saved()}
+        rosters={rosters}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
+    );
+    openClasses();
+    toggleClass('Period 2');
+    const patch = await savePatch(onSave);
+    expect(patch.rosterIds).toEqual(['r1', 'r2']);
+    expect(patch.periodNames).toEqual(['Period 1', 'Period 2']);
+    expect(patch).not.toHaveProperty('periodAccessRows');
+  });
+
+  it('adds and removes per-period rows when the classes change', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const row = (rosterId: string) => ({
+      state: 'open',
+      openAt: opens,
+      closeAt: closes,
+      bellPeriodId: null,
+      verified: false,
+      label: rosterId,
+      rosterId,
+    });
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={saved({
+          rosterIds: ['r1', 'r2'],
+          openAt: undefined,
+          closeAt: undefined,
+          accessMode: 'assignment',
+          periodAccess: { 'roster:r1': row('r1'), 'roster:r2': row('r2') },
+        } as Partial<QuizAssignment>)}
+        rosters={[...rosters, makeRoster({ id: 'r3', name: 'Period 3' })]}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
+    );
+    openClasses();
+    toggleClass('Period 2');
+    toggleClass('Period 3');
+    const patch = await savePatch(onSave);
+    expect(patch.rosterIds).toEqual(['r1', 'r3']);
+    expect(patch.periodAccessRows).toEqual({
+      'roster:r2': null,
+      'roster:r3': expect.objectContaining({
+        state: 'open',
+        rosterId: 'r3',
+        label: 'Period 3',
+      }),
+    });
+  });
+
+  it('moves the kept row when a per-period session drops to one class', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const row = (rosterId: string) => ({
+      state: 'open',
+      openAt: opens,
+      closeAt: closes,
+      bellPeriodId: null,
+      verified: false,
+      label: rosterId,
+      rosterId,
+    });
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={saved({
+          rosterIds: ['r1', 'r2'],
+          openAt: undefined,
+          closeAt: undefined,
+          accessMode: 'assignment',
+          periodAccess: { 'roster:r1': row('r1'), 'roster:r2': row('r2') },
+        } as Partial<QuizAssignment>)}
+        rosters={rosters}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
+    );
+    openClasses();
+    toggleClass('Period 2');
+    openWhen();
+    fireEvent.change(screen.getByLabelText('Opens time'), {
+      target: { value: '10:30' },
+    });
+    const patch = await savePatch(onSave);
+    expect(patch.periodAccessRows).toEqual({ 'roster:r2': null });
+    expect(patch.periodAccessEdits).toEqual({
+      'periodAccess.roster:r1.openAt': combineDateAndTime(
+        '2026-06-01',
+        '10:30'
+      ),
+    });
+  });
+
+  it('writes no rows on a save that leaves the classes alone', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={saved({
+          accessMode: 'assessment',
+          periodAccess: {
+            'legacy-key': { state: 'open', label: 'Period 1' },
+          } as unknown as QuizAssignment['periodAccess'],
+        })}
+        rosters={rosters}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
+    );
+    const patch = await savePatch(onSave);
+    expect(patch).not.toHaveProperty('periodAccessRows');
+  });
+
+  it('blocks Save on a per-period session with every class removed', () => {
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={saved({
+          accessMode: 'assessment',
+          periodAccess: {
+            'roster:r1': { state: 'closed', rosterId: 'r1' },
+          } as unknown as QuizAssignment['periodAccess'],
+        })}
+        rosters={rosters}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    openClasses();
+    toggleClass('Period 1');
+    expect(screen.getByRole('button', { name: /^Save$/ })).toBeDisabled();
   });
 
   it('keeps the full modal for a Review assignment', () => {
@@ -688,6 +844,7 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
         onClose={vi.fn()}
       />
     );
+    openWhen();
     expect(
       screen.getByText('Starts paused. You start and pause each class.')
     ).toBeInTheDocument();
