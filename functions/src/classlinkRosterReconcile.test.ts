@@ -47,18 +47,18 @@ describe('reconcileClassLinkStudents — additive half (mirrors the client merge
 
   it('preserves local id and pin when matching on sourcedId', () => {
     const out = reconcileClassLinkStudents(
-      [local('Ada', 'Lovelace', { pin: '07', classLinkSourcedId: 's1' })],
+      [local('Ada', 'Lovelace', { pin: '700007', classLinkSourcedId: 's1' })],
       [upstream('s1', 'Ada', 'Renamed')]
     );
 
     expect(out.matched).toBe(1);
     expect(out.removed).toEqual([]);
-    expect(out.students[0]).toMatchObject({ id: 'local-Ada', pin: '07' });
+    expect(out.students[0]).toMatchObject({ id: 'local-Ada', pin: '700007' });
   });
 
   it('upgrades a name match to a stable sourcedId link', () => {
     const out = reconcileClassLinkStudents(
-      [local('Ada', 'Lovelace', { pin: '03' })],
+      [local('Ada', 'Lovelace', { pin: '300003' })],
       [upstream('s1', 'ada', ' Lovelace ')]
     );
 
@@ -66,7 +66,7 @@ describe('reconcileClassLinkStudents — additive half (mirrors the client merge
     expect(out.added).toEqual([]);
     expect(out.students[0]).toMatchObject({
       id: 'local-Ada',
-      pin: '03',
+      pin: '300003',
       classLinkSourcedId: 's1',
     });
   });
@@ -113,7 +113,7 @@ describe('reconcileClassLinkStudents — additive half (mirrors the client merge
     const out = reconcileClassLinkStudents(
       [
         local('Ada', 'Lovelace', {
-          pin: '01',
+          pin: '100001',
           classLinkSourcedId: 's1',
           email: 'ada@example.com',
         }),
@@ -123,6 +123,21 @@ describe('reconcileClassLinkStudents — additive half (mirrors the client merge
 
     expect(out.changed).toBe(false);
     expect(out.emailBackfilled).toBe(0);
+  });
+
+  it('gives linked students with a short PIN a new 6-digit one and marks the roster changed', () => {
+    const out = reconcileClassLinkStudents(
+      [
+        local('Ada', 'Lovelace', { pin: '01', classLinkSourcedId: 's1' }),
+        local('Aide', 'Helper', { pin: '02' }),
+      ],
+      [upstream('s1', 'Ada', 'Lovelace')]
+    );
+
+    expect(out.changed).toBe(true);
+    expect(out.pinsReplaced).toBe(1);
+    expect(out.students[0].pin).toMatch(/^\d{6}$/);
+    expect(out.students[1].pin).toBe('02');
   });
 
   it('backfills a missing email but never overwrites one', () => {
@@ -292,6 +307,17 @@ describe('assignPins', () => {
 
     expect(out[0].pin).toBe('05');
     expect(out[1].pin).toBe('01');
+  });
+
+  it('gives linked students random 6-digit pins, not sequential ones', () => {
+    const students = Array.from({ length: 40 }, (_, i) =>
+      local(`S${i}`, 'X', { classLinkSourcedId: `sid-${i}` })
+    );
+    const pins = assignPins(students, new Set(['123456'])).map((s) => s.pin);
+    expect(pins.every((p) => /^\d{6}$/.test(p))).toBe(true);
+    expect(new Set(pins).size).toBe(pins.length);
+    expect(pins).not.toContain('123456');
+    expect(pins.slice(0, 3)).not.toEqual(['000001', '000002', '000003']);
   });
 
   it('skips reserved pins', () => {

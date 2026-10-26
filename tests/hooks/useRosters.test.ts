@@ -518,7 +518,7 @@ describe('useRosters — addRoster', () => {
     const { result } = renderHook(() => useRosters(mockUser));
     await act(async () => {
       await result.current.addRoster('CL', [
-        student({ id: 's1', pin: '01', classLinkSourcedId: 'cl-a' }),
+        student({ id: 's1', pin: '100001', classLinkSourcedId: 'cl-a' }),
         student({ id: 's2', pin: '02' }), // no classlink id → excluded
       ]);
     });
@@ -533,7 +533,7 @@ describe('useRosters — addRoster', () => {
     };
     expect(payload.rosterId).toBe('new-roster-id');
     expect(payload.entries).toEqual([
-      { period: 'CL', pin: '01', classlinkSourcedId: 'cl-a' },
+      { period: 'CL', pin: '100001', classlinkSourcedId: 'cl-a' },
     ]);
   });
 
@@ -1030,7 +1030,11 @@ describe('useRosters — PII migration', () => {
     };
     expect(payload.rosterId).toBe('r1');
     expect(payload.entries).toEqual([
-      { period: 'Roster r1', pin: '01', classlinkSourcedId: 'cl-a' },
+      {
+        period: 'Roster r1',
+        pin: expect.stringMatching(/^\d{6}$/),
+        classlinkSourcedId: 'cl-a',
+      },
     ]);
   });
 
