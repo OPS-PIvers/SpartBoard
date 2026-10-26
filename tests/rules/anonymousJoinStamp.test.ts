@@ -157,8 +157,8 @@ describe.each([
     );
   });
 
-  it('still lets a PIN joiner probe their key before joining', async () => {
-    await assertSucceeds(
+  it('denies probing a PIN key before joining (no PIN probing)', async () => {
+    await assertFails(
       getDoc(doc(asAnon(), `${collection}/closed/responses/${PIN_KEY}`))
     );
   });

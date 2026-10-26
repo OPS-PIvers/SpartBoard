@@ -1135,14 +1135,12 @@ async function findExistingResponseDoc(
   deterministicKey: string
 ): Promise<{ key: string; snap: DocumentSnapshot | null }> {
   // Probe the deterministic key. For anonymous joiners, `permission-denied`
-  // here means a doc exists at this key but was written by a different anon
-  // UID — either a real PIN collision (two students sharing pin+period) or
-  // the same student rejoining from a fresh browser session. The response
-  // read rule denies because `request.auth.uid != resource.data.studentUid`.
-  // Treat that as "doc inaccessible from here" so the caller falls through
-  // to the legacy probe / setDoc path; the rule denial on the subsequent
-  // setDoc/updateDoc surfaces a coherent UI error via joinQuizSession's
-  // outer catch instead of an unhandled rejection.
+  // here means either no doc yet or a doc written by a different anon UID
+  // (a PIN collision, or the same student on a fresh browser session): the
+  // read rule denies both alike so the key can't be used to probe PINs.
+  // Treat it as "no doc from here" so the caller falls through to the
+  // legacy probe / create path; a create on a taken key is then denied and
+  // surfaces through joinQuizSession's outer catch.
   //
   // For SSO/studentRole users, `permission-denied` is a legitimate
   // class-gate denial (and `deterministicKey === authUid`, so the legacy
@@ -1163,10 +1161,6 @@ async function findExistingResponseDoc(
     );
   } catch (err) {
     if (!isAnonymous || getErrorCode(err) !== 'permission-denied') throw err;
-    console.warn(
-      '[useQuizSession] permission-denied on deterministic response probe; falling through to legacy/create path.',
-      { sessionId, deterministicKey, err }
-    );
   }
   if (deterministicSnap?.exists()) {
     return { key: deterministicKey, snap: deterministicSnap };
@@ -2950,9 +2944,6 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         }
         setContent(null);
 
-        setSessionIdState(sessionDoc.id);
-        setResponseKeyState(responseKey);
-
         // SSO class-id resolution. Anonymous PIN joiners arrive with a
         // `classPeriod` argument from the period picker — that path stays
         // unchanged. SSO joiners (custom-token `studentRole` users from
@@ -3153,6 +3144,9 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           );
         }
 
+        // Listen only once the doc exists: rules deny reading a missing PIN-keyed doc.
+        setSessionIdState(sessionDoc.id);
+        setResponseKeyState(responseKey);
         // The first content read can race the seat write; retry once seated.
         if (periodKey) setContentRetry((n) => n + 1);
         setSession(normalizeQuizSession(sessionData));
