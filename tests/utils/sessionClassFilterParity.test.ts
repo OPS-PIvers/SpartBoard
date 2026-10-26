@@ -6,6 +6,12 @@ const sessions = [
   null,
   {},
   { classIds: ['cl-A'], periodNames: ['Period 1'] },
+  {
+    classIds: ['cl-A'],
+    periodNames: ['Period 1'],
+    removedClasses: { classIds: ['cl-B'], periodNames: ['Period 2', 'Bio'] },
+  },
+  { periodName: 'Period 2', removedClasses: { periodNames: ['Period 2'] } },
   { classId: 'cl-A' },
   { classIds: [], periodNames: ['Period 1', 'Period 2'] },
   {
@@ -13,6 +19,7 @@ const sessions = [
     periodNames: ['Period 1'],
     classPeriodByClassId: { 'cl-A': 'Period 1', 'schoology:9': 'Bio' },
     periodAccess: { 'roster:r1': { label: 'Period 5' } },
+    removedClasses: { classIds: ['roster:r1', 'cl-B'], periodNames: ['Bio'] },
   },
 ];
 

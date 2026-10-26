@@ -7,6 +7,9 @@ export interface SessionClassTargets {
   periodNames?: unknown;
   classPeriodByClassId?: unknown;
   periodAccess?: unknown;
+  periodName?: unknown;
+  /** Classes the teacher took off this assignment; written by a class change. */
+  removedClasses?: unknown;
 }
 
 /** A response's class markers: `classId` for SSO and per-period joins, `classPeriod` for PIN joins. */
@@ -30,11 +33,15 @@ const record = (v: unknown): Record<string, unknown> =>
 const nonEmpty = (v: unknown): string =>
   typeof v === 'string' && v.length > 0 ? v : '';
 
-/** Builds a predicate that keeps a response unless it names a class the session no longer targets. */
+/** Builds a predicate that hides a response only when it names a class the teacher removed and has not re-added. */
 export function sessionClassPredicate(
   session: SessionClassTargets | null | undefined
 ): (response: ResponseClassMarkers) => boolean {
-  if (!session) return () => true;
+  const removed = record(session?.removedClasses);
+  const removedIds = new Set(strings(removed.classIds));
+  const removedPeriods = new Set(strings(removed.periodNames));
+  if (!session || (removedIds.size === 0 && removedPeriods.size === 0))
+    return () => true;
   const classIds = strings(session.classIds);
   const legacyClassId = nonEmpty(session.classId);
   const periodAccess = record(session.periodAccess);
@@ -42,23 +49,24 @@ export function sessionClassPredicate(
     ...(classIds.length > 0 ? classIds : legacyClassId ? [legacyClassId] : []),
     ...Object.keys(periodAccess),
   ]);
-  const periodMap = record(session.classPeriodByClassId);
   const activePeriods = new Set<string>(strings(session.periodNames));
-  for (const [id, label] of Object.entries(periodMap)) {
-    if (activeIds.has(id) && nonEmpty(label))
-      activePeriods.add(label as string);
-  }
+  const legacyPeriod = nonEmpty(session.periodName);
+  if (legacyPeriod) activePeriods.add(legacyPeriod);
   for (const row of Object.values(periodAccess)) {
     const label = nonEmpty(record(row).label);
     if (label) activePeriods.add(label);
   }
-  if (activeIds.size === 0 && activePeriods.size === 0) return () => true;
   return (response) => {
     const classId = nonEmpty(response.classId);
-    if (classId && activeIds.size > 0) return activeIds.has(classId);
     const period = nonEmpty(response.classPeriod);
-    if (period && activePeriods.size > 0) return activePeriods.has(period);
-    return true;
+    const named =
+      (classId && removedIds.has(classId)) ||
+      (period && removedPeriods.has(period));
+    if (!named) return true;
+    return (
+      (!!classId && activeIds.has(classId)) ||
+      (!!period && activePeriods.has(period))
+    );
   };
 }
 
@@ -76,15 +84,32 @@ export function targetingKey(
     session.periodNames ?? null,
     session.classPeriodByClassId ?? null,
     labels,
+    session.periodName ?? null,
+    session.removedClasses ?? null,
   ]);
 }
 
 /** Inverse of `targetingKey`. */
 export function targetsFromKey(key: string): SessionClassTargets | null {
   if (!key) return null;
-  const [classIds, classId, periodNames, classPeriodByClassId, periodAccess] =
-    JSON.parse(key) as unknown[];
-  return { classIds, classId, periodNames, classPeriodByClassId, periodAccess };
+  const [
+    classIds,
+    classId,
+    periodNames,
+    classPeriodByClassId,
+    periodAccess,
+    periodName,
+    removedClasses,
+  ] = JSON.parse(key) as unknown[];
+  return {
+    classIds,
+    classId,
+    periodNames,
+    classPeriodByClassId,
+    periodAccess,
+    periodName,
+    removedClasses,
+  };
 }
 
 /** The responses that belong to a class the session still targets, plus any with no class. */
@@ -135,4 +160,42 @@ export function withLinkedSections(
       periodNames.push(label);
   }
   return { classIds, periodNames, classPeriodByClassId };
+}
+
+export interface RemovedClasses {
+  classIds: string[];
+  periodNames: string[];
+}
+
+/** The session's removed-class record after a class change: newly dropped classes join it, re-added ones leave it. */
+export function nextRemovedClasses(
+  current: SessionClassTargets | null | undefined,
+  next: {
+    classIds: string[];
+    periodNames: string[];
+    periodAccessKeys: string[];
+  },
+  removedRosterNames: readonly string[]
+): RemovedClasses {
+  const prior = record(current?.removedClasses);
+  const currentMap = record(current?.classPeriodByClassId);
+  const currentRows = record(current?.periodAccess);
+  const nextIds = new Set([...next.classIds, ...next.periodAccessKeys]);
+  const nextPeriods = new Set(next.periodNames);
+  const droppedIds = [
+    ...strings(current?.classIds),
+    ...Object.keys(currentRows),
+  ].filter((id) => !nextIds.has(id) && !id.startsWith(LINKED_SECTION_PREFIX));
+  const droppedPeriods = [
+    ...removedRosterNames,
+    ...droppedIds.map((id) => nonEmpty(currentMap[id])),
+    ...droppedIds.map((id) => nonEmpty(record(currentRows[id]).label)),
+  ];
+  const classIds = [
+    ...new Set([...strings(prior.classIds), ...droppedIds]),
+  ].filter((id) => !nextIds.has(id));
+  const periodNames = [
+    ...new Set([...strings(prior.periodNames), ...droppedPeriods]),
+  ].filter((n) => n.length > 0 && !nextPeriods.has(n));
+  return { classIds, periodNames };
 }

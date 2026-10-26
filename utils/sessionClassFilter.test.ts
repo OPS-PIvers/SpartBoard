@@ -4,27 +4,31 @@ import {
   sessionClassPredicate,
   targetingKey,
   targetsFromKey,
+  nextRemovedClasses,
   withLinkedSections,
 } from './sessionClassFilter';
 
 const session = {
-  classIds: ['cl-A', 'cl-B'],
+  classIds: ['cl-A'],
   classId: 'cl-A',
-  periodNames: ['Period 1', 'Period 2', 'Period 4'],
-  classPeriodByClassId: { 'cl-A': 'Period 1', 'cl-B': 'Period 2' },
+  periodNames: ['Period 1', 'Period 4'],
+  classPeriodByClassId: { 'cl-A': 'Period 1' },
+  removedClasses: { classIds: ['cl-C'], periodNames: ['Period 3'] },
 };
 
 describe('sessionClassPredicate', () => {
   const keep = sessionClassPredicate(session);
 
-  it('keeps SSO work from a targeted class and hides a removed one', () => {
-    expect(keep({ classId: 'cl-A', classPeriod: 'Period 1' })).toBe(true);
+  it('hides SSO and PIN work from a removed class', () => {
     expect(keep({ classId: 'cl-C', classPeriod: 'Period 3' })).toBe(false);
+    expect(keep({ classPeriod: 'Period 3' })).toBe(false);
+    expect(keep({ classId: 'cl-C' })).toBe(false);
   });
 
-  it('judges PIN work by its period name', () => {
+  it('keeps work from targeted classes and classes never removed', () => {
+    expect(keep({ classId: 'cl-A', classPeriod: 'Period 1' })).toBe(true);
     expect(keep({ classPeriod: 'Period 4' })).toBe(true);
-    expect(keep({ classPeriod: 'Period 3' })).toBe(false);
+    expect(keep({ classId: 'cl-Z', classPeriod: 'Spare' })).toBe(true);
   });
 
   it('keeps work with no class, such as a link join', () => {
@@ -32,42 +36,37 @@ describe('sessionClassPredicate', () => {
     expect(keep({ classId: '', classPeriod: '' })).toBe(true);
   });
 
-  it('keeps everything when the session targets no class', () => {
-    const open = sessionClassPredicate({ classIds: [], periodNames: [] });
-    expect(open({ classId: 'cl-Z', classPeriod: 'Any' })).toBe(true);
+  it('changes nothing on a session whose classes never changed', () => {
+    const unedited = sessionClassPredicate({
+      classIds: ['cl-A'],
+      periodNames: ['Period 1'],
+    });
+    expect(unedited({ classId: 'cl-B', classPeriod: 'Period 2' })).toBe(true);
     expect(sessionClassPredicate(null)({ classId: 'cl-Z' })).toBe(true);
   });
 
-  it('counts per-period rows, whose keys can be local rosters', () => {
-    const keepRows = sessionClassPredicate({
+  it('keeps a removed name that is also active again', () => {
+    const readded = sessionClassPredicate({
       classIds: ['cl-A'],
-      periodNames: ['Period 1'],
-      periodAccess: {
-        'cl-A': { label: 'Period 1' },
-        'roster:r9': { label: 'Period 9' },
+      periodNames: ['Period 3'],
+      removedClasses: { classIds: ['cl-C'], periodNames: ['Period 3'] },
+    });
+    expect(readded({ classId: 'cl-C', classPeriod: 'Period 3' })).toBe(true);
+  });
+
+  it('counts per-period rows and the legacy period as active', () => {
+    const rows = sessionClassPredicate({
+      classIds: [],
+      periodName: 'Period 7',
+      periodAccess: { 'roster:r9': { label: 'Period 9' } },
+      removedClasses: {
+        classIds: ['roster:r9', 'roster:r8'],
+        periodNames: ['Period 7', 'Period 8'],
       },
     });
-    expect(keepRows({ classId: 'roster:r9', classPeriod: 'Period 9' })).toBe(
-      true
-    );
-    expect(keepRows({ classId: 'roster:r8', classPeriod: 'Period 8' })).toBe(
-      false
-    );
-  });
-
-  it('falls back to the period when no class id is targeted', () => {
-    const pinOnly = sessionClassPredicate({
-      classIds: [],
-      periodNames: ['Period 1'],
-    });
-    expect(pinOnly({ classId: 'cl-A', classPeriod: 'Period 1' })).toBe(true);
-    expect(pinOnly({ classId: 'cl-B', classPeriod: 'Period 2' })).toBe(false);
-  });
-
-  it('uses the legacy single classId when classIds is missing', () => {
-    const legacy = sessionClassPredicate({ classId: 'cl-A' });
-    expect(legacy({ classId: 'cl-A' })).toBe(true);
-    expect(legacy({ classId: 'cl-B' })).toBe(false);
+    expect(rows({ classId: 'roster:r9' })).toBe(true);
+    expect(rows({ classPeriod: 'Period 7' })).toBe(true);
+    expect(rows({ classId: 'roster:r8', classPeriod: 'Period 8' })).toBe(false);
   });
 });
 
@@ -89,6 +88,47 @@ describe('filterToSessionClasses', () => {
   });
 });
 
+describe('nextRemovedClasses', () => {
+  const current = {
+    classIds: ['cl-A', 'cl-B', 'schoology:1'],
+    periodNames: ['Period 1', 'Period 2', 'Old name'],
+    classPeriodByClassId: { 'cl-A': 'Period 1', 'cl-B': 'Period 2' },
+    periodAccess: { 'roster:r5': { label: 'Period 5' } },
+    removedClasses: { classIds: ['cl-C'], periodNames: ['Period 3'] },
+  };
+
+  it('adds dropped classes and their names, but not a kept class renamed', () => {
+    expect(
+      nextRemovedClasses(
+        current,
+        {
+          classIds: ['cl-A'],
+          periodNames: ['Period 1', 'New name'],
+          periodAccessKeys: [],
+        },
+        ['Period 5']
+      )
+    ).toEqual({
+      classIds: ['cl-C', 'cl-B', 'roster:r5'],
+      periodNames: ['Period 3', 'Period 5', 'Period 2'],
+    });
+  });
+
+  it('takes a re-added class off the list', () => {
+    expect(
+      nextRemovedClasses(
+        current,
+        {
+          classIds: ['cl-A', 'cl-B', 'cl-C'],
+          periodNames: ['Period 1', 'Period 2', 'Period 3'],
+          periodAccessKeys: ['roster:r5'],
+        },
+        []
+      )
+    ).toEqual({ classIds: [], periodNames: [] });
+  });
+});
+
 describe('targetingKey', () => {
   it('ignores window changes on per-period rows', () => {
     const a = {
@@ -104,7 +144,7 @@ describe('targetingKey', () => {
 
   it('round-trips into the same predicate', () => {
     const keep = sessionClassPredicate(targetsFromKey(targetingKey(session)));
-    expect(keep({ classId: 'cl-B' })).toBe(true);
+    expect(keep({ classId: 'cl-A' })).toBe(true);
     expect(keep({ classId: 'cl-C' })).toBe(false);
     expect(targetsFromKey('')).toBeNull();
   });

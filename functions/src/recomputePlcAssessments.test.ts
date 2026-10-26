@@ -307,6 +307,7 @@ describe('recomputeOnePlcAssessment', () => {
     stub.store.set('quiz_sessions/sess-b', {
       ...stub.get('quiz_sessions/sess-b'),
       classIds: ['class-8'],
+      removedClasses: { classIds: ['class-7'], periodNames: [] },
     });
     await recomputeOnePlcAssessment(stub.db as unknown as Db, 'plc-1', 'grp-1');
     expect(stub.get('plcs/plc-1/aggregates/grp-1')).toMatchObject({

@@ -4424,6 +4424,7 @@ describe('useQuizSessionTeacher — responses listener stability + throttling', 
         status: 'active',
         classIds: ['cl-A'],
         periodNames: ['Period 1'],
+        removedClasses: { classIds: ['cl-B'], periodNames: ['Period 2'] },
       })
     );
     expect(keys()).toEqual(['a', 'x']);

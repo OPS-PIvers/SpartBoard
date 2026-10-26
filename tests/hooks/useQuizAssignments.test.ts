@@ -987,7 +987,22 @@ describe('useQuizAssignments - setAssignmentRosters', () => {
       classIds: ['cl-A', 'schoology:ctx-9'],
       periodNames: ['Period 1', 'Bio 3'],
       classPeriodByClassId: { 'cl-A': 'Period 1', 'schoology:ctx-9': 'Bio 3' },
+      removedClasses: { classIds: ['cl-B'], periodNames: ['Period 2'] },
     });
+  });
+
+  it('fails the save when the session cannot be read', async () => {
+    mockGetDoc.mockRejectedValue(new Error('offline'));
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await expect(
+      result.current.setAssignmentRosters(ASSIGNMENT_ID, {
+        rosterIds: ['r1'],
+        classIds: ['cl-A'],
+        periodNames: ['Period 1'],
+        classPeriodByClassId: {},
+      })
+    ).rejects.toThrow('offline');
+    expect(batchCommit).not.toHaveBeenCalled();
   });
 
   it('mirrors targets to BOTH the assignment doc and the session doc so the student class-gate stays in sync', async () => {

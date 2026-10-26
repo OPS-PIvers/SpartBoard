@@ -3681,10 +3681,18 @@ const TeacherQuizWidget: React.FC<{
                   rosters.filter((r) => selectedRosterIds.has(r.id))
                 );
                 // Per-period rows ride the targeting batch so a class and its row move together.
+                const removedRosterNames = rosters
+                  .filter(
+                    (r) =>
+                      (editingAssignment.rosterIds ?? []).includes(r.id) &&
+                      !selectedRosterIds.has(r.id)
+                  )
+                  .map((r) => r.name);
                 await setAssignmentRosters(
                   editingAssignment.id,
                   targets,
-                  periodAccessRows
+                  periodAccessRows,
+                  removedRosterNames
                 );
               }
               addToast('Assignment settings saved.', 'success');
