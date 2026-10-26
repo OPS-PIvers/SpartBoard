@@ -74,6 +74,8 @@ export async function startServers(): Promise<() => Promise<void>> {
     servers.map((s) => new Promise((r) => s.once('listening', r)))
   );
   return async () => {
+    // Keep-alive connections would otherwise hold the process open for minutes.
+    for (const s of servers) s.closeAllConnections();
     await Promise.all(
       servers.map((s) => new Promise((r) => s.close(() => r(null))))
     );
