@@ -189,6 +189,25 @@ describe('whoHasntAnswered', () => {
     expect(result.notJoined).toEqual(['Ada Lovelace', 'Bo Diddley']);
   });
 
+  it('names a PIN joiner by a replaced PIN', () => {
+    const result = whoHasntAnswered(
+      'q1',
+      [{ pin: '03', studentUid: 'u3', answers: [] }],
+      [
+        { firstName: 'Ada', lastName: 'Lovelace', pin: '01' },
+        {
+          firstName: 'Cy',
+          lastName: 'Young',
+          pin: '482913',
+          formerPins: ['03'],
+        },
+      ],
+      new Map()
+    );
+    expect(result.notAnswered).toEqual(['Cy Young']);
+    expect(result.notJoined).toEqual(['Ada Lovelace']);
+  });
+
   it('lists never-asked questions for live sessions only', () => {
     const live = {
       ...initialVideoActivityLiveState(0),

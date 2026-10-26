@@ -124,6 +124,9 @@ export const generateStudentsList = (
       lastName: entry.last,
       pin,
     };
+    if (existing?.formerPins && existing.formerPins.length > 0) {
+      student.formerPins = existing.formerPins;
+    }
     if (existing?.classLinkSourcedId !== undefined) {
       student.classLinkSourcedId = existing.classLinkSourcedId;
     }

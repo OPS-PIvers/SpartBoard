@@ -66,16 +66,21 @@ export function makeUpTargetStudents(
     if (key) answeredKeys.add(key);
     if (r.pin) answeredPins.add(r.pin);
   }
-  const pinByStudentId = new Map<string, string>();
+  const pinsByStudentId = new Map<string, string[]>();
   for (const roster of rosters) {
     if (!rosterIds.includes(roster.id)) continue;
-    for (const s of roster.students) if (s.pin) pinByStudentId.set(s.id, s.pin);
+    for (const s of roster.students) {
+      pinsByStudentId.set(
+        s.id,
+        [s.pin, ...(s.formerPins ?? [])].filter(Boolean)
+      );
+    }
   }
   return classStudentRows({ rosters, selectedRosterIds: rosterIds })
     .filter((row) => {
       if (answeredKeys.has(row.key)) return false;
-      const pin = pinByStudentId.get(row.studentId);
-      return !(pin && answeredPins.has(pin));
+      const pins = pinsByStudentId.get(row.studentId) ?? [];
+      return !pins.some((pin) => answeredPins.has(pin));
     })
     .map((row) => row.ref);
 }
@@ -152,6 +157,7 @@ interface RosterStudentName {
   firstName: string;
   lastName: string;
   pin: string;
+  formerPins?: string[];
 }
 
 interface LiveResponseLike {
@@ -180,7 +186,8 @@ export function whoHasntAnswered(
       ? `${resolved.givenName} ${resolved.familyName}`.trim()
       : '';
     const pinStudent = r.pin
-      ? rosterStudents.find((s) => s.pin === r.pin)
+      ? (rosterStudents.find((s) => s.pin === r.pin) ??
+        rosterStudents.find((s) => s.formerPins?.includes(r.pin ?? '')))
       : undefined;
     const pinName = pinStudent
       ? `${pinStudent.firstName} ${pinStudent.lastName}`.trim()
@@ -188,7 +195,7 @@ export function whoHasntAnswered(
     const label =
       [rosterName, pinName, r.name].find(Boolean) ??
       (r.pin ? `PIN ${r.pin}` : 'Student');
-    if (r.pin) joinedPins.add(r.pin);
+    if (r.pin) joinedPins.add(pinStudent?.pin ?? r.pin);
     if (rosterName) joinedNames.add(nameKey(rosterName));
     if (!r.answers.some((a) => a.questionId === questionId))
       notAnswered.push(label);

@@ -23,6 +23,7 @@ export interface SyncStudent {
   firstName: string;
   lastName: string;
   pin: string;
+  formerPins?: string[];
   classLinkSourcedId?: string;
   email?: string;
   restrictedStudentIds?: string[];
@@ -78,7 +79,8 @@ export function needsNewLinkedPin(s: SyncStudent): boolean {
 /**
  * Assign PINs to students that lack one, skipping `reserved`: random 6-digit
  * PINs for ClassLink-linked students (they sign in with them), sequential otherwise.
- * A linked student's short PIN (the old 01, 02, … defaults) is replaced too.
+ * A linked student's short PIN (the old 01, 02, … defaults) is replaced too,
+ * and moves to `formerPins`, which is never handed out again.
  *
  * Mirrors `utils/rosterPins.ts` with one addition: the caller passes the PINs
  * of students being removed in the SAME run, so a departure and an arrival on
@@ -90,7 +92,9 @@ export function assignPins(
 ): SyncStudent[] {
   const used = new Set<string>(reserved);
   for (const s of students) {
-    if (s.pin && !needsNewLinkedPin(s)) used.add(s.pin);
+    // A short PIN being replaced stays reserved: it becomes a former PIN.
+    if (s.pin) used.add(s.pin);
+    for (const pin of s.formerPins ?? []) used.add(pin);
   }
 
   let next = 1;
@@ -116,7 +120,14 @@ export function assignPins(
   };
 
   return students.map((s) => {
-    if (needsNewLinkedPin(s)) return { ...s, pin: takeRandomPin() };
+    if (needsNewLinkedPin(s)) {
+      // The old PIN stays on file so past responses still show this student's name.
+      return {
+        ...s,
+        pin: takeRandomPin(),
+        formerPins: [...new Set([...(s.formerPins ?? []), s.pin])],
+      };
+    }
     if (s.pin) return s;
     return {
       ...s,
