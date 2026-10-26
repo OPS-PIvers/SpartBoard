@@ -36,7 +36,8 @@ const AdjustButton: React.FC<{
   ariaLabel: string;
   onAdjust: (deltaSeconds: number) => void;
   anchor?: ReturnType<typeof tourAttr>;
-}> = ({ sign, step, disabled, ariaLabel, onAdjust, anchor }) => {
+  size: string;
+}> = ({ sign, step, disabled, ariaLabel, onAdjust, anchor, size }) => {
   const handlers = useHoldAccelerate((multiplier) => {
     if (disabled) return;
     onAdjust(sign * step * multiplier);
@@ -59,22 +60,22 @@ const AdjustButton: React.FC<{
         disabled ? 'opacity-30 cursor-not-allowed' : ''
       }`}
       style={{
-        width: 'min(40px, 10cqmin)',
-        height: 'min(40px, 10cqmin)',
+        width: size,
+        height: size,
         padding: 'min(3px, 0.75cqmin)',
         gap: 'min(1px, 0.25cqmin)',
       }}
     >
       <Icon
         style={{
-          width: 'min(18px, 5cqmin)',
-          height: 'min(18px, 5cqmin)',
+          width: 'max(10px, min(18px, 5cqmin))',
+          height: 'max(10px, min(18px, 5cqmin))',
         }}
         strokeWidth={3}
       />
       <span
         className="font-black tabular-nums leading-none"
-        style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+        style={{ fontSize: 'max(7px, min(9px, 2.5cqmin))' }}
       >
         {presetLabel(step)}
       </span>
@@ -415,14 +416,16 @@ export const TimeToolWidget: React.FC<{
   const [isEditing, setIsEditing] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const [isCompact, setIsCompact] = useState(false);
+  const [isNarrow, setIsNarrow] = useState(false);
 
-  // Below ~180px the +/- steppers hide so play and reset stay tappable.
+  // The control row is horizontal, so only a narrow widget drops the +/- steppers.
   useEffect(() => {
     const el = rootRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(([entry]) => {
       const { width, height } = entry.contentRect;
       setIsCompact(Math.min(width, height) < 180);
+      setIsNarrow(width < 180);
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -440,7 +443,7 @@ export const TimeToolWidget: React.FC<{
 
   const effectiveAdjustStep = Math.max(5, Math.min(60, adjustStepSeconds));
 
-  const showAdjustControls = mode === 'timer' && !isEditing && !isCompact;
+  const showAdjustControls = mode === 'timer' && !isEditing && !isNarrow;
   const isExpired = clockStateOf(config).phase === 'expired';
 
   // ─── Parse time into parts ───────────────────────────────────────
@@ -635,6 +638,7 @@ export const TimeToolWidget: React.FC<{
                         )}
                         ariaLabel={t('widgets.timeTool.subtractTime')}
                         onAdjust={adjustTime}
+                        size={ctrlSize}
                       />
                     )}
                     <button
@@ -704,6 +708,7 @@ export const TimeToolWidget: React.FC<{
                         )}
                         ariaLabel={t('widgets.timeTool.addTime')}
                         onAdjust={adjustTime}
+                        size={ctrlSize}
                       />
                     )}
                   </div>
