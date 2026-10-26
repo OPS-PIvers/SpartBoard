@@ -157,6 +157,7 @@ import {
   SCORE_ON_SUBMIT_KEY_DOC,
 } from '@/utils/quizScoreOnSubmit';
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
+import { hasEveryCurrentAnswerKey } from '@/utils/quizAssignBankDraw';
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import type { PeriodAccessWindowEdits } from '@/utils/assignAvailability';
 import {
@@ -3413,7 +3414,8 @@ export const useQuizAssignments = (
       };
       // A bank-draw key is frozen at assign; refresh the server's copy so it grades like this publish.
       const serverKey =
-        typeof assignmentSnap.data()?.resolvedDriveFileId === 'string'
+        typeof assignmentSnap.data()?.resolvedDriveFileId === 'string' &&
+        hasEveryCurrentAnswerKey(quizData)
           ? await getDoc(scoreKeyRef(userId, assignmentId))
           : null;
       const refreshedServerKey = serverKey?.exists()

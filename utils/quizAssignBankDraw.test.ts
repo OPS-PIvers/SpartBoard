@@ -3,6 +3,7 @@ import type { QuizData, QuizQuestion } from '@/types';
 import type { BankContent } from '@/utils/questionBanks';
 import {
   applyCurrentAnswerKeys,
+  hasEveryCurrentAnswerKey,
   resolveQuizAssignContent,
   withCurrentAnswerKeys,
 } from '@/utils/quizAssignBankDraw';
@@ -176,5 +177,36 @@ describe('applyCurrentAnswerKeys', () => {
       banks
     );
     expect(out.questions[0].correctAnswer).toBe('First');
+  });
+
+  it('skips a bank question the earlier slot could not have dealt', () => {
+    const banks = new Map([
+      ['bank-1', { questions: [fib({ correctAnswer: 'Wrong bank' })] }],
+      ['bank-2', { questions: [fib({ correctAnswer: 'Dealt' })] }],
+    ]);
+    const out = applyCurrentAnswerKeys(
+      baseQuiz({ questions: [fib()] }),
+      {
+        questions: [],
+        bankSlots: [
+          { ...slot('s1', 'bank-1'), questionIds: ['someone-else'] },
+          slot('s2', 'bank-2'),
+        ],
+      },
+      banks
+    );
+    expect(out.questions[0].correctAnswer).toBe('Dealt');
+  });
+
+  it('marks the result only when every bank in the quiz loaded', () => {
+    const frozen = baseQuiz({ questions: [fib()] });
+    expect(
+      hasEveryCurrentAnswerKey(applyCurrentAnswerKeys(frozen, lib(), new Map()))
+    ).toBe(false);
+    expect(
+      hasEveryCurrentAnswerKey(
+        applyCurrentAnswerKeys(frozen, lib(), bankOf(fib()))
+      )
+    ).toBe(true);
   });
 });

@@ -7,9 +7,11 @@ import type {
 import type { BankContent } from '@/utils/questionBanks';
 import {
   bankSlotKey,
+  eligibleBankQuestions,
   quizHasBankSlots,
   quizOrder,
   randomBankSlots,
+  randomSlotPool,
   resolveQuizAssignment,
 } from '@/utils/questionBanks';
 import { fibBlankCount } from '@/utils/quizFibBlanks';
@@ -129,9 +131,10 @@ function withKeyFrom(
 export function applyCurrentAnswerKeys(
   frozen: QuizData,
   library: Pick<QuizData, 'questions' | 'bankSlots' | 'order'>,
-  banks: ReadonlyMap<string, Pick<BankContent, 'questions'>>
+  banks: ReadonlyMap<string, Pick<BankContent, 'questions' | 'targets'>>
 ): QuizData {
   const current = new Map<string, QuizQuestion>();
+  let allBanksLoaded = true;
   const questionsById = new Map(
     (library.questions ?? []).map((q) => [q.id, q])
   );
@@ -147,8 +150,18 @@ export function applyCurrentAnswerKeys(
       continue;
     }
     const slot = slotsById.get(entry.id);
-    const bank = slot ? banks.get(bankSlotKey(slot)) : undefined;
-    for (const q of bank?.questions ?? [])
+    if (!slot) continue;
+    const bank = banks.get(bankSlotKey(slot));
+    if (!bank) {
+      allBanksLoaded = false;
+      continue;
+    }
+    // Only the questions this slot could deal, so a shared id maps to the slot that dealt it.
+    for (const q of eligibleBankQuestions(
+      bank,
+      slot.targetFilter,
+      randomSlotPool(slot)
+    ))
       if (!current.has(q.id)) current.set(q.id, q);
   }
   let changed = false;
@@ -160,7 +173,16 @@ export function applyCurrentAnswerKeys(
     changed = true;
     return withKeyFrom(q, now);
   });
-  return changed ? { ...frozen, questions } : frozen;
+  const out = changed ? { ...frozen, questions } : frozen;
+  if (allBanksLoaded) keyedWithAllBanks.add(out);
+  return out;
+}
+
+const keyedWithAllBanks = new WeakSet<QuizData>();
+
+/** True when every bank in the quiz loaded, so this key may replace the server's copy. */
+export function hasEveryCurrentAnswerKey(quiz: QuizData): boolean {
+  return keyedWithAllBanks.has(quiz);
 }
 
 /** Loads the library quiz and its banks and applies their keys; on failure grades with the frozen copy. */

@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import type { QuizData } from '@/types';
+import { applyCurrentAnswerKeys } from '@/utils/quizAssignBankDraw';
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
@@ -71,7 +72,7 @@ const TEACHER_UID = 'teacher-1';
 const ASSIGNMENT_ID = 'assign-bank-1';
 const KEY_PATH = `users/${TEACHER_UID}/quiz_assignments/${ASSIGNMENT_ID}/key/answers`;
 
-const quizData = {
+const plainQuizData = {
   id: 'quiz-bank-1',
   title: 'Vocab',
   questions: [
@@ -89,6 +90,12 @@ const quizData = {
   createdAt: 0,
   updatedAt: 0,
 } satisfies QuizData;
+// Keyed with every bank loaded, as the Quiz widget hands it to publish.
+const quizData = applyCurrentAnswerKeys(
+  { ...plainQuizData },
+  { questions: [] },
+  new Map()
+);
 
 describe('useQuizAssignments — publish refreshes a bank draw’s server key', () => {
   const batchUpdate = vi.fn();
@@ -114,7 +121,8 @@ describe('useQuizAssignments — publish refreshes a bank draw’s server key', 
 
   const publish = async (
     assignmentDoc: Record<string, unknown>,
-    keyExists: boolean
+    keyExists: boolean,
+    data: QuizData = quizData
   ) => {
     mockGetDoc.mockImplementation((ref: string) =>
       Promise.resolve(
@@ -136,7 +144,7 @@ describe('useQuizAssignments — publish refreshes a bank draw’s server key', 
     await act(async () => {
       await result.current.publishAssignmentScores(
         ASSIGNMENT_ID,
-        quizData,
+        data,
         'score-only'
       );
     });
@@ -163,6 +171,11 @@ describe('useQuizAssignments — publish refreshes a bank draw’s server key', 
 
   it('leaves a quiz without bank draws alone', async () => {
     await publish({}, true);
+    expect(batchSet).not.toHaveBeenCalled();
+  });
+
+  it('keeps the server key when a bank could not be loaded', async () => {
+    await publish({ resolvedDriveFileId: 'frozen-1' }, true, plainQuizData);
     expect(batchSet).not.toHaveBeenCalled();
   });
 });

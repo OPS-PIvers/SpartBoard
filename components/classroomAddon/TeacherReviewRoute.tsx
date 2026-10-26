@@ -262,6 +262,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
   // session carries quizId; match it to the teacher's library for the Drive id.
   const [quizData, setQuizData] = useState<QuizData | null>(null);
   const resolvedDriveFileId = assignment?.resolvedDriveFileId;
+  const waitForBanks = !!resolvedDriveFileId && banksLoading;
   // Read at load time so a bank list change doesn't re-download the quiz.
   const loadBankContents = useEffectEvent((quiz: Pick<QuizData, 'bankSlots'>) =>
     loadBankContentsFor(quiz, banks, loadBankData)
@@ -281,7 +282,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     if (
       quizzesLoading ||
       assignmentsLoading ||
-      (resolvedDriveFileId && banksLoading) ||
+      waitForBanks ||
       !googleAccessToken
     )
       return;
@@ -328,7 +329,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     quizzes,
     quizzesLoading,
     assignmentsLoading,
-    banksLoading,
+    waitForBanks,
     resolvedDriveFileId,
     googleAccessToken,
     loadQuizData,
