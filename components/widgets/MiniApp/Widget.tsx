@@ -84,6 +84,7 @@ import {
 } from './miniAppStepperAssign';
 import { AssignmentsModal } from './components/AssignmentsModal';
 import { MiniAppManager } from './components/MiniAppManager';
+import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
 import { SaveAsWidgetModal } from './components/SaveAsWidgetModal';
 import { useMiniAppSync } from './hooks/useMiniAppSync';
 import { useDialog } from '@/context/useDialog';
@@ -490,7 +491,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     reactivateAssignment,
     deleteAssignment,
     setTargetSkippedCount,
+    setAssignmentClasses,
   } = useMiniAppAssignments(inShare ? undefined : user?.uid);
+  const [editingClasses, setEditingClasses] =
+    useState<MiniAppAssignment | null>(null);
 
   // Assign flow state
   const [assigningApp, setAssigningApp] = useState<MiniAppItem | null>(null);
@@ -1886,11 +1890,30 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               onArchiveEnd={(a) => void handleArchiveEnd(a)}
               onArchiveReactivate={(a) => void handleArchiveReactivate(a)}
               onArchiveDelete={(a) => void handleArchiveDelete(a)}
+              onArchiveEditClasses={setEditingClasses}
               assignmentMode={assignmentMode}
               readOnly={isActiveBoardReadOnly}
             />
             {/* Assign modal */}
             {assignDialog}
+            {editingClasses && (
+              <AssignmentClassesModal
+                rosters={rosters}
+                assignment={editingClasses}
+                onClose={() => setEditingClasses(null)}
+                onSave={async (edit) => {
+                  try {
+                    await setAssignmentClasses(editingClasses.id, edit);
+                  } catch (err) {
+                    logError('MiniAppWidget.editClasses', err, {
+                      assignmentId: editingClasses.id,
+                    });
+                    addToast("Couldn't save classes.", 'error');
+                    throw err;
+                  }
+                }}
+              />
+            )}
             {/* Assignments modal (live sessions for a specific app) */}
             {!isStudentView && assignmentsForApp && (
               <AssignmentsModal

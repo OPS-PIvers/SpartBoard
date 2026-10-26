@@ -2878,6 +2878,13 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'library-shell.bulk-move': ['library.shell'],
     'library-shell.bulk-delete': ['library.shell'],
     'library-shell.bulk-clear': ['library.shell'],
+    'library-shell.archive-edit-classes': [
+      'guidedLearning.face',
+      'library.mini-app',
+      'library.video-activity',
+    ],
+    'assignment-classes.cancel': ['library.assignment-classes'],
+    'assignment-classes.save': ['library.assignment-classes'],
     'publish-scores.close': ['library.publish-scores'],
     'publish-scores.level': ['library.publish-scores'],
     'publish-scores.written-mode': ['library.publish-scores'],

@@ -85,6 +85,11 @@ export const SURFACES: TourSurfaceMap = {
       'components/common/library/ResultsProtectionFieldset.tsx',
     ],
   },
+  'library.assignment-classes': {
+    label: 'Edit classes dialog',
+    kind: 'shared',
+    files: ['components/common/library/AssignmentClassesModal.tsx'],
+  },
   'library.view-only-share': {
     label: 'View-only share dialog',
     kind: 'shared',
@@ -141,6 +146,8 @@ export const SURFACES: TourSurfaceMap = {
         'library-shell.tab:video-activity#archive',
       'video-activity.preview-close':
         'library-shell.card-open:video-activity#row-1',
+      'library-shell.archive-edit-classes':
+        'library-shell.archive-menu:video-activity#row-1',
       'video-activity.preview-open-editor':
         'library-shell.card-open:video-activity#row-1',
     },
@@ -383,6 +390,8 @@ export const SURFACES: TourSurfaceMap = {
     files: ['components/widgets/MiniApp/'],
     inner: {
       'mini-app.preview-close': 'library-shell.card-open:miniApp#row-1',
+      'library-shell.archive-edit-classes':
+        'library-shell.archive-menu:miniApp#row-1',
       'mini-app.preview-open-editor': 'library-shell.card-open:miniApp#row-1',
     },
   },

@@ -14,6 +14,8 @@ export const SURFACES: TourSurfaceMap = {
     files: [GL, `${GLC}GuidedLearningManager.tsx`],
     inner: {
       'gl-manager.show-older': 'library-shell.tab:guided-learning#archive',
+      'library-shell.archive-edit-classes':
+        'library-shell.card-menu:guided-learning#row-1',
       'gl-manager.folder-name': 'gl-manager.folder-new',
       'gl-manager.preview-close':
         'library-shell.card-open:guided-learning#row-1',
