@@ -53,6 +53,7 @@ import type {
 } from '@/types';
 
 const BATCH = 10;
+const MAX_IMPORT_ATTEMPTS = 3;
 
 const isNotFound = (err: unknown): boolean =>
   (err as { code?: unknown } | null)?.code === 'not-found';
@@ -170,6 +171,7 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
   const pendingAdds = useRef(new Set<string>());
   /** Listed share ids already imported (or tried) this session. */
   const handledImports = useRef(new Set<string>());
+  const importFailures = useRef(new Map<string, number>());
   /** Board id -> share id this session created for it. */
   const sharedAs = useRef(new Map<string, string>());
   const pushedSections = useRef(new Set<string>());
@@ -300,12 +302,14 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
             }
           })
         );
-        // A thrown load or create may be transient: let the next snapshot retry it.
+        // A thrown load or create may be transient: retry it a few times, not forever.
         results.forEach((r, j) => {
           if (r.status !== 'rejected') return;
           const shareId = batch[j].shareId;
+          const failures = (importFailures.current.get(shareId) ?? 0) + 1;
+          importFailures.current.set(shareId, failures);
           logError('useLinkedCollectionSync.import', r.reason, { shareId });
-          if (!isPermissionDenied(r.reason)) {
+          if (!isPermissionDenied(r.reason) && failures < MAX_IMPORT_ATTEMPTS) {
             handledImports.current.delete(shareId);
           }
         });
