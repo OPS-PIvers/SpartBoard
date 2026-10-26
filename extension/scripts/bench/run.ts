@@ -250,6 +250,8 @@ async function browserDebugger() {
 }
 
 let cold: Awaited<ReturnType<typeof browserDebugger>> | null = null;
+/** Where the current play is, so a timeout says what it was waiting on. */
+let phase = '';
 
 async function play(
   ctx: BrowserContext,
@@ -283,6 +285,7 @@ async function play(
       throw err;
     }
   };
+  phase = 'start';
   const page = await start().catch(start);
   page.on('console', (c) => {
     const text = c.text();
@@ -306,6 +309,7 @@ async function play(
   const clicks: number[] = [];
   const fellBack: boolean[] = [];
   for (let i = 0; i < steps.length; i++) {
+    phase = `step ${i + 1}: waiting for its spotlight`;
     const since = clicks[i - 1] ?? 0;
     const lit = await waitFor(() => {
       const match = marks.find(
@@ -322,6 +326,7 @@ async function play(
       await cold.stopWorker();
       await page.waitForTimeout(200);
     }
+    phase = `step ${i + 1}: clicking`;
     const before = marks.length;
     const frame = frameOf(page, steps[i].frame);
     await frame.locator(steps[i].target).first().click({ timeout: 5000 });
@@ -331,20 +336,24 @@ async function play(
     );
     clicks.push(down?.t ?? Date.now());
   }
+  phase = 'waiting for done';
   await waitFor(
     () => marks.find((m) => m.name === 'render' && m.status === 'done'),
     STEP_TIMEOUT_MS
   );
+  phase = 'reading frame gaps';
   const gaps = await page.evaluate(
     () =>
       (window as unknown as { __sbGaps?: [number, number][] }).__sbGaps ?? []
   );
+  phase = 'closing';
   await page.close();
   await launcher.close();
+  phase = 'done';
   if (flag('dump'))
     writeFileSync(
       path.join(os.tmpdir(), `sb-bench-marks-${sc.name}-${throttle}x.json`),
-      JSON.stringify({ clicks, marks }, null, 1)
+      JSON.stringify({ clicks, marks, gaps }, null, 1)
     );
 
   const out: Transition[] = [];
@@ -573,7 +582,7 @@ async function main() {
             transitions.push(...(await attempt()));
           } catch (err) {
             console.warn(
-              `${sc.name} ${throttle}x run ${r + 1} failed (${String(err)}); retrying in a new browser`
+              `${sc.name} ${throttle}x run ${r + 1} failed (${String(err)}, at ${phase}); retrying in a new browser`
             );
             await close(ctx);
             ({ ctx, extId } = await launch(label));
