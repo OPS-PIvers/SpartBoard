@@ -280,7 +280,22 @@ describe('placeTip', () => {
   it('keeps the tip on screen next to a target at the edge', () => {
     const tip = placeTip({ x: 1250, y: 760, width: 30, height: 30 }, view);
     expect(tip.left + tip.width).toBeLessThanOrEqual(view.w - 12);
-    expect(tip.top).toBeLessThan(760);
+    expect(tip.top).toBeUndefined();
+  });
+
+  it('pins a tip above its target by the bottom edge, clear of the target', () => {
+    const tip = placeTip({ x: 20, y: 700, width: 200, height: 40 }, view);
+    expect(tip).toEqual({ left: 12, bottom: 800 - 700 + 24, width: 320 });
+  });
+
+  it('keeps a tall tip on screen when there is no room above the target', () => {
+    const rect = { x: 20, y: 200, width: 200, height: 600 };
+    expect(placeTip(rect, view, 120).bottom).toBe(800 - 200 + 24);
+    expect(placeTip(rect, view, 220)).toEqual({
+      left: 12,
+      top: 12,
+      width: 320,
+    });
   });
 });
 
