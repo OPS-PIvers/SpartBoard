@@ -13,36 +13,59 @@ import { pullSyncedQuizContent } from '@/hooks/useSyncedQuizGroups';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
 import type { ClassRoster, Plc, QuizMetadata } from '@/types';
 
-vi.mock('@/components/common/AssignClassPicker', () => ({
-  AssignClassPicker: ({
-    rosters,
-    value,
-    onChange,
+const stepperPlan = {
+  rosters: [{ id: 'r1', name: 'Math 1', students: [] }],
+  dueAt: null,
+  mixed: { targeting: undefined },
+};
+const stepperBehavior = {
+  sessionMode: 'student',
+  sessionOptions: { shuffleQuestions: true },
+  attemptLimit: 2,
+  finalScore: 'highest',
+};
+vi.mock('@/components/plc/PlcQuizPickupStepper', () => ({
+  PlcQuizPickupStepper: ({
+    title,
+    onAssign,
+    onClose,
   }: {
-    rosters: ClassRoster[];
-    value: { rosterIds: string[] };
-    onChange: (next: { rosterIds: string[] }) => void;
+    title: string;
+    onAssign: (plan: unknown, behavior: unknown) => Promise<void>;
+    onClose: () => void;
   }) => (
-    <div data-testid="picker">
-      {rosters.map((r) => (
-        <label key={r.id}>
-          <input
-            type="checkbox"
-            data-testid={`roster-${r.id}`}
-            checked={value.rosterIds.includes(r.id)}
-            onChange={(e) =>
-              onChange({
-                rosterIds: e.target.checked
-                  ? [...value.rosterIds, r.id]
-                  : value.rosterIds.filter((id) => id !== r.id),
-              })
-            }
-          />
-          {r.name}
-        </label>
-      ))}
+    <div data-testid="pickup-stepper">
+      {title}
+      <button
+        onClick={() =>
+          void onAssign(stepperPlan, stepperBehavior).then(
+            onClose,
+            () => undefined
+          )
+        }
+      >
+        StepperAssign
+      </button>
     </div>
   ),
+}));
+const applyPlcStepperStudentPicks = vi.fn();
+vi.mock('@/components/plc/plcQuizStepperAssign', async (importActual) => ({
+  ...(await importActual<
+    typeof import('@/components/plc/plcQuizStepperAssign')
+  >()),
+  applyPlcStepperStudentPicks: (...args: unknown[]) =>
+    applyPlcStepperStudentPicks(...args) as Promise<void>,
+}));
+const saveAttemptPolicy = vi.fn();
+vi.mock('@/hooks/gradebook/useGradebookColumnWrites', () => ({
+  saveAttemptPolicy: (...args: unknown[]) => {
+    saveAttemptPolicy(...args);
+    return Promise.resolve();
+  },
+}));
+vi.mock('@/hooks/useSetAssignmentTargets', () => ({
+  useSetAssignmentTargets: () => ({ setAssignmentTargets: vi.fn() }),
 }));
 
 vi.mock('@/context/useAuth', () => ({
@@ -55,6 +78,7 @@ vi.mock('@/context/useAuth', () => ({
     canAccessFeature: () => true,
     canAccessQuizMediaResponse: () => false,
     ensureGoogleScope: vi.fn().mockResolvedValue('sheets-token'),
+    getAssignmentMode: () => 'submissions',
   }),
 }));
 
@@ -74,13 +98,11 @@ vi.mock('@/hooks/usePlcAutoPullSync', () => ({
 }));
 
 const addToast = vi.fn();
-const setPendingAssignmentEdit = vi.fn();
 let mockRosters: ClassRoster[] = [];
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
     addToast,
     rosters: mockRosters,
-    setPendingAssignmentEdit,
   }),
 }));
 
@@ -143,12 +165,11 @@ const createAssignment = vi.fn(
       createAssignmentResolver = resolve;
     })
 );
-const setAssignmentRosters = vi.fn().mockResolvedValue(undefined);
 vi.mock('@/hooks/useQuizAssignments', () => ({
   useQuizAssignments: () => ({
     assignments: [],
     createAssignment,
-    setAssignmentRosters,
+    setAssignmentTargetSkippedCount: vi.fn(),
   }),
 }));
 
@@ -195,10 +216,8 @@ const target: PlcQuizActionTarget = {
   sharedByName: 'Mrs. Smith',
 };
 
-const Harness: React.FC<{ onCloseDashboard?: () => void }> = ({
-  onCloseDashboard = vi.fn(),
-}) => {
-  const api = usePlcQuizActions(plc, onCloseDashboard);
+const Harness: React.FC = () => {
+  const api = usePlcQuizActions(plc);
   return (
     <>
       <button onClick={() => api.importQuiz(target)}>Import</button>
@@ -221,10 +240,10 @@ beforeAll(() => {
   });
 });
 
-const renderSubject = (onCloseDashboard = vi.fn()) =>
+const renderSubject = () =>
   render(
     <I18nextProvider i18n={i18n}>
-      <Harness onCloseDashboard={onCloseDashboard} />
+      <Harness />
     </I18nextProvider>
   );
 
@@ -245,7 +264,6 @@ describe('usePlcQuizActions', () => {
     ];
     mockIsDriveConnected = true;
     addToast.mockReset();
-    setPendingAssignmentEdit.mockReset();
     mirrorPlcQuizHeader.mockResolvedValue(undefined);
     writePlcQuizEntry.mockResolvedValue(undefined);
     saveQuiz.mockResolvedValue({
@@ -267,7 +285,6 @@ describe('usePlcQuizActions', () => {
           createAssignmentResolver = resolve;
         })
     );
-    setAssignmentRosters.mockResolvedValue(undefined);
     callJoinPlcQuizSyncGroup.mockResolvedValue({
       groupId: 'sync-quiz',
       version: 1,
@@ -392,26 +409,66 @@ describe('usePlcQuizActions', () => {
   });
 
   describe('assignQuiz', () => {
-    it('creates a paused, template-write-skipping assignment and opens the setup modal optimistically', async () => {
+    const assignVia = async (pick: () => Promise<unknown>) => {
+      renderSubject();
+      fireEvent.click(screen.getByText('Assign'));
+      await pick();
+      fireEvent.click(await screen.findByText('StepperAssign'));
+    };
+
+    it('opens the assign stepper and saves nothing until it is submitted', async () => {
       renderSubject();
       fireEvent.click(screen.getByText('Assign'));
       await pickCopy();
 
-      await waitFor(() => expect(createAssignment).toHaveBeenCalledTimes(1));
-      expect(createAssignment).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'quiz-personal-1' }),
-        expect.anything(),
-        expect.objectContaining({
-          initialStatus: 'paused',
-          skipPlcTemplateWrite: true,
-        })
+      expect(await screen.findByTestId('pickup-stepper')).toHaveTextContent(
+        'Photosynthesis Quiz'
       );
+      expect(saveQuiz).not.toHaveBeenCalled();
+      expect(createAssignment).not.toHaveBeenCalled();
+    });
 
+    it('creates the assignment with the stepper classes and rules', async () => {
+      mockRosters = [
+        {
+          id: 'r1',
+          name: 'Math 1',
+          classlinkClassId: 'cl-1',
+          students: [],
+        } as unknown as ClassRoster,
+      ];
+      await assignVia(pickCopy);
+
+      await waitFor(() => expect(createAssignment).toHaveBeenCalledTimes(1));
+      const [quizArg, settings, opts] = createAssignment.mock
+        .calls[0] as unknown as [
+        { id: string },
+        Record<string, unknown>,
+        Record<string, unknown>,
+      ];
+      expect(quizArg.id).toBe('quiz-personal-1');
+      expect(settings).toMatchObject({
+        sessionMode: 'student',
+        sessionOptions: { shuffleQuestions: true },
+        attemptLimit: 2,
+        periodNames: ['Math 1'],
+      });
+      expect(opts).toMatchObject({
+        initialStatus: 'paused',
+        skipPlcTemplateWrite: true,
+        rosterIds: ['r1'],
+        mode: 'submissions',
+      });
       createAssignmentResolver?.({ id: 'asg-1', code: 'XYZ' });
-      expect(
-        await screen.findByText('Photosynthesis Quiz')
-      ).toBeInTheDocument();
-      expect(await screen.findByTestId('picker')).toBeInTheDocument();
+      await waitFor(() =>
+        expect(screen.queryByTestId('pickup-stepper')).not.toBeInTheDocument()
+      );
+      expect(saveAttemptPolicy).toHaveBeenCalledWith(
+        'teacher-1',
+        'asg-1',
+        'quiz',
+        'highest'
+      );
     });
 
     it('links the assignment to the PLC via buildPlcLinkage, never with a sheetUrl', async () => {
@@ -421,9 +478,7 @@ describe('usePlcQuizActions', () => {
         memberEmails: ['t@example.com'],
       };
       vi.mocked(buildPlcLinkage).mockReturnValueOnce(linkage);
-      renderSubject();
-      fireEvent.click(screen.getByText('Assign'));
-      await pickCopy();
+      await assignVia(pickCopy);
 
       await waitFor(() => expect(createAssignment).toHaveBeenCalledTimes(1));
       expect(buildPlcLinkage).toHaveBeenCalledWith(plc);
@@ -473,9 +528,7 @@ describe('usePlcQuizActions', () => {
         ])
       );
       saveDriveSnapshot.mockResolvedValueOnce('snapshot-file');
-      renderSubject();
-      fireEvent.click(screen.getByText('Assign'));
-      await pickCopy();
+      await assignVia(pickCopy);
 
       await waitFor(() => expect(createAssignment).toHaveBeenCalledTimes(1));
       expect(saveQuiz.mock.calls[0][0]).toMatchObject({ bankSlots });
@@ -491,50 +544,11 @@ describe('usePlcQuizActions', () => {
       expect(opts.bankSlots).toHaveLength(1);
     });
 
-    it('Save invokes setAssignmentRosters with the new assignment id', async () => {
-      renderSubject();
-      fireEvent.click(screen.getByText('Assign'));
-      await pickCopy();
-      await waitFor(() => expect(createAssignmentResolver).not.toBeNull());
-      createAssignmentResolver?.({ id: 'asg-1', code: 'XYZ' });
-
-      await screen.findByTestId('roster-r1');
-      fireEvent.click(screen.getByTestId('roster-r1'));
-      fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
-
-      await waitFor(() =>
-        expect(setAssignmentRosters).toHaveBeenCalledWith(
-          'asg-1',
-          expect.objectContaining({
-            rosterIds: expect.arrayContaining(['r1']),
-          })
-        )
-      );
-    });
-
-    it('"Edit all settings…" hands off via setPendingAssignmentEdit and closes the dashboard', async () => {
-      const onCloseDashboard = vi.fn();
-      renderSubject(onCloseDashboard);
-      fireEvent.click(screen.getByText('Assign'));
-      await pickCopy();
-      await waitFor(() => expect(createAssignmentResolver).not.toBeNull());
-      createAssignmentResolver?.({ id: 'asg-1', code: 'XYZ' });
-
-      fireEvent.click(
-        await screen.findByRole('button', { name: /Edit all settings/i })
-      );
-
-      expect(setPendingAssignmentEdit).toHaveBeenCalledWith('asg-1');
-      expect(onCloseDashboard).toHaveBeenCalledTimes(1);
-    });
-
-    it('rolls back the saved quiz and sync-group join when createAssignment throws', async () => {
+    it('rolls back the saved quiz and sync-group join when createAssignment throws, keeping the stepper open', async () => {
       createAssignment.mockImplementationOnce(() =>
         Promise.reject(new Error('assignment create failed'))
       );
-      renderSubject();
-      fireEvent.click(screen.getByText('Assign'));
-      await pickSync();
+      await assignVia(pickSync);
 
       await waitFor(() =>
         expect(callLeaveSyncedQuizGroup).toHaveBeenCalledWith('sync-quiz')
@@ -544,16 +558,25 @@ describe('usePlcQuizActions', () => {
         'assignment create failed',
         'error'
       );
+      expect(screen.getByTestId('pickup-stepper')).toBeInTheDocument();
     });
 
     it('blocks a second assign while one is in flight', async () => {
+      await assignVia(pickCopy);
+      await waitFor(() => expect(createAssignment).toHaveBeenCalledTimes(1));
+
+      fireEvent.click(screen.getByText('StepperAssign'));
+      expect(createAssignment).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows an error toast and opens no stepper when Drive is disconnected', async () => {
+      mockIsDriveConnected = false;
       renderSubject();
       fireEvent.click(screen.getByText('Assign'));
       await pickCopy();
-      await waitFor(() => expect(createAssignment).toHaveBeenCalledTimes(1));
 
-      fireEvent.click(screen.getByText('Assign'));
-      expect(createAssignment).toHaveBeenCalledTimes(1);
+      expect(addToast).toHaveBeenCalledWith(expect.any(String), 'error');
+      expect(screen.queryByTestId('pickup-stepper')).not.toBeInTheDocument();
     });
   });
 

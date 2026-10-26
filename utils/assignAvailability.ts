@@ -342,22 +342,28 @@ const rowsByRosterId = (
     )
   );
 
-/** Dot-path writes for each class row whose window the edit changed. */
+/** Changed window fields per `periodAccess` row key. */
+export type PeriodAccessWindowEdits = Record<
+  string,
+  { openAt?: number | null; closeAt?: number | null }
+>;
+
+/** Window edits for each class row whose window the edit changed. */
 export function periodAccessWindowEdits(
   periodAccess: Record<string, PeriodAccess>,
   before: ResolvedAvailability,
   after: ResolvedAvailability
-): Record<string, number | null> {
-  const out: Record<string, number | null> = {};
+): PeriodAccessWindowEdits {
+  const out: PeriodAccessWindowEdits = {};
   for (const [key, row] of Object.entries(periodAccess)) {
     if (!row.rosterId) continue;
     const prev = before.periodPlan?.rows?.[row.rosterId];
     const next = after.periodPlan?.rows?.[row.rosterId];
     if (!next) continue;
-    if (prev?.openAt !== next.openAt)
-      out[`periodAccess.${key}.openAt`] = next.openAt ?? null;
-    if (prev?.closeAt !== next.closeAt)
-      out[`periodAccess.${key}.closeAt`] = next.closeAt ?? null;
+    const edit: PeriodAccessWindowEdits[string] = {};
+    if (prev?.openAt !== next.openAt) edit.openAt = next.openAt ?? null;
+    if (prev?.closeAt !== next.closeAt) edit.closeAt = next.closeAt ?? null;
+    if (Object.keys(edit).length > 0) out[key] = edit;
   }
   return out;
 }

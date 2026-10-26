@@ -132,3 +132,44 @@ export function buildPeriodGate({
     ? { accessMode: resolved.mode, periodAccess }
     : undefined;
 }
+
+/** Row writes for a class change on a per-period session: new classes get a row, unchecked ones lose theirs (null). */
+export function periodAccessClassEdits({
+  periodAccess,
+  accessMode,
+  rosters,
+  window,
+}: {
+  periodAccess: Record<string, PeriodAccess>;
+  accessMode: AccessMode;
+  /** Every class checked after the edit. */
+  rosters: readonly PeriodRoster[];
+  /** The edited window; a new class in assignment mode opens on its row, else the shared window. */
+  window: {
+    openAt?: number;
+    closeAt?: number;
+    periodPlan?: PeriodPlan;
+  };
+}): Record<string, PeriodAccess | null> {
+  // A row matches by its roster first: a roster linked to ClassLink after assign changes its key.
+  const matches = (key: string, row: PeriodAccess, roster: PeriodRoster) =>
+    row.rosterId === roster.id || key === periodKeyForRoster(roster);
+  const rows = Object.entries(periodAccess);
+  const out: Record<string, PeriodAccess | null> = {};
+  for (const [key, row] of rows) {
+    if (!rosters.some((r) => matches(key, row, r))) out[key] = null;
+  }
+  const added = rosters.filter(
+    (r) => !rows.some(([key, row]) => matches(key, row, r))
+  );
+  // A Manual class starts closed like the others; the teacher starts it.
+  return {
+    ...out,
+    ...buildPeriodAccess({
+      plan: { mode: accessMode, rows: window.periodPlan?.rows },
+      rosters: added,
+      sharedWindow: { openAt: window.openAt, closeAt: window.closeAt },
+      bellWindow: () => null,
+    }),
+  };
+}

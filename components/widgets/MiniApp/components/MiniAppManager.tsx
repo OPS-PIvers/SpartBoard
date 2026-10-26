@@ -45,7 +45,10 @@ import {
   CheckSquare,
   RotateCcw,
   FolderMinus,
+  Users,
 } from 'lucide-react';
+import { EDIT_CLASSES_LABEL } from '@/components/common/library/AssignmentClassesModal';
+import { canEditAssignmentClasses } from '@/utils/assignmentClassEdit';
 import type {
   AssignmentMode,
   MiniAppItem,
@@ -156,6 +159,8 @@ export interface MiniAppManagerProps {
    * Optional so consumers that don't support reactivate can omit it.
    */
   onArchiveReactivate?: (assignment: MiniAppAssignment) => void;
+  /** Opens the Edit classes dialog for an in-progress assignment. */
+  onArchiveEditClasses?: (assignment: MiniAppAssignment) => void;
   onArchiveDelete: (assignment: MiniAppAssignment) => void;
   /** Optional — open the underlying app in the widget. */
   onArchiveOpenApp?: (assignment: MiniAppAssignment) => void;
@@ -349,6 +354,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   onArchiveCopyUrl,
   onArchiveEnd,
   onArchiveReactivate,
+  onArchiveEditClasses,
   onArchiveDelete,
   onArchiveOpenApp,
   assignmentMode = 'submissions',
@@ -1127,6 +1133,20 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         label: 'Open app',
         icon: ExternalLink,
         onClick: () => onArchiveOpenApp(assignment),
+      });
+    }
+    if (
+      mode === 'active' &&
+      !isViewOnly &&
+      onArchiveEditClasses &&
+      canEditAssignmentClasses(assignment)
+    ) {
+      actions.push({
+        id: 'edit-classes',
+        label: EDIT_CLASSES_LABEL,
+        icon: Users,
+        onClick: () => onArchiveEditClasses(assignment),
+        anchor: tourTypeAttr('library-shell.archive-edit-classes', 'miniApp'),
       });
     }
     if (mode === 'active') {

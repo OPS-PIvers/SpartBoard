@@ -3,6 +3,7 @@ import {
   BELL_CLOSE_CUSHION_MS,
   buildPeriodAccess,
   buildPeriodGate,
+  periodAccessClassEdits,
   periodKeyForRoster,
   resolveRowWindow,
   type PeriodRoster,
@@ -189,5 +190,87 @@ describe('buildPeriodGate', () => {
         manualStart: true,
       })
     ).toBeUndefined();
+  });
+});
+
+describe('periodAccessClassEdits', () => {
+  const open = (rosterId: string, label: string) => ({
+    state: 'open' as const,
+    openAt: 10,
+    closeAt: 20,
+    bellPeriodId: null,
+    verified: true,
+    label,
+    rosterId,
+  });
+
+  it('writes nothing when the classes are unchanged', () => {
+    expect(
+      periodAccessClassEdits({
+        periodAccess: { 'cl-1': open('r1', 'P1 Algebra') },
+        accessMode: 'assignment',
+        rosters: [sso],
+        window: { openAt: 10, closeAt: 20 },
+      })
+    ).toEqual({});
+  });
+
+  it('removes an unchecked class and opens a new one on its row window', () => {
+    expect(
+      periodAccessClassEdits({
+        periodAccess: {
+          'cl-1': open('r1', 'P1 Algebra'),
+          't-3': open('r2', 'P3 Test'),
+        },
+        accessMode: 'assignment',
+        rosters: [sso, local],
+        window: {
+          openAt: 10,
+          closeAt: 40,
+          periodPlan: {
+            mode: 'assignment',
+            rows: { r3: { source: 'custom', openAt: 30, closeAt: 40 } },
+          },
+        },
+      })
+    ).toEqual({
+      't-3': null,
+      'roster:r3': {
+        state: 'open',
+        openAt: 30,
+        closeAt: 40,
+        bellPeriodId: null,
+        verified: false,
+        label: 'P5 Local',
+        rosterId: 'r3',
+      },
+    });
+  });
+
+  it('adds a new class closed on a Manual session', () => {
+    const edits = periodAccessClassEdits({
+      periodAccess: { 'cl-1': { ...open('r1', 'P1'), state: 'closed' } },
+      accessMode: 'assessment',
+      rosters: [sso, test],
+      window: { openAt: 10, closeAt: 20 },
+    });
+    expect(Object.keys(edits)).toEqual(['t-3']);
+    expect(edits['t-3']).toMatchObject({
+      state: 'closed',
+      openAt: null,
+      closeAt: null,
+      rosterId: 'r2',
+    });
+  });
+
+  it('keeps a row whose roster was linked to ClassLink after assign', () => {
+    expect(
+      periodAccessClassEdits({
+        periodAccess: { 'roster:r1': open('r1', 'P1 Algebra') },
+        accessMode: 'assignment',
+        rosters: [sso],
+        window: { openAt: 10, closeAt: 20 },
+      })
+    ).toEqual({});
   });
 });
