@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { getNamedLucideIcon } from '@/utils/lucideIconMap';
 import {
@@ -591,6 +591,22 @@ export const NeedDoPutThenWidget: React.FC<{ widget: WidgetData }> = ({
     setPortalTarget((prev) => (prev === target ? prev : target));
   }, []);
 
+  // A scroller blocks touch drags in DraggableWindow, so only scroll when the steps overflow.
+  const [doScroller, setDoScrollerRef] = useState<HTMLDivElement | null>(null);
+  const [doListOverflows, setDoListOverflows] = useState(false);
+  useEffect(() => {
+    if (!doScroller) return;
+    const measure = () =>
+      setDoListOverflows(doScroller.scrollHeight > doScroller.clientHeight + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(doScroller);
+    if (doScroller.firstElementChild) {
+      observer.observe(doScroller.firstElementChild);
+    }
+    return () => observer.disconnect();
+  }, [doScroller, doItems.length]);
+
   const globalFont = globalStyle.fontFamily;
   const fontClass = getFontClass(config.fontFamily ?? 'global', globalFont);
   const sizeMultiplier = resolveTextPresetMultiplier(config.textSizePreset);
@@ -716,7 +732,11 @@ export const NeedDoPutThenWidget: React.FC<{ widget: WidgetData }> = ({
             </button>
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar">
+          <div
+            ref={setDoScrollerRef}
+            data-testid="need-do-put-then-do-list"
+            className={`flex-1 min-h-0 no-scrollbar ${doListOverflows ? 'overflow-y-auto' : 'overflow-hidden'}`}
+          >
             <NumberedList
               items={doItems}
               fontClass={fontClass}
