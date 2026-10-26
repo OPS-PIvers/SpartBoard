@@ -294,15 +294,15 @@ describe('assignPins', () => {
     expect(out[1].pin).toBe('01');
   });
 
-  it('gives linked students random 4-digit pins, not sequential ones', () => {
+  it('gives linked students random 6-digit pins, not sequential ones', () => {
     const students = Array.from({ length: 40 }, (_, i) =>
       local(`S${i}`, 'X', { classLinkSourcedId: `sid-${i}` })
     );
-    const pins = assignPins(students, new Set(['1234'])).map((s) => s.pin);
-    expect(pins.every((p) => /^\d{4}$/.test(p))).toBe(true);
+    const pins = assignPins(students, new Set(['123456'])).map((s) => s.pin);
+    expect(pins.every((p) => /^\d{6}$/.test(p))).toBe(true);
     expect(new Set(pins).size).toBe(pins.length);
-    expect(pins).not.toContain('1234');
-    expect(pins.slice(0, 3)).not.toEqual(['0001', '0002', '0003']);
+    expect(pins).not.toContain('123456');
+    expect(pins.slice(0, 3)).not.toEqual(['000001', '000002', '000003']);
   });
 
   it('skips reserved pins', () => {

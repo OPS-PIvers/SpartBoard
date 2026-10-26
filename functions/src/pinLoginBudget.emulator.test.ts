@@ -35,7 +35,7 @@ describe.skipIf(!RUN)('pinLoginV1 session budget against the emulator', () => {
     const db = admin.firestore();
     const sessionId = `s_${Math.random().toString(36).slice(2, 8)}`;
     const roster = db.doc(`users/t1/rosters/r1_${sessionId}`);
-    const rightKey = pinIndexKey('1', '4821');
+    const rightKey = pinIndexKey('1', '482100');
     await roster.collection('pin_index').doc(rightKey).set({
       pseudonym: 'PS-right',
       classId: 'CL1',
@@ -50,10 +50,10 @@ describe.skipIf(!RUN)('pinLoginV1 session budget against the emulator', () => {
 
     const attempt = attemptOn(sessionId, roster);
     const wrong = Array.from({ length: 100 }, (_, i) =>
-      attempt(String(5000 + i), `anon-${i}`)
+      attempt(String(500000 + i), `anon-${i}`)
     );
     const results = await Promise.all(wrong);
-    const right = await attempt('4821', 'anon-right');
+    const right = await attempt('482100', 'anon-right');
 
     const misses = results.filter((r) => r.outcome === 'miss').length;
     const stored = (
@@ -71,7 +71,7 @@ describe.skipIf(!RUN)('pinLoginV1 session budget against the emulator', () => {
     const db = admin.firestore();
     const sessionId = `c_${Math.random().toString(36).slice(2, 8)}`;
     const roster = db.doc(`users/t1/rosters/r1_${sessionId}`);
-    const pins = Array.from({ length: 35 }, (_, i) => String(1000 + i * 7));
+    const pins = Array.from({ length: 35 }, (_, i) => String(100000 + i * 7));
     await Promise.all(
       pins.map((pin, i) =>
         roster
@@ -84,7 +84,7 @@ describe.skipIf(!RUN)('pinLoginV1 session budget against the emulator', () => {
     const results = await Promise.all([
       ...pins.map((pin, i) => attempt(pin, `kid-${i}`)),
       ...Array.from({ length: 5 }, (_, i) =>
-        attempt(String(9000 + i), `typo-${i}`)
+        attempt(String(900000 + i), `typo-${i}`)
       ),
     ]);
     expect(

@@ -1486,7 +1486,7 @@ const PIN_LOGIN_SESSION_DAY_MS = 24 * 60 * 60 * 1000;
 export const PIN_LOGIN_MAX_CALLERS_PER_STUDENT = 3;
 const PIN_LOGIN_CLAIM_TTL_MS = 24 * 60 * 60 * 1000;
 // Shorter PINs (the old sequential 01, 02, … defaults) are guessable without a miss, so they never bridge.
-export const PIN_LOGIN_MIN_PIN_LENGTH = 4;
+export const PIN_LOGIN_MIN_PIN_LENGTH = 6;
 
 /** True when a PIN has enough characters to prove a student's identity. */
 export function isBridgeablePin(pin: string): boolean {

@@ -69,7 +69,7 @@ const normalizeNameKey = (first: string, last: string): string =>
   `${first.trim()}|${last.trim()}`.toLowerCase();
 
 /**
- * Assign PINs to students that lack one, skipping `reserved`: random 4-digit
+ * Assign PINs to students that lack one, skipping `reserved`: random 6-digit
  * PINs for ClassLink-linked students (they sign in with them), sequential otherwise.
  *
  * Mirrors `utils/rosterPins.ts` with one addition: the caller passes the PINs
@@ -98,7 +98,7 @@ export function assignPins(
   };
   const takeRandomPin = (): string => {
     for (let tries = 0; tries < 1000; tries++) {
-      const candidate = String(randomInt(10000)).padStart(4, '0');
+      const candidate = String(randomInt(1_000_000)).padStart(6, '0');
       if (!used.has(candidate)) {
         used.add(candidate);
         return candidate;

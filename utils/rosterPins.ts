@@ -1,15 +1,15 @@
 import { Student } from '@/types';
 
-const LINKED_PIN_DIGITS = 4;
+const LINKED_PIN_DIGITS = 6;
 
-/** A random 4-digit PIN; ClassLink-linked PINs sign a student in, so they must not be guessable. */
+/** A random 6-digit PIN; ClassLink-linked PINs sign a student in, so they must not be guessable. */
 function randomLinkedPin(): string {
   const [n] = crypto.getRandomValues(new Uint32Array(1));
   return String(n % 10 ** LINKED_PIN_DIGITS).padStart(LINKED_PIN_DIGITS, '0');
 }
 
 /**
- * Assigns PINs to students that don't have one yet: random 4-digit PINs for
+ * Assigns PINs to students that don't have one yet: random 6-digit PINs for
  * ClassLink-linked students, zero-padded sequential PINs for everyone else.
  *
  * Never hands out a fallback PIN that collides with any PIN already present
