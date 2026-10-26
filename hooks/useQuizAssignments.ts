@@ -21,6 +21,7 @@ import {
   deleteDoc,
   deleteField,
   doc,
+  FieldPath,
   onSnapshot,
   getDoc,
   getDocs,
@@ -33,6 +34,8 @@ import {
   Timestamp,
   updateDoc,
   writeBatch,
+  type DocumentReference,
+  type WriteBatch,
 } from 'firebase/firestore';
 import { auth, db, isAuthBypass } from '@/config/firebase';
 import { QuizDriveService } from '@/utils/quizDriveService';
@@ -157,6 +160,7 @@ import {
 } from '@/utils/quizScoreOnSubmit';
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
+import type { PeriodAccessWindowEdits } from '@/utils/assignAvailability';
 import {
   syncedQuizContentFields,
   type SyncedQuizContentFields,
@@ -328,9 +332,49 @@ export interface AssignmentQuizRef {
 /** Editable settings plus the open/close window the edit modal changes. */
 export type QuizAssignmentSettingsPatch = Partial<QuizAssignmentSettings> &
   Pick<QuizAssignment, 'openAt' | 'closeAt'> & {
-    /** `periodAccess.<key>.openAt|closeAt` dot paths, written to both docs. */
-    periodAccessEdits?: Record<string, number | null>;
+    /** Window changes per `periodAccess` row key, written to both docs. */
+    periodAccessEdits?: PeriodAccessWindowEdits;
+    /** Whole per-period rows by key for a class change; null removes the row. */
+    periodAccessRows?: Record<string, PeriodAccess | null>;
   };
+
+/** FieldPath writes for `periodAccess` rows (null deletes) and window edits; keys may hold dots. */
+const periodAccessWrites = (
+  rows: Record<string, PeriodAccess | null> | undefined,
+  edits?: PeriodAccessWindowEdits
+): Array<[FieldPath, unknown]> => [
+  ...Object.entries(rows ?? {}).map(([key, row]): [FieldPath, unknown] => [
+    new FieldPath('periodAccess', key),
+    row ?? deleteField(),
+  ]),
+  ...Object.entries(edits ?? {}).flatMap(([key, edit]) =>
+    Object.entries(edit).map(([field, value]): [FieldPath, unknown] => [
+      new FieldPath('periodAccess', key, field),
+      value ?? null,
+    ])
+  ),
+];
+
+/** One batch update combining a plain patch with FieldPath writes. */
+const batchUpdateWithPaths = (
+  batch: WriteBatch,
+  ref: DocumentReference,
+  patch: Record<string, unknown>,
+  paths: Array<[FieldPath, unknown]>
+): void => {
+  if (paths.length === 0) {
+    batch.update(ref, patch);
+    return;
+  }
+  const [first, ...rest] = [
+    ...Object.entries(patch).map(([k, v]): [string | FieldPath, unknown] => [
+      k,
+      v,
+    ]),
+    ...paths,
+  ];
+  batch.update(ref, first[0], first[1], ...rest.flat());
+};
 
 export interface UseQuizAssignmentsResult {
   assignments: QuizAssignment[];
@@ -398,7 +442,9 @@ export interface UseQuizAssignmentsResult {
    */
   setAssignmentRosters: (
     assignmentId: string,
-    targets: SessionTargets
+    targets: SessionTargets,
+    /** Per-period rows for the class change, in the same batch; null removes a row. */
+    periodAccessRows?: Record<string, PeriodAccess | null>
   ) => Promise<void>;
   /**
    * Persist the Drive export URL onto the assignment doc so re-entering
@@ -2110,10 +2156,10 @@ export const useQuizAssignments = (
       // existing field stays on the doc. Translate explicit-undefined on
       // the `plc` key to `deleteField()` so the doc actually loses PLC
       // mode. (Final-review finding on PR #1442.)
-      const { periodAccessEdits, ...settings } = patch;
+      const { periodAccessEdits, periodAccessRows, ...settings } = patch;
+      const rowWrites = periodAccessWrites(periodAccessRows, periodAccessEdits);
       const assignmentPatch: Record<string, unknown> = {
         ...settings,
-        ...periodAccessEdits,
         updatedAt: now,
       };
       const clearingPlc =
@@ -2136,7 +2182,7 @@ export const useQuizAssignments = (
         QUIZ_ASSIGNMENTS_COLLECTION,
         assignmentId
       );
-      batch.update(assignmentRef, assignmentPatch);
+      batchUpdateWithPaths(batch, assignmentRef, assignmentPatch, rowWrites);
       // Mirror period and session-option changes to the session doc so
       // students can read available periods and updated toggles.
       const sessionPatch: Record<string, unknown> = {};
@@ -2148,7 +2194,6 @@ export const useQuizAssignments = (
       if ('dueAt' in patch) sessionPatch.dueAt = patch.dueAt ?? null;
       if ('openAt' in patch) sessionPatch.openAt = patch.openAt ?? null;
       if ('closeAt' in patch) sessionPatch.closeAt = patch.closeAt ?? null;
-      Object.assign(sessionPatch, periodAccessEdits);
       if (clearingPerClassDue) sessionPatch.dueAtByClassId = deleteField();
       else if (dueAtByClassId) sessionPatch.dueAtByClassId = dueAtByClassId;
       if (patch.sessionOptions) {
@@ -2177,14 +2222,21 @@ export const useQuizAssignments = (
         sessionPatch.syncGroupId = deleteField();
         sessionPatch.plcLinkedAt = deleteField();
       }
-      if (Object.keys(sessionPatch).length > 0) {
-        batch.update(
+      if (Object.keys(sessionPatch).length > 0 || rowWrites.length > 0) {
+        batchUpdateWithPaths(
+          batch,
           doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId),
-          sessionPatch
+          sessionPatch,
+          rowWrites
         );
       }
-      await viewAsDirectSave(assignmentRef, Object.keys(assignmentPatch), () =>
-        batch.commit()
+      await viewAsDirectSave(
+        assignmentRef,
+        [
+          ...Object.keys(assignmentPatch),
+          ...(rowWrites.length > 0 ? ['periodAccess'] : []),
+        ],
+        () => batch.commit()
       );
       // Accommodated and skipped students read the window off their own pointer doc.
       const pointerWindow: {
@@ -2225,9 +2277,10 @@ export const useQuizAssignments = (
   const setAssignmentRosters = useCallback<
     UseQuizAssignmentsResult['setAssignmentRosters']
   >(
-    async (assignmentId, targets) => {
+    async (assignmentId, targets, periodAccessRows) => {
       if (!userId) throw new Error('Not authenticated');
       const now = Date.now();
+      const rowWrites = periodAccessWrites(periodAccessRows);
       const cleanedRosterIds = targets.rosterIds.filter(
         (id): id is string => typeof id === 'string' && id.length > 0
       );
@@ -2279,13 +2332,20 @@ export const useQuizAssignments = (
         QUIZ_ASSIGNMENTS_COLLECTION,
         assignmentId
       );
-      batch.update(assignmentRef, assignmentPatch);
-      batch.update(
+      batchUpdateWithPaths(batch, assignmentRef, assignmentPatch, rowWrites);
+      batchUpdateWithPaths(
+        batch,
         doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId),
-        sessionPatch
+        sessionPatch,
+        rowWrites
       );
-      await viewAsDirectSave(assignmentRef, Object.keys(assignmentPatch), () =>
-        batch.commit()
+      await viewAsDirectSave(
+        assignmentRef,
+        [
+          ...Object.keys(assignmentPatch),
+          ...(rowWrites.length > 0 ? ['periodAccess'] : []),
+        ],
+        () => batch.commit()
       );
     },
     [userId]
