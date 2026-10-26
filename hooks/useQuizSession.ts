@@ -2351,6 +2351,8 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           `[useQuizSessionStudent] response listener error at ${path} (code=${code ?? 'unknown'}):`,
           err
         );
+        // A teacher removing a PIN student deletes the doc, which rules then deny reading.
+        if (code === 'permission-denied') setMyResponse(null);
         setError(
           code === 'permission-denied'
             ? 'Lost permission to read your answers. Ask your teacher.'
