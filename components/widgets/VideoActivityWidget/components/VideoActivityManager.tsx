@@ -11,7 +11,9 @@
  * teachers can copy URLs, pause/resume, and delete archived rows.
  */
 
-import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { EDIT_CLASSES_LABEL } from '@/components/common/library/AssignmentClassesModal';
+import { canEditAssignmentClasses } from '@/utils/assignmentClassEdit';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   Activity,
@@ -260,6 +262,8 @@ export interface VideoActivityManagerProps {
   onArchiveUnpublishScores?: (
     assignment: VideoActivityAssignment
   ) => void | Promise<void>;
+  /** Opens the Edit classes dialog for an in-progress assignment. */
+  onArchiveEditClasses?: (assignment: VideoActivityAssignment) => void;
 
   // Legacy per-activity session view (one-off session history). Kept for
   // backwards compatibility with existing Widget.tsx wiring; new work should
@@ -509,6 +513,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onArchiveMonitor,
   onArchivePublishScores,
   onArchiveUnpublishScores,
+  onArchiveEditClasses,
   rosters,
   periodAccess,
   plcs = NO_PLCS,
@@ -1211,6 +1216,23 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           onClick: () => {
             void onArchivePauseResume(assignment);
           },
+        });
+      }
+      if (
+        onArchiveEditClasses &&
+        !assignmentIsViewOnly &&
+        assignment.sessionMode !== 'teacher' &&
+        canEditAssignmentClasses(assignment)
+      ) {
+        actions.push({
+          id: 'edit-classes',
+          label: EDIT_CLASSES_LABEL,
+          icon: Users2,
+          onClick: () => onArchiveEditClasses(assignment),
+          anchor: tourTypeAttr(
+            'library-shell.archive-edit-classes',
+            'video-activity'
+          ),
         });
       }
       if (onArchiveDeactivate) {

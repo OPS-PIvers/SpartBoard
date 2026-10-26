@@ -24,6 +24,8 @@ export interface ClassPickerMenuProps {
   anchor?: TourAnchorAttrs;
   /** Live-tour anchor for one class's checkbox, keyed by class id. */
   rowAnchor?: (classId: string) => TourAnchorAttrs;
+  /** Opens the menu in the page flow, for a short dialog whose body would clip a dropdown. */
+  menuInFlow?: boolean;
 }
 
 /** Classes as a select-style button that opens a checklist menu (D5). */
@@ -35,6 +37,7 @@ export const ClassPickerMenu: React.FC<ClassPickerMenuProps> = ({
   disabled = false,
   anchor,
   rowAnchor,
+  menuInFlow = false,
 }) => {
   const { open, setOpen, rootRef, onKeyDown } = usePickMenu();
   const menuId = useId();
@@ -82,7 +85,7 @@ export const ClassPickerMenu: React.FC<ClassPickerMenuProps> = ({
       {open && (
         <div
           id={menuId}
-          className="absolute left-0 right-0 top-full z-10 mt-1 rounded-xl border border-slate-200 bg-white p-1 shadow-xl"
+          className={`${menuInFlow ? 'relative' : 'absolute left-0 right-0 top-full z-10 shadow-xl'} mt-1 rounded-xl border border-slate-200 bg-white p-1`}
         >
           {rosters.length === 0 ? (
             <p className="px-2 py-1.5 text-sm text-slate-500">

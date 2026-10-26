@@ -61,6 +61,8 @@ import {
   type AssignTargetingValue,
 } from '@/components/common/library';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
+import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
+import { logError } from '@/utils/logError';
 import {
   makeEmptyPickerValue,
   type AssignClassPickerValue,
@@ -302,6 +304,7 @@ const TeacherGuidedLearningWidget: React.FC<{
     deleteAssignment,
     publishAssignmentScores,
     unpublishAssignmentScores,
+    setAssignmentClasses,
   } = useGuidedLearningAssignments(user?.uid);
 
   // Local component state
@@ -361,6 +364,8 @@ const TeacherGuidedLearningWidget: React.FC<{
   // Ephemeral modal state for the per-assignment "Publish Scores" picker.
   // Mirrors the QuizWidget / VideoActivityWidget pattern.
   const [publishingAssignment, setPublishingAssignment] =
+    useState<GuidedLearningAssignment | null>(null);
+  const [editingClasses, setEditingClasses] =
     useState<GuidedLearningAssignment | null>(null);
   const [pickerValue, setPickerValue] = useState<AssignClassPickerValue>(() =>
     makeEmptyPickerValue()
@@ -1679,6 +1684,7 @@ const TeacherGuidedLearningWidget: React.FC<{
                   onAssignmentArchive={(a) => {
                     void handleAssignmentArchive(a);
                   }}
+                  onAssignmentEditClasses={setEditingClasses}
                   onAssignmentUnarchive={(a) => {
                     void handleAssignmentUnarchive(a);
                   }}
@@ -1930,6 +1936,25 @@ const TeacherGuidedLearningWidget: React.FC<{
           error={viewOnlyShareError}
           onConfirm={() => void handleConfirmViewOnlyShare()}
           onClose={closeViewOnlyShareModal}
+        />
+      )}
+
+      {editingClasses && (
+        <AssignmentClassesModal
+          rosters={rosters}
+          assignment={editingClasses}
+          onClose={() => setEditingClasses(null)}
+          onSave={async (edit) => {
+            try {
+              await setAssignmentClasses(editingClasses.id, edit);
+            } catch (err) {
+              logError('GuidedLearningWidget.editClasses', err, {
+                assignmentId: editingClasses.id,
+              });
+              addToast("Couldn't save classes.", 'error');
+              throw err;
+            }
+          }}
         />
       )}
 

@@ -11933,6 +11933,20 @@ export const TOUR_ANCHORS = {
     label: 'Clear selection button in the library bulk action bar',
     panel: true,
   },
+  'library-shell.archive-edit-classes': {
+    label: 'Edit classes item in an In Progress assignment row menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'assignment-classes.cancel': {
+    label: 'Cancel button in the Edit classes dialog',
+    panel: true,
+  },
+  'assignment-classes.save': {
+    label: 'Save button in the Edit classes dialog',
+    panel: true,
+    persists: true,
+  },
   'publish-scores.close': {
     label: 'Close button in the publish scores dialog',
     panel: true,

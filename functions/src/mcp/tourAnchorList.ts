@@ -54183,6 +54183,82 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "library-shell.archive-edit-classes",
+    "label": "Edit classes item in an In Progress assignment row menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "guided-learning",
+      "miniApp",
+      "video-activity"
+    ],
+    "routes": [
+      {
+        "surface": "guidedLearning.face",
+        "kind": "widget",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-menu:guided-learning#row-1"
+        ],
+        "reveal": "library-shell.card-menu:guided-learning#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
+        "surface": "library.mini-app",
+        "kind": "widget",
+        "widget_type": "miniApp",
+        "path": [
+          "library-shell.archive-menu:miniApp#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:miniApp#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [
+          "library-shell.archive-menu:video-activity#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:video-activity#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "assignment-classes.cancel",
+    "label": "Cancel button in the Edit classes dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assignment-classes",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "assignment-classes.save",
+    "label": "Save button in the Edit classes dialog",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.assignment-classes",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "publish-scores.close",
     "label": "Close button in the publish scores dialog",
     "scope": "board",
