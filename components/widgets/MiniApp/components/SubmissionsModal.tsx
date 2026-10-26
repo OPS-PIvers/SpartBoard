@@ -107,7 +107,11 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
     removedNames.byAssignmentPseudonym,
     byAssignmentPseudonym,
   ]);
-  const [loading, setLoading] = useState(true);
+  const [listLoading, setLoading] = useState(true);
+  // Hold the list until both lookups land so a removed class never flashes in.
+  const loading =
+    listLoading ||
+    (!!removedClassIds?.length && (removedNames.loading || namesLoading));
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const isV2 = session?.resultsVersion === 2;
