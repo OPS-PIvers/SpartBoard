@@ -226,7 +226,8 @@ async function browserDebugger() {
   const pending = new Map<number, (v: unknown) => void>();
   ws.onmessage = (e) => {
     const m = JSON.parse(String(e.data)) as { id?: number; result?: unknown };
-    if (m.id !== undefined) pending.get(m.id)?.(m.result);
+    const resolve = typeof m.id === 'number' ? pending.get(m.id) : undefined;
+    if (typeof resolve === 'function') resolve(m.result);
   };
   const send = <T>(method: string, params: Record<string, unknown> = {}) =>
     new Promise<T>((r) => {
