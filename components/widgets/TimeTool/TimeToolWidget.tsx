@@ -37,7 +37,17 @@ const AdjustButton: React.FC<{
   onAdjust: (deltaSeconds: number) => void;
   anchor?: ReturnType<typeof tourAttr>;
   size: string;
-}> = ({ sign, step, disabled, ariaLabel, onAdjust, anchor, size }) => {
+  expandHitArea: boolean;
+}> = ({
+  sign,
+  step,
+  disabled,
+  ariaLabel,
+  onAdjust,
+  anchor,
+  size,
+  expandHitArea,
+}) => {
   const handlers = useHoldAccelerate((multiplier) => {
     if (disabled) return;
     onAdjust(sign * step * multiplier);
@@ -57,8 +67,8 @@ const AdjustButton: React.FC<{
       onPointerLeave={handlers.onPointerLeave}
       onKeyDown={handlers.onKeyDown}
       className={`flex flex-col items-center justify-center rounded-xl bg-slate-200/40 text-slate-500 transition-all select-none touch-none active:scale-95 hover:bg-slate-300/60 hover:text-slate-700 ${
-        disabled ? 'opacity-30 cursor-not-allowed' : ''
-      }`}
+        expandHitArea ? 'relative touch-target-expand' : ''
+      } ${disabled ? 'opacity-30 cursor-not-allowed' : ''}`}
       style={{
         width: size,
         height: size,
@@ -623,7 +633,7 @@ export const TimeToolWidget: React.FC<{
                     className="absolute z-10 flex items-center justify-center"
                     style={{
                       top: isVisual ? '115%' : '110%',
-                      gap: 'min(8px, 2cqmin)',
+                      gap: isCompact ? '24px' : 'min(8px, 2cqmin)',
                     }}
                   >
                     {showAdjustControls && (
@@ -639,6 +649,7 @@ export const TimeToolWidget: React.FC<{
                         ariaLabel={t('widgets.timeTool.subtractTime')}
                         onAdjust={adjustTime}
                         size={ctrlSize}
+                        expandHitArea={isCompact}
                       />
                     )}
                     <button
@@ -709,6 +720,7 @@ export const TimeToolWidget: React.FC<{
                         ariaLabel={t('widgets.timeTool.addTime')}
                         onAdjust={adjustTime}
                         size={ctrlSize}
+                        expandHitArea={isCompact}
                       />
                     )}
                   </div>
