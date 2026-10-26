@@ -269,7 +269,7 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
       let order = d.dashboards.reduce((m, b) => Math.max(m, b.order ?? 0), 0);
       for (let i = 0; i < todo.length; i += BATCH) {
         const batch = todo.slice(i, i + BATCH);
-        await Promise.allSettled(
+        const results = await Promise.allSettled(
           batch.map(async (entry) => {
             const snap = await d.loadSharedBoard(entry.shareId);
             // Trust rule: boards[] is member-written, so the share must name this link and mode.
@@ -297,6 +297,12 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
             }
           })
         );
+        // A thrown load or create may be transient: let the next snapshot retry it.
+        results.forEach((r, j) => {
+          if (r.status === 'rejected') {
+            handledImports.current.delete(batch[j].shareId);
+          }
+        });
       }
     },
     []

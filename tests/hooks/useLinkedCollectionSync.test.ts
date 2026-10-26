@@ -239,6 +239,17 @@ describe('useLinkedCollectionSync', () => {
     await waitFor(() => expect(deps.createBoard).toHaveBeenCalledTimes(1));
   });
 
+  it('retries a board whose share failed to load on the next snapshot', async () => {
+    shares.set('s1', share('s1'));
+    const deps = makeDeps();
+    vi.mocked(deps.loadSharedBoard).mockRejectedValueOnce(new Error('offline'));
+    renderHook(() => useLinkedCollectionSync(deps));
+    const link = makeLink({ boards: [{ shareId: 's1', name: 'A', order: 0 }] });
+    await emit(link);
+    await emit({ ...link });
+    await waitFor(() => expect(deps.createBoard).toHaveBeenCalledTimes(1));
+  });
+
   it('removes a board the link dropped when its share belongs to the link', async () => {
     shares.set('s1', share('s1'));
     const deps = makeDeps({
