@@ -95,6 +95,13 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
   const selectedRef = selectedKey ? refByKey.get(selectedKey) : undefined;
   const newer = selectedRef && newerFor ? newerFor(selectedRef) : null;
   const landings = landingOptions(draft.pages);
+  // The hero sits on the hub page, so it is only the first thing seen when the team lands there.
+  const heroHeading =
+    draft.landing === teamTypeHubPage(groupType)
+      ? t('teams.layout.firstThing', {
+          defaultValue: 'First thing the team sees',
+        })
+      : t('teams.layout.pinnedItemHeading', { defaultValue: 'Pinned item' });
   const landingLabel = (id: TeamPageId) =>
     plcHome && id === 'dataOverview'
       ? t('teams.pages.home', { defaultValue: 'Home' })
@@ -283,17 +290,11 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
       </label>
 
       <div className="mt-6 border-t border-slate-200 pt-5">
-        <h4 className={`${EYEBROW} mb-3`}>
-          {t('teams.layout.firstThing', {
-            defaultValue: 'First thing the team sees',
-          })}
-        </h4>
+        <h4 className={`${EYEBROW} mb-3`}>{heroHeading}</h4>
         <SegmentedControl
           role="radiogroup"
           anchor={tourAttr('teams.layout.hero-mode')}
-          ariaLabel={t('teams.layout.firstThing', {
-            defaultValue: 'First thing the team sees',
-          })}
+          ariaLabel={heroHeading}
           value={draft.heroMode}
           onChange={(heroMode) => update({ heroMode })}
           options={[
