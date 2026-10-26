@@ -53,3 +53,18 @@ export function buildScoreOnSubmitKey(
     ...(questionHasRecordingSlot(q) ? { recording: true as const } : {}),
   }));
 }
+
+/** Swaps in the given questions' keys by id; entries for questions not given are kept as they are. */
+export function mergeScoreOnSubmitKey(
+  existing: unknown,
+  questions: QuizQuestion[]
+): unknown[] {
+  const fresh = new Map(buildScoreOnSubmitKey(questions).map((k) => [k.id, k]));
+  return (Array.isArray(existing) ? existing : []).map((entry: unknown) => {
+    const id =
+      typeof entry === 'object' && entry !== null
+        ? (entry as { id?: unknown }).id
+        : undefined;
+    return (typeof id === 'string' ? fresh.get(id) : undefined) ?? entry;
+  });
+}

@@ -54,21 +54,43 @@ vi.mock('@/context/useAuth', () => ({
   }),
 }));
 
+const plainQuiz = {
+  id: 'quiz-1',
+  title: 'My Quiz',
+  questions: [{ id: 'q1', type: 'MC', points: 10 }],
+};
+let driveFiles: Record<string, unknown> = {};
+const loadQuizData = vi.fn(
+  (id: string) => driveFiles[id] ?? Promise.reject(new Error(id))
+);
 vi.mock('@/hooks/useQuiz', () => ({
   useQuiz: () => ({
     quizzes: [{ id: 'quiz-1', title: 'My Quiz', driveFileId: 'drive-1' }],
-    loadQuizData: vi.fn(() => ({
-      id: 'quiz-1',
-      title: 'My Quiz',
-      questions: [{ id: 'q1', type: 'MC', points: 10 }],
-    })),
+    loadQuizData,
     loading: false,
   }),
 }));
+let assignments: Record<string, unknown>[] = [];
 vi.mock('@/hooks/useQuizAssignments', () => ({
-  useQuizAssignments: () => ({ publishAssignmentScores: vi.fn() }),
+  useQuizAssignments: () => ({
+    assignments,
+    loading: false,
+    publishAssignmentScores: vi.fn(),
+  }),
   countPendingPaperTranscripts: () => 0,
 }));
+let bankFiles: Record<string, unknown> = {};
+const loadBankData = vi.fn(
+  (id: string) => bankFiles[id] ?? Promise.reject(new Error(id))
+);
+vi.mock('@/hooks/useQuestionBanks', () => ({
+  useQuestionBanks: () => ({
+    banks: [{ id: 'bank-1', driveFileId: 'bank-drive-1' }],
+    loading: false,
+    loadBankData,
+  }),
+}));
+let responses: Record<string, unknown>[] = [];
 vi.mock('@/hooks/useQuizSession', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('@/hooks/useQuizSession')>();
@@ -84,7 +106,7 @@ vi.mock('@/hooks/useQuizSession', async (importOriginal) => {
         ltiNrps: true,
         ltiAttachment: { resourceLinkId: 'rl-1' },
       },
-      responses: [{ studentUid: 'stu-1', status: 'completed', answers: [] }],
+      responses,
       loading: false,
     }),
   };
@@ -115,6 +137,10 @@ const googleUser = {
 describe('ClassroomAddonTeacherReview on Schoology', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    driveFiles = { 'drive-1': plainQuiz };
+    bankFiles = {};
+    assignments = [];
+    responses = [{ studentUid: 'stu-1', status: 'completed', answers: [] }];
     window.history.replaceState({}, '', '/lti/teacher?lc=x');
   });
 
@@ -165,5 +191,67 @@ describe('ClassroomAddonTeacherReview on Schoology', () => {
       })
     );
     expect(await screen.findByText(/Pushed 1 grade to Schoology/)).toBeTruthy();
+  });
+
+  it('grades a bank draw with the bank’s current answer key', async () => {
+    authUser = googleUser;
+    const fib = {
+      id: 'q1',
+      type: 'FIB',
+      text: 'Studies of identical twins are called ____.',
+      timeLimit: 0,
+      points: 10,
+      correctAnswer: 'Twin studies',
+      incorrectAnswers: [],
+    };
+    driveFiles = {
+      'drive-1': {
+        id: 'quiz-1',
+        title: 'My Quiz',
+        questions: [],
+        bankSlots: [
+          { id: 's1', bankId: 'bank-1', bankTitle: 'B', mode: 'random' },
+        ],
+      },
+      'frozen-1': { id: 'quiz-1', title: 'My Quiz', questions: [fib] },
+    };
+    bankFiles = {
+      'bank-drive-1': {
+        id: 'bank-1',
+        title: 'B',
+        questions: [{ ...fib, points: 1, alternateAnswers: ['Twins studies'] }],
+      },
+    };
+    assignments = [{ id: 'sess-1', resolvedDriveFileId: 'frozen-1' }];
+    responses = [
+      {
+        studentUid: 'stu-1',
+        status: 'completed',
+        answers: [{ questionId: 'q1', answer: 'Twins studies' }],
+      },
+    ];
+    const { ClassroomAddonTeacherReview } =
+      await import('@/components/classroomAddon/TeacherReviewRoute');
+    render(
+      <ClassroomAddonTeacherReview
+        kind="quiz"
+        code="ABC123"
+        platform="schoology"
+      />
+    );
+    const button = await screen.findByText('Push grades to Schoology');
+    await waitFor(() =>
+      expect((button.closest('button') as HTMLButtonElement).disabled).toBe(
+        false
+      )
+    );
+    fireEvent.click(button);
+    await waitFor(() => expect(pushCallable).toHaveBeenCalledTimes(1));
+    expect(pushCallable).toHaveBeenCalledWith(
+      expect.objectContaining({
+        maxPoints: 10,
+        grades: [{ pseudonymUid: 'stu-1', pointsEarned: 10 }],
+      })
+    );
   });
 });

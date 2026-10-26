@@ -152,10 +152,12 @@ import { freshQuestionIdsByLocale } from '@/utils/quizTranslationIndex';
 import { revealValueFor } from '@/utils/quizFibAlternates';
 import {
   buildScoreOnSubmitKey,
+  mergeScoreOnSubmitKey,
   quizNeedsManualGrading,
   SCORE_ON_SUBMIT_KEY_DOC,
 } from '@/utils/quizScoreOnSubmit';
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
+import { hasEveryCurrentAnswerKey } from '@/utils/quizAssignBankDraw';
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import type { PeriodAccessWindowEdits } from '@/utils/assignAvailability';
 import {
@@ -3410,6 +3412,16 @@ export const useQuizAssignments = (
         ...buildResponseGradingContext(quizData, assignmentSnap.data()),
         sections,
       };
+      // A bank-draw key is frozen at assign; refresh the server's copy so it grades like this publish.
+      const serverKey =
+        typeof assignmentSnap.data()?.resolvedDriveFileId === 'string' &&
+        hasEveryCurrentAnswerKey(quizData)
+          ? await getDoc(scoreKeyRef(userId, assignmentId))
+          : null;
+      const refreshedServerKey = serverKey?.exists()
+        ? mergeScoreOnSubmitKey(serverKey.data()?.questions, quizData.questions)
+        : null;
+      const refreshServerKey = refreshedServerKey !== null;
       const answerKey =
         visibility === 'score-responses-and-answers'
           ? buildRevealedAnswers(quizData)
@@ -3509,10 +3521,18 @@ export const useQuizAssignments = (
       // Clears a legacy key; a live-reveal map is moot once results are published.
       sessionPatch.revealedAnswers = deleteField();
       firstBatch.update(sessionRef, sessionPatch);
+      if (refreshServerKey) {
+        firstBatch.set(scoreKeyRef(userId, assignmentId), {
+          questions: refreshedServerKey,
+        });
+      }
 
-      // 2 writes already consumed (assignment + session); fill the rest
+      // Assignment + session (+ key) writes already consumed; fill the rest
       // of the first batch with response updates.
-      const firstChunkSize = Math.min(updates.length, MAX_BATCH_WRITES - 2);
+      const firstChunkSize = Math.min(
+        updates.length,
+        MAX_BATCH_WRITES - (refreshServerKey ? 3 : 2)
+      );
       for (let i = 0; i < firstChunkSize; i++) {
         firstBatch.update(updates[i].ref, updates[i].patch);
       }
