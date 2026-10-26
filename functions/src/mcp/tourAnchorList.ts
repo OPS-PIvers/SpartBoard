@@ -54198,9 +54198,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "widget",
         "widget_type": "guided-learning",
         "path": [
-          "library-shell.archive-menu:guided-learning#row-1"
+          "library-shell.card-menu:guided-learning#row-1"
         ],
-        "reveal": "library-shell.archive-menu:guided-learning#row-1",
+        "reveal": "library-shell.card-menu:guided-learning#row-1",
         "needs": [
           "widget-on-stage"
         ]
