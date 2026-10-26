@@ -338,7 +338,7 @@ describe('runClassLinkRosterSync', () => {
       classlinkRoster(
         'users/u1/rosters/r1',
         'u1',
-        [student('Ada', '100001', 's1')],
+        [student('Ada', '01', 's1')],
         [up('s1', 'Ada')]
       ),
     ]);
