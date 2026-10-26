@@ -16,6 +16,7 @@ import {
 import { TEAM_CARD_ROWS } from './cardRows';
 import {
   TEAM_LANDING_CARD_CATALOG,
+  isTeamHubPage,
   teamTypeAvailablePages,
   teamTypeHubPage,
 } from '@/config/teamTypePresets';
@@ -107,10 +108,17 @@ export function draftFromLayout(
   };
 }
 
+/** Pages the lead can land on: every page on with `team-landing-any-page`, else the hub (and a saved landing). */
 export function landingOptions(
-  pages: readonly TeamPageSetting[]
+  pages: readonly TeamPageSetting[],
+  landing: TeamPageId,
+  anyPage: boolean
 ): TeamPageId[] {
-  return pages.filter((p) => p.enabled).map((p) => p.id);
+  return pages
+    .filter(
+      (p) => p.enabled && (anyPage || isTeamHubPage(p.id) || p.id === landing)
+    )
+    .map((p) => p.id);
 }
 
 /** A row that shows updates needs the Updates page on. */

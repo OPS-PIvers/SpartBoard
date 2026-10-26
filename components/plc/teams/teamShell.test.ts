@@ -65,10 +65,33 @@ describe('resolveTeamRoute', () => {
     });
   });
 
-  it('only uses PLC Home for a team that lands on Data overview', () => {
-    expect(teamUsesPlcHome({ landing: 'dataOverview' }, true)).toBe(true);
-    expect(teamUsesPlcHome({ landing: 'dataOverview' }, false)).toBe(false);
-    expect(teamUsesPlcHome({ landing: 'hub' }, true)).toBe(false);
+  it('gives PLC Home only to teams with a Data overview page', () => {
+    expect(teamUsesPlcHome(plcLayout, true)).toBe(true);
+    expect(teamUsesPlcHome(plcLayout, false)).toBe(false);
+    expect(
+      teamUsesPlcHome(
+        { pages: BUILT_IN_TEAM_TYPE_PRESETS.department.pages },
+        true
+      )
+    ).toBe(false);
+  });
+
+  it('keeps PLC Home at its own path when the team lands elsewhere', () => {
+    const docsLanding: PlcTeamLayout = { ...plcLayout, landing: 'docs' };
+    expect(resolveTeamRoute('home', docsLanding, { plcHome: true })).toEqual({
+      route: { kind: 'page', page: 'docs' },
+      canonical: 'home',
+    });
+    expect(resolveTeamRoute('plcHome', docsLanding, { plcHome: true })).toEqual(
+      { route: { kind: 'plcHome' }, canonical: 'plcHome' }
+    );
+    expect(resolveTeamRoute('plcHome', plcLayout, { plcHome: true })).toEqual({
+      route: { kind: 'plcHome' },
+      canonical: 'home',
+    });
+    expect(
+      resolveTeamRoute('updates', docsLanding, { plcHome: true }).route
+    ).toEqual({ kind: 'page', page: 'docs' });
   });
 
   it('opens the landing page at home and folds boards into resources', () => {
@@ -127,7 +150,6 @@ describe('resolveTeamRoute', () => {
       route: { kind: 'page', page: 'dataOverview' },
       canonical: 'dataOverview',
     });
-    expect(teamUsesPlcHome(docsLanding, true)).toBe(false);
   });
 });
 

@@ -32,6 +32,8 @@ export type PlcSectionId =
   // Hub pages as their own tab when the team lands on another page.
   | 'hub'
   | 'programHub'
+  // PLC Home as its own tab when the team lands on another page.
+  | 'plcHome'
   | 'workspace';
 
 /**
@@ -88,6 +90,7 @@ export const PLC_ROUTE_SECTIONS: ReadonlySet<PlcRouteSection> =
     'dataOverview',
     'hub',
     'programHub',
+    'plcHome',
     // Aliases (router-accepted, rewritten to a canonical id):
     'quizzes',
     'videoActivities',

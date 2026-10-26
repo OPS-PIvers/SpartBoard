@@ -13,10 +13,14 @@ const layout: PlcTeamLayout = {
   hero: { mode: 'default' },
 };
 
-const renderEditor = (districtDefault: PlcTeamLayout | null) =>
+const renderEditor = (
+  districtDefault: PlcTeamLayout | null,
+  anyLanding = true
+) =>
   render(
     <LayoutEditorView
       groupType="plc"
+      anyLanding={anyLanding}
       layout={layout}
       heroRule="latestAssessment"
       districtDefault={districtDefault}
@@ -60,6 +64,11 @@ describe('LayoutEditorView landing page', () => {
     ]);
   });
 
+  it('offers only the hub page when the flag is off', () => {
+    renderEditor(layout, false);
+    expect(options()).toEqual(['Data overview']);
+  });
+
   it('calls a Data overview landing Home when PLC Home is on', () => {
     render(
       <LayoutEditorView
@@ -70,6 +79,7 @@ describe('LayoutEditorView landing page', () => {
         pinGroups={[]}
         isLead
         plcHome
+        anyLanding
         onSave={vi.fn()}
         onClose={vi.fn()}
       />
@@ -77,5 +87,6 @@ describe('LayoutEditorView landing page', () => {
     expect(options()[0]).toBe('Home');
     // Only the picker's own label; no tag on the Data overview row.
     expect(screen.getAllByText('Landing page')).toHaveLength(1);
+    expect(screen.getByText('Pinned item', { selector: 'h4' })).toBeTruthy();
   });
 });

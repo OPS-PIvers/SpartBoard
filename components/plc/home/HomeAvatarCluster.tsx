@@ -23,6 +23,7 @@ const SECTION_LABELS: Record<PlcSectionId | 'meeting', string> = {
   dataOverview: 'Data overview',
   hub: 'Hub',
   programHub: 'Program Hub',
+  plcHome: 'Home',
   meeting: 'the meeting',
 };
 

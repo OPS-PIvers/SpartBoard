@@ -156,6 +156,7 @@ export const TeamLayoutEditor: React.FC<{
       plcHome={
         getPlcGroupType(plc) === 'plc' && canAccessFeature('plc-home-tab')
       }
+      anyLanding={canAccessFeature('team-landing-any-page')}
       pinner={heroPinner(user)}
       saving={saving}
       onSave={handleSave}

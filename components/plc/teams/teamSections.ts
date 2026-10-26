@@ -9,15 +9,22 @@ export type TeamOffRailSection = 'members' | 'settings' | 'meeting' | 'targets';
 export type TeamRoute =
   | { kind: 'page'; page: TeamPageId }
   | { kind: 'section'; section: TeamOffRailSection }
-  // PLC Home, shown in place of a Data overview landing when `plc-home-tab` is on.
+  // PLC Home when `plc-home-tab` is on; a Data overview landing opens on it.
   | { kind: 'plcHome' };
 
-/** PLC Home replaces the landing only for a team that lands on Data overview. */
+/** PLC teams (the only type with Data overview) get PLC Home when the flag is on. */
 export function teamUsesPlcHome(
-  layout: Pick<PlcTeamLayout, 'landing'>,
+  layout: Pick<PlcTeamLayout, 'pages'>,
   flagOn: boolean
 ): boolean {
-  return flagOn && layout.landing === 'dataOverview';
+  return flagOn && layout.pages.some((p) => p.id === 'dataOverview');
+}
+
+/** The section that opens PLC Home: the bare path when it is the landing, else its own. */
+export function plcHomeSection(
+  layout: Pick<PlcTeamLayout, 'landing'>
+): PlcSectionId {
+  return layout.landing === 'dataOverview' ? 'home' : 'plcHome';
 }
 
 export function teamPageSection(
@@ -48,9 +55,10 @@ export function resolveTeamRoute(
   layout: Pick<PlcTeamLayout, 'pages' | 'landing'>,
   options: { targets?: boolean; plcHome?: boolean } = {}
 ): { route: TeamRoute; canonical: PlcSectionId } {
+  const homeLanding = !!options.plcHome && layout.landing === 'dataOverview';
   if (options.plcHome) {
-    if (section === 'home') {
-      return { route: { kind: 'plcHome' }, canonical: 'home' };
+    if (section === 'plcHome' || (section === 'home' && homeLanding)) {
+      return { route: { kind: 'plcHome' }, canonical: plcHomeSection(layout) };
     }
     if (section === 'dataOverview') {
       return {
@@ -77,7 +85,7 @@ export function resolveTeamRoute(
     return { route: { kind: 'page', page }, canonical: page };
   }
   return {
-    route: options.plcHome
+    route: homeLanding
       ? { kind: 'plcHome' }
       : { kind: 'page', page: layout.landing },
     canonical: 'home',

@@ -59,6 +59,7 @@ import {
   teamTypeLabel,
 } from '@/components/plc/teams/teamLabels';
 import {
+  plcHomeSection,
   resolveTeamRoute,
   teamPageSection,
   teamUsesPlcHome,
@@ -141,9 +142,9 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
     targets: hasTargets,
     plcHome,
   });
-  // A Data overview link waits for the flag, or it would be rewritten to Home.
+  // A Data overview or Home link waits for the flag, or it would be rewritten.
   const flagPending =
-    requestedSection === 'dataOverview' &&
+    (requestedSection === 'dataOverview' || requestedSection === 'plcHome') &&
     (!globalPermissionsLoaded || isAdmin === null);
   useEffect(() => {
     if (layoutReady && !flagPending && canonical !== requestedSection) {
@@ -461,7 +462,7 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
                 id === 'targets'
                   ? 'targets'
                   : id === 'home'
-                    ? 'home'
+                    ? plcHomeSection(layout)
                     : teamPageSection(id as TeamPageId, layout.landing, plcHome)
               )
             }
