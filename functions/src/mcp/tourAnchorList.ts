@@ -16948,8 +16948,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "settings-drawer",
         "widget_type": "reveal-grid",
         "path": [
-          "widget.settings-opener"
+          "widget.settings-opener",
+          "widget-settings.reveal-grid.paste"
         ],
+        "reveal": "widget-settings.reveal-grid.paste",
         "needs": [
           "widget-on-stage"
         ]
@@ -16960,6 +16962,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "reveal-grid.start-over",
     "label": "Start over button in Reveal Grid memory mode",
     "scope": "widget",
+    "destructive": true,
     "requires": "widget-restored",
     "routes": [
       {
@@ -16984,8 +16987,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "settings-drawer",
         "widget_type": "reveal-grid",
         "path": [
-          "widget.settings-opener"
+          "widget.settings-opener",
+          "widget-settings.reveal-grid.paste"
         ],
+        "reveal": "widget-settings.reveal-grid.paste",
         "needs": [
           "widget-on-stage"
         ]
@@ -17233,8 +17238,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "settings-drawer",
         "widget_type": "scoreboard",
         "path": [
-          "widget.settings-opener"
+          "widget.settings-opener",
+          "widget-settings.scoreboard.reset-scores"
         ],
+        "reveal": "widget-settings.scoreboard.reset-scores",
         "needs": [
           "widget-on-stage"
         ]
@@ -17252,8 +17259,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "settings-drawer",
         "widget_type": "scoreboard",
         "path": [
-          "widget.settings-opener"
+          "widget.settings-opener",
+          "widget-settings.scoreboard.reset-scores"
         ],
+        "reveal": "widget-settings.scoreboard.reset-scores",
         "needs": [
           "widget-on-stage"
         ]

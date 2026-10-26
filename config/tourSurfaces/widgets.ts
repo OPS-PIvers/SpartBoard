@@ -427,6 +427,12 @@ export const SURFACES: TourSurfaceMap = {
     parent: 'widgets.reveal-grid.face',
     widgetType: 'reveal-grid',
     needs: ['widget-on-stage'],
+    inner: {
+      'widget-settings.reveal-grid.paste-data':
+        'widget-settings.reveal-grid.paste',
+      'widget-settings.reveal-grid.add-pasted':
+        'widget-settings.reveal-grid.paste',
+    },
   },
   'widgets.schedule.face': {
     label: 'Schedule widget',
@@ -462,6 +468,12 @@ export const SURFACES: TourSurfaceMap = {
     parent: 'widgets.scoreboard.face',
     widgetType: 'scoreboard',
     needs: ['widget-on-stage'],
+    inner: {
+      'widget-settings.scoreboard.confirm-reset':
+        'widget-settings.scoreboard.reset-scores',
+      'widget-settings.scoreboard.cancel-reset':
+        'widget-settings.scoreboard.reset-scores',
+    },
   },
   'widgets.seating-chart.face': {
     label: 'Seating Chart widget',

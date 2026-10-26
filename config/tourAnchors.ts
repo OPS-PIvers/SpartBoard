@@ -4046,6 +4046,7 @@ export const TOUR_ANCHORS = {
   'reveal-grid.start-over': {
     label: 'Start over button in Reveal Grid memory mode',
     perWidget: true,
+    destructive: true,
     requires: 'widget-restored',
   },
   'widget-settings.reveal-grid.add-pasted': {
