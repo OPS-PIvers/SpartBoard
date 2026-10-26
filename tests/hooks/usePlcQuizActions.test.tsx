@@ -401,7 +401,7 @@ describe('usePlcQuizActions', () => {
   });
 
   describe('assignQuiz', () => {
-    const assignVia = async (pick: () => Promise<void>) => {
+    const assignVia = async (pick: () => Promise<unknown>) => {
       renderSubject();
       fireEvent.click(screen.getByText('Assign'));
       await pick();
