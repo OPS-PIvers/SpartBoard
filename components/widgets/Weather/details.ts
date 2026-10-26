@@ -180,6 +180,11 @@ export function buildDetailRows(
   const deg = (v: number) => `${Math.round(v)}°`;
   const inches = (v: number) => `${v.toFixed(2)} in`;
   const sun = sunTimes(now, lat, lon);
+  // A stored time from an earlier sync is only used on the day it belongs to.
+  const today = (ms: number | null | undefined) =>
+    typeof ms === 'number' && new Date(ms).toDateString() === now.toDateString()
+      ? ms
+      : null;
   const time = (ms: number | null | undefined) =>
     typeof ms === 'number'
       ? new Date(ms).toLocaleTimeString(locale, {
@@ -231,9 +236,9 @@ export function buildDetailRows(
           ? `${Math.round(details.windGust)} mph`
           : null;
       case 'sunrise':
-        return time(details.sunrise ?? sun?.sunrise);
+        return time(today(details.sunrise) ?? sun?.sunrise);
       case 'sunset':
-        return time(details.sunset ?? sun?.sunset);
+        return time(today(details.sunset) ?? sun?.sunset);
       case 'moon': {
         const dayStart = new Date(now);
         dayStart.setHours(0, 0, 0, 0);

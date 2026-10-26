@@ -90,4 +90,22 @@ describe('weather details', () => {
       ['highLow', '46° / 39°'],
     ]);
   });
+  it('ignores a stored sunrise from an earlier day', () => {
+    const now = new Date('2026-10-26T20:00:00Z');
+    const rows = buildDetailRows(['sunrise'], {
+      details: { sunrise: Date.parse('2026-10-20T12:30:00Z') },
+      feelsLike: undefined,
+      now,
+      ...ORONO,
+      locale: 'en-US',
+      t: (key) => key,
+    });
+    const computed = sunTimes(now, ORONO.lat, ORONO.lon);
+    expect(rows[0].value).toBe(
+      new Date(computed?.sunrise ?? 0).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    );
+  });
 });
