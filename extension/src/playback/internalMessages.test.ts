@@ -11,6 +11,24 @@ describe('internal message checks', () => {
         url: 'https://a.example/',
       })
     ).toBe(true);
+    expect(
+      isFrameReport({
+        type: 'wt:found',
+        token: '1:1',
+        weak: false,
+        url: '',
+        overlay: true,
+      })
+    ).toBe(true);
+    expect(
+      isFrameReport({
+        type: 'wt:found',
+        token: '1:1',
+        weak: false,
+        url: '',
+        overlay: 'yes',
+      })
+    ).toBe(false);
     expect(isFrameReport({ type: 'wt:acted', token: '1:1' })).toBe(true);
     expect(
       isFrameReport({

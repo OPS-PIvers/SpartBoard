@@ -4,6 +4,7 @@ import { captureTarget } from '../recorder/captureTarget';
 import { toBox } from '../recorder/geometry';
 import { fixKey } from '@/components/tours/web/fixClues';
 import { BENCH, benchMark } from '../bench';
+import { overlayLoaded } from '../overlay/loaded';
 
 /** One step's search: its target's clues and how the learner finishes it. */
 export interface SeekStep {
@@ -31,6 +32,8 @@ export type FrameReport =
       url: string;
       /** A weak match's own clues, read fresh, as a suggested fix (C14). */
       fix?: WebLocatorClues;
+      /** This document already runs the overlay, so it needn't be injected again to light the target. */
+      overlay?: boolean;
     }
   /** Nothing cleared the floor; the closest identified element's clues, sent when they change. */
   | { type: 'wt:candidate'; token: string; fix: WebLocatorClues }
@@ -278,6 +281,7 @@ export function installFrameSeeker(
     send({
       type: 'wt:found',
       token: seek.token,
+      overlay: overlayLoaded(),
       weak: hit.weak,
       url: doc.location?.href ?? '',
       ...(hit.weak ? { fix: cluesOf(hit.el) } : {}),
