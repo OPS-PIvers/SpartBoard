@@ -57,6 +57,9 @@ const BATCH = 10;
 const isNotFound = (err: unknown): boolean =>
   (err as { code?: unknown } | null)?.code === 'not-found';
 
+const isPermissionDenied = (err: unknown): boolean =>
+  (err as { code?: unknown } | null)?.code === 'permission-denied';
+
 export interface BoardLinkFields {
   linkedShareId: string;
   linkedShareRole: DashboardShareRole;
@@ -299,8 +302,11 @@ export const useLinkedCollectionSync = (deps: LinkedCollectionSyncDeps) => {
         );
         // A thrown load or create may be transient: let the next snapshot retry it.
         results.forEach((r, j) => {
-          if (r.status === 'rejected') {
-            handledImports.current.delete(batch[j].shareId);
+          if (r.status !== 'rejected') return;
+          const shareId = batch[j].shareId;
+          logError('useLinkedCollectionSync.import', r.reason, { shareId });
+          if (!isPermissionDenied(r.reason)) {
+            handledImports.current.delete(shareId);
           }
         });
       }
