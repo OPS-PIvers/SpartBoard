@@ -1,4 +1,10 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { X } from 'lucide-react';
 import { chromeSurface, focusRing } from '@/components/common/lightChrome';
 import type { i18n as I18n } from 'i18next';
@@ -23,8 +29,9 @@ const TIP_H = 120;
 /** Below the target when it fits, else above, else centred. */
 export function placeTip(
   rect: OverlayRect | null,
-  view: { w: number; h: number }
-): { left: number; top: number; width: number } {
+  view: { w: number; h: number },
+  tipH = TIP_H
+): { left: number; top?: number; bottom?: number; width: number } {
   const width = Math.min(TIP_W, view.w - GUTTER * 2);
   if (!rect) {
     return { left: (view.w - width) / 2, top: view.h / 3, width };
@@ -34,12 +41,43 @@ export function placeTip(
     view.w - width - GUTTER
   );
   const below = rect.y + rect.height + GUTTER * 2;
-  const top = below < view.h * 0.75 ? below : Math.max(GUTTER, rect.y - 160);
-  return { left, top, width };
+  if (below < view.h * 0.75) return { left, top: below, width };
+  // Above is pinned by its bottom edge, so a tip that grows after it is measured still clears the target.
+  if (rect.y - GUTTER * 2 >= tipH + GUTTER)
+    return { left, bottom: view.h - rect.y + GUTTER * 2, width };
+  return { left, top: GUTTER, width };
 }
 
 // A step found faster than this never flashes "Looking…".
 export const LOOKING_DELAY_MS = 400;
+
+const onResize = (notify: () => void) => {
+  window.addEventListener('resize', notify);
+  return () => window.removeEventListener('resize', notify);
+};
+
+/** The viewport size, current across resizes. */
+function useViewport(): { w: number; h: number } {
+  const w = useSyncExternalStore(onResize, () => window.innerWidth);
+  const h = useSyncExternalStore(onResize, () => window.innerHeight);
+  return { w, h };
+}
+
+/** The element's rendered height, or `fallback` until it has been measured. */
+function useHeight(
+  ref: React.RefObject<HTMLElement | null>,
+  fallback: number
+): number {
+  const [height, setHeight] = useState(fallback);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => setHeight(el.offsetHeight));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [ref]);
+  return height;
+}
 
 /** True once `on` has held for `ms`; false again as soon as it drops. */
 function useAfter(on: boolean, ms: number): boolean {
@@ -121,12 +159,17 @@ const TopOverlay: React.FC<Omit<Props, 'i18n' | 'styled'>> = ({
   // Tracking carries on while the next step is sought, so the spotlight moves as soon as this frame finds it.
   const { rect, token } = useTargetRect(lit || given.status === 'seeking');
   const state = aheadState(given, token);
-  const view = { w: window.innerWidth, h: window.innerHeight };
+  const view = useViewport();
+  const tipH = useHeight(boxRef, TIP_H);
   // A target inside a frame is lit there; the tip waits low on the screen so it doesn't cover the frame.
   const away = state.status === 'shown' && !state.targetHere;
-  const placed = placeTip(rect, view);
+  const placed = placeTip(rect, view, tipH);
   const tip = away
-    ? { ...placed, top: Math.max(GUTTER, view.h - TIP_H - GUTTER * 4) }
+    ? {
+        ...placed,
+        top: Math.max(GUTTER, view.h - tipH - GUTTER * 4),
+        bottom: undefined,
+      }
     : placed;
   const done = state.status === 'done';
   const looking = useAfter(state.status === 'seeking', LOOKING_DELAY_MS);
@@ -134,10 +177,14 @@ const TopOverlay: React.FC<Omit<Props, 'i18n' | 'styled'>> = ({
   const plain = !rect && !away;
   useEffect(() => benchMark('view', { spot, plain }), [spot, plain]);
   useLayoutEffect(() => benchMark('paint', { rect }), [rect]);
-  // The tip's height isn't known during render; the arrow only needs the side it leaves from.
   const tether = rect
     ? tetherFor(
-        { x: tip.left, y: tip.top, w: tip.width, h: TIP_H },
+        {
+          x: tip.left,
+          y: tip.top ?? view.h - (tip.bottom ?? 0) - tipH,
+          w: tip.width,
+          h: tipH,
+        },
         { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
       )
     : null;
@@ -168,6 +215,7 @@ const TopOverlay: React.FC<Omit<Props, 'i18n' | 'styled'>> = ({
         headingRef={headingRef}
         left={tip.left}
         top={tip.top}
+        bottom={tip.bottom}
         width={tip.width}
         tether={tether}
         plain={!rect}

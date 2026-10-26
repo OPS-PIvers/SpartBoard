@@ -42,7 +42,9 @@ async function downloadSharedRosters(
     shared.map(async (meta): Promise<ClassRoster> => {
       const blob = await drive.downloadFile(meta.driveFileId);
       const content = parseRosterFileBody(JSON.parse(await blob.text()));
-      const students = assignPins(content.students);
+      const students = assignPins(content.students, {
+        randomForLinked: false,
+      });
       return {
         id: meta.id,
         name: meta.name,

@@ -1030,7 +1030,11 @@ describe('useRosters — PII migration', () => {
     };
     expect(payload.rosterId).toBe('r1');
     expect(payload.entries).toEqual([
-      { period: 'Roster r1', pin: '01', classlinkSourcedId: 'cl-a' },
+      {
+        period: 'Roster r1',
+        pin: expect.stringMatching(/^\d{6}$/),
+        classlinkSourcedId: 'cl-a',
+      },
     ]);
   });
 

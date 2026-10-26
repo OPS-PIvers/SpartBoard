@@ -785,7 +785,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
     error: libraryError,
   } = usePlcQuizzes(plc.id);
   const folderState = usePlcFolders(plc.id);
-  const quizActions = usePlcQuizActions(plc, onCloseDashboard);
+  const quizActions = usePlcQuizActions(plc);
 
   // Printing for a teammate clears four gates before it is even offered: the
   // org rollout, the paper feature the caller must already hold, this PLC's own

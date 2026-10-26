@@ -313,7 +313,6 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
         },
       ]
     : visibleGroups(isSuperAdmin, canAccessFeature);
-  const backArrow = canAccessFeature('full-page-back-arrow');
   const tabs = groups.flatMap((group) => group.tabs);
   const [storedTab, setActiveTabState] = useState<TabId>(readLastTab);
   // A remembered tab this admin can't open falls back to their first tab.
@@ -411,38 +410,21 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
         <div className="flex-1 flex overflow-hidden">
           {/* Vertical rail (desktop/tablet): icon+label at lg, icon-only at md */}
           <div className="hidden md:flex flex-col md:w-[76px] lg:w-60 shrink-0 bg-brand-blue-dark text-white">
-            {backArrow ? (
-              <div className="flex items-center gap-1 h-14 px-3 lg:px-2 shrink-0">
-                <button
-                  onClick={onClose}
-                  className="relative touch-target-expand p-2 mx-auto lg:mx-0 hover:bg-white/20 rounded-lg transition-colors shrink-0"
-                  aria-label="Back to board"
-                  title="Back to board"
-                  {...tourAttr('admin.settings.close')}
-                >
-                  <ArrowLeft className="w-5 h-5" aria-hidden />
-                </button>
-                <span className="hidden lg:flex items-center gap-2 text-base font-bold truncate">
-                  <Settings className="w-4 h-4 text-white/70 shrink-0" />
-                  Admin Settings
-                </span>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between h-14 px-3 lg:px-4 shrink-0">
-                <span className="hidden lg:flex items-center gap-2 text-base font-bold truncate">
-                  <Settings className="w-4 h-4 text-white/70 shrink-0" />
-                  Admin Settings
-                </span>
-                <button
-                  onClick={onClose}
-                  className="p-2 mx-auto lg:mx-0 hover:bg-white/20 rounded-lg transition-colors shrink-0"
-                  aria-label="Close settings"
-                  {...tourAttr('admin.settings.close')}
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            )}
+            <div className="flex items-center gap-1 h-14 px-3 lg:px-2 shrink-0">
+              <button
+                onClick={onClose}
+                className="relative touch-target-expand p-2 mx-auto lg:mx-0 hover:bg-white/20 rounded-lg transition-colors shrink-0"
+                aria-label="Back to board"
+                title="Back to board"
+                {...tourAttr('admin.settings.close')}
+              >
+                <ArrowLeft className="w-5 h-5" aria-hidden />
+              </button>
+              <span className="hidden lg:flex items-center gap-2 text-base font-bold truncate">
+                <Settings className="w-4 h-4 text-white/70 shrink-0" />
+                Admin Settings
+              </span>
+            </div>
             <nav
               role="tablist"
               aria-orientation="vertical"

@@ -56,7 +56,10 @@ import {
   MousePointerClick,
   Library,
   FolderMinus,
+  Users,
 } from 'lucide-react';
+import { EDIT_CLASSES_LABEL } from '@/components/common/library/AssignmentClassesModal';
+import { canEditAssignmentClasses } from '@/utils/assignmentClassEdit';
 import type {
   AssignmentMode,
   GuidedLearningAssignment,
@@ -119,7 +122,7 @@ import { CopyWebTourLinkTask } from '@/components/tours/web/useCopyWebTourLink';
 import { isWebTourSet } from '../utils/liveTour';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
-import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 // Lazy so the preview player chunk loads only when a teacher hits Play preview.
 const LazyWebTourEditor = lazy(() =>
@@ -308,6 +311,8 @@ export interface GuidedLearningManagerProps {
   onAssignmentCopyLink: (assignment: GuidedLearningAssignment) => void;
   onAssignmentOpenResults: (assignment: GuidedLearningAssignment) => void;
   onAssignmentArchive: (assignment: GuidedLearningAssignment) => void;
+  /** Opens the Edit classes dialog for an in-progress assignment. */
+  onAssignmentEditClasses?: (assignment: GuidedLearningAssignment) => void;
   onAssignmentUnarchive: (assignment: GuidedLearningAssignment) => void;
   onAssignmentDelete: (assignment: GuidedLearningAssignment) => void;
   /**
@@ -540,6 +545,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onAssignmentCopyLink,
   onAssignmentOpenResults,
   onAssignmentArchive,
+  onAssignmentEditClasses,
   onAssignmentUnarchive,
   onAssignmentDelete,
   onAssignmentPublishScores,
@@ -1566,6 +1572,23 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       onClick: () => window.open(studentLink, '_blank', 'noopener'),
     });
 
+    if (
+      mode === 'active' &&
+      !isViewOnly &&
+      onAssignmentEditClasses &&
+      canEditAssignmentClasses(a)
+    ) {
+      secondary.push({
+        id: 'edit-classes',
+        label: EDIT_CLASSES_LABEL,
+        icon: Users,
+        onClick: () => onAssignmentEditClasses(a),
+        anchor: tourTypeAttr(
+          'library-shell.archive-edit-classes',
+          'guided-learning'
+        ),
+      });
+    }
     if (mode === 'active') {
       secondary.push({
         id: 'archive',

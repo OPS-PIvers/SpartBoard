@@ -97,7 +97,7 @@ export function useDepartmentHubData(
   const { entries: banks } = usePlcQuestionBankEntries(plc.id);
   const { boards } = usePlcSharedBoards(plc.id);
   const { saveRubric } = useRubrics(user?.uid);
-  const quizActions = usePlcQuizActions(plc, () => undefined);
+  const quizActions = usePlcQuizActions(plc);
   const template = useTeamMeetingTemplate(plc);
   const [busy, setBusy] = useState(false);
 

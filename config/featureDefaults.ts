@@ -22,7 +22,6 @@ import {
   Gauge,
   Globe,
   Home,
-  ArrowLeft,
   GraduationCap,
   Flag,
   Footprints,
@@ -780,12 +779,12 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Top-left back arrow on Boards & Collections, Gradebook and Admin Settings.
-  'full-page-back-arrow': {
-    label: 'Back arrow on full pages',
-    icon: ArrowLeft,
+  // Team layout's Landing page picker lists every page that is switched on, not only the hub page.
+  'team-landing-any-page': {
+    label: 'Team landing page choice',
+    icon: Home,
     description:
-      'Boards & Collections, Gradebook and Admin Settings close with a back arrow at the top left.',
+      'Team leads can pick any page that is switched on as the page the team opens on.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1178,17 +1177,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
       'One class picker and the Quiz monitor layout on every assignment.',
     stage: 'preview',
     afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'quiz-banks-in-library': {
-    label: 'Question banks in Quiz library',
-    icon: Library,
-    description: 'Question banks open from the Quiz library sidebar.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

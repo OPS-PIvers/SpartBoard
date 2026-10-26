@@ -493,7 +493,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
   //
   // All three must succeed under a bare anon token for real answer
   // submission to work end-to-end.
-  it('anonymous PIN student with bare token (no custom claims) can get + create + update response', async () => {
+  it('anonymous PIN student with bare token (no custom claims) can create + get + update response', async () => {
     // Uses the new deterministic anon key format `pin-{period}-{pin}` that
     // the client computes via encodeResponseKeySegment(). The rules layer
     // enforces this shape via regex on create.
@@ -502,7 +502,8 @@ describe('quiz_sessions/responses — student-role gate', () => {
       `quiz_sessions/${SESSION_A}/responses/pin-p1-5678`
     );
 
-    await assertSucceeds(getDoc(responseRef));
+    // A missing PIN key reads as denied, so keys can't be probed.
+    await assertFails(getDoc(responseRef));
 
     await assertSucceeds(
       setDoc(responseRef, {
@@ -516,6 +517,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
         completedAttempts: 0,
       })
     );
+    await assertSucceeds(getDoc(responseRef));
 
     // Submit an answer: update only the fields the rule allows students
     // to change (answers, status, submittedAt, tabSwitchWarnings,

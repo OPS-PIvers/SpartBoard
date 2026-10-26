@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "catalyst-visual",
   "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-20T02:45:06.451Z",
+  "gradedAt": "2026-10-26T13:21:09.909Z",
   "stale": false,
   "criteria": {
     "S6": {
@@ -338,74 +338,75 @@
     },
     "C1": {
       "score": 1,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical.png"
+          "scripts/widget-grader/out/spot-2026-10-26/screenshots/catalyst-visual/default__typical.png"
         ],
-        "runId": "after-catalyst-visual"
+        "runId": "spot-2026-10-26"
       },
-      "note": "The title, icon and category color come only from the routine that created it, with no settings, so a teacher cannot edit the text, icon or color.",
+      "note": "There's *way* too much padding and the text is tiny considering how much wasted space there is.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "gradedAt": "2026-10-26T12:37:36.229Z",
       "stale": false
     },
     "C2": {
       "score": 1,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__typical__settings.png"
+          "scripts/widget-grader/out/spot-2026-10-26/screenshots/catalyst-visual/default__typical__settings.png"
         ],
-        "runId": "after-catalyst-visual"
+        "runId": "spot-2026-10-26"
       },
-      "note": "The settings render shows no drawer content at all because the widget uses the no-settings schema.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "gradedAt": "2026-10-26T13:08:02.218Z",
       "stale": false
     },
     "C3": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__empty.png"
+          "scripts/widget-grader/out/spot-2026-10-26/screenshots/catalyst-visual/default__empty.png"
         ],
-        "runId": "after-catalyst-visual"
+        "runId": "spot-2026-10-26"
       },
-      "note": "With no config it shows a gray question-mark icon and the generic label Visual Anchor, which is usable but looks unfinished.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "gradedAt": "2026-10-26T13:08:11.293Z",
       "stale": false
     },
     "C5": {
       "score": 1,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-catalyst-visual/screenshots/catalyst-visual/default__empty.png"
+          "scripts/widget-grader/out/spot-2026-10-26/screenshots/catalyst-visual/default__empty.png"
         ],
-        "runId": "after-catalyst-visual"
+        "runId": "spot-2026-10-26"
       },
-      "note": "On first drop the face is a gray question mark and Visual Anchor with no hint of what it is for or how to set it.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T16:04:33.857Z",
+      "gradedAt": "2026-10-26T13:08:18.529Z",
       "stale": false
     },
     "R1": {
@@ -501,30 +502,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "spot-2026-10-19"
+        "runId": "spot-2026-10-26"
       },
-      "gradedAt": "2026-10-20T02:45:06.451Z"
+      "gradedAt": "2026-10-26T13:21:09.909Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "spot-2026-10-19"
+        "runId": "spot-2026-10-26"
       },
-      "gradedAt": "2026-10-20T02:45:06.451Z"
+      "gradedAt": "2026-10-26T13:21:09.909Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "spot-2026-10-19"
+        "runId": "spot-2026-10-26"
       },
-      "gradedAt": "2026-10-20T02:45:06.451Z"
+      "gradedAt": "2026-10-26T13:21:09.909Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "spot-2026-10-19"
+        "runId": "spot-2026-10-26"
       },
-      "gradedAt": "2026-10-20T02:45:06.451Z"
+      "gradedAt": "2026-10-26T13:21:09.909Z"
     }
   }
 }

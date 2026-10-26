@@ -23,9 +23,9 @@ import {
   TEAM_LANDING_CARD_CATALOG,
   isTeamCardId,
   isTeamHeroRule,
-  isTeamLandingPage,
   isTeamPageId,
   teamTypeAvailablePages,
+  teamTypeHubPage,
 } from '@/config/teamTypePresets';
 
 export type TeamLayoutSource = 'team' | 'admin' | 'preset';
@@ -130,7 +130,7 @@ export function parseTeamLayout(raw: unknown): PlcTeamLayout | undefined {
   };
 }
 
-/** Fits a layout to its group type: known pages only, every page listed, landing valid and on, cards from the landing's catalog. */
+/** Fits a layout to its group type: known pages only, every page listed, landing valid and on, cards from the hub's catalog. */
 export function sanitizeTeamLayout(
   layout: PlcTeamLayout,
   groupType: PlcGroupType,
@@ -150,8 +150,7 @@ export function sanitizeTeamLayout(
     pages.push({ id, enabled });
   }
 
-  const landingOk = (id: TeamPageId) =>
-    available.includes(id) && isTeamLandingPage(id);
+  const landingOk = (id: TeamPageId) => available.includes(id);
   const landing: TeamPageId = landingOk(layout.landing)
     ? layout.landing
     : landingOk(fallback.landing)
@@ -161,7 +160,7 @@ export function sanitizeTeamLayout(
     p.id === landing ? { ...p, enabled: true } : p
   );
 
-  const catalog = TEAM_LANDING_CARD_CATALOG[landing] ?? [];
+  const catalog = TEAM_LANDING_CARD_CATALOG[teamTypeHubPage(groupType)] ?? [];
   const cards = parseCards(layout.cards).filter((c) => catalog.includes(c));
 
   return {

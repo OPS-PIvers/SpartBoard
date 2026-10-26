@@ -1,7 +1,15 @@
-import { describe, expect, it } from 'vitest';
-import type { ClassRoster } from '@/types';
+import { describe, expect, it, vi } from 'vitest';
+import type { ClassRoster, QuizBehaviorSettings } from '@/types';
 import { defaultAvailability } from '@/utils/assignAvailability';
-import { planPlcQuizStepperAssign } from './plcQuizStepperAssign';
+import { saveAttemptPolicy } from '@/hooks/gradebook/useGradebookColumnWrites';
+import {
+  planPlcQuizStepperAssign,
+  savePlcStepperFinalScore,
+} from './plcQuizStepperAssign';
+
+vi.mock('@/hooks/gradebook/useGradebookColumnWrites', () => ({
+  saveAttemptPolicy: vi.fn().mockResolvedValue(undefined),
+}));
 
 const roster = (id: string, classlinkClassId: string): ClassRoster => ({
   id,
@@ -77,5 +85,40 @@ describe('planPlcQuizStepperAssign', () => {
     expect(plan.mixed.targeting.targetStudents).toEqual([
       { kind: 'classlink', sourcedId: 'SID-r1' },
     ]);
+  });
+});
+
+describe('savePlcStepperFinalScore', () => {
+  const behavior = (
+    finalScore: QuizBehaviorSettings['finalScore'],
+    attemptLimit: number | null
+  ) => ({ finalScore, attemptLimit }) as QuizBehaviorSettings;
+  const save = (b: QuizBehaviorSettings, attemptHistoryEnabled = true) =>
+    savePlcStepperFinalScore({
+      uid: 'u1',
+      assignmentId: 'a1',
+      behavior: b,
+      attemptHistoryEnabled,
+      logScope: 'test',
+    });
+
+  it('saves a non-latest final score when more than one attempt is allowed', () => {
+    vi.mocked(saveAttemptPolicy).mockClear();
+    save(behavior('average', null));
+    expect(saveAttemptPolicy).toHaveBeenCalledWith(
+      'u1',
+      'a1',
+      'quiz',
+      'average'
+    );
+  });
+
+  it('skips latest, single-attempt and flag-off assigns', () => {
+    vi.mocked(saveAttemptPolicy).mockClear();
+    save(behavior('latest', 3));
+    save(behavior(undefined, 3));
+    save(behavior('highest', 1));
+    save(behavior('highest', 3), false);
+    expect(saveAttemptPolicy).not.toHaveBeenCalled();
   });
 });

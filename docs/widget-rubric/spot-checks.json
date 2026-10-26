@@ -3,6 +3,10 @@
     "S5": {
       "since": "2026-10-20T02:45:06.792Z",
       "reason": "drift in spot check"
+    },
+    "S3": {
+      "since": "2026-10-26T13:21:10.395Z",
+      "reason": "drift in spot check"
     }
   },
   "checks": [
@@ -68,6 +72,70 @@
         }
       ],
       "drift": ["S5"],
+      "gaming": []
+    },
+    {
+      "date": "2026-10-26T13:21:10.395Z",
+      "deckId": "widget-2026-10-26T12-00-28-000Z",
+      "cards": [
+        {
+          "widgetType": "catalyst-visual",
+          "criterionId": "C1",
+          "autoBefore": null,
+          "auto": 1,
+          "paul": 1
+        },
+        {
+          "widgetType": "catalyst-visual",
+          "criterionId": "C2",
+          "autoBefore": null,
+          "auto": 1,
+          "paul": 1
+        },
+        {
+          "widgetType": "catalyst-visual",
+          "criterionId": "C3",
+          "autoBefore": null,
+          "auto": 2,
+          "paul": 2
+        },
+        {
+          "widgetType": "catalyst-visual",
+          "criterionId": "C5",
+          "autoBefore": null,
+          "auto": 1,
+          "paul": 1
+        },
+        {
+          "widgetType": "mathTool",
+          "criterionId": "S2",
+          "autoBefore": null,
+          "auto": 2,
+          "paul": 2
+        },
+        {
+          "widgetType": "mathTool",
+          "criterionId": "S3",
+          "autoBefore": null,
+          "auto": 1,
+          "paul": 4
+        },
+        {
+          "widgetType": "reveal-grid",
+          "criterionId": "R1",
+          "autoBefore": null,
+          "auto": 1,
+          "paul": 1
+        },
+        {
+          "widgetType": "soundboard",
+          "criterionId": "S8",
+          "autoBefore": null,
+          "auto": 2,
+          "paul": 2
+        }
+      ],
+      "drift": ["S3"],
       "gaming": []
     }
   ]

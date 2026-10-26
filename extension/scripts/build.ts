@@ -1,5 +1,4 @@
 // Builds both listings (D5) into dist/<listing>/, each a loadable unpacked extension; --zip also packs them.
-import { execFileSync } from 'node:child_process';
 import {
   copyFileSync,
   mkdirSync,
@@ -10,6 +9,7 @@ import {
 } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import JSZip from 'jszip';
 import { build, type InlineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from 'tailwindcss';
@@ -126,8 +126,26 @@ async function buildListing(listing: ListingId, zip: boolean, bench = false) {
       'dist',
       `spartboard-extension-${listing}-${base.version}.zip`
     );
-    rmSync(zipPath, { force: true });
-    execFileSync('zip', ['-qr', zipPath, '.'], { cwd: outDir });
+    // JSZip rather than the `zip` CLI, which Windows lacks; entry names use forward slashes.
+    const archive = new JSZip();
+    for (const file of readdirSync(outDir, {
+      recursive: true,
+      withFileTypes: true,
+    }))
+      if (file.isFile()) {
+        const full = path.join(file.parentPath, file.name);
+        archive.file(
+          path.relative(outDir, full).split(path.sep).join('/'),
+          readFileSync(full)
+        );
+      }
+    writeFileSync(
+      zipPath,
+      await archive.generateAsync({
+        type: 'nodebuffer',
+        compression: 'DEFLATE',
+      })
+    );
     console.log(`Packed ${path.relative(repoRoot, zipPath)}`);
   }
   console.log(

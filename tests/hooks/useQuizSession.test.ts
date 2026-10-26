@@ -4398,6 +4398,47 @@ describe('useQuizSessionTeacher — responses listener stability + throttling', 
     }
   });
 
+  it('hides a removed class and brings it back when the class is re-added', () => {
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+    emitSession(
+      buildSession({
+        status: 'active',
+        classIds: ['cl-A', 'cl-B'],
+        periodNames: ['Period 1', 'Period 2'],
+      })
+    );
+    emitResponses([
+      { id: 'a', data: buildResponse({ studentUid: 'a', classId: 'cl-A' }) },
+      { id: 'b', data: buildResponse({ studentUid: 'b', classId: 'cl-B' }) },
+      {
+        id: 'p',
+        data: buildResponse({ studentUid: 'p', classPeriod: 'Period 2' }),
+      },
+      { id: 'x', data: buildResponse({ studentUid: 'x' }) },
+    ]);
+    const keys = () => result.current.responses.map((r) => r._responseKey);
+    expect(keys()).toEqual(['a', 'b', 'p', 'x']);
+
+    emitSession(
+      buildSession({
+        status: 'active',
+        classIds: ['cl-A'],
+        periodNames: ['Period 1'],
+        removedClasses: { classIds: ['cl-B'], periodNames: ['Period 2'] },
+      })
+    );
+    expect(keys()).toEqual(['a', 'x']);
+
+    emitSession(
+      buildSession({
+        status: 'active',
+        classIds: ['cl-A', 'cl-B'],
+        periodNames: ['Period 1', 'Period 2'],
+      })
+    );
+    expect(keys()).toEqual(['a', 'b', 'p', 'x']);
+  });
+
   it('flushes a buffered snapshot when the listener unsubscribes mid-burst', () => {
     vi.useFakeTimers();
     try {

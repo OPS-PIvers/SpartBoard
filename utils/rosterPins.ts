@@ -1,7 +1,21 @@
 import { Student } from '@/types';
 
+const LINKED_PIN_DIGITS = 6;
+
+/** A random 6-digit PIN; ClassLink-linked PINs sign a student in, so they must not be guessable. */
+function randomLinkedPin(): string {
+  const range = 10 ** LINKED_PIN_DIGITS;
+  // Rejection sampling keeps every PIN equally likely (plain modulo is biased).
+  const limit = 2 ** 32 - (2 ** 32 % range);
+  for (;;) {
+    const [n] = crypto.getRandomValues(new Uint32Array(1));
+    if (n < limit) return String(n % range).padStart(LINKED_PIN_DIGITS, '0');
+  }
+}
+
 /**
- * Assigns zero-padded sequential PINs to students that don't have one yet.
+ * Assigns PINs to students that don't have one yet: random 6-digit PINs for
+ * ClassLink-linked students, zero-padded sequential PINs for everyone else.
  *
  * Never hands out a fallback PIN that collides with any PIN already present
  * in the roster (manually entered or previously assigned) — position-based
@@ -12,9 +26,14 @@ import { Student } from '@/types';
  * PIN-based student login/SSO bridge (see `syncRosterPinIndex` in
  * `hooks/useRosters.ts`).
  *
+ * Read paths pass `randomForLinked: false` so an unsaved fill stays the same on every load.
+ *
  * Returns a new array — does not mutate the input.
  */
-export function assignPins(students: Student[]): Student[] {
+export function assignPins(
+  students: Student[],
+  { randomForLinked = true }: { randomForLinked?: boolean } = {}
+): Student[] {
   const used = new Set(
     students.map((s) => s.pin).filter((pin): pin is string => !!pin)
   );
@@ -29,8 +48,25 @@ export function assignPins(students: Student[]): Student[] {
     next += 1;
     return candidate;
   };
+  const takeRandomPin = (): string => {
+    for (let tries = 0; tries < 1000; tries++) {
+      const candidate = randomLinkedPin();
+      if (!used.has(candidate)) {
+        used.add(candidate);
+        return candidate;
+      }
+    }
+    return takeNextAvailablePin();
+  };
 
-  return students.map((s) =>
-    s.pin ? s : { ...s, pin: takeNextAvailablePin() }
-  );
+  return students.map((s) => {
+    if (s.pin) return s;
+    return {
+      ...s,
+      pin:
+        s.classLinkSourcedId && randomForLinked
+          ? takeRandomPin()
+          : takeNextAvailablePin(),
+    };
+  });
 }

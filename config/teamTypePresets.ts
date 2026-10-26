@@ -121,7 +121,8 @@ export const TEAM_LANDING_CARD_CATALOG: Partial<
   ],
 };
 
-export const isTeamLandingPage = (id: TeamPageId): boolean =>
+/** A hub page carries the hero and cards; any page can be the landing page. */
+export const isTeamHubPage = (id: TeamPageId): boolean =>
   TEAM_LANDING_CARD_CATALOG[id] !== undefined;
 
 // Block markers follow utils/meetingNoteTemplate.ts.
@@ -247,3 +248,8 @@ export const BUILT_IN_TEAM_TYPE_PRESETS: Record<PlcGroupType, TeamTypePreset> =
 /** Pages each type can use: its preset's pages, on or off. */
 export const teamTypeAvailablePages = (groupType: PlcGroupType): TeamPageId[] =>
   BUILT_IN_TEAM_TYPE_PRESETS[groupType].pages.map((p) => p.id);
+
+/** The type's hub page, whose catalog the layout's cards come from. */
+export const teamTypeHubPage = (groupType: PlcGroupType): TeamPageId =>
+  teamTypeAvailablePages(groupType).find(isTeamHubPage) ??
+  BUILT_IN_TEAM_TYPE_PRESETS[groupType].landing;

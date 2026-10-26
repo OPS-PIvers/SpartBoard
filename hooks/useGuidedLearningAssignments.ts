@@ -30,6 +30,11 @@ import {
   type QuerySnapshot,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import {
+  externalClassIds,
+  stageAssignmentClassEdit,
+  type AssignmentClassEdit,
+} from '@/utils/assignmentClassEdit';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import {
@@ -97,6 +102,11 @@ export interface CreateAssignmentInput {
 }
 
 export interface UseGuidedLearningAssignmentsResult {
+  /** Retargets an in-progress assignment to new classes on both docs. */
+  setAssignmentClasses: (
+    assignmentId: string,
+    edit: AssignmentClassEdit
+  ) => Promise<void>;
   assignments: GuidedLearningAssignment[];
   loading: boolean;
   error: string | null;
@@ -610,6 +620,34 @@ export const useGuidedLearningAssignments = (
     [userId]
   );
 
+  const setAssignmentClasses = useCallback<
+    UseGuidedLearningAssignmentsResult['setAssignmentClasses']
+  >(
+    async (assignmentId, classEdit) => {
+      if (!userId) throw new Error('Not authenticated');
+      const sessionRef = doc(db, GL_SESSIONS_COLLECTION, assignmentId);
+      const session = await getDoc(sessionRef);
+      const batch = writeBatch(db);
+      stageAssignmentClassEdit(batch, {
+        assignmentRef: doc(
+          db,
+          'users',
+          userId,
+          GL_ASSIGNMENTS_COLLECTION,
+          assignmentId
+        ),
+        sessionRef,
+        keepClassIds: externalClassIds(session.data()?.classIds as unknown[]),
+        currentSession: session.data(),
+        edit: classEdit,
+        now: Date.now(),
+        sessionFields: ['classId', 'periodNames'],
+      });
+      await batch.commit();
+    },
+    [userId]
+  );
+
   return useSandboxedGuidedLearningAssignments(
     {
       assignments,
@@ -623,6 +661,7 @@ export const useGuidedLearningAssignments = (
       deleteAssignment,
       publishAssignmentScores,
       unpublishAssignmentScores,
+      setAssignmentClasses,
     },
     userId
   );

@@ -31,6 +31,7 @@ import {
   RESULTS_PROTECTION_DEFAULTS,
 } from '@/types';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
+import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
 import {
@@ -216,8 +217,11 @@ const TeacherVideoActivityWidget: React.FC<{
     shareAssignment,
     publishAssignmentScores,
     unpublishAssignmentScores,
+    setAssignmentClasses,
   } = useVideoActivityAssignments(user?.uid);
 
+  const [editingClasses, setEditingClasses] =
+    useState<VideoActivityAssignment | null>(null);
   const [publishingAssignment, setPublishingAssignment] =
     useState<VideoActivityAssignment | null>(null);
   // Ephemeral modal state for the "Assign to Google Classroom" flow (flag-gated).
@@ -1254,6 +1258,7 @@ const TeacherVideoActivityWidget: React.FC<{
             );
           }
         }}
+        onArchiveEditClasses={setEditingClasses}
         onShareWithPlc={(meta) => {
           if (plcs.length === 0) {
             addToast(
@@ -1266,6 +1271,24 @@ const TeacherVideoActivityWidget: React.FC<{
         }}
         onError={(message) => addToast(message, 'error')}
       />
+      {editingClasses && (
+        <AssignmentClassesModal
+          rosters={rosters}
+          assignment={editingClasses}
+          onClose={() => setEditingClasses(null)}
+          onSave={async (edit) => {
+            try {
+              await setAssignmentClasses(editingClasses.id, edit);
+            } catch (err) {
+              logError('VideoActivityWidget.editClasses', err, {
+                assignmentId: editingClasses.id,
+              });
+              addToast("Couldn't save classes.", 'error');
+              throw err;
+            }
+          }}
+        />
+      )}
       {publishingAssignment && (
         <PublishScoresModal
           assignmentTitle={
