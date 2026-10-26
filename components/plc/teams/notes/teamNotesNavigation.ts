@@ -1,4 +1,4 @@
-// Cross-page links from notes and the Department Hub; the shell rewrites the landing page's own section to the team's root path.
+// Cross-page links from notes and the Department Hub; a link to the landing page opens it at its own path.
 
 import type { TeamPageId } from '@/types';
 import { buildPlcPath, spaNavigate } from '@/utils/plcPath';
