@@ -161,6 +161,7 @@ import {
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import type { PeriodAccessWindowEdits } from '@/utils/assignAvailability';
+import { withLinkedSections } from '@/utils/sessionClassFilter';
 import {
   syncedQuizContentFields,
   type SyncedQuizContentFields,
@@ -2284,12 +2285,27 @@ export const useQuizAssignments = (
       const cleanedRosterIds = targets.rosterIds.filter(
         (id): id is string => typeof id === 'string' && id.length > 0
       );
-      const cleanedClassIds = targets.classIds.filter(
+      const pickedClassIds = targets.classIds.filter(
         (id): id is string => typeof id === 'string' && id.length > 0
       );
-      const cleanedPeriodNames = targets.periodNames.filter(
+      const pickedPeriodNames = targets.periodNames.filter(
         (n): n is string => typeof n === 'string' && n.length > 0
       );
+      const currentSession = await getDoc(
+        doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId)
+      )
+        .then((snap) => snap.data() as QuizSession | undefined)
+        .catch(() => undefined);
+      const carried = withLinkedSections(currentSession, {
+        classIds: pickedClassIds,
+        periodNames: pickedPeriodNames,
+        classPeriodByClassId: sanitizeClassPeriodByClassId(
+          targets.classPeriodByClassId,
+          pickedClassIds
+        ),
+      });
+      const cleanedClassIds = carried.classIds;
+      const cleanedPeriodNames = carried.periodNames;
 
       const assignmentPatch: Record<string, unknown> = {
         updatedAt: now,
@@ -2312,10 +2328,7 @@ export const useQuizAssignments = (
       // prior map rather than leaving it lingering. Sanitization keeps
       // the keyset in lock-step with `cleanedClassIds` even if the
       // caller's map drifted.
-      const cleanedClassPeriodByClassId = sanitizeClassPeriodByClassId(
-        targets.classPeriodByClassId,
-        cleanedClassIds
-      );
+      const cleanedClassPeriodByClassId = carried.classPeriodByClassId;
       const sessionPatch: Record<string, unknown> = {
         rosterIds: cleanedRosterIds,
         classIds: cleanedClassIds,

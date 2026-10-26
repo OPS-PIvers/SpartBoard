@@ -21,6 +21,11 @@
  */
 import { httpsCallable, type Functions } from 'firebase/functions';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import {
+  sessionClassPredicate,
+  type ResponseClassMarkers,
+  type SessionClassTargets,
+} from '@/utils/sessionClassFilter';
 import { db } from '@/config/firebase';
 import type { ClassroomAttachmentLink, Toast } from '@/types';
 import { logError } from '@/utils/logError';
@@ -137,12 +142,18 @@ export async function runPublishGradePush<R>({
   // linked" (the Schoology push is then skipped).
   let ltiLinked = false;
   let toolColumn = false;
+  let classTargets: SessionClassTargets | null = null;
   try {
     const sessSnap = await getDoc(
       doc(db, sessionCollectionForKind(kind), sessionId)
     );
     const sess = sessSnap.data() as
-      { ltiAttachment?: unknown; ltiToolColumn?: unknown } | undefined;
+      | ({
+          ltiAttachment?: unknown;
+          ltiToolColumn?: unknown;
+        } & SessionClassTargets)
+      | undefined;
+    if (kind === 'quiz') classTargets = sess ?? null;
     ltiLinked = !!sess?.ltiAttachment;
     toolColumn =
       !ltiLinked && schoologyToolColumns && sess?.ltiToolColumn === true;
@@ -159,7 +170,11 @@ export async function runPublishGradePush<R>({
     const snap = await getDocs(
       collection(db, sessionCollectionForKind(kind), sessionId, 'responses')
     );
-    responses = snap.docs.map((d) => d.data() as R);
+    // Students in a class removed from the quiz get no grade pushed.
+    const keepClass = sessionClassPredicate(classTargets);
+    responses = snap.docs
+      .filter((d) => keepClass(d.data() as ResponseClassMarkers))
+      .map((d) => d.data() as R);
   } catch (err) {
     logError('publishGradePush.fetchResponses', err, { sessionId, kind });
     addToast(

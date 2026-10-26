@@ -955,6 +955,39 @@ describe('useQuizAssignments - setAssignmentRosters', () => {
       update: batchUpdate,
       commit: batchCommit,
     });
+    mockGetDoc.mockResolvedValue({ data: () => undefined });
+  });
+
+  it('keeps linked Schoology sections, which the class step never lists', async () => {
+    mockGetDoc.mockResolvedValue({
+      data: () => ({
+        classIds: ['cl-A', 'cl-B', 'schoology:ctx-9'],
+        periodNames: ['Period 1', 'Period 2', 'Bio 3'],
+        classPeriodByClassId: {
+          'cl-A': 'Period 1',
+          'cl-B': 'Period 2',
+          'schoology:ctx-9': 'Bio 3',
+        },
+      }),
+    });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.setAssignmentRosters(ASSIGNMENT_ID, {
+        rosterIds: ['r1'],
+        classIds: ['cl-A'],
+        periodNames: ['Period 1'],
+        classPeriodByClassId: { 'cl-A': 'Period 1' },
+      });
+    });
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected batch.update on session doc');
+    expect(sessionCall[1]).toMatchObject({
+      classIds: ['cl-A', 'schoology:ctx-9'],
+      periodNames: ['Period 1', 'Bio 3'],
+      classPeriodByClassId: { 'cl-A': 'Period 1', 'schoology:ctx-9': 'Bio 3' },
+    });
   });
 
   it('mirrors targets to BOTH the assignment doc and the session doc so the student class-gate stays in sync', async () => {

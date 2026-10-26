@@ -120,6 +120,11 @@ import {
   timestampMillis,
 } from '@/utils/quizTimeLimit';
 import { withNotChosen } from '@/utils/quizSections';
+import {
+  sessionClassPredicate,
+  targetingKey,
+  targetsFromKey,
+} from '@/utils/sessionClassFilter';
 import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 import {
   FIB_BLANK_SEP,
@@ -1309,10 +1314,20 @@ export const useQuizSessionTeacher = (
   );
   // Choose-N sections leave questions out of a student's total (E14); stamped here once for every view.
   const sessionSections = session?.sections;
-  const responses = useMemo(
+  const chosenResponses = useMemo(
     () => withNotChosen(rawResponses, sessionSections),
     [rawResponses, sessionSections]
   );
+  // A class removed from the assignment drops out of every teacher view; its docs stay.
+  const classTargets = targetingKey(rawSession);
+  const keepClass = useMemo(
+    () => sessionClassPredicate(targetsFromKey(classTargets)),
+    [classTargets]
+  );
+  const responses = useMemo(() => {
+    const kept = chosenResponses.filter(keepClass);
+    return kept.length === chosenResponses.length ? chosenResponses : kept;
+  }, [chosenResponses, keepClass]);
 
   useEffect(() => {
     if (!sessionId) return;
