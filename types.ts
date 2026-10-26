@@ -99,6 +99,8 @@ export interface Student {
   lastName: string;
   /** Teacher-distributed join code used for live sessions and quizzes (zero-padded, e.g. "01") */
   pin: string;
+  /** PINs this student used to have, kept so older responses still show their name. Never signs anyone in. */
+  formerPins?: string[];
   /**
    * Stable ClassLink link, stamped when the student is imported or merged from
    * ClassLink. Enables re-sync without duplicating rows even if the student's

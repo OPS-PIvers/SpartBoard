@@ -85,4 +85,30 @@ describe('assignPins', () => {
     expect(a[0].pin).toBe('01');
     expect(b[0].pin).toBe('01');
   });
+
+  it("replaces a linked student's short pin but keeps unlinked short pins", () => {
+    const result = assignPins([
+      { ...student('a', '01'), classLinkSourcedId: 'sid-a' },
+      student('b', '02'),
+      { ...student('c', '123456'), classLinkSourcedId: 'sid-c' },
+    ]);
+    expect(result[0].pin).toMatch(/^\d{6}$/);
+    expect(result[1].pin).toBe('02');
+    expect(result[2].pin).toBe('123456');
+  });
+
+  it('keeps a replaced pin as a former pin and never hands it out again', () => {
+    const result = assignPins([
+      { ...student('a', '01'), classLinkSourcedId: 'sid-a' },
+      student('b', ''),
+    ]);
+    expect(result[0].formerPins).toEqual(['01']);
+    expect(result[1].pin).toBe('02');
+    expect(result[1].formerPins).toBeUndefined();
+  });
+
+  it('leaves short linked pins alone on read paths', () => {
+    const linked = { ...student('a', '01'), classLinkSourcedId: 'sid-a' };
+    expect(assignPins([linked], { randomForLinked: false })[0].pin).toBe('01');
+  });
 });

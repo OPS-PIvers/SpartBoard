@@ -124,6 +124,9 @@ export const generateStudentsList = (
       lastName: entry.last,
       pin,
     };
+    if (existing?.formerPins && existing.formerPins.length > 0) {
+      student.formerPins = existing.formerPins;
+    }
     if (existing?.classLinkSourcedId !== undefined) {
       student.classLinkSourcedId = existing.classLinkSourcedId;
     }
@@ -145,6 +148,12 @@ export const findDuplicatePins = (students: Student[]): Set<string> => {
   const dupes = new Set<string>();
   for (const [pin, count] of seen) {
     if (count > 1) dupes.add(pin);
+  }
+  // A student's old PIN still names them on past responses, so nobody else may take it.
+  for (const s of students) {
+    for (const pin of s.formerPins ?? []) {
+      if (pin !== s.pin && seen.has(pin)) dupes.add(pin);
+    }
   }
   return dupes;
 };

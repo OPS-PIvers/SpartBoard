@@ -239,6 +239,21 @@ describe('rosterUtils', () => {
       expect(dupes).toEqual(new Set(['01']));
     });
 
+    it("flags a PIN that is another student's former PIN", () => {
+      const students = [
+        {
+          id: '1',
+          firstName: 'A',
+          lastName: '',
+          pin: '482913',
+          formerPins: ['03'],
+        },
+        { id: '2', firstName: 'B', lastName: '', pin: '03' },
+        { id: '3', firstName: 'C', lastName: '', pin: '04' },
+      ];
+      expect(findDuplicatePins(students)).toEqual(new Set(['03']));
+    });
+
     it('returns empty set when no duplicates', () => {
       const students = [
         { id: '1', firstName: 'A', lastName: '', pin: '01' },
