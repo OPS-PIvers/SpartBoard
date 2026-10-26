@@ -2394,6 +2394,16 @@ service cloud.firestore {
         );
     }
 
+    // Who may list/revoke a PLC's invites: its lead/co-lead, or an in-org admin (the plcs delete gate).
+    function canSweepPlcInvites(plcData) {
+      return isPlcMembershipManager(plcData)
+        || (
+          isAdmin()
+          && plcData.get('orgId', null) is string
+          && isOrgMember(plcData.orgId)
+        );
+    }
+
     // Exactly-one-lead invariant (Decision 1.2): a role change must never mint a
     // second lead (only transferLead moves the crown). CEL can't iterate a map, so
     // this leans on the leadUid mirror — the leadUid member is 'lead' both sides.
@@ -4433,6 +4443,8 @@ service cloud.firestore {
           (request.auth.token.get('email_verified', false) == true
             && existing().inviteeEmailLower == request.auth.token.email.lower())
           || authUid() == existing().invitedByUid
+          // deletePlc lists every invite by plcId to sweep them with the PLC.
+          || canSweepPlcInvites(get(/databases/$(database)/documents/plcs/$(existing().plcId)).data)
         );
 
       // Lead of the target PLC creates (or re-creates) the invite. The doc
@@ -4477,7 +4489,8 @@ service cloud.firestore {
           authUid() == existing().invitedByUid
           // Any membership manager (lead OR co-lead) can revoke an invite, not
           // only the original inviter — mirrors the create gate (Decision 1.2).
-          || isPlcMembershipManager(get(/databases/$(database)/documents/plcs/$(existing().plcId)).data)
+          // Lead/co-lead, or an in-org admin dissolving the PLC for recovery.
+          || canSweepPlcInvites(get(/databases/$(database)/documents/plcs/$(existing().plcId)).data)
         );
     }
 
