@@ -14,6 +14,7 @@
  * `studentIdentity.ts`).
  */
 
+import { randomInt } from 'crypto';
 import { ClassLinkStudent } from './classlinkShared';
 
 /** Mirror of the repo-root `Student` (types.ts). Drive roster file payload. */
@@ -68,7 +69,8 @@ const normalizeNameKey = (first: string, last: string): string =>
   `${first.trim()}|${last.trim()}`.toLowerCase();
 
 /**
- * Assign PINs to students that lack one, skipping `reserved`.
+ * Assign PINs to students that lack one, skipping `reserved`: random 4-digit
+ * PINs for ClassLink-linked students (they sign in with them), sequential otherwise.
  *
  * Mirrors `utils/rosterPins.ts` with one addition: the caller passes the PINs
  * of students being removed in the SAME run, so a departure and an arrival on
@@ -94,10 +96,22 @@ export function assignPins(
     next += 1;
     return candidate;
   };
+  const takeRandomPin = (): string => {
+    let candidate = String(randomInt(10000)).padStart(4, '0');
+    while (used.has(candidate)) {
+      candidate = String(randomInt(10000)).padStart(4, '0');
+    }
+    used.add(candidate);
+    return candidate;
+  };
 
-  return students.map((s) =>
-    s.pin ? s : { ...s, pin: takeNextAvailablePin() }
-  );
+  return students.map((s) => {
+    if (s.pin) return s;
+    return {
+      ...s,
+      pin: s.classLinkSourcedId ? takeRandomPin() : takeNextAvailablePin(),
+    };
+  });
 }
 
 /**

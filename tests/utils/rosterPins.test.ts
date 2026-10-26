@@ -64,4 +64,17 @@ describe('assignPins', () => {
     expect(result.find((s) => s.id === 'b')?.pin).toBe('03');
     expect(result.find((s) => s.id === 'd')?.pin).toBe('04');
   });
+
+  it('gives ClassLink-linked students random 4-digit pins', () => {
+    const students = Array.from({ length: 40 }, (_, i) => ({
+      ...student(`s${i}`),
+      classLinkSourcedId: `sid-${i}`,
+    }));
+    const pins = assignPins([...students, student('kept', '4321')]).map(
+      (s) => s.pin
+    );
+    expect(pins.slice(0, 40).every((p) => /^\d{4}$/.test(p))).toBe(true);
+    expect(new Set(pins).size).toBe(pins.length);
+    expect(pins.slice(0, 3)).not.toEqual(['01', '02', '03']);
+  });
 });
