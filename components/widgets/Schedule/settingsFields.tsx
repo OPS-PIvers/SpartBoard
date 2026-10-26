@@ -497,6 +497,7 @@ export const ScheduleListField: React.FC<{
               )}
             >
               {schedules.map((schedule) => (
+                // no-tour-anchor: one chip per schedule; the chip list carries the select-schedule anchor
                 <button
                   key={schedule.id}
                   type="button"
@@ -575,6 +576,7 @@ export const ScheduleListField: React.FC<{
                     {DAYS.map((day) => {
                       const selected = selectedSchedule.days.includes(day.id);
                       return (
+                        // no-tour-anchor: one button per weekday; the day picker carries the select-day anchor
                         <button
                           key={day.id}
                           type="button"
