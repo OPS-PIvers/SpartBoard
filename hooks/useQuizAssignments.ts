@@ -3410,6 +3410,10 @@ export const useQuizAssignments = (
         ...buildResponseGradingContext(quizData, assignmentSnap.data()),
         sections,
       };
+      // A bank-draw key is frozen at assign; refresh the server's copy so it grades like this publish.
+      const refreshServerKey =
+        typeof assignmentSnap.data()?.resolvedDriveFileId === 'string' &&
+        (await getDoc(scoreKeyRef(userId, assignmentId))).exists();
       const answerKey =
         visibility === 'score-responses-and-answers'
           ? buildRevealedAnswers(quizData)
@@ -3509,10 +3513,18 @@ export const useQuizAssignments = (
       // Clears a legacy key; a live-reveal map is moot once results are published.
       sessionPatch.revealedAnswers = deleteField();
       firstBatch.update(sessionRef, sessionPatch);
+      if (refreshServerKey) {
+        firstBatch.set(scoreKeyRef(userId, assignmentId), {
+          questions: buildScoreOnSubmitKey(quizData.questions),
+        });
+      }
 
-      // 2 writes already consumed (assignment + session); fill the rest
+      // Assignment + session (+ key) writes already consumed; fill the rest
       // of the first batch with response updates.
-      const firstChunkSize = Math.min(updates.length, MAX_BATCH_WRITES - 2);
+      const firstChunkSize = Math.min(
+        updates.length,
+        MAX_BATCH_WRITES - (refreshServerKey ? 3 : 2)
+      );
       for (let i = 0; i < firstChunkSize; i++) {
         firstBatch.update(updates[i].ref, updates[i].patch);
       }

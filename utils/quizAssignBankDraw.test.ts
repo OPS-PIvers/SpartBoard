@@ -1,7 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { QuizData, QuizQuestion } from '@/types';
 import type { BankContent } from '@/utils/questionBanks';
-import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
+import {
+  applyCurrentAnswerKeys,
+  resolveQuizAssignContent,
+  withCurrentAnswerKeys,
+} from '@/utils/quizAssignBankDraw';
 
 const q = (id: string): QuizQuestion => ({
   id,
@@ -62,5 +66,88 @@ describe('resolveQuizAssignContent', () => {
     expect(out.driveFileId).toBe('snap-1');
     expect(out.resolvedDriveFileId).toBe('snap-1');
     expect(saveDriveSnapshot).toHaveBeenCalledOnce();
+  });
+});
+
+const fib = (over: Partial<QuizQuestion> = {}): QuizQuestion => ({
+  id: 'b1',
+  type: 'FIB',
+  text: 'Studies of identical twins are called ____.',
+  timeLimit: 0,
+  correctAnswer: 'Twin studies',
+  incorrectAnswers: [],
+  alternateAnswers: ['Twins'],
+  points: 2,
+  ...over,
+});
+
+const bankOf = (...questions: QuizQuestion[]) =>
+  new Map([['bank-1', { questions }]]);
+
+describe('applyCurrentAnswerKeys', () => {
+  it('takes a bank question’s new also-accepted answers but keeps the slot’s points', () => {
+    const frozen = baseQuiz({ questions: [fib()] });
+    const out = applyCurrentAnswerKeys(
+      frozen,
+      { questions: [] },
+      bankOf(fib({ points: 1, alternateAnswers: ['Twins', 'Twins studies'] }))
+    );
+    expect(out.questions[0].alternateAnswers).toEqual([
+      'Twins',
+      'Twins studies',
+    ]);
+    expect(out.questions[0].points).toBe(2);
+    expect(out.questions[0].text).toBe(frozen.questions[0].text);
+  });
+
+  it('drops a key field the bank question no longer has', () => {
+    const out = applyCurrentAnswerKeys(
+      baseQuiz({ questions: [fib()] }),
+      { questions: [] },
+      bankOf(fib({ alternateAnswers: undefined, correctAnswer: 'Twins' }))
+    );
+    expect(out.questions[0].alternateAnswers).toBeUndefined();
+    expect(out.questions[0].correctAnswer).toBe('Twins');
+  });
+
+  it('lets a fixed question’s current key win over a bank copy with the same id', () => {
+    const out = applyCurrentAnswerKeys(
+      baseQuiz({ questions: [fib()] }),
+      { questions: [fib({ correctAnswer: 'From quiz' })] },
+      bankOf(fib({ correctAnswer: 'From bank' }))
+    );
+    expect(out.questions[0].correctAnswer).toBe('From quiz');
+  });
+
+  it('moves the correct choice when the choices themselves are unchanged', () => {
+    const out = applyCurrentAnswerKeys(
+      baseQuiz({ questions: [q('m1')] }),
+      { questions: [] },
+      bankOf({ ...q('m1'), correctAnswer: 'b', incorrectAnswers: ['a'] })
+    );
+    expect(out.questions[0].correctAnswer).toBe('b');
+    expect(out.questions[0].incorrectAnswers).toEqual(['a']);
+  });
+
+  it('keeps the frozen key when students saw different choices or a different type', () => {
+    const frozen = baseQuiz({ questions: [q('m1'), fib()] });
+    const out = applyCurrentAnswerKeys(
+      frozen,
+      { questions: [] },
+      bankOf(
+        { ...q('m1'), incorrectAnswers: ['c'] },
+        fib({ correctAnswer: 'Twin studies\u001FNature' })
+      )
+    );
+    expect(out).toBe(frozen);
+  });
+
+  it('grades with the frozen copy when the library quiz cannot load', async () => {
+    const frozen = baseQuiz({ questions: [fib()] });
+    const out = await withCurrentAnswerKeys(frozen, 'drive-1', {
+      loadQuizData: () => Promise.reject(new Error('gone')),
+      loadBankContentsForQuiz: vi.fn(),
+    });
+    expect(out).toBe(frozen);
   });
 });
