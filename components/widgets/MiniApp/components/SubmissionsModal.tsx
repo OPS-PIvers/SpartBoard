@@ -14,7 +14,7 @@
  * Unmatched doc IDs (legacy shared-link launches) fall back to the opaque id.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   collection,
   getDocs,
@@ -88,7 +88,25 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
     loading: namesLoading,
     error: namesError,
   } = useAssignmentPseudonymsMulti(sessionId, classIds ?? null, orgId);
-  const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
+  const [allSubmissions, setSubmissions] = useState<SubmissionRow[]>([]);
+  // Submissions carry no class, so a removed class is found by its students' pseudonyms.
+  const removedClassIds = session?.removedClasses?.classIds ?? null;
+  const removedNames = useAssignmentPseudonymsMulti(
+    removedClassIds?.length ? sessionId : null,
+    removedClassIds,
+    orgId
+  );
+  const submissions = useMemo(() => {
+    const removed = removedNames.byAssignmentPseudonym;
+    if (removed.size === 0) return allSubmissions;
+    return allSubmissions.filter(
+      (s) => !removed.has(s.id) || byAssignmentPseudonym.has(s.id)
+    );
+  }, [
+    allSubmissions,
+    removedNames.byAssignmentPseudonym,
+    byAssignmentPseudonym,
+  ]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);

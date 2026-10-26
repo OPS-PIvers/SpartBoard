@@ -52,6 +52,7 @@ export const AssignmentClassesModal: React.FC<AssignmentClassesModalProps> = ({
         planAssignmentClassEdit({
           rosters,
           rosterIds: classes.classIds,
+          previousRosterIds: assignment.rosterIds,
           periodAccess: assignment.periodAccess,
           accessMode: assignment.accessMode,
         })

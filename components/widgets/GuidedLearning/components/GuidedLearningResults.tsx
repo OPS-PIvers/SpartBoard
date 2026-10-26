@@ -21,6 +21,11 @@ import {
   type SubLaunchedSessionFields,
 } from '@/types';
 import {
+  sessionClassPredicate,
+  targetingKey,
+  targetsFromKey,
+} from '@/utils/sessionClassFilter';
+import {
   useGuidedLearningSessionTeacher,
   isAnswerCorrect,
 } from '@/hooks/useGuidedLearningSession';
@@ -124,11 +129,18 @@ export const GuidedLearningResults: React.FC<Props> = ({
   ended = false,
 }) => {
   const {
-    responses,
+    responses: rawResponses,
     responsesLoading,
     subscribeToResponses,
     exportResponsesAsCSV,
   } = useGuidedLearningSessionTeacher(undefined);
+  const [classTargets, setClassTargets] = useState('');
+  // A class removed from the assignment drops out of Results; its docs stay.
+  const responses = useMemo(() => {
+    const keep = sessionClassPredicate(targetsFromKey(classTargets));
+    const kept = rawResponses.filter(keep);
+    return kept.length === rawResponses.length ? rawResponses : kept;
+  }, [rawResponses, classTargets]);
 
   useEffect(() => {
     if (viewOnly) return;
@@ -206,6 +218,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
             : null;
         }
         setSessionSteps(frozen);
+        setClassTargets(targetingKey(data));
         setSessionOwner({
           teacherUid: data?.teacherUid ?? null,
           dueAt: data?.dueAt ?? null,

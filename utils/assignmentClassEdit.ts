@@ -7,6 +7,10 @@ import {
 } from '@/utils/periodAccessWrites';
 import { periodAccessClassEdits } from '@/utils/periodPlan';
 import {
+  nextRemovedClasses,
+  type SessionClassTargets,
+} from '@/utils/sessionClassFilter';
+import {
   deriveSessionTargetsFromRosters,
   type SessionTargets,
 } from '@/utils/resolveAssignmentTargets';
@@ -14,21 +18,30 @@ import {
 export interface AssignmentClassEdit extends SessionTargets {
   /** Per-period rows to add or remove (null); absent without a period gate. */
   periodAccessRows?: Record<string, PeriodAccess | null>;
+  /** Names of the rosters the edit takes off, so their PIN work is hidden. */
+  removedRosterNames?: string[];
 }
 
 /** Session targets for the checked classes, plus row writes when the session gates by period. */
 export function planAssignmentClassEdit({
   rosters,
   rosterIds,
+  previousRosterIds = [],
   periodAccess,
   accessMode,
 }: {
   rosters: readonly ClassRoster[];
   rosterIds: readonly string[];
+  previousRosterIds?: readonly string[];
   periodAccess?: Record<string, PeriodAccess>;
   accessMode?: AccessMode;
 }): AssignmentClassEdit {
   const selected = rosters.filter((r) => rosterIds.includes(r.id));
+  const removedRosterNames = rosters
+    .filter(
+      (r) => previousRosterIds.includes(r.id) && !rosterIds.includes(r.id)
+    )
+    .map((r) => r.name);
   const {
     rosterIds: ids,
     classIds,
@@ -40,6 +53,7 @@ export function planAssignmentClassEdit({
     classIds,
     periodNames,
     classPeriodByClassId,
+    removedRosterNames,
   };
   if (!accessMode || !periodAccess || Object.keys(periodAccess).length === 0)
     return targets;
@@ -92,6 +106,7 @@ export function stageAssignmentClassEdit(
     assignmentPeriodNames = false,
     sessionFields,
     keepClassIds = [],
+    currentSession,
   }: {
     assignmentRef: DocumentReference;
     sessionRef: DocumentReference;
@@ -101,6 +116,8 @@ export function stageAssignmentClassEdit(
     sessionFields: readonly OptionalSessionField[];
     /** The session's Classroom or Schoology ids (`externalClassIds`), kept after the roster ids. */
     keepClassIds?: readonly string[];
+    /** The session doc before the edit, so the classes it drops are recorded. */
+    currentSession?: SessionClassTargets;
   }
 ): void {
   const rows = periodAccessWrites(edit.periodAccessRows);
@@ -118,6 +135,20 @@ export function stageAssignmentClassEdit(
     },
     rows
   );
+  const nextRowKeys = new Set(Object.keys(currentSession?.periodAccess ?? {}));
+  for (const [key, row] of Object.entries(edit.periodAccessRows ?? {})) {
+    if (row) nextRowKeys.add(key);
+    else nextRowKeys.delete(key);
+  }
+  const removedClasses = nextRemovedClasses(
+    currentSession,
+    {
+      classIds,
+      periodNames: edit.periodNames,
+      periodAccessKeys: [...nextRowKeys],
+    },
+    edit.removedRosterNames ?? []
+  );
   const optional: Record<OptionalSessionField, unknown> = {
     classId: classIds[0] ?? '',
     periodNames: edit.periodNames,
@@ -129,6 +160,7 @@ export function stageAssignmentClassEdit(
     {
       rosterIds: edit.rosterIds,
       classIds,
+      removedClasses,
       ...Object.fromEntries(sessionFields.map((f) => [f, optional[f]])),
     },
     rows

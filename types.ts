@@ -3771,6 +3771,8 @@ export interface MiniAppSession
    * rosters' `classlinkClassId` for the SSO gate. Absent on legacy sessions.
    */
   rosterIds?: string[];
+  /** Classes taken off this assignment; their students' work is hidden until re-added. */
+  removedClasses?: { classIds: string[]; periodNames: string[] };
   /**
    * Whether the sandboxed mini-app iframe should show its Submit button and
    * accept student submissions into the `submissions/` subcollection. Absent
@@ -7584,6 +7586,8 @@ export interface VideoActivitySession
    * derived from these rosters' `classlinkClassId` metadata.
    */
   rosterIds?: string[];
+  /** Classes taken off this assignment; their students' work is hidden until re-added. */
+  removedClasses?: { classIds: string[]; periodNames: string[] };
   /**
    * Optional map of ClassLink `classId` → period name. Lets the SSO join
    * path resolve the joining student's period without prompting them.
@@ -8929,6 +8933,8 @@ export interface GuidedLearningSession
    * derived from these rosters' `classlinkClassId` metadata.
    */
   rosterIds?: string[];
+  /** Classes taken off this assignment; their students' work is hidden until re-added. */
+  removedClasses?: { classIds: string[]; periodNames: string[] };
   /**
    * Frozen at creation from the org-wide `assignment-modes` admin setting.
    * Determines whether students see a tracked Share link (`'view-only'`) or

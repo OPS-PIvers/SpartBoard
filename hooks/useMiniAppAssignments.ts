@@ -401,6 +401,7 @@ export const useMiniAppAssignments = (
         ),
         sessionRef,
         keepClassIds: externalClassIds(session.data()?.classIds as unknown[]),
+        currentSession: session.data(),
         edit: classEdit,
         now: Date.now(),
         sessionFields: [],
