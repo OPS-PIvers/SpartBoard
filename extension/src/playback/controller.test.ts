@@ -154,6 +154,56 @@ describe('playback controller', () => {
     expect(h.lastRender()).toMatchObject({ current: 2 });
   });
 
+  it('hands each seek the next step on the same page, so a frame can find it before the worker answers', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    const tour = parsed();
+    tour.tour.steps[1].urlPattern = 'https://a.example/home';
+    await c.start(tour);
+    await c.committed(7, 0, 'https://a.example/home');
+    const seek = h.lastSeek().msg;
+    const next = seek.next as { token: string; clues: unknown };
+    expect(next.clues).toEqual({ text: 'Grades' });
+    await c.frameReport(7, 0, {
+      type: 'wt:found',
+      token: seek.token as string,
+      weak: false,
+      url: '',
+    });
+    expect(h.lastRender().ahead).toEqual({
+      token: next.token,
+      title: 'Read',
+      text: 'Look here',
+      observe: true,
+    });
+    const before = h.sent.length;
+    await c.frameReport(7, 0, {
+      type: 'wt:acted',
+      token: seek.token as string,
+    });
+    // The frame already moved on, so it gets the same token and no stop.
+    const after = h.sent.slice(before);
+    expect(after.some((s) => s.frameId === 0 && s.msg.type === 'wt:stop')).toBe(
+      false
+    );
+    expect(h.lastSeek().msg.token).toBe(next.token);
+    await c.frameReport(7, 0, {
+      type: 'wt:found',
+      token: next.token,
+      weak: false,
+      url: '',
+    });
+    expect(h.lastRender()).toMatchObject({ status: 'shown', current: 2 });
+  });
+
+  it('gives no next step when it plays on another page or is only looked at', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    await c.committed(7, 0, 'https://a.example/home');
+    expect(h.lastSeek().msg.next).toBeUndefined();
+  });
+
   it('replays the current step for a page that starts watching late', async () => {
     const h = fakeHost();
     const c = createPlaybackController(h.host);
@@ -247,6 +297,8 @@ describe('playback controller', () => {
     await c.committed(7, 0, 'https://a.example/home');
     const seek = h.lastSeek();
     expect(seek.frameId).toBe(4);
+    // The frame's overlay is loaded with the seek, ahead of the find.
+    expect(h.injected.at(-1)).toEqual({ frameIds: [4], overlay: true });
     await c.frameReport(7, 4, {
       type: 'wt:found',
       token: seek.msg.token as string,

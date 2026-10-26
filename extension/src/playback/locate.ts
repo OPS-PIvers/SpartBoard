@@ -3,7 +3,7 @@ import {
   type WebTourLocator,
   type WebTourStableAttrs,
 } from '@/types';
-import { nearestHeading, stableAttrsOf } from './clues';
+import { headingsUnder, nearestHeading, stableAttrsOf } from './clues';
 
 /** The clues a frame searches with; frames are matched by the service worker. */
 export type WebLocatorClues = Omit<WebTourLocator, 'frames'>;
@@ -147,8 +147,17 @@ export function byText(
       }
     }
   }
-  const list = [...hits];
-  return list.filter((el) => !list.some((h) => h !== el && el.contains(h)));
+  // Drop a hit that holds another hit, marking each hit's ancestors once instead of comparing every pair.
+  const holders = new Set<Element>();
+  for (const el of hits) {
+    for (
+      let up = el.parentElement;
+      up && !holders.has(up);
+      up = up.parentElement
+    )
+      holders.add(up);
+  }
+  return [...hits].filter((el) => !holders.has(el));
 }
 
 export function byCss(
@@ -198,27 +207,32 @@ const withoutGlyphs = (s: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-/** 1 for the same text, at most 0.9 for similar text (letter-pair overlap), 0 for none; icon glyphs are ignored. */
-export function similarity(rawA: string, rawB: string): number {
-  if (rawA && rawA === rawB) return 1;
-  const a = withoutGlyphs(rawA);
-  const b = withoutGlyphs(rawB);
-  if (!a || !b) return 0;
-  if (a === b) return 1;
-  const x = bigrams(a);
-  const y = bigrams(b);
-  if (x.length === 0 || y.length === 0) return 0;
+/** Scores text against `rawWant`: 1 for the same text, at most 0.9 for similar text (letter-pair overlap), 0 for none; icon glyphs are ignored. */
+export function similarityTo(rawWant: string): (rawA: string) => number {
+  const want = withoutGlyphs(rawWant);
+  const wantPairs = want ? bigrams(want) : [];
   const counts = new Map<string, number>();
-  for (const g of x) counts.set(g, (counts.get(g) ?? 0) + 1);
-  let shared = 0;
-  for (const g of y) {
-    const n = counts.get(g) ?? 0;
-    if (n > 0) {
-      shared++;
-      counts.set(g, n - 1);
+  for (const g of wantPairs) counts.set(g, (counts.get(g) ?? 0) + 1);
+  return (rawA) => {
+    if (rawA && rawA === rawWant) return 1;
+    const a = withoutGlyphs(rawA);
+    if (!a || !want) return 0;
+    if (a === want) return 1;
+    const pairs = bigrams(a);
+    if (pairs.length === 0 || wantPairs.length === 0) return 0;
+    const used = new Map<string, number>();
+    let shared = 0;
+    for (const g of pairs) {
+      const have = counts.get(g);
+      if (!have) continue;
+      const u = used.get(g) ?? 0;
+      if (u < have) {
+        shared++;
+        used.set(g, u + 1);
+      }
     }
-  }
-  return ((2 * shared) / (x.length + y.length)) * 0.9;
+    return ((2 * shared) / (pairs.length + wantPairs.length)) * 0.9;
+  };
 }
 
 /** Per-clue weights, Similo-style: what a site rarely changes counts most. */
@@ -276,6 +290,10 @@ interface Wanted {
   attrs: [AttrKey, string][];
   box?: WebLocatorClues['box'];
   total: number;
+  /** Similarity to the wanted name, text and heading, each prepared once per search. */
+  nameSim: (s: string) => number;
+  textSim: (s: string) => number;
+  headingSim: (s: string) => number;
 }
 
 /** The tag the CSS path ends on, when it names one. */
@@ -306,7 +324,13 @@ function wantedOf(clues: WebLocatorClues): Wanted {
     attrs,
     box: clues.box,
     total: 0,
+    nameSim: () => 0,
+    textSim: () => 0,
+    headingSim: () => 0,
   };
+  if (w.name) w.nameSim = similarityTo(w.name);
+  if (w.text) w.textSim = similarityTo(w.text);
+  if (w.heading) w.headingSim = similarityTo(w.heading);
   const C = CLUE_WEIGHTS;
   w.total =
     (w.role && w.name ? C.roleName : 0) +
@@ -325,12 +349,32 @@ function wantedOf(clues: WebLocatorClues): Wanted {
 interface Lookups {
   attrs: (el: Element) => WebTourStableAttrs;
   heading: (el: Element) => string;
+  name: (el: Element) => string;
 }
 
 function lookups(): Lookups {
   const attrs = new Map<Element, WebTourStableAttrs>();
   const headings = new Map<Element, string>();
+  const names = new Map<Element, string>();
+  // Headings are listed once per document or shadow root; an ancestor's own are the few of those it contains.
+  const rootHeadings = new Map<Node, Element[]>();
+  const headingLists = new Map<Element, Element[]>();
+  const headingsIn = (node: Element) => {
+    let v = headingLists.get(node);
+    if (v) return v;
+    const root = node.getRootNode() as Document | ShadowRoot;
+    let all = rootHeadings.get(root);
+    if (!all) rootHeadings.set(root, (all = headingsUnder(root)));
+    v = all.filter((h) => h !== node && node.contains(h));
+    headingLists.set(node, v);
+    return v;
+  };
   return {
+    name: (el) => {
+      let v = names.get(el);
+      if (v === undefined) names.set(el, (v = accessibleName(el)));
+      return v;
+    },
     attrs: (el) => {
       let v = attrs.get(el);
       if (!v) attrs.set(el, (v = stableAttrsOf(el)));
@@ -338,7 +382,8 @@ function lookups(): Lookups {
     },
     heading: (el) => {
       let v = headings.get(el);
-      if (v === undefined) headings.set(el, (v = nearestHeading(el)));
+      if (v === undefined)
+        headings.set(el, (v = nearestHeading(el, headingsIn)));
       return v;
     },
   };
@@ -372,14 +417,14 @@ function scoreOf(el: Element, index: number, w: Wanted, look: Lookups): Scored {
   let identified = false;
   const role = w.role ? roleOf(el) : null;
   if (w.name) {
-    const s = similarity(accessibleName(el), w.name);
+    const s = w.nameSim(look.name(el));
     if (w.role && role === w.role && s === 1) got += C.roleName;
     got += C.name * s;
     if (s >= SIMILAR) identified = true;
   }
   if (w.role && role === w.role) got += C.role;
   if (w.text) {
-    const s = similarity(normalizeText(el.textContent ?? ''), w.text);
+    const s = w.textSim(normalizeText(el.textContent ?? ''));
     got += C.text * s;
     if (s >= SIMILAR) identified = true;
   }
@@ -418,8 +463,7 @@ function scoreOf(el: Element, index: number, w: Wanted, look: Lookups): Scored {
 function readHeading(s: Scored, w: Wanted, look: Lookups): void {
   if (s.headingPart !== null || !w.heading) return;
   s.headingPart =
-    CLUE_WEIGHTS.heading *
-    similarity(normalizeText(look.heading(s.el)), w.heading);
+    CLUE_WEIGHTS.heading * w.headingSim(normalizeText(look.heading(s.el)));
   finish(s, w);
 }
 
@@ -469,10 +513,10 @@ function gather(
 ): Element[] {
   const found = new Set<Element>();
   if (w.role && w.name) {
-    const { role, name } = w;
+    const { role } = w;
     for (const el of queryAll(roots, INTERACTIVE)) {
       if (roleOf(el) !== role) continue;
-      if (similarity(accessibleName(el), name) >= FUZZY_GATHER) found.add(el);
+      if (w.nameSim(look.name(el)) >= FUZZY_GATHER) found.add(el);
     }
   }
   // Exact hits on text, CSS path or an attribute are never cut by the cap.
@@ -544,12 +588,13 @@ export const SUGGEST_FLOOR = SCORE_FLOOR / 2;
 /** Scores every candidate on every recorded clue; the best plays above the floor, and is clear only by the margin (C1, C2). */
 export function assessTarget(
   doc: Document,
-  clues: WebLocatorClues
+  clues: WebLocatorClues,
+  roots: (Document | ShadowRoot)[] = rootsOf(doc)
 ): LocateOutcome {
   const w = wantedOf(clues);
   if (w.total === 0) return { kind: 'none' };
   const look = lookups();
-  const scored = gather(doc, rootsOf(doc), w, look).map((el, i) =>
+  const scored = gather(doc, roots, w, look).map((el, i) =>
     scoreOf(el, i, w, look)
   );
   const { best, rival } = pickOf(addHeadings(scored, w, look));

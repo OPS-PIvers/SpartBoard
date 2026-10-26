@@ -1,0 +1,13 @@
+<!doctype html><html><head><meta charset="utf-8"><title>LMS course page</title><link rel="stylesheet" href="/common.css"></head>
+<body>
+<header><h1 style="font-size:18px;margin:0 auto 0 0">Course: Biology 7</h1><button id="open">Open editor</button><button id="settings">Settings</button><button id="save">Save</button></header>
+<div style="display:flex;gap:16px;padding:16px">
+  <iframe id="ed" src="/editor.html" title="Editor" style="flex:2;height:420px;border:1px solid #cbd5e1;background:#fff"></iframe>
+  <iframe id="wd" title="Integration" style="flex:1;height:420px;border:1px solid #cbd5e1;background:#fff"></iframe>
+</div>
+<div id="settingsPanel" class="panel" hidden><label><input type="checkbox"> Allow late work</label></div>
+<script>
+document.getElementById('wd').src = `https://127.0.0.1:${Number(location.port) + 1}/widget.html`;
+document.getElementById('settings').onclick = () => (document.getElementById('settingsPanel').hidden = false);
+document.getElementById('open').onclick = () => document.getElementById('ed').contentWindow.postMessage('open', '*');
+</script></body></html>

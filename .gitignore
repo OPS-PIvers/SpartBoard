@@ -126,3 +126,8 @@ dist-grader/
 .claude/verify-runs/
 .claude/live-tour-runs/
 rules-name-map.txt
+
+# Web tour benchmark runs; only the committed before/after comparison is kept
+extension/scripts/bench/results/*
+!extension/scripts/bench/results/baseline*.json
+!extension/scripts/bench/results/after*.json

@@ -1,6 +1,7 @@
 import css from './overlay.css?inline';
 import { mountOverlay, type OverlayHandle } from './mount';
 import { parseOverlayState } from './overlayState';
+import { benchMark } from '../bench';
 
 // Injected on demand into a tab playing a tour (T8); only the extension's own service worker drives it.
 let overlay: OverlayHandle | null = null;
@@ -31,6 +32,11 @@ if (!scope[LOADED]) {
     } else if (type === 'overlay/render') {
       const parsed = parseOverlayState(state);
       if (!parsed) return false;
+      benchMark('render', {
+        status: parsed.status,
+        current: parsed.current,
+        targetHere: parsed.targetHere,
+      });
       overlay ??= mountOverlay(css, (action) => {
         chrome.runtime
           .sendMessage({ type: 'overlay/action', action })

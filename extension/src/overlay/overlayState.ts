@@ -41,6 +41,15 @@ export interface OverlayState {
   check?: OverlayCheck;
   /** Armed only: offer a button that opens the tour's start page. */
   goStart?: boolean;
+  /** The next step, shown as soon as this frame finds its target under `token`, before the service worker says so. */
+  ahead?: OverlayAhead;
+}
+
+export interface OverlayAhead {
+  token: string;
+  title: string;
+  text: string;
+  observe: boolean;
 }
 
 export type OverlayAction = 'next' | 'back' | 'exit' | 'start';
@@ -108,15 +117,35 @@ const KEYS = [
   'picture',
 ];
 
+function parseAhead(raw: unknown): OverlayAhead | null {
+  if (
+    typeof raw !== 'object' ||
+    raw === null ||
+    !hasExactKeys(raw, ['token', 'title', 'text', 'observe'])
+  )
+    return null;
+  const { token, title, text, observe } = raw as Record<string, unknown>;
+  if (
+    !isText(token, 40) ||
+    !isText(title, 200) ||
+    !isText(text, MAX_TEXT) ||
+    typeof observe !== 'boolean'
+  )
+    return null;
+  return { token, title, text, observe };
+}
+
 /** The overlay state, or null when the payload doesn't match the schema exactly. */
 export function parseOverlayState(raw: unknown): OverlayState | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const checking = 'check' in raw;
   const offering = 'goStart' in raw;
+  const looking = 'ahead' in raw;
   const keys = [
     ...KEYS,
     ...(checking ? ['check'] : []),
     ...(offering ? ['goStart'] : []),
+    ...(looking ? ['ahead'] : []),
   ];
   if (!hasExactKeys(raw, keys)) return null;
   const r = raw as Record<string, unknown>;
@@ -124,6 +153,8 @@ export function parseOverlayState(raw: unknown): OverlayState | null {
     return null;
   const check = CHECKS.find((c) => c === r.check);
   if (checking && !check) return null;
+  const ahead = looking ? parseAhead(r.ahead) : null;
+  if (looking && !ahead) return null;
   const status = STATUSES.find((s) => s === r.status);
   const picture = parsePicture(r.picture);
   if (
@@ -153,5 +184,6 @@ export function parseOverlayState(raw: unknown): OverlayState | null {
     picture,
     ...(check ? { check } : {}),
     ...(offering ? { goStart: r.goStart as boolean } : {}),
+    ...(ahead ? { ahead } : {}),
   };
 }

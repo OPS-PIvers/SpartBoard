@@ -45,10 +45,18 @@ const ENTRIES: { entry: string; fileName: string; format: 'es' | 'iife' }[] = [
   },
 ];
 
+// `--bench` builds the dev listing with perf marks on, plus the clue capturer the harness injects.
+const BENCH_ENTRY: (typeof ENTRIES)[number] = {
+  entry: 'src/benchCapture.ts',
+  fileName: 'bench-capture.js',
+  format: 'iife',
+};
+
 const configFor = (
   listing: ListingId,
   outDir: string,
-  { entry, fileName, format }: (typeof ENTRIES)[number]
+  { entry, fileName, format }: (typeof ENTRIES)[number],
+  bench = false
 ): InlineConfig => ({
   configFile: false,
   root: extDir,
@@ -59,6 +67,7 @@ const configFor = (
   define: {
     __SPART_ORIGINS__: JSON.stringify(LISTINGS[listing].origins),
     __SPART_FUNCTIONS__: JSON.stringify(LISTINGS[listing].functionsBase),
+    __SPART_BENCH__: JSON.stringify(bench),
     'process.env.NODE_ENV': JSON.stringify('production'),
   },
   css: {
@@ -73,7 +82,7 @@ const configFor = (
     outDir,
     emptyOutDir: false,
     target: 'chrome116',
-    minify: true,
+    minify: !bench,
     sourcemap: false,
     lib: {
       entry: path.join(extDir, entry),
@@ -84,11 +93,12 @@ const configFor = (
   },
 });
 
-async function buildListing(listing: ListingId, zip: boolean) {
-  const outDir = path.join(extDir, 'dist', listing);
+async function buildListing(listing: ListingId, zip: boolean, bench = false) {
+  const outDir = path.join(extDir, 'dist', bench ? 'bench' : listing);
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
-  for (const entry of ENTRIES) await build(configFor(listing, outDir, entry));
+  for (const entry of bench ? [...ENTRIES, BENCH_ENTRY] : ENTRIES)
+    await build(configFor(listing, outDir, entry, bench));
   const base = JSON.parse(
     readFileSync(path.join(extDir, 'manifest.json'), 'utf8')
   ) as Manifest;
@@ -126,6 +136,10 @@ async function buildListing(listing: ListingId, zip: boolean) {
 }
 
 const zip = process.argv.includes('--zip');
-for (const listing of Object.keys(LISTINGS) as ListingId[]) {
-  await buildListing(listing, zip);
+if (process.argv.includes('--bench')) {
+  await buildListing('dev', false, true);
+} else {
+  for (const listing of Object.keys(LISTINGS) as ListingId[]) {
+    await buildListing(listing, zip);
+  }
 }

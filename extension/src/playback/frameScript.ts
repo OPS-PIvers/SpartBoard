@@ -1,17 +1,24 @@
-import { assessTarget, type WebLocatorClues } from './locate';
+import { assessTarget, rootsOf, type WebLocatorClues } from './locate';
 import type { WebStepAction } from './progress';
 import { captureTarget } from '../recorder/captureTarget';
 import { toBox } from '../recorder/geometry';
 import { fixKey } from '@/components/tours/web/fixClues';
+import { BENCH, benchMark } from '../bench';
+
+/** One step's search: its target's clues and how the learner finishes it. */
+export interface SeekStep {
+  token: string;
+  clues: WebLocatorClues;
+  action: WebStepAction;
+}
 
 /** Messages the service worker sends to every frame of a playing tab. */
 export type FrameCommand =
-  | {
+  | ({
       type: 'wt:seek';
-      token: string;
-      clues: WebLocatorClues;
-      action: WebStepAction;
-    }
+      /** The step that follows when this one is done here, sought at once so the spotlight needn't wait on the service worker. */
+      next?: SeekStep;
+    } & SeekStep)
   | { type: 'wt:stop' };
 
 /** Messages a frame reports back. */
@@ -39,7 +46,13 @@ export interface FrameTarget {
 }
 
 declare global {
-  var __sbWebTourFrame: { target: FrameTarget | null } | undefined;
+  var __sbWebTourFrame:
+    | {
+        target: FrameTarget | null;
+        /** The overlay's hook, called as soon as a target is attached so it is drawn in the same frame. */
+        onTarget?: () => void;
+      }
+    | undefined;
 }
 
 /** An element's clues as the recorder reads them (scrubbed), with its box in this frame's viewport. */
@@ -60,22 +73,41 @@ const ACT_EVENTS: Record<WebStepAction, string[]> = {
 // Typing counts as done once the learner pauses, so one keystroke doesn't skip ahead.
 const INPUT_SETTLE_MS = 1200;
 
-const RESEEK_MS = 250;
+// A search after a page change waits this many times its last run's cost, so it never takes more than a fifth of the page's time.
+const RESEEK_COST_RATIO = 4;
+const RESEEK_MAX_MS = 1000;
+// Searches run just before the next frame paints; this backs that up in a tab that isn't painting.
+const RESEEK_FALLBACK_MS = 100;
+// Shadow roots a page attaches without changing its own tree (a late component upgrade) are picked up by a full rescan this often.
+const ROOTS_RESCAN_MS = 1000;
+
+const OBSERVE: MutationObserverInit = {
+  childList: true,
+  subtree: true,
+  attributes: true,
+  characterData: true,
+};
 
 // One press fires pointerdown, mousedown and click within this window.
 const PRESS_MS = 1000;
+
+const isSeekStep = (m: Record<string, unknown>) =>
+  typeof m.token === 'string' &&
+  typeof m.clues === 'object' &&
+  m.clues !== null &&
+  typeof m.action === 'string' &&
+  m.action in ACT_EVENTS;
 
 export function isFrameCommand(msg: unknown): msg is FrameCommand {
   if (!msg || typeof msg !== 'object') return false;
   const m = msg as Record<string, unknown>;
   if (m.type === 'wt:stop') return true;
+  const next = m.next as Record<string, unknown> | null | undefined;
   return (
     m.type === 'wt:seek' &&
-    typeof m.token === 'string' &&
-    typeof m.clues === 'object' &&
-    m.clues !== null &&
-    typeof m.action === 'string' &&
-    m.action in ACT_EVENTS
+    isSeekStep(m) &&
+    (next === undefined ||
+      (typeof next === 'object' && next !== null && isSeekStep(next)))
   );
 }
 
@@ -88,9 +120,37 @@ export function installFrameSeeker(
   let seek: Extract<FrameCommand, { type: 'wt:seek' }> | null = null;
   let observer: MutationObserver | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let frame = 0;
   let detach: (() => void) | null = null;
   let toldAmbiguous = false;
   let toldCandidate = '';
+  // Every open shadow root is searched and watched; kept up to date from mutation records instead of a full walk per search.
+  let roots = new Set<Document | ShadowRoot>();
+  let rootsAt = 0;
+  let lastCost = 0;
+  let lastEnd = -Infinity;
+
+  const watchRoot = (root: Document | ShadowRoot) => {
+    if (roots.has(root)) return;
+    roots.add(root);
+    observer?.observe(root, OBSERVE);
+  };
+
+  const rescanRoots = () => {
+    rootsAt = performance.now();
+    for (const root of rootsOf(doc)) watchRoot(root);
+  };
+
+  const addedRoots = (records: MutationRecord[]) => {
+    for (const r of records) {
+      for (const node of r.addedNodes) {
+        if (!(node instanceof Element)) continue;
+        if (node.shadowRoot) watchRoot(node.shadowRoot);
+        for (const el of node.querySelectorAll('*'))
+          if (el.shadowRoot) watchRoot(el.shadowRoot);
+      }
+    }
+  };
 
   const clearTarget = () => {
     detach?.();
@@ -110,12 +170,12 @@ export function installFrameSeeker(
         const now = performance.now();
         if (action === 'click' && now - pressedAt < PRESS_MS) return;
         pressedAt = now;
-        send({ type: 'wt:acted', token });
+        acted(token);
         return;
       }
       settle = setTimeout(() => {
         settle = null;
-        send({ type: 'wt:acted', token });
+        acted(token);
       }, INPUT_SETTLE_MS);
     };
     const events = ACT_EVENTS[action];
@@ -125,10 +185,62 @@ export function installFrameSeeker(
       for (const name of events) el.removeEventListener(name, onAct, true);
     };
     shared.target = { token, el };
+    shared.onTarget?.();
+  };
+
+  const begin = (
+    step: Extract<FrameCommand, { type: 'wt:seek' }>,
+    later = false
+  ) => {
+    seek = step;
+    toldAmbiguous = false;
+    toldCandidate = '';
+    benchMark('seek', { token: step.token });
+    if (later) queue();
+    else run();
+  };
+
+  /** Reports the step done and moves straight on to seeking the next one, which the service worker confirms with the same token. */
+  const acted = (token: string) => {
+    benchMark('acted', { token });
+    send({ type: 'wt:acted', token });
+    const next = seek?.token === token ? seek.next : undefined;
+    if (!next) return;
+    clearTarget();
+    // After the learner's own event, so the page answers their click before any search runs.
+    begin({ type: 'wt:seek', ...next }, true);
+  };
+
+  const cancel = () => {
+    if (timer !== null) clearTimeout(timer);
+    timer = null;
+    if (frame) doc.defaultView?.cancelAnimationFrame(frame);
+    frame = 0;
+  };
+
+  /** Searches before the next paint (or soon, in a tab that isn't painting), once its cooldown since the last search has passed. */
+  const queue = () => {
+    if (timer !== null || frame) return;
+    const wait = Math.min(
+      RESEEK_MAX_MS,
+      lastEnd + lastCost * RESEEK_COST_RATIO - performance.now()
+    );
+    if (wait > 0) {
+      timer = setTimeout(() => {
+        timer = null;
+        queue();
+      }, wait);
+      return;
+    }
+    const go = () => {
+      cancel();
+      run();
+    };
+    frame = doc.defaultView?.requestAnimationFrame(go) ?? 0;
+    timer = setTimeout(go, RESEEK_FALLBACK_MS);
   };
 
   const run = () => {
-    timer = null;
     if (!seek) return;
     const current = shared.target;
     if (current && current.token === seek.token) {
@@ -136,7 +248,16 @@ export function installFrameSeeker(
       clearTarget();
       send({ type: 'wt:lost', token: seek.token });
     }
-    const out = assessTarget(doc, seek.clues);
+    const began = performance.now();
+    for (const r of roots)
+      if (r instanceof ShadowRoot && !r.host.isConnected) roots.delete(r);
+    const out = assessTarget(doc, seek.clues, [...roots]);
+    lastEnd = performance.now();
+    lastCost = lastEnd - began;
+    if (out.kind !== 'match' && lastEnd - rootsAt > ROOTS_RESCAN_MS)
+      rescanRoots();
+    if (BENCH)
+      benchMark('run', { token: seek.token, ms: lastCost, kind: out.kind });
     if (out.kind === 'ambiguous' && !toldAmbiguous) {
       toldAmbiguous = true;
       send({ type: 'wt:ambiguous', token: seek.token });
@@ -152,6 +273,7 @@ export function installFrameSeeker(
     }
     if (out.kind !== 'match') return;
     const hit = out.match;
+    benchMark('match', { token: seek.token });
     attach(hit.el, seek.token, seek.action);
     send({
       type: 'wt:found',
@@ -162,8 +284,9 @@ export function installFrameSeeker(
     });
   };
 
-  const schedule = () => {
-    if (timer === null) timer = setTimeout(run, RESEEK_MS);
+  const schedule = (records: MutationRecord[]) => {
+    addedRoots(records);
+    queue();
   };
 
   const stop = () => {
@@ -172,23 +295,22 @@ export function installFrameSeeker(
     toldCandidate = '';
     observer?.disconnect();
     observer = null;
-    if (timer !== null) clearTimeout(timer);
-    timer = null;
+    roots = new Set();
+    cancel();
     clearTarget();
   };
 
   return (cmd) => {
+    // The step this frame already moved on to by itself: keep what it found.
+    if (cmd.type === 'wt:seek' && seek && cmd.token === seek.token) {
+      seek = { ...seek, next: cmd.next };
+      return;
+    }
     stop();
     if (cmd.type === 'wt:stop') return;
-    seek = cmd;
     const MO = doc.defaultView?.MutationObserver ?? MutationObserver;
     observer = new MO(schedule);
-    observer.observe(doc.documentElement, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      characterData: true,
-    });
-    run();
+    rescanRoots();
+    begin(cmd);
   };
 }

@@ -36,11 +36,18 @@ const groupLabel = (node: Element): string => {
     .join(' ');
 };
 
-/** The closest heading before the control, or the label of the menu, dialog or group around it; scrubbed. */
-export function nearestHeading(el: Element): string {
+export const headingsUnder = (node: ParentNode): Element[] => [
+  ...node.querySelectorAll(HEADING),
+];
+
+/** The closest heading before the control, or the label of the menu, dialog or group around it; scrubbed. `headingsIn` lets a search over many controls share each ancestor's heading list. */
+export function nearestHeading(
+  el: Element,
+  headingsIn: (node: Element) => Element[] = headingsUnder
+): string {
   let node = el.parentElement;
   for (let depth = 0; node && depth < MAX_HEADING_DEPTH; depth++) {
-    const before = [...node.querySelectorAll(HEADING)].filter(
+    const before = headingsIn(node).filter(
       (h) =>
         !h.contains(el) &&
         !!(h.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)
