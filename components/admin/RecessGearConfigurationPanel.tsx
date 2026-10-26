@@ -11,6 +11,7 @@ import {
 import { RecessGearGlobalConfig, RecessGearTemperatureRange } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { DraftNumberField } from './DraftNumberField';
 
 export interface RecessGearConfigurationPanelProps {
   uploadWeatherImage?: (rangeId: string, file: File) => Promise<string>;
@@ -310,40 +311,28 @@ export const RecessGearConfigurationPanel: React.FC<
 
                 {(range.type === 'range' || !range.type) && (
                   <>
-                    <input
+                    <DraftNumberField
                       {...tourFieldAttr(
                         'admin.widget-config.field',
                         'recessGear',
                         `rangeMin-${range.id}`
                       )}
-                      type="number"
                       placeholder="Min"
                       value={range.min}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value);
-                        updateRange(range.id, {
-                          min: isNaN(val) ? 0 : val,
-                        });
-                      }}
+                      onCommit={(val) => updateRange(range.id, { min: val })}
                       className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded text-center"
                       title="Min Temp"
                     />
                     <span className="text-slate-400 text-xs">-</span>
-                    <input
+                    <DraftNumberField
                       {...tourFieldAttr(
                         'admin.widget-config.field',
                         'recessGear',
                         `rangeMax-${range.id}`
                       )}
-                      type="number"
                       placeholder="Max"
                       value={range.max}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value);
-                        updateRange(range.id, {
-                          max: isNaN(val) ? 0 : val,
-                        });
-                      }}
+                      onCommit={(val) => updateRange(range.id, { max: val })}
                       className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded text-center"
                       title="Max Temp"
                     />
@@ -355,21 +344,15 @@ export const RecessGearConfigurationPanel: React.FC<
                     <span className="text-xxs font-bold text-slate-400 uppercase">
                       Above
                     </span>
-                    <input
+                    <DraftNumberField
                       {...tourFieldAttr(
                         'admin.widget-config.field',
                         'recessGear',
                         `rangeAbove-${range.id}`
                       )}
-                      type="number"
                       placeholder="Temp"
                       value={range.min}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value);
-                        updateRange(range.id, {
-                          min: isNaN(val) ? 0 : val,
-                        });
-                      }}
+                      onCommit={(val) => updateRange(range.id, { min: val })}
                       className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded text-center"
                     />
                   </div>
@@ -380,21 +363,15 @@ export const RecessGearConfigurationPanel: React.FC<
                     <span className="text-xxs font-bold text-slate-400 uppercase">
                       Below
                     </span>
-                    <input
+                    <DraftNumberField
                       {...tourFieldAttr(
                         'admin.widget-config.field',
                         'recessGear',
                         `rangeBelow-${range.id}`
                       )}
-                      type="number"
                       placeholder="Temp"
                       value={range.max}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value);
-                        updateRange(range.id, {
-                          max: isNaN(val) ? 0 : val,
-                        });
-                      }}
+                      onCommit={(val) => updateRange(range.id, { max: val })}
                       className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded text-center"
                     />
                   </div>

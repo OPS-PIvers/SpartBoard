@@ -1,3 +1,4 @@
+import { DraftNumberField } from './DraftNumberField';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { SoundboardConfigurationPanel } from './SoundboardConfigurationPanel';
 import React, { useState } from 'react';
@@ -498,16 +499,14 @@ export const FeatureConfigurationPanel: React.FC<
 
                           {(range.type === 'range' || !range.type) && (
                             <>
-                              <input
-                                type="number"
+                              <DraftNumberField
                                 placeholder="Min"
                                 value={range.min}
-                                onChange={(e) => {
-                                  const val = parseFloat(e.target.value);
+                                onCommit={(val) =>
                                   updateWeatherRange(tool.type, range.id, {
-                                    min: isNaN(val) ? 0 : val,
-                                  });
-                                }}
+                                    min: val,
+                                  })
+                                }
                                 className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded text-center"
                                 title="Min Temp"
                                 {...tourFieldAttr(
@@ -517,16 +516,14 @@ export const FeatureConfigurationPanel: React.FC<
                                 )}
                               />
                               <span className="text-slate-400 text-xs">-</span>
-                              <input
-                                type="number"
+                              <DraftNumberField
                                 placeholder="Max"
                                 value={range.max}
-                                onChange={(e) => {
-                                  const val = parseFloat(e.target.value);
+                                onCommit={(val) =>
                                   updateWeatherRange(tool.type, range.id, {
-                                    max: isNaN(val) ? 0 : val,
-                                  });
-                                }}
+                                    max: val,
+                                  })
+                                }
                                 className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded text-center"
                                 title="Max Temp"
                                 {...tourFieldAttr(
@@ -543,8 +540,7 @@ export const FeatureConfigurationPanel: React.FC<
                               <span className="text-xxs font-bold text-slate-400 uppercase">
                                 Above
                               </span>
-                              <input
-                                type="number"
+                              <DraftNumberField
                                 placeholder="Temp"
                                 value={range.min}
                                 {...tourFieldAttr(
@@ -552,12 +548,11 @@ export const FeatureConfigurationPanel: React.FC<
                                   'weather',
                                   `rangeAbove-${range.id}`
                                 )}
-                                onChange={(e) => {
-                                  const val = parseFloat(e.target.value);
+                                onCommit={(val) =>
                                   updateWeatherRange(tool.type, range.id, {
-                                    min: isNaN(val) ? 0 : val,
-                                  });
-                                }}
+                                    min: val,
+                                  })
+                                }
                                 className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded text-center"
                               />
                             </div>
@@ -568,8 +563,7 @@ export const FeatureConfigurationPanel: React.FC<
                               <span className="text-xxs font-bold text-slate-400 uppercase">
                                 Below
                               </span>
-                              <input
-                                type="number"
+                              <DraftNumberField
                                 placeholder="Temp"
                                 value={range.max}
                                 {...tourFieldAttr(
@@ -577,12 +571,11 @@ export const FeatureConfigurationPanel: React.FC<
                                   'weather',
                                   `rangeBelow-${range.id}`
                                 )}
-                                onChange={(e) => {
-                                  const val = parseFloat(e.target.value);
+                                onCommit={(val) =>
                                   updateWeatherRange(tool.type, range.id, {
-                                    max: isNaN(val) ? 0 : val,
-                                  });
-                                }}
+                                    max: val,
+                                  })
+                                }
                                 className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded text-center"
                               />
                             </div>
