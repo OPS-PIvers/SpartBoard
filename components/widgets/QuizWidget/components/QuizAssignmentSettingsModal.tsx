@@ -257,6 +257,8 @@ export const QuizAssignmentSettingsModal: React.FC<
   const hasPeriodRows =
     !!assignment.accessMode &&
     Object.keys(assignment.periodAccess ?? {}).length > 0;
+  // Clearing every class would open the quiz to any PIN and hide all work, so Save needs one.
+  const classRequired = hasPeriodRows || initialClassIds.length > 0;
   const classRowFields = (
     selected: ClassRoster[]
   ): Pick<QuizAssignmentSettingsPatch, 'periodAccessRows'> => {
@@ -289,11 +291,21 @@ export const QuizAssignmentSettingsModal: React.FC<
     const selectedRosters = resolveSelectedRosters(options.picker, rosters);
     const targets = deriveSessionTargetsFromRosters(selectedRosters);
 
+    // Targeting rides the patch only when the classes changed, so a settings-only save hides no work.
+    const classesChanged =
+      selectedRosters
+        .map((r) => r.id)
+        .sort()
+        .join() !== initialClassIds.join();
     const patch: QuizAssignmentSettingsPatch = {
       className: options.className.trim(),
-      rosterIds: targets.rosterIds,
-      periodName: targets.periodNames[0] ?? '',
-      periodNames: targets.periodNames,
+      ...(classesChanged
+        ? {
+            rosterIds: targets.rosterIds,
+            periodName: targets.periodNames[0] ?? '',
+            periodNames: targets.periodNames,
+          }
+        : {}),
       ...windowFields(),
       ...classRowFields(selectedRosters),
       // Behavior rides the patch only when edited; sessionMode never does.
@@ -443,7 +455,7 @@ export const QuizAssignmentSettingsModal: React.FC<
         onSubmit={handleAssign}
         disabled={
           availabilityBackwards ||
-          (hasPeriodRows && selectedRostersForDue.length === 0)
+          (classRequired && selectedRostersForDue.length === 0)
         }
       />
     );
@@ -463,7 +475,7 @@ export const QuizAssignmentSettingsModal: React.FC<
       confirmLabel="Save"
       confirmDisabled={
         availabilityBackwards ||
-        (hasPeriodRows && selectedRostersForDue.length === 0)
+        (classRequired && selectedRostersForDue.length === 0)
       }
       onAssign={handleAssign}
       extraSlot={
