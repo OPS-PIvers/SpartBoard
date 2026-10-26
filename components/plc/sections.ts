@@ -29,6 +29,9 @@ export type PlcSectionId =
   | 'updates'
   // Data overview as its own tab when PLC Home is the landing page.
   | 'dataOverview'
+  // Hub pages as their own tab when the team lands on another page.
+  | 'hub'
+  | 'programHub'
   | 'workspace';
 
 /**
@@ -83,6 +86,8 @@ export const PLC_ROUTE_SECTIONS: ReadonlySet<PlcRouteSection> =
     'updates',
     'workspace',
     'dataOverview',
+    'hub',
+    'programHub',
     // Aliases (router-accepted, rewritten to a canonical id):
     'quizzes',
     'videoActivities',

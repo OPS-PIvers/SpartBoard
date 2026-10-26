@@ -358,7 +358,9 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
         plc={plc}
         layout={layout}
         isLead={isLead}
-        onNavigate={(id) => navigate(teamPageSection(id, plcHome))}
+        onNavigate={(id) =>
+          navigate(teamPageSection(id, layout.landing, plcHome))
+        }
         onChangeHero={isLead ? openLayoutEditor : undefined}
       />
     ) : (
@@ -460,7 +462,7 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
                   ? 'targets'
                   : id === 'home'
                     ? 'home'
-                    : teamPageSection(id as TeamPageId, plcHome)
+                    : teamPageSection(id as TeamPageId, layout.landing, plcHome)
               )
             }
             onClose={onClose}

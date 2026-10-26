@@ -1,7 +1,6 @@
 // Maps team pages to `/plc/:id/:section` routes; the landing page lives at the bare team path.
 
 import type { PlcTeamLayout, TeamPageId } from '@/types';
-import { isTeamLandingPage } from '@/config/teamTypePresets';
 import type { PlcSectionId } from '@/components/plc/sections';
 
 /** Sections outside the team layout: gear menu, meeting banner, and the Learning Targets rail item. */
@@ -21,9 +20,13 @@ export function teamUsesPlcHome(
   return flagOn && layout.landing === 'dataOverview';
 }
 
-export function teamPageSection(id: TeamPageId, plcHome = false): PlcSectionId {
+export function teamPageSection(
+  id: TeamPageId,
+  landing: TeamPageId,
+  plcHome = false
+): PlcSectionId {
   if (plcHome && id === 'dataOverview') return 'dataOverview';
-  return isTeamLandingPage(id) ? 'home' : (id as PlcSectionId);
+  return id === landing ? 'home' : id;
 }
 
 const PAGE_OF_SECTION: Partial<Record<PlcSectionId, TeamPageId>> = {
@@ -32,6 +35,9 @@ const PAGE_OF_SECTION: Partial<Record<PlcSectionId, TeamPageId>> = {
   resources: 'resources',
   updates: 'updates',
   workspace: 'workspace',
+  dataOverview: 'dataOverview',
+  hub: 'hub',
+  programHub: 'programHub',
   // Boards fold into Resources (T9).
   sharedBoards: 'resources',
 };
@@ -65,9 +71,9 @@ export function resolveTeamRoute(
   const enabled =
     page !== undefined &&
     layout.pages.some((p) => p.id === page && p.enabled) &&
-    !isTeamLandingPage(page);
+    page !== layout.landing;
   if (page && enabled) {
-    return { route: { kind: 'page', page }, canonical: page as PlcSectionId };
+    return { route: { kind: 'page', page }, canonical: page };
   }
   return {
     route: options.plcHome

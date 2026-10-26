@@ -8,6 +8,7 @@ import type {
   PlcTeamLayout,
   TeamHeroRef,
   TeamHeroRule,
+  TeamPageId,
 } from '@/types';
 import { Modal } from '@/components/common/Modal';
 import { Button } from '@/components/common/Button';
@@ -25,7 +26,6 @@ import type { NewerHeroData } from '@/components/plc/teams/heroes/heroStaleness'
 import type { TeamHeroPinner } from '@/components/plc/teams/heroes/heroPin';
 import {
   cardBlocked,
-  cardRows,
   draftFromLayout,
   heroRefKey,
   landingOptions,
@@ -34,6 +34,7 @@ import {
   type LayoutDraft,
 } from './layoutDraft';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { teamTypeHubPage } from '@/config/teamTypePresets';
 
 export interface HeroPinGroup {
   label: string;
@@ -50,6 +51,8 @@ export interface LayoutEditorViewProps {
   /** Newer data than the item being pinned, if any. */
   newerFor?: (ref: TeamHeroRef) => NewerHeroData | null;
   isLead: boolean;
+  /** PLC Home is on, so a Data overview landing opens on Home instead. */
+  plcHome?: boolean;
   /** Written as `pinnedBy` when this save pins a new item. */
   pinner?: TeamHeroPinner;
   saving?: boolean;
@@ -65,6 +68,7 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
   pinGroups,
   newerFor,
   isLead,
+  plcHome = false,
   pinner,
   saving = false,
   onSave,
@@ -91,6 +95,10 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
   const selectedRef = selectedKey ? refByKey.get(selectedKey) : undefined;
   const newer = selectedRef && newerFor ? newerFor(selectedRef) : null;
   const landings = landingOptions(draft.pages);
+  const landingLabel = (id: TeamPageId) =>
+    plcHome && id === 'dataOverview'
+      ? t('teams.pages.home', { defaultValue: 'Home' })
+      : teamPageLabel(t, id, isLead);
 
   const update = (patch: Partial<LayoutDraft>) =>
     setDraft((d) => ({ ...d, ...patch }));
@@ -201,6 +209,7 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
         {draft.pages.map((p, i) => {
           const label = teamPageLabel(t, p.id, isLead);
           const isLanding = p.id === draft.landing;
+          const tagLanding = isLanding && !(plcHome && p.id === 'dataOverview');
           return (
             <OrderRow
               key={p.id}
@@ -232,7 +241,7 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
                 defaultValue: 'Show {{label}}',
               })}
               note={
-                isLanding && (
+                tagLanding && (
                   <span className="inline-flex items-center gap-1 text-xxs font-bold uppercase tracking-wider text-brand-blue-primary">
                     <Home className="h-3 w-3" aria-hidden="true" />
                     {t('teams.layout.landingPage', {
@@ -260,16 +269,14 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
         <select
           value={draft.landing}
           {...tourAttr('teams.layout.landing-select')}
-          onChange={(e) => {
-            const landing = e.target.value as LayoutDraft['landing'];
-            const on = draft.cards.filter((c) => c.on).flatMap((c) => c.ids);
-            update({ landing, cards: cardRows(groupType, landing, on) });
-          }}
+          onChange={(e) =>
+            update({ landing: e.target.value as LayoutDraft['landing'] })
+          }
           className={`${INPUT} py-1.5`}
         >
           {landings.map((id) => (
             <option key={id} value={id}>
-              {teamPageLabel(t, id, isLead)}
+              {landingLabel(id)}
             </option>
           ))}
         </select>
@@ -346,8 +353,9 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
 
       <div className="mt-6 border-t border-slate-200 pt-5">
         <h4 className={EYEBROW}>
-          {t('teams.layout.landingCards', {
-            defaultValue: 'Landing page cards',
+          {t('teams.layout.pageCards', {
+            page: teamPageLabel(t, teamTypeHubPage(groupType), isLead),
+            defaultValue: '{{page}} cards',
           })}
         </h4>
         <ul className="divide-y divide-slate-100">

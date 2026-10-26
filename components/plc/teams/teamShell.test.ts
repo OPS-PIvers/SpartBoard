@@ -100,11 +100,30 @@ describe('resolveTeamRoute', () => {
     });
   });
 
-  it('maps landing pages to the bare team path', () => {
-    expect(teamPageSection('hub')).toBe('home');
-    expect(teamPageSection('dataOverview')).toBe('home');
-    expect(teamPageSection('dataOverview', true)).toBe('dataOverview');
-    expect(teamPageSection('docs')).toBe('docs');
+  it('maps the landing page to the bare team path', () => {
+    expect(teamPageSection('hub', 'hub')).toBe('home');
+    expect(teamPageSection('dataOverview', 'dataOverview')).toBe('home');
+    expect(teamPageSection('dataOverview', 'dataOverview', true)).toBe(
+      'dataOverview'
+    );
+    expect(teamPageSection('docs', 'dataOverview')).toBe('docs');
+    expect(teamPageSection('docs', 'docs')).toBe('home');
+    expect(teamPageSection('dataOverview', 'docs')).toBe('dataOverview');
+    expect(teamPageSection('hub', 'resources')).toBe('hub');
+  });
+
+  it('lands on any page and gives the hub page its own path', () => {
+    const docsLanding: PlcTeamLayout = { ...plcLayout, landing: 'docs' };
+    expect(resolveTeamRoute('home', docsLanding)).toEqual({
+      route: { kind: 'page', page: 'docs' },
+      canonical: 'home',
+    });
+    expect(resolveTeamRoute('docs', docsLanding).canonical).toBe('home');
+    expect(resolveTeamRoute('dataOverview', docsLanding)).toEqual({
+      route: { kind: 'page', page: 'dataOverview' },
+      canonical: 'dataOverview',
+    });
+    expect(teamUsesPlcHome(docsLanding, true)).toBe(false);
   });
 });
 
@@ -201,7 +220,7 @@ describe('pickHeroDoc', () => {
 
 describe('layout draft', () => {
   it('lists enabled rows first and joins next meeting with open items', () => {
-    const rows = cardRows('plc', 'dataOverview', ['hero', 'trend']);
+    const rows = cardRows('plc', ['hero', 'trend']);
     expect(rows[0]).toMatchObject({ ids: ['trend'], on: true });
     expect(rows.filter((r) => r.on)).toHaveLength(1);
     expect(rows.some((r) => r.ids.includes('hero'))).toBe(false);

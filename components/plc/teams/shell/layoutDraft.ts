@@ -16,8 +16,8 @@ import {
 import { TEAM_CARD_ROWS } from './cardRows';
 import {
   TEAM_LANDING_CARD_CATALOG,
-  isTeamLandingPage,
   teamTypeAvailablePages,
+  teamTypeHubPage,
 } from '@/config/teamTypePresets';
 
 /** One editor row; a row can switch two cards together. */
@@ -58,10 +58,9 @@ export function heroRefKey(ref: TeamHeroRef): string {
 /** Rows on in layout order, then the type's other rows off; cards outside the rows stay as saved. */
 export function cardRows(
   groupType: PlcGroupType,
-  landing: TeamPageId,
   cards: readonly TeamCardId[]
 ): CardRow[] {
-  const catalog = TEAM_LANDING_CARD_CATALOG[landing] ?? [];
+  const catalog = TEAM_LANDING_CARD_CATALOG[teamTypeHubPage(groupType)] ?? [];
   const defs = TEAM_CARD_ROWS[groupType].filter((ids) =>
     ids.every((id) => catalog.includes(id))
   );
@@ -100,7 +99,7 @@ export function draftFromLayout(
   return {
     pages,
     landing: layout.landing,
-    cards: cardRows(groupType, layout.landing, layout.cards),
+    cards: cardRows(groupType, layout.cards),
     extraCards: uncoveredCards(groupType, layout.cards),
     heroMode:
       layout.hero.mode === 'pinned' && layout.hero.ref ? 'pinned' : 'default',
@@ -111,9 +110,7 @@ export function draftFromLayout(
 export function landingOptions(
   pages: readonly TeamPageSetting[]
 ): TeamPageId[] {
-  return pages
-    .filter((p) => p.enabled && isTeamLandingPage(p.id))
-    .map((p) => p.id);
+  return pages.filter((p) => p.enabled).map((p) => p.id);
 }
 
 /** A row that shows updates needs the Updates page on. */
