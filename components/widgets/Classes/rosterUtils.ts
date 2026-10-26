@@ -149,5 +149,11 @@ export const findDuplicatePins = (students: Student[]): Set<string> => {
   for (const [pin, count] of seen) {
     if (count > 1) dupes.add(pin);
   }
+  // A student's old PIN still names them on past responses, so nobody else may take it.
+  for (const s of students) {
+    for (const pin of s.formerPins ?? []) {
+      if (pin !== s.pin && seen.has(pin)) dupes.add(pin);
+    }
+  }
   return dupes;
 };

@@ -282,7 +282,10 @@ export function reconcileClassLinkStudents(
   const pinsReplaced = kept.filter(needsNewLinkedPin).length;
 
   return {
-    students: assignPins(kept, new Set(departing.map((s) => s.pin))),
+    students: assignPins(
+      kept,
+      new Set(departing.flatMap((s) => [s.pin, ...(s.formerPins ?? [])]))
+    ),
     pinsReplaced,
     added,
     removed: departing.map((s) => ({

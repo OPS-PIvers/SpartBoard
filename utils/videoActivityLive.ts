@@ -66,15 +66,17 @@ export function makeUpTargetStudents(
     if (key) answeredKeys.add(key);
     if (r.pin) answeredPins.add(r.pin);
   }
+  const selected = rosters.filter((r) => rosterIds.includes(r.id));
+  const currentPins = new Set(
+    selected.flatMap((r) => r.students.map((s) => s.pin))
+  );
+  // A former PIN counts only when no selected student holds it now.
   const pinsByStudentId = new Map<string, string[]>();
-  for (const roster of rosters) {
-    if (!rosterIds.includes(roster.id)) continue;
-    for (const s of roster.students) {
-      pinsByStudentId.set(
-        s.id,
-        [s.pin, ...(s.formerPins ?? [])].filter(Boolean)
-      );
-    }
+  for (const s of selected.flatMap((r) => r.students)) {
+    pinsByStudentId.set(s.id, [
+      ...(s.pin ? [s.pin] : []),
+      ...(s.formerPins ?? []).filter((pin) => !currentPins.has(pin)),
+    ]);
   }
   return classStudentRows({ rosters, selectedRosterIds: rosterIds })
     .filter((row) => {
