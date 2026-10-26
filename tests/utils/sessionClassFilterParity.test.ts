@@ -12,6 +12,11 @@ const sessions = [
     removedClasses: { classIds: ['cl-B'], periodNames: ['Period 2', 'Bio'] },
   },
   { periodName: 'Period 2', removedClasses: { periodNames: ['Period 2'] } },
+  {
+    periodName: 'Period 2',
+    periodNames: ['Period 1'],
+    removedClasses: { periodNames: ['Period 2'] },
+  },
   { classId: 'cl-A' },
   { classIds: [], periodNames: ['Period 1', 'Period 2'] },
   {

@@ -47,9 +47,11 @@ export function sessionClassPredicate(
     ...(classIds.length > 0 ? classIds : legacyClassId ? [legacyClassId] : []),
     ...Object.keys(periodAccess),
   ]);
-  const activePeriods = new Set<string>(strings(session.periodNames));
+  const periodNames = strings(session.periodNames);
   const legacyPeriod = nonEmpty(session.periodName);
-  if (legacyPeriod) activePeriods.add(legacyPeriod);
+  const activePeriods = new Set<string>(
+    periodNames.length > 0 ? periodNames : legacyPeriod ? [legacyPeriod] : []
+  );
   for (const row of Object.values(periodAccess)) {
     const label = nonEmpty(record(row).label);
     if (label) activePeriods.add(label);

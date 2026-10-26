@@ -114,6 +114,16 @@ describe('nextRemovedClasses', () => {
     });
   });
 
+  it('never records an LMS section as removed', () => {
+    expect(
+      nextRemovedClasses(
+        { classIds: ['classroom:77', 'schoology:1'] },
+        { classIds: [], periodNames: [], periodAccessKeys: [] },
+        []
+      )
+    ).toEqual({ classIds: [], periodNames: [] });
+  });
+
   it('takes a re-added class off the list', () => {
     expect(
       nextRemovedClasses(
@@ -184,6 +194,24 @@ describe('withLinkedSections', () => {
     });
     expect(out.classIds).toEqual(['cl-B', 'schoology:1', 'schoology:2']);
     expect(out.periodNames).toEqual(['Period 2', 'Bio 3']);
+  });
+
+  it('keeps a section paired with a kept class that was renamed', () => {
+    const out = withLinkedSections(current, {
+      classIds: ['cl-B'],
+      periodNames: ['P2 renamed'],
+      classPeriodByClassId: { 'cl-B': 'P2 renamed' },
+    });
+    expect(out.classIds).toEqual(['cl-B', 'schoology:1', 'schoology:2']);
+    expect(out.classPeriodByClassId['schoology:2']).toBe('P2 renamed');
+  });
+
+  it('always keeps a Classroom course id', () => {
+    const out = withLinkedSections(
+      { classIds: ['cl-A', 'classroom:77'] },
+      { classIds: [], periodNames: [], classPeriodByClassId: {} }
+    );
+    expect(out.classIds).toEqual(['classroom:77']);
   });
 
   it('leaves targets alone when no section is linked', () => {

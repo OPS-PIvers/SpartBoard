@@ -18,7 +18,11 @@ export interface ResponseClassMarkers {
   classPeriod?: unknown;
 }
 
-const LINKED_SECTION_PREFIX = 'schoology:';
+const LINKED_SECTION_PREFIXES = ['schoology:', 'classroom:'];
+
+/** LMS section ids come from a Schoology or Classroom link, never from the class step. */
+const isLinkedSection = (id: string): boolean =>
+  LINKED_SECTION_PREFIXES.some((p) => id.startsWith(p));
 
 const strings = (v: unknown): string[] =>
   Array.isArray(v)
@@ -49,9 +53,11 @@ export function sessionClassPredicate(
     ...(classIds.length > 0 ? classIds : legacyClassId ? [legacyClassId] : []),
     ...Object.keys(periodAccess),
   ]);
-  const activePeriods = new Set<string>(strings(session.periodNames));
+  const periodNames = strings(session.periodNames);
   const legacyPeriod = nonEmpty(session.periodName);
-  if (legacyPeriod) activePeriods.add(legacyPeriod);
+  const activePeriods = new Set<string>(
+    periodNames.length > 0 ? periodNames : legacyPeriod ? [legacyPeriod] : []
+  );
   for (const row of Object.values(periodAccess)) {
     const label = nonEmpty(record(row).label);
     if (label) activePeriods.add(label);
@@ -128,33 +134,37 @@ export interface LinkedSectionTargets {
   classPeriodByClassId: Record<string, string>;
 }
 
-/** Carries linked Schoology sections into a class change, since the class step never lists them; a section paired with a removed class goes with it. */
+/** Carries linked LMS sections into a class change, since the class step never lists them; a section paired only with removed classes goes with them. */
 export function withLinkedSections(
   current: SessionClassTargets | null | undefined,
   next: LinkedSectionTargets
 ): LinkedSectionTargets {
   const currentIds = strings(current?.classIds);
-  const linked = currentIds.filter((id) =>
-    id.startsWith(LINKED_SECTION_PREFIX)
-  );
+  const linked = currentIds.filter(isLinkedSection);
   if (linked.length === 0) return next;
   const currentMap = record(current?.classPeriodByClassId);
   const currentPeriods = new Set(strings(current?.periodNames));
-  const classLabels = new Set(
-    currentIds
-      .filter((id) => !id.startsWith(LINKED_SECTION_PREFIX))
-      .map((id) => nonEmpty(currentMap[id]))
-      .filter(Boolean)
-  );
   const classIds = [...next.classIds];
   const periodNames = [...next.periodNames];
   const classPeriodByClassId = { ...next.classPeriodByClassId };
   for (const id of linked) {
     const label = nonEmpty(currentMap[id]);
-    const pairedLabel = label && classLabels.has(label);
-    if (pairedLabel && !periodNames.includes(label)) continue;
+    const pairedIds = label
+      ? currentIds.filter(
+          (c) => !isLinkedSection(c) && nonEmpty(currentMap[c]) === label
+        )
+      : [];
+    if (pairedIds.length > 0 && !pairedIds.some((c) => classIds.includes(c)))
+      continue;
     if (!classIds.includes(id)) classIds.push(id);
     if (!label) continue;
+    if (pairedIds.length > 0) {
+      const keptLabel = nonEmpty(
+        classPeriodByClassId[pairedIds.find((c) => classIds.includes(c)) ?? '']
+      );
+      classPeriodByClassId[id] = keptLabel || label;
+      continue;
+    }
     classPeriodByClassId[id] = label;
     if (currentPeriods.has(label) && !periodNames.includes(label))
       periodNames.push(label);
@@ -185,7 +195,7 @@ export function nextRemovedClasses(
   const droppedIds = [
     ...strings(current?.classIds),
     ...Object.keys(currentRows),
-  ].filter((id) => !nextIds.has(id) && !id.startsWith(LINKED_SECTION_PREFIX));
+  ].filter((id) => !nextIds.has(id) && !isLinkedSection(id));
   const droppedPeriods = [
     ...removedRosterNames,
     ...droppedIds.map((id) => nonEmpty(currentMap[id])),
