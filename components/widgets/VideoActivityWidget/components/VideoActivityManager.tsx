@@ -13,6 +13,7 @@
 
 import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { EDIT_CLASSES_LABEL } from '@/components/common/library/AssignmentClassesModal';
+import { canEditAssignmentClasses } from '@/utils/assignmentClassEdit';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   Activity,
@@ -1220,7 +1221,8 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       if (
         onArchiveEditClasses &&
         !assignmentIsViewOnly &&
-        assignment.sessionMode !== 'teacher'
+        assignment.sessionMode !== 'teacher' &&
+        canEditAssignmentClasses(assignment)
       ) {
         actions.push({
           id: 'edit-classes',

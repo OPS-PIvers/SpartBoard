@@ -48,6 +48,7 @@ import {
   Users,
 } from 'lucide-react';
 import { EDIT_CLASSES_LABEL } from '@/components/common/library/AssignmentClassesModal';
+import { canEditAssignmentClasses } from '@/utils/assignmentClassEdit';
 import type {
   AssignmentMode,
   MiniAppItem,
@@ -1134,7 +1135,12 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         onClick: () => onArchiveOpenApp(assignment),
       });
     }
-    if (mode === 'active' && !isViewOnly && onArchiveEditClasses) {
+    if (
+      mode === 'active' &&
+      !isViewOnly &&
+      onArchiveEditClasses &&
+      canEditAssignmentClasses(assignment)
+    ) {
       actions.push({
         id: 'edit-classes',
         label: EDIT_CLASSES_LABEL,

@@ -12,10 +12,6 @@
  * and delete them (plus the session + responses) permanently.
  */
 
-import {
-  stageAssignmentClassEdit,
-  type AssignmentClassEdit,
-} from '@/utils/assignmentClassEdit';
 import { useCallback, useMemo } from 'react';
 import {
   collection,
@@ -34,6 +30,11 @@ import {
   type QuerySnapshot,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import {
+  externalClassIds,
+  stageAssignmentClassEdit,
+  type AssignmentClassEdit,
+} from '@/utils/assignmentClassEdit';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import {
@@ -624,6 +625,8 @@ export const useGuidedLearningAssignments = (
   >(
     async (assignmentId, classEdit) => {
       if (!userId) throw new Error('Not authenticated');
+      const sessionRef = doc(db, GL_SESSIONS_COLLECTION, assignmentId);
+      const session = await getDoc(sessionRef);
       const batch = writeBatch(db);
       stageAssignmentClassEdit(batch, {
         assignmentRef: doc(
@@ -633,7 +636,8 @@ export const useGuidedLearningAssignments = (
           GL_ASSIGNMENTS_COLLECTION,
           assignmentId
         ),
-        sessionRef: doc(db, GL_SESSIONS_COLLECTION, assignmentId),
+        sessionRef,
+        keepClassIds: externalClassIds(session.data()?.classIds as unknown[]),
         edit: classEdit,
         now: Date.now(),
         sessionFields: ['classId', 'periodNames'],

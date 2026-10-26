@@ -39,14 +39,11 @@ export const AssignmentClassesModal: React.FC<AssignmentClassesModalProps> = ({
     studentsByClass: {},
   });
   const [saving, setSaving] = useState(false);
-  const periodGated =
-    !!assignment.accessMode &&
-    Object.keys(assignment.periodAccess ?? {}).length > 0;
   const unchanged =
     classes.classIds.length === initial.length &&
     classes.classIds.every((id) => initial.includes(id));
-  // A period-gated session with no classes would lock every student out.
-  const blocked = periodGated && classes.classIds.length === 0;
+  // No classes would open the assignment to anyone with the link; no rosters means they haven't loaded.
+  const blocked = classes.classIds.length === 0 || rosters.length === 0;
 
   const save = async () => {
     setSaving(true);

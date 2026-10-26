@@ -59,6 +59,7 @@ import {
   Users,
 } from 'lucide-react';
 import { EDIT_CLASSES_LABEL } from '@/components/common/library/AssignmentClassesModal';
+import { canEditAssignmentClasses } from '@/utils/assignmentClassEdit';
 import type {
   AssignmentMode,
   GuidedLearningAssignment,
@@ -1571,7 +1572,12 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       onClick: () => window.open(studentLink, '_blank', 'noopener'),
     });
 
-    if (mode === 'active' && !isViewOnly && onAssignmentEditClasses) {
+    if (
+      mode === 'active' &&
+      !isViewOnly &&
+      onAssignmentEditClasses &&
+      canEditAssignmentClasses(a)
+    ) {
       secondary.push({
         id: 'edit-classes',
         label: EDIT_CLASSES_LABEL,

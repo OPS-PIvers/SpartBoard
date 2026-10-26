@@ -67,7 +67,7 @@ describe('AssignmentClassesModal', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
   });
 
-  it('blocks removing every class from a per-period session', () => {
+  it('blocks removing every class', () => {
     render(
       <AssignmentClassesModal
         rosters={rosters}

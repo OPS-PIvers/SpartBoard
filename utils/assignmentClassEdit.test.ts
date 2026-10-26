@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { ClassRoster, PeriodAccess } from '@/types';
-import { planAssignmentClassEdit } from './assignmentClassEdit';
+import {
+  canEditAssignmentClasses,
+  externalClassIds,
+  planAssignmentClassEdit,
+} from './assignmentClassEdit';
 
 const roster = (id: string, classlinkClassId?: string): ClassRoster =>
   ({
@@ -66,5 +70,24 @@ describe('planAssignmentClassEdit', () => {
       state: 'closed',
       openAt: null,
     });
+  });
+});
+
+describe('externalClassIds', () => {
+  it('keeps only Classroom and Schoology ids', () => {
+    expect(
+      externalClassIds(['cl-1', 'classroom:c1', 'schoology:s2', 3, 't-1'])
+    ).toEqual(['classroom:c1', 'schoology:s2']);
+  });
+});
+
+describe('canEditAssignmentClasses', () => {
+  it('skips individually targeted assignments', () => {
+    expect(canEditAssignmentClasses({})).toBe(true);
+    expect(canEditAssignmentClasses({ targetMode: 'students' })).toBe(false);
+    expect(canEditAssignmentClasses({ targetGroupIds: ['g1'] })).toBe(false);
+    expect(canEditAssignmentClasses({ overridesBySourcedId: { s1: {} } })).toBe(
+      false
+    );
   });
 });

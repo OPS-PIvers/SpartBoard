@@ -159,6 +159,26 @@ describe('mini_app_sessions window edits', () => {
     );
   });
 
+  it('refuses a student changing classes, and a removed class can no longer submit', async () => {
+    await seed({ rosterIds: ['r-a'] });
+    await assertFails(
+      updateDoc(doc(asStudent(), SESSION_PATH), {
+        classIds: [CLASS_A, 'class-b'],
+      })
+    );
+    const submission = {
+      submittedAt: Date.now(),
+      studentUid: STUDENT_UID,
+      payload: { score: 1 },
+    };
+    await assertSucceeds(setDoc(doc(asStudent(), SUBMISSION_PATH), submission));
+    await updateDoc(doc(asTeacher(TEACHER_UID), SESSION_PATH), {
+      classIds: ['class-b'],
+      rosterIds: ['r-b'],
+    });
+    await assertFails(setDoc(doc(asStudent(), SUBMISSION_PATH), submission));
+  });
+
   it('lets a student in the class read the closed session', async () => {
     const closeAt = Date.now() - 600_000;
     await seed({ closeAt });

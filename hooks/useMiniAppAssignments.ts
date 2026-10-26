@@ -15,10 +15,6 @@
  * via `renameAssignment` so both documents stay in sync.
  */
 
-import {
-  stageAssignmentClassEdit,
-  type AssignmentClassEdit,
-} from '@/utils/assignmentClassEdit';
 import { useCallback, useEffect, useState } from 'react';
 import {
   collection,
@@ -32,6 +28,11 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import {
+  externalClassIds,
+  stageAssignmentClassEdit,
+  type AssignmentClassEdit,
+} from '@/utils/assignmentClassEdit';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import type {
   AssignmentMode,
@@ -387,6 +388,8 @@ export const useMiniAppAssignments = (
       if (!userId) throw new Error('Not authenticated');
       const assignment = assignments.find((a) => a.id === assignmentId);
       if (!assignment) throw new Error('Assignment not found');
+      const sessionRef = doc(db, SESSIONS_COLLECTION, assignment.sessionId);
+      const session = await getDoc(sessionRef);
       const batch = writeBatch(db);
       stageAssignmentClassEdit(batch, {
         assignmentRef: doc(
@@ -396,7 +399,8 @@ export const useMiniAppAssignments = (
           ASSIGNMENTS_COLLECTION,
           assignmentId
         ),
-        sessionRef: doc(db, SESSIONS_COLLECTION, assignment.sessionId),
+        sessionRef,
+        keepClassIds: externalClassIds(session.data()?.classIds as unknown[]),
         edit: classEdit,
         now: Date.now(),
         sessionFields: [],

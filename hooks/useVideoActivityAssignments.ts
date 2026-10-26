@@ -12,10 +12,6 @@
  * (mirroring Quiz's `shareAssignment` / `importSharedAssignment` flows).
  */
 
-import {
-  stageAssignmentClassEdit,
-  type AssignmentClassEdit,
-} from '@/utils/assignmentClassEdit';
 import { useState, useEffect, useCallback, useRef, useContext } from 'react';
 import {
   addDoc,
@@ -30,6 +26,11 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
+import {
+  externalClassIds,
+  stageAssignmentClassEdit,
+  type AssignmentClassEdit,
+} from '@/utils/assignmentClassEdit';
 import { AuthContext } from '@/context/AuthContextValue';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import { invalidateSessionViewCount } from './useSessionViewCount';
@@ -684,9 +685,16 @@ export const useVideoActivityAssignments = (
         VIDEO_ACTIVITY_ASSIGNMENTS_COLLECTION,
         assignmentId
       );
+      const sessionRef = doc(
+        db,
+        VIDEO_ACTIVITY_SESSIONS_COLLECTION,
+        assignmentId
+      );
+      const session = await getDoc(sessionRef);
       stageAssignmentClassEdit(batch, {
         assignmentRef,
-        sessionRef: doc(db, VIDEO_ACTIVITY_SESSIONS_COLLECTION, assignmentId),
+        sessionRef,
+        keepClassIds: externalClassIds(session.data()?.classIds as unknown[]),
         edit: classEdit,
         now: Date.now(),
         assignmentPeriodNames: true,

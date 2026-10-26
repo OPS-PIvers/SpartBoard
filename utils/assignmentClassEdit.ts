@@ -59,6 +59,26 @@ export function planAssignmentClassEdit({
   };
 }
 
+/** Class ids from Google Classroom or Schoology links, which no roster carries and an edit must keep. */
+export const externalClassIds = (
+  ids: readonly unknown[] | undefined
+): string[] =>
+  (ids ?? []).filter(
+    (id): id is string =>
+      typeof id === 'string' &&
+      (id.startsWith('classroom:') || id.startsWith('schoology:'))
+  );
+
+/** Individually targeted assignments retarget through `setAssignmentTargetsV1`, so Edit classes skips them. */
+export const canEditAssignmentClasses = (a: {
+  targetMode?: 'class' | 'students';
+  targetGroupIds?: string[];
+  overridesBySourcedId?: Record<string, unknown>;
+}): boolean =>
+  a.targetMode !== 'students' &&
+  !a.targetGroupIds?.length &&
+  Object.keys(a.overridesBySourcedId ?? {}).length === 0;
+
 type OptionalSessionField = 'classId' | 'periodNames' | 'classPeriodByClassId';
 
 /** Stages a class edit on the assignment and session docs; rows go to both by FieldPath. */
@@ -71,6 +91,7 @@ export function stageAssignmentClassEdit(
     now,
     assignmentPeriodNames = false,
     sessionFields,
+    keepClassIds = [],
   }: {
     assignmentRef: DocumentReference;
     sessionRef: DocumentReference;
@@ -78,9 +99,15 @@ export function stageAssignmentClassEdit(
     now: number;
     assignmentPeriodNames?: boolean;
     sessionFields: readonly OptionalSessionField[];
+    /** The session's Classroom or Schoology ids (`externalClassIds`), kept after the roster ids. */
+    keepClassIds?: readonly string[];
   }
 ): void {
   const rows = periodAccessWrites(edit.periodAccessRows);
+  const classIds = [
+    ...edit.classIds,
+    ...keepClassIds.filter((id) => !edit.classIds.includes(id)),
+  ];
   batchUpdateWithPaths(
     batch,
     assignmentRef,
@@ -92,7 +119,7 @@ export function stageAssignmentClassEdit(
     rows
   );
   const optional: Record<OptionalSessionField, unknown> = {
-    classId: edit.classIds[0] ?? '',
+    classId: classIds[0] ?? '',
     periodNames: edit.periodNames,
     classPeriodByClassId: edit.classPeriodByClassId,
   };
@@ -101,7 +128,7 @@ export function stageAssignmentClassEdit(
     sessionRef,
     {
       rosterIds: edit.rosterIds,
-      classIds: edit.classIds,
+      classIds,
       ...Object.fromEntries(sessionFields.map((f) => [f, optional[f]])),
     },
     rows
