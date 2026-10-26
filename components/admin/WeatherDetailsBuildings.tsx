@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Toggle } from '@/components/common/Toggle';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { canonicalBuildingId } from '@/config/buildings';
-import { useAuth } from '@/context/useAuth';
+import { AuthContext } from '@/context/AuthContextValue';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import type { WeatherGlobalConfig } from '@/types';
 
@@ -11,9 +11,10 @@ export const WeatherDetailsBuildings: React.FC<{
   config: WeatherGlobalConfig;
   onChange: (config: WeatherGlobalConfig) => void;
 }> = ({ config, onChange }) => {
-  const { canAccessFeature } = useAuth();
+  // Read without throwing: the panel also renders outside AuthProvider in tests.
+  const auth = useContext(AuthContext);
   const buildings = useAdminBuildings();
-  if (!canAccessFeature('weather-details')) return null;
+  if (!auth?.canAccessFeature('weather-details')) return null;
 
   const allowed = new Set(
     (config.detailsBuildingIds ?? []).map(canonicalBuildingId)
