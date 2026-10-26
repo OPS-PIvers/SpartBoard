@@ -1,6 +1,23 @@
 {
   "entries": [
     {
+      "version": "2026.10.26.1",
+      "date": "2026-10-26",
+      "title": "6-digit PINs for ClassLink classes",
+      "overview": [
+        {
+          "type": "improvement",
+          "subtitle": "Class lists",
+          "items": [
+            {
+              "text": "Students in classes imported from ClassLink now get 6-digit PINs. Anyone with a shorter PIN gets a new one, so print a new PIN list for those classes."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.10.02.2",
       "date": "2026-10-02",
       "title": "Student assignment list fixes",
