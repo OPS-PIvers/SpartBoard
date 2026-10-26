@@ -186,14 +186,6 @@ export function encodeResponseKeySegment(value: string | undefined): string {
   return stripped || 'default';
 }
 
-// Shorter PINs (the old sequential 01, 02, … defaults) are guessable without a miss, so they never bridge.
-export const PIN_LOGIN_MIN_PIN_LENGTH = 6;
-
-/** True when a PIN has enough characters to prove a student's identity in `pinLoginV1`. */
-export function isBridgeablePin(pin: string): boolean {
-  return pin.replace(/[^a-z0-9]/gi, '').length >= PIN_LOGIN_MIN_PIN_LENGTH;
-}
-
 /** Doc id of a roster's `pin_index` entry for one (period, pin) pair. */
 export function pinIndexKey(period: string, pin: string): string {
   return `${encodeResponseKeySegment(period)}__${encodeResponseKeySegment(pin)}`;
