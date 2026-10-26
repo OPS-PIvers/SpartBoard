@@ -1182,17 +1182,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'quiz-banks-in-library': {
-    label: 'Question banks in Quiz library',
-    icon: Library,
-    description: 'Question banks open from the Quiz library sidebar.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'quiz',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'quiz-submit-for-student': {
     label: 'Submit quiz for a student',
     icon: Send,

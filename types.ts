@@ -10532,7 +10532,6 @@ export type GlobalFeature =
   | 'quiz-monitor-declutter'
   /** Same monitor layout across Quiz, Video Activity, Flashcards, Guided Learning and Mini App. */
   | 'monitor-parity'
-  | 'quiz-banks-in-library'
   /** Teachers turn in a quiz for a student who left without submitting. */
   | 'quiz-submit-for-student'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */

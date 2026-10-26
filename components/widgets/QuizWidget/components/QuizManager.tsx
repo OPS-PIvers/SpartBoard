@@ -713,10 +713,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const isReview = variant === 'review';
   const { canAccessFeature } = useAuth();
   // Banks open from the Library sidebar instead of their own tab; Archive reads Completed.
-  const banksInLibrary =
-    !isReview &&
-    Boolean(banks && onNewBank && onEditBank) &&
-    canAccessFeature('quiz-banks-in-library');
+  const banksInLibrary = !isReview && Boolean(banks && onNewBank && onEditBank);
   // Plan D12: the stepper always prefills last-used rules.
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
     userId,
