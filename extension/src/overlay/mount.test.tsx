@@ -287,6 +287,16 @@ describe('placeTip', () => {
     const tip = placeTip({ x: 20, y: 700, width: 200, height: 40 }, view);
     expect(tip).toEqual({ left: 12, bottom: 800 - 700 + 24, width: 320 });
   });
+
+  it('keeps a tall tip on screen when there is no room above the target', () => {
+    const rect = { x: 20, y: 200, width: 200, height: 600 };
+    expect(placeTip(rect, view, 120).bottom).toBe(800 - 200 + 24);
+    expect(placeTip(rect, view, 220)).toEqual({
+      left: 12,
+      top: 12,
+      width: 320,
+    });
+  });
 });
 
 describe('stylesheet safety', () => {
