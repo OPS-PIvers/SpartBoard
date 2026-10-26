@@ -371,6 +371,7 @@ export const TeamsShellDevHarness: React.FC = () => {
               pinGroups={PIN_GROUPS}
               newerFor={newerFor}
               isLead={lead}
+              anyLanding
               onSave={() => setScreen('plc')}
               onClose={() => setScreen('plc')}
             />

@@ -16,8 +16,9 @@ import {
 import { TEAM_CARD_ROWS } from './cardRows';
 import {
   TEAM_LANDING_CARD_CATALOG,
-  isTeamLandingPage,
+  isTeamHubPage,
   teamTypeAvailablePages,
+  teamTypeHubPage,
 } from '@/config/teamTypePresets';
 
 /** One editor row; a row can switch two cards together. */
@@ -58,10 +59,9 @@ export function heroRefKey(ref: TeamHeroRef): string {
 /** Rows on in layout order, then the type's other rows off; cards outside the rows stay as saved. */
 export function cardRows(
   groupType: PlcGroupType,
-  landing: TeamPageId,
   cards: readonly TeamCardId[]
 ): CardRow[] {
-  const catalog = TEAM_LANDING_CARD_CATALOG[landing] ?? [];
+  const catalog = TEAM_LANDING_CARD_CATALOG[teamTypeHubPage(groupType)] ?? [];
   const defs = TEAM_CARD_ROWS[groupType].filter((ids) =>
     ids.every((id) => catalog.includes(id))
   );
@@ -100,7 +100,7 @@ export function draftFromLayout(
   return {
     pages,
     landing: layout.landing,
-    cards: cardRows(groupType, layout.landing, layout.cards),
+    cards: cardRows(groupType, layout.cards),
     extraCards: uncoveredCards(groupType, layout.cards),
     heroMode:
       layout.hero.mode === 'pinned' && layout.hero.ref ? 'pinned' : 'default',
@@ -108,11 +108,16 @@ export function draftFromLayout(
   };
 }
 
+/** Pages the lead can land on: every page on with `team-landing-any-page`, else the hub (and a saved landing). */
 export function landingOptions(
-  pages: readonly TeamPageSetting[]
+  pages: readonly TeamPageSetting[],
+  landing: TeamPageId,
+  anyPage: boolean
 ): TeamPageId[] {
   return pages
-    .filter((p) => p.enabled && isTeamLandingPage(p.id))
+    .filter(
+      (p) => p.enabled && (anyPage || isTeamHubPage(p.id) || p.id === landing)
+    )
     .map((p) => p.id);
 }
 

@@ -21,6 +21,9 @@ const SECTION_LABELS: Record<PlcSectionId | 'meeting', string> = {
   updates: 'Updates',
   workspace: 'Workspace',
   dataOverview: 'Data overview',
+  hub: 'Hub',
+  programHub: 'Program Hub',
+  plcHome: 'Home',
   meeting: 'the meeting',
 };
 
