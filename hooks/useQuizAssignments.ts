@@ -130,6 +130,7 @@ import {
   callJoinSyncedQuizGroup,
   callLeaveSyncedQuizGroup,
   createSyncedQuizGroup,
+  isSyncedQuizGroupParticipant,
   pullSyncedQuizContent,
 } from './useSyncedQuizGroups';
 import { logError } from '@/utils/logError';
@@ -2350,10 +2351,17 @@ export const useQuizAssignments = (
     const settings: QuizAssignmentSettings = migrateLegacyAssignmentShape(
       data.assignmentSettings as QuizAssignmentSettings & LegacyPlcShape
     );
+    // Hide Synced when the share's author has left the group; joining would be refused.
+    const offerSync =
+      !!data.syncGroupId &&
+      (await isSyncedQuizGroupParticipant(
+        data.syncGroupId,
+        data.originalAuthor
+      ));
     return {
       title: data.title,
       originalAuthor: data.originalAuthor,
-      ...(data.syncGroupId ? { syncGroupId: data.syncGroupId } : {}),
+      ...(offerSync ? { syncGroupId: data.syncGroupId } : {}),
       ...(settings.plc ? { plc: settings.plc } : {}),
     };
   }, []);
@@ -2420,8 +2428,17 @@ export const useQuizAssignments = (
       // written.
       const existingQuizMeta = migrateQuizMetadataShape(quizMetaSnap.data());
       let syncGroupId = existingQuizMeta.sync?.groupId;
+      // A group the sharer has since left can't be offered as Synced; share as a copy.
+      let shareSyncGroupId: string | undefined = syncGroupId;
+      if (
+        syncGroupId &&
+        !(await isSyncedQuizGroupParticipant(syncGroupId, userId))
+      ) {
+        shareSyncGroupId = undefined;
+      }
       if (!syncGroupId) {
         syncGroupId = crypto.randomUUID();
+        shareSyncGroupId = syncGroupId;
         await createSyncedQuizGroup({
           groupId: syncGroupId,
           uid: userId,
@@ -2459,7 +2476,7 @@ export const useQuizAssignments = (
         },
         originalAuthor: userId,
         sharedAt: Date.now(),
-        syncGroupId,
+        ...(shareSyncGroupId ? { syncGroupId: shareSyncGroupId } : {}),
       };
       const ref = await addDoc(
         collection(db, SHARED_ASSIGNMENTS_COLLECTION),

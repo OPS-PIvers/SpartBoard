@@ -1,6 +1,8 @@
 import css from './overlay.css?inline';
 import { mountOverlay, type OverlayHandle } from './mount';
 import { parseOverlayState } from './overlayState';
+import { benchMark } from '../bench';
+import { OVERLAY_LOADED } from './loaded';
 
 // Injected on demand into a tab playing a tour (T8); only the extension's own service worker drives it.
 let overlay: OverlayHandle | null = null;
@@ -11,11 +13,10 @@ const fromServiceWorker = (sender: chrome.runtime.MessageSender) =>
   sender.url === chrome.runtime.getURL('service-worker.js');
 
 // A second injection into the same document must not add a second listener and overlay.
-const LOADED = Symbol.for('spartboard.overlay.loaded');
-const scope = globalThis as typeof globalThis & { [LOADED]?: true };
+const scope = globalThis as typeof globalThis & { [OVERLAY_LOADED]?: true };
 
-if (!scope[LOADED]) {
-  scope[LOADED] = true;
+if (!scope[OVERLAY_LOADED]) {
+  scope[OVERLAY_LOADED] = true;
   chrome.runtime.onMessage.addListener((message: unknown, sender) => {
     if (
       !fromServiceWorker(sender) ||
@@ -31,6 +32,11 @@ if (!scope[LOADED]) {
     } else if (type === 'overlay/render') {
       const parsed = parseOverlayState(state);
       if (!parsed) return false;
+      benchMark('render', {
+        status: parsed.status,
+        current: parsed.current,
+        targetHere: parsed.targetHere,
+      });
       overlay ??= mountOverlay(css, (action) => {
         chrome.runtime
           .sendMessage({ type: 'overlay/action', action })

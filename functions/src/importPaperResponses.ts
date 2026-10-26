@@ -748,6 +748,7 @@ async function importSeat(
     });
     const privateDoc: PaperPrivateAnswer = {
       scanId,
+      seat: sheet.seat,
       status: box.state === 'blank' ? 'blank' : 'pending',
       attempts: 0,
       charged: false,

@@ -383,6 +383,8 @@ jobs:
     if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-24.04
     name: Chrome Extension
+    # The playback benchmark normally takes about two minutes; a hung browser shouldn't hold the run.
+    timeout-minutes: 20
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
@@ -399,6 +401,23 @@ jobs:
           name: chrome-extension
           path: extension/dist/*.zip
           if-no-files-found: error
+          retention-days: 14
+
+      # Plays the benchmark tours through the built extension and fails when a step change gets slow again (extension/README.md).
+      - name: Install Chromium for the web tour benchmark
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Web tour playback budgets
+        working-directory: extension
+        run: node scripts/build.ts --bench && node scripts/bench/run.ts --label=ci --runs=2 --throttle=1 --budget
+
+      - name: Upload web tour benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-tour-bench
+          path: extension/scripts/bench/results/ci.json
+          if-no-files-found: ignore
           retention-days: 14
 
   summary:

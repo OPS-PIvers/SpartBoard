@@ -239,6 +239,42 @@ describe('useLinkedCollectionSync', () => {
     await waitFor(() => expect(deps.createBoard).toHaveBeenCalledTimes(1));
   });
 
+  it('retries a board whose share failed to load on the next snapshot', async () => {
+    shares.set('s1', share('s1'));
+    const deps = makeDeps();
+    vi.mocked(deps.loadSharedBoard).mockRejectedValueOnce(new Error('offline'));
+    renderHook(() => useLinkedCollectionSync(deps));
+    const link = makeLink({ boards: [{ shareId: 's1', name: 'A', order: 0 }] });
+    await emit(link);
+    await emit({ ...link });
+    await waitFor(() => expect(deps.createBoard).toHaveBeenCalledTimes(1));
+  });
+
+  it('stops retrying a share that keeps failing', async () => {
+    shares.set('s1', share('s1'));
+    const deps = makeDeps();
+    vi.mocked(deps.loadSharedBoard).mockRejectedValue(new Error('broken'));
+    renderHook(() => useLinkedCollectionSync(deps));
+    const link = makeLink({ boards: [{ shareId: 's1', name: 'A', order: 0 }] });
+    for (let i = 0; i < 5; i += 1) await emit({ ...link });
+    await waitFor(() => expect(deps.loadSharedBoard).toHaveBeenCalledTimes(3));
+    expect(deps.createBoard).not.toHaveBeenCalled();
+  });
+
+  it('does not retry a share this teacher is not allowed to read', async () => {
+    shares.set('s1', share('s1'));
+    const deps = makeDeps();
+    vi.mocked(deps.loadSharedBoard).mockRejectedValueOnce(
+      Object.assign(new Error('denied'), { code: 'permission-denied' })
+    );
+    renderHook(() => useLinkedCollectionSync(deps));
+    const link = makeLink({ boards: [{ shareId: 's1', name: 'A', order: 0 }] });
+    await emit(link);
+    await emit({ ...link });
+    await waitFor(() => expect(deps.loadSharedBoard).toHaveBeenCalledTimes(1));
+    expect(deps.createBoard).not.toHaveBeenCalled();
+  });
+
   it('removes a board the link dropped when its share belongs to the link', async () => {
     shares.set('s1', share('s1'));
     const deps = makeDeps({

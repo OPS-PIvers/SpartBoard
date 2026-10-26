@@ -4038,6 +4038,17 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'widget-settings.reveal-grid.paste-data': {
+    label: 'Paste box in Reveal Grid settings',
+    perWidget: true,
+    panel: true,
+  },
+  'reveal-grid.start-over': {
+    label: 'Start over button in Reveal Grid memory mode',
+    perWidget: true,
+    destructive: true,
+    requires: 'widget-restored',
+  },
   'widget-settings.reveal-grid.add-pasted': {
     label: 'Add pasted cards button in Reveal Grid settings',
     perWidget: true,
@@ -4101,6 +4112,17 @@ export const TOUR_ANCHORS = {
   },
   'widget-settings.schedule.building-schedules': {
     label: 'Building schedules toggle in Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.scoreboard.confirm-reset': {
+    label: 'Yes button on the Scoreboard reset prompt',
+    perWidget: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.scoreboard.cancel-reset': {
+    label: 'No button on the Scoreboard reset prompt',
     perWidget: true,
     panel: true,
   },
@@ -4208,6 +4230,16 @@ export const TOUR_ANCHORS = {
   },
   'widget-settings.specialist-schedule.save-item': {
     label: 'Save item button in Specialist Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.specialist-schedule.add-daily': {
+    label: 'Add daily item button in Specialist Schedule settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.specialist-schedule.add-weekly': {
+    label: 'Add weekly item button in Specialist Schedule settings',
     perWidget: true,
     panel: true,
   },

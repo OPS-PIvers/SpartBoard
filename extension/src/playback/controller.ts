@@ -17,7 +17,11 @@ import {
   fixKey,
   runFixClues,
 } from '@/components/tours/web/fixClues';
-import type { OverlayAction, OverlayState } from '../overlay/overlayState';
+import type {
+  OverlayAction,
+  OverlayAhead,
+  OverlayState,
+} from '../overlay/overlayState';
 import type { ParsedStart } from './startMessage';
 import { matchesUrlPattern } from './urlPattern';
 
@@ -75,8 +79,12 @@ interface TabRecord {
   token: string;
   seq: number;
   targetFrameId: number | null;
-  /** A subframe whose overlay currently draws the spotlight, so it can be cleared when the target moves. */
+  /** A subframe whose overlay is mounted (drawing the spotlight, or waiting for it), so it can be cleared when the target moves. */
   litFrameId: number | null;
+  /** The one subframe the current step's target is sought in, whose overlay mounts while it searches. */
+  idleFrameId?: number | null;
+  /** Subframes already running the overlay, by the address they loaded it at. */
+  overlayFrames?: Record<number, string>;
   url: string;
   /** When the current seek began, so a restarted worker can still time it out. */
   seekAt: number;
@@ -223,10 +231,9 @@ export function createPlaybackController(host: PlaybackHost) {
     const step = state.tour.steps[state.index];
     if (state.status === 'exited' || !step) {
       host.sendToFrame(rec.tabId, 0, { type: 'overlay/unmount' });
-      if (rec.targetFrameId !== null && rec.targetFrameId !== 0) {
-        host.sendToFrame(rec.tabId, rec.targetFrameId, {
-          type: 'overlay/unmount',
-        });
+      for (const id of new Set([rec.targetFrameId, rec.litFrameId])) {
+        if (id !== null && id !== 0)
+          host.sendToFrame(rec.tabId, id, { type: 'overlay/unmount' });
       }
       return;
     }
@@ -252,6 +259,7 @@ export function createPlaybackController(host: PlaybackHost) {
           }
         : {}),
     };
+    const next = shownIn === 0 && !rec.check ? aheadOf(rec) : undefined;
     host.sendToFrame(rec.tabId, 0, {
       type: 'overlay/render',
       state: {
@@ -259,22 +267,45 @@ export function createPlaybackController(host: PlaybackHost) {
         role: 'top',
         targetHere: shownIn === 0,
         picture: await picture(rec),
+        ...(next ? { ahead: next } : {}),
       },
     });
+    // While seeking inside one subframe, its overlay mounts early so the spotlight there needn't wait for it.
+    const mounted =
+      shownIn ??
+      (state.status === 'seeking' ? (rec.idleFrameId ?? null) : null);
     if (
       rec.litFrameId !== null &&
       rec.litFrameId !== 0 &&
-      rec.litFrameId !== shownIn
+      rec.litFrameId !== mounted
     ) {
       host.sendToFrame(rec.tabId, rec.litFrameId, { type: 'overlay/unmount' });
     }
-    rec.litFrameId = shownIn;
-    if (shownIn !== null && shownIn !== 0) {
-      host.sendToFrame(rec.tabId, shownIn, {
+    rec.litFrameId = mounted;
+    if (mounted !== null && mounted !== 0) {
+      host.sendToFrame(rec.tabId, mounted, {
         type: 'overlay/render',
-        state: { ...base, role: 'target', targetHere: true, picture: null },
+        state: {
+          ...base,
+          role: 'target',
+          targetHere: mounted === shownIn,
+          picture: null,
+        },
       });
     }
+  }
+
+  /** The next step's tip, for an overlay whose frame finds it before the worker answers. */
+  function aheadOf(rec: TabRecord): OverlayAhead | undefined {
+    const cmd = seekCommand(rec);
+    const after = rec.state.tour.steps[rec.state.index + 1];
+    if (!cmd?.next || !after) return undefined;
+    return {
+      token: cmd.next.token,
+      title: after.title.slice(0, MAX_TITLE),
+      text: after.text,
+      observe: after.action === 'observe',
+    };
   }
 
   /** The chip state for an armed, moved or stopped tour. */
@@ -627,30 +658,95 @@ export function createPlaybackController(host: PlaybackHost) {
     }
   }
 
+  /** The subframes any step's target is in. */
+  function targetFrames(rec: TabRecord, frames: HostFrame[]): Set<number> {
+    const out = new Set<number>();
+    for (const s of rec.state.tour.steps)
+      if (s.frames.length > 0)
+        for (const id of framesForStep(frames, s.frames)) out.add(id);
+    return out;
+  }
+
+  /** Loads the overlay into subframes that don't run it yet, so lighting a target there never waits on a 300 KB script; true when any were loaded. */
+  async function preloadOverlay(
+    rec: TabRecord,
+    frames: HostFrame[],
+    ids: number[]
+  ): Promise<boolean> {
+    const todo = frames.filter(
+      (f) =>
+        f.frameId !== 0 &&
+        ids.includes(f.frameId) &&
+        rec.overlayFrames?.[f.frameId] !== f.url
+    );
+    if (todo.length === 0) return false;
+    await host.inject(
+      rec.tabId,
+      todo.map((f) => f.frameId),
+      true
+    );
+    rec.overlayFrames = { ...rec.overlayFrames };
+    for (const f of todo) rec.overlayFrames[f.frameId] = f.url;
+    return true;
+  }
+
+  /** The seek command for the current step, with the step after it when a frame can safely seek that one on its own. */
+  function seekCommand(
+    rec: TabRecord
+  ): Extract<FrameCommand, { type: 'wt:seek' }> | null {
+    const { state } = rec;
+    const step = state.tour.steps[state.index];
+    if (!step) return null;
+    const after = state.tour.steps[state.index + 1];
+    // The next seek's token, so a frame that moves on by itself reports what the service worker will be waiting for.
+    const next =
+      after &&
+      step.action !== 'observe' &&
+      JSON.stringify(after.frames) === JSON.stringify(step.frames) &&
+      matchesUrlPattern(after.urlPattern, rec.url)
+        ? {
+            token: `${state.index + 1}:${rec.seq + 1}`,
+            clues: after.clues,
+            action: after.action,
+          }
+        : undefined;
+    return {
+      type: 'wt:seek',
+      token: rec.token,
+      clues: step.clues,
+      action: step.action,
+      ...(next ? { next } : {}),
+    };
+  }
+
   async function seek(rec: TabRecord) {
     const { state } = rec;
     const step = state.tour.steps[state.index];
-    for (const f of await host.frames(rec.tabId)) {
-      host.sendToFrame(rec.tabId, f.frameId, { type: 'wt:stop' });
-    }
+    const frames = await host.frames(rec.tabId);
     rec.targetFrameId = null;
-    if (state.status !== 'seeking' || !step) return;
+    rec.idleFrameId = null;
+    if (state.status !== 'seeking' || !step) {
+      for (const f of frames)
+        host.sendToFrame(rec.tabId, f.frameId, { type: 'wt:stop' });
+      return;
+    }
     if (rec.check) forgetCheckResult(rec, step.id);
     rec.seq += 1;
     rec.token = `${state.index}:${rec.seq}`;
-    const frames = await host.frames(rec.tabId);
-    let ids = framesForStep(frames, step.frames);
+    const matched = framesForStep(frames, step.frames);
     // A target whose frames moved is still worth looking for anywhere in the tab.
-    if (ids.length === 0) ids = frames.map((f) => f.frameId);
+    const ids = matched.length > 0 ? matched : frames.map((f) => f.frameId);
+    // A frame given the new seek drops its old one itself, keeping a target it already found for this token.
+    for (const f of frames)
+      if (!ids.includes(f.frameId))
+        host.sendToFrame(rec.tabId, f.frameId, { type: 'wt:stop' });
     await host.inject(rec.tabId, ids, false);
-    for (const id of ids) {
-      host.sendToFrame(rec.tabId, id, {
-        type: 'wt:seek',
-        token: rec.token,
-        clues: step.clues,
-        action: step.action,
-      });
-    }
+    const cmd = seekCommand(rec);
+    if (cmd) for (const id of ids) host.sendToFrame(rec.tabId, id, cmd);
+    // A target inside a frame is lit by that frame's own overlay, normally loaded with the frame; if not, while it searches.
+    if (step.frames.length > 0) await preloadOverlay(rec, frames, matched);
+    rec.idleFrameId =
+      step.frames.length > 0 && matched.length === 1 ? matched[0] : null;
     const token = rec.token;
     rec.seekAt = host.now();
     host.backstop();
@@ -670,12 +766,8 @@ export function createPlaybackController(host: PlaybackHost) {
     const frames = await host.frames(rec.tabId);
     const ids = framesForStep(frames, step.frames);
     if (ids.length > 0 && !ids.includes(frameId)) return;
-    host.sendToFrame(rec.tabId, frameId, {
-      type: 'wt:seek',
-      token: rec.token,
-      clues: step.clues,
-      action: step.action,
-    });
+    const cmd = seekCommand(rec);
+    if (cmd) host.sendToFrame(rec.tabId, frameId, cmd);
   }
 
   async function dispatch(
@@ -842,6 +934,20 @@ export function createPlaybackController(host: PlaybackHost) {
           return;
         }
         await host.inject(tabId, [frameId], frameId === 0);
+        // A frame some step's target is in gets its overlay as it loads, not when the step is reached.
+        let preloaded = false;
+        if (
+          frameId !== 0 &&
+          rec.state.tour.steps.some((s) => s.frames.length > 0)
+        ) {
+          const frames = await host.frames(tabId);
+          if (rec.overlayFrames?.[frameId] !== undefined) {
+            const { [frameId]: _gone, ...rest } = rec.overlayFrames;
+            rec.overlayFrames = rest;
+          }
+          if (targetFrames(rec, frames).has(frameId))
+            preloaded = await preloadOverlay(rec, frames, [frameId]);
+        }
         if (frameId === 0) {
           rec.url = url;
           await dispatch(rec, { type: 'page', url });
@@ -853,6 +959,8 @@ export function createPlaybackController(host: PlaybackHost) {
           rec.state.status === 'fallback'
         ) {
           await seekInNewFrame(rec, frameId);
+          await store(rec);
+        } else if (preloaded) {
           await store(rec);
         }
       }),
@@ -885,8 +993,9 @@ export function createPlaybackController(host: PlaybackHost) {
             report.weak && report.fix
               ? await fixFrom(rec, frameId, report.fix)
               : null;
-          // The spotlight is drawn inside the frame that holds the target.
-          if (frameId !== 0) await host.inject(tabId, [frameId], true);
+          // The spotlight is drawn inside the frame that holds the target, by its overlay (usually preloaded with the seek).
+          if (frameId !== 0 && !report.overlay)
+            await host.inject(tabId, [frameId], true);
           await dispatch(
             rec,
             { type: 'found', match: report.weak ? 'score' : 'role' },

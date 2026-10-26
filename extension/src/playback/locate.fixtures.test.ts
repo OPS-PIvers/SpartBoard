@@ -325,7 +325,8 @@ describe('a long page', () => {
     );
     const target = buttons[250];
     const r = target.getBoundingClientRect();
-    const spy = vi.spyOn(Element.prototype, 'querySelectorAll');
+    const onElements = vi.spyOn(Element.prototype, 'querySelectorAll');
+    const onDocument = vi.spyOn(Document.prototype, 'querySelectorAll');
     const hit = locate(document, {
       role: 'button',
       name: 'Edit',
@@ -337,8 +338,12 @@ describe('a long page', () => {
         h: r.height / innerHeight,
       },
     });
-    const headingWalks = spy.mock.calls.length;
-    spy.mockRestore();
+    const headingWalks = [
+      ...onElements.mock.calls,
+      ...onDocument.mock.calls,
+    ].filter(([selector]) => String(selector).startsWith('h1,')).length;
+    onElements.mockRestore();
+    onDocument.mockRestore();
     expect(hit?.el).toBe(target);
     // Headings are read only for the few candidates that could still win.
     expect(headingWalks).toBeGreaterThan(0);

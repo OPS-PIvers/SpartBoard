@@ -18,6 +18,13 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import type { SyncedVideoActivityParticipant } from './syncedVideoActivityGroups';
 import { assertViewAsAllowed } from './viewAsGuard';
+import {
+  PLC_DETACHED_SUBCOLLECTION,
+  assertGroupLinkedToPlc,
+  assertPlcContentEditor,
+  assertPlcMember,
+  isDetachMarkerFor,
+} from './plcSyncJoinGuards';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -64,23 +71,13 @@ export async function handleJoinPlcVideoActivitySyncGroup(
     if (!plcSnap.exists) {
       throw new HttpsError('not-found', 'PLC not found.');
     }
-    const plcData = plcSnap.data() as { memberUids?: unknown } | undefined;
-    const memberUids = Array.isArray(plcData?.memberUids)
-      ? (plcData?.memberUids as unknown[]).filter(
-          (u): u is string => typeof u === 'string'
-        )
-      : [];
-    if (!memberUids.includes(uid)) {
-      throw new HttpsError(
-        'permission-denied',
-        'You are not a member of this PLC.'
-      );
-    }
+    assertPlcMember(plcSnap.data(), uid);
 
     if (!entrySnap.exists) {
       throw new HttpsError('not-found', 'PLC video activity not found.');
     }
-    const entryData = entrySnap.data() as { syncGroupId?: unknown } | undefined;
+    const entryData = entrySnap.data() as
+      { syncGroupId?: unknown; sharedBy?: unknown } | undefined;
     const groupId = entryData?.syncGroupId;
     if (typeof groupId !== 'string' || groupId.length === 0) {
       throw new HttpsError(
@@ -106,6 +103,21 @@ export async function handleJoinPlcVideoActivitySyncGroup(
       uid
     );
     if (!alreadyJoined) {
+      assertPlcContentEditor(plcSnap.data(), uid);
+      const markerRef = groupRef
+        .collection(PLC_DETACHED_SUBCOLLECTION)
+        .doc(uid);
+      const markerSnap = await tx.get(markerRef);
+      if (isDetachMarkerFor(markerSnap.data(), plcId, plcVideoActivityId)) {
+        tx.delete(markerRef);
+      } else {
+        assertGroupLinkedToPlc(
+          plcId,
+          plcSnap.data(),
+          entryData,
+          groupSnap.data()
+        );
+      }
       const now = Date.now();
       participants[uid] = { joinedAt: now };
       tx.update(groupRef, {

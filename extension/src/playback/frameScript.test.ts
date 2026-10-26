@@ -109,6 +109,86 @@ describe('frame seeker', () => {
     expect(reports.filter((r) => r.type === 'wt:acted')).toHaveLength(2);
   });
 
+  // Searches after a page change run before the next frame paints.
+  const FRAME = 17;
+
+  it('searches again as soon as the page changes, not on a fixed delay', async () => {
+    vi.useFakeTimers();
+    const reports: FrameReport[] = [];
+    const run = installFrameSeeker(document, (r) => reports.push(r));
+    run(seek);
+    document.body.innerHTML = '<button>Load more</button>';
+    await vi.advanceTimersByTimeAsync(FRAME);
+    expect(reports[0]).toMatchObject({ type: 'wt:found', token: 't1' });
+  });
+
+  it('finds a control that a component renders inside its shadow root later', async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = '<div id="host"></div>';
+    const shadow = document
+      .getElementById('host')!
+      .attachShadow({ mode: 'open' });
+    shadow.innerHTML = '<p>Loading</p>';
+    const reports: FrameReport[] = [];
+    const run = installFrameSeeker(document, (r) => reports.push(r));
+    run(seek);
+    shadow.innerHTML = '<button>Load more</button>';
+    await vi.advanceTimersByTimeAsync(FRAME);
+    expect(reports[0]).toMatchObject({ type: 'wt:found', token: 't1' });
+  });
+
+  it('watches shadow roots added after the search began', async () => {
+    vi.useFakeTimers();
+    const reports: FrameReport[] = [];
+    const run = installFrameSeeker(document, (r) => reports.push(r));
+    run(seek);
+    const host = document.createElement('div');
+    const shadow = host.attachShadow({ mode: 'open' });
+    document.body.append(host);
+    await vi.advanceTimersByTimeAsync(FRAME);
+    expect(reports).toEqual([]);
+    shadow.innerHTML = '<button>Load more</button>';
+    await vi.advanceTimersByTimeAsync(FRAME);
+    expect(reports[0]).toMatchObject({ type: 'wt:found', token: 't1' });
+  });
+
+  it('moves straight on to the next step when the learner acts, and keeps it when the worker confirms', async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML =
+      '<button>Load more</button><button>Show all</button>';
+    const reports: FrameReport[] = [];
+    const run = installFrameSeeker(document, (r) => reports.push(r));
+    const next = {
+      token: 't2',
+      clues: { role: 'button', name: 'Show all' },
+      action: 'click' as const,
+    };
+    const handlers = new Map<string, EventListener>();
+    const spy = vi
+      .spyOn(EventTarget.prototype, 'addEventListener')
+      .mockImplementation((type, cb) => {
+        handlers.set(type, cb as EventListener);
+      });
+    run({ ...seek, next });
+    spy.mockRestore();
+    handlers.get('pointerdown')!(trusted('pointerdown'));
+    // Nothing is searched inside the learner's own event.
+    expect(reports.map((r) => r.type)).toEqual(['wt:found', 'wt:acted']);
+    await vi.advanceTimersByTimeAsync(FRAME);
+    expect(reports.map((r) => r.type)).toEqual([
+      'wt:found',
+      'wt:acted',
+      'wt:found',
+    ]);
+    expect(reports[2]).toMatchObject({ token: 't2' });
+    expect(globalThis.__sbWebTourFrame?.target?.el.textContent).toBe(
+      'Show all'
+    );
+    run({ type: 'wt:seek', ...next });
+    expect(reports).toHaveLength(3);
+    expect(globalThis.__sbWebTourFrame?.target?.token).toBe('t2');
+  });
+
   it('stops watching on stop', async () => {
     vi.useFakeTimers();
     const reports: FrameReport[] = [];
@@ -165,6 +245,10 @@ describe('frame seeker', () => {
     expect(isFrameCommand(seek)).toBe(true);
     expect(isFrameCommand({ ...seek, action: 'submit' })).toBe(false);
     expect(isFrameCommand({ type: 'wt:seek', token: 1 })).toBe(false);
+    expect(isFrameCommand({ ...seek, next: { ...seek, token: 't2' } })).toBe(
+      true
+    );
+    expect(isFrameCommand({ ...seek, next: { token: 't2' } })).toBe(false);
     expect(isFrameCommand(null)).toBe(false);
   });
 });

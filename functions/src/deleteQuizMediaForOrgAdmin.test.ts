@@ -953,6 +953,21 @@ describe('two-phase delete claim', () => {
     });
   });
 
+  it('still deletes the Storage copy when the Drive folder check refuses the file', async () => {
+    const deps = makeDeps(db, {
+      deleteDriveFile: vi.fn(() =>
+        Promise.reject(new Error('not in the quiz archive folder'))
+      ),
+    });
+    const { results } = await runDelete(deps);
+    expect(results[0]?.status).toBe('failed');
+    expect(results[0]?.error).toMatch(/Drive delete failed/);
+    expect(deps.deleteStorageObject).toHaveBeenCalledWith(
+      'quiz_response_media/s1/stu1/a1.webm'
+    );
+    expect(entry().archiveStatus).toBe('delete-failed');
+  });
+
   it('never commits deleted while the physical delete is still in flight', async () => {
     let claimSeen: Record<string, unknown> | undefined;
     const deps = makeDeps(db, {
@@ -1203,9 +1218,13 @@ describe('handwriting crops', () => {
       teacherUid: 'teacher-uid',
       quizTitle: 'Essay',
     });
+    db.set('quiz_sessions/s1/responses/r1/paperPrivate/q1', {
+      scanId: 'scan-1',
+    });
     db.set('quiz_sessions/s1/responses/r1', {
       studentUid: 'pseudo-1',
       pin: '4',
+      paperSeat: 4,
       answers: [
         {
           questionId: 'q1',
@@ -1282,6 +1301,45 @@ describe('handwriting crops', () => {
       deps
     );
     expect(deps.deleteStorageObject).not.toHaveBeenCalled();
+  });
+
+  it('never deletes another seat crop under the same teacher', async () => {
+    const response = db.docs.get('quiz_sessions/s1/responses/r1') as Doc;
+    const answers = response.answers as Doc[];
+    (answers[0].artifacts as Doc[])[0].storagePath =
+      'paper_written_crops/teacher-uid/scan-1/5/q1.webp';
+    const deps = makeDeps(db);
+    await deleteOrgQuizMediaSets(
+      {
+        orgId: ORG,
+        targets: [{ sessionId: 's1', responseKey: 'r1', questionId: 'q1' }],
+        deletedBy: 'admin-uid',
+      },
+      deps
+    );
+    expect(deps.deleteStorageObject).not.toHaveBeenCalled();
+  });
+
+  it('does not tombstone as deleted when a moved-seat crop is left in Storage', async () => {
+    const response = db.docs.get('quiz_sessions/s1/responses/r1') as Doc;
+    response.paperSeat = 5;
+    const deps = makeDeps(db);
+    const { results } = await deleteOrgQuizMediaSets(
+      {
+        orgId: ORG,
+        targets: [{ sessionId: 's1', responseKey: 'r1', questionId: 'q1' }],
+        deletedBy: 'admin-uid',
+      },
+      deps
+    );
+    expect(deps.deleteStorageObject).not.toHaveBeenCalled();
+    expect(results[0]?.status).toBe('failed');
+    const entry = (
+      db.docs.get('quiz_sessions/s1/responses/r1') as {
+        artifactArchive: Record<string, Record<string, unknown>>;
+      }
+    ).artifactArchive.h1;
+    expect(entry.archiveStatus).toBe('delete-failed');
   });
 });
 

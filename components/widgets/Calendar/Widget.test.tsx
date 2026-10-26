@@ -162,6 +162,19 @@ describe('CalendarWidget', () => {
     }
   });
 
+  it('keeps same-titled events on one day at different times, but merges the same event typed in two formats', () => {
+    vi.setSystemTime(new Date('2026-06-15T06:00:00.000Z'));
+    const widget = buildWidget({
+      events: [
+        { date: '2026-06-15', time: '09:00', title: 'Recess' },
+        { date: '2026-06-15', time: '13:00', title: 'Recess' },
+        { date: '2026-06-15', time: '1:00 PM', title: 'Recess' },
+      ],
+    });
+    render(<CalendarWidget widget={widget} />);
+    expect(screen.getAllByText('Recess')).toHaveLength(2);
+  });
+
   describe('Path B — on-demand calendar.readonly acquisition', () => {
     it('never-granted: silent acquisition fails → NO auto-popup, shows Connect CTA', async () => {
       vi.useRealTimers();

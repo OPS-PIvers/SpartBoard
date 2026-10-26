@@ -50,6 +50,8 @@ const asLead = () =>
   testEnv.authenticatedContext(LEAD_UID, { email: LEAD_EMAIL }).firestore();
 const asMember = () =>
   testEnv.authenticatedContext(MEMBER_UID, { email: MEMBER_EMAIL }).firestore();
+const asOther = () =>
+  testEnv.authenticatedContext(OTHER_UID, { email: OTHER_EMAIL }).firestore();
 const asNonMember = () =>
   testEnv
     .authenticatedContext(NON_MEMBER_UID, { email: NON_MEMBER_EMAIL })
@@ -618,6 +620,19 @@ describe('plcs/{plcId} update — leavePlc (members-map aware)', () => {
     );
   });
 
+  it('rejects a keyed member leaving without flipping their own map entry', async () => {
+    await assertFails(
+      updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
+        memberUids: [LEAD_UID, OTHER_UID],
+        memberEmails: {
+          [LEAD_UID]: LEAD_EMAIL,
+          [OTHER_UID]: OTHER_EMAIL,
+        },
+        updatedAt: 2,
+      })
+    );
+  });
+
   it('rejects the leave path being used to seize leadership', async () => {
     // Even though the leaver drops themselves, flipping leadUid via the leave
     // branch must be rejected (leadUid is immutable there).
@@ -636,6 +651,52 @@ describe('plcs/{plcId} update — leavePlc (members-map aware)', () => {
         updatedAt: 2,
       })
     );
+  });
+
+  it.each(['lead', 'coLead'] as const)(
+    'rejects a leaver writing role %s into their own removed entry',
+    async (role) => {
+      await assertFails(
+        updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
+          members: {
+            [LEAD_UID]: member(LEAD_UID, LEAD_EMAIL, 'lead'),
+            [MEMBER_UID]: member(MEMBER_UID, MEMBER_EMAIL, role, 'removed'),
+            [OTHER_UID]: member(OTHER_UID, OTHER_EMAIL, 'member'),
+          },
+          memberUids: [LEAD_UID, OTHER_UID],
+          memberEmails: {
+            [LEAD_UID]: LEAD_EMAIL,
+            [OTHER_UID]: OTHER_EMAIL,
+          },
+          updatedAt: 2,
+        })
+      );
+    }
+  );
+
+  it('rejects a co-lead leaver writing role lead, while a role-kept co-lead leave succeeds', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
+        [`members.${MEMBER_UID}`]: member(MEMBER_UID, MEMBER_EMAIL, 'coLead'),
+      });
+    });
+    const leave = (role: 'lead' | 'coLead') =>
+      updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
+        [`members.${MEMBER_UID}`]: member(
+          MEMBER_UID,
+          MEMBER_EMAIL,
+          role,
+          'removed'
+        ),
+        memberUids: [LEAD_UID, OTHER_UID],
+        memberEmails: {
+          [LEAD_UID]: LEAD_EMAIL,
+          [OTHER_UID]: OTHER_EMAIL,
+        },
+        updatedAt: 2,
+      });
+    await assertFails(leave('lead'));
+    await assertSucceeds(leave('coLead'));
   });
 
   it('rejects a non-member driving the leave path', async () => {
@@ -789,6 +850,99 @@ describe('plcs/{plcId} — members known only to the arrays (invite accepted)', 
           [MEMBER_UID]: MEMBER_EMAIL,
         },
         updatedAt: 2,
+      })
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A removed members entry carries no authority, whatever role it records.
+// ---------------------------------------------------------------------------
+
+describe('plcs/{plcId} — removed entries keep no authority', () => {
+  const seedForgedLead = (inMemberUids: boolean) =>
+    testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
+        [`members.${MEMBER_UID}`]: member(
+          MEMBER_UID,
+          MEMBER_EMAIL,
+          'lead',
+          'removed'
+        ),
+        memberUids: inMemberUids
+          ? [LEAD_UID, MEMBER_UID, OTHER_UID]
+          : [LEAD_UID, OTHER_UID],
+      });
+    });
+
+  it('a removed lead-role entry cannot create an invitation', async () => {
+    await seedForgedLead(false);
+    const invite = (invitedByUid: string) => ({
+      plcId: PLC_ID,
+      plcName: 'Test PLC',
+      inviteeEmailLower: MEMBER_EMAIL,
+      invitedByUid,
+      status: 'pending',
+      invitedAt: 1,
+    });
+    const inviteId = `plc_invitations/${PLC_ID}_${MEMBER_EMAIL}`;
+    await assertFails(setDoc(doc(asMember(), inviteId), invite(MEMBER_UID)));
+    await assertSucceeds(setDoc(doc(asLead(), inviteId), invite(LEAD_UID)));
+  });
+
+  it('a rejoined uid with a removed lead-role entry cannot take the lead', async () => {
+    await seedForgedLead(true);
+    await assertFails(
+      updateDoc(doc(asMember(), `plcs/${PLC_ID}`), {
+        leadUid: MEMBER_UID,
+        [`members.${LEAD_UID}`]: member(LEAD_UID, LEAD_EMAIL, 'member'),
+        [`members.${MEMBER_UID}`]: member(MEMBER_UID, MEMBER_EMAIL, 'lead'),
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('a departed uid with a removed entry can no longer read the group', async () => {
+    await seedForgedLead(false);
+    await assertFails(getDoc(doc(asMember(), `plcs/${PLC_ID}`)));
+  });
+
+  it('a removed member with a map entry cannot write content', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
+        [`members.${MEMBER_UID}`]: member(
+          MEMBER_UID,
+          MEMBER_EMAIL,
+          'member',
+          'removed'
+        ),
+        memberUids: [LEAD_UID, OTHER_UID],
+      });
+    });
+    const learningTargets = {
+      targets: [],
+      masteryCutoffs: { proficient: 1, approaching: 0 },
+      updatedAt: 2,
+    };
+    const path = `plcs/${PLC_ID}/meta/learningTargets`;
+    await assertFails(setDoc(doc(asMember(), path), learningTargets));
+    await assertSucceeds(setDoc(doc(asLead(), path), learningTargets));
+  });
+
+  it('an active co-lead can still create an invitation', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
+        [`members.${OTHER_UID}`]: member(OTHER_UID, OTHER_EMAIL, 'coLead'),
+      });
+    });
+    await assertSucceeds(
+      setDoc(doc(asOther(), `plc_invitations/${PLC_ID}_${NON_MEMBER_EMAIL}`), {
+        plcId: PLC_ID,
+        plcName: 'Test PLC',
+        inviteeEmailLower: NON_MEMBER_EMAIL,
+        invitedByUid: OTHER_UID,
+        status: 'pending',
+        invitedAt: 1,
       })
     );
   });

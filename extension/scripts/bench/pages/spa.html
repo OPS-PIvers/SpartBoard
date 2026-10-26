@@ -1,0 +1,36 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Classes</title><link rel="stylesheet" href="/common.css"></head>
+<body>
+<header><h1 style="font-size:18px;margin:0 auto 0 0">Classroom</h1><nav id="tabs"></nav></header>
+<main id="app" style="max-width:900px;margin:0 auto"></main>
+<script>
+const app = document.getElementById('app');
+const tabs = document.getElementById('tabs');
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const skeleton = () => (app.innerHTML = Array.from({ length: 6 }, () => '<div class="panel" style="height:60px;background:#e2e8f0"></div>').join(''));
+const ready = () => console.debug(`[sbmain] ${JSON.stringify({ name: 'ready', t: performance.timeOrigin + performance.now() })}`);
+async function render() {
+  const p = location.pathname;
+  skeleton();
+  await wait(p.endsWith('/work') ? 700 : 400);
+  if (p === '/spa/home') {
+    tabs.innerHTML = '';
+    app.innerHTML = ['Biology 7', 'Chemistry 2', 'Physics 5', 'Earth Science 1'].map((n, i) => `<div class="panel"><h2 style="font-size:16px">${n}</h2><button data-go="/spa/class/${i + 7}">Open ${n}</button></div>`).join('');
+  } else if (/^\/spa\/class\/\d+$/.test(p)) {
+    tabs.innerHTML = `<button data-go="${p}">Stream</button> <button data-go="${p}/work">Classwork</button> <button data-go="${p}/people">People</button>`;
+    app.innerHTML = Array.from({ length: 20 }, (_, i) => `<div class="panel">Announcement ${i + 1}</div>`).join('');
+  } else if (p.endsWith('/work')) {
+    app.innerHTML = ['Lab report', 'Reading quiz', 'Cell diagram', 'Vocabulary'].map((n) => `<div class="panel"><b>${n}</b> <button data-open="${n}">View ${n}</button></div>`).join('') + '<div id="detail"></div>';
+  } else if (p.endsWith('/people')) {
+    app.innerHTML = '<div class="panel"><h2 style="font-size:16px">Teachers</h2><button>Invite teachers</button></div>' + Array.from({ length: 30 }, (_, i) => `<div class="panel">Student ${i + 1}</div>`).join('');
+  }
+  ready();
+}
+document.addEventListener('click', (e) => {
+  const go = e.target.closest('[data-go]');
+  if (go) { history.pushState({}, '', go.dataset.go); render(); return; }
+  const open = e.target.closest('[data-open]');
+  if (open) document.getElementById('detail').innerHTML = `<div class="panel"><h3>${open.dataset.open}</h3><button data-go="${location.pathname.replace('/work', '')}">Back to class</button></div>`;
+});
+addEventListener('popstate', render);
+render();
+</script></body></html>

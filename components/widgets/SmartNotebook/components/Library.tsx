@@ -157,6 +157,7 @@ export const Library: React.FC<LibraryProps> = ({
               )}
               Import
             </button>
+            {/* no-tour-anchor: hidden file input; the Import button opens it */}
             <input
               type="file"
               ref={fileInputRef}

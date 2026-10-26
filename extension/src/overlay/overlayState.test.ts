@@ -35,7 +35,34 @@ describe('parseOverlayState', () => {
     }
   });
 
+  it('accepts the next step that plays ahead of the worker', () => {
+    const ahead = {
+      token: '1:2',
+      title: 'Pick',
+      text: 'Pick one.',
+      observe: false,
+    };
+    expect(parseOverlayState({ ...valid, ahead })).toEqual({ ...valid, ahead });
+  });
+
   it.each([
+    [
+      'an ahead step with HTML keys',
+      {
+        ...valid,
+        ahead: {
+          token: '1:2',
+          title: 'x',
+          text: 'y',
+          observe: false,
+          html: '<b>',
+        },
+      },
+    ],
+    [
+      'an ahead step without a token',
+      { ...valid, ahead: { title: 'x', text: 'y', observe: false } },
+    ],
     ['an unknown check result', { ...valid, check: 'role' }],
     ['an extra key', { ...valid, html: '<b>x</b>' }],
     ['a missing key', { title: 'x', text: 'y', current: 1, total: 1 }],

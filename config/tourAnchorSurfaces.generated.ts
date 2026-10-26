@@ -875,6 +875,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'widget-settings.reveal-grid.paste': ['widgets.reveal-grid.settings'],
     'widget-settings.reveal-grid.upload-csv': ['widgets.reveal-grid.settings'],
     'widget-settings.reveal-grid.generator': ['widgets.reveal-grid.settings'],
+    'widget-settings.reveal-grid.paste-data': ['widgets.reveal-grid.settings'],
+    'reveal-grid.start-over': ['widgets.reveal-grid.face'],
     'widget-settings.reveal-grid.add-pasted': ['widgets.reveal-grid.settings'],
     'widget-settings.reveal-grid.add-card': ['widgets.reveal-grid.settings'],
     'widget-settings.schedule.import-calendar': ['widgets.schedule.settings'],
@@ -890,6 +892,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'widget-settings.schedule.building-schedules': [
       'widgets.schedule.settings',
     ],
+    'widget-settings.scoreboard.confirm-reset': ['widgets.scoreboard.settings'],
+    'widget-settings.scoreboard.cancel-reset': ['widgets.scoreboard.settings'],
     'widget-settings.scoreboard.layout': ['widgets.scoreboard.settings'],
     'widget-settings.scoreboard.import-random-groups': [
       'widgets.scoreboard.settings',
@@ -931,6 +935,12 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
       'widgets.specialist-schedule.settings',
     ],
     'widget-settings.specialist-schedule.save-item': [
+      'widgets.specialist-schedule.settings',
+    ],
+    'widget-settings.specialist-schedule.add-daily': [
+      'widgets.specialist-schedule.settings',
+    ],
+    'widget-settings.specialist-schedule.add-weekly': [
       'widgets.specialist-schedule.settings',
     ],
     'widget-settings.specialist-schedule.add-item': [

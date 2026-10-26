@@ -28,7 +28,7 @@ import {
   escapeHtml,
 } from './organizationInvites';
 import { assertViewAsAllowed } from './viewAsGuard';
-import { isStrictSuperAdmin } from './authz';
+import { isRevokedMemberStatus, isStrictSuperAdmin } from './authz';
 import { normalizeEmailDomain } from './classlinkShared';
 
 if (!admin.apps.length) {
@@ -96,7 +96,10 @@ async function assertCallerIsOrgAdmin(
       'Caller is not a member of this organization.'
     );
   });
-  if (!ADMIN_ROLE_IDS.includes(caller.roleId)) {
+  if (
+    !ADMIN_ROLE_IDS.includes(caller.roleId) ||
+    isRevokedMemberStatus(caller.status)
+  ) {
     throw new HttpsError(
       'permission-denied',
       'Caller does not have permission to reset passwords.'

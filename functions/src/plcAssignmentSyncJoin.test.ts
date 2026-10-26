@@ -119,8 +119,8 @@ let state: StubState;
 beforeEach(() => {
   state = {
     plc: { memberUids: [MEMBER_UID, 'member-b'] },
-    template: { syncGroupId: SYNC_GROUP_ID },
-    group: { version: 3, participants: {} },
+    template: { syncGroupId: SYNC_GROUP_ID, sharedBy: 'member-b' },
+    group: { version: 3, participants: { 'member-b': { joinedAt: 1000 } } },
     updates: [],
   };
 });
@@ -279,7 +279,10 @@ describe('handleJoinPlcAssignmentSyncGroup - join semantics', () => {
   });
 
   it('defaults version to 1 when the synced group doc lacks one', async () => {
-    state.group = { participants: {} }; // no version field
+    state.group = {
+      plcId: PLC_ID,
+      participants: { 'member-b': { joinedAt: 1000 } },
+    }; // no version field
     const db = makeDb(state) as unknown as Parameters<
       typeof handleJoinPlcAssignmentSyncGroup
     >[0];
@@ -290,5 +293,182 @@ describe('handleJoinPlcAssignmentSyncGroup - join semantics', () => {
       TEMPLATE_ID
     );
     expect(result.version).toBe(1);
+  });
+});
+
+describe('handleJoinPlcAssignmentSyncGroup - editor and group-link gates', () => {
+  it('rejects a viewer (permission-denied) without writing', async () => {
+    state.plc = {
+      memberUids: [MEMBER_UID, 'member-b'],
+      members: { [MEMBER_UID]: { role: 'viewer', status: 'active' } },
+    };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcAssignmentSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcAssignmentSyncGroup(db, MEMBER_UID, PLC_ID, TEMPLATE_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it('rejects a removed member no longer in memberUids (permission-denied)', async () => {
+    state.plc = {
+      memberUids: ['member-b'],
+      members: { [MEMBER_UID]: { role: 'member', status: 'removed' } },
+    };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcAssignmentSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcAssignmentSyncGroup(db, MEMBER_UID, PLC_ID, TEMPLATE_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it('allows a rejoined member whose entry still says removed', async () => {
+    state.plc = {
+      memberUids: [MEMBER_UID, 'member-b'],
+      members: { [MEMBER_UID]: { role: 'member', status: 'removed' } },
+    };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcAssignmentSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcAssignmentSyncGroup(db, MEMBER_UID, PLC_ID, TEMPLATE_ID)
+    ).resolves.toMatchObject({ alreadyJoined: false });
+  });
+
+  it('allows a non-viewer keyed member', async () => {
+    state.plc = {
+      memberUids: [MEMBER_UID, 'member-b'],
+      members: { [MEMBER_UID]: { role: 'member', status: 'active' } },
+    };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcAssignmentSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcAssignmentSyncGroup(db, MEMBER_UID, PLC_ID, TEMPLATE_ID)
+    ).resolves.toMatchObject({
+      alreadyJoined: false,
+    });
+  });
+
+  it('rejects a header naming a group its sharer is not in (permission-denied)', async () => {
+    state.template = { syncGroupId: SYNC_GROUP_ID, sharedBy: MEMBER_UID };
+    state.group = {
+      version: 3,
+      plcId: 'victim-plc',
+      participants: { 'victim-uid': { joinedAt: 1000 } },
+    };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcAssignmentSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcAssignmentSyncGroup(db, MEMBER_UID, PLC_ID, TEMPLATE_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it('rejects a header with no sharedBy on a group not created for this PLC', async () => {
+    state.template = { syncGroupId: SYNC_GROUP_ID };
+    state.group = { version: 3, participants: {} };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcAssignmentSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcAssignmentSyncGroup(db, MEMBER_UID, PLC_ID, TEMPLATE_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it('allows a group created for this PLC when the sharer left but a member remains', async () => {
+    state.template = { syncGroupId: SYNC_GROUP_ID, sharedBy: 'gone-uid' };
+    state.group = {
+      version: 3,
+      plcId: PLC_ID,
+      participants: { 'member-b': { joinedAt: 1000 } },
+    };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcAssignmentSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcAssignmentSyncGroup(db, MEMBER_UID, PLC_ID, TEMPLATE_ID)
+    ).resolves.toMatchObject({
+      alreadyJoined: false,
+    });
+  });
+
+  it('rejects a recreated PLC id whose members are not in the group', async () => {
+    state.plc = { memberUids: [MEMBER_UID] };
+    state.template = { syncGroupId: SYNC_GROUP_ID, sharedBy: MEMBER_UID };
+    state.group = {
+      version: 3,
+      plcId: PLC_ID,
+      participants: { 'victim-uid': { joinedAt: 1000 } },
+    };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcAssignmentSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcAssignmentSyncGroup(db, MEMBER_UID, PLC_ID, TEMPLATE_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it('ignores memberUids a lead added without a members entry', async () => {
+    state.plc = {
+      memberUids: [MEMBER_UID, 'victim-uid'],
+      members: { [MEMBER_UID]: { role: 'lead', status: 'active' } },
+    };
+    state.template = { syncGroupId: SYNC_GROUP_ID, sharedBy: MEMBER_UID };
+    state.group = {
+      version: 3,
+      plcId: PLC_ID,
+      participants: { 'victim-uid': { joinedAt: 1000 } },
+    };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcAssignmentSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcAssignmentSyncGroup(db, MEMBER_UID, PLC_ID, TEMPLATE_ID)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(state.updates).toHaveLength(0);
+  });
+});
+
+describe('handleJoinPlcAssignmentSyncGroup - re-join and undo', () => {
+  const db = () =>
+    makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcAssignmentSyncGroup
+    >[0];
+
+  it('lets an already-participating viewer re-join as a no-op', async () => {
+    state.plc = {
+      memberUids: [MEMBER_UID, 'member-b'],
+      members: { [MEMBER_UID]: { role: 'viewer', status: 'active' } },
+    };
+    state.group = {
+      version: 4,
+      participants: { [MEMBER_UID]: { joinedAt: 1000 } },
+    };
+    await expect(
+      handleJoinPlcAssignmentSyncGroup(db(), MEMBER_UID, PLC_ID, TEMPLATE_ID)
+    ).resolves.toMatchObject({ alreadyJoined: true, version: 4 });
+    expect(state.updates).toHaveLength(0);
+  });
+
+  it('still rejects an already-participating non-member', async () => {
+    state.group = {
+      version: 4,
+      participants: { [NON_MEMBER_UID]: { joinedAt: 1000 } },
+    };
+    await expect(
+      handleJoinPlcAssignmentSyncGroup(
+        db(),
+        NON_MEMBER_UID,
+        PLC_ID,
+        TEMPLATE_ID
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
   });
 });

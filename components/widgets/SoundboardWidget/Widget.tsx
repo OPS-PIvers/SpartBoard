@@ -415,6 +415,7 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
               {visibleSounds.map((sound) => {
                 const isActive = effectiveActiveIds.includes(sound.id);
                 return (
+                  // no-tour-anchor: one tile per sound, generated from the sound list
                   <button
                     key={sound.id}
                     onClick={() => toggleActive(sound.id)}

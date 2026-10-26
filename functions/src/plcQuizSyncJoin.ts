@@ -19,6 +19,13 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import type { SyncedParticipant } from './syncedQuizGroups';
 import { assertViewAsAllowed } from './viewAsGuard';
+import {
+  PLC_DETACHED_SUBCOLLECTION,
+  assertGroupLinkedToPlc,
+  assertPlcContentEditor,
+  assertPlcMember,
+  isDetachMarkerFor,
+} from './plcSyncJoinGuards';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -67,24 +74,13 @@ export async function handleJoinPlcQuizSyncGroup(
     if (!plcSnap.exists) {
       throw new HttpsError('not-found', 'PLC not found.');
     }
-    const plcData = plcSnap.data() as { memberUids?: unknown } | undefined;
-    const memberUids = Array.isArray(plcData?.memberUids)
-      ? (plcData?.memberUids as unknown[]).filter(
-          (u): u is string => typeof u === 'string'
-        )
-      : [];
-    if (!memberUids.includes(uid)) {
-      throw new HttpsError(
-        'permission-denied',
-        'You are not a member of this PLC.'
-      );
-    }
+    assertPlcMember(plcSnap.data(), uid);
 
     if (!plcQuizSnap.exists) {
       throw new HttpsError('not-found', 'PLC quiz not found.');
     }
     const plcQuizData = plcQuizSnap.data() as
-      { syncGroupId?: unknown } | undefined;
+      { syncGroupId?: unknown; sharedBy?: unknown } | undefined;
     const groupId = plcQuizData?.syncGroupId;
     if (typeof groupId !== 'string' || groupId.length === 0) {
       throw new HttpsError(
@@ -110,6 +106,21 @@ export async function handleJoinPlcQuizSyncGroup(
       uid
     );
     if (!alreadyJoined) {
+      assertPlcContentEditor(plcSnap.data(), uid);
+      const markerRef = groupRef
+        .collection(PLC_DETACHED_SUBCOLLECTION)
+        .doc(uid);
+      const markerSnap = await tx.get(markerRef);
+      if (isDetachMarkerFor(markerSnap.data(), plcId, plcQuizId)) {
+        tx.delete(markerRef);
+      } else {
+        assertGroupLinkedToPlc(
+          plcId,
+          plcSnap.data(),
+          plcQuizData,
+          groupSnap.data()
+        );
+      }
       const now = Date.now();
       participants[uid] = { joinedAt: now };
       tx.update(groupRef, {

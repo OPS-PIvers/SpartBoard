@@ -47,6 +47,8 @@ export type WrittenReturnMode = 'handwriting' | 'typed' | 'both';
 
 export interface PaperPrivateAnswer {
   scanId: string;
+  /** The printed seat the `scanId` crop was filed under; `paperSeat` can change on a re-import. */
+  seat?: number;
   status: PaperPrivateStatus;
   rawTranscript?: string;
   uncertainSpans?: { start: number; end: number }[];

@@ -71,3 +71,42 @@ describe('useFolderLibraryView folder row reordering', () => {
     expect(result.current.folderView?.folderReorder).toBeNull();
   });
 });
+
+describe('useFolderLibraryView stale folder drag', () => {
+  it('clears the drag when the dragged row unmounts before dragend', () => {
+    let folders = FOLDERS;
+    const auth = {
+      canAccessFeature: (id: string) => id === 'library-folder-reorder',
+    } as unknown as AuthContextType;
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>
+    );
+    const { result, rerender } = renderHook(
+      () =>
+        useFolderLibraryView<{ id: string; title: string }>({
+          items: [],
+          searchFields: (i) => i.title,
+          initialSort: { key: 'name', dir: 'desc' },
+          sortComparators: { name: () => 0 },
+          folderView: {
+            library: 'quiz',
+            userId: 'teacher',
+            folders,
+            foldersLoading: false,
+            getId: (i) => i.id,
+            itemNoun: ['quiz', 'quizzes'],
+            reorderSiblings: vi.fn().mockResolvedValue(undefined),
+          },
+        }),
+      { wrapper }
+    );
+    act(() => result.current.folderView?.folderReorder?.start('a'));
+    expect(result.current.folderView?.folderReorder?.draggingId).toBe('a');
+    folders = FOLDERS.filter((f) => f.id !== 'a');
+    rerender();
+    expect(result.current.folderView?.folderReorder?.draggingId).toBeNull();
+    folders = FOLDERS;
+    rerender();
+    expect(result.current.folderView?.folderReorder?.draggingId).toBeNull();
+  });
+});

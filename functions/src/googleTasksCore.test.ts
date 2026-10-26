@@ -148,12 +148,22 @@ describe('helpers', () => {
     expect(scopeIncludesTasks(undefined)).toBe(false);
   });
 
-  it('checks active membership from the members map or memberUids', () => {
+  it('checks active membership from memberUids and the members map', () => {
     expect(
-      isActivePlcMember({ members: { u1: { status: 'active' } } }, 'u1')
+      isActivePlcMember(
+        { memberUids: ['u1'], members: { u1: { status: 'active' } } },
+        'u1'
+      )
     ).toBe(true);
     expect(
-      isActivePlcMember({ members: { u1: { status: 'removed' } } }, 'u1')
+      isActivePlcMember(
+        { memberUids: ['u1'], members: { u1: { status: 'removed' } } },
+        'u1'
+      )
+    ).toBe(false);
+    // A lingering map entry without memberUids (left or removed) is not a member.
+    expect(
+      isActivePlcMember({ members: { u1: { status: 'active' } } }, 'u1')
     ).toBe(false);
     expect(isActivePlcMember({ memberUids: ['u1'] }, 'u1')).toBe(true);
     expect(isActivePlcMember(undefined, 'u1')).toBe(false);

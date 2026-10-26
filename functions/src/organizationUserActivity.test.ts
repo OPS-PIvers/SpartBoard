@@ -10,7 +10,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // existence + role check) and `auth().getUsers()` (for the batch-failure path).
 // Each test resets these via `setMemberDoc` / `setGetUsersImpl` below.
 
-type MemberDocData = { roleId: string } | undefined;
+type MemberDocData = { roleId: string; status?: string } | undefined;
 let memberDocFactory: (callerEmail: string) => MemberDocData = () => undefined;
 let memberEmails: string[] = [];
 let getUsersImpl: (identifiers: { email: string }[]) => Promise<{
@@ -219,6 +219,23 @@ describe('getOrgUserActivity — role-gate', () => {
 
     expect(getUsersSpy).not.toHaveBeenCalled();
   });
+
+  it.each(['inactive', 'removed'])(
+    'rejects a %s domain admin with permission-denied',
+    async (status) => {
+      memberDocFactory = (caller) =>
+        caller === ADMIN_EMAIL.toLowerCase()
+          ? { roleId: 'domain_admin', status }
+          : undefined;
+      memberEmails = [ADMIN_EMAIL];
+
+      await expect(
+        handler({ auth: authedCaller(), data: { orgId: 'orono' } })
+      ).rejects.toMatchObject({ code: 'permission-denied' });
+
+      expect(getUsersSpy).not.toHaveBeenCalled();
+    }
+  );
 
   it('rejects callers who are not members of the requested org', async () => {
     // memberDocFactory returns undefined for everyone → snap.exists === false

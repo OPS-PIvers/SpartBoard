@@ -16938,6 +16938,45 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.reveal-grid.paste-data",
+    "label": "Paste box in Reveal Grid settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.reveal-grid.settings",
+        "kind": "settings-drawer",
+        "widget_type": "reveal-grid",
+        "path": [
+          "widget.settings-opener",
+          "widget-settings.reveal-grid.paste"
+        ],
+        "reveal": "widget-settings.reveal-grid.paste",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "reveal-grid.start-over",
+    "label": "Start over button in Reveal Grid memory mode",
+    "scope": "widget",
+    "destructive": true,
+    "requires": "widget-restored",
+    "routes": [
+      {
+        "surface": "widgets.reveal-grid.face",
+        "kind": "widget",
+        "widget_type": "reveal-grid",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.reveal-grid.add-pasted",
     "label": "Add pasted cards button in Reveal Grid settings",
     "scope": "widget",
@@ -16948,8 +16987,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "settings-drawer",
         "widget_type": "reveal-grid",
         "path": [
-          "widget.settings-opener"
+          "widget.settings-opener",
+          "widget-settings.reveal-grid.paste"
         ],
+        "reveal": "widget-settings.reveal-grid.paste",
         "needs": [
           "widget-on-stage"
         ]
@@ -17179,6 +17220,49 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "widget.settings-opener"
         ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.scoreboard.confirm-reset",
+    "label": "Yes button on the Scoreboard reset prompt",
+    "scope": "widget",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.scoreboard.settings",
+        "kind": "settings-drawer",
+        "widget_type": "scoreboard",
+        "path": [
+          "widget.settings-opener",
+          "widget-settings.scoreboard.reset-scores"
+        ],
+        "reveal": "widget-settings.scoreboard.reset-scores",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.scoreboard.cancel-reset",
+    "label": "No button on the Scoreboard reset prompt",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.scoreboard.settings",
+        "kind": "settings-drawer",
+        "widget_type": "scoreboard",
+        "path": [
+          "widget.settings-opener",
+          "widget-settings.scoreboard.reset-scores"
+        ],
+        "reveal": "widget-settings.scoreboard.reset-scores",
         "needs": [
           "widget-on-stage"
         ]
@@ -17566,6 +17650,44 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "widget-settings.specialist-schedule.save-item",
     "label": "Save item button in Specialist Schedule settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.specialist-schedule.settings",
+        "kind": "settings-drawer",
+        "widget_type": "specialist-schedule",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.specialist-schedule.add-daily",
+    "label": "Add daily item button in Specialist Schedule settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.specialist-schedule.settings",
+        "kind": "settings-drawer",
+        "widget_type": "specialist-schedule",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.specialist-schedule.add-weekly",
+    "label": "Add weekly item button in Specialist Schedule settings",
     "scope": "widget",
     "panel": true,
     "routes": [

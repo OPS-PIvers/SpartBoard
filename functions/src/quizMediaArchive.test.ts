@@ -111,6 +111,7 @@ const LEGACY_PATH = `quiz_response_media/${SESSION_ID}/${STUDENT_UID}/${ARTIFACT
 interface SeedOptions {
   session?: Record<string, unknown>;
   response?: Record<string, unknown>;
+  paperPrivate?: Record<string, Record<string, unknown>>;
 }
 
 type Bag = Record<string, unknown>;
@@ -156,6 +157,20 @@ function makeStubDb(seed: SeedOptions) {
       writes.push(data);
       if (response) mergeInto(response, data);
       return Promise.resolve();
+    },
+    collection: (name: string) => {
+      if (name !== 'paperPrivate') {
+        throw new Error(`Unexpected subcollection ${name}`);
+      }
+      return {
+        doc: (id: string) => ({
+          get: () =>
+            Promise.resolve({
+              exists: !!seed.paperPrivate?.[id],
+              data: () => seed.paperPrivate?.[id],
+            }),
+        }),
+      };
     },
   };
   const sessionRef = {
@@ -869,6 +884,21 @@ describe('archiveQuizArtifactCore', () => {
     );
   });
 
+  it('files a title that sanitizes to empty under Untitled Quiz', async () => {
+    const seed = baseSeed();
+    (seed.session as Record<string, unknown>).quizTitle = '...';
+    const { db } = makeStubDb(seed);
+    const deps = makeDeps(db);
+    await call(deps);
+    expect(deps.uploadToDrive).toHaveBeenCalledWith(
+      'token',
+      expect.anything(),
+      'audio/mp4',
+      'Nguyen_Ava__Q1_take1.m4a',
+      'Quiz Responses/Untitled Quiz'
+    );
+  });
+
   it('falls back to the PIN label when no real name resolves', async () => {
     const seed = baseSeed();
     (seed.response as Record<string, unknown>).pin = '4821';
@@ -1048,7 +1078,7 @@ describe('retryStorageCleanup', () => {
     ).toBe('deleted');
   });
 
-  it('leaves the flag set when the storage path is outside this response', async () => {
+  it('never deletes a path outside this response and stops the sweep retrying it', async () => {
     const { db, response } = makeStubDb(
       seedPending(`quiz_response_media/other-session/${STUDENT_UID}/x.webm`)
     );
@@ -1060,7 +1090,8 @@ describe('retryStorageCleanup', () => {
     expect(
       (response?.artifactArchive as Record<string, Bag>)[ARTIFACT_ID]
         .storageCleanupPending
-    ).toBe(true);
+    ).toBeUndefined();
+    expect(response?.hasStuckArchive).toBe(false);
   });
 
   it('leaves the flag set when the artifact is missing from the response', async () => {
@@ -1398,9 +1429,11 @@ describe('handwriting crops', () => {
         quizTitle: 'Unit 3 Essay',
         publicQuestions: [{ id: 'q0' }, { id: QUESTION_ID }],
       },
+      paperPrivate: { [QUESTION_ID]: { scanId: SCAN_ID, status: 'pending' } },
       response: {
         studentUid: 'pseudonym-1',
         pin: '12',
+        paperSeat: 3,
         answers: [
           {
             questionId: QUESTION_ID,
@@ -1658,6 +1691,175 @@ describe('handwriting crops', () => {
     expect(deps.deleteObject).toHaveBeenCalledWith(CROP_PATH);
     const entry = (response!.artifactArchive as Bag)[ARTIFACT_ID] as Bag;
     expect(entry.storageCleanupPending).toBeUndefined();
+  });
+
+  const VICTIM_PATH = `paper_written_crops/${TEACHER_UID}/${SCAN_ID}/4/${QUESTION_ID}.webp`;
+
+  it('refuses to archive another seat crop named in the artifacts', async () => {
+    const { db } = makeStubDb(cropSeed({ storagePath: VICTIM_PATH }));
+    const deps = cropDeps(db);
+    await expect(archiveAs(deps, null)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    expect(deps.uploadToDrive).not.toHaveBeenCalled();
+    expect(deps.deleteObject).not.toHaveBeenCalled();
+  });
+
+  it('refuses a seeded driveFileId entry pointing at another seat crop', async () => {
+    const seed = cropSeed({ storagePath: VICTIM_PATH });
+    seed.response!.artifactArchive = {
+      [ARTIFACT_ID]: { archiveStatus: 'failed', driveFileId: 'forged' },
+    };
+    const { db } = makeStubDb(seed);
+    const deps = cropDeps(db);
+    await expect(archiveAs(deps, null)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    expect(deps.deleteObject).not.toHaveBeenCalled();
+  });
+
+  it('refuses a crop when the response has no server-written seat or scan', async () => {
+    for (const mutate of [
+      (seed: SeedOptions) => delete seed.response!.paperSeat,
+      (seed: SeedOptions) => delete seed.paperPrivate,
+    ]) {
+      const seed = cropSeed();
+      mutate(seed);
+      const { db } = makeStubDb(seed);
+      const deps = cropDeps(db);
+      await expect(archiveAs(deps, null)).rejects.toMatchObject({
+        code: 'permission-denied',
+      });
+      expect(deps.deleteObject).not.toHaveBeenCalled();
+    }
+  });
+
+  it('archives only the expected object when a same-id artifact comes first', async () => {
+    const seed = cropSeed();
+    const answer = (seed.response!.answers as Bag[])[0];
+    answer.artifacts = [
+      { ...(answer.artifacts as Bag[])[0], storagePath: VICTIM_PATH },
+      ...(answer.artifacts as Bag[]),
+    ];
+    const { db } = makeStubDb(seed);
+    const deps = cropDeps(db);
+    await expect(
+      archiveQuizArtifactCore(
+        {
+          sessionId: SESSION_ID,
+          responseKey: RESPONSE_KEY,
+          questionId: QUESTION_ID,
+          artifactId: ARTIFACT_ID,
+          expectedStoragePath: CROP_PATH,
+          callerUid: null,
+        },
+        deps
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(deps.uploadToDrive).not.toHaveBeenCalled();
+    expect(deps.deleteObject).not.toHaveBeenCalled();
+  });
+
+  it('archives a kept crop after a re-import moved the seat', async () => {
+    const seed = cropSeed();
+    seed.response!.paperSeat = 5;
+    seed.paperPrivate![QUESTION_ID].seat = 3;
+    const { db } = makeStubDb(seed);
+    const deps = cropDeps(db);
+    await expect(archiveAs(deps, null)).resolves.toMatchObject({
+      archiveStatus: 'archived',
+    });
+    expect(deps.deleteObject).toHaveBeenCalledWith(CROP_PATH);
+  });
+
+  it('settles a pending crop whose seat moved without a recorded seat at lost', async () => {
+    const seed = cropSeed();
+    seed.response!.paperSeat = 5;
+    seed.response!.artifactArchive = {
+      [ARTIFACT_ID]: {
+        archiveStatus: 'failed',
+        attemptCount: 1,
+        lastAttemptAt: 1,
+      },
+    };
+    seed.response!.hasStuckArchive = true;
+    const { db, response } = makeStubDb(seed);
+    const deps = cropDeps(db);
+    const error: unknown = await archiveAs(deps, null).catch((e: unknown) => e);
+    expect(error).toMatchObject({ code: 'permission-denied' });
+    expect(isLostArchiveError(error)).toBe(true);
+    const entry = (response!.artifactArchive as Bag)[ARTIFACT_ID] as Bag;
+    expect(entry.archiveStatus).toBe('lost');
+    expect(response!.hasStuckArchive).toBe(false);
+    expect(deps.uploadToDrive).not.toHaveBeenCalled();
+    expect(deps.deleteObject).not.toHaveBeenCalled();
+  });
+
+  it('writes no entry when a fresh refusal has nothing pending', async () => {
+    const { db, response } = makeStubDb(cropSeed({ storagePath: VICTIM_PATH }));
+    const error: unknown = await archiveAs(cropDeps(db), null).catch(
+      (e: unknown) => e
+    );
+    expect(isLostArchiveError(error)).toBe(false);
+    expect(response!.artifactArchive).toBeUndefined();
+  });
+
+  it('stops retrying cleanup of a moved-seat crop without deleting it', async () => {
+    const seed = cropSeed();
+    seed.response!.paperSeat = 5;
+    seed.response!.artifactArchive = {
+      [ARTIFACT_ID]: {
+        archiveStatus: 'archived',
+        driveFileId: 'drive-1',
+        storageCleanupPending: true,
+      },
+    };
+    seed.response!.hasStuckArchive = true;
+    const { db, response } = makeStubDb(seed);
+    const deps = cropDeps(db);
+    await expect(
+      retryStorageCleanup(
+        {
+          sessionId: SESSION_ID,
+          responseKey: RESPONSE_KEY,
+          questionId: QUESTION_ID,
+          artifactId: ARTIFACT_ID,
+        },
+        deps
+      )
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    expect(deps.deleteObject).not.toHaveBeenCalled();
+    const entry = (response!.artifactArchive as Bag)[ARTIFACT_ID] as Bag;
+    expect(entry.storageCleanupPending).toBeUndefined();
+    expect(response!.hasStuckArchive).toBe(false);
+  });
+
+  it('records the archived source path', async () => {
+    const { db, response } = makeStubDb(cropSeed());
+    await archiveAs(cropDeps(db), null);
+    const entry = (response!.artifactArchive as Bag)[ARTIFACT_ID] as Bag;
+    expect(entry.sourcePath).toBe(CROP_PATH);
+  });
+
+  it('refuses to clean up another seat crop', async () => {
+    const seed = cropSeed({ storagePath: VICTIM_PATH });
+    seed.response!.artifactArchive = {
+      [ARTIFACT_ID]: { storageCleanupPending: true },
+    };
+    const { db } = makeStubDb(seed);
+    const deps = cropDeps(db);
+    await expect(
+      retryStorageCleanup(
+        {
+          sessionId: SESSION_ID,
+          responseKey: RESPONSE_KEY,
+          questionId: QUESTION_ID,
+          artifactId: ARTIFACT_ID,
+        },
+        deps
+      )
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    expect(deps.deleteObject).not.toHaveBeenCalled();
   });
 });
 

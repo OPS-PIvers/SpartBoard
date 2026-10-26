@@ -146,3 +146,28 @@ describe('locate', () => {
     expect(locate(document, { css: '##bad' })).toBeNull();
   });
 });
+
+describe('see-through controls', () => {
+  // jsdom has no checkVisibility; these elements act as if styled with opacity: 0.
+  const transparent = (el: Element) => {
+    el.checkVisibility = (opts?: CheckVisibilityOptions) => !opts?.checkOpacity;
+  };
+
+  it('finds a native checkbox a site hides with opacity under its own label', () => {
+    html(
+      '<input type="checkbox" role="button" id="tools" aria-label="Tools"><label for="tools">Tools</label>'
+    );
+    const box = document.getElementById('tools')!;
+    place(box, 10, 10, 60, 30);
+    transparent(box);
+    expect(locate(document, { role: 'button', name: 'Tools' })?.el).toBe(box);
+  });
+
+  it('still skips any other element that is fully transparent, like a menu fading in', () => {
+    html('<button>Assignment</button>');
+    const item = document.querySelector('button')!;
+    place(item, 10, 10);
+    transparent(item);
+    expect(locate(document, { role: 'button', name: 'Assignment' })).toBeNull();
+  });
+});

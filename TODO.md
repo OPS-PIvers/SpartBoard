@@ -196,7 +196,8 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/plans/shipped/WEB_TOURS_HELP_PANEL.md`
 
-- [ ] Upload extension 0.1.14 to both Web Store listings (prod is still on 0.1.12; 0.1.13 was never uploaded). (S)
+- [ ] Upload extension 0.1.15 to both Web Store listings; it carries 0.1.14's help panel and the smoother playback from #4698 (prod is still on 0.1.12; 0.1.13 was never uploaded). (S)
+- [ ] Paul plays a web tour with the dev extension (0.1.15) on a Chromebook: the spotlight glides to each next step without blinking out, and a hidden-checkbox menu (Wikipedia's Tools) is found. (S)
 - [ ] IT marks both "Chrome extension" OAuth clients (prod `759666600376-3588...`, dev `258543092004-9mfh...`) as Trusted in Admin Console > Security > API Controls, so teachers get no consent prompt (H8). (S)
 - [ ] Paul tries the dev extension (0.1.14) in real Chrome: a tour link through ClassLink sign-in (waits, then starts), a LaunchPad new tab, the Tours tab with search and Start, the badge, and the not-signed-in message on a personal profile. (S)
 - [ ] Optional: store each tour's start host and step count at publish time so `webToursListV1` stops reading every step; needs a rules change, so wait until the rules have room. (M)

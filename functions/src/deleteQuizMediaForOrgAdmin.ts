@@ -31,13 +31,14 @@ import * as admin from 'firebase-admin';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import {
   computeHasStuckArchive,
-  deleteDriveFileById,
+  deleteQuizArchiveDriveFile,
+  isArtifactStoragePathOwned,
   isArtifactStoragePathValid,
   QUIZ_MEDIA_ARCHIVE_SECRETS,
   STUCK_ARCHIVE_AGE_MS,
 } from './quizMediaArchive';
 import { ALLOWED_ORIGINS } from './classlinkShared';
-import { isSiteWideAdmin } from './authz';
+import { isRevokedMemberStatus, isSiteWideAdmin } from './authz';
 import './functionsInit';
 import { withQuizSessionContent } from './quizSessionContent';
 import { assertViewAsAllowed } from './viewAsGuard';
@@ -509,7 +510,10 @@ export async function assertOrgMediaAdmin(
     );
   }
   const roleId = asString(memberSnap.get('roleId'));
-  if (!MEDIA_ADMIN_ROLE_IDS.includes(roleId)) {
+  if (
+    !MEDIA_ADMIN_ROLE_IDS.includes(roleId) ||
+    isRevokedMemberStatus(memberSnap.get('status'))
+  ) {
     throw new HttpsError(
       'permission-denied',
       'Caller is not an administrator for this organization.'
@@ -845,27 +849,35 @@ async function runPhysicalDelete(
   deps: OrgMediaDeps,
   tokenFor: (teacherUid: string) => Promise<TokenResult>
 ): Promise<string | null> {
+  let driveFailure: string | null = null;
   if (input.driveFileId) {
     const token = await tokenFor(input.teacherUid);
-    if ('error' in token) return token.error;
-    try {
-      await deps.deleteDriveFile(token.token, input.driveFileId);
-    } catch (err) {
-      return err instanceof Error
-        ? `Drive delete failed: ${err.message}`
-        : 'Drive delete failed.';
+    if ('error' in token) driveFailure = token.error;
+    else {
+      try {
+        await deps.deleteDriveFile(token.token, input.driveFileId);
+      } catch (err) {
+        driveFailure =
+          err instanceof Error
+            ? `Drive delete failed: ${err.message}`
+            : 'Drive delete failed.';
+      }
     }
   }
+  // A Drive failure still deletes the validated Storage copy; the item stays failed.
   if (input.storagePath) {
     try {
       await deps.deleteStorageObject(input.storagePath);
     } catch (err) {
-      return err instanceof Error
-        ? `Storage delete failed: ${err.message}`
-        : 'Storage delete failed.';
+      return (
+        driveFailure ??
+        (err instanceof Error
+          ? `Storage delete failed: ${err.message}`
+          : 'Storage delete failed.')
+      );
     }
   }
-  return null;
+  return driveFailure;
 }
 
 /**
@@ -967,7 +979,7 @@ export async function deleteOrgQuizMediaSets(
         });
         continue;
       }
-      const storagePath = isArtifactStoragePathValid({
+      const pathInput = {
         kind: artifact.kind,
         storagePath: artifact.storagePath,
         sessionId: target.sessionId,
@@ -975,15 +987,22 @@ export async function deleteOrgQuizMediaSets(
         studentUid,
         teacherUid,
         questionId: target.questionId,
-      })
-        ? artifact.storagePath
-        : '';
+      };
+      const owned = await isArtifactStoragePathOwned({
+        ...pathInput,
+        responseRef,
+        response: data,
+      });
+      const storagePath = owned ? artifact.storagePath : '';
+      // A crop this response cannot prove is its own is left, so the item must not read as deleted.
+      const cropLeft = !owned && isArtifactStoragePathValid(pathInput);
 
-      const failure = await runPhysicalDelete(
-        { teacherUid, driveFileId: claim.driveFileId, storagePath },
-        deps,
-        tokenFor
-      );
+      const failure =
+        (await runPhysicalDelete(
+          { teacherUid, driveFileId: claim.driveFileId, storagePath },
+          deps,
+          tokenFor
+        )) ?? (cropLeft ? 'Storage delete failed.' : null);
       if (failure) {
         await writeDeleteFailedEntry(
           db,
@@ -1051,7 +1070,7 @@ export async function finishStuckMediaDelete(
   const rawPath = artifact?.storagePath ?? '';
   const storagePath =
     (claimed || entry.storageCleanupPending === true) &&
-    isArtifactStoragePathValid({
+    (await isArtifactStoragePathOwned({
       kind: artifact?.kind,
       storagePath: rawPath,
       sessionId: input.sessionId,
@@ -1059,7 +1078,9 @@ export async function finishStuckMediaDelete(
       studentUid,
       teacherUid,
       questionId: input.questionId,
-    })
+      responseRef,
+      response: data,
+    }))
       ? rawPath
       : '';
 
@@ -1095,7 +1116,7 @@ export function buildDefaultOrgMediaDeps(): OrgMediaDeps {
     db,
     getAccessToken: async (teacherUid) =>
       (await refreshGoogleAccessTokenForUid(teacherUid)).accessToken,
-    deleteDriveFile: deleteDriveFileById,
+    deleteDriveFile: deleteQuizArchiveDriveFile,
     deleteStorageObject: async (storagePath) => {
       await admin
         .storage()

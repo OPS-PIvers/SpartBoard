@@ -32,7 +32,11 @@ import {
 } from './classlinkShared';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import { defaultDriveUploader } from './driveUpload';
-import { PAPER_WRITTEN_CROP_PREFIX } from './paperWrittenTypes';
+import {
+  PAPER_PRIVATE_SUBCOLLECTION,
+  PAPER_WRITTEN_CROP_PREFIX,
+  paperCropStoragePath,
+} from './paperWrittenTypes';
 import {
   loadTargetDirectory,
   uidForRef,
@@ -134,6 +138,8 @@ export interface ArchiveArtifactRequest {
   responseKey: string;
   questionId: string;
   artifactId: string;
+  /** Set by server callers that already know the object; the core refuses any other. */
+  expectedStoragePath?: string;
 }
 
 interface StoredArtifact {
@@ -387,6 +393,55 @@ export function questionLabelFor(
   return `Q${sanitizeDriveNameSegment(questionId) || 'unknown'}`;
 }
 
+/** This response's own crop for a question, rebuilt from server-only fields; null when it has none. */
+export async function ownPaperCropPath(
+  responseRef: admin.firestore.DocumentReference,
+  response: Record<string, unknown>,
+  teacherUid: string,
+  questionId: string
+): Promise<string | null> {
+  if (!teacherUid || !questionId || questionId.includes('/')) return null;
+  const privateSnap = await responseRef
+    .collection(PAPER_PRIVATE_SUBCOLLECTION)
+    .doc(questionId)
+    .get();
+  const scanId: unknown = privateSnap.data()?.scanId;
+  const privateSeat: unknown = privateSnap.data()?.seat;
+  // The import's own seat for this scan; a later re-import can move `paperSeat`.
+  const seat =
+    typeof privateSeat === 'number' ? privateSeat : response.paperSeat;
+  if (
+    typeof seat !== 'number' ||
+    !Number.isInteger(seat) ||
+    seat < 1 ||
+    typeof scanId !== 'string' ||
+    !scanId ||
+    scanId.includes('/') ||
+    scanId.startsWith('.')
+  ) {
+    return null;
+  }
+  return paperCropStoragePath(teacherUid, scanId, seat, questionId);
+}
+
+/** `isArtifactStoragePathValid`, and a handwriting crop must be this response's own seat and live scan. */
+export async function isArtifactStoragePathOwned(
+  input: Parameters<typeof isArtifactStoragePathValid>[0] & {
+    responseRef: admin.firestore.DocumentReference;
+    response: Record<string, unknown>;
+  }
+): Promise<boolean> {
+  if (!isArtifactStoragePathValid(input)) return false;
+  if (input.kind !== 'handwriting') return true;
+  const own = await ownPaperCropPath(
+    input.responseRef,
+    input.response,
+    input.teacherUid,
+    input.questionId
+  );
+  return own !== null && input.storagePath === own;
+}
+
 /** True when any entry in the merged map still needs the sweep's attention. Terminal `'lost'` never does. */
 export function computeHasStuckArchive(
   archive:
@@ -442,8 +497,16 @@ export function parseRefKey(key: string): StudentTargetRef | null {
 
 // ── Default dependency implementations ─────────────────────────────────────
 
-/** Permanent delete, not a trash move — this is a compliance delete. */
-export const deleteDriveFileById = defaultDriveUploader.deleteFile;
+/** Compliance delete of an id read from a response doc: refuses any file outside the quiz archive folder. */
+export const deleteQuizArchiveDriveFile = (
+  accessToken: string,
+  fileId: string
+): Promise<void> =>
+  defaultDriveUploader.deleteFileInAppFolder(
+    accessToken,
+    fileId,
+    QUIZ_DRIVE_FOLDER
+  );
 
 /** webm never survives to Drive; AAC in an M4A container always previews. */
 export async function transcodeBufferToM4a(input: Buffer): Promise<Buffer> {
@@ -721,7 +784,7 @@ export function buildDefaultArchiveDeps(): ArchiveDeps {
         folderPath,
         tokenOwners.get(accessToken)
       ),
-    deleteDriveFile: deleteDriveFileById,
+    deleteDriveFile: deleteQuizArchiveDriveFile,
     resolveStudentName: (teacherUid, studentUid) =>
       resolveStudentRealName(db, teacherUid, studentUid),
     isFeatureGranted: async (teacherUid) => {
@@ -783,6 +846,43 @@ export function isLostArchiveError(error: unknown): boolean {
   if (!(error instanceof HttpsError)) return false;
   const details = error.details as { artifactLost?: unknown } | undefined;
   return details?.artifactLost === true;
+}
+
+/** A refusal no retry can pass: settles a pending entry at 'lost' so the sweep stops; true when it did. */
+async function settleRefusedArchive(
+  deps: ArchiveDeps,
+  responseRef: admin.firestore.DocumentReference,
+  artifactId: string,
+  message: string
+): Promise<boolean> {
+  return deps.db.runTransaction(async (tx) => {
+    const fresh = await tx.get(responseRef);
+    const archive = readArchiveMap(fresh.data());
+    const previous = archive[artifactId];
+    if (
+      !previous ||
+      isDeleteTombstoned(previous) ||
+      typeof previous.driveFileId === 'string'
+    ) {
+      return false;
+    }
+    archive[artifactId] = { ...previous, archiveStatus: 'lost' };
+    tx.set(
+      responseRef,
+      {
+        artifactArchive: {
+          [artifactId]: {
+            archiveStatus: 'lost',
+            archiveError: message.slice(0, 180),
+            lastAttemptAt: deps.now(),
+          },
+        },
+        hasStuckArchive: computeHasStuckArchive(archive),
+      },
+      { merge: true }
+    );
+    return true;
+  });
 }
 
 /** Rethrow shape: tags a terminal failure so the sweep can mail it just once. */
@@ -949,6 +1049,23 @@ export async function archiveQuizArtifactCore(
         'This crop belongs to an older scan of the answer.'
       );
     }
+  }
+  // Student-written artifacts can name any crop; only this seat's own live one archives.
+  if (
+    (input.expectedStoragePath !== undefined &&
+      storagePath !== input.expectedStoragePath) ||
+    (kind === 'handwriting' &&
+      storagePath !==
+        (await ownPaperCropPath(responseRef, response, teacherUid, questionId)))
+  ) {
+    const refused = new HttpsError(
+      'permission-denied',
+      'Artifact storage path is outside this response.'
+    );
+    throw toArchiveFailure(
+      refused,
+      await settleRefusedArchive(deps, responseRef, artifactId, refused.message)
+    );
   }
 
   // The Drive copy is the durable one: once an id exists the file is already
@@ -1204,10 +1321,11 @@ export async function archiveQuizArtifactCore(
         ? null
         : takeNumberFor(answers, questionId, artifactId)
     );
+    // A title that sanitizes to empty would land loose in Quiz Responses/, where deletes are refused.
     const quizTitle =
-      typeof session.quizTitle === 'string' && session.quizTitle.trim()
+      (typeof session.quizTitle === 'string'
         ? sanitizeDriveNameSegment(session.quizTitle)
-        : 'Untitled Quiz';
+        : '') || 'Untitled Quiz';
 
     const driveFile = await deps.uploadToDrive(
       accessToken ?? (await deps.getAccessToken(teacherUid)),
@@ -1355,6 +1473,7 @@ async function finalizeArchivedEntry(
           [artifactId]: {
             archiveStatus: 'archived',
             driveFileId,
+            sourcePath: storagePath,
             archivedAt: deps.now(),
             archiveStartedAt: admin.firestore.FieldValue.delete(),
             lastAttemptAt: admin.firestore.FieldValue.delete(),
@@ -1450,7 +1569,7 @@ export async function retryStorageCleanup(
       : '';
   // Clearing the flag without a confirmed delete would strand the object.
   if (
-    !isArtifactStoragePathValid({
+    !(await isArtifactStoragePathOwned({
       kind: artifact?.kind,
       storagePath,
       sessionId: input.sessionId,
@@ -1458,8 +1577,32 @@ export async function retryStorageCleanup(
       studentUid,
       teacherUid,
       questionId: input.questionId,
-    })
+      responseRef,
+      response: data,
+    }))
   ) {
+    // No retry can resolve it: drop the flag so the sweep stops; the object is left in place.
+    await db.runTransaction(async (tx) => {
+      const fresh = await tx.get(responseRef);
+      const archive = readArchiveMap(fresh.data());
+      const entry = archive[input.artifactId];
+      if (!entry || isDeleteTombstoned(entry)) return;
+      archive[input.artifactId] = { ...entry, storageCleanupPending: false };
+      tx.set(
+        responseRef,
+        {
+          artifactArchive: {
+            [input.artifactId]: {
+              storageCleanupPending: admin.firestore.FieldValue.delete(),
+              archiveError:
+                'Cannot resolve the transit object for this artifact.',
+            },
+          },
+          hasStuckArchive: computeHasStuckArchive(archive),
+        },
+        { merge: true }
+      );
+    });
     throw new HttpsError(
       'failed-precondition',
       'Cannot resolve the transit object for this artifact.'

@@ -60,6 +60,8 @@ describe('isBlockedIp embedded and reserved ranges', () => {
     '0:0:0:0:0:0:0:1',
     '0:0:0:0:0:0:0:0',
     '::1%lo',
+    '::ffff:0:7f00:1',
+    '::ffff:0:169.254.169.254',
     '64:ff9b::a9fe:a9fe',
     '64:ff9b::169.254.169.254',
     '2002:a9fe:a9fe::',
@@ -80,6 +82,7 @@ describe('isBlockedIp embedded and reserved ranges', () => {
     '223.255.255.255',
     '2606:4700:4700::1111',
     '64:ff9b::808:808',
+    '::ffff:0:808:808',
     '2002:808:808::',
   ])('allows %s', (address) => {
     expect(isBlockedIp(address)).toBe(false);
