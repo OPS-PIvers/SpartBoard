@@ -587,6 +587,11 @@ export const SETTINGS_FIELD_LIST: Readonly<
       kind: 'toggle',
     },
     {
+      anchor: 'settings.toggle:weather#detail_uvIndex',
+      label: 'UV index',
+      kind: 'toggle',
+    },
+    {
       anchor: 'settings.group:weather#display',
       label: 'Display',
     },

@@ -2320,7 +2320,8 @@
       "detail_windGust": "Wind gust",
       "detail_sunrise": "Sunrise",
       "detail_sunset": "Sunset",
-      "detail_moon": "Moon phase"
+      "detail_moon": "Moon phase",
+      "detail_uvIndex": "UV index"
     },
     "expectations": {
       "soundSync": "Sound meter sync",
@@ -2753,7 +2754,15 @@
         "sunrise": "Sunrise",
         "sunset": "Sunset",
         "moon": "Moon",
-        "calm": "Calm"
+        "uvIndex": "UV index",
+        "calm": "Calm",
+        "uvLevels": {
+          "low": "Low",
+          "moderate": "Moderate",
+          "high": "High",
+          "veryHigh": "Very high",
+          "extreme": "Extreme"
+        }
       },
       "moonPhases": {
         "newMoon": "New moon",

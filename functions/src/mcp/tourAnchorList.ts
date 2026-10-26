@@ -776,6 +776,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "weather#detail_rainMonthly",
       "weather#detail_sunrise",
       "weather#detail_sunset",
+      "weather#detail_uvIndex",
       "weather#detail_windAvg",
       "weather#detail_windGust",
       "weather#hideClothing",

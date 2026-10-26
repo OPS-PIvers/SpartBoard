@@ -21,6 +21,13 @@ import { buildDetailRows } from './details';
 import { useWeatherDetailsAllowed } from './useWeatherDetailsAllowed';
 import { WeatherDetailsLayout } from './WeatherDetailsPanel';
 
+// MOCKUP ONLY, removed once a layout is picked: ?detailsStyle=band on dev harness pages.
+const MOCKUP_DETAILS_STYLE =
+  import.meta.env.DEV &&
+  new URLSearchParams(window.location.search).get('detailsStyle') === 'band'
+    ? 'band'
+    : 'grid';
+
 export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { t, i18n } = useTranslation();
   const { updateWidget, activeDashboard, setBackground } = useDashboard();
@@ -288,27 +295,35 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         })
       : [];
 
+  // Details replace the recess gear card but keep its sizing, since they share the space.
+  const hasDetails = detailRows.length > 0;
+  const noGear = hideClothing === true && !hasDetails;
+
   const face = (
     <div
       className={`flex flex-col items-center justify-center h-full w-full ${fontClass}`}
       style={{
-        gap: hideClothing ? '1cqh' : 'min(12px, 2.5cqmin)',
-        padding: hideClothing ? 0 : 'min(8px, 2cqmin)',
+        gap: noGear ? '1cqh' : 'min(12px, 2.5cqmin)',
+        padding: noGear ? 0 : 'min(8px, 2cqmin)',
       }}
     >
       <div
         className="flex flex-col items-center justify-center w-full"
-        style={{ gap: hideClothing ? '0.5cqh' : 'min(4px, 1cqmin)' }}
+        style={{ gap: noGear ? '0.5cqh' : 'min(4px, 1cqmin)' }}
       >
         <div
           className="flex items-center justify-center w-full"
           style={{
-            gap: hideClothing ? 'min(4cqh, 2cqw)' : 'min(24px, 6cqmin)',
+            gap: noGear ? 'min(4cqh, 2cqw)' : 'min(24px, 6cqmin)',
           }}
         >
           <div
             style={{
-              fontSize: hideClothing ? 'min(65cqh, 30cqw)' : '22cqmin',
+              fontSize: noGear
+                ? 'min(65cqh, 30cqw)'
+                : hasDetails
+                  ? '30cqmin'
+                  : '22cqmin',
             }}
           >
             {getIcon('1em')}
@@ -316,9 +331,11 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           <div
             className="font-black tabular-nums leading-none"
             style={{
-              fontSize: hideClothing
+              fontSize: noGear
                 ? `min(75cqh, 40cqw, calc(68cqw / ${tempWidthEm}))`
-                : `min(35cqmin, calc((100cqw - 34cqmin) / ${tempWidthEm}))`,
+                : hasDetails
+                  ? `min(48cqmin, calc((100cqw - 44cqmin) / ${tempWidthEm}))`
+                  : `min(35cqmin, calc((100cqw - 34cqmin) / ${tempWidthEm}))`,
               color: fontColor,
             }}
           >
@@ -330,8 +347,12 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           <div
             className="font-black uppercase tracking-wider whitespace-nowrap leading-none text-center"
             style={{
-              fontSize: hideClothing ? 'min(12cqh, 10cqw)' : '5cqmin',
-              marginTop: hideClothing ? '1cqh' : 'min(2px, 0.5cqmin)',
+              fontSize: noGear
+                ? 'min(12cqh, 10cqw)'
+                : hasDetails
+                  ? '7cqmin'
+                  : '5cqmin',
+              marginTop: noGear ? '1cqh' : 'min(2px, 0.5cqmin)',
               color: secondaryColor ?? fontColor,
               opacity: secondaryColor ? 1 : 0.8,
             }}
@@ -343,7 +364,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         )}
       </div>
 
-      {!hideClothing && (
+      {!noGear && !hasDetails && (
         <div
           data-testid="weather-clothing-card"
           className="w-full border border-slate-200/60 rounded-2xl flex items-center shadow-sm"
@@ -383,6 +404,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         ) : (
           <WeatherDetailsLayout
             rows={detailRows}
+            detailsStyle={MOCKUP_DETAILS_STYLE}
             color={fontColor}
             labelColor={secondaryColor}
             className={fontClass}

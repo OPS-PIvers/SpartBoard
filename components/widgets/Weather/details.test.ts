@@ -4,6 +4,7 @@ import {
   compassPoint,
   moonPhase,
   parseEarthNetworksDetails,
+  parseEpaUvHours,
   sunTimes,
 } from './details';
 
@@ -47,7 +48,7 @@ describe('weather details', () => {
     expect(compassPoint(359)).toBe('N');
   });
 
-  it('parses the station feed and drops fields with no reading', () => {
+  it('parses the station feed and keeps a placeholder for a missing reading', () => {
     const details = parseEarthNetworksDetails({
       o: {
         t: 41.3,
@@ -81,13 +82,14 @@ describe('weather details', () => {
         t: (key) => key,
       }
     );
-    expect(rows.map((r) => [r.field, r.value])).toEqual([
-      ['dewPoint', '41°'],
-      ['humidity', '100%'],
-      ['pressure', '30.25 in'],
-      ['windAvg', 'NE 4 mph'],
-      ['windGust', '11 mph'],
-      ['highLow', '46° / 39°'],
+    expect(rows.map((r) => [r.field, r.value, r.unit])).toEqual([
+      ['dewPoint', '41°', undefined],
+      ['humidity', '100', '%'],
+      ['pressure', '30.25', 'in'],
+      ['rainDaily', '--', undefined],
+      ['windAvg', 'NE 4', 'mph'],
+      ['windGust', '11', 'mph'],
+      ['highLow', '46° / 39°', undefined],
     ]);
   });
   it('ignores a stored sunrise from an earlier day', () => {
@@ -101,11 +103,35 @@ describe('weather details', () => {
       t: (key) => key,
     });
     const computed = sunTimes(now, ORONO.lat, ORONO.lon);
-    expect(rows[0].value).toBe(
-      new Date(computed?.sunrise ?? 0).toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-      })
+    const expected = new Date(computed?.sunrise ?? 0).toLocaleTimeString(
+      'en-US',
+      { hour: 'numeric', minute: '2-digit' }
     );
+    expect(`${rows[0].value} ${rows[0].unit}`).toBe(expected);
+  });
+  it('reads the EPA hourly UV forecast for the current hour', () => {
+    const uvHours = parseEpaUvHours([
+      { DATE_TIME: 'Oct/26/2026 12 PM', UV_VALUE: 6 },
+      { DATE_TIME: 'Oct/26/2026 01 PM', UV_VALUE: 7.4 },
+      { DATE_TIME: 'Oct/27/2026 01 PM', UV_VALUE: 1 },
+      { DATE_TIME: 'bad', UV_VALUE: 9 },
+    ]);
+    expect(uvHours?.date).toBe('2026-10-26');
+    expect(uvHours?.values[12]).toBe(6);
+    expect(uvHours?.values[13]).toBe(7.4);
+    const row = (now: Date) =>
+      buildDetailRows(['uvIndex'], {
+        details: { uvHours },
+        feelsLike: undefined,
+        now,
+        ...ORONO,
+        locale: 'en-US',
+        t: (key) => key,
+      })[0];
+    expect(row(new Date(2026, 9, 26, 13, 30))).toMatchObject({
+      value: '7',
+      unit: 'widgets.weather.details.uvLevels.high',
+    });
+    expect(row(new Date(2026, 9, 27, 13, 30)).value).toBe('--');
   });
 });

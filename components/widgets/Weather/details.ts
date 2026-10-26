@@ -47,6 +47,61 @@ export function parseOpenWeatherDetails(data: OpenWeatherData): WeatherDetails {
   };
 }
 
+export const EPA_UV_URL =
+  'https://data.epa.gov/efservice/getEnvirofactsUVHOURLY/ZIP';
+
+interface EpaUvHour {
+  DATE_TIME?: unknown;
+  UV_VALUE?: unknown;
+}
+
+/** EPA rows look like {DATE_TIME: "Oct/26/2026 07 AM", UV_VALUE: 3}; keeps the first day listed. */
+export function parseEpaUvHours(rows: unknown): WeatherDetails['uvHours'] {
+  if (!Array.isArray(rows)) return null;
+  const months = 'JanFebMarAprMayJunJulAugSepOctNovDec';
+  let date: string | null = null;
+  const values: (number | null)[] = Array.from({ length: 24 }, () => null);
+  for (const row of rows as EpaUvHour[]) {
+    const match =
+      typeof row.DATE_TIME === 'string'
+        ? /^(\w{3})\/(\d{2})\/(\d{4}) (\d{2}) (AM|PM)$/.exec(row.DATE_TIME)
+        : null;
+    const uv = num(row.UV_VALUE);
+    if (!match || uv === null) continue;
+    const month = months.indexOf(match[1]) / 3 + 1;
+    if (month < 1) continue;
+    const day = `${match[3]}-${String(month).padStart(2, '0')}-${match[2]}`;
+    date ??= day;
+    if (day !== date) continue;
+    values[(Number(match[4]) % 12) + (match[5] === 'PM' ? 12 : 0)] = uv;
+  }
+  return date ? { date, values } : null;
+}
+
+/** Fetches today's hourly UV forecast for a ZIP; null when EPA is unreachable. */
+export async function fetchUvHours(
+  zip: string,
+  signal?: AbortSignal
+): Promise<WeatherDetails['uvHours']> {
+  try {
+    const res = await fetch(`${EPA_UV_URL}/${zip}/JSON`, { signal });
+    return res.ok ? parseEpaUvHours(await res.json()) : null;
+  } catch {
+    return null;
+  }
+}
+
+const localDate = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+export const UV_LEVELS = [
+  [11, 'extreme'],
+  [8, 'veryHigh'],
+  [6, 'high'],
+  [3, 'moderate'],
+  [0, 'low'],
+] as const;
+
 /** Sunrise and sunset (epoch ms) for the given day and place, after the NOAA/suncalc formulas. */
 export function sunTimes(
   date: Date,
@@ -159,6 +214,12 @@ export const compassPoint = (degrees: number): string =>
 export interface DetailRow {
   field: WeatherDetailField;
   value: string;
+  /** Shown smaller after the value. */
+  unit?: string;
+  /** Wind: compass degrees the wind blows from. */
+  direction?: number;
+  /** Moon: phase fraction, 0 new through 0.5 full. */
+  phase?: number;
 }
 
 interface FormatInput {
@@ -171,83 +232,106 @@ interface FormatInput {
   t: (key: string) => string;
 }
 
-/** Display text per enabled field; fields with no reading are left out. */
+type RowParts = Omit<DetailRow, 'field'>;
+
+/** Display parts per enabled field, in order. */
 export function buildDetailRows(
   fields: readonly WeatherDetailField[],
   input: FormatInput
 ): DetailRow[] {
   const { details = {}, feelsLike, now, lat, lon, locale, t } = input;
-  const deg = (v: number) => `${Math.round(v)}°`;
-  const inches = (v: number) => `${v.toFixed(2)} in`;
+  const num = (v: number | null | undefined): v is number =>
+    typeof v === 'number';
+  const deg = (v: number): RowParts => ({ value: `${Math.round(v)}°` });
+  const inches = (v: number): RowParts => ({
+    value: v.toFixed(2),
+    unit: 'in',
+  });
   const sun = sunTimes(now, lat, lon);
   // A stored time from an earlier sync is only used on the day it belongs to.
   const today = (ms: number | null | undefined) =>
-    typeof ms === 'number' && new Date(ms).toDateString() === now.toDateString()
-      ? ms
-      : null;
-  const time = (ms: number | null | undefined) =>
-    typeof ms === 'number'
-      ? new Date(ms).toLocaleTimeString(locale, {
-          hour: 'numeric',
-          minute: '2-digit',
-        })
-      : null;
-  const value = (field: WeatherDetailField): string | null => {
+    num(ms) && new Date(ms).toDateString() === now.toDateString() ? ms : null;
+  const time = (ms: number | null | undefined): RowParts | null => {
+    if (!num(ms)) return null;
+    const parts = new Intl.DateTimeFormat(locale, {
+      hour: 'numeric',
+      minute: '2-digit',
+    }).formatToParts(new Date(ms));
+    const dayPeriod = parts.find((p) => p.type === 'dayPeriod')?.value;
+    const clock = parts
+      .filter((p) => p.type !== 'dayPeriod')
+      .map((p) => p.value)
+      .join('')
+      .trim();
+    return dayPeriod ? { value: clock, unit: dayPeriod } : { value: clock };
+  };
+  const parts = (field: WeatherDetailField): RowParts | null => {
     switch (field) {
       case 'feelsLike':
         return feelsLike === undefined ? null : deg(feelsLike);
       case 'highLow':
-        return typeof details.high === 'number' &&
-          typeof details.low === 'number'
-          ? `${deg(details.high)} / ${deg(details.low)}`
+        return num(details.high) && num(details.low)
+          ? {
+              value: `${Math.round(details.high)}° / ${Math.round(details.low)}°`,
+            }
           : null;
       case 'dewPoint':
-        return typeof details.dewPoint === 'number'
-          ? deg(details.dewPoint)
-          : null;
+        return num(details.dewPoint) ? deg(details.dewPoint) : null;
       case 'humidity':
-        return typeof details.humidity === 'number'
-          ? `${Math.round(details.humidity)}%`
+        return num(details.humidity)
+          ? { value: `${Math.round(details.humidity)}`, unit: '%' }
           : null;
       case 'pressure':
-        return typeof details.pressure === 'number'
-          ? inches(details.pressure)
-          : null;
+        return num(details.pressure) ? inches(details.pressure) : null;
       case 'rainDaily':
-        return typeof details.rainDaily === 'number'
-          ? inches(details.rainDaily)
-          : null;
+        return num(details.rainDaily) ? inches(details.rainDaily) : null;
       case 'rainMonthly':
-        return typeof details.rainMonthly === 'number'
-          ? inches(details.rainMonthly)
-          : null;
+        return num(details.rainMonthly) ? inches(details.rainMonthly) : null;
       case 'windAvg': {
         const speed = details.windSpeedAvg;
-        if (typeof speed !== 'number') return null;
-        if (Math.round(speed) === 0) return t('widgets.weather.details.calm');
-        const dir =
-          typeof details.windDirectionAvg === 'number'
-            ? `${compassPoint(details.windDirectionAvg)} `
-            : '';
-        return `${dir}${Math.round(speed)} mph`;
+        if (!num(speed)) return null;
+        if (Math.round(speed) === 0)
+          return { value: t('widgets.weather.details.calm') };
+        const dir = details.windDirectionAvg;
+        return {
+          value: `${num(dir) ? `${compassPoint(dir)} ` : ''}${Math.round(speed)}`,
+          unit: 'mph',
+          ...(num(dir) ? { direction: dir } : {}),
+        };
       }
       case 'windGust':
-        return typeof details.windGust === 'number'
-          ? `${Math.round(details.windGust)} mph`
+        return num(details.windGust)
+          ? { value: `${Math.round(details.windGust)}`, unit: 'mph' }
           : null;
       case 'sunrise':
         return time(today(details.sunrise) ?? sun?.sunrise);
       case 'sunset':
         return time(today(details.sunset) ?? sun?.sunset);
+      case 'uvIndex': {
+        const uv =
+          details.uvHours?.date === localDate(now)
+            ? details.uvHours.values[now.getHours()]
+            : null;
+        if (!num(uv)) return null;
+        const level = UV_LEVELS.find(([min]) => uv >= min)?.[1] ?? 'low';
+        return {
+          value: `${Math.round(uv)}`,
+          unit: t(`widgets.weather.details.uvLevels.${level}`),
+        };
+      }
       case 'moon': {
         const dayStart = new Date(now);
         dayStart.setHours(0, 0, 0, 0);
-        return t(`widgets.weather.moonPhases.${moonPhase(dayStart)}`);
+        return {
+          value: t(`widgets.weather.moonPhases.${moonPhase(dayStart)}`),
+          phase: moonPhaseFraction(now.getTime()),
+        };
       }
     }
   };
-  return fields.flatMap((field) => {
-    const text = value(field);
-    return text === null ? [] : [{ field, value: text }];
-  });
+  // A reading the source didn't send still keeps its place, so a teacher sees the toggle worked.
+  return fields.map((field) => ({
+    field,
+    ...(parts(field) ?? { value: '--' }),
+  }));
 }

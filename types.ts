@@ -3078,6 +3078,7 @@ export const WEATHER_DETAIL_FIELDS = [
   'sunrise',
   'sunset',
   'moon',
+  'uvIndex',
 ] as const;
 export type WeatherDetailField = (typeof WEATHER_DETAIL_FIELDS)[number];
 
@@ -3098,6 +3099,8 @@ export interface WeatherDetails {
   /** Epoch ms; computed from the station's location when the source has none. */
   sunrise?: number | null;
   sunset?: number | null;
+  /** EPA hourly UV index forecast for one local day, indexed by hour. */
+  uvHours?: { date: string; values: (number | null)[] } | null;
 }
 
 export interface WeatherTemperatureRange {

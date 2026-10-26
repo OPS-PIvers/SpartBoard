@@ -4,23 +4,17 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { WeatherDetails, WeatherGlobalConfig } from '@/types';
-import type {
-  EarthNetworksResponse,
-  OpenWeatherData,
+import {
+  STATION_CONFIG,
+  type EarthNetworksResponse,
+  type OpenWeatherData,
 } from '@/components/widgets/Weather/constants';
 import {
+  fetchUvHours,
   parseEarthNetworksDetails,
   parseOpenWeatherDetails,
 } from '@/components/widgets/Weather/details';
 import { isStoredWeatherFresh } from './adminWeatherFreshness';
-
-// Constants shared with WeatherWidget
-const STATION_CONFIG = {
-  id: 'BLLST',
-  lat: 44.99082,
-  lon: -93.59635,
-  name: 'Orono IS',
-};
 
 const EARTH_NETWORKS_API = {
   BASE_URL: 'https://owc.enterprise.earthnetworks.com/Data/GetData.ashx',
@@ -126,7 +120,13 @@ export const AdminWeatherFetcher: React.FC = () => {
                     ? 'rainy'
                     : 'cloudy';
             locationName = STATION_CONFIG.name;
-            details = parseEarthNetworksDetails(data);
+            details = {
+              ...parseEarthNetworksDetails(data),
+              uvHours: await fetchUvHours(
+                STATION_CONFIG.zip,
+                abortController.signal
+              ),
+            };
           } else {
             throw new Error('Station data unavailable');
           }

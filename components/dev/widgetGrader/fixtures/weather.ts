@@ -27,6 +27,10 @@ const stationDetails = {
   windSpeedAvg: 10,
   windDirectionAvg: 67,
   windGust: 16,
+  uvHours: {
+    date: new Date().toLocaleDateString('en-CA'),
+    values: Array.from({ length: 24 }, () => 3),
+  },
 };
 
 export const weatherFixtures = defineFixtures<'weather'>({

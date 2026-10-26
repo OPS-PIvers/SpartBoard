@@ -123,6 +123,9 @@ export default defineSettings<WeatherSettingsKeys>({
           key: 'hideClothing',
           type: 'toggle',
           label: 'hideClothing',
+          // Details already replace the recess gear card.
+          visibleWhen: (ctx) =>
+            !(detailsVisible(ctx) && enabledDetails(ctx).length > 0),
         },
         {
           key: 'syncBackground',

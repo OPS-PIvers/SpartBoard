@@ -14,7 +14,11 @@ import {
   type OpenWeatherData,
 } from './constants';
 import { tourAttr } from '@/config/tourAnchors';
-import { parseEarthNetworksDetails, parseOpenWeatherDetails } from './details';
+import {
+  fetchUvHours,
+  parseEarthNetworksDetails,
+  parseOpenWeatherDetails,
+} from './details';
 
 function useWeatherGlobalConfig(): WeatherGlobalConfig | undefined {
   const { featurePermissions } = useAuth();
@@ -128,9 +132,12 @@ export const WeatherAutoSyncField: React.FC<{
         functions,
         'fetchExternalProxy'
       );
-      const result = await proxy({
-        url: `${EARTH_NETWORKS_API.BASE_URL}?${params.toString()}`,
-      });
+      const [result, uvHours] = await Promise.all([
+        proxy({
+          url: `${EARTH_NETWORKS_API.BASE_URL}?${params.toString()}`,
+        }),
+        fetchUvHours(STATION_CONFIG.zip),
+      ]);
       const observation = result.data.o;
       if (!observation) throw new Error('No observation data available');
       ctx.updateConfig({
@@ -140,7 +147,7 @@ export const WeatherAutoSyncField: React.FC<{
         locationName: STATION_CONFIG.name,
         lastSync: Date.now(),
         isAuto: true,
-        details: parseEarthNetworksDetails(result.data),
+        details: { ...parseEarthNetworksDetails(result.data), uvHours },
       });
       addToast(
         `${ctx.t('widgets.weather.connectedTo')} ${STATION_CONFIG.name}`,

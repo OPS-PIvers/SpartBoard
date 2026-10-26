@@ -37,6 +37,7 @@ export const STATION_CONFIG = {
   lat: 44.99082,
   lon: -93.59635,
   name: 'Orono IS',
+  zip: '55356',
 };
 
 export const EARTH_NETWORKS_API = {
