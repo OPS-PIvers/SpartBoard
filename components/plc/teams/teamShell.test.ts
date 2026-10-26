@@ -58,10 +58,10 @@ describe('resolveTeamRoute', () => {
     });
   });
 
-  it('sends the Data overview path home when plcHome is off', () => {
+  it('keeps the landing page at its own path when plcHome is off', () => {
     expect(resolveTeamRoute('dataOverview', plcLayout)).toEqual({
       route: { kind: 'page', page: 'dataOverview' },
-      canonical: 'home',
+      canonical: 'dataOverview',
     });
   });
 
@@ -118,7 +118,11 @@ describe('resolveTeamRoute', () => {
       route: { kind: 'page', page: 'docs' },
       canonical: 'home',
     });
-    expect(resolveTeamRoute('docs', docsLanding).canonical).toBe('home');
+    // Kept so /docs/<docId> deep links reach the doc.
+    expect(resolveTeamRoute('docs', docsLanding)).toEqual({
+      route: { kind: 'page', page: 'docs' },
+      canonical: 'docs',
+    });
     expect(resolveTeamRoute('dataOverview', docsLanding)).toEqual({
       route: { kind: 'page', page: 'dataOverview' },
       canonical: 'dataOverview',

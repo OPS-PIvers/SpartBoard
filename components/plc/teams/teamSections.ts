@@ -68,10 +68,11 @@ export function resolveTeamRoute(
     return { route: { kind: 'section', section }, canonical: section };
   }
   const page = PAGE_OF_SECTION[section];
+  // The landing page also answers at its own path, so item deep links under it survive.
   const enabled =
     page !== undefined &&
-    layout.pages.some((p) => p.id === page && p.enabled) &&
-    page !== layout.landing;
+    (page === layout.landing ||
+      layout.pages.some((p) => p.id === page && p.enabled));
   if (page && enabled) {
     return { route: { kind: 'page', page }, canonical: page };
   }
