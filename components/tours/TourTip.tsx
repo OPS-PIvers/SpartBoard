@@ -18,7 +18,9 @@ interface TourTipProps {
   boxRef: React.Ref<HTMLDivElement>;
   headingRef: React.Ref<HTMLDivElement>;
   left: number;
-  top: number;
+  top?: number;
+  /** Pins the tip's bottom edge instead, for a tip above its target. */
+  bottom?: number;
   width: number;
   /** Arrow toward the target; null for a centred tip. */
   tether: TetherArrow | null;
@@ -68,6 +70,7 @@ export const TourTip: React.FC<TourTipProps> = ({
   headingRef,
   left,
   top,
+  bottom,
   width,
   tether,
   plain,
@@ -98,6 +101,7 @@ export const TourTip: React.FC<TourTipProps> = ({
         zIndex: Z_INDEX.tourCallout,
         left,
         top,
+        bottom,
         width,
         animation: animate
           ? `gl-callout-in ${CALLOUT_IN_MS}ms ease-out both`

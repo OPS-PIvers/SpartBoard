@@ -24,7 +24,7 @@ const TIP_H = 120;
 export function placeTip(
   rect: OverlayRect | null,
   view: { w: number; h: number }
-): { left: number; top: number; width: number } {
+): { left: number; top?: number; bottom?: number; width: number } {
   const width = Math.min(TIP_W, view.w - GUTTER * 2);
   if (!rect) {
     return { left: (view.w - width) / 2, top: view.h / 3, width };
@@ -34,8 +34,11 @@ export function placeTip(
     view.w - width - GUTTER
   );
   const below = rect.y + rect.height + GUTTER * 2;
-  const top = below < view.h * 0.75 ? below : Math.max(GUTTER, rect.y - 160);
-  return { left, top, width };
+  if (below < view.h * 0.75) return { left, top: below, width };
+  // Above is pinned by its bottom edge, since the tip's height isn't known until it renders.
+  if (rect.y - GUTTER * 2 >= TIP_H + GUTTER)
+    return { left, bottom: view.h - rect.y + GUTTER * 2, width };
+  return { left, top: GUTTER, width };
 }
 
 // A step found faster than this never flashes "Looking…".
@@ -126,7 +129,11 @@ const TopOverlay: React.FC<Omit<Props, 'i18n' | 'styled'>> = ({
   const away = state.status === 'shown' && !state.targetHere;
   const placed = placeTip(rect, view);
   const tip = away
-    ? { ...placed, top: Math.max(GUTTER, view.h - TIP_H - GUTTER * 4) }
+    ? {
+        ...placed,
+        top: Math.max(GUTTER, view.h - TIP_H - GUTTER * 4),
+        bottom: undefined,
+      }
     : placed;
   const done = state.status === 'done';
   const looking = useAfter(state.status === 'seeking', LOOKING_DELAY_MS);
@@ -137,7 +144,12 @@ const TopOverlay: React.FC<Omit<Props, 'i18n' | 'styled'>> = ({
   // The tip's height isn't known during render; the arrow only needs the side it leaves from.
   const tether = rect
     ? tetherFor(
-        { x: tip.left, y: tip.top, w: tip.width, h: TIP_H },
+        {
+          x: tip.left,
+          y: tip.top ?? view.h - (tip.bottom ?? 0) - TIP_H,
+          w: tip.width,
+          h: TIP_H,
+        },
         { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
       )
     : null;
@@ -168,6 +180,7 @@ const TopOverlay: React.FC<Omit<Props, 'i18n' | 'styled'>> = ({
         headingRef={headingRef}
         left={tip.left}
         top={tip.top}
+        bottom={tip.bottom}
         width={tip.width}
         tether={tether}
         plain={!rect}
