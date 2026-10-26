@@ -32,7 +32,7 @@ import {
   type HarnessQuery,
 } from './harness';
 import { summarize, type RenderRecord, type RenderVariant } from './levels';
-import type { FaceSnapshot } from './snapshotTypes';
+import type { Box, FaceSnapshot } from './snapshotTypes';
 
 const READY_TIMEOUT_MS = 45_000;
 const SETTLE_MS = 400;
@@ -119,9 +119,10 @@ export const snapshot = (
 async function screenshot(
   page: Page,
   s: FaceSnapshot,
-  file: string
+  file: string,
+  extra: Box[] = []
 ): Promise<string> {
-  const boxes = s.toolbar ? [s.card, s.toolbar] : [s.card];
+  const boxes = [s.card, ...(s.toolbar ? [s.toolbar] : []), ...extra];
   const x0 = Math.max(0, Math.min(...boxes.map((b) => b.x)) - SHOT_PAD);
   const y0 = Math.max(0, Math.min(...boxes.map((b) => b.y)) - SHOT_PAD);
   const x1 = Math.min(
@@ -182,13 +183,25 @@ export async function measureWidget(
     });
     await opts.beforeCollect?.(page);
     const s = await snapshot(page, type);
+    // Settings renders in a drawer outside the card, so the shot must include it.
+    const drawer =
+      variant === 'settings'
+        ? await page
+            .locator(`[role="dialog"][data-widget-id="${windowId(type)}"]`)
+            .first()
+            .boundingBox()
+            .catch(() => null)
+        : null;
     const file = await screenshot(
       page,
       s,
       join(
         shots,
         `${size.name}__${fixture}${variant === 'base' ? '' : `__${variant}`}.png`
-      )
+      ),
+      drawer
+        ? [{ x: drawer.x, y: drawer.y, w: drawer.width, h: drawer.height }]
+        : []
     );
     if (variant === 'settings') {
       records.push({
