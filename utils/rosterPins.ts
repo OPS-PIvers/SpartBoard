@@ -21,9 +21,14 @@ function randomLinkedPin(): string {
  * PIN-based student login/SSO bridge (see `syncRosterPinIndex` in
  * `hooks/useRosters.ts`).
  *
+ * Read paths pass `randomForLinked: false` so an unsaved fill stays the same on every load.
+ *
  * Returns a new array — does not mutate the input.
  */
-export function assignPins(students: Student[]): Student[] {
+export function assignPins(
+  students: Student[],
+  { randomForLinked = true }: { randomForLinked?: boolean } = {}
+): Student[] {
   const used = new Set(
     students.map((s) => s.pin).filter((pin): pin is string => !!pin)
   );
@@ -53,7 +58,10 @@ export function assignPins(students: Student[]): Student[] {
     if (s.pin) return s;
     return {
       ...s,
-      pin: s.classLinkSourcedId ? takeRandomPin() : takeNextAvailablePin(),
+      pin:
+        s.classLinkSourcedId && randomForLinked
+          ? takeRandomPin()
+          : takeNextAvailablePin(),
     };
   });
 }

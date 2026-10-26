@@ -691,7 +691,10 @@ export const useRosters = (user: User | null) => {
           `Drive roster file ${driveFileId} is not an array of students`
         );
       }
-      return { ...content, students: assignPins(content.students) };
+      return {
+        ...content,
+        students: assignPins(content.students, { randomForLinked: false }),
+      };
     },
     [driveService]
   );

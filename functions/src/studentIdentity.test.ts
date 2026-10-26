@@ -1421,6 +1421,17 @@ describe('pinLoginV1', () => {
       });
     });
 
+    it('still bridges an ended teacher-paced video session for read-only review', async () => {
+      seedSession();
+      h.docStore.set('video_activity_sessions/vs1', {
+        teacherUid: 'teacher1',
+        rosterIds: ['r1'],
+        status: 'ended',
+        sessionMode: 'teacher',
+      });
+      expect(await login('100001')).toMatchObject({ matched: true });
+    });
+
     it('does not bridge into an ended video session', async () => {
       seedSession();
       h.docStore.set('video_activity_sessions/vs1', {

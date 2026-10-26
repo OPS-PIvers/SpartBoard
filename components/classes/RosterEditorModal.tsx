@@ -663,7 +663,7 @@ const RosterRow: React.FC<RosterRowProps> = ({
             `row-${index + 1}`
           )}
           placeholder={pinPlaceholder}
-          maxLength={4}
+          maxLength={6}
           inputMode="numeric"
         />
       )}

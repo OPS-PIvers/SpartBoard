@@ -1481,7 +1481,7 @@ export const PIN_LOGIN_MAX_IDENTITIES = 3;
 // each student can be bridged from only a few uids.
 export const PIN_LOGIN_SESSION_MAX_FAILURES = 30;
 // A day-long budget too, so a roster can't be walked 15 minutes at a time or across old sessions.
-export const PIN_LOGIN_SESSION_MAX_DAILY_FAILURES = 60;
+export const PIN_LOGIN_SESSION_MAX_DAILY_FAILURES = 150;
 const PIN_LOGIN_SESSION_DAY_MS = 24 * 60 * 60 * 1000;
 export const PIN_LOGIN_MAX_CALLERS_PER_STUDENT = 3;
 const PIN_LOGIN_CLAIM_TTL_MS = 24 * 60 * 60 * 1000;
@@ -1845,8 +1845,13 @@ export const pinLoginV1 = onCall(
       return { matched: false, reason: 'session-not-found' };
     }
     const sessionData = sessionSnap.data() ?? {};
-    // Quiz codes only match joinable sessions; an ended video session must not be a PIN oracle either.
-    if (kind === 'video-activity' && sessionData.status === 'ended') {
+    // Quiz codes only match joinable sessions; an ended self-paced video session must not be a PIN oracle either.
+    // A teacher-paced one stays bridgeable so its students can reopen their read-only results.
+    if (
+      kind === 'video-activity' &&
+      sessionData.status === 'ended' &&
+      sessionData.sessionMode !== 'teacher'
+    ) {
       console.warn('[pinLoginV1] fallback', {
         kind,
         reason: 'no-joinable-session',
