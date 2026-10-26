@@ -1145,9 +1145,7 @@ async function findExistingResponseDoc(
   // For SSO/studentRole users, `permission-denied` is a legitimate
   // class-gate denial (and `deterministicKey === authUid`, so the legacy
   // probe wouldn't run anyway) — let it propagate so the join fails fast
-  // instead of attempting a doomed write. The breadcrumb log catches
-  // anything else permission-denied could mask (App Check misconfig,
-  // emulator vs prod rules drift) on the anon path.
+  // instead of attempting a doomed write.
   let deterministicSnap: DocumentSnapshot | null = null;
   try {
     deterministicSnap = await getDoc(

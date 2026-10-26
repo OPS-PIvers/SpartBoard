@@ -20,7 +20,6 @@ import {
   onSnapshot,
   setDoc,
   updateDoc,
-  type Firestore,
 } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-response-pin-probe';
@@ -55,7 +54,7 @@ const asTeacher = () =>
     .firestore();
 
 // Resolves once the first snapshot or error arrives, so a denied listen can be asserted.
-const firstSnapshot = (db: Firestore, path: string) =>
+const firstSnapshot = (db: ReturnType<typeof asAnon>, path: string) =>
   new Promise<void>((resolve, reject) => {
     const unsub = onSnapshot(
       doc(db, path),
