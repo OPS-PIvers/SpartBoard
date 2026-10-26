@@ -14,6 +14,7 @@ import {
   type OpenWeatherData,
 } from './constants';
 import { tourAttr } from '@/config/tourAnchors';
+import { parseEarthNetworksDetails, parseOpenWeatherDetails } from './details';
 
 function useWeatherGlobalConfig(): WeatherGlobalConfig | undefined {
   const { featurePermissions } = useAuth();
@@ -96,6 +97,7 @@ export const WeatherAutoSyncField: React.FC<{
         condition: data.weather[0].main.toLowerCase(),
         locationName: data.name,
         lastSync: Date.now(),
+        details: parseOpenWeatherDetails(data),
       });
       addToast(
         `${ctx.t('widgets.weather.updatedFor')} ${data.name}`,
@@ -138,6 +140,7 @@ export const WeatherAutoSyncField: React.FC<{
         locationName: STATION_CONFIG.name,
         lastSync: Date.now(),
         isAuto: true,
+        details: parseEarthNetworksDetails(result.data),
       });
       addToast(
         `${ctx.t('widgets.weather.connectedTo')} ${STATION_CONFIG.name}`,

@@ -3,7 +3,15 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
-import { WeatherGlobalConfig } from '@/types';
+import { WeatherDetails, WeatherGlobalConfig } from '@/types';
+import type {
+  EarthNetworksResponse,
+  OpenWeatherData,
+} from '@/components/widgets/Weather/constants';
+import {
+  parseEarthNetworksDetails,
+  parseOpenWeatherDetails,
+} from '@/components/widgets/Weather/details';
 import { isStoredWeatherFresh } from './adminWeatherFreshness';
 
 // Constants shared with WeatherWidget
@@ -30,25 +38,6 @@ const EARTH_NETWORKS_ICONS = {
   SUNNY: [0, 2, 3, 4, 7],
   RAIN: [10, 11, 12, 14, 15, 16, 17, 18, 19],
 };
-
-interface OpenWeatherData {
-  cod: number | string;
-  message?: string;
-  name: string;
-  main: {
-    temp: number;
-    feels_like: number;
-  };
-  weather: [{ main: string }, ...{ main: string }[]];
-}
-
-interface EarthNetworksResponse {
-  o?: {
-    t: number;
-    ic: number;
-    fl?: number;
-  };
-}
 
 export const AdminWeatherFetcher: React.FC = () => {
   const { featurePermissions } = useAuth();
@@ -93,6 +82,7 @@ export const AdminWeatherFetcher: React.FC = () => {
         let feelsLike = 72;
         let condition = 'sunny';
         let locationName = STATION_CONFIG.name;
+        let details: WeatherDetails | undefined;
 
         if (source === 'earth_networks') {
           // Earth Networks Fetch Logic
@@ -136,6 +126,7 @@ export const AdminWeatherFetcher: React.FC = () => {
                     ? 'rainy'
                     : 'cloudy';
             locationName = STATION_CONFIG.name;
+            details = parseEarthNetworksDetails(data);
           } else {
             throw new Error('Station data unavailable');
           }
@@ -161,6 +152,7 @@ export const AdminWeatherFetcher: React.FC = () => {
             feelsLike = data.main.feels_like;
             condition = data.weather[0].main.toLowerCase();
             locationName = data.name;
+            details = parseOpenWeatherDetails(data);
           } else {
             throw new Error(String(data.message));
           }
@@ -176,6 +168,7 @@ export const AdminWeatherFetcher: React.FC = () => {
           updatedAt: Date.now(),
           source,
           city: cityKey,
+          ...(details ? { details } : {}),
         });
 
         console.warn(

@@ -58,6 +58,7 @@ import {
   Quote,
   Calculator,
   Utensils,
+  CloudSun,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -1200,6 +1201,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'lunchCount',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'weather-details': {
+    label: 'Weather details',
+    icon: CloudSun,
+    description: 'Dew point, humidity, wind and more on the Weather widget.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'weather',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
