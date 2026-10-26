@@ -296,6 +296,38 @@ describe('useVideoActivityAssignments — updateAssignmentSettings mirrors polic
     expect(sessionPatch).toEqual({ sessionOptions, updatedBy: TEACHER_UID });
   });
 
+  it('retargets classes on both docs with Edit classes', async () => {
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+
+    await act(async () => {
+      await result.current.setAssignmentClasses('assignment-1', {
+        rosterIds: ['r1', 'r2'],
+        classIds: ['cl-1'],
+        periodNames: ['Period 1', 'Period 2'],
+        classPeriodByClassId: { 'cl-1': 'Period 1' },
+      });
+    });
+
+    expect(batchUpdate).toHaveBeenCalledTimes(2);
+    expect(batchUpdate.mock.calls[0][1]).toMatchObject({
+      rosterIds: ['r1', 'r2'],
+      periodNames: ['Period 1', 'Period 2'],
+    });
+    expect(batchUpdate.mock.calls[1][0]).toContain(
+      'video_activity_sessions/assignment-1'
+    );
+    expect(batchUpdate.mock.calls[1][1]).toEqual({
+      rosterIds: ['r1', 'r2'],
+      classIds: ['cl-1'],
+      classId: 'cl-1',
+      periodNames: ['Period 1', 'Period 2'],
+      classPeriodByClassId: { 'cl-1': 'Period 1' },
+    });
+    expect(batchCommit).toHaveBeenCalledTimes(1);
+  });
+
   it('mirrors className to the session doc as assignmentName', async () => {
     const { result } = renderHook(() =>
       useVideoActivityAssignments(TEACHER_UID)

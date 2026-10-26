@@ -15,6 +15,10 @@
  * via `renameAssignment` so both documents stay in sync.
  */
 
+import {
+  stageAssignmentClassEdit,
+  type AssignmentClassEdit,
+} from '@/utils/assignmentClassEdit';
 import { useCallback, useEffect, useState } from 'react';
 import {
   collection,
@@ -78,6 +82,11 @@ export interface CreateMiniAppAssignmentInput {
 }
 
 export interface UseMiniAppAssignmentsResult {
+  /** Retargets an in-progress assignment to new classes on both docs. */
+  setAssignmentClasses: (
+    assignmentId: string,
+    edit: AssignmentClassEdit
+  ) => Promise<void>;
   assignments: MiniAppAssignment[];
   loading: boolean;
   error: string | null;
@@ -371,6 +380,32 @@ export const useMiniAppAssignments = (
     [userId]
   );
 
+  const setAssignmentClasses = useCallback<
+    UseMiniAppAssignmentsResult['setAssignmentClasses']
+  >(
+    async (assignmentId, classEdit) => {
+      if (!userId) throw new Error('Not authenticated');
+      const assignment = assignments.find((a) => a.id === assignmentId);
+      if (!assignment) throw new Error('Assignment not found');
+      const batch = writeBatch(db);
+      stageAssignmentClassEdit(batch, {
+        assignmentRef: doc(
+          db,
+          'users',
+          userId,
+          ASSIGNMENTS_COLLECTION,
+          assignmentId
+        ),
+        sessionRef: doc(db, SESSIONS_COLLECTION, assignment.sessionId),
+        edit: classEdit,
+        now: Date.now(),
+        sessionFields: [],
+      });
+      await batch.commit();
+    },
+    [userId, assignments]
+  );
+
   return useSandboxedMiniAppAssignments({
     assignments,
     loading,
@@ -381,5 +416,6 @@ export const useMiniAppAssignments = (
     reactivateAssignment,
     deleteAssignment,
     setTargetSkippedCount,
+    setAssignmentClasses,
   });
 };

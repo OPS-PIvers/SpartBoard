@@ -15,6 +15,7 @@ import { QuizManager } from '@/components/widgets/QuizWidget/components/QuizMana
 import type { QuizManagerTab } from '@/components/widgets/QuizWidget/components/QuizManager';
 import { VideoActivityManager } from '@/components/widgets/VideoActivityWidget/components/VideoActivityManager';
 import { GuidedLearningManager } from '@/components/widgets/GuidedLearning/components/GuidedLearningManager';
+import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
 import { MiniAppManager } from '@/components/widgets/MiniApp/components/MiniAppManager';
 import { FlashcardLibrary } from '@/components/widgets/Flashcards/FlashcardLibrary';
 import { WallLibraryModal } from '@/components/widgets/ActivityWall/WallLibraryModal';
@@ -288,8 +289,38 @@ const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
   );
 };
 
-const VideoActivityView: React.FC = () => (
+// The Edit classes dialog over a fixture row; the row's classes default to the first two rosters.
+const useEditClasses = () => {
+  const [editing, setEditing] = useState<{ rosterIds?: string[] } | null>(null);
+  const dialog = editing && (
+    <AssignmentClassesModal
+      rosters={ROSTERS}
+      assignment={{
+        ...editing,
+        rosterIds: editing.rosterIds ?? ['roster-3', 'roster-4'],
+      }}
+      onClose={() => setEditing(null)}
+      onSave={asyncNoop}
+    />
+  );
+  return { open: setEditing, dialog };
+};
+
+const VideoActivityView: React.FC = () => {
+  const edit = useEditClasses();
+  return (
+    <>
+      <VideoActivityManagerView onArchiveEditClasses={edit.open} />
+      {edit.dialog}
+    </>
+  );
+};
+
+const VideoActivityManagerView: React.FC<{
+  onArchiveEditClasses: (a: VideoActivityAssignment) => void;
+}> = ({ onArchiveEditClasses }) => (
   <VideoActivityManager
+    onArchiveEditClasses={onArchiveEditClasses}
     userId="mock-user-id"
     activities={ACTIVITIES}
     loading={false}
@@ -306,8 +337,21 @@ const VideoActivityView: React.FC = () => (
   />
 );
 
-const GuidedLearningView: React.FC = () => (
+const GuidedLearningView: React.FC = () => {
+  const edit = useEditClasses();
+  return (
+    <>
+      <GuidedLearningManagerView onAssignmentEditClasses={edit.open} />
+      {edit.dialog}
+    </>
+  );
+};
+
+const GuidedLearningManagerView: React.FC<{
+  onAssignmentEditClasses: (a: GuidedLearningAssignment) => void;
+}> = ({ onAssignmentEditClasses }) => (
   <GuidedLearningManager
+    onAssignmentEditClasses={onAssignmentEditClasses}
     userId="mock-user-id"
     sets={GL_SETS}
     buildingSets={[]}
@@ -340,29 +384,34 @@ const GuidedLearningView: React.FC = () => (
 
 const MiniAppView: React.FC = () => {
   const [tab, setTab] = useState<LibraryTab>('library');
+  const edit = useEditClasses();
   return (
-    <MiniAppManager
-      userId="mock-user-id"
-      tab={tab}
-      onTabChange={setTab}
-      personalLibrary={MINI_APPS}
-      globalLibrary={[]}
-      assignments={MINI_APP_ASSIGNMENTS}
-      onCreate={noop}
-      onEdit={noop}
-      onDelete={noop}
-      onRun={noop}
-      onAssign={noop}
-      onShowAssignments={noop}
-      onReorder={noop}
-      onSaveGlobalToLibrary={noop}
-      savingGlobalId={null}
-      onImport={noop}
-      onExport={noop}
-      onArchiveCopyUrl={noop}
-      onArchiveEnd={noop}
-      onArchiveDelete={noop}
-    />
+    <>
+      {edit.dialog}
+      <MiniAppManager
+        onArchiveEditClasses={edit.open}
+        userId="mock-user-id"
+        tab={tab}
+        onTabChange={setTab}
+        personalLibrary={MINI_APPS}
+        globalLibrary={[]}
+        assignments={MINI_APP_ASSIGNMENTS}
+        onCreate={noop}
+        onEdit={noop}
+        onDelete={noop}
+        onRun={noop}
+        onAssign={noop}
+        onShowAssignments={noop}
+        onReorder={noop}
+        onSaveGlobalToLibrary={noop}
+        savingGlobalId={null}
+        onImport={noop}
+        onExport={noop}
+        onArchiveCopyUrl={noop}
+        onArchiveEnd={noop}
+        onArchiveDelete={noop}
+      />
+    </>
   );
 };
 

@@ -481,6 +481,7 @@ export function useSandboxedVideoActivityAssignments(
         'reactivateAssignment',
         'deleteAssignment',
         'updateAssignmentSettings',
+        'setAssignmentClasses',
         'shareAssignment',
         'publishAssignmentScores',
         'unpublishAssignmentScores',
@@ -529,6 +530,7 @@ export function useSandboxedGuidedLearningAssignments(
         'deleteAssignment',
         'publishAssignmentScores',
         'unpublishAssignmentScores',
+        'setAssignmentClasses',
       ],
       { publishAssignmentScores: { responsesUpdated: 0 } }
     ),
@@ -567,6 +569,7 @@ export function useSandboxedMiniAppAssignments(
       'reactivateAssignment',
       'deleteAssignment',
       'setTargetSkippedCount',
+      'setAssignmentClasses',
     ]),
     createAssignment: async (input) => {
       if (isSandboxed(input.app.id)) return sandboxId();

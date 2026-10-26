@@ -12,6 +12,10 @@
  * (mirroring Quiz's `shareAssignment` / `importSharedAssignment` flows).
  */
 
+import {
+  stageAssignmentClassEdit,
+  type AssignmentClassEdit,
+} from '@/utils/assignmentClassEdit';
 import { useState, useEffect, useCallback, useRef, useContext } from 'react';
 import {
   addDoc,
@@ -155,6 +159,11 @@ export interface UseVideoActivityAssignmentsResult {
   reactivateAssignment: (assignmentId: string) => Promise<void>;
   /** Permanently delete assignment + session + all responses. */
   deleteAssignment: (assignmentId: string) => Promise<void>;
+  /** Retargets an in-progress assignment to new classes on both docs. */
+  setAssignmentClasses: (
+    assignmentId: string,
+    edit: AssignmentClassEdit
+  ) => Promise<void>;
   /** Update editable settings (className, session toggles). */
   updateAssignmentSettings: (
     assignmentId: string,
@@ -662,6 +671,34 @@ export const useVideoActivityAssignments = (
     [userId]
   );
 
+  const setAssignmentClasses = useCallback<
+    UseVideoActivityAssignmentsResult['setAssignmentClasses']
+  >(
+    async (assignmentId, classEdit) => {
+      if (!userId) throw new Error('Not authenticated');
+      const batch = writeBatch(db);
+      const assignmentRef = doc(
+        db,
+        'users',
+        userId,
+        VIDEO_ACTIVITY_ASSIGNMENTS_COLLECTION,
+        assignmentId
+      );
+      stageAssignmentClassEdit(batch, {
+        assignmentRef,
+        sessionRef: doc(db, VIDEO_ACTIVITY_SESSIONS_COLLECTION, assignmentId),
+        edit: classEdit,
+        now: Date.now(),
+        assignmentPeriodNames: true,
+        sessionFields: ['classId', 'periodNames', 'classPeriodByClassId'],
+      });
+      await viewAsDirectSave(assignmentRef, ['rosterIds', 'periodNames'], () =>
+        batch.commit()
+      );
+    },
+    [userId]
+  );
+
   /**
    * Publish a shared-VA-assignment doc + auto-create a synced group if the
    * source activity has none yet. Mirrors `useQuizAssignments.shareAssignment`
@@ -1139,6 +1176,7 @@ export const useVideoActivityAssignments = (
     reactivateAssignment,
     deleteAssignment,
     updateAssignmentSettings,
+    setAssignmentClasses,
     shareAssignment,
     peekSharedAssignment,
     importSharedAssignment,

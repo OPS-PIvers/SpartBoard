@@ -134,6 +134,7 @@ describe('tour anchor registry', () => {
       'publish-scores.level',
       'publish-scores.written-mode',
       'publish-scores.cancel',
+      'assignment-classes.cancel',
       'quiz-import.cartridge-share-pictures',
       'quiz-import.paper-assignment',
       'quiz-banks.shared-preview',

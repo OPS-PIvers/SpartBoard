@@ -143,6 +143,22 @@ describe('mini_app_sessions window edits', () => {
     );
   });
 
+  it('lets the session teacher change classes, and refuses another teacher', async () => {
+    await seed({ rosterIds: ['r-a'] });
+    await assertFails(
+      updateDoc(doc(asTeacher(OTHER_TEACHER_UID), SESSION_PATH), {
+        classIds: ['class-b'],
+        rosterIds: ['r-b'],
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(TEACHER_UID), SESSION_PATH), {
+        classIds: [CLASS_A, 'class-b'],
+        rosterIds: ['r-a', 'r-b'],
+      })
+    );
+  });
+
   it('lets a student in the class read the closed session', async () => {
     const closeAt = Date.now() - 600_000;
     await seed({ closeAt });

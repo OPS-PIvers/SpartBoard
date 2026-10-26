@@ -21,7 +21,6 @@ import {
   deleteDoc,
   deleteField,
   doc,
-  FieldPath,
   onSnapshot,
   getDoc,
   getDocs,
@@ -34,8 +33,6 @@ import {
   Timestamp,
   updateDoc,
   writeBatch,
-  type DocumentReference,
-  type WriteBatch,
 } from 'firebase/firestore';
 import { auth, db, isAuthBypass } from '@/config/firebase';
 import { QuizDriveService } from '@/utils/quizDriveService';
@@ -161,6 +158,10 @@ import {
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import type { PeriodAccessWindowEdits } from '@/utils/assignAvailability';
+import {
+  batchUpdateWithPaths,
+  periodAccessWrites,
+} from '@/utils/periodAccessWrites';
 import {
   syncedQuizContentFields,
   type SyncedQuizContentFields,
@@ -337,44 +338,6 @@ export type QuizAssignmentSettingsPatch = Partial<QuizAssignmentSettings> &
     /** Whole per-period rows by key for a class change; null removes the row. */
     periodAccessRows?: Record<string, PeriodAccess | null>;
   };
-
-/** FieldPath writes for `periodAccess` rows (null deletes) and window edits; keys may hold dots. */
-const periodAccessWrites = (
-  rows: Record<string, PeriodAccess | null> | undefined,
-  edits?: PeriodAccessWindowEdits
-): Array<[FieldPath, unknown]> => [
-  ...Object.entries(rows ?? {}).map(([key, row]): [FieldPath, unknown] => [
-    new FieldPath('periodAccess', key),
-    row ?? deleteField(),
-  ]),
-  ...Object.entries(edits ?? {}).flatMap(([key, edit]) =>
-    Object.entries(edit).map(([field, value]): [FieldPath, unknown] => [
-      new FieldPath('periodAccess', key, field),
-      value ?? null,
-    ])
-  ),
-];
-
-/** One batch update combining a plain patch with FieldPath writes. */
-const batchUpdateWithPaths = (
-  batch: WriteBatch,
-  ref: DocumentReference,
-  patch: Record<string, unknown>,
-  paths: Array<[FieldPath, unknown]>
-): void => {
-  if (paths.length === 0) {
-    batch.update(ref, patch);
-    return;
-  }
-  const [first, ...rest] = [
-    ...Object.entries(patch).map(([k, v]): [string | FieldPath, unknown] => [
-      k,
-      v,
-    ]),
-    ...paths,
-  ];
-  batch.update(ref, first[0], first[1], ...rest.flat());
-};
 
 export interface UseQuizAssignmentsResult {
   assignments: QuizAssignment[];
