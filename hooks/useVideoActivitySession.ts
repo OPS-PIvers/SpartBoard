@@ -33,6 +33,7 @@ import {
   orderBy,
   writeBatch,
   type DocumentReference,
+  type DocumentSnapshot,
 } from 'firebase/firestore';
 import { signInWithCustomToken } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
@@ -1120,10 +1121,20 @@ export const useVideoActivitySessionStudent =
             responseDocKey
           );
           let effectiveResponseRef = responseRef;
-          let existingSnap = await getDoc(responseRef);
+          // Rules deny an anonymous read of a missing or someone else's PIN key alike; both mean "not ours".
+          let existingSnap: DocumentSnapshot | null = await getDoc(
+            responseRef
+          ).catch((err: unknown) => {
+            if (
+              !isAnonymous ||
+              (err as { code?: string }).code !== 'permission-denied'
+            )
+              throw err;
+            return null;
+          });
 
           if (
-            !existingSnap.exists() &&
+            !existingSnap?.exists() &&
             isAnonymous &&
             responseDocKey !== currentUser.uid
           ) {
@@ -1142,7 +1153,7 @@ export const useVideoActivitySessionStudent =
           }
 
           if (liveEnded) {
-            if (!existingSnap.exists()) {
+            if (!existingSnap?.exists()) {
               setJoinStatus('error');
               setError(closedMessage);
               return;
@@ -1162,7 +1173,7 @@ export const useVideoActivitySessionStudent =
           let periodKey: string | null = null;
           let keys: string[] = [];
           if (hasPeriodAccess(sessionData)) {
-            const existingClassId = existingSnap.exists()
+            const existingClassId = existingSnap?.exists()
               ? (existingSnap.data() as VideoActivityResponse).classId
               : undefined;
             if (
@@ -1229,7 +1240,7 @@ export const useVideoActivitySessionStudent =
 
           const limit = sessionData.sessionOptions?.attemptLimit ?? null;
 
-          if (existingSnap.exists()) {
+          if (existingSnap?.exists()) {
             const existing = existingSnap.data() as VideoActivityResponse;
             // Attempt-limit enforcement on rejoin.
             //   - `attemptLimit == null/undefined` means unlimited.
@@ -1340,7 +1351,7 @@ export const useVideoActivitySessionStudent =
             else await setDoc(effectiveResponseRef, newResponse);
           }
 
-          if (periodKey && existingSnap.exists()) {
+          if (periodKey && existingSnap?.exists()) {
             await setDoc(seatRef(targetSessionId, currentUser.uid), {
               responseKey: effectiveResponseRef.id,
             }).catch((err: unknown) =>
