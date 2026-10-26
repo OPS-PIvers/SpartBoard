@@ -28,6 +28,7 @@ A scheduled trigger runs this nightly; it can also be run by hand with "run the 
    - Visual and scaling fixes ship unflagged; a change to what the widget does, or a new setting, ships behind the widget's flag (R21, CLAUDE.md flag-first rule).
    - Never add or remove a Nexus connection (R14); write proposals to `docs/widget-rubric/proposals.md`.
    - Never edit `rubric.json`, descriptors, thresholds, fixtures or measurer code in a loop PR. A loop that needs one of those stops and says so.
+   - A small-size fix may shrink, wrap or move a control, but never hide or remove one. Labels and decoration may hide; anything a teacher taps or types into stays (Time Tool +/- buttons, #4388, hotfixed in #4717).
    - Verify scoped, per CLAUDE.md: `pnpm exec vitest related --run <changed files>`.
 
 6. **Grade after, blind (R31).** Run `/grade-widget` steps 1–3 for the widget only: `grader:measure`, `grader:static`, `cli judge-prompt`, then a fresh general-purpose Agent per the skill, given only the prompt path. Never tell that agent what changed, why, or the before scores. `cli judge-check`, then `cli record` writes the new scores.
@@ -40,8 +41,11 @@ A scheduled trigger runs this nightly; it can also be run by hand with "run the 
 
    Exit 1 means a criterion dropped, a score went missing, a gate fails, or a render lost fill (`fillDrops`: content covers clearly less of the card than before, which is wasted space even when no score moved). Try once more to fix it without losing the gain; if it still fails, close the branch without a PR and record the attempt in the journal. A run that raises nothing also opens no PR.
 
+   Also open the after screenshots at the envelope-min and smallest stress sizes and check that every button, field and toggle on the default view is still on the card. A missing control fails the check the same as exit 1.
+
 8. **Open the PR** into `dev-paul`. Title: `Widget loop: <Widget name> <dimension> <before> → <after>`. The body has:
    - one sentence on what changed, in plain words;
+   - one line confirming every control on the default view is still present at the smallest size;
    - the before/after screenshot grid (same sizes and fixtures, side by side) as CI artifacts or images uploaded to the PR;
    - the score table from the compare output (criteria gained, dimension and overall before → after, letter);
    - the review mode from `node scripts/widget-grader/loop.ts supervision`: in `full` mode, ask Paul to grade the after-state in disagreements-only mode before merging (`/grade-widget --disagreements <type>`, norming step 6).
@@ -57,6 +61,7 @@ A scheduled trigger runs this nightly; it can also be run by hand with "run the 
 ## Never
 
 - Merge a loop PR. Paul merges them (R32).
+- Hide or remove a control to win a small-size score.
 - Create, edit or turn on the scheduled trigger.
 - Read production data. The queue weights by prod usage only when `docs/widget-rubric/usage.json` exists (boards per widget type, counts only, added by Paul); without it the queue orders by gap only.
 
