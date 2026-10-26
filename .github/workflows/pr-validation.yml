@@ -383,6 +383,8 @@ jobs:
     if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-24.04
     name: Chrome Extension
+    # The playback benchmark normally takes about two minutes; a hung browser shouldn't hold the run.
+    timeout-minutes: 20
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
