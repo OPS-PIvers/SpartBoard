@@ -159,6 +159,28 @@ describe('mini_app_sessions window edits', () => {
     );
   });
 
+  it('lets the session teacher record removed classes, which a class student can still read', async () => {
+    await seed({ rosterIds: ['r-a', 'r-b'], classIds: [CLASS_A, 'class-b'] });
+    const removedClasses = { classIds: ['class-b'], periodNames: ['Period B'] };
+    await assertFails(
+      updateDoc(doc(asTeacher(OTHER_TEACHER_UID), SESSION_PATH), {
+        removedClasses,
+      })
+    );
+    await assertFails(
+      updateDoc(doc(asStudent(), SESSION_PATH), { removedClasses })
+    );
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(TEACHER_UID), SESSION_PATH), {
+        classIds: [CLASS_A],
+        rosterIds: ['r-a'],
+        removedClasses,
+      })
+    );
+    const snap = await assertSucceeds(getDoc(doc(asStudent(), SESSION_PATH)));
+    expect(snap.data()?.removedClasses).toEqual(removedClasses);
+  });
+
   it('refuses a student changing classes, and a removed class can no longer submit', async () => {
     await seed({ rosterIds: ['r-a'] });
     await assertFails(

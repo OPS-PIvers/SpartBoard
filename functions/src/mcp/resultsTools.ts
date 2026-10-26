@@ -250,13 +250,19 @@ async function videoSessionSummary(
   ctx: ToolContext,
   sessionDoc: admin.firestore.DocumentSnapshot
 ) {
-  const recompute = await import('../recomputePlcAssessments');
+  const [recompute, { sessionClassPredicate }] = await Promise.all([
+    import('../recomputePlcAssessments'),
+    import('../sessionClassFilter'),
+  ]);
   const s: Data = sessionDoc.data() ?? {};
   const [responses, keySnap] = await Promise.all([
     sessionDoc.ref.collection('responses').get(),
     sessionDoc.ref.collection('key').doc('answers').get(),
   ]);
-  const completed = responses.docs.filter((d) => d.get('completedAt') != null);
+  const keepClass = sessionClassPredicate(s);
+  const completed = responses.docs.filter(
+    (d) => d.get('completedAt') != null && keepClass(d.data())
+  );
   const scope = videoAskedScope(s);
   const header = {
     assignment_id: sessionDoc.id,

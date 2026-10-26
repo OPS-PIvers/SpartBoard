@@ -39,6 +39,11 @@ import { signInWithCustomToken } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import { db, auth, functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import {
+  sessionClassPredicate,
+  targetingKey,
+  targetsFromKey,
+} from '@/utils/sessionClassFilter';
 import { dropPinLoginFromOtherSession } from '@/utils/pinLoginScope';
 import { tabAwaySessionFields } from '@/utils/tabAwayLimit';
 import { AuthContext } from '@/context/AuthContextValue';
@@ -609,6 +614,17 @@ export const useVideoActivitySessionTeacher =
       };
     }, []);
 
+    // A class removed from the assignment drops out of every teacher view; its docs stay.
+    const classTargets = targetingKey(liveSession);
+    const keepClass = useMemo(
+      () => sessionClassPredicate(targetsFromKey(classTargets)),
+      [classTargets]
+    );
+    const visibleResponses = useMemo(() => {
+      const kept = responses.filter(keepClass);
+      return kept.length === responses.length ? responses : kept;
+    }, [responses, keepClass]);
+
     return useSandboxedVideoActivitySession({
       createSession,
       sessions,
@@ -617,7 +633,7 @@ export const useVideoActivitySessionTeacher =
       unsubscribeFromActivitySessions,
       renameSession,
       endSession,
-      responses,
+      responses: visibleResponses,
       liveSession,
       subscribeToSession,
       unsubscribeFromSession,

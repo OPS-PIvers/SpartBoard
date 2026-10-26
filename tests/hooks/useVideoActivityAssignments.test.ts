@@ -324,6 +324,7 @@ describe('useVideoActivityAssignments — updateAssignmentSettings mirrors polic
     expect(batchUpdate.mock.calls[1][1]).toEqual({
       rosterIds: ['r1', 'r2'],
       classIds: ['cl-1', 'classroom:c1'],
+      removedClasses: { classIds: ['old-cl'], periodNames: [] },
       classId: 'cl-1',
       periodNames: ['Period 1', 'Period 2'],
       classPeriodByClassId: { 'cl-1': 'Period 1' },

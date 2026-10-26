@@ -153,7 +153,7 @@ export async function runPublishGradePush<R>({
           ltiToolColumn?: unknown;
         } & SessionClassTargets)
       | undefined;
-    if (kind === 'quiz') classTargets = sess ?? null;
+    classTargets = sess ?? null;
     ltiLinked = !!sess?.ltiAttachment;
     toolColumn =
       !ltiLinked && schoologyToolColumns && sess?.ltiToolColumn === true;
@@ -170,7 +170,7 @@ export async function runPublishGradePush<R>({
     const snap = await getDocs(
       collection(db, sessionCollectionForKind(kind), sessionId, 'responses')
     );
-    // Students in a class removed from the quiz get no grade pushed.
+    // Students in a class removed from the assignment get no grade pushed.
     const keepClass = sessionClassPredicate(classTargets);
     responses = snap.docs
       .filter((d) => keepClass(d.data() as ResponseClassMarkers))
