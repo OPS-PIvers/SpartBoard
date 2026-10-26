@@ -25,7 +25,6 @@ import {
   setDoc,
   where,
   writeBatch,
-  type Firestore,
 } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-plc-delete-invites';
@@ -131,13 +130,15 @@ const as = (uid: string, email: string) =>
     .authenticatedContext(uid, { email, email_verified: true })
     .firestore();
 
-const invitesFor = (db: Firestore, plcId: string) =>
+type Db = ReturnType<typeof as>;
+
+const invitesFor = (db: Db, plcId: string) =>
   getDocs(
     query(collection(db, 'plc_invitations'), where('plcId', '==', plcId))
   );
 
 // Mirrors deletePlc: list invites by plcId, then batch-delete them with the PLC.
-const dissolve = async (db: Firestore, plcId: string) => {
+const dissolve = async (db: Db, plcId: string) => {
   const snap = await invitesFor(db, plcId);
   const batch = writeBatch(db);
   snap.forEach((d) => batch.delete(d.ref));
