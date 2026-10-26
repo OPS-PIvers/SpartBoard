@@ -303,6 +303,39 @@ describe('TimeToolWidget', () => {
       expect(screen.queryByLabelText('Subtract time')).not.toBeInTheDocument();
     });
 
+    const renderAtSize = (width: number, height: number) => {
+      const Original = global.ResizeObserver;
+      global.ResizeObserver = class {
+        constructor(private cb: ResizeObserverCallback) {}
+        observe = () =>
+          this.cb(
+            [{ contentRect: { width, height } } as ResizeObserverEntry],
+            this
+          );
+        unobserve = vi.fn();
+        disconnect = vi.fn();
+      };
+      try {
+        renderWidget(createWidget({ mode: 'timer', adjustStepSeconds: 60 }));
+      } finally {
+        global.ResizeObserver = Original;
+      }
+    };
+
+    it('keeps ± buttons on a wide but short widget', () => {
+      renderAtSize(426, 145);
+
+      expect(screen.getByLabelText('Add time')).toBeInTheDocument();
+      expect(screen.getByLabelText('Subtract time')).toBeInTheDocument();
+    });
+
+    it('hides ± buttons on a narrow widget', () => {
+      renderAtSize(150, 400);
+
+      expect(screen.queryByLabelText('Add time')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Subtract time')).not.toBeInTheDocument();
+    });
+
     it('shows ± buttons in fresh-setup state (timer not started, elapsed === duration)', () => {
       const widget = createWidget({
         mode: 'timer',
