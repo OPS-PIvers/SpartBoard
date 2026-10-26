@@ -184,6 +184,20 @@ describe('createDriveUploader', () => {
     expect(drive.deleted).toEqual([file.id]);
   });
 
+  it('deletes an older upload filed loose in SpartBoard/{folderName}', async () => {
+    const drive = makeFakeDrive();
+    const uploader = createDriveUploader(drive.fetchImpl);
+    const loose = await uploader.uploadBlob(
+      'tok',
+      Buffer.from('x'),
+      'image/webp',
+      'loose.webp',
+      'Quiz Responses'
+    );
+    await uploader.deleteFileInAppFolder('tok', loose.id, 'Quiz Responses');
+    expect(drive.deleted).toEqual([loose.id]);
+  });
+
   it('refuses to delete a file outside the archive folder', async () => {
     const drive = makeFakeDrive();
     const uploader = createDriveUploader(drive.fetchImpl);
@@ -194,14 +208,14 @@ describe('createDriveUploader', () => {
       'stimulus.webp',
       'Quiz Media/Unit 3'
     );
-    const loose = await uploader.uploadBlob(
+    const atRoot = await uploader.uploadBlob(
       'tok',
       Buffer.from('x'),
       'image/webp',
-      'loose.webp',
-      'Quiz Responses'
+      'root.webp',
+      ''
     );
-    for (const id of [stimulus.id, loose.id]) {
+    for (const id of [stimulus.id, atRoot.id]) {
       await expect(
         uploader.deleteFileInAppFolder('tok', id, 'Quiz Responses')
       ).rejects.toThrow(/not in the SpartBoard\/Quiz Responses folder/);

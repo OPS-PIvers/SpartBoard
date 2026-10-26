@@ -311,9 +311,9 @@ describe('handleJoinPlcVideoActivitySyncGroup - editor and group-link gates', ()
     expect(state.updates).toHaveLength(0);
   });
 
-  it('rejects a removed member (permission-denied)', async () => {
+  it('rejects a removed member no longer in memberUids (permission-denied)', async () => {
     state.plc = {
-      memberUids: [MEMBER_UID, 'member-b'],
+      memberUids: ['member-b'],
       members: { [MEMBER_UID]: { role: 'member', status: 'removed' } },
     };
     const db = makeDb(state) as unknown as Parameters<
@@ -323,6 +323,19 @@ describe('handleJoinPlcVideoActivitySyncGroup - editor and group-link gates', ()
       handleJoinPlcVideoActivitySyncGroup(db, MEMBER_UID, PLC_ID, ENTRY_ID)
     ).rejects.toMatchObject({ code: 'permission-denied' });
     expect(state.updates).toHaveLength(0);
+  });
+
+  it('allows a rejoined member whose entry still says removed', async () => {
+    state.plc = {
+      memberUids: [MEMBER_UID, 'member-b'],
+      members: { [MEMBER_UID]: { role: 'member', status: 'removed' } },
+    };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcVideoActivitySyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcVideoActivitySyncGroup(db, MEMBER_UID, PLC_ID, ENTRY_ID)
+    ).resolves.toMatchObject({ alreadyJoined: false });
   });
 
   it('allows a non-viewer keyed member', async () => {

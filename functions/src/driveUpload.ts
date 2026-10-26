@@ -226,22 +226,29 @@ export function createDriveUploader(
     const file = await getMetadata(accessToken, fileId);
     // Already gone: the obligation is satisfied.
     if (!file) return;
+    const isArchive = async (id: string): Promise<boolean> => {
+      const archive = await isFolderNamed(accessToken, id, folderName);
+      for (const rootId of archive?.parents ?? []) {
+        if (await isFolderNamed(accessToken, rootId, APP_DRIVE_FOLDER)) {
+          return true;
+        }
+      }
+      return false;
+    };
     let filed = false;
     if (file.mimeType !== FOLDER_MIME) {
       outer: for (const parentId of file.parents ?? []) {
         const parent = await getMetadata(accessToken, parentId);
         if (parent?.mimeType !== FOLDER_MIME) continue;
+        // Older uploads with an empty sanitized title sit loose in the archive folder.
+        if (await isArchive(parentId)) {
+          filed = true;
+          break;
+        }
         for (const archiveId of parent.parents ?? []) {
-          const archive = await isFolderNamed(
-            accessToken,
-            archiveId,
-            folderName
-          );
-          for (const rootId of archive?.parents ?? []) {
-            if (await isFolderNamed(accessToken, rootId, APP_DRIVE_FOLDER)) {
-              filed = true;
-              break outer;
-            }
+          if (await isArchive(archiveId)) {
+            filed = true;
+            break outer;
           }
         }
       }
