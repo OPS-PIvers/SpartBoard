@@ -1368,7 +1368,7 @@ describe('pinLoginV1', () => {
       });
     });
 
-    it('stops probing the index once the session budget is spent', async () => {
+    it('stops counting once the session budget is spent', async () => {
       seedSession();
       for (let i = 0; i < PIN_LOGIN_SESSION_MAX_FAILURES + 5; i++) {
         await login('90' + String(i).padStart(2, '0'), `fresh-${i}`);
@@ -1376,6 +1376,61 @@ describe('pinLoginV1', () => {
       expect(h.docStore.get('pin_login_attempts/session__vs1')).toMatchObject({
         failures: PIN_LOGIN_SESSION_MAX_FAILURES,
         dayFailures: PIN_LOGIN_SESSION_MAX_FAILURES,
+      });
+    });
+
+    it('shares the day budget across every session on the same roster', async () => {
+      seedSession();
+      h.docStore.set('video_activity_sessions/vs2', {
+        teacherUid: 'teacher1',
+        rosterIds: ['r1'],
+      });
+      h.docStore.set('pin_login_attempts/roster__teacher1__r1', {
+        windowStart: Date.now() - 16 * 60 * 1000,
+        failures: 0,
+        dayStart: Date.now(),
+        dayFailures: PIN_LOGIN_SESSION_MAX_DAILY_FAILURES,
+      });
+      expect(
+        await callPinLogin({
+          data: {
+            kind: 'video-activity',
+            sessionId: 'vs2',
+            pin: '1001',
+            period: '1',
+          },
+        })
+      ).toEqual({ matched: false, reason: 'rate-limited' });
+    });
+
+    it('lets a student who already bridged rejoin after the session budget is spent', async () => {
+      seedSession();
+      expect(await login('1001', 'kid')).toMatchObject({ matched: true });
+      h.docStore.set('pin_login_attempts/session__vs1', {
+        windowStart: Date.now(),
+        failures: PIN_LOGIN_SESSION_MAX_FAILURES,
+      });
+      expect(await login('1001', 'kid')).toMatchObject({ matched: true });
+      expect(await login('1002', 'kid')).toEqual({
+        matched: false,
+        reason: 'rate-limited',
+      });
+      expect(await login('1001', 'someone-else')).toEqual({
+        matched: false,
+        reason: 'rate-limited',
+      });
+    });
+
+    it('does not bridge into an ended video session', async () => {
+      seedSession();
+      h.docStore.set('video_activity_sessions/vs1', {
+        teacherUid: 'teacher1',
+        rosterIds: ['r1'],
+        status: 'ended',
+      });
+      expect(await login('1001')).toEqual({
+        matched: false,
+        reason: 'no-joinable-session',
       });
     });
 

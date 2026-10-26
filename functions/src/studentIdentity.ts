@@ -1476,10 +1476,11 @@ const PIN_LOGIN_ATTEMPTS_COLLECTION = 'pin_login_attempts';
 const PIN_LOGIN_WINDOW_MS = 15 * 60 * 1000;
 export const PIN_LOGIN_MAX_FAILURES = 10;
 export const PIN_LOGIN_MAX_IDENTITIES = 3;
-// Per-session limits that fresh anonymous uids can't reset: misses from every
-// caller share one budget, and each student can be bridged from only a few uids.
+// Shared limits that fresh anonymous uids can't reset: misses from every caller of
+// the session, and of every session on the same roster, share one budget each, and
+// each student can be bridged from only a few uids.
 export const PIN_LOGIN_SESSION_MAX_FAILURES = 30;
-// A day-long budget too, so a session that stays live for days can't be walked 15 minutes at a time.
+// A day-long budget too, so a roster can't be walked 15 minutes at a time or across old sessions.
 export const PIN_LOGIN_SESSION_MAX_DAILY_FAILURES = 60;
 const PIN_LOGIN_SESSION_DAY_MS = 24 * 60 * 60 * 1000;
 export const PIN_LOGIN_MAX_CALLERS_PER_STUDENT = 3;
@@ -1574,22 +1575,43 @@ function pinLoginExpireAt(windowStart: number): admin.firestore.Timestamp {
 
 export interface PinLoginRefs {
   caller: admin.firestore.DocumentReference;
-  session: admin.firestore.DocumentReference;
   claim: admin.firestore.DocumentReference;
+  /** The session's budget first, then one per roster on the session. */
+  shared: admin.firestore.DocumentReference[];
 }
 
 export function pinLoginRefs(
   db: admin.firestore.Firestore,
   sessionId: string,
   callerUid: string,
-  indexKey: string
+  indexKey: string,
+  teacherUid: string,
+  rosterIds: readonly string[]
 ): PinLoginRefs {
   const col = db.collection(PIN_LOGIN_ATTEMPTS_COLLECTION);
   return {
     caller: col.doc(`${sessionId}__${callerUid}`),
-    session: col.doc(`session__${sessionId}`),
     claim: col.doc(`claim__${sessionId}__${indexKey}`),
+    shared: [
+      col.doc(`session__${sessionId}`),
+      ...rosterIds.map((rosterId) =>
+        col.doc(`roster__${teacherUid}__${rosterId.replace(/\//g, '_')}`)
+      ),
+    ],
   };
+}
+
+/** Blocked by a caller limit, or by a shared budget unless this caller is rejoining as a student it already holds. */
+function pinLoginLimited(
+  a: PinLoginAttempts,
+  shared: readonly PinLoginSessionBudget[],
+  callers: readonly string[],
+  callerUid: string,
+  indexKey: string
+): boolean {
+  if (pinLoginBlocked(a, indexKey)) return true;
+  if (callers.includes(callerUid)) return false;
+  return shared.some(pinLoginSessionBlocked);
 }
 
 export interface PinLoginMatch {
@@ -1605,7 +1627,7 @@ export type PinLoginDecision =
 
 /**
  * Probes the roster index and records the attempt in ONE transaction, so every
- * hit and miss is decided against the session budget it is counted in.
+ * hit and miss is decided against the shared budgets it is counted in.
  */
 export async function decidePinLogin(
   db: admin.firestore.Firestore,
@@ -1615,16 +1637,22 @@ export async function decidePinLogin(
   indexKey: string
 ): Promise<PinLoginDecision> {
   return db.runTransaction(async (tx) => {
-    const [callerSnap, sessionSnap, claimSnap, ...indexSnaps] =
-      await Promise.all(
-        [refs.caller, refs.session, refs.claim, ...indexRefs].map((r) =>
-          tx.get(r)
-        )
-      );
+    const n = refs.shared.length;
+    const snaps = await Promise.all(
+      [refs.caller, refs.claim, ...refs.shared, ...indexRefs].map((r) =>
+        tx.get(r)
+      )
+    );
+    const [callerSnap, claimSnap] = snaps;
+    const sharedSnaps = snaps.slice(2, 2 + n);
+    const indexSnaps = snaps.slice(2 + n);
     const now = Date.now();
     const a = readPinLoginAttempts(callerSnap.data(), now);
-    const s = readPinLoginSession(sessionSnap.data(), now);
-    const blocked = pinLoginBlocked(a, indexKey) || pinLoginSessionBlocked(s);
+    const shared = sharedSnaps.map((snap) =>
+      readPinLoginSession(snap.data(), now)
+    );
+    const callers = readPinLoginCallers(claimSnap.data());
+    const blocked = pinLoginLimited(a, shared, callers, callerUid, indexKey);
 
     // A multi-roster session prefers the first hit in rosterIds order (see `resolvePinName`).
     let match: PinLoginMatch | null = null;
@@ -1644,22 +1672,23 @@ export async function decidePinLogin(
     if (!match) {
       // Every miss is counted, even once blocked, so the stored total matches the probes made.
       a.failures += 1;
-      s.failures += 1;
-      s.dayFailures += 1;
-      tx.set(refs.session, {
-        ...s,
-        expireAt: admin.firestore.Timestamp.fromMillis(
-          Math.max(
-            s.windowStart + 2 * PIN_LOGIN_WINDOW_MS,
-            s.dayStart + PIN_LOGIN_SESSION_DAY_MS
-          )
-        ),
+      shared.forEach((s, i) => {
+        s.failures += 1;
+        s.dayFailures += 1;
+        tx.set(refs.shared[i], {
+          ...s,
+          expireAt: admin.firestore.Timestamp.fromMillis(
+            Math.max(
+              s.windowStart + 2 * PIN_LOGIN_WINDOW_MS,
+              s.dayStart + PIN_LOGIN_SESSION_DAY_MS
+            )
+          ),
+        });
       });
       tx.set(refs.caller, { ...a, expireAt: pinLoginExpireAt(a.windowStart) });
       return { outcome: blocked ? 'rate-limited' : 'miss' };
     }
 
-    const callers = readPinLoginCallers(claimSnap.data());
     if (
       blocked ||
       (!callers.includes(callerUid) &&
@@ -1816,6 +1845,16 @@ export const pinLoginV1 = onCall(
       return { matched: false, reason: 'session-not-found' };
     }
     const sessionData = sessionSnap.data() ?? {};
+    // Quiz codes only match joinable sessions; an ended video session must not be a PIN oracle either.
+    if (kind === 'video-activity' && sessionData.status === 'ended') {
+      console.warn('[pinLoginV1] fallback', {
+        kind,
+        reason: 'no-joinable-session',
+        sessionId: sessionRef.id,
+        period,
+      });
+      return { matched: false, reason: 'no-joinable-session' };
+    }
     // Stamped at create time from the teacher's `anonymous-join` access; absent = allowed.
     if (
       sessionData.allowAnonymousJoin === false &&
@@ -1873,23 +1912,33 @@ export const pinLoginV1 = onCall(
 
     const indexKey = pinIndexKey(period, pin);
 
-    const attemptRefs = pinLoginRefs(db, sessionRef.id, callerUid, indexKey);
+    const attemptRefs = pinLoginRefs(
+      db,
+      sessionRef.id,
+      callerUid,
+      indexKey,
+      teacherUid,
+      rosterIds
+    );
     // Cheap early exit only; decidePinLogin re-checks every limit inside its transaction.
-    const counters = await Promise.all([
-      attemptRefs.caller.get(),
-      attemptRefs.session.get(),
-    ]).catch((err: unknown) => {
+    const counters = await Promise.all(
+      [attemptRefs.caller, attemptRefs.claim, ...attemptRefs.shared].map((r) =>
+        r.get()
+      )
+    ).catch((err: unknown) => {
       console.error('[pinLoginV1] attempt check failed:', err);
       return null;
     });
     const now = Date.now();
     if (
       !counters ||
-      pinLoginBlocked(
+      pinLoginLimited(
         readPinLoginAttempts(counters[0].data(), now),
+        counters.slice(2).map((snap) => readPinLoginSession(snap.data(), now)),
+        readPinLoginCallers(counters[1].data()),
+        callerUid,
         indexKey
-      ) ||
-      pinLoginSessionBlocked(readPinLoginSession(counters[1].data(), now))
+      )
     ) {
       console.warn('[pinLoginV1] fallback', {
         kind,

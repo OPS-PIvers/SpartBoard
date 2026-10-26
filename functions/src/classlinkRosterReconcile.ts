@@ -97,12 +97,14 @@ export function assignPins(
     return candidate;
   };
   const takeRandomPin = (): string => {
-    let candidate = String(randomInt(10000)).padStart(4, '0');
-    while (used.has(candidate)) {
-      candidate = String(randomInt(10000)).padStart(4, '0');
+    for (let tries = 0; tries < 1000; tries++) {
+      const candidate = String(randomInt(10000)).padStart(4, '0');
+      if (!used.has(candidate)) {
+        used.add(candidate);
+        return candidate;
+      }
     }
-    used.add(candidate);
-    return candidate;
+    return takeNextAvailablePin();
   };
 
   return students.map((s) => {

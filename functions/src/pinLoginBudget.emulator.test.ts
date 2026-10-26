@@ -18,7 +18,7 @@ const attemptOn =
     const key = pinIndexKey('1', pin);
     return decidePinLogin(
       db,
-      pinLoginRefs(db, sessionId, uid, key),
+      pinLoginRefs(db, sessionId, uid, key, 't1', [roster.id]),
       [roster.collection('pin_index').doc(key)],
       uid,
       key

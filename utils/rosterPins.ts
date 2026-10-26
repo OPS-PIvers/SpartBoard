@@ -39,10 +39,14 @@ export function assignPins(students: Student[]): Student[] {
     return candidate;
   };
   const takeRandomPin = (): string => {
-    let candidate = randomLinkedPin();
-    while (used.has(candidate)) candidate = randomLinkedPin();
-    used.add(candidate);
-    return candidate;
+    for (let tries = 0; tries < 1000; tries++) {
+      const candidate = randomLinkedPin();
+      if (!used.has(candidate)) {
+        used.add(candidate);
+        return candidate;
+      }
+    }
+    return takeNextAvailablePin();
   };
 
   return students.map((s) => {
