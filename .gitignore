@@ -126,3 +126,6 @@ dist-grader/
 .claude/verify-runs/
 .claude/live-tour-runs/
 rules-name-map.txt
+
+# Web tour benchmark runs
+extension/scripts/bench/results/

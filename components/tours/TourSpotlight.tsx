@@ -13,6 +13,8 @@ interface TourSpotlightProps {
   breathe?: boolean;
   /** The dim lets clicks through, so menus a website opens mid-step stay usable. */
   clickThrough?: boolean;
+  /** Eases the cutout to a new rect with CSS; off when the caller animates `rect` itself every frame. */
+  glide?: boolean;
 }
 
 const round = (n: number) => Math.round(n * 10) / 10;
@@ -74,6 +76,7 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
   pulse = false,
   breathe = false,
   clickThrough = false,
+  glide = true,
 }) => {
   // Re-render on resize so the dim keeps covering the whole viewport.
   const [vw, vh] = useSyncExternalStore(onResize, viewportKey, noViewport)
@@ -111,7 +114,7 @@ export const TourSpotlight: React.FC<TourSpotlightProps> = ({
           fillRule="evenodd"
           // Same dim as the class, so a missing stylesheet can't paint the page black.
           fill="rgba(2,6,23,0.55)"
-          className="fill-slate-950/55 motion-safe:transition-[d] motion-safe:duration-300"
+          className={`fill-slate-950/55 ${glide ? 'motion-safe:transition-[d] motion-safe:duration-300' : ''}`}
           style={{ pointerEvents: clickThrough ? 'none' : 'auto' }}
           onClick={clickThrough ? undefined : onMisclick}
           onWheel={

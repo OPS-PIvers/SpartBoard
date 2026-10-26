@@ -1,0 +1,35 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Stream - Biology 7</title><link rel="stylesheet" href="/common.css"></head>
+<body>
+<header><h1 style="font-size:18px;margin:0 auto 0 0">Biology 7</h1><button>Stream</button><button>Classwork</button><button>People</button><button>Grades</button></header>
+<main style="max-width:900px;margin:0 auto;position:relative">
+  <div class="panel"><div class="row"><button id="create" aria-haspopup="menu">+ Create</button><span>Class code: k3x9q</span></div>
+    <div id="createMenu" class="menu" role="menu" hidden style="top:70px;left:16px">
+      <button role="menuitem">Assignment</button><button role="menuitem">Quiz assignment</button><button role="menuitem">Question</button><button role="menuitem">Material</button><button role="menuitem">Reuse post</button>
+    </div>
+  </div>
+  <section id="form" class="panel" hidden>
+    <h2 style="font-size:16px">Assignment</h2>
+    <div class="row"><label for="t">Title</label><input id="t" value="Cell membranes lab"></div>
+    <div class="row" style="position:relative"><span>Points</span><button id="points">100</button>
+      <div id="pointsMenu" class="menu" role="menu" hidden style="top:36px;left:60px"><button role="menuitem">Ungraded</button><button role="menuitem">10</button><button role="menuitem">50</button><button role="menuitem">100</button></div></div>
+    <div class="row" style="position:relative"><span>Due</span><button id="due">No due date</button>
+      <div id="dueMenu" class="menu" role="menu" hidden style="top:36px;left:60px"><button role="menuitem">Today</button><button role="menuitem">Tomorrow</button><button role="menuitem">Next week</button></div></div>
+    <div class="row"><span>Topic</span><select aria-label="Topic"><option>No topic</option><option>Unit 3: Cells</option></select></div>
+    <div class="row"><button id="assign" style="background:#1d4ed8;color:#fff">Assign</button></div>
+  </section>
+  <div id="toast" class="panel" hidden>Assigned! <button>View assignment</button></div>
+  <div id="posts"></div>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const pop = (btn, menu) => btn.addEventListener('click', () => (menu.hidden = !menu.hidden));
+pop($('#create'), $('#createMenu'));
+pop($('#points'), $('#pointsMenu'));
+pop($('#due'), $('#dueMenu'));
+$('#createMenu').addEventListener('click', (e) => { if (e.target.textContent === 'Assignment') { $('#createMenu').hidden = true; $('#form').hidden = false; } });
+for (const [m, b] of [['#pointsMenu', '#points'], ['#dueMenu', '#due']])
+  $(m).addEventListener('click', (e) => { if (e.target.matches('[role=menuitem]')) { $(b).textContent = e.target.textContent; $(m).hidden = true; } });
+$('#assign').addEventListener('click', () => { $('#form').hidden = true; $('#toast').hidden = false; });
+const posts = $('#posts');
+for (let i = 0; i < 40; i++) posts.insertAdjacentHTML('beforeend', `<div class="panel"><b>Post ${i + 1}</b><p>Reminder about the reading for week ${i + 1}.</p><button>Add class comment</button></div>`);
+</script></body></html>
