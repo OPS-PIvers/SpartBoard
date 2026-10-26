@@ -8,6 +8,7 @@ import {
 import { periodAccessClassEdits } from '@/utils/periodPlan';
 import {
   nextRemovedClasses,
+  withLinkedSections,
   type SessionClassTargets,
 } from '@/utils/sessionClassFilter';
 import {
@@ -121,16 +122,29 @@ export function stageAssignmentClassEdit(
   }
 ): void {
   const rows = periodAccessWrites(edit.periodAccessRows);
-  const classIds = [
-    ...edit.classIds,
-    ...keepClassIds.filter((id) => !edit.classIds.includes(id)),
-  ];
+  // With the session in hand, a linked section paired only with removed classes leaves too.
+  const carried = currentSession
+    ? withLinkedSections(currentSession, {
+        classIds: edit.classIds,
+        periodNames: edit.periodNames,
+        classPeriodByClassId: edit.classPeriodByClassId,
+      })
+    : null;
+  const classIds = carried
+    ? carried.classIds
+    : [
+        ...edit.classIds,
+        ...keepClassIds.filter((id) => !edit.classIds.includes(id)),
+      ];
+  const periodNames = carried?.periodNames ?? edit.periodNames;
+  const classPeriodByClassId =
+    carried?.classPeriodByClassId ?? edit.classPeriodByClassId;
   batchUpdateWithPaths(
     batch,
     assignmentRef,
     {
       rosterIds: edit.rosterIds,
-      ...(assignmentPeriodNames ? { periodNames: edit.periodNames } : {}),
+      ...(assignmentPeriodNames ? { periodNames } : {}),
       updatedAt: now,
     },
     rows
@@ -144,15 +158,15 @@ export function stageAssignmentClassEdit(
     currentSession,
     {
       classIds,
-      periodNames: edit.periodNames,
+      periodNames,
       periodAccessKeys: [...nextRowKeys],
     },
     edit.removedRosterNames ?? []
   );
   const optional: Record<OptionalSessionField, unknown> = {
     classId: classIds[0] ?? '',
-    periodNames: edit.periodNames,
-    classPeriodByClassId: edit.classPeriodByClassId,
+    periodNames,
+    classPeriodByClassId,
   };
   batchUpdateWithPaths(
     batch,

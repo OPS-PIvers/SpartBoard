@@ -98,7 +98,8 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
   );
   const submissions = useMemo(() => {
     const removed = removedNames.byAssignmentPseudonym;
-    if (removed.size === 0) return allSubmissions;
+    // Without a complete kept-class lookup a shared student could be hidden, so show everyone.
+    if (removed.size === 0 || namesLoading || namesError) return allSubmissions;
     return allSubmissions.filter(
       (s) => !removed.has(s.id) || byAssignmentPseudonym.has(s.id)
     );
@@ -106,6 +107,8 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
     allSubmissions,
     removedNames.byAssignmentPseudonym,
     byAssignmentPseudonym,
+    namesLoading,
+    namesError,
   ]);
   const [listLoading, setLoading] = useState(true);
   // Hold the list until both lookups land so a removed class never flashes in.
