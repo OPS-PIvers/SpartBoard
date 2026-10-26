@@ -119,7 +119,15 @@ describe('useQuizAssignments — publish refreshes a bank draw’s server key', 
     mockGetDoc.mockImplementation((ref: string) =>
       Promise.resolve(
         ref === KEY_PATH
-          ? { exists: () => keyExists, data: () => ({ questions: [] }) }
+          ? {
+              exists: () => keyExists,
+              data: () => ({
+                questions: [
+                  { id: 'b1', type: 'FIB', correctAnswer: 'Twin studies' },
+                  { id: 'other', type: 'MC', correctAnswer: 'a' },
+                ],
+              }),
+            }
           : { exists: () => true, data: () => assignmentDoc }
       )
     );
@@ -134,7 +142,7 @@ describe('useQuizAssignments — publish refreshes a bank draw’s server key', 
     });
   };
 
-  it('rewrites the key with the answer key it published with', async () => {
+  it('swaps in the published keys by id and keeps the rest', async () => {
     await publish({ resolvedDriveFileId: 'frozen-1' }, true);
     expect(batchSet).toHaveBeenCalledWith(KEY_PATH, {
       questions: [
@@ -143,6 +151,7 @@ describe('useQuizAssignments — publish refreshes a bank draw’s server key', 
           correctAnswer: 'Twin studies',
           alternateAnswers: ['Twins studies'],
         }),
+        { id: 'other', type: 'MC', correctAnswer: 'a' },
       ],
     });
   });

@@ -5,7 +5,13 @@ import type {
   QuizStimulus,
 } from '@/types';
 import type { BankContent } from '@/utils/questionBanks';
-import { quizHasBankSlots, resolveQuizAssignment } from '@/utils/questionBanks';
+import {
+  bankSlotKey,
+  quizHasBankSlots,
+  quizOrder,
+  randomBankSlots,
+  resolveQuizAssignment,
+} from '@/utils/questionBanks';
 import { fibBlankCount } from '@/utils/quizFibBlanks';
 import { logError } from '@/utils/logError';
 import { multiAnswerCorrectOptions } from '@/utils/quizMultiAnswer';
@@ -122,16 +128,29 @@ function withKeyFrom(
 /** Lays the library quiz's and banks' current answer keys over a bank-draw assignment's frozen copy. */
 export function applyCurrentAnswerKeys(
   frozen: QuizData,
-  library: Pick<QuizData, 'questions'>,
+  library: Pick<QuizData, 'questions' | 'bankSlots' | 'order'>,
   banks: ReadonlyMap<string, Pick<BankContent, 'questions'>>
 ): QuizData {
   const current = new Map<string, QuizQuestion>();
-  // Fixed questions win over a bank copy with the same id, as at assign.
-  for (const q of library.questions ?? [])
-    if (!current.has(q.id)) current.set(q.id, q);
-  for (const bank of banks.values())
-    for (const q of bank.questions ?? [])
+  const questionsById = new Map(
+    (library.questions ?? []).map((q) => [q.id, q])
+  );
+  const slotsById = new Map(randomBankSlots(library).map((s) => [s.id, s]));
+  // First in quiz order wins on a shared id, as resolveQuizAssignment does at assign.
+  for (const entry of quizOrder({
+    ...library,
+    questions: library.questions ?? [],
+  })) {
+    if (entry.kind === 'question') {
+      const q = questionsById.get(entry.id);
+      if (q && !current.has(q.id)) current.set(q.id, q);
+      continue;
+    }
+    const slot = slotsById.get(entry.id);
+    const bank = slot ? banks.get(bankSlotKey(slot)) : undefined;
+    for (const q of bank?.questions ?? [])
       if (!current.has(q.id)) current.set(q.id, q);
+  }
   let changed = false;
   const questions = (frozen.questions ?? []).map((q) => {
     const now = current.get(q.id);

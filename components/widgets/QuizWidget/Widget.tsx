@@ -480,6 +480,7 @@ const TeacherQuizWidget: React.FC<{
   });
   const {
     sources: bankSources,
+    loading: bankSourcesLoading,
     loadBankContent,
     loadBankContentsForQuiz,
   } = useBankSources(user?.uid);
@@ -1315,12 +1316,14 @@ const TeacherQuizWidget: React.FC<{
     ) {
       // Prioritize the quiz from the live session document itself
       const meta = quizzes.find((q) => q.id === liveSession.quizId);
+      const assignment = assignments.find(
+        (a) => a.id === liveSession.assignmentId
+      );
+      // A bank draw needs the bank list to apply today's answer keys.
+      if (meta && assignment?.resolvedDriveFileId && bankSourcesLoading) return;
       if (meta) {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- loads the live session's quiz from Drive
-        void loadAnswerKeyQuiz(
-          meta,
-          assignments.find((a) => a.id === liveSession.assignmentId)
-        );
+        void loadAnswerKeyQuiz(meta, assignment);
       } else if (quizzesLoading === false) {
         // If the session exists but the quiz is not in our library (deleted),
         // we should auto-end the session to avoid being stuck.
@@ -1335,6 +1338,7 @@ const TeacherQuizWidget: React.FC<{
     loadingQuizData,
     quizzes,
     assignments,
+    bankSourcesLoading,
     loadAnswerKeyQuiz,
     quizzesLoading,
     endQuizSession,

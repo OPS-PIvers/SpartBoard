@@ -152,6 +152,7 @@ import { freshQuestionIdsByLocale } from '@/utils/quizTranslationIndex';
 import { revealValueFor } from '@/utils/quizFibAlternates';
 import {
   buildScoreOnSubmitKey,
+  mergeScoreOnSubmitKey,
   quizNeedsManualGrading,
   SCORE_ON_SUBMIT_KEY_DOC,
 } from '@/utils/quizScoreOnSubmit';
@@ -3411,9 +3412,14 @@ export const useQuizAssignments = (
         sections,
       };
       // A bank-draw key is frozen at assign; refresh the server's copy so it grades like this publish.
-      const refreshServerKey =
-        typeof assignmentSnap.data()?.resolvedDriveFileId === 'string' &&
-        (await getDoc(scoreKeyRef(userId, assignmentId))).exists();
+      const serverKey =
+        typeof assignmentSnap.data()?.resolvedDriveFileId === 'string'
+          ? await getDoc(scoreKeyRef(userId, assignmentId))
+          : null;
+      const refreshedServerKey = serverKey?.exists()
+        ? mergeScoreOnSubmitKey(serverKey.data()?.questions, quizData.questions)
+        : null;
+      const refreshServerKey = refreshedServerKey !== null;
       const answerKey =
         visibility === 'score-responses-and-answers'
           ? buildRevealedAnswers(quizData)
@@ -3515,7 +3521,7 @@ export const useQuizAssignments = (
       firstBatch.update(sessionRef, sessionPatch);
       if (refreshServerKey) {
         firstBatch.set(scoreKeyRef(userId, assignmentId), {
-          questions: buildScoreOnSubmitKey(quizData.questions),
+          questions: refreshedServerKey,
         });
       }
 

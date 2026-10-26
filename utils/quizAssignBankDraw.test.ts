@@ -84,12 +84,23 @@ const fib = (over: Partial<QuizQuestion> = {}): QuizQuestion => ({
 const bankOf = (...questions: QuizQuestion[]) =>
   new Map([['bank-1', { questions }]]);
 
+const slot = (id: string, bankId: string) => ({
+  id,
+  bankId,
+  bankTitle: bankId,
+  mode: 'random' as const,
+});
+const lib = (questions: QuizQuestion[] = []) => ({
+  questions,
+  bankSlots: [slot('s1', 'bank-1')],
+});
+
 describe('applyCurrentAnswerKeys', () => {
   it('takes a bank question’s new also-accepted answers but keeps the slot’s points', () => {
     const frozen = baseQuiz({ questions: [fib()] });
     const out = applyCurrentAnswerKeys(
       frozen,
-      { questions: [] },
+      lib(),
       bankOf(fib({ points: 1, alternateAnswers: ['Twins', 'Twins studies'] }))
     );
     expect(out.questions[0].alternateAnswers).toEqual([
@@ -103,7 +114,7 @@ describe('applyCurrentAnswerKeys', () => {
   it('drops a key field the bank question no longer has', () => {
     const out = applyCurrentAnswerKeys(
       baseQuiz({ questions: [fib()] }),
-      { questions: [] },
+      lib(),
       bankOf(fib({ alternateAnswers: undefined, correctAnswer: 'Twins' }))
     );
     expect(out.questions[0].alternateAnswers).toBeUndefined();
@@ -113,7 +124,7 @@ describe('applyCurrentAnswerKeys', () => {
   it('lets a fixed question’s current key win over a bank copy with the same id', () => {
     const out = applyCurrentAnswerKeys(
       baseQuiz({ questions: [fib()] }),
-      { questions: [fib({ correctAnswer: 'From quiz' })] },
+      lib([fib({ correctAnswer: 'From quiz' })]),
       bankOf(fib({ correctAnswer: 'From bank' }))
     );
     expect(out.questions[0].correctAnswer).toBe('From quiz');
@@ -122,7 +133,7 @@ describe('applyCurrentAnswerKeys', () => {
   it('moves the correct choice when the choices themselves are unchanged', () => {
     const out = applyCurrentAnswerKeys(
       baseQuiz({ questions: [q('m1')] }),
-      { questions: [] },
+      lib(),
       bankOf({ ...q('m1'), correctAnswer: 'b', incorrectAnswers: ['a'] })
     );
     expect(out.questions[0].correctAnswer).toBe('b');
@@ -133,7 +144,7 @@ describe('applyCurrentAnswerKeys', () => {
     const frozen = baseQuiz({ questions: [q('m1'), fib()] });
     const out = applyCurrentAnswerKeys(
       frozen,
-      { questions: [] },
+      lib(),
       bankOf(
         { ...q('m1'), incorrectAnswers: ['c'] },
         fib({ correctAnswer: 'Twin studies\u001FNature' })
@@ -149,5 +160,21 @@ describe('applyCurrentAnswerKeys', () => {
       loadBankContentsForQuiz: vi.fn(),
     });
     expect(out).toBe(frozen);
+  });
+
+  it('takes a shared id from the slot first in quiz order, whatever order the banks loaded in', () => {
+    const banks = new Map([
+      ['bank-2', { questions: [fib({ correctAnswer: 'Second' })] }],
+      ['bank-1', { questions: [fib({ correctAnswer: 'First' })] }],
+    ]);
+    const out = applyCurrentAnswerKeys(
+      baseQuiz({ questions: [fib()] }),
+      {
+        questions: [],
+        bankSlots: [slot('s1', 'bank-1'), slot('s2', 'bank-2')],
+      },
+      banks
+    );
+    expect(out.questions[0].correctAnswer).toBe('First');
   });
 });

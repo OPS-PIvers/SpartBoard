@@ -24,7 +24,13 @@
  *      to Classroom (a DRAFT grade; the final "Return" stays in Classroom — an
  *      add-on cannot publish final grades).
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useState,
+} from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import {
   AlertTriangle,
@@ -256,6 +262,10 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
   // session carries quizId; match it to the teacher's library for the Drive id.
   const [quizData, setQuizData] = useState<QuizData | null>(null);
   const resolvedDriveFileId = assignment?.resolvedDriveFileId;
+  // Read at load time so a bank list change doesn't re-download the quiz.
+  const loadBankContents = useEffectEvent((quiz: Pick<QuizData, 'bankSlots'>) =>
+    loadBankContentsFor(quiz, banks, loadBankData)
+  );
   useEffect(() => {
     const quizId = session?.quizId;
     if (!quizId) {
@@ -271,7 +281,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     if (
       quizzesLoading ||
       assignmentsLoading ||
-      banksLoading ||
+      (resolvedDriveFileId && banksLoading) ||
       !googleAccessToken
     )
       return;
@@ -299,8 +309,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
                 meta.driveFileId,
                 {
                   loadQuizData,
-                  loadBankContentsForQuiz: (quiz) =>
-                    loadBankContentsFor(quiz, banks, loadBankData),
+                  loadBankContentsForQuiz: (quiz) => loadBankContents(quiz),
                 }
               )
             : await loadQuizData(meta.driveFileId);
@@ -321,8 +330,6 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     assignmentsLoading,
     banksLoading,
     resolvedDriveFileId,
-    banks,
-    loadBankData,
     googleAccessToken,
     loadQuizData,
   ]);
