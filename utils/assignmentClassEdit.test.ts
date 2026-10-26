@@ -1,9 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { DocumentReference, WriteBatch } from 'firebase/firestore';
 import type { ClassRoster, PeriodAccess } from '@/types';
 import {
   canEditAssignmentClasses,
   externalClassIds,
   planAssignmentClassEdit,
+  stageAssignmentClassEdit,
 } from './assignmentClassEdit';
 
 const roster = (id: string, classlinkClassId?: string): ClassRoster =>
@@ -34,8 +36,19 @@ describe('planAssignmentClassEdit', () => {
         classIds: ['cl.1'],
         periodNames: ['Period 1', 'Period 3'],
         classPeriodByClassId: { 'cl.1': 'Period 1' },
+        removedRosterNames: [],
       }
     );
+  });
+
+  it('names the classes the edit takes off', () => {
+    expect(
+      planAssignmentClassEdit({
+        rosters,
+        rosterIds: ['1'],
+        previousRosterIds: ['1', '2', '3'],
+      }).removedRosterNames
+    ).toEqual(['Period 2', 'Period 3']);
   });
 
   it('adds a row on the shared window and removes unchecked rows on a per-period session', () => {
@@ -69,6 +82,37 @@ describe('planAssignmentClassEdit', () => {
     expect(edit.periodAccessRows?.['cl-2']).toMatchObject({
       state: 'closed',
       openAt: null,
+    });
+  });
+});
+
+describe('stageAssignmentClassEdit', () => {
+  it('records the dropped classes on the session', () => {
+    const update = vi.fn();
+    const batch = { update } as unknown as WriteBatch;
+    stageAssignmentClassEdit(batch, {
+      assignmentRef: 'a' as unknown as DocumentReference,
+      sessionRef: 's' as unknown as DocumentReference,
+      edit: planAssignmentClassEdit({
+        rosters,
+        rosterIds: ['1'],
+        previousRosterIds: ['1', '3'],
+      }),
+      now: 1,
+      sessionFields: [],
+      currentSession: {
+        classIds: ['cl.1', 'cl-9', 'classroom:c1'],
+        classPeriodByClassId: { 'cl-9': 'Period 9' },
+      },
+      keepClassIds: ['classroom:c1'],
+    });
+    const sessionCall = update.mock.calls.find(([ref]) => ref === 's');
+    expect(sessionCall?.[1]).toMatchObject({
+      classIds: ['cl.1', 'classroom:c1'],
+      removedClasses: {
+        classIds: ['cl-9'],
+        periodNames: ['Period 3', 'Period 9'],
+      },
     });
   });
 });

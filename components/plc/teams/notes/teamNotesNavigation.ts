@@ -1,4 +1,4 @@
-// Cross-page links from notes and the Department Hub; the landing page lives at the team's root path.
+// Cross-page links from notes and the Department Hub; a link to the landing page opens it at its own path.
 
 import type { TeamPageId } from '@/types';
 import { buildPlcPath, spaNavigate } from '@/utils/plcPath';
@@ -7,11 +7,13 @@ import type { PlcSectionId } from '@/components/plc/sections';
 const SECTION_FOR_PAGE: Partial<Record<TeamPageId, PlcSectionId>> = {
   // Lands on Home when the team has no Data overview tab.
   dataOverview: 'dataOverview',
-  hub: 'home',
-  programHub: 'home',
+  hub: 'hub',
+  programHub: 'programHub',
   assessments: 'assessments',
   docs: 'docs',
   resources: 'resources',
+  updates: 'updates',
+  workspace: 'workspace',
 };
 
 export interface PendingNotesItem {

@@ -42,6 +42,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'google-tasks-sync',
   'plc-goal-coach',
   'plc-home-tab',
+  'team-landing-any-page',
   'library-folder-reorder',
   'agenda-versions',
   'embed-reload',

@@ -41,6 +41,7 @@ vi.mock('@/context/useDashboard', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'lead', displayName: 'Lead', email: null },
+    canAccessFeature: () => false,
   }),
 }));
 

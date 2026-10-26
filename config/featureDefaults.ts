@@ -779,6 +779,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Team layout's Landing page picker lists every page that is switched on, not only the hub page.
+  'team-landing-any-page': {
+    label: 'Team landing page choice',
+    icon: Home,
+    description:
+      'Team leads can pick any page that is switched on as the page the team opens on.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Claude connector sign-in and tools; the server checks the same gate on every request (CC-D7).
   'claude-connector': {
     label: 'Claude connector',

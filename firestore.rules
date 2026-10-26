@@ -2394,6 +2394,16 @@ service cloud.firestore {
         );
     }
 
+    // Who may list/revoke a PLC's invites: its lead/co-lead, or an in-org admin (the plcs delete gate).
+    function canSweepPlcInvites(plcData) {
+      return isPlcMembershipManager(plcData)
+        || (
+          isAdmin()
+          && plcData.get('orgId', null) is string
+          && isOrgMember(plcData.orgId)
+        );
+    }
+
     // Exactly-one-lead invariant (Decision 1.2): a role change must never mint a
     // second lead (only transferLead moves the crown). CEL can't iterate a map, so
     // this leans on the leadUid mirror — the leadUid member is 'lead' both sides.
@@ -4433,6 +4443,8 @@ service cloud.firestore {
           (request.auth.token.get('email_verified', false) == true
             && existing().inviteeEmailLower == request.auth.token.email.lower())
           || authUid() == existing().invitedByUid
+          // deletePlc lists every invite by plcId to sweep them with the PLC.
+          || canSweepPlcInvites(get(/databases/$(database)/documents/plcs/$(existing().plcId)).data)
         );
 
       // Lead of the target PLC creates (or re-creates) the invite. The doc
@@ -4477,7 +4489,8 @@ service cloud.firestore {
           authUid() == existing().invitedByUid
           // Any membership manager (lead OR co-lead) can revoke an invite, not
           // only the original inviter — mirrors the create gate (Decision 1.2).
-          || isPlcMembershipManager(get(/databases/$(database)/documents/plcs/$(existing().plcId)).data)
+          // Lead/co-lead, or an in-org admin dissolving the PLC for recovery.
+          || canSweepPlcInvites(get(/databases/$(database)/documents/plcs/$(existing().plcId)).data)
         );
     }
 
@@ -4937,16 +4950,16 @@ service cloud.firestore {
                  (!k.hasAny(['answers']) || d.answers.size() == 0 || justFrozen(s, classId));
         }
 
-        // Student branch allows resource == null so the join flow can probe via
-        // getDoc() before create/resume (else a Null-value throw on studentUid).
-        // The class gate stays a hard prerequisite so a studentRole user can't
-        // probe a session they're not enrolled in (anon PIN passes by definition).
+        // A missing doc is readable only at the caller's own uid key, so a
+        // `pin-{period}-{pin}` key reads as denied whether or not it exists
+        // (else probing keys reveals which PINs have joined). The class gate
+        // stays a hard prerequisite for studentRole users.
         allow read: if signedIn() && (
           authUid() == sessionTeacherUid() ||
           isAdmin() ||
           isSubMonitor(sessionData()) ||
           (passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
-           (resource == null || authUid() == existing().studentUid))
+           (resource == null ? responseKey == authUid() : authUid() == existing().studentUid))
         );
         // Create runs only when the doc is absent, so the deterministic key gives
         // one-doc-per-roster-student. Field ownership: auth.uid == studentUid. SSO writers
@@ -5739,14 +5752,13 @@ service cloud.firestore {
           return passesStudentClassGateCompat(vaS().get('classIds', []), vaS().get('classId', ''));
         }
 
-        // Student branch allows resource == null so the join flow can probe via
-        // getDoc() before create (else a Null-value throw on studentUid). Mirrors
-        // the Quiz response read.
+        // A missing doc is readable only at the caller's own uid key; mirrors
+        // the Quiz response read (no probing which PINs have joined).
         allow read: if signedIn() && (
           vaOwner(vaS()) ||
           isSubMonitor(vaS()) ||
           (vaGate() &&
-           (resource == null || authUid() == existing().studentUid))
+           (resource == null ? responseDocId == authUid() : authUid() == existing().studentUid))
         );
         // Students create their own response: studentUid == auth uid (no
         // impersonation). Doc-id by auth mode: SSO → responseDocId == auth.uid;
@@ -5891,7 +5903,7 @@ service cloud.firestore {
       allow update: if signedIn() &&
         notAnon() &&
         existing().teacherUid == authUid() &&
-        changedOnly(['assignmentName', 'status', 'endedAt', 'periodAccess', 'studentAccess', 'workKind', 'openAt', 'closeAt', 'dueAt', 'classIds', 'rosterIds']) &&
+        changedOnly(['assignmentName', 'status', 'endedAt', 'periodAccess', 'studentAccess', 'workKind', 'openAt', 'closeAt', 'dueAt', 'classIds', 'rosterIds', 'removedClasses']) &&
         incoming().status in ['active', 'ended'];
       allow delete: if false;
 

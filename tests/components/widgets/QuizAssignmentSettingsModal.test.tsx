@@ -106,8 +106,7 @@ describe('QuizAssignmentSettingsModal — behavior editable on a live assignment
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
     expect(patch).toHaveProperty('className');
-    expect(patch).toHaveProperty('periodName');
-    expect(patch).toHaveProperty('periodNames');
+    expect(patch).not.toHaveProperty('periodNames');
     expect(patch).not.toHaveProperty('sessionMode');
     expect(patch).not.toHaveProperty('sessionOptions');
     expect(patch).not.toHaveProperty('attemptLimit');
@@ -272,7 +271,7 @@ describe('QuizAssignmentSettingsModal — unified class picker (rosterIds)', () 
     expect(patch.periodName).toBe('Period 1');
   });
 
-  it('writes empty rosterIds + periodNames when all classes are deselected', async () => {
+  it('blocks Save when every class is deselected', () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     const rosters = [makeRoster({ id: 'r1', name: 'Period 1' })];
     render(
@@ -288,12 +287,10 @@ describe('QuizAssignmentSettingsModal — unified class picker (rosterIds)', () 
     );
     const checkboxes = screen.getAllByRole('checkbox');
     fireEvent.click(checkboxes[0]); // deselect
-    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
-    await waitFor(() => expect(onSave).toHaveBeenCalled());
-    const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
-    expect(patch.rosterIds).toEqual([]);
-    expect(patch.periodNames).toEqual([]);
-    expect(patch.periodName).toBe('');
+    const save = screen.getByRole('button', { name: /^Save$/ });
+    expect(save).toBeDisabled();
+    fireEvent.click(save);
+    expect(onSave).not.toHaveBeenCalled();
   });
 });
 
@@ -610,7 +607,7 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
     expect(screen.getByLabelText('Closes')).toHaveValue('2026-06-02');
   });
 
-  it('saves the same classes and no window fields when untouched', async () => {
+  it('saves no targeting and no window fields when untouched', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     render(
       <QuizAssignmentSettingsModal
@@ -621,8 +618,14 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
       />
     );
     const patch = await savePatch(onSave);
-    expect(patch.rosterIds).toEqual(['r1']);
-    for (const key of ['openAt', 'closeAt', 'dueAt', 'sessionOptions'])
+    for (const key of [
+      'rosterIds',
+      'periodNames',
+      'openAt',
+      'closeAt',
+      'dueAt',
+      'sessionOptions',
+    ])
       expect(patch).not.toHaveProperty(key);
   });
 
