@@ -1325,6 +1325,24 @@ describe('pinLoginV1', () => {
       expect(h.lastCustomToken).toBeNull();
     });
 
+    it('lets a caller that already bridged on a short PIN keep its student', async () => {
+      seedSession();
+      h.docStore.set('users/teacher1/rosters/r1/pin_index/1__01', {
+        pseudonym: 'PS01',
+        classId: 'CL2',
+        orgId: 'org-orono',
+      });
+      h.docStore.set('pin_login_attempts/claim__vs1__1__01', {
+        callerUids: ['anon-caller'],
+      });
+      expect(await login('01')).toMatchObject({ matched: true });
+      expect(h.lastCustomToken).toMatchObject({ uid: 'PS01' });
+      expect(await login('01', 'someone-else')).toEqual({
+        matched: false,
+        reason: 'short-pin',
+      });
+    });
+
     it('refuses a hit inside the transaction once the session budget is spent', async () => {
       seedSession();
       const key = 'pin_login_attempts/session__vs1';

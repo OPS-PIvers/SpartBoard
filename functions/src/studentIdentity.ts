@@ -1634,7 +1634,8 @@ export async function decidePinLogin(
   refs: PinLoginRefs,
   indexRefs: readonly admin.firestore.DocumentReference[],
   callerUid: string,
-  indexKey: string
+  indexKey: string,
+  rejoinOnly = false
 ): Promise<PinLoginDecision> {
   return db.runTransaction(async (tx) => {
     const n = refs.shared.length;
@@ -1652,7 +1653,9 @@ export async function decidePinLogin(
       readPinLoginSession(snap.data(), now)
     );
     const callers = readPinLoginCallers(claimSnap.data());
-    const blocked = pinLoginLimited(a, shared, callers, callerUid, indexKey);
+    const blocked =
+      (rejoinOnly && !callers.includes(callerUid)) ||
+      pinLoginLimited(a, shared, callers, callerUid, indexKey);
 
     // A multi-roster session prefers the first hit in rosterIds order (see `resolvePinName`).
     let match: PinLoginMatch | null = null;
@@ -1697,14 +1700,15 @@ export async function decidePinLogin(
       return { outcome: 'rate-limited' };
     }
     if (!a.indexKeys.includes(indexKey)) a.indexKeys.push(indexKey);
-    if (!callers.includes(callerUid)) {
-      tx.set(refs.claim, {
-        callerUids: [...callers, callerUid],
-        expireAt: admin.firestore.Timestamp.fromMillis(
-          now + PIN_LOGIN_CLAIM_TTL_MS
-        ),
-      });
-    }
+    // Rewritten on every mint so a student who keeps rejoining keeps the claim that lets a short PIN rejoin.
+    tx.set(refs.claim, {
+      callerUids: callers.includes(callerUid)
+        ? callers
+        : [...callers, callerUid],
+      expireAt: admin.firestore.Timestamp.fromMillis(
+        now + PIN_LOGIN_CLAIM_TTL_MS
+      ),
+    });
     tx.set(refs.caller, { ...a, expireAt: pinLoginExpireAt(a.windowStart) });
     return { outcome: 'minted', match };
   });
@@ -1906,16 +1910,9 @@ export const pinLoginV1 = onCall(
       return { matched: false, reason: 'no-rosters-on-session' };
     }
 
-    if (!isBridgeablePin(pin)) {
-      console.warn('[pinLoginV1] fallback', {
-        kind,
-        reason: 'short-pin',
-        sessionId: sessionRef.id,
-      });
-      return { matched: false, reason: 'short-pin' };
-    }
-
     const indexKey = pinIndexKey(period, pin);
+    // A short PIN only re-proves a student this caller already bridged as, so a pre-upgrade join keeps its response doc.
+    const rejoinOnly = !isBridgeablePin(pin);
 
     const attemptRefs = pinLoginRefs(
       db,
@@ -1934,6 +1931,17 @@ export const pinLoginV1 = onCall(
       console.error('[pinLoginV1] attempt check failed:', err);
       return null;
     });
+    if (
+      rejoinOnly &&
+      !readPinLoginCallers(counters?.[1].data()).includes(callerUid)
+    ) {
+      console.warn('[pinLoginV1] fallback', {
+        kind,
+        reason: 'short-pin',
+        sessionId: sessionRef.id,
+      });
+      return { matched: false, reason: 'short-pin' };
+    }
     const now = Date.now();
     if (
       !counters ||
@@ -1970,7 +1978,8 @@ export const pinLoginV1 = onCall(
       attemptRefs,
       indexRefs,
       callerUid,
-      indexKey
+      indexKey,
+      rejoinOnly
     ).catch((err: unknown): PinLoginDecision => {
       console.error('[pinLoginV1] attempt record failed:', err);
       return { outcome: 'rate-limited' };
