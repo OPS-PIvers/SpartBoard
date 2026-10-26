@@ -51,7 +51,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'mini-app-results',
   'quiz-monitor-declutter',
   'monitor-parity',
-  'quiz-banks-in-library',
   'quiz-stimulus-quotes',
   'quiz-submit-for-student',
   'quiz-calculator-stimulus',

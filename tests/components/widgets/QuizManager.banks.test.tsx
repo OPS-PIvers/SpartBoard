@@ -128,23 +128,18 @@ function renderBanks(
 }
 
 describe('QuizManager — Banks tab', () => {
-  it('renders the Banks tab with a count, bank cards and shared banks', () => {
+  it('renders bank cards', () => {
     renderBanks();
-    expect(screen.getByRole('tab', { name: /Banks/ })).toBeInTheDocument();
     expect(screen.getByText('Cells Bank')).toBeInTheDocument();
     expect(
       screen.getByText(/12 questions · 3 targets · updated/)
-    ).toBeInTheDocument();
-    fireEvent.click(screen.getAllByText('From your PLCs')[0]);
-    expect(screen.getByText('Genetics Bank')).toBeInTheDocument();
-    expect(
-      screen.getByText(/30 questions · Shared by Pat Teacher · Grade 7 Science/)
     ).toBeInTheDocument();
   });
 
   it('routes the header action to onNewBank', () => {
     const { onNewBank } = renderBanks();
-    fireEvent.click(screen.getByRole('button', { name: 'New bank' }));
+    fireEvent.click(screen.getAllByRole('button', { name: /^New/ })[0]);
+    fireEvent.click(screen.getByRole('menuitem', { name: /Create bank/ }));
     expect(onNewBank).toHaveBeenCalledTimes(1);
   });
 
