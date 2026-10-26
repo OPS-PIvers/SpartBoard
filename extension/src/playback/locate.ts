@@ -84,11 +84,21 @@ export function accessibleName(el: Element): string {
   return normalizeText(el.textContent ?? '');
 }
 
+// Native controls sites hide with opacity under their own styled label (custom checkboxes, Wikipedia's menus); still what a click lands on.
+const SEE_THROUGH_INPUTS = new Set(['checkbox', 'radio', 'file']);
+const seeThrough = (el: Element) =>
+  el.tagName === 'SELECT' ||
+  (el.tagName === 'INPUT' &&
+    SEE_THROUGH_INPUTS.has((el as HTMLInputElement).type));
+
 export function isShown(el: Element): boolean {
   const r = el.getBoundingClientRect();
   if (r.width <= 0 || r.height <= 0) return false;
   return typeof el.checkVisibility === 'function'
-    ? el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })
+    ? el.checkVisibility({
+        checkOpacity: !seeThrough(el),
+        checkVisibilityCSS: true,
+      })
     : true;
 }
 
