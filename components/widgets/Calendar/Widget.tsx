@@ -240,10 +240,10 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
       ...validatedPersonalEvents,
     ];
 
-    // Deduplicate by date + title
+    // Deduplicate by date + title + start time
     const seen = new Set<string>();
     const unique = combined.filter((e) => {
-      const key = `${e.date}-${e.title}`;
+      const key = `${e.date}-${e.title}-${parseTimeSeconds(e.time)}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
