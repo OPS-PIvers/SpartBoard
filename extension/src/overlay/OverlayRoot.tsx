@@ -167,7 +167,7 @@ const TopOverlay: React.FC<Omit<Props, 'i18n' | 'styled'>> = ({
   const tip = away
     ? {
         ...placed,
-        top: Math.max(GUTTER, view.h - TIP_H - GUTTER * 4),
+        top: Math.max(GUTTER, view.h - tipH - GUTTER * 4),
         bottom: undefined,
       }
     : placed;
