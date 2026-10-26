@@ -57,6 +57,7 @@ export const StarterPackWidget = ({ isStudentView }: WidgetComponentProps) => {
             const IconComponent = getNamedLucideIcon(pack.icon, Wand2);
 
             return (
+              // no-tour-anchor: one tile per pack, generated from the pack list
               <button
                 key={pack.id}
                 onClick={() => handleExecute(pack)}

@@ -359,6 +359,7 @@ const FileSourceButtons: React.FC<{
   const inputRef = useRef<HTMLInputElement | null>(null);
   return (
     <>
+      {/* no-tour-anchor: hidden file input; the add-file button opens it */}
       <input
         ref={inputRef}
         type="file"

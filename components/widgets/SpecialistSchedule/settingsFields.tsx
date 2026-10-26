@@ -463,6 +463,11 @@ export const SpecialistScheduleRecurringItemsField: React.FC<{
               type="button"
               onClick={() => startAdd('daily')}
               className={smallButtonClass}
+              {...tourAttr(
+                'widget-settings.specialist-schedule.add-daily',
+                ctx.widget.id,
+                ctx.widget.type
+              )}
             >
               {t('addDaily')}
             </button>
@@ -474,6 +479,7 @@ export const SpecialistScheduleRecurringItemsField: React.FC<{
                   existing.type === 'daily' && existing.task === item.task
               );
               return exists ? null : (
+                // no-tour-anchor: one quick-add chip per default recurring task
                 <button
                   key={item.task}
                   type="button"
@@ -547,6 +553,11 @@ export const SpecialistScheduleRecurringItemsField: React.FC<{
               type="button"
               onClick={() => startAdd('weekly')}
               className={smallButtonClass}
+              {...tourAttr(
+                'widget-settings.specialist-schedule.add-weekly',
+                ctx.widget.id,
+                ctx.widget.type
+              )}
             >
               {t('addWeekly')}
             </button>

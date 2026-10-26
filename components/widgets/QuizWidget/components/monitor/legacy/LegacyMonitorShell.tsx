@@ -726,6 +726,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
         }}
       >
         {(onBack != null || !onHome) && (
+          // no-tour-anchor: legacy monitor shown while quiz-monitor-declutter is off; the current monitor carries the anchors
           <button
             onClick={() =>
               onHome
@@ -754,6 +755,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
         >
           {headerTitle}
         </p>
+        {/* no-tour-anchor: legacy monitor shown while quiz-monitor-declutter is off; the current monitor carries the anchors */}
         <button
           onClick={() => onUpdateConfig({ monitorBoardView: !boardView })}
           aria-pressed={boardView}
@@ -823,6 +825,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 {data.periodNames.map((p) => {
                   const on = data.selectedPeriods.includes(p);
                   return (
+                    // no-tour-anchor: legacy monitor shown while quiz-monitor-declutter is off; the current monitor carries the anchors
                     <button
                       key={p}
                       onClick={() =>
