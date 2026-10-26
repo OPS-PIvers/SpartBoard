@@ -22,7 +22,6 @@ import {
   Gauge,
   Globe,
   Home,
-  ArrowLeft,
   GraduationCap,
   Flag,
   Footprints,
@@ -774,18 +773,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Home,
     description:
       'PLC teams open on a Home page with results over time and team tools. Data overview becomes its own tab.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Top-left back arrow on Boards & Collections, Gradebook and Admin Settings.
-  'full-page-back-arrow': {
-    label: 'Back arrow on full pages',
-    icon: ArrowLeft,
-    description:
-      'Boards & Collections, Gradebook and Admin Settings close with a back arrow at the top left.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

@@ -10444,8 +10444,6 @@ export type GlobalFeature =
   | 'quiz-import-versions-plain'
   /** Live tours on other websites, played by the Chrome extension (docs/plans/CHROME_EXTENSION.md T12). */
   | 'web-tours'
-  /** Full pages opened from the sidebar close with a top-left back arrow instead of a top-right X. */
-  | 'full-page-back-arrow'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
