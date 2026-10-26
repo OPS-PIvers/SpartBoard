@@ -31,6 +31,7 @@ import { PlcAssignmentSessionModal } from '@/components/plc/assignments/PlcAssig
 import { PlcQuizPickupStepper } from '@/components/plc/PlcQuizPickupStepper';
 import {
   applyPlcStepperStudentPicks,
+  savePlcStepperFinalScore,
   plcStepperCreateFields,
   type PlcQuizStepperPlan,
 } from '@/components/plc/plcQuizStepperAssign';
@@ -96,7 +97,7 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
   PlcAssignmentsInProgressSubTabProps
 > = ({ plc, kindFilter }) => {
   const { t } = useTranslation();
-  const { user, getAssignmentMode } = useAuth();
+  const { user, getAssignmentMode, canAccessFeature } = useAuth();
   const { addToast, rosters } = useDashboard();
   const { entries, loading } = usePlcAssignmentIndex(plc.id);
   // Subscribe to the PLC assignment templates so non-owner rows can match
@@ -331,6 +332,13 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
           }
         );
 
+        savePlcStepperFinalScore({
+          uid: user.uid,
+          assignmentId: created.id,
+          behavior: assignBehavior,
+          attemptHistoryEnabled: canAccessFeature('quiz-attempt-history'),
+          logScope: 'PlcAssignmentsInProgressSubTab.import',
+        });
         await applyPlcStepperStudentPicks({
           assignmentId: created.id,
           plan,
@@ -403,6 +411,7 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
       addToast,
       attachSyncLinkage,
       busyRowId,
+      canAccessFeature,
       createAssignment,
       deleteQuiz,
       getAssignmentMode,

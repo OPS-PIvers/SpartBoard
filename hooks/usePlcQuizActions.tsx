@@ -43,6 +43,7 @@ import { QuizEditorModal } from '@/components/widgets/QuizWidget/components/Quiz
 import { PlcQuizPickupStepper } from '@/components/plc/PlcQuizPickupStepper';
 import {
   applyPlcStepperStudentPicks,
+  savePlcStepperFinalScore,
   plcStepperCreateFields,
   type PlcQuizStepperPlan,
 } from '@/components/plc/plcQuizStepperAssign';
@@ -87,7 +88,7 @@ function formatDate(ms: number): string {
 
 export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
   const { t } = useTranslation();
-  const { user, getAssignmentMode } = useAuth();
+  const { user, getAssignmentMode, canAccessFeature } = useAuth();
   // D11: an assign uses this teacher's last-used settings, not the author's.
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
     user?.uid,
@@ -492,6 +493,13 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
           }
         );
 
+        savePlcStepperFinalScore({
+          uid: user.uid,
+          assignmentId: created.id,
+          behavior,
+          attemptHistoryEnabled: canAccessFeature('quiz-attempt-history'),
+          logScope: 'usePlcQuizActions.assign',
+        });
         await applyPlcStepperStudentPicks({
           assignmentId: created.id,
           plan,
@@ -563,6 +571,7 @@ export function usePlcQuizActions(plc: Plc): PlcQuizActionsApi {
       addToast,
       attachSyncLinkage,
       busyRowId,
+      canAccessFeature,
       createAssignment,
       deleteQuiz,
       getAssignmentMode,

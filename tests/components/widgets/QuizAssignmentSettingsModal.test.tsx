@@ -510,7 +510,7 @@ describe('QuizAssignmentSettingsModal — availability and due date', () => {
     });
     const patch = await savePatch(onSave);
     expect(patch.periodAccessEdits).toEqual({
-      'periodAccess.k2.openAt': combineDateAndTime('2026-06-01', '10:30'),
+      k2: { openAt: combineDateAndTime('2026-06-01', '10:30') },
     });
     expect(patch).not.toHaveProperty('openAt');
     expect(patch).not.toHaveProperty('closeAt');
@@ -767,10 +767,7 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
     const patch = await savePatch(onSave);
     expect(patch.periodAccessRows).toEqual({ 'roster:r2': null });
     expect(patch.periodAccessEdits).toEqual({
-      'periodAccess.roster:r1.openAt': combineDateAndTime(
-        '2026-06-01',
-        '10:30'
-      ),
+      'roster:r1': { openAt: combineDateAndTime('2026-06-01', '10:30') },
     });
   });
 

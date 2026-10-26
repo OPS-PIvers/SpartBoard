@@ -590,7 +590,7 @@ describe('editing per-class windows', () => {
       undefined
     );
     expect(periodAccessWindowEdits(periodAccess, before, after)).toEqual({
-      'periodAccess.k5.openAt': at('2026-10-02', '13:00'),
+      k5: { openAt: at('2026-10-02', '13:00') },
     });
   });
 });

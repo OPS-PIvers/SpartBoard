@@ -22,6 +22,7 @@ const stepperBehavior = {
   sessionMode: 'student',
   sessionOptions: { shuffleQuestions: true },
   attemptLimit: 2,
+  finalScore: 'highest',
 };
 vi.mock('@/components/plc/PlcQuizPickupStepper', () => ({
   PlcQuizPickupStepper: ({
@@ -55,6 +56,13 @@ vi.mock('@/components/plc/plcQuizStepperAssign', async (importActual) => ({
   >()),
   applyPlcStepperStudentPicks: (...args: unknown[]) =>
     applyPlcStepperStudentPicks(...args) as Promise<void>,
+}));
+const saveAttemptPolicy = vi.fn();
+vi.mock('@/hooks/gradebook/useGradebookColumnWrites', () => ({
+  saveAttemptPolicy: (...args: unknown[]) => {
+    saveAttemptPolicy(...args);
+    return Promise.resolve();
+  },
 }));
 vi.mock('@/hooks/useSetAssignmentTargets', () => ({
   useSetAssignmentTargets: () => ({ setAssignmentTargets: vi.fn() }),
@@ -454,6 +462,12 @@ describe('usePlcQuizActions', () => {
       createAssignmentResolver?.({ id: 'asg-1', code: 'XYZ' });
       await waitFor(() =>
         expect(screen.queryByTestId('pickup-stepper')).not.toBeInTheDocument()
+      );
+      expect(saveAttemptPolicy).toHaveBeenCalledWith(
+        'teacher-1',
+        'asg-1',
+        'quiz',
+        'highest'
       );
     });
 

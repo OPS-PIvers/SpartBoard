@@ -253,6 +253,7 @@ vi.mock('@/components/plc/plcQuizStepperAssign', async (importActual) => ({
     typeof import('@/components/plc/plcQuizStepperAssign')
   >()),
   applyPlcStepperStudentPicks: vi.fn().mockResolvedValue(undefined),
+  savePlcStepperFinalScore: vi.fn(),
 }));
 
 vi.mock('@/hooks/useSyncedQuizGroups', () => ({

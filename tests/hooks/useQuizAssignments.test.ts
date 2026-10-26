@@ -22,6 +22,7 @@ import type {
   QuizSession,
   SharedQuizAssignment,
   QuizData,
+  PeriodAccess,
 } from '@/types';
 
 // `deleteField()` and `serverTimestamp()` return Firestore sentinels; the
@@ -36,6 +37,12 @@ vi.mock('firebase/firestore', () => ({
   deleteField: vi.fn(() => DELETE_FIELD_SENTINEL),
   doc: vi.fn(),
   documentId: vi.fn(() => '__documentId'),
+  FieldPath: class {
+    segments: string[];
+    constructor(...segments: string[]) {
+      this.segments = segments;
+    }
+  },
   getDoc: vi.fn(),
   getDocs: vi.fn(),
   limit: vi.fn(),
@@ -988,6 +995,38 @@ describe('useQuizAssignments - setAssignmentRosters', () => {
     });
 
     expect(batchCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('writes per-period rows to both docs by field path so keys with dots stay one field', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    const row = { rosterId: 'r1', open: false } as unknown as PeriodAccess;
+    await act(async () => {
+      await result.current.setAssignmentRosters(
+        ASSIGNMENT_ID,
+        {
+          rosterIds: ['r1'],
+          classIds: ['cl.1'],
+          periodNames: ['Period 1'],
+          classPeriodByClassId: { 'cl.1': 'Period 1' },
+        },
+        { 'cl.1': row, 'cl.2': null }
+      );
+    });
+
+    expect(batchUpdate).toHaveBeenCalledTimes(2);
+    for (const call of batchUpdate.mock.calls as unknown[][]) {
+      const pairs = call.slice(1);
+      const pathWrites = pairs.flatMap((field, i) =>
+        i % 2 === 0 && typeof field === 'object' && field !== null
+          ? [[(field as { segments: string[] }).segments, pairs[i + 1]]]
+          : []
+      );
+      expect(pathWrites).toEqual([
+        [['periodAccess', 'cl.1'], row],
+        [['periodAccess', 'cl.2'], DELETE_FIELD_SENTINEL],
+      ]);
+      expect(pairs).toContain('rosterIds');
+    }
   });
 
   it('drops empty-string entries from rosterIds/classIds/periodNames before writing', async () => {

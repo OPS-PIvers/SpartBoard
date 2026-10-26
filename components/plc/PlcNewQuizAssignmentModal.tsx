@@ -71,6 +71,7 @@ import {
 import { QuizAssignStepper } from '@/components/widgets/QuizWidget/components/QuizAssignStepper';
 import {
   applyPlcStepperStudentPicks,
+  savePlcStepperFinalScore,
   planPlcQuizStepperAssign,
   plcStepperCreateFields,
 } from './plcQuizStepperAssign';
@@ -97,7 +98,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
   PlcNewQuizAssignmentModalProps
 > = ({ plc, assignmentMode = 'submissions', onClose, onCreated }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   // D21: the stepper uses the Quiz steps, prefilled from and saving to last-used rules.
   const { lastUsed: lastAssignSettings, save: saveLastAssignSettings } =
     useLastQuizAssignSettings(user?.uid, true);
@@ -346,6 +347,13 @@ export const PlcNewQuizAssignmentModal: React.FC<
           attemptLimit: behavior.attemptLimit,
         });
 
+        savePlcStepperFinalScore({
+          uid: user.uid,
+          assignmentId,
+          behavior,
+          attemptHistoryEnabled: canAccessFeature('quiz-attempt-history'),
+          logScope: 'PlcNewQuizAssignmentModal',
+        });
         await applyPlcStepperStudentPicks({
           assignmentId,
           plan: stepperPlan,
@@ -408,6 +416,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
       addToast,
       outward,
       assignmentMode,
+      canAccessFeature,
       attachSyncLinkage,
       createAssignment,
       loadQuizData,

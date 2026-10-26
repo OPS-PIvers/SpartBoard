@@ -20,6 +20,7 @@ import {
   changedWindow,
   closesBeforeOpens,
   periodAccessWindowEdits,
+  type PeriodAccessWindowEdits,
   resolveAvailability,
   specForRoster,
   type AssignAvailability,
@@ -198,14 +199,15 @@ export const QuizAssignmentSettingsModal: React.FC<
   // Down to one class there is no per-class plan, so the shared window moves the kept rows.
   const singleClassRowEdits = (
     changed: ReturnType<typeof changedWindow>
-  ): Record<string, number | null> => {
-    const out: Record<string, number | null> = {};
+  ): PeriodAccessWindowEdits => {
+    const edit: PeriodAccessWindowEdits[string] = {};
+    if ('openAt' in changed) edit.openAt = changed.openAt ?? null;
+    if ('closeAt' in changed) edit.closeAt = changed.closeAt ?? null;
+    if (Object.keys(edit).length === 0) return {};
+    const out: PeriodAccessWindowEdits = {};
     for (const [key, row] of Object.entries(assignment.periodAccess ?? {})) {
-      if (!selectedRostersForDue.some((r) => r.id === row.rosterId)) continue;
-      if ('openAt' in changed)
-        out[`periodAccess.${key}.openAt`] = changed.openAt ?? null;
-      if ('closeAt' in changed)
-        out[`periodAccess.${key}.closeAt`] = changed.closeAt ?? null;
+      if (selectedRostersForDue.some((r) => r.id === row.rosterId))
+        out[key] = edit;
     }
     return out;
   };

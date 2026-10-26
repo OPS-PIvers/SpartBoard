@@ -4,7 +4,9 @@ import type {
   ClassRoster,
   PeriodAccess,
   QuizAssignmentSettings,
+  QuizBehaviorSettings,
 } from '@/types';
+import { saveAttemptPolicy } from '@/hooks/gradebook/useGradebookColumnWrites';
 import {
   applyWhen,
   manualStartAvailable,
@@ -141,6 +143,33 @@ export function plcStepperCreateFields(
         : {}),
     },
   };
+}
+
+/** Saves the picked Final score to the gradebook column, as the Quiz widget's assign does. */
+export function savePlcStepperFinalScore({
+  uid,
+  assignmentId,
+  behavior,
+  attemptHistoryEnabled,
+  logScope,
+}: {
+  uid: string;
+  assignmentId: string;
+  behavior: QuizBehaviorSettings;
+  attemptHistoryEnabled: boolean;
+  logScope: string;
+}): void {
+  const finalScore = behavior.finalScore ?? 'latest';
+  if (
+    finalScore === 'latest' ||
+    behavior.attemptLimit === 1 ||
+    !attemptHistoryEnabled
+  ) {
+    return;
+  }
+  saveAttemptPolicy(uid, assignmentId, 'quiz', finalScore).catch(
+    (err: unknown) => logError(`${logScope}.finalScore`, err, { assignmentId })
+  );
 }
 
 /** Fans out the stepper's student picks after create, like the Quiz widget's stepper assign (D5b). */
