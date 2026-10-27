@@ -137,6 +137,9 @@ export const PollSettings: React.FC<{
             sessionAnswers,
             config.hiddenResponses ?? [],
             hiddenWords ?? undefined
+          ).map((s) =>
+            // Until hidden words load, word clouds list nothing rather than a hidden word.
+            hiddenWords === null && s.kind === 'words' ? { ...s, texts: [] } : s
           )
         : summarizeLocalPoll(questions),
     [
