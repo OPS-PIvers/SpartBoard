@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-10-22_
+_Last audited: 2026-10-27_
 _Last action: 2026-09-15 — HIGH `browserslist`/`baseline-browser-mapping` resolved: added `pnpm.overrides.browserslist: "^4.28.7"` to both `package.json` and `functions/package.json`, clearing two HIGH + one moderate advisory in the Babel/Jest build-toolchain chain. PR opened against dev-paul. Item moved to Completed._
+
+_2026-10-27: Tuesday Audit B2 (read-only). Root: 5 vulnerabilities (2 low | 2 moderate | 1 high) — new `zod` HIGH and four `fast-uri` advisories; `functions/`: 4 (2 low | 2 moderate), all `fast-uri`. The prior `braces`/`sprintf-js` advisories no longer appear. `pnpm outdated`: patch/minor only for typescript-eslint, i18next family, postcss, onnxruntime-web, `@anthropic-ai/sdk` 1.1.0→1.3.0; majors for eslint/@eslint/js 9→10, firebase-admin 13→14, tailwindcss 3→4, typescript 6→7 (already tracked). `crypto-js` and `fluent-ffmpeg` (functions) remain deprecated._
 
 _2026-10-22: Thursday Audit B2 (read-only). Root and `functions/` each still report 2 vulnerabilities (1 moderate `sprintf-js`, no patched version | 1 high `braces`), both via `firebase-functions-test>jest`; unchanged, covered by the open dev-toolchain item. `pnpm outdated`: patch/minor only for dompurify, firebase 13.0→13.1, i18next, vite 8.3.5, jose, typescript-eslint; majors behind unchanged (eslint 9→10, firebase-admin 13→14, tailwindcss 3→4, typescript 6→7, lucide-react 0.x→1.x, `@anthropic-ai/sdk` 0.x→1.x); `crypto-js`/`fluent-ffmpeg` deprecated. 0 new issues._
 
@@ -21,6 +23,19 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### HIGH `zod` (<4.6.6) memory-exhaustion advisory — production chain via `@imgly/background-removal`
+- **Detected:** 2026-10-27
+- **File:** package.json (direct `@imgly/background-removal@1.7.0` → `zod@3.25.76`)
+- **Detail:** Root `pnpm audit` newly reports a HIGH "Zod can exhaust memory while validating oversized input" (vulnerable `<4.6.6`, patched `>=4.6.6`). Resolves via a production dependency; exposure is likely limited since zod validates the library's own config, not untrusted input.
+- **Fix:** Check for a newer `@imgly/background-removal` that bumps zod, or add a `pnpm.overrides` for `zod` after verifying v3→v4 compatibility; otherwise accept as low-exposure.
+
+### MEDIUM `fast-uri` <3.1.9 — four new advisories (2 moderate, 2 low) via `ajv`, root + functions
+- **Detected:** 2026-10-27
+- **File:** package.json, functions/package.json (`ajv>fast-uri`; functions via `@google-cloud/functions-framework>cloudevents>ajv`)
+- **Detail:** Scheme spoofing and host confusion (moderate) plus path equivalence and scheme injection (low), patched `>=3.1.9`. Regression of the previously Completed fast-uri override (floor was 3.1.6).
+- **Fix:** Raise the `fast-uri` override to `>=3.1.9` in both `package.json` files, run `pnpm run install:all`, rerun `pnpm audit`.
+
 
 _2026-10-08: Thursday Audit B2 (read-only). Root `pnpm audit --audit-level=moderate`: **8 vulnerabilities (1 low | 2 moderate | 5 high)**, up from 7. New vs 2026-10-06: HIGH `@modelcontextprotocol/sdk` (>=1.12.0 <1.31.0, patched >=1.31.0) via `@google/genai`; functions/ has 1.30.1 installed direct (latest 1.32.1). Others unchanged: `@grpc/grpc-js` <1.13.6 via `firebase>@firebase/firestore`, `basic-ftp`, `braces`, `sprintf-js`, `source-map-js`, `postcss-selector-parser`. `functions/`: 4 (1 moderate | 3 high): `braces`, `sprintf-js`, `source-map-js`, `@modelcontextprotocol/sdk`. Outdated, >1 major behind: `firebase` 12.19.0→13.0.0 (higher priority, 1 major), `vite` 6.4.3→8.3.3 (root, 2 majors), `typescript` 5.9.3→7.0.2, `vitest` 4.1.11→5.0.3, `eslint` 9→10, `tailwindcss` 3→4, `@google/genai` 1.52→2.28, `lucide-react` 0.563→1.52, `jose` 4.15.9→6.2.12 (functions). `react` current. Deprecated: `crypto-js`, `fluent-ffmpeg`._
 
