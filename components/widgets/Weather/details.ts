@@ -216,6 +216,12 @@ export interface DetailRow {
   value: string;
   /** Shown smaller after the value. */
   unit?: string;
+  /** Wind: compass degrees the wind blows from. */
+  direction?: number;
+  /** Moon: phase fraction, 0 new through 0.5 full. */
+  phase?: number;
+  /** Sunrise and sunset: epoch ms. */
+  time?: number;
 }
 
 interface FormatInput {
@@ -259,7 +265,9 @@ export function buildDetailRows(
       .map((p) => p.value)
       .join('')
       .trim();
-    return dayPeriod ? { value: clock, unit: dayPeriod } : { value: clock };
+    return dayPeriod
+      ? { value: clock, unit: dayPeriod, time: ms }
+      : { value: clock, time: ms };
   };
   const parts = (field: WeatherDetailField): RowParts | null => {
     switch (field) {
@@ -292,6 +300,7 @@ export function buildDetailRows(
         return {
           value: `${num(dir) ? `${compassPoint(dir)} ` : ''}${Math.round(speed)}`,
           unit: 'mph',
+          ...(num(dir) ? { direction: dir } : {}),
         };
       }
       case 'windGust':
@@ -319,6 +328,7 @@ export function buildDetailRows(
         dayStart.setHours(0, 0, 0, 0);
         return {
           value: t(`widgets.weather.moonPhases.${moonPhase(dayStart)}`),
+          phase: moonPhaseFraction(now.getTime()),
         };
       }
     }

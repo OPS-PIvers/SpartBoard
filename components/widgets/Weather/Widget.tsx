@@ -397,6 +397,8 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         ) : (
           <WeatherDetailsLayout
             rows={detailRows}
+            lat={STATION_CONFIG.lat}
+            lon={STATION_CONFIG.lon}
 
             color={fontColor}
             labelColor={secondaryColor}
