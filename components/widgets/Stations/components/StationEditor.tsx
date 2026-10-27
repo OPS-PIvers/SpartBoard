@@ -141,6 +141,12 @@ export const StationEditor: React.FC<StationEditorProps> = ({
               value={station.title}
               onChange={(e) => onChange({ title: e.target.value })}
               placeholder="e.g. Reading Corner"
+              {...tourFieldAttr(
+                'widget-settings.stations.title',
+                widgetType ?? 'stations',
+                fieldKey
+              )}
+              data-tour-widget={widgetId}
               className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
             />
           </div>
@@ -156,6 +162,12 @@ export const StationEditor: React.FC<StationEditorProps> = ({
                 onChange({ description: e.target.value || undefined })
               }
               placeholder="Short instruction for students"
+              {...tourFieldAttr(
+                'widget-settings.stations.description',
+                widgetType ?? 'stations',
+                fieldKey
+              )}
+              data-tour-widget={widgetId}
               className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
             />
           </div>
@@ -177,6 +189,12 @@ export const StationEditor: React.FC<StationEditorProps> = ({
                     onChange({ maxStudents: parsed });
                 }}
                 placeholder="No limit"
+                {...tourFieldAttr(
+                  'widget-settings.stations.max-students',
+                  widgetType ?? 'stations',
+                  fieldKey
+                )}
+                data-tour-widget={widgetId}
                 className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
               />
             </div>
@@ -187,6 +205,7 @@ export const StationEditor: React.FC<StationEditorProps> = ({
               </label>
               <div className="flex items-center gap-1.5 flex-wrap">
                 {WIDGET_PALETTE.map((c) => (
+                  // no-tour-anchor: one swatch per palette color, repeated
                   <button
                     key={c}
                     type="button"
@@ -206,6 +225,12 @@ export const StationEditor: React.FC<StationEditorProps> = ({
                   onChange={(e) => onChange({ color: e.target.value })}
                   className="w-6 h-6 rounded border border-slate-200 cursor-pointer"
                   aria-label="Custom color"
+                  {...tourFieldAttr(
+                    'widget-settings.stations.custom-color',
+                    widgetType ?? 'stations',
+                    fieldKey
+                  )}
+                  data-tour-widget={widgetId}
                 />
               </div>
             </div>
@@ -219,6 +244,9 @@ export const StationEditor: React.FC<StationEditorProps> = ({
               iconName={station.iconName}
               imageUrl={station.imageUrl}
               onChange={(next) => onChange(next)}
+              widgetId={widgetId}
+              widgetType={widgetType ?? 'stations'}
+              fieldKey={fieldKey}
             />
           </div>
         </div>
