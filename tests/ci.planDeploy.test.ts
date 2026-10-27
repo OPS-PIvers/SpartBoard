@@ -91,9 +91,9 @@ describe('plan-deploy.sh', () => {
       backend: 'true',
       deploy_only: 'functions:fetchLinkPreview,storage',
     });
-    expect(plan('dev-bailey', ['functions/src/linkPreview.ts']).deploy_only).toBe(
-      'functions:fetchLinkPreview'
-    );
+    expect(
+      plan('dev-bailey', ['functions/src/linkPreview.ts']).deploy_only
+    ).toBe('functions:fetchLinkPreview');
   });
 
   it('skips functions when the changed code reaches none of them', () => {

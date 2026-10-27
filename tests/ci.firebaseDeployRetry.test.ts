@@ -161,9 +161,7 @@ function runWithStubbedDeploys(
       ...process.env,
       PATH: `${bin}:${process.env.PATH ?? ''}`,
       RELEASE_FIRESTORE_RULES: 'false',
-      ...(deployOnly === undefined
-        ? {}
-        : { FIREBASE_DEPLOY_ONLY: deployOnly }),
+      ...(deployOnly === undefined ? {} : { FIREBASE_DEPLOY_ONLY: deployOnly }),
     },
   });
   const onlys = readFileSync(join(dir, 'onlys'), 'utf-8').trim().split('\n');

@@ -15,7 +15,10 @@ import { execFileSync, spawnSync } from 'child_process';
 import ts from 'typescript';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const affectedScript = resolve(repoRoot, '.github/scripts/affected-functions.mjs');
+const affectedScript = resolve(
+  repoRoot,
+  '.github/scripts/affected-functions.mjs'
+);
 const targetsScript = resolve(repoRoot, '.github/scripts/function-targets.mjs');
 
 function affected(changed: string[], root = repoRoot): string[] | 'ALL' {
@@ -239,9 +242,9 @@ describe('function-targets.mjs', () => {
       },
       (root) => {
         const lib = join(root, 'lib/index.js');
-        expect(
-          targets('functions:fn,functions:__helper,storage', lib)
-        ).toBe('functions:fn,storage');
+        expect(targets('functions:fn,functions:__helper,storage', lib)).toBe(
+          'functions:fn,storage'
+        );
         expect(targets('functions,storage', lib)).toBe('functions,storage');
         expect(targets('', lib)).toBe('');
       }
