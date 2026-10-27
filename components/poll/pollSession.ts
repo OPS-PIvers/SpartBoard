@@ -43,9 +43,9 @@ export interface PollVoteEntry {
   answeredAt?: number;
 }
 
-/** Newest-first sort time for a typed answer: the server's clock, not the student's. */
-export const answerTime = (a: PollVoteEntry): number =>
-  a.answeredAt ?? a.votedAt ?? 0;
+/** Newest-first sort time for a typed answer: the server's clock, or a student clock capped at now. */
+export const answerTime = (a: PollVoteEntry, now = Date.now()): number =>
+  a.answeredAt ?? Math.min(a.votedAt ?? 0, now);
 
 /**
  * Tally one question's votes into a count-per-option-index array. Votes for

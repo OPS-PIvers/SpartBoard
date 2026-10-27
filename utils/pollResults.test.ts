@@ -185,4 +185,23 @@ describe('typed answer order', () => {
     );
     expect(t.texts.map((x) => x.text)).toEqual(['new', 'old']);
   });
+
+  it("can't pin an older phone's answer above newer ones with a future clock", () => {
+    const now = Date.now();
+    const [, t] = summarizePoll(
+      [words, text],
+      [],
+      [
+        { id: '1_u1', questionIndex: 1, text: 'pinned', votedAt: now + 8e7 },
+        {
+          id: '1_u2',
+          questionIndex: 1,
+          text: 'new',
+          votedAt: 1,
+          answeredAt: now + 60_000,
+        },
+      ]
+    );
+    expect(t.texts.map((x) => x.text)).toEqual(['new', 'pinned']);
+  });
 });
