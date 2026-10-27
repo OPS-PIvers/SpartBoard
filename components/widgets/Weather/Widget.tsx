@@ -119,7 +119,14 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     };
 
     void fetchInitial();
-  }, [isAuto, globalConfig?.fetchingStrategy, widget.id, updateWidget]);
+    // detailsAllowed re-runs it so details arrive once permissions load.
+  }, [
+    isAuto,
+    globalConfig?.fetchingStrategy,
+    widget.id,
+    updateWidget,
+    detailsAllowed,
+  ]);
 
   // Admin Proxy Subscription — stable; reads current values via ref to avoid restart
   useEffect(() => {
