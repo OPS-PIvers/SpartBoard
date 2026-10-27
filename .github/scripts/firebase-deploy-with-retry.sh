@@ -127,9 +127,9 @@ while true; do
   code=${PIPESTATUS[0]}
   echo "::endgroup::"
 
-  if [[ "$code" -eq 0 && -n "$forced_functions" ]]; then
+  if [[ "$code" -eq 0 && -n "$forced_functions" && ",$DEPLOY_ONLY," == *,functions,* ]]; then
     # The quota-failed attempt skipped deletes; one full pass does them and
-    # skips everything already current.
+    # skips everything already current. A named-functions deploy never deletes.
     echo "Rollout-failed functions deployed (${forced_functions}); running a full pass for deletes."
     forced_functions=""
     attempt=$((attempt + 1))
