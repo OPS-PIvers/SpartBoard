@@ -19,6 +19,7 @@ import { DEFAULT_GLOBAL_STYLE, type DockPosition } from '@/types';
 function renderLibrary(props: {
   large?: boolean;
   dockPosition?: DockPosition;
+  triggerRef?: React.RefObject<HTMLElement | null>;
 }) {
   render(
     <WidgetLibrary
