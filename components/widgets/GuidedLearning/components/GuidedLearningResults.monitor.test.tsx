@@ -4,6 +4,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { GuidedLearningSet } from '@/types';
 
+vi.mock('@/hooks/useGuidedLearningStudentProgress', () => ({
+  useGuidedLearningStudentProgress: () => null,
+}));
 vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({

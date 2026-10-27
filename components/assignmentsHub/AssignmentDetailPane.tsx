@@ -69,7 +69,7 @@ interface GuidedProgress {
 
 const RosterRow: React.FC<{
   row: AssignmentRosterRow;
-  /** Guided Learning rows only, with `gl-student-progress` on and the session read. */
+  /** Guided Learning rows only, with the session read. */
   progress?: GuidedProgress;
 }> = ({ row, progress }) => {
   const { t } = useTranslation();
@@ -318,8 +318,7 @@ export const AssignmentDetailPane: React.FC<{
     row.sessionId
   );
 
-  const glProgressOn =
-    row.kind === 'guided-learning' && canAccessFeature('gl-student-progress');
+  const glProgressOn = row.kind === 'guided-learning';
   const glShape = useGuidedLearningSessionShape(row.sessionId, glProgressOn);
   const glProgressByUid = useGuidedLearningStudentProgress(
     row.sessionId,
