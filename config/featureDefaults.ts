@@ -37,7 +37,6 @@ import {
   Music2,
   Printer,
   RefreshCw,
-  Route,
   Send,
   Share2,
   Smartphone,
@@ -680,17 +679,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Per-student slide position on GL results and the hub. Admin-only until Paul has seen it on real class data in prod.
-  'gl-student-progress': {
-    label: 'Guided Learning student progress',
-    icon: Route,
-    description: "Shows each student's slide and last activity.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'plc-docs-toolbar': {
     label: 'Google Docs toolbar in group docs',
     icon: StickyNote,
@@ -1244,18 +1232,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Synced collection sharing',
     icon: FolderSync,
     description: 'Share a collection that you and a colleague both edit.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Gates the wall owner's side: only a flagged owner lets board members read the wall's posts.
-  'shared-board-live-walls': {
-    label: 'Library items on shared boards',
-    icon: Share2,
-    description:
-      'Colleagues on a Synced or View-Only board see your Activity Walls, quizzes, video activities and guided activities.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

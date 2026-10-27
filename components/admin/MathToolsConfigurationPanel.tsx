@@ -8,6 +8,7 @@ import {
 } from '@/types';
 import { MATH_TOOL_META } from '@/components/widgets/math-tools/mathToolUtils';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { DraftNumberField } from './DraftNumberField';
 
 const ALL_GRADE_LEVELS: GradeLevel[] = ['k-2', '3-5', '6-8', '9-12'];
 
@@ -94,24 +95,20 @@ export const MathToolsConfigurationPanel: React.FC<
         </SettingsLabel>
         <p className="text-xxs text-slate-400">Default 96.</p>
         <div className="flex items-center gap-2">
-          <input
+          <DraftNumberField
             id={dpiCalibrationId}
             {...tourFieldAttr(
               'admin.widget-config.field',
               'mathTools',
               'dpiCalibration'
             )}
-            type="number"
             min={60}
             max={300}
             value={dpiCalibration}
-            onChange={(e) => {
+            onCommit={(n) => {
               const newConfig: MathToolsGlobalConfig = {
                 ...mathConfig,
-                dpiCalibration: Math.max(
-                  60,
-                  Math.min(300, Number(e.target.value))
-                ),
+                dpiCalibration: Math.max(60, Math.min(300, n)),
               };
               onChange(newConfig as unknown as Record<string, unknown>);
             }}

@@ -34,6 +34,9 @@ vi.mock('@/hooks/useAssignmentPseudonyms', () => ({
   useAssignmentPseudonymsMulti: () => ({ byStudentUid: new Map() }),
   formatStudentName: () => '',
 }));
+vi.mock('@/hooks/useGuidedLearningStudentProgress', () => ({
+  useGuidedLearningStudentProgress: () => null,
+}));
 vi.mock('@/hooks/useSessionViewCount', () => ({
   useSessionViewCount: () => ({ count: 0, loading: false }),
 }));

@@ -181,7 +181,6 @@ export const PollSettings: React.FC<{
         base,
         user.uid,
         mode,
-        canAccessFeature('shared-board-live-walls'),
         canAccessFeature('poll-pro')
       );
       applyConfig(next);

@@ -7,6 +7,7 @@ import {
   renderCatalystIcon,
 } from '@/components/widgets/Catalyst/catalystHelpers';
 import { LayoutGrid, RotateCcw } from 'lucide-react';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { hexToRgba } from '@/utils/styles';
 import { studentChipClass, studentChipStyle } from './studentChip';
 
@@ -24,6 +25,9 @@ interface StationCardProps {
   cardColor?: string;
   /** Surface opacity from widget appearance settings (cardOpacity). */
   cardOpacity?: number;
+  widgetId?: string;
+  widgetType?: string;
+  stationNumber?: number;
 }
 
 export const StationCard: React.FC<StationCardProps> = ({
@@ -36,6 +40,9 @@ export const StationCard: React.FC<StationCardProps> = ({
   bodyTextColor,
   cardColor = '#f8fafc',
   cardOpacity = 0.4,
+  widgetId,
+  widgetType,
+  stationNumber,
 }) => {
   const accent = station.color?.trim() ? station.color : '#10b981';
   // The card surface uses the station accent (preserving per-station color
@@ -218,6 +225,14 @@ export const StationCard: React.FC<StationCardProps> = ({
         <button
           type="button"
           onClick={onResetStation}
+          {...(widgetType && stationNumber
+            ? tourFieldAttr(
+                'stations.reset-station',
+                widgetType,
+                `station-${stationNumber}`
+              )
+            : {})}
+          data-tour-widget={widgetId}
           className="absolute top-1 right-1 z-30 rounded-full text-white font-black flex items-center justify-center hover:bg-brand-red-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary transition-colors"
           style={{
             backgroundColor: accent,

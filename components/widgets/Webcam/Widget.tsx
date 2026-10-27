@@ -32,7 +32,7 @@ import { useDialog } from '@/context/useDialog';
 import { extractTextWithGemini } from '@/utils/ai';
 import { WidgetLayout } from '../WidgetLayout';
 import { CapturedItem } from './types';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { useDocCamView } from './useDocCamView';
 import { DocCamViewControls } from './DocCamViewControls';
 import { DocCamInkLayer, DocCamInkToolbar } from './DocCamInk';
@@ -1445,7 +1445,7 @@ export const WebcamWidget: React.FC<{
                     className="grid grid-cols-2"
                     style={{ gap: 'min(16px, 3.5cqmin)' }}
                   >
-                    {capturedItems.map((item) => (
+                    {capturedItems.map((item, photoIndex) => (
                       <div
                         key={item.id}
                         className="group/photo relative aspect-video bg-white/10 rounded-xl overflow-hidden border border-white/20"
@@ -1465,6 +1465,12 @@ export const WebcamWidget: React.FC<{
                             className="bg-white/20 hover:bg-white/30 rounded-full text-white transition-all"
                             style={{ padding: 'min(8px, 2cqmin)' }}
                             title="Download"
+                            {...tourFieldAttr(
+                              'webcam.download-photo',
+                              _widget.type,
+                              `photo-${photoIndex + 1}`
+                            )}
+                            data-tour-widget={_widget.id}
                           >
                             <Download
                               style={{
@@ -1478,6 +1484,12 @@ export const WebcamWidget: React.FC<{
                             className="bg-red-500/20 hover:bg-red-500/40 rounded-full text-red-400 transition-all"
                             style={{ padding: 'min(8px, 2cqmin)' }}
                             title="Delete"
+                            {...tourFieldAttr(
+                              'webcam.delete-photo',
+                              _widget.type,
+                              `photo-${photoIndex + 1}`
+                            )}
+                            data-tour-widget={_widget.id}
                           >
                             <Trash2
                               style={{

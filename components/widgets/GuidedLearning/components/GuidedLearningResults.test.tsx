@@ -33,7 +33,6 @@ vi.mock('@/hooks/useSessionViewCount', () => ({
   useSessionViewCount: (...args: unknown[]) => viewCountMock(...args),
 }));
 let gradebookOn = false;
-let progressOn = false;
 const progressByUid = new Map([
   ['u1', { furthestStepIdx: 6, completed: false, updatedAt: null }],
 ]);
@@ -44,9 +43,7 @@ vi.mock('@/hooks/useGuidedLearningStudentProgress', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     orgId: null,
-    canAccessFeature: (id: string) =>
-      (id === 'gradebook' && gradebookOn) ||
-      (id === 'gl-student-progress' && progressOn),
+    canAccessFeature: (id: string) => id === 'gradebook' && gradebookOn,
   }),
 }));
 vi.mock('@/context/useDashboard', () => ({
@@ -239,7 +236,6 @@ describe('GuidedLearningResults student progress', () => {
   } as unknown as GuidedLearningSet;
 
   beforeEach(() => {
-    progressOn = true;
     mockResponses = [
       { ...base, studentAnonymousId: 'u1', pin: '11', completedAt: null },
     ];
@@ -273,16 +269,5 @@ describe('GuidedLearningResults student progress', () => {
     );
     expect(await screen.findByText('Not tracked')).toBeInTheDocument();
     expect(screen.getByText('Slide 7 of 12')).toBeInTheDocument();
-  });
-
-  it('shows nothing with the flag off', async () => {
-    progressOn = false;
-    session({ playerV2: true });
-    render(
-      <GuidedLearningResults set={stepsSet} sessionId="s1" onClose={vi.fn()} />
-    );
-    await screen.findByText('In progress');
-    expect(screen.queryByText(/Slide \d/)).not.toBeInTheDocument();
-    expect(screen.queryByText('Not tracked')).not.toBeInTheDocument();
   });
 });

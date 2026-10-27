@@ -3,6 +3,8 @@ import { collection, doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type {
   PlcQuestionBankEntry,
+  QuestionBankData,
+  QuestionBankMetadata,
   QuizData,
   SyncedQuestionBank,
 } from '@/types';
@@ -61,6 +63,38 @@ export async function loadSyncedBankContent(
     throw new Error('This shared bank is no longer available.');
   }
   return toBankContent(snap.data() as SyncedQuestionBank);
+}
+
+/** One entry per random slot keyed by bankSlotKey(slot); a slot whose bank can't be loaded is absent. */
+export async function loadBankContentsFor(
+  quiz: Pick<QuizData, 'bankSlots'>,
+  banks: readonly Pick<QuestionBankMetadata, 'id' | 'driveFileId'>[],
+  loadBankData: (driveFileId: string) => Promise<QuestionBankData>
+): Promise<Map<string, BankContent>> {
+  const out = new Map<string, BankContent>();
+  const slotsByKey = new Map(
+    randomBankSlots(quiz).map((s) => [bankSlotKey(s), s])
+  );
+  await Promise.all(
+    [...slotsByKey].map(async ([key, slot]) => {
+      try {
+        if (slot.syncGroupId) {
+          out.set(key, await loadSyncedBankContent(slot.syncGroupId));
+          return;
+        }
+        const meta = banks.find((b) => b.id === slot.bankId);
+        if (!meta) throw new Error('Bank not in library');
+        const data = await loadBankData(meta.driveFileId);
+        out.set(key, toBankContent(data));
+      } catch (err) {
+        logError('useBankSources.loadBankContentsForQuiz', err, {
+          slotKey: key,
+          bankId: slot.bankId,
+        });
+      }
+    })
+  );
+  return out;
 }
 
 export function useBankSources(
@@ -133,34 +167,8 @@ export function useBankSources(
   );
 
   const loadBankContentsForQuiz = useCallback(
-    async (
-      quiz: Pick<QuizData, 'bankSlots'>
-    ): Promise<Map<string, BankContent>> => {
-      const out = new Map<string, BankContent>();
-      const slotsByKey = new Map(
-        randomBankSlots(quiz).map((s) => [bankSlotKey(s), s])
-      );
-      await Promise.all(
-        [...slotsByKey].map(async ([key, slot]) => {
-          try {
-            if (slot.syncGroupId) {
-              out.set(key, await loadSyncedBankContent(slot.syncGroupId));
-              return;
-            }
-            const meta = banks.find((b) => b.id === slot.bankId);
-            if (!meta) throw new Error('Bank not in library');
-            const data = await loadBankData(meta.driveFileId);
-            out.set(key, toBankContent(data));
-          } catch (err) {
-            logError('useBankSources.loadBankContentsForQuiz', err, {
-              slotKey: key,
-              bankId: slot.bankId,
-            });
-          }
-        })
-      );
-      return out;
-    },
+    (quiz: Pick<QuizData, 'bankSlots'>) =>
+      loadBankContentsFor(quiz, banks, loadBankData),
     [banks, loadBankData]
   );
 

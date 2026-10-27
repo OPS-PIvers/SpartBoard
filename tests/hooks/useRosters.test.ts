@@ -386,6 +386,28 @@ describe('useRosters — subscription', () => {
     expect(downloadFile).toHaveBeenLastCalledWith('file-2');
   });
 
+  it('re-downloads a roster after the nightly ClassLink sync rewrites it', async () => {
+    const downloadFile = vi
+      .fn()
+      .mockResolvedValueOnce(driveBlob([student({ id: 'before' })]))
+      .mockResolvedValueOnce(driveBlob([student({ id: 'after' })]));
+    currentDriveService = makeDriveService({ downloadFile });
+
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [metaDoc('r1', { driveFileId: 'file-1' })]);
+    await waitFor(() =>
+      expect(result.current.rosters[0].students[0].id).toBe('before')
+    );
+
+    emitSnapshot(0, [
+      metaDoc('r1', { driveFileId: 'file-1', classlinkSyncedAt: 123 }),
+    ]);
+    await waitFor(() =>
+      expect(result.current.rosters[0].students[0].id).toBe('after')
+    );
+    expect(downloadFile).toHaveBeenCalledTimes(2);
+  });
+
   it('serves a cached roster without re-downloading when driveFileId is unchanged', async () => {
     const downloadFile = vi
       .fn()

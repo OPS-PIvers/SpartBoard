@@ -78,11 +78,11 @@ const row: UnifiedAssignmentRow = {
   overridesBySourcedId: {},
 };
 
-function arrange(opts: { flag: boolean; playerV2: boolean }) {
+function arrange(opts: { playerV2: boolean }) {
   vi.mocked(useAuth).mockReturnValue({
     user: { uid: 'teacher-1' },
     orgId: 'org-1',
-    canAccessFeature: (id: string) => id === 'gl-student-progress' && opts.flag,
+    canAccessFeature: () => false,
   } as unknown as ReturnType<typeof useAuth>);
   vi.mocked(useDashboard).mockReturnValue({
     rosters: [roster],
@@ -129,37 +129,30 @@ describe('AssignmentDetailPane: Guided Learning student progress', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('shows the slide for a started student and nothing for one who has not started', () => {
-    arrange({ flag: true, playerV2: true });
+    arrange({ playerV2: true });
     render(<AssignmentDetailPane row={row} />);
     expect(screen.getByText('Slide 7 of 12')).toBeInTheDocument();
     expect(screen.getAllByText(/Slide \d/)).toHaveLength(1);
   });
 
   it('shows recorded progress on a session started before the v2 player', () => {
-    arrange({ flag: true, playerV2: false });
+    arrange({ playerV2: false });
     render(<AssignmentDetailPane row={row} />);
     expect(screen.getByText('Slide 7 of 12')).toBeInTheDocument();
     expect(screen.queryByText('Not tracked')).not.toBeInTheDocument();
   });
 
   it('says "Not tracked" for a started student with no progress on an older session', () => {
-    arrange({ flag: true, playerV2: false });
+    arrange({ playerV2: false });
     vi.mocked(useGuidedLearningStudentProgress).mockReturnValue(new Map());
     render(<AssignmentDetailPane row={row} />);
     expect(screen.getByText('Not tracked')).toBeInTheDocument();
   });
 
   it('waits for progress to load before saying "Not tracked"', () => {
-    arrange({ flag: true, playerV2: false });
+    arrange({ playerV2: false });
     vi.mocked(useGuidedLearningStudentProgress).mockReturnValue(null);
     render(<AssignmentDetailPane row={row} />);
-    expect(screen.queryByText('Not tracked')).not.toBeInTheDocument();
-  });
-
-  it('shows nothing with the flag off', () => {
-    arrange({ flag: false, playerV2: true });
-    render(<AssignmentDetailPane row={row} />);
-    expect(screen.queryByText(/Slide \d/)).not.toBeInTheDocument();
     expect(screen.queryByText('Not tracked')).not.toBeInTheDocument();
   });
 });

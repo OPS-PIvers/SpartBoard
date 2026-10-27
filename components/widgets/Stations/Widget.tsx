@@ -593,6 +593,11 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                     bodyTextColor={fontColor}
                     cardColor={cardColor}
                     cardOpacity={cardOpacity}
+                    widgetId={widget.id}
+                    widgetType={widget.type}
+                    stationNumber={
+                      stations.findIndex((s) => s.id === station.id) + 1
+                    }
                   />
                 );
               })}

@@ -44,3 +44,4 @@ Controls the sweep looked at and left for Paul, so later runs don't retry them. 
 | 2026-10-24 | claude/tour-anchors-2026-10-24 | Widgets (MaterialsWidget, MathToolInstance, MiniApp, NeedDoPutThen) | 8 | 22 | 0 | 669 in 280 files |
 | 2026-10-25 | claude/tour-anchors-2026-10-25 | Widgets (Onboarding, PdfWidget, PollWidget, Projects, QuizWidget through StartReviewModal) | 12 | 19 | 0 | 634 in 259 files |
 | 2026-10-26 | claude/tour-anchors-2026-10-26 | Widgets (QuizWidget legacy monitor, RevealGrid, Schedule, Scoreboard, SmartNotebook, Soundboard, SpecialistSchedule, StarterPack) | 6 | 19 | 0 | 609 in 246 files |
+| 2026-10-27 | claude/tour-anchors-2026-10-27 | Widgets (Stations, TextWidget, TimeTool, UrlWidget, Weather, Webcam, RotationHandle) | 21 | 7 | 0 | 581 in 235 files |

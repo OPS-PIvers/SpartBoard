@@ -13,7 +13,7 @@ import {
   type EarthNetworksResponse,
   type OpenWeatherData,
 } from './constants';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   fetchUvHours,
   parseEarthNetworksDetails,
@@ -208,6 +208,12 @@ export const WeatherAutoSyncField: React.FC<{
                 type="button"
                 aria-pressed={source === option}
                 onClick={() => ctx.updateConfig({ source: option })}
+                {...tourFieldAttr(
+                  'widget-settings.weather.source',
+                  ctx.widget.type,
+                  option
+                )}
+                data-tour-widget={ctx.widget.id}
                 className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold ${
                   source === option
                     ? 'bg-white text-indigo-700 shadow-sm'
@@ -252,6 +258,11 @@ export const WeatherAutoSyncField: React.FC<{
                 }
                 placeholder={ctx.t('widgets.weather.cityPlaceholder')}
                 aria-label={ctx.t('widgets.weather.cityZip')}
+                {...tourAttr(
+                  'widget-settings.weather.city',
+                  ctx.widget.id,
+                  ctx.widget.type
+                )}
                 className="rounded-lg border border-slate-200 px-3 py-2 text-xs disabled:opacity-50"
               />
               <div className="grid grid-cols-2 gap-2">
@@ -272,6 +283,11 @@ export const WeatherAutoSyncField: React.FC<{
                   type="button"
                   disabled={loading || !hasApiKey}
                   onClick={syncLocation}
+                  {...tourAttr(
+                    'widget-settings.weather.use-location',
+                    ctx.widget.id,
+                    ctx.widget.type
+                  )}
                   className="rounded-xl border border-indigo-200 px-3 py-2 text-xs font-semibold text-indigo-700 disabled:opacity-50"
                 >
                   {ctx.t('widgets.weather.useLocation')}

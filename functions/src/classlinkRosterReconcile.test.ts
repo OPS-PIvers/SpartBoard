@@ -137,6 +137,20 @@ describe('reconcileClassLinkStudents — additive half (mirrors the client merge
     expect(out.changed).toBe(true);
     expect(out.pinsReplaced).toBe(1);
     expect(out.students[0].pin).toMatch(/^\d{6}$/);
+    expect(out.students[0].formerPins).toEqual(['01']);
+    expect(out.students[1].pin).toBe('02');
+  });
+
+  it("never gives a newcomer a student's former PIN", () => {
+    const out = reconcileClassLinkStudents(
+      [
+        local('Ada', 'Lovelace', { pin: '01', classLinkSourcedId: 's1' }),
+        local('Aide', 'Helper', { pin: '' }),
+      ],
+      [upstream('s1', 'Ada', 'Lovelace')]
+    );
+
+    expect(out.students[0].formerPins).toEqual(['01']);
     expect(out.students[1].pin).toBe('02');
   });
 

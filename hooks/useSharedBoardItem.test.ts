@@ -12,13 +12,9 @@ vi.mock('@/config/firebase', () => ({ db: {} }));
 
 const store = { shareId: 'share-1' as string | null };
 
-const auth = vi.hoisted(() => ({ uid: 'me', flag: true }));
+const auth = vi.hoisted(() => ({ uid: 'me' }));
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({
-    user: { uid: auth.uid },
-    canAccessFeature: (id: string) =>
-      id === 'shared-board-live-walls' && auth.flag,
-  }),
+  useAuth: () => ({ user: { uid: auth.uid } }),
 }));
 
 import React from 'react';
@@ -49,7 +45,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   store.shareId = 'share-1';
   auth.uid = 'me';
-  auth.flag = true;
   resetSharedBoardItemPublishes();
 });
 
@@ -251,11 +246,8 @@ describe('useSharedBoardItemPublisher', () => {
     expect(stampOwner).toHaveBeenCalledWith('me');
   });
 
-  it('does nothing without the flag or off a shared board', async () => {
+  it('does nothing off a shared board', async () => {
     fs.getDoc.mockResolvedValue(snap(null));
-    auth.flag = false;
-    renderHook(() => useSharedBoardItemPublisher(args('1')), { wrapper });
-    auth.flag = true;
     store.shareId = null;
     renderHook(() => useSharedBoardItemPublisher(args('1')), { wrapper });
     await act(flush);
