@@ -34,17 +34,17 @@ const scriptPath = resolve(
   '.github/scripts/firebase-deploy-with-retry.sh'
 );
 
-// The pattern is composed from three assignments, so evaluate them as bash
+// The pattern is composed from four assignments, so evaluate them as bash
 // rather than reading either one as a literal.
 function patternAssignments(): string {
   const lines = readFileSync(scriptPath, 'utf-8')
     .split('\n')
     .filter((line) =>
-      /^(RULES_RELEASE_409|INVOKER_IAM|TRANSIENT_PATTERN)=/.test(line)
+      /^(RULES_RELEASE_409|INVOKER_IAM|CPU_QUOTA|TRANSIENT_PATTERN)=/.test(line)
     );
-  if (lines.length !== 3) {
+  if (lines.length !== 4) {
     throw new Error(
-      `expected RULES_RELEASE_409, INVOKER_IAM and TRANSIENT_PATTERN assignments, found ${lines.length}`
+      `expected RULES_RELEASE_409, INVOKER_IAM, CPU_QUOTA and TRANSIENT_PATTERN assignments, found ${lines.length}`
     );
   }
   return lines.join('\n');
@@ -83,6 +83,14 @@ describe('firebase-deploy-with-retry.sh transient classification', () => {
     expect(
       classifiedTransient(
         'Error: Failed to get the IAM Policy on the Service projects/spartboard/locations/us-central1/services/foo'
+      )
+    ).toBe(true);
+  });
+
+  it('retries the Cloud Run CPU quota failure from a large functions rollout', () => {
+    expect(
+      classifiedTransient(
+        'Could not create or update Cloud Run service setgoogletaskssyncv1, Container Healthcheck failed. Quota exceeded for total allowable CPU per project per region.'
       )
     ).toBe(true);
   });

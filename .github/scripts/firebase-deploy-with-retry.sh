@@ -66,7 +66,11 @@ RULES_RELEASE_409='firebaserules\.googleapis\.com[^ ]*/releases had HTTP Error: 
 # Cloud Run's getIamPolicy flakes on existing services mid-deploy ("Failed to
 # set invoker function"); the same functions deploy cleanly on a re-run.
 INVOKER_IAM='Failed to get the IAM Policy on the Service'
-TRANSIENT_PATTERN="HTTP Error: 5[0-9][0-9]|HTTP Error: 429|service is currently unavailable|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|premature close|Client network socket disconnected|Deadline exceeded|code.?UNAVAILABLE|${RULES_RELEASE_409}|${INVOKER_IAM}"
+# Cloud Run's regional CPU quota fills while ~200 functions roll out at once;
+# it frees within minutes, so a quota retry waits at least QUOTA_BACKOFF.
+CPU_QUOTA='Quota exceeded for total allowable CPU'
+QUOTA_BACKOFF=90
+TRANSIENT_PATTERN="HTTP Error: 5[0-9][0-9]|HTTP Error: 429|service is currently unavailable|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|premature close|Client network socket disconnected|Deadline exceeded|code.?UNAVAILABLE|${RULES_RELEASE_409}|${INVOKER_IAM}|${CPU_QUOTA}"
 
 # Comments count toward the 256 KiB ruleset cap, so deploy a comment-stripped
 # copy. Every surviving line is byte-identical to the source; tests still run
@@ -121,6 +125,9 @@ while true; do
   fi
 
   if grep -qiE "$TRANSIENT_PATTERN" "$LOG_FILE"; then
+    if grep -qiF "$CPU_QUOTA" "$LOG_FILE" && (( backoff < QUOTA_BACKOFF )); then
+      backoff=$QUOTA_BACKOFF
+    fi
     echo "::warning::Transient Google API error during firebase deploy; retrying in ${backoff}s (attempt ${attempt}/${MAX_ATTEMPTS})."
     sleep "$backoff"
     attempt=$((attempt + 1))
