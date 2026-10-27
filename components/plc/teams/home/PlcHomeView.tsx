@@ -1,8 +1,9 @@
-// PLC Home landing page: results over time, a latest-assessment preview, team tools and the meeting strip.
+// PLC Home landing page: the team layout's cards in order, then team tools.
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { LucideIcon } from 'lucide-react';
+import type { TeamCardId } from '@/types';
 import {
   Figure,
   META,
@@ -23,6 +24,12 @@ import {
 } from '@/components/plc/teams/data/DataOverviewSections';
 import { useDateFormat } from '@/components/plc/teams/data/format';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import {
+  BLOCK_COLUMNS,
+  plcHomeBlocks,
+  plcHomeRows,
+  type PlcHomeBlock,
+} from './homeBlocks';
 
 export interface PlcHomeTool {
   id: string;
@@ -35,18 +42,39 @@ export interface PlcHomeTool {
 
 export interface PlcHomeViewProps {
   model: DataOverviewModel;
+  /** Enabled cards from the team layout, in order. */
+  cards: readonly TeamCardId[];
   tools: readonly PlcHomeTool[];
   strip: MeetingStripProps;
   /** The Goals card body; null hides it. */
   goal: React.ReactNode;
-  onOpenDataOverview: () => void;
+  /** Mastery by learning target, or the lead's tag prompt; null hides it. */
+  mastery?: React.ReactNode;
+  /** Latest updates; null when the Updates page is off. */
+  updates?: React.ReactNode;
+  /** The team calendar; null when none is attached. */
+  calendar?: React.ReactNode;
+  /** Undefined hides "See item analysis". */
+  onOpenDataOverview?: () => void;
   onOpenAssessment: (assessmentId: string) => void;
-  onAllAssessments: () => void;
+  /** Undefined hides "All assessments". */
+  onAllAssessments?: () => void;
 }
+
+const SPAN: Record<number, string> = {
+  2: 'lg:col-span-2',
+  4: 'lg:col-span-4',
+  6: 'lg:col-span-6',
+};
+
+const EVEN: Record<number, string> = {
+  1: 'lg:grid-cols-1',
+  2: 'lg:grid-cols-2',
+};
 
 const LatestAssessment: React.FC<{
   model: DataOverviewModel;
-  onOpenDataOverview: () => void;
+  onOpenDataOverview?: () => void;
   onOpenAssessment: (assessmentId: string) => void;
 }> = ({ model, onOpenDataOverview, onOpenAssessment }) => {
   const { t } = useTranslation();
@@ -60,14 +88,16 @@ const LatestAssessment: React.FC<{
       <SectionHead
         title={t('plcHome.latest', { defaultValue: 'Latest assessment' })}
       >
-        <TextLink
-          onClick={onOpenDataOverview}
-          {...tourAttr('teams.home.see-item-analysis')}
-        >
-          {t('plcHome.seeItemAnalysis', {
-            defaultValue: 'See item analysis',
-          })}
-        </TextLink>
+        {onOpenDataOverview && (
+          <TextLink
+            onClick={onOpenDataOverview}
+            {...tourAttr('teams.home.see-item-analysis')}
+          >
+            {t('plcHome.seeItemAnalysis', {
+              defaultValue: 'See item analysis',
+            })}
+          </TextLink>
+        )}
       </SectionHead>
       <button
         type="button"
@@ -143,79 +173,98 @@ const ToolsRow: React.FC<{ tools: readonly PlcHomeTool[] }> = ({ tools }) => (
 
 export const PlcHomeView: React.FC<PlcHomeViewProps> = ({
   model,
+  cards,
   tools,
   strip,
   goal,
+  mastery = null,
+  updates = null,
+  calendar = null,
   onOpenDataOverview,
   onOpenAssessment,
   onAllAssessments,
 }) => {
   const { t } = useTranslation();
-  const showStrip = !!strip.nextMeeting || !!strip.openItems || !!strip.revisit;
+  const on = (id: TeamCardId) => cards.includes(id);
+  const homeStrip: MeetingStripProps = {
+    ...strip,
+    nextMeeting: on('nextMeeting') ? strip.nextMeeting : null,
+    openItems: on('openItems') ? strip.openItems : null,
+    revisit: on('openItems') ? strip.revisit : null,
+  };
+  const nodes: Record<PlcHomeBlock, React.ReactNode> = {
+    strip:
+      homeStrip.nextMeeting || homeStrip.openItems || homeStrip.revisit ? (
+        <MeetingStripView {...homeStrip} />
+      ) : null,
+    distribution: model.featured ? (
+      <DistributionView featured={model.featured} />
+    ) : (
+      <div className="min-w-0">
+        <SectionHead
+          title={t('plcDataOverview.distribution', {
+            defaultValue: 'Score distribution',
+          })}
+        />
+        <NoResults />
+      </div>
+    ),
+    trend: <TrendView trend={model.trend} shortTitles={model.shortTitles} />,
+    participation: (
+      <ParticipationView
+        rows={model.participation}
+        shortTitles={model.shortTitles}
+      />
+    ),
+    mastery,
+    assessments: (
+      <div className="grid grid-cols-1 gap-x-10 gap-y-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <LatestAssessment
+          model={model}
+          onOpenDataOverview={onOpenDataOverview}
+          onOpenAssessment={onOpenAssessment}
+        />
+        <RecentAssessmentsView
+          rows={model.recent}
+          onOpen={onOpenAssessment}
+          onAll={onAllAssessments}
+        />
+      </div>
+    ),
+    goals: goal,
+    updates,
+    calendar,
+  };
+  const rows = plcHomeRows(plcHomeBlocks(cards, (b) => nodes[b] != null));
   return (
     <div className={PAGE}>
-      {showStrip && (
-        <Section first>
-          <MeetingStripView {...strip} />
+      {rows.map((row, i) => (
+        <Section key={row.blocks.join('|')} first={i === 0}>
+          <div
+            className={`grid grid-cols-1 gap-x-10 gap-y-8 ${row.full ? 'lg:grid-cols-6' : (EVEN[row.blocks.length] ?? 'lg:grid-cols-3')}`}
+          >
+            {row.blocks.map((b) => (
+              <div
+                key={b}
+                className={`min-w-0 ${row.full ? SPAN[BLOCK_COLUMNS[b]] : ''}`}
+                data-home-block={b}
+              >
+                {nodes[b]}
+              </div>
+            ))}
+          </div>
         </Section>
-      )}
+      ))}
 
-      <Section
-        first={!showStrip}
-        label={t('plcDataOverview.resultsAcross', {
-          defaultValue: 'Results across assessments',
-        })}
-      >
-        <div className="grid grid-cols-1 gap-x-10 gap-y-8 lg:grid-cols-3">
-          {model.featured ? (
-            <DistributionView featured={model.featured} />
-          ) : (
-            <div className="min-w-0">
-              <SectionHead
-                title={t('plcDataOverview.distribution', {
-                  defaultValue: 'Score distribution',
-                })}
-              />
-              <NoResults />
-            </div>
-          )}
-          <TrendView trend={model.trend} shortTitles={model.shortTitles} />
-          <ParticipationView
-            rows={model.participation}
-            shortTitles={model.shortTitles}
+      {tools.length > 0 && (
+        <Section
+          first={rows.length === 0}
+          label={t('plcHome.tools', { defaultValue: 'Team tools' })}
+        >
+          <SectionHead
+            title={t('plcHome.tools', { defaultValue: 'Team tools' })}
           />
-        </div>
-      </Section>
-
-      <Section
-        label={t('plcHome.latestAndRecent', {
-          defaultValue: 'Latest and recent assessments',
-        })}
-      >
-        <div className="grid grid-cols-1 gap-x-10 gap-y-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-          <LatestAssessment
-            model={model}
-            onOpenDataOverview={onOpenDataOverview}
-            onOpenAssessment={onOpenAssessment}
-          />
-          <RecentAssessmentsView
-            rows={model.recent}
-            onOpen={onOpenAssessment}
-            onAll={onAllAssessments}
-          />
-        </div>
-      </Section>
-
-      <Section label={t('plcHome.tools', { defaultValue: 'Team tools' })}>
-        <SectionHead
-          title={t('plcHome.tools', { defaultValue: 'Team tools' })}
-        />
-        <ToolsRow tools={tools} />
-      </Section>
-
-      {goal != null && (
-        <Section label={t('plcDataOverview.goal', { defaultValue: 'Goal' })}>
-          {goal}
+          <ToolsRow tools={tools} />
         </Section>
       )}
     </div>

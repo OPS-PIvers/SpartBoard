@@ -309,8 +309,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
   );
 
   const { orgId, canAccessFeature } = useAuth();
-  const showStudentProgress =
-    !viewOnly && canAccessFeature('gl-student-progress');
+  const showStudentProgress = !viewOnly;
   const progressByUid = useGuidedLearningStudentProgress(
     sessionId,
     showStudentProgress

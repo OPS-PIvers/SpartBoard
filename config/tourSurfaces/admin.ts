@@ -71,6 +71,7 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       'components/admin/GenericConfigurationModal.tsx',
       'components/admin/FeatureConfigurationPanel.tsx',
+      'components/admin/WeatherDetailsBuildings.tsx',
     ],
     opensWith: 'admin.widgets.configure:admin#weather',
     needs: ['admin'],

@@ -54,6 +54,8 @@ interface PlcRowProps {
   /** Gate the per-row unread listeners to while the sidebar drawer is open. */
   unreadEnabled: boolean;
   rowKey: string;
+  /** `sidebar-list-rows`: divider row with a wrapping name instead of a card. */
+  listRows: boolean;
   onOpen: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -77,6 +79,7 @@ const PlcRow: React.FC<PlcRowProps> = ({
   isLead,
   unreadEnabled,
   rowKey,
+  listRows,
   onOpen,
   onEdit,
   onDelete,
@@ -117,6 +120,131 @@ const PlcRow: React.FC<PlcRowProps> = ({
     setMenuOpen(false);
     action();
   };
+
+  const unreadBadge = unreadCount > 0 && (
+    <span
+      className="min-w-[18px] h-[18px] px-1 mr-0.5 rounded-full bg-brand-red-primary text-white text-xxs font-bold flex items-center justify-center"
+      aria-label={t('sidebar.plcs.unreadBadge', {
+        count: unreadCount,
+        defaultValue: '{{count}} new since your last visit',
+      })}
+      title={t('sidebar.plcs.unreadBadge', {
+        count: unreadCount,
+        defaultValue: '{{count}} new since your last visit',
+      })}
+    >
+      {unreadCount > 99 ? '99+' : unreadCount}
+    </span>
+  );
+
+  const kebabMenu = (
+    <>
+      <button
+        ref={kebabRef}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setMenuOpen((prev) => !prev);
+        }}
+        {...tourFieldAttr('plcs.actions-menu', 'plcs', rowKey)}
+        className="p-1.5 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        aria-label={t('sidebar.plcs.actionsMenu', {
+          defaultValue: 'PLC actions',
+        })}
+        title={t('sidebar.plcs.actionsMenu', {
+          defaultValue: 'PLC actions',
+        })}
+      >
+        <MoreVertical className="w-4 h-4" />
+      </button>
+
+      {menuOpen && (
+        <div
+          ref={menuRef}
+          role="menu"
+          className="absolute right-0 top-full mt-1 z-20 min-w-[160px] bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150"
+          data-click-outside-ignore="true"
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={(e) => handleMenuClick(e, onEdit)}
+            {...tourFieldAttr('plcs.edit-plc', 'plcs', rowKey)}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors text-left"
+          >
+            <Pencil className="w-3.5 h-3.5 text-slate-500" />
+            {isLead
+              ? t('sidebar.plcs.editPlc', { defaultValue: 'Edit PLC' })
+              : t('sidebar.plcs.viewPlc', { defaultValue: 'View PLC' })}
+          </button>
+          {isLead ? (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={(e) => handleMenuClick(e, onDelete)}
+              {...tourFieldAttr('plcs.delete-plc', 'plcs', rowKey)}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors text-left border-t border-slate-100"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {t('sidebar.plcs.deletePlc', { defaultValue: 'Delete PLC' })}
+            </button>
+          ) : (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={(e) => handleMenuClick(e, onLeave)}
+              {...tourFieldAttr('plcs.leave-plc', 'plcs', rowKey)}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors text-left border-t border-slate-100"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              {t('sidebar.plcs.leavePlc', { defaultValue: 'Leave PLC' })}
+            </button>
+          )}
+        </div>
+      )}
+    </>
+  );
+
+  if (listRows) {
+    return (
+      <li className="group relative flex items-center gap-1 py-2 px-1 hover:bg-slate-50 transition-colors">
+        <button
+          type="button"
+          onClick={onOpen}
+          {...tourFieldAttr('plcs.open-plc', 'plcs', rowKey)}
+          className="absolute inset-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary"
+          aria-label={t('sidebar.plcs.openDashboard', {
+            defaultValue: 'Open {{name}} dashboard',
+            name: plc.name,
+          })}
+        />
+        <div className="relative flex-1 min-w-0 py-1 pl-1.5 pointer-events-none">
+          <div className="text-sm font-bold leading-snug text-slate-800 group-hover:text-brand-blue-primary transition-colors [overflow-wrap:anywhere]">
+            {plc.name}
+          </div>
+          <div className="text-xxs font-semibold text-slate-400 uppercase tracking-widest">
+            {isLead && (
+              <span className="text-brand-blue-primary">
+                {`${t('sidebar.plcs.leadBadge', { defaultValue: 'Lead' })} · `}
+              </span>
+            )}
+            {`${groupTypeLabel(t, getPlcGroupType(plc))} · `}
+            {t('sidebar.plcs.memberCount', {
+              count: getPlcMembers(plc).length,
+              defaultValue: '{{count}} Member',
+              defaultValue_other: '{{count}} Members',
+            })}
+          </div>
+        </div>
+        <div className="relative flex items-center gap-0.5 shrink-0 pointer-events-auto">
+          {unreadBadge}
+          {kebabMenu}
+        </div>
+      </li>
+    );
+  }
 
   return (
     <div className="group relative flex items-center gap-2 p-2.5 bg-white border border-slate-200 hover:border-brand-blue-primary/40 hover:bg-brand-blue-lighter/20 rounded-xl transition-all">
@@ -165,90 +293,12 @@ const PlcRow: React.FC<PlcRowProps> = ({
           `pointer-events-auto` re-enables clicks here so the kebab fires its own
           handler. */}
       <div className="relative flex items-center gap-0.5 shrink-0 pointer-events-auto">
-        {unreadCount > 0 && (
-          <span
-            className="min-w-[18px] h-[18px] px-1 mr-0.5 rounded-full bg-brand-red-primary text-white text-xxs font-bold flex items-center justify-center"
-            aria-label={t('sidebar.plcs.unreadBadge', {
-              count: unreadCount,
-              defaultValue: '{{count}} new since your last visit',
-            })}
-            title={t('sidebar.plcs.unreadBadge', {
-              count: unreadCount,
-              defaultValue: '{{count}} new since your last visit',
-            })}
-          >
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
-        )}
+        {unreadBadge}
         <ChevronRight
           className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors"
           aria-hidden="true"
         />
-        <button
-          ref={kebabRef}
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setMenuOpen((prev) => !prev);
-          }}
-          {...tourFieldAttr('plcs.actions-menu', 'plcs', rowKey)}
-          className="p-1.5 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
-          aria-label={t('sidebar.plcs.actionsMenu', {
-            defaultValue: 'PLC actions',
-          })}
-          title={t('sidebar.plcs.actionsMenu', {
-            defaultValue: 'PLC actions',
-          })}
-        >
-          <MoreVertical className="w-4 h-4" />
-        </button>
-
-        {menuOpen && (
-          <div
-            ref={menuRef}
-            role="menu"
-            className="absolute right-0 top-full mt-1 z-20 min-w-[160px] bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150"
-            data-click-outside-ignore="true"
-          >
-            <button
-              type="button"
-              role="menuitem"
-              onClick={(e) => handleMenuClick(e, onEdit)}
-              {...tourFieldAttr('plcs.edit-plc', 'plcs', rowKey)}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors text-left"
-            >
-              <Pencil className="w-3.5 h-3.5 text-slate-500" />
-              {isLead
-                ? t('sidebar.plcs.editPlc', { defaultValue: 'Edit PLC' })
-                : t('sidebar.plcs.viewPlc', { defaultValue: 'View PLC' })}
-            </button>
-            {isLead ? (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={(e) => handleMenuClick(e, onDelete)}
-                {...tourFieldAttr('plcs.delete-plc', 'plcs', rowKey)}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors text-left border-t border-slate-100"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                {t('sidebar.plcs.deletePlc', { defaultValue: 'Delete PLC' })}
-              </button>
-            ) : (
-              <button
-                type="button"
-                role="menuitem"
-                onClick={(e) => handleMenuClick(e, onLeave)}
-                {...tourFieldAttr('plcs.leave-plc', 'plcs', rowKey)}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors text-left border-t border-slate-100"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                {t('sidebar.plcs.leavePlc', { defaultValue: 'Leave PLC' })}
-              </button>
-            )}
-          </div>
-        )}
+        {kebabMenu}
       </div>
     </div>
   );
@@ -271,9 +321,11 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
   onOpenDashboard,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const { showConfirm } = useDialog();
   const loading = plcsLoading;
+  const listRows = canAccessFeature('sidebar-list-rows');
+  const ListTag = listRows ? 'ul' : 'div';
 
   // `editingPlcId === null` while no modal is open. The modal is open whenever
   // either `editingPlcId` is a plc id OR `isCreating` is true. Two pieces of
@@ -434,8 +486,12 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                     defaultValue: 'Your teams',
                   })}
                 </h3>
-                <div
-                  className="flex flex-col gap-2"
+                <ListTag
+                  className={
+                    listRows
+                      ? 'divide-y divide-slate-200 border-y border-slate-200'
+                      : 'flex flex-col gap-2'
+                  }
                   {...tourAttr('plcs.plc-list')}
                 >
                   {plcs.map((plc, plcIndex) => {
@@ -449,6 +505,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                         isLead={isLead}
                         unreadEnabled={isVisible}
                         rowKey={`row-${plcIndex + 1}`}
+                        listRows={listRows}
                         onOpen={() => onOpenDashboard(plc.id)}
                         onEdit={() => setEditingPlcId(plc.id)}
                         onDelete={() => void handleDelete(plc)}
@@ -456,7 +513,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                       />
                     );
                   })}
-                </div>
+                </ListTag>
               </div>
             )}
           </div>

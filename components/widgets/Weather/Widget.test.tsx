@@ -27,6 +27,7 @@ const mockFeaturePermissions = [
     widgetType: 'weather',
     config: {
       fetchingStrategy: 'client',
+      detailsBuildingIds: ['intermediate'],
       temperatureRanges: [
         {
           id: '1',
@@ -46,9 +47,17 @@ const mockFeaturePermissions = [
   },
 ];
 
+const mockAuth = {
+  detailsFlag: false,
+  selectedBuildings: ['intermediate'],
+};
+
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     featurePermissions: mockFeaturePermissions,
+    canAccessFeature: (id: string) =>
+      id === 'weather-details' ? mockAuth.detailsFlag : true,
+    selectedBuildings: mockAuth.selectedBuildings,
   }),
 }));
 
@@ -82,6 +91,8 @@ describe('WeatherWidget', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockAuth.detailsFlag = false;
+    mockAuth.selectedBuildings = ['intermediate'];
   });
 
   it('displays default clothing message when no range matches', () => {
@@ -179,5 +190,33 @@ describe('WeatherWidget', () => {
     expect(mockSetBackground).not.toHaveBeenCalled();
 
     mockActiveDashboard.background = originalBg;
+  });
+  describe('weather details', () => {
+    const detailWidget: WidgetData = {
+      ...baseWidget,
+      config: {
+        ...baseWidget.config,
+        detailFields: ['dewPoint', 'humidity'],
+        details: { dewPoint: 40, humidity: 92 },
+      },
+    };
+
+    it('stays off without the release flag', () => {
+      render(<WeatherWidget widget={detailWidget} />);
+      expect(screen.queryByTestId('weather-details')).not.toBeInTheDocument();
+    });
+
+    it('stays off in a building the admin has not allowed', () => {
+      mockAuth.detailsFlag = true;
+      mockAuth.selectedBuildings = ['high'];
+      render(<WeatherWidget widget={detailWidget} />);
+      expect(screen.queryByTestId('weather-details')).not.toBeInTheDocument();
+    });
+
+    it('shows with the flag on in an allowed building', () => {
+      mockAuth.detailsFlag = true;
+      render(<WeatherWidget widget={detailWidget} />);
+      expect(screen.getByTestId('weather-details')).toBeInTheDocument();
+    });
   });
 });

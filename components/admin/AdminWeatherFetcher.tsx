@@ -3,16 +3,18 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
-import { WeatherGlobalConfig } from '@/types';
+import { WeatherDetails, WeatherGlobalConfig } from '@/types';
+import {
+  STATION_CONFIG,
+  type EarthNetworksResponse,
+  type OpenWeatherData,
+} from '@/components/widgets/Weather/constants';
+import {
+  fetchUvHours,
+  parseEarthNetworksDetails,
+  parseOpenWeatherDetails,
+} from '@/components/widgets/Weather/details';
 import { isStoredWeatherFresh } from './adminWeatherFreshness';
-
-// Constants shared with WeatherWidget
-const STATION_CONFIG = {
-  id: 'BLLST',
-  lat: 44.99082,
-  lon: -93.59635,
-  name: 'Orono IS',
-};
 
 const EARTH_NETWORKS_API = {
   BASE_URL: 'https://owc.enterprise.earthnetworks.com/Data/GetData.ashx',
@@ -30,25 +32,6 @@ const EARTH_NETWORKS_ICONS = {
   SUNNY: [0, 2, 3, 4, 7],
   RAIN: [10, 11, 12, 14, 15, 16, 17, 18, 19],
 };
-
-interface OpenWeatherData {
-  cod: number | string;
-  message?: string;
-  name: string;
-  main: {
-    temp: number;
-    feels_like: number;
-  };
-  weather: [{ main: string }, ...{ main: string }[]];
-}
-
-interface EarthNetworksResponse {
-  o?: {
-    t: number;
-    ic: number;
-    fl?: number;
-  };
-}
 
 export const AdminWeatherFetcher: React.FC = () => {
   const { featurePermissions } = useAuth();
@@ -69,10 +52,14 @@ export const AdminWeatherFetcher: React.FC = () => {
     const weatherRef = doc(db, 'global_weather', 'current');
 
     const fetchWeather = async () => {
+      let storedUv: WeatherDetails['uvHours'] = null;
       // A failed freshness read falls through to a normal fetch.
       try {
         const snap = await getDoc(weatherRef);
         if (abortController.signal.aborted) return;
+        storedUv =
+          (snap.data() as { details?: WeatherDetails } | undefined)?.details
+            ?.uvHours ?? null;
         if (
           snap.exists() &&
           isStoredWeatherFresh(snap.data(), {
@@ -93,6 +80,7 @@ export const AdminWeatherFetcher: React.FC = () => {
         let feelsLike = 72;
         let condition = 'sunny';
         let locationName = STATION_CONFIG.name;
+        let details: WeatherDetails | undefined;
 
         if (source === 'earth_networks') {
           // Earth Networks Fetch Logic
@@ -136,6 +124,14 @@ export const AdminWeatherFetcher: React.FC = () => {
                     ? 'rainy'
                     : 'cloudy';
             locationName = STATION_CONFIG.name;
+            details = {
+              ...parseEarthNetworksDetails(data),
+              uvHours: await fetchUvHours(
+                STATION_CONFIG.zip,
+                abortController.signal,
+                storedUv
+              ),
+            };
           } else {
             throw new Error('Station data unavailable');
           }
@@ -161,6 +157,7 @@ export const AdminWeatherFetcher: React.FC = () => {
             feelsLike = data.main.feels_like;
             condition = data.weather[0].main.toLowerCase();
             locationName = data.name;
+            details = parseOpenWeatherDetails(data);
           } else {
             throw new Error(String(data.message));
           }
@@ -176,6 +173,7 @@ export const AdminWeatherFetcher: React.FC = () => {
           updatedAt: Date.now(),
           source,
           city: cityKey,
+          ...(details ? { details } : {}),
         });
 
         console.warn(

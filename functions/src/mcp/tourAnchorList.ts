@@ -766,6 +766,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "video-activity#allowSkipping",
       "video-activity#autoPlay",
       "video-activity#requireCorrectAnswer",
+      "weather#detail_dewPoint",
+      "weather#detail_feelsLike",
+      "weather#detail_highLow",
+      "weather#detail_humidity",
+      "weather#detail_moon",
+      "weather#detail_pressure",
+      "weather#detail_rainDaily",
+      "weather#detail_rainMonthly",
+      "weather#detail_sunrise",
+      "weather#detail_sunset",
+      "weather#detail_uvIndex",
+      "weather#detail_windAvg",
+      "weather#detail_windGust",
       "weather#hideClothing",
       "weather#syncBackground",
       "webcam#autoSendToNotes"
@@ -21048,6 +21061,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.row-actions",
+    "label": "Class actions menu in My Classes",
+    "scope": "field",
+    "panel": true,
     "routes": [
       {
         "surface": "board.sidebar-classes",

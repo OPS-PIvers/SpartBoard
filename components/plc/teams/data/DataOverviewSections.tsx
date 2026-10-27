@@ -714,7 +714,8 @@ export const TagPrompt: React.FC<{ onTag: () => void }> = ({ onTag }) => {
 export const RecentAssessmentsView: React.FC<{
   rows: RecentAssessmentRow[];
   onOpen: (assessmentId: string) => void;
-  onAll: () => void;
+  /** Undefined hides "All assessments" (the Assessments page is off). */
+  onAll?: () => void;
 }> = ({ rows, onOpen, onAll }) => {
   const { t } = useTranslation();
   const fmt = useDateFormat();
@@ -725,11 +726,16 @@ export const RecentAssessmentsView: React.FC<{
           defaultValue: 'Recent assessments',
         })}
       >
-        <TextLink onClick={onAll} {...tourAttr('teams.data.all-assessments')}>
-          {t('plcDataOverview.allAssessments', {
-            defaultValue: 'All assessments',
-          })}
-        </TextLink>
+        {onAll && (
+          <TextLink
+            onClick={onAll}
+            {...tourAttr('teams.data.all-assessments')}
+          >
+            {t('plcDataOverview.allAssessments', {
+              defaultValue: 'All assessments',
+            })}
+          </TextLink>
+        )}
       </SectionHead>
       {rows.length === 0 ? (
         <NoResults />

@@ -211,7 +211,11 @@
       "accommodationsTab": "Accommodations ({{count}})",
       "accommodationsHelp": "These apply to every new assignment.",
       "emptyAccommodationsTitle": "No students yet",
-      "emptyAccommodationsSubtitle": "Add students first, then set their standing accommodations."
+      "emptyAccommodationsSubtitle": "Add students first, then set their standing accommodations.",
+      "actionsMenu": "Class actions",
+      "linkedGoogleClassroom": "Linked to Google Classroom",
+      "actionsMenuFor": "Class actions for {{name}}",
+      "changeGoogleClassroomLink": "Change Google Classroom link"
     },
     "plcs": {
       "title": "My PLCs",
@@ -2307,7 +2311,21 @@
       "syncBackground": "Match the board background to weather",
       "secondaryColor": "Secondary text color",
       "matchText": "Match text",
-      "clothingCard": "Clothing card"
+      "clothingCard": "Clothing card",
+      "weatherDetails": "Weather details",
+      "detail_feelsLike": "Feels like",
+      "detail_highLow": "High and low",
+      "detail_dewPoint": "Dew point",
+      "detail_humidity": "Humidity",
+      "detail_pressure": "Pressure",
+      "detail_rainDaily": "Daily rain",
+      "detail_rainMonthly": "Monthly rain",
+      "detail_windAvg": "Average wind",
+      "detail_windGust": "Wind gust",
+      "detail_sunrise": "Sunrise",
+      "detail_sunset": "Sunset",
+      "detail_moon": "Moon phase",
+      "detail_uvIndex": "UV index"
     },
     "expectations": {
       "soundSync": "Sound meter sync",
@@ -2726,7 +2744,40 @@
       },
       "secondaryColor": "Secondary Text Color",
       "matchText": "Match text",
-      "clothingCard": "Clothing Card"
+      "clothingCard": "Clothing Card",
+      "details": {
+        "feelsLike": "Feels like",
+        "highLow": "High / low",
+        "dewPoint": "Dew point",
+        "humidity": "Humidity",
+        "pressure": "Pressure",
+        "rainDaily": "Daily rain",
+        "rainMonthly": "Monthly rain",
+        "windAvg": "Avg. wind",
+        "windGust": "Wind gust",
+        "sunrise": "Sunrise",
+        "sunset": "Sunset",
+        "moon": "Moon",
+        "uvIndex": "UV index",
+        "calm": "Calm",
+        "uvLevels": {
+          "low": "Low",
+          "moderate": "Moderate",
+          "high": "High",
+          "veryHigh": "Very high",
+          "extreme": "Extreme"
+        }
+      },
+      "moonPhases": {
+        "newMoon": "New moon",
+        "waxingCrescent": "Waxing crescent",
+        "firstQuarter": "First quarter",
+        "waxingGibbous": "Waxing gibbous",
+        "fullMoon": "Full moon",
+        "waningGibbous": "Waning gibbous",
+        "lastQuarter": "Last quarter",
+        "waningCrescent": "Waning crescent"
+      }
     },
     "stickers": {
       "collectionTitle": "Sticker Collection",

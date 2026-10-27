@@ -134,7 +134,6 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
           config,
           user.uid,
           mode,
-          canAccessFeature('shared-board-live-walls'),
           canAccessFeature('poll-pro')
         )
       );

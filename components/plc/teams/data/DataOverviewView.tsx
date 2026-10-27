@@ -30,7 +30,8 @@ export interface DataOverviewViewProps {
   /** Opens the question-tag view; defaults to onManageTargets. */
   onTagQuestions?: () => void;
   onOpenAssessment: (assessmentId: string) => void;
-  onAllAssessments: () => void;
+  /** Undefined hides "All assessments". */
+  onAllAssessments?: () => void;
 }
 
 const GRID_COLS: Record<number, string> = {

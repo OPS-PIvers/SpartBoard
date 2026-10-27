@@ -14,6 +14,12 @@ import {
   type OpenWeatherData,
 } from './constants';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { useWeatherDetailsAllowed } from './useWeatherDetailsAllowed';
+import {
+  fetchUvHours,
+  parseEarthNetworksDetails,
+  parseOpenWeatherDetails,
+} from './details';
 
 function useWeatherGlobalConfig(): WeatherGlobalConfig | undefined {
   const { featurePermissions } = useAuth();
@@ -72,6 +78,7 @@ export const WeatherAutoSyncField: React.FC<{
   const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY as string | undefined;
   const hasApiKey = Boolean(apiKey?.trim());
   const isAdminProxy = globalConfig?.fetchingStrategy === 'admin_proxy';
+  const detailsAllowed = useWeatherDetailsAllowed();
 
   const fetchOpenWeather = async (params: string) => {
     if (!apiKey) {
@@ -96,6 +103,7 @@ export const WeatherAutoSyncField: React.FC<{
         condition: data.weather[0].main.toLowerCase(),
         locationName: data.name,
         lastSync: Date.now(),
+        ...(detailsAllowed && { details: parseOpenWeatherDetails(data) }),
       });
       addToast(
         `${ctx.t('widgets.weather.updatedFor')} ${data.name}`,
@@ -126,9 +134,12 @@ export const WeatherAutoSyncField: React.FC<{
         functions,
         'fetchExternalProxy'
       );
-      const result = await proxy({
-        url: `${EARTH_NETWORKS_API.BASE_URL}?${params.toString()}`,
-      });
+      const [result, uvHours] = await Promise.all([
+        proxy({
+          url: `${EARTH_NETWORKS_API.BASE_URL}?${params.toString()}`,
+        }),
+        detailsAllowed ? fetchUvHours(STATION_CONFIG.zip) : null,
+      ]);
       const observation = result.data.o;
       if (!observation) throw new Error('No observation data available');
       ctx.updateConfig({
@@ -138,6 +149,9 @@ export const WeatherAutoSyncField: React.FC<{
         locationName: STATION_CONFIG.name,
         lastSync: Date.now(),
         isAuto: true,
+        ...(detailsAllowed && {
+          details: { ...parseEarthNetworksDetails(result.data), uvHours },
+        }),
       });
       addToast(
         `${ctx.t('widgets.weather.connectedTo')} ${STATION_CONFIG.name}`,

@@ -54,10 +54,7 @@ export const RemoteActivityWallControl: React.FC<
   // A wall that isn't in this teacher's library (a colleague's on a shared board): don't open or replace it.
   const foreignWall = config.activeActivityOwnerUid
     ? config.activeActivityOwnerUid !== user?.uid
-    : canAccessFeature('shared-board-live-walls') &&
-      !!config.activeActivityId &&
-      !libraryLoading &&
-      !activeActivity;
+    : !!config.activeActivityId && !libraryLoading && !activeActivity;
 
   const [submissions, setSubmissions] = useState<RemoteSubmission[]>([]);
   const [showQr, setShowQr] = useState(false);

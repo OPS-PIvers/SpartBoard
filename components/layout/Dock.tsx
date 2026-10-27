@@ -1185,6 +1185,8 @@ export const Dock: React.FC = () => {
               onClose={closeLibraryAndEditMode}
               globalStyle={globalStyle}
               triggerRef={dockContainerRef}
+              large={canAccessFeature('widget-library-large')}
+              dockPosition={dockPosition}
               libraryOrder={libraryOrder}
               onReorderLibrary={reorderLibrary}
               onAddFolder={() => setShowCreateFolderModal(true)}
