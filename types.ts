@@ -10550,8 +10550,6 @@ export type GlobalFeature =
   | 'checklist-small-card'
   /** Synced and View-Only collection sharing (docs/plans/COLLECTION_SHARING.md). */
   | 'collection-sync-sharing'
-  /** Members of a shared board see the owner's Activity Wall and its approved posts live. */
-  | 'shared-board-live-walls'
   /** Seating Chart saved seating plans, shuffle rules and print (poll-pro/SEATING_CHART_PLAN.md). */
   | 'seating-chart-plans'
   /** Scoreboard undo, score history, point buttons, leader marker and score motion. */

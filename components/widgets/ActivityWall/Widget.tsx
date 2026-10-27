@@ -187,7 +187,6 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   );
   // A Synced colleague edits the owner's wall through the server, which re-checks the share.
   const canEditLinked =
-    canAccessFeature('shared-board-live-walls') &&
     linked.active &&
     !isActiveBoardReadOnly &&
     !!foreignOwnerUid &&
@@ -286,7 +285,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     activeEntry,
     saveActivity,
     canAccessFeature('activity-wall-timeline-dates'),
-    canAccessFeature('shared-board-live-walls') ? boardShareEntry : null
+    boardShareEntry
   );
   const session = inSubShare
     ? shared.session
