@@ -1,121 +1,29 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  ArrowDownUp,
-  CloudRain,
-  Droplet,
-  Droplets,
-  Gauge,
-  ArrowUp,
-  Sun,
-  Sunrise,
-  Sunset,
-  Thermometer,
-  Umbrella,
-  Wind,
-  type LucideIcon,
-} from 'lucide-react';
-import type { WeatherDetailField } from '@/types';
-import { hexToRgba } from '@/utils/styles';
 import type { DetailRow } from './details';
-import { fitDetails, type DetailsStyle } from './fitDetails';
+import { fitDetails } from './fitDetails';
 
 const WIDE_RATIO = 1.5;
-const STACKED_MAX_SHARE = 0.58;
-const WIDE_SHARE = 0.58;
+const STACKED_SHARES = [0.34, 0.4, 0.46, 0.52, 0.58, 0.64, 0.7];
+// The temperature fills about this much height per unit of width; more would only be blank.
+const HERO_HEIGHT_PER_WIDTH = 0.68;
+const WIDE_SHARES = [0.45, 0.5, 0.55, 0.6, 0.65];
 
-const ICONS: Record<
-  Exclude<WeatherDetailField, 'moon'>,
-  { icon: LucideIcon; className: string }
-> = {
-  feelsLike: { icon: Thermometer, className: 'text-slate-500' },
-  highLow: { icon: ArrowDownUp, className: 'text-slate-500' },
-  dewPoint: { icon: Droplet, className: 'text-blue-400' },
-  humidity: { icon: Droplets, className: 'text-blue-400' },
-  pressure: { icon: Gauge, className: 'text-slate-500' },
-  rainDaily: { icon: CloudRain, className: 'text-blue-400' },
-  rainMonthly: { icon: Umbrella, className: 'text-blue-400' },
-  windAvg: { icon: ArrowUp, className: 'text-slate-500' },
-  windGust: { icon: Wind, className: 'text-slate-500' },
-  sunrise: { icon: Sunrise, className: 'text-amber-400' },
-  sunset: { icon: Sunset, className: 'text-amber-400' },
-  uvIndex: { icon: Sun, className: 'text-amber-400' },
-};
+const NO_SPACE_UNITS = new Set(['%', '"']);
 
-/** The moon as it looks tonight: lit side on the right while waxing. */
-const MoonGlyph: React.FC<{ phase: number }> = ({ phase }) => {
-  const r = 10;
-  const lit = (1 - Math.cos(2 * Math.PI * phase)) / 2;
-  const waxing = phase < 0.5;
-  const rx = r * Math.abs(1 - 2 * lit);
-  const outer = waxing ? 1 : 0;
-  const inner = lit < 0.5 === waxing ? 0 : 1;
-  return (
-    <svg viewBox="-12 -12 24 24" width="1em" height="1em" aria-hidden="true">
-      <circle r={r} className="fill-slate-300" />
-      <path
-        d={`M0 ${-r} A${r} ${r} 0 0 ${outer} 0 ${r} A${rx} ${r} 0 0 ${inner} 0 ${-r}Z`}
-        className="fill-amber-100"
-      />
-      <circle
-        r={r}
-        fill="none"
-        strokeWidth="1.5"
-        className="stroke-slate-400"
-      />
-    </svg>
-  );
-};
-
-const DetailIcon: React.FC<{ row: DetailRow }> = ({ row }) => {
-  if (row.field === 'moon') return <MoonGlyph phase={row.phase ?? 0} />;
-  const { icon: Icon, className } = ICONS[row.field];
-  return (
-    <Icon
-      size="1em"
-      strokeWidth={2.25}
-      className={`shrink-0 ${className}`}
-      aria-hidden="true"
-      // Wind arrow points the way the wind is blowing.
-      style={
-        row.direction === undefined
-          ? undefined
-          : { transform: `rotate(${row.direction + 180}deg)` }
-      }
-    />
-  );
-};
-
-const Value: React.FC<{ row: DetailRow }> = ({ row }) => (
-  <span className="font-black tabular-nums leading-none whitespace-nowrap">
-    {row.value}
-    {row.unit && (
-      <span
-        className="font-bold"
-        style={{ fontSize: '0.5em', marginLeft: '0.2em' }}
-      >
-        {row.unit}
-      </span>
-    )}
-  </span>
-);
+const displayValue = (row: DetailRow) =>
+  row.unit
+    ? `${row.value}${NO_SPACE_UNITS.has(row.unit) ? '' : ' '}${row.unit}`
+    : row.value;
 
 /** Puts the readings beside the weather face on wide widgets and under it otherwise. */
 export const WeatherDetailsLayout: React.FC<{
   rows: DetailRow[];
   color: string;
   labelColor?: string;
-  detailsStyle?: DetailsStyle;
   className?: string;
   children: React.ReactNode;
-}> = ({
-  rows,
-  color,
-  labelColor,
-  detailsStyle = 'grid',
-  className = '',
-  children,
-}) => {
+}> = ({ rows, color, labelColor, className = '', children }) => {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDListElement>(null);
@@ -135,26 +43,43 @@ export const WeatherDetailsLayout: React.FC<{
 
   const { width, height } = size;
   const wide = height > 0 && width / height >= WIDE_RATIO;
-  const pad = Math.min(12, 0.03 * Math.min(width, height));
-  const labels = rows.map((row) => t(`widgets.weather.details.${row.field}`));
-  const boxWidth = Math.max((wide ? width * WIDE_SHARE : width) - pad * 2, 0);
-  const boxHeight = Math.max(
-    (wide ? height : height * STACKED_MAX_SHARE) - pad * 2,
-    0
+  const pad = Math.min(16, 0.04 * Math.min(width, height));
+  const lines = rows.map((row) => ({
+    field: row.field,
+    label: t(`widgets.weather.details.${row.field}`),
+    value: displayValue(row),
+  }));
+  // Readings take only the share they can use, so the temperature keeps the rest.
+  const heroShare = height > 0 ? (HERO_HEIGHT_PER_WIDTH * width) / height : 1;
+  const stackedShares = STACKED_SHARES.filter(
+    (share, i) => i < 5 || share <= 1 - heroShare
   );
-  const { cols, fontPx } = fitDetails(
-    rows,
-    labels,
+  const shares = wide ? WIDE_SHARES : stackedShares;
+  const fitAt = (share: number) => {
+    const boxWidth = Math.max((wide ? share * width : width) - pad * 2, 0);
+    const boxHeight = Math.max((wide ? height : share * height) - pad * 2, 0);
+    return {
+      share,
+      boxWidth,
+      boxHeight,
+      ...fitDetails(lines, boxWidth, boxHeight),
+    };
+  };
+  const roomiest = fitAt(shares[shares.length - 1]);
+  const {
+    share,
     boxWidth,
     boxHeight,
-    detailsStyle
-  );
-  const fitKey = `${width}x${height}|${detailsStyle}|${rows
-    .map((row, i) => `${labels[i]}=${row.value}${row.unit ?? ''}`)
+    rows: rowCount,
+    fontPx,
+  } = shares.map(fitAt).find((f) => f.fontPx >= roomiest.fontPx * 0.95) ??
+  roomiest;
+  const fitKey = `${width}x${height}|${lines
+    .map((line) => `${line.label}=${line.value}`)
     .join(',')}`;
   const scale = fit.key === fitKey ? fit.scale : 1;
 
-  // The font estimate is close but not exact; shrink once more if the real list overflows.
+  // The width estimate is close but not exact; shrink once more if the real list overflows.
   useLayoutEffect(() => {
     const list = listRef.current;
     if (!list || width === 0) return;
@@ -167,78 +92,68 @@ export const WeatherDetailsLayout: React.FC<{
       setFit({ key: fitKey, scale: scale * Math.min(1, ratio * 0.99) });
     }
   }, [fitKey, scale, fit.key, boxHeight, boxWidth, width]);
-  const rule = hexToRgba(color, 0.14);
-  const band = detailsStyle === 'band';
 
   return (
     <div
       ref={ref}
       data-testid="weather-details"
-      className={`flex h-full w-full ${wide ? 'flex-row' : 'flex-col'} ${className}`}
+      className={`flex h-full w-full ${wide ? 'flex-row' : 'flex-col justify-center'} ${className}`}
     >
-      {/* Stacked: the face sits on the readings so its spare height goes above it, not between. */}
+      {/* Stacked: the face is only as tall as the temperature needs, and the pair is centered. */}
       <div
-        className={`flex-1 min-h-0 min-w-0 [container-type:size] ${wide ? '' : '[&>div]:justify-end'}`}
+        className={`min-h-0 min-w-0 [container-type:size] ${wide ? 'flex-1' : 'shrink'}`}
+        style={
+          wide
+            ? undefined
+            : {
+                height: Math.min(
+                  HERO_HEIGHT_PER_WIDTH * width,
+                  (1 - share) * height
+                ),
+              }
+        }
       >
         {children}
       </div>
       {width > 0 && (
         <div
-          className="shrink-0 min-h-0 min-w-0 flex items-center"
+          className={`shrink-0 min-h-0 min-w-0 flex items-center ${wide ? '' : 'justify-center'}`}
           style={{
-            ...(wide ? { width: `${WIDE_SHARE * 100}%` } : {}),
+            ...(wide ? { width: `${share * 100}%` } : {}),
             padding: pad,
           }}
         >
           <dl
             ref={listRef}
-            className="grid w-full"
+            className="grid grid-flow-col leading-none"
             style={{
-              gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+              gridTemplateRows: `repeat(${rowCount}, auto)`,
+              columnGap: '1.6em',
+              rowGap: '0.75em',
               fontSize: `${fontPx * scale}px`,
               color,
             }}
           >
-            {rows.map((row, i) => (
+            {lines.map((line) => (
               <div
-                key={row.field}
-                className={`flex min-w-0 ${
-                  band
-                    ? 'flex-col items-center justify-center text-center'
-                    : 'items-center'
-                }`}
-                style={{
-                  gap: band ? '0.22em' : '0.42em',
-                  padding: band ? '0.45em 0.45em' : '0.45em 0.55em',
-                  borderLeft: i % cols ? `1px solid ${rule}` : undefined,
-                  borderTop:
-                    !band && i >= cols ? `1px solid ${rule}` : undefined,
-                }}
+                key={line.field}
+                className="flex items-baseline whitespace-nowrap"
               >
-                <span
-                  className="flex shrink-0"
-                  style={{ fontSize: band ? '1.05em' : '1.25em' }}
+                <dt
+                  className="font-medium"
+                  style={{
+                    color: labelColor ?? color,
+                    opacity: labelColor ? 1 : 0.75,
+                  }}
                 >
-                  <DetailIcon row={row} />
-                </span>
-                <div
-                  className={`flex min-w-0 ${band ? 'flex-col-reverse items-center' : 'flex-col'}`}
-                  style={{ gap: band ? '0.22em' : '0.2em' }}
+                  {line.label}
+                </dt>
+                <dd
+                  className="font-bold tabular-nums"
+                  style={{ marginLeft: '0.4em' }}
                 >
-                  <dt
-                    className="font-black uppercase tracking-wider leading-none whitespace-nowrap"
-                    style={{
-                      fontSize: '0.5em',
-                      color: labelColor ?? color,
-                      opacity: labelColor ? 1 : 0.7,
-                    }}
-                  >
-                    {labels[i]}
-                  </dt>
-                  <dd>
-                    <Value row={row} />
-                  </dd>
-                </div>
+                  {line.value}
+                </dd>
               </div>
             ))}
           </dl>

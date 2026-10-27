@@ -21,13 +21,6 @@ import { buildDetailRows } from './details';
 import { useWeatherDetailsAllowed } from './useWeatherDetailsAllowed';
 import { WeatherDetailsLayout } from './WeatherDetailsPanel';
 
-// MOCKUP ONLY, removed once a layout is picked: ?detailsStyle=band on dev harness pages.
-const MOCKUP_DETAILS_STYLE =
-  import.meta.env.DEV &&
-  new URLSearchParams(window.location.search).get('detailsStyle') === 'band'
-    ? 'band'
-    : 'grid';
-
 export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { t, i18n } = useTranslation();
   const { updateWidget, activeDashboard, setBackground } = useDashboard();
@@ -322,7 +315,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               fontSize: noGear
                 ? 'min(65cqh, 30cqw)'
                 : hasDetails
-                  ? '30cqmin'
+                  ? 'min(30cqw, 45cqh)'
                   : '22cqmin',
             }}
           >
@@ -334,7 +327,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               fontSize: noGear
                 ? `min(75cqh, 40cqw, calc(68cqw / ${tempWidthEm}))`
                 : hasDetails
-                  ? `min(48cqmin, calc((100cqw - 44cqmin) / ${tempWidthEm}))`
+                  ? `min(48cqw, 72cqh, calc((100cqw - min(44cqw, 66cqh)) / ${tempWidthEm}))`
                   : `min(35cqmin, calc((100cqw - 34cqmin) / ${tempWidthEm}))`,
               color: fontColor,
             }}
@@ -350,7 +343,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               fontSize: noGear
                 ? 'min(12cqh, 10cqw)'
                 : hasDetails
-                  ? '7cqmin'
+                  ? 'min(7cqw, 10cqh)'
                   : '5cqmin',
               marginTop: noGear ? '1cqh' : 'min(2px, 0.5cqmin)',
               color: secondaryColor ?? fontColor,
@@ -404,7 +397,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         ) : (
           <WeatherDetailsLayout
             rows={detailRows}
-            detailsStyle={MOCKUP_DETAILS_STYLE}
+
             color={fontColor}
             labelColor={secondaryColor}
             className={fontClass}

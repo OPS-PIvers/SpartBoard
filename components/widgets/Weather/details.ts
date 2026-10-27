@@ -216,10 +216,6 @@ export interface DetailRow {
   value: string;
   /** Shown smaller after the value. */
   unit?: string;
-  /** Wind: compass degrees the wind blows from. */
-  direction?: number;
-  /** Moon: phase fraction, 0 new through 0.5 full. */
-  phase?: number;
 }
 
 interface FormatInput {
@@ -245,7 +241,7 @@ export function buildDetailRows(
   const deg = (v: number): RowParts => ({ value: `${Math.round(v)}°` });
   const inches = (v: number): RowParts => ({
     value: v.toFixed(2),
-    unit: 'in',
+    unit: '"',
   });
   const sun = sunTimes(now, lat, lon);
   // A stored time from an earlier sync is only used on the day it belongs to.
@@ -296,7 +292,6 @@ export function buildDetailRows(
         return {
           value: `${num(dir) ? `${compassPoint(dir)} ` : ''}${Math.round(speed)}`,
           unit: 'mph',
-          ...(num(dir) ? { direction: dir } : {}),
         };
       }
       case 'windGust':
@@ -316,7 +311,7 @@ export function buildDetailRows(
         const level = UV_LEVELS.find(([min]) => uv >= min)?.[1] ?? 'low';
         return {
           value: `${Math.round(uv)}`,
-          unit: t(`widgets.weather.details.uvLevels.${level}`),
+          unit: `(${t(`widgets.weather.details.uvLevels.${level}`)})`,
         };
       }
       case 'moon': {
@@ -324,7 +319,6 @@ export function buildDetailRows(
         dayStart.setHours(0, 0, 0, 0);
         return {
           value: t(`widgets.weather.moonPhases.${moonPhase(dayStart)}`),
-          phase: moonPhaseFraction(now.getTime()),
         };
       }
     }

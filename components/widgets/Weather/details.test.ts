@@ -85,7 +85,7 @@ describe('weather details', () => {
     expect(rows.map((r) => [r.field, r.value, r.unit])).toEqual([
       ['dewPoint', '41°', undefined],
       ['humidity', '100', '%'],
-      ['pressure', '30.25', 'in'],
+      ['pressure', '30.25', '"'],
       ['rainDaily', '--', undefined],
       ['windAvg', 'NE 4', 'mph'],
       ['windGust', '11', 'mph'],
@@ -130,7 +130,7 @@ describe('weather details', () => {
       })[0];
     expect(row(new Date(2026, 9, 26, 13, 30))).toMatchObject({
       value: '7',
-      unit: 'widgets.weather.details.uvLevels.high',
+      unit: '(widgets.weather.details.uvLevels.high)',
     });
     expect(row(new Date(2026, 9, 27, 13, 30)).value).toBe('--');
   });
