@@ -59,7 +59,7 @@ interface EpaUvHour {
 /** EPA rows look like {DATE_TIME: "Oct/26/2026 07 AM", UV_VALUE: 3}; keeps the first day listed. */
 export function parseEpaUvHours(rows: unknown): WeatherDetails['uvHours'] {
   if (!Array.isArray(rows)) return null;
-  const months = 'JanFebMarAprMayJunJulAugSepOctNovDec';
+  const months = 'janfebmaraprmayjunjulaugsepoctnovdec';
   let date: string | null = null;
   const values: (number | null)[] = Array.from({ length: 24 }, () => null);
   for (const row of rows as EpaUvHour[]) {
@@ -69,8 +69,8 @@ export function parseEpaUvHours(rows: unknown): WeatherDetails['uvHours'] {
         : null;
     const uv = num(row.UV_VALUE);
     if (!match || uv === null) continue;
-    const month = months.indexOf(match[1]) / 3 + 1;
-    if (month < 1) continue;
+    const month = months.indexOf(match[1].toLowerCase()) / 3 + 1;
+    if (!Number.isInteger(month) || month < 1) continue;
     const day = `${match[3]}-${String(month).padStart(2, '0')}-${match[2]}`;
     date ??= day;
     if (day !== date) continue;
