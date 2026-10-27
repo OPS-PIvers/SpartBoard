@@ -127,7 +127,10 @@ describe('firebase-deploy-with-retry.sh transient classification', () => {
 
 // Runs the script against stub pnpm/node/sleep that replay scripted deploy
 // outcomes, and returns each `--only` the script deployed.
-function runWithStubbedDeploys(outcomes: { exit: number; log: string }[]): {
+function runWithStubbedDeploys(
+  outcomes: { exit: number; log: string }[],
+  deployOnly?: string
+): {
   status: number | null;
   onlys: string[];
 } {
@@ -158,6 +161,7 @@ function runWithStubbedDeploys(outcomes: { exit: number; log: string }[]): {
       ...process.env,
       PATH: `${bin}:${process.env.PATH ?? ''}`,
       RELEASE_FIRESTORE_RULES: 'false',
+      ...(deployOnly === undefined ? {} : { FIREBASE_DEPLOY_ONLY: deployOnly }),
     },
   });
   const onlys = readFileSync(join(dir, 'onlys'), 'utf-8').trim().split('\n');
@@ -229,6 +233,25 @@ describe('firebase-deploy-with-retry.sh CPU quota retry', () => {
       'functions:getViewAsDriveTokenV1,functions:lookupSpeakReferencesV1,firestore:indexes,storage',
       'functions:getViewAsDriveTokenV1,functions:lookupSpeakReferencesV1,firestore:indexes,storage',
       'functions,firestore:indexes,storage',
+    ]);
+  });
+
+  it('skips the deletes pass after a quota retry of a named-functions deploy', () => {
+    const quotaLog = [
+      'Could not create or update Cloud Run service fetchlinkpreview, Container Healthcheck failed. Quota exceeded for total allowable CPU per project per region.',
+      '- Error Failed to update function fetchLinkPreview in region us-central1',
+    ].join('\n');
+    const { status, onlys } = runWithStubbedDeploys(
+      [
+        { exit: 2, log: quotaLog },
+        { exit: 0, log: '' },
+      ],
+      'functions:fetchLinkPreview,functions:fetchImportImage,storage'
+    );
+    expect(status).toBe(0);
+    expect(onlys).toEqual([
+      'functions:fetchLinkPreview,functions:fetchImportImage,storage',
+      'functions:fetchLinkPreview,storage',
     ]);
   });
 
