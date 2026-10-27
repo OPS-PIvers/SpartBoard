@@ -70,7 +70,7 @@ import {
   withVotesReset,
 } from '@/utils/pollQuestions';
 
-import { usePollSessionDocs } from '@/hooks/usePollSession';
+import { usePollHiddenWords, usePollSessionDocs } from '@/hooks/usePollSession';
 import {
   pollResultsCsv,
   summarizeLocalPoll,
@@ -116,10 +116,17 @@ export const PollSettings: React.FC<{
     (isLive
       ? config.activePollSessionOwnerUid
       : config.lastPollSessionOwnerUid) ?? user?.uid;
+  const readsAnswers =
+    resultsOwnerUid === user?.uid && questions.some(isTextQuestion);
   const { votes: sessionVotes, answers: sessionAnswers } = usePollSessionDocs(
     resultsOwnerUid,
     resultsSessionId,
-    resultsOwnerUid === user?.uid && questions.some(isTextQuestion)
+    readsAnswers
+  );
+  const hiddenWords = usePollHiddenWords(
+    resultsOwnerUid,
+    resultsSessionId,
+    readsAnswers
   );
   const summaries = useMemo(
     () =>
@@ -128,7 +135,8 @@ export const PollSettings: React.FC<{
             questions,
             sessionVotes,
             sessionAnswers,
-            config.hiddenResponses ?? []
+            config.hiddenResponses ?? [],
+            hiddenWords
           )
         : summarizeLocalPoll(questions),
     [
@@ -137,6 +145,7 @@ export const PollSettings: React.FC<{
       sessionVotes,
       sessionAnswers,
       config.hiddenResponses,
+      hiddenWords,
     ]
   );
 
@@ -227,8 +236,8 @@ export const PollSettings: React.FC<{
         ? config.activePollSessionOwnerUid
         : config.lastPollSessionOwnerUid) ?? user.uid) === user.uid
     ) {
-      void syncSessionResultsState(user.uid, sessionId, next).catch((err) =>
-        logError('PollSettings.hideResults', err)
+      void syncSessionResultsState(user.uid, sessionId, next, pollPro).catch(
+        (err) => logError('PollSettings.hideResults', err)
       );
     }
   };

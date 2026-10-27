@@ -35,6 +35,7 @@ vi.mock('firebase/firestore', () => ({
   collection: mockCollection,
   doc: mockDoc,
   onSnapshot: mockOnSnapshot,
+  serverTimestamp: () => 'SERVER_TIME',
   setDoc: mockSetDoc,
 }));
 vi.mock('./pollSession', async () => {
@@ -355,7 +356,11 @@ describe('PollVoteApp', () => {
     await waitFor(() =>
       expect(mockSetDoc).toHaveBeenCalledWith(
         { __path: 'poll_sessions/teacher-1_K3F9Q/answers/0_voter-1' },
-        expect.objectContaining({ questionIndex: 0, text: 'sunny and warm' })
+        expect.objectContaining({
+          questionIndex: 0,
+          text: 'sunny and warm',
+          answeredAt: 'SERVER_TIME',
+        })
       )
     );
   });

@@ -39,7 +39,11 @@ import {
   scaleAverage,
   withQuestionAt,
 } from '@/utils/pollQuestions';
-import { usePollSession } from '@/hooks/usePollSession';
+import { usePollHiddenWords, usePollSession } from '@/hooks/usePollSession';
+import {
+  hidePollWord,
+  showPollHiddenWords,
+} from '@/components/poll/pollSession';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { tourAttr } from '@/config/tourAnchors';
 import { ScaleResults } from './components/ScaleResults';
@@ -102,6 +106,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     onConfigChange: applyConfig,
     readAnswers: !isAnnouncement && !inShare && !foreignSession,
     endSessionOnReset: canAccessFeature('poll-pro') && !isAnnouncement,
+    pollPro: canAccessFeature('poll-pro') && !isAnnouncement,
   });
   const isLive = sessionLive && !inShare;
   const proEnabled = canAccessFeature('poll-pro') && !isAnnouncement;
@@ -208,20 +213,41 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     ? responses.length
     : displayOptions.reduce((sum, o) => sum + o.votes, 0);
   const isScale = proEnabled && isScaleQuestion(activeQuestion);
-  const hiddenResponses = config.hiddenResponses ?? [];
+  // Legacy `{questionId}#{hash}` word keys are dropped on the next write.
+  const hiddenResponses = (config.hiddenResponses ?? []).filter(
+    (k) => !k.includes('#')
+  );
   const hideResponse = (key: string) => {
     if (hiddenResponses.includes(key)) return;
     applyConfig({ ...config, hiddenResponses: [...hiddenResponses, key] });
   };
-  const showHiddenResponses = () =>
+  const ownSessionId =
+    canSteer && user && !foreignSession ? config.activePollSessionId : null;
+  const hiddenWordsByQuestion = usePollHiddenWords(
+    user?.uid,
+    ownSessionId ?? null,
+    isText
+  );
+  const hiddenWords = hiddenWordsByQuestion.get(activeQuestion.id) ?? [];
+  const hideWord = (word: string) => {
+    if (!user || !ownSessionId) return;
+    void hidePollWord(user.uid, ownSessionId, activeQuestion.id, word).catch(
+      (err) => logError('PollWidget.hideWord', err)
+    );
+  };
+  const showHiddenResponses = () => {
     applyConfig({
       ...config,
       hiddenResponses: hiddenResponses.filter(
-        (k) =>
-          !k.startsWith(`${activeQuestion.id}:`) &&
-          !k.startsWith(`${activeQuestion.id}#`)
+        (k) => !k.startsWith(`${activeQuestion.id}:`)
       ),
     });
+    if (user && ownSessionId && hiddenWords.length > 0) {
+      void showPollHiddenWords(user.uid, ownSessionId, activeQuestion.id).catch(
+        (err) => logError('PollWidget.showHiddenWords', err)
+      );
+    }
+  };
   const average =
     isScale && !hidden
       ? scaleAverage(displayOptions.map((o) => o.votes))
@@ -384,8 +410,10 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               questionId={activeQuestion.id}
               responses={responses}
               hiddenKeys={hiddenResponses}
+              hiddenWords={hiddenWords}
               canModerate={canSteer}
               onHide={hideResponse}
+              onHideWord={hideWord}
               onShowHidden={showHiddenResponses}
               fontFamily={globalStyle.fontFamily}
               widgetId={widget.id}

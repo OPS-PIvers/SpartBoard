@@ -6682,9 +6682,11 @@ service cloud.firestore {
 
       // Word cloud / open response answers, `{questionIndex}_{uid}`: text
       // 1-280 chars on a `textQuestions` index of an active session that isn't
-      // locked; votedAt may run a day ahead for a fast student clock. Free text
-      // may identify a student, so only the session owner (or an admin) and the
-      // student who wrote it can read it.
+      // locked; votedAt may run a day ahead for a fast student clock. answeredAt,
+      // the board's sort key, must be the server time; a write without it (an
+      // older phone) may not date itself in the future. Free text may identify
+      // a student, so only the session owner (or an admin) and the student who
+      // wrote it can read it.
       match /answers/{answerId} {
         function answerTargetsOpenTextQuestion() {
           let session = get(/databases/$(database)/documents/poll_sessions/$(sessionId)).data;
@@ -6695,13 +6697,16 @@ service cloud.firestore {
         }
 
         allow create, update: if signedIn() &&
-          incoming().keys().hasOnly(['questionIndex', 'text', 'votedAt']) &&
+          incoming().keys().hasOnly(['questionIndex', 'text', 'votedAt', 'answeredAt']) &&
           isInt('questionIndex') &&
           isStr('text') &&
           isInt('votedAt') &&
           incoming().text.size() > 0 &&
           incoming().text.size() <= 280 &&
           incoming().votedAt <= request.time.toMillis() + 86400000 &&
+          (incoming().get('answeredAt', null) == request.time ||
+            (!('answeredAt' in incoming()) &&
+              incoming().votedAt <= request.time.toMillis())) &&
           answerId == string(incoming().questionIndex) + '_' + authUid() &&
           exists(/databases/$(database)/documents/poll_sessions/$(sessionId)) &&
           answerTargetsOpenTextQuestion();
@@ -6713,6 +6718,20 @@ service cloud.firestore {
 
         allow delete: if signedIn() &&
           (isAdmin() || sessionId.matches(authUid() + '_.*'));
+      }
+
+      // Word cloud words the session owner hid, one doc per question id. They
+      // are student text, so they live here, owner-only, not in board config
+      // that every member of a shared board can read.
+      match /hidden_words/{questionId} {
+        allow read, delete: if signedIn() &&
+          (isAdmin() || sessionId.matches(authUid() + '_.*'));
+        allow create, update: if signedIn() &&
+          notAnon() &&
+          sessionId.matches(authUid() + '_.*') &&
+          incoming().keys().hasOnly(['words']) &&
+          incoming().words is list &&
+          incoming().words.size() <= 500;
       }
     }
 
