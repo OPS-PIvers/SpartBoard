@@ -4936,3 +4936,18 @@ rather than "no data") is also still open.
   - #4704: the new backlog row calls the `useStudentAssignments` `.slice(0, 30)` lead closed, while the 2026-10-25 row says it is still open.
   - #4696 and #4697 are based on an older `dev-paul` but merge cleanly with `a038aeed`.
 - Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. No local checks were run because no fixes were made. The log was pushed on the session branch instead of `scheduled-tasks`, because the session only allows pushing to its designated branch.
+
+## 2026-10-27
+
+- PRs reviewed: #4744 deps: raise fast-uri override to ^3.1.9 (root + functions); #4743 Widget loop: Number Line layout S8 1 → 2; #4742 Widget loop: Countdown layout S6 2 → 4; #4741 Unifier run 128: aligned, log update; #4739 Weather details: station readings on the Weather widget, allowed per building
+- Comments processed: 9 total. 0 fixed from a comment, 9 explained or already resolved.
+  - None of the PRs had inline review threads.
+  - #4744: the `claude[bot]` note about a lost 2026-10-26 log entry and a missing blank line was out of date. Both are fine on the current head. I replied to say so.
+  - #4739: the "PR description should name the flag" notes were already addressed. The `MOCKUP_DETAILS_STYLE` / `band` cleanup waits on Paul's layout choice. One reply covers both.
+  - #4743, #4742 and the other #4739 summaries reported no issues.
+- Fixes pushed:
+  - #4744 on `scheduled-tasks`: restored the 2026-10-08 and 2026-10-06 audit narratives that the zod action-note edit had replaced in `dependency-audit.md`. I found this during review, not from a comment.
+- Reviews posted: 5
+  - Ready: #4744, #4743, #4742, #4741.
+  - Ready with minor notes: #4739. It waits on Paul's layout pick and removal of the mockup switch. Minor notes: an EPA UV fetch runs on every sync even when no building is enabled, and `details` is written into board configs where details are off.
+- Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. CI was green on #4739 and #4744 at review time. The only fix was docs-only, so I ran no local type-check, lint or tests. The pre-commit hook ran.
