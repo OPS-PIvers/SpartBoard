@@ -4922,3 +4922,17 @@ rather than "no data") is also still open.
   - #4621 put its run row into the Journal table, which has a different column count.
   - #4622 has no functions test for the new `admin` field in the `webToursListV1` reply.
 - Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. The fix was checked with the extension type-check and the three affected suites (69 tests, all passing). The new controller test fails without the fix. Lint and prettier passed in the pre-commit hook.
+
+## 2026-10-26
+
+- PRs reviewed: #4704 docs(debugger): run 108 log; #4703 fix(functions): block SIIT-translated IPv4 in the SSRF guard; #4702 fix(admin): keep half-typed weather/recess temperatures; #4701 fix(sync): retry a linked-collection board import after a transient load failure; #4700 fix(library): clear folder-reorder drag state when the dragged row unmounts; #4699 fix(calendar): keep same-titled events at different times on one day; #4697 docs(unifier): run 127 log; #4696 chore(deps): patch zod and body-parser advisories
+- Comments processed: 4 total — 0 fixed, 0 explained
+  - No unresolved inline review threads on any PR. The 4 comments were `claude[bot]` summaries reporting no issues (#4696, #4699, #4701, #4703), so no reply was needed.
+- Fixes pushed: none
+- Reviews posted: 8
+  - Ready: #4704, #4703, #4702, #4700, #4699, #4697, #4696. Ready with minor notes: #4701.
+  - #4701: a permanent rejection (for example permission-denied) now retries on every link snapshot. A `createBoard` that returns `''`/null is still treated as handled and is not retried.
+  - #4699: an event from two sources where only one copy has a time no longer merges.
+  - #4704: the new backlog row calls the `useStudentAssignments` `.slice(0, 30)` lead closed, while the 2026-10-25 row says it is still open.
+  - #4696 and #4697 are based on an older `dev-paul` but merge cleanly with `a038aeed`.
+- Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. No local checks were run because no fixes were made. The log was pushed on the session branch instead of `scheduled-tasks`, because the session only allows pushing to its designated branch.

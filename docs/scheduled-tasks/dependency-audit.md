@@ -101,6 +101,7 @@ _2026-09-24: `pnpm audit --audit-level=moderate` (read-only) + `pnpm outdated` r
 ## Completed
 
 - **2026-10-27 — `fast-uri` override raised to `^3.1.9`** in `package.json` and `functions/package.json`; both lockfiles now resolve `fast-uri@3.1.9`. PR opened to `dev-paul`.
+
 ### MEDIUM `qs` has NEW moderate CVEs requiring >=6.16.0 — regression against the 2026-06-16 Completed fix (functions), plus a previously-narrative-only root chain via MCP SDK
 
 - **Detected:** 2026-09-22 (both chains have been mentioned in this journal's run narrative since 2026-09-08 — "the functions-side qs item" and "root-side qs... via a chain not previously called out under the MCP SDK item" — but neither was ever given its own tracked item nor caused the existing override to be revisited)
