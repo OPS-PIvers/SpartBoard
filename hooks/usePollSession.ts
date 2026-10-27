@@ -142,15 +142,22 @@ export const usePollSessionDocs = (
   return { votes, answers };
 };
 
-/** Word cloud words the session owner hid, by question id; empty for anyone else. */
+const NO_HIDDEN_WORDS: ReadonlyMap<string, readonly string[]> = new Map();
+
+/** Word cloud words the session owner hid, by question id; null until the first snapshot. */
 export const usePollHiddenWords = (
   teacherUid: string | undefined,
   pollSessionId: string | null,
   enabled: boolean
-): ReadonlyMap<string, readonly string[]> => {
-  const [hidden, setHidden] = useState<ReadonlyMap<string, readonly string[]>>(
-    () => new Map()
-  );
+): ReadonlyMap<string, readonly string[]> | null => {
+  const [hidden, setHidden] = useState<{
+    key: string;
+    words: ReadonlyMap<string, readonly string[]>;
+  } | null>(null);
+  const key =
+    pollSessionId && teacherUid && enabled
+      ? makePollSessionId(teacherUid, pollSessionId)
+      : '';
 
   useEffect(() => {
     if (!pollSessionId || !teacherUid || !enabled) return;
@@ -167,17 +174,18 @@ export const usePollHiddenWords = (
               words.filter((w): w is string => typeof w === 'string')
             );
         }
-        setHidden(next);
+        setHidden({ key: sessionId, words: next });
       },
-      (err) => logError('usePollSession.hiddenWords', err, { sessionId })
+      (err) => {
+        logError('usePollSession.hiddenWords', err, { sessionId });
+        setHidden({ key: sessionId, words: NO_HIDDEN_WORDS });
+      }
     );
-    return () => {
-      unsub();
-      setHidden(new Map());
-    };
+    return unsub;
   }, [pollSessionId, teacherUid, enabled]);
 
-  return hidden;
+  if (!key) return NO_HIDDEN_WORDS;
+  return hidden?.key === key ? hidden.words : null;
 };
 
 export const usePollSession = ({

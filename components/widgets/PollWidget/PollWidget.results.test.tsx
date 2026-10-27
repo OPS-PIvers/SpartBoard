@@ -366,6 +366,20 @@ describe('PollWidget results controls', () => {
       expect(lastConfig().hiddenResponses).toEqual([]);
     });
 
+    it('waits for hidden words before drawing the cloud', () => {
+      mockOnSnapshot.mockImplementation(
+        (ref: unknown, cb: (snap: unknown) => void) => {
+          if (typeof ref === 'string' && ref.endsWith('/hidden_words'))
+            return vi.fn();
+          const docs = liveVotes.map((d) => ({ id: d.id, data: () => d.data }));
+          cb({ docs, forEach: (fn: (d: unknown) => void) => docs.forEach(fn) });
+          return vi.fn();
+        }
+      );
+      render(<PollWidget widget={live('words')} />);
+      expect(screen.queryByTitle('friction (1)')).not.toBeInTheDocument();
+    });
+
     it('orders open responses by server time over the student clock', () => {
       liveVotes = [
         {

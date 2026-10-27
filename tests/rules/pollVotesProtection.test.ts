@@ -589,9 +589,12 @@ describe('poll answers — word cloud and open response', () => {
     await assertFails(setDoc(ref, { text: 'b' }, { merge: true }));
   });
 
-  it('accepts an older phone without answeredAt, but never future-dated', async () => {
+  it('accepts an older phone without answeredAt, at most a minute ahead', async () => {
     const ref = answerRef(asAnonVoter(), `1_${VOTER_UID}`);
     await assertSucceeds(setDoc(ref, legacyAnswer(1, 'a')));
+    await assertSucceeds(
+      setDoc(ref, { ...legacyAnswer(1, 'a'), votedAt: Date.now() + 30_000 })
+    );
     await assertFails(
       setDoc(ref, { ...legacyAnswer(1, 'a'), votedAt: Date.now() + 3_600_000 })
     );

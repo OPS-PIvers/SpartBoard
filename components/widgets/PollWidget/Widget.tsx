@@ -221,14 +221,17 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     if (hiddenResponses.includes(key)) return;
     applyConfig({ ...config, hiddenResponses: [...hiddenResponses, key] });
   };
+  // The viewer reads this session's answers, so it reads its hidden words too.
   const ownSessionId =
-    canSteer && user && !foreignSession ? config.activePollSessionId : null;
+    proEnabled && user && !inShare && !foreignSession
+      ? (config.activePollSessionId ?? null)
+      : null;
   const hiddenWordsByQuestion = usePollHiddenWords(
     user?.uid,
-    ownSessionId ?? null,
-    isText
+    ownSessionId,
+    true
   );
-  const hiddenWords = hiddenWordsByQuestion.get(activeQuestion.id) ?? [];
+  const hiddenWords = hiddenWordsByQuestion?.get(activeQuestion.id) ?? [];
   const hideWord = (word: string) => {
     if (!user || !ownSessionId) return;
     void hidePollWord(user.uid, ownSessionId, activeQuestion.id, word).catch(
@@ -411,6 +414,7 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               responses={responses}
               hiddenKeys={hiddenResponses}
               hiddenWords={hiddenWords}
+              hiddenWordsLoading={hiddenWordsByQuestion === null}
               canModerate={canSteer}
               onHide={hideResponse}
               onHideWord={hideWord}

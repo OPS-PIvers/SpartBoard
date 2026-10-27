@@ -136,7 +136,7 @@ export const PollSettings: React.FC<{
             sessionVotes,
             sessionAnswers,
             config.hiddenResponses ?? [],
-            hiddenWords
+            hiddenWords ?? undefined
           )
         : summarizeLocalPoll(questions),
     [

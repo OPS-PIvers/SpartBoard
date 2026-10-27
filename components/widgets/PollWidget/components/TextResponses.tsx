@@ -12,6 +12,8 @@ interface TextResponsesProps {
   hiddenKeys: readonly string[];
   /** This question's hidden word cloud words, as cloudKeys. */
   hiddenWords: readonly string[];
+  /** Hidden words haven't loaded yet, so the cloud waits rather than flash them. */
+  hiddenWordsLoading?: boolean;
   /** The board owner can hide answers and bring them back. */
   canModerate: boolean;
   onHide: (key: string) => void;
@@ -67,6 +69,7 @@ export const TextResponses: React.FC<TextResponsesProps> = ({
   responses,
   hiddenKeys,
   hiddenWords,
+  hiddenWordsLoading = false,
   canModerate,
   onHide,
   onHideWord,
@@ -79,7 +82,7 @@ export const TextResponses: React.FC<TextResponsesProps> = ({
   const hiddenWordSet = new Set(hiddenWords);
   const visible = responses.filter((r) => !hidden.has(`${questionId}:${r.id}`));
   const words =
-    kind === 'words'
+    kind === 'words' && !hiddenWordsLoading
       ? buildAnswerCloud(
           visible.map((r) => r.text),
           (word) => hiddenWordSet.has(word)
