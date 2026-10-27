@@ -84,16 +84,19 @@ describe('plan-deploy.sh', () => {
     expect(plan('main', ['components/a.tsx']).backend).toBe('false');
   });
 
-  it('names only the affected functions on dev', () => {
+  it('names only the affected functions on dev-paul', () => {
     expect(
       plan('dev-paul', ['functions/src/linkPreview.ts', 'storage.rules'])
     ).toMatchObject({
       backend: 'true',
       deploy_only: 'functions:fetchLinkPreview,storage',
     });
+  });
+
+  it('deploys every function from other dev branches, which diff against dev-paul', () => {
     expect(
       plan('dev-bailey', ['functions/src/linkPreview.ts']).deploy_only
-    ).toBe('functions:fetchLinkPreview');
+    ).toBe('functions');
   });
 
   it('skips functions when the changed code reaches none of them', () => {
@@ -106,6 +109,19 @@ describe('plan-deploy.sh', () => {
     expect(plan('main', ['functions/src/linkPreview.ts']).deploy_only).toBe(
       'functions'
     );
+  });
+
+  it('does not redeploy prod for a change to the dev-only narrowing scripts', () => {
+    expect(
+      plan('main', [
+        '.github/scripts/affected-functions.mjs',
+        '.github/scripts/function-targets.mjs',
+      ])
+    ).toMatchObject({ backend: 'false', deploy_only: '' });
+    expect(
+      plan('main', ['.github/scripts/firebase-deploy-with-retry.sh'])
+        .deploy_only
+    ).toBe('functions,firestore:indexes,storage');
   });
 
   it('deploys every function on dev when the change could reach them all', () => {

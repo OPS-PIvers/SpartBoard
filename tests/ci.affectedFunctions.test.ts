@@ -251,6 +251,27 @@ describe('function-targets.mjs', () => {
     );
   });
 
+  it('deploys every function when the shared backend came from elsewhere', () => {
+    withFixture(
+      {
+        'lib/index.js':
+          'exports.fn = Object.assign(() => {}, { __endpoint: {} });',
+      },
+      (root) => {
+        const out = execFileSync(
+          'node',
+          [targetsScript, 'functions:fn,storage', join(root, 'lib/index.js')],
+          {
+            encoding: 'utf-8',
+            stdio: ['ignore', 'pipe', 'ignore'],
+            env: { ...process.env, DEPLOY_ALL_FUNCTIONS: 'true' },
+          }
+        ).trim();
+        expect(out).toBe('functions,storage');
+      }
+    );
+  });
+
   it('deploys every function when the build cannot be loaded', () => {
     expect(targets('functions:fn,storage', join(tmpdir(), 'nope.js'))).toBe(
       'functions,storage'

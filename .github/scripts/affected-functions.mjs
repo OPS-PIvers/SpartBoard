@@ -1,12 +1,5 @@
 #!/usr/bin/env node
-// Which Cloud Functions a set of changed files can affect, so a dev deploy can name
-// them in `--only` instead of rebuilding every function.
-//
-// Usage: affected-functions.mjs <repo-root>  (changed repo-relative paths on stdin)
-// Prints ALL (deploy every function), nothing (no function affected), or the
-// affected export names, comma-separated. Any doubt prints ALL: an extra function
-// deployed is harmless, a skipped one would keep running stale code.
-// Plain Node with no dependencies: the plan job runs it before any install.
+// Usage: affected-functions.mjs <repo-root> < changed-paths; prints ALL, nothing, or the affected exports (any doubt is ALL).
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -33,9 +26,7 @@ class Ambiguous extends Error {}
 const read = (file) => readFileSync(file, 'utf-8');
 const toRepo = (file) => relative(repoRoot, file).split('\\').join('/');
 
-// Every module specifier in a file: static imports/exports, side-effect imports,
-// import() and require(). Comments can add false hits, which only over-deploy.
-// `checked` marks forms tsc resolves, so an unresolvable one can only be a comment.
+// Module specifiers in a file; `checked` forms are resolved by tsc, so an unresolvable one is a comment.
 function specifiers(source) {
   const found = [];
   const patterns = [
@@ -128,9 +119,7 @@ function affected(changed) {
   const changedSources = new Set();
   for (const path of relevant) {
     const file = join(repoRoot, path);
-    // Outside src (package.json, lockfile, tsconfig, data/, scripts/), a deleted or
-    // renamed file, the barrel itself (functions added or removed) or shared init
-    // can touch every function.
+    // Files outside src, deleted files, the barrel and shared init can touch every function.
     if (!path.startsWith('functions/src/') || !existsSync(file)) throw new Ambiguous(path);
     if (path === 'functions/src/index.ts' || path === 'functions/src/functionsInit.ts') throw new Ambiguous(path);
     if (/setGlobalOptions\s*\(/.test(read(file))) throw new Ambiguous(`${path} sets global options`);

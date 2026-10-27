@@ -236,6 +236,7 @@ jobs:
       deploy_only: ${{ steps.plan.outputs.deploy_only }}
       release_rules: ${{ steps.plan.outputs.release_rules }}
       indexes: ${{ steps.plan.outputs.indexes }}
+      base_sha: ${{ steps.base.outputs.sha }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -311,6 +312,7 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: read
+      actions: read
       id-token: write
     steps:
       - uses: actions/checkout@v6
@@ -337,7 +339,17 @@ jobs:
         id: targets
         env:
           DEPLOY_ONLY: ${{ needs.plan.outputs.deploy_only }}
-        run: echo "deploy_only=$(node .github/scripts/function-targets.mjs "$DEPLOY_ONLY")" >> "$GITHUB_OUTPUT"
+          BASE_SHA: ${{ needs.plan.outputs.base_sha }}
+          GH_TOKEN: ${{ github.token }}
+          # Loading the functions needs what the CLI sets during discovery (storage triggers read the bucket).
+          FIREBASE_CONFIG: '{"projectId":"spartboard-dev","storageBucket":"spartboard-dev.firebasestorage.app"}'
+          GCLOUD_PROJECT: spartboard-dev
+        run: |
+          # A named deploy is only safe on top of dev-paul's own last deploy of the shared backend.
+          last=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/firebase-dev-deploy.yml/runs?status=success&per_page=20"             --jq '[.workflow_runs[]] | max_by(.updated_at) | "\(.head_branch) \(.head_sha)"') || last=""
+          if [[ "$last" != "dev-paul $BASE_SHA" ]]; then export DEPLOY_ALL_FUNCTIONS=true; fi
+          targets="$(node .github/scripts/function-targets.mjs "$DEPLOY_ONLY")"
+          echo "deploy_only=$targets" >> "$GITHUB_OUTPUT"
 
       - uses: google-github-actions/auth@v2
         with:

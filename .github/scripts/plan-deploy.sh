@@ -4,8 +4,7 @@
 #
 # On dev, hosting goes to the branch owner's own site. The backend (functions, rules,
 # indexes, storage) is shared by every dev branch, so it deploys only the parts
-# whose files changed (functions narrowed to the affected ones by affected-functions.mjs,
-# so a full deploy, and its deletes, happens only when that is unclear), and a branch other than dev-paul may deploy it only when
+# whose files changed (on dev-paul, only the affected functions), and a branch other than dev-paul may deploy it only when
 # it already contains origin/dev-paul (functions deploy with --force, so a stale
 # branch would delete functions dev-paul added).
 #
@@ -58,9 +57,11 @@ changed_files() {
 FILES="$(changed_files)"
 has() { grep -qE "$1" <<<"$FILES"; }
 
-# What the functions target deploys: every function, or (dev only) just the affected ones.
+# What the functions target deploys: every function, or (dev-paul only) just the affected ones.
 FUNCTION_TARGETS=functions
-if [[ "$FULL" == "true" ]] || has '^__ALL__$|^\.github/scripts/(firebase-deploy-with-retry\.sh|affected-functions\.mjs|function-targets\.mjs)$'; then
+DEPLOY_SCRIPTS='firebase-deploy-with-retry\.sh'
+[[ "$BRANCH" != "main" ]] && DEPLOY_SCRIPTS+='|affected-functions\.mjs|function-targets\.mjs'
+if [[ "$FULL" == "true" ]] || has "^__ALL__\$|^\.github/scripts/(${DEPLOY_SCRIPTS})\$"; then
   FUNCTIONS=true INDEXES=true STORAGE=true RULES=true
 else
   FUNCTIONS=false INDEXES=false STORAGE=false RULES=false
@@ -70,9 +71,8 @@ else
   if has '^storage\.rules$'; then STORAGE=true; fi
   if has '^firestore\.rules$|^scripts/(releaseFirestoreRules|stripRulesComments|minifyRules)\.mjs$|^scripts/rulesAst/(RulesAst\.java|emulatorJar\.mjs)$'; then RULES=true; fi
 
-  # Dev rebuilds only the functions whose code changed; main always deploys them all.
-  # Any doubt (or a failed script) keeps every function.
-  if [[ "$FUNCTIONS" == "true" && "$BRANCH" != "main" ]] && ! has '^firebase\.json$'; then
+  # Other branches and main deploy every function; any doubt (or a failed script) keeps every function.
+  if [[ "$FUNCTIONS" == "true" && "$BRANCH" == "dev-paul" ]] && ! has '^firebase\.json$'; then
     root="${AFFECTED_FUNCTIONS_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
     names="$(grep '^functions/' <<<"$FILES" | node "$(dirname "$0")/affected-functions.mjs" "$root")" || names=ALL
     if [[ -z "$names" ]]; then
