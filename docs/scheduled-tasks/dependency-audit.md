@@ -24,22 +24,13 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-10-27 action note: HIGH `zod` item skipped this run — the only fix is forcing `@imgly/background-removal` from zod 3 to 4, which cannot be verified in an unattended pass. Selected the next fixable item (fast-uri)._
+
 ### HIGH `zod` (<4.6.6) memory-exhaustion advisory — production chain via `@imgly/background-removal`
 - **Detected:** 2026-10-27
 - **File:** package.json (direct `@imgly/background-removal@1.7.0` → `zod@3.25.76`)
 - **Detail:** Root `pnpm audit` newly reports a HIGH "Zod can exhaust memory while validating oversized input" (vulnerable `<4.6.6`, patched `>=4.6.6`). Resolves via a production dependency; exposure is likely limited since zod validates the library's own config, not untrusted input.
 - **Fix:** Check for a newer `@imgly/background-removal` that bumps zod, or add a `pnpm.overrides` for `zod` after verifying v3→v4 compatibility; otherwise accept as low-exposure.
-
-### MEDIUM `fast-uri` <3.1.9 — four new advisories (2 moderate, 2 low) via `ajv`, root + functions
-- **Detected:** 2026-10-27
-- **File:** package.json, functions/package.json (`ajv>fast-uri`; functions via `@google-cloud/functions-framework>cloudevents>ajv`)
-- **Detail:** Scheme spoofing and host confusion (moderate) plus path equivalence and scheme injection (low), patched `>=3.1.9`. Regression of the previously Completed fast-uri override (floor was 3.1.6).
-- **Fix:** Raise the `fast-uri` override to `>=3.1.9` in both `package.json` files, run `pnpm run install:all`, rerun `pnpm audit`.
-
-
-_2026-10-08: Thursday Audit B2 (read-only). Root `pnpm audit --audit-level=moderate`: **8 vulnerabilities (1 low | 2 moderate | 5 high)**, up from 7. New vs 2026-10-06: HIGH `@modelcontextprotocol/sdk` (>=1.12.0 <1.31.0, patched >=1.31.0) via `@google/genai`; functions/ has 1.30.1 installed direct (latest 1.32.1). Others unchanged: `@grpc/grpc-js` <1.13.6 via `firebase>@firebase/firestore`, `basic-ftp`, `braces`, `sprintf-js`, `source-map-js`, `postcss-selector-parser`. `functions/`: 4 (1 moderate | 3 high): `braces`, `sprintf-js`, `source-map-js`, `@modelcontextprotocol/sdk`. Outdated, >1 major behind: `firebase` 12.19.0→13.0.0 (higher priority, 1 major), `vite` 6.4.3→8.3.3 (root, 2 majors), `typescript` 5.9.3→7.0.2, `vitest` 4.1.11→5.0.3, `eslint` 9→10, `tailwindcss` 3→4, `@google/genai` 1.52→2.28, `lucide-react` 0.563→1.52, `jose` 4.15.9→6.2.12 (functions). `react` current. Deprecated: `crypto-js`, `fluent-ffmpeg`._
-
-_2026-10-06: Tuesday Audit B2 (read-only). Root `pnpm audit --audit-level=moderate`: **7 vulnerabilities (1 low | 2 moderate | 4 high)**, up from 2 on 2026-10-01; `functions/`: **3 (1 moderate | 2 high)**, up from 0. New advisories: `braces` (high, stack exhaustion, via firebase-functions-test>jest, both), `source-map-js` (high, event-loop DoS; root via @vitest/coverage-v8>magicast, functions via vite>postcss), `basic-ftp` (high, via firebase-tools>proxy-agent), `sprintf-js` (moderate, jest chain, both), `postcss-selector-parser` (moderate, <7.1.6, via tailwindcss), plus the standing `@grpc/grpc-js` (high). All are dev/test-toolchain paths except `@grpc/grpc-js` (via `firebase`). Outdated: >1 major behind — `@google/genai` 1.52→2.27 (both), `firebase-admin` 13→14, `eslint` 9→10, `vite` 6→8 (root), `typescript` 5.9→7.0, `vitest` 4→5, `tailwindcss` 3→4, `lucide-react` 0.563→1.52, `jose` 4→6 (functions), `jsdom` 27→30, `@types/node` 24→26. No new firebase/react drift beyond these. Deprecated: `crypto-js`, `@types/tesseract.js`, `fluent-ffmpeg`.
 
 ### MEDIUM New dev-toolchain advisories: `braces`, `source-map-js`, `sprintf-js`, `postcss-selector-parser`, `basic-ftp`
 
@@ -108,6 +99,8 @@ _2026-09-24: `pnpm audit --audit-level=moderate` (read-only) + `pnpm outdated` r
 ---
 
 ## Completed
+
+- **2026-10-27 — `fast-uri` override raised to `^3.1.9`** in `package.json` and `functions/package.json`; both lockfiles now resolve `fast-uri@3.1.9`. PR opened to `dev-paul`.
 ### MEDIUM `qs` has NEW moderate CVEs requiring >=6.16.0 — regression against the 2026-06-16 Completed fix (functions), plus a previously-narrative-only root chain via MCP SDK
 
 - **Detected:** 2026-09-22 (both chains have been mentioned in this journal's run narrative since 2026-09-08 — "the functions-side qs item" and "root-side qs... via a chain not previously called out under the MCP SDK item" — but neither was ever given its own tracked item nor caused the existing override to be revisited)
