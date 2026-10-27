@@ -12,6 +12,7 @@ import { COMMON_INSTRUCTIONAL_ICONS } from '@/config/instructionalIcons';
 import { useStorage } from '@/hooks/useStorage';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
+import { tourFieldAttr, type TourAnchorId } from '@/config/tourAnchors';
 import { renderCatalystIcon } from '@/components/widgets/Catalyst/catalystHelpers';
 
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -25,6 +26,9 @@ interface IconOrImageInputProps {
    * old Drive file via `onRequestDeletePreviousImage` only AFTER this resolves.
    */
   onChange: (next: { iconName?: string; imageUrl?: string }) => void;
+  widgetId?: string;
+  widgetType: string;
+  fieldKey: string;
 }
 
 const ICON_LIST: string[] = COMMON_INSTRUCTIONAL_ICONS;
@@ -33,7 +37,14 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
   iconName,
   imageUrl,
   onChange,
+  widgetId,
+  widgetType,
+  fieldKey,
 }) => {
+  const anchor = (id: TourAnchorId) => ({
+    ...tourFieldAttr(id, widgetType, fieldKey),
+    'data-tour-widget': widgetId,
+  });
   const [tab, setTab] = useState<'icon' | 'image'>(imageUrl ? 'image' : 'icon');
   const [iconSearch, setIconSearch] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -170,6 +181,7 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
         <button
           type="button"
           onClick={() => setTab('icon')}
+          {...anchor('widget-settings.stations.icon-tab')}
           className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xxs font-black uppercase tracking-widest transition-all border-2 ${
             tab === 'icon'
               ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
@@ -182,6 +194,7 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
         <button
           type="button"
           onClick={() => setTab('image')}
+          {...anchor('widget-settings.stations.image-tab')}
           className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xxs font-black uppercase tracking-widest transition-all border-2 ${
             tab === 'image'
               ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
@@ -200,6 +213,7 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
             value={iconSearch}
             onChange={(e) => setIconSearch(e.target.value)}
             placeholder="Search icons..."
+            {...anchor('widget-settings.stations.icon-search')}
             className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
           />
           <div className="grid grid-cols-8 gap-1.5 max-h-48 overflow-y-auto custom-scrollbar p-1 border border-slate-200 rounded-lg bg-white">
@@ -208,6 +222,7 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
               if (!IconComp) return null;
               const isActive = iconName === name && !imageUrl;
               return (
+                // no-tour-anchor: one button per icon, repeated
                 <button
                   key={name}
                   type="button"
@@ -234,6 +249,7 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
 
       {tab === 'image' && (
         <div className="space-y-2">
+          {/* no-tour-anchor: hidden file input, opened by the upload buttons */}
           <input
             ref={fileInputRef}
             type="file"
@@ -258,6 +274,7 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
                 disabled={uploading}
                 className="p-1.5 rounded-md text-slate-400 hover:text-brand-blue-primary hover:bg-blue-50 transition-colors"
                 title="Replace image"
+                {...anchor('widget-settings.stations.replace-image')}
               >
                 {uploading ? (
                   <Loader2 size={14} className="animate-spin" />
@@ -271,6 +288,7 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
                 disabled={uploading}
                 className="p-1.5 rounded-md text-slate-400 hover:text-brand-red-primary hover:bg-red-50 transition-colors"
                 title="Remove image"
+                {...anchor('widget-settings.stations.remove-image')}
               >
                 <Trash2 size={14} />
               </button>
@@ -280,6 +298,7 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
+              {...anchor('widget-settings.stations.upload-image')}
               className="w-full p-4 rounded-lg border-2 border-dashed border-slate-200 text-slate-500 hover:border-brand-blue-primary hover:bg-blue-50 transition-all flex flex-col items-center gap-2"
             >
               {uploading ? (
@@ -302,6 +321,7 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
                 onChange({ iconName: undefined, imageUrl: undefined })
               }
               className="w-full text-xxs font-bold uppercase tracking-widest text-slate-400 hover:text-brand-red-primary py-1 flex items-center justify-center gap-1.5"
+              {...anchor('widget-settings.stations.clear-icon')}
             >
               <X size={11} />
               Clear icon (no preview)
