@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "numberLine",
   "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-18T15:53:52.179Z",
+  "gradedAt": "2026-10-27T04:10:38.020Z",
   "stale": false,
   "criteria": {
     "S6": {
@@ -10,7 +10,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "I5": {
@@ -18,7 +18,7 @@
       "source": "script",
       "note": "N/A by rule",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "S1": {
@@ -30,15 +30,15 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/envelope-min__empty.png",
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/envelope-min__typical.png",
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/envelope-min__stress.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/envelope-min__empty.png",
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/envelope-min__typical.png",
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/envelope-min__stress.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "note": "At 150x100 the line keeps every-other tick label and stays usable in the typical fixture, but labels drop to about 6px and in the stress fixture marker and jump labels pile on top of each other over the line.",
+      "note": "At 150×100 the tick labels thin to every other number, but labels and markers shrink to about 6px, and in the stress case long marker labels pile on top of each other above the line.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "S2": {
@@ -50,15 +50,15 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png",
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/large-1400x900__typical.png",
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/large-1400x900__stress.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png",
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/large-1400x900__typical.png",
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/large-1400x900__stress.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "note": "At 1400x900 the line stretches across the width but the labels and markers stay their default size in a thin band, leaving most of the card above and below as a giant empty gap.",
+      "note": "At 1400×900 the line stretches the full width, but the jump arcs stay shallow, the arrowheads swell into big triangles, and roughly the top and bottom thirds of the card are empty.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "S3": {
@@ -70,16 +70,16 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/widest-aspect__typical.png",
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/widest-aspect__stress.png",
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/tallest-aspect__typical.png",
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/tallest-aspect__stress.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/widest-aspect__typical.png",
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/widest-aspect__stress.png",
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/tallest-aspect__stress.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "note": "The same single horizontal strip is used at every shape, so the tallest 225x900 card is a tiny line in a sea of white (the script's 10% understates it) with nothing reflowing.",
+      "note": "The layout is a single horizontal line at every shape; at 225×900 it is a thin strip in the middle with tiny labels and most of the tall card empty, despite the script's 10% dead-band figure.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "S4": {
@@ -90,12 +90,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "S5": {
@@ -106,14 +106,14 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__empty.png",
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png",
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__stress.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__empty.png",
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png",
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__stress.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "S7": {
@@ -125,34 +125,34 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/envelope-min__typical.png",
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/envelope-min__typical.png",
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "note": "The 150x100 floor is roughly what a short number line needs: the typical fixture still shows its start, end and jump, but nothing smaller would work.",
+      "note": "A 0–10 or 0–20 line with markers is still legible at the 150×100 floor, so the global minimum fits what the content needs.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "S8": {
-      "score": 1,
+      "score": 2,
       "source": "judge",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/maximized-1920x1080__empty.png",
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/maximized-1920x1080__typical.png",
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/maximized-1920x1080__stress.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/maximized-1920x1080__stress.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "note": "Maximized is the default strip stretched to 1920px with tick labels and marker text still at card size and roughly 90% of the screen empty, with no presenting layout.",
+      "note": "Maximized is the same line scaled up across 1920px, with large blank bands above and below and no presenting-specific change.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "I1": {
@@ -163,12 +163,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "I2": {
@@ -179,12 +179,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "I3": {
@@ -192,16 +192,16 @@
       "source": "script",
       "candidates": {
         "script": 3,
-        "judge": 2
+        "judge": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "I4": {
@@ -212,12 +212,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "I6": {
@@ -229,13 +229,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "note": "Tick hit areas show a hover circle but no pressed or active state, and adding a marker has no other feedback.",
+      "note": "The face has no interactive controls that show a state; selected states appear only on the drawer's color swatches and segmented control.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "I7": {
@@ -246,34 +246,34 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/envelope-min__typical__selected.png",
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical__selected.png",
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/large-1400x900__typical__selected.png",
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/widest-aspect__typical__selected.png",
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/tallest-aspect__typical__selected.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical__selected.png",
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/tallest-aspect__typical__selected.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "V1": {
-      "score": 2,
+      "score": 3,
       "source": "judge",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "note": "The face is clean and flat, but tick labels are tiny and the jump arrowheads are oversized and clumsy where they land on the line.",
+      "note": "A clean white face with bold sans labels and flat colored markers and no ban-list hits, though the oversized black jump arrowheads look heavy.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "V2": {
@@ -285,14 +285,14 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png",
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__stress.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png",
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__stress.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "note": "It reads as a number line with a jump at a glance, and the 21 controls are invisible tick hit areas, so the face itself carries only the line, two markers and one jump label.",
+      "note": "The typical face reads as a number line with a +8 jump at a glance, using few colors and words, though the stress fixture's labels collide.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "V3": {
@@ -304,13 +304,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "note": "The axis is clearly primary, with the colored markers and jump arc stepping down as overlays and tick labels as tertiary.",
+      "note": "The axis and its numbers are primary, while the marker labels and jump label sit above it, smaller and in accent colors.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "V4": {
@@ -322,12 +322,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "V5": {
@@ -338,12 +338,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "V6": {
@@ -355,13 +355,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "note": "Face labels are short and plain (Start, End, +8) with one icon style, though the hidden hint says 'Click' on a touch board.",
+      "note": "Short, plain labels such as Minimum value, Step (interval), Markers and Add marker, with no copy violations and one icon style.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "C1": {
@@ -373,13 +373,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "note": "Range, step, display mode (integers, decimals, fractions), markers, jumps, arrows and style are all configurable without bloat, but nothing anticipates grade-level presets or open/closed points for inequalities.",
+      "note": "Range, step, display mode (integers, decimals or fractions), labeled and colored markers, and jumps cover what a teacher would plausibly vary.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "C2": {
@@ -391,13 +391,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical__settings.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical__settings.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "note": "The schema drawer puts content settings (range, step, display mode, markers, jumps) first and a short behavior group after it, all using standard controls, though the settings screenshot shows only the focused widget and not the drawer.",
+      "note": "Searchable Settings and Style tabs with range and display mode first under Content; the expanded marker editors make the list long but stay in order.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "C3": {
@@ -409,13 +409,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__empty.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__empty.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "note": "With no configuration it shows a clean, usable 0 to 10 number line ready to teach with.",
+      "note": "The default is a clean, labeled 0–10 number line that is ready to use for teaching straight away.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "C4": {
@@ -426,30 +426,30 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical__settings.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical__settings.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "C5": {
-      "score": 2,
+      "score": 3,
       "source": "judge",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__empty.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__empty.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "note": "The empty face is a bare 0 to 10 line with no visible cue that tapping it adds markers, because the only instruction appears on hover.",
+      "note": "On first drop the face is a complete, readable 0–10 line rather than a blank card, but nothing on the face points to adding markers or jumps.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "C6": {
@@ -460,12 +460,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical__settings.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical__settings.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "R1": {
@@ -477,14 +477,14 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__empty.png",
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__empty.png",
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "note": "The widget has no loading, network or roster states, and both empty and typical render as designed views.",
+      "note": "The widget has no network or roster dependency, so its only reachable views are the empty and typical renders, and both display cleanly.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "R3": {
@@ -495,12 +495,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "R4": {
@@ -512,13 +512,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "note": "No student data appears on the face; it shows only numbers and teacher labels.",
+      "note": "No student data appears on the face; it shows only numbers and teacher-entered labels.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "E1": {
@@ -530,13 +530,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "note": "No connections exist and none misfire, but high-value candidates are missing; proposals: add placing a marker from the Random number result and sending an Expression or Math Tools value to the line; remove nothing.",
+      "note": "The widget has no connections; proposals for Paul (neither acted on): add sending a Randomizer/Dice result as a marker, and add a link to Math Tools or a quiz question; nothing to remove.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     },
     "E3": {
@@ -548,13 +548,13 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical.png"
+          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "note": "Widget and Settings tests exist, the largest file is 489 lines, and there are no any types, useDashboard calls or derived-state effects.",
+      "note": "The widget folder has 2 tests, files at or under 502 lines, zero `any`, no useDashboard calls and no derived-state effects.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-27T04:10:38.020Z",
       "stale": false
     }
   },
@@ -562,30 +562,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "gradedAt": "2026-10-18T15:53:52.179Z"
+      "gradedAt": "2026-10-27T04:10:38.020Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "gradedAt": "2026-10-18T15:53:52.179Z"
+      "gradedAt": "2026-10-27T04:10:38.020Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "gradedAt": "2026-10-18T15:53:52.179Z"
+      "gradedAt": "2026-10-27T04:10:38.020Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "after-nl2"
+        "runId": "loop-numberline-2026-10-27-after"
       },
-      "gradedAt": "2026-10-18T15:53:52.179Z"
+      "gradedAt": "2026-10-27T04:10:38.020Z"
     }
   }
 }

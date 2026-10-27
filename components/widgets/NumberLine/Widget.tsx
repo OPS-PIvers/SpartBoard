@@ -82,7 +82,7 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
   const { updateWidget } = useDashboardActions();
   const config = widget.config as NumberLineConfig;
   const containerRef = useRef<HTMLDivElement>(null);
-  const [svgWidth, setSvgWidth] = useState(700);
+  const [box, setBox] = useState({ w: 700, h: 0 });
   const [hoveredTick, setHoveredTick] = useState<number | null>(null);
 
   const {
@@ -112,7 +112,10 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        setSvgWidth(Math.max(400, entry.contentRect.width));
+        setBox({
+          w: Math.max(400, entry.contentRect.width),
+          h: entry.contentRect.height,
+        });
       }
     });
     if (containerRef.current) {
@@ -121,6 +124,9 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
     return () => observer.disconnect();
   }, []);
 
+  // Large cards (maximized) draw the line at up to 1.7x so type and ticks read from the back of the room.
+  const zoom = box.h >= 500 ? Math.min(1.7, Math.max(1, box.w / 900)) : 1;
+  const svgWidth = box.w / zoom;
   const svgH = 200;
   const padL = 40;
   const padR = 40;
