@@ -3,10 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-10-29_
+_Last audited: 2026-10-27_
 _Last action: 2026-09-22 — HIGH `SpecialistSchedule` stale `Settings.tsx` reference fixed in both new-widget and admin-widget-config skills (all 4 mirror files): file-layout callout rewritten to the current schema-driven files, `featurePermissions`-read example repointed to `settingsFields.tsx`. Moved to Completed._
-
-_2026-10-29: Thursday Audit B1. Read `.claude/skills/{new-widget,admin-widget-config}/SKILL.md` (`/mnt/skills/user` absent). Every cited path resolves except `YourWidget` template placeholders and a negative `Appearance.tsx` mention; `SpecialistSchedule/` still has `settings.schema.ts`/`settingsFields.tsx`; `lazyNamed` helper still at `WidgetRegistry.ts:43`; `components/admin/*ConfigurationPanel.tsx` hierarchy unchanged. 0 new issues._
 
 _2026-10-27: Tuesday Audit B1. Both skills' paths resolve except intentional `YourWidget` template placeholders. `SpecialistSchedule/` still exists with the schema-driven layout (`settings.schema.ts`, `settingsFields.tsx`); `lazyNamed` convention matches `WidgetRegistry.ts`. `/mnt/skills/user/*` is absent in this environment; repo copies under `.claude/skills/` were used. 0 new issues._
 
