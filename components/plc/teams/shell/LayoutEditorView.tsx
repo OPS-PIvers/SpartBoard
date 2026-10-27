@@ -359,7 +359,7 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
       <div className="mt-6 border-t border-slate-200 pt-5">
         <h4 className={EYEBROW}>
           {t('teams.layout.pageCards', {
-            page: teamPageLabel(t, teamTypeHubPage(groupType), isLead),
+            page: landingLabel(teamTypeHubPage(groupType)),
             defaultValue: '{{page}} cards',
           })}
         </h4>

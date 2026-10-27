@@ -17,6 +17,9 @@ import type { TeamPageProps } from '@/components/plc/teams/types';
 import { TeamHeroRegion } from '@/components/plc/teams/heroes/TeamHeroRegion';
 import { useTeamShellActions } from './teamShellActions';
 import { useTeamNav } from '@/components/plc/teams/TeamNavContext';
+import { teamUsesPlcHome } from '@/components/plc/teams/teamSections';
+import { TEAM_LANDING_CARD_CATALOG } from '@/config/teamTypePresets';
+import { useAuth } from '@/context/useAuth';
 import {
   useDataOverviewModel,
   useMeetingStrip,
@@ -61,6 +64,14 @@ export default function DataOverviewPage({
   const { openMyItems } = useTeamShellActions();
   const teamNav = useTeamNav();
   const [targetsOpen, setTargetsOpen] = useState(false);
+  const { canAccessFeature } = useAuth();
+  // With PLC Home, the layout's cards pick what Home shows; this tab keeps every section.
+  const cards = teamUsesPlcHome(layout, canAccessFeature('plc-home-tab'))
+    ? (TEAM_LANDING_CARD_CATALOG.dataOverview ?? layout.cards)
+    : layout.cards;
+  const assessmentsOn = layout.pages.some(
+    (p) => p.id === 'assessments' && p.enabled
+  );
 
   // Pins this page doesn't draw itself (docs, notes, updates, calendar) go through the shared hero dispatch.
   const ownsPin =
@@ -111,7 +122,7 @@ export default function DataOverviewPage({
       <DataOverviewView
         model={model}
         isLead={isLead}
-        cards={layout.cards}
+        cards={cards}
         hero={hero}
         goal={
           heroRef?.kind === 'goal' ? null : (
@@ -126,7 +137,7 @@ export default function DataOverviewPage({
         onManageTargets={() => teamNav.navigate('targets')}
         onTagQuestions={() => setTargetsOpen(true)}
         onOpenAssessment={nav.openAssessment}
-        onAllAssessments={nav.allAssessments}
+        onAllAssessments={assessmentsOn ? nav.allAssessments : undefined}
       />
       {targetsOpen && (
         <ManageTargetsForPlc
