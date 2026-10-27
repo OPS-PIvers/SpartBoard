@@ -1022,10 +1022,16 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     // CRITICAL: Resume AudioContext within the click handler to unlock sound
     const ctx = getAudioCtx();
     if (ctx && ctx.state === 'suspended') {
+      const genBeforeResume = spinGenRef.current;
       try {
         await ctx.resume();
       } catch (e) {
         logError('RandomWidget.audioResume', e, { widgetId: widget.id });
+      }
+      // Unmounted, reset or roster changed while audio resumed: drop this pick.
+      if (spinGenRef.current !== genBeforeResume) {
+        spinningRef.current = false;
+        return;
       }
     }
 

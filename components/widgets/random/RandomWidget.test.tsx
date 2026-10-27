@@ -1232,6 +1232,57 @@ describe('RandomWidget double pick while audio is suspended', () => {
   });
 });
 
+describe('RandomWidget unmount while audio is resuming', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('does not write the pick when the widget unmounts before resume resolves', async () => {
+    vi.useFakeTimers();
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockDashboardContext
+    );
+    mockUpdateWidget.mockClear();
+    const resolvers: Array<() => void> = [];
+    const ctx = {
+      state: 'suspended',
+      resume: vi.fn(
+        () =>
+          new Promise<void>((r) => {
+            resolvers.push(r);
+          })
+      ),
+    };
+    (
+      audioUtils.getAudioCtx as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue(ctx);
+    const widget: WidgetData = {
+      id: 'resume-unmount',
+      type: 'random',
+      config: { firstNames: 'Alice\nBob\nCara', mode: 'single' },
+      x: 0,
+      y: 0,
+      w: 100,
+      h: 100,
+      z: 1,
+      flipped: false,
+    };
+    const { unmount } = render(<RandomWidget widget={widget} />);
+    fireEvent.click(
+      screen.getAllByRole('button', { name: /^Randomize$|^Picking$/ })[0]
+    );
+    unmount();
+    await act(async () => {
+      resolvers.forEach((r) => r());
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+});
+
 describe('RandomWidget — unmount during spin', () => {
   afterEach(() => {
     vi.useRealTimers();
