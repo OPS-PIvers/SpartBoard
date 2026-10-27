@@ -10563,7 +10563,9 @@ export type GlobalFeature =
   /** Drawing zoom and pan, highlighter, laser pointer, sticky notes, shape polish and copy/paste (pro-grade-2/WHITEBOARD_PLAN.md). */
   | 'whiteboard-pro'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
-  | 'flashcards-speak';
+  | 'flashcards-speak'
+  /** Widget Library fills most of the screen instead of a small fixed box. */
+  | 'widget-library-large';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
