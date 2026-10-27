@@ -160,9 +160,14 @@ export const SidebarClassRow: React.FC<SidebarClassRowProps> = ({
       <div className="shrink-0">
         <OverflowMenu
           items={items}
-          ariaLabel={t('sidebar.classes.actionsMenu', {
-            defaultValue: 'Class actions',
-          })}
+          ariaLabel={`${t('sidebar.classes.actionsMenuFor', {
+            defaultValue: 'Class actions for {{name}}',
+            name: r.name,
+          })}${
+            classLinkEnabled && needsBackfill
+              ? `, ${t('sidebar.classes.linkClassLink', { defaultValue: 'Link to ClassLink class' })}`
+              : ''
+          }`}
           triggerTitle={t('sidebar.classes.actionsMenu', {
             defaultValue: 'Class actions',
           })}
