@@ -214,7 +214,8 @@
       "emptyAccommodationsSubtitle": "Add students first, then set their standing accommodations.",
       "actionsMenu": "Class actions",
       "linkedGoogleClassroom": "Linked to Google Classroom",
-      "actionsMenuFor": "Class actions for {{name}}"
+      "actionsMenuFor": "Class actions for {{name}}",
+      "changeGoogleClassroomLink": "Change Google Classroom link"
     },
     "plcs": {
       "title": "My PLCs",

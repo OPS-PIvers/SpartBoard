@@ -67,8 +67,8 @@ export const SidebarClassRow: React.FC<SidebarClassRowProps> = ({
       {
         id: 'link-classroom',
         label: r.googleClassroomCourseId
-          ? t('sidebar.classes.linkGoogleClassroom.relink', {
-              defaultValue: 'Linked to Google Classroom — change link',
+          ? t('sidebar.classes.changeGoogleClassroomLink', {
+              defaultValue: 'Change Google Classroom link',
             })
           : t('sidebar.classes.linkGoogleClassroom.button', {
               defaultValue: 'Link to Google Classroom',
