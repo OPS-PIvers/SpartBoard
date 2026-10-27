@@ -54,6 +54,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-submit-for-student',
   'quiz-calculator-stimulus',
   'lunch-count-redesign',
+  'weather-details',
   'activity-wall-timeline-dates',
   'checklist-small-card',
   'collection-sync-sharing',

@@ -3062,6 +3062,47 @@ export interface WeatherConfig {
   secondaryColor?: string;
   cardColor?: string;
   cardOpacity?: number;
+  /** Detail rows the teacher turned on, in display order. */
+  detailFields?: WeatherDetailField[];
+  details?: WeatherDetails;
+}
+
+export const WEATHER_DETAIL_FIELDS = [
+  'feelsLike',
+  'highLow',
+  'dewPoint',
+  'humidity',
+  'pressure',
+  'rainDaily',
+  'rainMonthly',
+  'windAvg',
+  'windGust',
+  'sunrise',
+  'sunset',
+  'moon',
+  'uvIndex',
+] as const;
+export type WeatherDetailField = (typeof WEATHER_DETAIL_FIELDS)[number];
+
+/** Station readings beyond temperature; null when the station doesn't report one. */
+export interface WeatherDetails {
+  high?: number | null;
+  low?: number | null;
+  dewPoint?: number | null;
+  humidity?: number | null;
+  /** Sea-level pressure in inches of mercury. */
+  pressure?: number | null;
+  rainDaily?: number | null;
+  rainMonthly?: number | null;
+  windSpeedAvg?: number | null;
+  /** Degrees clockwise from north. */
+  windDirectionAvg?: number | null;
+  windGust?: number | null;
+  /** Epoch ms; computed from the station's location when the source has none. */
+  sunrise?: number | null;
+  sunset?: number | null;
+  /** EPA hourly UV index forecast for one local day, indexed by hour. */
+  uvHours?: { date: string; values: (number | null)[] } | null;
 }
 
 export interface WeatherTemperatureRange {
@@ -3080,6 +3121,8 @@ export interface WeatherGlobalConfig {
   source?: 'openweather' | 'earth_networks';
   city?: string;
   showFeelsLike?: boolean;
+  /** Buildings whose teachers may turn on weather details. */
+  detailsBuildingIds?: string[];
 }
 
 export interface RecessGearTemperatureRange {
@@ -3109,6 +3152,7 @@ export interface GlobalWeatherData {
   locationName: string;
   updatedAt: number;
   source?: string;
+  details?: WeatherDetails;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -10544,6 +10588,8 @@ export type GlobalFeature =
   | 'quiz-submit-for-student'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
   | 'lunch-count-redesign'
+  /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
+  | 'weather-details'
   /** Activity Wall timeline on a dated axis, with a year/date picker on posts. */
   | 'activity-wall-timeline-dates'
   /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */

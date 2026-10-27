@@ -4,18 +4,58 @@ import type {
   CustomRenderCtx,
   FieldCtx,
 } from '@/components/settings/schema/types';
-import type { WeatherConfig } from '@/types';
+import {
+  WEATHER_DETAIL_FIELDS,
+  type WeatherConfig,
+  type WeatherDetailField,
+} from '@/types';
 import { WeatherAutoSyncField, WeatherFeelsLikeField } from './settingsFields';
+import { weatherDetailsAllowed } from './useWeatherDetailsAllowed';
 
 const isAutomatic = (ctx: FieldCtx) => ctx.config.isAuto === true;
 const isManual = (ctx: FieldCtx) => !isAutomatic(ctx);
-const showClothing = (ctx: FieldCtx) => ctx.config.hideClothing !== true;
 const renderFeelsLike = (ctx: CustomRenderCtx) =>
   React.createElement(WeatherFeelsLikeField, { ctx });
+const detailsVisible = (ctx: FieldCtx) =>
+  weatherDetailsAllowed({
+    canAccessFeature: ctx.canAccessFeature,
+    adminConfig: ctx.adminConfig,
+    selectedBuildings: ctx.selectedBuildings,
+  });
+const enabledDetails = (ctx: FieldCtx): WeatherDetailField[] =>
+  Array.isArray(ctx.config.detailFields)
+    ? (ctx.config.detailFields as WeatherDetailField[])
+    : [];
+// Details already replace the recess gear card.
+const detailsShown = (ctx: FieldCtx) =>
+  detailsVisible(ctx) && enabledDetails(ctx).length > 0;
+const showClothing = (ctx: FieldCtx) =>
+  ctx.config.hideClothing !== true && !detailsShown(ctx);
+// One toggle per reading; detailFields keeps the canonical order.
+const detailToggle = (field: WeatherDetailField) => ({
+  key: `detail_${field}` as const,
+  type: 'toggle' as const,
+  label: `detail_${field}`,
+  section: 'weatherDetails',
+  visibleWhen: detailsVisible,
+  readValue: (ctx: FieldCtx) => enabledDetails(ctx).includes(field),
+  toPatch: (value: unknown, ctx: FieldCtx) => {
+    const next = new Set(enabledDetails(ctx));
+    if (value === true) next.add(field);
+    else next.delete(field);
+    return {
+      detailFields: WEATHER_DETAIL_FIELDS.filter((f) => next.has(f)),
+    };
+  },
+});
 const renderAutoSync = (ctx: CustomRenderCtx) =>
   React.createElement(WeatherAutoSyncField, { ctx });
 
-export default defineSettings<WeatherConfig>({
+// Detail toggles are virtual keys that read and write detailFields.
+type WeatherSettingsKeys = WeatherConfig &
+  Record<`detail_${WeatherDetailField}`, boolean>;
+
+export default defineSettings<WeatherSettingsKeys>({
   groups: [
     {
       id: 'content',
@@ -87,12 +127,14 @@ export default defineSettings<WeatherConfig>({
           key: 'hideClothing',
           type: 'toggle',
           label: 'hideClothing',
+          visibleWhen: (ctx) => !detailsShown(ctx),
         },
         {
           key: 'syncBackground',
           type: 'toggle',
           label: 'syncBackground',
         },
+        ...WEATHER_DETAIL_FIELDS.map(detailToggle),
       ],
     },
     {

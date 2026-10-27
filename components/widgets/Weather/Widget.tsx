@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
@@ -16,9 +16,13 @@ import { Sun, Cloud, CloudRain, CloudSnow, Wind } from 'lucide-react';
 import { getFontClass, hexToRgba } from '@/utils/styles';
 
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
+import { STATION_CONFIG } from './constants';
+import { buildDetailRows } from './details';
+import { useWeatherDetailsAllowed } from './useWeatherDetailsAllowed';
+import { WeatherDetailsLayout } from './WeatherDetailsPanel';
 
 export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { updateWidget, activeDashboard, setBackground } = useDashboard();
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const { featurePermissions } = useAuth();
@@ -38,7 +42,19 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     secondaryColor,
     cardColor = '#ffffff',
     cardOpacity = 1,
+    detailFields,
+    details,
   } = config;
+  const detailsAllowed = useWeatherDetailsAllowed();
+  const detailsOn = detailsAllowed && (detailFields?.length ?? 0) > 0;
+  const [now, setNow] = useState(() => Date.now());
+
+  // UV, moon and the sun's position follow the clock, so rebuild them each minute.
+  useEffect(() => {
+    if (!detailsOn) return;
+    const id = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, [detailsOn]);
 
   const fontClass = getFontClass(fontFamily, globalStyle.fontFamily);
 
@@ -83,6 +99,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               condition: data.condition,
               locationName: data.locationName,
               lastSync: data.updatedAt,
+              details: data.details,
             },
           });
         }
@@ -121,6 +138,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 condition: data.condition,
                 locationName: data.locationName,
                 lastSync: data.updatedAt,
+                details: data.details,
               },
             });
           }
@@ -266,93 +284,138 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     .reduce((w, ch) => w + (ch === '-' ? 0.5 : ch === '°' ? 0.42 : 0.66), 0)
     .toFixed(2);
 
+  const detailRows =
+    detailsOn && detailFields
+      ? buildDetailRows(detailFields, {
+          details,
+          feelsLike,
+          now: new Date(now),
+          lat: STATION_CONFIG.lat,
+          lon: STATION_CONFIG.lon,
+          locale: i18n.language,
+          t,
+        })
+      : [];
+
+  // Details replace the recess gear card but keep its sizing, since they share the space.
+  const hasDetails = detailRows.length > 0;
+  const noGear = hideClothing === true && !hasDetails;
+
+  const face = (
+    <div
+      className={`flex flex-col items-center justify-center h-full w-full ${fontClass}`}
+      style={{
+        gap: noGear ? '1cqh' : 'min(12px, 2.5cqmin)',
+        padding: noGear ? 0 : 'min(8px, 2cqmin)',
+      }}
+    >
+      <div
+        className="flex flex-col items-center justify-center w-full"
+        style={{ gap: noGear ? '0.5cqh' : 'min(4px, 1cqmin)' }}
+      >
+        <div
+          className="flex items-center justify-center w-full"
+          style={{
+            gap: noGear ? 'min(4cqh, 2cqw)' : 'min(24px, 6cqmin)',
+          }}
+        >
+          <div
+            style={{
+              fontSize: noGear
+                ? 'min(65cqh, 30cqw)'
+                : hasDetails
+                  ? 'min(30cqw, 45cqh)'
+                  : '22cqmin',
+            }}
+          >
+            {getIcon('1em')}
+          </div>
+          <div
+            className="font-black tabular-nums leading-none"
+            style={{
+              fontSize: noGear
+                ? `min(75cqh, 40cqw, calc(68cqw / ${tempWidthEm}))`
+                : hasDetails
+                  ? `min(48cqw, 72cqh, calc((100cqw - min(44cqw, 66cqh)) / ${tempWidthEm}))`
+                  : `min(35cqmin, calc((100cqw - 34cqmin) / ${tempWidthEm}))`,
+              color: fontColor,
+            }}
+          >
+            {tempText}
+          </div>
+        </div>
+
+        {(showFeelsLike || feelsLike !== undefined) && (
+          <div
+            className="font-black uppercase tracking-wider whitespace-nowrap leading-none text-center"
+            style={{
+              fontSize: noGear
+                ? 'min(12cqh, 10cqw)'
+                : hasDetails
+                  ? 'min(7cqw, 10cqh)'
+                  : '5cqmin',
+              marginTop: noGear ? '1cqh' : 'min(2px, 0.5cqmin)',
+              color: secondaryColor ?? fontColor,
+              opacity: secondaryColor ? 1 : 0.8,
+            }}
+          >
+            {showFeelsLike
+              ? `${t('widgets.weather.actual')} ${Math.round(temp)}°`
+              : `${t('widgets.weather.feelsLike')} ${Math.round(feelsLike ?? temp)}°`}
+          </div>
+        )}
+      </div>
+
+      {!noGear && !hasDetails && (
+        <div
+          data-testid="weather-clothing-card"
+          className="w-full border border-slate-200/60 rounded-2xl flex items-center shadow-sm"
+          style={{
+            backgroundColor: hexToRgba(cardColor, cardOpacity),
+            gap: 'min(16px, 4cqmin)',
+            padding: 'min(12px, 2.5cqmin) min(16px, 4cqmin)',
+          }}
+        >
+          <div
+            className="shrink-0 flex items-center justify-center overflow-hidden"
+            style={{
+              fontSize: 'min(48px, 12cqmin)',
+              width: 'min(64px, 15cqmin)',
+              height: 'min(64px, 15cqmin)',
+            }}
+          >
+            {displayImage}
+          </div>
+          <div
+            className="font-bold leading-tight"
+            style={{ fontSize: 'min(20px, 6cqmin)', color: fontColor }}
+          >
+            {displayMessage}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <WidgetLayout
       padding="p-0"
       content={
-        <div
-          className={`flex flex-col items-center justify-center h-full w-full ${fontClass}`}
-          style={{
-            gap: hideClothing ? '1cqh' : 'min(12px, 2.5cqmin)',
-            padding: hideClothing ? 0 : 'min(8px, 2cqmin)',
-          }}
-        >
-          <div
-            className="flex flex-col items-center justify-center w-full"
-            style={{ gap: hideClothing ? '0.5cqh' : 'min(4px, 1cqmin)' }}
+        detailRows.length === 0 ? (
+          face
+        ) : (
+          <WeatherDetailsLayout
+            rows={detailRows}
+            lat={STATION_CONFIG.lat}
+            lon={STATION_CONFIG.lon}
+            now={now}
+            color={fontColor}
+            labelColor={secondaryColor}
+            className={fontClass}
           >
-            <div
-              className="flex items-center justify-center w-full"
-              style={{
-                gap: hideClothing ? 'min(4cqh, 2cqw)' : 'min(24px, 6cqmin)',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: hideClothing ? 'min(65cqh, 30cqw)' : '22cqmin',
-                }}
-              >
-                {getIcon('1em')}
-              </div>
-              <div
-                className="font-black tabular-nums leading-none"
-                style={{
-                  fontSize: hideClothing
-                    ? `min(75cqh, 40cqw, calc(68cqw / ${tempWidthEm}))`
-                    : `min(35cqmin, calc((100cqw - 34cqmin) / ${tempWidthEm}))`,
-                  color: fontColor,
-                }}
-              >
-                {tempText}
-              </div>
-            </div>
-
-            {(showFeelsLike || feelsLike !== undefined) && (
-              <div
-                className="font-black uppercase tracking-wider whitespace-nowrap leading-none text-center"
-                style={{
-                  fontSize: hideClothing ? 'min(12cqh, 10cqw)' : '5cqmin',
-                  marginTop: hideClothing ? '1cqh' : 'min(2px, 0.5cqmin)',
-                  color: secondaryColor ?? fontColor,
-                  opacity: secondaryColor ? 1 : 0.8,
-                }}
-              >
-                {showFeelsLike
-                  ? `${t('widgets.weather.actual')} ${Math.round(temp)}°`
-                  : `${t('widgets.weather.feelsLike')} ${Math.round(feelsLike ?? temp)}°`}
-              </div>
-            )}
-          </div>
-
-          {!hideClothing && (
-            <div
-              data-testid="weather-clothing-card"
-              className="w-full border border-slate-200/60 rounded-2xl flex items-center shadow-sm"
-              style={{
-                backgroundColor: hexToRgba(cardColor, cardOpacity),
-                gap: 'min(16px, 4cqmin)',
-                padding: 'min(12px, 2.5cqmin) min(16px, 4cqmin)',
-              }}
-            >
-              <div
-                className="shrink-0 flex items-center justify-center overflow-hidden"
-                style={{
-                  fontSize: 'min(48px, 12cqmin)',
-                  width: 'min(64px, 15cqmin)',
-                  height: 'min(64px, 15cqmin)',
-                }}
-              >
-                {displayImage}
-              </div>
-              <div
-                className="font-bold leading-tight"
-                style={{ fontSize: 'min(20px, 6cqmin)', color: fontColor }}
-              >
-                {displayMessage}
-              </div>
-            </div>
-          )}
-        </div>
+            {face}
+          </WeatherDetailsLayout>
+        )
       }
     />
   );
