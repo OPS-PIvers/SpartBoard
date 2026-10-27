@@ -332,6 +332,31 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
       triggerRef ? [triggerRef] : []
     );
 
+    // Measured dock footprint, so long side-dock labels never sit under the large library.
+    const [dockClearancePx, setDockClearancePx] = useState<number | null>(null);
+    useEffect(() => {
+      const dock = triggerRef?.current;
+      if (!large || !dock) return;
+      const measure = () => {
+        const r = dock.getBoundingClientRect();
+        const edge =
+          dockPosition === 'left'
+            ? r.right
+            : dockPosition === 'right'
+              ? window.innerWidth - r.left
+              : window.innerHeight - r.top;
+        setDockClearancePx(Math.max(0, Math.ceil(edge)) + 16);
+      };
+      measure();
+      const observer = new ResizeObserver(measure);
+      observer.observe(dock);
+      window.addEventListener('resize', measure);
+      return () => {
+        observer.disconnect();
+        window.removeEventListener('resize', measure);
+      };
+    }, [large, dockPosition, triggerRef]);
+
     // Portalled outside any `.widget`/Modal ancestor — stop Escape reaching DashboardView's global handler.
     useEffect(() => {
       const handleKeyDown = (event: KeyboardEvent) => {
@@ -590,6 +615,17 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
         className={`fixed inset-0 z-modal flex items-center justify-center p-4 animate-in fade-in duration-200 pointer-events-none ${
           large ? dockClearance : ''
         }`}
+        style={
+          large && dockClearancePx !== null
+            ? {
+                [dockPosition === 'left'
+                  ? 'paddingLeft'
+                  : dockPosition === 'right'
+                    ? 'paddingRight'
+                    : 'paddingBottom']: dockClearancePx,
+              }
+            : undefined
+        }
       >
         <GlassCard
           ref={ref}

@@ -61,4 +61,18 @@ describe('WidgetLibrary size', () => {
       expect(overlay.className.split(/\s+/)).toContain(clearance);
     }
   );
+
+  it('clears the dock by its measured size when a label makes it wide', () => {
+    const dock = document.createElement('div');
+    dock.getBoundingClientRect = () =>
+      ({ left: 24, right: 230, top: 100, bottom: 600 }) as DOMRect;
+    document.body.appendChild(dock);
+    const { overlay } = renderLibrary({
+      large: true,
+      dockPosition: 'left',
+      triggerRef: { current: dock },
+    });
+    expect(overlay.style.paddingLeft).toBe('246px');
+    dock.remove();
+  });
 });
