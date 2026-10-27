@@ -312,7 +312,7 @@ export async function authorizeDelegatedPrint(
     )
       throw new HttpsError(
         'permission-denied',
-        'Viewers cannot edit shared PLC content.'
+        "That teacher is a viewer in this team, so you can't print sheets for them."
       );
   }
 
