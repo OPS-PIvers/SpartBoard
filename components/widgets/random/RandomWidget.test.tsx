@@ -1231,3 +1231,53 @@ describe('RandomWidget double pick while audio is suspended', () => {
     expect(picks).toHaveLength(1);
   });
 });
+
+describe('RandomWidget — unmount during spin', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it.each(['flash', 'slots', 'wheel'])(
+    '%s: does not write the pick after the widget unmounts',
+    (visualStyle) => {
+      vi.useFakeTimers();
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+        mockDashboardContext
+      );
+      mockUpdateWidget.mockClear();
+      const widget: WidgetData = {
+        id: 'test-id',
+        type: 'random',
+        config: {
+          firstNames: 'Alice\nBob\nCharlie',
+          lastNames: '',
+          rosterMode: 'custom',
+          mode: 'single',
+          visualStyle,
+          soundEnabled: false,
+          remainingStudents: [],
+        },
+        x: 0,
+        y: 0,
+        w: 300,
+        h: 200,
+        z: 1,
+        flipped: false,
+      };
+      const { unmount } = render(<RandomWidget widget={widget} />);
+      act(() => {
+        fireEvent.click(
+          screen.getByRole('button', { name: /^Randomize$|^Picking$/ })
+        );
+      });
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      unmount();
+      act(() => {
+        vi.advanceTimersByTime(10000);
+      });
+      expect(mockUpdateWidget).not.toHaveBeenCalled();
+    }
+  );
+});

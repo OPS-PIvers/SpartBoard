@@ -213,6 +213,20 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // deferred jigsaw/groups setTimeout can detect that its result is stale
   // and bail before clobbering the new state.
   const spinGenRef = useRef(0);
+  const spinTimersRef = useRef(new Set<ReturnType<typeof setTimeout>>());
+
+  // Stop in-flight spin timers on unmount so a late pick can't write or start the timer.
+  useEffect(() => {
+    const timers = spinTimersRef.current;
+    return () => {
+      spinGenRef.current += 1;
+      timers.forEach((id) => {
+        clearTimeout(id);
+        clearInterval(id);
+      });
+      timers.clear();
+    };
+  }, []);
 
   // Ref kept in sync with the latest `soundEnabled` prop value on every render.
   // setInterval/setTimeout callbacks in handlePick are created inside a click
@@ -1148,6 +1162,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             performUpdate(winnerName, nextRemaining);
           }
         }, 80);
+        spinTimersRef.current.add(interval);
       } else if (visualStyle === 'wheel') {
         const extraSpins = 5;
         let winnerIndex = students.indexOf(winnerName);
@@ -1177,9 +1192,11 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           if (soundEnabledRef.current) playTick(150);
           const progress = elapsed / duration;
           const nextInterval = 50 + Math.pow(progress, 2) * 400;
-          setTimeout(() => {
-            tickSequence(count + 1);
-          }, nextInterval);
+          spinTimersRef.current.add(
+            setTimeout(() => {
+              tickSequence(count + 1);
+            }, nextInterval)
+          );
         };
         tickSequence(0);
       } else if (visualStyle === 'slots') {
@@ -1203,6 +1220,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             performUpdate(winnerName, nextRemaining);
           }
         }, 100);
+        spinTimersRef.current.add(interval);
       }
     } else if (mode === 'jigsaw') {
       const myGen = ++spinGenRef.current;
