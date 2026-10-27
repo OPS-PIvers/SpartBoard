@@ -22,8 +22,16 @@
  * difference can make the test pass where the deploy would fail.
  */
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
-import { resolve, dirname } from 'path';
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'fs';
+import { tmpdir } from 'os';
+import { resolve, dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
 
@@ -114,5 +122,74 @@ describe('firebase-deploy-with-retry.sh transient classification', () => {
         'Error: HTTP Error: 403, The caller does not have permission'
       )
     ).toBe(false);
+  });
+});
+
+// Runs the script against stub pnpm/node/sleep that replay scripted deploy
+// outcomes, and returns each `--only` the script deployed.
+function runWithStubbedDeploys(outcomes: { exit: number; log: string }[]): {
+  status: number | null;
+  onlys: string[];
+} {
+  const dir = mkdtempSync(join(tmpdir(), 'deploy-retry-'));
+  const bin = join(dir, 'bin');
+  mkdirSync(bin);
+  outcomes.forEach((o, i) => {
+    writeFileSync(join(dir, `log${i + 1}`), o.log);
+    writeFileSync(join(dir, `exit${i + 1}`), String(o.exit));
+  });
+  const stub = (name: string, body: string) => {
+    writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`);
+    chmodSync(join(bin, name), 0o755);
+  };
+  stub(
+    'pnpm',
+    [
+      `n=$(( $(cat "${dir}/count" 2>/dev/null || echo 0) + 1 )); echo $n > "${dir}/count"`,
+      `while [[ $# -gt 0 ]]; do [[ $1 == --only ]] && echo "$2" >> "${dir}/onlys"; shift; done`,
+      `cat "${dir}/log$n" 2>/dev/null; exit $(cat "${dir}/exit$n" 2>/dev/null || echo 0)`,
+    ].join('\n')
+  );
+  stub('node', 'exit 0');
+  stub('sleep', 'exit 0');
+  const result = spawnSync('bash', [scriptPath, 'demo'], {
+    cwd: dir,
+    env: {
+      ...process.env,
+      PATH: `${bin}:${process.env.PATH ?? ''}`,
+      RELEASE_FIRESTORE_RULES: 'false',
+    },
+  });
+  const onlys = readFileSync(join(dir, 'onlys'), 'utf-8').trim().split('\n');
+  rmSync(dir, { recursive: true, force: true });
+  return { status: result.status, onlys };
+}
+
+describe('firebase-deploy-with-retry.sh CPU quota retry', () => {
+  it('names the quota-failed functions on the retry so the CLI cannot skip them, then runs a full pass', () => {
+    const quotaLog = [
+      'Could not create or update Cloud Run service setgoogletaskssyncv1, Container Healthcheck failed. Quota exceeded for total allowable CPU per project per region.',
+      '- Error Failed to update function setGoogleTasksSyncV1 in region us-central1',
+      '- Error Failed to update function revokeSpotifyAuth in region us-central1',
+    ].join('\n');
+    const { status, onlys } = runWithStubbedDeploys([
+      { exit: 2, log: quotaLog },
+      { exit: 0, log: '' },
+      { exit: 0, log: '' },
+    ]);
+    expect(status).toBe(0);
+    expect(onlys).toEqual([
+      'functions,firestore:indexes,storage',
+      'functions:revokeSpotifyAuth,functions:setGoogleTasksSyncV1,firestore:indexes,storage',
+      'functions,firestore:indexes,storage',
+    ]);
+  });
+
+  it('still fails a real deploy error without retrying', () => {
+    const { status, onlys } = runWithStubbedDeploys([
+      { exit: 2, log: 'Error: Failed to load function definition from source' },
+    ]);
+    expect(status).toBe(2);
+    expect(onlys).toHaveLength(1);
   });
 });
