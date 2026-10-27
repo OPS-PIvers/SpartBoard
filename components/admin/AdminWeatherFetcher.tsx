@@ -52,10 +52,14 @@ export const AdminWeatherFetcher: React.FC = () => {
     const weatherRef = doc(db, 'global_weather', 'current');
 
     const fetchWeather = async () => {
+      let storedUv: WeatherDetails['uvHours'] = null;
       // A failed freshness read falls through to a normal fetch.
       try {
         const snap = await getDoc(weatherRef);
         if (abortController.signal.aborted) return;
+        storedUv =
+          (snap.data() as { details?: WeatherDetails } | undefined)?.details
+            ?.uvHours ?? null;
         if (
           snap.exists() &&
           isStoredWeatherFresh(snap.data(), {
@@ -124,7 +128,8 @@ export const AdminWeatherFetcher: React.FC = () => {
               ...parseEarthNetworksDetails(data),
               uvHours: await fetchUvHours(
                 STATION_CONFIG.zip,
-                abortController.signal
+                abortController.signal,
+                storedUv
               ),
             };
           } else {

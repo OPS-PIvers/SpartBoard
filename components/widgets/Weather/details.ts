@@ -33,8 +33,9 @@ export function parseOpenWeatherDetails(data: OpenWeatherData): WeatherDetails {
   const sunrise = num(data.sys?.sunrise);
   const sunset = num(data.sys?.sunset);
   return {
-    high: num(data.main.temp_max),
-    low: num(data.main.temp_min),
+    // OpenWeather's current temp_max/temp_min are not the day's high and low.
+    high: null,
+    low: null,
     humidity: num(data.main.humidity),
     pressure: hpa === null ? null : hpa * 0.02953,
     rainDaily: null,
@@ -78,17 +79,27 @@ export function parseEpaUvHours(rows: unknown): WeatherDetails['uvHours'] {
   return date ? { date, values } : null;
 }
 
-/** Fetches today's hourly UV forecast for a ZIP; null when EPA is unreachable. */
+const UV_TIMEOUT_MS = 5000;
+
+/** Fetches today's hourly UV forecast for a ZIP; falls back to `previous` if it is today's, else null. */
 export async function fetchUvHours(
   zip: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  previous?: WeatherDetails['uvHours']
 ): Promise<WeatherDetails['uvHours']> {
+  const timeout = AbortSignal.timeout(UV_TIMEOUT_MS);
+  const combined =
+    signal && typeof AbortSignal.any === 'function'
+      ? AbortSignal.any([signal, timeout])
+      : timeout;
+  let fresh: WeatherDetails['uvHours'] = null;
   try {
-    const res = await fetch(`${EPA_UV_URL}/${zip}/JSON`, { signal });
-    return res.ok ? parseEpaUvHours(await res.json()) : null;
+    const res = await fetch(`${EPA_UV_URL}/${zip}/JSON`, { signal: combined });
+    fresh = res.ok ? parseEpaUvHours(await res.json()) : null;
   } catch {
-    return null;
+    fresh = null;
   }
+  return fresh ?? (previous?.date === localDate(new Date()) ? previous : null);
 }
 
 const localDate = (d: Date) =>

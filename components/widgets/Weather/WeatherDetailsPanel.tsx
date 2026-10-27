@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { WeatherDetailField } from '@/types';
 import { hexToRgba } from '@/utils/styles';
@@ -175,18 +175,18 @@ const fitRatio = (grid: HTMLElement) =>
 export const WeatherDetailsLayout: React.FC<{
   rows: DetailRow[];
   lat: number;
+  now: number;
   lon: number;
   color: string;
   labelColor?: string;
   className?: string;
   children: React.ReactNode;
-}> = ({ rows, lat, lon, color, labelColor, className = '', children }) => {
+}> = ({ rows, lat, lon, now, color, labelColor, className = '', children }) => {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [fit, setFit] = useState({ key: '', scale: 1 });
-  const [now, setNow] = useState(() => Date.now());
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -197,12 +197,6 @@ export const WeatherDetailsLayout: React.FC<{
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
-
-  // The sun moves along its path through the day.
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 60_000);
-    return () => window.clearInterval(id);
   }, []);
 
   const byField = new Map(rows.map((row) => [row.field, row]));

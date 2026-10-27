@@ -14,7 +14,6 @@ import { weatherDetailsAllowed } from './useWeatherDetailsAllowed';
 
 const isAutomatic = (ctx: FieldCtx) => ctx.config.isAuto === true;
 const isManual = (ctx: FieldCtx) => !isAutomatic(ctx);
-const showClothing = (ctx: FieldCtx) => ctx.config.hideClothing !== true;
 const renderFeelsLike = (ctx: CustomRenderCtx) =>
   React.createElement(WeatherFeelsLikeField, { ctx });
 const detailsVisible = (ctx: FieldCtx) =>
@@ -27,6 +26,11 @@ const enabledDetails = (ctx: FieldCtx): WeatherDetailField[] =>
   Array.isArray(ctx.config.detailFields)
     ? (ctx.config.detailFields as WeatherDetailField[])
     : [];
+// Details already replace the recess gear card.
+const detailsShown = (ctx: FieldCtx) =>
+  detailsVisible(ctx) && enabledDetails(ctx).length > 0;
+const showClothing = (ctx: FieldCtx) =>
+  ctx.config.hideClothing !== true && !detailsShown(ctx);
 // One toggle per reading; detailFields keeps the canonical order.
 const detailToggle = (field: WeatherDetailField) => ({
   key: `detail_${field}` as const,
@@ -123,9 +127,7 @@ export default defineSettings<WeatherSettingsKeys>({
           key: 'hideClothing',
           type: 'toggle',
           label: 'hideClothing',
-          // Details already replace the recess gear card.
-          visibleWhen: (ctx) =>
-            !(detailsVisible(ctx) && enabledDetails(ctx).length > 0),
+          visibleWhen: (ctx) => !detailsShown(ctx),
         },
         {
           key: 'syncBackground',

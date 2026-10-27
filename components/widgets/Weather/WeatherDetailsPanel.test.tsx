@@ -47,7 +47,12 @@ describe('WeatherDetailsLayout instruments', () => {
 
   it('groups readings into instruments and points the wind arrow downwind', () => {
     const { container } = render(
-      <WeatherDetailsLayout rows={ROWS} {...ORONO} color="#334155">
+      <WeatherDetailsLayout
+        rows={ROWS}
+        {...ORONO}
+        now={Date.parse('2026-10-27T18:30:00Z')}
+        color="#334155"
+      >
         <div>face</div>
       </WeatherDetailsLayout>
     );
@@ -61,7 +66,12 @@ describe('WeatherDetailsLayout instruments', () => {
 
   it('places the sun along its path by the time of day', () => {
     const { container } = render(
-      <WeatherDetailsLayout rows={ROWS} {...ORONO} color="#334155">
+      <WeatherDetailsLayout
+        rows={ROWS}
+        {...ORONO}
+        now={Date.parse('2026-10-27T18:30:00Z')}
+        color="#334155"
+      >
         <div>face</div>
       </WeatherDetailsLayout>
     );

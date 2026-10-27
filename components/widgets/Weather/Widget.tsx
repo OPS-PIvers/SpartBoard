@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { doc, onSnapshot, getDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
@@ -46,6 +46,15 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     details,
   } = config;
   const detailsAllowed = useWeatherDetailsAllowed();
+  const detailsOn = detailsAllowed && (detailFields?.length ?? 0) > 0;
+  const [now, setNow] = useState(() => Date.now());
+
+  // UV, moon and the sun's position follow the clock, so rebuild them each minute.
+  useEffect(() => {
+    if (!detailsOn) return;
+    const id = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, [detailsOn]);
 
   const fontClass = getFontClass(fontFamily, globalStyle.fontFamily);
 
@@ -276,11 +285,11 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     .toFixed(2);
 
   const detailRows =
-    detailsAllowed && detailFields?.length
+    detailsOn && detailFields
       ? buildDetailRows(detailFields, {
           details,
           feelsLike,
-          now: new Date(),
+          now: new Date(now),
           lat: STATION_CONFIG.lat,
           lon: STATION_CONFIG.lon,
           locale: i18n.language,
@@ -399,7 +408,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             rows={detailRows}
             lat={STATION_CONFIG.lat}
             lon={STATION_CONFIG.lon}
-
+            now={now}
             color={fontColor}
             labelColor={secondaryColor}
             className={fontClass}
