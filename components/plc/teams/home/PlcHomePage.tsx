@@ -1,6 +1,6 @@
 // PLC Home (`plc-home-tab`): the live data behind PlcHomeView.
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ClipboardList, FileText, Library, Target } from 'lucide-react';
 import { getPlcFeatures, type Plc } from '@/types';
@@ -8,6 +8,15 @@ import type { ResolvedTeamLayout } from '@/utils/teamLayout';
 import { usePlcNotes } from '@/hooks/usePlcNotes';
 import { usePlcLinks } from '@/hooks/usePlcLinks';
 import { GoalSection } from '@/components/plc/teams/data/heroes';
+import {
+  MasteryView,
+  TagPrompt,
+} from '@/components/plc/teams/data/DataOverviewSections';
+import { ManageTargetsForPlc } from '@/components/plc/teams/data/DataOverviewPage';
+import LatestUpdatesCard from '@/components/plc/teams/updates/LatestUpdatesCard';
+import CalendarCard from '@/components/plc/teams/building/CalendarCard';
+import { isCalendarEmbedUrl } from '@/utils/teamUpdates';
+import { teamPageSection } from '@/components/plc/teams/teamSections';
 import { useTeamShellActions } from '@/components/plc/teams/data/teamShellActions';
 import { useDateFormat } from '@/components/plc/teams/data/format';
 import { useTeamNav } from '@/components/plc/teams/TeamNavContext';
@@ -32,6 +41,7 @@ export const PlcHomePage: React.FC<{
   const { openMyItems } = useTeamShellActions();
   const { notes } = usePlcNotes(plc.id);
   const { links } = usePlcLinks(plc.id);
+  const [targetsOpen, setTargetsOpen] = useState(false);
   const features = getPlcFeatures(plc);
   const hasTargets = features.quizzes || features.videoActivities;
   const enabledPages = new Set(
@@ -113,19 +123,62 @@ export const PlcHomePage: React.FC<{
     });
   }
 
+  const mastery =
+    model.featured && model.mastery ? (
+      <MasteryView
+        layer={model.mastery}
+        isLead={isLead}
+        onManageTargets={() => teamNav.navigate('targets')}
+      />
+    ) : model.featured && isLead ? (
+      <TagPrompt onTag={() => setTargetsOpen(true)} />
+    ) : null;
+
   return (
-    <PlcHomeView
-      model={model}
-      tools={tools}
-      strip={{
-        ...strip,
-        onOpenNote: nav.openNotes,
-        onViewItems: openMyItems ?? nav.openNotes,
-      }}
-      goal={<GoalSection plc={plc} isLead={isLead} />}
-      onOpenDataOverview={() => teamNav.navigate('dataOverview')}
-      onOpenAssessment={nav.openAssessment}
-      onAllAssessments={nav.allAssessments}
-    />
+    <>
+      <PlcHomeView
+        model={model}
+        cards={layout.cards}
+        tools={tools}
+        strip={{
+          ...strip,
+          onOpenNote: nav.openNotes,
+          onViewItems: openMyItems ?? nav.openNotes,
+        }}
+        goal={<GoalSection plc={plc} isLead={isLead} />}
+        mastery={mastery}
+        updates={
+          enabledPages.has('updates') ? (
+            <LatestUpdatesCard
+              plc={plc}
+              isLead={isLead}
+              onNavigate={(id) =>
+                teamNav.navigate(teamPageSection(id, layout.landing, true))
+              }
+            />
+          ) : null
+        }
+        calendar={
+          isCalendarEmbedUrl(plc.calendarEmbedUrl) ? (
+            <CalendarCard plc={plc} isLead={isLead} />
+          ) : null
+        }
+        onOpenDataOverview={
+          enabledPages.has('dataOverview')
+            ? () => teamNav.navigate('dataOverview')
+            : undefined
+        }
+        onOpenAssessment={nav.openAssessment}
+        onAllAssessments={
+          enabledPages.has('assessments') ? nav.allAssessments : undefined
+        }
+      />
+      {targetsOpen && (
+        <ManageTargetsForPlc
+          plcId={plc.id}
+          onClose={() => setTargetsOpen(false)}
+        />
+      )}
+    </>
   );
 };
