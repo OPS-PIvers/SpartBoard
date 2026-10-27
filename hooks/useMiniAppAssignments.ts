@@ -28,6 +28,11 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import {
+  externalClassIds,
+  stageAssignmentClassEdit,
+  type AssignmentClassEdit,
+} from '@/utils/assignmentClassEdit';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import type {
   AssignmentMode,
@@ -78,6 +83,11 @@ export interface CreateMiniAppAssignmentInput {
 }
 
 export interface UseMiniAppAssignmentsResult {
+  /** Retargets an in-progress assignment to new classes on both docs. */
+  setAssignmentClasses: (
+    assignmentId: string,
+    edit: AssignmentClassEdit
+  ) => Promise<void>;
   assignments: MiniAppAssignment[];
   loading: boolean;
   error: string | null;
@@ -371,6 +381,36 @@ export const useMiniAppAssignments = (
     [userId]
   );
 
+  const setAssignmentClasses = useCallback<
+    UseMiniAppAssignmentsResult['setAssignmentClasses']
+  >(
+    async (assignmentId, classEdit) => {
+      if (!userId) throw new Error('Not authenticated');
+      const assignment = assignments.find((a) => a.id === assignmentId);
+      if (!assignment) throw new Error('Assignment not found');
+      const sessionRef = doc(db, SESSIONS_COLLECTION, assignment.sessionId);
+      const session = await getDoc(sessionRef);
+      const batch = writeBatch(db);
+      stageAssignmentClassEdit(batch, {
+        assignmentRef: doc(
+          db,
+          'users',
+          userId,
+          ASSIGNMENTS_COLLECTION,
+          assignmentId
+        ),
+        sessionRef,
+        keepClassIds: externalClassIds(session.data()?.classIds as unknown[]),
+        currentSession: session.data(),
+        edit: classEdit,
+        now: Date.now(),
+        sessionFields: [],
+      });
+      await batch.commit();
+    },
+    [userId, assignments]
+  );
+
   return useSandboxedMiniAppAssignments({
     assignments,
     loading,
@@ -381,5 +421,6 @@ export const useMiniAppAssignments = (
     reactivateAssignment,
     deleteAssignment,
     setTargetSkippedCount,
+    setAssignmentClasses,
   });
 };

@@ -22,6 +22,7 @@ import type {
   QuizSession,
   SharedQuizAssignment,
   QuizData,
+  PeriodAccess,
 } from '@/types';
 
 // `deleteField()` and `serverTimestamp()` return Firestore sentinels; the
@@ -36,6 +37,12 @@ vi.mock('firebase/firestore', () => ({
   deleteField: vi.fn(() => DELETE_FIELD_SENTINEL),
   doc: vi.fn(),
   documentId: vi.fn(() => '__documentId'),
+  FieldPath: class {
+    segments: string[];
+    constructor(...segments: string[]) {
+      this.segments = segments;
+    }
+  },
   getDoc: vi.fn(),
   getDocs: vi.fn(),
   limit: vi.fn(),
@@ -948,6 +955,54 @@ describe('useQuizAssignments - setAssignmentRosters', () => {
       update: batchUpdate,
       commit: batchCommit,
     });
+    mockGetDoc.mockResolvedValue({ data: () => undefined });
+  });
+
+  it('keeps linked Schoology sections, which the class step never lists', async () => {
+    mockGetDoc.mockResolvedValue({
+      data: () => ({
+        classIds: ['cl-A', 'cl-B', 'schoology:ctx-9'],
+        periodNames: ['Period 1', 'Period 2', 'Bio 3'],
+        classPeriodByClassId: {
+          'cl-A': 'Period 1',
+          'cl-B': 'Period 2',
+          'schoology:ctx-9': 'Bio 3',
+        },
+      }),
+    });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.setAssignmentRosters(ASSIGNMENT_ID, {
+        rosterIds: ['r1'],
+        classIds: ['cl-A'],
+        periodNames: ['Period 1'],
+        classPeriodByClassId: { 'cl-A': 'Period 1' },
+      });
+    });
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected batch.update on session doc');
+    expect(sessionCall[1]).toMatchObject({
+      classIds: ['cl-A', 'schoology:ctx-9'],
+      periodNames: ['Period 1', 'Bio 3'],
+      classPeriodByClassId: { 'cl-A': 'Period 1', 'schoology:ctx-9': 'Bio 3' },
+      removedClasses: { classIds: ['cl-B'], periodNames: ['Period 2'] },
+    });
+  });
+
+  it('fails the save when the session cannot be read', async () => {
+    mockGetDoc.mockRejectedValue(new Error('offline'));
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await expect(
+      result.current.setAssignmentRosters(ASSIGNMENT_ID, {
+        rosterIds: ['r1'],
+        classIds: ['cl-A'],
+        periodNames: ['Period 1'],
+        classPeriodByClassId: {},
+      })
+    ).rejects.toThrow('offline');
+    expect(batchCommit).not.toHaveBeenCalled();
   });
 
   it('mirrors targets to BOTH the assignment doc and the session doc so the student class-gate stays in sync', async () => {
@@ -988,6 +1043,38 @@ describe('useQuizAssignments - setAssignmentRosters', () => {
     });
 
     expect(batchCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('writes per-period rows to both docs by field path so keys with dots stay one field', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    const row = { rosterId: 'r1', open: false } as unknown as PeriodAccess;
+    await act(async () => {
+      await result.current.setAssignmentRosters(
+        ASSIGNMENT_ID,
+        {
+          rosterIds: ['r1'],
+          classIds: ['cl.1'],
+          periodNames: ['Period 1'],
+          classPeriodByClassId: { 'cl.1': 'Period 1' },
+        },
+        { 'cl.1': row, 'cl.2': null }
+      );
+    });
+
+    expect(batchUpdate).toHaveBeenCalledTimes(2);
+    for (const call of batchUpdate.mock.calls as unknown[][]) {
+      const pairs = call.slice(1);
+      const pathWrites = pairs.flatMap((field, i) =>
+        i % 2 === 0 && typeof field === 'object' && field !== null
+          ? [[(field as { segments: string[] }).segments, pairs[i + 1]]]
+          : []
+      );
+      expect(pathWrites).toEqual([
+        [['periodAccess', 'cl.1'], row],
+        [['periodAccess', 'cl.2'], DELETE_FIELD_SENTINEL],
+      ]);
+      expect(pairs).toContain('rosterIds');
+    }
   });
 
   it('drops empty-string entries from rosterIds/classIds/periodNames before writing', async () => {

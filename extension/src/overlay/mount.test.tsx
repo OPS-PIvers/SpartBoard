@@ -5,7 +5,7 @@ import {
   OVERLAY_HOST_SELECTOR,
   type OverlayHandle,
 } from './mount';
-import { placeTip } from './OverlayRoot';
+import { aheadState, LOOKING_DELAY_MS, placeTip } from './OverlayRoot';
 import type {} from '../playback/frameScript';
 
 const state = {
@@ -115,6 +115,49 @@ describe('mountOverlay', () => {
 
 describe('web tour states', () => {
   const picture = { mime: 'image/png' as const, data: 'AAAA', w: 10, h: 10 };
+
+  it('shows the next step as soon as this frame finds it, before the worker renders it', () => {
+    captureShadow();
+    handle = mountOverlay(STYLED, vi.fn());
+    const ahead = {
+      token: 'next',
+      title: 'Pick a class',
+      text: 'Pick one.',
+      observe: false,
+    };
+    act(() => handle?.render({ ...state, ahead }));
+    const title = () =>
+      shadow?.querySelector('[data-testid="tour-step-title"]')?.textContent;
+    expect(title()).toBe('Open Grades');
+    expect(aheadState({ ...state, ahead }, 'next')).toMatchObject({
+      title: 'Pick a class',
+      text: 'Pick one.',
+      current: 3,
+    });
+    expect(aheadState({ ...state, ahead }, 't')).not.toHaveProperty('ahead');
+    expect(aheadState({ ...state, ahead }, 't').title).toBe('Open Grades');
+  });
+
+  it('says it is looking only when the next step takes a while to find', () => {
+    vi.useFakeTimers();
+    try {
+      captureShadow();
+      handle = mountOverlay(STYLED, vi.fn());
+      act(() =>
+        handle?.render({ ...state, status: 'seeking', targetHere: false })
+      );
+      const tip = () => shadow?.querySelector('[data-testid="tour-callout"]');
+      expect(tip()?.querySelector('[role="status"]')).toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(LOOKING_DELAY_MS);
+      });
+      expect(tip()?.querySelector('[role="status"]')).not.toBeNull();
+      act(() => handle?.render(state));
+      expect(tip()?.querySelector('[role="status"]')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
   it('shows the picture and a Next button when the target can not be found', () => {
     captureShadow();
@@ -237,7 +280,22 @@ describe('placeTip', () => {
   it('keeps the tip on screen next to a target at the edge', () => {
     const tip = placeTip({ x: 1250, y: 760, width: 30, height: 30 }, view);
     expect(tip.left + tip.width).toBeLessThanOrEqual(view.w - 12);
-    expect(tip.top).toBeLessThan(760);
+    expect(tip.top).toBeUndefined();
+  });
+
+  it('pins a tip above its target by the bottom edge, clear of the target', () => {
+    const tip = placeTip({ x: 20, y: 700, width: 200, height: 40 }, view);
+    expect(tip).toEqual({ left: 12, bottom: 800 - 700 + 24, width: 320 });
+  });
+
+  it('keeps a tall tip on screen when there is no room above the target', () => {
+    const rect = { x: 20, y: 200, width: 200, height: 600 };
+    expect(placeTip(rect, view, 120).bottom).toBe(800 - 200 + 24);
+    expect(placeTip(rect, view, 220)).toEqual({
+      left: 12,
+      top: 12,
+      width: 320,
+    });
   });
 });
 

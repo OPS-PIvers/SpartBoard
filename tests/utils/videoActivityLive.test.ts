@@ -189,6 +189,25 @@ describe('whoHasntAnswered', () => {
     expect(result.notJoined).toEqual(['Ada Lovelace', 'Bo Diddley']);
   });
 
+  it('names a PIN joiner by a replaced PIN', () => {
+    const result = whoHasntAnswered(
+      'q1',
+      [{ pin: '03', studentUid: 'u3', answers: [] }],
+      [
+        { firstName: 'Ada', lastName: 'Lovelace', pin: '01' },
+        {
+          firstName: 'Cy',
+          lastName: 'Young',
+          pin: '482913',
+          formerPins: ['03'],
+        },
+      ],
+      new Map()
+    );
+    expect(result.notAnswered).toEqual(['Cy Young']);
+    expect(result.notJoined).toEqual(['Ada Lovelace']);
+  });
+
   it('lists never-asked questions for live sessions only', () => {
     const live = {
       ...initialVideoActivityLiveState(0),
@@ -250,5 +269,45 @@ describe('whoHasntAnswered', () => {
       { kind: 'classlink', sourcedId: 'sid-bo' },
       { kind: 'classlink', sourcedId: 'sid-di' },
     ]);
+  });
+
+  it('counts a former PIN for the make-up only when nobody holds it now', () => {
+    const linked = {
+      id: 'r1',
+      name: 'Period 1',
+      students: [
+        {
+          id: 'alice',
+          firstName: 'Alice',
+          lastName: 'X',
+          pin: '482913',
+          formerPins: ['03'],
+          classLinkSourcedId: 'sid-alice',
+        },
+        {
+          id: 'bea',
+          firstName: 'Bea',
+          lastName: 'X',
+          pin: '551200',
+          formerPins: ['04'],
+          classLinkSourcedId: 'sid-bea',
+        },
+      ],
+    } as unknown as ClassRoster;
+    const local = {
+      id: 'r2',
+      name: 'Period 2',
+      students: [{ id: 'carl', firstName: 'Carl', lastName: 'X', pin: '03' }],
+    } as unknown as ClassRoster;
+    const refs = makeUpTargetStudents(
+      [linked, local],
+      ['r1', 'r2'],
+      [
+        { studentUid: 'anon-carl', pin: '03', answers: [{ questionId: 'q1' }] },
+        { studentUid: 'anon-bea', pin: '04', answers: [{ questionId: 'q1' }] },
+      ],
+      new Map()
+    );
+    expect(refs).toEqual([{ kind: 'classlink', sourcedId: 'sid-alice' }]);
   });
 });

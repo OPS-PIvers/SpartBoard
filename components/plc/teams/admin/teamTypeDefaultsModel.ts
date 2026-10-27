@@ -12,6 +12,7 @@ import type {
 import {
   BUILT_IN_TEAM_TYPE_PRESETS,
   TEAM_LANDING_CARD_CATALOG,
+  teamTypeHubPage,
 } from '@/config/teamTypePresets';
 import {
   DEFAULT_GOAL_COACH_RUBRIC,
@@ -185,7 +186,7 @@ export function presetFromDraft(
   draft: PresetDraft,
   type: PlcGroupType
 ): TeamTypePreset {
-  const catalog = TEAM_LANDING_CARD_CATALOG[draft.landing] ?? [];
+  const catalog = TEAM_LANDING_CARD_CATALOG[teamTypeHubPage(type)] ?? [];
   const fixed = draft.fixedCards.filter((c) => catalog.includes(c));
   const hero = fixed.filter((c) => c === 'hero');
   const extra = fixed.filter((c) => c !== 'hero');

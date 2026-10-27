@@ -8,6 +8,7 @@ import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { Toggle } from '@/components/common/Toggle';
 import { getFontClass } from '@/utils/styles';
 import { shuffleArray } from '@/utils/randomHelpers';
+import { tourAttr } from '@/config/tourAnchors';
 
 // One font size for a set of card texts, sized so the longest fits its card and short words stay whole.
 const fitFont = (
@@ -198,6 +199,7 @@ export const RevealGridWidget: React.FC<{ widget: WidgetData }> = ({
             {isMemoryMode ? (
               <button
                 onClick={handleStartMemoryGame}
+                {...tourAttr('reveal-grid.start-over', widget.id, widget.type)}
                 className="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold rounded-lg transition-colors"
                 style={{
                   paddingTop: 'min(4px, 1cqmin)',

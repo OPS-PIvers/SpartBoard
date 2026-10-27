@@ -99,6 +99,8 @@ export interface Student {
   lastName: string;
   /** Teacher-distributed join code used for live sessions and quizzes (zero-padded, e.g. "01") */
   pin: string;
+  /** PINs this student used to have, kept so older responses still show their name. Never signs anyone in. */
+  formerPins?: string[];
   /**
    * Stable ClassLink link, stamped when the student is imported or merged from
    * ClassLink. Enables re-sync without duplicating rows even if the student's
@@ -3771,6 +3773,8 @@ export interface MiniAppSession
    * rosters' `classlinkClassId` for the SSO gate. Absent on legacy sessions.
    */
   rosterIds?: string[];
+  /** Classes taken off this assignment; their students' work is hidden until re-added. */
+  removedClasses?: { classIds: string[]; periodNames: string[] };
   /**
    * Whether the sandboxed mini-app iframe should show its Submit button and
    * accept student submissions into the `submissions/` subcollection. Absent
@@ -5447,6 +5451,8 @@ export interface QuizSession
    * enrichment in `QuizResults`.
    */
   classPeriodByClassId?: Record<string, string>;
+  /** Classes taken off this assignment; their students' work is hidden until re-added. */
+  removedClasses?: { classIds: string[]; periodNames: string[] };
 
   /**
    * Max completed submissions allowed per student (mirrored from the
@@ -7582,6 +7588,8 @@ export interface VideoActivitySession
    * derived from these rosters' `classlinkClassId` metadata.
    */
   rosterIds?: string[];
+  /** Classes taken off this assignment; their students' work is hidden until re-added. */
+  removedClasses?: { classIds: string[]; periodNames: string[] };
   /**
    * Optional map of ClassLink `classId` → period name. Lets the SSO join
    * path resolve the joining student's period without prompting them.
@@ -8927,6 +8935,8 @@ export interface GuidedLearningSession
    * derived from these rosters' `classlinkClassId` metadata.
    */
   rosterIds?: string[];
+  /** Classes taken off this assignment; their students' work is hidden until re-added. */
+  removedClasses?: { classIds: string[]; periodNames: string[] };
   /**
    * Frozen at creation from the org-wide `assignment-modes` admin setting.
    * Determines whether students see a tracked Share link (`'view-only'`) or
@@ -10444,8 +10454,6 @@ export type GlobalFeature =
   | 'quiz-import-versions-plain'
   /** Live tours on other websites, played by the Chrome extension (docs/plans/CHROME_EXTENSION.md T12). */
   | 'web-tours'
-  /** Full pages opened from the sidebar close with a top-left back arrow instead of a top-right X. */
-  | 'full-page-back-arrow'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
@@ -10518,6 +10526,8 @@ export type GlobalFeature =
   | 'agenda-versions'
   /** PLC teams open on a Home page; Data overview becomes a regular tab. */
   | 'plc-home-tab'
+  /** Team leads pick any page that is switched on as the team's landing page. */
+  | 'team-landing-any-page'
   /** AI coach that checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22). */
   | 'plc-goal-coach'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
@@ -10532,7 +10542,6 @@ export type GlobalFeature =
   | 'quiz-monitor-declutter'
   /** Same monitor layout across Quiz, Video Activity, Flashcards, Guided Learning and Mini App. */
   | 'monitor-parity'
-  | 'quiz-banks-in-library'
   /** Teachers turn in a quiz for a student who left without submitting. */
   | 'quiz-submit-for-student'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */

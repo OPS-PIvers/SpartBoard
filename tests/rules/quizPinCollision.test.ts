@@ -147,12 +147,12 @@ describe('quiz_sessions/responses — anonymous PIN deterministic-key collision'
     );
   });
 
-  it('different anon B CAN read at a non-colliding deterministic key (no doc) and CAN create their own', async () => {
-    // Same period, different PIN — different deterministic key, no
-    // existing doc. The read returns `resource == null` (allowed) and the
-    // create succeeds (key shape matches the regex, studentUid == auth.uid).
+  it('different anon B is DENIED reading a non-colliding deterministic key (no doc) but CAN create their own', async () => {
+    // Same period, different PIN: no existing doc. The read is denied like a
+    // taken key (no PIN probing); the create succeeds (key shape matches the
+    // regex, studentUid == auth.uid).
     const noConflictPath = `quiz_sessions/${SESSION_ID}/responses/pin-${PERIOD}-02`;
-    await assertSucceeds(getDoc(doc(asAnonB(), noConflictPath)));
+    await assertFails(getDoc(doc(asAnonB(), noConflictPath)));
     await assertSucceeds(
       setDoc(doc(asAnonB(), noConflictPath), {
         ...respDoc(ANON_B_UID),

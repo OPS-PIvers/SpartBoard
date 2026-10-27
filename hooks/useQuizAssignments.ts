@@ -152,11 +152,22 @@ import { freshQuestionIdsByLocale } from '@/utils/quizTranslationIndex';
 import { revealValueFor } from '@/utils/quizFibAlternates';
 import {
   buildScoreOnSubmitKey,
+  mergeScoreOnSubmitKey,
   quizNeedsManualGrading,
   SCORE_ON_SUBMIT_KEY_DOC,
 } from '@/utils/quizScoreOnSubmit';
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
+import { hasEveryCurrentAnswerKey } from '@/utils/quizAssignBankDraw';
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
+import type { PeriodAccessWindowEdits } from '@/utils/assignAvailability';
+import {
+  nextRemovedClasses,
+  withLinkedSections,
+} from '@/utils/sessionClassFilter';
+import {
+  batchUpdateWithPaths,
+  periodAccessWrites,
+} from '@/utils/periodAccessWrites';
 import {
   syncedQuizContentFields,
   type SyncedQuizContentFields,
@@ -328,8 +339,10 @@ export interface AssignmentQuizRef {
 /** Editable settings plus the open/close window the edit modal changes. */
 export type QuizAssignmentSettingsPatch = Partial<QuizAssignmentSettings> &
   Pick<QuizAssignment, 'openAt' | 'closeAt'> & {
-    /** `periodAccess.<key>.openAt|closeAt` dot paths, written to both docs. */
-    periodAccessEdits?: Record<string, number | null>;
+    /** Window changes per `periodAccess` row key, written to both docs. */
+    periodAccessEdits?: PeriodAccessWindowEdits;
+    /** Whole per-period rows by key for a class change; null removes the row. */
+    periodAccessRows?: Record<string, PeriodAccess | null>;
   };
 
 export interface UseQuizAssignmentsResult {
@@ -398,7 +411,11 @@ export interface UseQuizAssignmentsResult {
    */
   setAssignmentRosters: (
     assignmentId: string,
-    targets: SessionTargets
+    targets: SessionTargets,
+    /** Per-period rows for the class change, in the same batch; null removes a row. */
+    periodAccessRows?: Record<string, PeriodAccess | null>,
+    /** Names of the rosters this change takes off, so their PIN work is hidden. */
+    removedRosterNames?: string[]
   ) => Promise<void>;
   /**
    * Persist the Drive export URL onto the assignment doc so re-entering
@@ -2110,10 +2127,10 @@ export const useQuizAssignments = (
       // existing field stays on the doc. Translate explicit-undefined on
       // the `plc` key to `deleteField()` so the doc actually loses PLC
       // mode. (Final-review finding on PR #1442.)
-      const { periodAccessEdits, ...settings } = patch;
+      const { periodAccessEdits, periodAccessRows, ...settings } = patch;
+      const rowWrites = periodAccessWrites(periodAccessRows, periodAccessEdits);
       const assignmentPatch: Record<string, unknown> = {
         ...settings,
-        ...periodAccessEdits,
         updatedAt: now,
       };
       const clearingPlc =
@@ -2136,7 +2153,7 @@ export const useQuizAssignments = (
         QUIZ_ASSIGNMENTS_COLLECTION,
         assignmentId
       );
-      batch.update(assignmentRef, assignmentPatch);
+      batchUpdateWithPaths(batch, assignmentRef, assignmentPatch, rowWrites);
       // Mirror period and session-option changes to the session doc so
       // students can read available periods and updated toggles.
       const sessionPatch: Record<string, unknown> = {};
@@ -2148,7 +2165,6 @@ export const useQuizAssignments = (
       if ('dueAt' in patch) sessionPatch.dueAt = patch.dueAt ?? null;
       if ('openAt' in patch) sessionPatch.openAt = patch.openAt ?? null;
       if ('closeAt' in patch) sessionPatch.closeAt = patch.closeAt ?? null;
-      Object.assign(sessionPatch, periodAccessEdits);
       if (clearingPerClassDue) sessionPatch.dueAtByClassId = deleteField();
       else if (dueAtByClassId) sessionPatch.dueAtByClassId = dueAtByClassId;
       if (patch.sessionOptions) {
@@ -2177,14 +2193,21 @@ export const useQuizAssignments = (
         sessionPatch.syncGroupId = deleteField();
         sessionPatch.plcLinkedAt = deleteField();
       }
-      if (Object.keys(sessionPatch).length > 0) {
-        batch.update(
+      if (Object.keys(sessionPatch).length > 0 || rowWrites.length > 0) {
+        batchUpdateWithPaths(
+          batch,
           doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId),
-          sessionPatch
+          sessionPatch,
+          rowWrites
         );
       }
-      await viewAsDirectSave(assignmentRef, Object.keys(assignmentPatch), () =>
-        batch.commit()
+      await viewAsDirectSave(
+        assignmentRef,
+        [
+          ...Object.keys(assignmentPatch),
+          ...(rowWrites.length > 0 ? ['periodAccess'] : []),
+        ],
+        () => batch.commit()
       );
       // Accommodated and skipped students read the window off their own pointer doc.
       const pointerWindow: {
@@ -2225,18 +2248,33 @@ export const useQuizAssignments = (
   const setAssignmentRosters = useCallback<
     UseQuizAssignmentsResult['setAssignmentRosters']
   >(
-    async (assignmentId, targets) => {
+    async (assignmentId, targets, periodAccessRows, removedRosterNames) => {
       if (!userId) throw new Error('Not authenticated');
       const now = Date.now();
+      const rowWrites = periodAccessWrites(periodAccessRows);
       const cleanedRosterIds = targets.rosterIds.filter(
         (id): id is string => typeof id === 'string' && id.length > 0
       );
-      const cleanedClassIds = targets.classIds.filter(
+      const pickedClassIds = targets.classIds.filter(
         (id): id is string => typeof id === 'string' && id.length > 0
       );
-      const cleanedPeriodNames = targets.periodNames.filter(
+      const pickedPeriodNames = targets.periodNames.filter(
         (n): n is string => typeof n === 'string' && n.length > 0
       );
+      // Fails the save rather than dropping linked sections on a bad read.
+      const currentSession = (
+        await getDoc(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId))
+      ).data() as QuizSession | undefined;
+      const carried = withLinkedSections(currentSession, {
+        classIds: pickedClassIds,
+        periodNames: pickedPeriodNames,
+        classPeriodByClassId: sanitizeClassPeriodByClassId(
+          targets.classPeriodByClassId,
+          pickedClassIds
+        ),
+      });
+      const cleanedClassIds = carried.classIds;
+      const cleanedPeriodNames = carried.periodNames;
 
       const assignmentPatch: Record<string, unknown> = {
         updatedAt: now,
@@ -2259,11 +2297,25 @@ export const useQuizAssignments = (
       // prior map rather than leaving it lingering. Sanitization keeps
       // the keyset in lock-step with `cleanedClassIds` even if the
       // caller's map drifted.
-      const cleanedClassPeriodByClassId = sanitizeClassPeriodByClassId(
-        targets.classPeriodByClassId,
-        cleanedClassIds
+      const cleanedClassPeriodByClassId = carried.classPeriodByClassId;
+      const nextRowKeys = new Set(
+        Object.keys(currentSession?.periodAccess ?? {})
+      );
+      for (const [key, row] of Object.entries(periodAccessRows ?? {})) {
+        if (row) nextRowKeys.add(key);
+        else nextRowKeys.delete(key);
+      }
+      const removedClasses = nextRemovedClasses(
+        currentSession,
+        {
+          classIds: cleanedClassIds,
+          periodNames: cleanedPeriodNames,
+          periodAccessKeys: [...nextRowKeys],
+        },
+        removedRosterNames ?? []
       );
       const sessionPatch: Record<string, unknown> = {
+        removedClasses,
         rosterIds: cleanedRosterIds,
         classIds: cleanedClassIds,
         classId: cleanedClassIds[0] ?? '',
@@ -2279,13 +2331,20 @@ export const useQuizAssignments = (
         QUIZ_ASSIGNMENTS_COLLECTION,
         assignmentId
       );
-      batch.update(assignmentRef, assignmentPatch);
-      batch.update(
+      batchUpdateWithPaths(batch, assignmentRef, assignmentPatch, rowWrites);
+      batchUpdateWithPaths(
+        batch,
         doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId),
-        sessionPatch
+        sessionPatch,
+        rowWrites
       );
-      await viewAsDirectSave(assignmentRef, Object.keys(assignmentPatch), () =>
-        batch.commit()
+      await viewAsDirectSave(
+        assignmentRef,
+        [
+          ...Object.keys(assignmentPatch),
+          ...(rowWrites.length > 0 ? ['periodAccess'] : []),
+        ],
+        () => batch.commit()
       );
     },
     [userId]
@@ -3353,6 +3412,16 @@ export const useQuizAssignments = (
         ...buildResponseGradingContext(quizData, assignmentSnap.data()),
         sections,
       };
+      // A bank-draw key is frozen at assign; refresh the server's copy so it grades like this publish.
+      const serverKey =
+        typeof assignmentSnap.data()?.resolvedDriveFileId === 'string' &&
+        hasEveryCurrentAnswerKey(quizData)
+          ? await getDoc(scoreKeyRef(userId, assignmentId))
+          : null;
+      const refreshedServerKey = serverKey?.exists()
+        ? mergeScoreOnSubmitKey(serverKey.data()?.questions, quizData.questions)
+        : null;
+      const refreshServerKey = refreshedServerKey !== null;
       const answerKey =
         visibility === 'score-responses-and-answers'
           ? buildRevealedAnswers(quizData)
@@ -3452,10 +3521,18 @@ export const useQuizAssignments = (
       // Clears a legacy key; a live-reveal map is moot once results are published.
       sessionPatch.revealedAnswers = deleteField();
       firstBatch.update(sessionRef, sessionPatch);
+      if (refreshServerKey) {
+        firstBatch.set(scoreKeyRef(userId, assignmentId), {
+          questions: refreshedServerKey,
+        });
+      }
 
-      // 2 writes already consumed (assignment + session); fill the rest
+      // Assignment + session (+ key) writes already consumed; fill the rest
       // of the first batch with response updates.
-      const firstChunkSize = Math.min(updates.length, MAX_BATCH_WRITES - 2);
+      const firstChunkSize = Math.min(
+        updates.length,
+        MAX_BATCH_WRITES - (refreshServerKey ? 3 : 2)
+      );
       for (let i = 0; i < firstChunkSize; i++) {
         firstBatch.update(updates[i].ref, updates[i].patch);
       }

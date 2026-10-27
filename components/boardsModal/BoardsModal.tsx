@@ -1,6 +1,6 @@
 import { tourAttr } from '@/config/tourAnchors';
 import React, { useEffect, useState, useCallback } from 'react';
-import { ArrowLeft, X } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { DndContext, DragOverlay } from '@dnd-kit/core';
@@ -63,7 +63,6 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   const confirmLinkedCollectionMove = useConfirmLinkedCollectionMove();
   const { isAdmin, canAccessFeature } = useAuth();
   const canShare = canAccessFeature('dashboard-sharing');
-  const backArrow = canAccessFeature('full-page-back-arrow');
   const collectionSync = canAccessFeature('collection-sync-sharing');
   const {
     dashboards,
@@ -578,37 +577,23 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       aria-labelledby="boards-modal-title"
     >
       <div className="bg-white w-full h-full overflow-hidden flex flex-col">
-        <div
-          className={`bg-gradient-to-r from-brand-blue-primary to-brand-blue-dark text-white h-14 md:h-16 px-4 flex items-center shadow-sm shrink-0 ${backArrow ? 'gap-2' : 'justify-between'}`}
-        >
-          {backArrow && (
-            <button
-              onClick={onClose}
-              aria-label={t('boardsModal.backToBoard', {
-                defaultValue: 'Back to board',
-              })}
-              title={t('boardsModal.backToBoard', {
-                defaultValue: 'Back to board',
-              })}
-              {...tourAttr('boards-modal.close')}
-              className="relative touch-target-expand p-2 -ml-2 hover:bg-white/20 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" aria-hidden />
-            </button>
-          )}
+        <div className="bg-gradient-to-r from-brand-blue-primary to-brand-blue-dark text-white h-14 md:h-16 px-4 flex items-center shadow-sm shrink-0 gap-2">
+          <button
+            onClick={onClose}
+            aria-label={t('boardsModal.backToBoard', {
+              defaultValue: 'Back to board',
+            })}
+            title={t('boardsModal.backToBoard', {
+              defaultValue: 'Back to board',
+            })}
+            {...tourAttr('boards-modal.close')}
+            className="relative touch-target-expand p-2 -ml-2 hover:bg-white/20 rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" aria-hidden />
+          </button>
           <h2 id="boards-modal-title" className="text-lg font-bold">
             {t('boardsModal.title', { defaultValue: 'Boards & Collections' })}
           </h2>
-          {!backArrow && (
-            <button
-              onClick={onClose}
-              aria-label={t('boardsModal.close', { defaultValue: 'Close' })}
-              {...tourAttr('boards-modal.close')}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          )}
         </div>
 
         <BoardsModalHeader

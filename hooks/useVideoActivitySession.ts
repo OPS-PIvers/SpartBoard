@@ -33,11 +33,17 @@ import {
   orderBy,
   writeBatch,
   type DocumentReference,
+  type DocumentSnapshot,
 } from 'firebase/firestore';
 import { signInWithCustomToken } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import { db, auth, functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';
+import {
+  sessionClassPredicate,
+  targetingKey,
+  targetsFromKey,
+} from '@/utils/sessionClassFilter';
 import { dropPinLoginFromOtherSession } from '@/utils/pinLoginScope';
 import { tabAwaySessionFields } from '@/utils/tabAwayLimit';
 import { AuthContext } from '@/context/AuthContextValue';
@@ -608,6 +614,17 @@ export const useVideoActivitySessionTeacher =
       };
     }, []);
 
+    // A class removed from the assignment drops out of every teacher view; its docs stay.
+    const classTargets = targetingKey(liveSession);
+    const keepClass = useMemo(
+      () => sessionClassPredicate(targetsFromKey(classTargets)),
+      [classTargets]
+    );
+    const visibleResponses = useMemo(() => {
+      const kept = responses.filter(keepClass);
+      return kept.length === responses.length ? responses : kept;
+    }, [responses, keepClass]);
+
     return useSandboxedVideoActivitySession({
       createSession,
       sessions,
@@ -616,7 +633,7 @@ export const useVideoActivitySessionTeacher =
       unsubscribeFromActivitySessions,
       renameSession,
       endSession,
-      responses,
+      responses: visibleResponses,
       liveSession,
       subscribeToSession,
       unsubscribeFromSession,
@@ -1120,10 +1137,20 @@ export const useVideoActivitySessionStudent =
             responseDocKey
           );
           let effectiveResponseRef = responseRef;
-          let existingSnap = await getDoc(responseRef);
+          // Rules deny an anonymous read of a missing or someone else's PIN key alike; both mean "not ours".
+          let existingSnap: DocumentSnapshot | null = await getDoc(
+            responseRef
+          ).catch((err: unknown) => {
+            if (
+              !isAnonymous ||
+              (err as { code?: string }).code !== 'permission-denied'
+            )
+              throw err;
+            return null;
+          });
 
           if (
-            !existingSnap.exists() &&
+            !existingSnap?.exists() &&
             isAnonymous &&
             responseDocKey !== currentUser.uid
           ) {
@@ -1142,7 +1169,7 @@ export const useVideoActivitySessionStudent =
           }
 
           if (liveEnded) {
-            if (!existingSnap.exists()) {
+            if (!existingSnap?.exists()) {
               setJoinStatus('error');
               setError(closedMessage);
               return;
@@ -1162,7 +1189,7 @@ export const useVideoActivitySessionStudent =
           let periodKey: string | null = null;
           let keys: string[] = [];
           if (hasPeriodAccess(sessionData)) {
-            const existingClassId = existingSnap.exists()
+            const existingClassId = existingSnap?.exists()
               ? (existingSnap.data() as VideoActivityResponse).classId
               : undefined;
             if (
@@ -1229,7 +1256,7 @@ export const useVideoActivitySessionStudent =
 
           const limit = sessionData.sessionOptions?.attemptLimit ?? null;
 
-          if (existingSnap.exists()) {
+          if (existingSnap?.exists()) {
             const existing = existingSnap.data() as VideoActivityResponse;
             // Attempt-limit enforcement on rejoin.
             //   - `attemptLimit == null/undefined` means unlimited.
@@ -1340,7 +1367,7 @@ export const useVideoActivitySessionStudent =
             else await setDoc(effectiveResponseRef, newResponse);
           }
 
-          if (periodKey && existingSnap.exists()) {
+          if (periodKey && existingSnap?.exists()) {
             await setDoc(seatRef(targetSessionId, currentUser.uid), {
               responseKey: effectiveResponseRef.id,
             }).catch((err: unknown) =>

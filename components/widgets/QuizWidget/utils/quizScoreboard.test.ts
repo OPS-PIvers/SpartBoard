@@ -115,7 +115,12 @@ function makeSession(overrides: Partial<QuizSession> = {}): QuizSession {
 
 function makeRoster(
   name: string,
-  students: { firstName: string; lastName: string; pin: string }[]
+  students: {
+    firstName: string;
+    lastName: string;
+    pin: string;
+    formerPins?: string[];
+  }[]
 ): ClassRoster {
   return {
     id: `roster-${name}`,
@@ -679,6 +684,27 @@ describe('quizScoreboard', () => {
       expect(resolvePinName(map, 'Period 1', '1')).toBe('Alice Smith');
       expect(resolvePinName(map, 'Period 1', '02')).toBe('Bob Jones');
       expect(resolvePinName(map, 'Period 1', '2')).toBe('Bob Jones');
+    });
+
+    it('still names a student by a replaced PIN, but a current PIN wins', () => {
+      const rosters = [
+        makeRoster('Period 1', [
+          {
+            firstName: 'Alice',
+            lastName: 'Smith',
+            pin: '482913',
+            formerPins: ['01', '03'],
+          },
+          { firstName: 'Bob', lastName: 'Jones', pin: '03' },
+        ]),
+      ];
+      const map = buildPinToNameMap(rosters, ['Period 1']);
+      expect(resolvePinName(map, 'Period 1', '482913')).toBe('Alice Smith');
+      expect(resolvePinName(map, 'Period 1', '01')).toBe('Alice Smith');
+      expect(resolvePinName(map, 'Period 1', '1')).toBe('Alice Smith');
+      expect(resolvePinName(map, 'Period 1', '03')).toBe('Bob Jones');
+      const exportMap = buildPinToExportNameMap(rosters, ['Period 1']);
+      expect(resolvePinName(exportMap, 'Period 1', '01')).toBe('Smith, Alice');
     });
 
     it('returns empty map when no matching roster is found', () => {

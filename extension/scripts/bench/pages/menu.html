@@ -1,0 +1,32 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Unit plan - Docs</title><link rel="stylesheet" href="/common.css">
+<style>.bar{display:flex;gap:2px;padding:4px 12px;background:#fff;border-bottom:1px solid #e2e8f0;position:sticky;top:0;z-index:10}.bar>div{position:relative}.bar [role=menubar] button,.bar>div>button{border:0}#doc{max-width:800px;margin:16px auto;background:#fff;padding:48px;min-height:100vh}#caret{display:inline-block;width:1px;height:16px;background:#000}</style></head>
+<body>
+<div class="bar" role="menubar">
+  <div><button id="m-file">File</button></div><div><button id="m-edit">Edit</button></div><div><button id="m-view">View</button></div>
+  <div><button id="m-insert">Insert</button>
+    <div class="menu" role="menu" hidden style="top:32px;left:0">
+      <button role="menuitem">Image</button><button role="menuitem" id="tbl">Table</button><button role="menuitem">Drawing</button><button role="menuitem">Chart</button><button role="menuitem">Horizontal line</button><button role="menuitem">Emoji</button><button role="menuitem">Footnote</button><button role="menuitem">Special characters</button>
+      <div id="sizes" class="menu" role="menu" hidden style="top:30px;left:178px"><button role="menuitem">2 x 2</button><button role="menuitem">3 x 3</button><button role="menuitem">4 x 4</button></div>
+    </div></div>
+  <div><button id="m-format">Format</button>
+    <div class="menu" role="menu" hidden style="top:32px;left:0">
+      <button role="menuitem">Text</button><button role="menuitem" id="ps">Paragraph styles</button><button role="menuitem">Align &amp; indent</button><button role="menuitem">Line spacing</button><button role="menuitem">Columns</button>
+      <div id="styles" class="menu" role="menu" hidden style="top:30px;left:178px"><button role="menuitem">Normal text</button><button role="menuitem">Title</button><button role="menuitem">Heading 1</button><button role="menuitem">Heading 2</button></div>
+    </div></div>
+  <div><button id="m-tools">Tools</button></div>
+  <button id="share" style="margin-left:auto;background:#1d4ed8;color:#fff;border-radius:16px">Share</button>
+</div>
+<div id="doc" contenteditable="true"></div>
+<script>
+const doc = document.getElementById('doc');
+doc.innerHTML = Array.from({ length: 1500 }, (_, i) => `<p>Paragraph ${i + 1}: students will <b>investigate</b> how <i>cells</i> move materials across the membrane.</p>`).join('');
+doc.firstElementChild.insertAdjacentHTML('beforeend', '<span id="caret"></span>');
+setInterval(() => { const c = document.getElementById('caret'); c.style.visibility = c.style.visibility === 'hidden' ? 'visible' : 'hidden'; }, 500);
+const close = () => document.querySelectorAll('.bar .menu').forEach((m) => (m.hidden = true));
+for (const id of ['m-insert', 'm-format']) {
+  document.getElementById(id).addEventListener('mousedown', (e) => { const m = e.currentTarget.nextElementSibling; const was = m.hidden; close(); m.hidden = !was; e.preventDefault(); });
+}
+document.getElementById('tbl').addEventListener('click', () => (document.getElementById('sizes').hidden = false));
+document.getElementById('ps').addEventListener('click', () => (document.getElementById('styles').hidden = false));
+document.querySelector('.bar').addEventListener('click', (e) => { const it = e.target.closest('[role=menuitem]'); if (it && !['tbl', 'ps'].includes(it.id)) close(); });
+</script></body></html>

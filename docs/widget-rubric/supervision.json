@@ -1,5 +1,5 @@
 {
-  "resetAt": "2026-10-20T02:45:06.792Z",
+  "resetAt": "2026-10-26T13:21:10.395Z",
   "loops": [
     {
       "pr": 3874,
@@ -294,7 +294,7 @@
       "widgetType": "graphic-organizer",
       "dimension": "layout",
       "openedAt": "2026-10-24T04:16:30Z",
-      "outcome": "open",
+      "outcome": "accepted",
       "changes": {
         "S1": {
           "before": 1,

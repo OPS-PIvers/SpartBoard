@@ -119,6 +119,12 @@ function parseRawStudent(raw: unknown): Student | null {
     lastName: s.lastName,
     pin: typeof s.pin === 'string' ? s.pin : '',
   };
+  if (Array.isArray(s.formerPins)) {
+    const pins = s.formerPins.filter(
+      (pin): pin is string => typeof pin === 'string' && pin !== ''
+    );
+    if (pins.length > 0) base.formerPins = pins;
+  }
   if (typeof s.classLinkSourcedId === 'string') {
     base.classLinkSourcedId = s.classLinkSourcedId;
   }
@@ -631,6 +637,7 @@ export const useRosters = (user: User | null) => {
   const metaListRef = useRef<ClassRosterMeta[]>([]);
   // Tracks the last-seen driveFileId per roster to detect changes for cache busting
   const prevDriveFileIdRef = useRef<Map<string, string | null>>(new Map());
+  const prevSyncedAtRef = useRef<Map<string, number | undefined>>(new Map());
 
   // ─── Helper: upload the roster file envelope to Drive and return the file ID ──
   // Always writes the v2 envelope, even when read in from a legacy v1 file
@@ -691,7 +698,10 @@ export const useRosters = (user: User | null) => {
           `Drive roster file ${driveFileId} is not an array of students`
         );
       }
-      return { ...content, students: assignPins(content.students) };
+      return {
+        ...content,
+        students: assignPins(content.students, { randomForLinked: false }),
+      };
     },
     [driveService]
   );
@@ -884,14 +894,21 @@ export const useRosters = (user: User | null) => {
       metaListRef.current = metaList;
 
       // Invalidate cache for any roster whose driveFileId changed (including
-      // null→id, id→null, or id→different-id scenarios)
+      // null→id, id→null, or id→different-id scenarios), or that the nightly
+      // ClassLink sync rewrote in place, so a long-open tab can't save stale PINs.
       for (const meta of metaList) {
         const cached = studentsCacheRef.current.get(meta.id);
         const prevFileId = prevDriveFileIdRef.current.get(meta.id) ?? null;
-        if (cached && meta.driveFileId !== prevFileId) {
+        const prevSyncedAt = prevSyncedAtRef.current.get(meta.id);
+        if (
+          cached &&
+          (meta.driveFileId !== prevFileId ||
+            meta.classlinkSyncedAt !== prevSyncedAt)
+        ) {
           studentsCacheRef.current.delete(meta.id);
         }
         prevDriveFileIdRef.current.set(meta.id, meta.driveFileId);
+        prevSyncedAtRef.current.set(meta.id, meta.classlinkSyncedAt);
       }
 
       // Run migration first, then build rosters. Sequencing avoids a race

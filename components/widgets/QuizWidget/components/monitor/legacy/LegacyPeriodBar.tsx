@@ -120,6 +120,7 @@ const PeriodOthers: React.FC<
       style={{ columnGap: 'min(12px, 3cqmin)', rowGap: 'min(2px, 0.5cqmin)' }}
     >
       {rows.map((r) => (
+        // no-tour-anchor: legacy monitor, deleted when quiz-monitor-declutter retires; the current monitor carries this anchor
         <button
           key={r.key}
           onClick={() => onSelect(r.key)}
@@ -161,6 +162,7 @@ const PeriodAction: React.FC<
     onClick: () => void,
     primary: boolean
   ) => (
+    // no-tour-anchor: legacy monitor, deleted when quiz-monitor-declutter retires; the current monitor carries this anchor
     <button
       key={label}
       onClick={onClick}
@@ -212,6 +214,7 @@ const PeriodAction: React.FC<
       style={{ gap: 'min(6px, 1.5cqmin)' }}
     >
       {live && (
+        // no-tour-anchor: legacy monitor, deleted when quiz-monitor-declutter retires; the current monitor carries this anchor
         <button
           onClick={() => setMenuOpen((v) => !v)}
           aria-label={`More time for ${current.access.label}`}
@@ -253,6 +256,7 @@ const PeriodAction: React.FC<
             { label: `+${Math.round(extendMs / 60000)} min`, by: extendMs },
             { label: 'Until I pause', by: null },
           ].map((item) => (
+            // no-tour-anchor: legacy monitor, deleted when quiz-monitor-declutter retires; the current monitor carries this anchor
             <button
               key={item.label}
               onClick={() => {

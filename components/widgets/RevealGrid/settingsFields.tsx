@@ -368,6 +368,7 @@ export const RevealGridCardsField: React.FC<{
           )}
         >
           <Upload className="h-4 w-4" /> {t('uploadCsv')}
+          {/* no-tour-anchor: hidden file input; the Upload CSV label carries the anchor */}
           <input
             type="file"
             accept=".csv"
@@ -404,6 +405,11 @@ export const RevealGridCardsField: React.FC<{
             placeholder={t('pastePlaceholder')}
             rows={4}
             className="w-full rounded border border-blue-200 p-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+            {...tourAttr(
+              'widget-settings.reveal-grid.paste-data',
+              ctx.widget.id,
+              ctx.widget.type
+            )}
           />
           <button
             type="button"

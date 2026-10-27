@@ -14,6 +14,7 @@ import {
   type SessionInput,
 } from './plcAssessmentMath';
 import { withQuizSessionContent } from './quizSessionContent';
+import { sessionClassPredicate } from './sessionClassFilter';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -217,6 +218,7 @@ export async function recomputeOnePlcAssessment(
     ]);
     const assignmentData: Record<string, unknown> | undefined =
       assignmentSnap?.data();
+    const keepClass = sessionClassPredicate(s);
     const questionSnapshot = assignmentData?.questionSnapshot;
     sessions.push({
       id: sessionDoc.id,
@@ -226,9 +228,10 @@ export async function recomputeOnePlcAssessment(
         ? s.publicQuestions
         : [],
       questionSnapshot: Array.isArray(questionSnapshot) ? questionSnapshot : [],
-      responses: responsesSnap.docs.map((d) =>
-        parseCompletedResponse(d.data())
-      ),
+      // A class the teacher removed from the quiz leaves the team totals; its responses stay.
+      responses: responsesSnap.docs
+        .filter((d) => keepClass(d.data()))
+        .map((d) => parseCompletedResponse(d.data())),
       scorePublishedAt:
         typeof s.scorePublishedAt === 'number' ? s.scorePublishedAt : null,
       localizedFibAnswers: parseLocalizedFibAnswers(

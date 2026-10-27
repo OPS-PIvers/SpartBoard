@@ -53,6 +53,7 @@ import {
   resolveQuizAssignment,
   sampleQuizDraw,
 } from '@/utils/questionBanks';
+import { withCurrentAnswerKeys } from '@/utils/quizAssignBankDraw';
 import {
   reconcileBankSlotsForPlcShare,
   unsharedBanksMessage,
@@ -479,6 +480,7 @@ const TeacherQuizWidget: React.FC<{
   });
   const {
     sources: bankSources,
+    loading: bankSourcesLoading,
     loadBankContent,
     loadBankContentsForQuiz,
   } = useBankSources(user?.uid);
@@ -836,11 +838,15 @@ const TeacherQuizWidget: React.FC<{
   );
 
   const loadQuiz = useCallback(
-    async (meta: QuizMetadata): Promise<QuizData | null> => {
+    async (
+      meta: QuizMetadata,
+      refine?: (data: QuizData) => Promise<QuizData>
+    ): Promise<QuizData | null> => {
       setLoadingQuizData(true);
       setDataError(null);
       try {
-        const data = await loadQuizData(meta.driveFileId);
+        const loaded = await loadQuizData(meta.driveFileId);
+        const data = refine ? await refine(loaded) : loaded;
         setLoadedQuizData(data);
         return data;
       } catch (err) {
@@ -888,16 +894,22 @@ const TeacherQuizWidget: React.FC<{
     [loadBankContentsForQuiz, addToast]
   );
 
-  // Bank-draw assignments grade against their frozen Drive copy, not the library quiz.
-  const answerKeyMeta = useCallback(
+  // Bank-draw assignments grade against their frozen Drive copy, under today's answer keys.
+  const loadAnswerKeyQuiz = useCallback(
     (
       meta: QuizMetadata,
       assignment: Pick<QuizAssignment, 'resolvedDriveFileId'> | undefined
-    ): QuizMetadata =>
-      assignment?.resolvedDriveFileId
-        ? { ...meta, driveFileId: assignment.resolvedDriveFileId }
-        : meta,
-    []
+    ): Promise<QuizData | null> => {
+      const frozenId = assignment?.resolvedDriveFileId;
+      if (!frozenId || frozenId === meta.driveFileId) return loadQuiz(meta);
+      return loadQuiz({ ...meta, driveFileId: frozenId }, (frozen) =>
+        withCurrentAnswerKeys(frozen, meta.driveFileId, {
+          loadQuizData,
+          loadBankContentsForQuiz,
+        })
+      );
+    },
+    [loadQuiz, loadQuizData, loadBankContentsForQuiz]
   );
 
   // Quiet fetch for the assign modal's lazy question load — must not touch
@@ -932,11 +944,9 @@ const TeacherQuizWidget: React.FC<{
       resolvedDriveFileId,
     }) => {
       void (async () => {
-        const data = await loadQuiz(
-          answerKeyMeta(
-            meta,
-            resolvedDriveFileId ? { resolvedDriveFileId } : undefined
-          )
+        const data = await loadAnswerKeyQuiz(
+          meta,
+          resolvedDriveFileId ? { resolvedDriveFileId } : undefined
         );
         if (!data) return;
         const nextMap = { ...(config.lastRosterIdsByQuizId ?? {}) };
@@ -1251,7 +1261,7 @@ const TeacherQuizWidget: React.FC<{
     if (meta && live.length === 1) {
       const a = live[0];
       // eslint-disable-next-line react-hooks/set-state-in-effect -- loads the quiz the PLC page asked to monitor
-      void loadQuiz(answerKeyMeta(meta, a)).then((data) => {
+      void loadAnswerKeyQuiz(meta, a).then((data) => {
         if (!data) return;
         updateWidget(widget.id, {
           config: {
@@ -1289,8 +1299,7 @@ const TeacherQuizWidget: React.FC<{
     clearPendingQuizReveal,
     quizzes,
     kindAssignments,
-    loadQuiz,
-    answerKeyMeta,
+    loadAnswerKeyQuiz,
     updateWidget,
     config,
   ]);
@@ -1307,14 +1316,14 @@ const TeacherQuizWidget: React.FC<{
     ) {
       // Prioritize the quiz from the live session document itself
       const meta = quizzes.find((q) => q.id === liveSession.quizId);
+      const assignment = assignments.find(
+        (a) => a.id === liveSession.assignmentId
+      );
+      // A bank draw needs the bank list to apply today's answer keys.
+      if (meta && assignment?.resolvedDriveFileId && bankSourcesLoading) return;
       if (meta) {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- loads the live session's quiz from Drive
-        void loadQuiz(
-          answerKeyMeta(
-            meta,
-            assignments.find((a) => a.id === liveSession.assignmentId)
-          )
-        );
+        void loadAnswerKeyQuiz(meta, assignment);
       } else if (quizzesLoading === false) {
         // If the session exists but the quiz is not in our library (deleted),
         // we should auto-end the session to avoid being stuck.
@@ -1329,8 +1338,8 @@ const TeacherQuizWidget: React.FC<{
     loadingQuizData,
     quizzes,
     assignments,
-    answerKeyMeta,
-    loadQuiz,
+    bankSourcesLoading,
+    loadAnswerKeyQuiz,
     quizzesLoading,
     endQuizSession,
     setView,
@@ -3194,7 +3203,7 @@ const TeacherQuizWidget: React.FC<{
             );
             return;
           }
-          const data = await loadQuiz(answerKeyMeta(meta, a));
+          const data = await loadAnswerKeyQuiz(meta, a);
           if (!data) return;
           updateWidget(widget.id, {
             config: {
@@ -3232,7 +3241,7 @@ const TeacherQuizWidget: React.FC<{
             );
             return;
           }
-          const data = await loadQuiz(answerKeyMeta(meta, a));
+          const data = await loadAnswerKeyQuiz(meta, a);
           if (!data) return;
           try {
             await resumeAssignment(a.id);
@@ -3268,7 +3277,7 @@ const TeacherQuizWidget: React.FC<{
             );
             return;
           }
-          const data = await loadQuiz(answerKeyMeta(meta, a));
+          const data = await loadAnswerKeyQuiz(meta, a);
           if (!data) return;
           updateWidget(widget.id, {
             config: {
@@ -3649,6 +3658,7 @@ const TeacherQuizWidget: React.FC<{
                 rosterIds,
                 periodName: _periodName,
                 periodNames: _periodNames,
+                periodAccessRows,
                 ...settingsPatch
               } = patch;
               // These are two separate writeBatch.commit()s, not one
@@ -3679,7 +3689,20 @@ const TeacherQuizWidget: React.FC<{
                 const targets = deriveSessionTargetsFromRosters(
                   rosters.filter((r) => selectedRosterIds.has(r.id))
                 );
-                await setAssignmentRosters(editingAssignment.id, targets);
+                // Per-period rows ride the targeting batch so a class and its row move together.
+                const removedRosterNames = rosters
+                  .filter(
+                    (r) =>
+                      (editingAssignment.rosterIds ?? []).includes(r.id) &&
+                      !selectedRosterIds.has(r.id)
+                  )
+                  .map((r) => r.name);
+                await setAssignmentRosters(
+                  editingAssignment.id,
+                  targets,
+                  periodAccessRows,
+                  removedRosterNames
+                );
               }
               addToast('Assignment settings saved.', 'success');
               setEditingAssignment(null);
@@ -3763,7 +3786,7 @@ const TeacherQuizWidget: React.FC<{
                 );
                 return;
               }
-              const data = await loadQuiz(answerKeyMeta(meta, target));
+              const data = await loadAnswerKeyQuiz(meta, target);
               if (!data) return;
               const result = await publishAssignmentScores(
                 target.id,

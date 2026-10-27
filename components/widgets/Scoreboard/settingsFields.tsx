@@ -339,6 +339,7 @@ export const ScoreboardSettings: React.FC<{
               widget.type
             )}
           >
+            {/* no-tour-anchor: radio inside the layout choice, which carries the anchor */}
             <button
               type="button"
               role="radio"
@@ -353,6 +354,7 @@ export const ScoreboardSettings: React.FC<{
               <LayoutGrid className="w-3.5 h-3.5" />
               {t('widgetSettings.scoreboard.cards')}
             </button>
+            {/* no-tour-anchor: radio inside the layout choice, which carries the anchor */}
             <button
               type="button"
               role="radio"
@@ -473,12 +475,22 @@ export const ScoreboardSettings: React.FC<{
               <button
                 onClick={handleReset}
                 className="text-xxs font-bold text-white bg-red-500 hover:bg-red-600 px-2 py-0.5 rounded transition-colors"
+                {...tourAttr(
+                  'widget-settings.scoreboard.confirm-reset',
+                  widget.id,
+                  widget.type
+                )}
               >
                 {t('widgetSettings.scoreboard.yes')}
               </button>
               <button
                 onClick={() => setShowResetConfirm(false)}
                 className="text-xxs font-bold text-slate-500 hover:text-slate-700 px-1"
+                {...tourAttr(
+                  'widget-settings.scoreboard.cancel-reset',
+                  widget.id,
+                  widget.type
+                )}
               >
                 {t('widgetSettings.scoreboard.no')}
               </button>

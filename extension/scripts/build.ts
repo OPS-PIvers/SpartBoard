@@ -1,5 +1,4 @@
 // Builds both listings (D5) into dist/<listing>/, each a loadable unpacked extension; --zip also packs them.
-import { execFileSync } from 'node:child_process';
 import {
   copyFileSync,
   mkdirSync,
@@ -10,6 +9,7 @@ import {
 } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import JSZip from 'jszip';
 import { build, type InlineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from 'tailwindcss';
@@ -45,10 +45,18 @@ const ENTRIES: { entry: string; fileName: string; format: 'es' | 'iife' }[] = [
   },
 ];
 
+// `--bench` builds the dev listing with perf marks on, plus the clue capturer the harness injects.
+const BENCH_ENTRY: (typeof ENTRIES)[number] = {
+  entry: 'src/benchCapture.ts',
+  fileName: 'bench-capture.js',
+  format: 'iife',
+};
+
 const configFor = (
   listing: ListingId,
   outDir: string,
-  { entry, fileName, format }: (typeof ENTRIES)[number]
+  { entry, fileName, format }: (typeof ENTRIES)[number],
+  bench = false
 ): InlineConfig => ({
   configFile: false,
   root: extDir,
@@ -59,6 +67,7 @@ const configFor = (
   define: {
     __SPART_ORIGINS__: JSON.stringify(LISTINGS[listing].origins),
     __SPART_FUNCTIONS__: JSON.stringify(LISTINGS[listing].functionsBase),
+    __SPART_BENCH__: JSON.stringify(bench),
     'process.env.NODE_ENV': JSON.stringify('production'),
   },
   css: {
@@ -73,7 +82,7 @@ const configFor = (
     outDir,
     emptyOutDir: false,
     target: 'chrome116',
-    minify: true,
+    minify: !bench,
     sourcemap: false,
     lib: {
       entry: path.join(extDir, entry),
@@ -84,11 +93,12 @@ const configFor = (
   },
 });
 
-async function buildListing(listing: ListingId, zip: boolean) {
-  const outDir = path.join(extDir, 'dist', listing);
+async function buildListing(listing: ListingId, zip: boolean, bench = false) {
+  const outDir = path.join(extDir, 'dist', bench ? 'bench' : listing);
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
-  for (const entry of ENTRIES) await build(configFor(listing, outDir, entry));
+  for (const entry of bench ? [...ENTRIES, BENCH_ENTRY] : ENTRIES)
+    await build(configFor(listing, outDir, entry, bench));
   const base = JSON.parse(
     readFileSync(path.join(extDir, 'manifest.json'), 'utf8')
   ) as Manifest;
@@ -116,8 +126,26 @@ async function buildListing(listing: ListingId, zip: boolean) {
       'dist',
       `spartboard-extension-${listing}-${base.version}.zip`
     );
-    rmSync(zipPath, { force: true });
-    execFileSync('zip', ['-qr', zipPath, '.'], { cwd: outDir });
+    // JSZip rather than the `zip` CLI, which Windows lacks; entry names use forward slashes.
+    const archive = new JSZip();
+    for (const file of readdirSync(outDir, {
+      recursive: true,
+      withFileTypes: true,
+    }))
+      if (file.isFile()) {
+        const full = path.join(file.parentPath, file.name);
+        archive.file(
+          path.relative(outDir, full).split(path.sep).join('/'),
+          readFileSync(full)
+        );
+      }
+    writeFileSync(
+      zipPath,
+      await archive.generateAsync({
+        type: 'nodebuffer',
+        compression: 'DEFLATE',
+      })
+    );
     console.log(`Packed ${path.relative(repoRoot, zipPath)}`);
   }
   console.log(
@@ -126,6 +154,10 @@ async function buildListing(listing: ListingId, zip: boolean) {
 }
 
 const zip = process.argv.includes('--zip');
-for (const listing of Object.keys(LISTINGS) as ListingId[]) {
-  await buildListing(listing, zip);
+if (process.argv.includes('--bench')) {
+  await buildListing('dev', false, true);
+} else {
+  for (const listing of Object.keys(LISTINGS) as ListingId[]) {
+    await buildListing(listing, zip);
+  }
 }

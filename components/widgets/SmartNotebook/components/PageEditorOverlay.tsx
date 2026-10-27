@@ -1431,6 +1431,7 @@ const BackgroundPicker: React.FC<{
           )}
           {mode === 'image' && (
             <div className="flex flex-col items-center">
+              {/* no-tour-anchor: hidden file input; the background image button opens it */}
               <input
                 ref={fileInputRef}
                 type="file"

@@ -26,12 +26,7 @@ export function assertPlcMember(
   }
 }
 
-/**
- * Throws `permission-denied` unless the caller may write PLC content. Mirrors
- * `plcCanEditContent` in firestore.rules: a keyed member whose role is not
- * `viewer` (and not removed), or any uid in `memberUids` on a member-map-less
- * legacy PLC.
- */
+/** Throws unless the caller may write PLC content; mirrors `plcCanEditContent` (in memberUids, not a viewer). */
 export function assertPlcContentEditor(
   plcData: Record<string, unknown> | undefined,
   uid: string
@@ -39,10 +34,7 @@ export function assertPlcContentEditor(
   assertPlcMember(plcData, uid);
   const members = plcData?.members;
   const entry = isRecord(members) ? members[uid] : undefined;
-  if (
-    isRecord(entry) &&
-    (entry.role === 'viewer' || entry.status === 'removed')
-  ) {
+  if (isRecord(entry) && entry.role === 'viewer') {
     throw new HttpsError(
       'permission-denied',
       'Viewers cannot edit shared PLC content.'

@@ -24,7 +24,13 @@
  *      to Classroom (a DRAFT grade; the final "Return" stays in Classroom — an
  *      add-on cannot publish final grades).
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useState,
+} from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import {
   AlertTriangle,
@@ -40,6 +46,9 @@ import { useFinalScoreOverlay } from '@/hooks/gradebook/useFinalScoreOverlay';
 import { applyFinalScoresToEntries } from '@/utils/gradebook/finalScoreOverlay';
 import { quizLiveRaw } from '@/utils/gradebook/liveRawScores';
 import { useQuiz } from '@/hooks/useQuiz';
+import { useQuestionBanks } from '@/hooks/useQuestionBanks';
+import { loadBankContentsFor } from '@/hooks/useBankSources';
+import { withCurrentAnswerKeys } from '@/utils/quizAssignBankDraw';
 import {
   useQuizAssignments,
   countPendingPaperTranscripts,
@@ -174,9 +183,16 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     updateAccountPreferences,
   } = useAuth();
   const { quizzes, loadQuizData, loading: quizzesLoading } = useQuiz(user?.uid);
-  const { assignments, publishAssignmentScores } = useQuizAssignments(
-    user?.uid
-  );
+  const {
+    assignments,
+    loading: assignmentsLoading,
+    publishAssignmentScores,
+  } = useQuizAssignments(user?.uid);
+  const {
+    banks,
+    loading: banksLoading,
+    loadBankData,
+  } = useQuestionBanks(user?.uid);
 
   const [busy, setBusy] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
@@ -245,6 +261,12 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
   // Load the full quiz (answers + points) for the grader + score math. The
   // session carries quizId; match it to the teacher's library for the Drive id.
   const [quizData, setQuizData] = useState<QuizData | null>(null);
+  const resolvedDriveFileId = assignment?.resolvedDriveFileId;
+  const waitForBanks = !!resolvedDriveFileId && banksLoading;
+  // Read at load time so a bank list change doesn't re-download the quiz.
+  const loadBankContents = useEffectEvent((quiz: Pick<QuizData, 'bankSlots'>) =>
+    loadBankContentsFor(quiz, banks, loadBankData)
+  );
   useEffect(() => {
     const quizId = session?.quizId;
     if (!quizId) {
@@ -257,7 +279,13 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     // Wait for the library to finish loading (quizzesLoading) rather than for a
     // non-empty list — an empty library is a legitimate "not found" signal, not
     // "still loading".
-    if (quizzesLoading || !googleAccessToken) return;
+    if (
+      quizzesLoading ||
+      assignmentsLoading ||
+      waitForBanks ||
+      !googleAccessToken
+    )
+      return;
     const meta = quizzes.find((q) => q.id === quizId);
     if (!meta) {
       // The session's quiz isn't in this teacher's library (e.g. a co-teacher
@@ -273,7 +301,19 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     let active = true;
     void (async () => {
       try {
-        const data = await loadQuizData(meta.driveFileId);
+        // Bank-draw assignments grade against their frozen copy, under today's answer keys.
+        const frozenId = resolvedDriveFileId;
+        const data =
+          frozenId && frozenId !== meta.driveFileId
+            ? await withCurrentAnswerKeys(
+                await loadQuizData(frozenId),
+                meta.driveFileId,
+                {
+                  loadQuizData,
+                  loadBankContentsForQuiz: (quiz) => loadBankContents(quiz),
+                }
+              )
+            : await loadQuizData(meta.driveFileId);
         if (active) setQuizData(data);
       } catch (err) {
         if (!active) return;
@@ -288,6 +328,9 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     session?.quizId,
     quizzes,
     quizzesLoading,
+    assignmentsLoading,
+    waitForBanks,
+    resolvedDriveFileId,
     googleAccessToken,
     loadQuizData,
   ]);

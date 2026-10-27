@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "mathTool",
   "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-18T16:26:07.464Z",
+  "gradedAt": "2026-10-26T13:21:09.909Z",
   "stale": false,
   "criteria": {
     "I2": {
@@ -66,42 +66,46 @@
       "stale": false
     },
     "S2": {
-      "score": 1,
-      "source": "script",
+      "score": 2,
+      "source": "paul",
       "candidates": {
         "script": 1,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-mt2/screenshots/mathTool/default__typical.png",
-          "scripts/widget-grader/out/after-mt2/screenshots/mathTool/large-1400x900__typical.png",
-          "scripts/widget-grader/out/after-mt2/screenshots/mathTool/large-1400x900__stress.png"
+          "scripts/widget-grader/out/spot-2026-10-26/screenshots/mathTool/default__typical.png",
+          "scripts/widget-grader/out/spot-2026-10-26/screenshots/mathTool/large-1400x900__typical.png",
+          "scripts/widget-grader/out/spot-2026-10-26/screenshots/mathTool/large-1400x900__stress.png"
         ],
-        "runId": "after-mt2"
+        "runId": "spot-2026-10-26"
       },
+      "note": "I'm not really sure about this one because it is supposed to remain actual-length.  It would probably be nice if we could make it bigger while retaining the actual ruler length, but othewrise the priority is that an inch is an inch and a centimeter is a centimeter regardless of screen size.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T16:26:07.464Z",
+      "gradedAt": "2026-10-26T13:09:48.518Z",
       "stale": false
     },
     "S3": {
-      "score": 1,
-      "source": "script",
+      "score": 4,
+      "source": "paul",
       "candidates": {
         "script": 1,
-        "judge": 1
+        "judge": 1,
+        "paul": 4
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-mt2/screenshots/mathTool/widest-aspect__typical.png",
-          "scripts/widget-grader/out/after-mt2/screenshots/mathTool/widest-aspect__stress.png",
-          "scripts/widget-grader/out/after-mt2/screenshots/mathTool/tallest-aspect__typical.png",
-          "scripts/widget-grader/out/after-mt2/screenshots/mathTool/tallest-aspect__stress.png"
+          "scripts/widget-grader/out/spot-2026-10-26/screenshots/mathTool/widest-aspect__typical.png",
+          "scripts/widget-grader/out/spot-2026-10-26/screenshots/mathTool/widest-aspect__stress.png",
+          "scripts/widget-grader/out/spot-2026-10-26/screenshots/mathTool/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/spot-2026-10-26/screenshots/mathTool/tallest-aspect__stress.png"
         ],
-        "runId": "after-mt2"
+        "runId": "spot-2026-10-26"
       },
+      "note": "Again this is showing the ruler is a full card..but the ruler itself is unique and not in an actual widget window.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T16:26:07.464Z",
+      "gradedAt": "2026-10-26T13:10:28.614Z",
       "stale": false
     },
     "S4": {
@@ -553,30 +557,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "after-mt2"
+        "runId": "spot-2026-10-26"
       },
-      "gradedAt": "2026-10-18T16:26:07.464Z"
+      "gradedAt": "2026-10-26T13:21:09.909Z"
     },
     "G2": {
       "pass": false,
       "evidence": {
-        "runId": "after-mt2"
+        "runId": "spot-2026-10-26"
       },
-      "gradedAt": "2026-10-18T16:26:07.464Z"
+      "gradedAt": "2026-10-26T13:21:09.909Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "after-mt2"
+        "runId": "spot-2026-10-26"
       },
-      "gradedAt": "2026-10-18T16:26:07.464Z"
+      "gradedAt": "2026-10-26T13:21:09.909Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "after-mt2"
+        "runId": "spot-2026-10-26"
       },
-      "gradedAt": "2026-10-18T16:26:07.464Z"
+      "gradedAt": "2026-10-26T13:21:09.909Z"
     }
   }
 }

@@ -154,6 +154,8 @@ export function useFolderLibraryView<TItem>(
     setLocation(ROOT_LOCATION);
   }
 
+  const [draggingFolderId, setDraggingFolderId] = useState<string | null>(null);
+  const [dropHint, setDropHint] = useState<FolderDropHint | null>(null);
   const navigate = useCallback(
     (next: LibraryLocation) => {
       setNavigated(true);
@@ -179,6 +181,17 @@ export function useFolderLibraryView<TItem>(
   }, [enabled, location.kind, items, getRecentAt, getId, openedAt]);
 
   const openFolderId = location.kind === 'folder' ? location.folderId : null;
+
+  // A dragged row that unmounted never fires dragend, so drop the orphaned drag.
+  if (
+    draggingFolderId != null &&
+    !(index.childrenOf.get(openFolderId) ?? []).some(
+      (f) => f.id === draggingFolderId
+    )
+  ) {
+    setDraggingFolderId(null);
+    setDropHint(null);
+  }
   const subtree = useMemo(
     () =>
       enabled && location.kind === 'folder' && searchScope === 'folder'
@@ -245,8 +258,6 @@ export function useFolderLibraryView<TItem>(
     useContext(AuthContext)?.canAccessFeature('library-folder-reorder') ===
     true;
   const sort = manualFolderOrder ? MANUAL_FOLDER_SORT : view.state.sort;
-  const [draggingFolderId, setDraggingFolderId] = useState<string | null>(null);
-  const [dropHint, setDropHint] = useState<FolderDropHint | null>(null);
   const canReorderRows = manualFolderOrder && reorderSiblings != null;
   const folderView = useMemo<LibraryFolderViewModel | null>(() => {
     if (!enabled) return null;

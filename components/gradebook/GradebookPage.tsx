@@ -1,6 +1,5 @@
 import React from 'react';
-import { ArrowLeft, ClipboardList, Loader2, X } from 'lucide-react';
-import { useAuth } from '@/context/useAuth';
+import { ArrowLeft, ClipboardList, Loader2 } from 'lucide-react';
 import { spaNavigate } from '@/utils/plcPath';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
@@ -28,7 +27,6 @@ export const GradebookShell: React.FC<{
   onKeyDown?: (e: React.KeyboardEvent) => void;
   children: React.ReactNode;
 }> = ({ tab, rosterId, onClose, onKeyDown, children }) => {
-  const backArrow = useAuth().canAccessFeature('full-page-back-arrow');
   return (
     <div
       className="fixed inset-0 z-modal flex flex-col overscroll-none bg-slate-50"
@@ -38,18 +36,16 @@ export const GradebookShell: React.FC<{
       onKeyDown={onKeyDown}
     >
       <header className="flex h-14 shrink-0 items-center gap-3 bg-brand-blue-primary px-4 text-white shadow-sm md:h-16">
-        {backArrow && (
-          <button
-            type="button"
-            onClick={onClose}
-            {...tourAttr('gradebook.close')}
-            className="relative touch-target-expand -ml-1.5 rounded-lg p-1.5 hover:bg-white/20"
-            aria-label="Back to board"
-            title="Back to board"
-          >
-            <ArrowLeft className="h-5 w-5" aria-hidden />
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={onClose}
+          {...tourAttr('gradebook.close')}
+          className="relative touch-target-expand -ml-1.5 rounded-lg p-1.5 hover:bg-white/20"
+          aria-label="Back to board"
+          title="Back to board"
+        >
+          <ArrowLeft className="h-5 w-5" aria-hidden />
+        </button>
         <ClipboardList
           className="hidden h-5 w-5 text-white/70 md:block"
           aria-hidden
@@ -91,18 +87,6 @@ export const GradebookShell: React.FC<{
           </div>
         )}
         <span className="flex-1" />
-        {!backArrow && (
-          <button
-            type="button"
-            onClick={onClose}
-            {...tourAttr('gradebook.close')}
-            className="rounded-lg p-1.5 hover:bg-white/20"
-            aria-label="Close gradebook"
-            title="Close"
-          >
-            <X className="h-5 w-5" aria-hidden />
-          </button>
-        )}
       </header>
       {children}
     </div>

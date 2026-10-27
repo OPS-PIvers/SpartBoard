@@ -28,9 +28,17 @@ import { logError } from '@/utils/logError';
 import { getPlcMemberEmails } from '@/utils/plc';
 import { PlcAssignmentImportModal } from '../PlcAssignmentImportModal';
 import { PlcAssignmentSessionModal } from '@/components/plc/assignments/PlcAssignmentSessionModal';
-import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
+import { PlcQuizPickupStepper } from '@/components/plc/PlcQuizPickupStepper';
+import {
+  applyPlcStepperStudentPicks,
+  savePlcStepperFinalScore,
+  plcStepperCreateFields,
+  type PlcQuizStepperPlan,
+} from '@/components/plc/plcQuizStepperAssign';
+import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
 import { PlcAssignmentIndexRow } from './PlcAssignmentIndexRow';
 import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
+import { toAssessmentBehavior } from '@/utils/quizBehavior';
 
 interface PlcAssignmentsInProgressSubTabProps {
   plc: Plc;
@@ -59,6 +67,19 @@ interface InProgressImportTarget {
   sheetUrl: string;
 }
 
+type SyncedQuizContent = Awaited<ReturnType<typeof pullSyncedQuizContent>>;
+
+// The canonical doc carries the author's latest run-settings; the template is a first-assign snapshot.
+const pickupBehavior = (
+  target: InProgressImportTarget,
+  canonical: SyncedQuizContent
+): QuizBehaviorSettings =>
+  canonical.behavior ?? {
+    sessionMode: target.sessionMode,
+    sessionOptions: target.sessionOptions,
+    attemptLimit: target.attemptLimit,
+  };
+
 /**
  * In-progress sub-tab — assignments at least one PLC member is currently
  * running (status `'active'` or `'paused'`). Status is mirrored
@@ -76,7 +97,7 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
   PlcAssignmentsInProgressSubTabProps
 > = ({ plc, kindFilter }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, getAssignmentMode, canAccessFeature } = useAuth();
   const { addToast, rosters } = useDashboard();
   const { entries, loading } = usePlcAssignmentIndex(plc.id);
   // Subscribe to the PLC assignment templates so non-owner rows can match
@@ -96,9 +117,11 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
   const [importTarget, setImportTarget] =
     useState<InProgressImportTarget | null>(null);
   const [busyRowId, setBusyRowId] = useState<string | null>(null);
-  const [pendingSetup, setPendingSetup] = useState<{
-    id: string;
-    quizTitle: string;
+  // Picked sync-or-copy, waiting on the assign stepper.
+  const [pickup, setPickup] = useState<{
+    target: InProgressImportTarget;
+    mode: SharedAssignmentImportMode;
+    canonical: SyncedQuizContent;
   } | null>(null);
 
   // The personal-library + assignment-archive listeners are only needed for
@@ -106,10 +129,9 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
   // until that flow is active so we don't pay for the Firestore listeners on
   // every render. Both hooks early-return when uid is undefined, so passing
   // `undefined` is the "off" switch. Stay mounted across the whole flow
-  // (target picked → import running → class-period picker open) because the
-  // post-import setup modal reads `assignments` and calls `setAssignmentRosters`.
+  // (target picked → assign stepper open → import running).
   const importActive =
-    importTarget !== null || busyRowId !== null || pendingSetup !== null;
+    importTarget !== null || busyRowId !== null || pickup !== null;
   const {
     saveQuiz,
     deleteQuiz,
@@ -117,8 +139,9 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
     saveDriveSnapshot,
     isDriveConnected,
   } = useQuiz(importActive ? user?.uid : undefined);
-  const { assignments, createAssignment, setAssignmentRosters } =
+  const { createAssignment, setAssignmentTargetSkippedCount } =
     useQuizAssignments(importActive ? user?.uid : undefined);
+  const { setAssignmentTargets } = useSetAssignmentTargets();
   const { loadBankContentsForQuiz } = useBankSources(
     importActive ? user?.uid : undefined
   );
@@ -170,13 +193,13 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
     []
   );
 
-  const handleImport = useCallback(
+  // The canonical doc is pulled first: its run-settings prefill the stepper.
+  const handlePickMode = useCallback(
     async (
       target: InProgressImportTarget,
       mode: SharedAssignmentImportMode
     ) => {
-      if (!user) return;
-      if (busyRowId) return;
+      setImportTarget(null);
       if (!isDriveConnected) {
         addToast(
           t('plcDashboard.assignmentsLibrary.driveRequired', {
@@ -187,14 +210,47 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
         );
         return;
       }
+      setBusyRowId(target.plcAssignmentId);
+      try {
+        const canonical = await pullSyncedQuizContent(target.syncGroupId);
+        setPickup({ target, mode, canonical });
+      } catch (err) {
+        logError('PlcAssignmentsInProgressSubTab.pull', err, {
+          plcId: plc.id,
+          plcAssignmentId: target.plcAssignmentId,
+        });
+        addToast(
+          err instanceof Error
+            ? err.message
+            : t('plcDashboard.assignmentsLibrary.importFailed', {
+                defaultValue: 'Failed to add assignment to your board.',
+              }),
+          'error'
+        );
+      } finally {
+        setBusyRowId(null);
+      }
+    },
+    [addToast, isDriveConnected, plc.id, t]
+  );
 
-      setImportTarget(null);
+  // Nothing is saved until the teacher submits the stepper; a failure rolls back and rethrows.
+  const handleImport = useCallback(
+    async (
+      target: InProgressImportTarget,
+      mode: SharedAssignmentImportMode,
+      plan: PlcQuizStepperPlan,
+      assignBehavior: QuizBehaviorSettings
+    ) => {
+      // Rejecting keeps the stepper open instead of closing on a no-op.
+      if (!user || busyRowId) throw new Error('Assign already in progress');
       setBusyRowId(target.plcAssignmentId);
       let savedMeta: Awaited<ReturnType<typeof saveQuiz>> | null = null;
       let joinedGroupId: string | null = null;
       let liveVersion: number | undefined;
 
       try {
+        // Re-pull: the author may have published while the stepper was open.
         const canonical = await pullSyncedQuizContent(target.syncGroupId);
         const now = Date.now();
         const fresh: QuizData = {
@@ -207,14 +263,11 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
           createdAt: now,
           updatedAt: now,
         };
-        // The canonical doc carries the author's latest run-settings; the
-        // template is only a snapshot from when it was first assigned.
-        const behavior: QuizBehaviorSettings = canonical.behavior ?? {
-          sessionMode: target.sessionMode,
-          sessionOptions: target.sessionOptions,
-          attemptLimit: target.attemptLimit,
-        };
-        savedMeta = await saveQuiz(fresh, undefined, behavior);
+        savedMeta = await saveQuiz(
+          fresh,
+          undefined,
+          pickupBehavior(target, canonical)
+        );
 
         if (mode === 'sync') {
           const joinResult = await callJoinPlcAssignmentSyncGroup(
@@ -234,6 +287,7 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
           savedMeta.driveFileId,
           { loadBankContentsForQuiz, saveDriveSnapshot }
         );
+        const fields = plcStepperCreateFields(plan, rosters);
         const created = await createAssignment(
           {
             id: savedMeta.id,
@@ -247,7 +301,9 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
               : {}),
           },
           {
-            ...behavior,
+            ...assignBehavior,
+            teacherName: (user.displayName ?? '').trim() || undefined,
+            ...fields.settings,
             ...(content.resolvedDriveFileId
               ? { resolvedDriveFileId: content.resolvedDriveFileId }
               : {}),
@@ -261,7 +317,8 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
             },
           },
           {
-            initialStatus: 'paused',
+            ...fields.options,
+            mode: getAssignmentMode('quiz'),
             skipPlcTemplateWrite: true,
             ...(content.bankSlots ? { bankSlots: content.bankSlots } : {}),
             ...(mode === 'sync' && liveVersion !== undefined
@@ -275,21 +332,40 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
           }
         );
 
+        savePlcStepperFinalScore({
+          uid: user.uid,
+          assignmentId: created.id,
+          behavior: assignBehavior,
+          attemptHistoryEnabled: canAccessFeature('quiz-attempt-history'),
+          logScope: 'PlcAssignmentsInProgressSubTab.import',
+        });
+        await applyPlcStepperStudentPicks({
+          assignmentId: created.id,
+          plan,
+          setAssignmentTargets,
+          setAssignmentTargetSkippedCount,
+          addToast,
+          logScope: 'PlcAssignmentsInProgressSubTab.import',
+        });
         addToast(
-          mode === 'sync'
-            ? t('plcDashboard.assignmentsLibrary.importedSync', {
-                title: target.quizTitle,
-                defaultValue:
-                  '"{{title}}" added to your board (paused, synced).',
+          plan.rosters.length > 0
+            ? t('plcDashboard.assignmentsLibrary.assignedToClasses', {
+                count: plan.rosters.length,
+                defaultValue: 'Assigned to {{count}} class.',
+                defaultValue_other: 'Assigned to {{count}} classes.',
               })
-            : t('plcDashboard.assignmentsLibrary.importedCopy', {
-                title: target.quizTitle,
-                defaultValue: '"{{title}}" copied to your board (paused).',
-              }),
+            : mode === 'sync'
+              ? t('plcDashboard.assignmentsLibrary.importedSync', {
+                  title: target.quizTitle,
+                  defaultValue:
+                    '"{{title}}" added to your board (paused, synced).',
+                })
+              : t('plcDashboard.assignmentsLibrary.importedCopy', {
+                  title: target.quizTitle,
+                  defaultValue: '"{{title}}" copied to your board (paused).',
+                }),
           'success'
         );
-
-        setPendingSetup({ id: created.id, quizTitle: target.quizTitle });
       } catch (err) {
         logError('PlcAssignmentsInProgressSubTab.import', err, {
           plcId: plc.id,
@@ -326,6 +402,7 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
               }),
           'error'
         );
+        throw err;
       } finally {
         setBusyRowId(null);
       }
@@ -334,13 +411,17 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
       addToast,
       attachSyncLinkage,
       busyRowId,
+      canAccessFeature,
       createAssignment,
       deleteQuiz,
+      getAssignmentMode,
       loadBankContentsForQuiz,
       saveDriveSnapshot,
-      isDriveConnected,
       plc,
+      rosters,
       saveQuiz,
+      setAssignmentTargets,
+      setAssignmentTargetSkippedCount,
       t,
       user,
     ]
@@ -370,14 +451,6 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
   }
 
   const currentUid = user?.uid;
-
-  // The assignment for the post-import class-period picker. Try the live
-  // snapshot first; fall back to the cached title (the pattern ported from
-  // the former PlcAssignmentsLibrarySubTab) so the modal renders before the
-  // listener surfaces the new doc.
-  const pendingSetupAssignment = pendingSetup
-    ? (assignments.find((a) => a.id === pendingSetup.id) ?? null)
-    : null;
 
   return (
     <div className="flex flex-col gap-3 px-1">
@@ -448,21 +521,21 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
         <PlcAssignmentImportModal
           quizTitle={importTarget.quizTitle}
           sharedByName={importTarget.sharedByName}
-          onPick={(mode) => void handleImport(importTarget, mode)}
+          onPick={(mode) => void handlePickMode(importTarget, mode)}
           onClose={() => setImportTarget(null)}
         />
       )}
 
-      {/* Post-import class-period picker */}
-      {pendingSetup && pendingSetupAssignment && (
-        <QuizAssignmentImportSetupModal
-          assignment={pendingSetupAssignment}
-          rosters={rosters}
-          onSave={async (targets) => {
-            await setAssignmentRosters(pendingSetup.id, targets);
-            setPendingSetup(null);
-          }}
-          onClose={() => setPendingSetup(null)}
+      {pickup && (
+        <PlcQuizPickupStepper
+          title={pickup.target.quizTitle}
+          initialBehavior={toAssessmentBehavior(
+            pickupBehavior(pickup.target, pickup.canonical)
+          )}
+          onClose={() => setPickup(null)}
+          onAssign={(plan, behavior) =>
+            handleImport(pickup.target, pickup.mode, plan, behavior)
+          }
         />
       )}
     </div>

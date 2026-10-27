@@ -276,9 +276,9 @@ describe('sanitizeTeamLayout', () => {
     expect(out.pages.find((p) => p.id === 'dataOverview')?.enabled).toBe(true);
   });
 
-  it('falls back when the landing is not a landing page or not the type', () => {
+  it('falls back when the landing is not a page of the type', () => {
     expect(
-      sanitizeTeamLayout({ ...base, landing: 'docs' }, 'plc').landing
+      sanitizeTeamLayout({ ...base, landing: 'workspace' }, 'plc').landing
     ).toBe('dataOverview');
     expect(
       sanitizeTeamLayout({ ...base, landing: 'programHub' }, 'department')
@@ -289,19 +289,29 @@ describe('sanitizeTeamLayout', () => {
     ).toBe('programHub');
   });
 
-  it('uses the given fallback landing before the built-in one', () => {
-    expect(
-      sanitizeTeamLayout({ ...base, landing: 'docs' }, 'department', {
-        landing: 'hub',
-      }).landing
-    ).toBe('hub');
+  it('lands on any page of the type and keeps the hub cards', () => {
+    const out = sanitizeTeamLayout(
+      { ...base, landing: 'docs', cards: ['hero', 'trend', 'nextTask'] },
+      'plc'
+    );
+    expect(out.landing).toBe('docs');
+    expect(out.pages.find((p) => p.id === 'docs')?.enabled).toBe(true);
+    expect(out.cards).toEqual(['hero', 'trend']);
   });
 
-  it('filters cards to the landing catalog and dedupes', () => {
+  it('uses the given fallback landing before the built-in one', () => {
+    expect(
+      sanitizeTeamLayout({ ...base, landing: 'workspace' }, 'department', {
+        landing: 'resources',
+      }).landing
+    ).toBe('resources');
+  });
+
+  it('filters cards to the hub catalog and dedupes', () => {
     const out = sanitizeTeamLayout(
       {
         ...base,
-        landing: 'hub',
+        landing: 'resources',
         cards: ['hero', 'distribution', 'quickLinks', 'quickLinks', 'nextTask'],
       },
       'building'
@@ -332,7 +342,7 @@ describe('sanitizeTeamTypePreset / normalizeTeamTypeDefaults', () => {
     const out = sanitizeTeamTypePreset(
       {
         pages: 'nope',
-        landing: 'docs',
+        landing: 'workspace',
         cards: ['hero', 'trend', 'bogus'],
         heroRule: 'random',
         meetingNoteTemplate: '## Our agenda',

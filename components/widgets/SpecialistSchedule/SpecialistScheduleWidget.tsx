@@ -453,6 +453,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                     </span>
                   </div>
                   {item.endTime && (
+                    // no-tour-anchor: one timer button per schedule row, generated from the schedule
                     <button
                       onClick={() => handleStartTimer(item)}
                       className="shrink-0 text-teal-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors ml-auto"

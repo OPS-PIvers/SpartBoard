@@ -27,7 +27,8 @@ export function isFrameReport(msg: unknown): msg is FrameReport {
     m.type === 'wt:found' &&
     typeof m.weak === 'boolean' &&
     typeof m.url === 'string' &&
-    (m.fix === undefined || isFix(m.fix))
+    (m.fix === undefined || isFix(m.fix)) &&
+    (m.overlay === undefined || typeof m.overlay === 'boolean')
   );
 }
 

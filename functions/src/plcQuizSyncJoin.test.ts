@@ -318,9 +318,9 @@ describe('handleJoinPlcQuizSyncGroup - editor and group-link gates', () => {
     expect(state.updates).toHaveLength(0);
   });
 
-  it('rejects a removed member (permission-denied)', async () => {
+  it('rejects a removed member no longer in memberUids (permission-denied)', async () => {
     state.plc = {
-      memberUids: [MEMBER_UID, 'member-b'],
+      memberUids: ['member-b'],
       members: { [MEMBER_UID]: { role: 'member', status: 'removed' } },
     };
     const db = makeDb(state) as unknown as Parameters<
@@ -330,6 +330,19 @@ describe('handleJoinPlcQuizSyncGroup - editor and group-link gates', () => {
       handleJoinPlcQuizSyncGroup(db, MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
     ).rejects.toMatchObject({ code: 'permission-denied' });
     expect(state.updates).toHaveLength(0);
+  });
+
+  it('allows a rejoined member whose entry still says removed', async () => {
+    state.plc = {
+      memberUids: [MEMBER_UID, 'member-b'],
+      members: { [MEMBER_UID]: { role: 'member', status: 'removed' } },
+    };
+    const db = makeDb(state) as unknown as Parameters<
+      typeof handleJoinPlcQuizSyncGroup
+    >[0];
+    await expect(
+      handleJoinPlcQuizSyncGroup(db, MEMBER_UID, PLC_ID, PLC_QUIZ_ID)
+    ).resolves.toMatchObject({ alreadyJoined: false });
   });
 
   it('allows a non-viewer keyed member', async () => {

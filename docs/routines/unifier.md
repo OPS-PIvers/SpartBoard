@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 126_
-_Last run: 2026-10-25_
+_Run count: 127_
+_Last run: 2026-10-26_
 _Base branch: dev-paul_
 
 ---
@@ -577,6 +577,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-10-26 | `nightly/unifier-log-2026-10-26` | D1/D2/D3/D4/D5 | Aligned (run 127) — light probe of 59 commits / 131 non-test client files since run 126 (`460d7f6b^..dev-paul`: Scoreboard history/points, Sound noise-meter-pro, GraphicOrganizer, SeatingChart, Poll, Webcam DocCam menu). Diff-scoped greps over added lines (quote globs in `git diff -- '*.tsx'`; unquoted ones silently match nothing) for `'../'` imports (Scoreboard `components/` -> `../history`/`../points`/`../useCountUp`, Sound `components/` -> `../constants`/`../noiseTarget`/`../useNoiseSession`: own-widget subfolder, D4-E3 gray zone), `<Toast`, `#2d3f89`/`#ad2122` returned nothing actionable. D3: `role="group"` hits are an action-button row (Sound calibrate), a front-face overlay menu (Webcam DocCam quality) and Drawing tool overlays, none a settings exclusive-choice picker; `PreviewsPanel` inline "District" tag is a compact inline chip, not a SettingsLabel. D1: no new empty states. No subagents dispatched, no code shipped; `validate` not run (CLAUDE.md forbids full-repo runs). | — |
 | 2026-10-25 | `nightly/unifier-log-2026-10-25` | D1/D2/D3/D4/D5 | Aligned (run 126) — light probe of 11 commits / 19 non-test client files since run 125 (`a7a27792..dev-paul`: web tours help panel, tour-anchor sweep, Countdown, SmartNotebook assets panel, HexColorField). Diff-scoped greps over added lines for `'../'` imports (one single-level `../tourList` type import, gray zone), `<Toast`, `#2d3f89`/`#ad2122`, `role="group"`, hand-rolled `text-xxs font-bold uppercase` returned nothing new; no new `Widget.tsx`. Baseline full `validate` not re-run (docs-only PR; CI gates it). No conversion shipped. | — |
 | 2026-10-24 | `nightly/unifier-log-2026-10-24` | D1/D2/D3/D4/D5 | Aligned (run 125) — light probe of 32 commits / 95 non-test client files since run 124 (`77f2bdec^..dev-paul`). Diff-scoped greps for added `'../'` imports (one single-level `../VideoActivityLiveMonitor` type import, D4-E2 gray zone), `<Toast`, `#2d3f89`/`#ad2122` returned nothing new; the 2 hand-rolled `text-xxs font-bold text-slate-500 uppercase` labels are the already-logged ArtsLettersAgenda D3 NEEDS-REVIEW pair. No subagents dispatched, no code shipped; full `validate` not run (CLAUDE.md forbids it without being asked). | — |
 | 2026-10-23 | `nightly/unifier-log-2026-10-23` | D1/D2/D3/D4/D5 | Aligned (run 124) — light probe of 8 commits / 57 non-test client files since run 123 (`14eff4ec..dev-paul`: web tours editor/recording, shared collections flags, PLC Home, Arts & Letters Agenda). Diff-scoped greps for added `'../'` imports, `<Toast`, `#2d3f89`/`#ad2122`, `role="group"` returned zero hits. The only D3 hits are 2 `text-xxs font-bold text-slate-500 uppercase` labels in `ArtsLettersAgendaConfigurationPanel.tsx`, which is the catalogued admin-panel tier D3-E25 (intentional). No code shipped; `validate` not run (CLAUDE.md forbids it; no code touched). | — |

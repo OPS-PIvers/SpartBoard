@@ -7,6 +7,7 @@ import {
   QuizResponse,
   QuizQuestion,
   ClassRoster,
+  Student,
   ScoreboardTeam,
   QuizSession,
   QuizLeaderboardEntry,
@@ -465,23 +466,9 @@ export function buildPinToNameMap(
   rosters: ClassRoster[],
   periodNames?: string[]
 ): Record<string, string> {
-  const map: Record<string, string> = {};
-  if (!periodNames || periodNames.length === 0) return map;
-  for (const pName of periodNames) {
-    const roster = rosters.find((r) => r.name === pName);
-    if (!roster?.students) continue;
-    for (const s of roster.students) {
-      if (s.pin && (s.firstName || s.lastName)) {
-        const name = [s.firstName, s.lastName].filter(Boolean).join(' ');
-        map[makePinKey(pName, s.pin)] = name;
-        const stripped = s.pin.replace(/^0+/, '');
-        if (stripped && stripped !== s.pin) {
-          map[makePinKey(pName, stripped)] = name;
-        }
-      }
-    }
-  }
-  return map;
+  return buildRosterPinMap(rosters, periodNames, (s) =>
+    [s.firstName, s.lastName].filter(Boolean).join(' ')
+  );
 }
 
 /**
@@ -494,21 +481,38 @@ export function buildPinToExportNameMap(
   rosters: ClassRoster[],
   periodNames?: string[]
 ): Record<string, string> {
+  return buildRosterPinMap(rosters, periodNames, (s) =>
+    s.lastName && s.firstName
+      ? `${s.lastName}, ${s.firstName}`
+      : s.lastName || s.firstName
+  );
+}
+
+/** Current PINs win; a replaced PIN (`formerPins`) still names its student on older responses. */
+function buildRosterPinMap(
+  rosters: ClassRoster[],
+  periodNames: string[] | undefined,
+  nameOf: (s: Student) => string
+): Record<string, string> {
   const map: Record<string, string> = {};
   if (!periodNames || periodNames.length === 0) return map;
-  for (const pName of periodNames) {
-    const roster = rosters.find((r) => r.name === pName);
-    if (!roster?.students) continue;
-    for (const s of roster.students) {
-      if (s.pin && (s.firstName || s.lastName)) {
-        const name =
-          s.lastName && s.firstName
-            ? `${s.lastName}, ${s.firstName}`
-            : s.lastName || s.firstName;
-        map[makePinKey(pName, s.pin)] = name;
-        const stripped = s.pin.replace(/^0+/, '');
-        if (stripped && stripped !== s.pin) {
-          map[makePinKey(pName, stripped)] = name;
+  const put = (key: string, name: string, overwrite: boolean) => {
+    if (overwrite || !(key in map)) map[key] = name;
+  };
+  for (const former of [false, true]) {
+    for (const pName of periodNames) {
+      const roster = rosters.find((r) => r.name === pName);
+      if (!roster?.students) continue;
+      for (const s of roster.students) {
+        if (!s.firstName && !s.lastName) continue;
+        const name = nameOf(s);
+        const pins = former ? (s.formerPins ?? []) : s.pin ? [s.pin] : [];
+        for (const pin of pins) {
+          put(makePinKey(pName, pin), name, !former);
+          const stripped = pin.replace(/^0+/, '');
+          if (stripped && stripped !== pin) {
+            put(makePinKey(pName, stripped), name, !former);
+          }
         }
       }
     }

@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "soundboard",
   "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-18T15:26:01.461Z",
+  "gradedAt": "2026-10-26T13:21:09.909Z",
   "stale": false,
   "criteria": {
     "S6": {
@@ -137,22 +137,22 @@
     },
     "S8": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/maximized-1920x1080__empty.png",
-          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/maximized-1920x1080__typical.png",
-          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/maximized-1920x1080__stress.png"
+          "scripts/widget-grader/out/spot-2026-10-26/screenshots/soundboard/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/spot-2026-10-26/screenshots/soundboard/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/spot-2026-10-26/screenshots/soundboard/maximized-1920x1080__stress.png"
         ],
-        "runId": "soundboard-after1"
+        "runId": "spot-2026-10-26"
       },
-      "note": "Maximized fills the screen with six giant tiles whose icon and label stay small, so it reads as an enlarged card, not a presenting layout.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "gradedAt": "2026-10-26T13:20:32.397Z",
       "stale": false
     },
     "I1": {
@@ -563,30 +563,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "soundboard-after1"
+        "runId": "spot-2026-10-26"
       },
-      "gradedAt": "2026-10-18T15:26:01.461Z"
+      "gradedAt": "2026-10-26T13:21:09.909Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "soundboard-after1"
+        "runId": "spot-2026-10-26"
       },
-      "gradedAt": "2026-10-18T15:26:01.461Z"
+      "gradedAt": "2026-10-26T13:21:09.909Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "soundboard-after1"
+        "runId": "spot-2026-10-26"
       },
-      "gradedAt": "2026-10-18T15:26:01.461Z"
+      "gradedAt": "2026-10-26T13:21:09.909Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "soundboard-after1"
+        "runId": "spot-2026-10-26"
       },
-      "gradedAt": "2026-10-18T15:26:01.461Z"
+      "gradedAt": "2026-10-26T13:21:09.909Z"
     }
   }
 }

@@ -16938,6 +16938,45 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.reveal-grid.paste-data",
+    "label": "Paste box in Reveal Grid settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.reveal-grid.settings",
+        "kind": "settings-drawer",
+        "widget_type": "reveal-grid",
+        "path": [
+          "widget.settings-opener",
+          "widget-settings.reveal-grid.paste"
+        ],
+        "reveal": "widget-settings.reveal-grid.paste",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "reveal-grid.start-over",
+    "label": "Start over button in Reveal Grid memory mode",
+    "scope": "widget",
+    "destructive": true,
+    "requires": "widget-restored",
+    "routes": [
+      {
+        "surface": "widgets.reveal-grid.face",
+        "kind": "widget",
+        "widget_type": "reveal-grid",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.reveal-grid.add-pasted",
     "label": "Add pasted cards button in Reveal Grid settings",
     "scope": "widget",
@@ -16948,8 +16987,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "settings-drawer",
         "widget_type": "reveal-grid",
         "path": [
-          "widget.settings-opener"
+          "widget.settings-opener",
+          "widget-settings.reveal-grid.paste"
         ],
+        "reveal": "widget-settings.reveal-grid.paste",
         "needs": [
           "widget-on-stage"
         ]
@@ -17179,6 +17220,49 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "widget.settings-opener"
         ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.scoreboard.confirm-reset",
+    "label": "Yes button on the Scoreboard reset prompt",
+    "scope": "widget",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.scoreboard.settings",
+        "kind": "settings-drawer",
+        "widget_type": "scoreboard",
+        "path": [
+          "widget.settings-opener",
+          "widget-settings.scoreboard.reset-scores"
+        ],
+        "reveal": "widget-settings.scoreboard.reset-scores",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.scoreboard.cancel-reset",
+    "label": "No button on the Scoreboard reset prompt",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.scoreboard.settings",
+        "kind": "settings-drawer",
+        "widget_type": "scoreboard",
+        "path": [
+          "widget.settings-opener",
+          "widget-settings.scoreboard.reset-scores"
+        ],
+        "reveal": "widget-settings.scoreboard.reset-scores",
         "needs": [
           "widget-on-stage"
         ]
@@ -17566,6 +17650,44 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "widget-settings.specialist-schedule.save-item",
     "label": "Save item button in Specialist Schedule settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.specialist-schedule.settings",
+        "kind": "settings-drawer",
+        "widget_type": "specialist-schedule",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.specialist-schedule.add-daily",
+    "label": "Add daily item button in Specialist Schedule settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.specialist-schedule.settings",
+        "kind": "settings-drawer",
+        "widget_type": "specialist-schedule",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.specialist-schedule.add-weekly",
+    "label": "Add weekly item button in Specialist Schedule settings",
     "scope": "widget",
     "panel": true,
     "routes": [
@@ -54055,6 +54177,82 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "library.shell",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "library-shell.archive-edit-classes",
+    "label": "Edit classes item in an In Progress assignment row menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "guided-learning",
+      "miniApp",
+      "video-activity"
+    ],
+    "routes": [
+      {
+        "surface": "guidedLearning.face",
+        "kind": "widget",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-menu:guided-learning#row-1"
+        ],
+        "reveal": "library-shell.card-menu:guided-learning#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
+        "surface": "library.mini-app",
+        "kind": "widget",
+        "widget_type": "miniApp",
+        "path": [
+          "library-shell.archive-menu:miniApp#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:miniApp#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [
+          "library-shell.archive-menu:video-activity#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:video-activity#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "assignment-classes.cancel",
+    "label": "Cancel button in the Edit classes dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assignment-classes",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "assignment-classes.save",
+    "label": "Save button in the Edit classes dialog",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.assignment-classes",
         "kind": "shared",
         "path": []
       }

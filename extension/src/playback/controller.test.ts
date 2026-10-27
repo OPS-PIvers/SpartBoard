@@ -154,6 +154,56 @@ describe('playback controller', () => {
     expect(h.lastRender()).toMatchObject({ current: 2 });
   });
 
+  it('hands each seek the next step on the same page, so a frame can find it before the worker answers', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    const tour = parsed();
+    tour.tour.steps[1].urlPattern = 'https://a.example/home';
+    await c.start(tour);
+    await c.committed(7, 0, 'https://a.example/home');
+    const seek = h.lastSeek().msg;
+    const next = seek.next as { token: string; clues: unknown };
+    expect(next.clues).toEqual({ text: 'Grades' });
+    await c.frameReport(7, 0, {
+      type: 'wt:found',
+      token: seek.token as string,
+      weak: false,
+      url: '',
+    });
+    expect(h.lastRender().ahead).toEqual({
+      token: next.token,
+      title: 'Read',
+      text: 'Look here',
+      observe: true,
+    });
+    const before = h.sent.length;
+    await c.frameReport(7, 0, {
+      type: 'wt:acted',
+      token: seek.token as string,
+    });
+    // The frame already moved on, so it gets the same token and no stop.
+    const after = h.sent.slice(before);
+    expect(after.some((s) => s.frameId === 0 && s.msg.type === 'wt:stop')).toBe(
+      false
+    );
+    expect(h.lastSeek().msg.token).toBe(next.token);
+    await c.frameReport(7, 0, {
+      type: 'wt:found',
+      token: next.token,
+      weak: false,
+      url: '',
+    });
+    expect(h.lastRender()).toMatchObject({ status: 'shown', current: 2 });
+  });
+
+  it('gives no next step when it plays on another page or is only looked at', async () => {
+    const h = fakeHost();
+    const c = createPlaybackController(h.host);
+    await c.start(parsed());
+    await c.committed(7, 0, 'https://a.example/home');
+    expect(h.lastSeek().msg.next).toBeUndefined();
+  });
+
   it('replays the current step for a page that starts watching late', async () => {
     const h = fakeHost();
     const c = createPlaybackController(h.host);
@@ -247,6 +297,13 @@ describe('playback controller', () => {
     await c.committed(7, 0, 'https://a.example/home');
     const seek = h.lastSeek();
     expect(seek.frameId).toBe(4);
+    // The frame's overlay is loaded and mounted, unlit, while it searches.
+    expect(h.injected.at(-1)).toEqual({ frameIds: [4], overlay: true });
+    expect(h.lastRender(4)).toMatchObject({
+      role: 'target',
+      targetHere: false,
+      status: 'seeking',
+    });
     await c.frameReport(7, 4, {
       type: 'wt:found',
       token: seek.msg.token as string,
@@ -260,12 +317,57 @@ describe('playback controller', () => {
       status: 'shown',
     });
     expect(h.lastRender(4)).toMatchObject({ role: 'target', targetHere: true });
+    // A frame that says its overlay already runs isn't injected again.
+    const injections = h.injected.length;
+    await c.frameReport(7, 4, {
+      type: 'wt:found',
+      token: seek.msg.token as string,
+      weak: true,
+      url: '',
+      overlay: true,
+    });
+    expect(h.injected).toHaveLength(injections);
     // An action reported by another frame doesn't count.
     await c.frameReport(7, 0, {
       type: 'wt:acted',
       token: seek.msg.token as string,
     });
     expect(h.lastRender(0)).toMatchObject({ current: 1 });
+    // Moving on to a step in the top frame clears the frame's overlay.
+    await c.frameReport(7, 4, {
+      type: 'wt:acted',
+      token: seek.msg.token as string,
+    });
+    expect(h.sent.at(-1)).toMatchObject({
+      frameId: 4,
+      msg: { type: 'overlay/unmount' },
+    });
+  });
+
+  it('loads the overlay into a frame a step targets as that frame loads, and only once', async () => {
+    const h = fakeHost([
+      { frameId: 0, parentFrameId: -1, url: 'https://a.example/home' },
+      { frameId: 4, parentFrameId: 0, url: 'https://b.example/inner' },
+      { frameId: 5, parentFrameId: 0, url: 'https://ads.example/x' },
+    ]);
+    const c = createPlaybackController(h.host);
+    const p = parsed();
+    p.tour.steps[0].frames = [
+      { urlPattern: 'https://b.example/inner', index: 0 },
+    ];
+    await c.start(p);
+    await c.committed(7, 4, 'https://b.example/inner');
+    await c.committed(7, 5, 'https://ads.example/x');
+    expect(h.injected).toContainEqual({ frameIds: [4], overlay: true });
+    expect(h.injected).not.toContainEqual({ frameIds: [5], overlay: true });
+    const before = h.injected.length;
+    await c.committed(7, 0, 'https://a.example/home');
+    // The seek injects only the locator, since frame 4 already runs the overlay.
+    expect(
+      h.injected
+        .slice(before)
+        .filter((i) => i.overlay && i.frameIds.includes(4))
+    ).toEqual([]);
   });
 
   it('posts done, then exit clears the overlay and the saved state', async () => {

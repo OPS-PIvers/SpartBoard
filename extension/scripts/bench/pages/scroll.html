@@ -1,0 +1,9 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Unit library</title><link rel="stylesheet" href="/common.css"></head>
+<body style="height:100vh;display:flex;flex-direction:column">
+<header><h1 style="font-size:18px;margin:0 auto 0 0">Unit library</h1><button id="top">Back to top</button></header>
+<div id="list" style="flex:1;overflow:auto"></div>
+<script>
+const list = document.getElementById('list');
+list.innerHTML = Array.from({ length: 200 }, (_, i) => `<section class="panel"><h2 style="font-size:16px">Lesson ${i + 1}</h2><p>Objectives, materials and the warm-up for lesson ${i + 1}.</p><button aria-label="Add lesson ${i + 1} to plan">Add to plan</button></section>`).join('');
+document.getElementById('top').onclick = () => list.scrollTo({ top: 0 });
+</script></body></html>

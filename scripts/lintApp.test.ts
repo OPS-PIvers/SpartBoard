@@ -60,24 +60,23 @@ describe('lintApp parseShard', () => {
 });
 
 // A shard count that disagrees with the matrix would leave files unlinted with a green check.
-describe.each(['pr-validation.yml', 'firebase-dev-deploy.yml'])(
-  '%s lint:app shards',
-  (name) => {
-    it('has one matrix entry per shard the lint step splits into', () => {
-      const yaml = readFileSync(
-        resolve(__dirname, '../.github/workflows', name),
-        'utf-8'
-      );
-      const counts = [
-        ...yaml.matchAll(/lint:app --shard=\$\{\{ matrix\.shard \}\}\/(\d+)/g),
-      ].map((m) => Number(m[1]));
-      expect(counts).toHaveLength(1);
-      const shards = [...yaml.matchAll(/shard: (\d+) \}/g)].map((m) =>
-        Number(m[1])
-      );
-      expect(shards).toEqual(
-        Array.from({ length: counts[0] }, (_, i) => i + 1)
-      );
-    });
-  }
-);
+describe.each([
+  'pr-validation.yml',
+  'firebase-dev-deploy.yml',
+  'firebase-deploy.yml',
+])('%s lint:app shards', (name) => {
+  it('has one matrix entry per shard the lint step splits into', () => {
+    const yaml = readFileSync(
+      resolve(__dirname, '../.github/workflows', name),
+      'utf-8'
+    );
+    const counts = [
+      ...yaml.matchAll(/lint:app --shard=\$\{\{ matrix\.shard \}\}\/(\d+)/g),
+    ].map((m) => Number(m[1]));
+    expect(counts).toHaveLength(1);
+    const shards = [...yaml.matchAll(/shard: (\d+) \}/g)].map((m) =>
+      Number(m[1])
+    );
+    expect(shards).toEqual(Array.from({ length: counts[0] }, (_, i) => i + 1));
+  });
+});

@@ -2,7 +2,7 @@
   "$schema": "../scorecard.schema.json",
   "widgetType": "reveal-grid",
   "rubricVersion": "1.1.0",
-  "gradedAt": "2026-10-18T15:39:08.398Z",
+  "gradedAt": "2026-10-26T13:21:09.909Z",
   "stale": false,
   "criteria": {
     "I5": {
@@ -449,21 +449,21 @@
     },
     "R1": {
       "score": 1,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__empty.png",
-          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical.png"
+          "scripts/widget-grader/out/spot-2026-10-26/screenshots/reveal-grid/default__empty.png",
+          "scripts/widget-grader/out/spot-2026-10-26/screenshots/reveal-grid/default__typical.png"
         ],
-        "runId": "after-rg6"
+        "runId": "spot-2026-10-26"
       },
-      "note": "The empty state renders as a blank card and no designed loading or error views are shown on the face.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "gradedAt": "2026-10-26T13:20:18.225Z",
       "stale": false
     },
     "R3": {
@@ -541,30 +541,30 @@
     "G1": {
       "pass": true,
       "evidence": {
-        "runId": "after-rg6"
+        "runId": "spot-2026-10-26"
       },
-      "gradedAt": "2026-10-18T15:39:08.398Z"
+      "gradedAt": "2026-10-26T13:21:09.909Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "after-rg6"
+        "runId": "spot-2026-10-26"
       },
-      "gradedAt": "2026-10-18T15:39:08.398Z"
+      "gradedAt": "2026-10-26T13:21:09.909Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "after-rg6"
+        "runId": "spot-2026-10-26"
       },
-      "gradedAt": "2026-10-18T15:39:08.398Z"
+      "gradedAt": "2026-10-26T13:21:09.909Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "after-rg6"
+        "runId": "spot-2026-10-26"
       },
-      "gradedAt": "2026-10-18T15:39:08.398Z"
+      "gradedAt": "2026-10-26T13:21:09.909Z"
     }
   }
 }

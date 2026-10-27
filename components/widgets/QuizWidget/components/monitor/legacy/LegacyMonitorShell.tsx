@@ -79,7 +79,7 @@ import { hasPeriodAccess } from '@/utils/periodAccess';
 import { QuestionResults, QuestionDetail } from '../QuestionResults';
 import { JoinCodeScreen } from '../JoinCodeScreen';
 import { QuizSettingsScreen } from '../QuizSettingsScreen';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 
 export interface QuizLiveMonitorProps {
@@ -737,6 +737,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                   )
             }
             aria-label="Back"
+            {...tourAttr('quiz-monitor.back', widgetId, tourType)}
             className="rounded-md hover:bg-white/15 transition-colors"
             style={{ padding: 'min(4px, 1cqmin)' }}
           >
@@ -754,6 +755,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
         >
           {headerTitle}
         </p>
+        {/* no-tour-anchor: legacy monitor shown while quiz-monitor-declutter is off; the current monitor carries the anchors */}
         <button
           onClick={() => onUpdateConfig({ monitorBoardView: !boardView })}
           aria-pressed={boardView}
@@ -833,6 +835,11 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                         )
                       }
                       aria-pressed={on}
+                      {...tourFieldAttr(
+                        'quiz-monitor.period-filter',
+                        'quiz',
+                        p
+                      )}
                       className={`rounded-full border font-sans transition-colors ${
                         on
                           ? 'bg-brand-blue-lighter border-brand-blue-primary text-brand-blue-dark'

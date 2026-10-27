@@ -61,6 +61,7 @@ export function normalizeAddress(address: string): string {
   if (!g) return address;
   const zeros = (n: number) => g.slice(0, n).every((x) => x === 0);
   if (zeros(5) && g[5] === 0xffff) return v4(g[6], g[7]);
+  if (zeros(4) && g[4] === 0xffff && g[5] === 0) return v4(g[6], g[7]);
   if (zeros(7) && g[7] <= 1) return g[7] ? '::1' : '::';
   if (zeros(6)) return v4(g[6], g[7]);
   if (g[0] === 0x64 && g[1] === 0xff9b && g.slice(2, 6).every((x) => x === 0))

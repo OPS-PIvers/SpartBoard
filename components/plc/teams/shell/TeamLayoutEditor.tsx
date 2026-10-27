@@ -43,7 +43,7 @@ export const TeamLayoutEditor: React.FC<{
 }) => {
   const { t } = useTranslation();
   const { addToast } = useDashboard();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const [saving, setSaving] = useState(false);
   const { assessments } = usePlcAssessments(plc.id);
   const { aggregates } = usePlcAggregate(plc.id);
@@ -153,6 +153,10 @@ export const TeamLayoutEditor: React.FC<{
       pinGroups={pinGroups}
       newerFor={(ref) => selectNewerHeroData(ref, aggregates, assessments)}
       isLead={isLead}
+      plcHome={
+        getPlcGroupType(plc) === 'plc' && canAccessFeature('plc-home-tab')
+      }
+      anyLanding={canAccessFeature('team-landing-any-page')}
       pinner={heroPinner(user)}
       saving={saving}
       onSave={handleSave}

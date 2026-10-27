@@ -48,7 +48,6 @@ import {
 import { getPlcMemberEmails } from '@/utils/plc';
 import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
 import { resolvePlcPoolSyncGroupId } from '@/utils/plcPooling';
-import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { logError } from '@/utils/logError';
 import { getQuizAssignPrefill } from '@/utils/quizBehavior';
 import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
@@ -62,19 +61,20 @@ import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
 import { toAssessmentBehavior } from '@/utils/quizBehavior';
 import { manualStartAvailable } from '@/utils/assignAvailability';
 import type { AssignClassesValue } from '@/utils/assignTargets';
-import { buildMixedTargetsPayload } from '@/utils/assignTargets';
-import { payloadRequiresCall } from '@/utils/studentTargetRef';
-import { dueAtByClassIdFromRosters } from '@/utils/perClassDueDates';
 import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { useQuizHandRaiseMode } from '@/hooks/useQuizHandRaiseMode';
-import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import {
   defaultWhenValue,
   type AssignWhenValue,
 } from '@/components/common/library/assignStepper/assignWhenValue';
 import { QuizAssignStepper } from '@/components/widgets/QuizWidget/components/QuizAssignStepper';
-import { planPlcQuizStepperAssign } from './plcQuizStepperAssign';
+import {
+  applyPlcStepperStudentPicks,
+  savePlcStepperFinalScore,
+  planPlcQuizStepperAssign,
+  plcStepperCreateFields,
+} from './plcQuizStepperAssign';
 
 interface PlcNewQuizAssignmentModalProps {
   plc: Plc;
@@ -98,7 +98,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
   PlcNewQuizAssignmentModalProps
 > = ({ plc, assignmentMode = 'submissions', onClose, onCreated }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   // D21: the stepper uses the Quiz steps, prefilled from and saving to last-used rules.
   const { lastUsed: lastAssignSettings, save: saveLastAssignSettings } =
     useLastQuizAssignSettings(user?.uid, true);
@@ -227,7 +227,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
           rosters,
           bellWindow: periodAccess?.bellWindow,
         });
-        const derived = deriveSessionTargetsFromRosters(stepperPlan.rosters);
+        const fields = plcStepperCreateFields(stepperPlan, rosters);
 
         // PLC link only — no sheet step; results pool server-side.
         const plcLinkage: PlcLinkage = {
@@ -299,8 +299,6 @@ export const PlcNewQuizAssignmentModal: React.FC<
         }
 
         const behavior = toAssessmentBehavior(splitAssignSettings);
-        const stepperTargeting = stepperPlan.mixed.targeting;
-        const effectiveDueAt = stepperPlan.dueAt;
         const sessionOptions: QuizSessionOptions = behavior.sessionOptions;
 
         // Title-aware pooling (§8.1): prefer the PLC library group so every
@@ -328,43 +326,15 @@ export const PlcNewQuizAssignmentModal: React.FC<
             sessionOptions,
             attemptLimit: behavior.attemptLimit,
             teacherName: (user.displayName ?? '').trim() || undefined,
-            periodName: derived.periodNames[0],
-            periodNames: derived.periodNames,
+            ...fields.settings,
             plc: plcLinkage,
-            ...(effectiveDueAt != null
-              ? { dueAt: effectiveDueAt, dueAtHasTime: true }
-              : {}),
-            ...(stepperPlan.dueAtByRosterId
-              ? { dueAtByRosterId: stepperPlan.dueAtByRosterId }
-              : {}),
             ...(content.resolvedDriveFileId
               ? { resolvedDriveFileId: content.resolvedDriveFileId }
               : {}),
           },
           {
-            // A per-period session is gated by its periods, not a global pause.
-            initialStatus: stepperPlan.periodGate ? 'active' : 'paused',
-            ...(stepperPlan.periodGate ?? {}),
+            ...fields.options,
             ...(content.bankSlots ? { bankSlots: content.bankSlots } : {}),
-            classIds: derived.classIds,
-            rosterIds: derived.rosterIds,
-            classPeriodByClassId: derived.classPeriodByClassId,
-            ...(stepperPlan.dueAtByRosterId
-              ? {
-                  dueAtByClassId: dueAtByClassIdFromRosters(
-                    stepperPlan.dueAtByRosterId,
-                    rosters
-                  ),
-                }
-              : {}),
-            ...(stepperTargeting
-              ? {
-                  targetGroupIds: stepperTargeting.targetGroupIds,
-                  overridesBySourcedId: stepperTargeting.overridesByKey,
-                  openAt: stepperTargeting.openAt ?? null,
-                  closeAt: stepperTargeting.closeAt ?? null,
-                }
-              : {}),
             mode: assignmentMode,
             ...(plcTemplateSyncGroupId ? { plcTemplateSyncGroupId } : {}),
             ...(plcPoolSyncGroupId ? { plcPoolSyncGroupId } : {}),
@@ -377,59 +347,21 @@ export const PlcNewQuizAssignmentModal: React.FC<
           attemptLimit: behavior.attemptLimit,
         });
 
-        // Student picks fan out like the Quiz widget's stepper assign (D5b).
-        const payload = buildMixedTargetsPayload(undefined, stepperPlan.mixed);
-        if (payloadRequiresCall(payload)) {
-          try {
-            const result = await setAssignmentTargets({
-              assignmentId,
-              kind: 'quiz',
-              sessionId: assignmentId,
-              targetMode: payload.targetMode,
-              add: payload.add,
-              remove: payload.remove,
-              overridesBySourcedId: payload.overridesBySourcedId,
-              ...(payload.excludedTargets
-                ? { excludedTargets: payload.excludedTargets }
-                : {}),
-              ...(payload.studentTargetClassIds
-                ? { studentTargetClassIds: payload.studentTargetClassIds }
-                : {}),
-              window: payload.window,
-            });
-            if (result.skipped.length > 0) {
-              addToast(
-                skippedTargetsToastMessage(
-                  result.skipped.length,
-                  result.skippedExclusions?.length ?? 0
-                ),
-                'warning'
-              );
-              try {
-                await setAssignmentTargetSkippedCount(
-                  assignmentId,
-                  result.skipped.length
-                );
-              } catch (persistErr) {
-                logError(
-                  'PlcNewQuizAssignmentModal.setAssignmentTargetSkippedCount',
-                  persistErr,
-                  { assignmentId }
-                );
-              }
-            }
-          } catch (targetErr) {
-            logError(
-              'PlcNewQuizAssignmentModal.setAssignmentTargets',
-              targetErr,
-              { assignmentId }
-            );
-            addToast(
-              'Assigned to the class, but individual student targeting failed to save. Reopen Settings to retry.',
-              'error'
-            );
-          }
-        }
+        savePlcStepperFinalScore({
+          uid: user.uid,
+          assignmentId,
+          behavior,
+          attemptHistoryEnabled: canAccessFeature('quiz-attempt-history'),
+          logScope: 'PlcNewQuizAssignmentModal',
+        });
+        await applyPlcStepperStudentPicks({
+          assignmentId,
+          plan: stepperPlan,
+          setAssignmentTargets,
+          setAssignmentTargetSkippedCount,
+          addToast,
+          logScope: 'PlcNewQuizAssignmentModal',
+        });
 
         // Only a period gate creates it active; otherwise it starts paused.
         const gated = !!stepperPlan.periodGate;
@@ -484,6 +416,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
       addToast,
       outward,
       assignmentMode,
+      canAccessFeature,
       attachSyncLinkage,
       createAssignment,
       loadQuizData,

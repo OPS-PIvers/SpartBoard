@@ -1,0 +1,30 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Gradebook - Period 3</title><link rel="stylesheet" href="/common.css">
+<style>table{border-collapse:collapse;margin:16px;background:#fff}td,th{border:1px solid #e2e8f0;padding:2px 6px;font-size:12px;white-space:nowrap}.av{width:18px;height:18px;border-radius:50%;display:inline-block;background:#94a3b8}.av[data-on="1"]{background:#22c55e}</style></head>
+<body>
+<header><h1 style="font-size:18px;margin:0 auto 0 0">Gradebook</h1><span id="clock"></span><span id="presence"></span>
+  <div style="position:relative"><button id="filter">Filter</button><div id="filterMenu" class="menu" role="menu" hidden style="top:36px;right:0"><button role="menuitem">All</button><button role="menuitem">Missing</button><button role="menuitem">Late</button></div></div>
+  <div style="position:relative"><button id="sort">Sort</button><div id="sortMenu" class="menu" role="menu" hidden style="top:36px;right:0"><button role="menuitem">First name</button><button role="menuitem">Last name</button></div></div>
+  <div style="position:relative"><button id="export">Export</button><div id="exportMenu" class="menu" role="menu" hidden style="top:36px;right:0"><button role="menuitem">Download CSV</button><button role="menuitem">Copy to Sheets</button></div></div>
+</header>
+<div id="dialog" class="panel" role="dialog" aria-label="Private comment" hidden style="position:fixed;top:30%;left:35%;z-index:30;box-shadow:0 8px 32px rgb(0 0 0/.2)"><textarea aria-label="Comment text">Nice work</textarea><div class="row"><button id="post">Post comment</button><button id="cancel">Cancel</button></div></div>
+<table id="grid"></table>
+<script>
+const $ = (s) => document.querySelector(s);
+const rows = [];
+const head = '<tr><th>Student</th>' + Array.from({ length: 28 }, (_, c) => `<th>Assignment ${c + 1}</th>`).join('') + '<th></th></tr>';
+for (let r = 1; r <= 400; r++) {
+  rows.push(`<tr><td>Student ${r}</td>` + Array.from({ length: 28 }, (_, c) => `<td>${(r * 7 + c * 13) % 100}</td>`).join('') + `<td><button aria-label="Comment on Student ${r}">Comment</button></td></tr>`);
+}
+$('#grid').innerHTML = head + rows.join('');
+const pres = $('#presence');
+for (let i = 0; i < 20; i++) pres.insertAdjacentHTML('beforeend', '<span class="av"></span>');
+setInterval(() => ($('#clock').textContent = new Date().toLocaleTimeString() + '.' + String(Date.now() % 1000).padStart(3, '0')), 100);
+setInterval(() => { const a = pres.children[Math.floor(Math.random() * 20)]; a.dataset.on = a.dataset.on === '1' ? '0' : '1'; }, 50);
+for (const n of ['filter', 'sort', 'export']) {
+  $('#' + n).addEventListener('click', () => ($('#' + n + 'Menu').hidden = !$('#' + n + 'Menu').hidden));
+  $('#' + n + 'Menu').addEventListener('click', (e) => { if (e.target.matches('[role=menuitem]')) $('#' + n + 'Menu').hidden = true; });
+}
+$('#grid').addEventListener('click', (e) => { if (e.target.matches('button')) $('#dialog').hidden = false; });
+$('#post').addEventListener('click', () => ($('#dialog').hidden = true));
+$('#cancel').addEventListener('click', () => ($('#dialog').hidden = true));
+</script></body></html>
