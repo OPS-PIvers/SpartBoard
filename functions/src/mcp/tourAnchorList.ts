@@ -21060,6 +21060,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "classes.row-actions",
+    "label": "Class actions menu in My Classes",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
     "id": "classes.classroom-course-row",
     "label": "Course row in the Link to Google Classroom modal",
     "scope": "field",

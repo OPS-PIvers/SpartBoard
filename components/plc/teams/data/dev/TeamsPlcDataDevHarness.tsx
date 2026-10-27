@@ -10,7 +10,16 @@ import {
   Target,
 } from 'lucide-react';
 import { PlcHomeView } from '@/components/plc/teams/home/PlcHomeView';
-import type { PlcAssessmentAggregate, PlcGoal, TeamHeroRef } from '@/types';
+import type {
+  PlcAssessmentAggregate,
+  PlcGoal,
+  PlcUpdate,
+  TeamHeroRef,
+} from '@/types';
+import { isTeamCardId } from '@/config/teamTypePresets';
+import { CalendarEmbed } from '@/components/plc/redesignMockup/BuildingMock';
+import { LatestUpdatesView } from '@/components/plc/teams/updates/LatestUpdatesCard';
+import { CalendarCardView } from '@/components/plc/teams/building/CalendarCard';
 import type { GoalCoachResult } from '@/config/goalCoachRubric';
 import {
   TeamShell,
@@ -25,7 +34,11 @@ import {
   SHORT_TITLES,
 } from '@/components/plc/redesignMockup/fixtures';
 import { DataOverviewView } from '../DataOverviewView';
-import { AssessmentHeroView } from '../DataOverviewSections';
+import {
+  AssessmentHeroView,
+  MasteryView,
+  TagPrompt,
+} from '../DataOverviewSections';
 import { GoalView } from '../GoalView';
 import { TargetHeroView } from '../TargetHeroView';
 import { ManageTargetsModal } from '../ManageTargetsModal';
@@ -72,6 +85,51 @@ const STRIP = {
 };
 
 const TEACHERS = ['t1', 't2', 't3', 't4', 't5'];
+
+const UPDATES: PlcUpdate[] = [
+  {
+    id: 'u1',
+    title: 'Unit 4 CFA moved to Oct 16',
+    body: 'Give it in class Thursday so we can score together Friday.',
+    authorUid: 't1',
+    authorName: 'Priya Shah',
+    createdAt: MOCK_NOW - 86400000,
+    updatedAt: MOCK_NOW - 86400000,
+    pinned: false,
+    requiresAck: false,
+    inDigest: true,
+    reactions: {},
+  },
+  {
+    id: 'u2',
+    title: 'Reteach groups posted',
+    body: 'Groups for the ratio reteach are in Notes & Docs.',
+    authorUid: 't2',
+    authorName: 'Dan Ortiz',
+    createdAt: MOCK_NOW - 3 * 86400000,
+    updatedAt: MOCK_NOW - 3 * 86400000,
+    pinned: false,
+    requiresAck: false,
+    inDigest: true,
+    reactions: {},
+  },
+];
+
+const CALENDAR = (
+  <CalendarCardView
+    url="https://calendar.google.com/calendar/embed?src=plc%40example.org"
+    embed={
+      <CalendarEmbed
+        name="Grade 7 math PLC"
+        events={[
+          ['Thu Oct 9', 'PLC meeting, 3:15 PM'],
+          ['Thu Oct 16', 'Unit 4 CFA'],
+          ['Fri Oct 17', 'Score together'],
+        ]}
+      />
+    }
+  />
+);
 
 const GOAL: PlcGoal = {
   id: 'g1',
@@ -138,6 +196,10 @@ function readParams() {
     empty: params.get('empty') === '1',
     edit: params.get('edit'),
     page: params.get('page') === 'home' ? 'home' : 'data',
+    // `cards=goals,nextMeeting,...` stands in for a team layout's switched-on cards.
+    cards: params.has('cards')
+      ? (params.get('cards') ?? '').split(',').filter(isTeamCardId)
+      : null,
   };
 }
 
@@ -241,7 +303,28 @@ export const TeamsPlcDataDevHarness: React.FC = () => {
           {page === 'home' ? (
             <PlcHomeView
               model={model}
+              cards={initial.cards ?? BUILT_IN_TEAM_TYPE_PRESETS.plc.cards}
               goal={goal(false)}
+              updates={
+                <LatestUpdatesView
+                  updates={UPDATES}
+                  isLead={lead}
+                  myUid="t1"
+                  myAcks={{}}
+                />
+              }
+              calendar={CALENDAR}
+              mastery={
+                model.mastery ? (
+                  <MasteryView
+                    layer={model.mastery}
+                    isLead={lead}
+                    onManageTargets={() => setScreen('targets')}
+                  />
+                ) : lead ? (
+                  <TagPrompt onTag={() => setScreen('targets')} />
+                ) : null
+              }
               tools={HOME_TOOLS.map((tool) => ({
                 ...tool,
                 onOpen: () => undefined,
@@ -255,7 +338,7 @@ export const TeamsPlcDataDevHarness: React.FC = () => {
           <DataOverviewView
             model={model}
             isLead={lead}
-            cards={BUILT_IN_TEAM_TYPE_PRESETS.plc.cards}
+            cards={initial.cards ?? BUILT_IN_TEAM_TYPE_PRESETS.plc.cards}
             hero={heroNode}
             goal={goal(false)}
             strip={{

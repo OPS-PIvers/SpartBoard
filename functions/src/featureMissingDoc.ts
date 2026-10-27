@@ -64,6 +64,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'document-camera-pro',
   'whiteboard-pro',
   'widget-library-large',
+  'sidebar-list-rows',
 ];
 
 /** Plan D7: admins pass a default-off flag (preview, or admin-default like `guided-learning-ai`) that has no saved doc yet. */
