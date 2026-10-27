@@ -289,7 +289,10 @@ export const SURFACES: TourSurfaceMap = {
   'board.sidebar-classes': {
     label: 'My Classes',
     kind: 'sidebar',
-    files: ['components/layout/sidebar/SidebarClasses.tsx'],
+    files: [
+      'components/layout/sidebar/SidebarClasses.tsx',
+      'components/layout/sidebar/SidebarClassRow.tsx',
+    ],
     opensWith: 'sidebar.classes',
     parent: 'board.sidebar',
     inner: {
