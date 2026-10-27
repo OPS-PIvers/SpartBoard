@@ -10611,7 +10611,9 @@ export type GlobalFeature =
   /** My Classes and My Teams sidebar lists as divider rows with full names and a row actions menu. */
   | 'sidebar-list-rows'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
-  | 'flashcards-speak';
+  | 'flashcards-speak'
+  /** Widget Library fills most of the screen instead of a small fixed box. */
+  | 'widget-library-large';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
