@@ -3,7 +3,7 @@ import { Eye, X } from 'lucide-react';
 import type { PollResponse } from '@/hooks/usePollSession';
 import type { WidgetType } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
-import { cloudKey } from '@/utils/pollResults';
+import { cloudKey, legacyHiddenWordKey } from '@/utils/pollResults';
 
 interface TextResponsesProps {
   kind: 'words' | 'text';
@@ -85,12 +85,15 @@ export const TextResponses: React.FC<TextResponsesProps> = ({
     kind === 'words' && !hiddenWordsLoading
       ? buildAnswerCloud(
           visible.map((r) => r.text),
-          (word) => hiddenWordSet.has(word)
+          (word) =>
+            hiddenWordSet.has(word) ||
+            hidden.has(legacyHiddenWordKey(questionId, word))
         )
       : [];
   const hiddenCount =
-    hiddenKeys.filter((k) => k.startsWith(`${questionId}:`)).length +
-    hiddenWords.length;
+    hiddenKeys.filter(
+      (k) => k.startsWith(`${questionId}:`) || k.startsWith(`${questionId}#`)
+    ).length + hiddenWords.length;
   const empty = responses.length === 0;
 
   return (

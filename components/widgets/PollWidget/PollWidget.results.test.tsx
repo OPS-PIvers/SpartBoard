@@ -10,6 +10,7 @@ import {
 } from '@/context/dashboardCanvasStore';
 import { useAuth } from '@/context/useAuth';
 import { WidgetData, DEFAULT_GLOBAL_STYLE, PollConfig } from '@/types';
+import { legacyHiddenWordKey } from '@/utils/pollResults';
 
 vi.mock('@/context/dashboardCanvasStore');
 vi.mock('@/context/useAuth', () => ({ useAuth: vi.fn() }));
@@ -354,11 +355,15 @@ describe('PollWidget results controls', () => {
       hiddenWordDocs = [{ id: 'q1', data: { words: ['friction'] } }];
       render(
         <PollWidget
-          widget={live('words', { hiddenResponses: ['q1#legacyhash'] })}
+          widget={live('words', {
+            hiddenResponses: [legacyHiddenWordKey('q1', 'gravity')],
+          })}
         />
       );
       expect(screen.queryByTitle('friction (1)')).not.toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: /Show 1 hidden/ }));
+      // A word hidden by the older hashed key stays hidden.
+      expect(screen.queryByTitle('gravity (2)')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /Show 2 hidden/ }));
       expect(mockDeleteDoc).toHaveBeenCalledWith({
         __path: 'poll_sessions/teacher-1_K3F9Q/hidden_words/q1',
       });

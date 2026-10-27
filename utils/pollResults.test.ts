@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PollQuestion } from '@/types';
 import {
+  legacyHiddenWordKey,
   pollResultsCsv,
   summarizeLocalPoll,
   summarizePoll,
@@ -145,6 +146,19 @@ describe('hidden answers', () => {
     expect(t.texts.map((x) => x.text)).toEqual(['keep']);
     expect(t.answered).toBe(2);
   });
+
+  it('still honours a word hidden under the older hashed key', () => {
+    const [w] = summarizePoll(
+      [words],
+      [],
+      [
+        { id: '0_u1', questionIndex: 0, text: 'Rude', votedAt: 1 },
+        { id: '0_u2', questionIndex: 0, text: 'fun', votedAt: 2 },
+      ],
+      [legacyHiddenWordKey('q3', 'rude')]
+    );
+    expect(w.texts).toEqual([{ text: 'fun', count: 1 }]);
+  });
 });
 
 describe('typed answer order', () => {
@@ -170,5 +184,24 @@ describe('typed answer order', () => {
       ]
     );
     expect(t.texts.map((x) => x.text)).toEqual(['new', 'old']);
+  });
+
+  it("can't pin an older phone's answer above newer ones with a future clock", () => {
+    const now = Date.now();
+    const [, t] = summarizePoll(
+      [words, text],
+      [],
+      [
+        { id: '1_u1', questionIndex: 1, text: 'pinned', votedAt: now + 8e7 },
+        {
+          id: '1_u2',
+          questionIndex: 1,
+          text: 'new',
+          votedAt: 1,
+          answeredAt: now + 60_000,
+        },
+      ]
+    );
+    expect(t.texts.map((x) => x.text)).toEqual(['new', 'pinned']);
   });
 });
