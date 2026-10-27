@@ -69,8 +69,12 @@ INVOKER_IAM='Failed to get the IAM Policy on the Service'
 # Cloud Run's regional CPU quota fills while ~200 functions roll out at once;
 # it frees within minutes, so a quota retry waits at least QUOTA_BACKOFF.
 CPU_QUOTA='Quota exceeded for total allowable CPU'
+# A rollout squeezed by that quota can come back as "Container import failed"
+# on the retry; the same functions deploy on the next pass.
+CONTAINER_IMPORT='Container import failed'
+ROLLOUT_ERRORS="${CPU_QUOTA}|${CONTAINER_IMPORT}"
 QUOTA_BACKOFF=90
-TRANSIENT_PATTERN="HTTP Error: 5[0-9][0-9]|HTTP Error: 429|service is currently unavailable|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|premature close|Client network socket disconnected|Deadline exceeded|code.?UNAVAILABLE|${RULES_RELEASE_409}|${INVOKER_IAM}|${CPU_QUOTA}"
+TRANSIENT_PATTERN="HTTP Error: 5[0-9][0-9]|HTTP Error: 429|service is currently unavailable|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|premature close|Client network socket disconnected|Deadline exceeded|code.?UNAVAILABLE|${RULES_RELEASE_409}|${INVOKER_IAM}|${ROLLOUT_ERRORS}"
 
 # Comments count toward the 256 KiB ruleset cap, so deploy a comment-stripped
 # copy. Every surviving line is byte-identical to the source; tests still run
@@ -103,7 +107,7 @@ if [[ -z "$DEPLOY_ONLY" ]]; then
   exit $?
 fi
 
-# Function ids whose Cloud Run rollout hit the CPU quota. The CLI can record
+# Function ids whose Cloud Run rollout failed (CPU quota, container import). The CLI can record
 # their new source hash anyway and skip them as unchanged on a plain re-run, so
 # the next attempt names them in --only, which the CLI never skips.
 forced_functions=""
@@ -128,7 +132,7 @@ while true; do
   if [[ "$code" -eq 0 && -n "$forced_functions" ]]; then
     # The quota-failed attempt skipped deletes; one full pass does them and
     # skips everything already current.
-    echo "Quota-failed functions deployed (${forced_functions}); running a full pass for deletes."
+    echo "Rollout-failed functions deployed (${forced_functions}); running a full pass for deletes."
     forced_functions=""
     attempt=$((attempt + 1))
     continue
@@ -145,11 +149,11 @@ while true; do
   fi
 
   if grep -qiE "$TRANSIENT_PATTERN" "$LOG_FILE"; then
-    if grep -qiF "$CPU_QUOTA" "$LOG_FILE"; then
+    if grep -qiE "$ROLLOUT_ERRORS" "$LOG_FILE"; then
       # The summary block lists every failed function, including a lone one the CLI reports only in debug output.
       failed="$( { grep -oE 'Failed to (create|update) function [A-Za-z0-9_-]+' "$LOG_FILE" | awk '{print $NF}'; awk '/Functions deploy had errors with the following functions:/{f=1; next} f && /^[[:space:]]+[A-Za-z0-9_-]+\(/{sub(/^[[:space:]]+/, ""); sub(/\(.*/, ""); print; next} {f=0}' "$LOG_FILE"; } | sort -u)"
       if [[ -z "$failed" ]]; then
-        echo "ERROR: CPU quota error but no failed function names in the log; not retrying blind (exit ${code})." >&2
+        echo "ERROR: Cloud Run rollout error but no failed function names in the log; not retrying blind (exit ${code})." >&2
         exit "$code"
       fi
       forced_functions="$(printf '%s\n%s\n' "$(tr ',' '\n' <<<"$forced_functions")" "$failed" | grep -v '^$' | sort -u | paste -sd, -)"
