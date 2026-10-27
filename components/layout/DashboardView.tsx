@@ -507,9 +507,7 @@ export const DashboardView: React.FC = () => {
   const { canAccessFeature, isAdmin } = useAuth();
   // Latched: the host takes the parameter off the address once it opens the editor.
   const [webTourLink] = React.useState(opensWebTour);
-  useWallBoardAccessCleanup(
-    canAccessFeature('shared-board-live-walls') ? (user?.uid ?? null) : null
-  );
+  useWallBoardAccessCleanup(user?.uid ?? null);
 
   const {
     session,

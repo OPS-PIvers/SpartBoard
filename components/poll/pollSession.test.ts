@@ -409,13 +409,7 @@ describe('startPollSession results state', () => {
       .find((data) => 'revealedQuestions' in data);
 
   it('resume keeps reveals and locks for a poll-pro teacher', async () => {
-    const next = await startPollSession(
-      hidden,
-      'teacher-1',
-      'resume',
-      false,
-      true
-    );
+    const next = await startPollSession(hidden, 'teacher-1', 'resume', true);
     expect(next.lockedQuestionIds).toEqual(hidden.lockedQuestionIds);
     expect(written()).toMatchObject({
       hideResults: true,
@@ -425,13 +419,7 @@ describe('startPollSession results state', () => {
   });
 
   it('fresh clears reveals and locks', async () => {
-    const next = await startPollSession(
-      hidden,
-      'teacher-1',
-      'fresh',
-      false,
-      true
-    );
+    const next = await startPollSession(hidden, 'teacher-1', 'fresh', true);
     expect(next.revealedQuestionIds).toEqual([]);
     expect(next.lockedQuestionIds).toEqual([]);
     expect(written()).toMatchObject({
@@ -545,7 +533,7 @@ describe('word cloud and open response sessions', () => {
         { id: 'q3', question: 'Why?', kind: 'text', options: [] },
       ],
     };
-    await startPollSession(config, 'teacher-1', 'resume', false, true);
+    await startPollSession(config, 'teacher-1', 'resume', true);
     expect(mockSetDoc).toHaveBeenLastCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -554,7 +542,7 @@ describe('word cloud and open response sessions', () => {
       }),
       { merge: true }
     );
-    await startPollSession(config, 'teacher-1', 'resume', false, false);
+    await startPollSession(config, 'teacher-1', 'resume', false);
     expect(mockSetDoc).toHaveBeenLastCalledWith(
       expect.anything(),
       expect.objectContaining({ textQuestions: [] }),

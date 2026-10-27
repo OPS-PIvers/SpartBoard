@@ -1238,18 +1238,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Gates the wall owner's side: only a flagged owner lets board members read the wall's posts.
-  'shared-board-live-walls': {
-    label: 'Library items on shared boards',
-    icon: Share2,
-    description:
-      'Colleagues on a Synced or View-Only board see your Activity Walls, quizzes, video activities and guided activities.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'seating-chart-plans': {
     label: 'Seating Chart: seating plans',
     icon: LayoutGrid,

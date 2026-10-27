@@ -273,8 +273,6 @@ export const startPollSession = async (
   config: PollConfig,
   teacherUid: string,
   mode: 'fresh' | 'resume',
-  /** Name the starter on the board, so members of a Synced or View-Only board see its votes. */
-  stampOwner = false,
   /** The starter has the poll-pro flag, so hidden results and locks reach phones. */
   pollPro = false
 ): Promise<PollConfig> => {
@@ -313,7 +311,7 @@ export const startPollSession = async (
     ...base,
     joinCode: code,
     activePollSessionId: code,
-    activePollSessionOwnerUid: stampOwner ? teacherUid : null,
+    activePollSessionOwnerUid: teacherUid,
     currentQuestionIndex,
     // On a fresh start the old lastPollSessionId belongs to an abandoned
     // session. Clear it so the UI doesn't offer to "Resume" the stale session

@@ -108,15 +108,10 @@ export function useSharedBoardItemPublisher<T>({
   stampedOwnerUid,
   stampOwner,
 }: SharedBoardItemPublish<T>): void {
-  const { user, canAccessFeature } = useAuth();
+  const { user } = useAuth();
   const shareId = useOwnBoardShareId();
   const uid = user?.uid ?? null;
-  const enabled =
-    !!shareId &&
-    !!uid &&
-    !!itemId &&
-    !!version &&
-    canAccessFeature('shared-board-live-walls');
+  const enabled = !!shareId && !!uid && !!itemId && !!version;
   const key =
     enabled && uid && itemId
       ? `${shareId}/${sharedBoardItemDocId(kind, uid, itemId)}`
