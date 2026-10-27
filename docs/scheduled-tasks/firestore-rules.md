@@ -70,6 +70,7 @@ _2026-05-27: Audited all collection() and collectionGroup() calls in components/
 - **File:** firestore.rules (approx. line 183)
 - **Detail:** The rules comment acknowledges that listing all sessions is intentionally permitted for Phase 2 (to allow students to look up a teacher's session by PIN). This is mitigated by PIN validation in app logic, but any authenticated user can enumerate all active classroom sessions. A future Cloud Function join-code validation approach would eliminate the need for this broad read permission.
 - **Fix:** Implement PIN/join-code validation via a Cloud Function and tighten the list permission. This is a known planned improvement (referenced in the rules themselves). Track against any future Cloud Function session-join work.
+- **Skipped 2026-10-26:** `firestore.rules` modified in the last 5 commits (#4693, #4691, #4686, #4695, #4694); also a multi-part Cloud Function redesign. Retry once the file settles.
 
 ### LOW `/organizations/{orgId}/analytics/{document}` allow rule is dead — no client reads this collection
 

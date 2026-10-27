@@ -3,9 +3,15 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-24_
+_Last audited: 2026-10-27_
 _Last action: 2026-10-22 — LOW SmartNotebook Viewer page-counter `minWidth` scaled with cqmin (moved to Completed). Prior: 2026-10-21 — LOW MusicWidget landscape status row `gap-2` replaced with `min(8px, 2cqh)` gap (moved to Completed). Prior: 2026-10-18 — LOW `MiniAppAssignModal` skipped-students warning text scaled with cqmin (both duplicate entries moved to Completed). Prior: 2026-10-17 — LOW Soundboard active-sound dot scaled with cqmin._
 
+_2026-10-27: Daily audit (Tuesday). No `max-w/h-[Npx]` in any `Widget.tsx`. Only fixed-px hits are `DrawingWidget/Widget.tsx` portal popups (`fixed` menu `min-w-[200px]`, panel `w-[260px]`), not content-area; not flagged. 0 new issues._
+
+
+_2026-10-26: Daily audit (Monday). 0 `max-w/h-[Npx]` caps in any `Widget.tsx`; only fixed-px hits are the two portaled `fixed` DrawingWidget popovers (exempt). 0 new issues._
+
+_2026-10-25: Daily audit (Sunday). No `max-h-[Npx]`/`max-w-[Npx]` in any Widget.tsx. Widget files changed since last audit (Countdown, GraphicOrganizer) add no new hardcoded sizing. 0 new issues; open items unchanged._
 _2026-10-24: Daily audit (Saturday). 0 `max-w/h-[Npx]` caps in any `Widget.tsx`; fixed-px hits are the known exempt ones (LunchCount ghost, NeedDoPutThen resize handles, Expectations min-height hit targets). 0 new issues._
 
 _2026-10-23 action: Friday daily run. Nothing In Progress; no HIGH/MEDIUM structured Open items actionable (HIGH `DashboardContext` is BLOCKED). Picked css-scaling's first LOW (`QuizPreview` icons); recency check clean. Fixed; moved to Completed; PR opened to `dev-paul`._
