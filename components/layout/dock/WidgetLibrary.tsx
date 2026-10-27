@@ -580,9 +580,9 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
       : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3';
     const dockClearance =
       dockPosition === 'left'
-        ? 'pl-32'
+        ? 'pl-36'
         : dockPosition === 'right'
-          ? 'pr-32'
+          ? 'pr-36'
           : 'pb-32';
 
     return createPortal(

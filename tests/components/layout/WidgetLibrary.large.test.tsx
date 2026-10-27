@@ -45,13 +45,13 @@ describe('WidgetLibrary size', () => {
   it('keeps the small fixed box when the flag is off', () => {
     const { root, overlay } = renderLibrary({});
     expect(root.className).toContain('max-w-2xl');
-    expect(overlay.className).not.toMatch(/\bp[blr]-32\b/);
+    expect(overlay.className).not.toMatch(/\bp[blr]-3[26]\b/);
   });
 
   it.each([
     ['bottom', 'pb-32'],
-    ['left', 'pl-32'],
-    ['right', 'pr-32'],
+    ['left', 'pl-36'],
+    ['right', 'pr-36'],
   ] as const)(
     'fills the screen and leaves a %s dock uncovered',
     (dockPosition, clearance) => {
