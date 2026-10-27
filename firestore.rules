@@ -6683,10 +6683,9 @@ service cloud.firestore {
       // Word cloud / open response answers, `{questionIndex}_{uid}`: text
       // 1-280 chars on a `textQuestions` index of an active session that isn't
       // locked; votedAt may run a day ahead for a fast student clock. answeredAt,
-      // the board's sort key, must be the server time; a write without it (an
-      // older phone) may run at most a minute ahead. Free text may identify
-      // a student, so only the session owner (or an admin) and the student who
-      // wrote it can read it.
+      // the board's sort key, must be the server time when present (older
+      // phones omit it). Free text may identify a student, so only the session
+      // owner (or an admin) and the student who wrote it can read it.
       match /answers/{answerId} {
         function answerTargetsOpenTextQuestion() {
           let session = get(/databases/$(database)/documents/poll_sessions/$(sessionId)).data;
@@ -6704,9 +6703,7 @@ service cloud.firestore {
           incoming().text.size() > 0 &&
           incoming().text.size() <= 280 &&
           incoming().votedAt <= request.time.toMillis() + 86400000 &&
-          (incoming().get('answeredAt', null) == request.time ||
-            (!('answeredAt' in incoming()) &&
-              incoming().votedAt <= request.time.toMillis() + 60000)) &&
+          incoming().get('answeredAt', request.time) == request.time &&
           answerId == string(incoming().questionIndex) + '_' + authUid() &&
           exists(/databases/$(database)/documents/poll_sessions/$(sessionId)) &&
           answerTargetsOpenTextQuestion();

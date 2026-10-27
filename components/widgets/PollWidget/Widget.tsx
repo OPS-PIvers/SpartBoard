@@ -213,10 +213,8 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     ? responses.length
     : displayOptions.reduce((sum, o) => sum + o.votes, 0);
   const isScale = proEnabled && isScaleQuestion(activeQuestion);
-  // Legacy `{questionId}#{hash}` word keys are dropped on the next write.
-  const hiddenResponses = (config.hiddenResponses ?? []).filter(
-    (k) => !k.includes('#')
-  );
+  // Legacy `{questionId}#{hash}` word keys stay honoured until Show hidden clears them.
+  const hiddenResponses = config.hiddenResponses ?? [];
   const hideResponse = (key: string) => {
     if (hiddenResponses.includes(key)) return;
     applyConfig({ ...config, hiddenResponses: [...hiddenResponses, key] });
@@ -242,7 +240,9 @@ export const PollWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     applyConfig({
       ...config,
       hiddenResponses: hiddenResponses.filter(
-        (k) => !k.startsWith(`${activeQuestion.id}:`)
+        (k) =>
+          !k.startsWith(`${activeQuestion.id}:`) &&
+          !k.startsWith(`${activeQuestion.id}#`)
       ),
     });
     if (user && ownSessionId && hiddenWords.length > 0) {
