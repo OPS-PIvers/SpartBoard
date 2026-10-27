@@ -10470,8 +10470,6 @@ export type GlobalFeature =
   | 'standards-from-question-text'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
   | 'quiz-results-tools'
-  /** Per-student "Slide N of M · active X ago" on Guided Learning results and the Assignments hub. */
-  | 'gl-student-progress'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
   | 'paper-handwritten-responses'
   /** Claude connector: teachers connect Claude to their library (docs/plans/CLAUDE_CONNECTOR.md). */
