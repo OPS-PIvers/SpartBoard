@@ -107,9 +107,9 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               condition: data.condition,
               locationName: data.locationName,
               lastSync: data.updatedAt,
-              ...(weatherStateRef.current.detailsAllowed && {
-                details: data.details,
-              }),
+              details: weatherStateRef.current.detailsAllowed
+                ? data.details
+                : undefined,
             },
           });
         }
@@ -161,7 +161,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 condition: data.condition,
                 locationName: data.locationName,
                 lastSync: data.updatedAt,
-                ...(detailsAllowed && { details: data.details }),
+                details: detailsAllowed ? data.details : undefined,
               },
             });
           }
