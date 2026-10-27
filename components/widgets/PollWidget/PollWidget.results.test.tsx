@@ -10,23 +10,26 @@ import {
 } from '@/context/dashboardCanvasStore';
 import { useAuth } from '@/context/useAuth';
 import { WidgetData, DEFAULT_GLOBAL_STYLE, PollConfig } from '@/types';
-import { hiddenWordKey } from '@/utils/pollResults';
 
 vi.mock('@/context/dashboardCanvasStore');
 vi.mock('@/context/useAuth', () => ({ useAuth: vi.fn() }));
 
-const { mockSetDoc, mockOnSnapshot } = vi.hoisted(() => ({
+const { mockSetDoc, mockOnSnapshot, mockDeleteDoc } = vi.hoisted(() => ({
   mockSetDoc: vi.fn(),
   mockOnSnapshot: vi.fn(),
+  mockDeleteDoc: vi.fn(),
 }));
 
 let liveVotes: { id: string; data: Record<string, unknown> }[] = [];
+let hiddenWordDocs: { id: string; data: Record<string, unknown> }[] = [];
 
 vi.mock('firebase/firestore', () => ({
-  collection: vi.fn(() => 'col'),
+  collection: vi.fn((..._args: unknown[]) => _args.slice(1).join('/')),
   doc: vi.fn((..._args: unknown[]) => ({ __path: _args.slice(1).join('/') })),
   onSnapshot: mockOnSnapshot,
   setDoc: mockSetDoc,
+  deleteDoc: mockDeleteDoc,
+  arrayUnion: (...values: unknown[]) => ({ __arrayUnion: values }),
   getDocs: vi.fn(),
   limit: vi.fn(),
   query: vi.fn(),
@@ -92,8 +95,12 @@ describe('PollWidget results controls', () => {
     });
     mockSetDoc.mockResolvedValue(undefined);
     mockOnSnapshot.mockImplementation(
-      (_ref: unknown, cb: (snap: unknown) => void) => {
-        const docs = liveVotes.map((d) => ({ id: d.id, data: () => d.data }));
+      (ref: unknown, cb: (snap: unknown) => void) => {
+        const source =
+          typeof ref === 'string' && ref.endsWith('/hidden_words')
+            ? hiddenWordDocs
+            : liveVotes;
+        const docs = source.map((d) => ({ id: d.id, data: () => d.data }));
         cb({ docs, forEach: (fn: (d: unknown) => void) => docs.forEach(fn) });
         return vi.fn();
       }
@@ -313,6 +320,7 @@ describe('PollWidget results controls', () => {
       });
 
     beforeEach(() => {
+      hiddenWordDocs = [];
       liveVotes = [
         {
           id: '0_p1',
@@ -333,9 +341,69 @@ describe('PollWidget results controls', () => {
       );
       expect(screen.getByTitle('gravity (2)')).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'Hide friction' }));
-      expect(lastConfig().hiddenResponses).toEqual([
-        hiddenWordKey('q1', 'friction'),
-      ]);
+      // The word goes to the owner-only doc; shared board config never holds it.
+      expect(mockSetDoc).toHaveBeenCalledWith(
+        { __path: 'poll_sessions/teacher-1_K3F9Q/hidden_words/q1' },
+        { words: { __arrayUnion: ['friction'] } },
+        { merge: true }
+      );
+      expect(mockUpdateWidget).not.toHaveBeenCalled();
+    });
+
+    it('leaves hidden words out of the cloud and brings them back', () => {
+      hiddenWordDocs = [{ id: 'q1', data: { words: ['friction'] } }];
+      render(
+        <PollWidget
+          widget={live('words', { hiddenResponses: ['q1#legacyhash'] })}
+        />
+      );
+      expect(screen.queryByTitle('friction (1)')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /Show 1 hidden/ }));
+      expect(mockDeleteDoc).toHaveBeenCalledWith({
+        __path: 'poll_sessions/teacher-1_K3F9Q/hidden_words/q1',
+      });
+      // The old hashed key is dropped from config on that write.
+      expect(lastConfig().hiddenResponses).toEqual([]);
+    });
+
+    it('waits for hidden words before drawing the cloud', () => {
+      mockOnSnapshot.mockImplementation(
+        (ref: unknown, cb: (snap: unknown) => void) => {
+          if (typeof ref === 'string' && ref.endsWith('/hidden_words'))
+            return vi.fn();
+          const docs = liveVotes.map((d) => ({ id: d.id, data: () => d.data }));
+          cb({ docs, forEach: (fn: (d: unknown) => void) => docs.forEach(fn) });
+          return vi.fn();
+        }
+      );
+      render(<PollWidget widget={live('words')} />);
+      expect(screen.queryByTitle('friction (1)')).not.toBeInTheDocument();
+    });
+
+    it('orders open responses by server time over the student clock', () => {
+      liveVotes = [
+        {
+          id: '0_p1',
+          data: {
+            questionIndex: 0,
+            text: 'pinned',
+            votedAt: 9e12,
+            answeredAt: { toMillis: () => 1 },
+          },
+        },
+        {
+          id: '0_p2',
+          data: {
+            questionIndex: 0,
+            text: 'latest',
+            votedAt: 1,
+            answeredAt: { toMillis: () => 2 },
+          },
+        },
+      ];
+      render(<PollWidget widget={live('text')} />);
+      const items = screen.getAllByRole('listitem');
+      expect(items[0]).toHaveTextContent('latest');
     });
 
     it('lists open responses newest first and hides one', () => {

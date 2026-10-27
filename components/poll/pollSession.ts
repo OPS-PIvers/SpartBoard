@@ -6,7 +6,7 @@
  * all four drive the same state.
  */
 
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { arrayUnion, deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type {
   PollConfig,
@@ -39,7 +39,13 @@ export interface PollVoteEntry {
   optionIndex?: number;
   text?: string;
   votedAt?: number;
+  /** Server write time of a typed answer, in ms; absent on answers from older phones. */
+  answeredAt?: number;
 }
+
+/** Newest-first sort time for a typed answer: the server's clock, not the student's. */
+export const answerTime = (a: PollVoteEntry): number =>
+  a.answeredAt ?? a.votedAt ?? 0;
 
 /**
  * Tally one question's votes into a count-per-option-index array. Votes for
@@ -110,7 +116,7 @@ export const toSessionQuestions = (
 export const toSessionResultsState = (
   config: PollConfig,
   /** Without the poll-pro flag the session always shows results and never locks. */
-  pollPro = true
+  pollPro: boolean
 ): Pick<
   PollSessionDoc,
   'hideResults' | 'revealedQuestions' | 'lockedQuestions' | 'shownAnswers'
@@ -378,11 +384,50 @@ export const setSessionQuestionIndex = async (
 export const syncSessionResultsState = async (
   teacherUid: string,
   sessionId: string,
-  config: PollConfig
+  config: PollConfig,
+  /** The syncing teacher has the poll-pro flag; without it phones get plain results. */
+  pollPro: boolean
 ): Promise<void> => {
   await setDoc(
     doc(db, POLL_SESSIONS, makePollSessionId(teacherUid, sessionId)),
-    { ...toSessionResultsState(config), updatedAt: Date.now() },
+    { ...toSessionResultsState(config, pollPro), updatedAt: Date.now() },
     { merge: true }
   );
+};
+
+// Hidden word cloud words are student text, so they live in an owner-only doc, never in shared board config.
+const hiddenWordsDoc = (
+  teacherUid: string,
+  sessionId: string,
+  questionId: string
+) =>
+  doc(
+    db,
+    POLL_SESSIONS,
+    makePollSessionId(teacherUid, sessionId),
+    'hidden_words',
+    questionId
+  );
+
+/** Hide a word cloud word (already a cloudKey) from the board and results. */
+export const hidePollWord = async (
+  teacherUid: string,
+  sessionId: string,
+  questionId: string,
+  word: string
+): Promise<void> => {
+  await setDoc(
+    hiddenWordsDoc(teacherUid, sessionId, questionId),
+    { words: arrayUnion(word) },
+    { merge: true }
+  );
+};
+
+/** Bring back every word hidden on one question. */
+export const showPollHiddenWords = async (
+  teacherUid: string,
+  sessionId: string,
+  questionId: string
+): Promise<void> => {
+  await deleteDoc(hiddenWordsDoc(teacherUid, sessionId, questionId));
 };

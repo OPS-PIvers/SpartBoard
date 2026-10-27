@@ -15,6 +15,7 @@ import {
 } from '@/utils/pollQuestions';
 import {
   aggregateVotes,
+  answerTime,
   makePollSessionId,
   setSessionQuestionIndex,
   syncSessionResultsState,
@@ -30,6 +31,8 @@ interface UsePollSessionArgs {
   readAnswers?: boolean;
   /** Reset also ends a stopped session (poll-pro), so its votes can't come back. */
   endSessionOnReset?: boolean;
+  /** The viewer has poll-pro, so hidden results and locks reach phones. */
+  pollPro?: boolean;
 }
 
 export interface PollResponse {
@@ -114,10 +117,18 @@ export const usePollSessionDocs = (
       collection(db, 'poll_sessions', sessionId, 'answers'),
       (snap) => {
         setAnswers(
-          snap.docs.map((d) => ({
-            id: d.id,
-            ...(d.data() as Omit<PollVoteEntry, 'id'>),
-          }))
+          snap.docs.map((d) => {
+            const { answeredAt, ...data } = d.data() as Omit<
+              PollVoteEntry,
+              'id' | 'answeredAt'
+            > & { answeredAt?: { toMillis?: () => number } | null };
+            const at = answeredAt?.toMillis?.();
+            return {
+              id: d.id,
+              ...data,
+              ...(typeof at === 'number' ? { answeredAt: at } : {}),
+            };
+          })
         );
       },
       (err) => logError('usePollSession.answers', err, { sessionId })
@@ -131,12 +142,59 @@ export const usePollSessionDocs = (
   return { votes, answers };
 };
 
+const NO_HIDDEN_WORDS: ReadonlyMap<string, readonly string[]> = new Map();
+
+/** Word cloud words the session owner hid, by question id; null until the first snapshot. */
+export const usePollHiddenWords = (
+  teacherUid: string | undefined,
+  pollSessionId: string | null,
+  enabled: boolean
+): ReadonlyMap<string, readonly string[]> | null => {
+  const [hidden, setHidden] = useState<{
+    key: string;
+    words: ReadonlyMap<string, readonly string[]>;
+  } | null>(null);
+  const key =
+    pollSessionId && teacherUid && enabled
+      ? makePollSessionId(teacherUid, pollSessionId)
+      : '';
+
+  useEffect(() => {
+    if (!pollSessionId || !teacherUid || !enabled) return;
+    const sessionId = makePollSessionId(teacherUid, pollSessionId);
+    const unsub = onSnapshot(
+      collection(db, 'poll_sessions', sessionId, 'hidden_words'),
+      (snap) => {
+        const next = new Map<string, readonly string[]>();
+        for (const d of snap.docs) {
+          const words: unknown = d.data().words;
+          if (Array.isArray(words))
+            next.set(
+              d.id,
+              words.filter((w): w is string => typeof w === 'string')
+            );
+        }
+        setHidden({ key: sessionId, words: next });
+      },
+      (err) => {
+        logError('usePollSession.hiddenWords', err, { sessionId });
+        setHidden({ key: sessionId, words: NO_HIDDEN_WORDS });
+      }
+    );
+    return unsub;
+  }, [pollSessionId, teacherUid, enabled]);
+
+  if (!key) return NO_HIDDEN_WORDS;
+  return hidden?.key === key ? hidden.words : null;
+};
+
 export const usePollSession = ({
   config,
   teacherUid,
   onConfigChange,
   readAnswers = false,
   endSessionOnReset = false,
+  pollPro = false,
 }: UsePollSessionArgs): UsePollSessionResult => {
   const activePollSessionId = config.activePollSessionId ?? null;
   const isLive = !!activePollSessionId;
@@ -172,7 +230,7 @@ export const usePollSession = ({
                 typeof v.text === 'string' &&
                 v.text.trim() !== ''
             )
-            .sort((a, b) => (b.votedAt ?? 0) - (a.votedAt ?? 0))
+            .sort((a, b) => answerTime(b) - answerTime(a))
             .map((v) => ({ id: v.id, text: (v.text ?? '').trim() }))
         : [],
     [isLive, answers, currentQuestionIndex]
@@ -222,12 +280,15 @@ export const usePollSession = ({
     (next: PollConfig) => {
       onConfigChange(next);
       if (resultsSessionId && teacherUid && resultsOwnerUid === teacherUid) {
-        void syncSessionResultsState(teacherUid, resultsSessionId, next).catch(
-          (err) => logError('usePollSession.resultsState', err)
-        );
+        void syncSessionResultsState(
+          teacherUid,
+          resultsSessionId,
+          next,
+          pollPro
+        ).catch((err) => logError('usePollSession.resultsState', err));
       }
     },
-    [onConfigChange, resultsSessionId, resultsOwnerUid, teacherUid]
+    [onConfigChange, resultsSessionId, resultsOwnerUid, teacherUid, pollPro]
   );
 
   const setRevealed = useCallback(
