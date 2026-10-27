@@ -2,7 +2,13 @@ import React, { useEffect, useMemo, useReducer, useState } from 'react';
 import { Check, Loader2, X } from 'lucide-react';
 import { auth, db } from '@/config/firebase';
 import { signInAnonymously } from 'firebase/auth';
-import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  onSnapshot,
+  serverTimestamp,
+  setDoc,
+} from 'firebase/firestore';
 import { type PollSessionDoc } from '@/types';
 import { normalizePollCode } from '@/utils/pollCode';
 import { dropPinLogin } from '@/utils/pinLoginScope';
@@ -240,6 +246,8 @@ export const PollVoteApp: React.FC = () => {
           ...answer,
           // eslint-disable-next-line react-hooks/purity -- runs in the vote click handler, not render
           votedAt: Date.now(),
+          // Typed answers list newest first by the server's clock, which a student can't set.
+          ...(target === 'answers' ? { answeredAt: serverTimestamp() } : {}),
         }
       );
       dispatch({ type: 'voteSaved' });

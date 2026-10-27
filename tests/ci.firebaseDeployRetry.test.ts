@@ -127,7 +127,10 @@ describe('firebase-deploy-with-retry.sh transient classification', () => {
 
 // Runs the script against stub pnpm/node/sleep that replay scripted deploy
 // outcomes, and returns each `--only` the script deployed.
-function runWithStubbedDeploys(outcomes: { exit: number; log: string }[]): {
+function runWithStubbedDeploys(
+  outcomes: { exit: number; log: string }[],
+  deployOnly?: string
+): {
   status: number | null;
   onlys: string[];
 } {
@@ -158,6 +161,7 @@ function runWithStubbedDeploys(outcomes: { exit: number; log: string }[]): {
       ...process.env,
       PATH: `${bin}:${process.env.PATH ?? ''}`,
       RELEASE_FIRESTORE_RULES: 'false',
+      ...(deployOnly === undefined ? {} : { FIREBASE_DEPLOY_ONLY: deployOnly }),
     },
   });
   const onlys = readFileSync(join(dir, 'onlys'), 'utf-8').trim().split('\n');
@@ -205,6 +209,69 @@ describe('firebase-deploy-with-retry.sh CPU quota retry', () => {
       'functions:setGoogleTasksSyncV1,firestore:indexes,storage',
       'functions,firestore:indexes,storage',
     ]);
+  });
+
+  it('retries a container import failure on the quota retry, as in run 40517899145', () => {
+    const quotaLog = [
+      'Could not create or update Cloud Run service getviewasdrivetokenv1, Container Healthcheck failed. Quota exceeded for total allowable CPU per project per region.',
+      '- Error Failed to update function getViewAsDriveTokenV1 in region us-central1',
+      '- Error Failed to update function lookupSpeakReferencesV1 in region us-central1',
+    ].join('\n');
+    const importLog = [
+      'Could not create or update Cloud Run service lookupspeakreferencesv1. Container import failed.',
+      '- Error Failed to update function lookupSpeakReferencesV1 in region us-central1',
+    ].join('\n');
+    const { status, onlys } = runWithStubbedDeploys([
+      { exit: 2, log: quotaLog },
+      { exit: 2, log: importLog },
+      { exit: 0, log: '' },
+      { exit: 0, log: '' },
+    ]);
+    expect(status).toBe(0);
+    expect(onlys).toEqual([
+      'functions,firestore:indexes,storage',
+      'functions:getViewAsDriveTokenV1,functions:lookupSpeakReferencesV1,firestore:indexes,storage',
+      'functions:getViewAsDriveTokenV1,functions:lookupSpeakReferencesV1,firestore:indexes,storage',
+      'functions,firestore:indexes,storage',
+    ]);
+  });
+
+  it('skips the deletes pass after a quota retry of a named-functions deploy', () => {
+    const quotaLog = [
+      'Could not create or update Cloud Run service fetchlinkpreview, Container Healthcheck failed. Quota exceeded for total allowable CPU per project per region.',
+      '- Error Failed to update function fetchLinkPreview in region us-central1',
+    ].join('\n');
+    const { status, onlys } = runWithStubbedDeploys(
+      [
+        { exit: 2, log: quotaLog },
+        { exit: 0, log: '' },
+      ],
+      'functions:fetchLinkPreview,functions:fetchImportImage,storage'
+    );
+    expect(status).toBe(0);
+    expect(onlys).toEqual([
+      'functions:fetchLinkPreview,functions:fetchImportImage,storage',
+      'functions:fetchLinkPreview,storage',
+    ]);
+  });
+
+  it('fails a first-attempt container import failure without retrying', () => {
+    expect(
+      classifiedTransient(
+        'Could not create or update Cloud Run service lookupspeakreferencesv1. Container import failed.'
+      )
+    ).toBe(false);
+    const { status, onlys } = runWithStubbedDeploys([
+      {
+        exit: 2,
+        log: [
+          'Could not create or update Cloud Run service lookupspeakreferencesv1. Container import failed.',
+          '- Error Failed to update function lookupSpeakReferencesV1 in region us-central1',
+        ].join('\n'),
+      },
+    ]);
+    expect(status).toBe(2);
+    expect(onlys).toHaveLength(1);
   });
 
   it('fails instead of retrying blind when a quota error names no function', () => {

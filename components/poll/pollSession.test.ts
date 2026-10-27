@@ -37,6 +37,7 @@ import {
   toSessionResultsState,
   stopPollSession,
   setSessionQuestionIndex,
+  syncSessionResultsState,
   withStoppedSessionEnded,
 } from './pollSession';
 
@@ -375,7 +376,7 @@ describe('toSessionResultsState', () => {
   };
 
   it('maps question ids to the indexes the rules check', () => {
-    expect(toSessionResultsState(config)).toEqual({
+    expect(toSessionResultsState(config, true)).toEqual({
       hideResults: true,
       revealedQuestions: [1],
       lockedQuestions: [0],
@@ -384,12 +385,42 @@ describe('toSessionResultsState', () => {
   });
 
   it('defaults to visible and unlocked', () => {
-    expect(toSessionResultsState({ questions: config.questions })).toEqual({
+    expect(
+      toSessionResultsState({ questions: config.questions }, true)
+    ).toEqual({
       hideResults: false,
       revealedQuestions: [],
       lockedQuestions: [],
       shownAnswers: [],
     });
+  });
+});
+
+describe('syncSessionResultsState', () => {
+  const config: PollConfig = {
+    questions: [{ id: 'q1', question: 'A?', options: [] }],
+    hideResults: true,
+    lockedQuestionIds: ['q1'],
+  };
+
+  beforeEach(() => mockSetDoc.mockClear());
+
+  it('keeps hide and lock off phones for a teacher without poll-pro', async () => {
+    await syncSessionResultsState('teacher-1', 'K3F9Q', config, false);
+    expect(mockSetDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ hideResults: false, lockedQuestions: [] }),
+      { merge: true }
+    );
+  });
+
+  it('syncs hide and lock with poll-pro', async () => {
+    await syncSessionResultsState('teacher-1', 'K3F9Q', config, true);
+    expect(mockSetDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ hideResults: true, lockedQuestions: [0] }),
+      { merge: true }
+    );
   });
 });
 
@@ -458,12 +489,12 @@ describe('toSessionResultsState shown answers', () => {
   };
 
   it('writes no answers until a question is shown', () => {
-    expect(toSessionResultsState(config).shownAnswers).toEqual([]);
+    expect(toSessionResultsState(config, true).shownAnswers).toEqual([]);
   });
 
   it('writes only shown questions as question:option id keys', () => {
     expect(
-      toSessionResultsState({ ...config, answerShownQuestionIds: ['q1'] })
+      toSessionResultsState({ ...config, answerShownQuestionIds: ['q1'] }, true)
         .shownAnswers
     ).toEqual(['q1:b']);
   });

@@ -2385,7 +2385,7 @@ export interface PollConfig {
   lockedQuestionIds?: string[];
   /** Question ids whose correct answer the teacher has shown. */
   answerShownQuestionIds?: string[];
-  /** Typed answers the teacher hid from the board: `{questionId}:{voteId}`, or `{questionId}#{hash}` for a word cloud word (hashed: board config is shared). */
+  /** Typed answers the teacher hid from the board, as `{questionId}:{voteId}`; hidden word cloud words live owner-only in the session's `hidden_words`. */
   hiddenResponses?: string[];
   /** Saved polls; lives only in the profile's `savedWidgetPresets.poll`, never on a widget. */
   savedLibrary?: SavedPollPreset[];
