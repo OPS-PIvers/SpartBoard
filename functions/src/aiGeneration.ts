@@ -1545,6 +1545,9 @@ export function validateAndBucketVideoQuestions(
     // distractors degenerates into "pick the only choice"; the prompt
     // asks for 2–4 distractors, so we require at least 2 of each side.
     if (type === 'MA' && !isValidOrderingList(correctAnswer, 2)) continue;
+    if (type === 'MA' && incorrectAnswers.some((a) => a.includes('|'))) {
+      continue;
+    }
     if (type === 'MA' && incorrectAnswers.length < 2) continue;
     const timeLimitRaw =
       typeof q.timeLimit === 'number' ? Math.floor(q.timeLimit) : 30;
