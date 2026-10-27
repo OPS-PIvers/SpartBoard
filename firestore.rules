@@ -6730,7 +6730,7 @@ service cloud.firestore {
           notAnon() &&
           sessionId.matches(authUid() + '_.*') &&
           incoming().keys().hasOnly(['words']) &&
-          incoming().words is list &&
+          isList('words') &&
           incoming().words.size() <= 500;
       }
     }
