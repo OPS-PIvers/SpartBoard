@@ -69,12 +69,10 @@ INVOKER_IAM='Failed to get the IAM Policy on the Service'
 # Cloud Run's regional CPU quota fills while ~200 functions roll out at once;
 # it frees within minutes, so a quota retry waits at least QUOTA_BACKOFF.
 CPU_QUOTA='Quota exceeded for total allowable CPU'
-# A rollout squeezed by that quota can come back as "Container import failed"
-# on the retry; the same functions deploy on the next pass.
+# A quota retry can come back as "Container import failed"; retried only after a quota failure.
 CONTAINER_IMPORT='Container import failed'
-ROLLOUT_ERRORS="${CPU_QUOTA}|${CONTAINER_IMPORT}"
 QUOTA_BACKOFF=90
-TRANSIENT_PATTERN="HTTP Error: 5[0-9][0-9]|HTTP Error: 429|service is currently unavailable|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|premature close|Client network socket disconnected|Deadline exceeded|code.?UNAVAILABLE|${RULES_RELEASE_409}|${INVOKER_IAM}|${ROLLOUT_ERRORS}"
+TRANSIENT_PATTERN="HTTP Error: 5[0-9][0-9]|HTTP Error: 429|service is currently unavailable|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|premature close|Client network socket disconnected|Deadline exceeded|code.?UNAVAILABLE|${RULES_RELEASE_409}|${INVOKER_IAM}|${CPU_QUOTA}"
 
 # Comments count toward the 256 KiB ruleset cap, so deploy a comment-stripped
 # copy. Every surviving line is byte-identical to the source; tests still run
@@ -148,8 +146,13 @@ while true; do
     exit "$code"
   fi
 
-  if grep -qiE "$TRANSIENT_PATTERN" "$LOG_FILE"; then
-    if grep -qiE "$ROLLOUT_ERRORS" "$LOG_FILE"; then
+  rollout_failed=false
+  if grep -qiE "$CPU_QUOTA" "$LOG_FILE" || { [[ -n "$forced_functions" ]] && grep -qiE "$CONTAINER_IMPORT" "$LOG_FILE"; }; then
+    rollout_failed=true
+  fi
+
+  if [[ "$rollout_failed" == true ]] || grep -qiE "$TRANSIENT_PATTERN" "$LOG_FILE"; then
+    if [[ "$rollout_failed" == true ]]; then
       # The summary block lists every failed function, including a lone one the CLI reports only in debug output.
       failed="$( { grep -oE 'Failed to (create|update) function [A-Za-z0-9_-]+' "$LOG_FILE" | awk '{print $NF}'; awk '/Functions deploy had errors with the following functions:/{f=1; next} f && /^[[:space:]]+[A-Za-z0-9_-]+\(/{sub(/^[[:space:]]+/, ""); sub(/\(.*/, ""); print; next} {f=0}' "$LOG_FILE"; } | sort -u)"
       if [[ -z "$failed" ]]; then

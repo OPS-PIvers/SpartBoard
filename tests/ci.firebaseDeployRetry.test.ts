@@ -232,6 +232,25 @@ describe('firebase-deploy-with-retry.sh CPU quota retry', () => {
     ]);
   });
 
+  it('fails a first-attempt container import failure without retrying', () => {
+    expect(
+      classifiedTransient(
+        'Could not create or update Cloud Run service lookupspeakreferencesv1. Container import failed.'
+      )
+    ).toBe(false);
+    const { status, onlys } = runWithStubbedDeploys([
+      {
+        exit: 2,
+        log: [
+          'Could not create or update Cloud Run service lookupspeakreferencesv1. Container import failed.',
+          '- Error Failed to update function lookupSpeakReferencesV1 in region us-central1',
+        ].join('\n'),
+      },
+    ]);
+    expect(status).toBe(2);
+    expect(onlys).toHaveLength(1);
+  });
+
   it('fails instead of retrying blind when a quota error names no function', () => {
     const { status, onlys } = runWithStubbedDeploys([
       {
