@@ -77,10 +77,18 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     condition,
     lastSync,
     config,
+    detailsAllowed,
   });
   useEffect(() => {
-    weatherStateRef.current = { temp, feelsLike, condition, lastSync, config };
-  }, [temp, feelsLike, condition, lastSync, config]);
+    weatherStateRef.current = {
+      temp,
+      feelsLike,
+      condition,
+      lastSync,
+      config,
+      detailsAllowed,
+    };
+  }, [temp, feelsLike, condition, lastSync, config, detailsAllowed]);
 
   // Initial Admin Proxy Fetch — only re-runs when the strategy itself changes
   useEffect(() => {
@@ -99,7 +107,9 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               condition: data.condition,
               locationName: data.locationName,
               lastSync: data.updatedAt,
-              details: data.details,
+              ...(weatherStateRef.current.detailsAllowed && {
+                details: data.details,
+              }),
             },
           });
         }
@@ -121,8 +131,14 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data() as GlobalWeatherData;
-          const { temp, feelsLike, condition, lastSync, config } =
-            weatherStateRef.current;
+          const {
+            temp,
+            feelsLike,
+            condition,
+            lastSync,
+            config,
+            detailsAllowed,
+          } = weatherStateRef.current;
           // Only update widget if data actually changed to avoid write loops
           if (
             Math.round(data.temp) !== Math.round(temp) ||
@@ -138,7 +154,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 condition: data.condition,
                 locationName: data.locationName,
                 lastSync: data.updatedAt,
-                details: data.details,
+                ...(detailsAllowed && { details: data.details }),
               },
             });
           }

@@ -146,7 +146,12 @@ while true; do
 
   if grep -qiE "$TRANSIENT_PATTERN" "$LOG_FILE"; then
     if grep -qiF "$CPU_QUOTA" "$LOG_FILE"; then
-      failed="$(grep -oE 'Failed to (create|update) function [A-Za-z0-9_-]+' "$LOG_FILE" | awk '{print $NF}')"
+      # The summary block lists every failed function, including a lone one the CLI reports only in debug output.
+      failed="$( { grep -oE 'Failed to (create|update) function [A-Za-z0-9_-]+' "$LOG_FILE" | awk '{print $NF}'; awk '/Functions deploy had errors with the following functions:/{f=1; next} f && /^[[:space:]]+[A-Za-z0-9_-]+\(/{sub(/^[[:space:]]+/, ""); sub(/\(.*/, ""); print; next} {f=0}' "$LOG_FILE"; } | sort -u)"
+      if [[ -z "$failed" ]]; then
+        echo "ERROR: CPU quota error but no failed function names in the log; not retrying blind (exit ${code})." >&2
+        exit "$code"
+      fi
       forced_functions="$(printf '%s\n%s\n' "$(tr ',' '\n' <<<"$forced_functions")" "$failed" | grep -v '^$' | sort -u | paste -sd, -)"
       if (( backoff < QUOTA_BACKOFF )); then
         backoff=$QUOTA_BACKOFF

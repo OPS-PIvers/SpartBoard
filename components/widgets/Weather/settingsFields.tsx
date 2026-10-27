@@ -14,6 +14,7 @@ import {
   type OpenWeatherData,
 } from './constants';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { useWeatherDetailsAllowed } from './useWeatherDetailsAllowed';
 import {
   fetchUvHours,
   parseEarthNetworksDetails,
@@ -77,6 +78,7 @@ export const WeatherAutoSyncField: React.FC<{
   const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY as string | undefined;
   const hasApiKey = Boolean(apiKey?.trim());
   const isAdminProxy = globalConfig?.fetchingStrategy === 'admin_proxy';
+  const detailsAllowed = useWeatherDetailsAllowed();
 
   const fetchOpenWeather = async (params: string) => {
     if (!apiKey) {
@@ -101,7 +103,7 @@ export const WeatherAutoSyncField: React.FC<{
         condition: data.weather[0].main.toLowerCase(),
         locationName: data.name,
         lastSync: Date.now(),
-        details: parseOpenWeatherDetails(data),
+        ...(detailsAllowed && { details: parseOpenWeatherDetails(data) }),
       });
       addToast(
         `${ctx.t('widgets.weather.updatedFor')} ${data.name}`,
@@ -136,7 +138,7 @@ export const WeatherAutoSyncField: React.FC<{
         proxy({
           url: `${EARTH_NETWORKS_API.BASE_URL}?${params.toString()}`,
         }),
-        fetchUvHours(STATION_CONFIG.zip),
+        detailsAllowed ? fetchUvHours(STATION_CONFIG.zip) : null,
       ]);
       const observation = result.data.o;
       if (!observation) throw new Error('No observation data available');
@@ -147,7 +149,9 @@ export const WeatherAutoSyncField: React.FC<{
         locationName: STATION_CONFIG.name,
         lastSync: Date.now(),
         isAuto: true,
-        details: { ...parseEarthNetworksDetails(result.data), uvHours },
+        ...(detailsAllowed && {
+          details: { ...parseEarthNetworksDetails(result.data), uvHours },
+        }),
       });
       addToast(
         `${ctx.t('widgets.weather.connectedTo')} ${STATION_CONFIG.name}`,
