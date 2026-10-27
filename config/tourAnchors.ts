@@ -5085,6 +5085,11 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
+  'classes.row-actions': {
+    label: 'Class actions menu in My Classes',
+    perField: true,
+    panel: true,
+  },
   'classes.classroom-course-row': {
     label: 'Course row in the Link to Google Classroom modal',
     perField: true,
