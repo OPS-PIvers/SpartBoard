@@ -54,7 +54,7 @@ describe('firestore.rules deploy path', () => {
     const commands = deployCommands();
     expect(commands).toHaveLength(1);
     for (const command of commands) {
-      expect(command).toContain('--only "$DEPLOY_ONLY"');
+      expect(command).toContain('--only "$only"');
       // `--only firestore` would sweep rules back in alongside indexes.
       expect(command).not.toMatch(/--only \S*(^|,)firestore(,|\s|$)/);
       expect(command).not.toContain('firestore:rules');
