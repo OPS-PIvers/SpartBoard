@@ -144,7 +144,7 @@ export const RotationHandle: React.FC<RotationHandleProps> = ({
         </span>
       </div>
 
-      {/* Circular grip — <button> for keyboard focus and accessibility */}
+      {/* Circular grip: a real button for keyboard focus and accessibility */}
       <button
         type="button"
         {...tourTypeAttr('math-tool.rotate', 'mathTool')}

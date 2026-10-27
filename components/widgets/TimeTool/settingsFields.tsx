@@ -58,6 +58,7 @@ function TimeToolRadioGroup<V extends string | number | null>({
           ? selectedClass(option.value)
           : 'bg-white text-slate-900 shadow-sm font-semibold';
         return (
+          // no-tour-anchor: one radio per option; the group carries the anchor
           <button
             key={String(option.value)}
             type="button"

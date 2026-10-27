@@ -15,7 +15,7 @@
  */
 
 import { randomInt } from 'crypto';
-import { ClassLinkStudent } from './classlinkShared';
+import { ClassLinkStudent, isBridgeablePin } from './classlinkShared';
 
 /** Mirror of the repo-root `Student` (types.ts). Drive roster file payload. */
 export interface SyncStudent {
@@ -23,6 +23,7 @@ export interface SyncStudent {
   firstName: string;
   lastName: string;
   pin: string;
+  formerPins?: string[];
   classLinkSourcedId?: string;
   email?: string;
   restrictedStudentIds?: string[];
@@ -47,6 +48,8 @@ export interface ReconcileResult {
   linked: number;
   /** Existing rows that gained an email from upstream this run. */
   emailBackfilled: number;
+  /** Linked rows whose short PIN was replaced with a random 6-digit one. */
+  pinsReplaced: number;
   /**
    * Whether `students` differs from `existing` at all. Callers must gate their
    * write on this, not on added/removed: a re-link or an email backfill mutates
@@ -68,9 +71,16 @@ export const MASS_REMOVAL_THRESHOLD = 0.5;
 const normalizeNameKey = (first: string, last: string): string =>
   `${first.trim()}|${last.trim()}`.toLowerCase();
 
+/** True when a linked student's PIN is too short to sign in with and needs a new random one. */
+export function needsNewLinkedPin(s: SyncStudent): boolean {
+  return !!s.classLinkSourcedId && !!s.pin && !isBridgeablePin(s.pin);
+}
+
 /**
  * Assign PINs to students that lack one, skipping `reserved`: random 6-digit
  * PINs for ClassLink-linked students (they sign in with them), sequential otherwise.
+ * A linked student's short PIN (the old 01, 02, … defaults) is replaced too,
+ * and moves to `formerPins`, which is never handed out again.
  *
  * Mirrors `utils/rosterPins.ts` with one addition: the caller passes the PINs
  * of students being removed in the SAME run, so a departure and an arrival on
@@ -82,7 +92,9 @@ export function assignPins(
 ): SyncStudent[] {
   const used = new Set<string>(reserved);
   for (const s of students) {
+    // A short PIN being replaced stays reserved: it becomes a former PIN.
     if (s.pin) used.add(s.pin);
+    for (const pin of s.formerPins ?? []) used.add(pin);
   }
 
   let next = 1;
@@ -108,6 +120,14 @@ export function assignPins(
   };
 
   return students.map((s) => {
+    if (needsNewLinkedPin(s)) {
+      // The old PIN stays on file so past responses still show this student's name.
+      return {
+        ...s,
+        pin: takeRandomPin(),
+        formerPins: [...new Set([...(s.formerPins ?? []), s.pin])],
+      };
+    }
     if (s.pin) return s;
     return {
       ...s,
@@ -151,6 +171,7 @@ export function reconcileClassLinkStudents(
       matched: 0,
       linked: 0,
       emailBackfilled: 0,
+      pinsReplaced: 0,
       changed: false,
       blocked: 'empty-upstream',
     };
@@ -250,6 +271,7 @@ export function reconcileClassLinkStudents(
       matched: 0,
       linked: 0,
       emailBackfilled: 0,
+      pinsReplaced: 0,
       changed: false,
       blocked: 'mass-removal',
     };
@@ -257,9 +279,14 @@ export function reconcileClassLinkStudents(
 
   const departingIds = new Set(departing.map((s) => s.id));
   const kept = result.filter((s) => !departingIds.has(s.id));
+  const pinsReplaced = kept.filter(needsNewLinkedPin).length;
 
   return {
-    students: assignPins(kept, new Set(departing.map((s) => s.pin))),
+    students: assignPins(
+      kept,
+      new Set(departing.flatMap((s) => [s.pin, ...(s.formerPins ?? [])]))
+    ),
+    pinsReplaced,
     added,
     removed: departing.map((s) => ({
       firstName: s.firstName,
@@ -272,6 +299,7 @@ export function reconcileClassLinkStudents(
       added.length > 0 ||
       departing.length > 0 ||
       linked > 0 ||
-      emailBackfilled > 0,
+      emailBackfilled > 0 ||
+      pinsReplaced > 0,
   };
 }

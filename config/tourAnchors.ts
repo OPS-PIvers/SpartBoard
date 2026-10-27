@@ -4696,6 +4696,113 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'widget-settings.stations.title': {
+    label: 'Station title box in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.description': {
+    label: 'Station description box in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.max-students': {
+    label: 'Station max students box in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.custom-color': {
+    label: 'Station custom color picker in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.icon-tab': {
+    label: 'Icon tab of a station in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.image-tab': {
+    label: 'Image tab of a station in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.icon-search': {
+    label: 'Icon search box of a station in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.upload-image': {
+    label: 'Upload image button of a station in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.replace-image': {
+    label: 'Replace image button of a station in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.remove-image': {
+    label: 'Remove image button of a station in Stations settings',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.stations.clear-icon': {
+    label: 'Clear icon button of a station in Stations settings',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.stations.save-preset': {
+    label: 'Save current preset button in Stations settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.stations.delete-preset': {
+    label: 'Delete a saved station preset in Stations settings',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.stations.use-group-names': {
+    label: 'Use group names as titles checkbox in Stations settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.stations.send-to-random': {
+    label: 'Send to Random Picker button in Stations settings',
+    perWidget: true,
+    panel: true,
+  },
+  'stations.reset-station': {
+    label: 'Reset students in one station button in Stations',
+    perField: true,
+    destructive: true,
+  },
+  'widget-settings.weather.source': {
+    label: 'Weather source button in Weather settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.weather.city': {
+    label: 'City or ZIP box in Weather settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.weather.use-location': {
+    label: 'Use my location button in Weather settings',
+    perWidget: true,
+    panel: true,
+  },
+  'webcam.download-photo': {
+    label: 'Download a photo button in the Webcam gallery',
+    perField: true,
+  },
+  'webcam.delete-photo': {
+    label: 'Delete a photo button in the Webcam gallery',
+    perField: true,
+    destructive: true,
+  },
   'widget-settings.soundboard.toggle-sound': {
     label: 'Toggle a sound on or off in Soundboard settings',
     perField: true,

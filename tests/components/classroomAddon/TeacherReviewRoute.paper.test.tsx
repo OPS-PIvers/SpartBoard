@@ -64,6 +64,13 @@ const publishAssignmentScores = vi.fn((..._args: unknown[]) =>
   Promise.resolve({ responsesUpdated: 1, paperResponses: 1 })
 );
 let assignments: Record<string, unknown>[] = [];
+vi.mock('@/hooks/useQuestionBanks', () => ({
+  useQuestionBanks: () => ({
+    banks: [],
+    loading: false,
+    loadBankData: vi.fn(),
+  }),
+}));
 vi.mock('@/hooks/useQuizAssignments', async (importOriginal) => ({
   countPendingPaperTranscripts: (
     await importOriginal<typeof import('@/hooks/useQuizAssignments')>()
