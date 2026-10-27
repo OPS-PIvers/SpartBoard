@@ -134,4 +134,11 @@ describe('weather details', () => {
     });
     expect(row(new Date(2026, 9, 27, 13, 30)).value).toBe('--');
   });
+  it('reads EPA months in any letter case', () => {
+    const uvHours = parseEpaUvHours([
+      { DATE_TIME: 'OCT/27/2026 07 AM', UV_VALUE: 1 },
+    ]);
+    expect(uvHours?.date).toBe('2026-10-27');
+    expect(uvHours?.values[7]).toBe(1);
+  });
 });

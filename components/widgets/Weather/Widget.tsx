@@ -77,10 +77,18 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     condition,
     lastSync,
     config,
+    detailsAllowed,
   });
   useEffect(() => {
-    weatherStateRef.current = { temp, feelsLike, condition, lastSync, config };
-  }, [temp, feelsLike, condition, lastSync, config]);
+    weatherStateRef.current = {
+      temp,
+      feelsLike,
+      condition,
+      lastSync,
+      config,
+      detailsAllowed,
+    };
+  }, [temp, feelsLike, condition, lastSync, config, detailsAllowed]);
 
   // Initial Admin Proxy Fetch — only re-runs when the strategy itself changes
   useEffect(() => {
@@ -99,7 +107,9 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               condition: data.condition,
               locationName: data.locationName,
               lastSync: data.updatedAt,
-              details: data.details,
+              details: weatherStateRef.current.detailsAllowed
+                ? data.details
+                : undefined,
             },
           });
         }
@@ -109,7 +119,14 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     };
 
     void fetchInitial();
-  }, [isAuto, globalConfig?.fetchingStrategy, widget.id, updateWidget]);
+    // detailsAllowed re-runs it so details arrive once permissions load.
+  }, [
+    isAuto,
+    globalConfig?.fetchingStrategy,
+    widget.id,
+    updateWidget,
+    detailsAllowed,
+  ]);
 
   // Admin Proxy Subscription — stable; reads current values via ref to avoid restart
   useEffect(() => {
@@ -121,8 +138,14 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data() as GlobalWeatherData;
-          const { temp, feelsLike, condition, lastSync, config } =
-            weatherStateRef.current;
+          const {
+            temp,
+            feelsLike,
+            condition,
+            lastSync,
+            config,
+            detailsAllowed,
+          } = weatherStateRef.current;
           // Only update widget if data actually changed to avoid write loops
           if (
             Math.round(data.temp) !== Math.round(temp) ||
@@ -138,7 +161,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 condition: data.condition,
                 locationName: data.locationName,
                 lastSync: data.updatedAt,
-                details: data.details,
+                details: detailsAllowed ? data.details : undefined,
               },
             });
           }

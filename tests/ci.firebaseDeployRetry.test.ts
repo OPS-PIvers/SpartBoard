@@ -185,6 +185,39 @@ describe('firebase-deploy-with-retry.sh CPU quota retry', () => {
     ]);
   });
 
+  it('names a lone quota-failed function from the summary block', () => {
+    const quotaLog = [
+      'Could not create or update Cloud Run service setgoogletaskssyncv1, Container Healthcheck failed. Quota exceeded for total allowable CPU per project per region.',
+      '',
+      'Functions deploy had errors with the following functions:',
+      '\tsetGoogleTasksSyncV1(us-central1)',
+      '',
+      'Error: There was an error deploying functions',
+    ].join('\n');
+    const { status, onlys } = runWithStubbedDeploys([
+      { exit: 2, log: quotaLog },
+      { exit: 0, log: '' },
+      { exit: 0, log: '' },
+    ]);
+    expect(status).toBe(0);
+    expect(onlys).toEqual([
+      'functions,firestore:indexes,storage',
+      'functions:setGoogleTasksSyncV1,firestore:indexes,storage',
+      'functions,firestore:indexes,storage',
+    ]);
+  });
+
+  it('fails instead of retrying blind when a quota error names no function', () => {
+    const { status, onlys } = runWithStubbedDeploys([
+      {
+        exit: 2,
+        log: 'Quota exceeded for total allowable CPU per project per region.\nError: There was an error deploying functions',
+      },
+    ]);
+    expect(status).toBe(2);
+    expect(onlys).toHaveLength(1);
+  });
+
   it('still fails a real deploy error without retrying', () => {
     const { status, onlys } = runWithStubbedDeploys([
       { exit: 2, log: 'Error: Failed to load function definition from source' },
