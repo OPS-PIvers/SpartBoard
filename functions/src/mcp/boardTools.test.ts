@@ -170,6 +170,31 @@ function seed(): Record<string, Data> {
           config: { subShareQueue: [{ id: 'q', name: 'Grace Hopper' }] },
         },
         {
+          id: 'w7',
+          type: 'scoreboard',
+          minimized: true,
+          config: {
+            liveQuizWidgetId: 'w3',
+            teams: [{ id: 't1', name: 'Katherine Johnson', score: 4 }],
+          },
+        },
+        {
+          id: 'w8',
+          type: 'scoreboard',
+          minimized: true,
+          config: {
+            teams: [
+              { id: 't2', name: 'Red team', score: 1 },
+              {
+                id: 't3',
+                name: 'Dorothy Vaughan',
+                score: 2,
+                memberStudentIds: ['s1'],
+              },
+            ],
+          },
+        },
+        {
           id: 'w6',
           type: 'poll',
           minimized: true,
@@ -207,7 +232,7 @@ describe('list_boards', () => {
     const p2 = res.boards[1];
     expect(p2).toMatchObject({
       board_id: 'b1',
-      widget_count: 6,
+      widget_count: 8,
       collection: 'Science / Unit 3',
       in_use: false,
     });
@@ -291,6 +316,8 @@ describe('get_board', () => {
       'colleague@',
       'Hour 3',
       'ZX9Q',
+      'Katherine',
+      'Dorothy',
     ])
       expect(text).not.toContain(leak);
   });
@@ -440,6 +467,7 @@ describe('board helpers', () => {
     const t = 1_000_000_000;
     expect(inUseNote({ updatedAt: t - 1000 }, t)).toContain('1 minute');
     expect(inUseNote({ updatedAt: t - IN_USE_WINDOW_MS - 1 }, t)).toBeNull();
+    expect(inUseNote({ updatedAt: t + 3 * 60000 }, t)).not.toBeNull();
     expect(
       inUseNote({ updatedAt: t - 1000, claudeEditedAt: t - 1000 }, t)
     ).toBeNull();

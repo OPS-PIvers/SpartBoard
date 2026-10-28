@@ -108,7 +108,8 @@ export function inUseNote(board: Doc, now = Date.now()): string | null {
   const claudeAt = num(board.claudeEditedAt);
   if (claudeAt !== null && claudeAt >= updatedAt) return null;
   const ago = now - updatedAt;
-  if (ago < 0 || ago > IN_USE_WINDOW_MS) return null;
+  // updatedAt is the browser's clock, so a stamp a little in the future still counts.
+  if (Math.abs(ago) > IN_USE_WINDOW_MS) return null;
   const minutes = Math.max(1, Math.round(ago / 60000));
   return `Changed in SpartBoard ${minutes} minute${minutes === 1 ? '' : 's'} ago, so it may be on screen in class. Check with the teacher before changes students would see.`;
 }
@@ -191,9 +192,30 @@ function summarizeValue(value: unknown, depth: number): unknown {
   return out;
 }
 
+/** Widget-specific fields whose ordinary-looking keys hold student names. */
+function redactStudentFields(type: string, config: Doc): Doc {
+  if (type !== 'scoreboard' || !Array.isArray(config.teams)) return config;
+  // A quiz-synced scoreboard has one team per student, named after them.
+  if (str(config.liveQuizWidgetId)) {
+    const rest = { ...config };
+    delete rest.teams;
+    return rest;
+  }
+  return {
+    ...config,
+    teams: config.teams.map((team: unknown) =>
+      isObject(team) &&
+      (Array.isArray(team.memberStudentIds) || str(team.linkedRosterGroupId))
+        ? { ...team, name: '[class group]' }
+        : team
+    ),
+  };
+}
+
 /** The widget's settings Claude can work with: schema keys only, no student data, long values cut. */
-export function summarizeSettings(type: string, config: unknown): Doc {
-  if (!isObject(config)) return {};
+export function summarizeSettings(type: string, raw: unknown): Doc {
+  if (!isObject(raw)) return {};
+  const config = redactStudentFields(type, raw);
   const schema = partialWidgetSchema(type);
   const props = isObject(schema?.properties) ? schema.properties : null;
   const itemKey = LIBRARY_ITEM_KEYS[type]?.key;
