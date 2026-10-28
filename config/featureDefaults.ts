@@ -1345,7 +1345,8 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
-  }, // Teachers still turn it on for themselves in Behavior; the flag only hides that switch.
+  },
+  // Teachers still turn it on for themselves in Behavior; the flag only hides that switch.
   'alignment-guides': {
     label: 'Alignment guides',
     icon: Ruler,
