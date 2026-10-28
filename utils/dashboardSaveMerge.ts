@@ -53,6 +53,10 @@ export const DASHBOARD_FIELDS = [
   // Board ink is persistent state (PR #2820), so it needs the same
   // baseline-and-merge treatment as background/name.
   'annotationOverlay',
+  // Written by the connector; a stale autosave must not drop them.
+  'claudeEditedAt',
+  'claudeAction',
+  'claudeUnseen',
 ] as const;
 
 export type MergedDashboardField = (typeof DASHBOARD_FIELDS)[number];

@@ -7,6 +7,9 @@ import type { Dashboard } from '@/types';
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({ pinBoard: vi.fn(), unpinBoard: vi.fn() }),
 }));
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({ canAccessFeature: () => false }),
+}));
 
 const board: Dashboard = {
   id: 'b1',

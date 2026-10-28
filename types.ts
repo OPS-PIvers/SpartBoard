@@ -10148,6 +10148,7 @@ export interface UserRolesConfig {
  *  - `DashboardContext` owns the board/dock state fields: `dockItems`,
  *    `libraryOrder`, `dockInitialized`, `lastActiveCollectionId`,
  *    `lastBoardIdByCollection`.
+ *  - `useClaudeBoardActivity` (components/layout) owns `boardScreen`.
  *
  * INVARIANT: because both contexts write the same doc, every write MUST use
  * `setDoc(ref, partial, { merge: true })` (or `updateDoc`) so it only touches
@@ -10175,6 +10176,8 @@ export interface UserProfile {
    * live apart from the appearance defaults above.
    */
   savedWidgetPresets?: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
+  /** Window size (CSS px) the last time this teacher went full screen; the connector lays boards out for it. */
+  boardScreen?: { w: number; h: number; at: number };
   /**
    * Pre-migration backup of `savedWidgetConfigs`, written once when the
    * account-wide store was narrowed to appearance keys. Kept so content
@@ -10346,6 +10349,12 @@ export interface Dashboard {
     canvasWidth?: number;
     canvasHeight?: number;
   };
+  /** When Claude last created or edited this board through the connector (server-written). */
+  claudeEditedAt?: number;
+  /** Whether Claude's last change made the board or edited it. */
+  claudeAction?: 'created' | 'edited';
+  /** True until the teacher opens the board after Claude's change; drives the Boards list badge. */
+  claudeUnseen?: boolean;
 }
 
 /**
@@ -10414,6 +10423,8 @@ export interface Toast {
     onClick: () => void;
     /** A quieter second choice beside the action, such as "No thanks". */
     secondary?: { label: string; onClick: () => void };
+    /** Live-tour anchor id for the action button. */
+    tourId?: string;
   };
 }
 
