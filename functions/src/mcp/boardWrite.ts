@@ -39,6 +39,7 @@ import {
   boardWidgets,
   boardsPath,
   hiddenKey,
+  libraryItemOf,
   shownInFull,
   summarizeSettings,
   widgetLabel,
@@ -128,6 +129,8 @@ export const NOTE_EMBED_ACCESS =
   'Embedded Google files only show for viewers who can open them; remind the teacher to share the file with view access.';
 export const NOTE_CLASS =
   'Class-based widgets use the class picked in SpartBoard. If none is picked, the teacher picks one on the board.';
+export const NOTE_KEPT_CLASS =
+  'Class and student fields inside lists (such as station sizes or vote counts) were left as they were; the teacher changes those in SpartBoard.';
 export const NOTE_ASSIGN =
   'Quiz and video activity widgets open on the teacher’s library; the teacher assigns the item from there.';
 
@@ -337,12 +340,24 @@ export function keepHidden(
 }
 
 /** Claude's settings with nested student state kept from the stored config (D18). */
+function hasNestedHidden(value: unknown, depth = 0): boolean {
+  if (depth > 20 || typeof value !== 'object' || value === null) return false;
+  return Object.entries(value).some(
+    ([key, child]) =>
+      (!Array.isArray(value) && hiddenKey(key)) ||
+      hasNestedHidden(child, depth + 1)
+  );
+}
+
 function withHidden(
   type: string,
   settings: Doc | undefined,
-  stored: Doc
+  stored: Doc,
+  notes?: Set<string>
 ): Doc | undefined {
   if (!settings) return settings;
+  if (notes && Object.values(settings).some((v) => hasNestedHidden(v)))
+    notes.add(NOTE_KEPT_CLASS);
   const props = partialWidgetSchema(type)?.properties;
   const schemaProps = isObject(props) ? props : {};
   return Object.fromEntries(
@@ -360,7 +375,14 @@ function assertShown(type: string, settings: Doc, stored: Doc): void {
   for (const key of Object.keys(settings)) {
     const value = stored[key];
     const whole = typeof value !== 'object' || value === null;
-    if (whole && !tooLarge) continue;
+    if (whole && !tooLarge) {
+      // A long, embedded or private string was shown cut down, so a "replacement" would drop the rest.
+      if (typeof value === 'string' && !shownInFull(value, 2))
+        throw new OpProblem(
+          `\`${key}\` is longer than get_board shows, so Claude can't replace it; change it in SpartBoard`
+        );
+      continue;
+    }
     if (tooLarge ? !whole : !shownInFull(value))
       throw new OpProblem(
         `\`${key}\` holds more than get_board shows, so Claude can't replace it; change it in SpartBoard`
@@ -513,7 +535,7 @@ async function buildNewWidget(
   guardSettings(spec.type, spec.settings);
   const built = buildWidgetConfig(
     spec.type,
-    withHidden(spec.type, spec.settings, {}),
+    withHidden(spec.type, spec.settings, {}, session.notes),
     widgetConfigSources(session.access, spec.type)
   );
   if (!built.ok) throw new OpProblem(built.errors.join('; '));
@@ -654,7 +676,7 @@ async function applyOps(
             assertShown(type, op.settings, current);
             const checked = checkWidgetSettings(
               type,
-              withHidden(type, op.settings, current)
+              withHidden(type, op.settings, current, session.notes)
             );
             if (!checked.ok) throw new OpProblem(checked.errors.join('; '));
             config = reconcile(type, checked.settings, {
@@ -665,7 +687,11 @@ async function applyOps(
                 : {}),
             });
           }
-          if (op.library_item_id)
+          // The item the widget already shows: keep its live assignment or session.
+          if (
+            op.library_item_id &&
+            op.library_item_id !== libraryItemOf(type, current)?.id
+          )
             config = {
               ...config,
               ...(await libraryPatch(session, type, op.library_item_id)),

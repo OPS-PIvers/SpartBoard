@@ -704,6 +704,25 @@ describe('edit_board', () => {
     expect(widgetsOf(docs)[2].version).toBe(2);
   });
 
+  it('refuses to replace a long text it only showed in part', async () => {
+    const s = seed();
+    const w3 = (s[BOARD].widgets as Data[])[2];
+    w3.config = { ...(w3.config as Data), content: 'x'.repeat(1200) };
+    const { db } = fakeDb(s);
+    const call = await connect(db);
+    const out = await call('edit_board', {
+      board_id: 'b1',
+      changes: [
+        {
+          op: 'update_widget',
+          widget_id: 'w3',
+          settings: { content: 'short' },
+        },
+      ],
+    });
+    expect(out.error).toMatch(/`content` is longer than get_board shows/);
+  });
+
   it('opens a new quiz in the library instead of the old live assignment', async () => {
     const s = seed();
     (s[BOARD].widgets as Data[]).push({
@@ -720,6 +739,15 @@ describe('edit_board', () => {
     });
     const { db, docs } = fakeDb(s);
     const call = await connect(db);
+    const live = await call('edit_board', {
+      board_id: 'b1',
+      changes: [
+        { op: 'update_widget', widget_id: 'q', library_item_id: 'old' },
+      ],
+    });
+    // The quiz already on the widget stays live; only a different quiz resets it.
+    expect(live.error).toBeUndefined();
+    expect(widgetsOf(docs)[3].config).toMatchObject({ view: 'monitor' });
     await call('edit_board', {
       board_id: 'b1',
       changes: [{ op: 'update_widget', widget_id: 'q', library_item_id: 'q1' }],
