@@ -17,6 +17,7 @@ export const SURFACES: TourSurfaceMap = {
       'components/layout/Dock.tsx',
       'components/layout/sidebar/Sidebar.tsx',
       'components/share/ShareStatusBanner.tsx',
+      'components/layout/useClaudeBoardActivity.ts',
     ],
     inner: {
       'dashboard.group-cancel': 'widget.group-with',

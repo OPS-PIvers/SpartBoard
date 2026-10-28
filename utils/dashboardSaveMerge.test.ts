@@ -45,6 +45,32 @@ const baselineOf = (d: Dashboard): SaveBaseline => ({
 });
 
 describe('mergeDashboardForSave', () => {
+  it("keeps Claude's server marks when this device never touched them", () => {
+    const base = board([widget('a', 'a0')]);
+    const local = board([widget('a', 'a-local')]);
+    const server = board([widget('a', 'a0')], {
+      claudeEditedAt: 50,
+      claudeAction: 'edited',
+      claudeUnseen: true,
+    });
+
+    const merged = mergeDashboardForSave(local, server, baselineOf(base));
+
+    expect(merged.claudeEditedAt).toBe(50);
+    expect(merged.claudeAction).toBe('edited');
+    expect(merged.claudeUnseen).toBe(true);
+  });
+
+  it('keeps a badge this device cleared', () => {
+    const base = board([], { claudeUnseen: true, claudeEditedAt: 50 });
+    const local = board([], { claudeEditedAt: 50 });
+    const server = board([], { claudeUnseen: true, claudeEditedAt: 50 });
+
+    const merged = mergeDashboardForSave(local, server, baselineOf(base));
+
+    expect(merged.claudeUnseen).toBeUndefined();
+  });
+
   it('keeps local edits and takes server edits for untouched widgets', () => {
     const base = board([widget('a', 'a0'), widget('b', 'b0')]);
     const local = board([widget('a', 'a-local'), widget('b', 'b0')]);

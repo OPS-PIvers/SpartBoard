@@ -394,6 +394,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       moveBoardToCollection: NOOP_ASYNC,
       pinBoard: NOOP_ASYNC,
       unpinBoard: NOOP_ASYNC,
+      markClaudeBoardSeen: NOOP_ASYNC,
       setActiveCollectionId: NOOP,
       setGradeFilter: NOOP,
 
