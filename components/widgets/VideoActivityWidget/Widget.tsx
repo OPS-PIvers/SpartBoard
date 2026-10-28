@@ -100,6 +100,7 @@ import { VideoActivityLiveMonitor } from './components/VideoActivityLiveMonitor'
 import { VideoActivityLivePlayer } from './components/VideoActivityLivePlayer';
 import { VideoActivityEditorModal } from './components/VideoActivityEditorModal';
 import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
+import { videoRewindAllowed } from '@/components/common/library/assignStepper/VideoRuleStepValues';
 import { getPlcMemberEmail } from '@/utils/plc';
 import { AlertTriangle, Loader2, LogIn } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -703,6 +704,7 @@ const TeacherVideoActivityWidget: React.FC<{
         rosters={rosters}
         periodAccess={assignPeriodCtx}
         plcs={plcs}
+        boardPlayerSettings={defaultSessionSettings}
         onAssign={async (
           meta,
           rosterIds,
@@ -721,14 +723,23 @@ const TeacherVideoActivityWidget: React.FC<{
           const blocker = videoActivityAssignBlocker(data);
           if (blocker)
             throw new Error(`This activity can't be assigned yet: ${blocker}.`);
-          // Source behavior (sessionOptions, attemptLimit) from the activity
-          // itself now that it lives on the activity (VA Task 9 parity).
-          const behavior = getVideoActivityBehavior(meta);
+          // The stepper's rules win (va-quiz-alignment); otherwise the activity's behavior and the board's player rules.
+          const rules = isLive ? null : (extras?.rules ?? null);
+          const behavior = rules?.behavior ?? getVideoActivityBehavior(meta);
           const sessionOptions: VideoActivitySessionOptions = {
             ...behavior.sessionOptions,
             attemptLimit: behavior.attemptLimit,
+            ...(rules ? { answerRulesSet: true } : {}),
             ...(dueAt != null ? { dueAt, dueAtHasTime: true } : {}),
           };
+          const sessionSettings: VideoActivitySessionSettings = rules
+            ? {
+                ...rules.player,
+                requireCorrectAnswer:
+                  rules.player.requireCorrectAnswer &&
+                  videoRewindAllowed(rules),
+              }
+            : defaultSessionSettings;
           // Auto-generate the assignment name from the activity title.
           const assignmentName = `${meta.title} - ${new Date().toLocaleString(
             [],
@@ -768,7 +779,7 @@ const TeacherVideoActivityWidget: React.FC<{
             data,
             user.uid,
             [],
-            defaultSessionSettings,
+            sessionSettings,
             assignmentName,
             derived.classIds,
             derived.periodNames,
@@ -822,7 +833,7 @@ const TeacherVideoActivityWidget: React.FC<{
             createdAt: nowTs,
             updatedAt: nowTs,
             className: assignmentName,
-            sessionSettings: defaultSessionSettings,
+            sessionSettings,
             ...(sessionOptions ? { sessionOptions } : {}),
             ...(derived.periodNames.length > 0
               ? { periodNames: derived.periodNames }

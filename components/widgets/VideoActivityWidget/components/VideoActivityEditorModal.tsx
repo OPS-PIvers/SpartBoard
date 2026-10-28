@@ -168,9 +168,11 @@ export const VideoActivityEditorModal: React.FC<
   } = editorState;
 
   // ─── Behavior settings state ─────────────────────────────────────────────
-  const [editorTab, setEditorTab] = useState<'questions' | 'settings'>(
+  const [pickedTab, setEditorTab] = useState<'questions' | 'settings'>(
     'questions'
   );
+  // Flag on: the rules moved to the assignment, so there is no Settings tab.
+  const editorTab = quizLayout ? 'questions' : pickedTab;
   const [behavior, setBehavior] = useState<VideoActivityBehaviorSettings>(
     () => behaviorSeed ?? DEFAULT_VA_BEHAVIOR
   );
@@ -351,27 +353,29 @@ export const VideoActivityEditorModal: React.FC<
       contextPane={
         <div className="flex flex-col h-full">
           {/* Questions / Settings segmented tab toggle */}
-          <div className="px-4 pt-3 pb-0 border-b border-slate-200 bg-white shrink-0 flex gap-1">
-            {(['questions', 'settings'] as const).map((tab) => (
-              <button
-                {...tourFieldAttr(
-                  'video-activity.editor-tab',
-                  'video-activity',
-                  tab
-                )}
-                key={tab}
-                type="button"
-                onClick={() => setEditorTab(tab)}
-                className={`px-3 py-2 rounded-t-lg text-xs font-black uppercase tracking-wider transition-colors ${
-                  editorTab === tab
-                    ? 'bg-brand-blue-primary text-white'
-                    : 'text-slate-500 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/30'
-                }`}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </div>
+          {!quizLayout && (
+            <div className="px-4 pt-3 pb-0 border-b border-slate-200 bg-white shrink-0 flex gap-1">
+              {(['questions', 'settings'] as const).map((tab) => (
+                <button
+                  {...tourFieldAttr(
+                    'video-activity.editor-tab',
+                    'video-activity',
+                    tab
+                  )}
+                  key={tab}
+                  type="button"
+                  onClick={() => setEditorTab(tab)}
+                  className={`px-3 py-2 rounded-t-lg text-xs font-black uppercase tracking-wider transition-colors ${
+                    editorTab === tab
+                      ? 'bg-brand-blue-primary text-white'
+                      : 'text-slate-500 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/30'
+                  }`}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+          )}
 
           {editorTab === 'questions' ? (
             quizLayout ? (

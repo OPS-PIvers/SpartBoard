@@ -103,6 +103,35 @@ describe('Video Activity editor on the Quiz layout', () => {
     expect(screen.queryByText('Time in video')).toBeNull();
   });
 
+  it('drops the Settings tab with the flag on and keeps the saved behavior', async () => {
+    const behavior = {
+      sessionMode: 'student' as const,
+      sessionOptions: { tabWarningsEnabled: false },
+      attemptLimit: 3,
+    };
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      <VideoActivityEditorModal
+        isOpen
+        activity={activity([mc()])}
+        behavior={behavior}
+        onClose={vi.fn()}
+        onSave={onSave}
+        autosave={false}
+      />
+    );
+    expect(screen.queryByRole('button', { name: 'Settings' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Save Activity' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0][1]).toEqual(behavior);
+  });
+
+  it('keeps the Settings tab with the flag off', () => {
+    flags.quizLayout = false;
+    renderEditor([mc()]);
+    expect(screen.getByRole('button', { name: 'Settings' })).toBeTruthy();
+  });
+
   it('lists questions with their time and shows the Quiz fields without Time Limit', () => {
     renderEditor([mc()]);
     expect(screen.getByText('00:10')).toBeTruthy();

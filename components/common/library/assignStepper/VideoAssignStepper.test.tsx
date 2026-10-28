@@ -9,6 +9,13 @@ import {
 } from './VideoAssignStepper';
 import { initialClassesValue } from './VideoAssignStepper.helpers';
 import { SAMPLE_ROSTERS } from './assignStepperTestRosters';
+import {
+  videoRulesFromBehavior,
+  type VideoAssignRules,
+} from './VideoRuleStepValues';
+import { DEFAULT_VA_BEHAVIOR } from '@/utils/videoActivityBehavior';
+
+const RULES: VideoAssignRules = videoRulesFromBehavior(DEFAULT_VA_BEHAVIOR);
 
 const PLCS = [
   { id: 'plc-a', name: 'Grade 8 Science PLC' },
@@ -150,5 +157,69 @@ describe('initialClassesValue', () => {
       [{ kind: 'classlink', sourcedId: 'SID-zzz' }]
     );
     expect(rows).toEqual({ classIds: [], studentsByClass: {} });
+  });
+
+  describe('rule steps (va-quiz-alignment)', () => {
+    it('leaves the rule steps out and submits no rules without a prefill', async () => {
+      const { onSubmit } = renderStepper();
+      expect(screen.queryByText('Attempts and order')).toBeNull();
+      assign();
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+      expect(onSubmit.mock.calls[0][0].rules).toBeNull();
+    });
+
+    it('adds the rule steps in order and submits the edited rules', async () => {
+      const { onSubmit } = renderStepper({ initialRules: RULES });
+      expect(stepHeader('Attempts and order')).toBeInTheDocument();
+      expect(stepHeader('Video')).toBeInTheDocument();
+      expect(stepHeader('What students see')).toBeInTheDocument();
+      fireEvent.click(stepHeader('Video'));
+      fireEvent.click(
+        screen.getByRole('switch', { name: /Allow skipping ahead/ })
+      );
+      assign();
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+      expect(onSubmit.mock.calls[0][0].rules?.player.allowSkipping).toBe(true);
+      expect(onSubmit.mock.calls[0][0].rules?.behavior.attemptLimit).toBe(1);
+    });
+
+    it('takes a prefill that arrives after opening until the teacher edits', async () => {
+      const onSubmit = vi.fn<VideoAssignStepperProps['onSubmit']>(() =>
+        Promise.resolve()
+      );
+      const props = {
+        onClose: vi.fn(),
+        title: 'Cell Division Video',
+        rosters: SAMPLE_ROSTERS,
+        plcs: [],
+        canAssignLive: false,
+        lastPacing: null,
+        initialClassIds: ['c1'],
+        onSubmit,
+      };
+      const { rerender } = render(
+        <VideoAssignStepper {...props} initialRules={RULES} />
+      );
+      const late: VideoAssignRules = {
+        ...RULES,
+        behavior: { ...RULES.behavior, attemptLimit: 3 },
+      };
+      rerender(<VideoAssignStepper {...props} initialRules={late} />);
+      assign();
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+      expect(onSubmit.mock.calls[0][0].rules?.behavior.attemptLimit).toBe(3);
+    });
+
+    it('hides the rule steps and submits no rules for a live run', async () => {
+      const { onSubmit } = renderStepper({
+        initialRules: RULES,
+        canAssignLive: true,
+        lastPacing: 'teacher',
+      });
+      expect(screen.queryByText('Attempts and order')).toBeNull();
+      assign('Start live');
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+      expect(onSubmit.mock.calls[0][0].rules).toBeNull();
+    });
   });
 });
