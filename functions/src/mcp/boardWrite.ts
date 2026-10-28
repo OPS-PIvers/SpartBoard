@@ -27,7 +27,9 @@ import {
   SNAP_ZONE_LAYOUTS,
   applyTemplate,
   isFixed,
+  isOffCanvas,
   placeInZone,
+  tidy,
   type PlacedRect,
   type ScreenShape,
   type SnapZone,
@@ -39,12 +41,14 @@ import {
   boardWidgets,
   boardsPath,
   hiddenKey,
+  layoutWidget,
   libraryItemOf,
   shownInFull,
   summarizeSettings,
   widgetLabel,
   widgetTypeName,
 } from './boardStore';
+import { mirrorToShare, shareStateOf, withShareContent } from './boardShare';
 import { WIDGET_CONFIG_RUNTIME } from './widgetConfigRuntime.gen';
 import { WIDGET_CONFIG_SCHEMAS } from './widgetConfigSchemas.gen';
 import {
@@ -871,20 +875,6 @@ const claudeStamp = (board: Doc, now: number) => ({
   claudeUnseen: true,
 });
 
-/** Boards another teacher shares into this list are theirs; edits go through SpartBoard. */
-function assertOwnBoard(board: Doc): void {
-  if (!str(board.linkedShareId)) return;
-  if (str(board.linkedShareRole) !== 'owner')
-    throw new ToolError(
-      'Another teacher owns this board and shares it with this teacher, so Claude cannot change it. Make changes in SpartBoard.'
-    );
-  // Until the server also updates the shared copy, opening the board could bring the old share content back.
-  if (board.linkedShareEnded !== true)
-    throw new ToolError(
-      'This board is shared live with other teachers, so Claude cannot change it yet. Make changes in SpartBoard.'
-    );
-}
-
 const isPreconditionFailure = (err: unknown): boolean => {
   const code = (err as { code?: unknown })?.code;
   return (
@@ -900,28 +890,45 @@ export interface EditResult {
   before: Doc;
   changes: string[];
   notes: string[];
-  revisionId: string;
+  /** Null when nothing needed changing, so nothing was saved. */
+  revisionId: string | null;
 }
 
-/** Applies ops, keeps the previous version and logs the change, retrying when SpartBoard saved the board meanwhile. */
-export async function editBoard(
+interface Change {
+  board: Doc;
+  changes: string[];
+  notes?: string[];
+  /** Nothing to save: the board already looks this way. */
+  unchanged?: boolean;
+}
+
+/** One board write: the previous version, the board, its live share and the log, retried when SpartBoard saved meanwhile. */
+async function commitBoardChange(
   ctx: ToolContext,
   boardId: string,
-  ops: readonly BoardOp[],
-  screen: ScreenShape
+  action: 'update' | 'restore',
+  missing: string,
+  change: (before: Doc) => Promise<Change>
 ): Promise<EditResult> {
-  assertBoardId(boardId);
-  if (ops.length === 0) throw new ToolError('Give at least one change.');
-  const session = await openSession(ctx, screen);
   const ref = ctx.db.doc(`${boardsPath(ctx.uid)}/${boardId}`);
   let reserved = false;
   for (let attempt = 1; ; attempt++) {
     const snap = await ref.get();
-    const before = snap.data();
-    if (!snap.exists || !isObject(before))
-      throw new ToolError(`Board ${boardId} was not found.`);
-    assertOwnBoard(before);
-    const { board, changes } = await applyOps(session, before, ops);
+    const stored = snap.data();
+    if (!snap.exists || !isObject(stored)) throw new ToolError(missing);
+    const shared = await shareStateOf(ctx, stored);
+    // Co-teachers' edits live on the share until this teacher opens the board, so Claude starts from there.
+    const before = withShareContent(stored, shared.share);
+    const next = await change(before);
+    if (next.unchanged)
+      return {
+        board: { ...before, id: boardId },
+        before,
+        changes: next.changes,
+        notes: next.notes ?? [],
+        revisionId: null,
+      };
+    const { board } = next;
     assertFits(board);
     const revision = revisionData(before);
     if (!reserved) {
@@ -936,25 +943,32 @@ export async function editBoard(
       title: boardName(before),
       data: revision.data,
     });
-    const stamp = claudeStamp(before, now);
+    const stamp = claudeStamp(stored, now);
+    const name = str(board.name);
+    const background = str(board.background);
     batch.update(
       ref,
       {
-        ...(board.name !== str(before.name) ? { name: board.name } : {}),
-        ...(board.background !== str(before.background)
-          ? { background: board.background }
-          : {}),
+        ...(name !== str(stored.name) ? { name } : {}),
+        ...(background !== str(stored.background) ? { background } : {}),
         widgets: board.widgets,
         updatedAt: now,
         ...stamp,
       },
       { lastUpdateTime: snap.updateTime }
     );
+    mirrorToShare(
+      ctx,
+      batch,
+      shared,
+      { name, background, widgets: boardWidgets(board) },
+      now
+    );
     logActivity(ctx, batch, {
-      action: 'update',
+      action,
       itemType: 'board',
       itemId: boardId,
-      title: str(board.name),
+      title: name,
       revisionId,
     });
     try {
@@ -967,7 +981,11 @@ export async function editBoard(
         );
       throw err;
     }
-    const notes = [...session.notes];
+    const notes = [...(next.notes ?? [])];
+    if (shared.share)
+      notes.push(
+        'This board is shared live, so the teachers it is shared with see the change too.'
+      );
     if (revision.inkLeftOut)
       notes.push(
         'This board is very large, so older inline drawing ink was left out of the saved previous version.'
@@ -975,11 +993,100 @@ export async function editBoard(
     return {
       board: { ...board, updatedAt: now, ...stamp, id: boardId },
       before,
-      changes,
+      changes: next.changes,
       notes,
       revisionId,
     };
   }
+}
+
+/** Applies ops, keeps the previous version and logs the change. */
+export async function editBoard(
+  ctx: ToolContext,
+  boardId: string,
+  ops: readonly BoardOp[],
+  screen: ScreenShape
+): Promise<EditResult> {
+  assertBoardId(boardId);
+  if (ops.length === 0) throw new ToolError('Give at least one change.');
+  const session = await openSession(ctx, screen);
+  return commitBoardChange(
+    ctx,
+    boardId,
+    'update',
+    `Board ${boardId} was not found.`,
+    async (before) => {
+      const applied = await applyOps(session, before, ops);
+      return { ...applied, notes: [...session.notes] };
+    }
+  );
+}
+
+const SAME_GEOMETRY = 1e-6;
+const GEOMETRY_KEYS = ['xProp', 'yProp', 'wProp', 'hProp'] as const;
+
+/** Snaps the board's widgets onto the best-fitting snap layout or nearest zones; settings and content stay as they are (D2). */
+export async function tidyBoard(
+  ctx: ToolContext,
+  boardId: string,
+  screen: ScreenShape
+): Promise<EditResult> {
+  assertBoardId(boardId);
+  return commitBoardChange(
+    ctx,
+    boardId,
+    'update',
+    `Board ${boardId} was not found.`,
+    (before) => {
+      const widgets = boardWidgets(before);
+      const layout = widgets.map(layoutWidget);
+      const result = tidy(layout, screen);
+      let moved = 0;
+      const next = widgets.map((widget, i) => {
+        const placed = result.widgets[i];
+        if (
+          isFixed(layout[i]) ||
+          isOffCanvas(layout[i]) ||
+          GEOMETRY_KEYS.every(
+            (key) => Math.abs(num(widget[key]) - placed[key]) < SAME_GEOMETRY
+          )
+        )
+          return widget;
+        moved += 1;
+        return bumped(widget, geometry(placed));
+      });
+      const named = (ids: string[]) =>
+        ids
+          .map((id) => widgets[layout.findIndex((w) => w.id === id)])
+          .filter((w): w is Doc => !!w)
+          .map(widgetLabel)
+          .join(', ');
+      const notes: string[] = [];
+      if (result.unplaced.length > 0)
+        notes.push(
+          `No free zone was left for ${named(result.unplaced)}, so they still overlap other widgets. Remove a widget or ask the teacher which to drop.`
+        );
+      const fixedCount = layout.filter((w) => isFixed(w)).length;
+      if (fixedCount > 0)
+        notes.push(
+          `${fixedCount} locked or pinned widget${fixedCount === 1 ? '' : 's'} stayed where the teacher put ${fixedCount === 1 ? 'it' : 'them'}.`
+        );
+      if (moved === 0)
+        return Promise.resolve({
+          board: before,
+          changes: ['The board was already tidy, so nothing was changed.'],
+          notes,
+          unchanged: true,
+        });
+      return Promise.resolve({
+        board: { ...before, widgets: withoutUndefined(next) },
+        changes: [
+          `Moved ${moved} widget${moved === 1 ? '' : 's'} onto ${result.layoutId ? `the "${result.layoutId}" snap layout` : 'the nearest snap zones'}.`,
+        ],
+        notes,
+      });
+    }
+  );
 }
 
 export interface NewBoardInput {
@@ -1147,93 +1254,40 @@ export async function restoreBoard(
   const saved: unknown = rev.get('data');
   if (!isObject(saved))
     throw new ToolError('That revision cannot be restored.');
-  const ref = ctx.db.doc(`${boardsPath(ctx.uid)}/${boardId}`);
-  let reserved = false;
-  for (let attempt = 1; ; attempt++) {
-    const snap = await ref.get();
-    const before = snap.data();
-    if (!snap.exists || !isObject(before))
-      throw new ToolError(
-        'The board no longer exists in SpartBoard, so it cannot be restored.'
+  return commitBoardChange(
+    ctx,
+    boardId,
+    'restore',
+    'The board no longer exists in SpartBoard, so it cannot be restored.',
+    (before) => {
+      const versions = new Map(
+        boardWidgets(before).map((w) => [str(w.id), num(w.version)])
       );
-    assertOwnBoard(before);
-    const versions = new Map(
-      boardWidgets(before).map((w) => [str(w.id), num(w.version)])
-    );
-    const current = new Map(boardWidgets(before).map((w) => [str(w.id), w]));
-    const inkLeftOut = saved[INK_LEFT_OUT] === true;
-    // Every restored widget outranks the open tab's copy, so SpartBoard takes it.
-    const widgets: Doc[] = boardWidgets(saved).map((w) => ({
-      ...withCurrentState(
-        inkLeftOut ? withCurrentInk(w, current.get(str(w.id))) : w,
-        current.get(str(w.id))
-      ),
-      version: Math.max(1, num(w.version), versions.get(str(w.id)) ?? 0) + 1,
-    }));
-    const board: Doc = {
-      ...before,
-      name: boardName(saved),
-      background: str(saved.background) || DEFAULT_BOARD_BACKGROUND,
-      widgets,
-    };
-    assertFits(board);
-    const revision = revisionData(before);
-    if (!reserved) {
-      await reserveBoardOp(ctx);
-      reserved = true;
-    }
-    const now = Date.now();
-    const batch = ctx.db.batch();
-    const revisionId = snapshotRevision(ctx, batch, {
-      itemType: 'board',
-      itemId: boardId,
-      title: boardName(before),
-      data: revision.data,
-    });
-    const stamp = claudeStamp(before, now);
-    batch.update(
-      ref,
-      {
-        name: board.name,
-        background: board.background,
-        widgets,
-        updatedAt: now,
-        ...stamp,
-      },
-      { lastUpdateTime: snap.updateTime }
-    );
-    logActivity(ctx, batch, {
-      action: 'restore',
-      itemType: 'board',
-      itemId: boardId,
-      title: str(board.name),
-      revisionId,
-    });
-    try {
-      await batch.commit();
-    } catch (err) {
-      if (attempt < COMMIT_ATTEMPTS && isPreconditionFailure(err)) continue;
-      if (isPreconditionFailure(err))
-        throw new ToolError(
-          'Nothing was changed: the board kept changing in SpartBoard. Try again in a moment.'
+      const current = new Map(boardWidgets(before).map((w) => [str(w.id), w]));
+      const inkLeftOut = saved[INK_LEFT_OUT] === true;
+      // Every restored widget outranks the open tab's copy, so SpartBoard takes it.
+      const widgets: Doc[] = boardWidgets(saved).map((w) => ({
+        ...withCurrentState(
+          inkLeftOut ? withCurrentInk(w, current.get(str(w.id))) : w,
+          current.get(str(w.id))
+        ),
+        version: Math.max(1, num(w.version), versions.get(str(w.id)) ?? 0) + 1,
+      }));
+      const notes: string[] = [];
+      if (widgets.some((w) => w.type === 'drawing'))
+        notes.push(
+          'Drawing widget ink is kept separately and was not part of the previous version, so drawings show as they are now.'
         );
-      throw err;
+      return Promise.resolve({
+        board: {
+          ...before,
+          name: boardName(saved),
+          background: str(saved.background) || DEFAULT_BOARD_BACKGROUND,
+          widgets,
+        },
+        changes: ['Restored the board to the saved version.'],
+        notes,
+      });
     }
-    const notes: string[] = [];
-    if (widgets.some((w) => w.type === 'drawing'))
-      notes.push(
-        'Drawing widget ink is kept separately and was not part of the previous version, so drawings show as they are now.'
-      );
-    if (revision.inkLeftOut)
-      notes.push(
-        'This board is very large, so older inline drawing ink was left out of the version saved before restoring.'
-      );
-    return {
-      board: { ...board, updatedAt: now, ...stamp, id: boardId },
-      before,
-      changes: ['Restored the board to the saved version.'],
-      notes,
-      revisionId,
-    };
-  }
+  );
 }

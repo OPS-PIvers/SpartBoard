@@ -579,23 +579,225 @@ describe('edit_board', () => {
     expect(docs.get(BOARD)?.name).toBe('Again');
   });
 
-  it("refuses boards another teacher shares into this teacher's list, and live-shared boards", async () => {
+  it("refuses boards another teacher shares into this teacher's list", async () => {
     const s = seed();
     s[BOARD] = { ...s[BOARD], linkedShareId: 'sh', linkedShareRole: 'editor' };
     s['users/u1/dashboards/b2'] = {
-      name: 'Mine',
+      name: 'Viewer copy',
+      linkedShareId: 'sh2',
+      linkedShareRole: 'viewer',
+      linkedShareEnded: true,
+      widgets: [],
+    };
+    s['users/u1/dashboards/b3'] = {
+      name: 'Guest copy',
+      linkedShareId: 'sh3',
+      linkedShareRole: 'collaborator',
+      linkedShareHostUid: 'u2',
+      linkedShareEnded: true,
+      widgets: [],
+    };
+    s['shared_boards/sh3'] = { originalAuthor: 'u2', widgets: [] };
+    const { db, docs } = fakeDb(s);
+    const call = await connect(db);
+    const rename = (board_id: string) =>
+      call('edit_board', { board_id, changes: [{ op: 'rename', name: 'X' }] });
+    for (const id of ['b1', 'b2', 'b3'])
+      expect((await rename(id)).error).toMatch(
+        /Another teacher owns this board/
+      );
+    // Once the share is gone the guest's copy is theirs.
+    docs.delete('shared_boards/sh3');
+    expect((await rename('b3')).error).toBeUndefined();
+    expect(docs.get('users/u1/dashboards/b3')?.name).toBe('X');
+  });
+
+  it("starts from a live share's content and mirrors the change to co-teachers, scrubbed", async () => {
+    const s = seed();
+    const own = s[BOARD].widgets as Data[];
+    s[BOARD] = {
+      ...s[BOARD],
+      linkedShareId: 'sh',
+      linkedShareRole: 'owner',
+      linkedShareEnded: false,
+      widgets: own.map((w, i) =>
+        i === 0 ? { ...w, lastUse: { uid: 'u1', at: 1 } } : w
+      ),
+    };
+    const coTeacherNote = {
+      id: 'wc',
+      type: 'text',
+      ...zone('grid-2x2', 'bottom-right'),
+      z: 4,
+      version: 1,
+      config: { content: 'From a co-teacher', bgColor: '#fff', fontSize: 18 },
+    };
+    s['shared_boards/sh'] = {
+      originalAuthor: 'u1',
+      intendedMode: 'synced',
+      participants: { u2: { role: 'collaborator' } },
+      name: 'Period 2',
+      background: 'bg-slate-100',
+      updatedAt: old,
+      updatedBy: 'u2',
+      widgets: [
+        {
+          ...own[0],
+          version: 6,
+          config: { ...(own[0].config as Data), duration: 120 },
+        },
+        { ...own[1], config: { lastNames: '', mode: 'single' } },
+        own[2],
+        coTeacherNote,
+      ],
+    };
+    const { db, docs } = fakeDb(s);
+    const call = await connect(db);
+
+    const read = await call('get_board', { board_id: 'b1' });
+    expect((read.widgets as Data[]).map((w) => w.widget_id)).toContain('wc');
+
+    const out = await call('edit_board', {
+      board_id: 'b1',
+      changes: [
+        { op: 'update_widget', widget_id: 'w1', title: 'Warm-up' },
+        { op: 'rename', name: 'Period 2 (Tue)' },
+      ],
+    });
+    expect(out.error).toBeUndefined();
+    expect(out.notes).toContain(
+      'This board is shared live, so the teachers it is shared with see the change too.'
+    );
+
+    const share = docs.get('shared_boards/sh')!;
+    const shared = share.widgets as Data[];
+    expect(shared.map((w) => w.id)).toEqual(['w1', 'w2', 'w3', 'wc']);
+    // The co-teacher's timer length survives; Claude's title lands on top.
+    expect(shared[0]).toMatchObject({ customTitle: 'Warm-up', version: 7 });
+    expect((shared[0].config as Data).duration).toBe(120);
+    expect(shared[0].lastUse).toBeUndefined();
+    // Student names never reach the share.
+    expect(JSON.stringify(share)).not.toMatch(/Ada|Grace/);
+    expect(share).toMatchObject({
+      name: 'Period 2 (Tue)',
+      background: 'bg-slate-100',
+      updatedBy: 'u1',
+      originalAuthor: 'u1',
+      participants: { u2: { role: 'collaborator' } },
+    });
+    expect(Number(share.updatedAt)).toBeGreaterThan(old);
+
+    const board = docs.get(BOARD)!;
+    const widgets = board.widgets as Data[];
+    expect(widgets.map((w) => w.id)).toEqual(['w1', 'w2', 'w3', 'wc']);
+    expect(widgets[0].lastUse).toEqual({ uid: 'u1', at: 1 });
+    expect((widgets[1].config as Data).firstNames).toBe('Ada\nGrace');
+    expect(board.background).toBe('bg-slate-100');
+    expect(board.linkedShareId).toBe('sh');
+  });
+
+  it('renames the board in the synced collection it belongs to', async () => {
+    const s = seed();
+    s[BOARD] = {
+      ...s[BOARD],
+      collectionId: 'c3',
+      linkedShareId: 'L1_b1',
+      linkedShareRole: 'owner',
+    };
+    s['users/u1/collections/c2'] = {
+      name: 'Shared unit',
+      linkedCollectionId: 'L1',
+      linkedCollectionRole: 'owner',
+    };
+    s['users/u1/collections/c3'] = { name: 'Week 1', parentCollectionId: 'c2' };
+    s['shared_boards/L1_b1'] = {
+      originalAuthor: 'u1',
+      intendedMode: 'synced',
+      linkedCollectionId: 'L1',
+      widgets: s[BOARD].widgets,
+    };
+    s['linked_collections/L1'] = {
+      hostUid: 'u1',
+      mode: 'synced',
+      participants: { u2: { role: 'collaborator', joinedAt: 1 } },
+      boards: [
+        { shareId: 'L1_other', name: 'Other', order: 0 },
+        { shareId: 'L1_b1', name: 'Period 2', order: 1, sectionId: 'c3' },
+      ],
+    };
+    const { db, docs } = fakeDb(s);
+    const call = await connect(db);
+    const out = await call('edit_board', {
+      board_id: 'b1',
+      changes: [{ op: 'rename', name: 'Lab day' }],
+    });
+    expect(out.error).toBeUndefined();
+    expect(docs.get('linked_collections/L1')?.boards).toEqual([
+      { shareId: 'L1_other', name: 'Other', order: 0 },
+      { shareId: 'L1_b1', name: 'Lab day', order: 1, sectionId: 'c3' },
+    ]);
+    expect(docs.get('shared_boards/L1_b1')?.name).toBe('Lab day');
+  });
+
+  it("writes only the teacher's board when its share is gone or belongs to someone else", async () => {
+    const s = seed();
+    s[BOARD] = { ...s[BOARD], linkedShareId: 'sh', linkedShareRole: 'owner' };
+    s['users/u1/dashboards/b2'] = {
+      name: 'Retaken',
       linkedShareId: 'sh2',
       linkedShareRole: 'owner',
       widgets: [],
     };
-    const { db } = fakeDb(s);
+    s['shared_boards/sh2'] = { originalAuthor: 'u9', widgets: [] };
+    const { db, docs } = fakeDb(s);
     const call = await connect(db);
-    const rename = (board_id: string) =>
-      call('edit_board', { board_id, changes: [{ op: 'rename', name: 'X' }] });
-    expect((await rename('b1')).error).toMatch(
-      /Another teacher owns this board/
-    );
-    expect((await rename('b2')).error).toMatch(/shared live/);
+    for (const board_id of ['b1', 'b2'])
+      expect(
+        (
+          await call('edit_board', {
+            board_id,
+            changes: [{ op: 'rename', name: 'New' }],
+          })
+        ).error
+      ).toBeUndefined();
+    expect(docs.has('shared_boards/sh')).toBe(false);
+    expect(docs.get('shared_boards/sh2')).toEqual({
+      originalAuthor: 'u9',
+      widgets: [],
+    });
+  });
+
+  it('retries when a co-teacher saves the share in between', async () => {
+    const s = seed();
+    s[BOARD] = { ...s[BOARD], linkedShareId: 'sh', linkedShareRole: 'owner' };
+    s['shared_boards/sh'] = {
+      originalAuthor: 'u1',
+      widgets: s[BOARD].widgets,
+    };
+    const { db, docs, touch } = fakeDb(s);
+    const original = db.doc;
+    let reads = 0;
+    db.doc = (path: string) => {
+      const ref = original(path);
+      if (path !== 'shared_boards/sh') return ref;
+      return {
+        ...ref,
+        get: async () => {
+          const snap = await ref.get();
+          // The first read goes stale before the write.
+          if (++reads === 1) touch(path);
+          return snap;
+        },
+      };
+    };
+    const call = await connect(db);
+    const out = await call('edit_board', {
+      board_id: 'b1',
+      changes: [{ op: 'rename', name: 'Again' }],
+    });
+    expect(out.error).toBeUndefined();
+    expect(reads).toBe(2);
+    expect(docs.get('shared_boards/sh')?.name).toBe('Again');
   });
 
   it('keeps nested student state Claude never saw when it edits a list', async () => {
@@ -846,6 +1048,38 @@ describe('board revisions', () => {
     ]);
   });
 
+  it('restores a live-shared board for co-teachers too', async () => {
+    const s = seed();
+    s[BOARD] = { ...s[BOARD], linkedShareId: 'sh', linkedShareRole: 'owner' };
+    s['shared_boards/sh'] = {
+      originalAuthor: 'u1',
+      intendedMode: 'view-only',
+      name: 'Period 2',
+      widgets: s[BOARD].widgets,
+    };
+    const { db, docs } = fakeDb(s);
+    const call = await connect(db);
+    const edit = await call('edit_board', {
+      board_id: 'b1',
+      changes: [{ op: 'remove_widget', widget_id: 'w1' }],
+    });
+    expect(
+      (docs.get('shared_boards/sh')?.widgets as Data[]).map((w) => w.id)
+    ).toEqual(['w2', 'w3']);
+    const rev = await db
+      .doc(
+        `users/u1/claude_revisions/${String(edit.previous_version_revision_id)}`
+      )
+      .get();
+    await restoreBoard(
+      ctxFor(db),
+      rev as unknown as Parameters<typeof restoreBoard>[1]
+    );
+    const shared = docs.get('shared_boards/sh')?.widgets as Data[];
+    expect(shared.map((w) => w.id)).toEqual(['w1', 'w2', 'w3']);
+    expect(JSON.stringify(shared)).not.toMatch(/Ada|Grace/);
+  });
+
   it('leaves legacy inline ink out of a revision near the size cap', () => {
     const big = 'x'.repeat(950_000);
     const { data, inkLeftOut } = revisionData({
@@ -856,5 +1090,144 @@ describe('board revisions', () => {
     expect(data.claudeInkLeftOut).toBe(true);
     expect(data.id).toBeUndefined();
     expect((data.widgets as Data[])[0].config).toEqual({});
+  });
+});
+
+describe('tidy_board', () => {
+  const messy = (): Record<string, Data> => {
+    const s = seed();
+    const at = (x: number, y: number, w: number, h: number) => ({
+      xProp: x,
+      yProp: y,
+      wProp: w,
+      hProp: h,
+    });
+    s[BOARD] = {
+      ...s[BOARD],
+      widgets: [
+        {
+          id: 'w1',
+          type: 'time-tool',
+          ...at(0.03, 0.05, 0.4, 0.5),
+          z: 1,
+          version: 4,
+          config: { duration: 300, mode: 'timer', elapsedTime: 300 },
+        },
+        {
+          id: 'w2',
+          type: 'text',
+          ...at(0.47, 0.1, 0.45, 0.6),
+          z: 2,
+          config: { content: 'Do now', bgColor: '#fef', fontSize: 22 },
+        },
+        {
+          id: 'w3',
+          type: 'text',
+          isLocked: true,
+          ...at(0.1, 0.7, 0.2, 0.2),
+          z: 3,
+          version: 2,
+          config: { content: 'Locked', bgColor: '#fff', fontSize: 18 },
+        },
+        {
+          id: 'w4',
+          type: 'clock',
+          minimized: true,
+          ...at(0.9, 0.9, 0.05, 0.05),
+          z: 4,
+          config: {},
+        },
+      ],
+    };
+    return s;
+  };
+
+  it('moves widgets onto snap zones and leaves every setting byte-identical', async () => {
+    const s = messy();
+    const { db, docs } = fakeDb(s);
+    const call = await connect(db);
+    const out = await call('tidy_board', { board_id: 'b1' });
+    expect(out.error).toBeUndefined();
+    expect(out._images).toBe(1);
+    expect(out.previous_version_revision_id).toEqual(expect.any(String));
+    expect(out.notes).toEqual([
+      '1 locked or pinned widget stayed where the teacher put it.',
+    ]);
+    const before = s[BOARD].widgets as Data[];
+    const after = widgetsOf(docs);
+    expect(after.map((w) => JSON.stringify(w.config))).toEqual(
+      before.map((w) => JSON.stringify(w.config))
+    );
+    // Only positions change, and only on widgets that moved.
+    const strip = (w: Data) => {
+      const rest: Data = { ...w };
+      for (const k of [
+        'x',
+        'y',
+        'w',
+        'h',
+        'xProp',
+        'yProp',
+        'wProp',
+        'hProp',
+        'aspectRatio',
+        'version',
+      ])
+        delete rest[k];
+      return rest;
+    };
+    expect(after.map(strip)).toEqual(before.map(strip));
+    expect(after[0].version).toBe(5);
+    expect(after[1].version).toBe(2);
+    expect(after[2]).toEqual(before[2]);
+    expect(after[3]).toEqual(before[3]);
+    expect(after[0].xProp).not.toBe(before[0].xProp);
+    expect(docs.get(BOARD)).toMatchObject({
+      claudeAction: 'edited',
+      claudeUnseen: true,
+    });
+  });
+
+  it('changes nothing on a board that is already tidy', async () => {
+    const { db, docs, commits } = fakeDb(messy());
+    const call = await connect(db);
+    await call('tidy_board', { board_id: 'b1' });
+    const saved = structuredClone(docs.get(BOARD));
+    const count = commits.length;
+    const again = await call('tidy_board', { board_id: 'b1' });
+    expect(again.error).toBeUndefined();
+    expect(again.changes).toEqual([
+      'The board was already tidy, so nothing was changed.',
+    ]);
+    expect(again.previous_version_revision_id).toBeUndefined();
+    expect(commits.length).toBe(count);
+    expect(docs.get(BOARD)).toEqual(saved);
+  });
+
+  it('tidies a live-shared board for co-teachers too', async () => {
+    const s = messy();
+    s[BOARD] = { ...s[BOARD], linkedShareId: 'sh', linkedShareRole: 'owner' };
+    s['shared_boards/sh'] = {
+      originalAuthor: 'u1',
+      intendedMode: 'synced',
+      widgets: s[BOARD].widgets,
+    };
+    const { db, docs } = fakeDb(s);
+    const call = await connect(db);
+    await call('tidy_board', { board_id: 'b1' });
+    const shared = docs.get('shared_boards/sh')?.widgets as Data[];
+    expect(shared.map((w) => w.xProp)).toEqual(
+      widgetsOf(docs).map((w) => w.xProp)
+    );
+  });
+
+  it('is hidden behind the ai-boards flag', async () => {
+    archive.granted = false;
+    const { db } = fakeDb(messy());
+    const call = await connect(db);
+    expect((await call('tidy_board', { board_id: 'b1' })).error).toMatch(
+      /not turned on/
+    );
+    archive.granted = true;
   });
 });
