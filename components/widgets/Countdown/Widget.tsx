@@ -234,7 +234,10 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
               <div className="flex-1 w-full overflow-hidden flex items-center justify-center">
                 <div
                   className="flex flex-wrap justify-center items-center h-full w-full content-center overflow-y-auto"
-                  style={{ gap: 'min(4px, 1cqmin)' }}
+                  style={{
+                    gap: 'min(4px, 1cqmin)',
+                    paddingBottom: 'max(12px, 3cqmin)',
+                  }}
                 >
                   {gridData.map((item) => (
                     <div
