@@ -130,6 +130,33 @@ describe('checkWidgetSettings', () => {
     });
   });
 
+  it('fills ids inside a union picked by its discriminator', () => {
+    const result = checkWidgetSettings('drawing', {
+      objects: [{ kind: 'path', z: 1, color: '#000', width: 2, points: [] }],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const [obj] = result.settings.objects as Array<Record<string, unknown>>;
+    expect(obj.id).toEqual(expect.any(String));
+  });
+
+  it('refuses prototype keys anywhere in the settings', () => {
+    const settings = JSON.parse(
+      '{"items":[{"text":"a","completed":false,"__proto__":{"x":1}}]}'
+    ) as unknown;
+    expect(checkWidgetSettings('checklist', settings)).toEqual({
+      ok: false,
+      errors: ['"__proto__" is not an allowed setting name'],
+    });
+  });
+
+  it('refuses oversized settings before validating them', () => {
+    const result = checkWidgetSettings('text', {
+      content: 'x'.repeat(300 * 1024),
+    });
+    expect(result.ok ? [] : result.errors[0]).toMatch(/too large/);
+  });
+
   it('caps a long error list', () => {
     const bad = Object.fromEntries(
       Array.from({ length: 20 }, (_, i) => [`x${i}`, 1])
@@ -224,6 +251,26 @@ describe('buildWidgetConfig', () => {
     expect(result.ok && result.config.duration).toBe(120);
   });
 
+  it('seeds a Materials widget from the teacher preferences, under Claude', () => {
+    const sources = widgetConfigSources(
+      ctx({
+        materialsPreferences: {
+          selectedItems: ['pencil'],
+          title: 'You need',
+        },
+      }),
+      'materials'
+    );
+    const result = buildWidgetConfig('materials', { title: 'Bring' }, sources);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.config.selectedItems).toEqual(['pencil']);
+    expect(result.config.title).toBe('Bring');
+    expect(widgetConfigSources(ctx(), 'text').materialsPreferences).toBe(
+      undefined
+    );
+  });
+
   it('reads saved appearance per widget type', () => {
     const sources = widgetConfigSources(
       ctx({ savedWidgetConfigs: { text: { fontSize: 40 } } }),
@@ -285,6 +332,15 @@ describe('canUseWidget', () => {
     expect(
       (await canUseWidget(ctx({ featurePermissions: perms }), 'poll')).ok
     ).toBe(true);
+  });
+
+  it('reads the beta grant once per widget type for a whole board', async () => {
+    const { isBetaTeacher } = await import('../quizMediaArchive');
+    vi.mocked(isBetaTeacher).mockClear();
+    const shared = ctx({ featurePermissions: [perm({ accessLevel: 'beta' })] });
+    await canUseWidget(shared, 'poll');
+    await canUseWidget(shared, 'poll');
+    expect(isBetaTeacher).toHaveBeenCalledTimes(1);
   });
 
   it('applies the tier floor', async () => {

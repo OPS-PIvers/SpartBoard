@@ -27,6 +27,9 @@ export interface WidgetAccessContext {
   featurePermissions: Doc[];
   selectedBuildings: string[];
   savedWidgetConfigs: Record<string, Doc>;
+  materialsPreferences?: Doc;
+  /** Filled on first use so a board of gated widgets reads tier and beta grants once. */
+  cache?: { tier?: Promise<string>; beta?: Map<string, Promise<boolean>> };
 }
 
 export async function loadWidgetAccessContext(
@@ -43,6 +46,7 @@ export async function loadWidgetAccessContext(
   const data = profile.data() ?? {};
   const rawBuildings: unknown = data.selectedBuildings;
   const rawSaved: unknown = data.savedWidgetConfigs;
+  const rawMaterials: unknown = data.materialsPreferences;
   return {
     db,
     uid,
@@ -57,6 +61,7 @@ export async function loadWidgetAccessContext(
           Object.entries(rawSaved).filter(([, v]) => isObject(v))
         ) as Record<string, Doc>)
       : {},
+    ...(isObject(rawMaterials) ? { materialsPreferences: rawMaterials } : {}),
   };
 }
 
@@ -96,8 +101,11 @@ export async function canUseWidget(
     ))
   )
     return noAccess;
-  const tier = async () =>
-    ctx.email ? archive.deriveTeacherTier(ctx.db, ctx.email) : 'free';
+  const cache = (ctx.cache ??= {});
+  const tier = () =>
+    (cache.tier ??= ctx.email
+      ? archive.deriveTeacherTier(ctx.db, ctx.email)
+      : Promise.resolve('free'));
   const perm = ctx.featurePermissions.find((p) => p.widgetType === type);
   if (!perm) {
     if (ctx.isAdmin) return { ok: true };
@@ -118,8 +126,10 @@ export async function canUseWidget(
   if (ctx.isAdmin) return { ok: true };
   if (perm.accessLevel === 'beta') {
     const betaUsers = Array.isArray(perm.betaUsers) ? perm.betaUsers : [];
-    if (!(await archive.isBetaTeacher(ctx.db, betaUsers, ctx.email)))
-      return noAccess;
+    const beta = (cache.beta ??= new Map());
+    if (!beta.has(type))
+      beta.set(type, archive.isBetaTeacher(ctx.db, betaUsers, ctx.email));
+    if (!(await beta.get(type))) return noAccess;
   } else if (perm.accessLevel !== 'public') {
     return noAccess;
   }
@@ -149,13 +159,18 @@ export interface WidgetConfigSources {
   buildingDefaults?: Doc;
   /** The teacher's saved appearance for this widget type; only APPEARANCE_KEYS are used. */
   savedAppearance?: Doc;
+  /** Account-wide Materials picks, which addWidget seeds under Claude's settings. */
+  materialsPreferences?: Doc;
 }
 
 /** The two account layers for one widget type, read the same way addWidget reads them. */
 export function widgetConfigSources(
   ctx: Pick<
     WidgetAccessContext,
-    'featurePermissions' | 'selectedBuildings' | 'savedWidgetConfigs'
+    | 'featurePermissions'
+    | 'selectedBuildings'
+    | 'savedWidgetConfigs'
+    | 'materialsPreferences'
   >,
   type: string
 ): WidgetConfigSources {
@@ -166,6 +181,9 @@ export function widgetConfigSources(
       ctx.selectedBuildings
     ),
     savedAppearance: ctx.savedWidgetConfigs[type],
+    ...(type === 'materials' && ctx.materialsPreferences
+      ? { materialsPreferences: ctx.materialsPreferences }
+      : {}),
   };
 }
 
@@ -196,7 +214,14 @@ export function buildWidgetConfig(
     WIDGET_CONFIG_RUNTIME.defaults[type]?.config,
     sources.buildingDefaults,
     sources.savedAppearance,
-    checked.settings
+    type === 'materials'
+      ? {
+          ...WIDGET_CONFIG_RUNTIME.seedMaterialsConfig(
+            sources.materialsPreferences
+          ),
+          ...checked.settings,
+        }
+      : checked.settings
   );
   return {
     ok: true,

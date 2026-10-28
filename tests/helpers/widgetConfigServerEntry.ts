@@ -7,5 +7,6 @@ export {
   mergeWidgetConfig,
 } from '@/utils/widgetConfigPersistence';
 export { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
+export { seedMaterialsConfig } from '@/utils/materialsPreferences';
 
 export type WidgetConfigSchemaRoot = { [K in WidgetType]: ConfigForWidget<K> };

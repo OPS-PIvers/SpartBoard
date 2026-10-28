@@ -7,7 +7,10 @@ type Schema = Record<string, unknown>;
 
 const MAX_ERRORS = 10;
 const MAX_LISTED = 25;
+const MAX_SETTINGS_BYTES = 256 * 1024;
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
+// verbose gives each error its parentSchema, which the messages read; the size cap bounds its cost.
 const ajv = new Ajv({ allErrors: true, strict: false, verbose: true });
 const compiled = new Map<string, ValidateFunction>();
 
@@ -50,10 +53,38 @@ const allowsType = (schema: Schema, type: string): boolean =>
   schema.type === type ||
   (Array.isArray(schema.type) && schema.type.includes(type));
 
+/** True when every `const` property of a union branch (its discriminator) matches the value. */
+function matchesConsts(
+  branch: Schema,
+  value: Record<string, unknown>
+): boolean {
+  const props = isObject(branch.properties) ? branch.properties : {};
+  return Object.entries(props).every(([key, prop]) => {
+    const p = resolveRef(prop);
+    return !p || !('const' in p) || value[key] === p.const;
+  });
+}
+
 /** Gives every object that needs a string `id` and lacks one a fresh UUID, so Claude never invents ids. */
 function fillIds(value: unknown, schemaIn: unknown): unknown {
   const schema = resolveRef(schemaIn);
   if (!schema) return value;
+  const branches = schema.anyOf ?? schema.oneOf;
+  if (Array.isArray(branches)) {
+    const kind = Array.isArray(value)
+      ? 'array'
+      : isObject(value)
+        ? 'object'
+        : null;
+    const fits = kind
+      ? branches
+          .map(resolveRef)
+          .filter((b): b is Schema => !!b && allowsType(b, kind))
+          .filter((b) => !isObject(value) || matchesConsts(b, value))
+      : [];
+    // Only an unambiguous branch is safe to fill from; a mixed union keeps Claude's value as sent.
+    return fits.length === 1 ? fillIds(value, fits[0]) : value;
+  }
   if (Array.isArray(value)) {
     const items = schema.items;
     return value.map((item) => fillIds(item, items));
@@ -62,7 +93,7 @@ function fillIds(value: unknown, schemaIn: unknown): unknown {
   const props = isObject(schema.properties) ? schema.properties : {};
   const out: Record<string, unknown> = {};
   for (const [key, child] of Object.entries(value))
-    out[key] = key in props ? fillIds(child, props[key]) : child;
+    out[key] = Object.hasOwn(props, key) ? fillIds(child, props[key]) : child;
   const required = Array.isArray(schema.required) ? schema.required : [];
   const idSchema = resolveRef(props.id);
   if (
@@ -165,6 +196,23 @@ function summarise(errors: readonly ErrorObject[]): ErrorObject[] {
   );
 }
 
+function unsafeKey(value: unknown): string | null {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const hit = unsafeKey(item);
+      if (hit) return hit;
+    }
+    return null;
+  }
+  if (!isObject(value)) return null;
+  for (const [key, child] of Object.entries(value)) {
+    if (UNSAFE_KEYS.has(key)) return key;
+    const hit = unsafeKey(child);
+    if (hit) return hit;
+  }
+  return null;
+}
+
 export type WidgetSettingsCheck =
   | { ok: true; settings: Record<string, unknown> }
   | { ok: false; errors: string[] };
@@ -181,6 +229,18 @@ export function checkWidgetSettings(
     return {
       ok: false,
       errors: [`\`${type}\` settings must be an object of setting names`],
+    };
+  const text = JSON.stringify(settings);
+  if (text.length > MAX_SETTINGS_BYTES)
+    return {
+      ok: false,
+      errors: [`\`${type}\` settings are too large; keep them under 256 KB`],
+    };
+  const unsafe = unsafeKey(settings);
+  if (unsafe)
+    return {
+      ok: false,
+      errors: [`"${unsafe}" is not an allowed setting name`],
     };
   const filled = fillIds(settings, partialWidgetSchema(type)) as Record<
     string,
