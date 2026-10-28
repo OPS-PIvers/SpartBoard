@@ -182,4 +182,33 @@ describe('MySongsSection', () => {
     await waitFor(() => expect(removeSong).toHaveBeenCalledWith('s1'));
     expect(updateConfig).not.toHaveBeenCalled();
   });
+
+  it('keeps a new pick made while the remove is still saving', async () => {
+    songs = [
+      {
+        id: 's1',
+        title: 'Saved',
+        channel: '',
+        url: `https://www.youtube.com/watch?v=${ID}`,
+        thumbnail: '',
+        createdAt: 1,
+      },
+    ];
+    let finish: (() => void) | undefined;
+    removeSong.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      })
+    );
+    const updateConfig = vi.fn();
+    const { rerender } = render(
+      <MySongsSection ctx={makeCtx(updateConfig, 's1')} />
+    );
+    fireEvent.click(screen.getByLabelText('mySongsRemove: Saved'));
+    rerender(<MySongsSection ctx={makeCtx(updateConfig, 'curated-2')} />);
+    finish?.();
+    await waitFor(() => expect(removeSong).toHaveBeenCalledWith('s1'));
+    await Promise.resolve();
+    expect(updateConfig).not.toHaveBeenCalled();
+  });
 });

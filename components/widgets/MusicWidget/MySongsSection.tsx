@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { Loader2, Music, X } from 'lucide-react';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import type { MusicConfig, MySong } from '@/types';
@@ -21,6 +21,10 @@ export const MySongsSection: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
   const [link, setLink] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const stationIdRef = useRef(config.stationId);
+  useLayoutEffect(() => {
+    stationIdRef.current = config.stationId;
+  });
 
   const selectSong = (song: MySong) =>
     ctx.updateConfig({ stationId: song.id, mySong: toConfigSong(song) });
@@ -131,8 +135,8 @@ export const MySongsSection: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
                   onClick={() =>
                     void removeSong(song.id)
                       .then(() => {
-                        // A removed song stops being this widget's pick.
-                        if (active) {
+                        // Clear the pick only if it is still the removed song.
+                        if (stationIdRef.current === song.id) {
                           ctx.updateConfig({ stationId: '', mySong: null });
                         }
                       })
