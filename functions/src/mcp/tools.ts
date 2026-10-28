@@ -85,7 +85,7 @@ export const SERVER_INSTRUCTIONS = [
   "Meeting notes are saved as a draft that a group editor reviews in SpartBoard; Claude never edits a group's notes directly.",
   "Quiz, question bank, video and Guided Learning questions have a Learning Targets field. Tag Minnesota standards first: find codes with search_standards and save them in each question's standards. Use learning_targets only when the teacher gives their own or PLC targets.",
   'Admins writing a live tour read get_live_tour_guide first. For a live tour, skip the plan: build it, check it with dry_run, save it and report back as the guide says.',
-  "When the board tools are available, read get_board_guide before building or changing a board: ask only for what you can't infer, state a short plan, then build, and check the wireframe picture each board tool returns. Small tweaks after that need no new plan. Claude never deletes a board.",
+  "When the board tools are available, read get_board_guide before building or changing a board: ask only for what you can't infer, state a short plan, then build, and check the wireframe picture each board tool returns. Small tweaks after that need no new plan. Claude never deletes a board and can't change boards another teacher shares with this teacher.",
 ].join(' ');
 
 function summarizeSet(set: FlashcardSet) {
