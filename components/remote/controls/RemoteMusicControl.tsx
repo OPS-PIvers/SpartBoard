@@ -2,6 +2,7 @@ import React from 'react';
 import { Music, Radio, Loader2 } from 'lucide-react';
 import { WidgetData, MusicConfig } from '@/types';
 import { useMusicStations } from '@/hooks/useMusicStations';
+import { resolveActiveStation } from '@/components/widgets/MusicWidget/mySongs';
 
 interface RemoteMusicControlProps {
   widget: WidgetData;
@@ -19,7 +20,7 @@ export const RemoteMusicControl: React.FC<RemoteMusicControlProps> = ({
     updateWidget(widget.id, { config: { ...config, stationId } });
   };
 
-  const currentStation = stations.find((s) => s.id === config.stationId);
+  const currentStation = resolveActiveStation(stations, config);
 
   return (
     <div className="flex flex-col h-full">
@@ -32,7 +33,7 @@ export const RemoteMusicControl: React.FC<RemoteMusicControlProps> = ({
           <div className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center"
-              style={{ background: currentStation.color ?? '#3b82f6' }}
+              style={{ background: currentStation.color || '#3b82f6' }}
             >
               <Radio className="w-5 h-5 text-white" />
             </div>

@@ -15,6 +15,7 @@ import {
 import { PersonalSpotifyPlayer } from './PersonalSpotifyPlayer';
 import { useAuth } from '@/context/useAuth';
 import { tourAttr } from '@/config/tourAnchors';
+import { resolveActiveStation } from './mySongs';
 
 // ---------------------------------------------------------------------------
 // Shared play/pause overlay button
@@ -125,7 +126,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     timeToolWidget?.config as TimeToolConfig | undefined
   )?.isRunning;
 
-  const activeStation = stations.find((s) => s.id === config.stationId);
+  const activeStation = resolveActiveStation(stations, config);
   const youtubeId = activeStation ? extractYouTubeId(activeStation.url) : null;
 
   const spotifyEmbedUrl = activeStation?.url

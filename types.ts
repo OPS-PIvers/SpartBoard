@@ -8104,6 +8104,17 @@ export interface MusicStation {
  */
 export type MusicSource = 'curated' | 'personal';
 
+/** A YouTube song a teacher saved to their own Music list (`users/{uid}/music_stations`). */
+export interface MySong {
+  id: string;
+  title: string;
+  channel: string;
+  /** Always the canonical `https://www.youtube.com/watch?v={id}` form. */
+  url: string;
+  thumbnail: string;
+  createdAt: number;
+}
+
 export interface MusicConfig {
   stationId: string;
   syncWithTimeTool?: boolean;
@@ -8123,6 +8134,8 @@ export interface MusicConfig {
   personalSpotifyLabel?: string;
   /** Optional thumbnail for the personal selection. */
   personalSpotifyThumbnail?: string;
+  /** Copy of the teacher's own song picked in `stationId`, so shared and sub boards can still play it. */
+  mySong?: Omit<MySong, 'createdAt'> | null;
 }
 
 export interface OrganizerNode {
@@ -10639,7 +10652,9 @@ export type GlobalFeature =
   /** Widget Library fills most of the screen instead of a small fixed box. */
   | 'widget-library-large'
   /** Slides-style alignment guides and snapping while moving or resizing widgets (a per-teacher switch in Behavior). */
-  | 'alignment-guides';
+  | 'alignment-guides'
+  /** Teachers add their own YouTube songs to the Music widget's station list. */
+  | 'music-my-songs';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

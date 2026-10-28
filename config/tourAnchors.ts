@@ -5062,6 +5062,29 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'widget-settings.music.my-song': {
+    label: "One of the teacher's own songs in Music settings",
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.music.my-song-remove': {
+    label: "Remove button on one of the teacher's own songs in Music settings",
+    perField: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'widget-settings.music.my-song-link': {
+    label: 'YouTube link field for adding a song in Music settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.music.my-song-add': {
+    label: 'Add button for a YouTube song in Music settings',
+    perWidget: true,
+    persists: true,
+    panel: true,
+  },
   'widget-settings.custom-widget.definition-input': {
     label: 'One admin-defined setting input in Custom Widget settings',
     perField: true,

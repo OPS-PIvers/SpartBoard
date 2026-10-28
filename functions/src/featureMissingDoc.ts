@@ -68,6 +68,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'widget-library-large',
   'sidebar-list-rows',
   'alignment-guides',
+  'music-my-songs',
 ];
 
 /** Plan D7: admins pass a default-off flag (preview, or admin-default like `guided-learning-ai`) that has no saved doc yet. */

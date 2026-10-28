@@ -1137,6 +1137,10 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'materials.tray-item': ['widgets.materials.face'],
     'widget-settings.music.source': ['widgets.music.settings'],
     'widget-settings.music.station': ['widgets.music.settings'],
+    'widget-settings.music.my-song': ['widgets.music.settings'],
+    'widget-settings.music.my-song-remove': ['widgets.music.settings'],
+    'widget-settings.music.my-song-link': ['widgets.music.settings'],
+    'widget-settings.music.my-song-add': ['widgets.music.settings'],
     'widget-settings.custom-widget.definition-input': [
       'widgets.custom-widget.settings',
     ],

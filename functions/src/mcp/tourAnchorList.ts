@@ -21003,6 +21003,33 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.music.my-song",
+    "label": "One of the teacher's own songs in Music settings",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "widget-settings.music.my-song-remove",
+    "label": "Remove button on one of the teacher's own songs in Music settings",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "persists": true
+  },
+  {
+    "id": "widget-settings.music.my-song-link",
+    "label": "YouTube link field for adding a song in Music settings",
+    "scope": "widget",
+    "panel": true
+  },
+  {
+    "id": "widget-settings.music.my-song-add",
+    "label": "Add button for a YouTube song in Music settings",
+    "scope": "widget",
+    "panel": true,
+    "persists": true
+  },
+  {
     "id": "widget-settings.custom-widget.definition-input",
     "label": "One admin-defined setting input in Custom Widget settings",
     "scope": "field",

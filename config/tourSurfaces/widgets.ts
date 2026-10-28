@@ -295,6 +295,7 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       'components/widgets/MusicWidget/settingsFields.tsx',
       'components/widgets/MusicWidget/PersonalSpotifyPanel.tsx',
+      'components/widgets/MusicWidget/MySongsSection.tsx',
     ],
     opensWith: 'widget.settings-opener',
     parent: 'widgets.music.face',
