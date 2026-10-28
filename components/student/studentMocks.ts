@@ -194,6 +194,9 @@ export const mockDashboard: DashboardContextValue = {
   unpinBoard: async () => {
     // No-op
   },
+  markClaudeBoardSeen: async () => {
+    // No-op
+  },
   setActiveCollectionId: () => {
     // No-op
   },

@@ -3,7 +3,7 @@ import { renderHook } from '@testing-library/react';
 import type { Dashboard } from '@/types';
 
 const mocks = vi.hoisted(() => ({
-  updateDoc: vi.fn(() => Promise.resolve()),
+  markClaudeBoardSeen: vi.fn(() => Promise.resolve()),
   setDoc: vi.fn(() => Promise.resolve()),
   addToast: vi.fn(),
   loadDashboard: vi.fn(),
@@ -17,8 +17,6 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('firebase/firestore', () => ({
   doc: (_db: unknown, ...path: string[]) => path.join('/'),
-  deleteField: () => 'DELETE',
-  updateDoc: mocks.updateDoc,
   setDoc: mocks.setDoc,
 }));
 vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
@@ -36,6 +34,7 @@ vi.mock('@/context/useDashboard', () => ({
     ...mocks.dash,
     addToast: mocks.addToast,
     loadDashboard: mocks.loadDashboard,
+    markClaudeBoardSeen: mocks.markClaudeBoardSeen,
   }),
 }));
 
@@ -119,7 +118,7 @@ describe('useClaudeBoardActivity', () => {
     setBoards([board('a', { claudeEditedAt: Date.now() }), board('b')], 'b');
     rerender();
     expect(mocks.addToast).not.toHaveBeenCalled();
-    expect(mocks.updateDoc).not.toHaveBeenCalled();
+    expect(mocks.markClaudeBoardSeen).not.toHaveBeenCalled();
     expect(mocks.setDoc).not.toHaveBeenCalled();
   });
 
@@ -136,10 +135,8 @@ describe('useClaudeBoardActivity', () => {
     );
     const { rerender } = renderHook(() => useClaudeBoardActivity());
     rerender();
-    expect(mocks.updateDoc).toHaveBeenCalledTimes(1);
-    expect(mocks.updateDoc).toHaveBeenCalledWith('users/u1/dashboards/a', {
-      claudeUnseen: 'DELETE',
-    });
+    expect(mocks.markClaudeBoardSeen).toHaveBeenCalledTimes(1);
+    expect(mocks.markClaudeBoardSeen).toHaveBeenCalledWith('a');
   });
 
   it('records the full-screen shape once per shape', () => {
@@ -193,7 +190,7 @@ describe('useClaudeBoardActivity', () => {
       'a'
     );
     renderHook(() => useClaudeBoardActivity());
-    expect(mocks.updateDoc).not.toHaveBeenCalled();
+    expect(mocks.markClaudeBoardSeen).not.toHaveBeenCalled();
     Reflect.deleteProperty(document, 'visibilityState');
   });
 

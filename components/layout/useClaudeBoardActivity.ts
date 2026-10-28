@@ -1,6 +1,6 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
-import { deleteField, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import type { TourAnchorId } from '@/config/tourAnchors';
 import { useAuth } from '@/context/useAuth';
@@ -29,8 +29,14 @@ const isTabVisible = () => document.visibilityState === 'visible';
 export const useClaudeBoardActivity = (): void => {
   const { t } = useTranslation();
   const { user, canAccessFeature } = useAuth();
-  const { dashboards, activeDashboard, loading, addToast, loadDashboard } =
-    useDashboard();
+  const {
+    dashboards,
+    activeDashboard,
+    loading,
+    addToast,
+    loadDashboard,
+    markClaudeBoardSeen,
+  } = useDashboard();
   // Optional call: many useAuth test doubles leave canAccessFeature out.
   const enabled = canAccessFeature?.('ai-boards') === true;
   const uid = user?.uid;
@@ -81,16 +87,22 @@ export const useClaudeBoardActivity = (): void => {
       return;
     if (clearedRef.current.has(unseenKey)) return;
     clearedRef.current.add(unseenKey);
-    updateDoc(doc(db, 'users', uid, 'dashboards', activeId), {
-      claudeUnseen: deleteField(),
-    }).catch((err: unknown) => {
+    markClaudeBoardSeen(activeId).catch((err: unknown) => {
       clearedRef.current.delete(unseenKey);
       logError('useClaudeBoardActivity.clearUnseen', err, {
         uid,
         boardId: activeId,
       });
     });
-  }, [enabled, canWrite, uid, activeId, unseenKey, visible]);
+  }, [
+    enabled,
+    canWrite,
+    uid,
+    activeId,
+    unseenKey,
+    visible,
+    markClaudeBoardSeen,
+  ]);
 
   // Last full-screen size this tab wrote, so a resize that lands on the same shape writes nothing.
   const recordedRef = useRef<{ w: number; h: number } | null>(null);

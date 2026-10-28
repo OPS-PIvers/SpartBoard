@@ -6040,6 +6040,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [user?.uid, dashboards, addToast]
   );
 
+  // Clear local state first: the write's only snapshot carries hasPendingWrites, which keeps the active board's local copy.
+  const markClaudeBoardSeen = useCallback(
+    async (boardId: string): Promise<void> => {
+      setDashboards((curr) =>
+        curr.map((d) => {
+          if (d.id !== boardId || d.claudeUnseen === undefined) return d;
+          const { claudeUnseen: _claudeUnseen, ...rest } = d;
+          return rest;
+        })
+      );
+      if (!user?.uid || isAuthBypass || isViewAsTab) return;
+      await updateDoc(doc(db, 'users', user.uid, 'dashboards', boardId), {
+        claudeUnseen: deleteField(),
+      });
+    },
+    [user]
+  );
+
   const resetDockToDefaults = useCallback(() => {
     // Re-use the shared helper so the access-filtering logic (enabled,
     // accessLevel, betaUsers) is always consistent with the init path.
@@ -8166,6 +8184,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       moveBoardToCollection,
       pinBoard,
       unpinBoard,
+      markClaudeBoardSeen,
       setActiveCollectionId,
       addWidget,
       addWidgets,
@@ -8303,6 +8322,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       moveBoardToCollection,
       pinBoard,
       unpinBoard,
+      markClaudeBoardSeen,
       setActiveCollectionId,
       addWidget,
       addWidgets,

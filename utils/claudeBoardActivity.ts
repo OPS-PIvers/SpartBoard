@@ -9,11 +9,7 @@ export const claudeEditStamps = (
 ): Map<string, number> =>
   new Map(boards.map((b) => [b.id, b.claudeEditedAt ?? 0]));
 
-/**
- * Boards whose Claude stamp moved since `previous`, other than the one on
- * screen, newest first. Stale stamps are skipped so a late first load never
- * announces old edits.
- */
+/** Boards with a fresh, newer Claude stamp, other than the one on screen, newest first. */
 export const findNewClaudeEdits = (
   previous: ReadonlyMap<string, number>,
   boards: readonly Dashboard[],
