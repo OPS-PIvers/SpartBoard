@@ -40,16 +40,20 @@ export interface WireframeImage {
   height: number;
   overlapCount: number;
   chromeCollisionCount: number;
+  offBoardCount: number;
+  omittedCount: number;
 }
 
 export const WIREFRAME_WIDTH = 1200;
-export const WIREFRAME_MAX_RECTS = 200;
+export const WIREFRAME_MAX_RECTS = 100;
+export const WIREFRAME_MAX_BANDS = 20;
 const DEFAULT_SCREEN: WireframeScreen = { w: 1920, h: 1080 };
 const MARGIN = 16;
 const HEADER_H = 40;
 const FOOTER_H = 36;
 const MAX_ASPECT = 2;
 const LABEL_PAD = 6;
+const OUTSIDE_LABEL_WIDTH = 180;
 
 type Rgb = readonly [number, number, number];
 const PAGE_BG: Rgb = [248, 250, 252];
@@ -128,16 +132,26 @@ const PUNCTUATION: Record<string, string> = {
   '•': '·',
 };
 
-const normalizeText = (text: string, font: Font): string => {
-  const plain = String(text ?? '')
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
+const MAX_TEXT = 300;
+const ZERO_WIDTH = /[\u200b-\u200d\u2060\ufeff]/g;
+
+const normalizeText = (text: unknown, font: Font): string => {
+  const plain = (typeof text === 'string' ? text : '')
+    .slice(0, MAX_TEXT)
+    .normalize('NFC')
+    .replace(ZERO_WIDTH, '')
     .replace(/\s+/g, ' ')
     .trim();
   let out = '';
   for (const ch of plain) {
     const mapped = PUNCTUATION[ch] ?? ch;
-    out += font.glyphs.has(mapped) ? mapped : '?';
+    if (font.glyphs.has(mapped)) {
+      out += mapped;
+      continue;
+    }
+    const base = mapped.normalize('NFD').replace(/\p{M}/gu, '');
+    out +=
+      base && Array.from(base).every((c) => font.glyphs.has(c)) ? base : '?';
   }
   return out;
 };
@@ -150,7 +164,7 @@ const measure = (text: string, font: Font): number => {
 
 /** Normalises text to the font's characters and truncates it with an ellipsis to fit maxWidth. */
 export const fitText = (
-  text: string,
+  text: unknown,
   maxWidth: number,
   which: 'label' | 'title' = 'label'
 ): string => {
@@ -276,9 +290,9 @@ class Canvas {
     const font = getFonts()[which];
     const maxWidth = b.x1 - b.x0 - LABEL_PAD * 2;
     const lineH = font.ascent + font.descent;
-    if (maxWidth <= 0 || b.y1 - b.y0 < lineH + 4) return;
+    if (maxWidth <= 0 || b.y1 - b.y0 < lineH + 4) return false;
     const fitted = fitText(text, maxWidth, which);
-    if (!fitted) return;
+    if (!fitted) return false;
     const x = b.x0 + LABEL_PAD;
     const top =
       b.y0 + Math.min(LABEL_PAD, Math.floor((b.y1 - b.y0 - lineH) / 2));
@@ -294,6 +308,25 @@ class Canvas {
       );
     }
     this.text(fitted, font, x, top + font.ascent, c);
+    return true;
+  }
+
+  /** Labels a box too small for its own label with a bordered chip just below (or above) it. */
+  outsideLabel(text: string, b: Box, bounds: Box, border: Rgb) {
+    const font = getFonts().label;
+    const lineH = font.ascent + font.descent;
+    const fitted = fitText(text, OUTSIDE_LABEL_WIDTH);
+    if (!fitted) return;
+    const w = measure(fitted, font) + 8;
+    const top =
+      b.y1 + 2 + lineH + 2 <= bounds.y1
+        ? b.y1 + 2
+        : Math.max(bounds.y0, b.y0 - lineH - 4);
+    const x0 = Math.max(bounds.x0, Math.min(b.x0, bounds.x1 - w));
+    const chip = { x0, y0: top, x1: x0 + w, y1: top + lineH + 2 };
+    this.fill(chip, LABEL_BG);
+    this.stroke(chip, border, 1);
+    this.text(fitted, font, x0 + 4, top + 1 + font.ascent, TEXT);
   }
 }
 
@@ -346,6 +379,52 @@ const encodePng = (canvas: Canvas): Buffer => {
   ]);
 };
 
+interface ScreenItem {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  label: string;
+  kind: WireframeRectKind;
+}
+
+/** Hatches every pixel covered by two widgets, or by a widget and a band, exactly once. */
+const hatchOverlaps = (canvas: Canvas, rects: Box[], bands: Box[]) => {
+  const all = [...rects, ...bands];
+  const xs = [...new Set(all.flatMap((b) => [b.x0, b.x1]))].sort(
+    (a, b) => a - b
+  );
+  const ys = [...new Set(all.flatMap((b) => [b.y0, b.y1]))].sort(
+    (a, b) => a - b
+  );
+  const xi = new Map(xs.map((v, i) => [v, i]));
+  const yi = new Map(ys.map((v, i) => [v, i]));
+  const cols = Math.max(0, xs.length - 1);
+  const rectCover = new Uint16Array(cols * Math.max(0, ys.length - 1));
+  const bandCover = new Uint8Array(rectCover.length);
+  const mark = (b: Box, cover: Uint16Array | Uint8Array) => {
+    const cx1 = xi.get(b.x1) ?? 0;
+    const cy1 = yi.get(b.y1) ?? 0;
+    for (let cy = yi.get(b.y0) ?? 0; cy < cy1; cy++) {
+      for (let cx = xi.get(b.x0) ?? 0; cx < cx1; cx++) {
+        cover[cy * cols + cx] = Math.min(cover[cy * cols + cx] + 1, 255);
+      }
+    }
+  };
+  for (const b of rects) mark(b, rectCover);
+  for (const b of bands) mark(b, bandCover);
+  for (let i = 0; i < rectCover.length; i++) {
+    if (rectCover[i] >= 2 || (rectCover[i] >= 1 && bandCover[i] >= 1)) {
+      const cx = i % cols;
+      const cy = Math.floor(i / cols);
+      canvas.hatch(
+        { x0: xs[cx], y0: ys[cy], x1: xs[cx + 1], y1: ys[cy + 1] },
+        HATCH
+      );
+    }
+  }
+};
+
 /** Renders the board as a PNG about 1200px wide; rects and bands are in screen pixels. */
 export const renderBoardWireframe = (input: WireframeInput): WireframeImage => {
   const labelFont = getFonts().label;
@@ -362,18 +441,49 @@ export const renderBoardWireframe = (input: WireframeInput): WireframeImage => {
     y1: HEADER_H + boardH,
   };
 
-  const toBox = (r: { x: number; y: number; w: number; h: number }) => {
-    if (![r.x, r.y, r.w, r.h].every(finite) || r.w <= 0 || r.h <= 0)
-      return null;
+  const parse = (value: unknown, max: number) => {
+    const valid: ScreenItem[] = [];
+    for (const item of Array.isArray(value) ? (value as unknown[]) : []) {
+      if (!item || typeof item !== 'object') continue;
+      const r = item as Partial<WireframeRect>;
+      const { x, y, w, h } = r;
+      if (!finite(x) || !finite(y) || !finite(w) || !finite(h)) continue;
+      if (w <= 0 || h <= 0) continue;
+      valid.push({
+        x,
+        y,
+        w,
+        h,
+        label: typeof r.label === 'string' ? r.label : '',
+        kind: r.kind === 'slot' ? 'slot' : 'widget',
+      });
+    }
+    return {
+      items: valid.slice(0, max),
+      omitted: Math.max(0, valid.length - max),
+    };
+  };
+
+  const toBox = (r: ScreenItem): Box | null => {
+    const x0 = board.x0 + Math.round(r.x * scale);
+    const y0 = board.y0 + Math.round(r.y * scale);
     return intersect(board, {
-      x0: board.x0 + Math.round(r.x * scale),
-      y0: board.y0 + Math.round(r.y * scale),
-      x1: board.x0 + Math.round((r.x + r.w) * scale),
-      y1: board.y0 + Math.round((r.y + r.h) * scale),
+      x0,
+      y0,
+      x1: Math.max(x0 + 1, board.x0 + Math.round((r.x + r.w) * scale)),
+      y1: Math.max(y0 + 1, board.y0 + Math.round((r.y + r.h) * scale)),
     });
   };
 
-  const title = `${String(input.name ?? '').trim() || 'Untitled board'} (${Math.round(screen.w)} x ${Math.round(screen.h)})`;
+  const rawW = input.screen?.w;
+  const rawH = input.screen?.h;
+  const shown =
+    finite(rawW) && finite(rawH) && rawW > 0 && rawH > 0
+      ? { w: rawW, h: rawH }
+      : screen;
+  const name =
+    typeof input.name === 'string' ? input.name.slice(0, MAX_TEXT).trim() : '';
+  const title = `${name || 'Untitled board'} (${Math.round(shown.w)} x ${Math.round(shown.h)})`;
   canvas.label(
     title,
     'title',
@@ -389,48 +499,64 @@ export const renderBoardWireframe = (input: WireframeInput): WireframeImage => {
 
   canvas.fill(board, BOARD_BG);
 
-  const bands = (input.bands ?? [])
-    .slice(0, WIREFRAME_MAX_RECTS)
-    .flatMap((b) => {
-      const box = toBox(b);
-      return box ? [{ box, label: b.label }] : [];
-    });
+  const bandInput = parse(input.bands, WIREFRAME_MAX_BANDS);
+  const rectInput = parse(input.rects, WIREFRAME_MAX_RECTS);
+  const bands = bandInput.items.flatMap((b) => {
+    const box = toBox(b);
+    return box ? [{ ...b, box }] : [];
+  });
   for (const band of bands) canvas.fill(band.box, BAND_FILL);
   for (const band of bands)
     canvas.label(band.label, 'label', band.box, BAND_TEXT, null);
 
-  const rects = (input.rects ?? [])
-    .slice(0, WIREFRAME_MAX_RECTS)
-    .flatMap((r) => {
-      const box = toBox(r);
-      return box ? [{ box, label: r.label, kind: r.kind ?? 'widget' }] : [];
-    });
+  const rects = rectInput.items.flatMap((r) => {
+    const box = toBox(r);
+    return box ? [{ ...r, box }] : [];
+  });
   for (const r of rects) {
     const slot = r.kind === 'slot';
     canvas.fill(r.box, slot ? SLOT_FILL : WIDGET_FILL);
     canvas.stroke(r.box, slot ? SLOT_BORDER : WIDGET_BORDER, 2, slot ? 8 : 0);
   }
 
+  const screenBox = (r: ScreenItem): Box => ({
+    x0: r.x,
+    y0: r.y,
+    x1: r.x + r.w,
+    y1: r.y + r.h,
+  });
   let overlapCount = 0;
   let chromeCollisionCount = 0;
-  for (let i = 0; i < rects.length; i++) {
-    for (let j = i + 1; j < rects.length; j++) {
-      const hit = intersect(rects[i].box, rects[j].box);
-      if (hit) {
-        overlapCount++;
-        canvas.hatch(hit, HATCH);
-      }
+  let offBoardCount = 0;
+  const items = rectInput.items;
+  for (let i = 0; i < items.length; i++) {
+    const a = screenBox(items[i]);
+    if (a.x0 < 0 || a.y0 < 0 || a.x1 > screen.w || a.y1 > screen.h) {
+      offBoardCount++;
     }
-    for (const band of bands) {
-      const hit = intersect(rects[i].box, band.box);
-      if (hit) {
-        chromeCollisionCount++;
-        canvas.hatch(hit, HATCH);
-      }
+    for (let j = i + 1; j < items.length; j++) {
+      if (intersect(a, screenBox(items[j]))) overlapCount++;
+    }
+    for (const band of bandInput.items) {
+      if (intersect(a, screenBox(band))) chromeCollisionCount++;
     }
   }
+  hatchOverlaps(
+    canvas,
+    rects.map((r) => r.box),
+    bands.map((b) => b.box)
+  );
 
-  for (const r of rects) canvas.label(r.label, 'label', r.box, TEXT, LABEL_BG);
+  for (const r of rects) {
+    if (!canvas.label(r.label, 'label', r.box, TEXT, LABEL_BG)) {
+      canvas.outsideLabel(
+        r.label,
+        r.box,
+        board,
+        r.kind === 'slot' ? SLOT_BORDER : WIDGET_BORDER
+      );
+    }
+  }
   canvas.stroke(board, BOARD_BORDER, 1);
 
   const legendY = board.y1 + 10;
@@ -462,6 +588,10 @@ export const renderBoardWireframe = (input: WireframeInput): WireframeImage => {
     canvas.fill(b, BOARD_BG);
     canvas.hatch(b, HATCH);
   }, 'Overlap');
+  if (rectInput.omitted > 0) {
+    const note = `+${rectInput.omitted} more not shown`;
+    canvas.text(note, labelFont, x, legendY + 13, TEXT);
+  }
 
   return {
     png: encodePng(canvas),
@@ -469,5 +599,7 @@ export const renderBoardWireframe = (input: WireframeInput): WireframeImage => {
     height,
     overlapCount,
     chromeCollisionCount,
+    offBoardCount,
+    omittedCount: rectInput.omitted,
   };
 };

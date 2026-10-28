@@ -203,3 +203,115 @@ describe('fitText', () => {
     expect(fitText('Timer', 2)).toBe('');
   });
 });
+
+describe('renderBoardWireframe with hostile input', () => {
+  const stacked = (count: number): WireframeRect[] =>
+    Array.from({ length: count }, (_, i) => ({
+      label: `Stacked ${i}`,
+      x: 0,
+      y: 0,
+      w: 1920,
+      h: 1080,
+    }));
+
+  it('stays fast when every widget covers the whole board', () => {
+    renderBoardWireframe({
+      name: 'Warm',
+      screen: { w: 1920, h: 1080 },
+      rects: stacked(2),
+    });
+    const start = performance.now();
+    const img = renderBoardWireframe({
+      name: 'Stacked',
+      screen: { w: 1920, h: 1080 },
+      rects: stacked(150),
+      bands: DOCK_BANDS,
+    });
+    expect(performance.now() - start).toBeLessThan(1000);
+    expect(img.overlapCount).toBe((100 * 99) / 2);
+    expect(img.omittedCount).toBe(50);
+  });
+
+  it('skips null, non-object and malformed entries', () => {
+    const img = renderBoardWireframe({
+      name: 'Garbage',
+      screen: { w: 1920, h: 1080 },
+      rects: [
+        null,
+        7,
+        'x',
+        { label: 1, x: 10, y: 10, w: 100, h: 100 },
+      ] as unknown as WireframeRect[],
+      bands: {} as unknown as WireframeRect[],
+    });
+    expect(img.overlapCount).toBe(0);
+    expect(img.omittedCount).toBe(0);
+    expect(decode(img.png).width).toBe(WIREFRAME_WIDTH);
+  });
+
+  it('bounds the work for huge labels and names', () => {
+    const huge = 'W'.repeat(2_000_000);
+    const start = performance.now();
+    renderBoardWireframe({
+      name: huge,
+      screen: { w: 1920, h: 1080 },
+      rects: grid(20).map((r) => ({ ...r, label: huge })),
+    });
+    expect(performance.now() - start).toBeLessThan(1000);
+  });
+
+  it('counts overlaps, chrome collisions and off-board widgets in screen pixels', () => {
+    const img = renderBoardWireframe({
+      name: 'Sub-pixel',
+      screen: { w: 1920, h: 1080 },
+      rects: [
+        { label: 'A', x: 100, y: 100, w: 300, h: 300 },
+        { label: 'B', x: 399, y: 100, w: 300, h: 300 },
+        { label: 'Off', x: -100, y: 500, w: 300, h: 200 },
+      ],
+      bands: [{ label: 'Dock', x: 0, y: 1000, w: 1920, h: 80 }],
+    });
+    expect(img.overlapCount).toBe(1);
+    expect(img.chromeCollisionCount).toBe(0);
+    expect(img.offBoardCount).toBe(1);
+  });
+
+  it('labels a widget too small for its own label just outside it', () => {
+    const box = { x: 900, y: 300, w: 30, h: 30 };
+    const img = renderBoardWireframe({
+      name: 'Small',
+      screen: { w: 1920, h: 1080 },
+      rects: [{ label: 'Launcher', ...box }],
+    });
+    const png = decode(img.png);
+    const scale = 1168 / 1920;
+    const below = 40 + Math.round((box.y + box.h) * scale) + 2;
+    const left = 16 + Math.round(box.x * scale);
+    let dark = 0;
+    for (let y = below; y < below + 20; y++) {
+      for (let x = left; x < left + 80; x++) {
+        const [r, g, b] = png.at(x, y);
+        if (r < 100 && g < 100 && b < 100) dark++;
+      }
+    }
+    expect(dark).toBeGreaterThan(20);
+  });
+
+  it('draws dashed empty slots', () => {
+    const img = renderBoardWireframe({
+      name: 'Slot',
+      screen: { w: 1920, h: 1080 },
+      rects: [
+        { label: 'Empty: Poll', x: 100, y: 100, w: 600, h: 400, kind: 'slot' },
+      ],
+    });
+    expect(decode(img.png).width).toBe(WIREFRAME_WIDTH);
+    expect(img.overlapCount).toBe(0);
+  });
+});
+
+describe('fitText with non-Latin text', () => {
+  it('replaces each unsupported character once and drops zero-width ones', () => {
+    expect(fitText('한국어​!', 500)).toBe('???!');
+  });
+});
