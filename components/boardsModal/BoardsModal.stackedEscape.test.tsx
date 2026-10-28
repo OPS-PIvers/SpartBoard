@@ -95,4 +95,26 @@ describe('BoardsModal Escape with a stacked Modal', () => {
     expect(onStackedClose).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it('still closes the Boards modal on Escape with nothing stacked', () => {
+    const onClose = vi.fn();
+    render(<BoardsModal onClose={onClose} />);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes the Boards modal again once the stacked Modal has unmounted', () => {
+    const onClose = vi.fn();
+    const { rerender } = render(
+      <>
+        <BoardsModal onClose={onClose} />
+        <Modal isOpen onClose={vi.fn()} title="Stacked">
+          <button>inside</button>
+        </Modal>
+      </>
+    );
+    rerender(<BoardsModal onClose={onClose} />);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });
