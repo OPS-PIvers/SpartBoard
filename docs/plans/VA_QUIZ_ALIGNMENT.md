@@ -37,7 +37,7 @@ Code read on `origin/dev-paul` at 459d5a34. No open PRs touch VA or Quiz editor 
 
 **Quiz features that don't fit a video and stay out:** Sections, question banks and bank slots, Stimuli tab, paper print/import, printed numbers, Review/game mode, time limit for the whole activity, shuffle questions (time order), quote from passages. Languages (translation, read aloud) could come later; not in this plan.
 
-**Open (decision card to Paul):** Matching, Ordering and written (free-response) questions in VA. Each needs player, grader (`functions/src/videoActivityGrade.ts` + cases.json), results and, for written, teacher grading. Recommendation: not in this plan; a later plan if wanted.
+**Decided (Paul, 2026-10-28):** Matching, Ordering and written (free-response) questions in VA are out of this plan; they come later as their own plan. Each needs player, grader (`functions/src/videoActivityGrade.ts` + cases.json), results and, for written, teacher grading.
 
 ## Decisions (recommended defaults; build these unless Paul says otherwise)
 
@@ -57,7 +57,7 @@ New wording needing Paul's OK (prototype strings, list in each slice PR): "Video
 - Branch from `origin/dev-paul`, PR into `dev-paul`, subscribe, merge when green (standing grant). Don't spawn sub-agents for other slices.
 - Every change renders only with `canAccessFeature('va-quiz-alignment')`; flag off is byte-for-byte today's UI and session writes. Existing VA assignments, sessions and student results must not change: no migration, no rule tightening, absent fields mean today's behavior.
 - Reuse Quiz components; extract, don't copy. Extractions leave Quiz looking and behaving the same (before/after shots of Quiz too).
-- Real-app before/after screenshots; VA harness states exist on `/session-views-dev` and `/assign-stepper-dev` (`VideoAssignStepper.dev.tsx`).
+- Real-app before/after screenshots ([[spartboard-screenshot-capture]]); VA harness states exist on `/session-views-dev` and `/assign-stepper-dev` (`VideoAssignStepper.dev.tsx`).
 - Tour anchors: carry existing `video-activity.editor-*` ids over to the moved controls; new controls get anchors in `config/tourAnchors.ts`; check `config/tourAnchorsInUse.json`.
 - Scoped checks only (CLAUDE.md): `pnpm exec vitest related --run <files>`.
 
@@ -98,6 +98,29 @@ Owns: new `VideoAssignmentSettingsModal.tsx`, `VideoActivityManager.tsx` row act
 `PlcNewVideoActivityAssignmentModal` gets the rule steps (prefill as V3); `PlcAssignmentConfigModal` / `PlcAuthorVideoActivityModal` drop the read-only summary for the steps; Schoology LTI picker and Classroom add-on swap their summary for the step bodies (ASSIGN_STEPPER D22 pattern). All behind the flag.
 Owns: those files. Depends on: 4.
 
+### Pre-slice-4 fixes (release review of #4807)
+
+Fixed before slice 4 stamps `answerRulesSet` on new sessions:
+
+1. `functions/src/videoActivityKey.ts` returned `isCorrect` while right and wrong was hidden, to students and view-only viewers, so the key could be probed. It now returns `isCorrect: null` to anyone but the teacher and keeps the verdict off the student's response row until Publish re-grades. Live sessions are unchanged.
+2. `VideoRuleSteps.tsx`: "Rewind on a wrong answer" is now off and disabled, and left out of the step summary, while right and wrong or the correct answer is hidden (the player already forces it off).
+3. Shuffle off keeps the class-wide order, on purpose. Quiz does the same: `toPublicQuestion` shuffles once per session and `optionOrder` is editor-only, so "authored order" would put the correct answer first on older questions. Slice 5's text above ("keeps authored order") is superseded.
+
 ## Order
 
 Wave 1: 1 and 3 in parallel. Wave 2: 2 (after 1), 5 (after 3). Wave 3: 4 (after 2 and 3). Wave 4: 6 and 7 in parallel. Retiring the flag later deletes the Settings tab code, the drawer rows and `VideoActivityBehaviorSettingsPanel`, and needs a changelog note.
+
+## Slice 3 result (merged #4794, 2026-10-28)
+
+- Contract for slice 4: `videoRuleStepDefs({ value, onChange })` from `assignStepper/videoRuleStepDefs.tsx` returns the defs in `getAssignSteps('video', { kind: 'work', rules: true, live, inPlc, videoAnswerRows: VIDEO_ANSWER_ROWS_READY })` order. Value is `VideoAssignRules { behavior: VideoActivityBehaviorSettings; player: VideoActivitySessionSettings }` (`VideoRuleStepValues.ts`). Prefill from an activity with `videoRulesFromBehavior(behavior, boardPlayerSettings)`: it resets shuffle / right-and-wrong / reveal to true (what the player does today) because saved values there never took effect. `VideoAssignStepper` has a `video: () => null` stub to replace.
+- Contract for slice 5: flip `VIDEO_ANSWER_ROWS_READY` to true in `VideoRuleStepValues.ts`; that shows Shuffle answer options and the "What students see" step. Absent fields mean true (today's behavior).
+- Reviewer note: "Rewind on a wrong answer" maps to `requireCorrectAnswer`, which also blocks moving on until the student answers correctly; wording is pending Paul's OK.
+
+## Slice 5 result (PR #4796, 2026-10-28)
+
+- Contract for slice 4: on flag-on self-paced assigns, add `answerRulesSet: true` to the session's `sessionOptions` (next to the stepper's behavior.sessionOptions). Only stamped sessions honor shuffle / right-and-wrong / reveal; unstamped sessions (all existing ones, flag-off path) play as before. `VideoActivityBehaviorSettings` omits the field.
+- Semantics match Quiz: shuffle on = per-student per-attempt order; off = one class-wide order (today's). Right and wrong off also disables rewind-on-wrong (client and server). Reveal off: server returns `correctAnswer: ''` except to the owning teacher.
+- `VIDEO_ANSWER_ROWS_READY` is now true. Helpers: `utils/videoActivityAnswerRules.ts` (client), `vaAnswerRules` in `functions/src/videoActivityGrade.ts`, shared `videoActivityAnswerRules.cases.json`.
+- Per-question time limit not enforced (V6).
+- Slice 5 follow-ups for slice 4 / Paul: (a) the player skips "Rewind on a wrong answer" when right/wrong or reveal is off (retrying would give the key away); the stepper should grey that row out or the Video summary should drop it then. (b) With right/wrong off, the student's own response doc and the check callable still carry isCorrect (needed for scoring), so a student with devtools can see correctness before results are released; same as today's VA, not fixed in slice 5.
+- 2026-10-28 20:47Z: Paul approved the slice 3 wording as listed ("Video", "Integrity", "Allow skipping ahead", "Rewind on a wrong answer", "Autoplay after a question", and the step summaries). The label stays "Rewind on a wrong answer".

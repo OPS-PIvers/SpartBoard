@@ -30,7 +30,8 @@ export interface CheckVideoActivityAnswerInput {
 }
 
 export interface CheckVideoActivityAnswerResult {
-  isCorrect: boolean;
+  /** Null when right and wrong is hidden from this caller. */
+  isCorrect: boolean | null;
   correctAnswer: string;
 }
 
@@ -161,8 +162,10 @@ export async function handleCheckVideoActivityAnswer(
   // A live student waits for the board's reveal, and a hidden answer never leaves the server.
   const withholdKey =
     (isLive && isStudent) || (!isTeacher && !rules.revealAnswer);
+  // Hidden right and wrong never leaves the server either, so the key can't be probed one answer at a time.
+  const withholdResult = !isTeacher && !isLive && !rules.showResult;
   const result = (answer: string): CheckVideoActivityAnswerResult => ({
-    isCorrect: gradeVaAnswer(question, answer),
+    isCorrect: withholdResult ? null : gradeVaAnswer(question, answer),
     correctAnswer: withholdKey ? '' : (question.correctAnswer ?? ''),
   });
   if (!isStudent) return result(input.answer);
@@ -209,7 +212,10 @@ export async function handleCheckVideoActivityAnswer(
             questionId: question.id,
             answer: input.answer,
             answeredAt: nowMs,
-            isCorrect: gradeVaAnswer(question, input.answer),
+            // The student can read their own response, so a hidden verdict stays off it until Publish re-grades.
+            ...(withholdResult
+              ? {}
+              : { isCorrect: gradeVaAnswer(question, input.answer) }),
           },
         ],
       });

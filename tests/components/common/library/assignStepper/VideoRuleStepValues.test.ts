@@ -51,19 +51,38 @@ describe('formatVideoAttemptsValue', () => {
 });
 
 describe('formatVideoPlaybackValue', () => {
+  const shown = {
+    showResultToStudent: true,
+    showCorrectAnswerToStudent: true,
+  };
+
   it('reads the drawer defaults as rewind only', () => {
-    expect(formatVideoPlaybackValue(make())).toBe('Rewind on wrong answer');
+    expect(formatVideoPlaybackValue(make(shown))).toBe(
+      'Rewind on wrong answer'
+    );
   });
 
   it('lists every rule that is on, or Off', () => {
     expect(
       formatVideoPlaybackValue(
-        make({}, 1, { allowSkipping: true, autoPlay: true })
+        make(shown, 1, { allowSkipping: true, autoPlay: true })
       )
     ).toBe('Skipping ahead, Rewind on wrong answer, Autoplay');
     expect(
-      formatVideoPlaybackValue(make({}, 1, { requireCorrectAnswer: false }))
+      formatVideoPlaybackValue(make(shown, 1, { requireCorrectAnswer: false }))
     ).toBe('Off');
+  });
+
+  it('drops rewind while right and wrong or the answer is hidden', () => {
+    expect(formatVideoPlaybackValue(make({ showResultToStudent: false }))).toBe(
+      'Off'
+    );
+    expect(
+      formatVideoPlaybackValue(make({ showCorrectAnswerToStudent: false }))
+    ).toBe('Off');
+    expect(
+      formatVideoPlaybackValue(make({ showResultToStudent: false }), false)
+    ).toBe('Rewind on wrong answer');
   });
 });
 

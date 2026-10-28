@@ -82,7 +82,7 @@ export const VideoActivityLiveStudent: React.FC<
         questionId,
         answer,
         answeredAt: 0,
-        ...(results[questionId]
+        ...(typeof results[questionId]?.isCorrect === 'boolean'
           ? { isCorrect: results[questionId].isCorrect }
           : {}),
       }));
@@ -118,11 +118,14 @@ export const VideoActivityLiveStudent: React.FC<
     setPending((prev) => ({ ...prev, [question.id]: answer }));
     // The check already recorded the answer server-side; this write is a no-op backstop.
     if (!readOnly) {
-      await submitAnswer(question.id, answer, result.isCorrect).catch(
-        (err: unknown) =>
-          logError('VideoActivityLiveStudent.submitAnswer', err, {
-            questionId: question.id,
-          })
+      await submitAnswer(
+        question.id,
+        answer,
+        result.isCorrect ?? undefined
+      ).catch((err: unknown) =>
+        logError('VideoActivityLiveStudent.submitAnswer', err, {
+          questionId: question.id,
+        })
       );
     }
     return null;

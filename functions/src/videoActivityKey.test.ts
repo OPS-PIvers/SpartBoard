@@ -357,17 +357,31 @@ describe('handleCheckVideoActivityAnswer with assign answer rules', () => {
     ).resolves.toEqual({ isCorrect: false, correctAnswer: 'Paris' });
   });
 
-  it('records the answer when right and wrong is hidden, even in require-correct', async () => {
+  it('records the answer without a verdict when right and wrong is hidden, even in require-correct', async () => {
     const { docs, db } = setup(
       { answerRulesSet: true, showResultToStudent: false },
       { requireCorrectAnswer: true }
     );
     await expect(
       handleCheckVideoActivityAnswer(db, 'stu', input('Rome'), 1000)
-    ).resolves.toEqual({ isCorrect: false, correctAnswer: '' });
+    ).resolves.toEqual({ isCorrect: null, correctAnswer: '' });
     expect(docs[RESPONSE].answers).toEqual([
-      { questionId: 'q1', answer: 'Rome', answeredAt: 1000, isCorrect: false },
+      { questionId: 'q1', answer: 'Rome', answeredAt: 1000 },
     ]);
+    await expect(
+      handleCheckVideoActivityAnswer(db, 't1', input('Rome'))
+    ).resolves.toEqual({ isCorrect: false, correctAnswer: 'Paris' });
+  });
+
+  it('hides right and wrong from view-only viewers too', async () => {
+    const { docs, db } = setup({
+      answerRulesSet: true,
+      showResultToStudent: false,
+    });
+    docs[SESSION].mode = 'view-only';
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'viewer', input('Paris'))
+    ).resolves.toEqual({ isCorrect: null, correctAnswer: '' });
   });
 });
 
