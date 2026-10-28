@@ -1,4 +1,4 @@
-// Connector board tools: list_boards, get_board, get_board_guide, create_board, edit_board (AI_BOARDS D1, D6, D8, D11, D20).
+// Connector board tools: list_boards, get_board, get_board_guide, create_board, edit_board, tidy_board (AI_BOARDS D1, D2, D6, D8, D11, D20).
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
@@ -22,6 +22,7 @@ import {
   resolveBoardScreen,
   type BoardScreen,
 } from './boardStore';
+import { liveBoardView } from './boardShare';
 import { SETTINGS_FIELD_LIST } from './settingsFieldList';
 import { WIDGET_CATALOGUE } from './widgetCatalogue.gen';
 import { WIDGET_CONFIG_SCHEMAS } from './widgetConfigSchemas.gen';
@@ -37,6 +38,7 @@ import {
   MAX_WIDGETS_PER_BOARD,
   createBoards,
   editBoard,
+  tidyBoard,
   type EditResult,
 } from './boardWrite';
 
@@ -49,6 +51,7 @@ export const BOARD_TOOLS: ReadonlySet<string> = new Set([
   'get_board_guide',
   'create_board',
   'edit_board',
+  'tidy_board',
 ]);
 
 const MAX_GUIDE_WIDGETS = 8;
@@ -139,6 +142,7 @@ const GUIDE_STEPS = [
   'Small follow-up tweaks ("make the timer 5 minutes") need no new plan.',
   'Read get_board before changing an existing board, and after every change look at the returned picture and layout check.',
   'Place widgets on template zones or snap zones, never at raw pixel positions.',
+  'To straighten a board the teacher arranged by hand, use tidy_board: it moves and resizes widgets onto snap zones and changes nothing else.',
 ];
 
 const NOTES = [
@@ -433,7 +437,9 @@ export function editResultOf(edit: EditResult, shape: BoardScreen): Picture {
       ...(inUse ? { in_use: inUse } : {}),
       ...(edit.notes.length > 0 ? { notes: edit.notes } : {}),
       screen: screenOut(shape),
-      previous_version_revision_id: edit.revisionId,
+      ...(edit.revisionId
+        ? { previous_version_revision_id: edit.revisionId }
+        : {}),
     },
   };
 }
@@ -553,7 +559,7 @@ export function registerBoardTools(server: McpServer, ctx: ToolContext): void {
       const result = await run('get_board', ctx, async () => {
         await assertBoardAccess(ctx);
         assertBoardId(board_id);
-        const board = await readBoard(ctx, board_id);
+        const board = await liveBoardView(ctx, await readBoard(ctx, board_id));
         const shape = await resolveBoardScreen(ctx, screen);
         const collections = await loadCollections(db, uid);
         const picture = describeBoard(board, shape);
@@ -705,6 +711,34 @@ export function registerBoardTools(server: McpServer, ctx: ToolContext): void {
         assertBoardId(board_id);
         const shape = await resolveBoardScreen(ctx, screen);
         const edit = await editBoard(ctx, board_id, changes, shape);
+        const picture = editResultOf(edit, shape);
+        png = picture.png;
+        return picture.result;
+      });
+      const image = png as Buffer | null;
+      return withImages(result, image ? [image] : []);
+    }
+  );
+
+  server.registerTool(
+    'tidy_board',
+    {
+      title: 'Tidy a board',
+      description:
+        "Snaps a board's widgets onto the best-fitting snap layout, or the nearest free snap zones, for the teacher's screen. Only positions and sizes change: settings and content stay exactly as they are, and locked, pinned or minimized widgets stay put. Returns the new wireframe picture and layout check. The previous version is kept for 30 days; restore_revision undoes it.",
+      inputSchema: {
+        board_id: z.string().min(1).max(128),
+        screen: screenInput,
+      },
+      annotations: OVERWRITES,
+    },
+    async ({ board_id, screen }) => {
+      let png: Buffer | null = null;
+      const result = await run('tidy_board', ctx, async () => {
+        await assertBoardAccess(ctx);
+        assertBoardId(board_id);
+        const shape = await resolveBoardScreen(ctx, screen);
+        const edit = await tidyBoard(ctx, board_id, shape);
         const picture = editResultOf(edit, shape);
         png = picture.png;
         return picture.result;

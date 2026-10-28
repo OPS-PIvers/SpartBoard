@@ -308,7 +308,7 @@ const GEOMETRY = [
 ] as const;
 const FLAGS = ['minimized', 'maximized', 'isLocked', 'isPinned'] as const;
 
-const layoutWidget = (widget: Doc, index: number): LayoutWidget => {
+export const layoutWidget = (widget: Doc, index: number): LayoutWidget => {
   const out: LayoutWidget = {
     id: str(widget.id) || `widget-${index + 1}`,
     type: str(widget.type),

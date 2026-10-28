@@ -78,6 +78,7 @@ vi.mock('./boardTools', () => ({
     'get_board_guide',
     'create_board',
     'edit_board',
+    'tidy_board',
   ]),
   boardsOn: mocks.boardsOn,
   assertBoardAccess: vi.fn(),
@@ -1123,6 +1124,7 @@ describe('hiddenToolsFor', () => {
       'get_web_tour_step_picture',
       'list_boards',
       'list_web_tours',
+      'tidy_board',
       'update_web_tour_text',
     ]);
   });
