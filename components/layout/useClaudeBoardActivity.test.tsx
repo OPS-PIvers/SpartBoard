@@ -164,6 +164,39 @@ describe('useClaudeBoardActivity', () => {
     Reflect.deleteProperty(document, 'fullscreenElement');
   });
 
+  it('ignores a widget video going full screen', () => {
+    vi.useFakeTimers();
+    const video = document.createElement('div');
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => video,
+    });
+    renderHook(() => useClaudeBoardActivity());
+    vi.advanceTimersByTime(1100);
+    expect(mocks.setDoc).not.toHaveBeenCalled();
+    Reflect.deleteProperty(document, 'fullscreenElement');
+  });
+
+  it('keeps the badge while the tab is in the background', () => {
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => 'hidden',
+    });
+    setBoards(
+      [
+        board('a', {
+          claudeUnseen: true,
+          claudeEditedAt: 5,
+          claudeAction: 'created',
+        }),
+      ],
+      'a'
+    );
+    renderHook(() => useClaudeBoardActivity());
+    expect(mocks.updateDoc).not.toHaveBeenCalled();
+    Reflect.deleteProperty(document, 'visibilityState');
+  });
+
   it('records nothing outside full screen', () => {
     vi.useFakeTimers();
     renderHook(() => useClaudeBoardActivity());

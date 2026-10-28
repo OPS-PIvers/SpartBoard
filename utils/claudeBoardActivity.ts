@@ -35,8 +35,14 @@ export type ClaudeBadge = 'created' | 'edited';
 export const claudeBadgeFor = (board: Dashboard): ClaudeBadge | null =>
   board.claudeUnseen === true && board.claudeAction ? board.claudeAction : null;
 
-/** Whether the window is full screen, by the Fullscreen API or the browser's own (F11). */
-export const isFullScreenWindow = (): boolean =>
-  Boolean(document.fullscreenElement) ||
-  (typeof window.matchMedia === 'function' &&
-    window.matchMedia('(display-mode: fullscreen)').matches);
+/** Whether the whole window is full screen (Fullscreen API on the page or the browser's own F11), not a widget's video or embed. */
+export const isFullScreenWindow = (): boolean => {
+  if (document.fullscreenElement)
+    return document.fullscreenElement === document.documentElement;
+  return (
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(display-mode: fullscreen)').matches &&
+    Math.abs(window.innerWidth - window.screen.width) <= 2 &&
+    Math.abs(window.innerHeight - window.screen.height) <= 2
+  );
+};

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { deleteField, doc, setDoc, updateDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
@@ -15,9 +15,15 @@ import { viewAsSuppressesBackgroundWrites } from '@/utils/viewAsTab';
 
 const showTourId = 'board.claude-editing-show' satisfies TourAnchorId;
 // One toast per board while Claude works through a run of edits.
-const TOAST_REPEAT_MS = 10_000;
+const TOAST_REPEAT_MS = 90_000;
 // Let the window settle after entering full screen before measuring it.
 const SCREEN_SETTLE_MS = 1000;
+
+const subscribeVisibility = (onChange: () => void) => {
+  document.addEventListener('visibilitychange', onChange);
+  return () => document.removeEventListener('visibilitychange', onChange);
+};
+const isTabVisible = () => document.visibilityState === 'visible';
 
 /** "Claude is editing" toast, clearing the Boards list badge on open, and recording the full-screen shape (AI boards D7, D11, D24). */
 export const useClaudeBoardActivity = (): void => {
@@ -31,6 +37,7 @@ export const useClaudeBoardActivity = (): void => {
   const canWrite =
     Boolean(uid) && !isAuthBypass && !viewAsSuppressesBackgroundWrites();
   const activeId = activeDashboard?.id ?? null;
+  const visible = useSyncExternalStore(subscribeVisibility, isTabVisible);
 
   const stampsRef = useRef<Map<string, number> | null>(null);
   const lastToastAtRef = useRef(new Map<string, number>());
@@ -69,7 +76,9 @@ export const useClaudeBoardActivity = (): void => {
       ? `${activeDashboard.id}:${activeDashboard.claudeEditedAt ?? 0}`
       : null;
   useEffect(() => {
-    if (!enabled || !canWrite || !uid || !activeId || !unseenKey) return;
+    // A background tab hasn't shown the board to anyone yet.
+    if (!enabled || !canWrite || !uid || !activeId || !unseenKey || !visible)
+      return;
     if (clearedRef.current.has(unseenKey)) return;
     clearedRef.current.add(unseenKey);
     updateDoc(doc(db, 'users', uid, 'dashboards', activeId), {
@@ -81,7 +90,7 @@ export const useClaudeBoardActivity = (): void => {
         boardId: activeId,
       });
     });
-  }, [enabled, canWrite, uid, activeId, unseenKey]);
+  }, [enabled, canWrite, uid, activeId, unseenKey, visible]);
 
   // Last full-screen size this tab wrote, so a resize that lands on the same shape writes nothing.
   const recordedRef = useRef<{ w: number; h: number } | null>(null);
