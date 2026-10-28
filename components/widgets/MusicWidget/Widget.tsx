@@ -220,6 +220,8 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   }, [isTimeToolRunning, config.syncWithTimeTool, youtubeId, isPlayerReady]);
 
   const canLaunchTimer =
+    !!youtubeId &&
+    !isSpotify &&
     !isActiveBoardReadOnly &&
     canAccessFeature('music-timer-link') &&
     canAccessWidget('time-tool') &&

@@ -129,10 +129,17 @@ export const MySongsSection: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
                   aria-label={`${t('mySongsRemove')}: ${song.title}`}
                   title={t('mySongsRemove')}
                   onClick={() =>
-                    void removeSong(song.id).catch((err: unknown) => {
-                      console.error('[MySongsSection] Remove failed', err);
-                      setError(t('mySongsRemoveError'));
-                    })
+                    void removeSong(song.id)
+                      .then(() => {
+                        // A removed song stops being this widget's pick.
+                        if (active) {
+                          ctx.updateConfig({ stationId: '', mySong: null });
+                        }
+                      })
+                      .catch((err: unknown) => {
+                        console.error('[MySongsSection] Remove failed', err);
+                        setError(t('mySongsRemoveError'));
+                      })
                   }
                   {...tourFieldAttr(
                     'widget-settings.music.my-song-remove',
