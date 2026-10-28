@@ -39,7 +39,7 @@ export function videoRuleStepDefs({
     {
       id: 'video',
       title: title('video'),
-      value: formatVideoPlaybackValue(value),
+      value: formatVideoPlaybackValue(value, answerRows),
       body: <VideoPlaybackStep {...props} />,
     },
     {

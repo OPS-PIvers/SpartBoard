@@ -7378,7 +7378,8 @@ export interface VideoActivityPublicQuestion {
 
 /** Server grading of one VA answer (`checkVideoActivityAnswerV1`). */
 export interface VideoActivityCheckResult {
-  isCorrect: boolean;
+  /** Null when right and wrong is hidden from this student. */
+  isCorrect: boolean | null;
   /** Canonical key for feedback; MA selections are `|`-joined. */
   correctAnswer: string;
 }

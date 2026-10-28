@@ -85,6 +85,31 @@ describe('VideoPlaybackStep', () => {
     expect(last(onChange)?.player.autoPlay).toBe(true);
     expect(last(onChange)?.behavior).toBe(value.behavior);
   });
+
+  it('locks rewind off while the answer is hidden', () => {
+    const base = make();
+    for (const hidden of [
+      { showResultToStudent: false },
+      { showCorrectAnswerToStudent: false },
+    ]) {
+      const value = {
+        ...base,
+        behavior: {
+          ...base.behavior,
+          sessionOptions: { ...base.behavior.sessionOptions, ...hidden },
+        },
+      };
+      const { unmount } = render(
+        <VideoPlaybackStep value={value} onChange={changeSpy()} answerRows />
+      );
+      const rewind = screen.getByRole('switch', {
+        name: 'Rewind on a wrong answer',
+      });
+      expect(rewind).toBeDisabled();
+      expect(rewind).toHaveAttribute('aria-checked', 'false');
+      unmount();
+    }
+  });
 });
 
 describe('VideoIntegrityStep', () => {
