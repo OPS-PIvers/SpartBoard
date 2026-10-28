@@ -191,7 +191,11 @@ describe('useFirestore – saveDashboard transaction', () => {
       (_db: unknown, fn: (t: unknown) => Promise<void>) => {
         if (!online) return Promise.reject(offlineError());
         return fn({
-          get: vi.fn().mockResolvedValue({ exists: () => false }),
+          get: vi.fn().mockResolvedValue({
+            exists: () => true,
+            id: 'd1',
+            data: () => board([widget('a', 'a0')]),
+          }),
           set: (_ref: unknown, d: Dashboard) =>
             written.push(textOf(d.widgets[0])),
         });
@@ -283,6 +287,57 @@ describe('useFirestore – saveDashboard transaction', () => {
     ).rejects.toThrow('nope');
     expect(firestore.setDoc).not.toHaveBeenCalled();
     onLine.mockRestore();
+  });
+
+  it('never writes a board back that was deleted while its save was queued', async () => {
+    const tx = {
+      get: vi.fn().mockResolvedValue({ exists: () => false }),
+      set: vi.fn(),
+    };
+    let online = false;
+    (firestore.runTransaction as unknown as Fn).mockImplementation(
+      (_db: unknown, fn: (t: typeof tx) => Promise<void>) =>
+        online ? fn(tx) : Promise.reject(offlineError())
+    );
+    (firestore.deleteDoc as unknown as Fn).mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useFirestore('user-1'));
+    await result.current.saveDashboard(
+      board([widget('a', 'a-local')]),
+      baseline([widget('a', 'a0')])
+    );
+    await result.current.deleteDashboard('d1');
+    online = true;
+    window.dispatchEvent(new Event('online'));
+    await flush();
+
+    expect(result.current.hasDeferredSave('d1')).toBe(false);
+    expect(tx.set).not.toHaveBeenCalled();
+  });
+
+  it('skips a queued retry whose board is gone from the server', async () => {
+    const tx = {
+      get: vi.fn().mockResolvedValue({ exists: () => false }),
+      set: vi.fn(),
+    };
+    let online = false;
+    (firestore.runTransaction as unknown as Fn).mockImplementation(
+      (_db: unknown, fn: (t: typeof tx) => Promise<void>) =>
+        online ? fn(tx) : Promise.reject(offlineError())
+    );
+
+    const { result } = renderHook(() => useFirestore('user-1'));
+    await result.current.saveDashboard(
+      board([widget('a', 'a-local')]),
+      baseline([widget('a', 'a0')])
+    );
+    online = true;
+    window.dispatchEvent(new Event('online'));
+    await flush();
+
+    expect(tx.get).toHaveBeenCalled();
+    expect(tx.set).not.toHaveBeenCalled();
+    expect(result.current.hasDeferredSave('d1')).toBe(false);
   });
 
   it('queues a deadline-exceeded transaction like an offline one', async () => {

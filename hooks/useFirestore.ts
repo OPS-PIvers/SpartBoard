@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   type DocumentReference,
   collection,
@@ -355,10 +355,13 @@ const commitMergedSave = (
   docRef: DocumentReference,
   dashboard: Dashboard,
   baseline: SaveBaseline,
-  updatedAt: number
+  updatedAt: number,
+  // Queued retries pass this so a superseded or deleted board is never written back.
+  shouldWrite?: (serverExists: boolean) => boolean
 ) =>
   runTransaction(db, async (tx) => {
     const snap = await tx.get(docRef);
+    if (shouldWrite && !shouldWrite(snap.exists())) return;
     const server = snap.exists()
       ? normalizeServerBoard({ ...snap.data(), id: snap.id } as Dashboard)
       : null;
@@ -404,6 +407,11 @@ export const useFirestore = (userId: string | null) => {
 
   // Offline saves per board, oldest first; each later save on that board queues behind them.
   const deferredSavesRef = useRef(new Map<string, DeferredSave[]>());
+  // A signed-out or switched account must not keep retrying the previous one's saves.
+  useEffect(() => {
+    const queues = deferredSavesRef.current;
+    return () => queues.clear();
+  }, [dashboardsRef]);
 
   const deferSave = useCallback(
     (
@@ -434,7 +442,9 @@ export const useFirestore = (userId: string | null) => {
               docRef,
               next.dashboard,
               next.baseline,
-              next.updatedAt
+              next.updatedAt,
+              (serverExists) =>
+                serverExists && queues.get(dashboard.id) === queue
             );
           } catch (err) {
             if (isOfflineError(err)) {
@@ -590,6 +600,7 @@ export const useFirestore = (userId: string | null) => {
       }
 
       if (!dashboardsRef) throw new Error('User not authenticated');
+      deferredSavesRef.current.delete(dashboardId);
       await deleteDoc(doc(dashboardsRef, dashboardId));
     },
     [dashboardsRef]

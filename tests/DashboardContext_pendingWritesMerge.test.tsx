@@ -59,6 +59,8 @@ const mockSaveDashboard = vi.fn().mockResolvedValue(Date.now());
 const firestoreMock = {
   saveDashboard: mockSaveDashboard,
   saveDashboards: vi.fn().mockResolvedValue(undefined),
+  hasDeferredSave: vi.fn((_id: string) => false),
+  deferredSaveBaseline: vi.fn((_id: string) => undefined as unknown),
   deleteDashboard: vi.fn().mockResolvedValue(undefined),
   subscribeToDashboards: vi.fn((cb: SnapshotCb) => {
     capturedSnapshotCb = cb;
@@ -473,5 +475,51 @@ describe('DashboardContext merge with pending writes', () => {
     );
 
     expect(widgetById(stateRef, 'wGone')).toBeUndefined();
+  });
+
+  it('treats a board with a queued offline save like one with pending writes', async () => {
+    const stateRef = await setupBoard([
+      { ...makeWidget('wA', 'A0'), version: 1 },
+      { ...makeWidget('wB', 'B0'), version: 1 },
+    ]);
+    await act(async () => {
+      stateRef.current?.updateDashboard({
+        widgets: (stateRef.current?.activeDashboard?.widgets ?? []).filter(
+          (w) => w.id !== 'wB'
+        ),
+      });
+      await Promise.resolve();
+    });
+    await editLocally(stateRef, 'wA', { text: 'offline-A' });
+    firestoreMock.hasDeferredSave.mockImplementation(
+      (id: string) => id === 'dash-1'
+    );
+    firestoreMock.deferredSaveBaseline.mockImplementation(() => ({
+      widgets: [makeWidget('wA', 'A0'), makeWidget('wB', 'B0')],
+    }));
+
+    // Reconnected: the server still has wB (deleted offline here) and another device's new widget.
+    await pushSnapshot(
+      [
+        {
+          ...makeDashboard([
+            { ...makeWidget('wA', 'A0'), version: 1 },
+            { ...makeWidget('wB', 'B0'), version: 1 },
+            { ...makeWidget('wNew', 'from-claude'), version: 1 },
+          ]),
+          updatedAt: 3000,
+        },
+      ],
+      false,
+      new Set()
+    );
+
+    await waitFor(() =>
+      expect(textOf(widgetById(stateRef, 'wNew'))).toBe('from-claude')
+    );
+    expect(textOf(widgetById(stateRef, 'wA'))).toBe('offline-A');
+    expect(widgetById(stateRef, 'wB')).toBeUndefined();
+    firestoreMock.hasDeferredSave.mockImplementation(() => false);
+    firestoreMock.deferredSaveBaseline.mockImplementation(() => undefined);
   });
 });
