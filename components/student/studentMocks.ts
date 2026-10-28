@@ -101,6 +101,7 @@ export const mockAuth: AuthContextType = {
   quizGraderAutoAdvance: true,
   spartyEnabled: false,
   alignmentGuidesEnabled: false,
+  spellCheckEnabled: true,
   updateAccountPreferences: async () => {
     // No-op in student view
   },

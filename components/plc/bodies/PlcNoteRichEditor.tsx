@@ -418,7 +418,6 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
           aria-readonly={readOnly}
           contentEditable={!readOnly}
           suppressContentEditableWarning
-          spellCheck
           onInput={handleInput}
           onPaste={handlePaste}
           onMouseDown={handleMouseDown}
