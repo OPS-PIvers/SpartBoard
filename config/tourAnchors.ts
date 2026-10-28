@@ -760,6 +760,10 @@ export const TOUR_ANCHORS = {
     label: 'Feedback step header in the Assign dialog',
     panel: true,
   },
+  'assign-step.video': {
+    label: 'Video step header in the Assign dialog',
+    panel: true,
+  },
   'assign-step.check': {
     label: 'Check step header in the Assign dialog',
     panel: true,
