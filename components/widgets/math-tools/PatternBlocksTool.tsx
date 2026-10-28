@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { getPatternBlockPoints, PATTERN_BLOCK_COLORS } from './mathToolUtils';
 
 type ShapeType =
@@ -95,6 +96,11 @@ export const PatternBlocksTool: React.FC = () => {
         {PALETTE_SHAPES.map((shape) => (
           <button
             key={shape}
+            {...tourFieldAttr(
+              'math-tool.add-piece',
+              'mathTool',
+              `pattern-blocks.${shape}`
+            )}
             onClick={() => addBlock(shape)}
             title={PALETTE_LABELS[shape]}
             className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-slate-200"
@@ -118,12 +124,14 @@ export const PatternBlocksTool: React.FC = () => {
       {selected && (
         <div className="flex gap-2 items-center justify-end">
           <button
+            {...tourTypeAttr('math-tool.rotate-piece', 'mathTool')}
             onClick={rotateSelected}
             className="text-xxs bg-brand-blue-lighter text-brand-blue-dark hover:bg-brand-blue-lighter/80 px-2 py-1 rounded-lg font-black uppercase tracking-wider transition-colors"
           >
             Rotate 30°
           </button>
           <button
+            {...tourTypeAttr('math-tool.remove-piece', 'mathTool')}
             onClick={removeSelected}
             className="text-xxs bg-red-100 text-red-600 hover:bg-red-200 px-2 py-1 rounded-lg font-black uppercase tracking-wider transition-colors"
           >
