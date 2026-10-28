@@ -10548,6 +10548,8 @@ export type GlobalFeature =
   | 'claude-connector-guided-learning'
   /** Teacher-paced (live) Video Activity sessions, chosen at assign time (docs/plans/shipped/VA_TEACHER_PACED.md). */
   | 'video-activity-live'
+  /** Video Activity questions and assign rules work like Quiz (docs/plans/VA_QUIZ_ALIGNMENT.md). */
+  | 'va-quiz-alignment'
   /** Quiz Student view: teachers take a quiz as students see it, with focus-mode toggles; nothing is saved. */
   | 'quiz-student-view'
   /** Quiz setting that shows students their score as soon as they submit. */

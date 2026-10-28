@@ -81,6 +81,7 @@ export const SURFACES: TourSurfaceMap = {
     files: [
       `${C}QuizEditorModal.tsx`,
       `${C}QuizEditor.tsx`,
+      `${C}QuestionFields.tsx`,
       `${C}ChoiceOptionsEditor.tsx`,
       `${C}FibBlanksEditor.tsx`,
       `${C}MatchingOrderingEditor.tsx`,

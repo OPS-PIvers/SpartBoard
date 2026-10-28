@@ -38,7 +38,7 @@ import {
   isFreeResponseType,
 } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
-import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { BankSlotDetail, BankSlotRow } from './BankSlotRow';
 import { SectionRow } from './SectionRow';
 import { sectionQuestionCounts } from '@/utils/quizSections';
@@ -71,19 +71,23 @@ import { canAccessQuizWhiteboardResponse } from '@/utils/quizMediaAccess';
 import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 import { RubricBuilderPanel } from './RubricBuilderPanel';
 import { WordLimitFields } from './WordLimitFields';
-import { AlternateAnswersEditor } from './AlternateAnswersEditor';
 import { FibBlanksEditor } from './FibBlanksEditor';
-import {
-  countTextBlanks,
-  fibBlankCount,
-  isMultiBlank,
-  joinBlanks,
-  reshapeFibBlanks,
-} from '@/utils/quizFibBlanks';
+import { isMultiBlank } from '@/utils/quizFibBlanks';
 import { ChoiceOptionsEditor } from './ChoiceOptionsEditor';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import { useStandardsFromPrompt } from '@/components/quiz/targets/useStandardsFromPrompt';
+import {
+  FibAnswerField,
+  NeedsAnswerNotice,
+  QuestionPromptField,
+  QuestionTargetsField,
+  QuestionTypeSelect,
+} from './QuestionFields';
+import {
+  QUESTION_TYPES,
+  questionTypeChangeUpdates,
+} from './questionFieldUpdates';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
 import {
   countQuestionsNeedingKey,
@@ -106,36 +110,6 @@ interface PaneProps {
   /** Off in the bank editor, which doesn't save sections. */
   allowSections?: boolean;
 }
-
-const QUESTION_TYPES: {
-  value: QuizQuestionType;
-  label: string;
-}[] = [
-  {
-    value: 'MC',
-    label: 'Multiple Choice',
-  },
-  {
-    value: 'FIB',
-    label: 'Fill in the Blank',
-  },
-  {
-    value: 'MA',
-    label: 'Choose All That Apply',
-  },
-  {
-    value: 'Matching',
-    label: 'Matching',
-  },
-  {
-    value: 'Ordering',
-    label: 'Ordering',
-  },
-  {
-    value: 'free-response',
-    label: 'Free Response',
-  },
-];
 
 /** Stable empty array reused as the matchingDistractors fallback. */
 const EMPTY_DISTRACTORS: readonly string[] = Object.freeze([]);
@@ -964,104 +938,23 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
 
       <div className="flex-1 overflow-y-auto custom-scrollbar px-5 py-4 space-y-4">
         {/* Question prompt */}
-        <div>
-          <div className="flex items-center justify-between">
-            <label className={labelClass}>Question prompt</label>
-            {q.type === 'FIB' && (
-              <button
-                type="button"
-                onClick={() => {
-                  const el = promptRef.current;
-                  const at = el?.selectionStart ?? q.text.length;
-                  const end = el?.selectionEnd ?? at;
-                  const before = q.text.slice(0, at);
-                  const pad = before && !/\s$/.test(before) ? ' ' : '';
-                  const text = `${before}${pad}___${q.text.slice(end)}`;
-                  updateQuestion(q.id, fibPromptUpdate(q, text));
-                  requestAnimationFrame(() => {
-                    const caret = at + pad.length + 3;
-                    el?.focus();
-                    el?.setSelectionRange(caret, caret);
-                  });
-                }}
-                className="flex items-center gap-1 text-xs font-semibold text-brand-blue-primary hover:underline"
-                {...tourTypeAttr('quiz-editor.prompt-blank', 'quiz')}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Blank
-              </button>
-            )}
-          </div>
-          <textarea
-            ref={promptRef}
-            value={q.text}
-            onChange={(e) =>
-              updateQuestion(q.id, fibPromptUpdate(q, e.target.value))
-            }
-            onBlur={() =>
-              void promptStandards.onPromptBlur(q.id, q.text, q.targets)
-            }
-            rows={3}
-            placeholder="e.g. What is the capital of France?"
-            className={`${inputClass} resize-none`}
-            {...tourTypeAttr('quiz-editor.prompt', 'quiz')}
-          />
-        </div>
+        <QuestionPromptField
+          question={q}
+          onChange={(updates) => updateQuestion(q.id, updates)}
+          onBlur={() =>
+            void promptStandards.onPromptBlur(q.id, q.text, q.targets)
+          }
+          textareaRef={promptRef}
+        />
 
         {/* Learning targets */}
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className={labelClass}>Learning targets</label>
-            <button
-              type="button"
-              onClick={() => setPickerOpen(true)}
-              className="flex items-center gap-1 text-xs font-semibold text-brand-blue-primary hover:underline"
-              {...tourTypeAttr('quiz-editor.targets-edit', 'quiz')}
-            >
-              <Tag className="w-3.5 h-3.5" />
-              {q.targets?.length ? 'Edit' : 'Add'}
-            </button>
-          </div>
-          {q.targets?.length ? (
-            <TargetChips
-              targets={q.targets}
-              onRemove={(id) => {
-                const remaining = (q.targets ?? []).filter((t) => t.id !== id);
-                updateQuestion(q.id, {
-                  targets: remaining.length ? remaining : undefined,
-                });
-              }}
-            />
-          ) : (
-            <p className="text-xs text-slate-500">No targets.</p>
-          )}
-          {promptStandards.isCurrent(q.id, q.text, q.targets) && (
-            <p className="mt-1 text-xs text-slate-500" role="status">
-              {`Tagged ${promptStandards.taken?.codes.join(', ')} from the question.`}{' '}
-              <button
-                type="button"
-                onClick={promptStandards.undo}
-                className="font-semibold text-brand-blue-primary hover:underline"
-                {...tourAttr('quiz-editor.prompt-standards-undo')}
-              >
-                Undo
-              </button>
-            </p>
-          )}
-          {pickerOpen && (
-            <TargetPicker
-              open
-              initial={q.targets ?? []}
-              onApply={(tags: QuestionTargetTag[]) => {
-                updateQuestion(q.id, {
-                  targets: tags.length ? tags : undefined,
-                });
-                setPickerOpen(false);
-              }}
-              onClose={() => setPickerOpen(false)}
-            />
-          )}
-        </div>
+        <QuestionTargetsField
+          question={q}
+          onChange={(targets) => updateQuestion(q.id, { targets })}
+          promptStandards={promptStandards}
+          pickerOpen={pickerOpen}
+          onPickerOpenChange={setPickerOpen}
+        />
 
         {/* Type / format / time / points row */}
         <div
@@ -1073,65 +966,19 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         >
           <div className={compactRow ? 'min-w-[10rem] flex-1' : undefined}>
             <label className={labelClass}>Type</label>
-            <select
-              value={q.type === 'MA' ? 'MC' : q.type}
-              aria-label="Type"
-              {...tourTypeAttr('quiz-editor.type', 'quiz')}
-              onChange={(e) => {
-                const nextType = e.target.value as QuizQuestionType;
-                // MA is Multiple Choice with a setting on.
-                if (nextType === 'MC' && q.type === 'MA') return;
-                const isWritten = isFreeResponseType(nextType);
-                // A rubric only applies to written types, and its Detach button
-                // only renders there — so drop it here, restoring the stashed
-                // manual points, or Points stays locked with no way to unlock.
-                const droppingRubric = !isWritten && !!q.rubricSnapshot;
-                const stashedPoints = manualPointsByQuestion.current.get(q.id);
-                if (droppingRubric) manualPointsByQuestion.current.delete(q.id);
-                // The Format row (Spoken) no longer has a "remove" affordance
-                // for non-written types, so drop any stray recording block here.
-                const droppingRecording =
-                  mediaResponseAllowed && !isWritten && !!q.recording;
-                updateQuestion(q.id, {
-                  type: nextType,
-                  incorrectAnswers:
-                    nextType === 'MC' || nextType === 'MA' ? ['', ''] : [],
-                  alternateAnswers: undefined,
-                  blankAlternates: undefined,
-                  optionOrder: undefined,
-                  correctAnswer:
-                    nextType === 'FIB' && countTextBlanks(q.text) >= 2
-                      ? joinBlanks(Array(countTextBlanks(q.text)).fill(''))
-                      : '',
-                  matchingDistractors: undefined,
-                  // Reset written-specific fields when switching off written types
-                  placeholder: isWritten ? q.placeholder : undefined,
-                  maxWords: isWritten ? q.maxWords : undefined,
-                  noSpellCheck: isWritten ? q.noSpellCheck : undefined,
-                  rubricId: isWritten ? q.rubricId : undefined,
-                  rubricSnapshot: isWritten ? q.rubricSnapshot : undefined,
-                  rubricVisibleToStudents: isWritten
-                    ? q.rubricVisibleToStudents
-                    : undefined,
-                  ...(droppingRubric
-                    ? { points: stashedPoints ?? q.points ?? 1 }
-                    : {}),
-                  ...(droppingRecording
-                    ? {
-                        recording: undefined,
-                        timeLimit: q.recording?.priorTimeLimit ?? q.timeLimit,
-                      }
-                    : {}),
+            <QuestionTypeSelect
+              question={q}
+              onSelect={(nextType) => {
+                const updates = questionTypeChangeUpdates(q, nextType, {
+                  mediaResponseAllowed,
+                  stashedPoints: manualPointsByQuestion.current.get(q.id),
                 });
+                if (!updates) return;
+                if (!isFreeResponseType(nextType) && q.rubricSnapshot)
+                  manualPointsByQuestion.current.delete(q.id);
+                updateQuestion(q.id, updates);
               }}
-              className={`${inputClass} appearance-none`}
-            >
-              {QUESTION_TYPES.filter((t) => t.value !== 'MA').map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
+            />
           </div>
           {compactRow && isFreeResponseType(q.type) && (
             <div className="min-w-[8rem] flex-1">
@@ -1265,15 +1112,10 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               question={q}
               onChange={(updates) => updateQuestion(q.id, updates)}
             />
-            {questionNeedsKey(q) && (
-              <p
-                role="status"
-                className="flex items-center gap-1 text-xxs font-bold text-amber-700"
-              >
-                <AlertCircle className="w-3 h-3" aria-hidden />
-                No answer imported. Add one before assigning.
-              </p>
-            )}
+            <NeedsAnswerNotice
+              question={q}
+              className="flex items-center gap-1 text-xxs font-bold text-amber-700"
+            />
           </div>
         ) : q.type === 'Matching' ? (
           <MatchingAnswerEditor
@@ -1393,51 +1235,16 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               question={q}
               onChange={(updates) => updateQuestion(q.id, updates)}
             />
-            {questionNeedsKey(q) && (
-              <p
-                role="status"
-                className="mt-1 flex items-center gap-1 text-xxs font-bold text-amber-700"
-              >
-                <AlertCircle className="w-3 h-3" aria-hidden />
-                No answer imported. Add one before assigning.
-              </p>
-            )}
+            <NeedsAnswerNotice
+              question={q}
+              className="mt-1 flex items-center gap-1 text-xxs font-bold text-amber-700"
+            />
           </div>
         ) : (
-          <div>
-            <label className="block font-bold text-emerald-700 mb-1 text-xs uppercase tracking-wider">
-              Correct Answer
-            </label>
-            <input
-              type="text"
-              value={q.correctAnswer}
-              onChange={(e) =>
-                updateQuestion(q.id, { correctAnswer: e.target.value })
-              }
-              className="w-full px-3 py-2 bg-white border-2 border-emerald-500/30 rounded-lg text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 text-sm"
-              placeholder="Enter the definitive answer"
-              {...tourTypeAttr('quiz-editor.fib-answer', 'quiz')}
-            />
-            {questionNeedsKey(q) && (
-              <p
-                role="status"
-                className="mt-1 flex items-center gap-1 text-xxs font-bold text-amber-700"
-              >
-                <AlertCircle className="w-3 h-3" aria-hidden />
-                No answer imported. Add one before assigning.
-              </p>
-            )}
-            {q.type === 'FIB' && (
-              <AlternateAnswersEditor
-                alternates={q.alternateAnswers ?? []}
-                onChange={(next) =>
-                  updateQuestion(q.id, {
-                    alternateAnswers: next.length > 0 ? next : undefined,
-                  })
-                }
-              />
-            )}
-          </div>
+          <FibAnswerField
+            question={q}
+            onChange={(updates) => updateQuestion(q.id, updates)}
+          />
         )}
 
         {/* Per-question stimulus attach — second entry point alongside the
@@ -1588,15 +1395,3 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
 };
 
 /** A prompt edit; a FIB key follows the blank count once it has two or more blanks. */
-function fibPromptUpdate(q: QuizQuestion, text: string): Partial<QuizQuestion> {
-  if (q.type !== 'FIB') return { text };
-  const blanks = countTextBlanks(text);
-  if (isMultiBlank(q)) {
-    return blanks === fibBlankCount(q)
-      ? { text }
-      : { text, ...reshapeFibBlanks(q, blanks) };
-  }
-  const grew = blanks > countTextBlanks(q.text);
-  if (blanks < 2 || !grew) return { text };
-  return { text, ...reshapeFibBlanks(q, blanks) };
-}
