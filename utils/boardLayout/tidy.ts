@@ -2,6 +2,8 @@ import { SNAP_ZONE_LAYOUTS, type SnapZoneLayout } from '@/config/snapZones';
 import {
   contentArea,
   intersection,
+  isFixed,
+  isOffCanvas,
   normalizeScreen,
   toPlacedRect,
   widgetRect,
@@ -122,12 +124,11 @@ const overlapsAny = (rect: Rect, taken: Rect[]) =>
     return hit !== null && hit.w >= 2 && hit.h >= 2;
   });
 
-/** Moves widgets onto the best-fitting snap layout, or the nearest free zones; only geometry changes. */
-export const tidy = <T extends LayoutWidget>(
+const tidyMovable = <T extends LayoutWidget>(
   widgets: readonly T[],
-  screen?: ScreenShape
+  shape: ScreenShape,
+  obstacles: Rect[]
 ): TidyResult<T> => {
-  const shape = normalizeScreen(screen);
   const area = contentArea(shape);
   const fallback: Rect = {
     x: area.x + area.w / 4,
@@ -142,15 +143,20 @@ export const tidy = <T extends LayoutWidget>(
   let best: { layout: SnapZoneLayout; picks: number[]; cost: number } | null =
     null;
   for (const layout of TIDY_LAYOUTS) {
-    if (layout.zones.length < widgets.length) continue;
-    const zoneRects = layout.zones.map((zone) => zoneRect(zone, shape));
+    const free = layout.zones.filter(
+      (zone) => !overlapsAny(zoneRect(zone, shape), obstacles)
+    );
+    if (free.length < widgets.length) continue;
+    const zoneRects = free.map((zone) => zoneRect(zone, shape));
     const { move, cost, picks } = assignToLayout(rects, zoneRects, area);
+    const usable = { ...layout, zones: free };
     // A board already sitting exactly on one layout keeps it, so tidying twice changes nothing.
     if (move < SAME_SPOT) {
-      best = { layout, picks, cost };
+      best = { layout: usable, picks, cost };
       break;
     }
-    if (!best || cost < best.cost - SAME_SPOT) best = { layout, picks, cost };
+    if (!best || cost < best.cost - SAME_SPOT)
+      best = { layout: usable, picks, cost };
   }
 
   if (best) {
@@ -170,6 +176,7 @@ export const tidy = <T extends LayoutWidget>(
   for (const layout of SNAP_ZONE_LAYOUTS)
     for (const zone of layout.zones) {
       const rect = zoneRect(zone, shape);
+      if (overlapsAny(rect, obstacles)) continue;
       const key = [rect.x, rect.y, rect.w, rect.h]
         .map((v) => v.toFixed(3))
         .join();
@@ -219,5 +226,31 @@ export const tidy = <T extends LayoutWidget>(
     })),
     zones,
     unplaced,
+  };
+};
+
+/** Moves widgets onto the best-fitting snap layout, or the nearest free zones; only geometry changes. Locked, pinned, minimized and maximized widgets stay put. */
+export const tidy = <T extends LayoutWidget>(
+  widgets: readonly T[],
+  screen?: ScreenShape
+): TidyResult<T> => {
+  const shape = normalizeScreen(screen);
+  const stays = (w: T) => isFixed(w) || isOffCanvas(w);
+  const obstacles = widgets.flatMap((w) => {
+    if (!isFixed(w) || isOffCanvas(w)) return [];
+    const rect = widgetRect(w, shape);
+    return rect ? [rect] : [];
+  });
+  const movable = widgets.filter((w) => !stays(w));
+  const result = tidyMovable(movable, shape, obstacles);
+  if (movable.length === widgets.length) return result;
+  let next = 0;
+  return {
+    ...result,
+    widgets: widgets.map((widget) => {
+      if (!stays(widget)) return result.widgets[next++];
+      const rect = widgetRect(widget, shape) ?? contentArea(shape);
+      return { ...toPlacedRect(rect, shape), ...widget };
+    }),
   };
 };

@@ -284,6 +284,34 @@ describe('analyze', () => {
     ]);
   });
 
+  it('ignores minimized and maximized widgets', () => {
+    const a = { id: 'a', x: 100, y: 100, w: 400, h: 300 };
+    const b = { id: 'b', x: 300, y: 200, w: 400, h: 300, minimized: true };
+    const c = { id: 'c', x: 300, y: 200, w: 400, h: 300, maximized: true };
+    expect(analyze([a, b, c]).overlaps).toEqual([]);
+  });
+
+  it('reads out-of-range proportions as the pixel rect, like the app', () => {
+    const widget = {
+      id: 'a',
+      xProp: 0.1,
+      yProp: 0.1,
+      wProp: 400,
+      hProp: 300,
+      x: 100,
+      y: 120,
+      w: 400,
+      h: 300,
+    };
+    expect(widgetRect(widget)).toEqual({ x: 100, y: 120, w: 400, h: 300 });
+    expect(widgetRect({ ...widget, wProp: 0 })).toEqual({
+      x: 100,
+      y: 120,
+      w: 400,
+      h: 300,
+    });
+  });
+
   it('skips widgets with no geometry', () => {
     expect(analyze([{ id: 'none' }]).overlaps).toEqual([]);
   });
@@ -334,6 +362,44 @@ describe('tidy', () => {
       zones: {},
       unplaced: [],
     });
+  });
+
+  it('leaves locked, pinned, minimized and maximized widgets alone and works around locked ones', () => {
+    const locked = {
+      id: 'locked',
+      isLocked: true,
+      ...placeInZone({ id: 'left-half', x: 0, y: 0, w: 0.5, h: 1 }),
+    };
+    const pinned = {
+      id: 'pinned',
+      isPinned: true,
+      xProp: 0.6,
+      yProp: 0.05,
+      wProp: 0.1,
+      hProp: 0.1,
+    };
+    const hidden = {
+      id: 'hidden',
+      minimized: true,
+      xProp: 0.2,
+      yProp: 0.2,
+      wProp: 0.3,
+      hProp: 0.3,
+    };
+    const loose = {
+      id: 'loose',
+      xProp: 0.1,
+      yProp: 0.1,
+      wProp: 0.3,
+      hProp: 0.3,
+    };
+    const result = tidy([locked, pinned, hidden, loose]);
+    expect(result.widgets[0]).toMatchObject(locked);
+    expect(result.widgets[1]).toMatchObject(pinned);
+    expect(result.widgets[2]).toMatchObject(hidden);
+    expect(result.widgets[3].id).toBe('loose');
+    expect(analyze(result.widgets).overlaps).toEqual([]);
+    expect(Object.keys(result.zones)).toEqual(['loose']);
   });
 
   it('survives absurd numbers', () => {

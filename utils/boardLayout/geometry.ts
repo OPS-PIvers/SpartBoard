@@ -32,7 +32,19 @@ export interface LayoutWidget {
   wProp?: number;
   hProp?: number;
   aspectRatio?: number;
+  minimized?: boolean;
+  maximized?: boolean;
+  isLocked?: boolean;
+  isPinned?: boolean;
 }
+
+/** Minimized and maximized widgets are not on the canvas layout. */
+export const isOffCanvas = (widget: LayoutWidget): boolean =>
+  widget.minimized === true || widget.maximized === true;
+
+/** Widgets the teacher locked or pinned in place; layout never moves them. */
+export const isFixed = (widget: LayoutWidget): boolean =>
+  widget.isLocked === true || widget.isPinned === true;
 
 export type ChromeBandId =
   'app-buttons' | 'dock' | 'board-buttons-left' | 'board-buttons-right';
@@ -180,10 +192,18 @@ export const widgetRect = (
 ): Rect | null => {
   const shape = normalizeScreen(screen);
   const { xProp, yProp, wProp, hProp } = widget;
+  const finite = [xProp, yProp, wProp, hProp].every(
+    (v) => typeof v === 'number' && Number.isFinite(v)
+  );
+  // Same range test as widgetNeedsProportionalMigration: out-of-range proportions are really pixels.
   if (
-    [xProp, yProp, wProp, hProp].every(
-      (v) => typeof v === 'number' && Number.isFinite(v)
-    )
+    finite &&
+    Number(wProp) > 0 &&
+    Number(wProp) <= 1.5 &&
+    Number(hProp) > 0 &&
+    Number(hProp) <= 1.5 &&
+    Math.abs(Number(xProp)) <= 1.5 &&
+    Math.abs(Number(yProp)) <= 1.5
   ) {
     const { safeW, safeH } = safeSize(shape);
     const { PADDING } = BOARD_LAYOUT;

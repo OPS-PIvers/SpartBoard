@@ -3,6 +3,7 @@ import {
   chromeBands,
   contentArea,
   intersection,
+  isOffCanvas,
   normalizeScreen,
   widgetRect,
   type ChromeBandId,
@@ -174,6 +175,7 @@ export const analyze = (
 ): BoardAnalysis => {
   const shape = normalizeScreen(screen);
   const placed = widgets.flatMap((widget) => {
+    if (isOffCanvas(widget)) return [];
     const rect = widgetRect(widget, shape);
     return rect ? [{ widget, rect }] : [];
   });
