@@ -386,6 +386,14 @@ const LibraryManagersDevHarness =
         }))
       )
     : null;
+const SidebarListsDevHarness =
+  import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
+    ? lazy(() =>
+        import('./components/dev/SidebarListsDevHarness').then((module) => ({
+          default: module.SidebarListsDevHarness,
+        }))
+      )
+    : null;
 // Also built into auth-bypass (E2E) builds for the widget grader.
 const WidgetGraderHarness =
   import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
@@ -1237,6 +1245,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <LibraryManagersDevHarness />
+      </Suspense>
+    );
+  }
+
+  // My Classes and My Teams panels on fixtures; auth-bypass only, so never on a deployed site.
+  if (
+    SidebarListsDevHarness &&
+    isAuthBypass &&
+    pathname === '/sidebar-lists-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <SidebarListsDevHarness />
       </Suspense>
     );
   }

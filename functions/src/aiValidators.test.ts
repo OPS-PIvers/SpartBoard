@@ -48,6 +48,21 @@ describe('validateAndBucketVideoQuestions', () => {
     expect(out).toHaveLength(1);
   });
 
+  it('drops an MA whose distractor contains a pipe', () => {
+    const out = validateAndBucketVideoQuestions(
+      [
+        baseVideoQ({
+          type: 'MA',
+          correctAnswer: 'A|B',
+          incorrectAnswers: ['C|D', 'E'],
+        }),
+      ],
+      { MC: 0, FIB: 0, MA: 1 },
+      160
+    );
+    expect(out).toEqual([]);
+  });
+
   it('drops negative timestamps', () => {
     const out = validateAndBucketVideoQuestions(
       [baseVideoQ({ timestamp: -5 })],

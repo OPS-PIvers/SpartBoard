@@ -18,6 +18,9 @@ import { render, waitFor } from '@testing-library/react';
 import type { GuidedLearningSet } from '@/types';
 
 const loggedErrors: { scope: string; error: unknown }[] = [];
+vi.mock('@/hooks/useGuidedLearningStudentProgress', () => ({
+  useGuidedLearningStudentProgress: () => null,
+}));
 vi.mock('@/utils/logError', () => ({
   logError: (scope: string, error: unknown) => {
     loggedErrors.push({ scope, error });

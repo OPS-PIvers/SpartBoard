@@ -89,6 +89,7 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
     teacherUid: foreignSession ? (sessionOwnerUid ?? undefined) : user?.uid,
     onConfigChange: applyConfig,
     endSessionOnReset: canAccessFeature('poll-pro'),
+    pollPro: canAccessFeature('poll-pro'),
   });
 
   const options = currentQuestion?.options ?? [];
@@ -134,7 +135,6 @@ export const RemotePollControl: React.FC<RemotePollControlProps> = ({
           config,
           user.uid,
           mode,
-          canAccessFeature('shared-board-live-walls'),
           canAccessFeature('poll-pro')
         )
       );

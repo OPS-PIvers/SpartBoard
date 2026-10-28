@@ -68,6 +68,8 @@ export type SettingsDrawerProps = {
   isAdmin?: boolean;
   profileLoaded?: boolean;
   canAccessFeature?: (featureId: GlobalFeature) => boolean;
+  selectedBuildings?: readonly string[];
+  adminConfig?: Record<string, unknown>;
   canAccessWidget?: (type: WidgetType) => boolean;
   toolLabel?: (type: WidgetType) => string;
   defaults?: Record<string, unknown>;
@@ -110,6 +112,8 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
   isAdmin = false,
   profileLoaded = true,
   canAccessFeature,
+  selectedBuildings,
+  adminConfig,
   canAccessWidget,
   toolLabel,
   defaults,
@@ -180,6 +184,8 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
       isAdmin,
       profileLoaded,
       canAccessFeature: canAccessFeature ?? (() => true),
+      selectedBuildings,
+      adminConfig,
       canAccessWidget,
       toolLabel,
       t,
@@ -191,6 +197,8 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
       isAdmin,
       profileLoaded,
       canAccessFeature,
+      selectedBuildings,
+      adminConfig,
       canAccessWidget,
       toolLabel,
       t,

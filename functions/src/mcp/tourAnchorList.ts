@@ -766,6 +766,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "video-activity#allowSkipping",
       "video-activity#autoPlay",
       "video-activity#requireCorrectAnswer",
+      "weather#detail_dewPoint",
+      "weather#detail_feelsLike",
+      "weather#detail_highLow",
+      "weather#detail_humidity",
+      "weather#detail_moon",
+      "weather#detail_pressure",
+      "weather#detail_rainDaily",
+      "weather#detail_rainMonthly",
+      "weather#detail_sunrise",
+      "weather#detail_sunset",
+      "weather#detail_uvIndex",
+      "weather#detail_windAvg",
+      "weather#detail_windGust",
       "weather#hideClothing",
       "weather#syncBackground",
       "webcam#autoSendToNotes"
@@ -19703,6 +19716,401 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.stations.title",
+    "label": "Station title box in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.description",
+    "label": "Station description box in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.max-students",
+    "label": "Station max students box in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.custom-color",
+    "label": "Station custom color picker in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.icon-tab",
+    "label": "Icon tab of a station in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.image-tab",
+    "label": "Image tab of a station in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.icon-search",
+    "label": "Icon search box of a station in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.upload-image",
+    "label": "Upload image button of a station in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.replace-image",
+    "label": "Replace image button of a station in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.remove-image",
+    "label": "Remove image button of a station in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.clear-icon",
+    "label": "Clear icon button of a station in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.save-preset",
+    "label": "Save current preset button in Stations settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.delete-preset",
+    "label": "Delete a saved station preset in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.use-group-names",
+    "label": "Use group names as titles checkbox in Stations settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.send-to-random",
+    "label": "Send to Random Picker button in Stations settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "stations.reset-station",
+    "label": "Reset students in one station button in Stations",
+    "scope": "field",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.face",
+        "kind": "widget",
+        "widget_type": "stations",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.weather.source",
+    "label": "Weather source button in Weather settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.weather.settings",
+        "kind": "settings-drawer",
+        "widget_type": "weather",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.weather.city",
+    "label": "City or ZIP box in Weather settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.weather.settings",
+        "kind": "settings-drawer",
+        "widget_type": "weather",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.weather.use-location",
+    "label": "Use my location button in Weather settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.weather.settings",
+        "kind": "settings-drawer",
+        "widget_type": "weather",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.download-photo",
+    "label": "Download a photo button in the Webcam gallery",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.delete-photo",
+    "label": "Delete a photo button in the Webcam gallery",
+    "scope": "field",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.soundboard.toggle-sound",
     "label": "Toggle a sound on or off in Soundboard settings",
     "scope": "field",
@@ -20653,6 +21061,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.row-actions",
+    "label": "Class actions menu in My Classes",
+    "scope": "field",
+    "panel": true,
     "routes": [
       {
         "surface": "board.sidebar-classes",

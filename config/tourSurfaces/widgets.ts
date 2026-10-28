@@ -585,6 +585,7 @@ export const SURFACES: TourSurfaceMap = {
       'components/widgets/Stations/settingsFields.tsx',
       'components/widgets/Stations/components/SavedPresetsPanel.tsx',
       'components/widgets/Stations/components/StationEditor.tsx',
+      'components/widgets/Stations/components/IconOrImageInput.tsx',
     ],
     opensWith: 'widget.settings-opener',
     parent: 'widgets.stations.face',

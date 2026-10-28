@@ -1002,7 +1002,10 @@ export async function deleteOrgQuizMediaSets(
           { teacherUid, driveFileId: claim.driveFileId, storagePath },
           deps,
           tokenFor
-        )) ?? (cropLeft ? 'Storage delete failed.' : null);
+        )) ??
+        (cropLeft
+          ? 'The paper scan image could not be matched to this student, so it was kept.'
+          : null);
       if (failure) {
         await writeDeleteFailedEntry(
           db,

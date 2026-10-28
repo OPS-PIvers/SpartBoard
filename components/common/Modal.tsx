@@ -1,7 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import { decrementOpenModalCount, incrementOpenModalCount } from './modalStore';
+import {
+  decrementOpenModalCount,
+  incrementOpenModalCount,
+  isTopModalLayer,
+  popModalLayer,
+  pushModalLayer,
+} from './modalStore';
 import { acquireBodyScrollLock, releaseBodyScrollLock } from './bodyScrollLock';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { useBackdropDismiss } from '@/hooks/useBackdropDismiss';
@@ -102,8 +108,11 @@ export const Modal: React.FC<ModalProps> = ({
   useEffect(() => {
     if (!isOpen) return undefined;
 
+    const layer = pushModalLayer();
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      // Only the topmost stacked modal reacts to Escape.
+      if (!isTopModalLayer(layer)) return;
       // Guard first: if focus is inside a widget portal, let the portal's
       // own handler run (don't kill it with stopImmediatePropagation).
       if (isEscapeFromWidgetInput(e)) return;
@@ -126,6 +135,7 @@ export const Modal: React.FC<ModalProps> = ({
     );
 
     return () => {
+      popModalLayer(layer);
       decrementOpenModalCount();
       releaseBodyScrollLock();
       window.removeEventListener(

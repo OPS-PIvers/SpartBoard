@@ -31,13 +31,13 @@ import {
   LayoutGrid,
   Library,
   Link2,
+  List,
   ListChecks,
   ListOrdered,
   Mic,
   Music2,
   Printer,
   RefreshCw,
-  Route,
   Send,
   Share2,
   Smartphone,
@@ -58,6 +58,7 @@ import {
   Quote,
   Calculator,
   Utensils,
+  CloudSun,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -679,17 +680,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Per-student slide position on GL results and the hub. Admin-only until Paul has seen it on real class data in prod.
-  'gl-student-progress': {
-    label: 'Guided Learning student progress',
-    icon: Route,
-    description: "Shows each student's slide and last activity.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'plc-docs-toolbar': {
     label: 'Google Docs toolbar in group docs',
     icon: StickyNote,
@@ -1204,6 +1194,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'weather-details': {
+    label: 'Weather details',
+    icon: CloudSun,
+    description: 'Dew point, humidity, wind and more on the Weather widget.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'weather',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'activity-wall-timeline-dates': {
     label: 'Activity Wall dated timeline',
     icon: CalendarRange,
@@ -1232,18 +1233,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Synced collection sharing',
     icon: FolderSync,
     description: 'Share a collection that you and a colleague both edit.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Gates the wall owner's side: only a flagged owner lets board members read the wall's posts.
-  'shared-board-live-walls': {
-    label: 'Library items on shared boards',
-    icon: Share2,
-    description:
-      'Colleagues on a Synced or View-Only board see your Activity Walls, quizzes, video activities and guided activities.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1321,6 +1310,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'sidebar-list-rows': {
+    label: 'Sidebar class and team lists',
+    icon: List,
+    description:
+      'My Classes and My Teams show full names in simple rows, with row actions in a menu.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Fail-closed for admins until Paul saves the row (espeak counsel hold, G19).
   'flashcards-speak': {
     label: 'Flashcards: Speak',
@@ -1333,6 +1333,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: false,
     missingDocPublic: false,
     failClosedForAdmins: true,
+  },
+  'widget-library-large': {
+    label: 'Larger widget library',
+    icon: LayoutGrid,
+    description:
+      'The widget library fills more of the screen so more widgets show at once.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
   },
 };
 

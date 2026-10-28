@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { PollQuestion } from '@/types';
 import {
+  legacyHiddenWordKey,
   pollResultsCsv,
-  hiddenWordKey,
   summarizeLocalPoll,
   summarizePoll,
 } from '@/utils/pollResults';
@@ -139,20 +139,69 @@ describe('hidden answers', () => {
         { id: '1_u1', questionIndex: 1, text: 'keep', votedAt: 1 },
         { id: '1_u2', questionIndex: 1, text: 'hide me', votedAt: 2 },
       ],
-      [hiddenWordKey('q3', 'rude'), 'q4:1_u2']
+      ['q4:1_u2'],
+      new Map([['q3', ['rude']]])
     );
     expect(w.texts).toEqual([{ text: 'fun', count: 1 }]);
     expect(t.texts.map((x) => x.text)).toEqual(['keep']);
     expect(t.answered).toBe(2);
   });
+
+  it('still honours a word hidden under the older hashed key', () => {
+    const [w] = summarizePoll(
+      [words],
+      [],
+      [
+        { id: '0_u1', questionIndex: 0, text: 'Rude', votedAt: 1 },
+        { id: '0_u2', questionIndex: 0, text: 'fun', votedAt: 2 },
+      ],
+      [legacyHiddenWordKey('q3', 'rude')]
+    );
+    expect(w.texts).toEqual([{ text: 'fun', count: 1 }]);
+  });
 });
 
-describe('hiddenWordKey', () => {
-  it('never stores the typed word itself', () => {
-    const key = hiddenWordKey('q3', 'sam jones');
-    expect(key.startsWith('q3#')).toBe(true);
-    expect(key).not.toContain('sam');
-    expect(key).toBe(hiddenWordKey('q3', 'sam jones'));
-    expect(key).not.toBe(hiddenWordKey('q3', 'sam jone'));
+describe('typed answer order', () => {
+  it('sorts by the server write time, not the student clock', () => {
+    const [, t] = summarizePoll(
+      [words, text],
+      [],
+      [
+        {
+          id: '1_u1',
+          questionIndex: 1,
+          text: 'old',
+          votedAt: 9e12,
+          answeredAt: 1,
+        },
+        {
+          id: '1_u2',
+          questionIndex: 1,
+          text: 'new',
+          votedAt: 1,
+          answeredAt: 2,
+        },
+      ]
+    );
+    expect(t.texts.map((x) => x.text)).toEqual(['new', 'old']);
+  });
+
+  it("can't pin an older phone's answer above newer ones with a future clock", () => {
+    const now = Date.now();
+    const [, t] = summarizePoll(
+      [words, text],
+      [],
+      [
+        { id: '1_u1', questionIndex: 1, text: 'pinned', votedAt: now + 8e7 },
+        {
+          id: '1_u2',
+          questionIndex: 1,
+          text: 'new',
+          votedAt: 1,
+          answeredAt: now + 60_000,
+        },
+      ]
+    );
+    expect(t.texts.map((x) => x.text)).toEqual(['new', 'pinned']);
   });
 });

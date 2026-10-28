@@ -31,6 +31,7 @@ import {
   doc,
   collection,
   query,
+  serverTimestamp,
   where,
 } from 'firebase/firestore';
 
@@ -519,6 +520,13 @@ describe('poll answers — word cloud and open response', () => {
     questionIndex,
     text,
     votedAt: Date.now(),
+    answeredAt: serverTimestamp(),
+  });
+  // An older phone writes no answeredAt.
+  const legacyAnswer = (questionIndex: number, text: string) => ({
+    questionIndex,
+    text,
+    votedAt: Date.now() - 1000,
   });
 
   it('accepts a text answer on a text question, and a changed one', async () => {
@@ -565,6 +573,33 @@ describe('poll answers — word cloud and open response', () => {
     const ref = answerRef(asAnonVoter(), `1_${VOTER_UID}`);
     await assertSucceeds(
       setDoc(ref, { ...answer(1, 'a'), votedAt: Date.now() + 3_600_000 })
+    );
+  });
+
+  it('refuses an answeredAt other than the server time', async () => {
+    const ref = answerRef(asAnonVoter(), `1_${VOTER_UID}`);
+    await assertFails(
+      setDoc(ref, { ...answer(1, 'a'), answeredAt: Date.now() + 3_600_000 })
+    );
+    await assertFails(
+      setDoc(ref, { ...answer(1, 'a'), answeredAt: new Date(4e12) })
+    );
+    await assertSucceeds(setDoc(ref, answer(1, 'a')));
+    // A merge can't carry the first write's time forward either.
+    await assertFails(setDoc(ref, { text: 'b' }, { merge: true }));
+  });
+
+  it('accepts an older phone without answeredAt, with a day of clock slack', async () => {
+    const ref = answerRef(asAnonVoter(), `1_${VOTER_UID}`);
+    await assertSucceeds(setDoc(ref, legacyAnswer(1, 'a')));
+    await assertSucceeds(
+      setDoc(ref, { ...legacyAnswer(1, 'a'), votedAt: Date.now() + 3_600_000 })
+    );
+    await assertFails(
+      setDoc(ref, {
+        ...legacyAnswer(1, 'a'),
+        votedAt: Date.now() + 2 * 86_400_000,
+      })
     );
   });
 
@@ -620,6 +655,53 @@ describe('poll answers — word cloud and open response', () => {
   it('lets only the teacher delete answers', async () => {
     await assertFails(deleteDoc(answerRef(asAnonVoter(), `1_${OTHER_UID}`)));
     await assertSucceeds(deleteDoc(answerRef(asTeacher(), `1_${OTHER_UID}`)));
+  });
+});
+
+describe('poll hidden word cloud words', () => {
+  const hiddenRef = (
+    db: ReturnType<typeof asTeacher>,
+    session = TEXT_SESSION_ID
+  ) => doc(db, `poll_sessions/${session}/hidden_words/q1`);
+
+  it('lets the session owner hide words, read them and bring them back', async () => {
+    await assertSucceeds(setDoc(hiddenRef(asTeacher()), { words: ['sam'] }));
+    await assertSucceeds(getDoc(hiddenRef(asTeacher())));
+    await assertSucceeds(
+      getDocs(
+        collection(asTeacher(), `poll_sessions/${TEXT_SESSION_ID}/hidden_words`)
+      )
+    );
+    await assertSucceeds(deleteDoc(hiddenRef(asTeacher())));
+  });
+
+  it('keeps hidden words from co-teachers, students and signed-out users', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(hiddenRef(ctx.firestore()), { words: ['sam'] });
+    });
+    for (const db of [asOtherTeacher(), asAnonVoter(), asUnauthed()]) {
+      await assertFails(getDoc(hiddenRef(db)));
+      await assertFails(
+        getDocs(collection(db, `poll_sessions/${TEXT_SESSION_ID}/hidden_words`))
+      );
+      await assertFails(setDoc(hiddenRef(db), { words: [] }));
+      await assertFails(deleteDoc(hiddenRef(db)));
+    }
+  });
+
+  it('refuses extra keys, a non-list and an oversized list', async () => {
+    const ref = hiddenRef(asTeacher());
+    await assertFails(setDoc(ref, { words: ['a'], text: 'x' }));
+    await assertFails(setDoc(ref, { words: 'sam' }));
+    await assertFails(
+      setDoc(ref, { words: Array.from({ length: 501 }, (_, i) => `w${i}`) })
+    );
+  });
+
+  it('refuses an anonymous user under a session id that starts with their uid', async () => {
+    await assertFails(
+      setDoc(hiddenRef(asAnonVoter(), `${VOTER_UID}_fake`), { words: ['a'] })
+    );
   });
 });
 

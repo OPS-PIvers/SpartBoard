@@ -454,6 +454,10 @@ export const SettingsDrawerHost: React.FC = () => {
     ]
   );
 
+  const adminConfig = openType
+    ? featurePermissions.find((p) => p.widgetType === openType)?.config
+    : undefined;
+
   if (!open) return null;
 
   return (
@@ -480,6 +484,8 @@ export const SettingsDrawerHost: React.FC = () => {
         isAdmin={isAdmin === true}
         profileLoaded={profileLoaded}
         canAccessFeature={canAccessFeature}
+        selectedBuildings={selectedBuildings}
+        adminConfig={adminConfig}
         canAccessWidget={canAccessWidget}
         toolLabel={toolLabel}
         styleDefaults={styleDefaults}

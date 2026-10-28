@@ -1,6 +1,7 @@
 import { DraftNumberField } from './DraftNumberField';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { SoundboardConfigurationPanel } from './SoundboardConfigurationPanel';
+import { WeatherDetailsBuildings } from './WeatherDetailsBuildings';
 import React, { useState } from 'react';
 import {
   FeaturePermission,
@@ -455,6 +456,15 @@ export const FeatureConfigurationPanel: React.FC<
                     )}
                   />
                 </div>
+
+                <WeatherDetailsBuildings
+                  config={config}
+                  onChange={(next) =>
+                    updatePermission(tool.type, {
+                      config: next as unknown as Record<string, unknown>,
+                    })
+                  }
+                />
 
                 <div>
                   <div className="flex items-center justify-between mb-2">

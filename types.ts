@@ -2385,7 +2385,7 @@ export interface PollConfig {
   lockedQuestionIds?: string[];
   /** Question ids whose correct answer the teacher has shown. */
   answerShownQuestionIds?: string[];
-  /** Typed answers the teacher hid from the board: `{questionId}:{voteId}`, or `{questionId}#{hash}` for a word cloud word (hashed: board config is shared). */
+  /** Typed answers the teacher hid from the board, as `{questionId}:{voteId}`; hidden word cloud words live owner-only in the session's `hidden_words`. */
   hiddenResponses?: string[];
   /** Saved polls; lives only in the profile's `savedWidgetPresets.poll`, never on a widget. */
   savedLibrary?: SavedPollPreset[];
@@ -3062,6 +3062,47 @@ export interface WeatherConfig {
   secondaryColor?: string;
   cardColor?: string;
   cardOpacity?: number;
+  /** Detail rows the teacher turned on, in display order. */
+  detailFields?: WeatherDetailField[];
+  details?: WeatherDetails;
+}
+
+export const WEATHER_DETAIL_FIELDS = [
+  'feelsLike',
+  'highLow',
+  'dewPoint',
+  'humidity',
+  'pressure',
+  'rainDaily',
+  'rainMonthly',
+  'windAvg',
+  'windGust',
+  'sunrise',
+  'sunset',
+  'moon',
+  'uvIndex',
+] as const;
+export type WeatherDetailField = (typeof WEATHER_DETAIL_FIELDS)[number];
+
+/** Station readings beyond temperature; null when the station doesn't report one. */
+export interface WeatherDetails {
+  high?: number | null;
+  low?: number | null;
+  dewPoint?: number | null;
+  humidity?: number | null;
+  /** Sea-level pressure in inches of mercury. */
+  pressure?: number | null;
+  rainDaily?: number | null;
+  rainMonthly?: number | null;
+  windSpeedAvg?: number | null;
+  /** Degrees clockwise from north. */
+  windDirectionAvg?: number | null;
+  windGust?: number | null;
+  /** Epoch ms; computed from the station's location when the source has none. */
+  sunrise?: number | null;
+  sunset?: number | null;
+  /** EPA hourly UV index forecast for one local day, indexed by hour. */
+  uvHours?: { date: string; values: (number | null)[] } | null;
 }
 
 export interface WeatherTemperatureRange {
@@ -3080,6 +3121,8 @@ export interface WeatherGlobalConfig {
   source?: 'openweather' | 'earth_networks';
   city?: string;
   showFeelsLike?: boolean;
+  /** Buildings whose teachers may turn on weather details. */
+  detailsBuildingIds?: string[];
 }
 
 export interface RecessGearTemperatureRange {
@@ -3109,6 +3152,7 @@ export interface GlobalWeatherData {
   locationName: string;
   updatedAt: number;
   source?: string;
+  details?: WeatherDetails;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -10470,8 +10514,6 @@ export type GlobalFeature =
   | 'standards-from-question-text'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
   | 'quiz-results-tools'
-  /** Per-student "Slide N of M · active X ago" on Guided Learning results and the Assignments hub. */
-  | 'gl-student-progress'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
   | 'paper-handwritten-responses'
   /** Claude connector: teachers connect Claude to their library (docs/plans/CLAUDE_CONNECTOR.md). */
@@ -10546,14 +10588,14 @@ export type GlobalFeature =
   | 'quiz-submit-for-student'
   /** Lunch Count redesign: count-first zones, size bands and clear empty and menu states. */
   | 'lunch-count-redesign'
+  /** Weather: a details panel (dew point, humidity, wind and more) in buildings the admin allows. */
+  | 'weather-details'
   /** Activity Wall timeline on a dated axis, with a year/date picker on posts. */
   | 'activity-wall-timeline-dates'
   /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
   | 'checklist-small-card'
   /** Synced and View-Only collection sharing (docs/plans/COLLECTION_SHARING.md). */
   | 'collection-sync-sharing'
-  /** Members of a shared board see the owner's Activity Wall and its approved posts live. */
-  | 'shared-board-live-walls'
   /** Seating Chart saved seating plans, shuffle rules and print (poll-pro/SEATING_CHART_PLAN.md). */
   | 'seating-chart-plans'
   /** Scoreboard undo, score history, point buttons, leader marker and score motion. */
@@ -10566,8 +10608,12 @@ export type GlobalFeature =
   | 'document-camera-pro'
   /** Drawing zoom and pan, highlighter, laser pointer, sticky notes, shape polish and copy/paste (pro-grade-2/WHITEBOARD_PLAN.md). */
   | 'whiteboard-pro'
+  /** My Classes and My Teams sidebar lists as divider rows with full names and a row actions menu. */
+  | 'sidebar-list-rows'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
-  | 'flashcards-speak';
+  | 'flashcards-speak'
+  /** Widget Library fills most of the screen instead of a small fixed box. */
+  | 'widget-library-large';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

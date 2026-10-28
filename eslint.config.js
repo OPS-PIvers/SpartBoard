@@ -49,6 +49,8 @@ export default tseslint.config(
       '**/*.config.js',
       '**/*.config.ts',
       'scripts',
+      // CI helper scripts run directly by workflows, same category as `scripts`.
+      '.github/scripts',
       // `functions/` is linted by its own pass (functions/eslint.config.mjs,
       // run via `pnpm run lint:functions`). Keeping it OUT of this root pass
       // is deliberate: a single type-aware ESLint run that loads BOTH the root

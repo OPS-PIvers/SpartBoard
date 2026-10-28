@@ -18,15 +18,16 @@ export function landingCardIds(cards: readonly TeamCardId[]): TeamCardId[] {
   return cards.includes('hero') ? [...cards] : ['hero', ...cards];
 }
 
-export function packLandingRows(
-  cards: readonly TeamCardId[],
-  registry: TeamCardRegistry
-): TeamCardId[][] {
-  const rows: TeamCardId[][] = [];
-  let row: TeamCardId[] = [];
+/** Packs ids into six-column rows in order, starting a new row when the next one doesn't fit. */
+export function packCardRows<T>(
+  ids: readonly T[],
+  columns: (id: T) => number
+): T[][] {
+  const rows: T[][] = [];
+  let row: T[] = [];
   let used = 0;
-  for (const id of landingCardIds(cards)) {
-    const cols = id === 'hero' ? 6 : SPAN_COLUMNS[registry[id].span];
+  for (const id of ids) {
+    const cols = columns(id);
     if (row.length && used + cols > 6) {
       rows.push(row);
       row = [];
@@ -37,4 +38,13 @@ export function packLandingRows(
   }
   if (row.length) rows.push(row);
   return rows;
+}
+
+export function packLandingRows(
+  cards: readonly TeamCardId[],
+  registry: TeamCardRegistry
+): TeamCardId[][] {
+  return packCardRows(landingCardIds(cards), (id) =>
+    id === 'hero' ? 6 : SPAN_COLUMNS[registry[id].span]
+  );
 }

@@ -43,6 +43,9 @@ describe('AdminWeatherFetcher freshness check', () => {
   beforeEach(() => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('[]', { status: 200 })
+    );
     mocks.getDoc.mockReset();
     mocks.setDoc.mockReset().mockResolvedValue(undefined);
     mocks.proxy

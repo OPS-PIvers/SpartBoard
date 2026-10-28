@@ -5,7 +5,13 @@ export interface OpenWeatherData {
   main: {
     temp: number;
     feels_like: number;
+    temp_min?: number;
+    temp_max?: number;
+    pressure?: number;
+    humidity?: number;
   };
+  wind?: { speed?: number; deg?: number; gust?: number };
+  sys?: { sunrise?: number; sunset?: number };
   weather: [{ main: string }, ...{ main: string }[]];
 }
 
@@ -14,7 +20,16 @@ export interface EarthNetworksResponse {
     t: number;
     ic: number;
     fl?: number;
+    dp?: number | null;
+    h?: number | null;
+    psl?: number | null;
+    rd?: number | null;
+    rm?: number | null;
+    wsa?: number | null;
+    wda?: number | null;
+    wgh?: number | null;
   };
+  hl?: { th?: number | null; tl?: number | null };
 }
 
 export const STATION_CONFIG = {
@@ -22,6 +37,7 @@ export const STATION_CONFIG = {
   lat: 44.99082,
   lon: -93.59635,
   name: 'Orono IS',
+  zip: '55356',
 };
 
 export const EARTH_NETWORKS_API = {
