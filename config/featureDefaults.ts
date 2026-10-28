@@ -833,6 +833,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Video Activity editor and assign rules on the Quiz versions (docs/plans/VA_QUIZ_ALIGNMENT.md).
+  'va-quiz-alignment': {
+    label: 'Video Activity matches Quiz',
+    icon: ListChecks,
+    description: 'Video Activity questions and assign rules work like Quiz.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'video-activity',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Quiz library "Student view": the real student player with focus-mode toggles, local-only.
   'quiz-student-view': {
     label: 'Quiz student view',
@@ -1391,6 +1403,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'music',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'music-timer-link': {
+    label: 'Music: linked timer',
+    icon: Timer,
+    description:
+      'A timer button on the Music widget opens a Timer that the music plays with.',
+    stage: 'preview',
+    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

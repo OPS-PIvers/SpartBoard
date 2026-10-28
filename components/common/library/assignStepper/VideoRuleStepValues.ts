@@ -73,12 +73,28 @@ export function formatVideoAttemptsValue(
   return parts.join(', ');
 }
 
+/** Rewind needs right and wrong and the answer shown; mirrors utils/videoActivityAnswerRules.ts. */
+export function videoRewindAllowed(
+  value: VideoAssignRules,
+  answerRows: boolean = VIDEO_ANSWER_ROWS_READY
+): boolean {
+  if (!answerRows) return true;
+  const o = value.behavior.sessionOptions;
+  return (
+    (o.showResultToStudent ?? true) && (o.showCorrectAnswerToStudent ?? true)
+  );
+}
+
 /** Collapsed value for "Video". */
-export function formatVideoPlaybackValue(value: VideoAssignRules): string {
+export function formatVideoPlaybackValue(
+  value: VideoAssignRules,
+  answerRows: boolean = VIDEO_ANSWER_ROWS_READY
+): string {
   const p = value.player;
   const parts: string[] = [];
   if (p.allowSkipping) parts.push('Skipping ahead');
-  if (p.requireCorrectAnswer) parts.push('Rewind on wrong answer');
+  if (p.requireCorrectAnswer && videoRewindAllowed(value, answerRows))
+    parts.push('Rewind on wrong answer');
   if (p.autoPlay) parts.push('Autoplay');
   return parts.join(', ') || 'Off';
 }

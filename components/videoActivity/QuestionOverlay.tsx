@@ -295,18 +295,19 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
     void checkAnswer(answer)
       .then(
         (result) => ({
-          isCorrect: result.isCorrect,
+          isCorrect: result.isCorrect ?? true,
           key: result.correctAnswer,
+          graded: result.isCorrect !== null,
         }),
         // Any failed check (network or server refusal) must not strand the class: keep the answer, skip feedback.
         (err: unknown) => {
           logError('QuestionOverlay.checkAnswer', err, {
             questionId: question.id,
           });
-          return { isCorrect: true, key: null };
+          return { isCorrect: true, key: null, graded: false };
         }
       )
-      .then(({ isCorrect, key }) => {
+      .then(({ isCorrect, key, graded }) => {
         setChecking(false);
         setCorrectAnswer(key);
         setSubmittedIsCorrect(isCorrect);
@@ -323,9 +324,9 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
         setTimeout(
           () => {
             try {
-              void Promise.resolve(
-                onAnswer(answer, isCorrect, key !== null)
-              ).catch(reopen);
+              void Promise.resolve(onAnswer(answer, isCorrect, graded)).catch(
+                reopen
+              );
             } catch (err) {
               reopen(err);
             }

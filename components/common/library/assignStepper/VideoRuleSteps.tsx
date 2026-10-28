@@ -7,6 +7,7 @@ import {
   VIDEO_ANSWER_ROWS_READY,
   patchVideoBehaviorOptions,
   patchVideoPlayer,
+  videoRewindAllowed,
   type VideoAssignRules,
 } from './VideoRuleStepValues';
 import { tourFieldAttr } from '@/config/tourAnchors';
@@ -55,8 +56,10 @@ export const VideoAttemptsStep: React.FC<VideoRuleStepProps> = ({
 export const VideoPlaybackStep: React.FC<VideoRuleStepProps> = ({
   value,
   onChange,
+  answerRows = VIDEO_ANSWER_ROWS_READY,
 }) => {
   const p = value.player;
+  const rewindAllowed = videoRewindAllowed(value, answerRows);
   const patch = (next: Parameters<typeof patchVideoPlayer>[1]) =>
     onChange(patchVideoPlayer(value, next));
   return (
@@ -74,7 +77,8 @@ export const VideoPlaybackStep: React.FC<VideoRuleStepProps> = ({
           'assign',
           'rewind-on-wrong'
         )}
-        checked={p.requireCorrectAnswer}
+        checked={rewindAllowed && p.requireCorrectAnswer}
+        disabled={!rewindAllowed}
         onChange={(requireCorrectAnswer) => patch({ requireCorrectAnswer })}
       />
       <StepToggleRow

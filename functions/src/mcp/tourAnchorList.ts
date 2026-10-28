@@ -46065,8 +46065,172 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "video-activity.editor-draft-ai",
-    "label": "Draft with AI button in the video activity editor footer",
+    "label": "Draft with AI button in the video activity editor",
     "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-add-question",
+    "label": "Add question button in the video activity editor question list",
+    "scope": "board",
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-question-select",
+    "label": "Select checkbox on a question in the video activity editor",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-question-duplicate",
+    "label": "Duplicate button on a question in the video activity editor",
+    "scope": "field",
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-bulk-tag",
+    "label": "Tag button for selected questions in the video activity editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-bulk-delete",
+    "label": "Delete button for selected questions in the video activity editor",
+    "scope": "board",
+    "destructive": true,
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-bulk-clear",
+    "label": "Clear selection button in the video activity editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-targets-edit",
+    "label": "Learning targets Add or Edit button in the video activity editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-type-select",
+    "label": "Question type menu in the video activity editor",
+    "scope": "board",
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-question-use-current-time",
+    "label": "Use current time button for a video activity question",
+    "scope": "board",
+    "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -58319,6 +58483,23 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "music.play-pause",
     "label": "Play or pause button on the Music widget",
     "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.music.face",
+        "kind": "widget",
+        "widget_type": "music",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "music.launch-timer",
+    "label": "Button on the Music widget that opens a linked Timer",
+    "scope": "widget",
+    "persists": true,
     "routes": [
       {
         "surface": "widgets.music.face",

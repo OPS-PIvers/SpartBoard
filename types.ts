@@ -7378,7 +7378,8 @@ export interface VideoActivityPublicQuestion {
 
 /** Server grading of one VA answer (`checkVideoActivityAnswerV1`). */
 export interface VideoActivityCheckResult {
-  isCorrect: boolean;
+  /** Null when right and wrong is hidden from this student. */
+  isCorrect: boolean | null;
   /** Canonical key for feedback; MA selections are `|`-joined. */
   correctAnswer: string;
 }
@@ -8120,6 +8121,8 @@ export interface MySong {
 export interface MusicConfig {
   stationId: string;
   syncWithTimeTool?: boolean;
+  /** Timer widget on this board that sync follows; the board's first Timer when absent or removed. */
+  linkedTimerId?: string;
   bgColor?: string;
   textColor?: string;
   /** Widget display layout */
@@ -10563,6 +10566,8 @@ export type GlobalFeature =
   | 'claude-connector-guided-learning'
   /** Teacher-paced (live) Video Activity sessions, chosen at assign time (docs/plans/shipped/VA_TEACHER_PACED.md). */
   | 'video-activity-live'
+  /** Video Activity questions and assign rules work like Quiz (docs/plans/VA_QUIZ_ALIGNMENT.md). */
+  | 'va-quiz-alignment'
   /** Quiz Student view: teachers take a quiz as students see it, with focus-mode toggles; nothing is saved. */
   | 'quiz-student-view'
   /** Quiz setting that shows students their score as soon as they submit. */
@@ -10660,7 +10665,9 @@ export type GlobalFeature =
   /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
   | 'spell-check-setting'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
-  | 'music-my-songs';
+  | 'music-my-songs'
+  /** Timer button on the Music widget that opens a Timer linked to it. */
+  | 'music-timer-link';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
