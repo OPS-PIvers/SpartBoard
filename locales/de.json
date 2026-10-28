@@ -278,6 +278,8 @@
       "googleDriveIntegration": "Google Drive-Integration",
       "remoteControl": "Fernsteuerung",
       "showSparty": "Sparty anzeigen",
+      "alignmentGuides": "Ausrichtungshilfen",
+      "alignmentGuidesHint": "Linien erscheinen, wenn ein Widget an anderen ausgerichtet oder gleichmäßig verteilt ist.",
       "googleDriveDescription": "Deine Tafeln werden in deinem \"{{appName}}\"-Ordner in Drive gesichert.",
       "connectedSynced": "Verbunden",
       "disconnected": "Getrennt",

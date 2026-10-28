@@ -21,6 +21,7 @@ import {
   AddWidgetOverrides,
   TourWidgetLayout,
   GridPosition,
+  WidgetPlacement,
   FeaturePermission,
   DrawableObject,
   DrawingConfig,
@@ -53,22 +54,16 @@ import {
 } from '@/utils/viewAsBoards';
 import {
   DASHBOARD_FIELDS,
-  mergeConfigByKey,
   serializeDashboardField,
   type MergedDashboardField,
   type SaveBaseline,
 } from '@/utils/dashboardSaveMerge';
-import {
-  LAYOUT_FIELDS,
-  STYLE_FIELDS,
-  INSTANCE_FIELDS,
-} from '@/utils/widgetMergeFields';
 import { stableStringify } from '@/utils/stableStringify';
+import { keepLocalUseStamps, withoutUseStamps } from '@/utils/widgetUse';
 import {
-  keepLocalUseStamps,
-  withLaterUse,
-  withoutUseStamps,
-} from '@/utils/widgetUse';
+  mergePendingSnapshotWidgets,
+  mergeSnapshotWidget,
+} from '@/utils/snapshotWidgetMerge';
 import { useAuth } from './useAuth';
 import { mergeWidgetConfig } from '@/utils/widgetConfigPersistence';
 import i18n from '@/i18n';
@@ -94,6 +89,7 @@ import {
   pixelToProp,
   computeWidgetPixelRect,
   getSafeViewport,
+  type ProportionalRect,
   type StretchBehavior,
 } from '@/utils/proportionalLayout';
 import {
@@ -182,7 +178,11 @@ import {
   type DashboardActions,
 } from './dashboardCanvasStore';
 import { ToolVisibilityContext } from './ToolVisibilityContextValue';
-import { validateGridConfig, sanitizeAIConfig } from '@/utils/ai_security';
+import {
+  validateGridConfig,
+  validatePlacement,
+  sanitizeAIConfig,
+} from '@/utils/ai_security';
 import { getAdminBuildingConfig as getAdminBuildingConfigPure } from '@/utils/adminBuildingConfig';
 import { seedMaterialsConfig } from '@/utils/materialsPreferences';
 import { isBetaUser } from '@/utils/betaAccess';
@@ -590,6 +590,19 @@ const getDashboardSaveState = (d: Dashboard) => ({
   },
 });
 
+/** A board's own copy as a save baseline, scrubbed like the document it is merged against. */
+const saveBaselineOf = (d: Dashboard): SaveBaseline => {
+  const { fields } = getDashboardSaveState(d);
+  return {
+    widgets: scrubWidgetsPII(JSON.parse(fields.widgets) as WidgetData[]),
+    background: fields.background,
+    name: fields.name,
+    libraryOrder: fields.libraryOrder,
+    settings: fields.settings,
+    dashboardFields: fields.dashboardFields,
+  };
+};
+
 export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -615,6 +628,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const {
     saveDashboard: saveDashboardFirestore,
     saveDashboards: saveDashboardsFirestore,
+    hasDeferredSave,
+    deferredSaveBaseline,
     deleteDashboard: deleteDashboardFirestore,
     subscribeToDashboards,
     shareDashboard: shareDashboardFirestore,
@@ -1949,15 +1964,23 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const saveDashboards = useCallback(
-    async (withTourWidgets: Dashboard[]) => {
+    // `previous` is each board as this tab last had it, so the write merges per widget instead of overwriting.
+    async (withTourWidgets: Dashboard[], previous?: Dashboard[]) => {
       if (isViewAsTab) return;
       const dashboardsToSave = withTourWidgets.map(withoutTransient);
+      const baselines = previous
+        ? new Map(previous.map((d) => [d.id, saveBaselineOf(d)]))
+        : undefined;
       // Must run before the scrub below — admins never get the background export further down.
       await Promise.all(dashboardsToSave.map(backupDashboardPIIToDrive));
 
       // For plural saves (like reordering), we'll do Firestore first.
       // CRITICAL: Scrub PII from every dashboard before writing to Firestore.
-      await saveDashboardsFirestore(dashboardsToSave.map(scrubDashboardPII));
+      await saveDashboardsFirestore(
+        dashboardsToSave.map(scrubDashboardPII),
+        baselines,
+        handleDeferredWriteFailed
+      );
 
       // Then background sync to Drive
       if (!isAdmin && driveService) {
@@ -1975,7 +1998,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         })();
       }
     },
-    [isAdmin, driveService, saveDashboardsFirestore, backupDashboardPIIToDrive]
+    [
+      isAdmin,
+      driveService,
+      saveDashboardsFirestore,
+      backupDashboardPIIToDrive,
+      handleDeferredWriteFailed,
+    ]
   );
 
   const handleDeleteDashboard = useCallback(
@@ -2170,7 +2199,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Real-time subscription to Firestore
     const unsubscribe = subscribeToDashboards(
-      (updatedDashboards, hasPendingWrites) => {
+      (updatedDashboards, hasPendingWrites, pendingDashboardIds) => {
         // Sort dashboards: default first, then by order, then by createdAt
         const sortedDashboards = [...updatedDashboards].sort((a, b) => {
           if (a.isDefault && !b.isDefault) return -1;
@@ -2315,6 +2344,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           serverActive?.updatedAt !== undefined &&
           selfWrittenUpdatedAtRef.current.has(serverActive.updatedAt);
 
+        // A queued offline save is this tab's own unconfirmed write, like a pending one.
+        const activeHasDeferredSave =
+          !!activeIdRef.current &&
+          hasDeferredSave?.(activeIdRef.current) === true;
+
         let newDashboards: Dashboard[];
 
         if (isViewAsTab) {
@@ -2325,6 +2359,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           );
         } else if (
           hasPendingWrites ||
+          activeHasDeferredSave ||
           isSelfEcho ||
           isRecentlyUpdatedLocally ||
           hasUnsavedLocalChanges ||
@@ -2332,10 +2367,43 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         ) {
           newDashboards = migratedDashboards.map((db) => {
             if (db.id === activeIdRef.current && currentActive) {
-              // If we have pending writes, this snapshot is just a local echo of what we
-              // just did. Trust our current active state completely to avoid reverts.
-              if (hasPendingWrites) {
-                return currentActive;
+              // Own writes in flight: the snapshot may echo them or an older server copy, so local wins unless another device moved a widget ahead.
+              if (hasPendingWrites || activeHasDeferredSave) {
+                // A queued offline save already advanced lastSaved, so judge local edits against what the server last confirmed.
+                const queuedBaseline = deferredSaveBaseline?.(db.id);
+                let savedWidgets: WidgetData[];
+                try {
+                  savedWidgets =
+                    queuedBaseline?.widgets ??
+                    (JSON.parse(
+                      lastSavedFieldsRef.current.widgets || '[]'
+                    ) as WidgetData[]);
+                } catch {
+                  return currentActive;
+                }
+                // The board's own copy carrying unconfirmed writes can't tell another device's adds from this tab's deletes.
+                const ownCopyPending = pendingDashboardIds
+                  ? pendingDashboardIds.has(db.id)
+                  : hasPendingWrites;
+                const pending = mergePendingSnapshotWidgets(
+                  currentActive.widgets,
+                  db.widgets,
+                  savedWidgets,
+                  ownCopyPending
+                    ? null
+                    : {
+                        knownIds: new Set(
+                          (queuedBaseline?.widgets ?? []).map((w) => w.id)
+                        ),
+                      },
+                  PII_CONFIG_KEYS
+                );
+                if (!pending) return currentActive;
+                lastSavedFieldsRef.current.widgets = JSON.stringify(
+                  pending.baselineWidgets
+                );
+                baselineGenerationRef.current++;
+                return { ...currentActive, widgets: pending.widgets };
               }
 
               // SURGICAL MERGE: Start from server snapshot but only preserve
@@ -2402,140 +2470,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               const localById = new Map(
                 currentActive.widgets.map((w) => [w.id, w])
               );
-              // Pre-calculate merge decisions for all incoming server widgets
-              const widgetMergeDecisions = db.widgets.map((sw) => {
+              // Per widget: kept-local field groups and the baseline to record; widgets deleted here stay out of the board but in the baseline.
+              const widgetMerges = db.widgets.map((sw) => {
                 const lw = localById.get(sw.id);
                 const saved = lastSavedById.get(sw.id);
-
-                // Exclude widgets deleted locally (present in lastSaved but absent from current local state)
-                const isDeletedLocally = saved && !lw;
-
-                // If it's a new widget from server (!lw && !saved), accept entirely.
-                // If it's a new widget locally (!saved && lw), we keep local. (Though server widgets typically don't fall in this bucket unless IDs magically collide).
-                if (!lw || !saved) {
-                  return {
-                    sw,
-                    lw,
-                    saved,
-                    keepLocalConfig: false,
-                    keepLocalLayout: false,
-                    keepLocalStyle: false,
-                    keepLocalInstance: false,
-                    keepLocalAnnotation: false,
-                    isDeletedLocally,
-                  };
-                }
-
-                const configChangedLocally =
-                  lw.version !== undefined && saved.version !== undefined
-                    ? lw.version !== saved.version
-                    : stableStringify(lw.config) !==
-                      stableStringify(saved.config);
-                const layoutChangedLocally = LAYOUT_FIELDS.some(
-                  (f) => lw[f] !== saved[f]
-                );
-                const styleChangedLocally = STYLE_FIELDS.some(
-                  (f) => lw[f] !== saved[f]
-                );
-                const instanceChangedLocally = INSTANCE_FIELDS.some(
-                  (f) => lw[f] !== saved[f]
-                );
-                // Fast-path: skip stableStringify when both values are the
-                // same reference (including both undefined). When references
-                // differ, short-circuit on paths array length before falling
-                // back to deep comparison to avoid serializing large paths.
-                // Key-stable, or a reordered-but-unchanged echo reads as a local edit and clobbers a genuine remote stroke.
-                const annotationChangedLocally = (() => {
-                  const la = lw.annotation;
-                  const sa = saved.annotation;
-                  if (la === sa) return false;
-                  if (!la || !sa) return true;
-                  if (la.mode !== sa.mode) return true;
-                  if ((la.paths?.length ?? 0) !== (sa.paths?.length ?? 0))
-                    return true;
-                  return stableStringify(la) !== stableStringify(sa);
-                })();
-
                 return {
-                  sw,
-                  lw,
-                  saved,
-                  isDeletedLocally,
-                  // Keep only what changed locally; untouched fields take the server value so edits from another device land.
-                  keepLocalConfig: configChangedLocally,
-                  keepLocalLayout: layoutChangedLocally,
-                  keepLocalStyle: styleChangedLocally,
-                  keepLocalInstance: instanceChangedLocally,
-                  keepLocalAnnotation: annotationChangedLocally,
+                  isDeletedLocally: !!saved && !lw,
+                  ...(lw
+                    ? mergeSnapshotWidget(lw, sw, saved, PII_CONFIG_KEYS)
+                    : { widget: sw, baseline: sw }),
                 };
               });
-
-              const mergedWidgets = widgetMergeDecisions
-                .filter((d) => !d.isDeletedLocally)
-                .map(
-                  ({
-                    sw,
-                    lw,
-                    saved,
-                    keepLocalConfig,
-                    keepLocalLayout,
-                    keepLocalStyle,
-                    keepLocalInstance,
-                    keepLocalAnnotation,
-                  }) => {
-                    if (!lw) return sw; // new widget from server -> accept
-
-                    return {
-                      ...sw,
-                      version: keepLocalConfig ? lw.version : sw.version,
-                      config:
-                        keepLocalConfig && saved
-                          ? mergeConfigByKey(
-                              lw.config,
-                              sw.config,
-                              saved.config,
-                              PII_CONFIG_KEYS
-                            ).config
-                          : sw.config,
-                      configVersion: keepLocalConfig
-                        ? lw.configVersion
-                        : sw.configVersion,
-                      ...(keepLocalLayout
-                        ? (() => {
-                            const acc: Record<string, unknown> = {};
-                            for (const f of LAYOUT_FIELDS)
-                              acc[f] = lw[f as keyof WidgetData];
-                            // Pixels are derived from the proportions kept above; taking sw's would paint the stale server size until the next hydration.
-                            acc.x = lw.x;
-                            acc.y = lw.y;
-                            acc.w = lw.w;
-                            acc.h = lw.h;
-                            return acc as Partial<WidgetData>;
-                          })()
-                        : {}),
-                      ...(keepLocalStyle
-                        ? (() => {
-                            const acc: Record<string, unknown> = {};
-                            for (const f of STYLE_FIELDS)
-                              acc[f] = lw[f as keyof WidgetData];
-                            return acc as Partial<WidgetData>;
-                          })()
-                        : {}),
-                      ...(keepLocalInstance
-                        ? (() => {
-                            const acc: Record<string, unknown> = {};
-                            for (const f of INSTANCE_FIELDS)
-                              acc[f] = lw[f as keyof WidgetData];
-                            return acc as Partial<WidgetData>;
-                          })()
-                        : {}),
-                      ...(keepLocalAnnotation
-                        ? { annotation: lw.annotation }
-                        : {}),
-                      ...withLaterUse(lw, sw),
-                    };
-                  }
-                );
+              const mergedWidgets = widgetMerges
+                .filter((m) => !m.isDeletedLocally)
+                .map((m) => m.widget);
 
               // Clean up locally-added tracking for widgets now confirmed by the server
               const serverIds = new Set(db.widgets.map((w) => w.id));
@@ -2611,63 +2559,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
               // For widgets, construct the array of what we would have saved if we had
               // accepted the server's widget baseline for non-locally-modified widgets.
-              const nextLastSavedWidgets = widgetMergeDecisions.map(
-                ({
-                  sw,
-                  lw,
-                  saved,
-                  keepLocalConfig,
-                  keepLocalLayout,
-                  keepLocalStyle,
-                  keepLocalInstance,
-                  keepLocalAnnotation,
-                }) => {
-                  if (!lw || !saved) return sw;
-
-                  return {
-                    ...sw,
-                    version: keepLocalConfig ? saved.version : sw.version,
-                    config: keepLocalConfig
-                      ? mergeConfigByKey(
-                          lw.config,
-                          sw.config,
-                          saved.config,
-                          PII_CONFIG_KEYS
-                        ).baseline
-                      : sw.config,
-                    configVersion: keepLocalConfig
-                      ? saved.configVersion
-                      : sw.configVersion,
-                    ...(keepLocalLayout
-                      ? (() => {
-                          const acc: Record<string, unknown> = {};
-                          for (const f of LAYOUT_FIELDS)
-                            acc[f] = saved[f as keyof WidgetData];
-                          return acc as Partial<WidgetData>;
-                        })()
-                      : {}),
-                    ...(keepLocalStyle
-                      ? (() => {
-                          const acc: Record<string, unknown> = {};
-                          for (const f of STYLE_FIELDS)
-                            acc[f] = saved[f as keyof WidgetData];
-                          return acc as Partial<WidgetData>;
-                        })()
-                      : {}),
-                    ...(keepLocalInstance
-                      ? (() => {
-                          const acc: Record<string, unknown> = {};
-                          for (const f of INSTANCE_FIELDS)
-                            acc[f] = saved[f as keyof WidgetData];
-                          return acc as Partial<WidgetData>;
-                        })()
-                      : {}),
-                    ...(keepLocalAnnotation
-                      ? { annotation: saved.annotation }
-                      : {}),
-                  };
-                }
-              );
+              const nextLastSavedWidgets = widgetMerges.map((m) => m.baseline);
               lastSavedFieldsRef.current.widgets =
                 JSON.stringify(nextLastSavedWidgets);
               baselineGenerationRef.current++;
@@ -2730,6 +2622,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           }
           newDashboards = migratedDashboards;
         }
+
+        // Other boards with a queued offline save keep this tab's copy until it lands.
+        newDashboards = newDashboards.map((db) => {
+          if (db.id === activeIdRef.current || !hasDeferredSave?.(db.id))
+            return db;
+          return dashboardsRef.current.find((d) => d.id === db.id) ?? db;
+        });
 
         // A real remote change invalidates local undo history for that board.
         // stableStringify so a Firestore key-order echo doesn't read as a change and wrongly clear history.
@@ -2899,6 +2798,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [
     user,
     subscribeToDashboards,
+    hasDeferredSave,
+    deferredSaveBaseline,
     migrated,
     updateActiveId,
     roleId,
@@ -6145,6 +6046,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [user?.uid, dashboards, addToast]
   );
 
+  // Clear local state first: the write's only snapshot carries hasPendingWrites, which keeps the active board's local copy.
+  const markClaudeBoardSeen = useCallback(
+    async (boardId: string): Promise<void> => {
+      setDashboards((curr) =>
+        curr.map((d) => {
+          if (d.id !== boardId || d.claudeUnseen === undefined) return d;
+          const { claudeUnseen: _claudeUnseen, ...rest } = d;
+          return rest;
+        })
+      );
+      if (!user?.uid || isAuthBypass || isViewAsTab) return;
+      await updateDoc(doc(db, 'users', user.uid, 'dashboards', boardId), {
+        claudeUnseen: deleteField(),
+      });
+    },
+    [user]
+  );
+
   const resetDockToDefaults = useCallback(() => {
     // Re-use the shared helper so the access-filtering logic (enabled,
     // accessLevel, betaUsers) is always consistent with the init path.
@@ -6774,10 +6693,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       lastUpdateWasSettingsOnly.current = false;
       setDashboards((prev) => prev.map((d) => (owns(d) ? keep(d) : d)));
       // The active board rides autosave; other boards are written directly.
-      const others = owners.filter((d) => d.id !== currentId).map(keep);
-      if (others.length > 0) {
-        saveDashboards(others).catch((err: unknown) =>
-          console.error('Failed to save kept tour widgets:', err)
+      const otherOwners = owners.filter((d) => d.id !== currentId);
+      if (otherOwners.length > 0) {
+        saveDashboards(otherOwners.map(keep), otherOwners).catch(
+          (err: unknown) =>
+            console.error('Failed to save kept tour widgets:', err)
         );
       }
     },
@@ -6809,6 +6729,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         type: WidgetType;
         config?: WidgetConfig;
         gridConfig?: GridPosition;
+        placement?: WidgetPlacement;
       }[]
     ) => {
       if (!activeId) return;
@@ -6889,14 +6810,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             const stretch =
               WIDGET_STRETCH_BEHAVIOR[item.type] ?? 'preserve-aspect';
 
-            const buildWidget = (pixels: {
-              x: number;
-              y: number;
-              w: number;
-              h: number;
-            }): WidgetData => {
-              const prop = pixelToProp(pixels, BOARD_W, BOARD_H);
-              const aspectRatio = pixels.w / Math.max(1, pixels.h);
+            const buildFromProp = (
+              prop: ProportionalRect,
+              aspectRatio: number
+            ): WidgetData => {
               const { vpW: curW, vpH: curH } = getCurrentViewport();
               const hydrated = computeWidgetPixelRect(
                 prop,
@@ -6923,6 +6840,31 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 config: baseConfig,
               };
             };
+
+            const buildWidget = (pixels: {
+              x: number;
+              y: number;
+              w: number;
+              h: number;
+            }): WidgetData =>
+              buildFromProp(
+                pixelToProp(pixels, BOARD_W, BOARD_H),
+                pixels.w / Math.max(1, pixels.h)
+              );
+
+            // 0. TEMPLATE LAYOUT: a board-template zone from the shared layout engine
+            const validatedPlacement = validatePlacement(item.placement);
+            if (validatedPlacement) {
+              const { aspectRatio, ...prop } = validatedPlacement;
+              const { vpW, vpH } = getCurrentViewport();
+              const { safeW, safeH } = getSafeViewport(vpW, vpH);
+              const zoneWidget = buildFromProp(
+                prop,
+                aspectRatio ?? (prop.wProp * safeW) / (prop.hProp * safeH)
+              );
+              added.push(zoneWidget);
+              return zoneWidget;
+            }
 
             // 1. SMART LAYOUT: If AI provided spatial data
             if (validatedGrid) {
@@ -7269,7 +7211,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           ])
         );
         try {
-          await saveDashboards(otherBoards);
+          await saveDashboards(
+            otherBoards,
+            otherBoards.flatMap((d) => previousOtherById.get(d.id) ?? [])
+          );
         } catch (err) {
           console.error('Failed to save widget config across boards:', err);
           addToast(
@@ -8267,6 +8212,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       moveBoardToCollection,
       pinBoard,
       unpinBoard,
+      markClaudeBoardSeen,
       setActiveCollectionId,
       addWidget,
       addWidgets,
@@ -8404,6 +8350,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       moveBoardToCollection,
       pinBoard,
       unpinBoard,
+      markClaudeBoardSeen,
       setActiveCollectionId,
       addWidget,
       addWidgets,

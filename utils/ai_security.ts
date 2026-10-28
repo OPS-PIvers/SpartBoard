@@ -2,6 +2,7 @@ import {
   WidgetType,
   WidgetConfig,
   GridPosition,
+  WidgetPlacement,
   PollOption,
   MiniAppConfig,
   EmbedConfig,
@@ -34,6 +35,37 @@ export const validateGridConfig = (pos: GridPosition): GridPosition | null => {
   const vRowSpan = Math.max(1, Math.min(12 - vRow, Math.floor(rowSpan)));
 
   return { col: vCol, row: vRow, colSpan: vColSpan, rowSpan: vRowSpan };
+};
+
+const isFiniteNumber = (v: unknown): v is number =>
+  typeof v === 'number' && Number.isFinite(v);
+
+/** Accepts a template placement only when it lands on the board at a usable size; an implausible aspect ratio is dropped. */
+export const validatePlacement = (
+  placement: WidgetPlacement | undefined
+): (Omit<WidgetPlacement, 'aspectRatio'> & { aspectRatio?: number }) | null => {
+  if (!placement) return null;
+  const { xProp, yProp, wProp, hProp, aspectRatio } = placement;
+  if (![xProp, yProp, wProp, hProp].every(isFiniteNumber)) return null;
+  const edge = 1 + 1e-6;
+  if (wProp <= 0 || hProp <= 0 || wProp > edge || hProp > edge) return null;
+  if (
+    xProp < -1e-6 ||
+    yProp < -1e-6 ||
+    xProp + wProp > edge ||
+    yProp + hProp > edge
+  ) {
+    return null;
+  }
+  const saneAspect =
+    isFiniteNumber(aspectRatio) && aspectRatio >= 0.05 && aspectRatio <= 20;
+  return {
+    xProp,
+    yProp,
+    wProp,
+    hProp,
+    ...(saneAspect ? { aspectRatio } : {}),
+  };
 };
 
 /** Basic sanitization for AI-generated widget configurations to prevent XSS/Injection */

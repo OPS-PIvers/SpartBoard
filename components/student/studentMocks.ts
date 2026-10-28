@@ -100,6 +100,7 @@ export const mockAuth: AuthContextType = {
   quizGraderMode: 'question',
   quizGraderAutoAdvance: true,
   spartyEnabled: false,
+  alignmentGuidesEnabled: false,
   updateAccountPreferences: async () => {
     // No-op in student view
   },
@@ -192,6 +193,9 @@ export const mockDashboard: DashboardContextValue = {
     // No-op
   },
   unpinBoard: async () => {
+    // No-op
+  },
+  markClaudeBoardSeen: async () => {
     // No-op
   },
   setActiveCollectionId: () => {

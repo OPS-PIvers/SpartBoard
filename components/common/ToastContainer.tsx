@@ -8,6 +8,7 @@ import {
   X,
 } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
+import { isTourAnchorId, tourAttr } from '@/config/tourAnchors';
 
 export const ToastContainer: React.FC = () => {
   const { toasts, removeToast } = useDashboard();
@@ -85,6 +86,10 @@ export const ToastContainer: React.FC = () => {
                       toast.action?.onClick();
                       removeToast(toast.id);
                     }}
+                    {...(toast.action.tourId &&
+                    isTourAnchorId(toast.action.tourId)
+                      ? tourAttr(toast.action.tourId)
+                      : {})}
                     className="w-fit px-2 py-1 bg-black/5 hover:bg-black/10 rounded-lg text-xxs font-black uppercase tracking-widest transition-colors"
                   >
                     {toast.action.label}

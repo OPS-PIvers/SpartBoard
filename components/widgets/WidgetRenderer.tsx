@@ -151,6 +151,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
     canAccessFeature,
     featurePermissions,
     disableCloseConfirmation: accountDisableCloseConfirmation,
+    alignmentGuidesEnabled,
   } = useAuth();
   // Narrow subscription: foreign widget mutations no longer pierce the
   // memo() bailout below — only the read-only flag flipping re-renders here.
@@ -366,6 +367,9 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
         widget.type === 'classes' || accountDisableCloseConfirmation
       }
       globalStyle={globalStyle}
+      alignmentGuides={
+        alignmentGuidesEnabled && canAccessFeature('alignment-guides')
+      }
       headerActions={
         !isActiveBoardReadOnly &&
         (isLive || canAccessFeature('live-session')) && (

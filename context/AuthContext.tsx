@@ -408,6 +408,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   >('question');
   const [quizGraderAutoAdvance, setQuizGraderAutoAdvanceState] = useState(true);
   const [spartyEnabled, setSpartyEnabledState] = useState(true);
+  const [alignmentGuidesEnabled, setAlignmentGuidesEnabledState] =
+    useState(false);
   const [lastActiveCollectionId, setLastActiveCollectionIdState] = useState<
     string | null | undefined
   >(undefined);
@@ -2028,6 +2030,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setSpartyEnabledState(
             typeof data.spartyEnabled === 'boolean' ? data.spartyEnabled : true
           );
+          setAlignmentGuidesEnabledState(data.alignmentGuidesEnabled === true);
 
           // Load Collections navigation memory
           if ('lastActiveCollectionId' in data) {
@@ -2460,6 +2463,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       quizGraderMode?: 'question' | 'student';
       quizGraderAutoAdvance?: boolean;
       spartyEnabled?: boolean;
+      alignmentGuidesEnabled?: boolean;
     }) => {
       if (updates.disableCloseConfirmation !== undefined) {
         setDisableCloseConfirmationState(updates.disableCloseConfirmation);
@@ -2485,6 +2489,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (updates.spartyEnabled !== undefined) {
         setSpartyEnabledState(updates.spartyEnabled);
       }
+      if (updates.alignmentGuidesEnabled !== undefined) {
+        setAlignmentGuidesEnabledState(updates.alignmentGuidesEnabled);
+      }
 
       // Build a sanitized payload — Firestore rejects `undefined` field values
       const sanitizedUpdates: {
@@ -2496,6 +2503,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         quizGraderMode?: 'question' | 'student';
         quizGraderAutoAdvance?: boolean;
         spartyEnabled?: boolean;
+        alignmentGuidesEnabled?: boolean;
       } = {};
       if (typeof updates.disableCloseConfirmation === 'boolean') {
         sanitizedUpdates.disableCloseConfirmation =
@@ -2534,6 +2542,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       if (typeof updates.spartyEnabled === 'boolean') {
         sanitizedUpdates.spartyEnabled = updates.spartyEnabled;
+      }
+      if (typeof updates.alignmentGuidesEnabled === 'boolean') {
+        sanitizedUpdates.alignmentGuidesEnabled =
+          updates.alignmentGuidesEnabled;
       }
 
       if (
@@ -3406,6 +3418,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       quizGraderMode,
       quizGraderAutoAdvance,
       spartyEnabled,
+      alignmentGuidesEnabled,
       updateAccountPreferences,
       lastActiveCollectionId,
       lastBoardIdByCollection,
@@ -3484,6 +3497,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       quizGraderMode,
       quizGraderAutoAdvance,
       spartyEnabled,
+      alignmentGuidesEnabled,
       updateAccountPreferences,
       lastActiveCollectionId,
       lastBoardIdByCollection,
