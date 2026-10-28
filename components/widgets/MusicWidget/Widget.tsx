@@ -551,7 +551,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               </div>
 
               {/* Station info */}
-              <div className="flex-1 flex flex-col items-center [@container(orientation:landscape)]:items-start min-w-0">
+              <div className="flex-1 flex flex-col items-center [@container(orientation:landscape)]:items-start min-w-0 w-full [@container(orientation:landscape)]:w-auto">
                 <div
                   className="flex items-center justify-center [@container(orientation:landscape)]:justify-start w-full overflow-hidden"
                   style={{ gap: 'min(8px, 2.5cqmin)' }}
