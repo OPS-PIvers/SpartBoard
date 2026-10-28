@@ -1548,6 +1548,7 @@
       "mySongsLimit": "You can save up to 50 songs. Remove one to add another.",
       "mySongsSaveError": "Couldn’t save the song. Try again.",
       "mySongsUntitled": "YouTube video",
+      "mySongsRemoveError": "Couldn’t remove the song. Try again.",
       "mySongsUnavailable": "This video can’t be played outside YouTube. Try a different one.",
       "personalSpotify": "Personal Spotify",
       "connections": "Connections",

@@ -128,7 +128,12 @@ export const MySongsSection: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
                   type="button"
                   aria-label={`${t('mySongsRemove')}: ${song.title}`}
                   title={t('mySongsRemove')}
-                  onClick={() => void removeSong(song.id)}
+                  onClick={() =>
+                    void removeSong(song.id).catch((err: unknown) => {
+                      console.error('[MySongsSection] Remove failed', err);
+                      setError(t('mySongsRemoveError'));
+                    })
+                  }
                   {...tourFieldAttr(
                     'widget-settings.music.my-song-remove',
                     ctx.widget.type,
