@@ -40,6 +40,7 @@ const MIN_OVERLAP_PX = 2;
 const MIN_GAP_PX = 120;
 const MIN_GAP_SHARE = 0.03;
 const MAX_GAPS = 6;
+const MAX_GAP_ROUNDS = 40;
 
 const DRAWER_WIDGET_TYPE = 'need-do-put-then';
 
@@ -121,7 +122,11 @@ const findGaps = (rects: Rect[], area: Rect): BoardGap[] => {
   }
   const areaSize = area.w * area.h;
   const gaps: BoardGap[] = [];
-  while (gaps.length < MAX_GAPS) {
+  for (
+    let round = 0;
+    gaps.length < MAX_GAPS && round < MAX_GAP_ROUNDS;
+    round++
+  ) {
     let best: {
       r0: number;
       r1: number;
@@ -152,13 +157,10 @@ const findGaps = (rects: Rect[], area: Rect): BoardGap[] => {
       w: xs[best.c1 + 1] - xs[best.c0],
       h: ys[best.r1 + 1] - ys[best.r0],
     };
-    if (
-      gap.w < MIN_GAP_PX ||
-      gap.h < MIN_GAP_PX ||
-      best.size / areaSize < MIN_GAP_SHARE
-    )
-      break;
-    gaps.push({ ...gap, share: best.size / areaSize });
+    if (best.size / areaSize < MIN_GAP_SHARE) break;
+    // A thin strip is not a gap, but smaller real gaps may still sit beside it.
+    if (gap.w >= MIN_GAP_PX && gap.h >= MIN_GAP_PX)
+      gaps.push({ ...gap, share: best.size / areaSize });
     for (let r = best.r0; r <= best.r1; r++)
       for (let c = best.c0; c <= best.c1; c++) filled[r][c] = true;
   }
@@ -189,7 +191,12 @@ export const analyze = (
   for (const { widget, rect } of placed) {
     if (offScreen(rect, shape))
       chromeCollisions.push({ widgetId: widget.id, kind: 'off-screen', rect });
+    const underDock = bands.some(
+      (band) => band.id === 'dock' && significant(intersection(rect, band))
+    );
     for (const band of bands) {
+      // The board buttons sit inside the dock band; report them only for widgets that miss the dock.
+      if (underDock && band.id.startsWith('board-buttons')) continue;
       const hit = intersection(rect, band);
       if (significant(hit))
         chromeCollisions.push({

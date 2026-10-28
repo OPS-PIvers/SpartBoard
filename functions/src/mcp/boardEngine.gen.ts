@@ -623,6 +623,16 @@ export const zoneRect = (zone: SnapZone, screen?: ScreenShape): Rect => {
 export const placeInZone = (zone: SnapZone, screen?: ScreenShape): PlacedRect =>
   toPlacedRect(zoneRect(zone, screen), screen);
 
+// Keeps absurd stored or requested numbers from overflowing the layout math.
+const MAX_COORD = 1e6;
+const bound = (v: number, min: number) => Math.min(MAX_COORD, Math.max(min, v));
+const boundRect = (r: Rect): Rect => ({
+  x: bound(r.x, -MAX_COORD),
+  y: bound(r.y, -MAX_COORD),
+  w: bound(r.w, 0),
+  h: bound(r.h, 0),
+});
+
 /** The widget's outer rect on this screen; null when it has no usable geometry. */
 export const widgetRect = (
   widget: LayoutWidget,
@@ -637,16 +647,21 @@ export const widgetRect = (
   ) {
     const { safeW, safeH } = safeSize(shape);
     const { PADDING } = BOARD_LAYOUT;
-    return {
+    return boundRect({
       x: PADDING + Number(xProp) * safeW,
       y: PADDING + Number(yProp) * safeH,
       w: Number(wProp) * safeW,
       h: Number(hProp) * safeH,
-    };
+    });
   }
   const { x, y, w, h } = widget;
   if ([x, y, w, h].every((v) => typeof v === 'number' && Number.isFinite(v))) {
-    return { x: Number(x), y: Number(y), w: Number(w), h: Number(h) };
+    return boundRect({
+      x: Number(x),
+      y: Number(y),
+      w: Number(w),
+      h: Number(h),
+    });
   }
   return null;
 };
@@ -742,6 +757,7 @@ const MIN_OVERLAP_PX = 2;
 const MIN_GAP_PX = 120;
 const MIN_GAP_SHARE = 0.03;
 const MAX_GAPS = 6;
+const MAX_GAP_ROUNDS = 40;
 
 const DRAWER_WIDGET_TYPE = 'need-do-put-then';
 
@@ -823,7 +839,11 @@ const findGaps = (rects: Rect[], area: Rect): BoardGap[] => {
   }
   const areaSize = area.w * area.h;
   const gaps: BoardGap[] = [];
-  while (gaps.length < MAX_GAPS) {
+  for (
+    let round = 0;
+    gaps.length < MAX_GAPS && round < MAX_GAP_ROUNDS;
+    round++
+  ) {
     let best: {
       r0: number;
       r1: number;
@@ -854,13 +874,10 @@ const findGaps = (rects: Rect[], area: Rect): BoardGap[] => {
       w: xs[best.c1 + 1] - xs[best.c0],
       h: ys[best.r1 + 1] - ys[best.r0],
     };
-    if (
-      gap.w < MIN_GAP_PX ||
-      gap.h < MIN_GAP_PX ||
-      best.size / areaSize < MIN_GAP_SHARE
-    )
-      break;
-    gaps.push({ ...gap, share: best.size / areaSize });
+    if (best.size / areaSize < MIN_GAP_SHARE) break;
+    // A thin strip is not a gap, but smaller real gaps may still sit beside it.
+    if (gap.w >= MIN_GAP_PX && gap.h >= MIN_GAP_PX)
+      gaps.push({ ...gap, share: best.size / areaSize });
     for (let r = best.r0; r <= best.r1; r++)
       for (let c = best.c0; c <= best.c1; c++) filled[r][c] = true;
   }
@@ -891,7 +908,12 @@ export const analyze = (
   for (const { widget, rect } of placed) {
     if (offScreen(rect, shape))
       chromeCollisions.push({ widgetId: widget.id, kind: 'off-screen', rect });
+    const underDock = bands.some(
+      (band) => band.id === 'dock' && significant(intersection(rect, band))
+    );
     for (const band of bands) {
+      // The board buttons sit inside the dock band; report them only for widgets that miss the dock.
+      if (underDock && band.id.startsWith('board-buttons')) continue;
       const hit = intersection(rect, band);
       if (significant(hit))
         chromeCollisions.push({
@@ -931,6 +953,8 @@ export interface TidyResult<T extends LayoutWidget> {
   widgets: (T & PlacedRect)[];
   /** Zone each widget landed on, by widget id; widgets left in place are absent. */
   zones: Record<string, string>;
+  /** Widgets that found no free zone and still overlap others; the teacher should remove or rearrange some. */
+  unplaced: string[];
 }
 
 const FULL_LAYOUT: SnapZoneLayout = {
@@ -1047,7 +1071,8 @@ export const tidy = <T extends LayoutWidget>(
     h: area.h / 2,
   };
   const rects = widgets.map((w) => widgetRect(w, shape) ?? fallback);
-  if (widgets.length === 0) return { layoutId: null, widgets: [], zones: {} };
+  if (widgets.length === 0)
+    return { layoutId: null, widgets: [], zones: {}, unplaced: [] };
 
   let best: { layout: SnapZoneLayout; picks: number[]; cost: number } | null =
     null;
@@ -1071,7 +1096,7 @@ export const tidy = <T extends LayoutWidget>(
       zones[widget.id] = zone.id;
       return { ...widget, ...toPlacedRect(zoneRect(zone, shape), shape) };
     });
-    return { layoutId: layout.id, widgets: placed, zones };
+    return { layoutId: layout.id, widgets: placed, zones, unplaced: [] };
   }
 
   // More widgets than any layout has zones: give each the nearest free zone from any layout.
@@ -1100,6 +1125,7 @@ export const tidy = <T extends LayoutWidget>(
   const taken: Rect[] = [];
   const targets = new Array<Rect>(widgets.length);
   const zones: Record<string, string> = {};
+  const unplaced: string[] = [];
   for (const i of order) {
     let pick: Candidate | null = null;
     let pickCost = Infinity;
@@ -1117,6 +1143,7 @@ export const tidy = <T extends LayoutWidget>(
       zones[widgets[i].id] = `${pick.layoutId}:${pick.zoneId}`;
     } else {
       targets[i] = clampInto(rects[i], area);
+      unplaced.push(widgets[i].id);
     }
   }
   return {
@@ -1126,5 +1153,6 @@ export const tidy = <T extends LayoutWidget>(
       ...toPlacedRect(targets[i], shape),
     })),
     zones,
+    unplaced,
   };
 };

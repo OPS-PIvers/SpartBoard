@@ -244,8 +244,11 @@ describe('analyze', () => {
       'top:app-buttons',
       'dock:dock',
       'corner:dock',
-      'corner:board-buttons-left',
       'off:off-screen',
+    ]);
+    const corner = { id: 'c', x: w - 150, y: h - 50, w: 140, h: 40 };
+    expect(analyze([corner]).chromeCollisions.map((c) => c.kind)).toEqual([
+      'dock',
     ]);
     expect(chromeBands().map((band) => band.id)).toEqual([
       'app-buttons',
@@ -267,6 +270,18 @@ describe('analyze', () => {
     expect(
       analyze([{ id: 't', type: 'text', ...rect }]).chromeCollisions
     ).toEqual([]);
+  });
+
+  it('finds a real gap beside a thin empty strip', () => {
+    const { gaps } = analyze([
+      { id: 'b', x: 16, y: 84, w: 1788, h: 316 },
+      { id: 'c', x: 16, y: 650, w: 1788, h: 344 },
+      { id: 'd', x: 16, y: 400, w: 484, h: 250 },
+      { id: 'e', x: 750, y: 400, w: 1054, h: 250 },
+    ]);
+    expect(gaps).toEqual([
+      { x: 500, y: 400, w: 250, h: 250, share: expect.any(Number) },
+    ]);
   });
 
   it('skips widgets with no geometry', () => {
@@ -313,7 +328,28 @@ describe('tidy', () => {
   });
 
   it('returns nothing for an empty board', () => {
-    expect(tidy([])).toEqual({ layoutId: null, widgets: [], zones: {} });
+    expect(tidy([])).toEqual({
+      layoutId: null,
+      widgets: [],
+      zones: {},
+      unplaced: [],
+    });
+  });
+
+  it('survives absurd numbers', () => {
+    const result = tidy([
+      { id: 'a', xProp: 1e308, yProp: -1e308, wProp: 1e308, hProp: 1e308 },
+      { id: 'b', x: 10, y: 10, w: 0, h: 0 },
+    ]);
+    expect(result.widgets).toHaveLength(2);
+    for (const w of result.widgets) expect(Number.isFinite(w.xProp)).toBe(true);
+  });
+
+  it('names the widgets that found no free zone on a crowded board', () => {
+    const result = tidy(randomBoard(12, 5));
+    expect(Object.keys(result.zones)).toHaveLength(12 - result.unplaced.length);
+    expect(result.unplaced.length).toBeGreaterThan(0);
+    for (const id of result.unplaced) expect(result.zones[id]).toBeUndefined();
   });
 
   describe.each(Object.entries(SCREENS))('on %s', (_name, screen) => {

@@ -163,6 +163,16 @@ export const zoneRect = (zone: SnapZone, screen?: ScreenShape): Rect => {
 export const placeInZone = (zone: SnapZone, screen?: ScreenShape): PlacedRect =>
   toPlacedRect(zoneRect(zone, screen), screen);
 
+// Keeps absurd stored or requested numbers from overflowing the layout math.
+const MAX_COORD = 1e6;
+const bound = (v: number, min: number) => Math.min(MAX_COORD, Math.max(min, v));
+const boundRect = (r: Rect): Rect => ({
+  x: bound(r.x, -MAX_COORD),
+  y: bound(r.y, -MAX_COORD),
+  w: bound(r.w, 0),
+  h: bound(r.h, 0),
+});
+
 /** The widget's outer rect on this screen; null when it has no usable geometry. */
 export const widgetRect = (
   widget: LayoutWidget,
@@ -177,16 +187,21 @@ export const widgetRect = (
   ) {
     const { safeW, safeH } = safeSize(shape);
     const { PADDING } = BOARD_LAYOUT;
-    return {
+    return boundRect({
       x: PADDING + Number(xProp) * safeW,
       y: PADDING + Number(yProp) * safeH,
       w: Number(wProp) * safeW,
       h: Number(hProp) * safeH,
-    };
+    });
   }
   const { x, y, w, h } = widget;
   if ([x, y, w, h].every((v) => typeof v === 'number' && Number.isFinite(v))) {
-    return { x: Number(x), y: Number(y), w: Number(w), h: Number(h) };
+    return boundRect({
+      x: Number(x),
+      y: Number(y),
+      w: Number(w),
+      h: Number(h),
+    });
   }
   return null;
 };

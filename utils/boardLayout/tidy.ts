@@ -18,6 +18,8 @@ export interface TidyResult<T extends LayoutWidget> {
   widgets: (T & PlacedRect)[];
   /** Zone each widget landed on, by widget id; widgets left in place are absent. */
   zones: Record<string, string>;
+  /** Widgets that found no free zone and still overlap others; the teacher should remove or rearrange some. */
+  unplaced: string[];
 }
 
 const FULL_LAYOUT: SnapZoneLayout = {
@@ -134,7 +136,8 @@ export const tidy = <T extends LayoutWidget>(
     h: area.h / 2,
   };
   const rects = widgets.map((w) => widgetRect(w, shape) ?? fallback);
-  if (widgets.length === 0) return { layoutId: null, widgets: [], zones: {} };
+  if (widgets.length === 0)
+    return { layoutId: null, widgets: [], zones: {}, unplaced: [] };
 
   let best: { layout: SnapZoneLayout; picks: number[]; cost: number } | null =
     null;
@@ -158,7 +161,7 @@ export const tidy = <T extends LayoutWidget>(
       zones[widget.id] = zone.id;
       return { ...widget, ...toPlacedRect(zoneRect(zone, shape), shape) };
     });
-    return { layoutId: layout.id, widgets: placed, zones };
+    return { layoutId: layout.id, widgets: placed, zones, unplaced: [] };
   }
 
   // More widgets than any layout has zones: give each the nearest free zone from any layout.
@@ -187,6 +190,7 @@ export const tidy = <T extends LayoutWidget>(
   const taken: Rect[] = [];
   const targets = new Array<Rect>(widgets.length);
   const zones: Record<string, string> = {};
+  const unplaced: string[] = [];
   for (const i of order) {
     let pick: Candidate | null = null;
     let pickCost = Infinity;
@@ -204,6 +208,7 @@ export const tidy = <T extends LayoutWidget>(
       zones[widgets[i].id] = `${pick.layoutId}:${pick.zoneId}`;
     } else {
       targets[i] = clampInto(rects[i], area);
+      unplaced.push(widgets[i].id);
     }
   }
   return {
@@ -213,5 +218,6 @@ export const tidy = <T extends LayoutWidget>(
       ...toPlacedRect(targets[i], shape),
     })),
     zones,
+    unplaced,
   };
 };

@@ -26,7 +26,12 @@ const generated = () =>
     ...SOURCES.map((path) =>
       readFileSync(resolve(process.cwd(), path), 'utf8').replace(
         /^import[\s\S]*?;\n/gm,
-        ''
+        (chunk) => {
+          // Only whole static imports may be stripped; anything else would silently eat code.
+          if (!/^import [^;]* from '[^']+';\n$/.test(chunk))
+            throw new Error(`Unexpected import in ${path}: ${chunk}`);
+          return '';
+        }
       )
     ),
   ].join('\n');
