@@ -23,6 +23,18 @@ describe('sanitizeBoardSnapshot', () => {
     expect(out.createdAt).toBe(1000);
   });
 
+  it("strips Claude's marks so a copy shows no badge", () => {
+    const out = sanitizeBoardSnapshot({
+      ...baseBoard(),
+      claudeEditedAt: 5,
+      claudeAction: 'created',
+      claudeUnseen: true,
+    });
+    expect(out.claudeEditedAt).toBeUndefined();
+    expect(out.claudeAction).toBeUndefined();
+    expect(out.claudeUnseen).toBeUndefined();
+  });
+
   it('strips linkedShare* fields', () => {
     const out = sanitizeBoardSnapshot({
       ...baseBoard(),

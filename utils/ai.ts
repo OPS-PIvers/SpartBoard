@@ -4,12 +4,15 @@ import {
   WidgetType,
   WidgetConfig,
   GridPosition,
+  WidgetPlacement,
   GuidedLearningStep,
   GuidedLearningMode,
   GuidedLearningInteractionType,
   GuidedLearningTourAction,
 } from '@/types';
 import { TOOLS } from '@/config/tools';
+import { getBoardTemplate } from '@/config/boardTemplates';
+import { applyTemplate, type ScreenShape } from '@/utils/boardLayout';
 import { reportAiModelConfigFallback } from '@/utils/aiModelConfigFallback';
 import { cleanGeneratedStep } from '@/components/widgets/GuidedLearning/utils/generatedStep';
 
@@ -24,6 +27,14 @@ export interface GeneratedWidget {
   type: WidgetType;
   config: WidgetConfig;
   gridConfig?: GridPosition;
+  placement?: WidgetPlacement;
+}
+
+/** Magic Board's template answer: one board template with a widget per zone. */
+interface GeneratedTemplateSlot {
+  zoneId: string;
+  widgetType: WidgetType;
+  config?: WidgetConfig;
 }
 
 /**
@@ -64,6 +75,10 @@ interface AIResponseData {
   question?: string;
   options?: string[];
   widgets?: GeneratedWidget[];
+  /** `dashboard-layout` in template mode: the chosen board template id. */
+  templateId?: string;
+  /** `dashboard-layout` in template mode: the widget for each filled zone. */
+  slots?: GeneratedTemplateSlot[];
   text?: string;
   /** `video-activity-recommend`: 11-character YouTube video id Gemini recommends. */
   videoId?: string;
@@ -139,6 +154,8 @@ async function callAI(
     source?: AISource;
     /** `mini-app` only: the current code to revise. */
     html?: string;
+    /** `dashboard-layout` only: ask for a board template instead of grid cells. */
+    layoutMode?: 'templates';
   },
   baseErrorMessage: string
 ): Promise<AIResponseData> {
@@ -151,6 +168,7 @@ async function callAI(
         typeCounts?: QuizTypeCounts;
         source?: AISource;
         html?: string;
+        layoutMode?: 'templates';
       },
       AIResponseData
     >(functions, 'generateWithAI', { timeout: 310_000 });
@@ -270,20 +288,88 @@ export async function generatePoll(topic: string): Promise<GeneratedPoll> {
   };
 }
 
+export interface TemplateLayoutOptions {
+  /** Screen the zones are sized for (the teacher's current window). */
+  screen: ScreenShape;
+  /** Drops widgets the teacher can't use. */
+  canUseWidget?: (type: WidgetType) => boolean;
+}
+
+/** Places a template answer with the shared layout engine; unknown templates, zones and widgets are dropped. */
+export function placeTemplateLayout(
+  data: { templateId?: unknown; slots?: unknown },
+  options: TemplateLayoutOptions
+): GeneratedWidget[] {
+  const template =
+    typeof data.templateId === 'string'
+      ? getBoardTemplate(data.templateId)
+      : undefined;
+  if (!template || !Array.isArray(data.slots)) {
+    throw new Error('Invalid response format from AI');
+  }
+  const validTypes = new Set<string>(TOOLS.map((t) => t.type));
+  const fills = (data.slots as unknown[]).flatMap((slot) => {
+    if (!slot || typeof slot !== 'object') return [];
+    const { zoneId, widgetType, config } = slot as Record<string, unknown>;
+    if (typeof zoneId !== 'string' || typeof widgetType !== 'string') {
+      return [];
+    }
+    if (!validTypes.has(widgetType)) return [];
+    const type = widgetType as WidgetType;
+    if (options.canUseWidget && !options.canUseWidget(type)) return [];
+    const safeConfig =
+      config && typeof config === 'object' && !Array.isArray(config)
+        ? (config as WidgetConfig)
+        : ({} as WidgetConfig);
+    return [{ zoneId, type, config: safeConfig }];
+  });
+  const { placements } = applyTemplate(template, fills, options.screen);
+  return placements.map(({ type, config, rect }) => ({
+    type,
+    config,
+    placement: {
+      xProp: rect.xProp,
+      yProp: rect.yProp,
+      wProp: rect.wProp,
+      hProp: rect.hProp,
+      aspectRatio: rect.aspectRatio,
+    },
+  }));
+}
+
 /**
  * Generates a dashboard layout based on a natural language description using a Firebase Function proxy.
  *
  * @param description - The lesson description or activity plan (e.g., "Math lesson about fractions with a 10 minute timer and a poll").
+ * @param templates - When set, asks for a board template and places it with the shared layout engine.
  * @returns A promise resolving to an array of widget configurations.
  * @throws Error if generation fails.
  */
 export async function generateDashboardLayout(
-  description: string
+  description: string,
+  templates?: TemplateLayoutOptions
 ): Promise<GeneratedWidget[]> {
   const data = await callAI(
-    { type: 'dashboard-layout', prompt: description },
+    templates
+      ? {
+          type: 'dashboard-layout',
+          prompt: description,
+          layoutMode: 'templates',
+        }
+      : { type: 'dashboard-layout', prompt: description },
     'Failed to generate layout. Please try again with a different description.'
   );
+
+  // A server without template mode still answers with grid cells, handled below.
+  if (templates && typeof data.templateId === 'string') {
+    const placed = placeTemplateLayout(data, templates);
+    if (placed.length === 0) {
+      throw new Error(
+        "AI couldn't generate any widgets for this description. Please try a more specific lesson plan."
+      );
+    }
+    return placed;
+  }
 
   if (!data.widgets || !Array.isArray(data.widgets)) {
     throw new Error('Invalid response format from AI');
@@ -297,7 +383,13 @@ export async function generateDashboardLayout(
 
   // Validate widget types
   const validTypes = TOOLS.map((t) => t.type);
-  const validWidgets = data.widgets.filter((w) => validTypes.includes(w.type));
+  // Only grid fields pass through, so a stray placement never skips the grid.
+  const validWidgets = data.widgets
+    .filter((w) => validTypes.includes(w.type))
+    .filter((w) => !templates?.canUseWidget || templates.canUseWidget(w.type))
+    .map(({ type, config, gridConfig }) =>
+      gridConfig === undefined ? { type, config } : { type, config, gridConfig }
+    );
 
   if (validWidgets.length === 0) {
     throw new Error('AI generated invalid widget types.');

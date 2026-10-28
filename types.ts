@@ -1772,6 +1772,15 @@ export interface GridPosition {
   rowSpan: number;
 }
 
+/** A board-template zone placement, in the same proportional units widgets store. */
+export interface WidgetPlacement {
+  xProp: number;
+  yProp: number;
+  wProp: number;
+  hProp: number;
+  aspectRatio: number;
+}
+
 export interface Path {
   points: Point[];
   color: string;
@@ -10144,10 +10153,11 @@ export interface UserRolesConfig {
  *    `language`, `savedWidgetConfigs`, `savedWidgetPresets`,
  *    `savedWidgetConfigsPreV2`, `setupCompleted`, `disableCloseConfirmation`,
  *    `remoteControlEnabled`, `dockPosition`, `settingsDrawerWidth`, `quizMonitorColorsEnabled`,
- *    `quizMonitorScoreDisplay`, `spartyEnabled`, `favoriteBackgrounds`, `recentBackgrounds`.
+ *    `quizMonitorScoreDisplay`, `spartyEnabled`, `alignmentGuidesEnabled`, `favoriteBackgrounds`, `recentBackgrounds`.
  *  - `DashboardContext` owns the board/dock state fields: `dockItems`,
  *    `libraryOrder`, `dockInitialized`, `lastActiveCollectionId`,
  *    `lastBoardIdByCollection`.
+ *  - `useClaudeBoardActivity` (components/layout) owns `boardScreen`.
  *
  * INVARIANT: because both contexts write the same doc, every write MUST use
  * `setDoc(ref, partial, { merge: true })` (or `updateDoc`) so it only touches
@@ -10175,6 +10185,8 @@ export interface UserProfile {
    * live apart from the appearance defaults above.
    */
   savedWidgetPresets?: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
+  /** Window size (CSS px) the last time this teacher went full screen; the connector lays boards out for it. */
+  boardScreen?: { w: number; h: number; at: number };
   /**
    * Pre-migration backup of `savedWidgetConfigs`, written once when the
    * account-wide store was narrowed to appearance keys. Kept so content
@@ -10222,6 +10234,8 @@ export interface UserProfile {
   quizMonitorScoreDisplay?: 'percent' | 'count' | 'hidden';
   /** Show Sparty the mascot where the `sparty` feature allows; absent means shown. */
   spartyEnabled?: boolean;
+  /** Alignment guides while moving or resizing widgets, where `alignment-guides` allows; absent means off. */
+  alignmentGuidesEnabled?: boolean;
   /**
    * The user's dock layout (tools + folders, ordered). Synced across devices.
    * When absent, the dock is seeded from building-level admin defaults.
@@ -10346,6 +10360,12 @@ export interface Dashboard {
     canvasWidth?: number;
     canvasHeight?: number;
   };
+  /** When Claude last created or edited this board through the connector (server-written). */
+  claudeEditedAt?: number;
+  /** Whether Claude's last change made the board or edited it. */
+  claudeAction?: 'created' | 'edited';
+  /** True until the teacher opens the board after Claude's change; drives the Boards list badge. */
+  claudeUnseen?: boolean;
 }
 
 /**
@@ -10414,6 +10434,8 @@ export interface Toast {
     onClick: () => void;
     /** A quieter second choice beside the action, such as "No thanks". */
     secondary?: { label: string; onClick: () => void };
+    /** Live-tour anchor id for the action button. */
+    tourId?: string;
   };
 }
 
@@ -10498,6 +10520,8 @@ export type GlobalFeature =
   | 'quiz-import-versions-plain'
   /** Live tours on other websites, played by the Chrome extension (docs/plans/CHROME_EXTENSION.md T12). */
   | 'web-tours'
+  /** Claude builds and edits boards through the connector, and Magic Board uses the shared layout engine (docs/plans/AI_BOARDS.md). */
+  | 'ai-boards'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
@@ -10613,7 +10637,9 @@ export type GlobalFeature =
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak'
   /** Widget Library fills most of the screen instead of a small fixed box. */
-  | 'widget-library-large';
+  | 'widget-library-large'
+  /** Slides-style alignment guides and snapping while moving or resizing widgets (a per-teacher switch in Behavior). */
+  | 'alignment-guides';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

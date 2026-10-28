@@ -278,6 +278,8 @@
       "googleDriveIntegration": "Integración Google Drive",
       "remoteControl": "Control Remoto",
       "showSparty": "Mostrar a Sparty",
+      "alignmentGuides": "Guías de alineación",
+      "alignmentGuidesHint": "Aparecen líneas cuando un widget se alinea con otros o queda espaciado por igual.",
       "googleDriveDescription": "Tus tableros se guardan en tu carpeta \"{{appName}}\" en Drive.",
       "connectedSynced": "Conectado",
       "disconnected": "Desconectado",

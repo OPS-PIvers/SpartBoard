@@ -64,6 +64,15 @@ import {
 import { isAdmin } from './glTools';
 import { registerMeetingTools } from './meetingTools';
 import { registerStandardsTools } from './standardsTools';
+import {
+  BOARD_TOOLS,
+  assertBoardAccess,
+  boardsOn,
+  editResultOf,
+  registerBoardTools,
+} from './boardTools';
+import { restoreBoard } from './boardWrite';
+import { resolveBoardScreen } from './boardStore';
 
 export const SERVER_INSTRUCTIONS = [
   "SpartBoard is a classroom dashboard. These tools read and write the signed-in teacher's own library.",
@@ -613,6 +622,8 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         const snap = await db
           .collection(`users/${uid}/claude_revisions`)
           .orderBy('createdAt', 'desc')
+          // A board revision holds the whole board; the list needs only these.
+          .select('itemType', 'itemId', 'title', 'createdAt')
           .limit(100)
           .get();
         const revisions = snap.docs
@@ -665,6 +676,11 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           return restoreWebTourRevision(ctx, rev);
         if (itemType === 'guided_learning')
           return restoreGuidedLearningRevision(ctx, rev);
+        if (itemType === 'board') {
+          await assertBoardAccess(ctx);
+          const edit = await restoreBoard(ctx, rev);
+          return editResultOf(edit, await resolveBoardScreen(ctx)).result;
+        }
         if (itemType !== 'flashcard_set') {
           throw new ToolError('That revision cannot be restored.');
         }
@@ -699,6 +715,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   registerWebTourTools(server, ctx);
   registerMeetingTools(server, ctx);
   registerStandardsTools(server, ctx);
+  registerBoardTools(server, ctx);
 }
 
 /** Mini App results tools, listed only when results are on for the teacher. */
@@ -711,12 +728,14 @@ const RESULTS_ONLY_TOOLS = [
 export async function hiddenToolsFor(
   ctx: ToolContext
 ): Promise<ReadonlySet<string>> {
-  const [admin, resultsOn] = await Promise.all([
+  const [admin, resultsOn, boards] = await Promise.all([
     isAdmin(ctx).catch(() => false),
     miniAppResultsOn(ctx).catch(() => false),
+    boardsOn(ctx).catch(() => false),
   ]);
   return new Set([
     ...(admin ? [] : [...ADMIN_ONLY_TOOLS, ...WEB_TOUR_TOOLS]),
     ...(resultsOn ? [] : RESULTS_ONLY_TOOLS),
+    ...(boards ? [] : BOARD_TOOLS),
   ]);
 }

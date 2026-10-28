@@ -21,6 +21,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'paper-handwritten-responses',
   'claude-connector',
   'web-tours',
+  'ai-boards',
   'claude-connector-guided-learning',
   'video-activity-live',
   'quiz-student-view',
@@ -66,6 +67,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'whiteboard-pro',
   'widget-library-large',
   'sidebar-list-rows',
+  'alignment-guides',
 ];
 
 /** Plan D7: admins pass a default-off flag (preview, or admin-default like `guided-learning-ai`) that has no saved doc yet. */

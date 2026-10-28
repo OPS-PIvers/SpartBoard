@@ -282,6 +282,8 @@
       "googleDriveIntegration": "Google Drive Integration",
       "remoteControl": "Remote Control",
       "showSparty": "Show Sparty",
+      "alignmentGuides": "Alignment guides",
+      "alignmentGuidesHint": "Lines show when a widget lines up with others or is evenly spaced.",
       "googleDriveDescription": "Your boards back up to your \"{{appName}}\" folder in Drive.",
       "connectedSynced": "Connected",
       "disconnected": "Disconnected",
@@ -5694,5 +5696,11 @@
     "leaveFailed": "Failed to leave shared collection",
     "hostStopped": "{{name}} stopped sharing this collection.",
     "hostStoppedNoName": "The host stopped sharing this collection."
+  },
+  "claudeBoards": {
+    "editingToast": "Claude is editing {{name}}",
+    "show": "Show",
+    "madeBadge": "Made with Claude",
+    "editedBadge": "Edited by Claude"
   }
 }

@@ -278,6 +278,8 @@
       "googleDriveIntegration": "Intégration Google Drive",
       "remoteControl": "Contrôle à distance",
       "showSparty": "Afficher Sparty",
+      "alignmentGuides": "Repères d'alignement",
+      "alignmentGuidesHint": "Des lignes apparaissent quand un widget est aligné avec d'autres ou espacé de façon égale.",
       "googleDriveDescription": "Vos tableaux sont sauvegardés dans votre dossier \"{{appName}}\" sur Drive.",
       "connectedSynced": "Connecté",
       "disconnected": "Déconnecté",
