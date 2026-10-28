@@ -2005,7 +2005,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Alignment guides switch",
     "scope": "board",
     "panel": true,
-    "persists": true
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.profile-behavior",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.profile-settings",
+          "profile.tab-behavior"
+        ]
+      }
+    ]
   },
   {
     "id": "language.options",
