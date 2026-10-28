@@ -640,6 +640,8 @@ describe('edit_board', () => {
       background: 'bg-slate-100',
       updatedAt: old,
       updatedBy: 'u2',
+      globalStyle: { fontFamily: 'serif' },
+      annotationOverlay: { objects: [{ id: 'ink1' }], canvasWidth: 1600 },
       widgets: [
         {
           ...own[0],
@@ -693,6 +695,12 @@ describe('edit_board', () => {
     expect(widgets[0].lastUse).toEqual({ uid: 'u1', at: 1 });
     expect((widgets[1].config as Data).firstNames).toBe('Ada\nGrace');
     expect(board.background).toBe('bg-slate-100');
+    // The share now says this teacher wrote it last, so their board carries the co-teacher's style and ink.
+    expect(board.globalStyle).toEqual({ fontFamily: 'serif' });
+    expect(board.annotationOverlay).toEqual({
+      objects: [{ id: 'ink1' }],
+      canvasWidth: 1600,
+    });
     expect(board.linkedShareId).toBe('sh');
   });
 

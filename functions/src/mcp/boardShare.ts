@@ -50,13 +50,21 @@ export function scrubWidgetsPII(widgets: Doc[]): Doc[] {
 
 /** What a Synced share holds: scrubbed, and without this teacher's own use stamps. */
 export function sharedWidgets(widgets: Doc[]): Doc[] {
-  return scrubWidgetsPII(widgets).map((widget) => {
-    const out: Doc = { ...widget };
-    delete out.lastUse;
-    delete out.transient;
-    return out;
-  });
+  return scrubWidgetsPII(widgets.filter((w) => w.transient !== true)).map(
+    (widget) => {
+      const out: Doc = { ...widget };
+      delete out.lastUse;
+      return out;
+    }
+  );
 }
+
+/** Co-edited board fields besides widgets that the share carries and the owner's board must match. */
+export const SHARED_BOARD_FIELDS = [
+  'settings',
+  'globalStyle',
+  'annotationOverlay',
+] as const;
 
 const LIVE_MODES = new Set(['synced', 'view-only']);
 
@@ -206,8 +214,12 @@ export function withShareContent(board: Doc, share: LiveShare | null): Doc {
     return out;
   });
   const updatedAt = Math.max(num(board.updatedAt), num(share.data.updatedAt));
+  const coEdited: Doc = {};
+  for (const key of SHARED_BOARD_FIELDS)
+    if (share.data[key] !== undefined) coEdited[key] = share.data[key];
   return {
     ...board,
+    ...coEdited,
     widgets,
     ...(str(share.data.background)
       ? { background: str(share.data.background) }

@@ -48,7 +48,12 @@ import {
   widgetLabel,
   widgetTypeName,
 } from './boardStore';
-import { mirrorToShare, shareStateOf, withShareContent } from './boardShare';
+import {
+  SHARED_BOARD_FIELDS,
+  mirrorToShare,
+  shareStateOf,
+  withShareContent,
+} from './boardShare';
 import { WIDGET_CONFIG_RUNTIME } from './widgetConfigRuntime.gen';
 import { WIDGET_CONFIG_SCHEMAS } from './widgetConfigSchemas.gen';
 import {
@@ -951,6 +956,15 @@ async function commitBoardChange(
       {
         ...(name !== str(stored.name) ? { name } : {}),
         ...(background !== str(stored.background) ? { background } : {}),
+        // The share is stamped as this teacher's write, so their board must carry co-teachers' style and ink too.
+        ...Object.fromEntries(
+          SHARED_BOARD_FIELDS.filter(
+            (key) =>
+              shared.share &&
+              board[key] !== undefined &&
+              JSON.stringify(board[key]) !== JSON.stringify(stored[key])
+          ).map((key) => [key, board[key]])
+        ),
         widgets: board.widgets,
         updatedAt: now,
         ...stamp,
