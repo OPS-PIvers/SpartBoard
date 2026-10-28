@@ -8,7 +8,7 @@
  */
 
 import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Wand2 } from 'lucide-react';
 import {
   LibraryFolder,
@@ -27,6 +27,11 @@ import {
   VideoActivityEditorDetailPane,
 } from './VideoActivityEditor';
 import { useVideoActivityEditorState } from './useVideoActivityEditorState';
+import {
+  VideoActivityQuizContextPane,
+  VideoActivityQuizDetailPane,
+} from './VideoActivityQuizLayout';
+import type { TimelineHandle } from './Timeline';
 import { DEFAULT_VA_BEHAVIOR } from '@/utils/videoActivityBehavior';
 
 interface VideoActivityEditorModalProps {
@@ -83,6 +88,7 @@ const questionsEqual = (
       (qa.allowPartialCredit ?? false) !== (qb.allowPartialCredit ?? false) ||
       !arrEq(qa.incorrectAnswers, qb.incorrectAnswers) ||
       !arrEq(qa.acceptableVariants, qb.acceptableVariants) ||
+      (qa.optionOrder ?? []).join() !== (qb.optionOrder ?? []).join() ||
       !arrEq(
         qa.targets?.map((t) => t.id),
         qb.targets?.map((t) => t.id)
@@ -142,6 +148,8 @@ export const VideoActivityEditorModal: React.FC<
   const canUseAi =
     canAccessFeature('gemini-functions') &&
     canAccessFeature('video-activity-ai');
+  const quizLayout = canAccessFeature('va-quiz-alignment');
+  const timelineRef = useRef<TimelineHandle>(null);
 
   const editorState = useVideoActivityEditorState({ activity });
 
@@ -160,9 +168,11 @@ export const VideoActivityEditorModal: React.FC<
   } = editorState;
 
   // ─── Behavior settings state ─────────────────────────────────────────────
-  const [editorTab, setEditorTab] = useState<'questions' | 'settings'>(
+  const [pickedTab, setEditorTab] = useState<'questions' | 'settings'>(
     'questions'
   );
+  // Flag on: the rules moved to the assignment, so there is no Settings tab.
+  const editorTab = quizLayout ? 'questions' : pickedTab;
   const [behavior, setBehavior] = useState<VideoActivityBehaviorSettings>(
     () => behaviorSeed ?? DEFAULT_VA_BEHAVIOR
   );
@@ -298,7 +308,7 @@ export const VideoActivityEditorModal: React.FC<
   const hasYoutubeUrl = Boolean(youtubeUrl.trim());
   const footerExtras = useMemo(
     () =>
-      canUseAi ? (
+      canUseAi && !quizLayout ? (
         <button
           {...tourAttr('video-activity.editor-draft-ai')}
           onClick={() => setShowAiPrompt(true)}
@@ -314,7 +324,7 @@ export const VideoActivityEditorModal: React.FC<
           Draft with AI
         </button>
       ) : null,
-    [canUseAi, hasYoutubeUrl, setShowAiPrompt]
+    [canUseAi, quizLayout, hasYoutubeUrl, setShowAiPrompt]
   );
 
   if (!activity) return null;
@@ -343,30 +353,40 @@ export const VideoActivityEditorModal: React.FC<
       contextPane={
         <div className="flex flex-col h-full">
           {/* Questions / Settings segmented tab toggle */}
-          <div className="px-4 pt-3 pb-0 border-b border-slate-200 bg-white shrink-0 flex gap-1">
-            {(['questions', 'settings'] as const).map((tab) => (
-              <button
-                {...tourFieldAttr(
-                  'video-activity.editor-tab',
-                  'video-activity',
-                  tab
-                )}
-                key={tab}
-                type="button"
-                onClick={() => setEditorTab(tab)}
-                className={`px-3 py-2 rounded-t-lg text-xs font-black uppercase tracking-wider transition-colors ${
-                  editorTab === tab
-                    ? 'bg-brand-blue-primary text-white'
-                    : 'text-slate-500 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/30'
-                }`}
-              >
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-              </button>
-            ))}
-          </div>
+          {!quizLayout && (
+            <div className="px-4 pt-3 pb-0 border-b border-slate-200 bg-white shrink-0 flex gap-1">
+              {(['questions', 'settings'] as const).map((tab) => (
+                <button
+                  {...tourFieldAttr(
+                    'video-activity.editor-tab',
+                    'video-activity',
+                    tab
+                  )}
+                  key={tab}
+                  type="button"
+                  onClick={() => setEditorTab(tab)}
+                  className={`px-3 py-2 rounded-t-lg text-xs font-black uppercase tracking-wider transition-colors ${
+                    editorTab === tab
+                      ? 'bg-brand-blue-primary text-white'
+                      : 'text-slate-500 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/30'
+                  }`}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+              ))}
+            </div>
+          )}
 
           {editorTab === 'questions' ? (
-            <VideoActivityEditorContextPane state={editorState} />
+            quizLayout ? (
+              <VideoActivityQuizContextPane
+                state={editorState}
+                timelineRef={timelineRef}
+                aiEnabled={canUseAi}
+              />
+            ) : (
+              <VideoActivityEditorContextPane state={editorState} />
+            )
           ) : (
             <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 px-5 py-5 space-y-5">
               <VideoActivityBehaviorSettingsPanel
@@ -379,7 +399,14 @@ export const VideoActivityEditorModal: React.FC<
       }
       detailPane={
         editorTab === 'questions' ? (
-          <VideoActivityEditorDetailPane state={editorState} />
+          quizLayout ? (
+            <VideoActivityQuizDetailPane
+              state={editorState}
+              timelineRef={timelineRef}
+            />
+          ) : (
+            <VideoActivityEditorDetailPane state={editorState} />
+          )
         ) : (
           <div className="flex items-center justify-center h-full text-slate-400 text-sm px-8 text-center">
             <p>Defaults for new assignments.</p>

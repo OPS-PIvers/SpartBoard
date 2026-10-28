@@ -6512,7 +6512,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       opts: { transient?: boolean; exact?: boolean } = {}
     ): string => {
       const adminConfig = getAdminBuildingConfig(type);
-      const newWidgetId = crypto.randomUUID();
+      const newWidgetId = overrides?.id ?? crypto.randomUUID();
       locallyAddedWidgetIds.current.add(newWidgetId);
 
       setDashboards((prev) =>

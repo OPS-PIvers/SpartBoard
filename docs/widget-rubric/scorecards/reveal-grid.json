@@ -395,20 +395,20 @@
     },
     "C2": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-rg6/screenshots/reveal-grid/default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/reveal-grid/default__typical__settings.png"
         ],
-        "runId": "after-rg6"
+        "runId": "c2-regrade-2026-10-26"
       },
-      "note": "The schema drawer groups settings into content, behavior and display with standard controls and the card editor first, though the screenshot did not capture the open drawer.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:39:08.398Z",
+      "gradedAt": "2026-10-28T20:50:48.443Z",
       "stale": false
     },
     "C3": {

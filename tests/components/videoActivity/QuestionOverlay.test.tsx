@@ -137,3 +137,105 @@ describe('QuestionOverlay server grading', () => {
     vi.useRealTimers();
   });
 });
+
+describe('QuestionOverlay answer rules', () => {
+  const submit = async (pick: string) => {
+    fireEvent.click(screen.getByText(pick));
+    await act(async () => {
+      fireEvent.click(screen.getByText('Submit Answer'));
+      await Promise.resolve();
+    });
+  };
+  const rowFor = (text: string) => screen.getByText(text).closest('button');
+
+  it('says only that the answer was saved when right and wrong is off', async () => {
+    vi.useFakeTimers();
+    const onAnswer = vi.fn();
+    render(
+      <QuestionOverlay
+        question={mc}
+        checkAnswer={vi
+          .fn()
+          .mockResolvedValue({ isCorrect: false, correctAnswer: '' })}
+        onAnswer={onAnswer}
+        questionIndex={1}
+        totalQuestions={1}
+        requireCorrectAnswer={false}
+        showResult={false}
+        revealAnswer={false}
+      />
+    );
+    await submit('Rome');
+    expect(screen.getByText('Answer saved. Resuming video…')).toBeTruthy();
+    expect(rowFor('Rome')?.className).not.toContain('red');
+    expect(rowFor('Paris')?.className).not.toContain('emerald');
+    act(() => {
+      vi.advanceTimersByTime(800);
+    });
+    expect(onAnswer).toHaveBeenCalledWith('Rome', false, true);
+    vi.useRealTimers();
+  });
+
+  it('marks a wrong pick without the correct option when reveal is off', async () => {
+    render(
+      <QuestionOverlay
+        question={mc}
+        checkAnswer={vi
+          .fn()
+          .mockResolvedValue({ isCorrect: false, correctAnswer: '' })}
+        onAnswer={vi.fn()}
+        questionIndex={1}
+        totalQuestions={1}
+        requireCorrectAnswer={false}
+        revealAnswer={false}
+      />
+    );
+    await submit('Rome');
+    expect(screen.getByText(/Incorrect\. Resuming video/)).toBeTruthy();
+    expect(rowFor('Rome')?.className).toContain('red');
+    expect(rowFor('Paris')?.className).not.toContain('emerald');
+  });
+
+  it('marks a right pick green when reveal is off', async () => {
+    render(
+      <QuestionOverlay
+        question={mc}
+        checkAnswer={vi
+          .fn()
+          .mockResolvedValue({ isCorrect: true, correctAnswer: '' })}
+        onAnswer={vi.fn()}
+        questionIndex={1}
+        totalQuestions={1}
+        requireCorrectAnswer={false}
+        revealAnswer={false}
+      />
+    );
+    await submit('Paris');
+    expect(rowFor('Paris')?.className).toContain('emerald');
+  });
+
+  it('hides the FIB key when reveal is off', async () => {
+    render(
+      <QuestionOverlay
+        question={{ id: 'q2', timestamp: 1, text: 'Powerhouse?', type: 'FIB' }}
+        checkAnswer={vi
+          .fn()
+          .mockResolvedValue({ isCorrect: false, correctAnswer: '' })}
+        onAnswer={vi.fn()}
+        questionIndex={1}
+        totalQuestions={1}
+        requireCorrectAnswer={false}
+        revealAnswer={false}
+      />
+    );
+    fireEvent.change(screen.getByPlaceholderText('Type your answer…'), {
+      target: { value: 'nucleus' },
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByText('Submit Answer'));
+      await Promise.resolve();
+    });
+    expect(screen.queryByText(/Correct answer:/)).toBeNull();
+    expect(screen.getByText(/Incorrect\. Resuming video/)).toBeTruthy();
+  });
+});

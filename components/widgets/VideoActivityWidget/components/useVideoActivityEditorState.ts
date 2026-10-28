@@ -1,5 +1,9 @@
-import { useCallback, useMemo, useState } from 'react';
-import { VideoActivityData, VideoActivityQuestion } from '@/types';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  QuestionTargetTag,
+  VideoActivityData,
+  VideoActivityQuestion,
+} from '@/types';
 import {
   generateVideoActivity,
   type VideoQuestionGenType,
@@ -71,6 +75,18 @@ export interface VideoActivityEditorController {
   reorderQuestions: (next: VideoActivityQuestion[], movedId?: string) => void;
   /** Recently-reordered question id (for a transient inline hint). null when no hint shown. */
   reorderHintFor: string | null;
+  // Quiz-layout list (va-quiz-alignment): checkboxes, bulk actions, duplicate
+  duplicateQuestion: (id: string) => void;
+  checkedIds: ReadonlySet<string>;
+  /** `range` (shift-click) checks every row between the last toggled one and `id`. */
+  toggleChecked: (id: string, range?: boolean) => void;
+  setAllChecked: (checked: boolean) => void;
+  deleteChecked: () => void;
+  applyTargets: (
+    ids: readonly string[],
+    targets: QuestionTargetTag[],
+    mode: 'add' | 'replace'
+  ) => void;
   // AI generation
   showAiPrompt: boolean;
   setShowAiPrompt: (next: boolean) => void;
@@ -155,6 +171,9 @@ export function useVideoActivityEditorState({
     return init;
   });
   const [reorderHintFor, setReorderHintFor] = useState<string | null>(null);
+  const [checkedIds, setCheckedIds] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
 
   // AI generation state
   const [showAiPrompt, setShowAiPrompt] = useState(false);
@@ -185,6 +204,7 @@ export function useVideoActivityEditorState({
     });
     setTimestampInputs(init);
     setReorderHintFor(null);
+    setCheckedIds(new Set());
     setShowAiPrompt(false);
     setAiTypeCounts(DEFAULT_AI_TYPE_COUNTS);
     setVideoDurationSeconds(0);
@@ -273,6 +293,12 @@ export function useVideoActivityEditorState({
 
   const deleteQuestion = useCallback(
     (id: string) => {
+      setCheckedIds((prev) => {
+        if (!prev.has(id)) return prev;
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
       setQuestions((prev) => prev.filter((q) => q.id !== id));
       setTimestampInputs((prev) => {
         const next = { ...prev };
@@ -373,6 +399,103 @@ export function useVideoActivityEditorState({
       if (hintId) flashReorderHint(hintId);
     },
     [flashReorderHint, questions]
+  );
+
+  const questionsRef = useRef(questions);
+  const selectedIdRef = useRef(selectedId);
+  useLayoutEffect(() => {
+    questionsRef.current = questions;
+    selectedIdRef.current = selectedId;
+  });
+  const lastToggledRef = useRef<string | null>(null);
+
+  // The copy goes at the next free second after the original.
+  const duplicateQuestion = useCallback((id: string) => {
+    const source = questionsRef.current.find((q) => q.id === id);
+    if (!source) return;
+    const used = new Set(questionsRef.current.map((q) => q.timestamp));
+    let timestamp = source.timestamp + 1;
+    while (used.has(timestamp)) timestamp += 1;
+    const copy: VideoActivityQuestion = {
+      ...structuredClone(source),
+      id: crypto.randomUUID(),
+      timestamp,
+    };
+    setQuestions((prev) => sortByTimestamp([...prev, copy]));
+    setTimestampInputs((prev) => ({
+      ...prev,
+      [copy.id]: secondsToMmSs(copy.timestamp),
+    }));
+    setSelectedId(copy.id);
+  }, []);
+
+  const toggleChecked = useCallback((id: string, range?: boolean) => {
+    const rows = questionsRef.current.map((q) => q.id);
+    const anchor = lastToggledRef.current;
+    lastToggledRef.current = id;
+    const span =
+      range && anchor && rows.includes(anchor)
+        ? (() => {
+            const [from, to] = [rows.indexOf(anchor), rows.indexOf(id)].sort(
+              (x, y) => x - y
+            );
+            return rows.slice(from, to + 1);
+          })()
+        : null;
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      if (span) for (const qid of span) next.add(qid);
+      else if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const setAllChecked = useCallback((checked: boolean) => {
+    setCheckedIds(
+      checked ? new Set(questionsRef.current.map((q) => q.id)) : new Set()
+    );
+  }, []);
+
+  const deleteChecked = useCallback(() => {
+    const ids = checkedIds;
+    setQuestions((prev) => prev.filter((q) => !ids.has(q.id)));
+    setTimestampInputs((prev) => {
+      const next = { ...prev };
+      ids.forEach((id) => delete next[id]);
+      return next;
+    });
+    if (selectedIdRef.current && ids.has(selectedIdRef.current)) {
+      setSelectedId(
+        questionsRef.current.find((q) => !ids.has(q.id))?.id ?? null
+      );
+    }
+    setCheckedIds(new Set());
+  }, [checkedIds]);
+
+  const applyTargets = useCallback(
+    (
+      ids: readonly string[],
+      targets: QuestionTargetTag[],
+      mode: 'add' | 'replace'
+    ) => {
+      const idSet = new Set(ids);
+      setQuestions((prev) =>
+        prev.map((q) => {
+          if (!idSet.has(q.id)) return q;
+          const merged = mode === 'replace' ? [] : [...(q.targets ?? [])];
+          for (const t of targets) {
+            if (!merged.some((m) => m.id === t.id)) merged.push({ ...t });
+          }
+          if (merged.length === 0) {
+            const { targets: _cleared, ...rest } = q;
+            return rest;
+          }
+          return { ...q, targets: merged };
+        })
+      );
+    },
+    []
   );
 
   const setTimestampInput = useCallback((id: string, raw: string) => {
@@ -493,6 +616,12 @@ export function useVideoActivityEditorState({
     deleteQuestion,
     reorderQuestions,
     reorderHintFor,
+    duplicateQuestion,
+    checkedIds,
+    toggleChecked,
+    setAllChecked,
+    deleteChecked,
+    applyTargets,
     showAiPrompt,
     setShowAiPrompt,
     aiTypeCounts,

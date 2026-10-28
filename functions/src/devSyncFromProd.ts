@@ -21,6 +21,7 @@ export const SYNCED_USER_COLLECTIONS = [
   'guided_learning_folders',
   'miniapp_folders',
   'miniapps',
+  'music_stations',
   'notebooks',
   'pdfs',
   'projects',

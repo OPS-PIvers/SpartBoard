@@ -2032,6 +2032,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "behavior.spell-check-toggle",
+    "label": "Spell check switch",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.profile-behavior",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.profile-settings",
+          "profile.tab-behavior"
+        ]
+      }
+    ]
+  },
+  {
     "id": "language.options",
     "label": "Language choices",
     "scope": "board",
@@ -3413,6 +3431,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-step.video",
+    "label": "Video step header in the Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-step.check",
     "label": "Check step header in the Assign dialog",
     "scope": "board",
@@ -3583,6 +3614,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "keys": [
+      "assign#allow-skipping",
+      "assign#autoplay",
       "assign#away-auto-submit",
       "assign#block-copy-paste",
       "assign#focus-mode",
@@ -3591,6 +3624,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "assign#raise-hand",
       "assign#read-aloud",
       "assign#reveal-correct",
+      "assign#rewind-on-wrong",
       "assign#score-on-submit",
       "assign#show-right-wrong",
       "assign#shuffle-answers",
@@ -20988,6 +21022,85 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Station choice in Music settings",
     "scope": "field",
     "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.music.settings",
+        "kind": "settings-drawer",
+        "widget_type": "music",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.music.my-song",
+    "label": "One of the teacher's own songs in Music settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.music.settings",
+        "kind": "settings-drawer",
+        "widget_type": "music",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.music.my-song-remove",
+    "label": "Remove button on one of the teacher's own songs in Music settings",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.music.settings",
+        "kind": "settings-drawer",
+        "widget_type": "music",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.music.my-song-link",
+    "label": "YouTube link field for adding a song in Music settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.music.settings",
+        "kind": "settings-drawer",
+        "widget_type": "music",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.music.my-song-add",
+    "label": "Add button for a YouTube song in Music settings",
+    "scope": "widget",
+    "panel": true,
+    "persists": true,
     "routes": [
       {
         "surface": "widgets.music.settings",
@@ -45952,8 +46065,172 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "video-activity.editor-draft-ai",
-    "label": "Draft with AI button in the video activity editor footer",
+    "label": "Draft with AI button in the video activity editor",
     "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-add-question",
+    "label": "Add question button in the video activity editor question list",
+    "scope": "board",
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-question-select",
+    "label": "Select checkbox on a question in the video activity editor",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-question-duplicate",
+    "label": "Duplicate button on a question in the video activity editor",
+    "scope": "field",
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-bulk-tag",
+    "label": "Tag button for selected questions in the video activity editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-bulk-delete",
+    "label": "Delete button for selected questions in the video activity editor",
+    "scope": "board",
+    "destructive": true,
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-bulk-clear",
+    "label": "Clear selection button in the video activity editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-targets-edit",
+    "label": "Learning targets Add or Edit button in the video activity editor",
+    "scope": "board",
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-type-select",
+    "label": "Question type menu in the video activity editor",
+    "scope": "board",
+    "persists": true,
+    "sandboxed": true,
+    "routes": [
+      {
+        "surface": "library.video-activity.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "video-activity.editor-question-use-current-time",
+    "label": "Use current time button for a video activity question",
+    "scope": "board",
+    "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -58206,6 +58483,23 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "music.play-pause",
     "label": "Play or pause button on the Music widget",
     "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.music.face",
+        "kind": "widget",
+        "widget_type": "music",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "music.launch-timer",
+    "label": "Button on the Music widget that opens a linked Timer",
+    "scope": "widget",
+    "persists": true,
     "routes": [
       {
         "surface": "widgets.music.face",

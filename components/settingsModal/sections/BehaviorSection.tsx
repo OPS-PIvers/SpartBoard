@@ -1,6 +1,6 @@
 /**
  * BehaviorSection — account-wide behavior toggles (close-warning, alignment
- * guides, remote control, Sparty). These write via updateAccountPreferences and apply to every board,
+ * guides, spell check, remote control, Sparty). These write via updateAccountPreferences and apply to every board,
  * hence the "All boards" scope chip.
  */
 
@@ -11,6 +11,7 @@ import {
   Ruler,
   ShieldX,
   SlidersHorizontal,
+  SpellCheck,
 } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import { Card } from '@/components/common/Card';
@@ -24,6 +25,7 @@ export const BehaviorSection: React.FC = () => {
   const {
     disableCloseConfirmation,
     alignmentGuidesEnabled,
+    spellCheckEnabled,
     remoteControlEnabled,
     spartyEnabled,
     canAccessFeature,
@@ -34,6 +36,9 @@ export const BehaviorSection: React.FC = () => {
   });
   const alignmentGuidesLabel = t('sidebar.settings.alignmentGuides', {
     defaultValue: 'Alignment guides',
+  });
+  const spellCheckLabel = t('sidebar.settings.spellCheck', {
+    defaultValue: 'Spell check',
   });
 
   return (
@@ -99,6 +104,37 @@ export const BehaviorSection: React.FC = () => {
                 {t('sidebar.settings.alignmentGuidesHint', {
                   defaultValue:
                     'Lines show when a widget lines up with others or is evenly spaced.',
+                })}
+              </p>
+            </div>
+          </Card>
+        )}
+
+        {canAccessFeature('spell-check-setting') && (
+          <Card className="flex items-start gap-4" hoverable>
+            <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <SpellCheck className="w-[18px] h-[18px] text-amber-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs font-bold text-slate-700">
+                  {spellCheckLabel}
+                </span>
+                <Toggle
+                  size="sm"
+                  label={spellCheckLabel}
+                  anchor={tourAttr('behavior.spell-check-toggle')}
+                  checked={spellCheckEnabled}
+                  onChange={(checked) =>
+                    void updateAccountPreferences({
+                      spellCheckEnabled: checked,
+                    })
+                  }
+                />
+              </div>
+              <p className="mt-1 text-xs text-slate-500">
+                {t('sidebar.settings.spellCheckHint', {
+                  defaultValue: 'Underline misspelled words as you type.',
                 })}
               </p>
             </div>

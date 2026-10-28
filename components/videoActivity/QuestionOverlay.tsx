@@ -34,6 +34,12 @@ interface QuestionOverlayProps {
   questionIndex: number;
   totalQuestions: number;
   requireCorrectAnswer: boolean;
+  /** Off: no right/wrong after an answer. */
+  showResult?: boolean;
+  /** Off: right/wrong only, never the correct answer. */
+  revealAnswer?: boolean;
+  /** Set for a per-student option order. */
+  optionSeed?: string | null;
 }
 
 const formatTimestamp = (seconds: number) => {
@@ -49,6 +55,8 @@ interface McOptionListProps {
   locked: boolean;
   /** Non-null once graded: marks the key and a wrong pick. */
   correctAnswer: string | null;
+  /** Graded with the key hidden: marks only the pick. */
+  pickCorrect?: boolean | null;
 }
 
 export const McOptionList: React.FC<McOptionListProps> = ({
@@ -56,9 +64,12 @@ export const McOptionList: React.FC<McOptionListProps> = ({
   selected,
   onSelect,
   locked,
-  correctAnswer,
+  correctAnswer: keyAnswer,
+  pickCorrect = null,
 }) => {
-  const graded = correctAnswer !== null;
+  const graded = keyAnswer !== null || pickCorrect !== null;
+  // With the key hidden, a right pick is the only option known to be correct.
+  const correctAnswer = keyAnswer ?? (pickCorrect ? selected : null);
   return (
     <div className="px-5 pb-5 grid gap-2.5">
       {options.map((option, i) => {
@@ -234,6 +245,9 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
   questionIndex,
   totalQuestions,
   requireCorrectAnswer,
+  showResult = true,
+  revealAnswer = true,
+  optionSeed = null,
 }) => {
   const type = question.type ?? 'MC';
 
@@ -252,9 +266,14 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
   const [correctAnswer, setCorrectAnswer] = useState<string | null>(null);
   const [saveFailed, setSaveFailed] = useState(false);
   const graded = submitted && correctAnswer !== null;
+  const feedback = graded && showResult;
+  const shownKey = feedback && revealAnswer ? correctAnswer : null;
 
   // Shuffled option list for MC + MA (FIB has no options).
-  const options = useMemo(() => questionOptions(question), [question]);
+  const options = useMemo(
+    () => questionOptions(question, optionSeed),
+    [question, optionSeed]
+  );
 
   const canSubmit = (() => {
     if (submitted || checking) return false;
@@ -276,18 +295,19 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
     void checkAnswer(answer)
       .then(
         (result) => ({
-          isCorrect: result.isCorrect,
+          isCorrect: result.isCorrect ?? true,
           key: result.correctAnswer,
+          graded: result.isCorrect !== null,
         }),
         // Any failed check (network or server refusal) must not strand the class: keep the answer, skip feedback.
         (err: unknown) => {
           logError('QuestionOverlay.checkAnswer', err, {
             questionId: question.id,
           });
-          return { isCorrect: true, key: null };
+          return { isCorrect: true, key: null, graded: false };
         }
       )
-      .then(({ isCorrect, key }) => {
+      .then(({ isCorrect, key, graded }) => {
         setChecking(false);
         setCorrectAnswer(key);
         setSubmittedIsCorrect(isCorrect);
@@ -304,14 +324,14 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
         setTimeout(
           () => {
             try {
-              void Promise.resolve(
-                onAnswer(answer, isCorrect, key !== null)
-              ).catch(reopen);
+              void Promise.resolve(onAnswer(answer, isCorrect, graded)).catch(
+                reopen
+              );
             } catch (err) {
               reopen(err);
             }
           },
-          isCorrect ? 800 : 1200
+          isCorrect || !showResult ? 800 : 1200
         );
       });
   };
@@ -359,7 +379,8 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
           selected={mcSelected}
           onSelect={setMcSelected}
           locked={locked}
-          correctAnswer={graded ? correctAnswer : null}
+          correctAnswer={shownKey}
+          pickCorrect={feedback ? submittedIsCorrect : null}
         />
       )}
 
@@ -371,9 +392,9 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
             if (canSubmit) handleSubmit();
           }}
           locked={locked}
-          graded={graded}
+          graded={feedback}
           isCorrect={submittedIsCorrect}
-          correctAnswer={correctAnswer}
+          correctAnswer={shownKey}
         />
       )}
 
@@ -383,7 +404,7 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
           selected={maSelected}
           onToggle={toggleMaOption}
           locked={locked}
-          correctAnswer={graded ? correctAnswer : null}
+          correctAnswer={shownKey}
         />
       )}
 
@@ -413,14 +434,14 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
         <div className="px-5 pb-5">
           <div
             className={`text-center text-sm font-bold py-2 rounded-xl border ${
-              !graded
+              !feedback
                 ? 'bg-slate-50 border-slate-200 text-slate-600'
                 : submittedIsCorrect
                   ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
                   : 'bg-red-50 border-red-200 text-red-700'
             }`}
           >
-            {!graded
+            {!feedback
               ? 'Answer saved. Resuming video…'
               : submittedIsCorrect
                 ? '✓ Correct! Resuming video…'

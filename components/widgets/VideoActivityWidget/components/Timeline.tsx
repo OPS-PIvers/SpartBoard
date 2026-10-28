@@ -22,7 +22,13 @@
  */
 
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 import { Plus } from 'lucide-react';
 import {
   loadYouTubeApi,
@@ -30,6 +36,13 @@ import {
   type YTPlayer,
 } from '@/utils/youtube';
 import type { VideoActivityQuestion } from '@/types';
+
+/** Lets the editor seek the player and read the playhead from outside the Timeline. */
+export interface TimelineHandle {
+  seekTo: (seconds: number) => void;
+  /** Whole seconds at the playhead; null until the player is ready. */
+  getCurrentTime: () => number | null;
+}
 
 export interface TimelineProps {
   /** 11-character YouTube video id. Use `extractYouTubeId(url)` to derive. */
@@ -64,6 +77,7 @@ export interface TimelineProps {
    * Fires with 0 while the duration is still unknown.
    */
   onDurationChange?: (seconds: number) => void;
+  handleRef?: React.Ref<TimelineHandle>;
 }
 
 /**
@@ -94,6 +108,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   onMarkerDrag,
   activeQuestionId,
   onDurationChange,
+  handleRef,
 }) => {
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -139,6 +154,32 @@ export const Timeline: React.FC<TimelineProps> = ({
       }
     }, 250);
   }, [stopPolling]);
+
+  useImperativeHandle(
+    handleRef,
+    () => ({
+      seekTo: (seconds: number) => {
+        const player = playerRef.current;
+        if (!player) return;
+        try {
+          player.seekTo(Math.max(0, seconds), true);
+          setPlayhead(Math.max(0, seconds));
+        } catch {
+          /* player teardown */
+        }
+      },
+      getCurrentTime: () => {
+        const player = playerRef.current;
+        if (!player) return null;
+        try {
+          return Math.floor(player.getCurrentTime());
+        } catch {
+          return null;
+        }
+      },
+    }),
+    []
+  );
 
   // Reset transient player state when videoId changes — done at render
   // time via the adjust-state-while-rendering pattern to avoid the

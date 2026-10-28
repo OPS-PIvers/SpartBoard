@@ -22,6 +22,7 @@ import {
   RESULTS_PLAYBACK_STATES,
   type ResultsPlaybackStateKey,
 } from './devViewStates';
+import { VA_STUDENT_STATES, type VaStudentStateKey } from './devViewStates';
 
 export type ViewKey =
   | 'quiz-monitor'
@@ -34,7 +35,8 @@ export type ViewKey =
   | 'quiz-editor'
   | 'media-grading'
   | 'results-playback'
-  | 'quiz-student';
+  | 'quiz-student'
+  | 'va-student';
 
 export type StateKey =
   | 'waiting'
@@ -55,7 +57,8 @@ export type StateKey =
   | QuizEditorStateKey
   | MediaGradingStateKey
   | ResultsPlaybackStateKey
-  | StudentQuizStateKey;
+  | StudentQuizStateKey
+  | VaStudentStateKey;
 
 export const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'quiz-monitor', label: 'Quiz Monitor' },
@@ -69,6 +72,7 @@ export const VIEWS: { key: ViewKey; label: string }[] = [
   { key: 'media-grading', label: 'Media grading' },
   { key: 'results-playback', label: 'Results playback' },
   { key: 'quiz-student', label: 'Quiz student' },
+  { key: 'va-student', label: 'VA student' },
 ];
 
 export interface StateOption {
@@ -138,5 +142,10 @@ export const STATES: StateOption[] = [
     'quiz-student',
     STUDENT_QUIZ_STATES,
     (key) => `Student: ${key.slice('sq-'.length)}`
+  ),
+  ...qualify(
+    'va-student',
+    VA_STUDENT_STATES,
+    (key) => `VA student: ${key.slice('vs-'.length)}`
   ),
 ];

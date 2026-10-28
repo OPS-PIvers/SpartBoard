@@ -395,20 +395,20 @@
     },
     "C2": {
       "score": 1,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-custom-widget/screenshots/custom-widget/default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/custom-widget/default__typical__settings.png"
         ],
-        "runId": "after-custom-widget"
+        "runId": "c2-regrade-2026-10-26"
       },
-      "note": "The settings-open screenshot shows only a selection outline and no drawer, so there is no visible organized settings structure.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T16:03:28.379Z",
+      "gradedAt": "2026-10-28T20:49:27.516Z",
       "stale": false
     },
     "C3": {

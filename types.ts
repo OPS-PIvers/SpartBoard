@@ -7378,7 +7378,8 @@ export interface VideoActivityPublicQuestion {
 
 /** Server grading of one VA answer (`checkVideoActivityAnswerV1`). */
 export interface VideoActivityCheckResult {
-  isCorrect: boolean;
+  /** Null when right and wrong is hidden from this student. */
+  isCorrect: boolean | null;
   /** Canonical key for feedback; MA selections are `|`-joined. */
   correctAnswer: string;
 }
@@ -7525,6 +7526,8 @@ export interface VideoActivitySessionOptions extends BaseSessionOptions {
   dueAt?: number | null;
   /** Whether `dueAt` encodes a chosen time-of-day vs a legacy date-only epoch. */
   dueAtHasTime?: boolean;
+  /** Stamped by va-quiz-alignment assigns; only then does the player honor shuffle, right/wrong and reveal answer. */
+  answerRulesSet?: boolean;
 }
 
 /** VA counterpart of QuizBehaviorSettings. */
@@ -7532,7 +7535,7 @@ export interface VideoActivityBehaviorSettings {
   sessionMode: Exclude<QuizSessionMode, 'game'>;
   sessionOptions: Omit<
     VideoActivitySessionOptions,
-    'attemptLimit' | 'dueAt' | 'dueAtHasTime'
+    'attemptLimit' | 'dueAt' | 'dueAtHasTime' | 'answerRulesSet'
   >;
   attemptLimit: number | null;
 }
@@ -8104,9 +8107,22 @@ export interface MusicStation {
  */
 export type MusicSource = 'curated' | 'personal';
 
+/** A YouTube song a teacher saved to their own Music list (`users/{uid}/music_stations`). */
+export interface MySong {
+  id: string;
+  title: string;
+  channel: string;
+  /** Always the canonical `https://www.youtube.com/watch?v={id}` form. */
+  url: string;
+  thumbnail: string;
+  createdAt: number;
+}
+
 export interface MusicConfig {
   stationId: string;
   syncWithTimeTool?: boolean;
+  /** Timer widget on this board that sync follows; the board's first Timer when absent or removed. */
+  linkedTimerId?: string;
   bgColor?: string;
   textColor?: string;
   /** Widget display layout */
@@ -8123,6 +8139,8 @@ export interface MusicConfig {
   personalSpotifyLabel?: string;
   /** Optional thumbnail for the personal selection. */
   personalSpotifyThumbnail?: string;
+  /** Copy of the teacher's own song picked in `stationId`, so shared and sub boards can still play it. */
+  mySong?: Omit<MySong, 'createdAt'> | null;
 }
 
 export interface OrganizerNode {
@@ -10153,7 +10171,7 @@ export interface UserRolesConfig {
  *    `language`, `savedWidgetConfigs`, `savedWidgetPresets`,
  *    `savedWidgetConfigsPreV2`, `setupCompleted`, `disableCloseConfirmation`,
  *    `remoteControlEnabled`, `dockPosition`, `settingsDrawerWidth`, `quizMonitorColorsEnabled`,
- *    `quizMonitorScoreDisplay`, `spartyEnabled`, `alignmentGuidesEnabled`, `favoriteBackgrounds`, `recentBackgrounds`.
+ *    `quizMonitorScoreDisplay`, `spartyEnabled`, `alignmentGuidesEnabled`, `spellCheckEnabled`, `favoriteBackgrounds`, `recentBackgrounds`.
  *  - `DashboardContext` owns the board/dock state fields: `dockItems`,
  *    `libraryOrder`, `dockInitialized`, `lastActiveCollectionId`,
  *    `lastBoardIdByCollection`.
@@ -10236,6 +10254,8 @@ export interface UserProfile {
   spartyEnabled?: boolean;
   /** Alignment guides while moving or resizing widgets, where `alignment-guides` allows; absent means off. */
   alignmentGuidesEnabled?: boolean;
+  /** Browser spell check in the teacher's text boxes, where `spell-check-setting` allows; absent means on. */
+  spellCheckEnabled?: boolean;
   /**
    * The user's dock layout (tools + folders, ordered). Synced across devices.
    * When absent, the dock is seeded from building-level admin defaults.
@@ -10546,6 +10566,8 @@ export type GlobalFeature =
   | 'claude-connector-guided-learning'
   /** Teacher-paced (live) Video Activity sessions, chosen at assign time (docs/plans/shipped/VA_TEACHER_PACED.md). */
   | 'video-activity-live'
+  /** Video Activity questions and assign rules work like Quiz (docs/plans/VA_QUIZ_ALIGNMENT.md). */
+  | 'va-quiz-alignment'
   /** Quiz Student view: teachers take a quiz as students see it, with focus-mode toggles; nothing is saved. */
   | 'quiz-student-view'
   /** Quiz setting that shows students their score as soon as they submit. */
@@ -10639,7 +10661,13 @@ export type GlobalFeature =
   /** Widget Library fills most of the screen instead of a small fixed box. */
   | 'widget-library-large'
   /** Slides-style alignment guides and snapping while moving or resizing widgets (a per-teacher switch in Behavior). */
-  | 'alignment-guides';
+  | 'alignment-guides'
+  /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
+  | 'spell-check-setting'
+  /** Teachers add their own YouTube songs to the Music widget's station list. */
+  | 'music-my-songs'
+  /** Timer button on the Music widget that opens a Timer linked to it. */
+  | 'music-timer-link';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

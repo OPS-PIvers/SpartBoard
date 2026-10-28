@@ -419,6 +419,11 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'behavior.spell-check-toggle': {
+    label: 'Spell check switch',
+    persists: true,
+    panel: true,
+  },
   'language.options': {
     label: 'Language choices',
     persists: true,
@@ -753,6 +758,10 @@ export const TOUR_ANCHORS = {
   },
   'assign-step.feedback': {
     label: 'Feedback step header in the Assign dialog',
+    panel: true,
+  },
+  'assign-step.video': {
+    label: 'Video step header in the Assign dialog',
     panel: true,
   },
   'assign-step.check': {
@@ -5060,6 +5069,29 @@ export const TOUR_ANCHORS = {
   'widget-settings.music.station': {
     label: 'Station choice in Music settings',
     perField: true,
+    panel: true,
+  },
+  'widget-settings.music.my-song': {
+    label: "One of the teacher's own songs in Music settings",
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.music.my-song-remove': {
+    label: "Remove button on one of the teacher's own songs in Music settings",
+    perField: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'widget-settings.music.my-song-link': {
+    label: 'YouTube link field for adding a song in Music settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.music.my-song-add': {
+    label: 'Add button for a YouTube song in Music settings',
+    perWidget: true,
+    persists: true,
     panel: true,
   },
   'widget-settings.custom-widget.definition-input': {
@@ -10320,7 +10352,47 @@ export const TOUR_ANCHORS = {
     sandboxed: true,
   },
   'video-activity.editor-draft-ai': {
-    label: 'Draft with AI button in the video activity editor footer',
+    label: 'Draft with AI button in the video activity editor',
+  },
+  'video-activity.editor-add-question': {
+    label: 'Add question button in the video activity editor question list',
+    persists: true,
+    sandboxed: true,
+  },
+  'video-activity.editor-question-select': {
+    label: 'Select checkbox on a question in the video activity editor',
+    perField: true,
+  },
+  'video-activity.editor-question-duplicate': {
+    label: 'Duplicate button on a question in the video activity editor',
+    perField: true,
+    persists: true,
+    sandboxed: true,
+  },
+  'video-activity.editor-bulk-tag': {
+    label: 'Tag button for selected questions in the video activity editor',
+  },
+  'video-activity.editor-bulk-delete': {
+    label: 'Delete button for selected questions in the video activity editor',
+    destructive: true,
+    persists: true,
+    sandboxed: true,
+  },
+  'video-activity.editor-bulk-clear': {
+    label: 'Clear selection button in the video activity editor',
+  },
+  'video-activity.editor-targets-edit': {
+    label: 'Learning targets Add or Edit button in the video activity editor',
+  },
+  'video-activity.editor-type-select': {
+    label: 'Question type menu in the video activity editor',
+    persists: true,
+    sandboxed: true,
+  },
+  'video-activity.editor-question-use-current-time': {
+    label: 'Use current time button for a video activity question',
+    persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-tab': {
     label: 'Questions and Settings tabs in the video activity editor',
@@ -13015,6 +13087,11 @@ export const TOUR_ANCHORS = {
   'music.play-pause': {
     label: 'Play or pause button on the Music widget',
     perWidget: true,
+  },
+  'music.launch-timer': {
+    label: 'Button on the Music widget that opens a linked Timer',
+    perWidget: true,
+    persists: true,
   },
   'music.spotify-shuffle': {
     label: 'Shuffle button in the Music Spotify player',

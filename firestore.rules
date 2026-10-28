@@ -864,6 +864,21 @@ service cloud.firestore {
       allow read, write: if ownsUser(userId);
     }
 
+    // Music widget: a teacher's own YouTube songs. Owner-only; the URL and thumbnail
+    // are the canonical YouTube forms the client builds from the video id.
+    match /users/{userId}/music_stations/{songId} {
+      allow read, delete: if ownsUserTeacher(userId);
+      allow create, update: if ownsUserTeacher(userId) && mySongOk(incoming());
+    }
+    function mySongOk(d) {
+      return d.keys().hasOnly(['title', 'channel', 'url', 'thumbnail', 'createdAt'])
+             && isStr('title') && d.title.size() <= 200
+             && isStr('channel') && d.channel.size() <= 200
+             && isStr('url') && d.url.matches('https://www[.]youtube[.]com/watch[?]v=[A-Za-z0-9_-]{11}')
+             && isStr('thumbnail') && d.thumbnail.matches('https://img[.]youtube[.]com/vi/[A-Za-z0-9_-]{11}/hqdefault[.]jpg')
+             && d.createdAt is int;
+    }
+
     // Notebooks - users can only access their own notebooks in their subcollection
     match /users/{userId}/notebooks/{notebookId} {
       allow read, write: if ownsUser(userId);

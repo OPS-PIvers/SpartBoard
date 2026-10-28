@@ -385,20 +385,20 @@
     },
     "C2": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts\\widget-grader\\out\\grade-2026-10-07e\\screenshots\\arts-letters-agenda\\default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/arts-letters-agenda/default__typical__settings.png"
         ],
-        "runId": "grade-2026-10-07e"
+        "runId": "c2-regrade-2026-10-26"
       },
-      "note": "The settings screenshot shows only a sliver of the flip side at the right edge, so the drawer's grouping can't be verified and I scored conservatively.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-07T20:14:31.900Z",
+      "gradedAt": "2026-10-28T20:48:35.033Z",
       "stale": false
     },
     "C3": {
