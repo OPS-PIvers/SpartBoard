@@ -398,20 +398,20 @@
     },
     "C2": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/poll-after3/screenshots/poll/default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/poll/default__typical__settings.png"
         ],
-        "runId": "poll-after3"
+        "runId": "c2-regrade-2026-10-26"
       },
-      "note": "The settings screenshot shows only the selected card and no drawer content, so I can't confirm any grouping or collapsed advanced section; 2 is a cautious default.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:08:35.174Z",
+      "gradedAt": "2026-10-28T20:50:32.238Z",
       "stale": false
     },
     "C3": {

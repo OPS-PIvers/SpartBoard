@@ -62,7 +62,7 @@ export const WallShell: React.FC<WallShellProps> = ({
                 </h1>
               )}
               {prompt && (
-                <p className="truncate text-sm text-white/90 sm:text-base">
+                <p className="max-h-[30vh] overflow-y-auto whitespace-pre-line break-words text-sm text-white/90 sm:text-base">
                   {prompt}
                 </p>
               )}

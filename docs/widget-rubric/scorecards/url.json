@@ -411,20 +411,20 @@
     },
     "C2": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-url-2026-10-20-after/screenshots/url/default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/url/default__typical__settings.png"
         ],
-        "runId": "loop-url-2026-10-20-after"
+        "runId": "c2-regrade-2026-10-26"
       },
-      "note": "The settings-open screenshot shows only the front face with a highlight and no visible drawer, so I can't confirm common settings come first.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-20T04:16:40.160Z",
+      "gradedAt": "2026-10-28T20:51:37.369Z",
       "stale": false
     },
     "C3": {

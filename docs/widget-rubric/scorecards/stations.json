@@ -394,20 +394,20 @@
     },
     "C2": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-stations-2026-10-18-after/screenshots/stations/default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/stations/default__typical__settings.png"
         ],
-        "runId": "loop-stations-2026-10-18-after"
+        "runId": "c2-regrade-2026-10-26"
       },
-      "note": "The settings-open screenshot shows no drawer content, so organization cannot be credited beyond grouped defaults.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:51:33.240Z",
+      "gradedAt": "2026-10-28T20:51:18.187Z",
       "stale": false
     },
     "C3": {

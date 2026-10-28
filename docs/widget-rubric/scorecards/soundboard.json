@@ -385,20 +385,20 @@
     },
     "C2": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/soundboard-after1/screenshots/soundboard/default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/soundboard/default__typical__settings.png"
         ],
-        "runId": "soundboard-after1"
+        "runId": "c2-regrade-2026-10-26"
       },
-      "note": "The settings screenshot shows only the selected face, and the schema is one ungrouped list of per-sound toggles with no sections or ordering aid.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:26:01.461Z",
+      "gradedAt": "2026-10-28T20:51:10.898Z",
       "stale": false
     },
     "C3": {

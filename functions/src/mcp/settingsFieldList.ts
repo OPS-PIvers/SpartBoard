@@ -527,6 +527,71 @@ export const SETTINGS_FIELD_LIST: Readonly<
       kind: 'toggle',
     },
     {
+      anchor: 'settings.toggle:weather#detail_feelsLike',
+      label: 'Feels like',
+      kind: 'toggle',
+    },
+    {
+      anchor: 'settings.toggle:weather#detail_highLow',
+      label: 'High and low',
+      kind: 'toggle',
+    },
+    {
+      anchor: 'settings.toggle:weather#detail_dewPoint',
+      label: 'Dew point',
+      kind: 'toggle',
+    },
+    {
+      anchor: 'settings.toggle:weather#detail_humidity',
+      label: 'Humidity',
+      kind: 'toggle',
+    },
+    {
+      anchor: 'settings.toggle:weather#detail_pressure',
+      label: 'Pressure',
+      kind: 'toggle',
+    },
+    {
+      anchor: 'settings.toggle:weather#detail_rainDaily',
+      label: 'Daily rain',
+      kind: 'toggle',
+    },
+    {
+      anchor: 'settings.toggle:weather#detail_rainMonthly',
+      label: 'Monthly rain',
+      kind: 'toggle',
+    },
+    {
+      anchor: 'settings.toggle:weather#detail_windAvg',
+      label: 'Average wind',
+      kind: 'toggle',
+    },
+    {
+      anchor: 'settings.toggle:weather#detail_windGust',
+      label: 'Wind gust',
+      kind: 'toggle',
+    },
+    {
+      anchor: 'settings.toggle:weather#detail_sunrise',
+      label: 'Sunrise',
+      kind: 'toggle',
+    },
+    {
+      anchor: 'settings.toggle:weather#detail_sunset',
+      label: 'Sunset',
+      kind: 'toggle',
+    },
+    {
+      anchor: 'settings.toggle:weather#detail_moon',
+      label: 'Moon phase',
+      kind: 'toggle',
+    },
+    {
+      anchor: 'settings.toggle:weather#detail_uvIndex',
+      label: 'UV index',
+      kind: 'toggle',
+    },
+    {
       anchor: 'settings.group:weather#display',
       label: 'Display',
     },

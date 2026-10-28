@@ -255,6 +255,11 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
           className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5"
           onSubmit={submit}
         >
+          {session.prompt && (
+            <p className="whitespace-pre-line break-words text-sm text-slate-600">
+              {session.prompt}
+            </p>
+          )}
           {!isWordCloud && !isEditing && (
             <SubmissionTypePicker
               available={types}

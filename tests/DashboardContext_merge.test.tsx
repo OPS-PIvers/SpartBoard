@@ -174,6 +174,7 @@ interface ContextSnapshot {
   updateWidgets: ReturnType<typeof useDashboard>['updateWidgets'];
   setGlobalStyle: ReturnType<typeof useDashboard>['setGlobalStyle'];
   pinBoard: ReturnType<typeof useDashboard>['pinBoard'];
+  markClaudeBoardSeen: ReturnType<typeof useDashboard>['markClaudeBoardSeen'];
   updateDashboard: ReturnType<typeof useDashboard>['updateDashboard'];
 }
 
@@ -194,6 +195,7 @@ const TestConsumer: React.FC<{
       updateWidgets: ctx.updateWidgets,
       setGlobalStyle: ctx.setGlobalStyle,
       pinBoard: ctx.pinBoard,
+      markClaudeBoardSeen: ctx.markClaudeBoardSeen,
       updateDashboard: ctx.updateDashboard,
     };
   });
@@ -679,6 +681,36 @@ describe('DashboardContext per-widget merge', () => {
     expect(stateRef.current?.activeDashboard?.isPinned).toBe(true);
 
     // Give the debounced autosave timer (if wrongly scheduled) time to fire.
+    await new Promise((resolve) => setTimeout(resolve, 1200));
+    expect(mockSaveDashboard).not.toHaveBeenCalled();
+  });
+
+  it("clears Claude's badge locally even though the write's echo is pending, with no autosave", async () => {
+    const stateRef = setup();
+
+    const initialDashboard = {
+      ...makeDashboard([makeWidget('wA', 'a')]),
+      claudeAction: 'created' as const,
+      claudeEditedAt: 500,
+      claudeUnseen: true,
+    };
+    await pushSnapshot([initialDashboard]);
+    await waitFor(() =>
+      expect(stateRef.current?.activeDashboard?.id).toBe('dash-1')
+    );
+    await pushSnapshot([initialDashboard]);
+    mockSaveDashboard.mockClear();
+    vi.mocked(updateDoc).mockClear();
+
+    await act(async () => {
+      await stateRef.current?.markClaudeBoardSeen('dash-1');
+    });
+    const { claudeUnseen: _cleared, ...echo } = initialDashboard;
+    await pushSnapshot([echo], true);
+
+    expect(updateDoc).toHaveBeenCalledTimes(1);
+    expect(stateRef.current?.activeDashboard?.claudeUnseen).toBeUndefined();
+    expect(stateRef.current?.activeDashboard?.claudeEditedAt).toBe(500);
     await new Promise((resolve) => setTimeout(resolve, 1200));
     expect(mockSaveDashboard).not.toHaveBeenCalled();
   });

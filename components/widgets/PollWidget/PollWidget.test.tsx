@@ -1510,6 +1510,38 @@ describe('PollSettings', () => {
     expect(summary).toHaveTextContent('Yes1 · 100%');
   });
 
+  it('lists no word cloud words until the hidden words load', () => {
+    mockCollection.mockImplementation((...args: unknown[]) =>
+      args.slice(1).join('/')
+    );
+    mockOnSnapshot.mockImplementation(
+      (ref: unknown, cb: (snap: unknown) => void) => {
+        if (typeof ref === 'string' && ref.endsWith('/answers'))
+          cb({
+            docs: [
+              { id: '0_s1', data: () => ({ questionIndex: 0, text: 'Sam' }) },
+            ],
+          });
+        else if (typeof ref === 'string' && ref.endsWith('/votes'))
+          cb({ docs: [] });
+        return vi.fn();
+      }
+    );
+    render(
+      <PollSettings
+        widget={proWidget({
+          lastPollSessionId: 'K3F9Q',
+          questions: [
+            { id: 'q1', question: 'Name?', kind: 'words', options: [] },
+          ],
+        })}
+      />
+    );
+    expect(screen.getByTestId('poll-results-summary')).not.toHaveTextContent(
+      'sam'
+    );
+  });
+
   it('reads a colleague’s stopped session for results on a shared board', () => {
     mockOnSnapshot.mockImplementation(() => vi.fn());
     render(

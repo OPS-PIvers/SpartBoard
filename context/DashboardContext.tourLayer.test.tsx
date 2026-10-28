@@ -408,3 +408,65 @@ describe('DashboardContext tour layer', () => {
     expect(stateRef.current?.canUndo).toBe(true);
   });
 });
+
+describe('DashboardContext addWidgets template placements', () => {
+  beforeEach(() => {
+    capturedSnapshotCb = null;
+    saveDashboardMock.mockClear();
+    saveDashboardMock.mockResolvedValue(Date.now());
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('stores a template zone placement as given and ignores an off-board one', async () => {
+    const stateRef = setup();
+    await settle(stateRef, [makeDashboard([])]);
+    const zone = {
+      xProp: 0,
+      yProp: 0.05,
+      wProp: 0.3,
+      hProp: 0.85,
+      aspectRatio: 0.6,
+    };
+    act(() =>
+      stateRef.current?.addWidgets([
+        { type: 'scoreboard', placement: zone },
+        {
+          type: 'clock',
+          placement: { ...zone, xProp: 0.9, wProp: 0.5 },
+        },
+      ])
+    );
+    const [placed, fallback] = stateRef.current?.activeDashboard?.widgets ?? [];
+    expect(placed).toMatchObject(zone);
+    expect(fallback.type).toBe('clock');
+    expect(fallback.xProp).not.toBe(0.9);
+    expect(fallback.wProp).not.toBe(0.5);
+  });
+
+  it('never builds a giant widget from an extreme aspect ratio', async () => {
+    const stateRef = setup();
+    await settle(stateRef, [makeDashboard([])]);
+    act(() =>
+      stateRef.current?.addWidgets([
+        {
+          type: 'clock',
+          placement: {
+            xProp: 0,
+            yProp: 0,
+            wProp: 0.3,
+            hProp: 0.85,
+            aspectRatio: 1e9,
+          },
+        },
+      ])
+    );
+    const [widget] = stateRef.current?.activeDashboard?.widgets ?? [];
+    expect(widget.aspectRatio).toBeLessThan(20);
+    expect(widget.w).toBeLessThan(5000);
+    expect(widget.h).toBeLessThan(5000);
+  });
+});

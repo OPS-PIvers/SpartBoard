@@ -5,7 +5,7 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { useStorage } from '@/hooks/useStorage';
-import { tourFieldAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface SavedPresetsPanelProps {
   stations: Station[];
@@ -135,6 +135,13 @@ export const SavedPresetsPanel: React.FC<SavedPresetsPanelProps> = ({
         <button
           type="button"
           onClick={handleSave}
+          {...(widgetType
+            ? tourAttr(
+                'widget-settings.stations.save-preset',
+                widgetId,
+                widgetType
+              )
+            : {})}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue-primary text-white text-xxs font-black uppercase tracking-widest hover:bg-brand-blue-dark transition-colors shadow-sm"
         >
           <Save size={12} />
@@ -187,6 +194,14 @@ export const SavedPresetsPanel: React.FC<SavedPresetsPanelProps> = ({
                 onClick={() => void handleDelete(preset)}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-brand-red-primary hover:bg-red-50 transition-colors"
                 aria-label={`Delete preset ${preset.name}`}
+                {...(widgetType
+                  ? tourFieldAttr(
+                      'widget-settings.stations.delete-preset',
+                      widgetType,
+                      `preset-${presetIndex + 1}`
+                    )
+                  : {})}
+                data-tour-widget={widgetId}
               >
                 <Trash2 size={13} />
               </button>

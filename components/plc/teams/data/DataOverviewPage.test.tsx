@@ -2,12 +2,16 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { Plc, TeamHero } from '@/types';
-import { BUILT_IN_TEAM_TYPE_PRESETS } from '@/config/teamTypePresets';
+import {
+  BUILT_IN_TEAM_TYPE_PRESETS,
+  TEAM_LANDING_CARD_CATALOG,
+} from '@/config/teamTypePresets';
 import type { ResolvedTeamLayout } from '@/utils/teamLayout';
 import DataOverviewPage from './DataOverviewPage';
 
+const mockFlags = vi.hoisted(() => ({ plcHome: true }));
 vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ canAccessFeature: () => true }),
+  useAuth: () => ({ canAccessFeature: () => mockFlags.plcHome }),
 }));
 vi.mock('@/hooks/usePlcAggregate', () => ({ usePlcAggregate: vi.fn() }));
 vi.mock('@/hooks/usePlcAssessments', () => ({ usePlcAssessments: vi.fn() }));
@@ -21,7 +25,7 @@ const mockModel = vi.hoisted(
 vi.mock('./useDataOverview', () => ({
   useDataOverviewModel: () => ({ model: mockModel, input: {} }),
   useMeetingStrip: () => ({ nextMeeting: null, openItems: null }),
-  usePlcNavigation: () => ({}),
+  usePlcNavigation: () => ({ allAssessments: () => undefined }),
 }));
 vi.mock('./teamShellActions', () => ({ useTeamShellActions: () => ({}) }));
 vi.mock('./heroes', () => ({
@@ -32,8 +36,19 @@ vi.mock('./heroes', () => ({
     hero ? <div data-testid="goal-hero" /> : null,
   TargetHeroFromInput: () => <div data-testid="target-hero" />,
 }));
+const viewProps = vi.hoisted(
+  (): { cards?: readonly string[]; onAllAssessments?: () => void } => ({})
+);
 vi.mock('./DataOverviewView', () => ({
-  DataOverviewView: ({ hero }: { hero: React.ReactNode }) => <div>{hero}</div>,
+  DataOverviewView: (props: {
+    hero: React.ReactNode;
+    cards: readonly string[];
+    onAllAssessments?: () => void;
+  }) => {
+    viewProps.cards = props.cards;
+    viewProps.onAllAssessments = props.onAllAssessments;
+    return <div>{props.hero}</div>;
+  },
 }));
 vi.mock('@/components/plc/teams/heroes/TeamHeroRegion', () => ({
   TeamHeroRegion: () => <div data-testid="shared-hero" />,
@@ -110,5 +125,34 @@ describe('DataOverviewPage hero', () => {
     expect(screen.queryByTestId('assessment-hero')).toBeNull();
     expect(container.textContent).toBe('');
     mockModel.featured = {};
+  });
+});
+
+describe('DataOverviewPage cards', () => {
+  const offLayout: ResolvedTeamLayout = {
+    ...layoutWith({ mode: 'default' }),
+    pages: BUILT_IN_TEAM_TYPE_PRESETS.plc.pages.map((p) =>
+      p.id === 'assessments' ? { ...p, enabled: false } : p
+    ),
+    cards: ['hero', 'goals'],
+  };
+
+  it('keeps every section on its own tab when PLC Home takes the cards', () => {
+    render(<DataOverviewPage plc={plc} layout={offLayout} isLead />);
+    expect(viewProps.cards).toEqual(
+      TEAM_LANDING_CARD_CATALOG.dataOverview
+    );
+  });
+
+  it('follows the cards when it is the landing page', () => {
+    mockFlags.plcHome = false;
+    render(<DataOverviewPage plc={plc} layout={offLayout} isLead />);
+    expect(viewProps.cards).toEqual(['hero', 'goals']);
+    mockFlags.plcHome = true;
+  });
+
+  it('drops All assessments when the Assessments page is off', () => {
+    render(<DataOverviewPage plc={plc} layout={offLayout} isLead />);
+    expect(viewProps.onAllAssessments).toBeUndefined();
   });
 });

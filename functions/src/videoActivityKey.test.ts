@@ -323,6 +323,54 @@ describe('handleCheckVideoActivityAnswer when wrong answers are kept', () => {
   });
 });
 
+describe('handleCheckVideoActivityAnswer with assign answer rules', () => {
+  const RESPONSE = `${SESSION}/responses/pin-p1-01`;
+  const setup = (sessionOptions: Doc, settings: Doc = {}) => {
+    const docs: Record<string, Doc> = {
+      [SESSION]: { teacherUid: 't1', questions: [], settings, sessionOptions },
+      [KEY]: { questions: KEYED },
+      [RESPONSE]: { studentUid: 'stu', answers: [], completedAt: null },
+    };
+    return { docs, db: makeDb(docs) };
+  };
+
+  it('ignores saved feedback values on sessions without the rules stamp', async () => {
+    const { db } = setup({
+      showResultToStudent: false,
+      showCorrectAnswerToStudent: false,
+    });
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'stu', input('Rome'))
+    ).resolves.toEqual({ isCorrect: false, correctAnswer: 'Paris' });
+  });
+
+  it('keeps the answer on the server when reveal is off, except for the teacher', async () => {
+    const { db } = setup({
+      answerRulesSet: true,
+      showCorrectAnswerToStudent: false,
+    });
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'stu', input('Rome'))
+    ).resolves.toEqual({ isCorrect: false, correctAnswer: '' });
+    await expect(
+      handleCheckVideoActivityAnswer(db, 't1', input('Rome'))
+    ).resolves.toEqual({ isCorrect: false, correctAnswer: 'Paris' });
+  });
+
+  it('records the answer when right and wrong is hidden, even in require-correct', async () => {
+    const { docs, db } = setup(
+      { answerRulesSet: true, showResultToStudent: false },
+      { requireCorrectAnswer: true }
+    );
+    await expect(
+      handleCheckVideoActivityAnswer(db, 'stu', input('Rome'), 1000)
+    ).resolves.toEqual({ isCorrect: false, correctAnswer: '' });
+    expect(docs[RESPONSE].answers).toEqual([
+      { questionId: 'q1', answer: 'Rome', answeredAt: 1000, isCorrect: false },
+    ]);
+  });
+});
+
 describe('handleCheckVideoActivityAnswer in a teacher-paced session', () => {
   const TWO = [
     ...KEYED,

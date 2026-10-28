@@ -362,20 +362,20 @@
     },
     "C2": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-countdown-2026-10-27-after3/screenshots/countdown/default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/countdown/default__typical__settings.png"
         ],
-        "runId": "loop-countdown-2026-10-27-after3"
+        "runId": "c2-regrade-2026-10-26"
       },
-      "note": "A short drawer grouped into Content (title, dates) and Behavior (two toggles) with standard controls and search, though the view mode sits in a separate Style tab.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-27T04:15:06.101Z",
+      "gradedAt": "2026-10-28T20:49:19.802Z",
       "stale": false
     },
     "C3": {

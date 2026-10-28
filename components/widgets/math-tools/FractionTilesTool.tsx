@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { FRACTION_COLORS } from './mathToolUtils';
 
 const BAR_H = 30;
@@ -36,6 +37,7 @@ export const FractionTilesTool: React.FC = () => {
         {DENOMINATORS.map((d) => (
           <button
             key={d}
+            {...tourFieldAttr('math-tool.denominator', 'mathTool', String(d))}
             onClick={() => toggleDenom(d)}
             className={`px-2 py-0.5 rounded-full text-xxs font-black border transition-all ${
               selected.has(d)

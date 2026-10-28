@@ -17,6 +17,7 @@ export const SURFACES: TourSurfaceMap = {
       'components/layout/Dock.tsx',
       'components/layout/sidebar/Sidebar.tsx',
       'components/share/ShareStatusBanner.tsx',
+      'components/layout/useClaudeBoardActivity.ts',
     ],
     inner: {
       'dashboard.group-cancel': 'widget.group-with',
@@ -289,7 +290,10 @@ export const SURFACES: TourSurfaceMap = {
   'board.sidebar-classes': {
     label: 'My Classes',
     kind: 'sidebar',
-    files: ['components/layout/sidebar/SidebarClasses.tsx'],
+    files: [
+      'components/layout/sidebar/SidebarClasses.tsx',
+      'components/layout/sidebar/SidebarClassRow.tsx',
+    ],
     opensWith: 'sidebar.classes',
     parent: 'board.sidebar',
     inner: {

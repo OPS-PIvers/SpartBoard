@@ -31,6 +31,8 @@ import { scrubDashboardPII } from '@/utils/dashboardPII';
  *   should stamp this on first own edit, not lie about provenance.
  * - `collectionId`: host's local Collection id. Consumers reassign at
  *   instantiation time — keeping it would be stale data.
+ * - `claudeEditedAt` / `claudeAction` / `claudeUnseen`: Claude's marks on
+ *   the host's board; a copy would show the host's "Made with Claude" badge.
  *
  * Preserved:
  * - `viewportWidth` / `viewportHeight` — layout hints for proportional
@@ -54,6 +56,9 @@ export const sanitizeBoardSnapshot = (board: Dashboard): Dashboard => {
     isPinned: _isPinned,
     updatedAt: _updatedAt,
     collectionId: _collectionId,
+    claudeEditedAt: _claudeEditedAt,
+    claudeAction: _claudeAction,
+    claudeUnseen: _claudeUnseen,
     ...rest
   } = board;
   return rest;

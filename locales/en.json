@@ -211,7 +211,11 @@
       "accommodationsTab": "Accommodations ({{count}})",
       "accommodationsHelp": "These apply to every new assignment.",
       "emptyAccommodationsTitle": "No students yet",
-      "emptyAccommodationsSubtitle": "Add students first, then set their standing accommodations."
+      "emptyAccommodationsSubtitle": "Add students first, then set their standing accommodations.",
+      "actionsMenu": "Class actions",
+      "linkedGoogleClassroom": "Linked to Google Classroom",
+      "actionsMenuFor": "Class actions for {{name}}",
+      "changeGoogleClassroomLink": "Change Google Classroom link"
     },
     "plcs": {
       "title": "My PLCs",
@@ -278,6 +282,10 @@
       "googleDriveIntegration": "Google Drive Integration",
       "remoteControl": "Remote Control",
       "showSparty": "Show Sparty",
+      "alignmentGuides": "Alignment guides",
+      "alignmentGuidesHint": "Lines show when a widget lines up with others or is evenly spaced.",
+      "spellCheck": "Spell check",
+      "spellCheckHint": "Underline misspelled words as you type.",
       "googleDriveDescription": "Your boards back up to your \"{{appName}}\" folder in Drive.",
       "connectedSynced": "Connected",
       "disconnected": "Disconnected",
@@ -1534,6 +1542,16 @@
       "selectStation": "Select a station",
       "loadingStations": "Loading stations…",
       "noStations": "No stations are available. An admin needs to add them in Admin Settings.",
+      "mySongs": "My songs",
+      "mySongsLinkPlaceholder": "Paste a YouTube link",
+      "mySongsAdd": "Add",
+      "mySongsRemove": "Remove song",
+      "mySongsInvalidLink": "Enter a link to a YouTube video.",
+      "mySongsLimit": "You can save up to 50 songs. Remove one to add another.",
+      "mySongsSaveError": "Couldn’t save the song. Try again.",
+      "mySongsUntitled": "YouTube video",
+      "mySongsRemoveError": "Couldn’t remove the song. Try again.",
+      "mySongsUnavailable": "This video can’t be played outside YouTube. Try a different one.",
       "personalSpotify": "Personal Spotify",
       "connections": "Connections",
       "syncWithTimeTool": "Sync with Time Tool",
@@ -2307,7 +2325,21 @@
       "syncBackground": "Match the board background to weather",
       "secondaryColor": "Secondary text color",
       "matchText": "Match text",
-      "clothingCard": "Clothing card"
+      "clothingCard": "Clothing card",
+      "weatherDetails": "Weather details",
+      "detail_feelsLike": "Feels like",
+      "detail_highLow": "High and low",
+      "detail_dewPoint": "Dew point",
+      "detail_humidity": "Humidity",
+      "detail_pressure": "Pressure",
+      "detail_rainDaily": "Daily rain",
+      "detail_rainMonthly": "Monthly rain",
+      "detail_windAvg": "Average wind",
+      "detail_windGust": "Wind gust",
+      "detail_sunrise": "Sunrise",
+      "detail_sunset": "Sunset",
+      "detail_moon": "Moon phase",
+      "detail_uvIndex": "UV index"
     },
     "expectations": {
       "soundSync": "Sound meter sync",
@@ -2726,7 +2758,40 @@
       },
       "secondaryColor": "Secondary Text Color",
       "matchText": "Match text",
-      "clothingCard": "Clothing Card"
+      "clothingCard": "Clothing Card",
+      "details": {
+        "feelsLike": "Feels like",
+        "highLow": "High / low",
+        "dewPoint": "Dew point",
+        "humidity": "Humidity",
+        "pressure": "Pressure",
+        "rainDaily": "Daily rain",
+        "rainMonthly": "Monthly rain",
+        "windAvg": "Avg. wind",
+        "windGust": "Wind gust",
+        "sunrise": "Sunrise",
+        "sunset": "Sunset",
+        "moon": "Moon",
+        "uvIndex": "UV index",
+        "calm": "Calm",
+        "uvLevels": {
+          "low": "Low",
+          "moderate": "Moderate",
+          "high": "High",
+          "veryHigh": "Very high",
+          "extreme": "Extreme"
+        }
+      },
+      "moonPhases": {
+        "newMoon": "New moon",
+        "waxingCrescent": "Waxing crescent",
+        "firstQuarter": "First quarter",
+        "waxingGibbous": "Waxing gibbous",
+        "fullMoon": "Full moon",
+        "waningGibbous": "Waning gibbous",
+        "lastQuarter": "Last quarter",
+        "waningCrescent": "Waning crescent"
+      }
     },
     "stickers": {
       "collectionTitle": "Sticker Collection",
@@ -5643,5 +5708,11 @@
     "leaveFailed": "Failed to leave shared collection",
     "hostStopped": "{{name}} stopped sharing this collection.",
     "hostStoppedNoName": "The host stopped sharing this collection."
+  },
+  "claudeBoards": {
+    "editingToast": "Claude is editing {{name}}",
+    "show": "Show",
+    "madeBadge": "Made with Claude",
+    "editedBadge": "Edited by Claude"
   }
 }

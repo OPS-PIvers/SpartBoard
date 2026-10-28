@@ -248,6 +248,7 @@ const SwatchSection: React.FC<{
         {...tourFieldAttr('text-toolbar.custom-color', 'text', fieldPrefix)}
       >
         <Plus className="w-3 h-3 text-slate-400" aria-hidden="true" />
+        {/* no-tour-anchor: visually hidden input inside the labelled custom-color anchor */}
         <input
           type="color"
           className="sr-only"
