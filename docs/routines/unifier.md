@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 128_
-_Last run: 2026-10-27_
+_Run count: 129_
+_Last run: 2026-10-28_
 _Base branch: dev-paul_
 
 ---
@@ -577,6 +577,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-10-28 | `nightly/unifier-log-2026-10-28` | D1/D2/D3/D4/D5 | Aligned (run 129) — light probe of 44 commits / 110 client `.tsx` files since run 128 (`a66aeb69..dev-paul`: Poll upgrades, PLC teams data, dev-deploy CI). Diff-scoped greps over added lines for `#2d3f89`/`#ad2122`, hand-rolled `text-xxs font-black text-slate-400 uppercase tracking-widest` labels and `common/Toast` imports returned nothing; one single-level `../DataOverviewSections` import in the `TeamsPlcDataDevHarness` dev harness (D4-E2 gray zone, left). No subagents dispatched, no code shipped, `validate` not run (docs-only change; CLAUDE.md forbids full-repo runs). | — |
 | 2026-10-27 | `nightly/unifier-log-2026-10-27` | D1/D2/D3/D4/D5 | Aligned (run 128) — light probe of 22 commits / ~90 non-test client files since run 127 (`a66aeb69..dev-paul`: class-picking on in-progress assignments, PIN sign-in hardening, PLC/team layout, web tours TourTip, Need Do Put Then / TimeTool hotfixes). Diff-scoped greps over added lines for `'../'` imports, `#2d3f89`/`#ad2122` in inline styles, hand-rolled `text-xxs font-black text-slate-400 uppercase tracking-widest` labels, ad-hoc empty-state copy and `common/Toast` imports all returned nothing. No subagents dispatched, no code shipped; `validate` baseline started then stopped (no code changes to protect; CLAUDE.md forbids full-repo runs). | — |
 | 2026-10-26 | `nightly/unifier-log-2026-10-26` | D1/D2/D3/D4/D5 | Aligned (run 127) — light probe of 59 commits / 131 non-test client files since run 126 (`460d7f6b^..dev-paul`: Scoreboard history/points, Sound noise-meter-pro, GraphicOrganizer, SeatingChart, Poll, Webcam DocCam menu). Diff-scoped greps over added lines (quote globs in `git diff -- '*.tsx'`; unquoted ones silently match nothing) for `'../'` imports (Scoreboard `components/` -> `../history`/`../points`/`../useCountUp`, Sound `components/` -> `../constants`/`../noiseTarget`/`../useNoiseSession`: own-widget subfolder, D4-E3 gray zone), `<Toast`, `#2d3f89`/`#ad2122` returned nothing actionable. D3: `role="group"` hits are an action-button row (Sound calibrate), a front-face overlay menu (Webcam DocCam quality) and Drawing tool overlays, none a settings exclusive-choice picker; `PreviewsPanel` inline "District" tag is a compact inline chip, not a SettingsLabel. D1: no new empty states. No subagents dispatched, no code shipped; `validate` not run (CLAUDE.md forbids full-repo runs). | — |
 | 2026-10-25 | `nightly/unifier-log-2026-10-25` | D1/D2/D3/D4/D5 | Aligned (run 126) — light probe of 11 commits / 19 non-test client files since run 125 (`a7a27792..dev-paul`: web tours help panel, tour-anchor sweep, Countdown, SmartNotebook assets panel, HexColorField). Diff-scoped greps over added lines for `'../'` imports (one single-level `../tourList` type import, gray zone), `<Toast`, `#2d3f89`/`#ad2122`, `role="group"`, hand-rolled `text-xxs font-bold uppercase` returned nothing new; no new `Widget.tsx`. Baseline full `validate` not re-run (docs-only PR; CI gates it). No conversion shipped. | — |
