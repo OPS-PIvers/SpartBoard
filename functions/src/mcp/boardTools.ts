@@ -154,7 +154,7 @@ const NOTES = [
 ];
 
 const CHAINING = [
-  'Quiz board: create_quiz, then put a Quiz widget with that quiz id on the board, a QR code with the join link and a timer.',
+  'Quiz board: create_quiz, then put a Quiz widget with that quiz id on the board and a timer. Add a QR code only with a link the teacher gives you; the teacher assigns the quiz in SpartBoard.',
   'Station rotation: a Stations widget with the station names, a timer set to the rotation length and Expectations for noise level.',
   'Discussion: a Text widget with the question, a name picker, and an Activity Wall made with create_activity_wall for responses.',
   'Lesson slides: an Embed widget with the Google Slides link (an edit link works), with a Text widget for key points beside it.',

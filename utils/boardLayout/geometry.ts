@@ -55,7 +55,7 @@ export interface ChromeBand extends Rect {
 
 export const DEFAULT_SCREEN: ScreenShape = { w: 1920, h: 1080 };
 
-// Mirrors utils/layoutMath.ts SNAP_LAYOUT_CONSTANTS and the fixed app chrome measured in docs/plans/AI_BOARDS.md.
+// Mirrors utils/layoutMath.ts SNAP_LAYOUT_CONSTANTS and the fixed app chrome measured in docs/plans/shipped/AI_BOARDS.md.
 export const BOARD_LAYOUT = {
   PADDING: 16,
   GAP: 12,

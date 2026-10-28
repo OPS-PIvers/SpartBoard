@@ -1,7 +1,7 @@
 import { BOARD_TEMPLATES } from './mcp/boardEngine.gen';
 import { WIDGET_TYPE_LIST } from './mcp/widgetTypeList';
 
-// Magic Board's template mode (docs/plans/AI_BOARDS.md D12): the AI picks a template and fills its zones.
+// Magic Board's template mode (docs/plans/shipped/AI_BOARDS.md D12): the AI picks a template and fills its zones.
 
 export interface TemplateLayoutSlot {
   zoneId: string;

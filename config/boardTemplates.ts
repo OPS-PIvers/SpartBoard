@@ -1,7 +1,7 @@
 import type { WidgetType } from '@/types';
 import { SNAP_ZONE_LAYOUTS, type SnapZone } from '@/config/snapZones';
 
-// Activity templates for AI boards (docs/plans/AI_BOARDS.md D9); every zone is a snap zone.
+// Activity templates for AI boards (docs/plans/shipped/AI_BOARDS.md D9); every zone is a snap zone.
 export interface BoardTemplateSlot {
   zoneId: string;
   role: string;
