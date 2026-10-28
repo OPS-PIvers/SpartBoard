@@ -157,9 +157,11 @@ const PII_KEYS = new Set([
 // Student, class and session state; Claude never sees or writes it (D18).
 const STUDENT_KEY =
   /student|roster|names$|assign|session|result|response|submission|attendance|classid|completed|remaining|picked|history|pin$|pins$|scores?$|votes?$|seatingrule|subshare|plcsheet|email|periodname|teachername|joincode|sharecode|owneruid|authoruid|participant/i;
-const MAX_STRING = 300;
-const MAX_ITEMS = 20;
-const MAX_DEPTH = 4;
+export const MAX_STRING = 300;
+export const MAX_ITEMS = 20;
+export const MAX_DEPTH = 4;
+const PRIVATE_LINK =
+  /[?&](token|sig|signature|access_token|X-Goog-Signature)=/i;
 const MAX_SETTINGS_CHARS = 4000;
 
 export const hiddenKey = (key: string): boolean =>
@@ -168,8 +170,7 @@ export const hiddenKey = (key: string): boolean =>
 function summarizeValue(value: unknown, depth: number): unknown {
   if (typeof value === 'string') {
     if (value.startsWith('data:')) return '[embedded file]';
-    if (/[?&](token|sig|signature|access_token|X-Goog-Signature)=/i.test(value))
-      return '[private link]';
+    if (PRIVATE_LINK.test(value)) return '[private link]';
     return value.length > MAX_STRING
       ? `${value.slice(0, MAX_STRING)}… (${value.length} characters)`
       : value;
@@ -190,6 +191,27 @@ function summarizeValue(value: unknown, depth: number): unknown {
     out[key] = summarizeValue(child, depth + 1);
   }
   return out;
+}
+
+/** False when get_board showed this setting cut down, so Claude can't send a whole replacement for it. */
+export function shownInFull(value: unknown, depth = 1): boolean {
+  if (typeof value === 'string')
+    return (
+      depth <= 1 ||
+      (!value.startsWith('data:') &&
+        !PRIVATE_LINK.test(value) &&
+        value.length <= MAX_STRING)
+    );
+  if (typeof value !== 'object' || value === null) return true;
+  if (depth >= MAX_DEPTH) return false;
+  if (Array.isArray(value))
+    return (
+      value.length <= MAX_ITEMS &&
+      value.every((item) => shownInFull(item, depth + 1))
+    );
+  return Object.entries(value).every(
+    ([key, child]) => hiddenKey(key) || shownInFull(child, depth + 1)
+  );
 }
 
 /** Widget-specific fields whose ordinary-looking keys hold student names. */

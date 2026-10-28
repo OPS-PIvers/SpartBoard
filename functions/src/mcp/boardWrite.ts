@@ -39,11 +39,17 @@ import {
   boardWidgets,
   boardsPath,
   hiddenKey,
+  shownInFull,
+  summarizeSettings,
   widgetLabel,
   widgetTypeName,
 } from './boardStore';
 import { WIDGET_CONFIG_RUNTIME } from './widgetConfigRuntime.gen';
-import { checkWidgetSettings } from './widgetConfigValidator';
+import { WIDGET_CONFIG_SCHEMAS } from './widgetConfigSchemas.gen';
+import {
+  checkWidgetSettings,
+  partialWidgetSchema,
+} from './widgetConfigValidator';
 
 type Doc = Record<string, unknown>;
 
@@ -124,8 +130,6 @@ export const NOTE_CLASS =
   'Class-based widgets use the class picked in SpartBoard. If none is picked, the teacher picks one on the board.';
 export const NOTE_ASSIGN =
   'Quiz and video activity widgets open on the teacher’s library; the teacher assigns the item from there.';
-export const NOTE_SHARED =
-  'This board is shared live. Co-teachers see the change once the teacher opens the board in SpartBoard.';
 
 export interface WidgetSpec {
   type: string;
@@ -259,6 +263,111 @@ function findMarker(value: unknown, depth: number): string | null {
   return null;
 }
 
+function resolveSchema(schema: unknown, depth = 0): Doc | null {
+  if (!isObject(schema) || depth > 10) return null;
+  if (typeof schema.$ref === 'string')
+    return resolveSchema(
+      WIDGET_CONFIG_SCHEMAS.definitions[
+        decodeURIComponent(schema.$ref.replace(/^#\/definitions\//, ''))
+      ],
+      depth + 1
+    );
+  const branches = schema.anyOf ?? schema.oneOf;
+  if (Array.isArray(branches)) {
+    const objects = branches
+      .map((b) => resolveSchema(b, depth + 1))
+      .filter((b): b is Doc => !!b && (isObject(b.properties) || !!b.items));
+    return objects.length === 1 ? objects[0] : null;
+  }
+  return schema;
+}
+
+const typeOf = (schema: Doc | null): unknown =>
+  Array.isArray(schema?.type) ? schema.type[0] : schema?.type;
+
+const ZERO: Readonly<Record<string, unknown>> = {
+  boolean: false,
+  number: 0,
+  integer: 0,
+  string: '',
+  array: [],
+};
+
+/** Claude's value with the student state get_board never showed taken from the stored value (list items matched by id), or zeroed on new items. */
+export function keepHidden(
+  claude: unknown,
+  stored: unknown,
+  schema: unknown,
+  depth = 0
+): unknown {
+  if (depth > 20) return claude;
+  const s = resolveSchema(schema);
+  if (Array.isArray(claude)) {
+    const byId = new Map(
+      (Array.isArray(stored) ? stored : [])
+        .filter(isObject)
+        .filter((item) => str(item.id))
+        .map((item) => [str(item.id), item])
+    );
+    return claude.map((item: unknown) =>
+      keepHidden(
+        item,
+        isObject(item) && str(item.id) ? byId.get(str(item.id)) : undefined,
+        s?.items,
+        depth + 1
+      )
+    );
+  }
+  if (!isObject(claude)) return claude;
+  const props = isObject(s?.properties) ? s.properties : {};
+  const prev = isObject(stored) ? stored : undefined;
+  const out: Doc = {};
+  for (const [key, value] of Object.entries(claude))
+    if (!hiddenKey(key))
+      out[key] = keepHidden(value, prev?.[key], props[key], depth + 1);
+  if (prev)
+    for (const [key, value] of Object.entries(prev))
+      if (hiddenKey(key)) out[key] = value;
+  for (const key of Array.isArray(s?.required) ? s.required : []) {
+    if (typeof key !== 'string' || !hiddenKey(key) || key in out) continue;
+    const zero = ZERO[String(typeOf(resolveSchema(props[key])))];
+    if (zero !== undefined) out[key] = structuredClone(zero);
+  }
+  return out;
+}
+
+/** Claude's settings with nested student state kept from the stored config (D18). */
+function withHidden(
+  type: string,
+  settings: Doc | undefined,
+  stored: Doc
+): Doc | undefined {
+  if (!settings) return settings;
+  const props = partialWidgetSchema(type)?.properties;
+  const schemaProps = isObject(props) ? props : {};
+  return Object.fromEntries(
+    Object.entries(settings).map(([key, value]) => [
+      key,
+      keepHidden(value, stored[key], schemaProps[key], 1),
+    ])
+  );
+}
+
+/** Settings get_board showed cut down can't be replaced whole: Claude would drop what it never saw. */
+function assertShown(type: string, settings: Doc, stored: Doc): void {
+  const tooLarge =
+    summarizeSettings(type, stored).settings_too_large_to_show === true;
+  for (const key of Object.keys(settings)) {
+    const value = stored[key];
+    const whole = typeof value !== 'object' || value === null;
+    if (whole && !tooLarge) continue;
+    if (tooLarge ? !whole : !shownInFull(value))
+      throw new OpProblem(
+        `\`${key}\` holds more than get_board shows, so Claude can't replace it; change it in SpartBoard`
+      );
+  }
+}
+
 /** Scoreboard teams that are a class's students or groups; get_board never shows their real names. */
 function hasClassTeams(config: Doc): boolean {
   if (str(config.liveQuizWidgetId)) return true;
@@ -335,7 +444,13 @@ async function libraryPatch(
   switch (type) {
     case 'quiz':
       session.notes.add(NOTE_ASSIGN);
+      // A new quiz leaves any assignment or session the widget showed for the old one.
       return {
+        view: 'manager',
+        managerTab: 'library',
+        activeAssignmentId: null,
+        activeLiveSessionCode: null,
+        resultsSessionId: null,
         selectedQuizId: id,
         selectedQuizTitle: title,
         selectedQuizOwnerUid: uid,
@@ -343,6 +458,8 @@ async function libraryPatch(
     case 'video-activity':
       session.notes.add(NOTE_ASSIGN);
       return {
+        view: 'manager',
+        resultsSessionId: null,
         selectedActivityId: id,
         selectedActivityTitle: title,
         selectedActivityOwnerUid: uid,
@@ -396,7 +513,7 @@ async function buildNewWidget(
   guardSettings(spec.type, spec.settings);
   const built = buildWidgetConfig(
     spec.type,
-    spec.settings,
+    withHidden(spec.type, spec.settings, {}),
     widgetConfigSources(session.access, spec.type)
   );
   if (!built.ok) throw new OpProblem(built.errors.join('; '));
@@ -439,7 +556,8 @@ const maxZ = (widgets: Doc[]): number =>
   widgets.reduce((max, w) => Math.max(max, num(w.z)), 0);
 
 function bumped(widget: Doc, patch: Doc): Doc {
-  return { ...widget, ...patch, version: num(widget.version) + 1 };
+  // The app reads a missing version as 1, so the bump must outrank that.
+  return { ...widget, ...patch, version: Math.max(1, num(widget.version)) + 1 };
 }
 
 interface Applied {
@@ -533,7 +651,11 @@ async function applyOps(
               throw new OpProblem(
                 'these scoreboard teams come from a class; change them in SpartBoard'
               );
-            const checked = checkWidgetSettings(type, op.settings);
+            assertShown(type, op.settings, current);
+            const checked = checkWidgetSettings(
+              type,
+              withHidden(type, op.settings, current)
+            );
             if (!checked.ok) throw new OpProblem(checked.errors.join('; '));
             config = reconcile(type, checked.settings, {
               ...current,
@@ -687,6 +809,8 @@ function assertFits(board: Doc): void {
     );
 }
 
+const INK_LEFT_OUT = 'claudeInkLeftOut';
+
 /** The board as it was, for 30 days; legacy inline ink is left out of a board near the size cap (D21). */
 export function revisionData(board: Doc): { data: Doc; inkLeftOut: boolean } {
   const data: Doc = { ...board };
@@ -702,7 +826,7 @@ export function revisionData(board: Doc): { data: Doc; inkLeftOut: boolean } {
     }
     return next;
   });
-  const trimmed: Doc = { ...data, widgets };
+  const trimmed: Doc = { ...data, widgets, [INK_LEFT_OUT]: true };
   delete trimmed.annotationOverlay;
   if (byteSize(trimmed) > MAX_BOARD_BYTES)
     throw new ToolError(
@@ -723,15 +847,17 @@ const claudeStamp = (board: Doc, now: number) => ({
 
 /** Boards another teacher shares into this list are theirs; edits go through SpartBoard. */
 function assertOwnBoard(board: Doc): void {
-  const role = str(board.linkedShareRole);
-  if (str(board.linkedShareId) && role && role !== 'owner')
+  if (!str(board.linkedShareId)) return;
+  if (str(board.linkedShareRole) !== 'owner')
     throw new ToolError(
       'Another teacher owns this board and shares it with this teacher, so Claude cannot change it. Make changes in SpartBoard.'
     );
+  // Until the server also updates the shared copy, opening the board could bring the old share content back.
+  if (board.linkedShareEnded !== true)
+    throw new ToolError(
+      'This board is shared live with other teachers, so Claude cannot change it yet. Make changes in SpartBoard.'
+    );
 }
-
-const liveShared = (board: Doc): boolean =>
-  !!str(board.linkedShareId) && board.linkedShareEnded !== true;
 
 const isPreconditionFailure = (err: unknown): boolean => {
   const code = (err as { code?: unknown })?.code;
@@ -820,7 +946,6 @@ export async function editBoard(
       notes.push(
         'This board is very large, so older inline drawing ink was left out of the saved previous version.'
       );
-    if (liveShared(before)) notes.push(NOTE_SHARED);
     return {
       board: { ...board, updatedAt: now, ...stamp, id: boardId },
       before,
@@ -959,6 +1084,22 @@ export async function createBoards(
   return { boards, notes: [...session.notes] };
 }
 
+/** Ink a trimmed revision left out stays as it is now instead of being wiped. */
+function withCurrentInk(saved: Doc, now: Doc | undefined): Doc {
+  if (!now) return saved;
+  const out: Doc = { ...saved };
+  if (!('annotation' in saved) && 'annotation' in now)
+    out.annotation = now.annotation;
+  const nowConfig = isObject(now.config) ? now.config : {};
+  if (
+    isObject(saved.config) &&
+    !('paths' in saved.config) &&
+    'paths' in nowConfig
+  )
+    out.config = { ...saved.config, paths: nowConfig.paths };
+  return out;
+}
+
 /** Puts a board's widgets, name and background back as they were; live sharing, collection and pin stay as they are now. */
 export async function restoreBoard(
   ctx: ToolContext,
@@ -982,10 +1123,12 @@ export async function restoreBoard(
     const versions = new Map(
       boardWidgets(before).map((w) => [str(w.id), num(w.version)])
     );
+    const current = new Map(boardWidgets(before).map((w) => [str(w.id), w]));
+    const inkLeftOut = saved[INK_LEFT_OUT] === true;
     // Every restored widget outranks the open tab's copy, so SpartBoard takes it.
     const widgets: Doc[] = boardWidgets(saved).map((w) => ({
-      ...w,
-      version: Math.max(num(w.version), versions.get(str(w.id)) ?? 0) + 1,
+      ...(inkLeftOut ? withCurrentInk(w, current.get(str(w.id))) : w),
+      version: Math.max(1, num(w.version), versions.get(str(w.id)) ?? 0) + 1,
     }));
     const board: Doc = {
       ...before,
@@ -1045,7 +1188,6 @@ export async function restoreBoard(
       notes.push(
         'This board is very large, so older inline drawing ink was left out of the version saved before restoring.'
       );
-    if (liveShared(before)) notes.push(NOTE_SHARED);
     return {
       board: { ...board, updatedAt: now, ...stamp, id: boardId },
       before,

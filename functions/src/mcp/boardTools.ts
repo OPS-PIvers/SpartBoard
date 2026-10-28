@@ -326,7 +326,7 @@ const layoutInput = z
   .max(64)
   .optional()
   .describe(
-    "A snap layout or template id from get_board_guide; omit to use the board's template."
+    "A snap layout or template id from get_board_guide. In create_board it defaults to the board's template_id; in edit_board to an apply_template earlier in the same call."
   );
 const libraryInput = z
   .string()

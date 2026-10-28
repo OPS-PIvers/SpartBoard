@@ -206,8 +206,6 @@ function seed(): Record<string, Data> {
       background: 'bg-white',
       updatedAt: old,
       order: 1,
-      linkedShareId: 'share-1',
-      linkedShareRole: 'owner',
       widgets: [
         {
           id: 'w1',
@@ -496,7 +494,6 @@ describe('edit_board', () => {
       name: 'Period 2 science',
       claudeAction: 'edited',
       claudeUnseen: true,
-      linkedShareId: 'share-1',
     });
     expect(board.updatedAt).toBeGreaterThan(old);
     const [w1, w2, w3, embed] = board.widgets as Data[];
@@ -515,10 +512,7 @@ describe('edit_board', () => {
       isEmbeddable: true,
     });
     expect(ok.notes).toEqual(
-      expect.arrayContaining([
-        expect.stringMatching(/view access/),
-        expect.stringMatching(/shared live/),
-      ])
+      expect.arrayContaining([expect.stringMatching(/view access/)])
     );
     const revisions = [...docs.entries()].filter(([k]) =>
       k.startsWith('users/u1/claude_revisions/')
@@ -583,16 +577,159 @@ describe('edit_board', () => {
     expect(docs.get(BOARD)?.name).toBe('Again');
   });
 
-  it("refuses boards another teacher shares into this teacher's list", async () => {
+  it("refuses boards another teacher shares into this teacher's list, and live-shared boards", async () => {
     const s = seed();
-    s[BOARD] = { ...s[BOARD], linkedShareRole: 'editor' };
+    s[BOARD] = { ...s[BOARD], linkedShareId: 'sh', linkedShareRole: 'editor' };
+    s['users/u1/dashboards/b2'] = {
+      name: 'Mine',
+      linkedShareId: 'sh2',
+      linkedShareRole: 'owner',
+      widgets: [],
+    };
+    const { db } = fakeDb(s);
+    const call = await connect(db);
+    const rename = (board_id: string) =>
+      call('edit_board', { board_id, changes: [{ op: 'rename', name: 'X' }] });
+    expect((await rename('b1')).error).toMatch(
+      /Another teacher owns this board/
+    );
+    expect((await rename('b2')).error).toMatch(/shared live/);
+  });
+
+  it('keeps nested student state Claude never saw when it edits a list', async () => {
+    const s = seed();
+    (s[BOARD].widgets as Data[]).push(
+      {
+        id: 'c1',
+        type: 'checklist',
+        ...zone('grid-2x2', 'bottom-left'),
+        z: 5,
+        config: {
+          items: [
+            { id: 'i1', text: 'Read', completed: true },
+            { id: 'i2', text: 'Write', completed: false },
+          ],
+        },
+      },
+      {
+        id: 'p1',
+        type: 'poll',
+        ...zone('grid-2x2', 'bottom-right'),
+        z: 6,
+        config: {
+          question: 'Pick',
+          options: [{ id: 'o1', label: 'A', votes: 7 }],
+        },
+      }
+    );
+    const { db, docs } = fakeDb(s);
+    const call = await connect(db);
+    const out = await call('edit_board', {
+      board_id: 'b1',
+      changes: [
+        {
+          op: 'update_widget',
+          widget_id: 'c1',
+          settings: {
+            items: [
+              { id: 'i1', text: 'Read chapter 2' },
+              { id: 'i2', text: 'Write', completed: true },
+              { text: 'Share' },
+            ],
+          },
+        },
+        {
+          op: 'update_widget',
+          widget_id: 'p1',
+          settings: {
+            options: [
+              { id: 'o1', label: 'Apples', votes: 0 },
+              { id: 'o2', label: 'Pears' },
+            ],
+          },
+        },
+      ],
+    });
+    expect(out.error).toBeUndefined();
+    const widgets = widgetsOf(docs);
+    const items = (widgets[3].config as Data).items as Data[];
+    expect(items[0]).toMatchObject({ text: 'Read chapter 2', completed: true });
+    expect(items[1]).toMatchObject({ completed: false });
+    expect(items[2]).toMatchObject({ text: 'Share', completed: false });
+    const options = (widgets[4].config as Data).options as Data[];
+    expect(options[0]).toMatchObject({ label: 'Apples', votes: 7 });
+    expect(options[1]).toMatchObject({ label: 'Pears', votes: 0 });
+  });
+
+  it('refuses to replace a list longer than get_board shows', async () => {
+    const s = seed();
+    (s[BOARD].widgets as Data[]).push({
+      id: 'c1',
+      type: 'checklist',
+      ...zone('grid-2x2', 'bottom-left'),
+      z: 5,
+      config: {
+        items: Array.from({ length: 25 }, (_, i) => ({
+          id: `i${i}`,
+          text: `Item ${i}`,
+          completed: false,
+        })),
+      },
+    });
     const { db } = fakeDb(s);
     const call = await connect(db);
     const out = await call('edit_board', {
       board_id: 'b1',
-      changes: [{ op: 'rename', name: 'Mine' }],
+      changes: [
+        {
+          op: 'update_widget',
+          widget_id: 'c1',
+          settings: { items: [{ id: 'i0', text: 'Only one' }] },
+        },
+      ],
     });
-    expect(out.error).toMatch(/Another teacher owns this board/);
+    expect(out.error).toMatch(/`items` holds more than get_board shows/);
+  });
+
+  it('bumps a legacy widget with no version above the version the app assumes', async () => {
+    const { db, docs } = fakeDb(seed());
+    const call = await connect(db);
+    const out = await call('edit_board', {
+      board_id: 'b1',
+      changes: [
+        { op: 'update_widget', widget_id: 'w3', settings: { content: 'Bye' } },
+      ],
+    });
+    expect(out.error).toBeUndefined();
+    expect(widgetsOf(docs)[2].version).toBe(2);
+  });
+
+  it('opens a new quiz in the library instead of the old live assignment', async () => {
+    const s = seed();
+    (s[BOARD].widgets as Data[]).push({
+      id: 'q',
+      type: 'quiz',
+      ...zone('grid-2x2', 'bottom-left'),
+      z: 5,
+      config: {
+        view: 'monitor',
+        selectedQuizId: 'old',
+        activeAssignmentId: 'a1',
+        activeLiveSessionCode: 'ABC',
+      },
+    });
+    const { db, docs } = fakeDb(s);
+    const call = await connect(db);
+    await call('edit_board', {
+      board_id: 'b1',
+      changes: [{ op: 'update_widget', widget_id: 'q', library_item_id: 'q1' }],
+    });
+    expect(widgetsOf(docs)[3].config).toMatchObject({
+      view: 'manager',
+      selectedQuizId: 'q1',
+      activeAssignmentId: null,
+      activeLiveSessionCode: null,
+    });
   });
 
   it('moves widgets onto a template and later adds default to its zones', async () => {
@@ -645,7 +782,7 @@ describe('board revisions', () => {
       ],
     });
     const revId = String(edit.previous_version_revision_id);
-    docs.set(BOARD, { ...docs.get(BOARD)!, linkedShareId: 'share-2' });
+    docs.set(BOARD, { ...docs.get(BOARD)!, isPinned: true });
     const rev = await db.doc(`users/u1/claude_revisions/${revId}`).get();
     const restored = await restoreBoard(
       ctxFor(db),
@@ -653,7 +790,7 @@ describe('board revisions', () => {
     );
     const board = docs.get(BOARD)!;
     expect(board.name).toBe('Period 2');
-    expect(board.linkedShareId).toBe('share-2');
+    expect(board.isPinned).toBe(true);
     const widgets = board.widgets as Data[];
     expect(widgets.map((w) => w.id)).toEqual(['w1', 'w2', 'w3']);
     expect(widgets[0].version).toBe(5);
@@ -670,6 +807,7 @@ describe('board revisions', () => {
       widgets: [{ id: 'd', type: 'drawing', config: { paths: [big] } }],
     });
     expect(inkLeftOut).toBe(true);
+    expect(data.claudeInkLeftOut).toBe(true);
     expect(data.id).toBeUndefined();
     expect((data.widgets as Data[])[0].config).toEqual({});
   });
