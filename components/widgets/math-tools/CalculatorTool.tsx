@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 type CalcOp = '+' | '−' | '×' | '÷' | null;
 
@@ -356,6 +357,11 @@ export const CalculatorTool: React.FC = () => {
         {rows.flat().map((btn, idx) => (
           <button
             key={idx}
+            {...tourFieldAttr(
+              'math-tool.calculator-key',
+              'mathTool',
+              btn.label
+            )}
             onClick={btn.action}
             className={`${btn.style} rounded-xl font-black transition-all active:scale-95 select-none flex items-center justify-center`}
             style={{

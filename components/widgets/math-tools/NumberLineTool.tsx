@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { NumberLineMode } from '@/types';
 
 interface NumberLineToolProps {
@@ -169,6 +170,7 @@ export const NumberLineTool: React.FC<NumberLineToolProps> = ({
             {modes.map((m) => (
               <button
                 key={m}
+                {...tourFieldAttr('math-tool.number-line-mode', 'mathTool', m)}
                 onClick={() => onModeChange(m)}
                 className={`px-2 py-0.5 rounded-full font-black uppercase tracking-wider transition-colors border ${
                   mode === m
@@ -192,6 +194,7 @@ export const NumberLineTool: React.FC<NumberLineToolProps> = ({
               <input
                 type="number"
                 value={min}
+                {...tourTypeAttr('math-tool.number-line-min', 'mathTool')}
                 onChange={(e) => onRangeChange(Number(e.target.value), max)}
                 className="px-1 py-0.5 bg-slate-100 border border-slate-200 rounded text-center"
                 style={{ width: 'min(56px, 15cqw)' }}
@@ -202,6 +205,7 @@ export const NumberLineTool: React.FC<NumberLineToolProps> = ({
               <input
                 type="number"
                 value={max}
+                {...tourTypeAttr('math-tool.number-line-max', 'mathTool')}
                 onChange={(e) => onRangeChange(min, Number(e.target.value))}
                 className="px-1 py-0.5 bg-slate-100 border border-slate-200 rounded text-center"
                 style={{ width: 'min(56px, 15cqw)' }}

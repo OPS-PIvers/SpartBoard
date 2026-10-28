@@ -18056,6 +18056,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.random.save-as-groups",
+    "label": "Save as class groups button in Random Picker settings",
+    "scope": "widget",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.random.settings",
+        "kind": "settings-drawer",
+        "widget_type": "random",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.random.send-stations",
     "label": "Send to Stations button in Random Picker settings",
     "scope": "widget",
@@ -58570,6 +58590,167 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "math-tool.rotate",
     "label": "Rotation grip on a Math Tool",
+    "scope": "widget type",
+    "keys": [
+      "mathTool"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.add-piece",
+    "label": "Add piece button on a Math Tool (algebra tiles, base-10 blocks, pattern blocks, place value), by tool and piece",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.clear",
+    "label": "Clear button on a Math Tool (coordinate plane, geoboard, place value)",
+    "scope": "widget type",
+    "destructive": true,
+    "keys": [
+      "mathTool"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.rotate-piece",
+    "label": "Rotate 30° button for the selected piece in Pattern Blocks",
+    "scope": "widget type",
+    "keys": [
+      "mathTool"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.remove-piece",
+    "label": "Remove button for the selected piece in Pattern Blocks",
+    "scope": "widget type",
+    "destructive": true,
+    "keys": [
+      "mathTool"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.calculator-key",
+    "label": "Calculator key, by label (digits, operators, AC, =)",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.denominator",
+    "label": "Denominator toggle in Fraction Tiles, by denominator",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.number-line-mode",
+    "label": "Number line mode button (integers, decimals, fractions), by mode",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.number-line-min",
+    "label": "Minimum value box on the Number Line tool",
+    "scope": "widget type",
+    "keys": [
+      "mathTool"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.number-line-max",
+    "label": "Maximum value box on the Number Line tool",
     "scope": "widget type",
     "keys": [
       "mathTool"
