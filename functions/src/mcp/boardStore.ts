@@ -22,6 +22,8 @@ type Doc = Record<string, unknown>;
 
 export const MAX_BOARDS_SCANNED = 500;
 export const MAX_WIDGETS_LISTED = 60;
+export const MAX_WIDGETS_CHECKED = 100;
+const MAX_CHECK_LINES = 30;
 /** A board edited in SpartBoard this recently may be on screen in class (D8). */
 export const IN_USE_WINDOW_MS = 5 * 60 * 1000;
 
@@ -153,7 +155,7 @@ const PII_KEYS = new Set([
 ]);
 // Student, class and session state; Claude never sees or writes it (D18).
 const STUDENT_KEY =
-  /student|roster|names$|assign|session|result|response|submission|attendance|classid|completed|remaining|picked|history|pin$|pins$|scores?$|votes?$/i;
+  /student|roster|names$|assign|session|result|response|submission|attendance|classid|completed|remaining|picked|history|pin$|pins$|scores?$|votes?$|seatingrule|subshare|plcsheet|email|periodname|teachername|joincode|sharecode|owneruid|authoruid|participant/i;
 const MAX_STRING = 300;
 const MAX_ITEMS = 20;
 const MAX_DEPTH = 4;
@@ -300,7 +302,9 @@ export interface BoardPicture {
 export function describeBoard(board: Doc, screen: ScreenShape): BoardPicture {
   const raw = boardWidgets(board);
   const layout = raw.map(layoutWidget);
-  const labels = new Map(layout.map((w, i) => [w.id, widgetLabel(raw[i])]));
+  const labels = new Map<string, string>();
+  for (const [i, w] of layout.entries())
+    if (!labels.has(w.id)) labels.set(w.id, widgetLabel(raw[i]));
   const widgets = raw.slice(0, MAX_WIDGETS_LISTED).map((widget, i) => {
     const type = str(widget.type);
     const config = isObject(widget.config) ? widget.config : {};
@@ -327,7 +331,11 @@ export function describeBoard(board: Doc, screen: ScreenShape): BoardPicture {
     };
   });
 
-  const { gaps, overlaps, chromeCollisions } = analyze(layout, screen);
+  // The gap search grows steeply with widget count, so a runaway board is checked in part.
+  const { gaps, overlaps, chromeCollisions } = analyze(
+    layout.slice(0, MAX_WIDGETS_CHECKED),
+    screen
+  );
   const name = (id: string) => labels.get(id) ?? id;
   const check: string[] = [];
   for (const o of overlaps) check.push(`${name(o.a)} overlaps ${name(o.b)}.`);
@@ -346,6 +354,14 @@ export function describeBoard(board: Doc, screen: ScreenShape): BoardPicture {
   for (const g of gaps)
     check.push(
       `Empty space of about ${Math.round(g.share * 100)}% of the board at x ${Math.round(g.x)}, y ${Math.round(g.y)} (${Math.round(g.w)}×${Math.round(g.h)}).`
+    );
+  if (check.length > MAX_CHECK_LINES) {
+    const more = check.length - MAX_CHECK_LINES;
+    check.splice(MAX_CHECK_LINES, more, `…and ${more} more layout problems.`);
+  }
+  if (layout.length > MAX_WIDGETS_CHECKED)
+    check.push(
+      `Only the first ${MAX_WIDGETS_CHECKED} of ${layout.length} widgets were checked; the board has far more than the 20 it should.`
     );
   if (check.length === 0)
     check.push(

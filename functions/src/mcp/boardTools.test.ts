@@ -147,7 +147,33 @@ function seed(): Record<string, Data> {
           id: 'w3',
           type: 'quiz',
           ...z1,
-          config: { selectedQuizId: 'quiz-9', activeAssignmentId: 'a1' },
+          config: {
+            selectedQuizId: 'quiz-9',
+            activeAssignmentId: 'a1',
+            plcSheetUrl: 'https://docs.google.com/spreadsheets/d/results',
+            plcMemberEmails: ['colleague@example.org'],
+            periodName: 'Hour 3',
+          },
+        },
+        {
+          id: 'w4',
+          type: 'seating-chart',
+          minimized: true,
+          config: {
+            seatingRules: { keepApart: [{ a: 'Ada', b: 'Grace' }] },
+          },
+        },
+        {
+          id: 'w5',
+          type: 'nextUp',
+          minimized: true,
+          config: { subShareQueue: [{ id: 'q', name: 'Grace Hopper' }] },
+        },
+        {
+          id: 'w6',
+          type: 'poll',
+          minimized: true,
+          config: { joinCode: 'ZX9Q' },
         },
       ],
     },
@@ -181,7 +207,7 @@ describe('list_boards', () => {
     const p2 = res.boards[1];
     expect(p2).toMatchObject({
       board_id: 'b1',
-      widget_count: 3,
+      widget_count: 6,
       collection: 'Science / Unit 3',
       in_use: false,
     });
@@ -258,7 +284,15 @@ describe('get_board', () => {
   it('never returns student names, even from a stale board doc', async () => {
     const call = await connect(fakeDb(seed()).db);
     const text = JSON.stringify(await call('get_board', { board_id: 'b1' }));
-    for (const name of ['Ada', 'Grace']) expect(text).not.toContain(name);
+    for (const leak of [
+      'Ada',
+      'Grace',
+      'spreadsheets',
+      'colleague@',
+      'Hour 3',
+      'ZX9Q',
+    ])
+      expect(text).not.toContain(leak);
   });
 
   it("uses the teacher's recorded screen, and a requested one over it", async () => {
@@ -299,6 +333,34 @@ describe('get_board', () => {
     archive.granted = false;
     const call = await connect(fakeDb(seed()).db);
     expect(await call('get_board', { board_id: 'b1' })).toHaveProperty('error');
+  });
+});
+
+describe('get_board on a runaway board', () => {
+  it('stays bounded with hundreds of stacked widgets', async () => {
+    const widgets = Array.from({ length: 400 }, (_, i) => ({
+      id: `w${i}`,
+      type: 'clock',
+      x: 100 + (i % 37) * 13,
+      y: 120 + (i % 29) * 17,
+      w: 300,
+      h: 200,
+      config: {},
+    }));
+    const call = await connect(
+      fakeDb({ 'users/u1/dashboards/big': { name: 'Big', widgets } }).db
+    );
+    const started = Date.now();
+    const res = (await call('get_board', { board_id: 'big' })) as {
+      widgets: Data[];
+      layout_check: string[];
+      widgets_not_listed: number;
+    };
+    expect(Date.now() - started).toBeLessThan(5000);
+    expect(res.widgets).toHaveLength(60);
+    expect(res.widgets_not_listed).toBe(340);
+    expect(res.layout_check.length).toBeLessThanOrEqual(32);
+    expect(res.layout_check.at(-1)).toContain('first 100 of 400');
   });
 });
 

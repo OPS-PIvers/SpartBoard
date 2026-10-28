@@ -86,6 +86,9 @@ const str = (value: unknown): string =>
 const num = (value: unknown): number =>
   typeof value === 'number' && Number.isFinite(value) ? value : 0;
 
+const lastChanged = (data: Record<string, unknown>): number =>
+  num(data.updatedAt) || num(data.createdAt);
+
 const BOARD_LIST_FIELDS = [
   'name',
   'updatedAt',
@@ -309,17 +312,25 @@ export function registerBoardTools(server: McpServer, ctx: ToolContext): void {
     ({ search, collection_id, cursor }) =>
       run('list_boards', ctx, async () => {
         await assertBoardAccess(ctx);
-        const [snap, collections] = await Promise.all([
+        // Newest changed plus newest created, so boards saved before updatedAt existed still list.
+        const newest = (field: string) =>
           db
             .collection(boardsPath(uid))
+            .orderBy(field, 'desc')
             .select(...BOARD_LIST_FIELDS)
             .limit(MAX_BOARDS_SCANNED)
-            .get(),
+            .get();
+        const [byUpdated, byCreated, collections] = await Promise.all([
+          newest('updatedAt'),
+          newest('createdAt'),
           loadCollections(db, uid),
         ]);
+        const byId = new Map<string, Record<string, unknown>>();
+        for (const d of [...byUpdated.docs, ...byCreated.docs])
+          if (!byId.has(d.id)) byId.set(d.id, d.data());
         const needle = (search ?? '').trim().toLowerCase();
-        const rows = snap.docs
-          .map((d) => ({ id: d.id, data: d.data() }))
+        const rows = [...byId]
+          .map(([id, data]) => ({ id, data }))
           .filter(({ data }) => {
             if (needle && !boardName(data).toLowerCase().includes(needle))
               return false;
@@ -331,8 +342,7 @@ export function registerBoardTools(server: McpServer, ctx: ToolContext): void {
           })
           .sort(
             (a, b) =>
-              num(b.data.updatedAt ?? b.data.createdAt) -
-                num(a.data.updatedAt ?? a.data.createdAt) ||
+              lastChanged(b.data) - lastChanged(a.data) ||
               a.id.localeCompare(b.id)
           );
         const offset = decodeOffset(cursor);
