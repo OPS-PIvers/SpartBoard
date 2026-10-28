@@ -10498,6 +10498,8 @@ export type GlobalFeature =
   | 'quiz-import-versions-plain'
   /** Live tours on other websites, played by the Chrome extension (docs/plans/CHROME_EXTENSION.md T12). */
   | 'web-tours'
+  /** Claude builds and edits boards through the connector, and Magic Board uses the shared layout engine (docs/plans/AI_BOARDS.md). */
+  | 'ai-boards'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */

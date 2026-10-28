@@ -733,6 +733,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // docs/plans/AI_BOARDS.md D26: connector board tools and the new Magic Board engine.
+  'ai-boards': {
+    label: 'AI boards',
+    icon: LayoutDashboard,
+    description:
+      'Claude builds and edits boards from templates, and Magic Board uses the same layouts.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    category: 'ai',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Move up and Move down in each library folder's menu.
   'library-folder-reorder': {
     label: 'Reorder library folders',
