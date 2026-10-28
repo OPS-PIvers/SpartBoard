@@ -51,7 +51,7 @@ const DEFAULT_SCREEN: WireframeScreen = { w: 1920, h: 1080 };
 const MARGIN = 16;
 const HEADER_H = 40;
 const FOOTER_H = 36;
-const MAX_ASPECT = 2;
+const MAX_ASPECT = 2.5;
 const LABEL_PAD = 6;
 const OUTSIDE_LABEL_WIDTH = 180;
 
@@ -133,7 +133,7 @@ const PUNCTUATION: Record<string, string> = {
 };
 
 const MAX_TEXT = 300;
-const ZERO_WIDTH = /[\u200b-\u200d\u2060\ufeff]/g;
+const ZERO_WIDTH = /[\u200b-\u200d\u2060\ufeff]|\p{Variation_Selector}/gu;
 
 const normalizeText = (text: unknown, font: Font): string => {
   const plain = (typeof text === 'string' ? text : '')
@@ -182,7 +182,8 @@ export const fitText = (
     width += advance;
     out += ch;
   }
-  return out.trimEnd() + '…';
+  const kept = out.trimEnd();
+  return kept ? kept + '…' : '';
 };
 
 const finite = (n: unknown): n is number =>
@@ -531,7 +532,7 @@ export const renderBoardWireframe = (input: WireframeInput): WireframeImage => {
   const items = rectInput.items;
   for (let i = 0; i < items.length; i++) {
     const a = screenBox(items[i]);
-    if (a.x0 < 0 || a.y0 < 0 || a.x1 > screen.w || a.y1 > screen.h) {
+    if (a.x0 < 0 || a.y0 < 0 || a.x1 > shown.w || a.y1 > shown.h) {
       offBoardCount++;
     }
     for (let j = i + 1; j < items.length; j++) {

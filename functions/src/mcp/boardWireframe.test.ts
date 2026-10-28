@@ -180,7 +180,7 @@ describe('renderBoardWireframe', () => {
       screen: { w: 400, h: 100000 },
       rects: [],
     });
-    expect(img.height).toBeLessThanOrEqual(40 + 1168 * 2 + 36);
+    expect(img.height).toBeLessThanOrEqual(40 + 1168 * 2.5 + 36);
   });
 });
 
@@ -313,5 +313,26 @@ describe('renderBoardWireframe with hostile input', () => {
 describe('fitText with non-Latin text', () => {
   it('replaces each unsupported character once and drops zero-width ones', () => {
     expect(fitText('한국어​!', 500)).toBe('???!');
+  });
+});
+
+describe('fitText edge cases', () => {
+  it('counts an emoji with a variation selector as one character', () => {
+    expect(fitText('✏️ Math', 500)).toBe('? Math');
+  });
+
+  it('never returns a bare ellipsis', () => {
+    expect(fitText('Calendar', 15)).toBe('');
+  });
+});
+
+describe('renderBoardWireframe screen edges', () => {
+  it('judges off-board widgets against the real screen on a tall phone', () => {
+    const img = renderBoardWireframe({
+      name: 'Phone',
+      screen: { w: 390, h: 844 },
+      rects: [{ label: 'Low', x: 10, y: 790, w: 100, h: 50 }],
+    });
+    expect(img.offBoardCount).toBe(0);
   });
 });
