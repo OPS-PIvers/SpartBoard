@@ -21,6 +21,7 @@ import {
   AddWidgetOverrides,
   TourWidgetLayout,
   GridPosition,
+  WidgetPlacement,
   FeaturePermission,
   DrawableObject,
   DrawingConfig,
@@ -88,6 +89,7 @@ import {
   pixelToProp,
   computeWidgetPixelRect,
   getSafeViewport,
+  type ProportionalRect,
   type StretchBehavior,
 } from '@/utils/proportionalLayout';
 import {
@@ -176,7 +178,11 @@ import {
   type DashboardActions,
 } from './dashboardCanvasStore';
 import { ToolVisibilityContext } from './ToolVisibilityContextValue';
-import { validateGridConfig, sanitizeAIConfig } from '@/utils/ai_security';
+import {
+  validateGridConfig,
+  validatePlacement,
+  sanitizeAIConfig,
+} from '@/utils/ai_security';
 import { getAdminBuildingConfig as getAdminBuildingConfigPure } from '@/utils/adminBuildingConfig';
 import { seedMaterialsConfig } from '@/utils/materialsPreferences';
 import { isBetaUser } from '@/utils/betaAccess';
@@ -6705,6 +6711,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         type: WidgetType;
         config?: WidgetConfig;
         gridConfig?: GridPosition;
+        placement?: WidgetPlacement;
       }[]
     ) => {
       if (!activeId) return;
@@ -6785,14 +6792,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             const stretch =
               WIDGET_STRETCH_BEHAVIOR[item.type] ?? 'preserve-aspect';
 
-            const buildWidget = (pixels: {
-              x: number;
-              y: number;
-              w: number;
-              h: number;
-            }): WidgetData => {
-              const prop = pixelToProp(pixels, BOARD_W, BOARD_H);
-              const aspectRatio = pixels.w / Math.max(1, pixels.h);
+            const buildFromProp = (
+              prop: ProportionalRect,
+              aspectRatio: number
+            ): WidgetData => {
               const { vpW: curW, vpH: curH } = getCurrentViewport();
               const hydrated = computeWidgetPixelRect(
                 prop,
@@ -6819,6 +6822,31 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 config: baseConfig,
               };
             };
+
+            const buildWidget = (pixels: {
+              x: number;
+              y: number;
+              w: number;
+              h: number;
+            }): WidgetData =>
+              buildFromProp(
+                pixelToProp(pixels, BOARD_W, BOARD_H),
+                pixels.w / Math.max(1, pixels.h)
+              );
+
+            // 0. TEMPLATE LAYOUT: a board-template zone from the shared layout engine
+            const validatedPlacement = validatePlacement(item.placement);
+            if (validatedPlacement) {
+              const { aspectRatio, ...prop } = validatedPlacement;
+              const { vpW, vpH } = getCurrentViewport();
+              const { safeW, safeH } = getSafeViewport(vpW, vpH);
+              const zoneWidget = buildFromProp(
+                prop,
+                aspectRatio ?? (prop.wProp * safeW) / (prop.hProp * safeH)
+              );
+              added.push(zoneWidget);
+              return zoneWidget;
+            }
 
             // 1. SMART LAYOUT: If AI provided spatial data
             if (validatedGrid) {
