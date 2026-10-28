@@ -54,6 +54,7 @@ import { useLastVideoAssignPacing } from '@/hooks/useLastVideoAssignPacing';
 import { useLastVideoAssignSettings } from '@/hooks/useLastVideoAssignSettings';
 import {
   videoRulesFromBehavior,
+  videoRulesFromLastUsed,
   type VideoAssignRules,
 } from '@/components/common/library/assignStepper/VideoRuleStepValues';
 import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
@@ -1566,7 +1567,8 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         />
       )}
 
-      {assignTarget && !isViewOnly && (
+      {/* Waits for last-used rules so an early Assign can't overwrite them with the activity's. */}
+      {assignTarget && !isViewOnly && (!rulesOnAssign || lastRules.loaded) && (
         <VideoAssignStepper
           key={`${assignTarget.id}:${activePending?.key ?? ''}`}
           onClose={closeAssign}
@@ -1585,11 +1587,15 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           error={assignError}
           initialRules={
             rulesOnAssign
-              ? (lastRules.lastUsed ??
-                videoRulesFromBehavior(
-                  getVideoActivityBehavior(assignTarget),
-                  boardPlayerSettings
-                ))
+              ? lastRules.lastUsed
+                ? videoRulesFromLastUsed(
+                    getVideoActivityBehavior(assignTarget),
+                    lastRules.lastUsed
+                  )
+                : videoRulesFromBehavior(
+                    getVideoActivityBehavior(assignTarget),
+                    boardPlayerSettings
+                  )
               : undefined
           }
           onSubmit={handleStepperSubmit}

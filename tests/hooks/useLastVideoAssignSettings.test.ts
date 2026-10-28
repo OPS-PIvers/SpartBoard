@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { parseLastVideoAssignSettings } from '@/hooks/useLastVideoAssignSettings';
+import {
+  videoRulesFromLastUsed,
+  withoutAssignTimeOptions,
+} from '@/components/common/library/assignStepper/VideoRuleStepValues';
 
 const valid = {
   behavior: {
@@ -9,7 +13,6 @@ const valid = {
       tabWarningsEnabled: false,
       tabWarningThreshold: 'off',
       showResultToStudent: false,
-      scoreVisibility: 'score-only',
     },
   },
   player: { autoPlay: true, requireCorrectAnswer: false, allowSkipping: true },
@@ -47,7 +50,7 @@ describe('parseLastVideoAssignSettings', () => {
     ).toBeNull();
   });
 
-  it('drops ill-typed options and forces self-paced', () => {
+  it('keeps only the rows the steps edit, well typed and in range', () => {
     const parsed = parseLastVideoAssignSettings({
       ...valid,
       behavior: {
@@ -55,9 +58,13 @@ describe('parseLastVideoAssignSettings', () => {
         sessionMode: 'teacher',
         sessionOptions: {
           showResultToStudent: 'yes',
-          scoreVisibility: 'everything',
-          tabWarningThreshold: 'sometimes',
-          rewindOnIncorrectSeconds: Number.NaN,
+          scoreVisibility: 'none',
+          dueAt: 123,
+          answerRulesSet: true,
+          rewindOnIncorrectSeconds: 5,
+          tabWarningThreshold: 0,
+          tabAwayLimitSeconds: 60,
+          tabAwayAutoSubmit: true,
           shuffleAnswerOptions: false,
         },
       },
@@ -65,7 +72,11 @@ describe('parseLastVideoAssignSettings', () => {
     expect(parsed?.behavior).toEqual({
       sessionMode: 'student',
       attemptLimit: 2,
-      sessionOptions: { shuffleAnswerOptions: false },
+      sessionOptions: {
+        shuffleAnswerOptions: false,
+        tabAwayAutoSubmit: true,
+        tabAwayLimitSeconds: 60,
+      },
     });
   });
 
@@ -79,5 +90,48 @@ describe('parseLastVideoAssignSettings', () => {
       requireCorrectAnswer: true,
       allowSkipping: false,
     });
+  });
+});
+
+describe('videoRulesFromLastUsed', () => {
+  it('lays the remembered rows over this activity and keeps its hidden fields', () => {
+    const last = parseLastVideoAssignSettings(valid);
+    if (!last) throw new Error('parse failed');
+    const rules = videoRulesFromLastUsed(
+      {
+        sessionMode: 'teacher',
+        attemptLimit: 1,
+        sessionOptions: {
+          scoreVisibility: 'none',
+          showResultToStudent: true,
+          shuffleAnswerOptions: false,
+        },
+      },
+      last
+    );
+    expect(rules.behavior.attemptLimit).toBe(2);
+    expect(rules.behavior.sessionOptions).toEqual({
+      scoreVisibility: 'none',
+      shuffleAnswerOptions: true,
+      showResultToStudent: false,
+      showCorrectAnswerToStudent: true,
+      tabWarningsEnabled: false,
+      tabWarningThreshold: 'off',
+    });
+    expect(rules.player).toEqual(valid.player);
+  });
+});
+
+describe('withoutAssignTimeOptions', () => {
+  it('drops due date, stamp and attempt keys a saved behavior may carry', () => {
+    expect(
+      withoutAssignTimeOptions({
+        tabWarningsEnabled: true,
+        dueAt: 5,
+        dueAtHasTime: true,
+        answerRulesSet: true,
+        attemptLimit: 4,
+      } as never)
+    ).toEqual({ tabWarningsEnabled: true });
   });
 });

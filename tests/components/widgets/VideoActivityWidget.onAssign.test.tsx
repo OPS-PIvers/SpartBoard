@@ -23,6 +23,8 @@ import {
   within,
 } from '@testing-library/react';
 import { httpsCallable } from 'firebase/functions';
+import { getDoc } from 'firebase/firestore';
+import { resetLastVideoAssignSettingsCache } from '@/hooks/useLastVideoAssignSettings';
 
 import { VideoActivityWidget } from '@/components/widgets/VideoActivityWidget/Widget';
 import type {
@@ -544,6 +546,44 @@ describe('VideoActivityWidget onAssign — rules on the assignment (va-quiz-alig
         )
       ).toBe(true)
     );
+  });
+
+  it('flag on: prefills from the last-used rules once they load', async () => {
+    flags.add('va-quiz-alignment');
+    resetLastVideoAssignSettingsCache();
+    vi.mocked(getDoc).mockResolvedValueOnce({
+      exists: () => true,
+      get: (field: string) =>
+        field === 'lastVideoAssignSettings'
+          ? {
+              behavior: {
+                attemptLimit: 3,
+                sessionOptions: { tabWarningsEnabled: false },
+              },
+              player: {
+                autoPlay: false,
+                requireCorrectAnswer: false,
+                allowSkipping: true,
+              },
+            }
+          : undefined,
+    } as never);
+    const dialog = await openAssignModal();
+    confirmAssign(dialog);
+
+    await waitFor(() => expect(createSession).toHaveBeenCalledOnce());
+    const { settings, options } = sessionArgs();
+    expect(options).toMatchObject({
+      attemptLimit: 3,
+      tabWarningsEnabled: false,
+      answerRulesSet: true,
+    });
+    expect(settings).toEqual({
+      autoPlay: false,
+      requireCorrectAnswer: false,
+      allowSkipping: true,
+    });
+    resetLastVideoAssignSettingsCache();
   });
 
   it('flag on: rewind is written off when right and wrong is hidden', async () => {

@@ -100,7 +100,10 @@ import { VideoActivityLiveMonitor } from './components/VideoActivityLiveMonitor'
 import { VideoActivityLivePlayer } from './components/VideoActivityLivePlayer';
 import { VideoActivityEditorModal } from './components/VideoActivityEditorModal';
 import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
-import { videoRewindAllowed } from '@/components/common/library/assignStepper/VideoRuleStepValues';
+import {
+  videoRewindAllowed,
+  withoutAssignTimeOptions,
+} from '@/components/common/library/assignStepper/VideoRuleStepValues';
 import { getPlcMemberEmail } from '@/utils/plc';
 import { AlertTriangle, Loader2, LogIn } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -727,7 +730,9 @@ const TeacherVideoActivityWidget: React.FC<{
           const rules = isLive ? null : (extras?.rules ?? null);
           const behavior = rules?.behavior ?? getVideoActivityBehavior(meta);
           const sessionOptions: VideoActivitySessionOptions = {
-            ...behavior.sessionOptions,
+            ...(rules
+              ? withoutAssignTimeOptions(behavior.sessionOptions)
+              : behavior.sessionOptions),
             attemptLimit: behavior.attemptLimit,
             ...(rules ? { answerRulesSet: true } : {}),
             ...(dueAt != null ? { dueAt, dueAtHasTime: true } : {}),

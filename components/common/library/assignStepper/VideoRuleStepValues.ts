@@ -1,6 +1,7 @@
 // Values and collapsed summaries for the Video Activity rule steps (va-quiz-alignment V4, V5).
 import type {
   VideoActivityBehaviorSettings,
+  VideoActivitySessionOptions,
   VideoActivitySessionSettings,
 } from '@/types';
 
@@ -131,4 +132,37 @@ export function videoRulesFromBehavior(
     },
     player: { ...player },
   };
+}
+
+/** Stepper value from the teacher's last-used rows on top of this activity's behavior, so hidden fields never travel between activities. */
+export function videoRulesFromLastUsed(
+  behavior: VideoActivityBehaviorSettings,
+  lastUsed: VideoAssignRules
+): VideoAssignRules {
+  return {
+    behavior: {
+      ...behavior,
+      attemptLimit: lastUsed.behavior.attemptLimit,
+      sessionOptions: {
+        ...behavior.sessionOptions,
+        ...VIDEO_ANSWER_ROW_DEFAULTS,
+        ...lastUsed.behavior.sessionOptions,
+      },
+    },
+    player: { ...lastUsed.player },
+  };
+}
+
+/** Drops keys set at assign time that an old saved behavior may still carry. */
+export function withoutAssignTimeOptions(
+  options: VideoBehaviorOptions
+): VideoBehaviorOptions {
+  const {
+    dueAt: _dueAt,
+    dueAtHasTime: _dueAtHasTime,
+    answerRulesSet: _answerRulesSet,
+    attemptLimit: _attemptLimit,
+    ...rest
+  } = options as VideoActivitySessionOptions;
+  return rest;
 }
