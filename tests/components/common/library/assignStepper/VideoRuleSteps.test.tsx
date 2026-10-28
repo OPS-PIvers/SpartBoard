@@ -35,9 +35,15 @@ const withFlags = (flags: string[], ui: React.ReactElement) => (
 );
 
 describe('VideoAttemptsStep', () => {
-  it('sets attempts and hides shuffle until the player honors it', () => {
+  it('sets attempts and hides shuffle without answerRows', () => {
     const onChange = changeSpy();
-    render(<VideoAttemptsStep value={make()} onChange={onChange} />);
+    render(
+      <VideoAttemptsStep
+        value={make()}
+        onChange={onChange}
+        answerRows={false}
+      />
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Unlimited' }));
     expect(last(onChange)?.behavior.attemptLimit).toBeNull();
     expect(
@@ -117,9 +123,9 @@ describe('VideoIntegrityStep', () => {
 });
 
 describe('VideoFeedbackStep', () => {
-  it('renders nothing until the player honors it', () => {
+  it('renders nothing without answerRows', () => {
     const { container } = render(
-      <VideoFeedbackStep value={make()} onChange={vi.fn()} />
+      <VideoFeedbackStep value={make()} onChange={vi.fn()} answerRows={false} />
     );
     expect(container).toBeEmptyDOMElement();
   });
@@ -146,18 +152,18 @@ describe('VideoFeedbackStep', () => {
 
 describe('videoRuleStepDefs', () => {
   it('matches the getAssignSteps order and titles', () => {
-    const defs = videoRuleStepDefs({ value: make(), onChange: vi.fn() });
+    const defs = videoRuleStepDefs({
+      value: make(),
+      onChange: vi.fn(),
+      answerRows: false,
+    });
     expect(defs.map((d) => [d.id, d.title, d.value])).toEqual([
       ['attempts', 'Attempts and order', '1 attempt'],
       ['video', 'Video', 'Rewind on wrong answer'],
       ['integrity', 'Integrity', 'Focus mode'],
     ]);
     expect(
-      videoRuleStepDefs({
-        value: make(),
-        onChange: vi.fn(),
-        answerRows: true,
-      }).at(-1)?.id
+      videoRuleStepDefs({ value: make(), onChange: vi.fn() }).at(-1)?.id
     ).toBe('feedback');
   });
 });

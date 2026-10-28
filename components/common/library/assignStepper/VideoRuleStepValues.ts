@@ -4,8 +4,8 @@ import type {
   VideoActivitySessionSettings,
 } from '@/types';
 
-/** Slice 5 flips this once the player honors shuffle, right and wrong, and reveal answer. */
-export const VIDEO_ANSWER_ROWS_READY = false;
+/** The player honors shuffle, right and wrong, and reveal answer on sessions stamped `answerRulesSet`. */
+export const VIDEO_ANSWER_ROWS_READY = true;
 
 export type VideoBehaviorOptions =
   VideoActivityBehaviorSettings['sessionOptions'];
@@ -24,7 +24,7 @@ export const DEFAULT_VIDEO_PLAYER_SETTINGS: Readonly<VideoActivitySessionSetting
     allowSkipping: false,
   });
 
-/** Today's player behavior for the rows the player ignores until slice 5, so a prefill never changes it. */
+/** Prefill for the answer rows: Quiz's defaults (a shuffle per student, right and wrong, reveal). */
 export const VIDEO_ANSWER_ROW_DEFAULTS: Readonly<
   Pick<
     VideoBehaviorOptions,

@@ -7525,6 +7525,8 @@ export interface VideoActivitySessionOptions extends BaseSessionOptions {
   dueAt?: number | null;
   /** Whether `dueAt` encodes a chosen time-of-day vs a legacy date-only epoch. */
   dueAtHasTime?: boolean;
+  /** Stamped by va-quiz-alignment assigns; only then does the player honor shuffle, right/wrong and reveal answer. */
+  answerRulesSet?: boolean;
 }
 
 /** VA counterpart of QuizBehaviorSettings. */
@@ -7532,7 +7534,7 @@ export interface VideoActivityBehaviorSettings {
   sessionMode: Exclude<QuizSessionMode, 'game'>;
   sessionOptions: Omit<
     VideoActivitySessionOptions,
-    'attemptLimit' | 'dueAt' | 'dueAtHasTime'
+    'attemptLimit' | 'dueAt' | 'dueAtHasTime' | 'answerRulesSet'
   >;
   attemptLimit: number | null;
 }
