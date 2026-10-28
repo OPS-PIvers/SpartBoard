@@ -72,8 +72,16 @@ vi.mock('./glLiveTour', () => ({
 vi.mock('./meetingTools', () => ({ registerMeetingTools: vi.fn() }));
 vi.mock('./standardsTools', () => ({ registerStandardsTools: vi.fn() }));
 vi.mock('./boardTools', () => ({
-  BOARD_TOOLS: new Set(['list_boards', 'get_board', 'get_board_guide']),
+  BOARD_TOOLS: new Set([
+    'list_boards',
+    'get_board',
+    'get_board_guide',
+    'create_board',
+    'edit_board',
+  ]),
   boardsOn: mocks.boardsOn,
+  assertBoardAccess: vi.fn(),
+  editResultOf: vi.fn(),
   registerBoardTools: vi.fn(),
 }));
 
@@ -1102,7 +1110,9 @@ describe('hiddenToolsFor', () => {
     mocks.boardsOn.mockResolvedValue(false);
     const hidden = await hiddenToolsFor(ctxFor(fakeDb().db));
     expect([...hidden].sort()).toEqual([
+      'create_board',
       'create_live_tour',
+      'edit_board',
       'get_board',
       'get_board_guide',
       'get_live_tour',

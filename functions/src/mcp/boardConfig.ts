@@ -191,7 +191,7 @@ export type BuiltWidgetConfig =
   { ok: true; config: Doc } | { ok: false; errors: string[] };
 
 /** Fields that only make sense together, kept consistent the way the app's own panels keep them. */
-function reconcile(type: string, claude: Doc, config: Doc): Doc {
+export function reconcile(type: string, claude: Doc, config: Doc): Doc {
   if (type !== 'time-tool') return config;
   const touchesTimer = 'duration' in claude || 'mode' in claude;
   if (!touchesTimer || 'elapsedTime' in claude) return config;

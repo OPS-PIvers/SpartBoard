@@ -64,7 +64,15 @@ import {
 import { isAdmin } from './glTools';
 import { registerMeetingTools } from './meetingTools';
 import { registerStandardsTools } from './standardsTools';
-import { BOARD_TOOLS, boardsOn, registerBoardTools } from './boardTools';
+import {
+  BOARD_TOOLS,
+  assertBoardAccess,
+  boardsOn,
+  editResultOf,
+  registerBoardTools,
+} from './boardTools';
+import { restoreBoard } from './boardWrite';
+import { resolveBoardScreen } from './boardStore';
 
 export const SERVER_INSTRUCTIONS = [
   "SpartBoard is a classroom dashboard. These tools read and write the signed-in teacher's own library.",
@@ -666,6 +674,11 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           return restoreWebTourRevision(ctx, rev);
         if (itemType === 'guided_learning')
           return restoreGuidedLearningRevision(ctx, rev);
+        if (itemType === 'board') {
+          await assertBoardAccess(ctx);
+          const edit = await restoreBoard(ctx, rev);
+          return editResultOf(edit, await resolveBoardScreen(ctx)).result;
+        }
         if (itemType !== 'flashcard_set') {
           throw new ToolError('That revision cannot be restored.');
         }
