@@ -232,9 +232,12 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       x: widget.x + widget.w + 20,
       y: widget.y,
     });
-    updateWidget(widget.id, {
-      config: { syncWithTimeTool: true, linkedTimerId: timerId },
-    });
+    // Rides the add's undo entry, so one undo removes the Timer.
+    updateWidget(
+      widget.id,
+      { config: { syncWithTimeTool: true, linkedTimerId: timerId } },
+      { skipHistory: true }
+    );
   };
 
   const togglePlay = () => {

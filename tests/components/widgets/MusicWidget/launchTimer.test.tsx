@@ -81,9 +81,11 @@ describe('Music launch timer button', () => {
     const [type, overrides] = addWidget.mock.calls[0];
     expect(type).toBe('time-tool');
     expect(overrides).toMatchObject({ x: 330, y: 20 });
-    expect(updateWidget).toHaveBeenCalledWith('m1', {
-      config: { syncWithTimeTool: true, linkedTimerId: overrides.id },
-    });
+    expect(updateWidget).toHaveBeenCalledWith(
+      'm1',
+      { config: { syncWithTimeTool: true, linkedTimerId: overrides.id } },
+      { skipHistory: true }
+    );
   });
 
   it('is hidden while the flag is off', () => {
