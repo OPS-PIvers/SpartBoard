@@ -1370,6 +1370,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
+  }, // Teachers still turn spell check off for themselves in Behavior; the flag only hides that switch.
+  'spell-check-setting': {
+    label: 'Spell check switch',
+    icon: SpellCheck,
+    description:
+      'Teachers can turn off browser spell check in their own text boxes.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
   },
 };
 
