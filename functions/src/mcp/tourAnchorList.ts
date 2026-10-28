@@ -1224,7 +1224,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "board.claude-editing-show",
     "label": "Show button on the \"Claude is editing\" notice",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board",
+        "kind": "board",
+        "path": []
+      }
+    ]
   },
   {
     "id": "board-actions.zoom",
@@ -52856,7 +52863,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "boards-modal.claude-badge",
     "label": "Made with Claude or Edited by Claude note on a board card",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.boards-modal",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards"
+        ]
+      }
+    ]
   },
   {
     "id": "boards-modal.board-delete",
