@@ -8120,6 +8120,8 @@ export interface MySong {
 export interface MusicConfig {
   stationId: string;
   syncWithTimeTool?: boolean;
+  /** Timer widget on this board that sync follows; the board's first Timer when absent or removed. */
+  linkedTimerId?: string;
   bgColor?: string;
   textColor?: string;
   /** Widget display layout */
@@ -10660,7 +10662,9 @@ export type GlobalFeature =
   /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
   | 'spell-check-setting'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
-  | 'music-my-songs';
+  | 'music-my-songs'
+  /** Timer button on the Music widget that opens a Timer linked to it. */
+  | 'music-timer-link';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

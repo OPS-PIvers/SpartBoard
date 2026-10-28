@@ -2584,6 +2584,9 @@
       "emptyStateFreeform": "Add furniture from the sidebar.",
       "emptyStateTemplate": "Pick a template and click Apply Layout."
     },
+    "music": {
+      "launchTimer": "Add a linked timer"
+    },
     "schedule": {
       "startTimer": "Start Timer",
       "startTimerUntil": "Start countdown timer until {{time}}"

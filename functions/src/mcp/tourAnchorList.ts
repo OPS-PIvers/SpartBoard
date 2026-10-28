@@ -58332,6 +58332,23 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "music.launch-timer",
+    "label": "Button on the Music widget that opens a linked Timer",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.music.face",
+        "kind": "widget",
+        "widget_type": "music",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "music.spotify-shuffle",
     "label": "Shuffle button in the Music Spotify player",
     "scope": "widget type",

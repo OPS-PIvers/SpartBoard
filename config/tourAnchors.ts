@@ -13048,6 +13048,11 @@ export const TOUR_ANCHORS = {
     label: 'Play or pause button on the Music widget',
     perWidget: true,
   },
+  'music.launch-timer': {
+    label: 'Button on the Music widget that opens a linked Timer',
+    perWidget: true,
+    persists: true,
+  },
   'music.spotify-shuffle': {
     label: 'Shuffle button in the Music Spotify player',
     perWidgetType: true,

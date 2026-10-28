@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, Music, Pause, Play, Radio } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
+import { Link, Music, Pause, Play, Radio, Timer } from 'lucide-react';
 import { WidgetData, MusicConfig, MusicSource, TimeToolConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useMusicStations } from '@/hooks/useMusicStations';
@@ -16,6 +17,7 @@ import { PersonalSpotifyPlayer } from './PersonalSpotifyPlayer';
 import { useAuth } from '@/context/useAuth';
 import { tourAttr } from '@/config/tourAnchors';
 import { resolveActiveStation } from './mySongs';
+import { resolveSyncedTimer } from './linkedTimer';
 
 // ---------------------------------------------------------------------------
 // Shared play/pause overlay button
@@ -79,6 +81,34 @@ const PlayButton: React.FC<PlayButtonProps> = ({
   );
 };
 
+// Opens a Timer beside this Music widget and links the two.
+const LaunchTimerButton: React.FC<{
+  widget: WidgetData;
+  onClick: () => void;
+  size: string;
+  color: string;
+  className?: string;
+}> = ({ widget, onClick, size, color, className = 'relative' }) => {
+  const { t } = useTranslation();
+  const label = t('widgets.music.launchTimer');
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      title={label}
+      aria-label={label}
+      {...tourAttr('music.launch-timer', widget.id, widget.type)}
+      className={`touch-target-expand shrink-0 flex items-center justify-center rounded-lg transition-opacity opacity-70 hover:opacity-100 focus-visible:opacity-100 ${className}`}
+      style={{ color, padding: `calc(${size} / 6)` }}
+    >
+      <Timer style={{ width: size, height: size }} />
+    </button>
+  );
+};
+
 // ---------------------------------------------------------------------------
 // MusicWidget — front face
 // ---------------------------------------------------------------------------
@@ -107,7 +137,9 @@ export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 };
 
 const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
-  const { activeDashboard } = useDashboard();
+  const { activeDashboard, addWidget, updateWidget, isActiveBoardReadOnly } =
+    useDashboard();
+  const { canAccessFeature, canAccessWidget } = useAuth();
   const config = widget.config as MusicConfig;
   const {
     bgColor = '#ffffff',
@@ -121,7 +153,7 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   // Nexus connection: watch Time Tool running state
   const widgets = activeDashboard?.widgets ?? [];
-  const timeToolWidget = widgets.find((w) => w.type === 'time-tool');
+  const timeToolWidget = resolveSyncedTimer(widgets, config.linkedTimerId);
   const isTimeToolRunning = (
     timeToolWidget?.config as TimeToolConfig | undefined
   )?.isRunning;
@@ -186,6 +218,27 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       playerRef.current.pauseVideo();
     }
   }, [isTimeToolRunning, config.syncWithTimeTool, youtubeId, isPlayerReady]);
+
+  const canLaunchTimer =
+    !isActiveBoardReadOnly &&
+    canAccessFeature('music-timer-link') &&
+    canAccessWidget('time-tool') &&
+    !(config.syncWithTimeTool && timeToolWidget);
+
+  const launchLinkedTimer = () => {
+    const timerId = crypto.randomUUID();
+    addWidget('time-tool', {
+      id: timerId,
+      x: widget.x + widget.w + 20,
+      y: widget.y,
+    });
+    // Rides the add's undo entry, so one undo removes the Timer.
+    updateWidget(
+      widget.id,
+      { config: { syncWithTimeTool: true, linkedTimerId: timerId } },
+      { skipHistory: true }
+    );
+  };
 
   const togglePlay = () => {
     if (typeof playerRef.current?.playVideo !== 'function') {
@@ -319,6 +372,16 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   size="min(56px, 40cqh)"
                 />
               </div>
+
+              {canLaunchTimer && (
+                <LaunchTimerButton
+                  widget={widget}
+                  onClick={launchLinkedTimer}
+                  size="min(18px, 14cqh)"
+                  color="#ffffff"
+                  className="absolute top-1.5 right-1.5 bg-black/30"
+                />
+              )}
 
               {/* Gradient + title overlay at bottom */}
               <div
@@ -468,17 +531,26 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               </div>
 
               {/* Sync icon */}
-              {config.syncWithTimeTool && (
-                <Link
-                  className="shrink-0"
-                  style={{
-                    width: 'min(14px, 11cqh)',
-                    height: 'min(14px, 11cqh)',
-                    color: textColor === '#ffffff' ? '#ffffff' : '#6366f1',
-                    opacity: 0.8,
-                  }}
-                  aria-label="Synced with Time Tool"
+              {canLaunchTimer ? (
+                <LaunchTimerButton
+                  widget={widget}
+                  onClick={launchLinkedTimer}
+                  size="min(16px, 13cqh)"
+                  color={textColor === '#ffffff' ? '#ffffff' : '#6366f1'}
                 />
+              ) : (
+                config.syncWithTimeTool && (
+                  <Link
+                    className="shrink-0"
+                    style={{
+                      width: 'min(14px, 11cqh)',
+                      height: 'min(14px, 11cqh)',
+                      color: textColor === '#ffffff' ? '#ffffff' : '#6366f1',
+                      opacity: 0.8,
+                    }}
+                    aria-label="Synced with Time Tool"
+                  />
+                )
               )}
             </div>
           ) : (
@@ -573,17 +645,27 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       )}
                     </h3>
                   </div>
-                  {config.syncWithTimeTool && (
-                    <Link
-                      className="shrink-0"
-                      style={{
-                        width: 'min(20px, 20cqh, 6cqw)',
-                        height: 'min(20px, 20cqh, 6cqw)',
-                        color: textColor === '#ffffff' ? '#ffffff' : '#6366f1',
-                        opacity: textColor === '#ffffff' ? 0.8 : 1,
-                      }}
-                      aria-label="Synced with Time Tool"
+                  {canLaunchTimer ? (
+                    <LaunchTimerButton
+                      widget={widget}
+                      onClick={launchLinkedTimer}
+                      size="min(20px, 20cqh, 6cqw)"
+                      color={textColor === '#ffffff' ? '#ffffff' : '#6366f1'}
                     />
+                  ) : (
+                    config.syncWithTimeTool && (
+                      <Link
+                        className="shrink-0"
+                        style={{
+                          width: 'min(20px, 20cqh, 6cqw)',
+                          height: 'min(20px, 20cqh, 6cqw)',
+                          color:
+                            textColor === '#ffffff' ? '#ffffff' : '#6366f1',
+                          opacity: textColor === '#ffffff' ? 0.8 : 1,
+                        }}
+                        aria-label="Synced with Time Tool"
+                      />
+                    )
                   )}
                 </div>
                 <p

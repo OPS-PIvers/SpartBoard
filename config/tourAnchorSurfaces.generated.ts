@@ -3130,6 +3130,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'seating.rules-remove-pair': ['widgets.seating-chart.face'],
     'seating.rules-front-seat': ['widgets.seating-chart.face'],
     'music.play-pause': ['widgets.music.face'],
+    'music.launch-timer': ['widgets.music.face'],
     'music.spotify-shuffle': ['widgets.music.face'],
     'music.spotify-previous': ['widgets.music.face'],
     'music.spotify-play-pause': ['widgets.music.face'],
