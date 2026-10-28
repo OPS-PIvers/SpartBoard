@@ -1191,7 +1191,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         ? collectGuideRects(
             dashboardAtPointerDown.widgets,
             widget.id,
-            dashboardAtPointerDown.settings?.spotlightWidgetId
+            dashboardAtPointerDown.settings?.spotlightWidgetId ?? undefined
           )
         : null;
 
@@ -1627,7 +1627,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       ? collectGuideRects(
           resizeDashboard.widgets,
           widget.id,
-          resizeDashboard.settings?.spotlightWidgetId
+          resizeDashboard.settings?.spotlightWidgetId ?? undefined
         )
       : null;
     const guideEdges = {
