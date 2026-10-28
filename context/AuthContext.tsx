@@ -1789,6 +1789,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setPenColors(null);
       setDisableCloseConfirmationState(false);
       setRemoteControlEnabledState(true);
+      setSpellCheckEnabledState(true);
       setDockPositionState('bottom');
       setSettingsDrawerWidthState(DEFAULT_SETTINGS_DRAWER_WIDTH);
       setLastActiveCollectionIdState(undefined);
