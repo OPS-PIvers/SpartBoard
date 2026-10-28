@@ -366,20 +366,20 @@
     },
     "C2": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/seating-after5/screenshots/seating-chart/default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/seating-chart/default__typical__settings.png"
         ],
-        "runId": "seating-after5"
+        "runId": "c2-regrade-2026-10-26"
       },
-      "note": "The schema drawer is short, with roster first and the clear actions last, though the settings-open screenshot did not show the drawer.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:44:20.653Z",
+      "gradedAt": "2026-10-28T20:51:06.652Z",
       "stale": false
     },
     "C3": {

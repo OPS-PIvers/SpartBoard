@@ -407,12 +407,12 @@
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/grade-go-4628/screenshots/graphic-organizer/default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/graphic-organizer/default__typical__settings.png"
         ],
-        "runId": "grade-go-4628"
+        "runId": "c2-regrade-2026-10-26"
       },
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-24T18:42:11.544Z",
+      "gradedAt": "2026-10-28T20:49:50.034Z",
       "stale": false
     },
     "C3": {

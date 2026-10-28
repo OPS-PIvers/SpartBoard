@@ -384,20 +384,20 @@
     },
     "C2": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-nl2/screenshots/numberLine/default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/numberLine/default__typical__settings.png"
         ],
-        "runId": "after-nl2"
+        "runId": "c2-regrade-2026-10-26"
       },
-      "note": "The schema drawer puts content settings (range, step, display mode, markers, jumps) first and a short behavior group after it, all using standard controls, though the settings screenshot shows only the focused widget and not the drawer.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:53:52.179Z",
+      "gradedAt": "2026-10-28T20:50:29.098Z",
       "stale": false
     },
     "C3": {
