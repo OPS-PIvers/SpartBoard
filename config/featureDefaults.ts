@@ -1395,6 +1395,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'music-timer-link': {
+    label: 'Music: linked timer',
+    icon: Timer,
+    description:
+      'A timer button on the Music widget opens a Timer that the music plays with.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */

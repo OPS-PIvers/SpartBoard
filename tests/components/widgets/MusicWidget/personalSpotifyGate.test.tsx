@@ -12,6 +12,7 @@ const canAccessFeatureMock = vi.fn<(featureId: string) => boolean>();
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     canAccessFeature: canAccessFeatureMock,
+    canAccessWidget: () => true,
     // profileLoaded must be true so the optimistic-render gate logic in
     // Widget.tsx and the settings schema can produce a definitive denial when
     // canAccessFeature returns false. Without it, gateDenied is always false
