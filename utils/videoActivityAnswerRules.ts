@@ -28,7 +28,8 @@ export function videoActivityAnswerRules(
     shuffleForEachStudent: o.shuffleAnswerOptions !== false,
     showResult,
     revealAnswer: showResult && o.showCorrectAnswerToStudent !== false,
-    // Rewinding on a wrong answer would tell the student it was wrong.
-    requireCorrectAnswer: requireCorrect && showResult,
+    // Retrying until right would give away a hidden result or answer.
+    requireCorrectAnswer:
+      requireCorrect && showResult && o.showCorrectAnswerToStudent !== false,
   };
 }

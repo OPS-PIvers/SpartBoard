@@ -141,6 +141,7 @@ export function vaAnswerRules(
   return {
     showResult,
     revealAnswer: showResult && o.showCorrectAnswerToStudent !== false,
-    requireCorrectAnswer: requireCorrect && showResult,
+    requireCorrectAnswer:
+      requireCorrect && showResult && o.showCorrectAnswerToStudent !== false,
   };
 }
