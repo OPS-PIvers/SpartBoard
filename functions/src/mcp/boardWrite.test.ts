@@ -502,6 +502,8 @@ describe('edit_board', () => {
       duration: 600,
       mode: 'timer',
       elapsedTime: 600,
+      isRunning: false,
+      startTime: null,
     });
     expect(w2).toMatchObject({ version: 3, ...zone('grid-2x2', 'top-right') });
     // Class data Claude never saw is left exactly as it was.
@@ -810,7 +812,21 @@ describe('board revisions', () => {
       ],
     });
     const revId = String(edit.previous_version_revision_id);
-    docs.set(BOARD, { ...docs.get(BOARD)!, isPinned: true });
+    docs.set(BOARD, {
+      ...docs.get(BOARD)!,
+      isPinned: true,
+      widgets: [
+        ...widgetsOf(docs),
+        {
+          ...(seed()[BOARD].widgets as Data[])[1],
+          config: {
+            firstNames: 'Ada\nGrace\nLin',
+            lastNames: '',
+            mode: 'single',
+          },
+        },
+      ],
+    });
     const rev = await db.doc(`users/u1/claude_revisions/${revId}`).get();
     const restored = await restoreBoard(
       ctxFor(db),
@@ -823,6 +839,8 @@ describe('board revisions', () => {
     expect(widgets.map((w) => w.id)).toEqual(['w1', 'w2', 'w3']);
     expect(widgets[0].version).toBe(5);
     expect(widgets[1].version).toBe(3);
+    // Class data recorded since the revision stays as it is now.
+    expect((widgets[1].config as Data).firstNames).toBe('Ada\nGrace\nLin');
     expect(restored.changes).toEqual([
       'Restored the board to the saved version.',
     ]);

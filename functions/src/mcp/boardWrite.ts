@@ -374,16 +374,16 @@ function assertShown(type: string, settings: Doc, stored: Doc): void {
     summarizeSettings(type, stored).settings_too_large_to_show === true;
   for (const key of Object.keys(settings)) {
     const value = stored[key];
-    const whole = typeof value !== 'object' || value === null;
-    if (whole && !tooLarge) {
-      // A long, embedded or private string was shown cut down, so a "replacement" would drop the rest.
-      if (typeof value === 'string' && !shownInFull(value, 2))
+    // A long, embedded or private string was shown cut down, so a "replacement" would drop the rest.
+    if (typeof value === 'string') {
+      if (!shownInFull(value, 2))
         throw new OpProblem(
           `\`${key}\` is longer than get_board shows, so Claude can't replace it; change it in SpartBoard`
         );
       continue;
     }
-    if (tooLarge ? !whole : !shownInFull(value))
+    if (typeof value !== 'object' || value === null) continue;
+    if (tooLarge || !shownInFull(value))
       throw new OpProblem(
         `\`${key}\` holds more than get_board shows, so Claude can't replace it; change it in SpartBoard`
       );
@@ -1110,6 +1110,17 @@ export async function createBoards(
   return { boards, notes: [...session.notes] };
 }
 
+/** Student, class and session state recorded since the revision stays as it is now (D18). */
+function withCurrentState(saved: Doc, now: Doc | undefined): Doc {
+  if (!now || !isObject(saved.config) || !isObject(now.config)) return saved;
+  const config = keepHidden(
+    saved.config,
+    now.config,
+    partialWidgetSchema(str(saved.type))
+  );
+  return { ...saved, config };
+}
+
 /** Ink a trimmed revision left out stays as it is now instead of being wiped. */
 function withCurrentInk(saved: Doc, now: Doc | undefined): Doc {
   if (!now) return saved;
@@ -1153,7 +1164,10 @@ export async function restoreBoard(
     const inkLeftOut = saved[INK_LEFT_OUT] === true;
     // Every restored widget outranks the open tab's copy, so SpartBoard takes it.
     const widgets: Doc[] = boardWidgets(saved).map((w) => ({
-      ...(inkLeftOut ? withCurrentInk(w, current.get(str(w.id))) : w),
+      ...withCurrentState(
+        inkLeftOut ? withCurrentInk(w, current.get(str(w.id))) : w,
+        current.get(str(w.id))
+      ),
       version: Math.max(1, num(w.version), versions.get(str(w.id)) ?? 0) + 1,
     }));
     const board: Doc = {

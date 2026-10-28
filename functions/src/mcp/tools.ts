@@ -622,6 +622,8 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         const snap = await db
           .collection(`users/${uid}/claude_revisions`)
           .orderBy('createdAt', 'desc')
+          // A board revision holds the whole board; the list needs only these.
+          .select('itemType', 'itemId', 'title', 'createdAt')
           .limit(100)
           .get();
         const revisions = snap.docs

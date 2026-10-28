@@ -105,6 +105,7 @@ function fakeDb(seed: Record<string, Data> = {}) {
   const collection = (path: string): Data => {
     const query: Data = {
       orderBy: () => query,
+      select: () => query,
       startAfter: () => query,
       limit: () => query,
       where: () => ({

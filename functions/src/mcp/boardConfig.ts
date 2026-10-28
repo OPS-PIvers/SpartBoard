@@ -196,9 +196,12 @@ export function reconcile(type: string, claude: Doc, config: Doc): Doc {
   const touchesTimer = 'duration' in claude || 'mode' in claude;
   if (!touchesTimer || 'elapsedTime' in claude) return config;
   const duration = typeof config.duration === 'number' ? config.duration : 0;
+  // Like the app's setTime: a new length stops a running timer instead of resuming from its old start.
   return {
     ...config,
     elapsedTime: config.mode === 'stopwatch' ? 0 : duration,
+    isRunning: false,
+    startTime: null,
   };
 }
 
