@@ -141,6 +141,13 @@ describe('music_stations — writes', () => {
       bad({ url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk&x=1' })
     );
     await assertFails(bad({ url: 'javascript:alert(1)' }));
+    await assertFails(bad({ url: 42 }));
+    await assertFails(
+      setDoc(doc(asTeacher(), songPath), {
+        ...valid(),
+        url: 'https://evil.example/watch?v=jfKfPfyJRdk',
+      })
+    );
     await assertFails(bad({ thumbnail: 'https://evil.example/a.jpg' }));
     await assertFails(
       bad({

@@ -156,6 +156,11 @@ export const MusicStationField: React.FC<{ ctx: CustomRenderCtx }> = ({
     );
   }
 
+  const anyCuratedActive = stations.some(
+    (station) => station.id === config.stationId
+  );
+  const clearMySong = config.mySong ? { mySong: null } : {};
+
   const grid = (
     <div
       id={ctx.id}
@@ -171,6 +176,7 @@ export const MusicStationField: React.FC<{ ctx: CustomRenderCtx }> = ({
             if (!station) return;
             ctx.updateConfig({
               stationId,
+              ...clearMySong,
               ...(buildSpotifyEmbedUrl(station.url) !== null &&
               config.syncWithTimeTool
                 ? { syncWithTimeTool: false }
@@ -190,11 +196,12 @@ export const MusicStationField: React.FC<{ ctx: CustomRenderCtx }> = ({
             role="radio"
             aria-checked={active}
             tabIndex={
-              active || (!config.stationId && station === stations[0]) ? 0 : -1
+              active || (!anyCuratedActive && station === stations[0]) ? 0 : -1
             }
             onClick={() =>
               ctx.updateConfig({
                 stationId: station.id,
+                ...clearMySong,
                 ...(buildSpotifyEmbedUrl(station.url) !== null &&
                 config.syncWithTimeTool
                   ? { syncWithTimeTool: false }

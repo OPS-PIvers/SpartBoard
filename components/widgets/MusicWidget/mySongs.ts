@@ -36,7 +36,8 @@ export const fetchYouTubeDetails = async (
 ): Promise<{ title?: string; channel: string } | null> => {
   try {
     const res = await fetch(
-      `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(canonicalYouTubeUrl(id))}`
+      `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(canonicalYouTubeUrl(id))}`,
+      { signal: AbortSignal.timeout(5000) }
     );
     if (!res.ok) return null;
     const data: unknown = await res.json();
