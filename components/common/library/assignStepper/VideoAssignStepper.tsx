@@ -196,6 +196,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
     attempts: () => null,
     integrity: () => null,
     feedback: () => null,
+    video: () => null,
     check: () => null,
     speak: () => null,
   };

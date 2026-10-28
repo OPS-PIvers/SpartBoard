@@ -177,6 +177,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'assign-step.attempts': ['library.assign-stepper'],
     'assign-step.integrity': ['library.assign-stepper'],
     'assign-step.feedback': ['library.assign-stepper'],
+    'assign-step.video': ['library.assign-stepper'],
     'assign-step.check': ['library.assign-stepper'],
     'assign-step.speak': ['library.assign-stepper'],
     'assign-step.sharing': ['library.assign-stepper'],

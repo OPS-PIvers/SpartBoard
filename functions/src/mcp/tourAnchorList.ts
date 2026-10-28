@@ -3431,6 +3431,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-step.video",
+    "label": "Video step header in the Assign dialog",
+    "scope": "board",
+    "panel": true
+  },
+  {
     "id": "assign-step.check",
     "label": "Check step header in the Assign dialog",
     "scope": "board",
@@ -3601,6 +3607,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "keys": [
+      "assign#allow-skipping",
+      "assign#autoplay",
       "assign#away-auto-submit",
       "assign#block-copy-paste",
       "assign#focus-mode",
@@ -3609,6 +3617,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "assign#raise-hand",
       "assign#read-aloud",
       "assign#reveal-correct",
+      "assign#rewind-on-wrong",
       "assign#score-on-submit",
       "assign#show-right-wrong",
       "assign#shuffle-answers",
