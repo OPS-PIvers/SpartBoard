@@ -734,7 +734,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // docs/plans/AI_BOARDS.md D26: connector board tools and the new Magic Board engine.
+  // docs/plans/shipped/AI_BOARDS.md D26: connector board tools and the new Magic Board engine.
   'ai-boards': {
     label: 'AI boards',
     icon: LayoutDashboard,
