@@ -337,10 +337,11 @@ describe('tidy', () => {
   });
 
   it('survives absurd numbers', () => {
-    const result = tidy([
+    const widgets: LayoutWidget[] = [
       { id: 'a', xProp: 1e308, yProp: -1e308, wProp: 1e308, hProp: 1e308 },
       { id: 'b', x: 10, y: 10, w: 0, h: 0 },
-    ]);
+    ];
+    const result = tidy(widgets);
     expect(result.widgets).toHaveLength(2);
     for (const w of result.widgets) expect(Number.isFinite(w.xProp)).toBe(true);
   });
