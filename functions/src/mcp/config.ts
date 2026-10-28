@@ -35,6 +35,7 @@ export const LOG_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const STATUS_CACHE_MS = 60 * 1000;
 
 export const DAILY_WRITE_LIMIT = 300;
+export const DAILY_BOARD_OP_LIMIT = 500;
 export const DAILY_CALL_LIMIT_PER_INSTANCE = 2000;
 export const PAGE_SIZE = 25;
 

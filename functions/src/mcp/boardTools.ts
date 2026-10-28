@@ -1,4 +1,4 @@
-// Connector read tools for boards: list_boards, get_board, get_board_guide (AI_BOARDS D6, D8, D11, D20).
+// Connector board tools: list_boards, get_board, get_board_guide, create_board, edit_board (AI_BOARDS D1, D6, D8, D11, D20).
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
@@ -27,7 +27,18 @@ import { WIDGET_CATALOGUE } from './widgetCatalogue.gen';
 import { WIDGET_CONFIG_SCHEMAS } from './widgetConfigSchemas.gen';
 import { hasWidgetSchema, partialWidgetSchema } from './widgetConfigValidator';
 import { WIDGET_TYPE_LIST } from './widgetTypeList';
-import { READ_ONLY, iso, run } from './toolKit';
+import { CREATES, OVERWRITES, READ_ONLY, iso, run } from './toolKit';
+import {
+  BOARD_BACKGROUNDS,
+  MAX_BOARD_NAME,
+  MAX_BOARDS_PER_CALL,
+  MAX_OPS_PER_CALL,
+  MAX_WIDGET_TITLE,
+  MAX_WIDGETS_PER_BOARD,
+  createBoards,
+  editBoard,
+  type EditResult,
+} from './boardWrite';
 
 /** GlobalFeature id gating every board tool (D26). */
 export const AI_BOARDS_FEATURE_ID = 'ai-boards';
@@ -36,6 +47,8 @@ export const BOARD_TOOLS: ReadonlySet<string> = new Set([
   'list_boards',
   'get_board',
   'get_board_guide',
+  'create_board',
+  'edit_board',
 ]);
 
 const MAX_GUIDE_WIDGETS = 8;
@@ -251,9 +264,16 @@ export async function buildBoardGuide(
         suggested_widgets: s.suggestedWidgets.filter((w) => usableSet.has(w)),
       })),
     })),
-    snap_layouts: SNAP_ZONE_LAYOUTS.map((l) => ({
-      layout_id: l.id,
-      zones: l.zones.map((z) => z.id),
+    snap_layouts: [
+      { layout_id: 'full', zones: ['full'] },
+      ...SNAP_ZONE_LAYOUTS.map((l) => ({
+        layout_id: l.id,
+        zones: l.zones.map((z) => z.id),
+      })),
+    ],
+    backgrounds: BOARD_BACKGROUNDS.map((b) => ({
+      background_id: b.id,
+      name: b.name,
     })),
     widgets: usable.map((type) => ({
       type,
@@ -285,6 +305,136 @@ export async function buildBoardGuide(
           note: `Details are given for the first ${MAX_GUIDE_WIDGETS} widgets; ask again for the rest.`,
         }
       : {}),
+  };
+}
+
+const settingsInput = z
+  .record(z.string(), z.unknown())
+  .optional()
+  .describe(
+    "The widget's settings by name, from get_board_guide widget_types. Only the settings you send change."
+  );
+const titleInput = z.string().max(MAX_WIDGET_TITLE);
+const zoneInput = z
+  .string()
+  .min(1)
+  .max(64)
+  .describe('A zone id of the layout, e.g. "left".');
+const layoutInput = z
+  .string()
+  .min(1)
+  .max(64)
+  .optional()
+  .describe(
+    "A snap layout or template id from get_board_guide. In create_board it defaults to the board's template_id; in edit_board to an apply_template earlier in the same call."
+  );
+const libraryInput = z
+  .string()
+  .min(1)
+  .max(128)
+  .optional()
+  .describe(
+    "Id of the teacher's quiz, video activity, flashcard set, Activity Wall, Guided Learning activity or mini-app for this widget to show."
+  );
+const widgetSpec = z.object({
+  type: z.string().min(1).max(64).describe('Widget type from get_board_guide.'),
+  zone_id: zoneInput,
+  layout_id: layoutInput,
+  title: titleInput.optional().describe('Title shown on the widget.'),
+  settings: settingsInput,
+  library_item_id: libraryInput,
+});
+const widgetId = z.string().min(1).max(128);
+const opInput = z.discriminatedUnion('op', [
+  widgetSpec.extend({ op: z.literal('add_widget') }),
+  z.object({
+    op: z.literal('update_widget'),
+    widget_id: widgetId,
+    settings: settingsInput,
+    title: titleInput.nullable().optional().describe('null clears it.'),
+    library_item_id: libraryInput,
+  }),
+  z.object({
+    op: z.literal('move_widget'),
+    widget_id: widgetId,
+    zone_id: zoneInput,
+    layout_id: layoutInput,
+  }),
+  z.object({ op: z.literal('remove_widget'), widget_id: widgetId }),
+  z.object({
+    op: z.literal('apply_template'),
+    template_id: z.string().min(1).max(64),
+    widgets: z
+      .array(z.object({ widget_id: widgetId, zone_id: zoneInput }))
+      .max(MAX_WIDGETS_PER_BOARD)
+      .describe('Which widget goes in which template zone.'),
+  }),
+  z.object({
+    op: z.literal('rename'),
+    name: z.string().min(1).max(MAX_BOARD_NAME),
+  }),
+  z.object({
+    op: z.literal('set_background'),
+    background: z
+      .string()
+      .min(1)
+      .max(600)
+      .describe('A background_id from get_board_guide.'),
+  }),
+]);
+
+type Picture = { png: Buffer; result: Record<string, unknown> };
+
+function pictureOf(
+  board: Record<string, unknown> & { id: string },
+  shape: BoardScreen
+): Picture {
+  const picture = describeBoard(board, shape);
+  return {
+    png: picture.wireframe.png,
+    result: {
+      board_id: board.id,
+      name: boardName(board),
+      widget_count: boardWidgets(board).length,
+      widgets: picture.widgets,
+      ...(picture.widgets_not_listed > 0
+        ? { widgets_not_listed: picture.widgets_not_listed }
+        : {}),
+      layout_check: picture.layout_check,
+      where_to_find_it: where(boardName(board)),
+    },
+  };
+}
+
+/** Each board's wireframe first, then the text result (D6). */
+function withImages(result: CallToolResult, pngs: Buffer[]): CallToolResult {
+  if (result.isError || pngs.length === 0) return result;
+  return {
+    content: [
+      ...pngs.map((png) => ({
+        type: 'image' as const,
+        data: png.toString('base64'),
+        mimeType: 'image/png',
+      })),
+      ...result.content,
+    ],
+  };
+}
+
+/** The edit_board and restore result: what changed, the new board and how to undo it. */
+export function editResultOf(edit: EditResult, shape: BoardScreen): Picture {
+  const { png, result } = pictureOf(edit.board, shape);
+  const inUse = inUseNote(edit.before);
+  return {
+    png,
+    result: {
+      ...result,
+      changes: edit.changes,
+      ...(inUse ? { in_use: inUse } : {}),
+      ...(edit.notes.length > 0 ? { notes: edit.notes } : {}),
+      screen: screenOut(shape),
+      previous_version_revision_id: edit.revisionId,
+    },
   };
 }
 
@@ -472,5 +622,95 @@ export function registerBoardTools(server: McpServer, ctx: ToolContext): void {
         await assertBoardAccess(ctx);
         return buildBoardGuide(ctx, widget_types ?? []);
       })
+  );
+
+  server.registerTool(
+    'create_board',
+    {
+      title: 'Create boards',
+      description: `Creates up to ${MAX_BOARDS_PER_CALL} new boards at the top of the teacher's Boards list, each with up to ${MAX_WIDGETS_PER_BOARD} widgets placed on template or snap-layout zones and set up with real settings and library items. Read get_board_guide first and agree a short plan with the teacher. Returns each board's wireframe picture and layout check.`,
+      inputSchema: {
+        boards: z
+          .array(
+            z.object({
+              name: z.string().min(1).max(MAX_BOARD_NAME),
+              template_id: z
+                .string()
+                .min(1)
+                .max(64)
+                .optional()
+                .describe(
+                  'Template from get_board_guide; widget zone_ids are its zones.'
+                ),
+              collection_id: z
+                .string()
+                .min(1)
+                .max(128)
+                .optional()
+                .describe(
+                  'Only when the teacher names a collection (ids from list_boards).'
+                ),
+              background: z
+                .string()
+                .min(1)
+                .max(600)
+                .optional()
+                .describe('A background_id from get_board_guide.'),
+              widgets: z.array(widgetSpec).max(MAX_WIDGETS_PER_BOARD),
+            })
+          )
+          .min(1)
+          .max(MAX_BOARDS_PER_CALL),
+        screen: screenInput,
+      },
+      annotations: CREATES,
+    },
+    async ({ boards, screen }) => {
+      const pngs: Buffer[] = [];
+      const result = await run('create_board', ctx, async () => {
+        await assertBoardAccess(ctx);
+        const shape = await resolveBoardScreen(ctx, screen);
+        const created = await createBoards(ctx, boards, shape);
+        const out = created.boards.map((board) => {
+          const picture = pictureOf(board, shape);
+          pngs.push(picture.png);
+          return picture.result;
+        });
+        return {
+          boards: out,
+          ...(created.notes.length > 0 ? { notes: created.notes } : {}),
+          screen: screenOut(shape),
+        };
+      });
+      return withImages(result, pngs);
+    }
+  );
+
+  server.registerTool(
+    'edit_board',
+    {
+      title: 'Edit a board',
+      description: `Changes one of the teacher's boards with up to ${MAX_OPS_PER_CALL} changes applied together: add_widget, update_widget (settings, title or library item), move_widget (to a zone), remove_widget, apply_template (move widgets onto a template's zones), rename and set_background. If any change is refused nothing is saved. Read get_board first for widget ids. The previous version is kept for 30 days; restore_revision undoes it. Never deletes a board.`,
+      inputSchema: {
+        board_id: z.string().min(1).max(128),
+        changes: z.array(opInput).min(1).max(MAX_OPS_PER_CALL),
+        screen: screenInput,
+      },
+      annotations: OVERWRITES,
+    },
+    async ({ board_id, changes, screen }) => {
+      let png: Buffer | null = null;
+      const result = await run('edit_board', ctx, async () => {
+        await assertBoardAccess(ctx);
+        assertBoardId(board_id);
+        const shape = await resolveBoardScreen(ctx, screen);
+        const edit = await editBoard(ctx, board_id, changes, shape);
+        const picture = editResultOf(edit, shape);
+        png = picture.png;
+        return picture.result;
+      });
+      const image = png as Buffer | null;
+      return withImages(result, image ? [image] : []);
+    }
   );
 }
