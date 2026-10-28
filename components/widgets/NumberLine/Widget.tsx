@@ -76,13 +76,45 @@ const fitLabel = (
   };
 };
 
+const PAD_X = 40;
+
+/** Marker label rows (labels that would overlap move up a row, capped at 4); crowded when a label had no free row. */
+const layoutMarkerRows = (
+  markers: NumberLineMarker[],
+  min: number,
+  pxPerUnit: number,
+  svgWidth: number
+): { rows: Map<string, number>; crowded: boolean } => {
+  const rows = new Map<string, number>();
+  const rowEnds: number[] = [];
+  let crowded = false;
+  const placed = markers
+    .filter((m) => m.label)
+    .map((m) => ({ m, x: PAD_X + (m.value - min) * pxPerUnit }))
+    .filter(({ x }) => x >= PAD_X && x <= svgWidth - PAD_X)
+    .sort((a, b) => a.x - b.x);
+  for (const { m, x } of placed) {
+    const label = m.label ?? '';
+    const { x: lx, fontSize } = fitLabel(label, x, 4, svgWidth - 4);
+    const half = textWidth(label, fontSize) / 2;
+    let row = rowEnds.findIndex((end) => end + 6 <= lx - half);
+    if (row === -1) {
+      if (rowEnds.length >= 4) crowded = true;
+      row = Math.min(rowEnds.length, 3);
+    }
+    rowEnds[row] = lx + half;
+    rows.set(m.id, row);
+  }
+  return { rows, crowded };
+};
+
 export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget } = useDashboardActions();
   const config = widget.config as NumberLineConfig;
   const containerRef = useRef<HTMLDivElement>(null);
-  const [box, setBox] = useState({ w: 700, h: 0 });
+  const [box, setBox] = useState({ w: 700, tall: false });
   const [hoveredTick, setHoveredTick] = useState<number | null>(null);
 
   const {
@@ -112,10 +144,11 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        setBox({
-          w: Math.max(400, entry.contentRect.width),
-          h: entry.contentRect.height,
-        });
+        const w = Math.max(400, entry.contentRect.width);
+        const tall = entry.contentRect.height >= 500;
+        setBox((prev) =>
+          prev.w === w && prev.tall === tall ? prev : { w, tall }
+        );
       }
     });
     if (containerRef.current) {
@@ -124,16 +157,25 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
     return () => observer.disconnect();
   }, []);
 
-  // Large cards (maximized) draw the line at up to 1.7x so type and ticks read from the back of the room.
-  const zoom = box.h >= 500 ? Math.min(1.7, Math.max(1, box.w / 900)) : 1;
-  const svgWidth = box.w / zoom;
   const svgH = 200;
-  const padL = 40;
-  const padR = 40;
+  const padL = PAD_X;
+  const padR = PAD_X;
   const axisY = 120; // Move axis down a bit to leave room for jumps
 
   const safeMax = Math.max(min + 1, max); // Avoid division by zero
   const range = safeMax - min;
+  // Large cards (maximized) draw the line at up to 1.7x, stepping down while marker labels would overlap.
+  const zoom = useMemo(() => {
+    let z = box.tall ? Math.min(1.7, Math.max(1, box.w / 900)) : 1;
+    while (z > 1) {
+      const w = box.w / z;
+      if (!layoutMarkerRows(markers, min, (w - 2 * PAD_X) / range, w).crowded)
+        break;
+      z = Math.max(1, z - 0.1);
+    }
+    return z;
+  }, [box, markers, min, range]);
+  const svgWidth = box.w / zoom;
   const pxPerUnit = (svgWidth - padL - padR) / range;
 
   // Maximum number of ticks to avoid performance issues
@@ -212,25 +254,10 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
   const lastX = padL + ((tickValues[lastTick] ?? min) - min) * pxPerUnit;
 
   // Marker labels that would overlap a neighbour move up a row.
-  const markerRows = useMemo(() => {
-    const rows = new Map<string, number>();
-    const rowEnds: number[] = [];
-    const placed = markers
-      .filter((m) => m.label)
-      .map((m) => ({ m, x: padL + (m.value - min) * pxPerUnit }))
-      .filter(({ x }) => x >= padL && x <= svgWidth - padR)
-      .sort((a, b) => a.x - b.x);
-    for (const { m, x } of placed) {
-      const label = m.label ?? '';
-      const { x: lx, fontSize } = fitLabel(label, x, 4, svgWidth - 4);
-      const half = textWidth(label, fontSize) / 2;
-      let row = rowEnds.findIndex((end) => end + 6 <= lx - half);
-      if (row === -1) row = Math.min(rowEnds.length, 3);
-      rowEnds[row] = lx + half;
-      rows.set(m.id, row);
-    }
-    return rows;
-  }, [markers, min, pxPerUnit, svgWidth]);
+  const markerRows = useMemo(
+    () => layoutMarkerRows(markers, min, pxPerUnit, svgWidth).rows,
+    [markers, min, pxPerUnit, svgWidth]
+  );
 
   const addMarker = (value: number) => {
     // Strip floating-point noise accumulated by the index-based tick formula
