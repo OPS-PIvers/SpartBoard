@@ -215,7 +215,7 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
 
   const cancel = () => {
     // Set the flag BEFORE updating state so that the synchronous blur event
-    // (fired when React removes the focused <input> from the DOM) sees it and
+    // (fired when React removes the focused input from the DOM) sees it and
     // skips commit().
     cancelledRef.current = true;
     setEditingName(false);
@@ -259,6 +259,7 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
         }}
       >
         {editingName ? (
+          // no-tour-anchor: inline rename box that opens from the anchored pencil button
           <input
             ref={inputRef}
             type="text"

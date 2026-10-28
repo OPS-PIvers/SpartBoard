@@ -219,21 +219,17 @@ export const RecessGearConfigurationPanel: React.FC<
             <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
               Update Frequency (Minutes)
             </label>
-            <input
+            <DraftNumberField
               {...tourFieldAttr(
                 'admin.widget-config.field',
                 'recessGear',
                 'updateFrequencyMinutes'
               )}
-              type="number"
               min="5"
               max="1440"
               value={config.updateFrequencyMinutes ?? 15}
-              onChange={(e) =>
-                onChange({
-                  ...config,
-                  updateFrequencyMinutes: parseInt(e.target.value) || 15,
-                })
+              onCommit={(val) =>
+                onChange({ ...config, updateFrequencyMinutes: val })
               }
               className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-brand-blue-primary"
             />

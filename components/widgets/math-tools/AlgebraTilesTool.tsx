@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import {
   AlgebraTileKind,
   AlgebraTileStyle,
@@ -150,6 +151,11 @@ export const AlgebraTilesTool: React.FC = () => {
           return (
             <button
               key={kind}
+              {...tourFieldAttr(
+                'math-tool.add-piece',
+                'mathTool',
+                `algebra-tiles.${kind}`
+              )}
               onClick={() => addTile(kind)}
               title={`Add ${meta.label}`}
               className="flex items-center gap-1 rounded-lg hover:bg-white hover:shadow-sm transition-all border border-transparent hover:border-slate-200 font-black"

@@ -3,6 +3,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { getOpenModalCount } from '@/components/common/modalStore';
 import { DndContext, DragOverlay } from '@dnd-kit/core';
 import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { useDialog } from '@/context/useDialog';
@@ -186,6 +187,8 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (isEscapeFromWidgetInput(e)) return;
+      // A stacked Modal owns this Escape.
+      if (getOpenModalCount() > 0) return;
       if (multi.isSelectMode) multi.clearSelection();
       else onClose();
     };

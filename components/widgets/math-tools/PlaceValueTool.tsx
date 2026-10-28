@@ -1,4 +1,5 @@
 import React, { useRef, useState, useCallback } from 'react';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { MathToolConfig, PlaceValueBlock } from '@/types';
 
 interface PlaceValueToolProps {
@@ -231,6 +232,11 @@ export const PlaceValueTool: React.FC<PlaceValueToolProps> = ({
         ).map(({ type, label, color }) => (
           <button
             key={type}
+            {...tourFieldAttr(
+              'math-tool.add-piece',
+              'mathTool',
+              `place-value.${type}`
+            )}
             onClick={() => addBlock(type)}
             className={`${color} text-white font-bold rounded shadow-sm hover:opacity-90 px-2 py-1 text-xs`}
           >
@@ -238,6 +244,7 @@ export const PlaceValueTool: React.FC<PlaceValueToolProps> = ({
           </button>
         ))}
         <button
+          {...tourTypeAttr('math-tool.clear', 'mathTool')}
           onClick={() => onUpdate({ placeValueBlocks: [] })}
           className="ml-auto text-xs font-bold text-red-500 hover:text-red-700 underline"
         >

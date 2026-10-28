@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback } from 'react';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface PlottedPoint {
   id: string;
@@ -161,6 +162,7 @@ export const CoordinatePlaneTool: React.FC = () => {
         </span>
         {points.length > 0 && (
           <button
+            {...tourTypeAttr('math-tool.clear', 'mathTool')}
             onClick={clearAll}
             className="text-xxs bg-slate-100 hover:bg-slate-200 text-slate-500 px-2 py-0.5 rounded-lg font-black uppercase tracking-wider transition-colors"
           >

@@ -4335,6 +4335,12 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
+  'widget-settings.random.save-as-groups': {
+    label: 'Save as class groups button in Random Picker settings',
+    perWidget: true,
+    panel: true,
+    persists: true,
+  },
   'widget-settings.random.send-stations': {
     label: 'Send to Stations button in Random Picker settings',
     perWidget: true,
@@ -13100,6 +13106,46 @@ export const TOUR_ANCHORS = {
   },
   'math-tool.rotate': {
     label: 'Rotation grip on a Math Tool',
+    perWidgetType: true,
+  },
+  'math-tool.add-piece': {
+    label:
+      'Add piece button on a Math Tool (algebra tiles, base-10 blocks, pattern blocks, place value), by tool and piece',
+    perField: true,
+  },
+  'math-tool.clear': {
+    label:
+      'Clear button on a Math Tool (coordinate plane, geoboard, place value)',
+    perWidgetType: true,
+    destructive: true,
+  },
+  'math-tool.rotate-piece': {
+    label: 'Rotate 30° button for the selected piece in Pattern Blocks',
+    perWidgetType: true,
+  },
+  'math-tool.remove-piece': {
+    label: 'Remove button for the selected piece in Pattern Blocks',
+    perWidgetType: true,
+    destructive: true,
+  },
+  'math-tool.calculator-key': {
+    label: 'Calculator key, by label (digits, operators, AC, =)',
+    perField: true,
+  },
+  'math-tool.denominator': {
+    label: 'Denominator toggle in Fraction Tiles, by denominator',
+    perField: true,
+  },
+  'math-tool.number-line-mode': {
+    label: 'Number line mode button (integers, decimals, fractions), by mode',
+    perField: true,
+  },
+  'math-tool.number-line-min': {
+    label: 'Minimum value box on the Number Line tool',
+    perWidgetType: true,
+  },
+  'math-tool.number-line-max': {
+    label: 'Maximum value box on the Number Line tool',
     perWidgetType: true,
   },
   'smart-notebook.view-mode': {
