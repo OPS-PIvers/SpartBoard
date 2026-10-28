@@ -1,4 +1,4 @@
-// Video Activity on the assign stepper: pacing switch, Classes, When, Sharing (docs/plans/ASSIGN_STEPPER.md D4).
+// Video Activity on the assign stepper: pacing switch, Classes, When, rule steps (va-quiz-alignment), Sharing (docs/plans/ASSIGN_STEPPER.md D4).
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle, Play } from 'lucide-react';
@@ -46,6 +46,11 @@ import {
   type SharingStepValue,
 } from './SharingStep.format';
 import { tourAttr } from '@/config/tourAnchors';
+import { videoRuleStepDefs } from './videoRuleStepDefs';
+import {
+  VIDEO_ANSWER_ROWS_READY,
+  type VideoAssignRules,
+} from './VideoRuleStepValues';
 
 export interface VideoAssignStepperResult {
   pacing: VideoActivitySessionMode;
@@ -57,6 +62,8 @@ export interface VideoAssignStepperResult {
   manualStart: boolean;
   /** The PLC to share results with, or null. */
   plc: Plc | null;
+  /** The assignment's rules (va-quiz-alignment); null for live or when the rule steps are off. */
+  rules: VideoAssignRules | null;
 }
 
 export interface VideoAssignStepperProps {
@@ -73,6 +80,8 @@ export interface VideoAssignStepperProps {
   /** A make-up assign's students; sorted into their classes. */
   initialStudents?: StudentTargetRef[];
   error?: string | null;
+  /** Prefill for the rule steps; omit to leave them out (flag off). */
+  initialRules?: VideoAssignRules;
   onSubmit: (result: VideoAssignStepperResult) => Promise<void>;
 }
 
@@ -87,6 +96,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
   initialClassIds,
   initialStudents,
   error,
+  initialRules,
   onSubmit,
 }) => {
   const { t } = useTranslation();
@@ -129,12 +139,30 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
     plcId: '',
   });
   const [modsOpen, setModsOpen] = useState(false);
+  // null until the teacher edits a rule, so a last-used value that loads late still applies.
+  const [pickedRules, setRules] = useState<VideoAssignRules | null>(null);
+  // Live keeps today's rules (one attempt), so the steps are self-paced only.
+  const rules = initialRules && !live ? (pickedRules ?? initialRules) : null;
 
   const sharingOn = isSharingStepAvailable(plcs, 'work');
   const sharedPlc = sharing.plcMode ? resolveSharingPlc(sharing, plcs) : null;
   const plcMissing = sharingOn && sharing.plcMode && !sharedPlc;
 
-  const ctx = { kind: 'work' as const, live, inPlc: sharingOn };
+  const ctx = {
+    kind: 'work' as const,
+    live,
+    inPlc: sharingOn,
+    rules: !!rules,
+    videoAnswerRows: VIDEO_ANSWER_ROWS_READY,
+  };
+  const ruleDefs = new Map(
+    rules
+      ? videoRuleStepDefs({ value: rules, onChange: setRules }).map((d) => [
+          d.id,
+          d,
+        ])
+      : []
+  );
   const variant = live ? 'live' : 'when';
 
   const bodies: Record<AssignStepId, () => AssignStepDef | null> = {
@@ -193,10 +221,10 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
       value: formatSharingValue(sharing, { plcs }),
       body: <SharingStep value={sharing} onChange={setSharing} plcs={plcs} />,
     }),
-    attempts: () => null,
-    integrity: () => null,
-    feedback: () => null,
-    video: () => null,
+    attempts: () => ruleDefs.get('attempts') ?? null,
+    integrity: () => ruleDefs.get('integrity') ?? null,
+    feedback: () => ruleDefs.get('feedback') ?? null,
+    video: () => ruleDefs.get('video') ?? null,
     check: () => null,
     speak: () => null,
   };
@@ -224,6 +252,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
       targeting: resolved,
       manualStart,
       plc: sharedPlc,
+      rules,
     });
   };
 
