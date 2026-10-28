@@ -57,3 +57,21 @@ const subscribeToOpenModalCount = (listener: () => void): (() => void) => {
 export const useHasOpenModal = (): boolean =>
   useSyncExternalStore(subscribeToOpenModalCount, getOpenModalCount, () => 0) >
   0;
+
+const modalLayers: symbol[] = [];
+
+/** Registers a modal as the topmost layer; returns its token. */
+export const pushModalLayer = (): symbol => {
+  const token = Symbol('modal-layer');
+  modalLayers.push(token);
+  return token;
+};
+
+export const popModalLayer = (token: symbol): void => {
+  const i = modalLayers.indexOf(token);
+  if (i !== -1) modalLayers.splice(i, 1);
+};
+
+/** True when the token is the topmost open modal, so only it handles Escape. */
+export const isTopModalLayer = (token: symbol): boolean =>
+  modalLayers[modalLayers.length - 1] === token;

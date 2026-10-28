@@ -1,6 +1,7 @@
 import type { PollQuestion, PollQuestionKind } from '@/types';
 import {
   aggregateVotes,
+  answerTime,
   type PollVoteEntry,
 } from '@/components/poll/pollSession';
 import {
@@ -35,7 +36,7 @@ const percentOf = (count: number, total: number): number =>
 export const cloudKey = (text: string): string =>
   text.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
 
-// cyrb53: board config is shared, so a hidden word is stored as a hash, never the student's text.
+// cyrb53: words hidden before owner-only hidden_words were stored in board config as this hash.
 const hashWord = (word: string): string => {
   let h1 = 0xdeadbeef;
   let h2 = 0x41c6ce57;
@@ -51,20 +52,21 @@ const hashWord = (word: string): string => {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 };
 
-/** `hiddenResponses` key for a hidden word cloud word (`word` is already a cloudKey). */
-export const hiddenWordKey = (questionId: string, word: string): string =>
+/** Legacy `hiddenResponses` key for a word cloud word (`word` is already a cloudKey); still honoured, never written. */
+export const legacyHiddenWordKey = (questionId: string, word: string): string =>
   `${questionId}#${hashWord(word)}`;
 
 const typedAnswers = (answers: PollVoteEntry[]): PollVoteEntry[] =>
   answers
     .filter((a) => typeof a.text === 'string' && a.text.trim() !== '')
-    .sort((a, b) => (b.votedAt ?? 0) - (a.votedAt ?? 0));
+    .sort((a, b) => answerTime(b) - answerTime(a));
 
 /** Answers the teacher hid on the board stay out of the list, as they do on the board. */
 const summarizeTexts = (
   q: PollQuestion,
   answers: PollVoteEntry[],
-  hidden: ReadonlySet<string>
+  hidden: ReadonlySet<string>,
+  hiddenWords: ReadonlySet<string>
 ): { text: string; count: number }[] => {
   const shown = answers
     .filter((a) => !hidden.has(`${q.id}:${a.id}`))
@@ -73,7 +75,7 @@ const summarizeTexts = (
   const counts = new Map<string, number>();
   for (const text of shown) {
     const key = cloudKey(text);
-    if (!hidden.has(hiddenWordKey(q.id, key)))
+    if (!hiddenWords.has(key) && !hidden.has(legacyHiddenWordKey(q.id, key)))
       counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   return [...counts.entries()]
@@ -86,7 +88,9 @@ export const summarizePoll = (
   questions: PollQuestion[],
   votes: PollVoteEntry[],
   answers: PollVoteEntry[],
-  hiddenResponses: readonly string[] = []
+  hiddenResponses: readonly string[] = [],
+  /** Word cloud words the owner hid, by question id. */
+  hiddenWords: ReadonlyMap<string, readonly string[]> = new Map()
 ): PollQuestionSummary[] => {
   const hidden = new Set(hiddenResponses);
   return questions.map((q, index) => {
@@ -101,7 +105,12 @@ export const summarizePoll = (
         answered: mine.length,
         options: [],
         average: null,
-        texts: summarizeTexts(q, mine, hidden),
+        texts: summarizeTexts(
+          q,
+          mine,
+          hidden,
+          new Set(hiddenWords.get(q.id) ?? [])
+        ),
       };
     }
     const counts = aggregateVotes(votes, index, q.options.length);

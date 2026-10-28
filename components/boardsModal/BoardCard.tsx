@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { tourAttr } from '@/config/tourAnchors';
 import type { Dashboard } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
+import { claudeBadgeFor } from '@/utils/claudeBoardActivity';
 import { hexToRgba, pickReadableForeground } from '@/utils/collectionColor';
 import { BoardThumbnail } from './BoardThumbnail';
 import { DropInsertionBar } from './DropInsertionBar';
@@ -47,7 +49,11 @@ export const BoardCard: React.FC<BoardCardProps> = ({
   onShare,
 }) => {
   const { unpinBoard, pinBoard } = useDashboard();
+  const { canAccessFeature } = useAuth();
   const { t } = useTranslation();
+  // Optional call: many useAuth test doubles leave canAccessFeature out.
+  const claudeBadge =
+    canAccessFeature?.('ai-boards') === true ? claudeBadgeFor(board) : null;
 
   const dndId = `board:${board.id}`;
   const {
@@ -160,6 +166,18 @@ export const BoardCard: React.FC<BoardCardProps> = ({
       <div className="text-xxs text-slate-400 mb-1 pr-24">
         {widgetCount} widgets · edited {lastEdited}
       </div>
+      {claudeBadge && (
+        <div
+          {...tourAttr('boards-modal.claude-badge')}
+          className="text-xxs font-semibold text-brand-blue-primary mb-1 pr-24 truncate"
+        >
+          {claudeBadge === 'created'
+            ? t('claudeBoards.madeBadge', { defaultValue: 'Made with Claude' })
+            : t('claudeBoards.editedBadge', {
+                defaultValue: 'Edited by Claude',
+              })}
+        </div>
+      )}
       {collectionBadge && (
         <div className="pr-24">
           {collectionBadge.color ? (

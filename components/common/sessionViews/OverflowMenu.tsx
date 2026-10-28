@@ -27,6 +27,8 @@ export interface OverflowMenuItem {
   loading?: boolean;
   /** Tooltip shown on hover. */
   title?: string;
+  /** Live-tour anchor for this item; wins over the menu-level `tourId`. */
+  tourAnchor?: TourAnchorAttrs;
 }
 
 interface OverflowMenuProps {
@@ -207,13 +209,14 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
                   type="button"
                   role="menuitem"
                   aria-disabled={!!item.disabled || !!item.loading || undefined}
-                  {...(tourId && tourScope
-                    ? tourFieldAttr(
-                        tourId,
-                        tourScope,
-                        item.id ?? `item-${i + 1}`
-                      )
-                    : {})}
+                  {...(item.tourAnchor ??
+                    (tourId && tourScope
+                      ? tourFieldAttr(
+                          tourId,
+                          tourScope,
+                          item.id ?? `item-${i + 1}`
+                        )
+                      : {}))}
                   onClick={() => {
                     // aria-disabled (not the native attribute) keeps the item
                     // focusable + announced; guard activation here instead.

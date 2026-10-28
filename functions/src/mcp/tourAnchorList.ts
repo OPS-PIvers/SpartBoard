@@ -766,6 +766,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "video-activity#allowSkipping",
       "video-activity#autoPlay",
       "video-activity#requireCorrectAnswer",
+      "weather#detail_dewPoint",
+      "weather#detail_feelsLike",
+      "weather#detail_highLow",
+      "weather#detail_humidity",
+      "weather#detail_moon",
+      "weather#detail_pressure",
+      "weather#detail_rainDaily",
+      "weather#detail_rainMonthly",
+      "weather#detail_sunrise",
+      "weather#detail_sunset",
+      "weather#detail_uvIndex",
+      "weather#detail_windAvg",
+      "weather#detail_windGust",
       "weather#hideClothing",
       "weather#syncBackground",
       "webcam#autoSendToNotes"
@@ -1203,6 +1216,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "guidedLearning.recorder",
         "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "board.claude-editing-show",
+    "label": "Show button on the \"Claude is editing\" notice",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board",
+        "kind": "board",
         "path": []
       }
     ]
@@ -1972,6 +1998,42 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "behavior.remote-control-toggle",
     "label": "Remote control switch",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.profile-behavior",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.profile-settings",
+          "profile.tab-behavior"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "behavior.alignment-guides-toggle",
+    "label": "Alignment guides switch",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.profile-behavior",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.profile-settings",
+          "profile.tab-behavior"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "behavior.spell-check-toggle",
+    "label": "Spell check switch",
     "scope": "board",
     "panel": true,
     "persists": true,
@@ -3369,6 +3431,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-step.video",
+    "label": "Video step header in the Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-step.check",
     "label": "Check step header in the Assign dialog",
     "scope": "board",
@@ -3539,6 +3614,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "keys": [
+      "assign#allow-skipping",
+      "assign#autoplay",
       "assign#away-auto-submit",
       "assign#block-copy-paste",
       "assign#focus-mode",
@@ -3547,6 +3624,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "assign#raise-hand",
       "assign#read-aloud",
       "assign#reveal-correct",
+      "assign#rewind-on-wrong",
       "assign#score-on-submit",
       "assign#show-right-wrong",
       "assign#shuffle-answers",
@@ -18012,6 +18090,26 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.random.save-as-groups",
+    "label": "Save as class groups button in Random Picker settings",
+    "scope": "widget",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.random.settings",
+        "kind": "settings-drawer",
+        "widget_type": "random",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.random.send-stations",
     "label": "Send to Stations button in Random Picker settings",
     "scope": "widget",
@@ -19703,6 +19801,401 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.stations.title",
+    "label": "Station title box in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.description",
+    "label": "Station description box in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.max-students",
+    "label": "Station max students box in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.custom-color",
+    "label": "Station custom color picker in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.icon-tab",
+    "label": "Icon tab of a station in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.image-tab",
+    "label": "Image tab of a station in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.icon-search",
+    "label": "Icon search box of a station in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.upload-image",
+    "label": "Upload image button of a station in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.replace-image",
+    "label": "Replace image button of a station in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.remove-image",
+    "label": "Remove image button of a station in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.clear-icon",
+    "label": "Clear icon button of a station in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.save-preset",
+    "label": "Save current preset button in Stations settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.delete-preset",
+    "label": "Delete a saved station preset in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.use-group-names",
+    "label": "Use group names as titles checkbox in Stations settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.stations.send-to-random",
+    "label": "Send to Random Picker button in Stations settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.settings",
+        "kind": "settings-drawer",
+        "widget_type": "stations",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "stations.reset-station",
+    "label": "Reset students in one station button in Stations",
+    "scope": "field",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.stations.face",
+        "kind": "widget",
+        "widget_type": "stations",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.weather.source",
+    "label": "Weather source button in Weather settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.weather.settings",
+        "kind": "settings-drawer",
+        "widget_type": "weather",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.weather.city",
+    "label": "City or ZIP box in Weather settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.weather.settings",
+        "kind": "settings-drawer",
+        "widget_type": "weather",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.weather.use-location",
+    "label": "Use my location button in Weather settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.weather.settings",
+        "kind": "settings-drawer",
+        "widget_type": "weather",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.download-photo",
+    "label": "Download a photo button in the Webcam gallery",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "webcam.delete-photo",
+    "label": "Delete a photo button in the Webcam gallery",
+    "scope": "field",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.webcam.face",
+        "kind": "widget",
+        "widget_type": "webcam",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.soundboard.toggle-sound",
     "label": "Toggle a sound on or off in Soundboard settings",
     "scope": "field",
@@ -20544,6 +21037,85 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.music.my-song",
+    "label": "One of the teacher's own songs in Music settings",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.music.settings",
+        "kind": "settings-drawer",
+        "widget_type": "music",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.music.my-song-remove",
+    "label": "Remove button on one of the teacher's own songs in Music settings",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.music.settings",
+        "kind": "settings-drawer",
+        "widget_type": "music",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.music.my-song-link",
+    "label": "YouTube link field for adding a song in Music settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.music.settings",
+        "kind": "settings-drawer",
+        "widget_type": "music",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.music.my-song-add",
+    "label": "Add button for a YouTube song in Music settings",
+    "scope": "widget",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.music.settings",
+        "kind": "settings-drawer",
+        "widget_type": "music",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.custom-widget.definition-input",
     "label": "One admin-defined setting input in Custom Widget settings",
     "scope": "field",
@@ -20653,6 +21225,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "routes": [
+      {
+        "surface": "board.sidebar-classes",
+        "kind": "sidebar",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "classes.row-actions",
+    "label": "Class actions menu in My Classes",
+    "scope": "field",
+    "panel": true,
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -52423,6 +53011,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "boards-modal.claude-badge",
+    "label": "Made with Claude or Edited by Claude note on a board card",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.boards-modal",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards"
+        ]
+      }
+    ]
+  },
+  {
     "id": "boards-modal.board-delete",
     "label": "Delete item in the board card menu",
     "scope": "board",
@@ -58099,6 +58703,167 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "math-tool.rotate",
     "label": "Rotation grip on a Math Tool",
+    "scope": "widget type",
+    "keys": [
+      "mathTool"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.add-piece",
+    "label": "Add piece button on a Math Tool (algebra tiles, base-10 blocks, pattern blocks, place value), by tool and piece",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.clear",
+    "label": "Clear button on a Math Tool (coordinate plane, geoboard, place value)",
+    "scope": "widget type",
+    "destructive": true,
+    "keys": [
+      "mathTool"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.rotate-piece",
+    "label": "Rotate 30° button for the selected piece in Pattern Blocks",
+    "scope": "widget type",
+    "keys": [
+      "mathTool"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.remove-piece",
+    "label": "Remove button for the selected piece in Pattern Blocks",
+    "scope": "widget type",
+    "destructive": true,
+    "keys": [
+      "mathTool"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.calculator-key",
+    "label": "Calculator key, by label (digits, operators, AC, =)",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.denominator",
+    "label": "Denominator toggle in Fraction Tiles, by denominator",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.number-line-mode",
+    "label": "Number line mode button (integers, decimals, fractions), by mode",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.number-line-min",
+    "label": "Minimum value box on the Number Line tool",
+    "scope": "widget type",
+    "keys": [
+      "mathTool"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.math-tool.face",
+        "kind": "widget",
+        "widget_type": "mathTool",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "math-tool.number-line-max",
+    "label": "Maximum value box on the Number Line tool",
     "scope": "widget type",
     "keys": [
       "mathTool"

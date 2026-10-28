@@ -13,7 +13,13 @@ import {
   type EarthNetworksResponse,
   type OpenWeatherData,
 } from './constants';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { useWeatherDetailsAllowed } from './useWeatherDetailsAllowed';
+import {
+  fetchUvHours,
+  parseEarthNetworksDetails,
+  parseOpenWeatherDetails,
+} from './details';
 
 function useWeatherGlobalConfig(): WeatherGlobalConfig | undefined {
   const { featurePermissions } = useAuth();
@@ -72,6 +78,7 @@ export const WeatherAutoSyncField: React.FC<{
   const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY as string | undefined;
   const hasApiKey = Boolean(apiKey?.trim());
   const isAdminProxy = globalConfig?.fetchingStrategy === 'admin_proxy';
+  const detailsAllowed = useWeatherDetailsAllowed();
 
   const fetchOpenWeather = async (params: string) => {
     if (!apiKey) {
@@ -96,6 +103,7 @@ export const WeatherAutoSyncField: React.FC<{
         condition: data.weather[0].main.toLowerCase(),
         locationName: data.name,
         lastSync: Date.now(),
+        ...(detailsAllowed && { details: parseOpenWeatherDetails(data) }),
       });
       addToast(
         `${ctx.t('widgets.weather.updatedFor')} ${data.name}`,
@@ -126,9 +134,12 @@ export const WeatherAutoSyncField: React.FC<{
         functions,
         'fetchExternalProxy'
       );
-      const result = await proxy({
-        url: `${EARTH_NETWORKS_API.BASE_URL}?${params.toString()}`,
-      });
+      const [result, uvHours] = await Promise.all([
+        proxy({
+          url: `${EARTH_NETWORKS_API.BASE_URL}?${params.toString()}`,
+        }),
+        detailsAllowed ? fetchUvHours(STATION_CONFIG.zip) : null,
+      ]);
       const observation = result.data.o;
       if (!observation) throw new Error('No observation data available');
       ctx.updateConfig({
@@ -138,6 +149,9 @@ export const WeatherAutoSyncField: React.FC<{
         locationName: STATION_CONFIG.name,
         lastSync: Date.now(),
         isAuto: true,
+        ...(detailsAllowed && {
+          details: { ...parseEarthNetworksDetails(result.data), uvHours },
+        }),
       });
       addToast(
         `${ctx.t('widgets.weather.connectedTo')} ${STATION_CONFIG.name}`,
@@ -198,6 +212,12 @@ export const WeatherAutoSyncField: React.FC<{
                 type="button"
                 aria-pressed={source === option}
                 onClick={() => ctx.updateConfig({ source: option })}
+                {...tourFieldAttr(
+                  'widget-settings.weather.source',
+                  ctx.widget.type,
+                  option
+                )}
+                data-tour-widget={ctx.widget.id}
                 className={`flex-1 rounded-md px-2 py-1.5 text-xs font-semibold ${
                   source === option
                     ? 'bg-white text-indigo-700 shadow-sm'
@@ -242,6 +262,11 @@ export const WeatherAutoSyncField: React.FC<{
                 }
                 placeholder={ctx.t('widgets.weather.cityPlaceholder')}
                 aria-label={ctx.t('widgets.weather.cityZip')}
+                {...tourAttr(
+                  'widget-settings.weather.city',
+                  ctx.widget.id,
+                  ctx.widget.type
+                )}
                 className="rounded-lg border border-slate-200 px-3 py-2 text-xs disabled:opacity-50"
               />
               <div className="grid grid-cols-2 gap-2">
@@ -262,6 +287,11 @@ export const WeatherAutoSyncField: React.FC<{
                   type="button"
                   disabled={loading || !hasApiKey}
                   onClick={syncLocation}
+                  {...tourAttr(
+                    'widget-settings.weather.use-location',
+                    ctx.widget.id,
+                    ctx.widget.type
+                  )}
                   className="rounded-xl border border-indigo-200 px-3 py-2 text-xs font-semibold text-indigo-700 disabled:opacity-50"
                 >
                   {ctx.t('widgets.weather.useLocation')}

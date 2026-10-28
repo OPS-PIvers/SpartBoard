@@ -84,6 +84,59 @@ describe('plan-deploy.sh', () => {
     expect(plan('main', ['components/a.tsx']).backend).toBe('false');
   });
 
+  it('names only the affected functions on dev-paul', () => {
+    expect(
+      plan('dev-paul', ['functions/src/linkPreview.ts', 'storage.rules'])
+    ).toMatchObject({
+      backend: 'true',
+      deploy_only: 'functions:fetchLinkPreview,storage',
+    });
+  });
+
+  it('deploys every function from other dev branches, which diff against dev-paul', () => {
+    expect(
+      plan('dev-bailey', ['functions/src/linkPreview.ts']).deploy_only
+    ).toBe('functions');
+  });
+
+  it('skips functions when the changed code reaches none of them', () => {
+    expect(
+      plan('dev-paul', ['functions/src/testing/stubFirestore.ts'])
+    ).toMatchObject({ backend: 'false', deploy_only: '' });
+  });
+
+  it('keeps deploying every function on main', () => {
+    expect(plan('main', ['functions/src/linkPreview.ts']).deploy_only).toBe(
+      'functions'
+    );
+  });
+
+  it('does not redeploy prod for a change to the dev-only narrowing scripts', () => {
+    expect(
+      plan('main', [
+        '.github/scripts/affected-functions.mjs',
+        '.github/scripts/function-targets.mjs',
+      ])
+    ).toMatchObject({ backend: 'false', deploy_only: '' });
+    expect(
+      plan('main', ['.github/scripts/firebase-deploy-with-retry.sh'])
+        .deploy_only
+    ).toBe('functions,firestore:indexes,storage');
+  });
+
+  it('deploys every function on dev when the change could reach them all', () => {
+    expect(plan('dev-paul', ['functions/src/index.ts']).deploy_only).toBe(
+      'functions'
+    );
+    expect(
+      plan('dev-paul', ['firebase.json', 'functions/src/linkPreview.ts'])
+        .deploy_only
+    ).toBe('functions');
+    expect(
+      plan('dev-paul', ['.github/scripts/affected-functions.mjs']).deploy_only
+    ).toBe('functions,firestore:indexes,storage');
+  });
+
   it('deploys every target on a full-backend dispatch', () => {
     expect(plan('dev-paul', [], { full: true })).toMatchObject({
       backend: 'true',

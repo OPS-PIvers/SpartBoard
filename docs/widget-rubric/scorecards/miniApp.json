@@ -378,20 +378,20 @@
     },
     "C2": {
       "score": 1,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-miniApp-2026-10-18-after/screenshots/miniApp/default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/miniApp/default__typical__settings.png"
         ],
-        "runId": "loop-miniApp-2026-10-18-after"
+        "runId": "c2-regrade-2026-10-26"
       },
-      "note": "The settings-open capture shows only the selected outline on the running app, with no organized drawer visible.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:27:51.812Z",
+      "gradedAt": "2026-10-28T20:50:17.519Z",
       "stale": false
     },
     "C3": {

@@ -17,6 +17,9 @@ export type FieldCtx = {
   /** Auth-profile hydration state; gated fields can stay optimistic until permissions settle. */
   profileLoaded?: boolean;
   canAccessFeature: (featureId: GlobalFeature) => boolean;
+  /** The teacher's buildings and this widget type's admin config, for building-gated fields. */
+  selectedBuildings?: readonly string[];
+  adminConfig?: Record<string, unknown>;
   /** Widget-level feature permission; a `partnerWidget` card is dropped entirely when this denies its partner. */
   canAccessWidget?: (type: WidgetType) => boolean;
   /** Dock-facing widget name (admin displayName override, else the TOOLS label). */

@@ -356,6 +356,11 @@ export const StationsListField: React.FC<{ ctx: CustomRenderCtx }> = ({
                       setUseGroupNamesAsTitles(event.target.checked)
                     }
                     className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+                    {...tourAttr(
+                      'widget-settings.stations.use-group-names',
+                      ctx.widget.id,
+                      ctx.widget.type
+                    )}
                   />
                   <span>{translate(ctx, 'useGroupNamesAsTitles')}</span>
                 </label>
@@ -458,6 +463,11 @@ export const StationsSendToRandomField: React.FC<{
         disabled={!randomizerWidget || stations.length === 0}
         aria-labelledby={ctx.labelId}
         aria-describedby={ctx.describedBy}
+        {...tourAttr(
+          'widget-settings.stations.send-to-random',
+          ctx.widget.id,
+          ctx.widget.type
+        )}
         className="flex w-full items-center justify-center gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2 text-xxs font-black uppercase tracking-widest text-indigo-700 transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <Send size={13} />

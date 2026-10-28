@@ -384,20 +384,20 @@
     },
     "C2": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/numberLine/default__typical__settings.png"
         ],
-        "runId": "loop-numberline-2026-10-27-after"
+        "runId": "c2-regrade-2026-10-26"
       },
-      "note": "Searchable Settings and Style tabs with range and display mode first under Content; the expanded marker editors make the list long but stay in order.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-27T04:10:38.020Z",
+      "gradedAt": "2026-10-28T20:50:29.098Z",
       "stale": false
     },
     "C3": {

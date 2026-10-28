@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useGesture } from '@use-gesture/react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
+import { useClaudeBoardActivity } from './useClaudeBoardActivity';
 import { useDialog } from '@/context/useDialog';
 import {
   isExternalBackground,
@@ -220,6 +221,7 @@ export const DashboardView: React.FC = () => {
     canUndoAnnotation,
     canRedoAnnotation,
   } = useDashboard();
+  useClaudeBoardActivity();
 
   // Surface fire-and-forget PLC sync failures as a toast. Helpers
   // (`writePlcAssignment*`, `mirrorPlcAssignmentStatus`) log+swallow so
@@ -507,9 +509,7 @@ export const DashboardView: React.FC = () => {
   const { canAccessFeature, isAdmin } = useAuth();
   // Latched: the host takes the parameter off the address once it opens the editor.
   const [webTourLink] = React.useState(opensWebTour);
-  useWallBoardAccessCleanup(
-    canAccessFeature('shared-board-live-walls') ? (user?.uid ?? null) : null
-  );
+  useWallBoardAccessCleanup(user?.uid ?? null);
 
   const {
     session,

@@ -12,6 +12,7 @@ import {
   Student,
   AddWidgetOverrides,
   GridPosition,
+  WidgetPlacement,
   DrawableObject,
   ShapeTool,
   Collection,
@@ -192,6 +193,8 @@ export interface DashboardContextValue {
     boardId: string,
     options?: { silent?: boolean }
   ) => Promise<void>;
+  /** Clears the "Made with Claude" / "Edited by Claude" badge once the teacher has opened the board. */
+  markClaudeBoardSeen: (boardId: string) => Promise<void>;
   setActiveCollectionId: (collectionId: string | null) => void;
   addWidget: (type: WidgetType, overrides?: AddWidgetOverrides) => void;
   addWidgets: (
@@ -199,6 +202,7 @@ export interface DashboardContextValue {
       type: WidgetType;
       config?: WidgetConfig;
       gridConfig?: GridPosition;
+      placement?: WidgetPlacement;
     }[]
   ) => void;
   removeWidget: (id: string) => void;

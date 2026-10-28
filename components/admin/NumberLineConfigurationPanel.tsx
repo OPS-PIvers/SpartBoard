@@ -19,6 +19,7 @@ import { Toggle } from '@/components/common/Toggle';
 import { GLOBAL_FONT_FAMILY_OPTIONS } from '@/config/fonts';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { tourFieldAttr } from '@/config/tourAnchors';
+import { DraftNumberField } from './DraftNumberField';
 
 /**
  * Hex color text input with debounced commit. Keeps user keystrokes in
@@ -235,17 +236,14 @@ export const NumberLineConfigurationPanel: React.FC<
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Default Minimum Value
             </label>
-            <input
+            <DraftNumberField
               {...tourFieldAttr(
                 'admin.widget-config.field',
                 'numberLine',
                 'min'
               )}
-              type="number"
               value={currentBuildingConfig.min}
-              onChange={(e) =>
-                handleUpdateBuilding({ min: Number(e.target.value) })
-              }
+              onCommit={(n) => handleUpdateBuilding({ min: n })}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -253,17 +251,14 @@ export const NumberLineConfigurationPanel: React.FC<
             <label className="block text-sm font-medium text-slate-700 mb-1">
               Default Maximum Value
             </label>
-            <input
+            <DraftNumberField
               {...tourFieldAttr(
                 'admin.widget-config.field',
                 'numberLine',
                 'max'
               )}
-              type="number"
               value={currentBuildingConfig.max}
-              onChange={(e) =>
-                handleUpdateBuilding({ max: Number(e.target.value) })
-              }
+              onCommit={(n) => handleUpdateBuilding({ max: n })}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
@@ -273,19 +268,18 @@ export const NumberLineConfigurationPanel: React.FC<
           <label className="block text-sm font-medium text-slate-700 mb-1">
             Default Step Interval
           </label>
-          <input
+          <DraftNumberField
             {...tourFieldAttr(
               'admin.widget-config.field',
               'numberLine',
               'step'
             )}
-            type="number"
             step="0.1"
             min="0.1"
             value={currentBuildingConfig.step}
-            onChange={(e) =>
-              handleUpdateBuilding({ step: Number(e.target.value) })
-            }
+            onCommit={(n) => {
+              if (n > 0) handleUpdateBuilding({ step: n });
+            }}
             className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>

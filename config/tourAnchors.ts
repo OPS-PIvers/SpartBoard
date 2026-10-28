@@ -220,6 +220,10 @@ export const TOUR_ANCHORS = {
   'board-nav.manage-boards': { label: 'Manage all boards item', panel: true },
 
   'board.whole': { label: 'The whole board, for opening and closing steps' },
+  'board.claude-editing-show': {
+    label: 'Show button on the "Claude is editing" notice',
+    panel: true,
+  },
   'board-actions.zoom': { label: 'Zoom level button' },
   'board-actions.zoom-reset': { label: 'Reset zoom button' },
   'board-actions.help': { label: 'Help button' },
@@ -407,6 +411,16 @@ export const TOUR_ANCHORS = {
   },
   'behavior.remote-control-toggle': {
     label: 'Remote control switch',
+    persists: true,
+    panel: true,
+  },
+  'behavior.alignment-guides-toggle': {
+    label: 'Alignment guides switch',
+    persists: true,
+    panel: true,
+  },
+  'behavior.spell-check-toggle': {
+    label: 'Spell check switch',
     persists: true,
     panel: true,
   },
@@ -744,6 +758,10 @@ export const TOUR_ANCHORS = {
   },
   'assign-step.feedback': {
     label: 'Feedback step header in the Assign dialog',
+    panel: true,
+  },
+  'assign-step.video': {
+    label: 'Video step header in the Assign dialog',
     panel: true,
   },
   'assign-step.check': {
@@ -4326,6 +4344,12 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
+  'widget-settings.random.save-as-groups': {
+    label: 'Save as class groups button in Random Picker settings',
+    perWidget: true,
+    panel: true,
+    persists: true,
+  },
   'widget-settings.random.send-stations': {
     label: 'Send to Stations button in Random Picker settings',
     perWidget: true,
@@ -4696,6 +4720,113 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'widget-settings.stations.title': {
+    label: 'Station title box in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.description': {
+    label: 'Station description box in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.max-students': {
+    label: 'Station max students box in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.custom-color': {
+    label: 'Station custom color picker in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.icon-tab': {
+    label: 'Icon tab of a station in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.image-tab': {
+    label: 'Image tab of a station in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.icon-search': {
+    label: 'Icon search box of a station in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.upload-image': {
+    label: 'Upload image button of a station in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.replace-image': {
+    label: 'Replace image button of a station in Stations settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.stations.remove-image': {
+    label: 'Remove image button of a station in Stations settings',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.stations.clear-icon': {
+    label: 'Clear icon button of a station in Stations settings',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.stations.save-preset': {
+    label: 'Save current preset button in Stations settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.stations.delete-preset': {
+    label: 'Delete a saved station preset in Stations settings',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.stations.use-group-names': {
+    label: 'Use group names as titles checkbox in Stations settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.stations.send-to-random': {
+    label: 'Send to Random Picker button in Stations settings',
+    perWidget: true,
+    panel: true,
+  },
+  'stations.reset-station': {
+    label: 'Reset students in one station button in Stations',
+    perField: true,
+    destructive: true,
+  },
+  'widget-settings.weather.source': {
+    label: 'Weather source button in Weather settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.weather.city': {
+    label: 'City or ZIP box in Weather settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.weather.use-location': {
+    label: 'Use my location button in Weather settings',
+    perWidget: true,
+    panel: true,
+  },
+  'webcam.download-photo': {
+    label: 'Download a photo button in the Webcam gallery',
+    perField: true,
+  },
+  'webcam.delete-photo': {
+    label: 'Delete a photo button in the Webcam gallery',
+    perField: true,
+    destructive: true,
+  },
   'widget-settings.soundboard.toggle-sound': {
     label: 'Toggle a sound on or off in Soundboard settings',
     perField: true,
@@ -4940,6 +5071,29 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'widget-settings.music.my-song': {
+    label: "One of the teacher's own songs in Music settings",
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.music.my-song-remove': {
+    label: "Remove button on one of the teacher's own songs in Music settings",
+    perField: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'widget-settings.music.my-song-link': {
+    label: 'YouTube link field for adding a song in Music settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.music.my-song-add': {
+    label: 'Add button for a YouTube song in Music settings',
+    perWidget: true,
+    persists: true,
+    panel: true,
+  },
   'widget-settings.custom-widget.definition-input': {
     label: 'One admin-defined setting input in Custom Widget settings',
     perField: true,
@@ -4977,6 +5131,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
     destructive: true,
+  },
+  'classes.row-actions': {
+    label: 'Class actions menu in My Classes',
+    perField: true,
+    panel: true,
   },
   'classes.classroom-course-row': {
     label: 'Course row in the Link to Google Classroom modal',
@@ -11476,6 +11635,10 @@ export const TOUR_ANCHORS = {
     panel: true,
     persists: true,
   },
+  'boards-modal.claude-badge': {
+    label: 'Made with Claude or Edited by Claude note on a board card',
+    panel: true,
+  },
   'boards-modal.board-delete': {
     label: 'Delete item in the board card menu',
     panel: true,
@@ -12975,6 +13138,46 @@ export const TOUR_ANCHORS = {
   },
   'math-tool.rotate': {
     label: 'Rotation grip on a Math Tool',
+    perWidgetType: true,
+  },
+  'math-tool.add-piece': {
+    label:
+      'Add piece button on a Math Tool (algebra tiles, base-10 blocks, pattern blocks, place value), by tool and piece',
+    perField: true,
+  },
+  'math-tool.clear': {
+    label:
+      'Clear button on a Math Tool (coordinate plane, geoboard, place value)',
+    perWidgetType: true,
+    destructive: true,
+  },
+  'math-tool.rotate-piece': {
+    label: 'Rotate 30° button for the selected piece in Pattern Blocks',
+    perWidgetType: true,
+  },
+  'math-tool.remove-piece': {
+    label: 'Remove button for the selected piece in Pattern Blocks',
+    perWidgetType: true,
+    destructive: true,
+  },
+  'math-tool.calculator-key': {
+    label: 'Calculator key, by label (digits, operators, AC, =)',
+    perField: true,
+  },
+  'math-tool.denominator': {
+    label: 'Denominator toggle in Fraction Tiles, by denominator',
+    perField: true,
+  },
+  'math-tool.number-line-mode': {
+    label: 'Number line mode button (integers, decimals, fractions), by mode',
+    perField: true,
+  },
+  'math-tool.number-line-min': {
+    label: 'Minimum value box on the Number Line tool',
+    perWidgetType: true,
+  },
+  'math-tool.number-line-max': {
+    label: 'Maximum value box on the Number Line tool',
     perWidgetType: true,
   },
   'smart-notebook.view-mode': {

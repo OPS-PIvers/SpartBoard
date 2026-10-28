@@ -531,6 +531,7 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
                 />
               )}
               {uploading ? t('widgets.stickers.wait') : t('common.upload')}
+              {/* no-tour-anchor: hidden file input inside the Upload label */}
               <input
                 type="file"
                 ref={fileInputRef}

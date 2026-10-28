@@ -197,6 +197,7 @@ export const LinkBackgroundInput: React.FC<LinkBackgroundInputProps> = ({
 
       {tab === 'image' && (
         <div className="space-y-2">
+          {/* no-tour-anchor: hidden file input, opened by the upload buttons */}
           <input
             ref={fileInputRef}
             type="file"

@@ -8,7 +8,7 @@
  * re-homed when a folder is deleted.
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import {
   collection,
   doc,
@@ -146,20 +146,24 @@ export function useFolderTree(config: FolderTreeConfig): UseFoldersResult {
   const loading = folderKey ? shared.loading : false;
   const error = folderKey ? shared.error : null;
 
+  const lastIssuedOrder = useRef(new Map<string, number>());
+
   const createFolder = useCallback(
     async (name: string, parentId: string | null): Promise<string> => {
       if (!folderKey) throw new Error('Not authenticated');
       const trimmed = name.trim();
       if (!trimmed) throw new Error('Folder name is required');
 
-      // Compute next order = max(siblings) + 1. Folders are already sorted
-      // client-side, but recompute against the current state to avoid
-      // duplicate order values under rapid creates.
+      // Next order = max(snapshot siblings, last order issued here) + 1, so rapid creates don't collide.
+      const issuedKey = `${folderKey}|${parentId ?? ''}`;
       const siblingOrders = folders
         .filter((f) => f.parentId === parentId)
         .map((f) => f.order);
+      const issued = lastIssuedOrder.current.get(issuedKey);
+      if (issued !== undefined) siblingOrders.push(issued);
       const nextOrder =
         siblingOrders.length === 0 ? 0 : Math.max(...siblingOrders) + 1;
+      lastIssuedOrder.current.set(issuedKey, nextOrder);
 
       const now = Date.now();
       const ref = await addDoc(collection(db, folderKey), {

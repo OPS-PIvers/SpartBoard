@@ -3,16 +3,21 @@ import { Eye, X } from 'lucide-react';
 import type { PollResponse } from '@/hooks/usePollSession';
 import type { WidgetType } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
-import { cloudKey, hiddenWordKey } from '@/utils/pollResults';
+import { cloudKey, legacyHiddenWordKey } from '@/utils/pollResults';
 
 interface TextResponsesProps {
   kind: 'words' | 'text';
   questionId: string;
   responses: PollResponse[];
   hiddenKeys: readonly string[];
+  /** This question's hidden word cloud words, as cloudKeys. */
+  hiddenWords: readonly string[];
+  /** Hidden words haven't loaded yet, so the cloud waits rather than flash them. */
+  hiddenWordsLoading?: boolean;
   /** The board owner can hide answers and bring them back. */
   canModerate: boolean;
   onHide: (key: string) => void;
+  onHideWord: (word: string) => void;
   onShowHidden: () => void;
   fontFamily: string;
   widgetId: string;
@@ -63,25 +68,32 @@ export const TextResponses: React.FC<TextResponsesProps> = ({
   questionId,
   responses,
   hiddenKeys,
+  hiddenWords,
+  hiddenWordsLoading = false,
   canModerate,
   onHide,
+  onHideWord,
   onShowHidden,
   fontFamily,
   widgetId,
   widgetType,
 }) => {
   const hidden = new Set(hiddenKeys);
+  const hiddenWordSet = new Set(hiddenWords);
   const visible = responses.filter((r) => !hidden.has(`${questionId}:${r.id}`));
   const words =
-    kind === 'words'
+    kind === 'words' && !hiddenWordsLoading
       ? buildAnswerCloud(
           visible.map((r) => r.text),
-          (word) => hidden.has(hiddenWordKey(questionId, word))
+          (word) =>
+            hiddenWordSet.has(word) ||
+            hidden.has(legacyHiddenWordKey(questionId, word))
         )
       : [];
-  const hiddenCount = hiddenKeys.filter(
-    (k) => k.startsWith(`${questionId}:`) || k.startsWith(`${questionId}#`)
-  ).length;
+  const hiddenCount =
+    hiddenKeys.filter(
+      (k) => k.startsWith(`${questionId}:`) || k.startsWith(`${questionId}#`)
+    ).length + hiddenWords.length;
   const empty = responses.length === 0;
 
   return (
@@ -115,7 +127,7 @@ export const TextResponses: React.FC<TextResponsesProps> = ({
               {canModerate && (
                 <button // no-tour-anchor: one per word, tours point at the question
                   type="button"
-                  onClick={() => onHide(hiddenWordKey(questionId, word))}
+                  onClick={() => onHideWord(word)}
                   aria-label={`Hide ${word}`}
                   className="relative touch-target-expand text-slate-400 hover:text-red-600 transition-colors"
                   style={{ marginLeft: '0.15em' }}

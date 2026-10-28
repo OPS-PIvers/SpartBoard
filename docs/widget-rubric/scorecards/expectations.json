@@ -396,20 +396,20 @@
     },
     "C2": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-expectations-2026-10-18-after/screenshots/expectations/default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/expectations/default__typical__settings.png"
         ],
-        "runId": "loop-expectations-2026-10-18-after"
+        "runId": "c2-regrade-2026-10-26"
       },
-      "note": "The drawer holds a single grouped behavior section with one standard toggle for sound sync, so there is nothing to bury.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:20:53.019Z",
+      "gradedAt": "2026-10-28T20:49:45.234Z",
       "stale": false
     },
     "C3": {

@@ -1779,7 +1779,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               style={{ gap: 'clamp(6px, 2cqmin, 14px)' }}
             >
               {/* Mode chip + inline counter sit in one rounded shell, but the
-                  counter is a sibling of the actual cycle <button>, not a
+                  counter is a sibling of the actual cycle button, not a
                   child — taps on "N Left" must NOT cycle the mode. The
                   shared shell is a styled wrapper, the button only spans
                   icon+label. */}

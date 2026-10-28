@@ -4905,6 +4905,24 @@ rather than "no data") is also still open.
   - #4594: `--num-std` grows from 42cqh to 46cqh at every card size, not only small ones.
 - Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. No local checks were run because no fixes were made.
 
+## 2026-10-24
+- PRs reviewed: #4629 SmartNotebook assets panel: scale width caps with the widget, #4628 Widget loop: Graphic Organizer layout S1 1 → 3, #4627 Debugger run 106: log 2026-10-24, #4626 Lunch menu sync: retry thrown network errors, not just 5xx, #4625 HexColorField: skip onChange on an unchanged blur, #4624 StaffEmailInput: ignore Enter and arrows while an IME is composing, #4623 Countdown: count days arithmetically and cap grid cells for far-future events, #4622 Web tours: Tours tab and badge in the side panel (help panel slice 3), #4621 Unifier run 125: aligned (log only)
+- Comments processed: 3 total. 3 fixed, 0 explained.
+  - All three were red-circle inline findings from `claude[bot]` on #4622. Each got a reply, and its thread was resolved.
+  - The other PRs had only `claude[bot]` summary comments that reported no issues.
+- Fixes pushed:
+  - #4622 on `web-tours-panel`, commit ddbf73a3:
+    - A reused tab whose start URL changes only the fragment now gets the overlay.
+    - With no token while the browser is offline, the result is 'offline' instead of 'signed-out'.
+    - An offline refresh now returns the cached list. Before, it replaced the list in the panel with a failure.
+- Reviews posted: 9
+  - Ready: #4629, #4627, #4626, #4625, #4624, #4623.
+  - Ready with minor notes: #4628, #4622, #4621.
+  - #4628 hides the Frayer center circle at small sizes. That circle holds the concept word the teacher typed, so whether it may be hidden needs Paul's call.
+  - #4621 put its run row into the Journal table, which has a different column count.
+  - #4622 has no functions test for the new `admin` field in the `webToursListV1` reply.
+- Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. The fix was checked with the extension type-check and the three affected suites (69 tests, all passing). The new controller test fails without the fix. Lint and prettier passed in the pre-commit hook.
+
 ## 2026-10-26
 
 - PRs reviewed: #4704 docs(debugger): run 108 log; #4703 fix(functions): block SIIT-translated IPv4 in the SSRF guard; #4702 fix(admin): keep half-typed weather/recess temperatures; #4701 fix(sync): retry a linked-collection board import after a transient load failure; #4700 fix(library): clear folder-reorder drag state when the dragged row unmounts; #4699 fix(calendar): keep same-titled events at different times on one day; #4697 docs(unifier): run 127 log; #4696 chore(deps): patch zod and body-parser advisories
@@ -4918,3 +4936,33 @@ rather than "no data") is also still open.
   - #4704: the new backlog row calls the `useStudentAssignments` `.slice(0, 30)` lead closed, while the 2026-10-25 row says it is still open.
   - #4696 and #4697 are based on an older `dev-paul` but merge cleanly with `a038aeed`.
 - Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. No local checks were run because no fixes were made. The log was pushed on the session branch instead of `scheduled-tasks`, because the session only allows pushing to its designated branch.
+
+## 2026-10-27
+
+- PRs reviewed: #4744 deps: raise fast-uri override to ^3.1.9 (root + functions); #4743 Widget loop: Number Line layout S8 1 → 2; #4742 Widget loop: Countdown layout S6 2 → 4; #4741 Unifier run 128: aligned, log update; #4739 Weather details: station readings on the Weather widget, allowed per building
+- Comments processed: 9 total. 0 fixed from a comment, 9 explained or already resolved.
+  - None of the PRs had inline review threads.
+  - #4744: the `claude[bot]` note about a lost 2026-10-26 log entry and a missing blank line was out of date. Both are fine on the current head. I replied to say so.
+  - #4739: the "PR description should name the flag" notes were already addressed. The `MOCKUP_DETAILS_STYLE` / `band` cleanup waits on Paul's layout choice. One reply covers both.
+  - #4743, #4742 and the other #4739 summaries reported no issues.
+- Fixes pushed:
+  - #4744 on `scheduled-tasks`: restored the 2026-10-08 and 2026-10-06 audit narratives that the zod action-note edit had replaced in `dependency-audit.md`. I found this during review, not from a comment.
+- Reviews posted: 5
+  - Ready: #4744, #4743, #4742, #4741.
+  - Ready with minor notes: #4739. It waits on Paul's layout pick and removal of the mockup switch. Minor notes: an EPA UV fetch runs on every sync even when no building is enabled, and `details` is written into board configs where details are off.
+- Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. CI was green on #4739 and #4744 at review time. The only fix was docs-only, so I ran no local type-check, lint or tests. The pre-commit hook ran.
+
+## 2026-10-28
+
+- PRs reviewed: #4782 AI boards S6: mirror Claude's board writes to live shares, add tidy_board; #4780 docs(debugger): run 110 log; #4779 Admin weather and Recess Gear update frequency: keep a cleared field empty; #4778 Escape on a stacked Modal no longer closes the Boards and Assignments hubs; #4777 Stations: drop capacity counts visible chips, not absent students; #4767 docs(unifier): run 129 log
+- Skipped re-review: #4743 and #4742. Their head SHAs are unchanged since the 2026-10-27 review.
+- Comments processed: 7 total. 0 fixed, 0 needing a reply.
+  - None of the open PRs had inline review threads.
+  - Every comment was a `claude[bot]` "no issues found" summary or an earlier automated review.
+- Fixes pushed: none
+- Reviews posted: 6
+  - Ready: #4780, #4779, #4777, #4767.
+  - Ready with minor notes: #4782 and #4778.
+    - #4782: optionally comment that a share with no `intendedMode` counts as live, and add a test for the `tidy_board` case where widgets are left unplaced.
+    - #4778: no test checks that a plain Escape with nothing stacked still closes the hub, and `AssignmentsHubModal` has no test of its own.
+- Notes: GitHub access went through MCP. No code fixes were made, so I ran no local type-check, lint or tests.

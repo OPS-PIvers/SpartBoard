@@ -36,6 +36,50 @@ describe('getAssignSteps (D4)', () => {
     ]);
   });
 
+  it('adds the Video rule steps when rules belong to the assignment, self-paced only', () => {
+    expect(getAssignSteps('video', { kind: 'work', rules: true })).toEqual([
+      'classes',
+      'when',
+      'attempts',
+      'video',
+      'integrity',
+    ]);
+    expect(
+      getAssignSteps('video', {
+        kind: 'work',
+        rules: true,
+        videoAnswerRows: true,
+        inPlc: true,
+      })
+    ).toEqual([
+      'classes',
+      'when',
+      'attempts',
+      'video',
+      'integrity',
+      'feedback',
+      'sharing',
+    ]);
+    expect(
+      getAssignSteps('video', { kind: 'work', rules: true, live: true })
+    ).toEqual(['classes', 'when']);
+    expect(getAssignSteps('quiz', { kind: 'work', rules: true })).toEqual(
+      getAssignSteps('quiz', { kind: 'work' })
+    );
+  });
+
+  it('titles the Video steps', () => {
+    expect(getAssignStepTitle('video', 'video', { kind: 'work' })).toBe(
+      'Video'
+    );
+    expect(getAssignStepTitle('integrity', 'video', { kind: 'work' })).toBe(
+      'Integrity'
+    );
+    expect(getAssignStepTitle('integrity', 'quiz', { kind: 'work' })).toBe(
+      'Quiz integrity'
+    );
+  });
+
   it('never gives Guided Learning or Flashcards a Sharing step', () => {
     expect(getAssignSteps('gl', { kind: 'work', inPlc: true })).toEqual([
       'classes',

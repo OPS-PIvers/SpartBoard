@@ -4,7 +4,7 @@
 #
 # On dev, hosting goes to the branch owner's own site. The backend (functions, rules,
 # indexes, storage) is shared by every dev branch, so it deploys only the parts
-# whose files changed, and a branch other than dev-paul may deploy it only when
+# whose files changed (on dev-paul, only the affected functions), and a branch other than dev-paul may deploy it only when
 # it already contains origin/dev-paul (functions deploy with --force, so a stale
 # branch would delete functions dev-paul added).
 #
@@ -57,7 +57,11 @@ changed_files() {
 FILES="$(changed_files)"
 has() { grep -qE "$1" <<<"$FILES"; }
 
-if [[ "$FULL" == "true" ]] || has '^__ALL__$|^\.github/scripts/firebase-deploy-with-retry\.sh$'; then
+# What the functions target deploys: every function, or (dev-paul only) just the affected ones.
+FUNCTION_TARGETS=functions
+DEPLOY_SCRIPTS='firebase-deploy-with-retry\.sh'
+[[ "$BRANCH" != "main" ]] && DEPLOY_SCRIPTS+='|affected-functions\.mjs|function-targets\.mjs'
+if [[ "$FULL" == "true" ]] || has "^__ALL__\$|^\.github/scripts/(${DEPLOY_SCRIPTS})\$"; then
   FUNCTIONS=true INDEXES=true STORAGE=true RULES=true
 else
   FUNCTIONS=false INDEXES=false STORAGE=false RULES=false
@@ -66,10 +70,21 @@ else
   if has '^firestore\.indexes\.json$'; then INDEXES=true; fi
   if has '^storage\.rules$'; then STORAGE=true; fi
   if has '^firestore\.rules$|^scripts/(releaseFirestoreRules|stripRulesComments|minifyRules)\.mjs$|^scripts/rulesAst/(RulesAst\.java|emulatorJar\.mjs)$'; then RULES=true; fi
+
+  # Other branches and main deploy every function; any doubt (or a failed script) keeps every function.
+  if [[ "$FUNCTIONS" == "true" && "$BRANCH" == "dev-paul" ]] && ! has '^firebase\.json$'; then
+    root="${AFFECTED_FUNCTIONS_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
+    names="$(grep '^functions/' <<<"$FILES" | node "$(dirname "$0")/affected-functions.mjs" "$root")" || names=ALL
+    if [[ -z "$names" ]]; then
+      FUNCTIONS=false
+    elif [[ "$names" != "ALL" ]]; then
+      FUNCTION_TARGETS="$(sed 's/[^,]*/functions:&/g' <<<"$names")"
+    fi
+  fi
 fi
 
 targets=()
-[[ "$FUNCTIONS" == "true" ]] && targets+=(functions)
+[[ "$FUNCTIONS" == "true" ]] && targets+=("$FUNCTION_TARGETS")
 [[ "$INDEXES" == "true" ]] && targets+=(firestore:indexes)
 [[ "$STORAGE" == "true" ]] && targets+=(storage)
 DEPLOY_ONLY="$(IFS=,; echo "${targets[*]}")"

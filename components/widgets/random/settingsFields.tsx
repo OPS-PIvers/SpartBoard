@@ -74,6 +74,7 @@ export const RandomGroupCountField: React.FC<{
         ctx.widget.type
       )}
     >
+      {/* no-tour-anchor: the wrapping group row carries the group-count anchor */}
       <input
         type="range"
         min={2}
@@ -555,6 +556,11 @@ export const RandomSaveAsClassGroupsField: React.FC<{
     <button
       id={ctx.id}
       type="button"
+      {...tourAttr(
+        'widget-settings.random.save-as-groups',
+        ctx.widget.id,
+        ctx.widget.type
+      )}
       onClick={() => void save()}
       className="w-full px-3 py-2 text-sm font-bold text-brand-blue-primary bg-white border border-dashed border-slate-300 rounded-lg hover:border-brand-blue-primary hover:bg-brand-blue-lighter transition-colors"
     >

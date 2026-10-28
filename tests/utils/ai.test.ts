@@ -121,8 +121,46 @@ vi.mock('firebase/functions', () => {
         }
 
         if (data.type === 'dashboard-layout') {
+          if (data.layoutMode === 'templates') {
+            if (data.prompt.includes('old-server')) {
+              return { data: { widgets: [{ type: 'clock', config: {} }] } };
+            }
+            if (data.prompt.includes('unknown-template')) {
+              return { data: { templateId: 'nope', slots: [] } };
+            }
+            return {
+              data: {
+                templateId: 'review-game',
+                slots: [
+                  { zoneId: 'side', widgetType: 'clock', config: {} },
+                  {
+                    zoneId: 'main',
+                    widgetType: 'poll',
+                    config: { question: 'Test?' },
+                  },
+                  { zoneId: 'main', widgetType: 'clock', config: {} },
+                  { zoneId: 'side', widgetType: 'scoreboard', config: {} },
+                  { zoneId: 'nowhere', widgetType: 'dice', config: {} },
+                  { zoneId: 'side', widgetType: 'invalid-type' },
+                ],
+              },
+            };
+          }
           if (data.prompt.includes('invalid-response')) {
             return { data: {} };
+          }
+          if (data.prompt.includes('stray-placement')) {
+            return {
+              data: {
+                widgets: [
+                  {
+                    type: 'clock',
+                    config: {},
+                    placement: { xProp: 0, yProp: 0, wProp: 1, hProp: 1 },
+                  },
+                ],
+              },
+            };
           }
           if (data.prompt.includes('invalid-types')) {
             return {
@@ -273,6 +311,59 @@ describe('generatePoll', () => {
     await expect(generatePoll('invalid-response')).rejects.toThrow(
       'Invalid response format from AI'
     );
+  });
+});
+
+describe('generateDashboardLayout with board templates', () => {
+  const screen = { w: 1920, h: 1080 };
+
+  it('asks for template mode and places each slot on its zone', async () => {
+    const result = await generateDashboardLayout('Review', { screen });
+    expect(httpsCallable).toHaveBeenCalled();
+    expect(result.map((w) => w.type)).toEqual(['clock', 'poll']);
+    for (const widget of result) {
+      expect(widget.gridConfig).toBeUndefined();
+      const p = widget.placement;
+      expect(p).toBeDefined();
+      if (!p) continue;
+      expect(p.xProp).toBeGreaterThanOrEqual(0);
+      expect(p.yProp).toBeGreaterThanOrEqual(0);
+      expect(p.xProp + p.wProp).toBeLessThanOrEqual(1 + 1e-9);
+      expect(p.yProp + p.hProp).toBeLessThanOrEqual(1 + 1e-9);
+      expect(p.aspectRatio).toBeGreaterThan(0);
+    }
+    const [side, main] = result.map((w) => w.placement);
+    expect(side && main && side.xProp < main.xProp).toBe(true);
+    expect(result[1].config).toEqual({ question: 'Test?' });
+  });
+
+  it('drops widgets the teacher cannot use', async () => {
+    const result = await generateDashboardLayout('Review', {
+      screen,
+      canUseWidget: (type) => type !== 'clock',
+    });
+    expect(result.map((w) => w.type)).toEqual(['poll']);
+  });
+
+  it('falls back to grid cells when the server answers the old way', async () => {
+    const result = await generateDashboardLayout('old-server', { screen });
+    expect(result).toEqual([{ type: 'clock', config: {} }]);
+  });
+
+  it('never passes a placement through on the grid path', async () => {
+    const result = await generateDashboardLayout('stray-placement');
+    expect(result).toEqual([{ type: 'clock', config: {} }]);
+  });
+
+  it('rejects an unknown template', async () => {
+    await expect(
+      generateDashboardLayout('unknown-template', { screen })
+    ).rejects.toThrow('Invalid response format from AI');
+  });
+
+  it('does not ask for template mode without options', async () => {
+    const result = await generateDashboardLayout('Math lesson');
+    expect(result.every((w) => w.placement === undefined)).toBe(true);
   });
 });
 

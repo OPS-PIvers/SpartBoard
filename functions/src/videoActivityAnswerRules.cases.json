@@ -1,0 +1,124 @@
+[
+  {
+    "name": "legacy session with no options keeps every feedback row",
+    "settings": {},
+    "sessionOptions": null,
+    "expected": {
+      "showResult": true,
+      "revealAnswer": true,
+      "requireCorrectAnswer": true,
+      "shuffleForEachStudent": false
+    }
+  },
+  {
+    "name": "legacy session ignores saved feedback values",
+    "settings": {
+      "requireCorrectAnswer": true
+    },
+    "sessionOptions": {
+      "showResultToStudent": false,
+      "showCorrectAnswerToStudent": false,
+      "shuffleAnswerOptions": true
+    },
+    "expected": {
+      "showResult": true,
+      "revealAnswer": true,
+      "requireCorrectAnswer": true,
+      "shuffleForEachStudent": false
+    }
+  },
+  {
+    "name": "legacy session keeps require-correct off",
+    "settings": {
+      "requireCorrectAnswer": false
+    },
+    "sessionOptions": {
+      "showResultToStudent": false
+    },
+    "expected": {
+      "showResult": true,
+      "revealAnswer": true,
+      "requireCorrectAnswer": false,
+      "shuffleForEachStudent": false
+    }
+  },
+  {
+    "name": "rules set with absent rows means everything on",
+    "settings": {
+      "requireCorrectAnswer": true
+    },
+    "sessionOptions": {
+      "answerRulesSet": true
+    },
+    "expected": {
+      "showResult": true,
+      "revealAnswer": true,
+      "requireCorrectAnswer": true,
+      "shuffleForEachStudent": true
+    }
+  },
+  {
+    "name": "reveal off keeps right and wrong",
+    "settings": {
+      "requireCorrectAnswer": false
+    },
+    "sessionOptions": {
+      "answerRulesSet": true,
+      "showResultToStudent": true,
+      "showCorrectAnswerToStudent": false
+    },
+    "expected": {
+      "showResult": true,
+      "revealAnswer": false,
+      "requireCorrectAnswer": false,
+      "shuffleForEachStudent": true
+    }
+  },
+  {
+    "name": "right and wrong off hides the answer and stops the rewind",
+    "settings": {
+      "requireCorrectAnswer": true
+    },
+    "sessionOptions": {
+      "answerRulesSet": true,
+      "showResultToStudent": false,
+      "showCorrectAnswerToStudent": true
+    },
+    "expected": {
+      "showResult": false,
+      "revealAnswer": false,
+      "requireCorrectAnswer": false,
+      "shuffleForEachStudent": true
+    }
+  },
+  {
+    "name": "shuffle off keeps one order for the class",
+    "settings": {},
+    "sessionOptions": {
+      "answerRulesSet": true,
+      "shuffleAnswerOptions": false
+    },
+    "expected": {
+      "showResult": true,
+      "revealAnswer": true,
+      "requireCorrectAnswer": true,
+      "shuffleForEachStudent": false
+    }
+  },
+  {
+    "name": "reveal off stops the retry-until-right loop",
+    "settings": {
+      "requireCorrectAnswer": true
+    },
+    "sessionOptions": {
+      "answerRulesSet": true,
+      "showCorrectAnswerToStudent": false
+    },
+    "expected": {
+      "showResult": true,
+      "revealAnswer": false,
+      "requireCorrectAnswer": false,
+      "shuffleForEachStudent": true
+    }
+  }
+]
