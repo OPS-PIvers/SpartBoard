@@ -24,7 +24,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'ai-boards',
   'claude-connector-guided-learning',
   'video-activity-live',
-  'va-quiz-alignment',
   'quiz-student-view',
   'quiz-score-on-submit',
   'quiz-attempt-history',

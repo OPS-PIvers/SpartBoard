@@ -842,8 +842,10 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     afterLaunch: 'retire',
     widget: 'video-activity',
     defaultAccessLevel: 'admin',
-    defaultEnabled: true,
+    defaultEnabled: false,
     missingDocPublic: false,
+    // Closed for admins too until LTI, Classroom and PLC assigns read the new rules (slices 6 and 7).
+    failClosedForAdmins: true,
   },
   // Quiz library "Student view": the real student player with focus-mode toggles, local-only.
   'quiz-student-view': {
