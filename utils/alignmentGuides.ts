@@ -54,16 +54,18 @@ const sharesBand = (p: GuideRect, q: GuideRect, a: Axis) => {
   return start(p, o) < end(q, o) && start(q, o) < end(p, o);
 };
 
-/** Nearest neighbour before / after `r` along `a` among rects sharing its band. */
+/** Nearest neighbour before / after `r` along `a` among rects sharing its band; none when one overlaps `r`. */
 const neighbours = (r: GuideRect, others: GuideRect[], a: Axis) => {
   let before: GuideRect | null = null;
   let after: GuideRect | null = null;
   for (const o of others) {
-    if (!sharesBand(r, o, a)) continue;
+    if (o === r || !sharesBand(r, o, a)) continue;
     if (end(o, a) <= start(r, a) + EPS) {
       if (!before || end(o, a) > end(before, a)) before = o;
     } else if (start(o, a) >= end(r, a) - EPS) {
       if (!after || start(o, a) < start(after, a)) after = o;
+    } else {
+      return { before: null, after: null };
     }
   }
   return { before, after };

@@ -81,6 +81,15 @@ describe('computeGuides', () => {
     ]);
   });
 
+  it('skips spacing when another widget overlaps the moving one', () => {
+    const g = computeGuides(rect(200, 0), [
+      rect(0, 0),
+      rect(400, 0),
+      rect(250, 50),
+    ]);
+    expect(g.spacing).toEqual([]);
+  });
+
   it('ignores widgets in a different row for spacing', () => {
     const g = computeGuides(rect(200, 500), [rect(0, 0), rect(400, 0)]);
     expect(g.spacing).toEqual([]);

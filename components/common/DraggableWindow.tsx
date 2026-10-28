@@ -182,19 +182,22 @@ interface KeyboardActionDetail {
 /** Rendered boxes of the other visible widgets, read once at gesture start. */
 const collectGuideRects = (
   widgets: readonly WidgetData[],
-  selfId: string
+  selfId: string,
+  spotlightId: string | undefined
 ): GuideRect[] => {
   const rects: GuideRect[] = [];
   for (const w of widgets) {
-    if (w.id === selfId || w.minimized || w.maximized) continue;
+    if (w.id === selfId || w.id === spotlightId) continue;
+    if (w.minimized || w.maximized) continue;
     const el = widgetRefRegistry.get(w.id);
     if (!el || el.offsetWidth === 0) continue;
-    rects.push({
-      x: el.offsetLeft,
-      y: el.offsetTop,
-      w: el.offsetWidth,
-      h: el.offsetHeight,
-    });
+    // Inline px values are the exact world box; offset* would round them.
+    const x = parseFloat(el.style.left);
+    const y = parseFloat(el.style.top);
+    const width = parseFloat(el.style.width);
+    const height = parseFloat(el.style.height);
+    if (![x, y, width, height].every(Number.isFinite)) continue;
+    rects.push({ x, y, w: width, h: height });
   }
   return rects;
 };
@@ -1185,7 +1188,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     const guideOthers =
       alignmentGuides && !hasGroup && dashboardAtPointerDown
-        ? collectGuideRects(dashboardAtPointerDown.widgets, widget.id)
+        ? collectGuideRects(
+            dashboardAtPointerDown.widgets,
+            widget.id,
+            dashboardAtPointerDown.settings?.spotlightWidgetId
+          )
         : null;
 
     document.body.classList.add('is-dragging-widget');
@@ -1617,7 +1624,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       ? getCanvasState().activeDashboard
       : null;
     const guideOthers = resizeDashboard
-      ? collectGuideRects(resizeDashboard.widgets, widget.id)
+      ? collectGuideRects(
+          resizeDashboard.widgets,
+          widget.id,
+          resizeDashboard.settings?.spotlightWidgetId
+        )
       : null;
     const guideEdges = {
       x: direction.includes('e')
