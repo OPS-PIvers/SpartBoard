@@ -124,4 +124,20 @@ describe('MySongsSection', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('mySongsLimit');
     expect(addSong).not.toHaveBeenCalled();
   });
+
+  it('refuses a video YouTube will not embed', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(new Response('', { status: 401 })))
+    );
+    render(<MySongsSection ctx={makeCtx()} />);
+    fireEvent.change(screen.getByPlaceholderText('mySongsLinkPlaceholder'), {
+      target: { value: `https://youtu.be/${ID}` },
+    });
+    fireEvent.click(screen.getByText('mySongsAdd'));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'mySongsUnavailable'
+    );
+    expect(addSong).not.toHaveBeenCalled();
+  });
 });

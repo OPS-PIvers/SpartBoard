@@ -30,15 +30,16 @@ export const canonicalYouTubeUrl = (id: string) =>
 export const youTubeThumbnail = (id: string) =>
   `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
 
-/** Title and channel from YouTube's public oEmbed endpoint; null when it can't be read. */
+/** Title and channel from YouTube's oEmbed; 'unavailable' when YouTube says it can't be embedded, null when unreachable. */
 export const fetchYouTubeDetails = async (
   id: string
-): Promise<{ title?: string; channel: string } | null> => {
+): Promise<{ title?: string; channel: string } | 'unavailable' | null> => {
   try {
     const res = await fetch(
       `https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(canonicalYouTubeUrl(id))}`,
       { signal: AbortSignal.timeout(5000) }
     );
+    if ([400, 401, 403, 404].includes(res.status)) return 'unavailable';
     if (!res.ok) return null;
     const data: unknown = await res.json();
     if (typeof data !== 'object' || data === null) return null;

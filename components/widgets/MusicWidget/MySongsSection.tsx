@@ -49,6 +49,10 @@ export const MySongsSection: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
     setError(null);
     try {
       const details = await fetchYouTubeDetails(videoId);
+      if (details === 'unavailable') {
+        setError(t('mySongsUnavailable'));
+        return;
+      }
       const song: MySong = {
         id: crypto.randomUUID(),
         title: details?.title ?? t('mySongsUntitled'),
