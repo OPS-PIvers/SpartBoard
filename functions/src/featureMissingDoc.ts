@@ -68,6 +68,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'widget-library-large',
   'sidebar-list-rows',
   'alignment-guides',
+  'spell-check-setting',
   'music-my-songs',
 ];
 

@@ -82,6 +82,7 @@ import {
   revokeBackendRefreshToken,
 } from '@/utils/googleOAuthRefresh';
 import { logError } from '@/utils/logError';
+import { usePageSpellCheck } from '@/hooks/usePageSpellCheck';
 import {
   FEATURE_DEFAULTS,
   isAdminPreviewFeature,
@@ -410,6 +411,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [spartyEnabled, setSpartyEnabledState] = useState(true);
   const [alignmentGuidesEnabled, setAlignmentGuidesEnabledState] =
     useState(false);
+  const [spellCheckEnabled, setSpellCheckEnabledState] = useState(true);
   const [lastActiveCollectionId, setLastActiveCollectionIdState] = useState<
     string | null | undefined
   >(undefined);
@@ -1787,6 +1789,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setPenColors(null);
       setDisableCloseConfirmationState(false);
       setRemoteControlEnabledState(true);
+      setSpellCheckEnabledState(true);
       setDockPositionState('bottom');
       setSettingsDrawerWidthState(DEFAULT_SETTINGS_DRAWER_WIDTH);
       setLastActiveCollectionIdState(undefined);
@@ -2031,6 +2034,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             typeof data.spartyEnabled === 'boolean' ? data.spartyEnabled : true
           );
           setAlignmentGuidesEnabledState(data.alignmentGuidesEnabled === true);
+          setSpellCheckEnabledState(data.spellCheckEnabled !== false);
 
           // Load Collections navigation memory
           if ('lastActiveCollectionId' in data) {
@@ -2464,6 +2468,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       quizGraderAutoAdvance?: boolean;
       spartyEnabled?: boolean;
       alignmentGuidesEnabled?: boolean;
+      spellCheckEnabled?: boolean;
     }) => {
       if (updates.disableCloseConfirmation !== undefined) {
         setDisableCloseConfirmationState(updates.disableCloseConfirmation);
@@ -2492,6 +2497,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (updates.alignmentGuidesEnabled !== undefined) {
         setAlignmentGuidesEnabledState(updates.alignmentGuidesEnabled);
       }
+      if (updates.spellCheckEnabled !== undefined) {
+        setSpellCheckEnabledState(updates.spellCheckEnabled);
+      }
 
       // Build a sanitized payload — Firestore rejects `undefined` field values
       const sanitizedUpdates: {
@@ -2504,6 +2512,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         quizGraderAutoAdvance?: boolean;
         spartyEnabled?: boolean;
         alignmentGuidesEnabled?: boolean;
+        spellCheckEnabled?: boolean;
       } = {};
       if (typeof updates.disableCloseConfirmation === 'boolean') {
         sanitizedUpdates.disableCloseConfirmation =
@@ -2546,6 +2555,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (typeof updates.alignmentGuidesEnabled === 'boolean') {
         sanitizedUpdates.alignmentGuidesEnabled =
           updates.alignmentGuidesEnabled;
+      }
+      if (typeof updates.spellCheckEnabled === 'boolean') {
+        sanitizedUpdates.spellCheckEnabled = updates.spellCheckEnabled;
       }
 
       if (
@@ -3207,6 +3219,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [user, globalPermissions, resolvePermissionAccess, isAdmin, userTier]
   );
 
+  usePageSpellCheck(
+    !spellCheckEnabled && canAccessFeature('spell-check-setting')
+  );
+
   const canAccessWidget = useCallback(
     (widgetType: WidgetType, customBuildings?: string[]): boolean =>
       (widgetType !== 'routineGuide' || canAccessFeature('routine-guide')) &&
@@ -3419,6 +3435,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       quizGraderAutoAdvance,
       spartyEnabled,
       alignmentGuidesEnabled,
+      spellCheckEnabled,
       updateAccountPreferences,
       lastActiveCollectionId,
       lastBoardIdByCollection,
@@ -3498,6 +3515,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       quizGraderAutoAdvance,
       spartyEnabled,
       alignmentGuidesEnabled,
+      spellCheckEnabled,
       updateAccountPreferences,
       lastActiveCollectionId,
       lastBoardIdByCollection,

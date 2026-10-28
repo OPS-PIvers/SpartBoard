@@ -113,6 +113,7 @@ const mockAuthContext = (
   quizGraderAutoAdvance: true,
   spartyEnabled: true,
   alignmentGuidesEnabled: false,
+  spellCheckEnabled: true,
   updateAccountPreferences: async () => {
     /* mock */
   },

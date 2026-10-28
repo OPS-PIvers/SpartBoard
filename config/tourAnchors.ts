@@ -419,6 +419,11 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'behavior.spell-check-toggle': {
+    label: 'Spell check switch',
+    persists: true,
+    panel: true,
+  },
   'language.options': {
     label: 'Language choices',
     persists: true,

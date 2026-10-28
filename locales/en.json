@@ -284,6 +284,8 @@
       "showSparty": "Show Sparty",
       "alignmentGuides": "Alignment guides",
       "alignmentGuidesHint": "Lines show when a widget lines up with others or is evenly spaced.",
+      "spellCheck": "Spell check",
+      "spellCheckHint": "Underline misspelled words as you type.",
       "googleDriveDescription": "Your boards back up to your \"{{appName}}\" folder in Drive.",
       "connectedSynced": "Connected",
       "disconnected": "Disconnected",

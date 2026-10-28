@@ -97,6 +97,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'behavior.close-warning-toggle': ['board.profile-behavior'],
     'behavior.remote-control-toggle': ['board.profile-behavior'],
     'behavior.alignment-guides-toggle': ['board.profile-behavior'],
+    'behavior.spell-check-toggle': ['board.profile-behavior'],
     'language.options': ['board.profile-language'],
     'widget-defaults.clear-type': ['board.profile-widget-defaults'],
     'widget-defaults.remove-key': ['board.profile-widget-defaults'],

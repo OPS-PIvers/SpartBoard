@@ -10166,7 +10166,7 @@ export interface UserRolesConfig {
  *    `language`, `savedWidgetConfigs`, `savedWidgetPresets`,
  *    `savedWidgetConfigsPreV2`, `setupCompleted`, `disableCloseConfirmation`,
  *    `remoteControlEnabled`, `dockPosition`, `settingsDrawerWidth`, `quizMonitorColorsEnabled`,
- *    `quizMonitorScoreDisplay`, `spartyEnabled`, `alignmentGuidesEnabled`, `favoriteBackgrounds`, `recentBackgrounds`.
+ *    `quizMonitorScoreDisplay`, `spartyEnabled`, `alignmentGuidesEnabled`, `spellCheckEnabled`, `favoriteBackgrounds`, `recentBackgrounds`.
  *  - `DashboardContext` owns the board/dock state fields: `dockItems`,
  *    `libraryOrder`, `dockInitialized`, `lastActiveCollectionId`,
  *    `lastBoardIdByCollection`.
@@ -10249,6 +10249,8 @@ export interface UserProfile {
   spartyEnabled?: boolean;
   /** Alignment guides while moving or resizing widgets, where `alignment-guides` allows; absent means off. */
   alignmentGuidesEnabled?: boolean;
+  /** Browser spell check in the teacher's text boxes, where `spell-check-setting` allows; absent means on. */
+  spellCheckEnabled?: boolean;
   /**
    * The user's dock layout (tools + folders, ordered). Synced across devices.
    * When absent, the dock is seeded from building-level admin defaults.
@@ -10653,6 +10655,8 @@ export type GlobalFeature =
   | 'widget-library-large'
   /** Slides-style alignment guides and snapping while moving or resizing widgets (a per-teacher switch in Behavior). */
   | 'alignment-guides'
+  /** Per-teacher switch in Behavior that turns off browser spell check on the teacher's pages. */
+  | 'spell-check-setting'
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs';
 
