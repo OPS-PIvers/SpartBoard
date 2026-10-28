@@ -88,7 +88,7 @@ const LaunchTimerButton: React.FC<{
   size: string;
   color: string;
   className?: string;
-}> = ({ widget, onClick, size, color, className = '' }) => {
+}> = ({ widget, onClick, size, color, className = 'relative' }) => {
   const { t } = useTranslation();
   const label = t('widgets.music.launchTimer');
   return (
@@ -101,7 +101,7 @@ const LaunchTimerButton: React.FC<{
       title={label}
       aria-label={label}
       {...tourAttr('music.launch-timer', widget.id, widget.type)}
-      className={`shrink-0 flex items-center justify-center rounded-lg transition-opacity opacity-70 hover:opacity-100 focus-visible:opacity-100 ${className}`}
+      className={`touch-target-expand shrink-0 flex items-center justify-center rounded-lg transition-opacity opacity-70 hover:opacity-100 focus-visible:opacity-100 ${className}`}
       style={{ color, padding: `calc(${size} / 6)` }}
     >
       <Timer style={{ width: size, height: size }} />
