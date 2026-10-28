@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   compute: vi.fn(),
   isAdmin: vi.fn(),
   resultsOn: vi.fn(),
+  boardsOn: vi.fn(),
   restores: {
     quiz: vi.fn(),
     video: vi.fn(),
@@ -70,6 +71,11 @@ vi.mock('./glLiveTour', () => ({
 }));
 vi.mock('./meetingTools', () => ({ registerMeetingTools: vi.fn() }));
 vi.mock('./standardsTools', () => ({ registerStandardsTools: vi.fn() }));
+vi.mock('./boardTools', () => ({
+  BOARD_TOOLS: new Set(['list_boards', 'get_board', 'get_board_guide']),
+  boardsOn: mocks.boardsOn,
+  registerBoardTools: vi.fn(),
+}));
 
 type Data = Record<string, unknown>;
 
@@ -1093,14 +1099,18 @@ describe('hiddenToolsFor', () => {
   it('hides admin-only and results-only tools from a plain teacher', async () => {
     mocks.isAdmin.mockResolvedValue(false);
     mocks.resultsOn.mockResolvedValue(false);
+    mocks.boardsOn.mockResolvedValue(false);
     const hidden = await hiddenToolsFor(ctxFor(fakeDb().db));
     expect([...hidden].sort()).toEqual([
       'create_live_tour',
+      'get_board',
+      'get_board_guide',
       'get_live_tour',
       'get_mini_app_results_summary',
       'get_mini_app_spec',
       'get_web_tour',
       'get_web_tour_step_picture',
+      'list_boards',
       'list_web_tours',
       'update_web_tour_text',
     ]);
@@ -1109,14 +1119,17 @@ describe('hiddenToolsFor', () => {
   it('shows admin tools to admins and results tools when results are on', async () => {
     mocks.isAdmin.mockResolvedValue(true);
     mocks.resultsOn.mockResolvedValue(true);
+    mocks.boardsOn.mockResolvedValue(true);
     expect((await hiddenToolsFor(ctxFor(fakeDb().db))).size).toBe(0);
   });
 
   it('fails closed when either check throws', async () => {
     mocks.isAdmin.mockRejectedValue(new Error('boom'));
     mocks.resultsOn.mockRejectedValue(new Error('boom'));
+    mocks.boardsOn.mockRejectedValue(new Error('boom'));
     const hidden = await hiddenToolsFor(ctxFor(fakeDb().db));
     expect(hidden.has('create_live_tour')).toBe(true);
+    expect(hidden.has('get_board')).toBe(true);
     expect(hidden.has('get_mini_app_spec')).toBe(true);
   });
 });
