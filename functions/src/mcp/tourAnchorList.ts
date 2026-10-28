@@ -21006,7 +21006,20 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "widget-settings.music.my-song",
     "label": "One of the teacher's own songs in Music settings",
     "scope": "field",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.music.settings",
+        "kind": "settings-drawer",
+        "widget_type": "music",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "widget-settings.music.my-song-remove",
@@ -21014,20 +21027,59 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
-    "persists": true
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.music.settings",
+        "kind": "settings-drawer",
+        "widget_type": "music",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "widget-settings.music.my-song-link",
     "label": "YouTube link field for adding a song in Music settings",
     "scope": "widget",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.music.settings",
+        "kind": "settings-drawer",
+        "widget_type": "music",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "widget-settings.music.my-song-add",
     "label": "Add button for a YouTube song in Music settings",
     "scope": "widget",
     "panel": true,
-    "persists": true
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.music.settings",
+        "kind": "settings-drawer",
+        "widget_type": "music",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
   },
   {
     "id": "widget-settings.custom-widget.definition-input",
