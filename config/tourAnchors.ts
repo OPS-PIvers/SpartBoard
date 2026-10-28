@@ -10352,7 +10352,47 @@ export const TOUR_ANCHORS = {
     sandboxed: true,
   },
   'video-activity.editor-draft-ai': {
-    label: 'Draft with AI button in the video activity editor footer',
+    label: 'Draft with AI button in the video activity editor',
+  },
+  'video-activity.editor-add-question': {
+    label: 'Add question button in the video activity editor question list',
+    persists: true,
+    sandboxed: true,
+  },
+  'video-activity.editor-question-select': {
+    label: 'Select checkbox on a question in the video activity editor',
+    perField: true,
+  },
+  'video-activity.editor-question-duplicate': {
+    label: 'Duplicate button on a question in the video activity editor',
+    perField: true,
+    persists: true,
+    sandboxed: true,
+  },
+  'video-activity.editor-bulk-tag': {
+    label: 'Tag button for selected questions in the video activity editor',
+  },
+  'video-activity.editor-bulk-delete': {
+    label: 'Delete button for selected questions in the video activity editor',
+    destructive: true,
+    persists: true,
+    sandboxed: true,
+  },
+  'video-activity.editor-bulk-clear': {
+    label: 'Clear selection button in the video activity editor',
+  },
+  'video-activity.editor-targets-edit': {
+    label: 'Learning targets Add or Edit button in the video activity editor',
+  },
+  'video-activity.editor-type-select': {
+    label: 'Question type menu in the video activity editor',
+    persists: true,
+    sandboxed: true,
+  },
+  'video-activity.editor-question-use-current-time': {
+    label: 'Use current time button for a video activity question',
+    persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-tab': {
     label: 'Questions and Settings tabs in the video activity editor',
