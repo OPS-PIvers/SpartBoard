@@ -1,5 +1,6 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import {
+  type DocumentReference,
   collection,
   doc,
   getDoc,
@@ -334,6 +335,51 @@ const isOfflineError = (err: unknown): boolean => {
   return typeof code === 'string' && OFFLINE_ERROR_CODES.has(code);
 };
 
+interface DeferredSave {
+  dashboard: Dashboard;
+  baseline: SaveBaseline;
+  updatedAt: number;
+  onFailed?: (err: unknown) => void;
+}
+
+/**
+ * Another device may have written since this one last synced; merge inside
+ * the transaction so that write survives. The merge runs on every baselined
+ * save rather than only when `updatedAt` moved: this device's own merged
+ * write advances the server timestamp to a value it then treats as its own,
+ * so a timestamp gate would let the very next save blind-write over the edit
+ * that was just folded in. When the server still matches the baseline the
+ * merge is a no-op by construction.
+ */
+const commitMergedSave = (
+  docRef: DocumentReference,
+  dashboard: Dashboard,
+  baseline: SaveBaseline,
+  updatedAt: number
+) =>
+  runTransaction(db, async (tx) => {
+    const snap = await tx.get(docRef);
+    const server = snap.exists()
+      ? normalizeServerBoard({ ...snap.data(), id: snap.id } as Dashboard)
+      : null;
+    const toWrite = server
+      ? mergeDashboardForSave(dashboard, server, baseline)
+      : dashboard;
+    tx.set(docRef, { ...toWrite, updatedAt });
+  });
+
+/** Waits 2s, 4s, 8s … up to 30s before the next offline retry, or less if the browser comes back online. */
+const waitToRetry = (attempt: number) =>
+  new Promise<void>((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      window.removeEventListener('online', done);
+      resolve();
+    };
+    const timer = setTimeout(done, Math.min(30_000, 2000 * 2 ** attempt));
+    window.addEventListener('online', done);
+  });
+
 export const useFirestore = (userId: string | null) => {
   const dashboardsRef = useMemo(
     () =>
@@ -356,6 +402,105 @@ export const useFirestore = (userId: string | null) => {
     );
   }, [dashboardsRef]);
 
+  // Offline saves per board, oldest first; each later save on that board queues behind them.
+  const deferredSavesRef = useRef(new Map<string, DeferredSave[]>());
+
+  const deferSave = useCallback(
+    (
+      docRef: DocumentReference,
+      dashboard: Dashboard,
+      baseline: SaveBaseline,
+      updatedAt: number,
+      onFailed?: (err: unknown) => void
+    ) => {
+      const queues = deferredSavesRef.current;
+      const job: DeferredSave = { dashboard, baseline, updatedAt, onFailed };
+      const existing = queues.get(dashboard.id);
+      if (existing) {
+        existing.push(job);
+        return;
+      }
+      const queue = [job];
+      queues.set(dashboard.id, queue);
+      void (async () => {
+        let attempt = 0;
+        // The save that queued this just failed offline, so wait before the first retry.
+        await waitToRetry(attempt++);
+        // Stops once a whole-board write replaced this queue.
+        while (queues.get(dashboard.id) === queue && queue.length > 0) {
+          const next = queue[0];
+          try {
+            await commitMergedSave(
+              docRef,
+              next.dashboard,
+              next.baseline,
+              next.updatedAt
+            );
+          } catch (err) {
+            if (isOfflineError(err)) {
+              await waitToRetry(attempt++);
+              continue;
+            }
+            console.error('[useFirestore] Deferred offline save failed:', err);
+            next.onFailed?.(err);
+          }
+          attempt = 0;
+          queue.shift();
+        }
+        if (queues.get(dashboard.id) === queue) queues.delete(dashboard.id);
+      })();
+    },
+    []
+  );
+
+  const saveWithBaseline = useCallback(
+    async (
+      docRef: DocumentReference,
+      dashboard: Dashboard,
+      baseline: SaveBaseline,
+      updatedAt: number,
+      onDeferredWriteFailed?: (err: unknown) => void
+    ): Promise<void> => {
+      // A queued offline save for this board must land first, or this one would merge against a server that never saw it.
+      if (deferredSavesRef.current.has(dashboard.id)) {
+        deferSave(
+          docRef,
+          dashboard,
+          baseline,
+          updatedAt,
+          onDeferredWriteFailed
+        );
+        return;
+      }
+      try {
+        await commitMergedSave(docRef, dashboard, baseline, updatedAt);
+      } catch (err) {
+        // Queued, not awaited: waiting would hang the caller's save and its saving indicator for the whole outage.
+        if (!isOfflineError(err)) throw err;
+        deferSave(
+          docRef,
+          dashboard,
+          baseline,
+          updatedAt,
+          onDeferredWriteFailed
+        );
+      }
+    },
+    [deferSave]
+  );
+
+  const hasDeferredSave = useCallback(
+    (dashboardId: string) => deferredSavesRef.current.has(dashboardId),
+    []
+  );
+
+  // What the server held before this board's queued offline saves, so a snapshot can tell their deletions from another device's additions.
+  const deferredSaveBaseline = useCallback(
+    (dashboardId: string): SaveBaseline | undefined =>
+      deferredSavesRef.current.get(dashboardId)?.[0]?.baseline,
+    []
+  );
+
   const saveDashboard = useCallback(
     async (
       dashboard: Dashboard,
@@ -373,55 +518,30 @@ export const useFirestore = (userId: string | null) => {
       const docRef = doc(dashboardsRef, dashboard.id);
       const updatedAt = Date.now();
       if (!baseline) {
+        // The whole board supersedes any queued offline save of it.
+        deferredSavesRef.current.delete(dashboard.id);
         await setDoc(docRef, { ...dashboard, updatedAt });
         return updatedAt;
       }
-      // Another device may have written since this one last synced; merge
-      // inside the transaction so that write survives. The merge runs on every
-      // baselined save rather than only when `updatedAt` moved: this device's
-      // own merged write advances the server timestamp to a value it then
-      // treats as its own, so a timestamp gate would let the very next save
-      // blind-write over the edit that was just folded in. When the server
-      // still matches the baseline the merge is a no-op by construction —
-      // every field either changed locally (keep local) or matches the server.
-      try {
-        await runTransaction(db, async (tx) => {
-          const snap = await tx.get(docRef);
-          const server = snap.exists()
-            ? normalizeServerBoard({ ...snap.data(), id: snap.id } as Dashboard)
-            : null;
-          const toWrite = server
-            ? mergeDashboardForSave(dashboard, server, baseline)
-            : dashboard;
-          tx.set(docRef, { ...toWrite, updatedAt });
-        });
-      } catch (err) {
-        // A transaction needs a live server read, so it fails outright offline
-        // where the old blind `setDoc` queued and flushed on reconnect. Fall
-        // back to that. Deliberately not awaited: an offline `setDoc` only
-        // settles once it reaches the server, which would hang the caller's
-        // save (and its saving indicator) for the whole outage.
-        if (!isOfflineError(err)) throw err;
-        // The caller has already advanced its saved baseline by the time this
-        // settles, so a rejection has to be reported back or the edit is
-        // silently lost with no toast and no retry.
-        void setDoc(docRef, { ...dashboard, updatedAt }).catch(
-          (writeErr: unknown) => {
-            console.error(
-              '[useFirestore] Deferred offline save never landed:',
-              writeErr
-            );
-            onDeferredWriteFailed?.(writeErr);
-          }
-        );
-      }
+      await saveWithBaseline(
+        docRef,
+        dashboard,
+        baseline,
+        updatedAt,
+        onDeferredWriteFailed
+      );
       return updatedAt;
     },
-    [dashboardsRef]
+    [dashboardsRef, saveWithBaseline]
   );
 
   const saveDashboards = useCallback(
-    async (dashboards: Dashboard[]): Promise<void> => {
+    async (
+      dashboards: Dashboard[],
+      // Boards with a baseline merge per widget like saveDashboard; the rest are written whole.
+      baselines?: ReadonlyMap<string, SaveBaseline>,
+      onDeferredWriteFailed?: (err: unknown) => void
+    ): Promise<void> => {
       if (isViewAsTab) return;
       if (isAuthBypass) {
         mockStore.saveDashboards(dashboards);
@@ -429,17 +549,36 @@ export const useFirestore = (userId: string | null) => {
       }
 
       if (!dashboardsRef) throw new Error('User not authenticated');
-      const batch = writeBatch(db);
-      dashboards.forEach((dashboard) => {
-        const docRef = doc(dashboardsRef, dashboard.id);
-        batch.set(docRef, {
-          ...dashboard,
-          updatedAt: Date.now(),
-        });
+      const updatedAt = Date.now();
+      const whole = dashboards.filter((d) => !baselines?.has(d.id));
+      const writes = dashboards.flatMap((d) => {
+        const baseline = baselines?.get(d.id);
+        return baseline
+          ? [
+              saveWithBaseline(
+                doc(dashboardsRef, d.id),
+                d,
+                baseline,
+                updatedAt,
+                onDeferredWriteFailed
+              ),
+            ]
+          : [];
       });
-      await batch.commit();
+      if (whole.length > 0) {
+        const batch = writeBatch(db);
+        whole.forEach((dashboard) => {
+          deferredSavesRef.current.delete(dashboard.id);
+          batch.set(doc(dashboardsRef, dashboard.id), {
+            ...dashboard,
+            updatedAt,
+          });
+        });
+        writes.push(batch.commit());
+      }
+      await Promise.all(writes);
     },
-    [dashboardsRef]
+    [dashboardsRef, saveWithBaseline]
   );
 
   const deleteDashboard = useCallback(
@@ -458,7 +597,12 @@ export const useFirestore = (userId: string | null) => {
 
   const subscribeToDashboards = useCallback(
     (
-      callback: (dashboards: Dashboard[], hasPendingWrites: boolean) => void
+      callback: (
+        dashboards: Dashboard[],
+        hasPendingWrites: boolean,
+        // Boards whose own copy carries this tab's unconfirmed writes.
+        pendingDashboardIds?: ReadonlySet<string>
+      ) => void
     ) => {
       if (isAuthBypass) {
         const unsubscribe = mockStore.addListener(callback);
@@ -477,7 +621,12 @@ export const useFirestore = (userId: string | null) => {
           const dashboards = snapshot.docs.map(
             (doc) => ({ ...doc.data(), id: doc.id }) as Dashboard
           );
-          callback(dashboards, snapshot.metadata.hasPendingWrites);
+          const pendingIds = new Set(
+            snapshot.docs
+              .filter((d) => d.metadata.hasPendingWrites)
+              .map((d) => d.id)
+          );
+          callback(dashboards, snapshot.metadata.hasPendingWrites, pendingIds);
         }
       );
     },
@@ -854,6 +1003,8 @@ export const useFirestore = (userId: string | null) => {
     loadDashboards,
     saveDashboard,
     saveDashboards,
+    hasDeferredSave,
+    deferredSaveBaseline,
     deleteDashboard,
     subscribeToDashboards,
     shareDashboard,
