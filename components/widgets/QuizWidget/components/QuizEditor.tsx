@@ -1393,5 +1393,3 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
     </AIGeneratorOverlay>
   );
 };
-
-/** A prompt edit; a FIB key follows the blank count once it has two or more blanks. */
