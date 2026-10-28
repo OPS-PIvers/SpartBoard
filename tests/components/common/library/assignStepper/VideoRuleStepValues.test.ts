@@ -29,12 +29,17 @@ const make = (
 
 describe('formatVideoAttemptsValue', () => {
   it('names the attempt count', () => {
-    expect(formatVideoAttemptsValue(make())).toBe('1 attempt');
-    expect(formatVideoAttemptsValue(make({}, 3))).toBe('3 attempts');
-    expect(formatVideoAttemptsValue(make({}, null))).toBe('Unlimited attempts');
+    expect(formatVideoAttemptsValue(make(), false)).toBe('1 attempt');
+    expect(formatVideoAttemptsValue(make({}, 3), false)).toBe('3 attempts');
+    expect(formatVideoAttemptsValue(make({}, null), false)).toBe(
+      'Unlimited attempts'
+    );
   });
 
-  it('mentions shuffling only once the player honors it', () => {
+  it('mentions shuffling with answerRows, which is now the default', () => {
+    expect(formatVideoAttemptsValue(make())).toBe(
+      '1 attempt, Shuffled answers'
+    );
     expect(formatVideoAttemptsValue(make(), false)).toBe('1 attempt');
     expect(formatVideoAttemptsValue(make(), true)).toBe(
       '1 attempt, Shuffled answers'

@@ -53,6 +53,7 @@ import {
 import { studentQuestionsFromSession } from '@/utils/videoActivityPublicQuestions';
 import { VideoPlayer } from './VideoPlayer';
 import { QuestionOverlay } from './QuestionOverlay';
+import { videoActivityAnswerRules } from '@/utils/videoActivityAnswerRules';
 import { VideoActivityLiveStudent } from './VideoActivityLiveStudent';
 import {
   isLiveVideoActivitySession,
@@ -556,6 +557,12 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     [sessionQuestions, sessionPublicQuestions]
   );
 
+  const answerRules = videoActivityAnswerRules(session);
+  // Stable per student and attempt, as Quiz seeds its answer shuffle.
+  const optionSeed = answerRules.shuffleForEachStudent
+    ? `${myResponse?.studentUid ?? authedUid ?? 'anonymous-student'}:attempt-${myResponse?.completedAttempts ?? 0}`
+    : null;
+
   const handleAnswer = useCallback(
     async (answer: string, isCorrect: boolean, graded: boolean) => {
       if (!activeQuestion) return;
@@ -565,8 +572,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
         freezeForPeriod();
         return;
       }
-      const requireCorrect = session?.settings?.requireCorrectAnswer ?? true;
-      if (requireCorrect && !isCorrect) {
+      if (answerRules.requireCorrectAnswer && !isCorrect) {
         const activeIdx = sortedQuestions.findIndex(
           (q) => q.id === activeQuestion.id
         );
@@ -596,7 +602,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     },
     [
       activeQuestion,
-      session?.settings?.requireCorrectAnswer,
+      answerRules.requireCorrectAnswer,
       sortedQuestions,
       submitAnswer,
       isViewOnly,
@@ -1305,9 +1311,10 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                       ) + 1
                     }
                     totalQuestions={totalQuestions}
-                    requireCorrectAnswer={
-                      session?.settings?.requireCorrectAnswer ?? true
-                    }
+                    requireCorrectAnswer={answerRules.requireCorrectAnswer}
+                    showResult={answerRules.showResult}
+                    revealAnswer={answerRules.revealAnswer}
+                    optionSeed={optionSeed}
                   />
                 </div>
               )}

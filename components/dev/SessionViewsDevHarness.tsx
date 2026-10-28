@@ -75,7 +75,10 @@ import {
   type ResultsPlaybackStateKey,
   STUDENT_QUIZ_STATES,
   type StudentQuizStateKey,
+  VA_STUDENT_STATES,
+  type VaStudentStateKey,
 } from './devViewStates';
+import { VaStudentAnswerDevView } from './VaStudentAnswerDevView';
 
 // Picking a view moves the State select onto a key that view actually reads.
 const DEFAULT_STATE_FOR_VIEW: Record<ViewKey, StateKey> = {
@@ -90,6 +93,7 @@ const DEFAULT_STATE_FOR_VIEW: Record<ViewKey, StateKey> = {
   'media-grading': 'queue',
   'results-playback': 'playable',
   'quiz-student': 'sq-timed',
+  'va-student': 'vs-today',
 };
 
 const WIDTHS = [340, 520, 820];
@@ -183,6 +187,13 @@ const SessionView: React.FC<{
       ? (state as StudentQuizStateKey)
       : 'sq-timed';
     return <StudentQuizDevView state={studentState} />;
+  }
+
+  if (view === 'va-student') {
+    const vaState = (VA_STUDENT_STATES as readonly string[]).includes(state)
+      ? (state as VaStudentStateKey)
+      : 'vs-today';
+    return <VaStudentAnswerDevView state={vaState} />;
   }
 
   if (view === 'quiz-monitor') {

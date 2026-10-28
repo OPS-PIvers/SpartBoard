@@ -91,3 +91,11 @@ export const STUDENT_QUIZ_STATES = [
   'sq-attempts-live',
 ] as const;
 export type StudentQuizStateKey = (typeof STUDENT_QUIZ_STATES)[number];
+
+export const VA_STUDENT_STATES = [
+  'vs-today',
+  'vs-reveal-off',
+  'vs-result-off',
+  'vs-shuffle',
+] as const;
+export type VaStudentStateKey = (typeof VA_STUDENT_STATES)[number];
