@@ -10144,7 +10144,7 @@ export interface UserRolesConfig {
  *    `language`, `savedWidgetConfigs`, `savedWidgetPresets`,
  *    `savedWidgetConfigsPreV2`, `setupCompleted`, `disableCloseConfirmation`,
  *    `remoteControlEnabled`, `dockPosition`, `settingsDrawerWidth`, `quizMonitorColorsEnabled`,
- *    `quizMonitorScoreDisplay`, `spartyEnabled`, `favoriteBackgrounds`, `recentBackgrounds`.
+ *    `quizMonitorScoreDisplay`, `spartyEnabled`, `alignmentGuidesEnabled`, `favoriteBackgrounds`, `recentBackgrounds`.
  *  - `DashboardContext` owns the board/dock state fields: `dockItems`,
  *    `libraryOrder`, `dockInitialized`, `lastActiveCollectionId`,
  *    `lastBoardIdByCollection`.
@@ -10222,6 +10222,8 @@ export interface UserProfile {
   quizMonitorScoreDisplay?: 'percent' | 'count' | 'hidden';
   /** Show Sparty the mascot where the `sparty` feature allows; absent means shown. */
   spartyEnabled?: boolean;
+  /** Alignment guides while moving or resizing widgets, where `alignment-guides` allows; absent means off. */
+  alignmentGuidesEnabled?: boolean;
   /**
    * The user's dock layout (tools + folders, ordered). Synced across devices.
    * When absent, the dock is seeded from building-level admin defaults.
@@ -10613,7 +10615,9 @@ export type GlobalFeature =
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak'
   /** Widget Library fills most of the screen instead of a small fixed box. */
-  | 'widget-library-large';
+  | 'widget-library-large'
+  /** Slides-style alignment guides and snapping while moving or resizing widgets (a per-teacher switch in Behavior). */
+  | 'alignment-guides';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

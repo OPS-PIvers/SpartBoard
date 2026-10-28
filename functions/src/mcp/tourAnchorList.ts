@@ -2001,6 +2001,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "behavior.alignment-guides-toggle",
+    "label": "Alignment guides switch",
+    "scope": "board",
+    "panel": true,
+    "persists": true
+  },
+  {
     "id": "language.options",
     "label": "Language choices",
     "scope": "board",

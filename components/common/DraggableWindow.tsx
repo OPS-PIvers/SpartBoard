@@ -40,6 +40,15 @@ import {
   setWidgetOverride,
   subscribeWidgetOverride,
 } from './widgetRefRegistry';
+import { setAlignmentGuides } from './alignmentGuidesStore';
+import {
+  computeGuides,
+  EMPTY_GUIDES,
+  GUIDE_SNAP_PX,
+  snapEdge,
+  snapMove,
+  type GuideRect,
+} from '@/utils/alignmentGuides';
 import {
   WidgetData,
   WidgetType,
@@ -137,6 +146,8 @@ interface DraggableWindowProps {
   skipCloseConfirmation?: boolean;
   headerActions?: React.ReactNode;
   globalStyle: GlobalStyle;
+  /** Show alignment guides and snap to other widgets while moving or resizing. */
+  alignmentGuides?: boolean;
 }
 
 const ResizeHandleIcon = ({
@@ -168,6 +179,26 @@ interface KeyboardActionDetail {
   shiftKey: boolean;
 }
 
+/** Rendered boxes of the other visible widgets, read once at gesture start. */
+const collectGuideRects = (
+  widgets: readonly WidgetData[],
+  selfId: string
+): GuideRect[] => {
+  const rects: GuideRect[] = [];
+  for (const w of widgets) {
+    if (w.id === selfId || w.minimized || w.maximized) continue;
+    const el = widgetRefRegistry.get(w.id);
+    if (!el || el.offsetWidth === 0) continue;
+    rects.push({
+      x: el.offsetLeft,
+      y: el.offsetTop,
+      w: el.offsetWidth,
+      h: el.offsetHeight,
+    });
+  }
+  return rects;
+};
+
 /** How close to the top edge the pointer brings down the maximized controls. */
 const MAX_BAR_REVEAL_PX = 56;
 const MAX_BAR_HIDE_MS = 800;
@@ -181,6 +212,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   skipCloseConfirmation = false,
   headerActions,
   globalStyle,
+  alignmentGuides = false,
 }) => {
   const { t } = useTranslation();
   // Interactive-resize floor comes from the widget's size envelope.
@@ -1151,6 +1183,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     groupDragActiveRef.current = isGroupDrag;
     if (isGroupDrag) recordWidgetSnapshot();
 
+    const guideOthers =
+      alignmentGuides && !hasGroup && dashboardAtPointerDown
+        ? collectGuideRects(dashboardAtPointerDown.widgets, widget.id)
+        : null;
+
     document.body.classList.add('is-dragging-widget');
     const initialMouseX = e.clientX;
     const initialMouseY = e.clientY;
@@ -1180,6 +1217,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         dragAnimationFrame = null;
       }
       document.body.classList.remove('is-dragging-widget');
+      if (guideOthers) setAlignmentGuides(EMPTY_GUIDES);
       if (groupSiblingsRef.current.length > 0) {
         for (const sib of groupSiblingsRef.current) {
           setWidgetOverride(sib.id, null);
@@ -1214,6 +1252,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         if (activeTouchCount.current > 1) {
           setSnapPreviewZone(null);
           snapPreviewZoneRef.current = null;
+          if (guideOthers) setAlignmentGuides(EMPTY_GUIDES);
           return;
         }
 
@@ -1270,14 +1309,39 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         // check matches the size it's actually rendered/dragged at.
         const vw = window.innerWidth;
         const vh = window.innerHeight;
+        // Alt (Option) moves freely, as in Slides.
+        const guidesOn =
+          !!guideOthers && !moveEvent.altKey && !snapPreviewZoneRef.current;
+        const snapped = guidesOn
+          ? snapMove(
+              {
+                x: widget.x + deltaX,
+                y: widget.y + deltaY,
+                w: resolvedW,
+                h: resolvedH,
+              },
+              guideOthers,
+              GUIDE_SNAP_PX / zoom
+            )
+          : { x: widget.x + deltaX, y: widget.y + deltaY };
         const { x: newX, y: newY } = clampWidgetToWorld(
-          widget.x + deltaX,
-          widget.y + deltaY,
+          snapped.x,
+          snapped.y,
           resolvedW,
           resolvedH,
           vw,
           vh
         );
+        if (guideOthers) {
+          setAlignmentGuides(
+            guidesOn
+              ? computeGuides(
+                  { x: newX, y: newY, w: resolvedW, h: resolvedH },
+                  guideOthers
+                )
+              : EMPTY_GUIDES
+          );
+        }
 
         // OPTIMIZATION: If widget is not position-aware, update DOM directly and skip React render cycle
         if (!POSITION_AWARE_WIDGETS.has(widget.type) && windowRef.current) {
@@ -1327,6 +1391,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
       setIsDragging(false);
       document.body.classList.remove('is-dragging-widget');
+      if (guideOthers) setAlignmentGuides(EMPTY_GUIDES);
       targetElement.removeEventListener('pointermove', onPointerMove);
       targetElement.removeEventListener('pointerup', onPointerUp);
       targetElement.removeEventListener('pointercancel', onPointerUp);
@@ -1548,6 +1613,25 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     // any pointermove actually fired and require it before committing.
     let hasMoved = false;
 
+    const resizeDashboard = alignmentGuides
+      ? getCanvasState().activeDashboard
+      : null;
+    const guideOthers = resizeDashboard
+      ? collectGuideRects(resizeDashboard.widgets, widget.id)
+      : null;
+    const guideEdges = {
+      x: direction.includes('e')
+        ? ('end' as const)
+        : direction.includes('w')
+          ? ('start' as const)
+          : null,
+      y: direction.includes('s')
+        ? ('end' as const)
+        : direction.includes('n')
+          ? ('start' as const)
+          : null,
+    };
+
     // See handleDragStart for the rationale: pointer capture routes all
     // subsequent pointer events to this element, and attaching listeners here
     // (not on window) lets an unmount mid-resize clean up the closures via
@@ -1570,6 +1654,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         resizeAnimationFrame = null;
       }
       document.body.classList.remove('is-dragging-widget');
+      if (guideOthers) setAlignmentGuides(EMPTY_GUIDES);
     };
 
     const onPointerMove = (moveEvent: PointerEvent) => {
@@ -1591,8 +1676,26 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       }
 
       resizeAnimationFrame = requestAnimationFrame(() => {
-        const dx = (moveEvent.clientX - startX) / zoom;
-        const dy = (moveEvent.clientY - startY) / zoom;
+        let dx = (moveEvent.clientX - startX) / zoom;
+        let dy = (moveEvent.clientY - startY) / zoom;
+        const guidesOn = !!guideOthers && !moveEvent.altKey;
+        if (guidesOn) {
+          const th = GUIDE_SNAP_PX / zoom;
+          if (guideEdges.x === 'end') {
+            const edge = startPosX + startW + dx;
+            dx += snapEdge(edge, 'x', guideOthers, th) - edge;
+          } else if (guideEdges.x === 'start') {
+            const edge = startPosX + dx;
+            dx += snapEdge(edge, 'x', guideOthers, th) - edge;
+          }
+          if (guideEdges.y === 'end') {
+            const edge = startPosY + startH + dy;
+            dy += snapEdge(edge, 'y', guideOthers, th) - edge;
+          } else if (guideEdges.y === 'start') {
+            const edge = startPosY + dy;
+            dy += snapEdge(edge, 'y', guideOthers, th) - edge;
+          }
+        }
 
         let newW = startW;
         let newH = startH;
@@ -1650,6 +1753,17 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           Math.min(effectiveMinH, availableH),
           Math.min(newH, availableH)
         );
+        if (guideOthers) {
+          setAlignmentGuides(
+            guidesOn
+              ? computeGuides(
+                  { x: newX, y: newY, w: newW, h: newH },
+                  guideOthers,
+                  guideEdges
+                )
+              : EMPTY_GUIDES
+          );
+        }
 
         // OPTIMIZATION: If widget is not position-aware, update DOM directly and skip React render cycle
         if (!POSITION_AWARE_WIDGETS.has(widget.type) && windowRef.current) {
@@ -1683,6 +1797,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
       setIsResizing(false);
       document.body.classList.remove('is-dragging-widget');
+      if (guideOthers) setAlignmentGuides(EMPTY_GUIDES);
       targetElement.removeEventListener('pointermove', onPointerMove);
       targetElement.removeEventListener('pointerup', onPointerUp);
       targetElement.removeEventListener('pointercancel', onPointerUp);
