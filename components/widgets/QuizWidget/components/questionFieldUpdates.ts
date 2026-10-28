@@ -59,11 +59,7 @@ export function fibPromptUpdate(
   return { text, ...reshapeFibBlanks(q, blanks) };
 }
 
-/**
- * Updates for switching a question's type; null when nothing changes (MA is
- * Multiple Choice with a setting on). `stashedPoints` are the manual points
- * held aside while a rubric owned them.
- */
+/** Patch for a type switch; null for Multiple Choice on an MA question. */
 export function questionTypeChangeUpdates(
   q: QuizQuestion,
   nextType: QuizQuestionType,

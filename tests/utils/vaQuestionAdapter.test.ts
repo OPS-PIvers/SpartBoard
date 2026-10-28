@@ -50,12 +50,27 @@ describe('quizUpdatesToVa', () => {
         type: 'MC',
         correctAnswer: '',
         incorrectAnswers: ['', ''],
-        optionOrder: [1, 0],
         blankAlternates: [],
         placeholder: undefined,
         rubricSnapshot: undefined,
       })
     ).toEqual({ type: 'MC', correctAnswer: '', incorrectAnswers: ['', ''] });
+  });
+
+  it('keeps the authored option order so the choice editor does not reorder rows', () => {
+    expect(quizUpdatesToVa({ optionOrder: [1, 0] })).toEqual({
+      optionOrder: [1, 0],
+    });
+    expect(
+      vaToQuizQuestion({ ...fib, type: 'MC', optionOrder: [1, 0] })
+    ).toMatchObject({ optionOrder: [1, 0] });
+  });
+
+  it('starts a multi-blank FIB key empty, since VA grades one answer', () => {
+    expect(quizUpdatesToVa({ type: 'FIB', correctAnswer: '\u001F' })).toEqual({
+      type: 'FIB',
+      correctAnswer: '',
+    });
   });
 
   it('round-trips an MA edit with partial credit', () => {

@@ -5,6 +5,7 @@ import type {
   VideoActivityQuestion,
   VideoActivityQuestionType,
 } from '@/types';
+import { FIB_BLANK_SEP } from '@/utils/quizFibBlanks';
 
 /** Question types the Quiz editor offers for a Video Activity. */
 export const VA_EDITOR_TYPES: readonly QuizQuestionType[] = ['MC', 'FIB', 'MA'];
@@ -23,11 +24,7 @@ export function vaToQuizQuestion(q: VideoActivityQuestion): QuizQuestion {
   };
 }
 
-/**
- * A Quiz editor patch as a VA patch. Fields VA never stores (multi-blank
- * keys, fixed option order, written-answer settings) are dropped, and a
- * switch to a type VA can't play returns null.
- */
+/** A Quiz editor patch as a VA patch; null for a type VA can't play. */
 export function quizUpdatesToVa(
   updates: Partial<QuizQuestion>
 ): Partial<VideoActivityQuestion> | null {
@@ -36,11 +33,15 @@ export function quizUpdatesToVa(
   if (updates.type !== undefined) out.type = updates.type;
   if ('text' in updates && updates.text !== undefined) out.text = updates.text;
   if ('correctAnswer' in updates && updates.correctAnswer !== undefined)
-    out.correctAnswer = updates.correctAnswer;
+    // VA grades one typed FIB answer, so a multi-blank key starts empty.
+    out.correctAnswer = updates.correctAnswer.includes(FIB_BLANK_SEP)
+      ? ''
+      : updates.correctAnswer;
   if ('incorrectAnswers' in updates && updates.incorrectAnswers !== undefined)
     out.incorrectAnswers = updates.incorrectAnswers;
   if ('alternateAnswers' in updates)
     out.acceptableVariants = updates.alternateAnswers;
+  if ('optionOrder' in updates) out.optionOrder = updates.optionOrder;
   if ('allowPartialCredit' in updates)
     out.allowPartialCredit = updates.allowPartialCredit;
   if ('points' in updates) out.points = updates.points;
