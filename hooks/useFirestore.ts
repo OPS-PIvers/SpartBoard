@@ -14,6 +14,7 @@ import {
   orderBy,
   runTransaction,
   updateDoc,
+  waitForPendingWrites,
   writeBatch,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
@@ -357,11 +358,11 @@ const commitMergedSave = (
   baseline: SaveBaseline,
   updatedAt: number,
   // Queued retries pass this so a superseded or deleted board is never written back.
-  shouldWrite?: (serverExists: boolean) => boolean
+  shouldWrite?: () => boolean
 ) =>
   runTransaction(db, async (tx) => {
     const snap = await tx.get(docRef);
-    if (shouldWrite && !shouldWrite(snap.exists())) return;
+    if (shouldWrite && !shouldWrite()) return;
     const server = snap.exists()
       ? normalizeServerBoard({ ...snap.data(), id: snap.id } as Dashboard)
       : null;
@@ -369,6 +370,18 @@ const commitMergedSave = (
       ? mergeDashboardForSave(dashboard, server, baseline)
       : dashboard;
     tx.set(docRef, { ...toWrite, updatedAt });
+  });
+
+/** Resolves when `promise` settles or after `ms`, whichever is first. */
+const settleWithin = (promise: Promise<unknown>, ms: number) =>
+  new Promise<void>((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    void Promise.resolve(promise)
+      .catch(() => undefined)
+      .then(() => {
+        clearTimeout(timer);
+        resolve();
+      });
   });
 
 /** Waits 2s, 4s, 8s … up to 30s before the next offline retry, or less if the browser comes back online. */
@@ -438,13 +451,14 @@ export const useFirestore = (userId: string | null) => {
         while (queues.get(dashboard.id) === queue && queue.length > 0) {
           const next = queue[0];
           try {
+            // A board created offline is a queued whole write; let it reach the server before merging against it.
+            await settleWithin(waitForPendingWrites(db), 30_000);
             await commitMergedSave(
               docRef,
               next.dashboard,
               next.baseline,
               next.updatedAt,
-              (serverExists) =>
-                serverExists && queues.get(dashboard.id) === queue
+              () => queues.get(dashboard.id) === queue
             );
           } catch (err) {
             if (isOfflineError(err)) {

@@ -503,7 +503,7 @@ describe('DashboardContext merge with pending writes', () => {
       [
         {
           ...makeDashboard([
-            { ...makeWidget('wA', 'A0'), version: 1 },
+            { ...makeWidget('wA', 'claude-A'), version: 5 },
             { ...makeWidget('wB', 'B0'), version: 1 },
             { ...makeWidget('wNew', 'from-claude'), version: 1 },
           ]),

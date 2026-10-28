@@ -315,7 +315,7 @@ describe('useFirestore – saveDashboard transaction', () => {
     expect(tx.set).not.toHaveBeenCalled();
   });
 
-  it('skips a queued retry whose board is gone from the server', async () => {
+  it("writes a queued save of a board the server has not seen yet, after this tab's queued writes land", async () => {
     const tx = {
       get: vi.fn().mockResolvedValue({ exists: () => false }),
       set: vi.fn(),
@@ -325,18 +325,23 @@ describe('useFirestore – saveDashboard transaction', () => {
       (_db: unknown, fn: (t: typeof tx) => Promise<void>) =>
         online ? fn(tx) : Promise.reject(offlineError())
     );
+    (firestore.waitForPendingWrites as unknown as Fn).mockResolvedValue(
+      undefined
+    );
 
     const { result } = renderHook(() => useFirestore('user-1'));
     await result.current.saveDashboard(
-      board([widget('a', 'a-local')]),
+      board([widget('a', 'made-offline')]),
       baseline([widget('a', 'a0')])
     );
     online = true;
     window.dispatchEvent(new Event('online'));
     await flush();
 
-    expect(tx.get).toHaveBeenCalled();
-    expect(tx.set).not.toHaveBeenCalled();
+    expect(firestore.waitForPendingWrites).toHaveBeenCalled();
+    expect(textOf((tx.set.mock.calls[0][1] as Dashboard).widgets[0])).toBe(
+      'made-offline'
+    );
     expect(result.current.hasDeferredSave('d1')).toBe(false);
   });
 

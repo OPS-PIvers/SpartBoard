@@ -2363,11 +2363,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             if (db.id === activeIdRef.current && currentActive) {
               // Own writes in flight: the snapshot may echo them or an older server copy, so local wins unless another device moved a widget ahead.
               if (hasPendingWrites || activeHasDeferredSave) {
+                // A queued offline save already advanced lastSaved, so judge local edits against what the server last confirmed.
+                const queuedBaseline = deferredSaveBaseline?.(db.id);
                 let savedWidgets: WidgetData[];
                 try {
-                  savedWidgets = JSON.parse(
-                    lastSavedFieldsRef.current.widgets || '[]'
-                  ) as WidgetData[];
+                  savedWidgets =
+                    queuedBaseline?.widgets ??
+                    (JSON.parse(
+                      lastSavedFieldsRef.current.widgets || '[]'
+                    ) as WidgetData[]);
                 } catch {
                   return currentActive;
                 }
@@ -2375,7 +2379,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 const ownCopyPending = pendingDashboardIds
                   ? pendingDashboardIds.has(db.id)
                   : hasPendingWrites;
-                const queuedBaseline = deferredSaveBaseline?.(db.id);
                 const pending = mergePendingSnapshotWidgets(
                   currentActive.widgets,
                   db.widgets,
