@@ -940,8 +940,8 @@ export async function editBoard(
     batch.update(
       ref,
       {
-        ...(board.name !== before.name ? { name: board.name } : {}),
-        ...(board.background !== before.background
+        ...(board.name !== str(before.name) ? { name: board.name } : {}),
+        ...(board.background !== str(before.background)
           ? { background: board.background }
           : {}),
         widgets: board.widgets,
