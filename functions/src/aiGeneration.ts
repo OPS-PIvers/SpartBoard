@@ -31,6 +31,10 @@ import {
 import { generateAi, type AiPart } from './aiRouter';
 import { isAiIntegrationId } from './aiIntegrations';
 import { DEFAULT_MAX_INPUT_CHARS, maxInputCharsFor } from './aiLimits';
+import {
+  normalizeTemplateLayout,
+  templateLayoutSystemPrompt,
+} from './boardTemplateLayout';
 
 interface AIData {
   type:
@@ -54,6 +58,8 @@ interface AIData {
   source?: string;
   /** `mini-app` only: the current code, which turns the request into an edit of it. */
   html?: string;
+  /** `dashboard-layout` only: answer with a board template instead of 12x12 grid cells. */
+  layoutMode?: 'templates';
 }
 
 type QuizGenType = 'MC' | 'FIB' | 'Matching' | 'Ordering' | 'MA';
@@ -825,6 +831,8 @@ export const generateWithAI = onCall(
               maxInputChars
             )
           : null;
+      const templateLayout =
+        genType === 'dashboard-layout' && data?.layoutMode === 'templates';
 
       const promptMap: Record<
         string,
@@ -924,8 +932,14 @@ Worked example (flashcards app with a "Done" button):
         `,
           userPrompt: `Topic: <topic>${sanitizedUserInput}</topic>`,
         }),
-        'dashboard-layout': () => ({
-          systemPrompt: `
+        'dashboard-layout': () =>
+          templateLayout
+            ? {
+                systemPrompt: templateLayoutSystemPrompt(),
+                userPrompt: `Lesson/Activity Description: <lesson_description>${sanitizedUserInput}</lesson_description>`,
+              }
+            : {
+                systemPrompt: `
           You are an expert instructional designer and classroom space planner. Based on the user's lesson description provided within <lesson_description> tags, suggest a set of interactive widgets and arrange them on a 12x12 grid (columns 0-11, rows 0-11).
 
           Available Widgets (use EXACT type strings):
@@ -989,8 +1003,8 @@ Worked example (flashcards app with a "Done" button):
             ]
           }
         `,
-          userPrompt: `Lesson/Activity Description: <lesson_description>${sanitizedUserInput}</lesson_description>`,
-        }),
+                userPrompt: `Lesson/Activity Description: <lesson_description>${sanitizedUserInput}</lesson_description>`,
+              },
         'instructional-routine': () => ({
           systemPrompt: `
           You are an expert instructional designer. Create a classroom instructional routine based on the user's description provided within <description> tags.
@@ -1178,6 +1192,20 @@ Output JSON ONLY in this exact shape:
               ? parsed.title
               : 'AI-generated quiz',
           questions: validatedQuestions,
+          _modelConfigUsedFallback: geminiConfig.usedFallback,
+        };
+      }
+
+      if (templateLayout) {
+        const layout = normalizeTemplateLayout(parsed);
+        if (!layout) {
+          throw new HttpsError(
+            'internal',
+            "AI couldn't generate any widgets for this description. Please try a more specific lesson plan."
+          );
+        }
+        return {
+          ...layout,
           _modelConfigUsedFallback: geminiConfig.usedFallback,
         };
       }

@@ -1772,6 +1772,15 @@ export interface GridPosition {
   rowSpan: number;
 }
 
+/** A board-template zone placement, in the same proportional units widgets store. */
+export interface WidgetPlacement {
+  xProp: number;
+  yProp: number;
+  wProp: number;
+  hProp: number;
+  aspectRatio: number;
+}
+
 export interface Path {
   points: Point[];
   color: string;

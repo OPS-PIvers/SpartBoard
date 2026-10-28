@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { validateGridConfig, sanitizeAIConfig } from '@/utils/ai_security';
+import {
+  validateGridConfig,
+  validatePlacement,
+  sanitizeAIConfig,
+} from '@/utils/ai_security';
 import {
   GridPosition,
   MiniAppConfig,
@@ -197,6 +201,36 @@ describe('DashboardContext AI Security Helpers', () => {
         colSpan: 4,
         rowSpan: 3,
       });
+    });
+  });
+
+  describe('validatePlacement', () => {
+    const zone = {
+      xProp: 0.1,
+      yProp: 0.2,
+      wProp: 0.5,
+      hProp: 0.6,
+      aspectRatio: 1.5,
+    };
+
+    it('keeps a placement inside the board', () => {
+      expect(validatePlacement(zone)).toEqual(zone);
+      expect(validatePlacement(undefined)).toBeNull();
+    });
+
+    it('rejects placements off the board or without a size', () => {
+      expect(validatePlacement({ ...zone, xProp: 0.6 })).toBeNull();
+      expect(validatePlacement({ ...zone, yProp: -0.2 })).toBeNull();
+      expect(validatePlacement({ ...zone, wProp: 0 })).toBeNull();
+      expect(validatePlacement({ ...zone, hProp: Number.NaN })).toBeNull();
+    });
+
+    it('drops an implausible aspect ratio so the board shape decides it', () => {
+      for (const aspectRatio of [Number.NaN, 1e9, 1e-9, -1]) {
+        expect(
+          validatePlacement({ ...zone, aspectRatio })?.aspectRatio
+        ).toBeUndefined();
+      }
     });
   });
 });

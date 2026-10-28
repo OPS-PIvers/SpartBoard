@@ -12,6 +12,7 @@ import {
   Student,
   AddWidgetOverrides,
   GridPosition,
+  WidgetPlacement,
   DrawableObject,
   ShapeTool,
   Collection,
@@ -199,6 +200,7 @@ export interface DashboardContextValue {
       type: WidgetType;
       config?: WidgetConfig;
       gridConfig?: GridPosition;
+      placement?: WidgetPlacement;
     }[]
   ) => void;
   removeWidget: (id: string) => void;
