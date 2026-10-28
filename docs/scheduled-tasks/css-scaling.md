@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-27_
+_Last audited: 2026-10-28_
 _Last action: 2026-10-22 — LOW SmartNotebook Viewer page-counter `minWidth` scaled with cqmin (moved to Completed). Prior: 2026-10-21 — LOW MusicWidget landscape status row `gap-2` replaced with `min(8px, 2cqh)` gap (moved to Completed). Prior: 2026-10-18 — LOW `MiniAppAssignModal` skipped-students warning text scaled with cqmin (both duplicate entries moved to Completed). Prior: 2026-10-17 — LOW Soundboard active-sound dot scaled with cqmin._
+
+_2026-10-28: Daily audit (Wednesday). Scanned `components/widgets/**/Widget.tsx` for `max-h/w-[Npx]` caps and inline pixel width/height/fontSize: no matches. 0 new issues._
 
 _2026-10-27: Daily audit (Tuesday). No `max-w/h-[Npx]` in any `Widget.tsx`. Only fixed-px hits are `DrawingWidget/Widget.tsx` portal popups (`fixed` menu `min-w-[200px]`, panel `w-[260px]`), not content-area; not flagged. 0 new issues._
 
