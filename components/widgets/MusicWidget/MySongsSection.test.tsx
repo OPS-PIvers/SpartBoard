@@ -14,9 +14,9 @@ vi.mock('@/hooks/useMySongs', () => ({
 }));
 
 const ID = 'jfKfPfyJRdk';
-const makeCtx = (updateConfig = vi.fn()) =>
+const makeCtx = (updateConfig = vi.fn(), stationId = '') =>
   ({
-    config: { stationId: '' },
+    config: { stationId },
     widget: { id: 'w1', type: 'music', config: {} },
     t: (key: string) => key.split('.').pop(),
     id: 'station',
@@ -139,5 +139,76 @@ describe('MySongsSection', () => {
       'mySongsUnavailable'
     );
     expect(addSong).not.toHaveBeenCalled();
+  });
+
+  it('clears the widget pick when the selected song is removed', async () => {
+    songs = [
+      {
+        id: 's1',
+        title: 'Saved',
+        channel: '',
+        url: `https://www.youtube.com/watch?v=${ID}`,
+        thumbnail: '',
+        createdAt: 1,
+      },
+    ];
+    removeSong.mockResolvedValue();
+    const updateConfig = vi.fn();
+    render(<MySongsSection ctx={makeCtx(updateConfig, 's1')} />);
+    fireEvent.click(screen.getByLabelText('mySongsRemove: Saved'));
+    await waitFor(() =>
+      expect(updateConfig).toHaveBeenCalledWith({
+        stationId: '',
+        mySong: null,
+      })
+    );
+  });
+
+  it('keeps the widget pick when another song is removed', async () => {
+    songs = [
+      {
+        id: 's1',
+        title: 'Saved',
+        channel: '',
+        url: `https://www.youtube.com/watch?v=${ID}`,
+        thumbnail: '',
+        createdAt: 1,
+      },
+    ];
+    removeSong.mockResolvedValue();
+    const updateConfig = vi.fn();
+    render(<MySongsSection ctx={makeCtx(updateConfig, 'curated-1')} />);
+    fireEvent.click(screen.getByLabelText('mySongsRemove: Saved'));
+    await waitFor(() => expect(removeSong).toHaveBeenCalledWith('s1'));
+    expect(updateConfig).not.toHaveBeenCalled();
+  });
+
+  it('keeps a new pick made while the remove is still saving', async () => {
+    songs = [
+      {
+        id: 's1',
+        title: 'Saved',
+        channel: '',
+        url: `https://www.youtube.com/watch?v=${ID}`,
+        thumbnail: '',
+        createdAt: 1,
+      },
+    ];
+    let finish: (() => void) | undefined;
+    removeSong.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      })
+    );
+    const updateConfig = vi.fn();
+    const { rerender } = render(
+      <MySongsSection ctx={makeCtx(updateConfig, 's1')} />
+    );
+    fireEvent.click(screen.getByLabelText('mySongsRemove: Saved'));
+    rerender(<MySongsSection ctx={makeCtx(updateConfig, 'curated-2')} />);
+    finish?.();
+    await waitFor(() => expect(removeSong).toHaveBeenCalledWith('s1'));
+    await Promise.resolve();
+    expect(updateConfig).not.toHaveBeenCalled();
   });
 });

@@ -17,6 +17,7 @@ const addWidget = vi.fn<(type: string, overrides: { id: string }) => void>();
 const updateWidget = vi.fn();
 let boardWidgets: WidgetData[] = [];
 let readOnly = false;
+let stationUrl = 'https://www.youtube.com/watch?v=jfKfPfyJRdk';
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
     activeDashboard: { widgets: boardWidgets },
@@ -33,7 +34,7 @@ vi.mock('@/hooks/useMusicStations', () => ({
         id: 's1',
         title: 'Lo-fi',
         channel: 'Channel',
-        url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk',
+        url: stationUrl,
         thumbnail: '',
         color: '#000',
         isActive: true,
@@ -69,6 +70,7 @@ beforeEach(() => {
   canAccessFeature.mockReturnValue(true);
   boardWidgets = [];
   readOnly = false;
+  stationUrl = 'https://www.youtube.com/watch?v=jfKfPfyJRdk';
 });
 
 const button = () =>
@@ -117,5 +119,11 @@ describe('Music launch timer button', () => {
       />
     );
     expect(button()).not.toBeNull();
+  });
+
+  it('is hidden on a Spotify station, which cannot sync', () => {
+    stationUrl = 'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M';
+    render(<MusicWidget widget={music()} />);
+    expect(button()).toBeNull();
   });
 });
