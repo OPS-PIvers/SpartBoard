@@ -1,0 +1,134 @@
+// Pure snap zone data, shared with the board layout engine and its functions/ copy.
+export interface SnapZone {
+  id: string;
+  x: number; // 0.0 to 1.0 (Percentage of safe width)
+  y: number; // 0.0 to 1.0 (Percentage of safe height)
+  w: number; // 0.0 to 1.0 (Percentage of safe width)
+  h: number; // 0.0 to 1.0 (Percentage of safe height)
+}
+
+export interface SnapZoneLayout {
+  id: string;
+  nameKey: string;
+  zones: SnapZone[];
+}
+
+export const SNAP_ZONE_LAYOUTS: readonly SnapZoneLayout[] = [
+  {
+    id: 'split-half',
+    nameKey: 'splitScreen',
+    zones: [
+      { id: 'left-half', x: 0, y: 0, w: 0.5, h: 1 },
+      { id: 'right-half', x: 0.5, y: 0, w: 0.5, h: 1 },
+    ],
+  },
+  {
+    id: 'grid-2x2',
+    nameKey: 'fourGrid',
+    zones: [
+      { id: 'top-left', x: 0, y: 0, w: 0.5, h: 0.5 },
+      { id: 'top-right', x: 0.5, y: 0, w: 0.5, h: 0.5 },
+      { id: 'bottom-left', x: 0, y: 0.5, w: 0.5, h: 0.5 },
+      { id: 'bottom-right', x: 0.5, y: 0.5, w: 0.5, h: 0.5 },
+    ],
+  },
+  {
+    id: 'grid-3x3',
+    nameKey: 'nineGrid',
+    zones: [
+      { id: 'r1-c1', x: 0, y: 0, w: 0.33, h: 0.33 },
+      { id: 'r1-c2', x: 0.33, y: 0, w: 0.34, h: 0.33 },
+      { id: 'r1-c3', x: 0.67, y: 0, w: 0.33, h: 0.33 },
+      { id: 'r2-c1', x: 0, y: 0.33, w: 0.33, h: 0.34 },
+      { id: 'r2-c2', x: 0.33, y: 0.33, w: 0.34, h: 0.34 },
+      { id: 'r2-c3', x: 0.67, y: 0.33, w: 0.33, h: 0.34 },
+      { id: 'r3-c1', x: 0, y: 0.67, w: 0.33, h: 0.33 },
+      { id: 'r3-c2', x: 0.33, y: 0.67, w: 0.34, h: 0.33 },
+      { id: 'r3-c3', x: 0.67, y: 0.67, w: 0.33, h: 0.33 },
+    ],
+  },
+  {
+    id: 'top-half-bottom-3',
+    nameKey: 'topPriority3',
+    zones: [
+      { id: 'top-half', x: 0, y: 0, w: 1, h: 0.5 },
+      { id: 'bottom-1', x: 0, y: 0.5, w: 0.33, h: 0.5 },
+      { id: 'bottom-2', x: 0.33, y: 0.5, w: 0.34, h: 0.5 },
+      { id: 'bottom-3', x: 0.67, y: 0.5, w: 0.33, h: 0.5 },
+    ],
+  },
+  {
+    id: 'bottom-half-top-3',
+    nameKey: 'bottomPriority3',
+    zones: [
+      { id: 'top-1', x: 0, y: 0, w: 0.33, h: 0.5 },
+      { id: 'top-2', x: 0.33, y: 0, w: 0.34, h: 0.5 },
+      { id: 'top-3', x: 0.67, y: 0, w: 0.33, h: 0.5 },
+      { id: 'bottom-half', x: 0, y: 0.5, w: 1, h: 0.5 },
+    ],
+  },
+  {
+    id: 'sandwich-3',
+    nameKey: 'middlePriority3',
+    zones: [
+      { id: 'top-1', x: 0, y: 0, w: 0.33, h: 0.33 },
+      { id: 'top-2', x: 0.33, y: 0, w: 0.34, h: 0.33 },
+      { id: 'top-3', x: 0.67, y: 0, w: 0.33, h: 0.33 },
+      { id: 'middle-wide', x: 0, y: 0.33, w: 1, h: 0.34 },
+      { id: 'bottom-1', x: 0, y: 0.67, w: 0.33, h: 0.33 },
+      { id: 'bottom-2', x: 0.33, y: 0.67, w: 0.34, h: 0.33 },
+      { id: 'bottom-3', x: 0.67, y: 0.67, w: 0.33, h: 0.33 },
+    ],
+  },
+  {
+    id: 'sidebar-left',
+    nameKey: 'sidebarLeft',
+    zones: [
+      { id: 'side', x: 0, y: 0, w: 0.34, h: 1 },
+      { id: 'main', x: 0.34, y: 0, w: 0.66, h: 1 },
+    ],
+  },
+  {
+    id: 'sidebar-right',
+    nameKey: 'sidebarRight',
+    zones: [
+      { id: 'main', x: 0, y: 0, w: 0.66, h: 1 },
+      { id: 'side', x: 0.66, y: 0, w: 0.34, h: 1 },
+    ],
+  },
+  {
+    id: 'three-columns',
+    nameKey: 'threeColumns',
+    zones: [
+      { id: 'left', x: 0, y: 0, w: 0.33, h: 1 },
+      { id: 'center', x: 0.33, y: 0, w: 0.34, h: 1 },
+      { id: 'right', x: 0.67, y: 0, w: 0.33, h: 1 },
+    ],
+  },
+  {
+    id: 'split-vertical',
+    nameKey: 'topBottom',
+    zones: [
+      { id: 'top', x: 0, y: 0, w: 1, h: 0.5 },
+      { id: 'bottom', x: 0, y: 0.5, w: 1, h: 0.5 },
+    ],
+  },
+  {
+    id: 'priority-left',
+    nameKey: 'priorityLeft',
+    zones: [
+      { id: 'main', x: 0, y: 0, w: 0.5, h: 1 },
+      { id: 'top-side', x: 0.5, y: 0, w: 0.5, h: 0.5 },
+      { id: 'bottom-side', x: 0.5, y: 0.5, w: 0.5, h: 0.5 },
+    ],
+  },
+  {
+    id: 'priority-right',
+    nameKey: 'priorityRight',
+    zones: [
+      { id: 'top-side', x: 0, y: 0, w: 0.5, h: 0.5 },
+      { id: 'bottom-side', x: 0, y: 0.5, w: 0.5, h: 0.5 },
+      { id: 'main', x: 0.5, y: 0, w: 0.5, h: 1 },
+    ],
+  },
+];

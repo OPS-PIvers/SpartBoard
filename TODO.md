@@ -179,6 +179,12 @@ Each item names the plan it came from; the plan holds the detail.
 - [ ] Real-Chromebook test of short (5s-range) auto-submit timers for false positives from focus-loss/iframe blur, per §4. (S)
 - [ ] Flip 'tab-away-timer' flag to Public in Admin Settings > Access > Previews once Paul has tested in prod, then add the public changelog entry. (S)
 
+#### `docs/plans/shipped/AI_BOARDS.md`
+
+- [ ] Paul saves the "AI boards" row once in prod, tries building and editing a board through the connector and the new Magic Board, then sets `ai-boards` to Public in Admin Settings > Access > Previews and adds the changelog entry. (S)
+- [ ] OK the wording of the "Claude is editing" toast and the Boards list badge (#4775). (S)
+- [ ] Before opening: Magic Board sends the teacher's allowed widget types with its template request, so it never picks a widget the teacher can't use (#4776 leaves that zone empty). (S)
+
 #### `docs/plans/shipped/VA_TEACHER_PACED.md`
 
 - [ ] Paul saves the "Video Activity live mode" row once in prod, runs a live session (teacher tab plus a student tab, Present popup autoplay), then sets `video-activity-live` to Public in Admin Settings > Access > Previews and adds the changelog entry. (S)

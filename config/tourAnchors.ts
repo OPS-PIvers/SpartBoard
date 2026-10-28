@@ -220,6 +220,10 @@ export const TOUR_ANCHORS = {
   'board-nav.manage-boards': { label: 'Manage all boards item', panel: true },
 
   'board.whole': { label: 'The whole board, for opening and closing steps' },
+  'board.claude-editing-show': {
+    label: 'Show button on the "Claude is editing" notice',
+    panel: true,
+  },
   'board-actions.zoom': { label: 'Zoom level button' },
   'board-actions.zoom-reset': { label: 'Reset zoom button' },
   'board-actions.help': { label: 'Help button' },
@@ -407,6 +411,11 @@ export const TOUR_ANCHORS = {
   },
   'behavior.remote-control-toggle': {
     label: 'Remote control switch',
+    persists: true,
+    panel: true,
+  },
+  'behavior.alignment-guides-toggle': {
+    label: 'Alignment guides switch',
     persists: true,
     panel: true,
   },
@@ -11587,6 +11596,10 @@ export const TOUR_ANCHORS = {
     label: 'Pin button on a board card',
     panel: true,
     persists: true,
+  },
+  'boards-modal.claude-badge': {
+    label: 'Made with Claude or Edited by Claude note on a board card',
+    panel: true,
   },
   'boards-modal.board-delete': {
     label: 'Delete item in the board card menu',

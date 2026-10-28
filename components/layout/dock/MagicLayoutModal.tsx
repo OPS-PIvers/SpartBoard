@@ -24,7 +24,7 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
 }) => {
   const outward = useViewAsOutward();
   const { addWidgets, addToast } = useDashboard();
-  const { canAccessFeature } = useAuth();
+  const { canAccessFeature, canAccessWidget } = useAuth();
   const [description, setDescription] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [fileContext, setFileContext] = useState<string | null>(null);
@@ -45,7 +45,15 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
         fileContext,
         fileName
       );
-      const widgets = await generateDashboardLayout(fullDescription);
+      const widgets = await generateDashboardLayout(
+        fullDescription,
+        canAccessFeature('ai-boards')
+          ? {
+              screen: { w: window.innerWidth, h: window.innerHeight },
+              canUseWidget: canAccessWidget,
+            }
+          : undefined
+      );
       addWidgets(widgets);
       addToast('Layout generated!', 'success');
       onClose();
