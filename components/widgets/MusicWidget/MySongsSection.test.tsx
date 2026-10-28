@@ -96,4 +96,32 @@ describe('MySongsSection', () => {
       expect.objectContaining({ stationId: 's1' })
     );
   });
+
+  it('selects a saved song even when the list is full', () => {
+    songs = Array.from({ length: 50 }, (_, i) => ({
+      id: `s${i}`,
+      title: `Song ${i}`,
+      channel: '',
+      url:
+        i === 0
+          ? `https://www.youtube.com/watch?v=${ID}`
+          : `https://www.youtube.com/watch?v=${String(i).padStart(11, 'x')}`,
+      thumbnail: '',
+      createdAt: i,
+    }));
+    const updateConfig = vi.fn();
+    render(<MySongsSection ctx={makeCtx(updateConfig)} />);
+    const input = screen.getByPlaceholderText('mySongsLinkPlaceholder');
+    fireEvent.change(input, { target: { value: `https://youtu.be/${ID}` } });
+    fireEvent.click(screen.getByText('mySongsAdd'));
+    expect(updateConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ stationId: 's0' })
+    );
+    fireEvent.change(input, {
+      target: { value: 'https://youtu.be/zzzzzzzzzzz' },
+    });
+    fireEvent.click(screen.getByText('mySongsAdd'));
+    expect(screen.getByRole('alert')).toHaveTextContent('mySongsLimit');
+    expect(addSong).not.toHaveBeenCalled();
+  });
 });

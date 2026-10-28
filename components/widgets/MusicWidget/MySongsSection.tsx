@@ -32,10 +32,6 @@ export const MySongsSection: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
       setError(t('mySongsInvalidLink'));
       return;
     }
-    if (songs.length >= MY_SONGS_LIMIT) {
-      setError(t('mySongsLimit'));
-      return;
-    }
     const existing = songs.find(
       (song) => song.url === canonicalYouTubeUrl(videoId)
     );
@@ -43,6 +39,10 @@ export const MySongsSection: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
       selectSong(existing);
       setLink('');
       setError(null);
+      return;
+    }
+    if (songs.length >= MY_SONGS_LIMIT) {
+      setError(t('mySongsLimit'));
       return;
     }
     setSaving(true);
@@ -131,9 +131,9 @@ export const MySongsSection: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
                     `row-${songIndex + 1}`
                   )}
                   data-tour-widget={ctx.widget.id}
-                  className="absolute right-1 top-1 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                  className="touch-target-expand absolute right-1 top-1 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <X className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>
               </div>
             );
