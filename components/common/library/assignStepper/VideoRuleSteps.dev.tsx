@@ -16,6 +16,7 @@ const Frame: React.FC<{
   <div
     className={`rounded-xl border bg-white ${open ? 'border-brand-blue-primary/40 shadow-sm' : 'border-slate-200'}`}
   >
+    {/* no-tour-anchor: DEV-only harness frame, never shipped */}
     <button
       type="button"
       onClick={onOpen}

@@ -100,7 +100,7 @@ export function formatVideoFeedbackValue(value: VideoAssignRules): string {
   return 'Nothing until I release results';
 }
 
-/** Stepper value from an activity's saved behavior; the rows the player ignored start at today's behavior. */
+/** Stepper value from saved behavior; saved shuffle/feedback values never took effect, so they deliberately reset to what the player does today. */
 export function videoRulesFromBehavior(
   behavior: VideoActivityBehaviorSettings,
   player: VideoActivitySessionSettings = DEFAULT_VIDEO_PLAYER_SETTINGS

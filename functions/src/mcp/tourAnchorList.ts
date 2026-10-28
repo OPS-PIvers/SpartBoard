@@ -3434,7 +3434,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "assign-step.video",
     "label": "Video step header in the Assign dialog",
     "scope": "board",
-    "panel": true
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
   },
   {
     "id": "assign-step.check",
