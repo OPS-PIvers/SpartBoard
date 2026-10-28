@@ -110,6 +110,7 @@ export const VideoActivityQuizContextPane = React.memo(
       deleteChecked,
       applyTargets,
       setShowAiPrompt,
+      setTimestampInput,
       error,
     } = state;
     const [bulkPickerOpen, setBulkPickerOpen] = useState(false);
@@ -168,9 +169,10 @@ export const VideoActivityQuizContextPane = React.memo(
               questions={questions}
               onAddAtTime={addQuestionAtTime}
               onSelectQuestion={setSelectedId}
-              onMarkerDrag={(id, seconds) =>
-                updateQuestion(id, { timestamp: seconds })
-              }
+              onMarkerDrag={(id, seconds) => {
+                setTimestampInput(id, secondsToMmSs(seconds));
+                updateQuestion(id, { timestamp: seconds });
+              }}
               activeQuestionId={selectedId ?? undefined}
               onDurationChange={setVideoDurationSeconds}
               handleRef={timelineRef}
@@ -484,9 +486,15 @@ export const VideoActivityQuizDetailPane = React.memo(
       const va = quizUpdatesToVa(updates);
       if (va) updateQuestion(id, va);
     };
+    // Skips seconds other questions already use, as Add does.
     const setTime = (seconds: number) => {
-      setTimestampInput(id, secondsToMmSs(seconds));
-      updateQuestion(id, { timestamp: seconds });
+      const used = new Set(
+        questions.filter((x) => x.id !== id).map((x) => x.timestamp)
+      );
+      let ts = Math.max(0, seconds);
+      while (used.has(ts)) ts += 1;
+      setTimestampInput(id, secondsToMmSs(ts));
+      updateQuestion(id, { timestamp: ts });
     };
     const typeMeta = QUESTION_TYPES.find((t) => t.value === q.type);
     const timeValue =
@@ -548,7 +556,6 @@ export const VideoActivityQuizDetailPane = React.memo(
               <input
                 id="va-question-time"
                 type="text"
-                inputMode="numeric"
                 value={timeValue}
                 onChange={(e) => {
                   const raw = e.target.value;

@@ -183,6 +183,14 @@ describe('Video Activity editor on the Quiz layout', () => {
     expect(q.timestamp).toBe(42);
   });
 
+  it('Use current time skips a second another question already uses', () => {
+    renderEditor([mc(), mc({ id: 'q2', timestamp: 42, text: 'At 42' })]);
+    fireEvent.click(screen.getByText('Use current time'));
+    expect(screen.getByLabelText<HTMLInputElement>('Time in video').value).toBe(
+      '00:43'
+    );
+  });
+
   it('Add puts a new question at the playhead', () => {
     renderEditor([mc()]);
     fireEvent.click(

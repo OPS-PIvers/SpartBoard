@@ -409,7 +409,7 @@ export function useVideoActivityEditorState({
   });
   const lastToggledRef = useRef<string | null>(null);
 
-  // The copy goes at the next free second after the original so it sorts right after it.
+  // The copy goes at the next free second after the original.
   const duplicateQuestion = useCallback((id: string) => {
     const source = questionsRef.current.find((q) => q.id === id);
     if (!source) return;
@@ -430,18 +430,23 @@ export function useVideoActivityEditorState({
   }, []);
 
   const toggleChecked = useCallback((id: string, range?: boolean) => {
+    const rows = questionsRef.current.map((q) => q.id);
+    const anchor = lastToggledRef.current;
+    lastToggledRef.current = id;
+    const span =
+      range && anchor && rows.includes(anchor)
+        ? (() => {
+            const [from, to] = [rows.indexOf(anchor), rows.indexOf(id)].sort(
+              (x, y) => x - y
+            );
+            return rows.slice(from, to + 1);
+          })()
+        : null;
     setCheckedIds((prev) => {
       const next = new Set(prev);
-      const rows = questionsRef.current.map((q) => q.id);
-      const anchor = lastToggledRef.current;
-      if (range && anchor && rows.includes(anchor)) {
-        const [from, to] = [rows.indexOf(anchor), rows.indexOf(id)].sort(
-          (x, y) => x - y
-        );
-        for (const qid of rows.slice(from, to + 1)) next.add(qid);
-      } else if (next.has(id)) next.delete(id);
+      if (span) for (const qid of span) next.add(qid);
+      else if (next.has(id)) next.delete(id);
       else next.add(id);
-      lastToggledRef.current = id;
       return next;
     });
   }, []);
