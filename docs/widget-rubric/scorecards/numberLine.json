@@ -137,10 +137,11 @@
     },
     "S8": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
@@ -148,11 +149,10 @@
           "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/maximized-1920x1080__typical.png",
           "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/maximized-1920x1080__stress.png"
         ],
-        "runId": "loop-numberline-2026-10-27-after"
+        "runId": "loop-2026-10-27-grade"
       },
-      "note": "Maximized is the same line scaled up across 1920px, with large blank bands above and below and no presenting-specific change.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-27T04:10:38.020Z",
+      "gradedAt": "2026-10-28T21:03:55.770Z",
       "stale": false
     },
     "I1": {
@@ -260,20 +260,20 @@
     },
     "V1": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
           "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__typical.png"
         ],
-        "runId": "loop-numberline-2026-10-27-after"
+        "runId": "loop-2026-10-27-grade"
       },
-      "note": "A clean white face with bold sans labels and flat colored markers and no ban-list hits, though the oversized black jump arrowheads look heavy.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-27T04:10:38.020Z",
+      "gradedAt": "2026-10-28T21:04:03.476Z",
       "stale": false
     },
     "V2": {
@@ -436,20 +436,20 @@
     },
     "C5": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
           "scripts/widget-grader/out/loop-numberline-2026-10-27-after/screenshots/numberLine/default__empty.png"
         ],
-        "runId": "loop-numberline-2026-10-27-after"
+        "runId": "loop-2026-10-27-grade"
       },
-      "note": "On first drop the face is a complete, readable 0–10 line rather than a blank card, but nothing on the face points to adding markers or jumps.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-27T04:10:38.020Z",
+      "gradedAt": "2026-10-28T21:04:07.358Z",
       "stale": false
     },
     "C6": {

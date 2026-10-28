@@ -394,3 +394,6 @@
 {"widgetType":"traffic","criterionId":"C2","paul":1,"judge":1,"script":null,"rubricVersion":"1.1.0","gradedAt":"2026-10-28T20:51:28.859Z","runId":"c2-regrade-2026-10-26","deckId":"criterion-2026-10-26T13-06-33-211Z"}
 {"widgetType":"url","criterionId":"C2","paul":2,"judge":2,"script":null,"rubricVersion":"1.1.0","gradedAt":"2026-10-28T20:51:37.369Z","runId":"c2-regrade-2026-10-26","deckId":"criterion-2026-10-26T13-06-33-211Z"}
 {"widgetType":"weather","criterionId":"C2","paul":3,"judge":3,"script":null,"rubricVersion":"1.1.0","gradedAt":"2026-10-28T20:51:42.351Z","runId":"c2-regrade-2026-10-26","deckId":"criterion-2026-10-26T13-06-33-211Z"}
+{"widgetType":"numberLine","criterionId":"C5","paul":3,"judge":3,"script":null,"rubricVersion":"1.1.0","gradedAt":"2026-10-28T21:04:07.358Z","runId":"loop-2026-10-27-grade","deckId":"widget-2026-10-28T20-56-01-202Z"}
+{"widgetType":"numberLine","criterionId":"S8","paul":2,"judge":2,"script":null,"rubricVersion":"1.1.0","gradedAt":"2026-10-28T21:03:55.770Z","runId":"loop-2026-10-27-grade","deckId":"widget-2026-10-28T20-56-01-202Z"}
+{"widgetType":"numberLine","criterionId":"V1","paul":3,"judge":3,"script":null,"rubricVersion":"1.1.0","gradedAt":"2026-10-28T21:04:03.476Z","runId":"loop-2026-10-27-grade","deckId":"widget-2026-10-28T20-56-01-202Z"}
