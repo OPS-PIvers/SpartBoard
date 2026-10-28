@@ -364,20 +364,20 @@
     },
     "C2": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-mt2/screenshots/mathTool/default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/mathTool/default__typical__settings.png"
         ],
-        "runId": "after-mt2"
+        "runId": "c2-regrade-2026-10-26"
       },
-      "note": "The settings screenshot shows no open drawer; going by the schema, settings are grouped into content, behavior and display, but the advanced true-scale calibration is not collapsed.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T16:26:07.464Z",
+      "gradedAt": "2026-10-28T20:50:12.457Z",
       "stale": false
     },
     "C3": {

@@ -396,20 +396,20 @@
     },
     "C2": {
       "score": 2,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 2
+        "judge": 2,
+        "paul": 2
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/after-review/screenshots/review/default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/review/default__typical__settings.png"
         ],
-        "runId": "after-review"
+        "runId": "c2-regrade-2026-10-26"
       },
-      "note": "The settings-open screenshot shows only the face with a focus ring and no visible drawer, so drawer organization can't be confirmed as better than grouped.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:11:52.653Z",
+      "gradedAt": "2026-10-28T20:50:59.270Z",
       "stale": false
     },
     "C3": {

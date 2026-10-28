@@ -398,20 +398,20 @@
     },
     "C2": {
       "score": 1,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 1
+        "judge": 1,
+        "paul": 1
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-need-do-put-then-2026-10-18-after/screenshots/need-do-put-then/default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/need-do-put-then/default__typical__settings.png"
         ],
-        "runId": "loop-need-do-put-then-2026-10-18-after"
+        "runId": "c2-regrade-2026-10-26"
       },
-      "note": "The settings-open screenshot shows only the selected face with no organized drawer at all.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-18T15:34:52.274Z",
+      "gradedAt": "2026-10-28T20:50:24.544Z",
       "stale": false
     },
     "C3": {

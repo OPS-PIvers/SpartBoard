@@ -362,20 +362,20 @@
     },
     "C2": {
       "score": 3,
-      "source": "judge",
+      "source": "paul",
       "candidates": {
         "script": null,
-        "judge": 3
+        "judge": 3,
+        "paul": 3
       },
       "evidence": {
         "screenshots": [
-          "scripts/widget-grader/out/loop-countdown-2026-10-23-after2/screenshots/countdown/default__typical__settings.png"
+          "scripts/widget-grader/out/c2-regrade-2026-10-26/screenshots/countdown/default__typical__settings.png"
         ],
-        "runId": "loop-countdown-2026-10-23-after2"
+        "runId": "c2-regrade-2026-10-26"
       },
-      "note": "The schema groups settings into content, behavior and display with dates first and style keys last, though the settings screenshot did not show the drawer open.",
       "rubricVersion": "1.1.0",
-      "gradedAt": "2026-10-23T04:11:24.747Z",
+      "gradedAt": "2026-10-28T20:49:19.802Z",
       "stale": false
     },
     "C3": {
