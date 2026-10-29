@@ -18,15 +18,18 @@ import {
   computeStudentUid,
   getOAuthHeaders,
   isSafeEmailForOneRosterFilter,
-  normalizeEmailDomain,
-  resolveOrgIdForDomain,
   type ClassLinkClass,
   type ClassLinkStudent,
-  type ClassLinkUser,
   pinIndexKey,
   isBridgeablePin,
 } from './classlinkShared';
 import { normalizeQuizCode } from './quizCode';
+import {
+  STUDENT_LOGIN_CLASS_IDS_MAX,
+  StudentLookupError,
+  resolveStudentByEmail,
+  type OneRosterUserWithRole,
+} from './studentEmailIdentity';
 import {
   MAX_TARGET_REFS,
   isOnlyOneRosterStudent,
@@ -58,12 +61,6 @@ import { assertViewAsAllowed } from './viewAsGuard';
 //     recomputes it from the OneRoster roster at grading time.
 //   - NO PII logging. All catch blocks log class-of-failure only.
 
-interface OneRosterUserWithRole extends ClassLinkUser {
-  role?: string;
-  roles?: Array<{ role?: string; roleType?: string }>;
-}
-
-const STUDENT_LOGIN_CLASS_IDS_MAX = 20;
 // Server-only record of a student's full OneRoster section list, re-checked against rosters on each directory call.
 const STUDENT_SECTIONS_COLLECTION = 'student_sections';
 const STUDENT_SECTIONS_MAX = 100;
@@ -125,17 +122,6 @@ const sameIdSet = (a: readonly string[], b: readonly string[]): boolean => {
   const set = new Set(a);
   return b.every((id) => set.has(id));
 };
-
-function isOneRosterStudent(user: OneRosterUserWithRole): boolean {
-  if (user.role && user.role.toLowerCase() === 'student') return true;
-  if (Array.isArray(user.roles)) {
-    return user.roles.some((r) => {
-      const v = (r.role ?? r.roleType ?? '').toLowerCase();
-      return v === 'student' || v === 'primary';
-    });
-  }
-  return false;
-}
 
 /**
  * studentLoginV1
@@ -217,51 +203,45 @@ export const studentLoginV1 = onCall(
       throw new HttpsError('unauthenticated', 'Email not verified by Google.');
     }
 
-    // 2. Organization / domain gate. Prefer the `hd` claim (Workspace-issued),
-    //    but fall back to the email suffix since `hd` is not guaranteed on
-    //    every Workspace configuration.
-    const emailDomain = normalizeEmailDomain(email);
-    if (!emailDomain) {
-      throw new HttpsError('unauthenticated', 'Malformed email.');
-    }
-    const hdDomain = hd ? '@' + hd.toLowerCase() : null;
-
+    // 2-3. Org gate, the mock-class bypass, then the OneRoster user lookup.
     const db = admin.firestore();
-    let orgId = hdDomain ? await resolveOrgIdForDomain(db, hdDomain) : null;
-    if (!orgId) {
-      orgId = await resolveOrgIdForDomain(db, emailDomain);
-    }
-    if (!orgId) {
-      // Counter for monitoring alert on misconfiguration / unregistered schools.
-      console.warn('[studentLoginV1] students_rejected_domain');
-      throw new HttpsError(
-        'permission-denied',
-        'This SpartBoard is only available to schools that have signed up.'
+    let student: Awaited<ReturnType<typeof resolveStudentByEmail>>;
+    try {
+      student = await resolveStudentByEmail(
+        db,
+        { email, hd },
+        {
+          hmacSecret,
+          classlinkClientId,
+          classlinkClientSecret,
+          tenantUrl,
+        },
+        'studentLoginV1'
       );
+    } catch (err) {
+      if (!(err instanceof StudentLookupError)) throw err;
+      switch (err.reason) {
+        case 'malformed-email':
+          throw new HttpsError('unauthenticated', 'Malformed email.');
+        case 'rejected-domain':
+          throw new HttpsError(
+            'permission-denied',
+            'This SpartBoard is only available to schools that have signed up.'
+          );
+        case 'not-in-roster':
+          throw new HttpsError(
+            'not-found',
+            'No student record found in ClassLink roster.'
+          );
+        case 'roster-unavailable':
+          throw new HttpsError('internal', 'Roster service unavailable.');
+      }
     }
-
-    // 2.5 Mock-class bypass. Admin-managed `testClasses` docs let us exercise
-    //     the end-to-end student SSO flow without provisioning the student in
-    //     ClassLink/OneRoster. If the email matches at least one testClasses
-    //     doc under this org, we short-circuit and mint a custom token whose
-    //     `classIds` are the testClasses doc ids — no OneRoster call is made.
-    //     Test uids are namespaced (`test:email`) so they never collide with
-    //     real OneRoster `sourcedId`-derived uids.
-    const emailLower = email.toLowerCase();
-    const testClassSnap = await db
-      .collection(`organizations/${orgId}/testClasses`)
-      .where('memberEmails', 'array-contains', emailLower)
-      .limit(STUDENT_LOGIN_CLASS_IDS_MAX)
-      .get();
-    if (!testClassSnap.empty) {
-      // Query is already bounded by `.limit(STUDENT_LOGIN_CLASS_IDS_MAX)` —
-      // no secondary slice needed.
-      const mockClassIds = testClassSnap.docs.map((d) => d.id);
-      // Monitoring counter — surface any prod use of the bypass.
-      console.warn('[studentLoginV1] test_bypass_used', { orgId });
-      const uid = computeStudentUid(`test:${emailLower}`, hmacSecret);
+    const { orgId } = student;
+    if (student.kind === 'test') {
+      const mockClassIds = student.mockClassIds;
       try {
-        const customToken = await admin.auth().createCustomToken(uid, {
+        const customToken = await admin.auth().createCustomToken(student.uid, {
           studentRole: true,
           orgId,
           classIds: mockClassIds,
@@ -276,44 +256,11 @@ export const studentLoginV1 = onCall(
       }
     }
 
-    // 3. ClassLink OneRoster lookup — fetch the student's sourcedId and
-    //    classes. Held in memory only, never written to Firestore.
-    const cleanTenantUrl = tenantUrl.replace(/\/$/, '');
-    let sourcedId: string;
+    // 3b. The student's classes from OneRoster, held in memory only.
+    const sourcedId = student.sourcedId;
     let sectionIds: string[];
     try {
-      if (!isSafeEmailForOneRosterFilter(email)) {
-        console.warn('[studentLoginV1] students_not_in_roster');
-        throw new HttpsError(
-          'not-found',
-          'No student record found in ClassLink roster.'
-        );
-      }
-      const usersBaseUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/users`;
-      const userParams = { filter: `email='${email}'` };
-      const userHeaders = getOAuthHeaders(
-        usersBaseUrl,
-        userParams,
-        'GET',
-        classlinkClientId,
-        classlinkClientSecret
-      );
-      const userResp = await axios.get<{ users: OneRosterUserWithRole[] }>(
-        usersBaseUrl,
-        { params: userParams, headers: { ...userHeaders } }
-      );
-      const users = userResp.data.users ?? [];
-      const studentUser = users.find(isOneRosterStudent);
-      if (!studentUser) {
-        console.warn('[studentLoginV1] students_not_in_roster');
-        throw new HttpsError(
-          'not-found',
-          'No student record found in ClassLink roster.'
-        );
-      }
-      sourcedId = studentUser.sourcedId;
-
-      const classesUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/users/${sourcedId}/classes`;
+      const classesUrl = `${tenantUrl.replace(/\/$/, '')}${ONEROSTER_BASE}/users/${sourcedId}/classes`;
       const classesHeaders = getOAuthHeaders(
         classesUrl,
         {},
@@ -335,7 +282,6 @@ export const studentLoginV1 = onCall(
         ),
       ].slice(0, STUDENT_SECTIONS_MAX);
     } catch (err) {
-      if (err instanceof HttpsError) throw err;
       if (axios.isAxiosError(err)) {
         console.error(
           '[studentLoginV1] ClassLink request failed:',
@@ -362,7 +308,7 @@ export const studentLoginV1 = onCall(
 
     // 5. Compute the stable opaque UID and mint the custom token with
     //    the classIds claim that gates Firestore reads.
-    const uid = computeStudentUid(sourcedId, hmacSecret);
+    const uid = student.uid;
 
     // Best effort: without this record the directory call can't pick up a
     // section a teacher imports later, but sign-in still works.

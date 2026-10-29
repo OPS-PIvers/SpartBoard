@@ -925,6 +925,24 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "focus_sessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "studentUids",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "endedAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "endsAt",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [
