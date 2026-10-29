@@ -1,6 +1,6 @@
 # Schoology quiz import
 
-Status: planned 2026-10-29 (grill with Paul). Not built.
+Status: planned 2026-10-29 (grill with Paul). PR 1 (readers) and PR 2 (flag + server inbox) built.
 
 ## Goal
 
@@ -198,6 +198,12 @@ district key (2026-10-29, statuses and field names only):
 - Images go to Storage under the teacher's import path, referenced from the inbox item; the review
   screen moves them to stimuli on save.
 - Owner-only read and delete rules on the inbox; no client create (server writes only).
+- Built (PR 2): the inbox lives at `users/{uid}/schoology_import_inbox/{kind}_{itemId}` with a TTL on
+  `expireAt`, not `schoology_import_inbox/{uid}/items/...`: a TTL policy is per collection-group name,
+  and `items` is too generic to put one on. One entry per Schoology item, so sending it again
+  replaces the unsaved copy. Pictures sit at `schoology_import/{uid}/{itemId}/{n}` (owner read
+  only); `schoologyImportInboxCleanup` deletes them when the entry is deleted, saved or expired.
+  One request carries a quiz and its pictures: 5 MB per picture, 24 MB of pictures per request.
 
 ### SpartBoard side
 

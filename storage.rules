@@ -377,6 +377,14 @@ service firebase.storage {
         request.resource.contentType in ['image/webp', 'image/png'];
     }
 
+    // Schoology quiz import pictures: only schoologyImportInboxV1 writes; the owning teacher reads them on the review screen.
+    match /schoology_import/{uid}/{itemId}/{fileName} {
+      allow read: if request.auth != null &&
+        request.auth.uid == uid &&
+        request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+        request.auth.token.get('studentRole', false) != true;
+    }
+
     // PLC norming audio copies: members read, only setPlcNormingFlagV1 writes.
     match /plc_norming_media/{plcId}/{fileName} {
       allow read: if request.auth != null

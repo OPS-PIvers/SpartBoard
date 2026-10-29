@@ -913,6 +913,12 @@
       ]
     },
     {
+      "collectionGroup": "schoology_import_inbox",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
       "collectionGroup": "focus_sessions",
       "queryScope": "COLLECTION",
       "fields": [
