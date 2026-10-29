@@ -10,7 +10,6 @@ import {
   BellRing,
   Bot,
   Building2,
-  CalendarClock,
   Cast,
   ClipboardCheck,
   Download,
@@ -21,7 +20,6 @@ import {
   FileUp,
   Gauge,
   Globe,
-  Home,
   GraduationCap,
   Footprints,
   Languages,
@@ -30,7 +28,6 @@ import {
   LayoutGrid,
   Library,
   Link2,
-  List,
   ListChecks,
   ListOrdered,
   Mic,
@@ -637,17 +634,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Per-period start/pause on shared assignments. Admin-only until Paul has run a class on it.
-  'per-period-access': {
-    label: 'Start and pause each class period',
-    icon: CalendarClock,
-    description: 'Open and pause each class period.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Quiz results teacher tools. Admin-only until Paul has used them on a real class.
   'quiz-results-tools': {
     label: 'Quiz results teacher tools',
@@ -743,18 +729,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: ListOrdered,
     description:
       'A Simple or Detailed choice in Arts & Letters Agenda settings, using the boxes admins set for each building.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // PLC teams open on Home: charts over time, the latest assessment and team tools.
-  'plc-home-tab': {
-    label: 'PLC Home page',
-    icon: Home,
-    description:
-      'PLC teams open on a Home page with results over time and team tools. Data overview becomes its own tab.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1290,17 +1264,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     widget: 'drawing',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'sidebar-list-rows': {
-    label: 'Sidebar class and team lists',
-    icon: List,
-    description:
-      'My Classes and My Teams show full names in simple rows, with row actions in a menu.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
