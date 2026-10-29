@@ -17,11 +17,11 @@ Web tours now, focus sessions later. The contract is [docs/plans/CHROME_EXTENSIO
 
 ## Publishing
 
-`.github/workflows/extension-publish.yml` publishes a listing whenever `version` in `manifest.json` goes up (D7):
+`.github/workflows/extension-publish.yml` publishes the prod listing whenever `version` in `manifest.json` goes up on `main` (D7):
 
-- **Dev listing:** a `dev-paul` push that raises the version builds `dist/dev`, uploads it to the item in the `SPART_EXTENSION_ID_DEV` repository variable and submits it, using the `chrome-web-store-dev` environment.
-- **Prod listing:** the `main` push that carries a raised version does the same for `SPART_EXTENSION_ID` through the `chrome-web-store-prod` environment, and waits for Paul to approve the run. It refuses to run at all if that environment has no required reviewer, since GitHub would otherwise create it unprotected.
-- Either listing can be re-run by hand (Actions > Publish Chrome Extension > Run workflow, from `dev-paul` or `main`). The Web Store refuses a version it already has, so a re-run only helps when the last upload never reached it.
+- **Prod listing:** the `main` push that carries a raised version builds `dist/prod`, uploads it to the item in the `SPART_EXTENSION_ID` repository variable and submits it through the `chrome-web-store-prod` environment, and waits for Paul to approve the run. It refuses to run at all if that environment has no required reviewer, since GitHub would otherwise create it unprotected.
+- **Dev listing:** uploaded by hand in the Developer Dashboard, from the `chrome-extension` artifact of the CI run of a PR already merged into `dev-paul` (`spartboard-extension-dev-<version>.zip`). CI never publishes it: the Web Store token reaches every item of the developer account, so any run holding it could publish prod, and `dev-paul` merges need no approval.
+- The prod listing can be re-run by hand (Actions > Publish Chrome Extension > Run workflow, from `main`). The Web Store refuses a version it already has, so a re-run only helps when the last upload never reached it.
 - Both still go through Web Store review before Chrome updates installs, which can take days. The run's summary keeps the uploaded zip for 90 days.
 - `scripts/publish.ts` does the upload with the Chrome Web Store API v2 (`scripts/webStore.ts`) and stops with a plain message naming anything that isn't set up.
 
@@ -30,7 +30,8 @@ One-time setup (Paul):
 1. In a Google Cloud project, enable the Chrome Web Store API, set the OAuth consent screen to **Internal** (an External app in testing loses its refresh token after 7 days), and create an OAuth client ID.
 2. With that client, get a refresh token for the scope `https://www.googleapis.com/auth/chromewebstore` while signed in as the Web Store developer account (it needs 2-step verification), for example from the OAuth 2.0 Playground with "Use your own OAuth credentials".
 3. Copy the publisher ID from the Developer Dashboard (Publisher > Settings).
-4. Create two environments under Settings > Environments: `chrome-web-store-dev` (deployment branch `dev-paul`) and `chrome-web-store-prod` (deployment branch `main`, Paul as a required reviewer, "Prevent self-review" off so he can approve his own release). Give each the secrets `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN` and `CWS_PUBLISHER_ID`, and nothing else.
+4. Create one environment under Settings > Environments: `chrome-web-store-prod` (deployment branch `main`, Paul as a required reviewer, "Prevent self-review" off so he can approve his own release). Give it the secrets `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET`, `CWS_REFRESH_TOKEN` and `CWS_PUBLISHER_ID`, and nothing else. Don't put these secrets in any other environment or in repository secrets.
+   If a `chrome-web-store-dev` environment is left from the old dev publish job, delete it, then revoke that refresh token and issue a new one for `chrome-web-store-prod`: any workflow merged into `dev-paul` could read it.
 5. The API keeps each listing's visibility, so each listing needs one manual publish from the dashboard as Private first.
 
 ## Adding a message type
