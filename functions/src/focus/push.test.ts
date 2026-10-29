@@ -46,13 +46,30 @@ describe('VAPID key', () => {
     expect(KEY?.publicKey).toBe(PUBLIC);
   });
 
-  it('refuses anything but a 32-byte base64url scalar', () => {
+  it('refuses anything but a base64url P-256 scalar', () => {
     expect(parseVapidPrivateKey('')).toBeNull();
     expect(parseVapidPrivateKey('not a key!')).toBeNull();
     expect(
-      parseVapidPrivateKey(Buffer.alloc(31, 1).toString('base64url'))
+      parseVapidPrivateKey(Buffer.alloc(33, 1).toString('base64url'))
+    ).toBeNull();
+    expect(
+      parseVapidPrivateKey(Buffer.alloc(8, 1).toString('base64url'))
     ).toBeNull();
     expect(parseVapidPrivateKey(`${PRIVATE}\n`)?.publicKey).toBe(PUBLIC);
+  });
+
+  it('accepts a scalar whose leading zero bytes were dropped', () => {
+    const d = Buffer.alloc(32, 7);
+    d[0] = 0;
+    const ecdh2 = createECDH('prime256v1');
+    ecdh2.setPrivateKey(d);
+    const short = d.subarray(1).toString('base64url');
+    expect(parseVapidPrivateKey(short)?.publicKey).toBe(
+      ecdh2.getPublicKey().toString('base64url')
+    );
+    expect(parseVapidPrivateKey(d.toString('base64url'))?.publicKey).toBe(
+      ecdh2.getPublicKey().toString('base64url')
+    );
   });
 
   it('signs an RFC 8292 JWT that verifies with the public key', () => {

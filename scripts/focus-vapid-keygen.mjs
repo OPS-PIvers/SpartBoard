@@ -48,7 +48,9 @@ if (exists && !rotate) {
 
 const ecdh = createECDH('prime256v1');
 ecdh.generateKeys();
-const privateKey = ecdh.getPrivateKey().toString('base64url');
+// getPrivateKey drops leading zero bytes; store the full 32-byte scalar.
+const raw = ecdh.getPrivateKey();
+const privateKey = Buffer.concat([Buffer.alloc(32 - raw.length), raw]).toString('base64url');
 const publicKey = ecdh.getPublicKey().toString('base64url');
 
 const stored = exists

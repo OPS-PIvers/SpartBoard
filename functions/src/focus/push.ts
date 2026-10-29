@@ -38,9 +38,15 @@ const b64url = (buf: Buffer) => buf.toString('base64url');
 
 /** Builds the signing key from a base64url 32-byte private scalar, or null when the value isn't one. */
 export function parseVapidPrivateKey(raw: string): VapidKey | null {
-  const d = Buffer.from(raw.trim(), 'base64url');
-  if (d.length !== 32 || b64url(d) !== raw.trim().replace(/=+$/, ''))
+  const bytes = Buffer.from(raw.trim(), 'base64url');
+  if (
+    bytes.length < 16 ||
+    bytes.length > 32 ||
+    b64url(bytes) !== raw.trim().replace(/=+$/, '')
+  )
     return null;
+  // Node's getPrivateKey drops leading zero bytes, so a short scalar is still a valid key.
+  const d = Buffer.concat([Buffer.alloc(32 - bytes.length), bytes]);
   try {
     const ecdh = createECDH('prime256v1');
     ecdh.setPrivateKey(d);
