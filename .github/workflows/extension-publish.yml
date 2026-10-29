@@ -11,7 +11,7 @@ on:
       - extension/manifest.json
   workflow_dispatch:
 
-# One upload per listing at a time; a newer bump waits rather than cancelling one mid-upload.
+# One upload per listing at a time. GitHub keeps only the newest waiting run, so a bump replaced in the queue needs a manual run.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref_name }}
   cancel-in-progress: false
@@ -52,9 +52,9 @@ jobs:
             if [[ -z "$previous" ]]; then
               publish=false
               echo "::notice::Couldn't read the previous version, so nothing was published. If $version is new, run this workflow by hand."
-            elif [[ "$previous" == "$version" ]]; then
+            elif ! node -e 'const p=v=>v.split(".").map(Number),[a,b]=[p(process.argv[1]),p(process.argv[2])];for(let i=0;i<4;i++){const d=(a[i]??0)-(b[i]??0);if(d)process.exit(d>0?0:1)}process.exit(1)' "$version" "$previous"; then
               publish=false
-              echo "extension/manifest.json changed but its version is still $version; nothing to publish."
+              echo "extension/manifest.json changed but its version went from $previous to $version, not up; nothing to publish."
             fi
           fi
           echo "listing=$listing" >> "$GITHUB_OUTPUT"
@@ -80,7 +80,7 @@ jobs:
   publish:
     needs: [plan, prod-guard]
     if: >-
-      always() && needs.plan.outputs.publish == 'true' &&
+      !cancelled() && needs.plan.outputs.publish == 'true' &&
       (needs.prod-guard.result == 'success' || (needs.plan.outputs.listing == 'dev' && needs.prod-guard.result == 'skipped'))
     runs-on: ubuntu-24.04
     name: Publish ${{ needs.plan.outputs.listing }} listing ${{ needs.plan.outputs.version }}
