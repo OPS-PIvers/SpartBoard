@@ -1,6 +1,6 @@
 # Schoology quiz import
 
-Status: planned 2026-10-29 (grill with Paul). PR 1 (readers) and PR 2 (flag + server inbox) built.
+Status: planned 2026-10-29 (grill with Paul). PR 1 (readers), PR 2 (flag + server inbox) and PR 3 (review screen) built.
 
 ## Goal
 
@@ -217,6 +217,15 @@ district key (2026-10-29, statuses and field names only):
   explains the one-click button; otherwise walks through Schoology Export (course or Resources) with
   screenshots, then takes the `.imscc` into the existing cartridge reader.
 - New controls get `tourAttr` anchors and a tour surface entry.
+- Built (PR 3): the review is a modal in the Quiz widget (`SchoologyInboxModal`), opened by a
+  "N from Schoology" button in the Quiz library toolbar or by `?schoologyImport=1` (the first Quiz
+  widget on the board claims it). Provenance is `QuizData.source` / `QuestionBankData.source`, mirrored
+  as `sourceKey` (`schoology:{kind}:{itemId}`) on library metadata so a re-send finds its copy without
+  a Drive read. Update keeps the copy's id, folder and saved settings, replaces questions and pictures,
+  drops its order and sections, and keeps learning-target tags on questions whose prompt is
+  unchanged. A new quiz gets Schoology's time limit, attempts and shuffle as its saved settings. If
+  no Quiz widget is on the board, `?schoologyImport=1` does nothing yet; PR 4 decides what the
+  extension opens.
 
 ## PR sequence
 

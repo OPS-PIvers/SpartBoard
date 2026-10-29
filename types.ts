@@ -4585,6 +4585,16 @@ export const QUESTION_BANK_SIZE_WARN = 200;
 /** Hard cap on fixed + pool questions in one assignment (assign is blocked past it). */
 export const QUIZ_ASSIGNMENT_POOL_CAP = 150;
 
+/** Where an imported quiz or bank came from (docs/plans/SCHOOLOGY_QUIZ_IMPORT.md Q11). */
+export interface ImportSource {
+  system: 'schoology';
+  kind: 'testQuiz' | 'assessment' | 'questionBank';
+  itemId: string;
+  sectionId?: string;
+  collectionId?: string;
+  importedAt: number;
+}
+
 /** Drive JSON for a question bank: the QuizData shape plus bank-level tags. */
 export interface QuestionBankData {
   id: string;
@@ -4594,6 +4604,7 @@ export interface QuestionBankData {
   /** Inherited by every question when it is copied into a quiz or frozen into a pool. */
   targets?: QuestionTargetTag[];
   language?: string;
+  source?: ImportSource;
   createdAt: number;
   updatedAt: number;
 }
@@ -4622,6 +4633,8 @@ export interface QuestionBankMetadata {
   /** targetId → questions eligible for that tag (bank tags count every question). */
   targetCounts: Record<string, number>;
   sync?: QuestionBankSyncLinkage;
+  /** `importSourceKey` of the bank's `source`, so a re-import finds it without a Drive read. */
+  sourceKey?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -4919,6 +4932,7 @@ export interface QuizData {
   order?: QuizOrderEntry[];
   /** Section records the `order` entries of kind `section` point at. */
   sections?: QuizSection[];
+  source?: ImportSource;
   createdAt: number;
   updatedAt: number;
 }
@@ -4989,6 +5003,8 @@ export interface QuizMetadata {
   translations?: Record<string, QuizTranslationIndexEntry>;
   /** Copy of `QuizData.language` (D32). Absent = English. */
   language?: string;
+  /** `importSourceKey` of the quiz's `source`, so a re-import finds it without a Drive read. */
+  sourceKey?: string;
 }
 
 /** One locale's row in `QuizMetadata.translations`; a Drive-free coverage answer (plan §3.3). */

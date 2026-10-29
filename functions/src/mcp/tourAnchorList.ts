@@ -3747,6 +3747,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz.schoology-inbox",
+    "label": "From Schoology review button in the Quiz library",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz.select-mode",
     "label": "Select mode toggle in the Quiz library",
     "scope": "widget",
@@ -8684,6 +8700,228 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:quiz",
           "library-shell.new-menu-item:quiz#item-2",
           "import-wizard.bulk-file"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-close",
+    "label": "Close in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-select-all",
+    "label": "Select all in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-select-none",
+    "label": "Select none in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-row-check",
+    "label": "Item checkbox in From Schoology review, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-row-expand",
+    "label": "Show or hide questions in From Schoology review, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-row-mode",
+    "label": "Update or keep both in From Schoology review, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-row-discard",
+    "label": "Discard an item in From Schoology review, by item",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-share-pictures",
+    "label": "Share pictures checkbox in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-cancel",
+    "label": "Close or Done in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-save",
+    "label": "Save N in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-retry",
+    "label": "Retry failed in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
         ],
         "needs": [
           "widget-on-stage"

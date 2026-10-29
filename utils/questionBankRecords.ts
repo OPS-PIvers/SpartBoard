@@ -6,11 +6,15 @@ import type {
   SyncedQuestionBank,
 } from '@/types';
 import { bankTargetIndex } from '@/utils/questionBanks';
+import { importSourceKey } from '@/utils/importSource';
 import { buildQuizSearchText } from '@/utils/quizSearchText';
 
 /** Fields preserved across saves so the editor can't drop them. */
 export type PreservedBankMetadata = Partial<
-  Pick<QuestionBankMetadata, 'folderId' | 'libraryFolderId' | 'order' | 'sync'>
+  Pick<
+    QuestionBankMetadata,
+    'folderId' | 'libraryFolderId' | 'order' | 'sync' | 'sourceKey'
+  >
 > | null;
 
 /** Firestore rejects `undefined`; drop those keys before any write. */
@@ -43,6 +47,9 @@ export function buildBankMetadata(
     libraryFolderId: preserved?.libraryFolderId,
     order: preserved?.order,
     sync: preserved?.sync ? cloneSync(preserved.sync) : undefined,
+    sourceKey: bank.source
+      ? importSourceKey(bank.source)
+      : preserved?.sourceKey,
   });
 }
 

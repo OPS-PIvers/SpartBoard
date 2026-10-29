@@ -417,6 +417,9 @@ interface QuizManagerProps {
   sharedBankSources?: BankSource[];
   onNewBank?: () => void;
   onImportBank?: () => void;
+  /** Quizzes and banks the extension sent from Schoology, waiting for review. */
+  schoologyInboxCount?: number;
+  onOpenSchoologyInbox?: () => void;
   onEditBank?: (meta: QuestionBankMetadata) => void;
   onDuplicateBank?: (meta: QuestionBankMetadata) => void | Promise<void>;
   onDeleteBank?: (meta: QuestionBankMetadata) => void | Promise<void>;
@@ -670,6 +673,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   sharedBankSources,
   onNewBank,
   onImportBank,
+  schoologyInboxCount = 0,
+  onOpenSchoologyInbox,
   onEditBank,
   onDuplicateBank,
   onDeleteBank,
@@ -2256,6 +2261,29 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         rightSlot={
           userId ? (
             <>
+              {schoologyInboxCount > 0 && onOpenSchoologyInbox && (
+                <button
+                  type="button"
+                  onClick={onOpenSchoologyInbox}
+                  {...tourAttr('quiz.schoology-inbox', widgetId, 'quiz')}
+                  className="inline-flex items-center rounded-lg bg-brand-blue-primary font-bold uppercase tracking-wider text-white transition-colors hover:bg-brand-blue-dark"
+                  style={{
+                    gap: 'min(6px, 1.5cqmin)',
+                    padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                    fontSize: 'min(11px, 4cqmin)',
+                  }}
+                  title="Review what you sent from Schoology"
+                >
+                  <Inbox
+                    style={{
+                      width: 'min(14px, 3.5cqmin)',
+                      height: 'min(14px, 3.5cqmin)',
+                    }}
+                    aria-hidden="true"
+                  />
+                  {schoologyInboxCount} from Schoology
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setTargetsModalOpen(true)}
