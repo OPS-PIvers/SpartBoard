@@ -317,9 +317,7 @@ function runRulesRelease(outcomes: { exit: number; log: string }[]): {
     writeFileSync(join(dir, `exit${i + 1}`), String(o.exit));
   });
   const stub = (name: string, body: string) => {
-    writeFileSync(join(bin, name), `#!/usr/bin/env bash
-${body}
-`);
+    writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`);
     chmodSync(join(bin, name), 0o755);
   };
   stub(
@@ -328,8 +326,7 @@ ${body}
       '[[ $1 == scripts/releaseFirestoreRules.mjs ]] || exit 0',
       `n=$(( $(cat "${dir}/count" 2>/dev/null || echo 0) + 1 )); echo $n > "${dir}/count"`,
       `cat "${dir}/log$n" 2>/dev/null; exit $(cat "${dir}/exit$n" 2>/dev/null || echo 0)`,
-    ].join('
-')
+    ].join('\n')
   );
   stub('sleep', `echo "$1" >> "${dir}/sleeps"`);
   const result = spawnSync('bash', [scriptPath, 'demo'], {
@@ -349,8 +346,7 @@ ${body}
     }
   };
   const releases = Number(read('count') || 0);
-  const sleeps = read('sleeps').split('
-').filter(Boolean);
+  const sleeps = read('sleeps').split('\n').filter(Boolean);
   rmSync(dir, { recursive: true, force: true });
   return { status: result.status, releases, sleeps };
 }
@@ -358,8 +354,7 @@ ${body}
 describe('firebase-deploy-with-retry.sh rules release retry', () => {
   const outage = {
     exit: 1,
-    log: 'ERROR: every release request shape was rejected:
-  PATCH /projects/demo/releases/cloud.firestore -> 503 {"code": 503}',
+    log: 'ERROR: every release request shape was rejected:\n  PATCH /projects/demo/releases/cloud.firestore -> 503 {"code": 503}',
   };
 
   it('waits out a firebaserules outage longer than the script retries, as in run 40790168222', () => {
@@ -383,8 +378,7 @@ describe('firebase-deploy-with-retry.sh rules release retry', () => {
     const { status, releases } = runRulesRelease([
       {
         exit: 1,
-        log: 'ERROR: every release request shape was rejected:
-  PATCH /projects/demo/releases/cloud.firestore -> 400 {"code": 400}',
+        log: 'ERROR: every release request shape was rejected:\n  PATCH /projects/demo/releases/cloud.firestore -> 400 {"code": 400}',
       },
     ]);
     expect(status).toBe(1);
