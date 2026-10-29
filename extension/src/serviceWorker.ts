@@ -168,12 +168,19 @@ const schoology = createSchoologyWorker({
     const tabs = await chrome.tabs.query({
       url: origins.map((o) => `${o}/*`),
     });
-    return tabs
-      .filter(
-        (t) => t.id !== undefined && t.url && new URL(t.url).pathname === '/'
-      )
-      .sort((a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0))
-      .map((t) => ({ id: t.id as number, windowId: t.windowId }));
+    return (
+      tabs
+        .filter(
+          (t) => t.id !== undefined && t.url && new URL(t.url).pathname === '/'
+        )
+        // `lastAccessed` is Chrome 121+; on older Chrome the tab showing in its window comes first.
+        .sort(
+          (a, b) =>
+            (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0) ||
+            Number(b.active) - Number(a.active)
+        )
+        .map((t) => ({ id: t.id as number, windowId: t.windowId }))
+    );
   },
   focus: async ({ id, windowId }) => {
     await chrome.tabs.update(id, { active: true });
