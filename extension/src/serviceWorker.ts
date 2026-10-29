@@ -59,6 +59,9 @@ import {
   type TourStartReply,
 } from './tourList';
 import { createTourListWorker } from './tourListWorker';
+import { createSchoologyWorker, STATUS_KEY } from './schoology/worker';
+import { SCHOOLOGY_CONTENT_FILE } from './schoology/messages';
+import { SCHOOLOGY_REVIEW_EVENT } from '@/utils/schoologyReviewProtocol';
 
 // The listing's exact origins, inlined at build time so a bundle carries only its own.
 declare const __SPART_ORIGINS__: readonly string[];
@@ -144,6 +147,88 @@ const tourList = createTourListWorker({
   now: () => Date.now(),
 });
 
+// Schoology quiz import (SCHOOLOGY_QUIZ_IMPORT Q4, Q8): staff with the flag get a Send button on quiz pages.
+const schoology = createSchoologyWorker({
+  origins,
+  isStaff: async () => (await getChromeProfile()) === 'staff',
+  status: () => callSpartBoard(api, 'schoologyImportStatusV1', {}),
+  // A click sent it, so Chrome may ask to sign in once.
+  send: (request) =>
+    callSpartBoard(api, 'schoologyImportInboxV1', request, true),
+  loadStatus: async () =>
+    (await chrome.storage.session.get(STATUS_KEY))[STATUS_KEY] as
+      { enabled: boolean; at: number } | undefined,
+  saveStatus: (status) => chrome.storage.session.set({ [STATUS_KEY]: status }),
+  inject: async (tabId) => {
+    await chrome.scripting
+      .executeScript({ target: { tabId }, files: [SCHOOLOGY_CONTENT_FILE] })
+      .catch(() => undefined);
+  },
+  boardTabs: async () => {
+    const tabs = await chrome.tabs.query({
+      url: origins.map((o) => `${o}/*`),
+    });
+    return (
+      tabs
+        .filter(
+          (t) => t.id !== undefined && t.url && new URL(t.url).pathname === '/'
+        )
+        // `lastAccessed` is Chrome 121+; on older Chrome the tab showing in its window comes first.
+        .sort(
+          (a, b) =>
+            (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0) ||
+            Number(b.active) - Number(a.active)
+        )
+        .map((t) => ({
+          id: t.id as number,
+          windowId: t.windowId,
+          origin: new URL(t.url as string).origin,
+          ready: t.status === 'complete' && !t.discarded,
+        }))
+    );
+  },
+  focus: async ({ id, windowId }) => {
+    await chrome.tabs.update(id, { active: true });
+    await chrome.windows.update(windowId, { focused: true });
+  },
+  askForReview: async (tabId) => {
+    const [result] = await chrome.scripting.executeScript({
+      target: { tabId },
+      world: 'MAIN',
+      // SchoologyReviewHost cancels the event when it hears it.
+      func: (name: string) =>
+        !window.dispatchEvent(new CustomEvent(name, { cancelable: true })),
+      args: [SCHOOLOGY_REVIEW_EVENT],
+    });
+    return result?.result === true;
+  },
+  navigate: async (tabId, url) => {
+    await chrome.tabs.update(tabId, { url, active: true });
+  },
+  openTab: async (url) => {
+    await chrome.tabs.create({ url });
+  },
+  now: () => Date.now(),
+});
+
+chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
+  if (sender.id !== chrome.runtime.id || !sender.tab || sender.frameId !== 0)
+    return false;
+  const answer = schoology.message(message, sender.url);
+  if (!answer) return false;
+  answer.then(reply, () => reply({ ok: false, why: 'offline' }));
+  return true;
+});
+chrome.webNavigation.onCommitted.addListener(({ tabId, frameId, url }) => {
+  void schoology.navigated(tabId, frameId, url);
+});
+// Resources moves between folders in the page, changing only the part after `#`.
+chrome.webNavigation.onReferenceFragmentUpdated.addListener(
+  ({ tabId, frameId, url }) => {
+    void schoology.navigated(tabId, frameId, url);
+  }
+);
+
 // Focus sessions (CHROME_EXTENSION.md F3, F5): student profiles pull their session; staff never enforce.
 const scope = self as unknown as PushScope & {
   addEventListener(
@@ -187,6 +272,12 @@ const handle = createExternalHandler({
   openWebTour: async (setId) => {
     const opened = await openPublished(setId);
     return opened.ok ? opened.tabId : null;
+  },
+  // A new sign-in drops the cached "no", so the next Schoology page asks SpartBoard again.
+  signIn: async (ask) => {
+    const signedIn = !!(await chromeTokens.getToken(ask));
+    if (ask && signedIn) await chrome.storage.session.remove(STATUS_KEY);
+    return signedIn;
   },
 });
 

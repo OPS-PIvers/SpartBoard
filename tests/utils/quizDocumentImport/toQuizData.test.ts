@@ -4,6 +4,7 @@ import {
   reviewExtrasFor,
   rowWarnings,
 } from '@/utils/quizDocumentImport/toQuizData';
+import { FIB_BLANK_SEP } from '@/utils/quizFibBlanks';
 import type {
   ExtractedQuestion,
   ExtractedQuiz,
@@ -122,6 +123,44 @@ describe('extractedToQuizData — choose all that apply', () => {
     expect(data.questions[0].type).toBe('MA');
     expect(data.questions[0].correctAnswer).toBe('Blue|Grey');
     expect(data.questions[0].incorrectAnswers).toEqual(['Green']);
+  });
+});
+
+describe('extractedToQuizData — fill-in-the-blank alternates', () => {
+  const fib = (over: Partial<ExtractedQuestion>) =>
+    extractedToQuizData(
+      quiz({
+        questions: [question({ type: 'FIB', options: [], ...over })],
+      })
+    ).questions[0];
+
+  it("keeps one blank's extra answers as alternateAnswers", () => {
+    const q = fib({
+      correctAnswer: 'Paris',
+      blankAlternates: [{ answers: ['paris'] }],
+    });
+    expect(q.alternateAnswers).toEqual(['paris']);
+    expect(q.blankAlternates).toBeUndefined();
+  });
+
+  it("keeps several blanks' extra answers per blank", () => {
+    const q = fib({
+      correctAnswer: `red${FIB_BLANK_SEP}blue`,
+      blankAlternates: [{ answers: ['crimson'] }, { answers: [] }],
+    });
+    expect(q.blankAlternates).toEqual([
+      { answers: ['crimson'] },
+      { answers: [] },
+    ]);
+  });
+
+  it('adds nothing when no blank has an extra answer', () => {
+    const q = fib({
+      correctAnswer: 'Paris',
+      blankAlternates: [{ answers: [] }],
+    });
+    expect(q.alternateAnswers).toBeUndefined();
+    expect(q.blankAlternates).toBeUndefined();
   });
 });
 

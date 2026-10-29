@@ -356,3 +356,52 @@ describe('handleSubmitMiniAppResult grading and attempts', () => {
     expect(docs[SUMMARY].attemptCount).toBeUndefined();
   });
 });
+
+describe('handleSubmitMiniAppResult staff audience', () => {
+  const staff: MiniAppCaller = {
+    uid: 'staff-1',
+    studentRole: false,
+    classIds: [],
+    staff: { staffEmail: 'pat@orono.k12.mn.us', staffName: 'Pat T' },
+  };
+  const staffSession = () =>
+    session({ audience: 'staff', classIds: [], attemptLimit: null });
+
+  it('refuses a caller who is not district staff', async () => {
+    await expectCode(
+      submit({ [SESSION]: staffSession() }, result('B', true), {
+        uid: 'anon-1',
+        studentRole: false,
+        classIds: [],
+        staff: null,
+      }),
+      'permission-denied'
+    );
+    await expectCode(
+      submit({ [SESSION]: staffSession() }, result('B', true)),
+      'permission-denied'
+    );
+  });
+
+  it("names the staff member's submission under their uid", async () => {
+    const docs: Record<string, Doc> = {
+      [SESSION]: staffSession(),
+      [`${SESSION}/private/key`]: KEY,
+    };
+    await submit(docs, result('B', true), staff);
+    expect(docs[`${SESSION}/submissions/staff-1`]).toMatchObject({
+      studentUid: 'staff-1',
+      staffEmail: 'pat@orono.k12.mn.us',
+      staffName: 'Pat T',
+    });
+  });
+
+  it('adds no staff fields on a student session', async () => {
+    const docs: Record<string, Doc> = {
+      [SESSION]: session(),
+      [`${SESSION}/private/key`]: KEY,
+    };
+    await submit(docs, result('B', true));
+    expect(docs[SUMMARY]).not.toHaveProperty('staffEmail');
+  });
+});

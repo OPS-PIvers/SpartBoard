@@ -52,9 +52,11 @@ import {
   Wand2,
   Zap,
   Quote,
+  Strikethrough,
   Calculator,
   Utensils,
   CloudSun,
+  Triangle,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -462,14 +464,14 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Bulk-import every question bank in a Schoology .imscc export. Admin-only until Paul has run it.
+  // Folded into schoology-quiz-import (SCHOOLOGY_QUIZ_IMPORT PR 5); retire both .imscc flags once that one opens.
   'question-bank-imscc-import': {
     label: 'Import question banks from Schoology',
     icon: FileUp,
     description:
       'Import every question bank in a Schoology export (.imscc) at once.',
     stage: 'preview',
-    afterLaunch: 'keep',
+    afterLaunch: 'retire',
     widget: 'quiz',
     modalLabel: 'Import question banks from Schoology',
     group: 'building',
@@ -482,9 +484,23 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: FileUp,
     description: 'Import every quiz in a Schoology export (.imscc) at once.',
     stage: 'preview',
-    afterLaunch: 'keep',
+    afterLaunch: 'retire',
     widget: 'quiz',
     modalLabel: 'Import quizzes from Schoology',
+    group: 'building',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'schoology-quiz-import': {
+    label: 'Send quizzes from Schoology',
+    icon: FileUp,
+    description:
+      'Bring Schoology Tests/Quizzes, Assessments and question banks into SpartBoard, with the Chrome extension or a Schoology export.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    modalLabel: 'Send quizzes from Schoology',
     group: 'building',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
@@ -603,6 +619,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Quote,
     description:
       'Students add selected passage or PDF text to a written answer as a quote.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Cross out answer choices. Admin-only until Paul has tested it in prod.
+  'quiz-cross-out': {
+    label: 'Cross out answer choices',
+    icon: Strikethrough,
+    description:
+      'Students cross out multiple-choice options they have ruled out.',
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'students',
@@ -1002,6 +1031,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'blooms-question-starters': {
+    label: "Bloom's Taxonomy: question starters",
+    icon: Triangle,
+    description: 'Level tabs with question starters and key words.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'blooms-taxonomy',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   'dashboard-layout': {
     label: 'Magic Layout: AI',
     icon: Sparkles,
@@ -1335,6 +1375,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Assign to Staff: the link needs district Google sign-in and results show each person's name and email.
+  'staff-audience': {
+    label: 'Assign to staff',
+    icon: UsersRound,
+    description:
+      'Assign quizzes, videos, mini apps, flashcards and guided learning to district staff.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'sharing',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

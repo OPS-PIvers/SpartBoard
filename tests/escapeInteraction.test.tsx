@@ -51,6 +51,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1' },
     isAdmin: false,
     canAccessFeature: vi.fn().mockReturnValue(true),
+    canAccessWidget: vi.fn().mockReturnValue(true),
   }),
 }));
 vi.mock('@/hooks/useLiveSession', () => ({

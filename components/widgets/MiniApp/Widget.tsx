@@ -650,6 +650,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               : {}),
           assignmentId: generatedAssignmentId,
           ...(periodGate ? { periodGate } : {}),
+          ...(stepper?.audience ? { audience: stepper.audience } : {}),
         }
       );
       // Mirror the new session into the per-teacher archive so it shows up

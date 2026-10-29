@@ -5,6 +5,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'question-bank-ai',
   'question-bank-imscc-import',
   'quiz-imscc-import',
+  'schoology-quiz-import',
   'quiz-document-ai-reader',
   'quiz-import-suggested-targets',
   'quiz-import-versions',
@@ -34,6 +35,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'guided-learning-ai',
   'routine-guide',
   'blooms-ai',
+  'blooms-question-starters',
   'plc-meeting-ai-notes',
   'sparty',
   'google-tasks-sync',
@@ -46,6 +48,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-monitor-declutter',
   'monitor-parity',
   'quiz-stimulus-quotes',
+  'quiz-cross-out',
   'quiz-submit-for-student',
   'quiz-calculator-stimulus',
   'lunch-count-redesign',
@@ -64,6 +67,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'music-my-songs',
   'music-timer-link',
   'focus-sessions',
+  'staff-audience',
 ];
 
 /** Plan D7: admins pass a default-off flag (preview, or admin-default like `guided-learning-ai`) that has no saved doc yet. */

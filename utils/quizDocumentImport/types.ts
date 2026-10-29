@@ -163,6 +163,8 @@ export interface ExtractedQuestion {
   standardCodes?: string[];
   /** Modified True/False: the key's word that makes a false statement true (E7). */
   correction?: string;
+  /** FIB only: other accepted answers per blank, index-aligned with the blanks in `correctAnswer`; maps, as Firestore has no nested arrays. */
+  blankAlternates?: { answers: string[] }[];
 }
 
 /** What an ExamView section heading says its items are (E5). */

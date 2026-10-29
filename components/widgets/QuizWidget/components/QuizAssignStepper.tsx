@@ -33,6 +33,10 @@ import { useQuizRuleGates } from '@/components/common/library/assignStepper/Quiz
 import { quizRuleStepDefs } from '@/components/common/library/assignStepper/quizRuleStepDefs';
 import { SharingStep } from '@/components/common/library/assignStepper/SharingStep';
 import {
+  withAudienceSwitch,
+  type AssignAudienceState,
+} from '@/components/common/library/assignStepper/assignAudience';
+import {
   formatSharingValue,
   isSharingStepAvailable,
   PICK_A_PLC,
@@ -63,6 +67,8 @@ export interface QuizAssignStepperProps {
     plcs: readonly Plc[];
   };
   periodAccess?: AssignPeriodAccessContext;
+  /** Students or Staff; omit to leave out the switch (PLC quiz assign). */
+  audience?: AssignAudienceState;
   hasManualGrading: boolean;
   handRaiseMode: QuizHandRaiseMode;
   submitLabel: string;
@@ -82,6 +88,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   modifications,
   sharing,
   periodAccess,
+  audience,
   hasManualGrading,
   handRaiseMode,
   submitLabel,
@@ -92,7 +99,10 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const gates = useQuizRuleGates();
   const [modsOpen, setModsOpen] = useState(false);
   const usable = rosters.filter((r) => !r.loadError);
-  const picked = usable.filter((r) => classes.classIds.includes(r.id));
+  const staff = audience?.audience === 'staff';
+  const picked = staff
+    ? []
+    : usable.filter((r) => classes.classIds.includes(r.id));
   const plcs = sharing?.plcs ?? [];
   const inPlc = !!sharing && isSharingStepAvailable(plcs, 'work');
   const ctx = { kind: 'work' as const, inPlc };
@@ -170,14 +180,16 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
     }).map((step) => [step.id, step])
   );
 
-  const steps: AssignStepDef[] = getAssignSteps('quiz', ctx).map(
-    (id) =>
-      ruleSteps.get(id) ?? {
-        id,
-        title: getAssignStepTitle(id, 'quiz', ctx),
-        ...bodies[id],
-      }
-  );
+  const steps: AssignStepDef[] = getAssignSteps('quiz', ctx).map((id) => {
+    const step = ruleSteps.get(id) ?? {
+      id,
+      title: getAssignStepTitle(id, 'quiz', ctx),
+      ...bodies[id],
+    };
+    return id === 'classes' && audience
+      ? withAudienceSwitch(step, audience)
+      : step;
+  });
 
   return (
     <AssignStepper

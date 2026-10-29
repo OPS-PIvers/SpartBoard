@@ -3747,6 +3747,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz.schoology-inbox",
+    "label": "From Schoology review button in the Quiz library",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz.select-mode",
     "label": "Select mode toggle in the Quiz library",
     "scope": "widget",
@@ -3910,6 +3926,20 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "assign-stepper.submit",
     "label": "Assign button at the bottom of the Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "assign-audience.switch",
+    "label": "Students or Staff switch in the Classes step of the Assign dialog",
     "scope": "board",
     "panel": true,
     "persists": true,
@@ -8684,6 +8714,228 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:quiz",
           "library-shell.new-menu-item:quiz#item-2",
           "import-wizard.bulk-file"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-close",
+    "label": "Close in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-select-all",
+    "label": "Select all in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-select-none",
+    "label": "Select none in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-row-check",
+    "label": "Item checkbox in From Schoology review, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-row-expand",
+    "label": "Show or hide questions in From Schoology review, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-row-mode",
+    "label": "Update or keep both in From Schoology review, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-row-discard",
+    "label": "Discard an item in From Schoology review, by item",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-share-pictures",
+    "label": "Share pictures checkbox in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-cancel",
+    "label": "Close or Done in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-save",
+    "label": "Save N in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.schoology-retry",
+    "label": "Retry failed in From Schoology review",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.import.schoology",
+        "kind": "modal",
+        "path": [
+          "quiz.schoology-inbox"
         ],
         "needs": [
           "widget-on-stage"
@@ -56857,6 +57109,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "blooms-taxonomy.level",
+    "label": "Level tab in Bloom's Taxonomy",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.blooms-taxonomy.face",
+        "kind": "widget",
+        "widget_type": "blooms-taxonomy",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "talking-tool.category",
     "label": "Category tab in Talking Tool",
     "scope": "field",
@@ -67084,6 +67352,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "import-wizard.bulk-file",
     "label": "Choose file button on the bulk export tile in the Import wizard (Schoology .imscc)",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.schoology-steps",
+    "label": "How to export from Schoology toggle on the From Schoology tile in the Import wizard",
     "scope": "board",
     "panel": true,
     "routes": [

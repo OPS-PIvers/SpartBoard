@@ -3508,6 +3508,12 @@
     "needsManual": "Couldn't extract text automatically. Paste or type it here.",
     "extractFailed": "Text extraction failed. Try again."
   },
+  "quizCrossOut": {
+    "crossOut": "Cross out",
+    "undo": "Undo cross out",
+    "crossOutChoice": "Cross out choice {{n}}",
+    "crossedOut": "(crossed out)"
+  },
   "quizTranslation": {
     "label": "Translation",
     "editor": {

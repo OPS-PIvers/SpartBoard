@@ -843,6 +843,10 @@ export const TOUR_ANCHORS = {
     label: 'My learning targets button in the Quiz library',
     perWidget: true,
   },
+  'quiz.schoology-inbox': {
+    label: 'From Schoology review button in the Quiz library',
+    perWidget: true,
+  },
   'quiz.select-mode': {
     label: 'Select mode toggle in the Quiz library',
     perWidget: true,
@@ -894,6 +898,11 @@ export const TOUR_ANCHORS = {
   },
   'assign-stepper.submit': {
     label: 'Assign button at the bottom of the Assign dialog',
+    persists: true,
+    panel: true,
+  },
+  'assign-audience.switch': {
+    label: 'Students or Staff switch in the Classes step of the Assign dialog',
     persists: true,
     panel: true,
   },
@@ -2098,6 +2107,64 @@ export const TOUR_ANCHORS = {
   },
   'quiz-import.cartridge-retry': {
     label: 'Retry failed in Quiz import',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-import.schoology-close': {
+    label: 'Close in From Schoology review',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.schoology-select-all': {
+    label: 'Select all in From Schoology review',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.schoology-select-none': {
+    label: 'Select none in From Schoology review',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.schoology-row-check': {
+    label: 'Item checkbox in From Schoology review, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.schoology-row-expand': {
+    label: 'Show or hide questions in From Schoology review, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.schoology-row-mode': {
+    label: 'Update or keep both in From Schoology review, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.schoology-row-discard': {
+    label: 'Discard an item in From Schoology review, by item',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-import.schoology-share-pictures': {
+    label: 'Share pictures checkbox in From Schoology review',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.schoology-cancel': {
+    label: 'Close or Done in From Schoology review',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.schoology-save': {
+    label: 'Save N in From Schoology review',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-import.schoology-retry': {
+    label: 'Retry failed in From Schoology review',
     perWidgetType: true,
     persists: true,
     panel: true,
@@ -12649,6 +12716,10 @@ export const TOUR_ANCHORS = {
     label: 'Open in new tab button in First 5',
     perWidget: true,
   },
+  'blooms-taxonomy.level': {
+    label: "Level tab in Bloom's Taxonomy",
+    perField: true,
+  },
   'talking-tool.category': {
     label: 'Category tab in Talking Tool',
     perField: true,
@@ -15024,6 +15095,11 @@ export const TOUR_ANCHORS = {
   'import-wizard.bulk-file': {
     label:
       'Choose file button on the bulk export tile in the Import wizard (Schoology .imscc)',
+    panel: true,
+  },
+  'import-wizard.schoology-steps': {
+    label:
+      'How to export from Schoology toggle on the From Schoology tile in the Import wizard',
     panel: true,
   },
   'import-wizard.pick-sheet': {

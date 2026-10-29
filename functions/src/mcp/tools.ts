@@ -2,7 +2,13 @@
 import * as admin from 'firebase-admin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { DAILY_WRITE_LIMIT, PAGE_SIZE } from './config';
+import {
+  DAILY_BOARD_OP_LIMIT,
+  DAILY_WRITE_LIMIT,
+  GL_FEATURE_ID,
+  MEETING_AI_FEATURE_ID,
+  PAGE_SIZE,
+} from './config';
 import {
   REVIEW_MARK,
   ToolError,
@@ -267,6 +273,16 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         } catch {
           name = null;
         }
+        const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
+        const granted = (id: string) =>
+          isGlobalFeatureGranted(db, id, ctx.email, uid).catch(() => false);
+        const [resultsOn, gl, meetings, boards, adminUser] = await Promise.all([
+          miniAppResultsOn(ctx).catch(() => false),
+          granted(GL_FEATURE_ID),
+          granted(MEETING_AI_FEATURE_ID),
+          boardsOn(ctx).catch(() => false),
+          isAdmin(ctx).catch(() => false),
+        ]);
         return {
           email: ctx.email,
           name,
@@ -278,17 +294,24 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
             'rubrics',
             'activity_walls',
             'mini_apps',
+            ...(gl ? ['guided_learning'] : []),
+            ...(boards ? ['boards'] : []),
+            ...(meetings ? ['meeting_notes'] : []),
+            ...(adminUser ? ['live_tours', 'web_tours'] : []),
           ],
           can: [
             'create',
             'edit',
             'undo edits',
-            (await miniAppResultsOn(ctx).catch(() => false))
+            'organize library folders',
+            'tag Minnesota standards',
+            resultsOn
               ? 'class-level quiz, video activity and mini-app results'
               : 'class-level quiz and video activity results',
           ],
           cannot: ['delete', 'assign to students', 'share', 'see student data'],
           daily_change_limit: DAILY_WRITE_LIMIT,
+          ...(boards ? { daily_board_change_limit: DAILY_BOARD_OP_LIMIT } : {}),
         };
       })
   );
@@ -719,11 +742,8 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   registerBoardTools(server, ctx);
 }
 
-/** Mini App results tools, listed only when results are on for the teacher. */
-const RESULTS_ONLY_TOOLS = [
-  'get_mini_app_spec',
-  'get_mini_app_results_summary',
-] as const;
+/** Listed only when Mini App results are on; get_mini_app_spec stays listed and serves the basic spec. */
+const RESULTS_ONLY_TOOLS = ['get_mini_app_results_summary'] as const;
 
 /** Tools left out of a teacher's tools/list; each handler still checks access itself. */
 export async function hiddenToolsFor(

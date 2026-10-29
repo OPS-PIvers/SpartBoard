@@ -3877,6 +3877,9 @@ describe('index barrel — deployed export set', () => {
     'webToursListV1',
     'webTourLoadV1',
     'webTourRunV1',
+    'schoologyImportStatusV1',
+    'schoologyImportInboxV1',
+    'schoologyImportInboxCleanup',
     'focusStatusV1',
     'focusReportV1',
     // Dev-only prod → dev materials sync

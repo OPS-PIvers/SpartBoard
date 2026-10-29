@@ -18,6 +18,8 @@ interface HandlerDeps {
   ) => Promise<number>;
   /** Loads a published tour by id and opens it; null when it couldn't be loaded (H4). */
   openWebTour?: (setId: string) => Promise<number | null>;
+  /** Whether Chrome holds a Google sign-in for the extension; `ask` shows Google's prompt when it doesn't. */
+  signIn?: (ask: boolean) => Promise<boolean>;
 }
 
 /** Answers one external message; null means the sender is not trusted and gets no reply. */
@@ -27,6 +29,7 @@ export function createExternalHandler({
   getProfile,
   startWebTour,
   openWebTour,
+  signIn,
 }: HandlerDeps) {
   return async (
     raw: unknown,
@@ -58,6 +61,13 @@ export function createExternalHandler({
           ? { ok: false, error: 'unavailable' }
           : { ok: true, tabId };
       }
+      case 'schoology/signed-in':
+      case 'schoology/connect':
+        if (!signIn) return { ok: false, error: 'unsupported' };
+        return {
+          ok: true,
+          signedIn: await signIn(parsed.message.type === 'schoology/connect'),
+        };
     }
   };
 }

@@ -44,6 +44,20 @@ function unkeyedOrdering(q: ExtractedQuestion): QuizQuestion {
   };
 }
 
+/** A reader's extra accepted answers, as one-blank `alternateAnswers` or per-blank `blankAlternates`. */
+function fibAlternates(
+  q: ExtractedQuestion
+): Pick<QuizQuestion, 'alternateAnswers' | 'blankAlternates'> {
+  const alternates = q.blankAlternates;
+  if (q.type !== 'FIB' || !alternates?.some((a) => a.answers.length > 0))
+    return {};
+  if (alternates.length === 1)
+    return { alternateAnswers: [...alternates[0].answers] };
+  return {
+    blankAlternates: alternates.map((a) => ({ answers: [...a.answers] })),
+  };
+}
+
 export function toQuizQuestion(q: ExtractedQuestion): QuizQuestion {
   if (q.type === 'Ordering') {
     const order = q.correctAnswer.trim();
@@ -89,6 +103,7 @@ export function toQuizQuestion(q: ExtractedQuestion): QuizQuestion {
       ? { matchingDistractors: [...q.matchingDistractors] }
       : {}),
     ...(q.allowPartialCredit ? { allowPartialCredit: true } : {}),
+    ...fibAlternates(q),
     // The reader's own image ids. `attachDocumentImages` swaps them for real
     // stimulus ids at save; nothing persists a quiz before that runs.
     ...(q.imageIds.length > 0 ? { stimulusIds: [...q.imageIds] } : {}),

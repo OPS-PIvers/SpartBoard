@@ -103,6 +103,14 @@ describe('firebase-deploy-with-retry.sh transient classification', () => {
     ).toBe(true);
   });
 
+  it('retries the bogus Storage-not-set-up error seen during a firebaserules outage', () => {
+    expect(
+      classifiedTransient(
+        "Error: Firebase Storage has not been set up on project 'spartboard'. Go to https://console.firebase.google.com/project/spartboard/storage and click 'Get Started' to set up Firebase Storage."
+      )
+    ).toBe(true);
+  });
+
   it('does not retry a 409 from another service', () => {
     expect(
       classifiedTransient(
@@ -291,5 +299,101 @@ describe('firebase-deploy-with-retry.sh CPU quota retry', () => {
     ]);
     expect(status).toBe(2);
     expect(onlys).toHaveLength(1);
+  });
+});
+
+// Runs only the rules release against a stub node that replays scripted
+// releaseFirestoreRules.mjs outcomes, and returns how many releases ran.
+function runRulesRelease(outcomes: { exit: number; log: string }[]): {
+  status: number | null;
+  releases: number;
+  sleeps: string[];
+} {
+  const dir = mkdtempSync(join(tmpdir(), 'rules-release-'));
+  const bin = join(dir, 'bin');
+  mkdirSync(bin);
+  outcomes.forEach((o, i) => {
+    writeFileSync(join(dir, `log${i + 1}`), o.log);
+    writeFileSync(join(dir, `exit${i + 1}`), String(o.exit));
+  });
+  const stub = (name: string, body: string) => {
+    writeFileSync(join(bin, name), `#!/usr/bin/env bash\n${body}\n`);
+    chmodSync(join(bin, name), 0o755);
+  };
+  stub(
+    'node',
+    [
+      '[[ $1 == scripts/releaseFirestoreRules.mjs ]] || exit 0',
+      `n=$(( $(cat "${dir}/count" 2>/dev/null || echo 0) + 1 )); echo $n > "${dir}/count"`,
+      `cat "${dir}/log$n" 2>/dev/null; exit $(cat "${dir}/exit$n" 2>/dev/null || echo 0)`,
+    ].join('\n')
+  );
+  stub('sleep', `echo "$1" >> "${dir}/sleeps"`);
+  const result = spawnSync('bash', [scriptPath, 'demo'], {
+    cwd: dir,
+    env: {
+      ...process.env,
+      PATH: `${bin}:${process.env.PATH ?? ''}`,
+      FIREBASE_DEPLOY_ONLY: '',
+      RELEASE_FIRESTORE_RULES: 'true',
+    },
+  });
+  const read = (name: string) => {
+    try {
+      return readFileSync(join(dir, name), 'utf-8').trim();
+    } catch {
+      return '';
+    }
+  };
+  const releases = Number(read('count') || 0);
+  const sleeps = read('sleeps').split('\n').filter(Boolean);
+  rmSync(dir, { recursive: true, force: true });
+  return { status: result.status, releases, sleeps };
+}
+
+describe('firebase-deploy-with-retry.sh rules release retry', () => {
+  const outage = {
+    exit: 1,
+    log: 'ERROR: every release request shape was rejected:\n  PATCH /projects/demo/releases/cloud.firestore -> 503 {"code": 503}',
+  };
+
+  it('waits out a firebaserules outage longer than the script retries, as in run 40790168222', () => {
+    const { status, releases, sleeps } = runRulesRelease([
+      outage,
+      outage,
+      { exit: 0, log: 'released via "what the CLI sends"' },
+    ]);
+    expect(status).toBe(0);
+    expect(releases).toBe(3);
+    expect(sleeps).toEqual(['60', '120']);
+  });
+
+  it('gives up after three releases', () => {
+    const { status, releases } = runRulesRelease([outage, outage, outage]);
+    expect(status).toBe(1);
+    expect(releases).toBe(3);
+  });
+
+  it('does not retry a release the API refuses', () => {
+    const { status, releases } = runRulesRelease([
+      {
+        exit: 1,
+        log: 'POST /projects/demo:test -> 503; retrying in 2s (attempt 1/4)\nERROR: every release request shape was rejected:\n  PATCH /projects/demo/releases/cloud.firestore -> 400 {"code": 400}',
+      },
+    ]);
+    expect(status).toBe(1);
+    expect(releases).toBe(1);
+  });
+
+  it('retries a release whose connection dropped', () => {
+    const { status, releases } = runRulesRelease([
+      {
+        exit: 1,
+        log: 'ERROR: GET /projects/demo/releases/cloud.firestore -> fetch failed',
+      },
+      { exit: 0, log: 'released' },
+    ]);
+    expect(status).toBe(0);
+    expect(releases).toBe(2);
   });
 });

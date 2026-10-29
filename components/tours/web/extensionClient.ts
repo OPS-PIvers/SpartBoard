@@ -4,6 +4,7 @@ import {
   isCheckRunId,
   OPEN_PROTOCOL,
   parseWebTourLocator,
+  SCHOOLOGY_CONNECT_PROTOCOL,
   SCORED_MATCH_PROTOCOL,
   WEB_TOUR_PORT,
   type ExtensionProfile,
@@ -171,6 +172,32 @@ export async function openWebTour(setId: string): Promise<StartResult> {
         ? reply.error
         : 'no-reply',
   };
+}
+
+/** Whether a staff profile's extension can be signed in from the page (protocol 11). */
+export const canConnectSchoology = (status: ExtensionStatus): boolean =>
+  status.kind === 'ready' &&
+  status.profile === 'staff' &&
+  status.protocol >= SCHOOLOGY_CONNECT_PROTOCOL;
+
+const signedInReply = (reply: unknown): boolean | null =>
+  isRecord(reply) && reply.ok === true && typeof reply.signedIn === 'boolean'
+    ? reply.signedIn
+    : null;
+
+/** Whether the extension holds a Google sign-in; null when it didn't answer. */
+export async function extensionSignedIn(): Promise<boolean | null> {
+  return signedInReply(
+    await send({ type: 'schoology/signed-in' }, PING_TIMEOUT_MS)
+  );
+}
+
+/** Has the extension show Google's sign-in prompt; true once it holds a sign-in. */
+export async function connectExtension(): Promise<boolean> {
+  // The teacher may take a while in Google's window.
+  return (
+    signedInReply(await send({ type: 'schoology/connect' }, 300_000)) === true
+  );
 }
 
 /** Listens to the tour's progress until the returned cleanup runs; onGone fires if the port drops. */

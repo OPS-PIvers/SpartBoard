@@ -53,6 +53,7 @@ import {
   GL_CONTENT_DOC,
 } from '@/utils/guidedLearningSessionContent';
 import type {
+  AudienceSessionFields,
   AssignmentMode,
   GuidedLearningAssignment,
   GuidedLearningAssignmentStatus,
@@ -65,12 +66,13 @@ import type {
   GuidedLearningSession,
 } from '@/types';
 import { useSandboxedGuidedLearningAssignments } from './useTourSandboxed';
+import { audienceSessionFields } from '@/utils/staffAudience';
 
 const GL_ASSIGNMENTS_COLLECTION = 'guided_learning_assignments';
 const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
 const GL_SESSION_RESPONSES_SUBCOLLECTION = 'responses';
 
-export interface CreateAssignmentInput {
+export interface CreateAssignmentInput extends AudienceSessionFields {
   /** The session id (also becomes the assignment id). */
   sessionId: string;
   /** The set that was assigned. */
@@ -307,6 +309,7 @@ export const useGuidedLearningAssignments = (
               periodAccess: input.periodGate.periodAccess,
             }
           : {}),
+        ...audienceSessionFields(input.audience),
       };
       await setDoc(
         doc(db, 'users', userId, GL_ASSIGNMENTS_COLLECTION, input.sessionId),

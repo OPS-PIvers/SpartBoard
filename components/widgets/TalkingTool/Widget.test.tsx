@@ -155,6 +155,18 @@ describe('TalkingToolWidget', () => {
     expect(screen.getByText(/What do you mean by/)).toBeInTheDocument();
   });
 
+  it('scales the stem pane with the window text size', () => {
+    vi.mocked(useAuth).mockReturnValue(mockAuthContext());
+
+    render(
+      <TalkingToolWidget widget={{ ...mockWidget, baseTextSize: 'xl' }} />
+    );
+
+    const pane = screen.getByText('Listen Closely', { selector: 'h3' })
+      .parentElement?.parentElement;
+    expect(pane?.style.fontSize).toBe('4.375cqmin');
+  });
+
   it('switches tabs when a sidebar button is clicked', () => {
     vi.mocked(useAuth).mockReturnValue(mockAuthContext());
 

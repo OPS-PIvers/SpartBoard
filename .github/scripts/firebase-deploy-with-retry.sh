@@ -27,14 +27,15 @@
 # Usage: ./firebase-deploy-with-retry.sh <project-id>
 # Required env: GOOGLE_APPLICATION_CREDENTIALS pointing at a service
 # account JSON file with deploy permissions.
-# Optional env: FIREBASE_DEPLOY_MAX_ATTEMPTS (default 4).
+# Optional env: FIREBASE_DEPLOY_MAX_ATTEMPTS (default 6).
 # Optional env: FIREBASE_DEPLOY_ONLY (default functions,firestore:indexes,storage;
 # empty skips the CLI deploy) and RELEASE_FIRESTORE_RULES (default true).
 
 set -uo pipefail
 
 PROJECT_ID="${1:?usage: $0 <project-id>}"
-MAX_ATTEMPTS="${FIREBASE_DEPLOY_MAX_ATTEMPTS:-4}"
+MAX_ATTEMPTS="${FIREBASE_DEPLOY_MAX_ATTEMPTS:-6}"
+MAX_BACKOFF=300
 DEPLOY_ONLY="${FIREBASE_DEPLOY_ONLY-functions,firestore:indexes,storage}"
 RELEASE_RULES="${RELEASE_FIRESTORE_RULES:-true}"
 
@@ -72,7 +73,8 @@ CPU_QUOTA='Quota exceeded for total allowable CPU'
 # A quota retry can come back as "Container import failed"; retried only after a quota failure.
 CONTAINER_IMPORT='Container import failed'
 QUOTA_BACKOFF=90
-TRANSIENT_PATTERN="HTTP Error: 5[0-9][0-9]|HTTP Error: 429|service is currently unavailable|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|premature close|Client network socket disconnected|Deadline exceeded|code.?UNAVAILABLE|${RULES_RELEASE_409}|${INVOKER_IAM}|${CPU_QUOTA}"
+# During a firebaserules outage the CLI's storage check misreports Storage as not set up (prod run 40568413333).
+TRANSIENT_PATTERN="HTTP Error: 5[0-9][0-9]|Firebase Storage has not been set up|HTTP Error: 429|service is currently unavailable|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|premature close|Client network socket disconnected|Deadline exceeded|code.?UNAVAILABLE|${RULES_RELEASE_409}|${INVOKER_IAM}|${CPU_QUOTA}"
 
 # Comments count toward the 256 KiB ruleset cap, so deploy a comment-stripped
 # copy. Every surviving line is byte-identical to the source; tests still run
@@ -90,13 +92,24 @@ release_firestore_rules() {
     echo "Skipping firestore.rules release (RELEASE_FIRESTORE_RULES=$RELEASE_RULES)."
     return 0
   fi
-  echo "::group::release firestore.rules"
-  node scripts/releaseFirestoreRules.mjs "$PROJECT_ID"
-  local code=$?
-  echo "::endgroup::"
-  if [[ "$code" -ne 0 ]]; then
-    echo "ERROR: firestore.rules release failed (exit ${code})." >&2
-  fi
+  local code wait
+  # The script retries each call for about 15s; firebaserules outages have outlasted that (prod run 40790168222).
+  for wait in 60 120 0; do
+    echo "::group::release firestore.rules"
+    node scripts/releaseFirestoreRules.mjs "$PROJECT_ID" 2>&1 | tee "$LOG_FILE"
+    code=${PIPESTATUS[0]}
+    echo "::endgroup::"
+    if [[ "$code" -eq 0 ]]; then
+      return 0
+    fi
+    # Only the final ERROR counts; earlier lines can show blips the script recovered from.
+    if [[ "$wait" -eq 0 ]] || ! sed -n '/^ERROR: /,$p' "$LOG_FILE" | grep -qE ' -> (429|5[0-9][0-9]|fetch failed)( |$)'; then
+      break
+    fi
+    echo "::warning::firebaserules API unavailable; retrying the firestore.rules release in ${wait}s."
+    sleep "$wait"
+  done
+  echo "ERROR: firestore.rules release failed (exit ${code})." >&2
   return "$code"
 }
 
@@ -167,7 +180,7 @@ while true; do
     echo "::warning::Transient Google API error during firebase deploy; retrying in ${backoff}s (attempt ${attempt}/${MAX_ATTEMPTS})."
     sleep "$backoff"
     attempt=$((attempt + 1))
-    backoff=$((backoff * 2))
+    backoff=$(( backoff * 2 > MAX_BACKOFF ? MAX_BACKOFF : backoff * 2 ))
     continue
   fi
 

@@ -638,6 +638,7 @@ describe('the payload allowlist', () => {
     'mediaResponseEnabled',
     'showLearningTargets',
     'allowStimulusQuotes',
+    'allowCrossOut',
     'liveLeaderboard',
     'classPeriodByClassId',
   ];
@@ -1000,6 +1001,31 @@ describe('the content the session carries', () => {
     await run();
 
     expect(written[0].data).not.toHaveProperty('allowStimulusQuotes');
+  });
+
+  it('lets students cross out choices when the host has the flag', async () => {
+    const hostHasFeature = vi.fn(() => Promise.resolve(true));
+    const { run, written } = launch({}, SUB, input(), {
+      ...deps,
+      hostHasFeature,
+    });
+
+    await run();
+
+    expect(hostHasFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      HOST,
+      'quiz-cross-out'
+    );
+    expect(written[0].data.allowCrossOut).toBe(true);
+  });
+
+  it('leaves cross-out unstamped without the host’s flag', async () => {
+    const { run, written } = launch();
+
+    await run();
+
+    expect(written[0].data).not.toHaveProperty('allowCrossOut');
   });
 
   it('refuses a key whose quiz has no questions', async () => {

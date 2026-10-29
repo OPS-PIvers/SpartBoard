@@ -15,6 +15,7 @@ import { Triangle } from 'lucide-react';
 import { generateBloomsContent } from '@/utils/ai';
 import { Pyramid } from './Pyramid';
 import { AiPanel } from './AiPanel';
+import { BloomsQuestionStarters } from './QuestionStarters';
 import {
   BLOOMS_LABELS,
   BLOOMS_COLORS,
@@ -164,6 +165,17 @@ export const BloomsTaxonomyWidget: React.FC<{ widget: WidgetData }> = ({
     },
     []
   );
+
+  if (canAccessFeature('blooms-question-starters')) {
+    return (
+      <BloomsQuestionStarters
+        widgetType={widget.type}
+        baseTextSize={widget.baseTextSize}
+        cardColor={config.cardColor}
+        cardOpacity={config.cardOpacity}
+      />
+    );
+  }
 
   if (activeCategories.length === 0 && !aiEnabled) {
     return (

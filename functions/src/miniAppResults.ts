@@ -18,6 +18,7 @@ import {
 } from './miniAppGrading';
 import { isPeriodFrozen } from './quizSessionContent';
 import { STUDENT_PSEUDONYM_HMAC_SECRET } from './secrets';
+import { staffIdentityFromToken, type StaffIdentity } from './staffAudience';
 import { assertViewAsAllowed } from './viewAsGuard';
 
 export const WINDOW_GRACE_MS = 120_000;
@@ -38,6 +39,8 @@ export interface MiniAppCaller {
   uid: string;
   studentRole: boolean;
   classIds: string[];
+  /** Verified district staff identity from the token; null for students and anonymous callers. */
+  staff?: StaffIdentity | null;
 }
 
 export interface SubmitMiniAppResultResponse {
@@ -116,6 +119,20 @@ export async function handleSubmitMiniAppResult(
     );
   if (session.status !== 'active')
     throw new HttpsError('failed-precondition', 'This assignment has ended.');
+  const staffSession = session.audience === 'staff';
+  if (staffSession && !caller.staff)
+    throw new HttpsError(
+      'permission-denied',
+      'Sign in with your district account.'
+    );
+  // Staff sessions name each submission from the token, as the client rule does.
+  const staffFields =
+    staffSession && caller.staff
+      ? {
+          staffEmail: caller.staff.staffEmail,
+          staffName: caller.staff.staffName,
+        }
+      : {};
   if (session.mode === 'view-only')
     throw new HttpsError(
       'failed-precondition',
@@ -246,6 +263,7 @@ export async function handleSubmitMiniAppResult(
         {
           submittedAt: nowMs,
           studentUid: caller.uid,
+          ...staffFields,
           payload: { ...prior, completed: true },
         },
         { merge: true }
@@ -260,6 +278,7 @@ export async function handleSubmitMiniAppResult(
         {
           submittedAt: nowMs,
           studentUid: caller.uid,
+          ...staffFields,
           payload:
             isRecord(summary.payload) && summary.payload.completed === true
               ? { ...payload, completed: true }
@@ -272,6 +291,7 @@ export async function handleSubmitMiniAppResult(
             'studentUid',
             'payload',
             'lastSubmittedAt',
+            ...Object.keys(staffFields),
           ],
         }
       );
@@ -326,6 +346,7 @@ export async function handleSubmitMiniAppResult(
       {
         submittedAt: nowMs,
         studentUid: caller.uid,
+        ...staffFields,
         payload:
           isRecord(summary.payload) && summary.payload.completed === true
             ? { ...payload, completed: true }
@@ -374,6 +395,7 @@ export const submitMiniAppResultV1 = onCall(
                   (c): c is string => typeof c === 'string' && c.length > 0
                 )
               : [],
+            staff: staffIdentityFromToken(request.auth.token),
           }
         : null,
       request.data,

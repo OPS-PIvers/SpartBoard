@@ -20,12 +20,14 @@ import {
 } from '@/components/widgets/Flashcards/utils/flashcardAssign';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
+import { audienceSessionFields } from '@/utils/staffAudience';
 import {
   FC_CONTENT_COLLECTION,
   FC_CONTENT_DOC,
   type FlashcardSessionContent,
 } from '@/utils/flashcardSessionContent';
 import type {
+  AudienceSessionFields,
   FlashcardAssignment,
   FlashcardAssignmentKind,
   FlashcardMasteryThreshold,
@@ -41,7 +43,7 @@ export const FLASHCARD_ASSIGNMENTS_COLLECTION = 'flashcard_assignments';
 export const FLASHCARD_SESSIONS_COLLECTION = 'flashcard_sessions';
 export const FLASHCARD_PROGRESS_SUBCOLLECTION = 'progress';
 
-export interface CreateFlashcardAssignmentInput {
+export interface CreateFlashcardAssignmentInput extends AudienceSessionFields {
   set: FlashcardSet;
   kind: FlashcardAssignmentKind;
   checkMode?: FlashcardMode;
@@ -217,6 +219,7 @@ export const useFlashcardAssignments = (
         status: 'active',
         ...windows,
         ...(input.workKind ? { workKind: input.workKind } : {}),
+        ...audienceSessionFields(input.audience),
         createdAt: now,
       };
 
@@ -245,6 +248,7 @@ export const useFlashcardAssignments = (
           : {}),
         ...windows,
         ...(periodGate ?? {}),
+        ...audienceSessionFields(input.audience),
       };
 
       const batch = writeBatch(db);
