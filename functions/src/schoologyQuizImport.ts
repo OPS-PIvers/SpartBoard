@@ -520,7 +520,7 @@ export const schoologyImportInboxV1 = importerEndpoint(
 
 // Saved, discarded or expired by TTL: the item's pictures go with it.
 export const schoologyImportInboxCleanup = onDocumentDeleted(
-  `users/{uid}/${INBOX_COLLECTION}/{itemId}`,
+  { document: `users/{uid}/${INBOX_COLLECTION}/{itemId}`, maxInstances: 10 },
   async (event) => {
     const { uid, itemId } = event.params;
     const sendId: unknown = event.data?.get('sendId');
