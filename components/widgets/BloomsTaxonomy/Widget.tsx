@@ -167,7 +167,12 @@ export const BloomsTaxonomyWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   if (canAccessFeature('blooms-question-starters')) {
-    return <BloomsQuestionStarters widgetType={widget.type} />;
+    return (
+      <BloomsQuestionStarters
+        widgetType={widget.type}
+        baseTextSize={widget.baseTextSize}
+      />
+    );
   }
 
   if (activeCategories.length === 0 && !aiEnabled) {
