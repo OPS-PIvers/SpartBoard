@@ -11,6 +11,10 @@ import { createFocusClient } from './focus/focusClient';
 import { createChromeEnforcer } from './focus/chromeEnforce';
 import { FOCUS_FULLSCREEN_MESSAGE } from './focus/pageNotice';
 import {
+  parseFocusPanelMessage,
+  type FocusPanelReply,
+} from './focus/panelMessages';
+import {
   chromeFocusDeps,
   chromePushSubscription,
   ensureFocusCheckAlarm,
@@ -315,6 +319,25 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
     const opened = await openPublished(msg.setId, tab);
     return opened.ok ? { ok: true } : opened;
   };
+  answer().then(reply, () => reply({ ok: false, why: 'offline' }));
+  return true;
+});
+
+// The Focus tab (F12): same senders as the Tours tab; staff profiles only, the server checks the rest.
+chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
+  if (sender.id !== chrome.runtime.id || sender.tab) return false;
+  const msg = parseFocusPanelMessage(message);
+  if (!msg) return false;
+  const answer = async (): Promise<FocusPanelReply> =>
+    (await getChromeProfile()) === 'staff'
+      ? // Only a button press may show Chrome's sign-in prompt; opening the panel lists quietly.
+        callSpartBoard(
+          api,
+          'focusPanelV1',
+          msg.body,
+          msg.body.action !== 'list'
+        )
+      : { ok: false, why: 'signed-out' };
   answer().then(reply, () => reply({ ok: false, why: 'offline' }));
   return true;
 });

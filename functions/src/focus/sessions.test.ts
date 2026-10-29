@@ -747,3 +747,94 @@ describe('scheduled ender', () => {
     ).toBe('window');
   });
 });
+
+describe('push wake-ups (F5)', () => {
+  const s = (ids: string[]) => ids.map(uidOf).sort();
+  let woken: string[][];
+  const waking: FocusDeps = {
+    ...deps,
+    wake: (uids) => {
+      woken.push([...uids].sort());
+      return Promise.resolve();
+    },
+  };
+  beforeEach(() => {
+    woken = [];
+  });
+
+  it('wakes the class after start, extend, add site and end', async () => {
+    const { sessionId } = await handleFocusStart(
+      db,
+      teacher(),
+      startInput(),
+      waking
+    );
+    await handleFocusExtend(db, teacher(), { sessionId }, waking);
+    await handleFocusAddSite(
+      db,
+      teacher(),
+      { sessionId, site: { host: 'khanacademy.org', path: '' } },
+      waking
+    );
+    await handleFocusEnd(db, teacher(), { sessionId }, waking);
+    const all = s(['s1', 's2', 's3']);
+    expect(woken).toEqual([all, all, all, all]);
+  });
+
+  it('skips the wake when nothing changed', async () => {
+    const { sessionId } = await handleFocusStart(
+      db,
+      teacher(),
+      startInput(),
+      waking
+    );
+    woken = [];
+    await handleFocusAddSite(
+      db,
+      teacher(),
+      { sessionId, site: desmos },
+      waking
+    );
+    await handleFocusEnd(db, teacher(), { sessionId }, waking);
+    await handleFocusEnd(db, teacher(), { sessionId }, waking);
+    expect(woken).toHaveLength(1);
+  });
+
+  it('wakes only the released student', async () => {
+    const { sessionId } = await handleFocusStart(
+      db,
+      teacher(),
+      startInput(),
+      waking
+    );
+    woken = [];
+    await handleFocusRelease(
+      db,
+      teacher(),
+      { sessionId, studentUid: uidOf('s2') },
+      waking
+    );
+    await handleFocusRelease(
+      db,
+      teacher(),
+      { sessionId, studentUid: uidOf('s2') },
+      waking
+    );
+    expect(woken).toEqual([s(['s2']), []]);
+  });
+
+  it('wakes the class when the scheduled ender closes its session', async () => {
+    const { endsAt } = await start();
+    now = endsAt;
+    await sweepFocusSessions(db, now, waking.wake);
+    expect(woken).toEqual([s(['s1', 's2', 's3'])]);
+  });
+
+  it('wakes once for every session the sweep ends', async () => {
+    const first = await start();
+    await start(otherTeacher, { classId: OTHER_CLASS, minutes: 10 });
+    now = first.endsAt;
+    await sweepFocusSessions(db, now, waking.wake);
+    expect(woken).toEqual([s(['s1', 's2', 's3', 's4'])]);
+  });
+});

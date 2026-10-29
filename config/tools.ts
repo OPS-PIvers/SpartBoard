@@ -50,6 +50,7 @@ import {
   Image as ImageIcon,
   Triangle,
   Workflow,
+  Crosshair,
 } from 'lucide-react';
 import { ToolMetadata, WidgetCategory } from '@/types';
 
@@ -631,5 +632,21 @@ export const TOOLS: ToolMetadata[] = [
     color: 'bg-rose-600',
     category: 'instruction',
     keywords: ['agenda', 'launch', 'learn', 'land', 'lesson', 'to-do'],
+  },
+  {
+    type: 'focus',
+    icon: Crosshair,
+    label: 'Focus',
+    color: 'bg-cyan-700',
+    category: 'management',
+    keywords: [
+      'chromebook',
+      'allowlist',
+      'websites',
+      'lock',
+      'block',
+      'extension',
+      'on task',
+    ],
   },
 ];

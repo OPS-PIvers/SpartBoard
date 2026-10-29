@@ -152,6 +152,7 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
     () => import('./ArtsLettersAgenda'),
     'ArtsLettersAgendaWidget'
   ),
+  focus: lazyNamed(() => import('./Focus'), 'FocusWidget'),
   flashcards: lazyNamed(
     () => import('./Flashcards/Widget'),
     'FlashcardsWidget'
@@ -339,6 +340,7 @@ export const WIDGET_SETTINGS_SCHEMAS: Partial<
   breathing: () => import('./Breathing/settings.schema').then((m) => m.default),
   'arts-letters-agenda': () =>
     import('./ArtsLettersAgenda/settings.schema').then((m) => m.default),
+  focus: () => import('./Focus/settings.schema').then((m) => m.default),
   mathTools: () => import('./MathTools/settings.schema').then((m) => m.default),
   mathTool: () =>
     import('./MathToolInstance/settings.schema').then((m) => m.default),
@@ -674,6 +676,13 @@ export const WIDGET_SCALING_CONFIG: Record<WidgetType, ScalingConfig> = {
   'arts-letters-agenda': {
     baseWidth: 420,
     baseHeight: 420,
+    canSpread: true,
+    skipScaling: true,
+    padding: 0,
+  },
+  focus: {
+    baseWidth: 460,
+    baseHeight: 560,
     canSpread: true,
     skipScaling: true,
     padding: 0,

@@ -1490,6 +1490,7 @@ export const WIDGET_DEFAULT_ACCESS_LEVEL: Partial<
   review: 'admin',
   routineGuide: 'admin',
   'arts-letters-agenda': 'admin',
+  focus: 'admin',
 };
 
 export const getWidgetDefaultAccessLevel = (
