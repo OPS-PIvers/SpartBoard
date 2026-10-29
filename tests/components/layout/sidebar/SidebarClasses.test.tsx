@@ -55,7 +55,10 @@ vi.mock('@/components/classes/ClassLinkImportDialog', () => ({
 const openLinkModal = () => {
   render(<SidebarClasses isVisible />);
   fireEvent.click(
-    screen.getByRole('button', { name: 'Link to Google Classroom' })
+    screen.getByRole('button', { name: /^Class actions for Period 1/ })
+  );
+  fireEvent.click(
+    screen.getByRole('menuitem', { name: 'Link to Google Classroom' })
   );
 };
 

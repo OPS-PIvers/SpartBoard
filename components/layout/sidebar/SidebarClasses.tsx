@@ -3,10 +3,6 @@ import { useTranslation } from 'react-i18next';
 import {
   Users,
   Plus,
-  Star,
-  Pencil,
-  Trash2,
-  RefreshCw,
   Download,
   GraduationCap,
   Check,
@@ -137,7 +133,6 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
   } = useDashboard();
   const { user, selectedBuildings, canAccessFeature } = useAuth();
   const groupRemindersEnabled = canAccessFeature('group-reminders');
-  const listRows = canAccessFeature('sidebar-list-rows');
   const groupReminderEmails = useGroupReminderEmailsSettings(
     groupRemindersEnabled
   );
@@ -570,236 +565,33 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                     defaultValue: 'Your Classes',
                   })}
                 </h3>
-                {listRows ? (
-                  <ul
-                    className="divide-y divide-slate-200 border-y border-slate-200"
-                    {...tourAttr('classes.roster-list')}
-                  >
-                    {rosters.map((r, rosterIndex) => (
-                      <SidebarClassRow
-                        key={r.id}
-                        roster={r}
-                        isActive={activeRosterId === r.id}
-                        classLinkEnabled={classLinkEnabled}
-                        rowKey={`row-${rosterIndex + 1}`}
-                        onToggleActive={() =>
-                          setActiveRoster(activeRosterId === r.id ? null : r.id)
-                        }
-                        onEdit={() => setEditingRosterId(r.id)}
-                        onSyncClassLink={() =>
-                          setClassLinkMode({
-                            kind: 'merge',
-                            rosterId: r.id,
-                            rosterName: r.name,
-                          })
-                        }
-                        onLinkClassroom={() => setLinkingRoster(r)}
-                        onDelete={() => void handleDelete(r)}
-                      />
-                    ))}
-                  </ul>
-                ) : (
-                  <div
-                    className="flex flex-col gap-2"
-                    {...tourAttr('classes.roster-list')}
-                  >
-                    {rosters.map((r, rosterIndex) => {
-                      const isActive = activeRosterId === r.id;
-                      const rowKey = `row-${rosterIndex + 1}`;
-                      return (
-                        <div
-                          key={r.id}
-                          className={`flex items-center gap-2 p-2.5 bg-white border rounded-xl transition-all ${
-                            isActive
-                              ? 'border-brand-blue-primary shadow-sm ring-1 ring-brand-blue-primary/20'
-                              : 'border-slate-200 hover:border-slate-300'
-                          }`}
-                        >
-                          <button
-                            onClick={() =>
-                              setActiveRoster(isActive ? null : r.id)
-                            }
-                            {...tourFieldAttr(
-                              'classes.set-active',
-                              'classes',
-                              rowKey
-                            )}
-                            className={`shrink-0 p-1.5 rounded-lg transition-colors ${
-                              isActive
-                                ? 'text-amber-500 hover:bg-amber-50'
-                                : 'text-slate-300 hover:text-amber-400 hover:bg-amber-50'
-                            }`}
-                            title={
-                              isActive
-                                ? t('sidebar.classes.activeClass', {
-                                    defaultValue: 'Active Class',
-                                  })
-                                : t('sidebar.classes.setActive', {
-                                    defaultValue: 'Set as Active',
-                                  })
-                            }
-                            aria-label={
-                              isActive
-                                ? t('sidebar.classes.activeClass', {
-                                    defaultValue: 'Active Class',
-                                  })
-                                : t('sidebar.classes.setActive', {
-                                    defaultValue: 'Set as Active',
-                                  })
-                            }
-                          >
-                            <Star
-                              className="w-4 h-4"
-                              fill={isActive ? 'currentColor' : 'none'}
-                            />
-                          </button>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <div className="text-sm font-bold text-slate-800 truncate">
-                                {r.name}
-                              </div>
-                            </div>
-                            {r.loadError ? (
-                              <div
-                                className="text-xxs font-semibold text-red-500 uppercase tracking-widest truncate"
-                                title={r.loadError}
-                              >
-                                {t('sidebar.classes.loadFailed', {
-                                  defaultValue: 'Failed to load',
-                                })}
-                              </div>
-                            ) : (
-                              <div className="text-xxs font-semibold text-slate-400 uppercase tracking-widest">
-                                {t('sidebar.classes.studentCount', {
-                                  count: r.students.length,
-                                  defaultValue: '{{count}} Student',
-                                  defaultValue_other: '{{count}} Students',
-                                })}
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-0.5 shrink-0">
-                            <button
-                              onClick={() => setEditingRosterId(r.id)}
-                              {...tourFieldAttr(
-                                'classes.edit-roster',
-                                'classes',
-                                rowKey
-                              )}
-                              className="p-1.5 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
-                              title={t('sidebar.classes.edit', {
-                                defaultValue: 'Edit Class',
-                              })}
-                              aria-label={t('sidebar.classes.edit', {
-                                defaultValue: 'Edit Class',
-                              })}
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            {classLinkEnabled &&
-                              (() => {
-                                // Rosters whose students carry
-                                // `classLinkSourcedId` but whose doc lacks
-                                // `classlinkClassId` predate the unified
-                                // metadata and are invisible to the student
-                                // SSO gate. Surface an amber dot on Sync so
-                                // the teacher knows to re-sync — the merge
-                                // handler now backfills metadata for them.
-                                const needsBackfill =
-                                  !r.classlinkClassId &&
-                                  r.students.some((s) => s.classLinkSourcedId);
-                                const syncLabel = needsBackfill
-                                  ? t('sidebar.classes.linkClassLink', {
-                                      defaultValue: 'Link to ClassLink class',
-                                    })
-                                  : t('sidebar.classes.syncClassLink', {
-                                      defaultValue: 'Sync with ClassLink',
-                                    });
-                                const linkLabel = r.googleClassroomCourseId
-                                  ? t(
-                                      'sidebar.classes.linkGoogleClassroom.relink',
-                                      {
-                                        defaultValue:
-                                          'Linked to Google Classroom — change link',
-                                      }
-                                    )
-                                  : t(
-                                      'sidebar.classes.linkGoogleClassroom.button',
-                                      {
-                                        defaultValue:
-                                          'Link to Google Classroom',
-                                      }
-                                    );
-                                return (
-                                  <>
-                                    <button
-                                      onClick={() =>
-                                        setClassLinkMode({
-                                          kind: 'merge',
-                                          rosterId: r.id,
-                                          rosterName: r.name,
-                                        })
-                                      }
-                                      {...tourFieldAttr(
-                                        'classes.sync-classlink',
-                                        'classes',
-                                        rowKey
-                                      )}
-                                      className="relative p-1.5 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
-                                      title={syncLabel}
-                                      aria-label={syncLabel}
-                                    >
-                                      <RefreshCw className="w-3.5 h-3.5" />
-                                      {needsBackfill && (
-                                        <span
-                                          aria-hidden="true"
-                                          className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500"
-                                        />
-                                      )}
-                                    </button>
-                                    <button
-                                      onClick={() => setLinkingRoster(r)}
-                                      {...tourFieldAttr(
-                                        'classes.link-classroom',
-                                        'classes',
-                                        rowKey
-                                      )}
-                                      className={`relative p-1.5 rounded-lg transition-colors ${
-                                        r.googleClassroomCourseId
-                                          ? 'text-emerald-600 hover:bg-emerald-50'
-                                          : 'text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter'
-                                      }`}
-                                      title={linkLabel}
-                                      aria-label={linkLabel}
-                                    >
-                                      <GraduationCap className="w-3.5 h-3.5" />
-                                    </button>
-                                  </>
-                                );
-                              })()}
-                            <button
-                              onClick={() => void handleDelete(r)}
-                              {...tourFieldAttr(
-                                'classes.delete-roster',
-                                'classes',
-                                rowKey
-                              )}
-                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                              title={t('sidebar.classes.delete', {
-                                defaultValue: 'Delete Class',
-                              })}
-                              aria-label={t('sidebar.classes.delete', {
-                                defaultValue: 'Delete Class',
-                              })}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                <ul
+                  className="divide-y divide-slate-200 border-y border-slate-200"
+                  {...tourAttr('classes.roster-list')}
+                >
+                  {rosters.map((r, rosterIndex) => (
+                    <SidebarClassRow
+                      key={r.id}
+                      roster={r}
+                      isActive={activeRosterId === r.id}
+                      classLinkEnabled={classLinkEnabled}
+                      rowKey={`row-${rosterIndex + 1}`}
+                      onToggleActive={() =>
+                        setActiveRoster(activeRosterId === r.id ? null : r.id)
+                      }
+                      onEdit={() => setEditingRosterId(r.id)}
+                      onSyncClassLink={() =>
+                        setClassLinkMode({
+                          kind: 'merge',
+                          rosterId: r.id,
+                          rosterName: r.name,
+                        })
+                      }
+                      onLinkClassroom={() => setLinkingRoster(r)}
+                      onDelete={() => void handleDelete(r)}
+                    />
+                  ))}
+                </ul>
               </div>
             )}
           </div>

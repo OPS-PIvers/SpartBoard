@@ -59,7 +59,6 @@
     "components/landing/RequestRolloutPage.tsx::Thanks — we&rsquo;ll be in touch at",
     "components/landing/RequestRolloutPage.tsx::with your team, or rolling it out across your district? Tell",
     "components/layout/DashboardView.tsx::Couldn't sync to your PLC. Your assignment is saved — retry ",
-    "components/layout/sidebar/SidebarClasses.tsx::Linked to Google Classroom — change link",
     "components/layout/sidebar/SidebarPlcs.tsx::You have pending invitations — accept one to get started.",
     "components/poll/PollVoteApp.tsx::Keep this page open — the first question appears automatical",
     "components/quiz/QuizStudentApp.tsx::— no response",
