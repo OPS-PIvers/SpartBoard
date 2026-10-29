@@ -35,11 +35,13 @@ export const audienceSessionFields = (
   audience: AssignmentAudience | undefined
 ): StaffAudienceFields => (audience === 'staff' ? { audience: 'staff' } : {});
 
-export const isDistrictStaffEmail = (email: string | null | undefined) =>
-  !!email &&
-  new RegExp(`^[^@]+@${STAFF_EMAIL_DOMAIN.replace(/\./g, '\\.')}$`).test(
-    email.trim().toLowerCase()
-  );
+export const isDistrictStaffEmail = (email: string | null | undefined) => {
+  const [local, domain, ...rest] = (email ?? '')
+    .trim()
+    .toLowerCase()
+    .split('@');
+  return !!local && domain === STAFF_EMAIL_DOMAIN && rest.length === 0;
+};
 
 /** Reads the caller's staff identity from their ID token, or null when they are not district staff. */
 export async function readStaffIdentity(
