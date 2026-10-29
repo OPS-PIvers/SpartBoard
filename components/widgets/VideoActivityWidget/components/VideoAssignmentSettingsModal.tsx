@@ -58,9 +58,8 @@ export const VideoAssignmentSettingsModal: React.FC<
   const [rules, setRules] = useState<VideoAssignRules>(initialRules);
 
   const periodRows = assignment.periodAccess ?? {};
-  const perPeriod =
-    assignment.accessMode === 'assignment' &&
-    Object.keys(periodRows).length > 0;
+  const hasRows = !!assignment.accessMode && Object.keys(periodRows).length > 0;
+  const perPeriod = hasRows && assignment.accessMode === 'assignment';
   // A Manual start has no dates to edit: the teacher starts and pauses each class.
   const manualStart =
     assignment.accessMode === 'assessment' &&
@@ -91,10 +90,12 @@ export const VideoAssignmentSettingsModal: React.FC<
     const resolved = resolveAvailability(availability, classes, undefined);
     const changed = changedWindow(baseline.resolved, resolved);
     let edit: VideoAssignmentSettingsPatch;
-    if (perPeriod) {
-      const rowEdits = resolved.periodPlan
-        ? periodAccessWindowEdits(periodRows, baseline.resolved, resolved)
-        : singleClassRowEdits(changed);
+    // A session gated by its rows never gets a shared window, which would add a second gate.
+    if (hasRows) {
+      const rowEdits =
+        perPeriod && resolved.periodPlan
+          ? periodAccessWindowEdits(periodRows, baseline.resolved, resolved)
+          : singleClassRowEdits(changed);
       edit =
         Object.keys(rowEdits).length > 0 ? { periodAccessEdits: rowEdits } : {};
     } else {
@@ -124,9 +125,13 @@ export const VideoAssignmentSettingsModal: React.FC<
     if ('closeAt' in changed) edit.closeAt = changed.closeAt ?? null;
     if (Object.keys(edit).length === 0) return {};
     const ids = new Set(classes.map((r) => r.id));
+    // With none of its classes left on this account, the edit moves every row.
     return Object.fromEntries(
       Object.entries(periodRows)
-        .filter(([, row]) => row.rosterId && ids.has(row.rosterId))
+        .filter(
+          ([, row]) =>
+            ids.size === 0 || (!!row.rosterId && ids.has(row.rosterId))
+        )
         .map(([key]) => [key, edit])
     );
   };
