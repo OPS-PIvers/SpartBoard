@@ -115,9 +115,16 @@ describe('SchoologyInboxModal', () => {
           id: 'old-quiz',
           title: 'Old copy',
           questions: [],
+          stimuli: [
+            { id: 'slot-pic', type: 'image', url: 'u1', label: 'Map' },
+            { id: 'old-q-pic', type: 'image', url: 'u2', label: 'Old' },
+          ],
+          bankSlots: [
+            { id: 's1', bankId: 'b1', count: 1, stimulusIds: ['slot-pic'] },
+          ],
           createdAt: 1,
           updatedAt: 1,
-        })
+        } as unknown as QuizData)
       ),
     });
     setup([item('testQuiz', '1', 'Unit 1 Quiz', ['Biology'])], { quizzes });
@@ -129,6 +136,7 @@ describe('SchoologyInboxModal', () => {
     const [saved, placement] = vi.mocked(quizzes.save).mock.calls[0];
     expect(saved.id).toBe('old-quiz');
     expect(saved.title).toBe('Unit 1 Quiz');
+    expect(saved.stimuli?.map((st) => st.id)).toEqual(['slot-pic']);
     expect(placement).toEqual({ folderId: null, replaces: earlier });
     expect(quizzes.createFolder).not.toHaveBeenCalled();
   });

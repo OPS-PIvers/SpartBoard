@@ -493,6 +493,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           : {}),
         ...(translations ? { translations } : {}),
         ...(canonical.language ? { language: canonical.language } : {}),
+        ...(quizMeta.sourceKey ? { sourceKey: quizMeta.sourceKey } : {}),
       };
       await setDoc(
         doc(db, 'users', userId, QUIZZES_COLLECTION, quizMeta.id),
@@ -575,6 +576,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           ? { translations: quizMeta.translations }
           : {}),
         ...(quizMeta.language ? { language: quizMeta.language } : {}),
+        ...(quizMeta.sourceKey ? { sourceKey: quizMeta.sourceKey } : {}),
         // Intentionally omit `sync` so the metadata reverts to the
         // unsynced shape.
       };

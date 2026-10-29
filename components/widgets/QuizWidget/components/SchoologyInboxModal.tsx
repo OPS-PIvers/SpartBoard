@@ -163,21 +163,25 @@ export const SchoologyInboxModal: React.FC<SchoologyInboxModalProps> = ({
     let copy: QuizData = { ...pictured, source };
     if (modeOf(row) === 'update' && row.existing) {
       const previous = await target.load(row.existing);
-      // The old order, sections and pictures belong to questions this replaces.
-      const {
-        order: _order,
-        sections: _sections,
-        stimuli: _stimuli,
-        ...kept
-      } = previous;
+      // The old order and sections belong to questions this replaces.
+      const { order: _order, sections: _sections, ...kept } = previous;
+      // Pictures the teacher put on random bank slots stay; the old questions' pictures go.
+      const slotPictures = new Set(
+        (previous.bankSlots ?? []).flatMap((slot) => slot.stimulusIds ?? [])
+      );
+      const stimuli = [
+        ...(previous.stimuli ?? []).filter((st) => slotPictures.has(st.id)),
+        ...(pictured.stimuli ?? []),
+      ];
       copy = {
         ...kept,
         title: pictured.title,
         questions: keepQuestionTags(previous.questions, pictured.questions),
-        ...(pictured.stimuli ? { stimuli: pictured.stimuli } : {}),
+        stimuli,
         source,
         updatedAt: source.importedAt,
       };
+      if (stimuli.length === 0) delete copy.stimuli;
     }
     built.current.set(item.id, copy);
     return copy;

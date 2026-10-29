@@ -522,7 +522,7 @@ const TeacherQuizWidget: React.FC<{
   const [bankCartridge, setBankCartridge] = useState<File | null>(null);
   const canImportQuizCartridge = canAccessFeature('quiz-imscc-import');
   const [quizCartridge, setQuizCartridge] = useState<File | null>(null);
-  // Quizzes a Schoology import already saved, so a retry only re-runs the folder move.
+  // Quizzes a Schoology import (.imscc or the extension) already saved, so a retry only re-runs the folder move.
   const savedCartridgeQuizzes = useRef(new Map<string, string>());
   const canImportFromSchoology = canAccessFeature('schoology-quiz-import');
   const schoologyInbox = useSchoologyInbox(user?.uid, canImportFromSchoology);
@@ -1779,8 +1779,13 @@ const TeacherQuizWidget: React.FC<{
               await saveQuiz(data, replaces.driveFileId);
               return;
             }
-            const meta = await saveQuiz(data, undefined, behavior);
-            if (folderId) await moveQuizItem(meta.id, folderId);
+            // A retry after a failed move only re-runs the move, never a second save.
+            let id = savedCartridgeQuizzes.current.get(data.id);
+            if (!id) {
+              id = (await saveQuiz(data, undefined, behavior)).id;
+              savedCartridgeQuizzes.current.set(data.id, id);
+            }
+            if (folderId) await moveQuizItem(id, folderId);
           },
         }}
         banks={{
