@@ -20,11 +20,11 @@ import {
 /** How long a Quiz widget already on the board (its code may still be loading) gets to take the request. */
 export const SCHOOLOGY_REVIEW_WAIT_MS = 6000;
 
-const CONNECT_DISMISSED_KEY = 'spart:schoologyConnectDismissed';
+const CONNECT_OFFERED_KEY = 'spart:schoologyConnectOffered';
 
 const connectDismissed = () => {
   try {
-    return localStorage.getItem(CONNECT_DISMISSED_KEY) === '1';
+    return localStorage.getItem(CONNECT_OFFERED_KEY) === '1';
   } catch {
     return false;
   }
@@ -32,7 +32,7 @@ const connectDismissed = () => {
 
 const dismissConnect = () => {
   try {
-    localStorage.setItem(CONNECT_DISMISSED_KEY, '1');
+    localStorage.setItem(CONNECT_OFFERED_KEY, '1');
   } catch {
     // Without storage the offer comes back next time.
   }
@@ -69,22 +69,30 @@ export const SchoologyReviewHost: React.FC = () => {
     void (async () => {
       if (!canConnectSchoology(await pingExtension())) return;
       if ((await extensionSignedIn()) !== false) return;
+      // Offered once per browser however the toast closes; a failed Connect offers a retry.
+      dismissConnect();
+      const connect = () => {
+        void connectExtension().then((ok) => {
+          if (ok) {
+            addToast(
+              'Connected. Reload your Schoology page to see Send to SpartBoard.',
+              'success'
+            );
+            return;
+          }
+          addToast("Couldn't connect the extension.", 'error', {
+            label: 'Try again',
+            onClick: connect,
+          });
+        });
+      };
       addToast(
         'Connect the SpartBoard extension so Send to SpartBoard shows in Schoology.',
         'info',
         {
           label: 'Connect',
-          onClick: () => {
-            void connectExtension().then((ok) =>
-              addToast(
-                ok
-                  ? 'Connected. Reload your Schoology page to see Send to SpartBoard.'
-                  : "Couldn't connect the extension.",
-                ok ? 'success' : 'error'
-              )
-            );
-          },
-          secondary: { label: 'Not now', onClick: dismissConnect },
+          onClick: connect,
+          secondary: { label: 'Not now', onClick: () => undefined },
         }
       );
     })();

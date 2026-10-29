@@ -191,10 +191,7 @@ export interface ExtensionErrorReply {
 }
 
 export type ExtensionReply =
-  | PingReply
-  | WebTourStartReply
-  | SchoologySignInReply
-  | ExtensionErrorReply;
+  PingReply | WebTourStartReply | SchoologySignInReply | ExtensionErrorReply;
 
 interface MessageSpec {
   /** Refused unless the Chrome profile is a staff account (D3). */

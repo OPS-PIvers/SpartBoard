@@ -120,10 +120,9 @@ describe('SchoologyReviewHost', () => {
   });
 
   describe('connecting the extension', () => {
-    const settle = () => act(async () => {});
+    const settle = () => act(() => Promise.resolve());
     type Action = {
       onClick: () => void;
-      secondary: { onClick: () => void };
     };
     const offer = () => addToast.mock.calls[0]?.[2] as Action | undefined;
 
@@ -141,7 +140,7 @@ describe('SchoologyReviewHost', () => {
       );
     });
 
-    it('stays quiet when signed in, without a staff extension, or after Not now', async () => {
+    it('stays quiet when signed in or without a staff extension', async () => {
       extension.canConnect = true;
       extension.signedIn = true;
       render(<SchoologyReviewHost />).unmount();
@@ -151,14 +150,30 @@ describe('SchoologyReviewHost', () => {
       render(<SchoologyReviewHost />).unmount();
       await settle();
       expect(addToast).not.toHaveBeenCalled();
+    });
+
+    it('offers only once per browser, however the toast closes', async () => {
       extension.canConnect = true;
       render(<SchoologyReviewHost />).unmount();
       await settle();
-      offer()?.secondary.onClick();
-      addToast.mockClear();
+      expect(addToast).toHaveBeenCalledOnce();
       render(<SchoologyReviewHost />);
       await settle();
-      expect(addToast).not.toHaveBeenCalled();
+      expect(addToast).toHaveBeenCalledOnce();
+    });
+
+    it('offers a retry when Google sign-in fails', async () => {
+      extension.canConnect = true;
+      extension.connect.mockResolvedValueOnce(false);
+      render(<SchoologyReviewHost />);
+      await settle();
+      offer()?.onClick();
+      await settle();
+      expect(addToast).toHaveBeenLastCalledWith(
+        "Couldn't connect the extension.",
+        'error',
+        expect.objectContaining({ label: 'Try again' })
+      );
     });
   });
 });
