@@ -96,7 +96,9 @@ function fibFrom(
     correctAnswer: joinBlanks(accepted.map((a) => a[0] ?? '')),
     imageIds: content.imageUrls,
     ...(accepted.some((a) => a.length > 1)
-      ? { blankAlternates: accepted.map((a) => a.slice(1)) }
+      ? {
+          blankAlternates: accepted.map((a) => ({ answers: a.slice(1) })),
+        }
       : {}),
     warnings,
   };
@@ -326,7 +328,13 @@ export function readAssessment(input: AssessmentInput): SchoologyRead {
       continue;
     }
     const number = questions.length + 1;
-    const pointsRaw = Number(at(component, 'metadata', 'points'));
+    const pointsField = at(component, 'metadata', 'points');
+    // Number(null) and Number('') are 0, which would make the question worth nothing.
+    const pointsRaw =
+      typeof pointsField === 'number' ||
+      (typeof pointsField === 'string' && pointsField.trim() !== '')
+        ? Number(pointsField)
+        : NaN;
     const points = Number.isFinite(pointsRaw) ? pointsRaw : undefined;
     const def = parseDefinition(version.definition);
     const reader = def?.type ? READERS[def.type] : undefined;

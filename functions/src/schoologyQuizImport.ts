@@ -222,9 +222,10 @@ function parseQuestion(v: unknown, i: number): InboxQuestion {
       : {}),
     ...(alternates !== undefined
       ? {
-          blankAlternates: alternates.map((a) => ({
-            answers: texts(a, 50, 500, what),
-          })),
+          blankAlternates: alternates.map((a) => {
+            if (!isObj(a)) throw malformed(what);
+            return { answers: texts(a.answers, 50, 500, what) };
+          }),
         }
       : {}),
   };
@@ -371,12 +372,13 @@ export interface InboxStore {
   previousSend: (uid: string, itemId: string) => Promise<string | null>;
   clearPictures: (prefix: string) => Promise<void>;
   savePicture: (path: string, picture: InboxPicture) => Promise<void>;
+  /** Writes the entry and returns the send id it replaced, read in the same transaction. */
   write: (
     uid: string,
     itemId: string,
     doc: object,
     expireAt: number
-  ) => Promise<void>;
+  ) => Promise<string | null>;
 }
 
 /** Stores one read quiz for its teacher's review screen. */
@@ -401,10 +403,11 @@ export async function receiveQuiz(
   const previous = await store.previousSend(uid, itemId);
   if (previous === null && (await store.count(uid)) >= MAX_INBOX_ITEMS)
     throw fail(429, 'Review the quizzes already waiting in SpartBoard first.');
+  let replaced: string | null;
   try {
     for (const [i, picture] of payload.pictures.entries())
       await store.savePicture(doc.images[i].path, picture);
-    await store.write(uid, itemId, doc, now + INBOX_TTL_MS);
+    replaced = await store.write(uid, itemId, doc, now + INBOX_TTL_MS);
   } catch (error) {
     await store
       .clearPictures(sendPrefix(uid, itemId, sendId))
@@ -412,9 +415,9 @@ export async function receiveQuiz(
     throw error;
   }
   // The replaced entry's pictures go only once the new entry is written.
-  if (previous)
+  if (replaced && replaced !== sendId)
     await store
-      .clearPictures(sendPrefix(uid, itemId, previous))
+      .clearPictures(sendPrefix(uid, itemId, replaced))
       .catch(() => undefined);
   return {
     id: itemId,
@@ -466,14 +469,16 @@ function defaultStore(db: Firestore): InboxStore {
         contentType: picture.mime,
         metadata: { cacheControl: 'private, max-age=0' },
       }),
-    write: async (uid, itemId, doc, expireAt) => {
-      await inboxRef(db, uid)
-        .doc(itemId)
-        .set({
+    write: (uid, itemId, doc, expireAt) =>
+      db.runTransaction(async (tx) => {
+        const ref = inboxRef(db, uid).doc(itemId);
+        const old: unknown = (await tx.get(ref)).get('sendId');
+        tx.set(ref, {
           ...doc,
           expireAt: admin.firestore.Timestamp.fromMillis(expireAt),
         });
-    },
+        return typeof old === 'string' && old ? old : null;
+      }),
   };
 }
 

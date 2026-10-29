@@ -279,7 +279,9 @@ function fillInBlank(
     correctAnswer: joinBlanks(accepted.map((a) => a[0] ?? '')),
     imageIds: prompt.imageUrls,
     ...(accepted.some((a) => a.length > 1)
-      ? { blankAlternates: accepted.map((a) => a.slice(1)) }
+      ? {
+          blankAlternates: accepted.map((a) => ({ answers: a.slice(1) })),
+        }
       : {}),
     warnings,
   };
