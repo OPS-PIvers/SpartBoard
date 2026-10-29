@@ -3904,6 +3904,7 @@ describe('index barrel — deployed export set', () => {
     'focusAddSiteV1',
     'focusEndV1',
     'focusOpenV1',
+    'focusPanelV1',
     'focusSweepSessions',
     'expireActivityWallShares',
     'finalizeIdleQuizAttempts',
