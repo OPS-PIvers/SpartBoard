@@ -4585,7 +4585,6 @@ export const QUESTION_BANK_SIZE_WARN = 200;
 /** Hard cap on fixed + pool questions in one assignment (assign is blocked past it). */
 export const QUIZ_ASSIGNMENT_POOL_CAP = 150;
 
-/** Drive JSON for a question bank: the QuizData shape plus bank-level tags. */
 /** Where an imported quiz or bank came from (docs/plans/SCHOOLOGY_QUIZ_IMPORT.md Q11). */
 export interface ImportSource {
   system: 'schoology';
@@ -4596,6 +4595,7 @@ export interface ImportSource {
   importedAt: number;
 }
 
+/** Drive JSON for a question bank: the QuizData shape plus bank-level tags. */
 export interface QuestionBankData {
   id: string;
   title: string;
