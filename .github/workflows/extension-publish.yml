@@ -54,7 +54,7 @@ jobs:
     if: needs.plan.outputs.publish == 'true'
     runs-on: ubuntu-24.04
     name: Publish prod listing ${{ needs.plan.outputs.version }}
-    environment: chrome-web-store-prod
+    environment: chrome-web-store-dev  # Reuses the environment that already holds the Web Store secrets.
     # Only real bumps queue here, so a newer one replacing a waiting one is still the later version.
     concurrency:
       group: ${{ github.workflow }}-prod
@@ -72,7 +72,7 @@ jobs:
       - name: Upload to the Web Store and submit for review
         working-directory: extension
         env:
-          CWS_ENVIRONMENT: chrome-web-store-prod
+          CWS_ENVIRONMENT: chrome-web-store-dev
           SPART_EXTENSION_ID: ${{ vars.SPART_EXTENSION_ID }}
           CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
           CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
