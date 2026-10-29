@@ -11,7 +11,6 @@ import {
 import {
   matchStandardCodes,
   normalizeStandardCode,
-  unmatchedStandardsNote,
 } from '@/utils/quizDocumentImport/keyStandards';
 import type { StandardBenchmark } from '@/types';
 
@@ -110,9 +109,6 @@ describe('key standards (E10)', () => {
     );
     expect(result.matched.map((b) => b.code)).toEqual(['9.4.2.1']);
     expect(result.unmatched).toEqual(['UCP.1', '9.4.2']);
-    expect(unmatchedStandardsNote(['UCP.1'])).toBe(
-      'Key lists standard UCP.1, which isn’t in the standards list.'
-    );
   });
 
   it('refuses a code two sets share', () => {

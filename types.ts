@@ -10595,8 +10595,6 @@ export type GlobalFeature =
   | 'per-period-access'
   /** Flag free-response answers so an anonymized copy appears on the PLC page for norming. */
   | 'plc-norming-flags'
-  /** Standard codes typed in or imported with a question text become Learning targets tags. */
-  | 'standards-from-question-text'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
   | 'quiz-results-tools'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */

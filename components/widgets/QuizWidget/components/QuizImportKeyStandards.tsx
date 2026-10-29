@@ -8,7 +8,6 @@ import { useAuth } from '@/context/useAuth';
 import { tagFromBenchmark } from '@/utils/learningTargets';
 import {
   matchStandardCodes,
-  unmatchedStandardsNote,
   type StandardMatch,
 } from '@/utils/quizDocumentImport/keyStandards';
 import type { SuggestedTargetsSlots } from './QuizImportSuggestedTargets';
@@ -21,19 +20,16 @@ const useKeyStandardSlots = (
   codes: ReadonlyMap<string, readonly string[]>
 ): SuggestedTargetsSlots => {
   const { benchmarks } = useStandardsCatalog();
-  const { canAccessFeature, subjectsTaught, effectiveGrades } = useAuth();
-  // Codes may come from the test itself, not only a key, and the profile settles shared codes.
-  const fromText = canAccessFeature('standards-from-question-text');
+  const { subjectsTaught, effectiveGrades } = useAuth();
   const matches = useMemo(() => {
-    const profile = fromText
-      ? { subjects: subjectsTaught, grades: effectiveGrades }
-      : undefined;
+    // Codes may come from the test itself, not only a key, and the profile settles shared codes.
+    const profile = { subjects: subjectsTaught, grades: effectiveGrades };
     const out = new Map<string, StandardMatch>();
     codes.forEach((list, id) =>
       out.set(id, matchStandardCodes(list, benchmarks, profile))
     );
     return out;
-  }, [codes, benchmarks, fromText, subjectsTaught, effectiveGrades]);
+  }, [codes, benchmarks, subjectsTaught, effectiveGrades]);
 
   const pendingTags = (q: QuizQuestion): QuestionTargetTag[] =>
     (matches.get(q.id)?.matched ?? [])
@@ -50,10 +46,8 @@ const useKeyStandardSlots = (
         <p className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
           <BookMarked className="h-3.5 w-3.5 text-slate-500" aria-hidden />
           {pending.length === 0
-            ? fromText
-              ? 'Standards added'
-              : 'Standards from the key added'
-            : `${rows.length} ${rows.length === 1 ? 'question lists' : 'questions list'} a standard${fromText ? '' : ' from the key'}`}
+            ? 'Standards added'
+            : `${rows.length} ${rows.length === 1 ? 'question lists' : 'questions list'} a standard`}
         </p>
         {pending.length > 0 && (
           <button
@@ -97,9 +91,7 @@ const useKeyStandardSlots = (
                   className="h-3 w-3 shrink-0 text-slate-500"
                   aria-hidden
                 />
-                <span className="font-bold">
-                  {fromText ? 'Standard:' : 'Standard from key:'}
-                </span>
+                <span className="font-bold">Standard:</span>
                 <span className="min-w-0 truncate">{b.code}</span>
               </span>
               <button
@@ -121,9 +113,7 @@ const useKeyStandardSlots = (
         })}
         {match.unmatched.length > 0 && (
           <p className="text-xs text-slate-600">
-            {fromText
-              ? `Couldn’t match ${match.unmatched.join(', ')} to one standard.`
-              : unmatchedStandardsNote(match.unmatched)}
+            {`Couldn’t match ${match.unmatched.join(', ')} to one standard.`}
           </p>
         )}
       </div>
