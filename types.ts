@@ -10591,8 +10591,6 @@ export type GlobalFeature =
   | 'quiz-calculator-stimulus'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
-  /** Flag free-response answers so an anonymized copy appears on the PLC page for norming. */
-  | 'plc-norming-flags'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
   | 'quiz-results-tools'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
