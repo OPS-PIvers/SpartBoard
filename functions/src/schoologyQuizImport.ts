@@ -25,7 +25,7 @@ export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export const MAX_IMAGE_CHARS = Math.ceil(MAX_IMAGE_BYTES / 3) * 4;
 // Under Cloud Run's 32 MiB request cap, leaving room for the quiz JSON.
 export const MAX_IMAGE_TOTAL_CHARS = 24 * 1024 * 1024;
-const MAX_DOC_CHARS = 900_000;
+const MAX_DOC_BYTES = 900_000;
 const SIGN_IN = 'Sign in to Chrome with your Orono account.';
 const KINDS = new Set(['testQuiz', 'assessment', 'questionBank']);
 const TYPES = new Set([
@@ -348,7 +348,7 @@ export function inboxDoc(
     questionCount: questions.length,
     receivedAt: now,
   };
-  if (JSON.stringify(doc).length > MAX_DOC_CHARS)
+  if (Buffer.byteLength(JSON.stringify(doc)) > MAX_DOC_BYTES)
     throw fail(413, 'This quiz is too large to send at once.');
   return doc;
 }

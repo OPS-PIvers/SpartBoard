@@ -214,6 +214,19 @@ describe('inboxDoc', () => {
       },
     ]);
   });
+
+  it('measures the size cap in bytes, not characters', async () => {
+    const q = body().quiz;
+    const wide = { ...q.questions[0], text: '漢'.repeat(6000) };
+    const payload = parseInboxPayload(
+      body({
+        quiz: { ...q, questions: Array.from({ length: 60 }, () => wide) },
+      })
+    );
+    expect(
+      await statusOf(() => inboxDoc(payload, 'uid-1', 'testQuiz_1', 5))
+    ).toBe(413);
+  });
 });
 
 describe('receiveQuiz', () => {
