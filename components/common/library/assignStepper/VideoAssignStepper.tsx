@@ -47,6 +47,7 @@ import {
 } from './SharingStep.format';
 import { tourAttr } from '@/config/tourAnchors';
 import { videoRuleStepDefs } from './videoRuleStepDefs';
+import { useQuizRuleGates } from './QuizRuleStepGates';
 import {
   VIDEO_ANSWER_ROWS_READY,
   type VideoAssignRules,
@@ -99,6 +100,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
   initialRules,
   onSubmit,
 }) => {
+  const { pageProtectionsOn } = useQuizRuleGates();
   const { t } = useTranslation();
   const visibleRosters = useMemo(
     () => rosters.filter((r) => !r.loadError),
@@ -157,10 +159,11 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
   };
   const ruleDefs = new Map(
     rules
-      ? videoRuleStepDefs({ value: rules, onChange: setRules }).map((d) => [
-          d.id,
-          d,
-        ])
+      ? videoRuleStepDefs({
+          value: rules,
+          onChange: setRules,
+          pageProtectionsOn,
+        }).map((d) => [d.id, d])
       : []
   );
   const variant = live ? 'live' : 'when';
@@ -308,6 +311,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
             onChange={setTargeting}
             onBack={() => setModsOpen(false)}
             quizMode={false}
+            pageProtectionsAvailable
           />
         ) : undefined
       }

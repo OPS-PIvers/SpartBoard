@@ -32,6 +32,7 @@ import {
   Plus,
   RotateCcw,
   Send,
+  Settings as SettingsIcon,
   Share2,
   Trash2,
   Users2,
@@ -53,8 +54,7 @@ import type { AssignClassesValue } from '@/components/common/library/assignStepp
 import { useLastVideoAssignPacing } from '@/hooks/useLastVideoAssignPacing';
 import { useLastVideoAssignSettings } from '@/hooks/useLastVideoAssignSettings';
 import {
-  videoRulesFromBehavior,
-  videoRulesFromLastUsed,
+  videoRulesPrefill,
   type VideoAssignRules,
 } from '@/components/common/library/assignStepper/VideoRuleStepValues';
 import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
@@ -276,6 +276,8 @@ export interface VideoActivityManagerProps {
   ) => void | Promise<void>;
   /** Opens the Edit classes dialog for an in-progress assignment. */
   onArchiveEditClasses?: (assignment: VideoActivityAssignment) => void;
+  /** Opens Settings (When and the rule steps) for a self-paced assignment (va-quiz-alignment). */
+  onArchiveEditSettings?: (assignment: VideoActivityAssignment) => void;
 
   // Legacy per-activity session view (one-off session history). Kept for
   // backwards compatibility with existing Widget.tsx wiring; new work should
@@ -526,6 +528,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onArchivePublishScores,
   onArchiveUnpublishScores,
   onArchiveEditClasses,
+  onArchiveEditSettings,
   rosters,
   periodAccess,
   plcs = NO_PLCS,
@@ -1306,6 +1309,22 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       });
     }
 
+    // Rules belong to the assignment once they leave the editor (va-quiz-alignment V2).
+    if (
+      onArchiveEditSettings &&
+      rulesOnAssign &&
+      !assignmentIsViewOnly &&
+      assignment.sessionMode !== 'teacher'
+    ) {
+      actions.push({
+        id: 'settings',
+        label: 'Settings',
+        icon: SettingsIcon,
+        onClick: () => onArchiveEditSettings(assignment),
+        anchor: tourAttr('video-activity.archive-settings'),
+      });
+    }
+
     // View-only shares have no responses to surface.
     if (onArchiveResults && !assignmentIsViewOnly) {
       actions.push({
@@ -1587,15 +1606,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           error={assignError}
           initialRules={
             rulesOnAssign
-              ? lastRules.lastUsed
-                ? videoRulesFromLastUsed(
-                    getVideoActivityBehavior(assignTarget),
-                    lastRules.lastUsed
-                  )
-                : videoRulesFromBehavior(
-                    getVideoActivityBehavior(assignTarget),
-                    boardPlayerSettings
-                  )
+              ? videoRulesPrefill(
+                  getVideoActivityBehavior(assignTarget),
+                  lastRules.lastUsed,
+                  boardPlayerSettings
+                )
               : undefined
           }
           onSubmit={handleStepperSubmit}

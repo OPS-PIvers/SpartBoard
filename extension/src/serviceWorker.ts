@@ -5,7 +5,23 @@ import {
   type WebTourPortPost,
 } from '@/components/tours/web/extensionProtocol';
 import { createExternalHandler } from './handler';
-import { getChromeProfile } from './profile';
+import { getChromeEmail, getChromeProfile } from './profile';
+import { FOCUS_ENFORCE_PROTOCOL } from '@/components/tours/web/extensionProtocol';
+import { createFocusClient } from './focus/focusClient';
+import { createChromeEnforcer } from './focus/chromeEnforce';
+import { FOCUS_FULLSCREEN_MESSAGE } from './focus/pageNotice';
+import {
+  parseFocusPanelMessage,
+  type FocusPanelReply,
+} from './focus/panelMessages';
+import {
+  chromeFocusDeps,
+  chromePushSubscription,
+  ensureFocusCheckAlarm,
+  FOCUS_CHECK_ALARM,
+  FOCUS_TICK_ALARM,
+  type PushScope,
+} from './focus/chromeFocus';
 import {
   INTAKE_PORT,
   RECORDER_PORT,
@@ -50,6 +66,9 @@ declare const __SPART_ORIGINS__: readonly string[];
 const origins = __SPART_ORIGINS__;
 // This listing's SpartBoard functions (WEB_TOURS_HELP_PANEL.md H7).
 declare const __SPART_FUNCTIONS__: string;
+
+// This listing's focus-push public key; empty until FS5, so student devices poll only.
+declare const __SPART_VAPID_KEY__: string;
 
 const api: ApiDeps = {
   base: __SPART_FUNCTIONS__,
@@ -119,10 +138,42 @@ const tourList = createTourListWorker({
       ? chrome.storage.local.set({ [TOUR_LIST_KEY]: list })
       : chrome.storage.local.remove(TOUR_LIST_KEY),
   tabs: () => chrome.tabs.query({}),
-  setBadge: (tabId, text) => chrome.action.setBadgeText({ tabId, text }),
+  // No text clears the tab's own badge back to the global one, which a student's focus countdown uses.
+  setBadge: (tabId, text) =>
+    chrome.action.setBadgeText(text ? { tabId, text } : { tabId }),
   now: () => Date.now(),
 });
 
+// Focus sessions (CHROME_EXTENSION.md F3, F5): student profiles pull their session; staff never enforce.
+const scope = self as unknown as PushScope & {
+  addEventListener(
+    type: 'push' | 'pushsubscriptionchange',
+    listener: (event: { waitUntil(p: Promise<unknown>): void }) => void
+  ): void;
+};
+// Focus calls run one at a time, so a stalled connection must not hold the queue.
+const focusApi: ApiDeps = {
+  ...api,
+  fetch: (input, init) =>
+    fetch(input, { ...init, signal: AbortSignal.timeout(15_000) }),
+};
+// Redirect and Lock (F2, F10): blocked navigations, parked tabs, Lock's rules and fullscreen.
+const enforcer = createChromeEnforcer({
+  origins,
+  load: chromeFocusDeps.load,
+  now: chromeFocusDeps.now,
+});
+const focus = createFocusClient({
+  ...chromeFocusDeps,
+  enforce: enforcer.sync,
+  activeFullscreen: enforcer.activeFullscreen,
+  origins,
+  protocol: FOCUS_ENFORCE_PROTOCOL,
+  email: getChromeEmail,
+  status: (body) => callSpartBoard(focusApi, 'focusStatusV1', body),
+  report: (body) => callSpartBoard(focusApi, 'focusReportV1', body),
+  pushSubscription: () => chromePushSubscription(scope, __SPART_VAPID_KEY__),
+});
 const handle = createExternalHandler({
   origins,
   version: chrome.runtime.getManifest().version,
@@ -209,6 +260,16 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
   ) {
     return false;
   }
+  if (
+    typeof message === 'object' &&
+    message !== null &&
+    (message as { type?: unknown }).type === FOCUS_FULLSCREEN_MESSAGE
+  ) {
+    const windowId = sender.tab?.windowId;
+    if (windowId !== undefined)
+      void enforcer.returnToFullscreen(windowId).then(() => focus.observe());
+    return false;
+  }
   if (isFrameReport(message)) {
     void playback.frameReport(tabId, sender.frameId, message);
   } else if (isOverlayActionMessage(message)) {
@@ -235,6 +296,8 @@ chrome.webNavigation.onReferenceFragmentUpdated.addListener(
 chrome.alarms.onAlarm.addListener(({ name }) => {
   if (name === PLAYBACK_ALARM) void playback.sweep();
   if (name === TOUR_LIST_ALARM) void tourList.refresh();
+  if (name === FOCUS_CHECK_ALARM) void focus.check();
+  if (name === FOCUS_TICK_ALARM) void focus.tick();
 });
 
 // The Tours tab (H5): only our own side panel, an extension page rather than a tab, may ask.
@@ -260,6 +323,25 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
   return true;
 });
 
+// The Focus tab (F12): same senders as the Tours tab; staff profiles only, the server checks the rest.
+chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
+  if (sender.id !== chrome.runtime.id || sender.tab) return false;
+  const msg = parseFocusPanelMessage(message);
+  if (!msg) return false;
+  const answer = async (): Promise<FocusPanelReply> =>
+    (await getChromeProfile()) === 'staff'
+      ? // Only a button press may show Chrome's sign-in prompt; opening the panel lists quietly.
+        callSpartBoard(
+          api,
+          'focusPanelV1',
+          msg.body,
+          msg.body.action !== 'list'
+        )
+      : { ok: false, why: 'signed-out' };
+  answer().then(reply, () => reply({ ok: false, why: 'offline' }));
+  return true;
+});
+
 // H6: the badge counts this site's tours from the cached list, refreshed every 6 hours and when the panel opens.
 void chrome.action.setBadgeBackgroundColor({ color: '#2d3f89' });
 void chrome.alarms.get(TOUR_LIST_ALARM).then((alarm) => {
@@ -269,12 +351,77 @@ void chrome.alarms.get(TOUR_LIST_ALARM).then((alarm) => {
     periodInMinutes: TOUR_LIST_REFRESH_MINUTES,
   });
 });
-chrome.runtime.onStartup.addListener(() => void tourList.refresh());
-chrome.runtime.onInstalled.addListener(() => void tourList.refresh());
+chrome.runtime.onStartup.addListener(() => {
+  void tourList.refresh();
+  void focus.check();
+});
+chrome.runtime.onInstalled.addListener(() => {
+  void tourList.refresh();
+  void focus.check();
+});
 chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
   if (change.url !== undefined || change.status === 'complete')
     void tourList.badge(tabId, tab.url);
+  if (change.url !== undefined && tab.active) void focus.observe();
+  // Catches what the navigation events can't, such as a prerendered page being shown.
+  if (change.url !== undefined) blockedNavigation(tabId, change.url, true);
+  if (change.status === 'complete') void enforcer.tabShown(tabId);
 });
 chrome.tabs.onRemoved.addListener((tabId) => {
   void playback.tabClosed(tabId);
+  enforcer.tabClosed(tabId);
+});
+
+// Focus sessions: the 5-minute check, a push wake-up, sign-in and tab changes.
+void ensureFocusCheckAlarm();
+// A push carries no data; it only means "check now" (F5).
+scope.addEventListener('push', (event) => event.waitUntil(focus.check()));
+scope.addEventListener('pushsubscriptionchange', (event) =>
+  event.waitUntil(focus.check())
+);
+chrome.identity.onSignInChanged.addListener(() => void focus.check());
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  void focus.observe();
+  void enforcer.tabShown(tabId);
+});
+chrome.windows.onFocusChanged.addListener((windowId) => {
+  if (windowId === chrome.windows.WINDOW_ID_NONE) return;
+  void focus.observe();
+  void enforcer.windowChanged();
+});
+// Leaving or entering fullscreen changes the window's bounds (Lock's cover, F2).
+chrome.windows.onBoundsChanged.addListener(() => {
+  void focus.observe();
+  void enforcer.windowChanged();
+});
+
+// Redirect and Lock: a blocked top-level navigation is sent back and counts as a try (F2, F4).
+function blockedNavigation(
+  tabId: number,
+  url: string,
+  committed: boolean,
+  currentUrl?: string
+): void {
+  enforcer.navigated(tabId, url, currentUrl, committed).then(
+    (blocked) => {
+      if (blocked) void focus.blocked();
+    },
+    () => undefined
+  );
+}
+const isShownTopFrame = (d: { frameId: number; documentLifecycle?: unknown }) =>
+  d.frameId === 0 && String(d.documentLifecycle) !== 'prerender';
+chrome.webNavigation.onBeforeNavigate.addListener((d) => {
+  if (!isShownTopFrame(d)) return;
+  // The tab still shows the page it is leaving, which is where Redirect sends it back.
+  void chrome.tabs.get(d.tabId).then(
+    (tab) => blockedNavigation(d.tabId, d.url, false, tab.url),
+    () => blockedNavigation(d.tabId, d.url, false)
+  );
+});
+chrome.webNavigation.onCommitted.addListener((d) => {
+  if (isShownTopFrame(d)) blockedNavigation(d.tabId, d.url, true);
+});
+chrome.webNavigation.onHistoryStateUpdated.addListener((d) => {
+  if (isShownTopFrame(d)) blockedNavigation(d.tabId, d.url, true);
 });

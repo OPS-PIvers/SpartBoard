@@ -1,4 +1,4 @@
-// The side panel's tabs: Tours for every staff profile, Record for admins (docs/plans/shipped/WEB_TOURS_HELP_PANEL.md H5).
+// The side panel's tabs: Tours for every staff profile, Focus where SpartBoard allows it (CHROME_EXTENSION.md F12), Record for admins (H5).
 import React, { useCallback, useEffect, useState } from 'react';
 import { focusRing } from '@/components/common/lightChrome';
 import type { TourListReply } from '../tourList';
@@ -6,8 +6,18 @@ import { isDefiniteNonAdmin } from './recordTab';
 import { isRecorderInternal, type RecorderStatus } from '../recorder/messages';
 import { SidePanel } from './SidePanel';
 import { ToursTab } from './ToursTab';
+import { FocusTab, sendFocus } from './FocusTab';
+import {
+  parseFocusPanelList,
+  type FocusPanelReply,
+} from '../focus/panelMessages';
+import type { FocusPanelListReply } from '@/utils/focus/contract';
 
-type PanelTab = 'tours' | 'record';
+type PanelTab = 'tours' | 'focus' | 'record';
+
+/** The Focus tab's list; `hidden` when SpartBoard says the tab isn't for this account. */
+type FocusState =
+  { kind: 'loading' | 'hidden' } | { kind: 'ready'; list: FocusPanelListReply };
 
 const send = <T,>(msg: object): Promise<T> => chrome.runtime.sendMessage(msg);
 
@@ -19,13 +29,41 @@ export const PanelShell: React.FC = () => {
   const [reply, setReply] = useState<TourListReply | null>(null);
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<PanelTab>('tours');
+  const [focus, setFocus] = useState<FocusState>({ kind: 'loading' });
 
-  const loadList = useCallback((refresh: boolean) => {
-    void send<TourListReply>({ type: 'tours/list', refresh }).then(
-      (r) => setReply(r ?? { ok: false, why: 'offline' }),
-      () => setReply({ ok: false, why: 'offline' })
-    );
+  // A refusal hides the tab; a network or sign-in blip keeps what was showing.
+  const applyFocus = useCallback((reply: FocusPanelReply) => {
+    const list = reply.ok ? parseFocusPanelList(reply.value) : null;
+    setFocus((prev) => {
+      if (list) return { kind: 'ready', list };
+      if (
+        !reply.ok &&
+        (reply.why === 'offline' || reply.why === 'signed-out') &&
+        prev.kind === 'ready'
+      )
+        return prev;
+      return { kind: 'hidden' };
+    });
   }, []);
+  const loadFocus = useCallback(
+    () => sendFocus({ action: 'list' }).then(applyFocus),
+    [applyFocus]
+  );
+
+  const loadList = useCallback(
+    (refresh: boolean) => {
+      void send<TourListReply>({ type: 'tours/list', refresh }).then(
+        (r) => {
+          setReply(r ?? { ok: false, why: 'offline' });
+          // The Tours refresh may have just signed the teacher in to Chrome; Focus listed quietly before that.
+          if (refresh && r?.ok)
+            void sendFocus({ action: 'list' }).then(applyFocus);
+        },
+        () => setReply({ ok: false, why: 'offline' })
+      );
+    },
+    [applyFocus]
+  );
 
   useEffect(() => {
     // The cached list shows at once; opening the panel also refreshes it (H6).
@@ -43,16 +81,21 @@ export const PanelShell: React.FC = () => {
         setTab('record');
       });
     check();
+    void sendFocus({ action: 'list' }).then(applyFocus);
     const onMessage = (msg: unknown, sender: chrome.runtime.MessageSender) => {
       if (sender.id !== chrome.runtime.id || sender.tab) return;
       if (isRecorderInternal(msg, 'rec/changed')) check();
     };
     chrome.runtime.onMessage.addListener(onMessage);
     return () => chrome.runtime.onMessage.removeListener(onMessage);
-  }, [loadList]);
+  }, [loadList, applyFocus]);
 
   const showRecord = busy || !isDefiniteNonAdmin(reply);
-  const current: PanelTab = showRecord ? tab : 'tours';
+  const showFocus = focus.kind === 'ready';
+  const current: PanelTab =
+    (tab === 'record' && showRecord) || (tab === 'focus' && showFocus)
+      ? tab
+      : 'tours';
 
   const tabButton = (id: PanelTab, label: string) => (
     <button
@@ -72,14 +115,15 @@ export const PanelShell: React.FC = () => {
 
   return (
     <main className="flex min-h-screen flex-col bg-slate-50 font-sans text-sm text-slate-900 antialiased">
-      {showRecord && (
+      {(showRecord || showFocus) && (
         <div
           role="tablist"
           aria-label="Side panel"
           className="mx-4 mt-4 flex gap-1 rounded-lg bg-slate-200/70 p-1"
         >
           {tabButton('tours', 'Tours')}
-          {tabButton('record', 'Record')}
+          {showFocus && tabButton('focus', 'Focus')}
+          {showRecord && tabButton('record', 'Record')}
         </div>
       )}
       {current === 'tours' && (
@@ -92,6 +136,14 @@ export const PanelShell: React.FC = () => {
               loadList(true);
             }}
           />
+        </div>
+      )}
+      {current === 'focus' && (
+        <div className="flex flex-1 flex-col gap-3 p-4">
+          <h1 className="text-base font-semibold">Focus</h1>
+          {focus.kind === 'ready' && (
+            <FocusTab list={focus.list} onReload={loadFocus} />
+          )}
         </div>
       )}
       {/* Kept mounted once shown, since closing its port stops a recording. */}

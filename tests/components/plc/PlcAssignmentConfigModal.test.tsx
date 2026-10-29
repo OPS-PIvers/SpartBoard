@@ -31,7 +31,7 @@ import {
   act,
   waitFor,
 } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { PlcAssignmentConfigModal } from '@/components/plc/assignments/PlcAssignmentConfigModal';
 import type { Plc, ClassRoster } from '@/types';
@@ -92,8 +92,18 @@ vi.mock('@/context/useAuth', () => ({
     // preserve the "skip sheet creation" behavior these tests assert.
     ensureGoogleScope: vi.fn().mockResolvedValue(null),
     getAssignmentMode: () => 'submissions',
-    canAccessFeature: () => false,
+    canAccessFeature: (id: string) => id === 'va-quiz-alignment' && vaFlag,
   })),
+}));
+
+let vaFlag = false;
+const mockSaveLastVa = vi.fn();
+vi.mock('@/hooks/useLastVideoAssignSettings', () => ({
+  useLastVideoAssignSettings: () => ({
+    lastUsed: null,
+    loaded: true,
+    save: mockSaveLastVa,
+  }),
 }));
 
 vi.mock('@/context/useDashboard', () => ({
@@ -979,5 +989,62 @@ describe('PlcAssignmentConfigModal (video-activity kind — Task 10 VA parity, v
     expect(
       screen.queryByTestId('plc-config-va-behavior-summary')
     ).not.toBeInTheDocument();
+  });
+});
+
+describe('PlcAssignmentConfigModal (video-activity kind — rule steps, va-quiz-alignment)', () => {
+  beforeEach(() => {
+    vaFlag = true;
+    mockCreateVaAssignment.mockClear();
+    mockCreateVaAssignment.mockResolvedValue({ id: 'va-assign-1' });
+    mockSaveLastVa.mockClear();
+    vi.mocked(useDashboard).mockReturnValue({
+      addToast: mockAddToast,
+      rosters: [] as ClassRoster[],
+      setPendingAssignmentEdit: mockSetPendingAssignmentEdit,
+    } as unknown as ReturnType<typeof useDashboard>);
+  });
+  afterEach(() => {
+    vaFlag = false;
+  });
+
+  it('shows the rule bodies instead of the read-only summary and stamps the session', async () => {
+    render(
+      <PlcAssignmentConfigModal
+        plc={fakePlc}
+        kind="video-activity"
+        activityRef={fakeActivityRef}
+        vaBehavior={fakeVaBehavior}
+        isOpen
+        onClose={vi.fn()}
+      />
+    );
+    expect(
+      screen.queryByTestId('plc-config-va-behavior-summary')
+    ).not.toBeInTheDocument();
+    for (const name of ['Attempts and order', 'Video', 'Integrity'])
+      expect(screen.getByRole('region', { name })).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('switch', { name: 'Allow skipping ahead' })
+    );
+    act(() => {
+      fireEvent.click(
+        screen.getByRole('button', { name: /create assignment/i })
+      );
+    });
+    await waitFor(() =>
+      expect(mockCreateVaAssignment).toHaveBeenCalledTimes(1)
+    );
+    const [, settings] = mockCreateVaAssignment.mock.calls[0] as [
+      unknown,
+      {
+        sessionOptions: Record<string, unknown>;
+        sessionSettings: Record<string, unknown>;
+      },
+    ];
+    expect(settings.sessionOptions.attemptLimit).toBe(2);
+    expect(settings.sessionOptions.answerRulesSet).toBe(true);
+    expect(settings.sessionSettings.allowSkipping).toBe(false);
+    expect(mockSaveLastVa).toHaveBeenCalledOnce();
   });
 });

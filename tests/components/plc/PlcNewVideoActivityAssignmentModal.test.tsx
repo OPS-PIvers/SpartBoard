@@ -19,7 +19,7 @@ import {
   act,
   waitFor,
 } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { PlcNewVideoActivityAssignmentModal } from '@/components/plc/PlcNewVideoActivityAssignmentModal';
 import type { Plc, ClassRoster, VideoActivityMetadata } from '@/types';
@@ -106,7 +106,19 @@ vi.mock('@/context/useAuth', () => ({
     // Path B: sheet auto-create now gates on ensureGoogleScope. Resolve null to
     // preserve the "no token → skip sheet creation" behavior these tests assert.
     ensureGoogleScope: vi.fn().mockResolvedValue(null),
+    canAccessFeature: (id: string) => id === 'va-quiz-alignment' && vaFlag,
   })),
+}));
+
+let vaFlag = false;
+let mockLastVa: unknown = null;
+const mockSaveLastVa = vi.fn();
+vi.mock('@/hooks/useLastVideoAssignSettings', () => ({
+  useLastVideoAssignSettings: () => ({
+    lastUsed: mockLastVa,
+    loaded: true,
+    save: mockSaveLastVa,
+  }),
 }));
 
 vi.mock('@/context/useDashboard', () => ({
@@ -327,5 +339,88 @@ describe('PlcNewVideoActivityAssignmentModal — assign stepper', () => {
     await waitFor(() => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe('PlcNewVideoActivityAssignmentModal — rule steps (va-quiz-alignment)', () => {
+  beforeEach(() => {
+    vaFlag = true;
+    mockLastVa = null;
+    mockSaveLastVa.mockClear();
+    mockCreateAssignment.mockReset();
+    mockCreateAssignment.mockResolvedValue({ id: 'asg-1' });
+    mockLoadActivityData.mockResolvedValue({
+      id: 'va-1',
+      title: 'Cell Division',
+      youtubeUrl: 'https://youtube.com/watch?v=abc',
+      questions: [],
+    });
+  });
+  afterEach(() => {
+    vaFlag = false;
+  });
+
+  it('adds the rule steps before Sharing', async () => {
+    await renderAndPickActivity();
+    expect(
+      screen.getByRole('button', { name: /^3Attempts and order/ })
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^4Video/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^5Integrity/ })).toBeTruthy();
+    expect(
+      screen.getByRole('button', { name: /^6What students see/ })
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^7Sharing/ })).toBeTruthy();
+  });
+
+  it("prefills from the activity's behavior and stamps the session rules", async () => {
+    await renderAndPickActivity();
+    fireEvent.click(screen.getByRole('button', { name: /^Assign$/ }));
+    await waitFor(() => expect(mockCreateAssignment).toHaveBeenCalledTimes(1));
+    const [, settings] = mockCreateAssignment.mock.calls[0] as [
+      unknown,
+      {
+        sessionOptions: Record<string, unknown>;
+        sessionSettings: Record<string, unknown>;
+      },
+    ];
+    expect(settings.sessionOptions.attemptLimit).toBe(2);
+    expect(settings.sessionOptions.answerRulesSet).toBe(true);
+    // Saved answer rows never took effect, so they start at today's behavior.
+    expect(settings.sessionOptions.showCorrectAnswerToStudent).toBe(true);
+    expect(settings.sessionSettings).toEqual({
+      autoPlay: false,
+      requireCorrectAnswer: true,
+      allowSkipping: false,
+    });
+    expect(mockSaveLastVa).toHaveBeenCalledOnce();
+  });
+
+  it('prefers the last-used rules', async () => {
+    mockLastVa = {
+      behavior: {
+        sessionMode: 'student',
+        sessionOptions: { tabWarningsEnabled: false },
+        attemptLimit: 3,
+      },
+      player: {
+        autoPlay: true,
+        requireCorrectAnswer: false,
+        allowSkipping: true,
+      },
+    };
+    await renderAndPickActivity();
+    fireEvent.click(screen.getByRole('button', { name: /^Assign$/ }));
+    await waitFor(() => expect(mockCreateAssignment).toHaveBeenCalledTimes(1));
+    const [, settings] = mockCreateAssignment.mock.calls[0] as [
+      unknown,
+      {
+        sessionOptions: Record<string, unknown>;
+        sessionSettings: Record<string, unknown>;
+      },
+    ];
+    expect(settings.sessionOptions.attemptLimit).toBe(3);
+    expect(settings.sessionOptions.tabWarningsEnabled).toBe(false);
+    expect(settings.sessionSettings.allowSkipping).toBe(true);
   });
 });

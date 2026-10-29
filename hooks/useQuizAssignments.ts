@@ -53,6 +53,11 @@ import {
 } from '@/utils/quizFibAnswers';
 import { fibTranslationIssue } from '@/utils/quizFibTranslation';
 import { tabAwaySessionFields } from '@/utils/tabAwayLimit';
+import {
+  PAGE_PROTECTIONS_FEATURE,
+  isFocusLevel,
+  pageProtectionSessionFields,
+} from '@/utils/pageProtections';
 import { readAllDocsPaged } from '@/utils/firestorePaging';
 import {
   addJoinCodePointerToBatch,
@@ -735,6 +740,7 @@ function sessionOptionsToSessionPatch(
     timeLimitOn: boolean;
     scoreOnSubmitOn: boolean;
     stimulusQuotesOn: boolean;
+    pageProtectionsOn: boolean;
   }
 ): Record<string, unknown> {
   const patch: Record<string, unknown> = {};
@@ -747,6 +753,14 @@ function sessionOptionsToSessionPatch(
   if (o.tabAwayAutoSubmit !== undefined)
     patch.tabAwayAutoSubmit = o.tabAwayAutoSubmit;
   if (o.blockCopyPaste !== undefined) patch.blockCopyPaste = o.blockCopyPaste;
+  if (gates.pageProtectionsOn) {
+    if (o.blockCopyPaste !== undefined) patch.blockPrint = o.blockCopyPaste;
+    // Turning "Require fullscreen" off sends the key as undefined.
+    if ('focusLevel' in o)
+      patch.focusLevel = isFocusLevel(o.focusLevel)
+        ? o.focusLevel
+        : deleteField();
+  }
   if (o.allowStimulusQuotes !== undefined && gates.stimulusQuotesOn)
     patch.allowStimulusQuotes = o.allowStimulusQuotes;
   if (o.showResultToStudent !== undefined)
@@ -1272,6 +1286,8 @@ export const useQuizAssignments = (
     authContext?.canAccessFeature?.(QUIZ_TIME_LIMIT_FEATURE) === true;
   const stimulusQuotesOn =
     authContext?.canAccessFeature?.('quiz-stimulus-quotes') === true;
+  const pageProtectionsOn =
+    authContext?.canAccessFeature?.(PAGE_PROTECTIONS_FEATURE) === true;
   // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
   const allowAnonymousJoin =
     authContext?.canAccessFeature?.('anonymous-join') !== false;
@@ -1651,6 +1667,7 @@ export const useQuizAssignments = (
           : {}),
         ...tabAwaySessionFields(tabAwayTimerOn, opts),
         blockCopyPaste: opts.blockCopyPaste ?? false,
+        ...pageProtectionSessionFields(pageProtectionsOn, opts),
         ...(stimulusQuotesOn
           ? { allowStimulusQuotes: opts.allowStimulusQuotes ?? true }
           : {}),
@@ -1879,6 +1896,7 @@ export const useQuizAssignments = (
       scoreOnSubmitOn,
       timeLimitOn,
       stimulusQuotesOn,
+      pageProtectionsOn,
     ]
   );
 
@@ -2184,6 +2202,7 @@ export const useQuizAssignments = (
             timeLimitOn,
             scoreOnSubmitOn,
             stimulusQuotesOn,
+            pageProtectionsOn,
           })
         );
       }
@@ -2241,6 +2260,7 @@ export const useQuizAssignments = (
       timeLimitOn,
       scoreOnSubmitOn,
       stimulusQuotesOn,
+      pageProtectionsOn,
       setAssignmentTargets,
     ]
   );
@@ -3149,6 +3169,7 @@ export const useQuizAssignments = (
                 timeLimitOn,
                 scoreOnSubmitOn,
                 stimulusQuotesOn,
+                pageProtectionsOn,
               }),
               // A mode flip restarts the cursor the way session-create would.
               ...(modeChanged
@@ -3266,6 +3287,7 @@ export const useQuizAssignments = (
       scoreOnSubmitOn,
       timeLimitOn,
       stimulusQuotesOn,
+      pageProtectionsOn,
     ]
   );
 

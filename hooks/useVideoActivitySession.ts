@@ -46,6 +46,10 @@ import {
 } from '@/utils/sessionClassFilter';
 import { dropPinLoginFromOtherSession } from '@/utils/pinLoginScope';
 import { tabAwaySessionFields } from '@/utils/tabAwayLimit';
+import {
+  PAGE_PROTECTIONS_FEATURE,
+  withPageProtectionGate,
+} from '@/utils/pageProtections';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
   ANONYMOUS_JOIN_BLOCKED_MESSAGE,
@@ -241,6 +245,8 @@ export const useVideoActivitySessionTeacher =
     const authContext = useContext(AuthContext);
     const tabAwayTimerOn =
       authContext?.canAccessFeature?.('tab-away-timer') === true;
+    const pageProtectionsOn =
+      authContext?.canAccessFeature?.(PAGE_PROTECTIONS_FEATURE) === true;
     // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
     const allowAnonymousJoin =
       authContext?.canAccessFeature?.('anonymous-join') !== false;
@@ -333,7 +339,10 @@ export const useVideoActivitySessionTeacher =
           ...(effectiveOptions || tabAwayTimerOn
             ? {
                 sessionOptions: {
-                  ...effectiveOptions,
+                  ...withPageProtectionGate(
+                    pageProtectionsOn,
+                    effectiveOptions ?? {}
+                  ),
                   ...tabAwaySessionFields(
                     tabAwayTimerOn,
                     effectiveOptions ?? {}
@@ -371,7 +380,7 @@ export const useVideoActivitySessionTeacher =
 
         return sessionId;
       },
-      [tabAwayTimerOn, allowAnonymousJoin]
+      [tabAwayTimerOn, pageProtectionsOn, allowAnonymousJoin]
     );
 
     const subscribeToActivitySessions = useCallback(

@@ -165,6 +165,13 @@ export const SURFACES: TourSurfaceMap = {
     widgetType: 'first-5',
     needs: ['widget-on-stage'],
   },
+  'widgets.focus.face': {
+    label: 'Focus widget',
+    kind: 'widget',
+    files: ['components/widgets/Focus/'],
+    widgetType: 'focus',
+    needs: ['widget-on-stage'],
+  },
   'widgets.graphic-organizer.face': {
     label: 'Graphic Organizer widget',
     kind: 'widget',

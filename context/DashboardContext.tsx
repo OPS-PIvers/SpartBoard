@@ -8154,6 +8154,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       groupBuildMode,
       zoom,
       isActiveBoardReadOnly,
+      rosters,
     })
   );
   canvasStore.setStateFromRender({
@@ -8163,6 +8164,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     groupBuildMode,
     zoom,
     isActiveBoardReadOnly,
+    rosters,
   });
   // Post-commit notification (sync-with-external-store effect). Deliberately
   // NO dependency array: it must run after EVERY provider commit so no

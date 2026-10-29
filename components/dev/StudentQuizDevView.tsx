@@ -14,6 +14,7 @@ import {
 } from '@/hooks/useQuizResponseAttempts';
 import type { QuizResponse, QuizSession } from '@/types';
 import { QuizStopScreen } from '@/components/quiz/QuizStopScreen';
+import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
 import {
   makeCalculatorQuizSession,
   makeStopQuizSession,
@@ -161,6 +162,15 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
   );
   return (
     <div className="h-full overflow-y-auto">
+      {state === 'sq-fullscreen' && (
+        <PageProtectionGuards
+          protections={{
+            blockClipboard: true,
+            blockPrint: true,
+            fullscreen: true,
+          }}
+        />
+      )}
       <ActiveQuiz
         key={state}
         session={session}

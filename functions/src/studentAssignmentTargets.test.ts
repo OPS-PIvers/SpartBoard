@@ -1933,6 +1933,18 @@ describe('sanitizeOverride', () => {
   });
 });
 
+describe('sanitizeOverride blockCopyPaste', () => {
+  it('keeps an explicit block or allow and drops anything else', () => {
+    expect(sanitizeOverride({ blockCopyPaste: true })).toEqual({
+      blockCopyPaste: true,
+    });
+    expect(sanitizeOverride({ blockCopyPaste: false })).toEqual({
+      blockCopyPaste: false,
+    });
+    expect(sanitizeOverride({ blockCopyPaste: 'yes' })).toBeNull();
+  });
+});
+
 describe('sanitizeOverride language', () => {
   it('keeps a well-formed BCP-47 tag and trims it', () => {
     expect(sanitizeOverride({ language: ' es ' })).toEqual({ language: 'es' });

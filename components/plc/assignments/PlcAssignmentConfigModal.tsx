@@ -50,7 +50,17 @@ import { dueInputsToEpoch, DEFAULT_DUE_TIME } from '@/utils/localDate';
 import { getQuizAssignPrefill } from '@/utils/quizBehavior';
 import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
 import { QuizAssignSettingsInline } from '@/components/common/library/QuizAssignSettingsInline';
-import { formatVideoActivityBehaviorSummary } from '@/utils/videoActivityBehavior';
+import {
+  DEFAULT_VA_BEHAVIOR,
+  formatVideoActivityBehaviorSummary,
+} from '@/utils/videoActivityBehavior';
+import { useLastVideoAssignSettings } from '@/hooks/useLastVideoAssignSettings';
+import { InlineVideoRuleBodies } from '@/components/common/library/assignStepper/InlineAssignStepBodies';
+import {
+  videoRulesPrefill,
+  videoRulesSessionFields,
+  type VideoAssignRules,
+} from '@/components/common/library/assignStepper/VideoRuleStepValues';
 import type {
   Plc,
   PlcLinkage,
@@ -140,7 +150,7 @@ export const PlcAssignmentConfigModal: React.FC<
   onClose,
 }) => {
   const { t } = useTranslation();
-  const { user, getAssignmentMode } = useAuth();
+  const { user, getAssignmentMode, canAccessFeature } = useAuth();
   // D12: settings come from the teacher's last-used, editable inline.
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
     user?.uid,
@@ -152,6 +162,21 @@ export const PlcAssignmentConfigModal: React.FC<
     () => editedAssignSettings ?? getQuizAssignPrefill(lastAssignSettings),
     [editedAssignSettings, lastAssignSettings]
   );
+  // va-quiz-alignment: VA rules are edited here, prefilled from last-used else the activity (V3).
+  const vaRulesOn =
+    kind === 'video-activity' && canAccessFeature('va-quiz-alignment');
+  const lastVaRules = useLastVideoAssignSettings(user?.uid, vaRulesOn);
+  const [editedVaRules, setEditedVaRules] = useState<VideoAssignRules | null>(
+    null
+  );
+  const vaRules: VideoAssignRules | null = vaRulesOn
+    ? (editedVaRules ??
+      videoRulesPrefill(
+        vaBehavior ?? DEFAULT_VA_BEHAVIOR,
+        lastVaRules.lastUsed,
+        DEFAULT_VA_SESSION_SETTINGS
+      ))
+    : null;
   const { addToast, rosters } = useDashboard();
   const { createAssignment: createQuizAssignment } = useQuizAssignments(
     user?.uid
@@ -312,7 +337,15 @@ export const PlcAssignmentConfigModal: React.FC<
         // from it (behavior lives on the activity). Otherwise fall back to the
         // legacy form-driven controls (vaOptions) for backward compatibility.
         let effectiveVaSessionOptions: VideoActivitySessionOptions;
-        if (vaBehavior) {
+        const fromRules = vaRules ? videoRulesSessionFields(vaRules) : null;
+        if (fromRules) {
+          effectiveVaSessionOptions = {
+            ...fromRules.sessionOptions,
+            ...(parsedDueAt != null
+              ? { dueAt: parsedDueAt, dueAtHasTime: true }
+              : {}),
+          };
+        } else if (vaBehavior) {
           effectiveVaSessionOptions = {
             ...vaBehavior.sessionOptions,
             attemptLimit: vaBehavior.attemptLimit,
@@ -332,7 +365,8 @@ export const PlcAssignmentConfigModal: React.FC<
         }
 
         const vaSettings: VideoActivityAssignmentSettings = {
-          sessionSettings: DEFAULT_VA_SESSION_SETTINGS,
+          sessionSettings:
+            fromRules?.sessionSettings ?? DEFAULT_VA_SESSION_SETTINGS,
           sessionOptions: effectiveVaSessionOptions,
           teacherName: teacherName.trim() || undefined,
           periodNames: derived.periodNames,
@@ -349,6 +383,7 @@ export const PlcAssignmentConfigModal: React.FC<
           derived.rosterIds,
           assignmentMode
         );
+        if (vaRules) lastVaRules.save(vaRules);
 
         // B5: VA template write via the tested
         // writePlcVideoActivityAssignmentTemplate helper. It writes to the
@@ -408,6 +443,8 @@ export const PlcAssignmentConfigModal: React.FC<
     activityRef,
     quizBehavior,
     vaBehavior,
+    vaRules,
+    lastVaRules,
     splitAssignSettings,
     vaOptions,
     teacherName,
@@ -505,6 +542,12 @@ export const PlcAssignmentConfigModal: React.FC<
               value={splitAssignSettings}
               onChange={setEditedAssignSettings}
             />
+          ) : vaRules ? (
+            <InlineVideoRuleBodies
+              value={vaRules}
+              onChange={setEditedVaRules}
+              disabled={submitting}
+            />
           ) : vaBehavior ? (
             /* VA slimmed path (Task 10 parity): read-only behavior summary */
             <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">
@@ -584,7 +627,7 @@ export const PlcAssignmentConfigModal: React.FC<
             {...tourAttr('plc-assign.submit')}
             type="button"
             onClick={handleSubmit}
-            disabled={submitting}
+            disabled={submitting || (vaRulesOn && !lastVaRules.loaded)}
             className="px-4 py-2 rounded-lg bg-brand-blue-primary text-white text-sm font-semibold hover:bg-brand-blue-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting

@@ -10,6 +10,8 @@ import {
   patchVideoBehaviorOptions,
   patchVideoPlayer,
   videoRulesFromBehavior,
+  videoRulesPrefill,
+  videoRulesSessionFields,
   type VideoAssignRules,
   type VideoBehaviorOptions,
 } from '@/components/common/library/assignStepper/VideoRuleStepValues';
@@ -156,5 +158,47 @@ describe('patch helpers', () => {
     expect(b.player.autoPlay).toBe(true);
     expect(v.behavior.sessionOptions.tabWarningsEnabled).toBe(true);
     expect(v.player.autoPlay).toBe(false);
+  });
+});
+
+describe('videoRulesPrefill', () => {
+  it('uses the last-used rows when there are some', () => {
+    const last = make({ tabWarningsEnabled: false }, 4, { autoPlay: true });
+    const out = videoRulesPrefill(DEFAULT_VA_BEHAVIOR, last);
+    expect(out.behavior.attemptLimit).toBe(4);
+    expect(out.player.autoPlay).toBe(true);
+  });
+
+  it("falls back to the activity's behavior and the given player rules", () => {
+    const player = {
+      autoPlay: false,
+      requireCorrectAnswer: false,
+      allowSkipping: true,
+    };
+    const out = videoRulesPrefill(DEFAULT_VA_BEHAVIOR, null, player);
+    expect(out.behavior.attemptLimit).toBe(DEFAULT_VA_BEHAVIOR.attemptLimit);
+    expect(out.player).toEqual(player);
+  });
+});
+
+describe('videoRulesSessionFields', () => {
+  it('stamps answerRulesSet, drops assign-time keys and carries the attempt limit', () => {
+    const rules = make(
+      { dueAt: 5, dueAtHasTime: true } as Partial<VideoBehaviorOptions>,
+      3
+    );
+    const { sessionOptions } = videoRulesSessionFields(rules);
+    expect(sessionOptions.answerRulesSet).toBe(true);
+    expect(sessionOptions.attemptLimit).toBe(3);
+    expect(sessionOptions.dueAt).toBeUndefined();
+  });
+
+  it('turns rewind off while right and wrong is hidden', () => {
+    const rules = make({ showResultToStudent: false }, 1, {
+      requireCorrectAnswer: true,
+    });
+    expect(
+      videoRulesSessionFields(rules).sessionSettings.requireCorrectAnswer
+    ).toBe(false);
   });
 });

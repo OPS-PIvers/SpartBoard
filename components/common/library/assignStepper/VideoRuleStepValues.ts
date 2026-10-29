@@ -4,6 +4,7 @@ import type {
   VideoActivitySessionOptions,
   VideoActivitySessionSettings,
 } from '@/types';
+import { sessionRequiresFullscreen } from '@/utils/pageProtections';
 
 /** The player honors shuffle, right and wrong, and reveal answer on sessions stamped `answerRulesSet`. */
 export const VIDEO_ANSWER_ROWS_READY = true;
@@ -101,10 +102,18 @@ export function formatVideoPlaybackValue(
 }
 
 /** Collapsed value for "Integrity". */
-export function formatVideoIntegrityValue(value: VideoAssignRules): string {
-  return (value.behavior.sessionOptions.tabWarningsEnabled ?? true)
-    ? 'Focus mode'
-    : 'Off';
+export function formatVideoIntegrityValue(
+  value: VideoAssignRules,
+  pageProtectionsOn = false
+): string {
+  const o = value.behavior.sessionOptions;
+  const parts: string[] = [];
+  if (o.tabWarningsEnabled ?? true) parts.push('Focus mode');
+  if (pageProtectionsOn && sessionRequiresFullscreen(o))
+    parts.push('Fullscreen');
+  if (pageProtectionsOn && (o.blockCopyPaste ?? false))
+    parts.push('No copy, paste or print');
+  return parts.join(', ') || 'Off';
 }
 
 /** Collapsed value for "What students see". */
@@ -165,4 +174,34 @@ export function withoutAssignTimeOptions(
     ...rest
   } = options as VideoActivitySessionOptions;
   return rest;
+}
+
+/** Rule-step prefill (V3): the teacher's last-used rows, else the activity's saved behavior. */
+export function videoRulesPrefill(
+  behavior: VideoActivityBehaviorSettings,
+  lastUsed: VideoAssignRules | null,
+  player: VideoActivitySessionSettings = DEFAULT_VIDEO_PLAYER_SETTINGS
+): VideoAssignRules {
+  return lastUsed
+    ? videoRulesFromLastUsed(behavior, lastUsed)
+    : videoRulesFromBehavior(behavior, player);
+}
+
+/** The session options and player settings an assignment with these rules writes; the caller adds the due date. */
+export function videoRulesSessionFields(rules: VideoAssignRules): {
+  sessionOptions: VideoActivitySessionOptions;
+  sessionSettings: VideoActivitySessionSettings;
+} {
+  return {
+    sessionOptions: {
+      ...withoutAssignTimeOptions(rules.behavior.sessionOptions),
+      attemptLimit: rules.behavior.attemptLimit,
+      answerRulesSet: true,
+    },
+    sessionSettings: {
+      ...rules.player,
+      requireCorrectAnswer:
+        rules.player.requireCorrectAnswer && videoRewindAllowed(rules),
+    },
+  };
 }

@@ -71,6 +71,7 @@ const Preview: React.FC = () => {
       {open && (
         <div className="h-[640px] w-full max-w-xl overflow-hidden rounded-2xl bg-white shadow-2xl">
           <ModificationsView
+            pageProtectionsAvailable
             activityTitle="Fractions check"
             rosters={ROSTERS}
             value={value}

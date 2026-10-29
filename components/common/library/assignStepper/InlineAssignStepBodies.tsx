@@ -1,4 +1,4 @@
-// The When body and, for quizzes, the three Quiz rule bodies laid out flat for pages without the stepper shell (D22).
+// The When body and the Quiz or Video Activity rule bodies laid out flat for pages without the stepper shell (D22).
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ClassRoster, QuizBehaviorSettings } from '@/types';
@@ -9,6 +9,8 @@ import type { AssignWhenValue } from './assignWhenValue';
 import { getAssignStepTitle } from './assignSteps';
 import { useQuizRuleGates } from './QuizRuleStepGates';
 import { quizRuleStepDefs } from './quizRuleStepDefs';
+import { videoRuleStepDefs } from './videoRuleStepDefs';
+import type { VideoAssignRules } from './VideoRuleStepValues';
 import { tourAttr } from '@/config/tourAnchors';
 
 export interface InlineAssignStepBodiesProps {
@@ -20,6 +22,9 @@ export interface InlineAssignStepBodiesProps {
   /** Quiz only: the rule settings behind Attempts, Integrity and What students see. */
   behavior?: QuizBehaviorSettings;
   onBehaviorChange?: (next: QuizBehaviorSettings) => void;
+  /** Video only (va-quiz-alignment): the assignment's rules; omit to leave the rule bodies out. */
+  videoRules?: VideoAssignRules | null;
+  onVideoRulesChange?: (next: VideoAssignRules) => void;
   disabled?: boolean;
   /** With onWindowOnChange, the When body shows only while the Schedule switch is on. */
   windowOn?: boolean;
@@ -43,6 +48,8 @@ export const InlineAssignStepBodies: React.FC<InlineAssignStepBodiesProps> = ({
   rosters,
   behavior,
   onBehaviorChange,
+  videoRules,
+  onVideoRulesChange,
   disabled = false,
   windowOn = true,
   onWindowOnChange,
@@ -58,7 +65,13 @@ export const InlineAssignStepBodies: React.FC<InlineAssignStepBodiesProps> = ({
           gates,
           handRaiseMode,
         })
-      : [];
+      : activity === 'video' && videoRules && onVideoRulesChange
+        ? videoRuleStepDefs({
+            value: videoRules,
+            onChange: onVideoRulesChange,
+            pageProtectionsOn: gates.pageProtectionsOn,
+          })
+        : [];
   const scheduleLabel = t('assignTargeting.scheduleLabel', 'Schedule');
   return (
     <fieldset
@@ -98,3 +111,22 @@ export const InlineAssignStepBodies: React.FC<InlineAssignStepBodiesProps> = ({
     </fieldset>
   );
 };
+
+/** The Video Activity rule bodies alone, for a page that has its own date fields. */
+export const InlineVideoRuleBodies: React.FC<{
+  value: VideoAssignRules;
+  onChange: (next: VideoAssignRules) => void;
+  disabled?: boolean;
+}> = ({ value, onChange, disabled = false }) => (
+  <fieldset
+    disabled={disabled}
+    data-testid="inline-video-rule-bodies"
+    className="min-w-0 divide-y divide-slate-200"
+  >
+    {videoRuleStepDefs({ value, onChange }).map((step) => (
+      <Section key={step.id} title={step.title}>
+        {step.body}
+      </Section>
+    ))}
+  </fieldset>
+);

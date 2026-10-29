@@ -1023,6 +1023,15 @@ var WIDGET_DEFAULTS = {
       cardOpacity: 0.85,
     },
   },
+  focus: {
+    w: 460,
+    h: 560,
+    config: {
+      sites: [],
+      level: 'redirect',
+      minutes: 30,
+    },
+  },
 };
 var BUILT_IN_MATERIALS = [
   {
@@ -1793,6 +1802,7 @@ const TABLES = {
     review: 'admin',
     routineGuide: 'admin',
     'arts-letters-agenda': 'admin',
+    focus: 'admin',
   },
   minTiers: { calendar: 'org' },
 };

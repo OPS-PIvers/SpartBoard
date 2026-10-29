@@ -18,6 +18,7 @@ import {
   TAB_AWAY_LIMIT_MAX_SECONDS,
   TAB_AWAY_LIMIT_MIN_SECONDS,
 } from '@/utils/tabAwayLimit';
+import { isFocusLevel } from '@/utils/pageProtections';
 
 /** Profile field holding this teacher's last-used Video Activity rules (va-quiz-alignment V3). */
 export const LAST_VIDEO_ASSIGN_SETTINGS_FIELD = 'lastVideoAssignSettings';
@@ -32,6 +33,8 @@ const BOOLEAN_KEYS = [
   'shuffleAnswerOptions',
   'showResultToStudent',
   'showCorrectAnswerToStudent',
+  'blockCopyPaste',
+  'blockPrint',
 ] as const;
 
 /** Keeps only well-typed values so a malformed profile can't reach an assignment. */
@@ -61,6 +64,7 @@ export function parseLastVideoAssignSettings(
     const v = o[key];
     if (typeof v === 'boolean') sessionOptions[key] = v;
   }
+  if (isFocusLevel(o.focusLevel)) sessionOptions.focusLevel = o.focusLevel;
   const threshold = o.tabWarningThreshold;
   if (
     threshold === 'off' ||

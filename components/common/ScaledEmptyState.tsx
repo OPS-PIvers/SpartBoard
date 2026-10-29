@@ -15,6 +15,10 @@ interface ScaledEmptyStateProps {
    * default cqmin coefficient (tuned for whole-widget scope) would resolve
    * larger than intended. */
   iconSize?: string;
+  /** Override the default `min(12px, 3cqmin)` subtitle size, e.g. for projector-legible text. */
+  subtitleSize?: string;
+  /** Override the default `min(14px, 4cqmin)` title size. */
+  titleSize?: string;
   /** Drawn in the icon's box instead of `icon`, e.g. Sparty. */
   art?: React.ReactNode;
 }
@@ -41,6 +45,8 @@ export const ScaledEmptyState: React.FC<ScaledEmptyStateProps> = ({
   titleClassName = 'text-slate-200',
   subtitleClassName = 'text-slate-300',
   iconSize = 'min(48px, 15cqmin)',
+  subtitleSize = 'min(12px, 3cqmin)',
+  titleSize = 'min(14px, 4cqmin)',
   art,
 }) => {
   return (
@@ -62,14 +68,14 @@ export const ScaledEmptyState: React.FC<ScaledEmptyStateProps> = ({
       <div className="flex flex-col" style={{ gap: '0.5cqmin' }}>
         <p
           className={`font-black uppercase tracking-widest ${titleClassName}`}
-          style={{ fontSize: 'min(14px, 4cqmin)' }}
+          style={{ fontSize: titleSize }}
         >
           {title}
         </p>
         {subtitle && (
           <p
             className={`leading-tight ${subtitleClassName}`}
-            style={{ fontSize: 'min(12px, 3cqmin)' }}
+            style={{ fontSize: subtitleSize }}
           >
             {subtitle}
           </p>

@@ -314,6 +314,9 @@ export {
   webTourRunV1,
 } from './webTourExtension';
 
+// Focus sessions: the student's extension checks its session and reports status (docs/plans/CHROME_EXTENSION.md F3).
+export { focusStatusV1, focusReportV1 } from './focus/studentEndpoints';
+
 // ── One-shot PLC migration (arrays→members map, orgId inference, aggregates
 // skeleton). Admin-only callable; see functions/src/migratePlcs.ts. ─────────
 export { migratePlcs } from './migratePlcs';
@@ -325,6 +328,16 @@ export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 export { expireSubShares } from './expireSubShares';
 export { launchSubAssignmentV1 } from './subLaunchAssignment';
 export { controlSubAssignmentV1 } from './subControlAssignment';
+export {
+  focusStartV1,
+  focusExtendV1,
+  focusReleaseV1,
+  focusAddSiteV1,
+  focusEndV1,
+  focusOpenV1,
+  focusPanelV1,
+  focusSweepSessions,
+} from './focus/sessionCallables';
 export { expireActivityWallShares } from './expireActivityWallShares';
 export { saveSharedActivityWallV1 } from './sharedActivityWallEdit';
 export { finalizeIdleQuizAttempts } from './finalizeIdleQuizAttempts';

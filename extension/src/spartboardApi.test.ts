@@ -35,6 +35,30 @@ describe('callSpartBoard', () => {
     );
   });
 
+  it("keeps the server's wording for a refusal, not for a server error", async () => {
+    expect(
+      await callSpartBoard(
+        deps([reply(400, { error: 'That class already has one.' })]).d,
+        'x',
+        {}
+      )
+    ).toEqual({
+      ok: false,
+      why: 'offline',
+      message: 'That class already has one.',
+    });
+    expect(
+      await callSpartBoard(deps([reply(500, { error: 'boom' })]).d, 'x', {})
+    ).toEqual({ ok: false, why: 'offline' });
+    expect(
+      await callSpartBoard(
+        deps([new Response('nope', { status: 403 })]).d,
+        'x',
+        {}
+      )
+    ).toEqual({ ok: false, why: 'no-access' });
+  });
+
   it('drops a rejected token and tries once more', async () => {
     const { d, fetchMock } = deps([reply(401), reply(200, { ok: 1 })]);
     expect((await callSpartBoard(d, 'x', {})).ok).toBe(true);

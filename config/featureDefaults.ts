@@ -1420,6 +1420,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Focus on SpartBoard pages (CHROME_EXTENSION.md F14, F15). Admin-only until Paul has tested it in prod.
+  'focus-sessions': {
+    label: 'Focus: page protections',
+    icon: Target,
+    description:
+      'Block copy, paste and print, and require fullscreen, on quizzes and video activities.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */
@@ -1477,6 +1490,7 @@ export const WIDGET_DEFAULT_ACCESS_LEVEL: Partial<
   review: 'admin',
   routineGuide: 'admin',
   'arts-letters-agenda': 'admin',
+  focus: 'admin',
 };
 
 export const getWidgetDefaultAccessLevel = (

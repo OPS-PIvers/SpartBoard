@@ -55,6 +55,7 @@ vi.mock('@/hooks/useClaudeReview', () => ({
   }),
 }));
 const liveFlag = { enabled: false };
+const alignFlag = { enabled: true };
 const lastPacing = {
   lastUsed: null as 'student' | 'teacher' | null,
   save: vi.fn(),
@@ -68,7 +69,11 @@ vi.mock('@/context/useAuth', () => ({
     canSeeShareTracking: vi.fn(() => false),
     canAccessQuizMediaResponse: vi.fn(() => false),
     canAccessFeature: (id: string) =>
-      id === 'video-activity-live' ? liveFlag.enabled : true,
+      id === 'video-activity-live'
+        ? liveFlag.enabled
+        : id === 'va-quiz-alignment'
+          ? alignFlag.enabled
+          : true,
   }),
 }));
 
@@ -350,6 +355,62 @@ describe('VideoActivityManager — pause on in progress assignments', () => {
     );
     await openMenu();
     expect(screen.queryByRole('menuitem', { name: 'Resume' })).toBeNull();
+  });
+});
+
+describe('VideoActivityManager — Settings on in progress assignments', () => {
+  afterEach(() => {
+    alignFlag.enabled = true;
+  });
+  const renderWithSettings = (assignment: VideoActivityAssignment) => {
+    const onArchiveEditSettings = vi.fn();
+    render(
+      <VideoActivityManager
+        activities={[makeVaMeta()]}
+        loading={false}
+        error={null}
+        onNew={vi.fn()}
+        onImport={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onAssign={vi.fn()}
+        onResults={vi.fn()}
+        rosters={ROSTERS}
+        assignments={[assignment]}
+        assignmentsLoading={false}
+        onArchiveDeactivate={vi.fn(() => Promise.resolve())}
+        onArchiveEditSettings={onArchiveEditSettings}
+      />
+    );
+    return { onArchiveEditSettings };
+  };
+  const openMenu = async () => {
+    fireEvent.click(await screen.findByRole('tab', { name: /in progress/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'More actions' })
+    );
+    await screen.findByRole('menuitem', { name: /end assignment/i });
+  };
+
+  it('opens Settings for a self-paced assignment', async () => {
+    const assignment = makeVaAssignment();
+    const { onArchiveEditSettings } = renderWithSettings(assignment);
+    await openMenu();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Settings' }));
+    expect(onArchiveEditSettings).toHaveBeenCalledWith(assignment);
+  });
+
+  it('has no Settings on a live run', async () => {
+    renderWithSettings(makeVaAssignment({ sessionMode: 'teacher' }));
+    await openMenu();
+    expect(screen.queryByRole('menuitem', { name: 'Settings' })).toBeNull();
+  });
+
+  it('has no Settings with the alignment preview off', async () => {
+    alignFlag.enabled = false;
+    renderWithSettings(makeVaAssignment());
+    await openMenu();
+    expect(screen.queryByRole('menuitem', { name: 'Settings' })).toBeNull();
   });
 });
 

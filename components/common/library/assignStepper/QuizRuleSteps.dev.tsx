@@ -78,7 +78,7 @@ const Preview: React.FC = () => {
         open={open === 4}
         onOpen={() => setOpen(4)}
         title="Quiz integrity"
-        value={formatQuizIntegrityValue(value)}
+        value={formatQuizIntegrityValue(value, gates)}
       >
         <QuizIntegrityStep value={value} onChange={setValue} />
       </Frame>

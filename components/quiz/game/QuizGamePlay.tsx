@@ -66,6 +66,7 @@ import { FibMultiBlankInput, NumberedBlanksText } from '../FibMultiBlankInput';
 import { MatchingResponseInput } from '../MatchingResponseInput';
 import { OrderingResponseInput } from '../OrderingResponseInput';
 import { loadGamePicks, saveGamePicks } from './gamePicks';
+import { effectivePageProtections } from '@/utils/pageProtections';
 
 interface GameAnswerResult {
   isCorrect: boolean;
@@ -421,15 +422,14 @@ export const QuizGamePlay: React.FC<QuizGamePlayProps> = ({
     return () => document.removeEventListener('visibilitychange', onVisibility);
   }, [tabWarnings, running, reportTabSwitch]);
 
-  const guards =
-    session.blockCopyPaste === true
-      ? {
-          onCopy: (e: React.ClipboardEvent) => e.preventDefault(),
-          onCut: (e: React.ClipboardEvent) => e.preventDefault(),
-          onPaste: (e: React.ClipboardEvent) => e.preventDefault(),
-          onDrop: (e: React.DragEvent) => e.preventDefault(),
-        }
-      : undefined;
+  const guards = effectivePageProtections(session, override).blockClipboard
+    ? {
+        onCopy: (e: React.ClipboardEvent) => e.preventDefault(),
+        onCut: (e: React.ClipboardEvent) => e.preventDefault(),
+        onPaste: (e: React.ClipboardEvent) => e.preventDefault(),
+        onDrop: (e: React.DragEvent) => e.preventDefault(),
+      }
+    : undefined;
 
   const handRaised = !!myResponse.handRaisedAt;
   const header = (

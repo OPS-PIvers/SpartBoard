@@ -2,6 +2,7 @@ import { useContext } from 'react';
 import type { GlobalFeature } from '@/types';
 import { AuthContext } from '@/context/AuthContextValue';
 import { QUIZ_TIME_LIMIT_FEATURE } from '@/utils/quizTimeLimit';
+import { PAGE_PROTECTIONS_FEATURE } from '@/utils/pageProtections';
 import type { QuizRuleGates } from './QuizRuleStepValues';
 
 /** Reads the Quiz rule flags via context so a provider-less host hides the rows instead of throwing. */
@@ -14,5 +15,6 @@ export const useQuizRuleGates = (): QuizRuleGates => {
     scoreOnSubmitOn: can('quiz-score-on-submit'),
     stimulusQuotesOn: can('quiz-stimulus-quotes'),
     finalScoreOn: can('quiz-attempt-history'),
+    pageProtectionsOn: can(PAGE_PROTECTIONS_FEATURE),
   };
 };

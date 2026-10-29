@@ -209,6 +209,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
             onBack={() => setModsOpen(false)}
             quizMode
             quizContext={modifications.quizContext}
+            pageProtectionsAvailable
           />
         ) : undefined
       }

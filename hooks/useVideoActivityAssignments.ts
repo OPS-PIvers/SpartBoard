@@ -65,6 +65,7 @@ import type {
   VideoActivityResponse,
   VideoActivityScoreVisibility,
   VideoActivitySession,
+  VideoActivitySessionOptions,
 } from '@/types';
 import { dedupeQuestionsById } from '@/utils/videoActivityGrading';
 import {
@@ -78,6 +79,13 @@ import {
   type AssignmentLifecycleEvent,
 } from '@/utils/sessionLifecycle';
 import { useSandboxedVideoActivityAssignments } from './useTourSandboxed';
+import { useSetAssignmentTargets } from './useSetAssignmentTargets';
+import { hasStudentPointers } from '@/utils/studentTargetRef';
+import type { PeriodAccessWindowEdits } from '@/utils/assignAvailability';
+import {
+  batchUpdateWithPaths,
+  periodAccessWrites,
+} from '@/utils/periodAccessWrites';
 
 /**
  * Map VA assignment status onto the PLC index's shared `QuizAssignmentStatus`
@@ -98,6 +106,18 @@ const VIDEO_ACTIVITY_SESSIONS_COLLECTION = 'video_activity_sessions';
 const VIDEO_ACTIVITY_METADATA_COLLECTION = 'video_activities';
 const SHARED_VA_ASSIGNMENTS_COLLECTION = 'shared_video_activity_assignments';
 const RESPONSES_COLLECTION = 'responses';
+
+/** Settings edits for a launched assignment; window and policy keys write only what changed. */
+export type VideoAssignmentSettingsPatch =
+  Partial<VideoActivityAssignmentSettings> & {
+    /** Changed `sessionOptions` keys, written by field path on both docs. */
+    sessionOptionEdits?: Partial<VideoActivitySessionOptions>;
+    openAt?: number | null;
+    closeAt?: number | null;
+    dueAt?: number | null;
+    /** Window changes per `periodAccess` row key, written to both docs. */
+    periodAccessEdits?: PeriodAccessWindowEdits;
+  };
 
 /** Import-mode picker result for shared-VA-assignment paste flows. */
 export type SharedVideoActivityImportMode = 'sync' | 'copy';
@@ -165,10 +185,10 @@ export interface UseVideoActivityAssignmentsResult {
     assignmentId: string,
     edit: AssignmentClassEdit
   ) => Promise<void>;
-  /** Update editable settings (className, session toggles). */
+  /** Update editable settings (className, session toggles, rules, window). */
   updateAssignmentSettings: (
     assignmentId: string,
-    patch: Partial<VideoActivityAssignmentSettings>
+    patch: VideoAssignmentSettingsPatch
   ) => Promise<void>;
   /**
    * Publish a shared-VA-assignment doc to `/shared_video_activity_assignments/`
@@ -272,6 +292,7 @@ export const useVideoActivityAssignments = (
   // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
   const allowAnonymousJoin =
     useContext(AuthContext)?.canAccessFeature?.('anonymous-join') !== false;
+  const { setAssignmentTargets } = useSetAssignmentTargets();
 
   // Live mirror of `assignments` so status mutators can look up a
   // PLC linkage by id without re-creating the callback every render
@@ -627,6 +648,14 @@ export const useVideoActivityAssignments = (
     async (assignmentId, patch) => {
       if (!userId) throw new Error('Not authenticated');
       const now = Date.now();
+      const { sessionOptionEdits, periodAccessEdits, ...settings } = patch;
+      const rowWrites = periodAccessWrites(undefined, periodAccessEdits);
+      const optionPaths = Object.fromEntries(
+        Object.entries(sessionOptionEdits ?? {}).map(([key, value]) => [
+          `sessionOptions.${key}`,
+          value ?? null,
+        ])
+      );
       const batch = writeBatch(db);
       const assignmentRef = doc(
         db,
@@ -635,18 +664,20 @@ export const useVideoActivityAssignments = (
         VIDEO_ACTIVITY_ASSIGNMENTS_COLLECTION,
         assignmentId
       );
-      const assignmentPatch = { ...patch, updatedAt: now } as Record<
-        string,
-        unknown
-      >;
-      batch.update(assignmentRef, assignmentPatch);
+      const assignmentPatch = {
+        ...settings,
+        ...optionPaths,
+        updatedAt: now,
+      } as Record<string, unknown>;
+      batchUpdateWithPaths(batch, assignmentRef, assignmentPatch, rowWrites);
       // Mirror student-visible changes to the session doc so an in-flight
       // join picks them up on next visit. We propagate:
       //   - sessionSettings (player behavior — autoPlay, etc.)
       //   - sessionOptions (assignment policy — feedback, attempts, scoring)
       //   - className (rendered in the post-PIN picker as `assignmentName`)
       //   - periodNames (drive the period selector)
-      const sessionPatch: Record<string, unknown> = {};
+      //   - the open/close/due window (/my-assignments reads it off the session)
+      const sessionPatch: Record<string, unknown> = { ...optionPaths };
       if (patch.sessionSettings) sessionPatch.settings = patch.sessionSettings;
       if (patch.sessionOptions)
         sessionPatch.sessionOptions = patch.sessionOptions;
@@ -654,22 +685,60 @@ export const useVideoActivityAssignments = (
         sessionPatch.assignmentName = patch.className;
       if (patch.periodNames !== undefined)
         sessionPatch.periodNames = patch.periodNames;
-      if (Object.keys(sessionPatch).length > 0) {
+      if ('openAt' in patch) sessionPatch.openAt = patch.openAt ?? null;
+      if ('closeAt' in patch) sessionPatch.closeAt = patch.closeAt ?? null;
+      if ('dueAt' in patch) sessionPatch.dueAt = patch.dueAt ?? null;
+      if (Object.keys(sessionPatch).length > 0 || rowWrites.length > 0) {
         // Tag the write with the originating user so a future bidirectional
         // edit flow (e.g. PLC sync) can suppress echoes back to the writer.
         // Currently teacher-only, so the field is informational; once PR3
         // adds shared sync this is the hook for echo prevention.
         sessionPatch.updatedBy = userId;
-        batch.update(
+        batchUpdateWithPaths(
+          batch,
           doc(db, VIDEO_ACTIVITY_SESSIONS_COLLECTION, assignmentId),
-          sessionPatch
+          sessionPatch,
+          rowWrites
         );
       }
-      await viewAsDirectSave(assignmentRef, Object.keys(assignmentPatch), () =>
-        batch.commit()
+      await viewAsDirectSave(
+        assignmentRef,
+        [
+          ...Object.keys(settings),
+          ...(sessionOptionEdits ? ['sessionOptions'] : []),
+          ...(rowWrites.length > 0 ? ['periodAccess'] : []),
+          'updatedAt',
+        ],
+        () => batch.commit()
       );
+      // Accommodated and skipped students read the window off their own pointer doc.
+      const pointerWindow: {
+        openAt?: number | null;
+        closeAt?: number | null;
+        dueAt?: number | null;
+      } = {};
+      if ('openAt' in patch) pointerWindow.openAt = patch.openAt ?? null;
+      if ('closeAt' in patch) pointerWindow.closeAt = patch.closeAt ?? null;
+      if ('dueAt' in patch) pointerWindow.dueAt = patch.dueAt ?? null;
+      const stored = assignmentsRef.current.find((a) => a.id === assignmentId);
+      if (
+        Object.keys(pointerWindow).length > 0 &&
+        stored &&
+        hasStudentPointers(stored)
+      ) {
+        await setAssignmentTargets({
+          assignmentId,
+          kind: 'video-activity',
+          sessionId: assignmentId,
+          targetMode: stored.targetMode,
+          add: [],
+          remove: [],
+          overridesBySourcedId: {},
+          window: pointerWindow,
+        });
+      }
     },
-    [userId]
+    [userId, setAssignmentTargets]
   );
 
   const setAssignmentClasses = useCallback<

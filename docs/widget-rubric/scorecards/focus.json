@@ -1,0 +1,605 @@
+{
+  "$schema": "../scorecard.schema.json",
+  "widgetType": "focus",
+  "rubricVersion": "1.1.0",
+  "gradedAt": "2026-10-29T05:04:24.970Z",
+  "stale": false,
+  "criteria": {
+    "I5": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 4,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/envelope-min__empty.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/envelope-min__typical.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/envelope-min__stress.png"
+        ],
+        "runId": "fs8"
+      },
+      "note": "At 150×100 the face switches to a compact glance mode of big minutes left, an away/on-task count and a single End button, dropping the roster entirely.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/large-1400x900__typical.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/large-1400x900__stress.png"
+        ],
+        "runId": "fs8"
+      },
+      "note": "At 1400×900 the roster reflows into four columns and adds the allowed-sites row and Add a site, but text stays default size and a wide empty band sits above the footer.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/widest-aspect__typical.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/widest-aspect__stress.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/tallest-aspect__stress.png"
+        ],
+        "runId": "fs8"
+      },
+      "note": "The widest shape moves the header and buttons into a left column beside a three-column roster, and the tallest stacks to one column, though there the End button wraps onto its own line.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png"
+        ],
+        "runId": "fs8"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__empty.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__stress.png"
+        ],
+        "runId": "fs8"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "S6": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/widest-aspect__typical.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__stress.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/large-1400x900__stress.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/maximized-1920x1080__stress.png"
+        ],
+        "runId": "fs8"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 4,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/envelope-min__typical.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png"
+        ],
+        "runId": "fs8"
+      },
+      "note": "A live class-monitoring roster still works at the 150×100 floor as a minutes-plus-counts readout with End, well below what a roster would need.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/maximized-1920x1080__stress.png"
+        ],
+        "runId": "fs8"
+      },
+      "note": "Maximized scales the type up (96 px minutes) and fills four columns, but it reads as the large card enlarged, with an empty band above the footer and no presenting-specific changes.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png"
+        ],
+        "runId": "fs8"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "I2": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png"
+        ],
+        "runId": "fs8"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "I3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png"
+        ],
+        "runId": "fs8"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "I4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png"
+        ],
+        "runId": "fs8"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "I6": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png"
+        ],
+        "runId": "fs8"
+      },
+      "note": "Buttons share hover, active and disabled variants and show pending labels like Releasing…, but there is no visible success confirmation.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical__selected.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "fs8"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png"
+        ],
+        "runId": "fs8"
+      },
+      "note": "Clean, flat face with a bold minutes number, divider rows rather than boxes, lucide icons and no ban-list hits.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__stress.png"
+        ],
+        "runId": "fs8"
+      },
+      "note": "The purpose and End action read at a glance, but 24 controls, 171 words and a Release link on every row push the proxies over threshold.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png"
+        ],
+        "runId": "fs8"
+      },
+      "note": "The large 22 min left is clearly primary, with the class name, status summary and roster rows stepping down in size and weight.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png"
+        ],
+        "runId": "fs8"
+      },
+      "note": "Only ScaledEmptyState is shared; the face uses a widget-local Button set in ui.tsx and seven raw controls instead of shared components.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png"
+        ],
+        "runId": "fs8"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png"
+        ],
+        "runId": "fs8"
+      },
+      "note": "Labels are short and plain (Release, +10 min, Release class, End) with one lucide icon style, though the summary line is a long run-on.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png"
+        ],
+        "runId": "fs8"
+      },
+      "note": "Class, mode, duration and allowed sites are chosen in the on-face setup, and the drawer adds the hide-names projector option without bloat.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 4,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical__settings.png"
+        ],
+        "runId": "fs8"
+      },
+      "note": "The drawer holds a single Hide student names toggle under a standard Behavior section with search, findable in one look.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__empty.png"
+        ],
+        "runId": "fs8"
+      },
+      "note": "With no imported ClassLink classes the widget only shows an empty state and can't be used until classes are imported elsewhere.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__empty.png"
+        ],
+        "runId": "fs8"
+      },
+      "note": "ScaledEmptyState gives a title, one sentence and an Open Classes button as the clear next action.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__empty.png",
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png"
+        ],
+        "runId": "fs8"
+      },
+      "note": "No-classes, no-class-picked and no-session states use ScaledEmptyState, and errors render as alert text with buttons disabled while busy.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png"
+        ],
+        "runId": "fs8"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png"
+        ],
+        "runId": "fs8"
+      },
+      "note": "Names and on-task status are the point of the monitoring roster, and a drawer toggle hides names so a projector shows counts only.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png"
+        ],
+        "runId": "fs8"
+      },
+      "note": "It ties to the teacher's ClassLink class roster and shows the linked class name on the face; there is no obvious missing high-value link beyond perhaps a timer or schedule.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical.png"
+        ],
+        "runId": "fs8"
+      },
+      "note": "Eleven files, the largest 455 lines, with Widget and state tests, no any, no useDashboard calls and no derived-state effects.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "C4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical__settings.png"
+        ],
+        "runId": "fs8"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    },
+    "C6": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/fs8/screenshots/focus/default__typical__settings.png"
+        ],
+        "runId": "fs8"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-29T05:04:24.970Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": true,
+      "evidence": {
+        "runId": "fs8"
+      },
+      "gradedAt": "2026-10-29T05:04:24.970Z"
+    },
+    "G2": {
+      "pass": true,
+      "evidence": {
+        "runId": "fs8"
+      },
+      "gradedAt": "2026-10-29T05:04:24.970Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "fs8"
+      },
+      "gradedAt": "2026-10-29T05:04:24.970Z"
+    },
+    "G4": {
+      "pass": true,
+      "evidence": {
+        "runId": "fs8"
+      },
+      "gradedAt": "2026-10-29T05:04:24.970Z"
+    }
+  }
+}

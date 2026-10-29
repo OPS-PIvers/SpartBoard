@@ -82,6 +82,12 @@ import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
 import { getQuizAssignPrefill } from '@/utils/quizBehavior';
 import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
 import { InlineAssignStepBodies } from '@/components/common/library/assignStepper/InlineAssignStepBodies';
+import { useLastVideoAssignSettings } from '@/hooks/useLastVideoAssignSettings';
+import {
+  videoRulesPrefill,
+  videoRulesSessionFields,
+  type VideoAssignRules,
+} from '@/components/common/library/assignStepper/VideoRuleStepValues';
 import {
   defaultWhenValue,
   type AssignWhenValue,
@@ -287,7 +293,15 @@ const LtiDeepLinkFlow: React.FC = () => {
     >
   >(new Map());
 
-  const { user, signInWithGoogle, googleAccessToken } = useAuth();
+  const { user, signInWithGoogle, googleAccessToken, canAccessFeature } =
+    useAuth();
+  // va-quiz-alignment: VA rules are edited here, prefilled from last-used else the activity (V3).
+  const vaRulesOn = canAccessFeature('va-quiz-alignment');
+  const lastVaRules = useLastVideoAssignSettings(user?.uid, vaRulesOn);
+  const [editedVaRules, setEditedVaRules] = useState<{
+    activityId: string;
+    rules: VideoAssignRules;
+  } | null>(null);
   const { lastUsed: lastAssignSettings, save: saveLastAssignSettings } =
     useLastQuizAssignSettings(user?.uid, true);
   const [assignWhen, setAssignWhen] = useState<AssignWhenValue>(() =>
@@ -421,18 +435,28 @@ const LtiDeepLinkFlow: React.FC = () => {
     () => activities.find((a) => a.id === selectedActivityId),
     [activities, selectedActivityId]
   );
+  const vaRules: VideoAssignRules | null =
+    vaRulesOn && selectedActivity
+      ? editedVaRules?.activityId === selectedActivity.id
+        ? editedVaRules.rules
+        : videoRulesPrefill(
+            getVideoActivityBehavior(selectedActivity),
+            lastVaRules.lastUsed,
+            VA_SESSION_SETTINGS
+          )
+      : null;
 
   // Read-only summary of the configured behavior the assignment will inherit —
   // surfaces the parity (the quiz/VA's own session mode, attempts, etc.) so the
   // teacher can see what students will get before adding it.
   const behaviorSummary = useMemo(() => {
-    if (kind === 'quiz') return null;
+    if (kind === 'quiz' || vaRulesOn) return null;
     return selectedActivity
       ? formatVideoActivityBehaviorSummary(
           getVideoActivityBehavior(selectedActivity)
         )
       : null;
-  }, [kind, selectedActivity]);
+  }, [kind, selectedActivity, vaRulesOn]);
 
   const windowBackwards =
     assignWindowOn &&
@@ -829,9 +853,13 @@ const LtiDeepLinkFlow: React.FC = () => {
         // on `behavior`, so it stays the conservative VA_SESSION_SETTINGS
         // default the route uses.
         const behavior = getVideoActivityBehavior(selectedActivity);
+        // The assignment's rules (va-quiz-alignment) replace the activity's behavior and the player defaults.
+        const fromRules = vaRules ? videoRulesSessionFields(vaRules) : null;
         const sessionOptions: VideoActivitySessionOptions = {
-          ...behavior.sessionOptions,
-          attemptLimit: behavior.attemptLimit,
+          ...(fromRules?.sessionOptions ?? {
+            ...behavior.sessionOptions,
+            attemptLimit: behavior.attemptLimit,
+          }),
           // VA carries its due date on sessionOptions (no top-level settings
           // field). Persist it so SpartBoard + the Schoology line item match.
           ...(dueAt ? { dueAt, dueAtHasTime: true } : {}),
@@ -860,7 +888,7 @@ const LtiDeepLinkFlow: React.FC = () => {
           },
           {
             className: 'Schoology',
-            sessionSettings: VA_SESSION_SETTINGS,
+            sessionSettings: fromRules?.sessionSettings ?? VA_SESSION_SETTINGS,
             sessionOptions,
             ...(effectiveTeacherName
               ? { teacherName: effectiveTeacherName }
@@ -969,6 +997,7 @@ const LtiDeepLinkFlow: React.FC = () => {
 
         created = { kind: 'va', sessionId, maxPoints, dueAt };
         createdRef.current.set(cacheKey, created);
+        if (vaRules) lastVaRules.save(vaRules);
       }
 
       await signAndReturn(created, selectedActivity.title, returnUrl);
@@ -987,6 +1016,8 @@ const LtiDeepLinkFlow: React.FC = () => {
       signAndReturn,
       setAssignmentTargets,
       user,
+      vaRules,
+      lastVaRules,
     ]
   );
 
@@ -1220,6 +1251,14 @@ const LtiDeepLinkFlow: React.FC = () => {
                   )}
                   behavior={splitAssignSettings}
                   onBehaviorChange={setEditedAssignSettings}
+                  videoRules={vaRules}
+                  onVideoRulesChange={(rules) =>
+                    selectedActivity &&
+                    setEditedVaRules({
+                      activityId: selectedActivity.id,
+                      rules,
+                    })
+                  }
                   disabled={busy}
                 />
                 <AssignTargetingSection
@@ -1288,7 +1327,11 @@ const LtiDeepLinkFlow: React.FC = () => {
             <AddonButton
               onClick={() => void add()}
               loading={busy}
-              disabled={!canAdd || windowBackwards}
+              disabled={
+                !canAdd ||
+                windowBackwards ||
+                (kind !== 'quiz' && vaRulesOn && !lastVaRules.loaded)
+              }
               title={windowBackwards ? 'Closes before it opens.' : undefined}
               icon={Send}
             >
