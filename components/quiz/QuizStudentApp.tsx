@@ -2343,7 +2343,7 @@ export const ActiveQuiz: React.FC<{
       ? crossOutStorageKey(
           session.id,
           crossOutUid,
-          myResponse?.completedAttempts ?? 0
+          `${myResponse?.completedAttempts ?? 0}-${myResponse?.joinedAt ?? 0}`
         )
       : null
   );
@@ -3651,6 +3651,9 @@ export const ActiveQuiz: React.FC<{
   const mcSelectedCls = light
     ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary'
     : 'border-violet-500 bg-violet-500/20 text-white';
+  const mcCrossedOutCls = light
+    ? 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+    : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500';
   const mcUnselectedCls = light
     ? 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
     : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500 hover:bg-slate-700/50';
@@ -4243,13 +4246,6 @@ export const ActiveQuiz: React.FC<{
                             ) === opt;
                       let cls =
                         'w-full text-left px-5 py-4 rounded-2xl border-2 text-sm font-medium transition-all ';
-                      if (!isLocked) {
-                        cls += isSelected ? mcSelectedCls : mcUnselectedCls;
-                      } else {
-                        cls += isSelected
-                          ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
-                          : 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-default';
-                      }
                       const canonicalOpt = toCanonicalAnswer(
                         currentQuestion,
                         activeLocale,
@@ -4261,7 +4257,17 @@ export const ActiveQuiz: React.FC<{
                           currentQuestion.id,
                           canonicalOpt
                         );
-                      if (isCrossedOut) cls += ' opacity-60';
+                      if (!isLocked) {
+                        cls += isSelected
+                          ? mcSelectedCls
+                          : isCrossedOut
+                            ? mcCrossedOutCls
+                            : mcUnselectedCls;
+                      } else {
+                        cls += isSelected
+                          ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
+                          : 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-default';
+                      }
                       const pick = () => {
                         if (isLocked) return;
                         // Choosing a crossed-out option brings it back.
@@ -4320,12 +4326,13 @@ export const ActiveQuiz: React.FC<{
                         </span>
                       );
                       const shownIndex = options.indexOf(opt) + 1;
+                      // A picked option can't be crossed out; picking a crossed-out one restores it.
                       const crossOutButton = crossOutOn && !isLocked && (
                         <CrossOutChoiceButton
                           n={shownIndex}
                           crossedOut={isCrossedOut}
                           light={light}
-                          disabled={submitting}
+                          disabled={submitting || isSelected}
                           onToggle={() =>
                             crossedOut.toggle(currentQuestion.id, canonicalOpt)
                           }

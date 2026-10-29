@@ -1148,6 +1148,25 @@ describe('QuizStudentApp — cross out choices', () => {
 
     expect(crossOutToggleFor('4')).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('button', { name: /^NEXT/i })).toBeEnabled();
+    // The picked answer can't be crossed out.
+    expect(crossOutToggleFor('4')).toBeDisabled();
+  });
+
+  it('starts clean when the student rejoins after being removed', async () => {
+    const user = userEvent.setup();
+    hookState.session = buildSession({ allowCrossOut: true });
+    hookState.myResponse = buildResponse({ joinedAt: 1000 });
+    const { unmount } = render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+    await user.click(crossOutToggleFor('3'));
+    unmount();
+
+    hookState.myResponse = buildResponse({ joinedAt: 2000 });
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /crossed out/ })
+    ).not.toBeInTheDocument();
   });
 
   it('keeps cross-outs per question', async () => {
