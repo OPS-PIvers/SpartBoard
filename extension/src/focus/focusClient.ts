@@ -82,17 +82,19 @@ export function createFocusClient(deps: FocusClientDeps) {
       : sub;
   };
 
-  const observe = async (force: boolean) => {
+  const observe = async (force: boolean, recheck = true) => {
     const state = await deps.load();
     const now = deps.now();
     if (!state || !isEnforcing(state, now)) return;
     const url = await deps.activeUrl().catch(() => undefined);
     const status = statusFor(url, state.session, deps.origins);
     const host = liveHostFor(url, state.session);
+    // A few seconds' slack, so the once-a-minute alarm doesn't skip every other report.
     const due =
       force ||
       status !== state.reported ||
-      now - state.reportedAt >= FOCUS_REPORT_MIN_INTERVAL_MS;
+      host !== state.reportedHost ||
+      now - state.reportedAt >= FOCUS_REPORT_MIN_INTERVAL_MS - 5_000;
     if (!due) return;
     const res = await deps.report({
       sessionId: state.session.sessionId,
@@ -109,7 +111,7 @@ export function createFocusClient(deps: FocusClientDeps) {
       reportedHost: host,
     });
     // The session ended or released this student since the last check.
-    if (isActiveFalse(res.value)) await check();
+    if (recheck && isActiveFalse(res.value)) await check();
   };
 
   const check = async () => {
@@ -124,8 +126,11 @@ export function createFocusClient(deps: FocusClientDeps) {
     });
     const prev = await deps.load();
     if (!res.ok) {
-      // Not a student any more, or signed out: stop. Offline or not deployed: hold until the session's own end.
-      if (res.why === 'signed-out' || res.why === 'no-access') await clear();
+      // Refused: stop. A token hiccup mid-session holds like offline, until the session's own end.
+      const refused =
+        res.why === 'no-access' ||
+        (res.why === 'signed-out' && !isEnforcing(prev, deps.now()));
+      if (refused) await clear();
       else await redraw(prev);
       return;
     }
@@ -158,7 +163,8 @@ export function createFocusClient(deps: FocusClientDeps) {
     // A session that newly holds this student opens the focus page (F10).
     if (!isEnforcing(prev, now) || !same)
       await deps.openFocusPage().catch(() => undefined);
-    await observe(!same);
+    // No re-check from here, so a status and report that disagree can't loop.
+    await observe(!same, false);
   };
 
   return {

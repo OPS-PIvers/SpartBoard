@@ -12,6 +12,8 @@ import { matchFocusUrl, normalizeFocusSites } from '@/utils/focus/allowlist';
 
 /** `chrome.storage.session` key; extension pages read it, content scripts can't. */
 export const FOCUS_STATE_KEY = 'focus';
+/** Set when a session this device held was cleared; absent after a restart until the first check. */
+export const FOCUS_ENDED_KEY = 'focusEnded';
 
 export interface FocusLocalState {
   session: FocusActiveSession;

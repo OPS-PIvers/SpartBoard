@@ -2,12 +2,28 @@
 import type { FocusPushSubscription } from '@/utils/focus/contract';
 import { FOCUS_CHECK_MINUTES } from '@/utils/focus/contract';
 import type { FocusClientDeps, PushSent } from './focusClient';
-import { FOCUS_STATE_KEY, type FocusLocalState } from './focusState';
+import {
+  FOCUS_ENDED_KEY,
+  FOCUS_STATE_KEY,
+  type FocusLocalState,
+} from './focusState';
 
 export const FOCUS_CHECK_ALARM = 'focus-check';
 export const FOCUS_TICK_ALARM = 'focus-tick';
 export const FOCUS_PAGE_PATH = 'focus/index.html';
 const PUSH_SENT_KEY = 'focusPushSent';
+
+const keyBytes = (base64url: string) =>
+  Uint8Array.from(atob(base64url.replace(/-/g, '+').replace(/_/g, '/')), (c) =>
+    c.charCodeAt(0)
+  );
+
+const sameKey = (a: ArrayBuffer | null | undefined, key: string) => {
+  if (!a) return false;
+  const want = keyBytes(key);
+  const got = new Uint8Array(a);
+  return got.length === want.length && got.every((b, i) => b === want[i]);
+};
 
 /** The parts of `ServiceWorkerGlobalScope` the client uses; the extension's lib is DOM, not WebWorker. */
 export interface PushScope {
@@ -39,12 +55,10 @@ export async function chromePushSubscription(
   const { pushManager } = scope.registration;
   const options = { userVisibleOnly: false, applicationServerKey: vapidKey };
   try {
-    try {
-      return asFocusSubscription(await pushManager.subscribe(options));
-    } catch {
-      await (await pushManager.getSubscription())?.unsubscribe();
-      return asFocusSubscription(await pushManager.subscribe(options));
-    }
+    const existing = await pushManager.getSubscription();
+    if (existing && !sameKey(existing.options.applicationServerKey, vapidKey))
+      await existing.unsubscribe();
+    return asFocusSubscription(await pushManager.subscribe(options));
   } catch {
     // Below Chrome 121 an extension can't push without showing a notification; the alarm still checks.
     return null;
@@ -66,10 +80,16 @@ export const chromeFocusDeps: Pick<
   load: async () =>
     (await chrome.storage.session.get(FOCUS_STATE_KEY))[FOCUS_STATE_KEY] as
       FocusLocalState | undefined,
-  save: (state) =>
-    state
-      ? chrome.storage.session.set({ [FOCUS_STATE_KEY]: state })
-      : chrome.storage.session.remove(FOCUS_STATE_KEY),
+  // The ended marker lets the focus page tell "over" from "not checked yet" after a restart.
+  save: async (state) => {
+    if (state) {
+      await chrome.storage.session.set({ [FOCUS_STATE_KEY]: state });
+      await chrome.storage.session.remove(FOCUS_ENDED_KEY);
+    } else {
+      await chrome.storage.session.set({ [FOCUS_ENDED_KEY]: true });
+      await chrome.storage.session.remove(FOCUS_STATE_KEY);
+    }
+  },
   loadPushSent: async () =>
     (await chrome.storage.local.get(PUSH_SENT_KEY))[PUSH_SENT_KEY] as
       PushSent | undefined,

@@ -266,3 +266,47 @@ describe('createFocusClient reports', () => {
     expect(t.reports).toHaveLength(1);
   });
 });
+
+describe('createFocusClient review fixes', () => {
+  it('reports on the next minute tick despite a few ms of alarm drift', async () => {
+    const t = setup();
+    await t.client.check();
+    t.setNow(59_990);
+    await t.client.tick();
+    expect(t.reports).toHaveLength(2);
+  });
+
+  it('reports a site change at once while the live-site switch is on', async () => {
+    const t = setup();
+    t.setStatus({
+      ok: true,
+      value: { session: { ...session, showLiveSite: true }, serverNow: 0 },
+    });
+    await t.client.check();
+    t.setUrl('https://desmos.com/other');
+    t.setNow(1_000);
+    await t.client.observe();
+    expect(t.reports.map((r) => r.host)).toEqual([
+      'www.desmos.com',
+      'desmos.com',
+    ]);
+  });
+
+  it('holds a live session through a token hiccup but stops when refused', async () => {
+    const t = setup();
+    await t.client.check();
+    t.setStatus({ ok: false, why: 'signed-out' });
+    await t.client.check();
+    expect(t.state()?.session.sessionId).toBe('s1');
+    t.setStatus({ ok: false, why: 'no-access' });
+    await t.client.check();
+    expect(t.state()).toBeUndefined();
+  });
+
+  it('does not loop when status and report disagree', async () => {
+    const t = setup();
+    t.setReport({ ok: true, value: { ok: true, active: false } });
+    await t.client.check();
+    expect(t.deps.status).toHaveBeenCalledTimes(1);
+  });
+});

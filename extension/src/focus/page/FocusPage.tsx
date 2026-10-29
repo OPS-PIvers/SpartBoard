@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { chromeMuted, focusRing } from '@/components/common/lightChrome';
 import {
+  FOCUS_ENDED_KEY,
   FOCUS_STATE_KEY,
   isEnforcing,
   minutesLeft,
@@ -71,24 +72,32 @@ export const FocusView: React.FC<{
 
 /** Follows the worker's session state and redraws the minutes on the device clock. */
 export const FocusPage: React.FC = () => {
-  // Undefined until the first read, so the page never flashes "over" while loading.
+  // Undefined until known, so the page never flashes "over" while loading.
   const [state, setState] = useState<FocusLocalState | null | undefined>();
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     let live = true;
-    void chrome.storage.session.get(FOCUS_STATE_KEY).then((got) => {
-      if (live) setState((got[FOCUS_STATE_KEY] as FocusLocalState) ?? null);
-    });
+    let changed = false;
+    // No state and no ended marker means not checked yet (after a restart): show nothing.
+    const fromStore = (s: unknown, ended: unknown) =>
+      (s as FocusLocalState | undefined) ?? (ended ? null : undefined);
     const onChanged = (
       changes: Record<string, chrome.storage.StorageChange>,
       area: string
     ) => {
       if (area !== 'session' || !(FOCUS_STATE_KEY in changes)) return;
-      setState((changes[FOCUS_STATE_KEY].newValue as FocusLocalState) ?? null);
+      changed = true;
+      setState(fromStore(changes[FOCUS_STATE_KEY].newValue, true));
       setNow(Date.now());
     };
     chrome.storage.onChanged.addListener(onChanged);
+    void chrome.storage.session
+      .get([FOCUS_STATE_KEY, FOCUS_ENDED_KEY])
+      .then((got) => {
+        if (live && !changed)
+          setState(fromStore(got[FOCUS_STATE_KEY], got[FOCUS_ENDED_KEY]));
+      });
     const timer = setInterval(() => setNow(Date.now()), 15_000);
     return () => {
       live = false;

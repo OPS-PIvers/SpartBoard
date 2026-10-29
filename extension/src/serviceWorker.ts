@@ -145,13 +145,19 @@ const scope = self as unknown as PushScope & {
     listener: (event: { waitUntil(p: Promise<unknown>): void }) => void
   ): void;
 };
+// Focus calls run one at a time, so a stalled connection must not hold the queue.
+const focusApi: ApiDeps = {
+  ...api,
+  fetch: (input, init) =>
+    fetch(input, { ...init, signal: AbortSignal.timeout(15_000) }),
+};
 const focus = createFocusClient({
   ...chromeFocusDeps,
   origins,
   protocol: FOCUS_PROTOCOL,
   email: getChromeEmail,
-  status: (body) => callSpartBoard(api, 'focusStatusV1', body),
-  report: (body) => callSpartBoard(api, 'focusReportV1', body),
+  status: (body) => callSpartBoard(focusApi, 'focusStatusV1', body),
+  report: (body) => callSpartBoard(focusApi, 'focusReportV1', body),
   pushSubscription: () => chromePushSubscription(scope, __SPART_VAPID_KEY__),
 });
 const handle = createExternalHandler({
