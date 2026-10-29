@@ -40,6 +40,8 @@ import { useGuidedLearningSessionStudent } from '@/hooks/useGuidedLearningSessio
 import { useGuidedLearningProgress } from '@/hooks/useGuidedLearningProgress';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
+import { useStaffAudienceGate } from '@/components/student/useStaffAudienceGate';
+import { isStaffAudience, staffResponseFields } from '@/utils/staffAudience';
 import { GuidedLearningResponse, GuidedLearningSession } from '@/types';
 import { GuidedLearningPlayer } from '@/components/widgets/GuidedLearning/components/GuidedLearningPlayer';
 import { useServerNow } from '@/hooks/useServerNow';
@@ -196,6 +198,7 @@ const StudentExperience: React.FC<{
   } = useGuidedLearningSessionStudent(sessionId, anonymousUid);
   const { t } = useTranslation();
   const isViewOnly = session?.assignmentMode === 'view-only';
+  const staffGate = useStaffAudienceGate(isStaffAudience(session));
 
   // View tracking — log each pageview of a view-only Share link as an
   // immutable doc in the session's `views/` subcollection. Best-effort and
@@ -361,6 +364,7 @@ const StudentExperience: React.FC<{
         score: null,
         ...(classPeriod ? { classPeriod } : {}),
         ...(periodKeys[0] ? { classId: periodKeys[0] } : {}),
+        ...staffResponseFields(staffGate.identity),
       };
       if (responseCreatedRef.current) {
         await submitResponse(response, { exists: true });
@@ -517,6 +521,7 @@ const StudentExperience: React.FC<{
   if (screen.kind === 'notFound' || !session) {
     return <ErrorScreen message={t('glStudent.error.notFound')} />;
   }
+  if (staffGate.screen) return staffGate.screen;
 
   switch (screen.kind) {
     case 'excluded':
@@ -589,6 +594,11 @@ const StudentExperience: React.FC<{
           onPeriodChange={setClassPeriod}
           // View-only Share links skip the PIN and period picker.
           isViewOnly={isViewOnly}
+          staffName={
+            staffGate.identity
+              ? staffGate.identity.staffName || staffGate.identity.staffEmail
+              : undefined
+          }
           onStart={() => void handleStart()}
           error={seatError}
           busy={seating}
@@ -764,6 +774,8 @@ const StartScreen: React.FC<{
    * picker and PIN entry are both suppressed.
    */
   isViewOnly: boolean;
+  /** A Staff-audience joiner, shown in place of the PIN. */
+  staffName?: string;
   onStart: () => void;
   /** Why the last Start didn't join (per-period sessions). */
   error?: string | null;
@@ -775,6 +787,7 @@ const StartScreen: React.FC<{
   selectedPeriod,
   onPeriodChange,
   isViewOnly,
+  staffName,
   onStart,
   error = null,
   busy = false,
@@ -893,7 +906,14 @@ const StartScreen: React.FC<{
             </div>
           )}
 
-          {!isViewOnly && (
+          {staffName !== undefined && (
+            <p className="mb-6 text-sm text-slate-300">
+              Signed in as{' '}
+              <span className="font-semibold text-white">{staffName}</span>
+            </p>
+          )}
+
+          {!isViewOnly && staffName === undefined && (
             <div className="mb-6">
               <label
                 htmlFor="gl-student-pin"

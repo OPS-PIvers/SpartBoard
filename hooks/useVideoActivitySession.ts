@@ -89,6 +89,7 @@ import {
   RESPONSES_THROTTLE_MS,
 } from '@/utils/snapshotThrottle';
 import {
+  AssignmentAudience,
   AssignmentMode,
   VideoActivitySession,
   VideoActivityResponse,
@@ -102,6 +103,12 @@ import {
   TabExit,
 } from '@/types';
 import { useSandboxedVideoActivitySession } from './useTourSandboxed';
+import {
+  audienceSessionFields,
+  isStaffAudience,
+  readStaffIdentity,
+  staffResponseFields,
+} from '@/utils/staffAudience';
 import {
   completionPatch,
   isVaResponseCompleted,
@@ -175,7 +182,9 @@ export interface UseVideoActivitySessionTeacherResult {
     sessionOptions?: VideoActivitySessionOptions,
     periodGate?: Pick<VideoActivitySession, 'accessMode' | 'periodAccess'>,
     /** 'teacher' opens a live session in the lobby; self-paced-only behaviors are forced off. */
-    sessionMode?: VideoActivitySessionMode
+    sessionMode?: VideoActivitySessionMode,
+    /** Staff: the link needs district Google sign-in. */
+    audience?: AssignmentAudience
   ) => Promise<string>;
   /** Sessions created by the current teacher for the selected activity. */
   sessions: VideoActivitySession[];
@@ -265,7 +274,8 @@ export const useVideoActivitySessionTeacher =
         classPeriodByClassId?: Record<string, string>,
         sessionOptions?: VideoActivitySessionOptions,
         periodGate?: Pick<VideoActivitySession, 'accessMode' | 'periodAccess'>,
-        sessionMode: VideoActivitySessionMode = 'student'
+        sessionMode: VideoActivitySessionMode = 'student',
+        audience?: AssignmentAudience
       ): Promise<string> => {
         const sessionId = crypto.randomUUID();
         const trimmedAssignmentName = assignmentName?.trim();
@@ -351,6 +361,7 @@ export const useVideoActivitySessionTeacher =
               }
             : {}),
           mode,
+          ...audienceSessionFields(audience),
         };
 
         const batch = writeBatch(db);
@@ -1351,6 +1362,9 @@ export const useVideoActivitySessionStudent =
             // `resource.data.completedAttempts` is missing on first write
             // and `.size()`/comparison would throw). Mirrors the Quiz
             // create-time initialization.
+            const staffIdentity = isStaffAudience(sessionData)
+              ? await readStaffIdentity(currentUser)
+              : null;
             const newResponse: VideoActivityResponse = {
               studentUid: currentUser.uid,
               joinedAt: Date.now(),
@@ -1359,6 +1373,7 @@ export const useVideoActivitySessionStudent =
               score: null,
               completedAttempts: 0,
               tabSwitchWarnings: 0,
+              ...staffResponseFields(staffIdentity),
               ...(studentPin ? { pin: studentPin } : {}),
               ...(effectiveClassPeriod
                 ? { classPeriod: effectiveClassPeriod }

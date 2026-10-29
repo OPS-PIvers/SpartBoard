@@ -1,11 +1,13 @@
 import type {
   ClassRoster,
+  StaffResponseFields,
   StudentTargetRef,
   VideoActivityLiveState,
   VideoActivityQuestion,
   VideoActivitySession,
 } from '@/types';
 import { classStudentRows } from '@/utils/studentTargetRef';
+import { staffResultsLabel } from '@/utils/staffAudience';
 
 type LiveSessionFields = Pick<VideoActivitySession, 'sessionMode' | 'live'>;
 
@@ -162,7 +164,7 @@ interface RosterStudentName {
   formerPins?: string[];
 }
 
-interface LiveResponseLike {
+interface LiveResponseLike extends StaffResponseFields {
   pin?: string;
   name?: string;
   studentUid: string;
@@ -195,7 +197,7 @@ export function whoHasntAnswered(
       ? `${pinStudent.firstName} ${pinStudent.lastName}`.trim()
       : '';
     const label =
-      [rosterName, pinName, r.name].find(Boolean) ??
+      [staffResultsLabel(r), rosterName, pinName, r.name].find(Boolean) ??
       (r.pin ? `PIN ${r.pin}` : 'Student');
     if (r.pin) joinedPins.add(pinStudent?.pin ?? r.pin);
     if (rosterName) joinedNames.add(nameKey(rosterName));

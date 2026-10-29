@@ -37,7 +37,8 @@ import {
 import { auth, db, isAuthBypass } from '@/config/firebase';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { MockQuizDriveService } from '@/utils/mockQuizDriveService';
-import type { QuizTranslationIndexEntry } from '@/types';
+import type { AudienceSessionFields, QuizTranslationIndexEntry } from '@/types';
+import { audienceSessionFields } from '@/utils/staffAudience';
 import type { TranslationLoader } from '@/utils/quizTranslationPublish';
 import {
   enforceSessionSizeBudget,
@@ -229,7 +230,7 @@ export type SharedAssignmentImportMode = 'sync' | 'copy';
  * argument list; named fields make the read-site at every call clearer
  * and let new options land without churning every existing caller.
  */
-export interface CreateAssignmentOptions {
+export interface CreateAssignmentOptions extends AudienceSessionFields {
   /** Defaults to `'active'`. */
   initialStatus?: QuizAssignmentStatus;
   /** Owning widget, mirrored onto assignment + session; omitted while the split flag is off. */
@@ -1629,6 +1630,7 @@ export const useQuizAssignments = (
         endedAt: null,
         code,
         allowAnonymousJoin,
+        ...audienceSessionFields(options?.audience),
         totalQuestions: hasBankSlots
           ? sessionTotalQuestions(
               sessionQuestions.map((q) => q.id),

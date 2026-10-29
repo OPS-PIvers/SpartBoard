@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { db, functions } from '@/config/firebase';
 import { useStudentAuth } from '@/context/useStudentAuth';
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
+import { staffResponseFields, type StaffIdentity } from '@/utils/staffAudience';
 import type {
   FlashcardProgress,
   FlashcardSession,
@@ -101,7 +102,8 @@ const createTrackedAdapter = (
   session: FlashcardSession,
   studentUid: string,
   classId: string,
-  initial: FlashcardProgress | null
+  initial: FlashcardProgress | null,
+  staff: StaffIdentity | undefined
 ): TrackedFlashcardAdapter =>
   new TrackedFlashcardAdapter({
     classId,
@@ -115,7 +117,7 @@ const createTrackedAdapter = (
           PROGRESS_SUBCOLLECTION,
           studentUid
         ),
-        payload,
+        { ...payload, ...staffResponseFields(staff) },
         { merge: true }
       ),
     // Flashcards-mode Checks grade from mastery, so only the server may move it.
@@ -138,6 +140,8 @@ const TrackedPlayer: React.FC<{
   paused?: boolean;
   /** Bumps each time a teacher reset deletes this student's progress doc. */
   resetCount: number;
+  /** A Staff-audience joiner, named on their progress doc. */
+  staff?: StaffIdentity;
 }> = ({
   session,
   progress,
@@ -145,11 +149,18 @@ const TrackedPlayer: React.FC<{
   classId,
   paused = false,
   resetCount,
+  staff,
 }) => {
   const { t } = useTranslation();
   const [framed] = useState(isFramedWindow);
   const [tracked, setTracked] = useState(() => ({
-    adapter: createTrackedAdapter(session, studentUid, classId, progress),
+    adapter: createTrackedAdapter(
+      session,
+      studentUid,
+      classId,
+      progress,
+      staff
+    ),
     resetCount,
   }));
   const { adapter } = tracked;
@@ -159,10 +170,10 @@ const TrackedPlayer: React.FC<{
     tracked.adapter.discard();
     // eslint-disable-next-line react-hooks/set-state-in-effect -- re-seeds after the progress snapshot shows a teacher reset
     setTracked({
-      adapter: createTrackedAdapter(session, studentUid, classId, null),
+      adapter: createTrackedAdapter(session, studentUid, classId, null, staff),
       resetCount,
     });
-  }, [resetCount, tracked, session, studentUid, classId]);
+  }, [resetCount, tracked, session, studentUid, classId, staff]);
   const [submitState, dispatchSubmit] = useReducer(
     submitReducer,
     initialSubmit
@@ -288,7 +299,10 @@ const resolveClassId = (
   session.classId ??
   '';
 
-export const FlashcardAssignmentPage: React.FC = () => {
+export const FlashcardAssignmentPage: React.FC<{
+  /** A Staff-audience link: the signed-in staff member, in place of a student. */
+  staff?: StaffIdentity;
+}> = ({ staff }) => {
   const { t } = useTranslation();
   const { pseudonymUid, classIds } = useStudentAuth();
   const [assignmentId] = useState(getAssignmentId);
@@ -299,7 +313,11 @@ export const FlashcardAssignmentPage: React.FC = () => {
     progressListenReducer,
     initialProgressListen
   );
-  const pointer = useStudentAssignmentPointer(pseudonymUid, assignmentId);
+  const pointer = useStudentAssignmentPointer(
+    pseudonymUid,
+    assignmentId,
+    !staff
+  );
   const rawSession = sessionState.kind === 'ready' ? sessionState.value : null;
   const perPeriod = hasPeriodAccess(rawSession);
   const { periodKeys, content, contentPending, takeSeat } =
@@ -555,6 +573,7 @@ export const FlashcardAssignmentPage: React.FC = () => {
           }
           paused={view.paused}
           resetCount={listen.resetCount}
+          staff={staff}
         />
       );
       break;

@@ -28,6 +28,7 @@ import {
   type StudentName,
 } from '@/hooks/useAssignmentPseudonyms';
 import { resolvePinName } from './quizScoreboard';
+import { staffResultsLabel } from '@/utils/staffAudience';
 
 /** Fallback rendered when no name source resolves. */
 export const UNKNOWN_STUDENT_LABEL = 'Student';
@@ -41,6 +42,8 @@ export function resolveResponseDisplayName(
   pinToName: Record<string, string>,
   byStudentUid: Map<string, StudentName> | undefined
 ): string {
+  const staffName = staffResultsLabel(response);
+  if (staffName) return staffName;
   const ssoName = byStudentUid
     ? formatStudentName(byStudentUid.get(response.studentUid))
     : '';

@@ -3827,7 +3827,10 @@ export interface MiniAppConfig {
  * Created by teachers; read by students via the `/miniapp/{sessionId}` route.
  */
 export interface MiniAppSession
-  extends PeriodAccessSessionFields, SessionWorkKindFields {
+  extends
+    PeriodAccessSessionFields,
+    SessionWorkKindFields,
+    AudienceSessionFields {
   id: string;
   appId: string;
   appTitle: string;
@@ -3907,9 +3910,9 @@ export interface MiniAppSession
  *   - The anonymous Firebase Auth UID for legacy shared-link launches. Also
  *     stable per-device per-session.
  *
- * No PII is ever persisted — the submission shape is deliberately opaque.
+ * No PII is ever persisted for students; a Staff-audience submission carries the staff member's name and email.
  */
-export interface MiniAppSubmission {
+export interface MiniAppSubmission extends StaffResponseFields {
   submittedAt: number;
   /**
    * The submitting student's Firebase Auth uid. Matches `request.auth.uid` at
@@ -5290,6 +5293,20 @@ export interface QuizLeaderboardEntry {
   rank: number;
 }
 
+/** Who an assignment is for; absent means students. A Staff link needs district Google sign-in. */
+export type AssignmentAudience = 'students' | 'staff';
+
+/** Frozen on a session and its assignment doc at assign time. */
+export interface AudienceSessionFields {
+  audience?: AssignmentAudience;
+}
+
+/** A Staff-audience joiner's identity, copied from their ID token; the rules check both. */
+export interface StaffResponseFields {
+  staffEmail?: string;
+  staffName?: string;
+}
+
 /**
  * Stamped on both docs a substitute's launch writes — the session and the
  * teacher's own assignment record (docs/plans/shipped/SUB_SHARE_COLLECTIONS.md §3.6,
@@ -5347,7 +5364,8 @@ export interface QuizSession
   extends
     SubLaunchedSessionFields,
     PeriodAccessSessionFields,
-    SessionWorkKindFields {
+    SessionWorkKindFields,
+    AudienceSessionFields {
   id: string; // session UUID (same as QuizAssignment.id)
   /** FK back to /users/{teacherUid}/quiz_assignments/{assignmentId}. 1:1 with session. */
   assignmentId: string;
@@ -5936,7 +5954,7 @@ export interface TabExit {
 /** Rules refuse a log past this length; the warning count keeps going. */
 export const TAB_EXITS_MAX = 50;
 
-export interface QuizResponse {
+export interface QuizResponse extends StaffResponseFields {
   /**
    * The Firestore doc key under /responses. Populated at read time by the
    * teacher/student hooks from snapshot.doc.id; never persisted as a field.
@@ -7634,7 +7652,8 @@ export interface VideoActivitySession
   extends
     SubLaunchedSessionFields,
     PeriodAccessSessionFields,
-    SessionWorkKindFields {
+    SessionWorkKindFields,
+    AudienceSessionFields {
   id: string;
   activityId: string;
   activityTitle: string;
@@ -7806,7 +7825,7 @@ export interface VideoActivityAnswer {
  *
  * Stored at /video_activity_sessions/{sessionId}/responses/{responseKey}
  */
-export interface VideoActivityResponse {
+export interface VideoActivityResponse extends StaffResponseFields {
   /**
    * The Firestore doc key under /responses. Populated at read time by the
    * teacher hook from snapshot.doc.id; never persisted as a field. Callers
@@ -9012,6 +9031,7 @@ export interface GuidedLearningPublicStep {
 export interface GuidedLearningSession
   extends
     SubLaunchedSessionFields,
+    AudienceSessionFields,
     PeriodAccessSessionFields,
     SessionWorkKindFields {
   id: string;
@@ -9122,7 +9142,7 @@ export interface GuidedLearningSession
 }
 
 /** Per-student response in /guided_learning_sessions/{id}/responses/{studentUid} */
-export interface GuidedLearningResponse {
+export interface GuidedLearningResponse extends StaffResponseFields {
   sessionId: string;
   studentAnonymousId: string;
   pin?: string;
@@ -9496,7 +9516,8 @@ export interface FlashcardSession
   extends
     SubLaunchedSessionFields,
     PeriodAccessSessionFields,
-    SessionWorkKindFields {
+    SessionWorkKindFields,
+    AudienceSessionFields {
   id: string;
   teacherUid: string;
   setId: string;
@@ -9531,7 +9552,10 @@ export interface FlashcardSession
 
 /** `users/{uid}/flashcard_assignments/{assignmentId}`: the teacher's record (id == session id). */
 export interface FlashcardAssignment
-  extends SubLaunchedSessionFields, PeriodAccessSessionFields {
+  extends
+    SubLaunchedSessionFields,
+    PeriodAccessSessionFields,
+    AudienceSessionFields {
   id: string;
   sessionId: string;
   setId: string;
@@ -9564,7 +9588,8 @@ export interface FlashcardAssignment
 }
 
 /** `flashcard_sessions/{assignmentId}/progress/{studentUid}`. */
-export interface FlashcardProgress extends FlashcardStudyState {
+export interface FlashcardProgress
+  extends FlashcardStudyState, StaffResponseFields {
   classId: string;
   studyMs: number;
   modesUsed: FlashcardMode[];
@@ -10715,7 +10740,9 @@ export type GlobalFeature =
   /** Timer button on the Music widget that opens a Timer linked to it. */
   | 'music-timer-link'
   /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
-  | 'focus-sessions';
+  | 'focus-sessions'
+  /** Assign to Staff: district Google sign-in links with named results (any assignment type). */
+  | 'staff-audience';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
@@ -11808,7 +11835,10 @@ export interface MiniAppAssignment extends PeriodAccessSessionFields {
 export type GuidedLearningAssignmentStatus = 'active' | 'archived';
 
 export interface GuidedLearningAssignment
-  extends SubLaunchedSessionFields, PeriodAccessSessionFields {
+  extends
+    SubLaunchedSessionFields,
+    PeriodAccessSessionFields,
+    AudienceSessionFields {
   /** Document id — matches the session id. */
   id: string;
   /** ID of the set that was assigned. */

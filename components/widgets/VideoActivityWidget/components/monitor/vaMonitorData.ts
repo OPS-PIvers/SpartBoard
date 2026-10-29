@@ -18,6 +18,7 @@ import {
   gradeVideoActivityAnswer,
 } from '@/utils/videoActivityGrading';
 import { isVaResponseCompleted } from '@/utils/videoActivityState';
+import { staffResultsLabel } from '@/utils/staffAudience';
 
 export type VaMark = 'correct' | 'wrong' | 'open';
 
@@ -68,7 +69,7 @@ export function buildVaStudent(
   return {
     response: r,
     key: r._responseKey ?? r.studentUid,
-    name,
+    name: staffResultsLabel(r) ?? name,
     bucket,
     marks,
     score:

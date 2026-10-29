@@ -136,6 +136,11 @@ import {
   ANONYMOUS_JOIN_BLOCKED_MESSAGE,
   isAnonymousJoinBlocked,
 } from '@/utils/anonymousJoin';
+import {
+  isStaffAudience,
+  readStaffIdentity,
+  staffResponseFields,
+} from '@/utils/staffAudience';
 export type { QuizSessionOptions } from '@/types';
 
 export const QUIZ_SESSIONS_COLLECTION = 'quiz_sessions';
@@ -1972,6 +1977,8 @@ export interface UseQuizSessionStudentResult {
     sessionId: string;
     /** The teacher lacked `anonymous-join`, so PIN entry is closed. */
     anonymousJoinBlocked: boolean;
+    /** Staff link: district Google sign-in instead of a PIN. */
+    staffAudience: boolean;
   } | null>;
   /**
    * Join a quiz session.
@@ -2443,6 +2450,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       classIds: string[];
       sessionId: string;
       anonymousJoinBlocked: boolean;
+      staffAudience: boolean;
     } | null> => {
       // Populate the hook's `error` state on failure so callers' .catch
       // handlers (which only console.warn) still produce visible UI feedback.
@@ -2476,6 +2484,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             : [],
           sessionId,
           anonymousJoinBlocked: isAnonymousJoinBlocked(sessionData),
+          staffAudience: isStaffAudience(sessionData),
         };
       } catch (err) {
         const msg =
@@ -3047,6 +3056,9 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           // the same `classPeriod` field so all downstream surfaces (period
           // dropdown, export sheet) read uniformly.
           const finalClassPeriod = classPeriod ?? resolvedPeriodName;
+          const staffIdentity = isStaffAudience(sessionData)
+            ? await readStaffIdentity(currentUser)
+            : null;
           const newResponse: Omit<
             QuizResponse,
             'lastWriteAt' | 'attemptStartedAt'
@@ -3082,6 +3094,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             ...(sanitizedPin ? { pin: sanitizedPin } : {}),
             ...(finalClassPeriod ? { classPeriod: finalClassPeriod } : {}),
             ...(resolvedClassId ? { classId: resolvedClassId } : {}),
+            ...staffResponseFields(staffIdentity),
           };
           const created = periodKey
             ? writeBatch(db)

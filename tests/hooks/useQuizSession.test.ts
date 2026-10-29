@@ -1004,6 +1004,7 @@ describe('useQuizSessionStudent — lookupSession', () => {
       classIds: [],
       sessionId: 'newer',
       anonymousJoinBlocked: false,
+      staffAudience: false,
     });
   });
 
@@ -1029,6 +1030,7 @@ describe('useQuizSessionStudent — lookupSession', () => {
       classIds: ['F33EC569', 'FB8737C8'],
       sessionId: 'classlink',
       anonymousJoinBlocked: false,
+      staffAudience: false,
     });
   });
 });

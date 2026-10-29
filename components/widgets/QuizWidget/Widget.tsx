@@ -2737,6 +2737,9 @@ const TeacherQuizWidget: React.FC<{
                     }
                   : {}),
                 ...(sessionBankSlots ? { bankSlots: sessionBankSlots } : {}),
+                ...(stepper?.audience === 'staff'
+                  ? { audience: 'staff' as const }
+                  : {}),
                 classIds: derived.classIds,
                 rosterIds: derived.rosterIds,
                 classPeriodByClassId: derived.classPeriodByClassId,
