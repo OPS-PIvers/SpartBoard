@@ -590,6 +590,7 @@ export function ImportWizard<TData>({
                 {bulkSource.title}
               </p>
               <p className="text-xs text-slate-500">{bulkSource.description}</p>
+              {bulkSource.guide}
               <button
                 type="button"
                 onClick={() => bulkInputRef.current?.click()}

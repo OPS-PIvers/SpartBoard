@@ -3641,6 +3641,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'text-toolbar.more-item': ['widgets.text.face'],
     'import-wizard.close': ['library.import-wizard'],
     'import-wizard.bulk-file': ['library.import-wizard'],
+    'import-wizard.schoology-steps': ['library.import-wizard'],
     'import-wizard.pick-sheet': ['library.import-wizard'],
     'import-wizard.choose-file': ['library.import-wizard'],
     'import-wizard.format-help': ['library.import-wizard'],

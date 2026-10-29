@@ -649,6 +649,8 @@ export interface ImportAdapter<TData> {
     /** File-input `accept`, e.g. `.imscc`. */
     accept: string;
     onFile: (file: File) => void;
+    /** Steps shown under the description, e.g. how to get the export. */
+    guide?: React.ReactNode;
   };
   /** Optional helper for Google Sheets template creation. */
   templateHelper?: {

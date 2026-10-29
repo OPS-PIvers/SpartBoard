@@ -67363,6 +67363,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "import-wizard.schoology-steps",
+    "label": "How to export from Schoology toggle on the From Schoology tile in the Import wizard",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "import-wizard.pick-sheet",
     "label": "Choose Google Sheet button in the Import wizard",
     "scope": "board",

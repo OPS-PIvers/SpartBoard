@@ -99,6 +99,7 @@ import { PlcSyncConflictPrompt } from '@/components/plc/sync/PlcSyncConflictProm
 import { PlcShareTargetModal } from '@/components/plc/PlcShareTargetModal';
 import { QuizManager, PlcOptions } from './components/QuizManager';
 import { ImportWizard } from '@/components/common/library/importer';
+import { SchoologyExportGuide } from '@/components/common/library/importer/SchoologyExportGuide';
 import { createQuizImportAdapter } from './adapters/quizImportAdapter';
 import {
   extractQuizFromDocument,
@@ -521,13 +522,16 @@ const TeacherQuizWidget: React.FC<{
   // Bank editor state — ephemeral, mirrors the quiz editor pair below.
   const [editingBank, setEditingBank] = useState<QuestionBankData | null>(null);
   const [bankImportOpen, setBankImportOpen] = useState(false);
-  const canImportBankCartridge = canAccessFeature('question-bank-imscc-import');
+  const canImportFromSchoology = canAccessFeature('schoology-quiz-import');
+  // The .imscc flags fold into schoology-quiz-import and retire once it opens.
+  const canImportBankCartridge =
+    canImportFromSchoology || canAccessFeature('question-bank-imscc-import');
   const [bankCartridge, setBankCartridge] = useState<File | null>(null);
-  const canImportQuizCartridge = canAccessFeature('quiz-imscc-import');
+  const canImportQuizCartridge =
+    canImportFromSchoology || canAccessFeature('quiz-imscc-import');
   const [quizCartridge, setQuizCartridge] = useState<File | null>(null);
   // Quizzes a Schoology import (.imscc or the extension) already saved, so a retry only re-runs the folder move.
   const savedCartridgeQuizzes = useRef(new Map<string, string>());
-  const canImportFromSchoology = canAccessFeature('schoology-quiz-import');
   const schoologyInbox = useSchoologyInbox(user?.uid, canImportFromSchoology);
   const [schoologyReviewOpen, setSchoologyReviewOpen] = useState(false);
   // The extension asks for the review by URL or by an event in an open tab; both are outside React.
@@ -1936,10 +1940,16 @@ const TeacherQuizWidget: React.FC<{
       ? {
           ...baseAdapter,
           bulkSource: {
-            title: 'Schoology export (.imscc)',
+            title: 'From Schoology',
             description:
-              'Brings in every question bank in the export, each in its own bank.',
+              'Choose a Schoology export (.imscc). Every question bank in it comes in as its own bank.',
             accept: '.imscc',
+            guide: (
+              <SchoologyExportGuide
+                kind="banks"
+                canSend={canImportFromSchoology}
+              />
+            ),
             onFile: (file: File) => {
               setBankImportOpen(false);
               setBankCartridge(file);
@@ -1995,10 +2005,16 @@ const TeacherQuizWidget: React.FC<{
       ? {
           ...adapter,
           bulkSource: {
-            title: 'Schoology export (.imscc)',
+            title: 'From Schoology',
             description:
-              'Brings in every quiz and test in the export as separate quizzes.',
+              'Choose a Schoology export (.imscc). Every quiz and test in it comes in as its own quiz.',
             accept: '.imscc',
+            guide: (
+              <SchoologyExportGuide
+                kind="quizzes"
+                canSend={canImportFromSchoology}
+              />
+            ),
             onFile: (file: File) => setQuizCartridge(file),
           },
         }
