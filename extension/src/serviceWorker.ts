@@ -6,8 +6,10 @@ import {
 } from '@/components/tours/web/extensionProtocol';
 import { createExternalHandler } from './handler';
 import { getChromeEmail, getChromeProfile } from './profile';
-import { FOCUS_PROTOCOL } from '@/components/tours/web/extensionProtocol';
+import { FOCUS_ENFORCE_PROTOCOL } from '@/components/tours/web/extensionProtocol';
 import { createFocusClient } from './focus/focusClient';
+import { createChromeEnforcer } from './focus/chromeEnforce';
+import { FOCUS_FULLSCREEN_MESSAGE } from './focus/pageNotice';
 import {
   parseFocusPanelMessage,
   type FocusPanelReply,
@@ -155,10 +157,18 @@ const focusApi: ApiDeps = {
   fetch: (input, init) =>
     fetch(input, { ...init, signal: AbortSignal.timeout(15_000) }),
 };
+// Redirect and Lock (F2, F10): blocked navigations, parked tabs, Lock's rules and fullscreen.
+const enforcer = createChromeEnforcer({
+  origins,
+  load: chromeFocusDeps.load,
+  now: chromeFocusDeps.now,
+});
 const focus = createFocusClient({
   ...chromeFocusDeps,
+  enforce: enforcer.sync,
+  activeFullscreen: enforcer.activeFullscreen,
   origins,
-  protocol: FOCUS_PROTOCOL,
+  protocol: FOCUS_ENFORCE_PROTOCOL,
   email: getChromeEmail,
   status: (body) => callSpartBoard(focusApi, 'focusStatusV1', body),
   report: (body) => callSpartBoard(focusApi, 'focusReportV1', body),
@@ -248,6 +258,16 @@ chrome.runtime.onMessage.addListener((message: unknown, sender) => {
     tabId === undefined ||
     sender.frameId === undefined
   ) {
+    return false;
+  }
+  if (
+    typeof message === 'object' &&
+    message !== null &&
+    (message as { type?: unknown }).type === FOCUS_FULLSCREEN_MESSAGE
+  ) {
+    const windowId = sender.tab?.windowId;
+    if (windowId !== undefined)
+      void enforcer.returnToFullscreen(windowId).then(() => focus.observe());
     return false;
   }
   if (isFrameReport(message)) {
@@ -343,9 +363,13 @@ chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
   if (change.url !== undefined || change.status === 'complete')
     void tourList.badge(tabId, tab.url);
   if (change.url !== undefined && tab.active) void focus.observe();
+  // Catches what the navigation events can't, such as a prerendered page being shown.
+  if (change.url !== undefined) blockedNavigation(tabId, change.url, true);
+  if (change.status === 'complete') void enforcer.tabShown(tabId);
 });
 chrome.tabs.onRemoved.addListener((tabId) => {
   void playback.tabClosed(tabId);
+  enforcer.tabClosed(tabId);
 });
 
 // Focus sessions: the 5-minute check, a push wake-up, sign-in and tab changes.
@@ -356,7 +380,48 @@ scope.addEventListener('pushsubscriptionchange', (event) =>
   event.waitUntil(focus.check())
 );
 chrome.identity.onSignInChanged.addListener(() => void focus.check());
-chrome.tabs.onActivated.addListener(() => void focus.observe());
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  void focus.observe();
+  void enforcer.tabShown(tabId);
+});
 chrome.windows.onFocusChanged.addListener((windowId) => {
-  if (windowId !== chrome.windows.WINDOW_ID_NONE) void focus.observe();
+  if (windowId === chrome.windows.WINDOW_ID_NONE) return;
+  void focus.observe();
+  void enforcer.windowChanged();
+});
+// Leaving or entering fullscreen changes the window's bounds (Lock's cover, F2).
+chrome.windows.onBoundsChanged.addListener(() => {
+  void focus.observe();
+  void enforcer.windowChanged();
+});
+
+// Redirect and Lock: a blocked top-level navigation is sent back and counts as a try (F2, F4).
+function blockedNavigation(
+  tabId: number,
+  url: string,
+  committed: boolean,
+  currentUrl?: string
+): void {
+  enforcer.navigated(tabId, url, currentUrl, committed).then(
+    (blocked) => {
+      if (blocked) void focus.blocked();
+    },
+    () => undefined
+  );
+}
+const isShownTopFrame = (d: { frameId: number; documentLifecycle?: unknown }) =>
+  d.frameId === 0 && String(d.documentLifecycle) !== 'prerender';
+chrome.webNavigation.onBeforeNavigate.addListener((d) => {
+  if (!isShownTopFrame(d)) return;
+  // The tab still shows the page it is leaving, which is where Redirect sends it back.
+  void chrome.tabs.get(d.tabId).then(
+    (tab) => blockedNavigation(d.tabId, d.url, false, tab.url),
+    () => blockedNavigation(d.tabId, d.url, false)
+  );
+});
+chrome.webNavigation.onCommitted.addListener((d) => {
+  if (isShownTopFrame(d)) blockedNavigation(d.tabId, d.url, true);
+});
+chrome.webNavigation.onHistoryStateUpdated.addListener((d) => {
+  if (isShownTopFrame(d)) blockedNavigation(d.tabId, d.url, true);
 });
