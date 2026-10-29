@@ -17,3 +17,16 @@ export async function getChromeProfile(): Promise<ExtensionProfile> {
     return 'none';
   }
 }
+
+/** The Chrome profile's email, or undefined when none is signed in (focus sessions, F3). */
+export async function getChromeEmail(): Promise<string | undefined> {
+  if (BENCH) return undefined;
+  try {
+    const info = await chrome.identity.getProfileUserInfo({
+      accountStatus: 'ANY',
+    });
+    return info.email || undefined;
+  } catch {
+    return undefined;
+  }
+}

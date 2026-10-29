@@ -181,3 +181,69 @@ export interface FocusReportReply {
   /** False once the session ended or the student was released, so the extension checks status now. */
   active: boolean;
 }
+
+/** Body of the `focusStartV1` callable (F1, F6); `sites` are parsed with parseFocusSite on the client. */
+export interface FocusStartRequest {
+  /** ClassLink class sourcedId, or the mock class id on dev. */
+  classId: string;
+  className: string;
+  level: FocusLevel;
+  minutes: number;
+  sites: FocusSite[];
+}
+
+export interface FocusStartReply {
+  sessionId: string;
+  endsAt: number;
+  studentCount: number;
+  /** F7: students another session already holds. */
+  otherSessionCount: number;
+}
+
+export interface FocusExtendRequest {
+  sessionId: string;
+}
+
+export interface FocusExtendReply {
+  endsAt: number;
+}
+
+/** A substitute names the share that gives them the class (F8); teachers leave `shareId` out. */
+export interface FocusReleaseRequest {
+  sessionId: string;
+  /** One student; left out releases the whole class. */
+  studentUid?: string;
+  shareId?: string;
+}
+
+export interface FocusReleaseReply {
+  released: number;
+}
+
+export interface FocusAddSiteRequest {
+  sessionId: string;
+  site: FocusSite;
+}
+
+export interface FocusAddSiteReply {
+  sites: FocusSite[];
+}
+
+export interface FocusEndRequest {
+  sessionId: string;
+  shareId?: string;
+}
+
+export interface FocusEndReply {
+  endedAt: number;
+}
+
+/** Body of `focusOpenV1`: a co-teacher, or a substitute naming their share, finds the class's running session. */
+export interface FocusOpenRequest {
+  classId: string;
+  shareId?: string;
+}
+
+export interface FocusOpenReply {
+  sessionId: string | null;
+}

@@ -1,0 +1,142 @@
+import { describe, expect, it } from 'vitest';
+import type { FocusActiveSession } from '@/utils/focus/contract';
+import {
+  badgeText,
+  isEnforcing,
+  isStudentEmail,
+  liveHostFor,
+  minutesLeft,
+  parseStatusReply,
+  siteUrl,
+  statusFor,
+  type FocusLocalState,
+} from './focusState';
+
+const session: FocusActiveSession = {
+  sessionId: 's1',
+  teacherName: 'Ms. Rivera',
+  level: 'monitor',
+  sites: [{ host: 'desmos.com', path: '' }],
+  endsAt: 1_000_000,
+  released: false,
+  showLiveSite: false,
+};
+
+const local = (over: Partial<FocusLocalState> = {}): FocusLocalState => ({
+  session,
+  offsetMs: 0,
+  reported: null,
+  reportedAt: 0,
+  reportedHost: null,
+  blockedTries: 0,
+  ...over,
+});
+
+describe('parseStatusReply', () => {
+  it('accepts no session and a full session', () => {
+    expect(parseStatusReply({ session: null, serverNow: 5 })).toEqual({
+      session: null,
+      serverNow: 5,
+    });
+    expect(parseStatusReply({ session, serverNow: 5 })).toEqual({
+      session,
+      serverNow: 5,
+    });
+  });
+
+  it('rejects malformed replies', () => {
+    expect(parseStatusReply(null)).toBeNull();
+    expect(parseStatusReply({ session: null })).toBeNull();
+    expect(
+      parseStatusReply({
+        session: { ...session, level: 'kiosk' },
+        serverNow: 1,
+      })
+    ).toBeNull();
+    expect(
+      parseStatusReply({ session: { ...session, sessionId: '' }, serverNow: 1 })
+    ).toBeNull();
+    expect(
+      parseStatusReply({ session: { ...session, endsAt: NaN }, serverNow: 1 })
+    ).toBeNull();
+  });
+
+  it('drops sites that are not well formed', () => {
+    const reply = parseStatusReply({
+      session: {
+        ...session,
+        sites: [{ host: 'desmos.com', path: '' }, 'x', {}],
+      },
+      serverNow: 1,
+    });
+    expect(reply?.session?.sites).toEqual([{ host: 'desmos.com', path: '' }]);
+  });
+});
+
+describe('isStudentEmail', () => {
+  it('matches only the student domain', () => {
+    expect(isStudentEmail('Kid@Students.Orono.k12.mn.us')).toBe(true);
+    expect(isStudentEmail('teacher@orono.k12.mn.us')).toBe(false);
+    expect(isStudentEmail('kid@students.orono.k12.mn.us.evil.example')).toBe(
+      false
+    );
+    expect(isStudentEmail('@students.orono.k12.mn.us')).toBe(false);
+    expect(isStudentEmail(undefined)).toBe(false);
+  });
+});
+
+describe('time left', () => {
+  it('counts on the server clock and rounds minutes up', () => {
+    // The device runs 60s behind the server.
+    const s = local({ offsetMs: 60_000 });
+    expect(minutesLeft(s, 1_000_000 - 60_000 - 61_000)).toBe(2);
+    expect(minutesLeft(s, 1_000_000 - 60_000 - 1)).toBe(1);
+    expect(isEnforcing(s, 1_000_000 - 60_000)).toBe(false);
+    expect(badgeText(s, 1_000_000 - 60_000 - 120_000)).toBe('2m');
+  });
+
+  it('stops for a released student or no session', () => {
+    const released = local({ session: { ...session, released: true } });
+    expect(isEnforcing(released, 0)).toBe(false);
+    expect(badgeText(released, 0)).toBe('');
+    expect(badgeText(null, 0)).toBe('');
+  });
+});
+
+describe('statusFor', () => {
+  const origins = ['https://spartboard.web.app'];
+  it('is away only on a web page outside the allowlist', () => {
+    expect(
+      statusFor('https://www.desmos.com/calculator', session, origins)
+    ).toBe('on-task');
+    expect(
+      statusFor('https://desmos.com.evil.example/', session, origins)
+    ).toBe('away');
+    expect(statusFor('https://spartboard.web.app/quiz', session, origins)).toBe(
+      'on-task'
+    );
+    expect(statusFor('https://accounts.google.com/', session, origins)).toBe(
+      'on-task'
+    );
+    expect(
+      statusFor('chrome-extension://abc/focus/index.html', session, origins)
+    ).toBe('on-task');
+    expect(statusFor(undefined, session, origins)).toBe('on-task');
+  });
+});
+
+describe('liveHostFor', () => {
+  it('sends a domain only while the live-site switch is on', () => {
+    expect(liveHostFor('https://Example.com/a?b', session)).toBeNull();
+    const on = { ...session, showLiveSite: true };
+    expect(liveHostFor('https://Example.com/a?b', on)).toBe('example.com');
+    expect(liveHostFor('chrome://newtab/', on)).toBeNull();
+    expect(liveHostFor('not a url', on)).toBeNull();
+  });
+});
+
+it('builds a site button address', () => {
+  expect(siteUrl({ host: 'docs.google.com', path: '/document/d/x' })).toBe(
+    'https://docs.google.com/document/d/x'
+  );
+});
