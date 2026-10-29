@@ -98,16 +98,9 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/plans/shipped/PER_PERIOD_ASSIGNMENT_ACCESS.md`
 
-- [ ] Paul runs a real class through per-period access in prod on his own account, then flips 'per-period-access' from admin to Public in Admin Settings > Access > Global Settings. (S)
-
 #### `docs/plans/shipped/PLC_DELEGATED_PAPER_PRINTING.md`
 
 - [ ] Flip admin_settings/plc_delegated_printing (Rollouts switch) to Public in prod after Paul tests it live, per the flag-release convention. (S)
-
-#### `docs/plans/shipped/PLC_NORMING_FLAGS.md`
-
-- [ ] Paul tests the feature in prod on his own account and flips 'plc-norming-flags' from admin/preview to Public in Admin Settings > Access > Previews. (S)
-- [ ] Once Public, per afterLaunch:'retire', delete the feature gate and registry entry and add the changelog note. (S)
 
 #### `docs/plans/PLC_RENAME_QUIZZES_TO_ASSESSMENTS.md`
 

@@ -55,7 +55,7 @@ export const DevSyncFromProdButton: React.FC = () => {
   if (confirming) {
     return (
       <div className="flex items-center gap-1">
-        <button
+        <button // no-tour-anchor: dev-site only tool
           type="button"
           onClick={() => void run()}
           className="text-xxs font-bold text-brand-red-primary hover:underline"
@@ -64,7 +64,7 @@ export const DevSyncFromProdButton: React.FC = () => {
             defaultValue: 'Replace dev copy?',
           })}
         </button>
-        <button
+        <button // no-tour-anchor: dev-site only tool
           type="button"
           onClick={() => setConfirming(false)}
           className="text-xxs text-slate-500 hover:underline"
@@ -76,7 +76,7 @@ export const DevSyncFromProdButton: React.FC = () => {
   }
 
   return (
-    <button
+    <button // no-tour-anchor: dev-site only tool
       type="button"
       onClick={() => setConfirming(true)}
       disabled={syncing}

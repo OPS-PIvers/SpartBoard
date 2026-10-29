@@ -101,6 +101,18 @@ vi.mock('@/components/plc/teams/pageRegistry', async () => {
     },
   };
 });
+vi.mock('@/components/plc/teams/home/PlcHomePage', () => ({
+  PlcHomePage: () => (
+    <div data-testid="plc-home">
+      <input aria-label="Field" />
+      <div
+        data-testid="editor"
+        contentEditable
+        suppressContentEditableWarning
+      />
+    </div>
+  ),
+}));
 vi.mock('./TeamLayoutEditor', () => ({
   TeamLayoutEditor: () => <div data-testid="layout-editor" />,
 }));

@@ -7,7 +7,6 @@ import {
 } from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { useDialog } from '@/context/useDialog';
-import { useAuth } from '@/context/useAuth';
 import {
   ScheduleGlobalConfig,
   BuildingScheduleDefaults,
@@ -92,12 +91,10 @@ interface SortableItemProps {
   item: ScheduleItem;
   onUpdate: (itemId: string, updates: Partial<ScheduleItem>) => void;
   onDelete: (itemId: string) => void;
-  /** Show the class-period id field (per-period access). */
-  showPeriodField: boolean;
 }
 
 const SortableItem: React.FC<SortableItemProps> = React.memo(
-  ({ item, onUpdate, onDelete, showPeriodField }) => {
+  ({ item, onUpdate, onDelete }) => {
     const {
       attributes,
       listeners,
@@ -131,7 +128,7 @@ const SortableItem: React.FC<SortableItemProps> = React.memo(
           <GripVertical className="w-4 h-4" />
         </div>
         <div className="flex-1 grid grid-cols-12 gap-2">
-          <div className={showPeriodField ? 'col-span-4' : 'col-span-6'}>
+          <div className="col-span-4">
             <input
               {...tourFieldAttr(
                 'admin.widget-config.field',
@@ -177,33 +174,31 @@ const SortableItem: React.FC<SortableItemProps> = React.memo(
               className="w-full px-1 py-1.5 text-xs border border-slate-200 rounded outline-none"
             />
           </div>
-          {showPeriodField && (
-            <div className="col-span-2">
-              <input
-                {...tourFieldAttr(
-                  'admin.widget-config.field',
-                  'schedule',
-                  `periodId-${item.id}`
-                )}
-                type="text"
-                value={item.isClassPeriod ? (item.periodId ?? '') : ''}
-                onChange={(e) => {
-                  if (!item.id) return;
-                  const periodId = e.target.value.trim().slice(0, 20);
-                  onUpdate(
-                    item.id,
-                    periodId
-                      ? { periodId, isClassPeriod: true }
-                      : { periodId: undefined, isClassPeriod: false }
-                  );
-                }}
-                placeholder="Class period"
-                aria-label={`Class period id for ${item.task || 'this item'}`}
-                title="Fill in to make this a class period (e.g. P3). Use the same id on every schedule."
-                className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:border-brand-blue-primary outline-none"
-              />
-            </div>
-          )}
+          <div className="col-span-2">
+            <input
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'schedule',
+                `periodId-${item.id}`
+              )}
+              type="text"
+              value={item.isClassPeriod ? (item.periodId ?? '') : ''}
+              onChange={(e) => {
+                if (!item.id) return;
+                const periodId = e.target.value.trim().slice(0, 20);
+                onUpdate(
+                  item.id,
+                  periodId
+                    ? { periodId, isClassPeriod: true }
+                    : { periodId: undefined, isClassPeriod: false }
+                );
+              }}
+              placeholder="Class period"
+              aria-label={`Class period id for ${item.task || 'this item'}`}
+              title="Fill in to make this a class period (e.g. P3). Use the same id on every schedule."
+              className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:border-brand-blue-primary outline-none"
+            />
+          </div>
           <div className="col-span-2 flex items-center justify-end">
             <button
               {...tourFieldAttr(
@@ -337,8 +332,6 @@ export const ScheduleConfigurationPanel: React.FC<
     useBuildingSelection(BUILDINGS);
 
   const { showConfirm } = useDialog();
-  const { canAccessFeature } = useAuth();
-  const showPeriodFields = canAccessFeature('per-period-access');
   const [activeScheduleId, setActiveScheduleId] = useState<string | null>(null);
 
   const sensors = useSensors(
@@ -747,7 +740,6 @@ export const ScheduleConfigurationPanel: React.FC<
                         item={item}
                         onUpdate={handleUpdateItem}
                         onDelete={handleDeleteItem}
-                        showPeriodField={showPeriodFields}
                       />
                     ))}
                 </SortableContext>
@@ -762,7 +754,7 @@ export const ScheduleConfigurationPanel: React.FC<
         )}
       </Card>
 
-      {showPeriodFields && !activeScheduleId && (
+      {!activeScheduleId && (
         <SpecialDaysCard
           schedules={currentBuildingConfig.schedules ?? []}
           dateOverrides={currentBuildingConfig.dateOverrides ?? {}}

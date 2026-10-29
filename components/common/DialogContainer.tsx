@@ -166,6 +166,7 @@ const AlertDialog: React.FC<{
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Enter' && e.key !== 'Escape') return;
+      if (e.isComposing || e.keyCode === 229) return;
       if (isEscapeFromWidgetInput(e)) return;
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -215,6 +216,7 @@ const ConfirmDialog: React.FC<{
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' && e.key !== 'Enter') return;
+      if (e.isComposing || e.keyCode === 229) return;
       if (isEscapeFromWidgetInput(e)) return;
       if (e.key === 'Escape') {
         e.preventDefault();

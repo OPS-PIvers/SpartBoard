@@ -10591,12 +10591,6 @@ export type GlobalFeature =
   | 'quiz-calculator-stimulus'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
-  /** Per-period start/pause and windows on assignments shared by several classes. */
-  | 'per-period-access'
-  /** Flag free-response answers so an anonymized copy appears on the PLC page for norming. */
-  | 'plc-norming-flags'
-  /** Standard codes typed in or imported with a question text become Learning targets tags. */
-  | 'standards-from-question-text'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
   | 'quiz-results-tools'
   /** Handwritten free-response boxes on paper answer sheets, transcribed for grading. */
@@ -10653,18 +10647,12 @@ export type GlobalFeature =
   | 'library-folder-reorder'
   /** Simple/Detailed choice in Arts & Letters Agenda settings. */
   | 'agenda-versions'
-  /** PLC teams open on a Home page; Data overview becomes a regular tab. */
-  | 'plc-home-tab'
-  /** Team leads pick any page that is switched on as the team's landing page. */
-  | 'team-landing-any-page'
   /** AI coach that checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22). */
   | 'plc-goal-coach'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
   /** Push scores into a SpartBoard-made Schoology gradebook column (docs/plans/SCHOOLOGY_TOOL_COLUMNS.md D11). */
   | 'schoology-tool-columns'
-  /** A what's-new button under a widget whose changelog entry carries a note for that widget type. */
-  | 'widget-whats-new'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
   /** Quiz live monitor declutter (#4023): footer buttons, Close all, no More actions menu for assessments. */
@@ -10681,8 +10669,6 @@ export type GlobalFeature =
   | 'activity-wall-timeline-dates'
   /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
   | 'checklist-small-card'
-  /** Synced and View-Only collection sharing (docs/plans/COLLECTION_SHARING.md). */
-  | 'collection-sync-sharing'
   /** Seating Chart saved seating plans, shuffle rules and print (poll-pro/SEATING_CHART_PLAN.md). */
   | 'seating-chart-plans'
   /** Scoreboard undo, score history, point buttons, leader marker and score motion. */
@@ -10695,8 +10681,6 @@ export type GlobalFeature =
   | 'document-camera-pro'
   /** Drawing zoom and pan, highlighter, laser pointer, sticky notes, shape polish and copy/paste (pro-grade-2/WHITEBOARD_PLAN.md). */
   | 'whiteboard-pro'
-  /** My Classes and My Teams sidebar lists as divider rows with full names and a row actions menu. */
-  | 'sidebar-list-rows'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak'
   /** Widget Library fills most of the screen instead of a small fixed box. */

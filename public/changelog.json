@@ -1,6 +1,62 @@
 {
   "entries": [
     {
+      "version": "2026.10.29.1",
+      "date": "2026-10-29",
+      "title": "PLC Home page, synced sharing and class period controls",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "PLCs",
+          "items": [
+            {
+              "text": "PLC teams now open on a Home page that shows your team's results over time, the latest assessment and your team tools. Data overview is its own tab."
+            },
+            {
+              "text": "Team leads can pick any page that is switched on as the page the team opens on."
+            },
+            {
+              "text": "When you grade a free response answer from a PLC quiz, you can flag it for norming. Your PLC sees a copy without the student's name, and the team lead can rename the norming levels in PLC Settings."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Sharing",
+          "items": [
+            {
+              "text": "When you share a collection, you can pick Synced so you and a colleague both edit it, or View-Only so they see your changes live but can't edit. Make a copy still works as before."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Assignments",
+          "items": [
+            {
+              "text": "An assignment shared by several class periods can be started and paused for each period on its own, using the class periods on your school's schedule."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Improvements",
+          "items": [
+            {
+              "text": "My Classes and My Teams in the sidebar show full names in simple rows. Each row's actions are in its menu."
+            },
+            {
+              "text": "Standard codes typed into a quiz question, or brought in with an imported quiz, are added to that question's Learning targets."
+            },
+            {
+              "text": "A widget whose look has changed shows a What's new button underneath it, so you can see what is different."
+            }
+          ]
+        }
+      ],
+      "details": []
+    },
+    {
       "version": "2026.10.26.1",
       "date": "2026-10-26",
       "title": "6-digit PINs for ClassLink classes",

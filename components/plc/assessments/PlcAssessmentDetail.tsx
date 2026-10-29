@@ -333,7 +333,7 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
   assessmentId,
 }) => {
   const { t, i18n } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
+  const { user } = useAuth();
   const { addToast } = useDashboard();
   const { data: assessments, loading: assessmentsLoading } =
     usePlcAssessmentsData();
@@ -713,7 +713,7 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
         )}
       </section>
 
-      {kind === 'quiz' && canAccessFeature('plc-norming-flags') && (
+      {kind === 'quiz' && (
         <div className="bg-white border border-slate-200 rounded-2xl p-5">
           <PlcNormingSection
             plcId={plc.id}

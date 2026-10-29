@@ -182,7 +182,7 @@ const Entry: React.FC<{
           {formatEntryDate(entry.date, i18n.language)}
         </p>
         {hasTour && entry.tourSetId && onShowTour && (
-          <button
+          <button // no-tour-anchor: tour launcher inside the release notes, which a tour does not walk
             type="button"
             onClick={() => entry.tourSetId && onShowTour(entry.tourSetId)}
             className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-blue-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"

@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import { Cloud, Eye, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
-import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useLinkedCollection } from '@/hooks/useLinkedCollection';
 import { useLinkedCollectionImport } from '@/hooks/useLinkedCollectionImport';
@@ -63,7 +62,6 @@ const endedMessage = (hostName: string) =>
 export const ImportLinkedCollectionModal: React.FC<
   ImportLinkedCollectionModalProps
 > = ({ linkId, onClose }) => {
-  const { canAccessFeature, isAdmin } = useAuth();
   const {
     addToast,
     loadDashboard,
@@ -76,12 +74,10 @@ export const ImportLinkedCollectionModal: React.FC<
   const { loadLinkedCollection } = useLinkedCollection();
   const { findLocalCollection, firstBoardIn, importLinkedCollection } =
     useLinkedCollectionImport();
-  const allowed = canAccessFeature('collection-sync-sharing');
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!allowed) return;
     let cancelled = false;
     loadLinkedCollection(linkId).then(
       (link) => {
@@ -105,14 +101,9 @@ export const ImportLinkedCollectionModal: React.FC<
     return () => {
       cancelled = true;
     };
-  }, [allowed, linkId, loadLinkedCollection]);
+  }, [linkId, loadLinkedCollection]);
 
-  // isAdmin is null until permissions load; don't flash "no permission" before then.
-  const view: LoadState = allowed
-    ? state
-    : isAdmin === null
-      ? { kind: 'loading' }
-      : { kind: 'denied' };
+  const view: LoadState = state;
   const link = view.kind === 'found' ? view.link : null;
   const copy = link ? MODE_COPY[link.mode] : MODE_COPY.synced;
   const boardCount = link ? uniqueLinkedBoards(link.boards).length : 0;

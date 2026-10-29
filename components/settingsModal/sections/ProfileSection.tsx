@@ -94,7 +94,7 @@ export const ProfileSection: React.FC = () => {
           {buildings.map((building) => {
             const isSelected = selectedBuildings.includes(building.id);
             return (
-              <button
+              <button // no-tour-anchor: option inside profile.buildings
                 key={building.id}
                 type="button"
                 aria-pressed={isSelected}
@@ -164,7 +164,7 @@ export const ProfileSection: React.FC = () => {
           {ALL_GRADES.map((grade) => {
             const selected = effectiveGrades.includes(grade);
             return (
-              <button
+              <button // no-tour-anchor: option inside profile.grades
                 key={grade}
                 type="button"
                 aria-pressed={selected}
@@ -203,7 +203,7 @@ export const ProfileSection: React.FC = () => {
           {subjects.map((subject) => {
             const selected = subjectsTaught.includes(subject.id);
             return (
-              <button
+              <button // no-tour-anchor: option inside profile.subjects
                 key={subject.id}
                 type="button"
                 aria-pressed={selected}

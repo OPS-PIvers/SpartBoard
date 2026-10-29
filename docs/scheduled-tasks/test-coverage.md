@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-10-21_
+_Last audited: 2026-10-28_
 _Last action: 2026-10-19 — Claude MCP connector: added `functions/src/mcp/tools.test.ts` (34 tests); the HIGH item is resolved and moved to Completed. Prior: 2026-10-12 — `quizTools.test.ts`; 2026-10-05 — `videoTools.test.ts`; 2026-09-28 — auth gate, write-budget/revision infra._
+
+_2026-10-28: Weekly audit (Wednesday). `pnpm test` completed in ~23 min: 2049 test files / 22002 tests passed, 5 skipped, 0 failed. Untested `utils/`/`hooks/` files are the ones already tracked below. 0 new issues._
 
 _2026-10-21: Weekly audit (Wednesday). `pnpm test` completed in ~18 min: 1915 test files / 20618 tests passed, 5 skipped, 0 failed (the 2026-10-12 failures are no longer reproducing). A filename heuristic lists ~120 `utils/`+`hooks/` files with no test importing them by basename; these are the same thin helpers and listener hooks already tracked below. 0 new issues._
 
@@ -21,12 +23,6 @@ _Nothing currently in progress._
 ## Open
 
 _2026-10-12: Weekly audit (Monday), after merging `origin/dev-paul` @ `c7605470`. `pnpm test`: 3 files / 4 tests failed of 1786 files / 18700 tests (18691 passed). Two failures in `tests/components/landing/landingIcons.test.tsx` (lucide-react 0.563.0 installed vs pinned 1.55.0) and one in `components/activityWall/render/layouts.test.tsx` (`clamp(...cqmin...)` style not applied; jsdom 27.4 installed vs ^30.1.2) are sandbox dependency drift. One failure, `tests/utils/miniAppResultsExport.test.ts` > 'uses one Score column out of 100…', reproduces in isolation and is filed below. Coverage gaps: new untested files since the last audit are the Mini App results helpers (`utils/miniAppNormalize.ts`, `miniAppSessionContent.ts`; `miniAppResults.ts`/`miniAppGrading.ts` have tests); all other `utils/`/`hooks/` gaps are already tracked in the Open items below._
-
-### MEDIUM `tests/utils/miniAppResultsExport.test.ts` 'Score column' test fails (expects 1 sheet question, receives 2)
-- **Detected:** 2026-10-12
-- **File:** tests/utils/miniAppResultsExport.test.ts (added by #4088), utils/miniAppResultsExport.ts
-- **Detail:** `expect(questions).toHaveLength(1)` at line 84 gets 2, reproducible when the file is run alone. Most likely the `h.exportResultsToSheet` mock is not reset between tests so `mock.calls[0]` belongs to an earlier test, but it could also be a real extra column in `exportMiniAppResults`; HIGH until a green run on a clean install confirms it.
-- **Fix:** Reset the mock in `beforeEach` (or read `mock.calls.at(-1)`), then confirm the score-only path yields exactly one `Score` question as `utils/miniAppResultsExport.ts:54` intends.
 
 ### MEDIUM New gradebook and view-as logic untested (13 files, zero test imports)
 
@@ -361,6 +357,14 @@ _2026-06-22: Full audit. Test suite: 516 files / 5697 tests, all passing (up fro
 ---
 
 ## Completed
+
+### MEDIUM `tests/utils/miniAppResultsExport.test.ts` 'Score column' test fails (expects 1 sheet question, receives 2)
+
+- **Resolved:** 2026-10-28 — no longer reproduces: `pnpm exec vitest run tests/utils/miniAppResultsExport.test.ts` passes (2/2) and the 2026-10-28 full run had 0 failures. File untouched since #4560; no code change needed.
+- **Detected:** 2026-10-12
+- **File:** tests/utils/miniAppResultsExport.test.ts (added by #4088), utils/miniAppResultsExport.ts
+- **Detail:** `expect(questions).toHaveLength(1)` at line 84 gets 2, reproducible when the file is run alone. Most likely the `h.exportResultsToSheet` mock is not reset between tests so `mock.calls[0]` belongs to an earlier test, but it could also be a real extra column in `exportMiniAppResults`; HIGH until a green run on a clean install confirms it.
+- **Fix:** Reset the mock in `beforeEach` (or read `mock.calls.at(-1)`), then confirm the score-only path yields exactly one `Score` question as `utils/miniAppResultsExport.ts:54` intends.
 
 ### HIGH Claude MCP connector: per-call auth gate, write-budget/revision infra, and quiz/video tool-execution layer untested
 

@@ -10,14 +10,11 @@ import {
 } from '@/utils/bellSchedule';
 import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
 
-/** The teacher's bell periods for the per-period pickers, or undefined while the flag is off. */
-export function useTeacherBellPeriodOptions():
-  BuildingBellPeriodOption[] | undefined {
-  const { selectedBuildings, canAccessFeature, featurePermissions } = useAuth();
+/** The teacher's bell periods for the per-period pickers. */
+export function useTeacherBellPeriodOptions(): BuildingBellPeriodOption[] {
+  const { selectedBuildings, featurePermissions } = useAuth();
   const buildings = useAdminBuildings();
-  const enabled = canAccessFeature('per-period-access');
   return useMemo(() => {
-    if (!enabled) return undefined;
     const options = listTeacherBellPeriods(
       featurePermissions,
       selectedBuildings
@@ -28,17 +25,17 @@ export function useTeacherBellPeriodOptions():
       ...o,
       label: `${buildings.find((b) => b.id === o.buildingId)?.name ?? o.buildingId} · ${o.label}`,
     }));
-  }, [enabled, featurePermissions, selectedBuildings, buildings]);
+  }, [featurePermissions, selectedBuildings, buildings]);
 }
 
-/** The assign modal's per-period context, or undefined while the flag is off. */
+/** The assign modal's per-period context, or undefined when the teacher's buildings list no class periods. */
 export function useAssignPeriodAccess(
   updateRoster: (id: string, updates: Partial<ClassRoster>) => Promise<void>
 ): AssignPeriodAccessContext | undefined {
   const { featurePermissions } = useAuth();
   const bellOptions = useTeacherBellPeriodOptions();
   return useMemo(() => {
-    if (!bellOptions) return undefined;
+    if (bellOptions.length === 0) return undefined;
     return {
       bellOptions,
       bellWindow: (roster, date) =>

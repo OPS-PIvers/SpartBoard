@@ -10,11 +10,6 @@ vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => useDashboardMock() as ReturnType<typeof UseDashboardFn>,
 }));
 
-const canAccessFeature = vi.fn((_id: string) => false);
-vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ canAccessFeature }),
-}));
-
 const viewAs = { active: false };
 vi.mock('@/hooks/useViewAsOutward', () => ({
   useViewAsOutward: () => viewAs,
@@ -49,7 +44,6 @@ const writeText = vi.fn<(text: string) => Promise<void>>();
 beforeEach(() => {
   vi.clearAllMocks();
   useDashboardMock.mockReturnValue(baseMockReturn);
-  canAccessFeature.mockReturnValue(false);
   viewAs.active = false;
   // Stub clipboard for the auto-copy path
   writeText.mockResolvedValue(undefined);
@@ -175,13 +169,7 @@ describe('ShareCollectionLinkCreatorModal', () => {
     expect(onShareWithSub).toHaveBeenCalledTimes(1);
   });
 
-  describe('with collection-sync-sharing on', () => {
-    beforeEach(() => {
-      canAccessFeature.mockImplementation(
-        (id) => id === 'collection-sync-sharing'
-      );
-    });
-
+  describe('with a board tree', () => {
     const tree = {
       sections: [{ id: 'c1', name: 'Math' }],
       boardEntries: [{ id: 'b1', name: 'Board b1', sectionId: 'c1', order: 0 }],

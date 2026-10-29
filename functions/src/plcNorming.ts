@@ -15,7 +15,6 @@ import ffmpeg from 'fluent-ffmpeg';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import {
-  isGlobalFeatureGranted,
   QUIZ_MEDIA_GOOGLE_SECRETS,
   QUIZ_MEDIA_STORAGE_ROOT,
 } from './quizMediaArchive';
@@ -27,7 +26,6 @@ import { assertViewAsAllowed } from './viewAsGuard';
 type Firestore = admin.firestore.Firestore;
 type Data = Record<string, unknown>;
 
-export const PLC_NORMING_FEATURE_ID = 'plc-norming-flags';
 export const NORMING_LEVELS = ['high', 'medium', 'low', 'review'] as const;
 export type NormingLevel = (typeof NORMING_LEVELS)[number];
 export const NORMING_MEDIA_ROOT = 'plc_norming_media';
@@ -53,7 +51,6 @@ export interface NormingResult {
 
 export interface NormingDeps {
   db: Firestore;
-  isFeatureGranted: (uid: string, email: string | null) => Promise<boolean>;
   newId: () => string;
   now: () => number;
   /** Null when the transit object is gone (archived or never uploaded). */
@@ -321,14 +318,9 @@ async function removeCopy(
 export async function setPlcNormingFlag(
   req: NormingRequest,
   callerUid: string,
-  callerEmail: string | null,
   deps: NormingDeps
 ): Promise<NormingResult> {
   const { db } = deps;
-  if (!(await deps.isFeatureGranted(callerUid, callerEmail))) {
-    throw new HttpsError('permission-denied', 'Norming flags are not enabled.');
-  }
-
   if (req.mode === 'copy') {
     const copy = await db
       .doc(`plcs/${req.plcId}/norming/${req.normingId}`)
@@ -684,8 +676,6 @@ function defaultNormingDeps(): NormingDeps {
   const bucket = admin.storage().bucket();
   return {
     db,
-    isFeatureGranted: (uid, email) =>
-      isGlobalFeatureGranted(db, PLC_NORMING_FEATURE_ID, email, uid),
     newId: () => db.collection(NORMING_SOURCES).doc().id,
     now: () => Date.now(),
     readTransit: async (p) => {
@@ -725,14 +715,9 @@ export const setPlcNormingFlagV1 = onCall(
     assertViewAsAllowed(request);
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in required.');
-    const email =
-      typeof request.auth.token.email === 'string'
-        ? request.auth.token.email
-        : null;
     return setPlcNormingFlag(
       parseNormingRequest(request.data),
       request.auth.uid,
-      email,
       defaultNormingDeps()
     );
   }
