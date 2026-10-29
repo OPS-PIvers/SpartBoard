@@ -3895,6 +3895,14 @@ describe('index barrel — deployed export set', () => {
     // Admin analytics snapshot + maintenance
     'recomputeAdminAnalytics',
     'expireSubShares',
+    // Focus sessions (Chrome extension FS3)
+    'focusStartV1',
+    'focusExtendV1',
+    'focusReleaseV1',
+    'focusAddSiteV1',
+    'focusEndV1',
+    'focusOpenV1',
+    'focusSweepSessions',
     'expireActivityWallShares',
     'finalizeIdleQuizAttempts',
     // Google / Spotify OAuth
