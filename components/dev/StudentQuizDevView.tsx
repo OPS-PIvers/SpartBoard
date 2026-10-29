@@ -127,7 +127,9 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
             ? makeWhiteboardQuizSession()
             : state === 'sq-stop-part'
               ? makeStopQuizSession('active')
-              : makeTimedQuizSession('active'),
+              : state === 'sq-cross-out'
+                ? { ...makeTimedQuizSession('active'), allowCrossOut: true }
+                : makeTimedQuizSession('active'),
     [state]
   );
   if (state === 'sq-attempts' || state === 'sq-attempts-live') {

@@ -90,6 +90,7 @@ export const STUDENT_QUIZ_STATES = [
   'sq-attempts',
   'sq-attempts-live',
   'sq-fullscreen',
+  'sq-cross-out',
 ] as const;
 export type StudentQuizStateKey = (typeof STUDENT_QUIZ_STATES)[number];
 

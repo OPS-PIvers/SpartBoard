@@ -2225,6 +2225,12 @@
     "needsManual": "Impossible d'extraire le texte automatiquement. Collez-le ou saisissez-le ici.",
     "extractFailed": "L'extraction du texte a échoué. Réessayez."
   },
+  "quizCrossOut": {
+    "crossOut": "Barrer",
+    "undo": "Annuler le barré",
+    "crossOutChoice": "Barrer le choix {{n}}",
+    "crossedOut": "(barré)"
+  },
   "quizTranslation": {
     "label": "Traduction",
     "editor": {

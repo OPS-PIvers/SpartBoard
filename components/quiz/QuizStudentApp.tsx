@@ -204,6 +204,11 @@ import {
   type ReadAloudItemControls,
 } from './readAloud/useQuizReadAloud';
 import { ReadAloudButton } from './readAloud/ReadAloudButton';
+import { CrossOutChoiceButton } from './CrossOutChoiceButton';
+import {
+  crossOutStorageKey,
+  useCrossedOutChoices,
+} from './useCrossedOutChoices';
 import { StudentAccommodationBar } from './StudentAccommodationBar';
 import {
   highlightClass,
@@ -2329,6 +2334,16 @@ export const ActiveQuiz: React.FC<{
     stimulusTextById: session.readAloudTextByStimulusId,
   });
   const readAloudOn = readAloud.enabled;
+  const crossOutOn = session.allowCrossOut === true;
+  const crossedOut = useCrossedOutChoices(
+    crossOutOn
+      ? crossOutStorageKey(
+          session.id,
+          myResponse?.studentUid,
+          myResponse?.completedAttempts ?? 0
+        )
+      : null
+  );
   // Speaker + text pane only for image/pdf stimuli with reviewed text (plan §6.2).
   const stimulusReadAloudFor = (
     s: QuizStimulus
@@ -4232,8 +4247,23 @@ export const ActiveQuiz: React.FC<{
                           ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
                           : 'border-slate-700 bg-slate-800/50 text-slate-500 cursor-default';
                       }
+                      const canonicalOpt = toCanonicalAnswer(
+                        currentQuestion,
+                        activeLocale,
+                        opt
+                      );
+                      const isCrossedOut =
+                        crossOutOn &&
+                        crossedOut.isCrossedOut(
+                          currentQuestion.id,
+                          canonicalOpt
+                        );
+                      if (isCrossedOut) cls += ' opacity-60';
                       const pick = () => {
                         if (isLocked) return;
+                        // Choosing a crossed-out option brings it back.
+                        if (isCrossedOut)
+                          crossedOut.restore(currentQuestion.id, canonicalOpt);
                         if (multiPicked) toggleMultiOption(opt);
                         else
                           setCacheForCurrent(
@@ -4269,12 +4299,37 @@ export const ActiveQuiz: React.FC<{
                               />
                             )}
                           </span>
-                          <span className="min-w-0 break-words">{opt}</span>
+                          <span
+                            className={`min-w-0 break-words ${isCrossedOut ? 'line-through decoration-2' : ''}`}
+                          >
+                            {opt}
+                          </span>
                         </span>
+                      ) : isCrossedOut ? (
+                        <span className="line-through decoration-2">{opt}</span>
                       ) : (
                         opt
                       );
-                      if (!readAloudOn) {
+                      const crossOutLabel = isCrossedOut && (
+                        <span className="sr-only">
+                          {' '}
+                          {t('quizCrossOut.crossedOut', '(crossed out)')}
+                        </span>
+                      );
+                      const shownIndex = options.indexOf(opt) + 1;
+                      const crossOutButton = crossOutOn && !isLocked && (
+                        <CrossOutChoiceButton
+                          n={shownIndex}
+                          crossedOut={isCrossedOut}
+                          light={light}
+                          disabled={submitting}
+                          onToggle={() =>
+                            crossedOut.toggle(currentQuestion.id, canonicalOpt)
+                          }
+                          className="self-center"
+                        />
+                      );
+                      if (!readAloudOn && !crossOutOn) {
                         return (
                           <button
                             key={opt}
@@ -4289,8 +4344,9 @@ export const ActiveQuiz: React.FC<{
                         );
                       }
                       // D2: speaker beside the row, never inside the answer button.
-                      const choicePart = readAloud.choicePart(opt);
-                      const shownIndex = options.indexOf(opt) + 1;
+                      const choicePart = readAloudOn
+                        ? readAloud.choicePart(opt)
+                        : null;
                       return (
                         <div
                           key={opt}
@@ -4304,6 +4360,7 @@ export const ActiveQuiz: React.FC<{
                             className={`${cls} flex-1`}
                           >
                             {content}
+                            {crossOutLabel}
                           </button>
                           {choicePart && (
                             <ReadAloudButton
@@ -4317,6 +4374,7 @@ export const ActiveQuiz: React.FC<{
                               className="self-center"
                             />
                           )}
+                          {crossOutButton}
                         </div>
                       );
                     })}

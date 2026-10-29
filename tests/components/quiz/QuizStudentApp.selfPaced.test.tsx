@@ -14,7 +14,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom/vitest';
 import type { QuizSession, QuizResponse, QuizPublicQuestion } from '@/types';
@@ -1087,5 +1087,81 @@ describe('QuizStudentApp — written blank-overwrite guard', () => {
     expect(
       screen.getByRole('button', { name: /Submit Response/i })
     ).toBeDisabled();
+  });
+});
+
+describe('QuizStudentApp — cross out choices', () => {
+  // Choices may be shuffled per student, so find the toggle in the option's own row.
+  const crossOutToggleFor = (choice: string | RegExp) => {
+    const row = screen.getByRole('button', { name: choice }).parentElement;
+    if (!row) throw new Error('choice row not found');
+    return within(row).getByRole('button', { name: /^Cross out choice/ });
+  };
+
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
+
+  it('shows no cross-out buttons unless the session allows it', async () => {
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Cross out choice/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('crosses out a choice without answering, and keeps it after a reload', async () => {
+    const user = userEvent.setup();
+    hookState.session = buildSession({ allowCrossOut: true });
+    const { unmount } = render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+    const toggle = crossOutToggleFor('3');
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await user.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    expect(
+      screen.getByRole('button', { name: /^3\s*\(crossed out\)$/ })
+    ).toBeInTheDocument();
+    expect(mockSubmitAnswer).not.toHaveBeenCalled();
+    // Crossing out is not an answer, so NEXT stays disabled.
+    expect(screen.getByRole('button', { name: /^NEXT/i })).toBeDisabled();
+
+    unmount();
+    render(<QuizStudentApp />);
+    expect(
+      await screen.findByRole('button', { name: /^3\s*\(crossed out\)$/ })
+    ).toBeInTheDocument();
+  });
+
+  it('brings a crossed-out choice back when the student picks it', async () => {
+    const user = userEvent.setup();
+    hookState.session = buildSession({ allowCrossOut: true });
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+    await user.click(crossOutToggleFor('4'));
+    await user.click(
+      screen.getByRole('button', { name: /^4\s*\(crossed out\)$/ })
+    );
+
+    expect(crossOutToggleFor('4')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: /^NEXT/i })).toBeEnabled();
+  });
+
+  it('keeps cross-outs per question', async () => {
+    const user = userEvent.setup();
+    hookState.session = buildSession({ allowCrossOut: true });
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+    await user.click(crossOutToggleFor('3'));
+    await user.click(screen.getByRole('button', { name: '4' }));
+    await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+    expect(await screen.findByText(/Capital of France/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /crossed out/ })
+    ).not.toBeInTheDocument();
   });
 });

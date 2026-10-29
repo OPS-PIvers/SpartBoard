@@ -1286,6 +1286,7 @@ export const useQuizAssignments = (
     authContext?.canAccessFeature?.(QUIZ_TIME_LIMIT_FEATURE) === true;
   const stimulusQuotesOn =
     authContext?.canAccessFeature?.('quiz-stimulus-quotes') === true;
+  const crossOutOn = authContext?.canAccessFeature?.('quiz-cross-out') === true;
   const pageProtectionsOn =
     authContext?.canAccessFeature?.(PAGE_PROTECTIONS_FEATURE) === true;
   // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
@@ -1671,6 +1672,7 @@ export const useQuizAssignments = (
         ...(stimulusQuotesOn
           ? { allowStimulusQuotes: opts.allowStimulusQuotes ?? true }
           : {}),
+        ...(crossOutOn ? { allowCrossOut: true } : {}),
         showResultToStudent: opts.showResultToStudent ?? false,
         showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
         showCorrectOnBoard: opts.showCorrectOnBoard ?? false,
@@ -1896,6 +1898,7 @@ export const useQuizAssignments = (
       scoreOnSubmitOn,
       timeLimitOn,
       stimulusQuotesOn,
+      crossOutOn,
       pageProtectionsOn,
     ]
   );

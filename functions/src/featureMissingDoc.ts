@@ -48,6 +48,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-monitor-declutter',
   'monitor-parity',
   'quiz-stimulus-quotes',
+  'quiz-cross-out',
   'quiz-submit-for-student',
   'quiz-calculator-stimulus',
   'lunch-count-redesign',
