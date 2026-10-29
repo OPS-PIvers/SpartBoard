@@ -22,6 +22,11 @@ describe('parseFocusSite', () => {
       { host: 'example.org', path: '/a/b' },
     ],
     ['desmos.com.', { host: 'desmos.com', path: '' }],
+    ['desmos.com:8080/calculator', { host: 'desmos.com', path: '/calculator' }],
+    [
+      'https://docs.google.com/document/d/e/2PACX-AAA/pub',
+      { host: 'docs.google.com', path: '/document/d/e/2PACX-AAA' },
+    ],
     [
       'https://docs.google.com/document/u/1/d/abc123/edit?usp=sharing',
       { host: 'docs.google.com', path: '/document/d/abc123' },
@@ -54,6 +59,9 @@ describe('parseFocusSite', () => {
     'ftp://files.example.org',
     'https://user:pw@desmos.com',
     'https://-bad-.example.org',
+    'https://drive.google.com/open?id=ABC',
+    'drive.google.com/uc?id=ABC&export=download',
+    'https://docs.google.com/viewer?url=x',
   ])('rejects %s', (input) => {
     expect(parseFocusSite(input)).toBeNull();
   });
@@ -111,6 +119,7 @@ describe('matchFocusUrl', () => {
     { host: 'desmos.com', path: '/calculator' },
     { host: 'khanacademy.org', path: '' },
     { host: 'docs.google.com', path: '/document/d/abc' },
+    { host: 'docs.google.com', path: '/document/d/e/2PACX-AAA' },
     { host: 'classroom.google.com', path: '/c/NjQ1' },
   ];
   const spart = ['https://spartboard.web.app'];
@@ -122,6 +131,7 @@ describe('matchFocusUrl', () => {
     'https://www.khanacademy.org/math/algebra',
     'https://docs.google.com/document/d/abc/edit',
     'https://docs.google.com/document/u/2/d/abc/preview',
+    'https://docs.google.com/document/d/e/2PACX-AAA/pub',
     'https://classroom.google.com/u/3/c/NjQ1/a/xyz/details',
     'https://accounts.google.com/signin',
     'https://launchpad.classlink.com/orono',
@@ -144,6 +154,7 @@ describe('matchFocusUrl', () => {
     'https://spartboard.web.app.evil.example/',
     'https://spartboard-dev.web.app/',
     'https://desmos.com/calculator%2F..%2Fother',
+    'https://docs.google.com/document/d/e/2PACX-BBB/pub',
   ])('blocks %s', (url) => {
     expect(matchFocusUrl(url, sites, spart)).toBe('blocked');
   });

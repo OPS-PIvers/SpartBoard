@@ -82,7 +82,7 @@ export function focusWindowEndsAt(
 
 export type FocusTimeResult =
   | { ok: true; endsAt: number }
-  | { ok: false; reason: 'outside-window' | 'bad-length' };
+  | { ok: false; reason: 'outside-window' | 'bad-length' | 'ended' };
 
 /** End time for a new session of `minutes`, cut at the window's close (F6). */
 export function focusStartEndsAt(
@@ -97,7 +97,7 @@ export function focusStartEndsAt(
   return { ok: true, endsAt: Math.min(nowMs + minutes * 60_000, windowEnd) };
 }
 
-/** New end time after Extend (+10), cut at the window's close; refused once the window has closed (F6). */
+/** New end time after Extend (+10), cut at the window's close; refused once the session or the window has ended (F6). */
 export function focusExtendEndsAt(
   nowMs: number,
   currentEndsAt: number,
@@ -106,9 +106,9 @@ export function focusExtendEndsAt(
   const windowEnd = focusWindowEndsAt(nowMs, window);
   if (windowEnd === null || currentEndsAt >= windowEnd)
     return { ok: false, reason: 'outside-window' };
-  const from = Math.max(currentEndsAt, nowMs);
+  if (currentEndsAt <= nowMs) return { ok: false, reason: 'ended' };
   return {
     ok: true,
-    endsAt: Math.min(from + FOCUS_EXTEND_MINUTES * 60_000, windowEnd),
+    endsAt: Math.min(currentEndsAt + FOCUS_EXTEND_MINUTES * 60_000, windowEnd),
   };
 }

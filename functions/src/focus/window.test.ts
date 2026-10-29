@@ -84,10 +84,10 @@ describe('focusExtendEndsAt', () => {
     });
   });
 
-  it('extends from now when the session already ran out', () => {
+  it('refuses a session that already ran out', () => {
     expect(focusExtendEndsAt(cdt('09:35'), cdt('09:30'), W)).toEqual({
-      ok: true,
-      endsAt: cdt('09:45'),
+      ok: false,
+      reason: 'ended',
     });
   });
 

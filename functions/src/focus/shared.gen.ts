@@ -192,7 +192,10 @@ const GOOGLE_FILE_HOSTS = new Set([
 
 // Docs editors and Drive files: everything after the file id (/edit, /view, /preview, ...) is the same file.
 const GOOGLE_FILE_PATH =
-  /^(\/(?:document|spreadsheets|presentation|drawings)\/d\/[^/]+|\/forms\/d\/(?:e\/)?[^/]+|\/file\/d\/[^/]+)(?:\/|$)/;
+  /^(\/(?:document|spreadsheets|presentation|drawings|forms)\/d\/(?:e\/)?[^/]+|\/file\/d\/[^/]+)(?:\/|$)/;
+
+// Google links that name the file only in the query; the entry would cover every file, so they are refused.
+const GOOGLE_QUERY_ID_PATHS = new Set(['/open', '/uc', '/viewer']);
 
 const HOST_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 
@@ -224,9 +227,10 @@ export function canonicalFocusPath(host: string, rawPath: string): string {
 export function parseFocusSite(input: string): FocusSite | null {
   const text = input.trim().replace(/^\*\./, '');
   if (!text || /\s/.test(text)) return null;
-  const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(text)
-    ? text
-    : `https://${text}`;
+  const withScheme =
+    /^[a-z][a-z0-9+.-]*:/i.test(text) && !/^[^/:]+:\d+(?:[/?#]|$)/.test(text)
+      ? text
+      : `https://${text}`;
   let url: URL;
   try {
     url = new URL(withScheme);
@@ -237,7 +241,10 @@ export function parseFocusSite(input: string): FocusSite | null {
   if (url.username || url.password) return null;
   const host = cleanHost(url.hostname);
   if (!host) return null;
-  return { host, path: canonicalFocusPath(host, url.pathname) };
+  const path = canonicalFocusPath(host, url.pathname);
+  if (GOOGLE_FILE_HOSTS.has(host) && GOOGLE_QUERY_ID_PATHS.has(path))
+    return null;
+  return { host, path };
 }
 
 /** True for a well-formed stored site: what parseFocusSite would return for it. */
