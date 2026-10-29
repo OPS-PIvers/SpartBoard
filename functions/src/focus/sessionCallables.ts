@@ -156,7 +156,11 @@ async function panelCaller(token: string): Promise<FocusCaller> {
   const user = await admin
     .auth()
     .getUserByEmail(email)
-    .catch(() => null);
+    .catch((err: { code?: unknown }) => {
+      // Any other Auth error is a 500, which the panel treats as offline and retries.
+      if (err?.code === 'auth/user-not-found') return null;
+      throw err;
+    });
   if (!user || user.disabled)
     throw new ExtensionCallError(
       403,

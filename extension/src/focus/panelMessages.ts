@@ -88,7 +88,7 @@ export function parseFocusPanelList(raw: unknown): FocusPanelListReply | null {
       typeof s.endsAt === 'number' &&
       typeof s.studentCount === 'number'
   );
-  return { classes, sessions };
+  return { canStart: raw.canStart === true, classes, sessions };
 }
 
 /** Shared hosts where the whole site would open far more than the teacher meant. */

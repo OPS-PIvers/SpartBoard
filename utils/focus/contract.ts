@@ -280,6 +280,8 @@ export interface FocusPanelSession {
 }
 
 export interface FocusPanelListReply {
+  /** False when the teacher lost the Focus widget but still has a session running to release or end. */
+  canStart: boolean;
   classes: FocusPanelClass[];
   sessions: FocusPanelSession[];
 }

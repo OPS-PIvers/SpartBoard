@@ -91,6 +91,7 @@ describe('parseFocusPanelList', () => {
         sessions: [session, { ...session, level: 'nope' }],
       })
     ).toEqual({
+      canStart: false,
       classes: [{ classId: 'c1', name: 'P3' }],
       sessions: [session],
     });

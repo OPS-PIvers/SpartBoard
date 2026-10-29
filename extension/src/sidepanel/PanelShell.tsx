@@ -31,12 +31,16 @@ export const PanelShell: React.FC = () => {
   const [tab, setTab] = useState<PanelTab>('tours');
   const [focus, setFocus] = useState<FocusState>({ kind: 'loading' });
 
-  // A refusal hides the tab; a network failure keeps what was showing (reopening the panel tries again).
+  // A refusal hides the tab; a network or sign-in blip keeps what was showing.
   const applyFocus = useCallback((reply: FocusPanelReply) => {
     const list = reply.ok ? parseFocusPanelList(reply.value) : null;
     setFocus((prev) => {
       if (list) return { kind: 'ready', list };
-      if (!reply.ok && reply.why === 'offline' && prev.kind === 'ready')
+      if (
+        !reply.ok &&
+        (reply.why === 'offline' || reply.why === 'signed-out') &&
+        prev.kind === 'ready'
+      )
         return prev;
       return { kind: 'hidden' };
     });
@@ -46,12 +50,20 @@ export const PanelShell: React.FC = () => {
     [applyFocus]
   );
 
-  const loadList = useCallback((refresh: boolean) => {
-    void send<TourListReply>({ type: 'tours/list', refresh }).then(
-      (r) => setReply(r ?? { ok: false, why: 'offline' }),
-      () => setReply({ ok: false, why: 'offline' })
-    );
-  }, []);
+  const loadList = useCallback(
+    (refresh: boolean) => {
+      void send<TourListReply>({ type: 'tours/list', refresh }).then(
+        (r) => {
+          setReply(r ?? { ok: false, why: 'offline' });
+          // The Tours refresh may have just signed the teacher in to Chrome; Focus listed quietly before that.
+          if (refresh && r?.ok)
+            void sendFocus({ action: 'list' }).then(applyFocus);
+        },
+        () => setReply({ ok: false, why: 'offline' })
+      );
+    },
+    [applyFocus]
+  );
 
   useEffect(() => {
     // The cached list shows at once; opening the panel also refreshes it (H6).

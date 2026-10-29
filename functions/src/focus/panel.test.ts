@@ -22,7 +22,9 @@ const other = teacher({ uid: 'teacher-3', email: 'other@orono.k12.mn.us' });
 
 const CLASSES: Record<string, Record<string, string[]>> = {
   'teacher@orono.k12.mn.us': { [CLASS]: ['s1', 's2'] },
+  'co@orono.k12.mn.us': { [CLASS]: ['s1', 's2'] },
 };
+const co = teacher({ uid: 'teacher-2', email: 'co@orono.k12.mn.us' });
 
 let now = NOW;
 const deps: FocusDeps = {
@@ -78,6 +80,7 @@ const startBody = (over: Record<string, unknown> = {}) => ({
 describe('focusPanelV1', () => {
   it('lists linked classes once each, and no sessions yet', async () => {
     expect(await call({ action: 'list' })).toEqual({
+      canStart: true,
       classes: [
         { classId: 'mock-1', name: 'Advisory' },
         { classId: CLASS, name: 'Period 3 Math' },
@@ -178,6 +181,36 @@ describe('focusPanelV1', () => {
     await expect(
       call({ action: 'list' }, teacher({ anonymous: true }))
     ).rejects.toThrow('Focus sessions are for teacher accounts.');
+  });
+
+  it("joins a co-teacher to their partner's running session", async () => {
+    await db.doc('admins/co@orono.k12.mn.us').set({ roleId: 'super_admin' });
+    await db
+      .doc('users/teacher-2/rosters/r1')
+      .set({ name: 'P3', classlinkClassId: CLASS });
+    const { sessionId } = (await call(startBody())) as FocusStartReply;
+    const list = (await call({ action: 'list' }, co)) as FocusPanelListReply;
+    expect(list.sessions.map((s) => s.sessionId)).toEqual([sessionId]);
+    const session = (await db.doc(`focus_sessions/${sessionId}`).get()).data();
+    expect(session?.teacherUids).toEqual(['teacher-1', 'teacher-2']);
+    expect(await call({ action: 'end', sessionId }, co)).toEqual({
+      endedAt: NOW,
+    });
+  });
+
+  it('keeps Release and End for a running session after the widget is turned off', async () => {
+    const { sessionId } = (await call(startBody())) as FocusStartReply;
+    await db.doc('admins/teacher@orono.k12.mn.us').delete();
+    const list = (await call({ action: 'list' })) as FocusPanelListReply;
+    expect(list).toMatchObject({ canStart: false, classes: [] });
+    expect(list.sessions.map((s) => s.sessionId)).toEqual([sessionId]);
+    await expect(call({ action: 'extend', sessionId })).rejects.toThrow(
+      'Focus sessions are not turned on for your account.'
+    );
+    expect(await call({ action: 'end', sessionId })).toEqual({ endedAt: NOW });
+    await expect(call({ action: 'list' })).rejects.toThrow(
+      'Focus is not turned on for your account.'
+    );
   });
 
   it('refuses unknown actions', async () => {

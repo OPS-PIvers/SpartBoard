@@ -232,118 +232,120 @@ export const FocusTab: React.FC<{
           {notice}
         </p>
       )}
-      <section
-        className="flex flex-col gap-3"
-        aria-labelledby="focus-start-heading"
-      >
-        <h2 id="focus-start-heading" className="text-sm font-semibold">
-          Focus a class on this tab
-        </h2>
-        {list.classes.length === 0 ? (
-          <p className={chromeMuted}>
-            Add a ClassLink class in SpartBoard to focus it here.
-          </p>
-        ) : (
-          <>
-            <label className="flex flex-col gap-1">
-              <span className="font-medium">Class</span>
-              <select
-                className={`${inputLight} rounded-lg px-2 py-1.5 ${focusRing}`}
-                value={chosen?.classId ?? ''}
-                onChange={(e) => setClassId(e.target.value)}
-              >
-                {list.classes.map((c) => (
-                  <option key={c.classId} value={c.classId}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="flex flex-col gap-1">
-              <span className="font-medium" id="focus-sites-label">
-                Sites students can open
-              </span>
-              {sites.length > 0 ? (
-                <ul
-                  aria-labelledby="focus-sites-label"
-                  className="divide-y divide-slate-200 border-y border-slate-200"
+      {list.canStart && (
+        <section
+          className="flex flex-col gap-3"
+          aria-labelledby="focus-start-heading"
+        >
+          <h2 id="focus-start-heading" className="text-sm font-semibold">
+            Focus a class on this tab
+          </h2>
+          {list.classes.length === 0 ? (
+            <p className={chromeMuted}>
+              Add a ClassLink class in SpartBoard to focus it here.
+            </p>
+          ) : (
+            <>
+              <label className="flex flex-col gap-1">
+                <span className="font-medium">Class</span>
+                <select
+                  className={`${inputLight} rounded-lg px-2 py-1.5 ${focusRing}`}
+                  value={chosen?.classId ?? ''}
+                  onChange={(e) => setClassId(e.target.value)}
                 >
-                  {sites.map((site) => (
-                    <li
-                      key={siteLabel(site)}
-                      className="flex items-center gap-2 py-1"
-                    >
-                      <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
-                        {siteLabel(site)}
-                      </span>
-                      <button
-                        type="button"
-                        className={iconBtn}
-                        aria-label={`Remove ${siteLabel(site)}`}
-                        onClick={() =>
-                          setEdited(sites.filter((s) => s !== site))
-                        }
-                      >
-                        <X className="h-4 w-4" aria-hidden="true" />
-                      </button>
-                    </li>
+                  {list.classes.map((c) => (
+                    <option key={c.classId} value={c.classId}>
+                      {c.name}
+                    </option>
                   ))}
-                </ul>
-              ) : (
-                <p className={chromeMuted}>Add at least one site.</p>
-              )}
-              {sites.length < FOCUS_MAX_SITES && (
-                <form
-                  className="flex gap-2"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    addTyped();
-                  }}
-                >
-                  <input
-                    className={`${inputLight} min-w-0 flex-1 rounded-lg px-2 py-1.5 ${focusRing}`}
-                    placeholder="Add a site, like desmos.com"
-                    aria-label="Add a site"
-                    value={typed}
-                    maxLength={2000}
-                    onChange={(e) => setTyped(e.target.value)}
-                  />
-                  <button
-                    type="submit"
-                    className={`${secondaryBtn} inline-flex items-center gap-1 ${disabledLook}`}
-                    disabled={!typed.trim()}
+                </select>
+              </label>
+              <div className="flex flex-col gap-1">
+                <span className="font-medium" id="focus-sites-label">
+                  Sites students can open
+                </span>
+                {sites.length > 0 ? (
+                  <ul
+                    aria-labelledby="focus-sites-label"
+                    className="divide-y divide-slate-200 border-y border-slate-200"
                   >
-                    <Plus className="h-4 w-4" aria-hidden="true" />
-                    Add
-                  </button>
-                </form>
-              )}
-            </div>
-            <label className="flex flex-col gap-1">
-              <span className="font-medium">Length</span>
-              <select
-                className={`${inputLight} rounded-lg px-2 py-1.5 ${focusRing}`}
-                value={minutes}
-                onChange={(e) => setMinutes(Number(e.target.value))}
+                    {sites.map((site) => (
+                      <li
+                        key={siteLabel(site)}
+                        className="flex items-center gap-2 py-1"
+                      >
+                        <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                          {siteLabel(site)}
+                        </span>
+                        <button
+                          type="button"
+                          className={iconBtn}
+                          aria-label={`Remove ${siteLabel(site)}`}
+                          onClick={() =>
+                            setEdited(sites.filter((s) => s !== site))
+                          }
+                        >
+                          <X className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className={chromeMuted}>Add at least one site.</p>
+                )}
+                {sites.length < FOCUS_MAX_SITES && (
+                  <form
+                    className="flex gap-2"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      addTyped();
+                    }}
+                  >
+                    <input
+                      className={`${inputLight} min-w-0 flex-1 rounded-lg px-2 py-1.5 ${focusRing}`}
+                      placeholder="Add a site, like desmos.com"
+                      aria-label="Add a site"
+                      value={typed}
+                      maxLength={2000}
+                      onChange={(e) => setTyped(e.target.value)}
+                    />
+                    <button
+                      type="submit"
+                      className={`${secondaryBtn} inline-flex items-center gap-1 ${disabledLook}`}
+                      disabled={!typed.trim()}
+                    >
+                      <Plus className="h-4 w-4" aria-hidden="true" />
+                      Add
+                    </button>
+                  </form>
+                )}
+              </div>
+              <label className="flex flex-col gap-1">
+                <span className="font-medium">Length</span>
+                <select
+                  className={`${inputLight} rounded-lg px-2 py-1.5 ${focusRing}`}
+                  value={minutes}
+                  onChange={(e) => setMinutes(Number(e.target.value))}
+                >
+                  {LENGTHS.map((m) => (
+                    <option key={m} value={m}>
+                      {m} minutes
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                className={`${primaryBtn} self-start ${disabledLook}`}
+                disabled={busy !== null || sites.length === 0 || !chosen}
+                onClick={() => void start()}
               >
-                {LENGTHS.map((m) => (
-                  <option key={m} value={m}>
-                    {m} minutes
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              type="button"
-              className={`${primaryBtn} self-start ${disabledLook}`}
-              disabled={busy !== null || sites.length === 0 || !chosen}
-              onClick={() => void start()}
-            >
-              {busy === 'start' ? 'Starting...' : 'Start focus'}
-            </button>
-          </>
-        )}
-      </section>
+                {busy === 'start' ? 'Starting...' : 'Start focus'}
+              </button>
+            </>
+          )}
+        </section>
+      )}
       {running.length > 0 && (
         <section
           className="flex flex-col gap-2"
