@@ -42,6 +42,7 @@ const Preview: React.FC = () => {
   const [open, setOpen] = useState(true);
   return (
     <div className="space-y-2 text-sm text-slate-600">
+      {/* no-tour-anchor: DEV-only harness frame, never shipped */}
       <button
         type="button"
         onClick={() => setOpen(true)}
