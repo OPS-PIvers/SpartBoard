@@ -39,7 +39,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'sparty',
   'google-tasks-sync',
   'plc-goal-coach',
-  'plc-home-tab',
   'library-folder-reorder',
   'agenda-versions',
   'embed-reload',

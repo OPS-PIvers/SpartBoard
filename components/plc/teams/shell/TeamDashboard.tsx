@@ -114,8 +114,7 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const { user, canAccessFeature, globalPermissionsLoaded, isAdmin } =
-    useAuth();
+  const { user, canAccessFeature } = useAuth();
   const { addToast } = useDashboard();
   useGoogleTasksPull(plc.id, canAccessFeature('google-tasks-sync'));
   const uid = user?.uid ?? null;
@@ -137,20 +136,16 @@ export const TeamDashboard: React.FC<TeamDashboardProps> = ({
     requestedSection === 'meeting' && !meetingId ? 'docs' : requestedSection;
   const features = getPlcFeatures(plc);
   const hasTargets = features.quizzes || features.videoActivities;
-  const plcHome = teamUsesPlcHome(layout, canAccessFeature('plc-home-tab'));
+  const plcHome = teamUsesPlcHome(layout);
   const { route, canonical } = resolveTeamRoute(section, layout, {
     targets: hasTargets,
     plcHome,
   });
-  // A Data overview or Home link waits for the flag, or it would be rewritten.
-  const flagPending =
-    (requestedSection === 'dataOverview' || requestedSection === 'plcHome') &&
-    (!globalPermissionsLoaded || isAdmin === null);
   useEffect(() => {
-    if (layoutReady && !flagPending && canonical !== requestedSection) {
+    if (layoutReady && canonical !== requestedSection) {
       spaReplace(buildPlcPath(plc.id, canonical));
     }
-  }, [layoutReady, flagPending, canonical, requestedSection, plc.id]);
+  }, [layoutReady, canonical, requestedSection, plc.id]);
 
   const [overlay, setOverlay] = useState<TeamOverlay>(null);
   const [editorOpen, setEditorOpen] = useState(false);
