@@ -1,11 +1,10 @@
 name: Publish Chrome Extension
 
-# A version bump in extension/manifest.json publishes the dev listing from dev-paul and, after Paul
-# approves the run, the prod listing from main (docs/plans/CHROME_EXTENSION.md D7, extension/README.md).
+# A version bump in extension/manifest.json on main publishes the prod listing; Paul's OK on the release is the approval.
+# The dev build is only ever loaded unpacked, so nothing publishes it (extension/README.md, "Publishing").
 on:
   push:
     branches:
-      - dev-paul
       - main
   workflow_dispatch:
 
@@ -17,7 +16,6 @@ jobs:
   plan:
     runs-on: ubuntu-24.04
     outputs:
-      listing: ${{ steps.plan.outputs.listing }}
       publish: ${{ steps.plan.outputs.publish }}
       version: ${{ steps.plan.outputs.version }}
     steps:
@@ -29,11 +27,9 @@ jobs:
           BEFORE: ${{ github.event.before }}
           EVENT: ${{ github.event_name }}
         run: |
-          case "$GITHUB_REF" in
-            refs/heads/dev-paul) listing=dev ;;
-            refs/heads/main) listing=prod ;;
-            *) echo "::error::Publishing runs only from dev-paul (dev listing) or main (prod listing)."; exit 1 ;;
-          esac
+          if [[ "$GITHUB_REF" != refs/heads/main ]]; then
+            echo "::error::Publishing runs only from main (prod listing)."; exit 1
+          fi
           version_of() { node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).version??"")}catch{console.log("")}})'; }
           version=$(version_of < extension/manifest.json)
           publish=true
@@ -50,37 +46,18 @@ jobs:
               echo "The extension version is $version (was $previous); nothing to publish."
             fi
           fi
-          echo "listing=$listing" >> "$GITHUB_OUTPUT"
           echo "publish=$publish" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-  # GitHub creates a missing environment with no protection, so prod refuses to run until Paul is its required reviewer.
-  prod-guard:
-    needs: plan
-    if: needs.plan.outputs.publish == 'true' && needs.plan.outputs.listing == 'prod'
-    runs-on: ubuntu-24.04
-    steps:
-      - env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          reviewers=$(gh api "repos/$GITHUB_REPOSITORY/environments/chrome-web-store-prod" \
-            --jq '[.protection_rules[]? | select(.type == "required_reviewers") | .reviewers[]?] | length') || reviewers=""
-          if [[ ! "$reviewers" =~ ^[0-9]+$ || "$reviewers" -lt 1 ]]; then
-            echo "::error::The chrome-web-store-prod environment is missing or has no required reviewer, so the prod listing was not published. Add Paul as its required reviewer (extension/README.md, \"Publishing\"), then run this workflow again from main."
-            exit 1
-          fi
-
   publish:
-    needs: [plan, prod-guard]
-    if: >-
-      !cancelled() && needs.plan.outputs.publish == 'true' &&
-      (needs.prod-guard.result == 'success' || (needs.plan.outputs.listing == 'dev' && needs.prod-guard.result == 'skipped'))
+    needs: plan
+    if: needs.plan.outputs.publish == 'true'
     runs-on: ubuntu-24.04
-    name: Publish ${{ needs.plan.outputs.listing }} listing ${{ needs.plan.outputs.version }}
-    environment: chrome-web-store-${{ needs.plan.outputs.listing }}
+    name: Publish prod listing ${{ needs.plan.outputs.version }}
+    environment: chrome-web-store-dev  # Reuses the environment that already holds the Web Store secrets.
     # Only real bumps queue here, so a newer one replacing a waiting one is still the later version.
     concurrency:
-      group: ${{ github.workflow }}-${{ needs.plan.outputs.listing }}
+      group: ${{ github.workflow }}-prod
       cancel-in-progress: false
     timeout-minutes: 20
     steps:
@@ -95,19 +72,18 @@ jobs:
       - name: Upload to the Web Store and submit for review
         working-directory: extension
         env:
-          CWS_ENVIRONMENT: chrome-web-store-${{ needs.plan.outputs.listing }}
+          CWS_ENVIRONMENT: chrome-web-store-dev
           SPART_EXTENSION_ID: ${{ vars.SPART_EXTENSION_ID }}
-          SPART_EXTENSION_ID_DEV: ${{ vars.SPART_EXTENSION_ID_DEV }}
           CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
           CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
           CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
           CWS_PUBLISHER_ID: ${{ secrets.CWS_PUBLISHER_ID }}
-        run: node scripts/publish.ts ${{ needs.plan.outputs.listing }}
+        run: node scripts/publish.ts prod
 
       - name: Keep the published zip
         uses: actions/upload-artifact@v4
         with:
-          name: chrome-extension-${{ needs.plan.outputs.listing }}-${{ needs.plan.outputs.version }}
-          path: extension/dist/spartboard-extension-${{ needs.plan.outputs.listing }}-*.zip
+          name: chrome-extension-prod-${{ needs.plan.outputs.version }}
+          path: extension/dist/spartboard-extension-prod-*.zip
           if-no-files-found: error
           retention-days: 90
