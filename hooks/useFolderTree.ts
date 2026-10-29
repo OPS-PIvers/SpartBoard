@@ -255,7 +255,7 @@ export function useFolderTree(config: FolderTreeConfig): UseFoldersResult {
       });
       await batch.commit();
     },
-    [folderKey, folders, isDescendantOrSelf, issueSiblingOrder]
+    [folderKey, isDescendantOrSelf, issueSiblingOrder]
   );
 
   const reorderSiblings = useCallback(
