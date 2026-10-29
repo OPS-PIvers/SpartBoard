@@ -213,7 +213,7 @@ interface ItemBankProps {
 export function itemBankPropsIn(pageHtml: string): ItemBankProps | null {
   const at = pageHtml.indexOf('{"breadcrumbs":');
   const props = at < 0 ? null : jsonObjectAt(pageHtml, at);
-  return props && typeof props === 'object' ? (props as ItemBankProps) : null;
+  return props && typeof props === 'object' ? props : null;
 }
 
 const idText = (v: unknown): string | null =>
