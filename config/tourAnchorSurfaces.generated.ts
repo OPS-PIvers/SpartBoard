@@ -1928,6 +1928,10 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'admin.backgrounds.youtube-label': ['admin.backgrounds'],
     'admin.backgrounds.youtube-url': ['admin.backgrounds'],
     'admin.previews.district-switch': ['admin.previews'],
+    'admin.previews.focus-hours-start': ['admin.previews'],
+    'admin.previews.focus-hours-end': ['admin.previews'],
+    'admin.previews.focus-hours-day': ['admin.previews'],
+    'admin.previews.focus-hours-save': ['admin.previews'],
     'admin.previews.graduate': ['admin.previews'],
     'admin.analytics.active-students-search': [
       'admin.analytics.active-students',

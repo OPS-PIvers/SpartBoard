@@ -1077,6 +1077,18 @@
       "indexes": []
     },
     {
+      "collectionGroup": "focus_sessions",
+      "fieldPath": "focusExpiresAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
+      "collectionGroup": "students",
+      "fieldPath": "focusExpiresAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
       "collectionGroup": "recordings",
       "fieldPath": "status",
       "ttl": false,

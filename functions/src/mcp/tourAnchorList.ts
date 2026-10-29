@@ -35527,6 +35527,83 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "admin.previews.focus-hours-start",
+    "label": "Start time field in Focus session hours",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.previews",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#previews"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.previews.focus-hours-end",
+    "label": "End time field in Focus session hours",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.previews",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#previews"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.previews.focus-hours-day",
+    "label": "Day button in Focus session hours",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "admin.previews",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#previews"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.previews.focus-hours-save",
+    "label": "Save button in Focus session hours",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "admin.previews",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#previews"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
     "id": "admin.previews.graduate",
     "label": "Graduate button on a Previews row",
     "scope": "field",
