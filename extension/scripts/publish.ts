@@ -16,10 +16,12 @@ try {
     process.env,
     process.env.CWS_ENVIRONMENT ?? `chrome-web-store-${id}`
   );
-  const itemId = process.env.CWS_ITEM_ID?.trim() ?? '';
+  const idVariable =
+    id === 'prod' ? 'SPART_EXTENSION_ID' : 'SPART_EXTENSION_ID_DEV';
+  const itemId = process.env[idVariable]?.trim() ?? '';
   if (!itemId)
     throw new PublishError(
-      `The ${LISTINGS[id].name} listing's ID is not set: add the repository variable ${id === 'prod' ? 'SPART_EXTENSION_ID' : 'SPART_EXTENSION_ID_DEV'}.`
+      `The ${LISTINGS[id].name} listing's ID is not set: add the repository variable ${idVariable}.`
     );
   const { version } = JSON.parse(
     readFileSync(path.join(extDir, 'manifest.json'), 'utf8')
