@@ -81,6 +81,18 @@ export const summarizeOverride = (
         defaultValue: 'Away limit: {{seconds}}s',
       })
     );
+  if (override.blockCopyPaste === true)
+    chips.push(
+      t('studentOverride.chip.copyPastePrintBlocked', {
+        defaultValue: 'No copy, paste or print',
+      })
+    );
+  else if (override.blockCopyPaste === false)
+    chips.push(
+      t('studentOverride.chip.copyPastePrintAllowed', {
+        defaultValue: 'Copy, paste and print allowed',
+      })
+    );
   if (override.readAloud)
     chips.push(
       t('studentOverride.chip.readAloud', { defaultValue: 'Read aloud' })

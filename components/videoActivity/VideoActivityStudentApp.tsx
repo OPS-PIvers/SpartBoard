@@ -75,6 +75,8 @@ import { useServerNow } from '@/hooks/useServerNow';
 import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
 import { isAnonymousJoinBlocked } from '@/utils/anonymousJoin';
 import { AnonymousJoinBlockedScreen } from '@/components/common/AnonymousJoinBlockedScreen';
+import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
+import { effectivePageProtections } from '@/utils/pageProtections';
 import {
   VideoActivityPeriodLockedScreen,
   VideoActivityPeriodPausedOverlay,
@@ -378,7 +380,6 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     sessionId || null,
     isStudentRole
   );
-  void pointer?.override;
 
   // View tracking — log each pageview of a view-only Share link as an
   // immutable doc in the session's `views/` subcollection. Best-effort and
@@ -1138,8 +1139,26 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const answeredCount = myResponse?.answers.length ?? 0;
   const totalQuestions = sortedQuestions.length;
 
+  const working =
+    joinStatus === 'joined' &&
+    session?.status === 'active' &&
+    !isViewOnly &&
+    !periodHold &&
+    (myResponse == null || !isVaResponseCompleted(myResponse));
+  const protections = effectivePageProtections(
+    session?.sessionOptions ?? {},
+    pointer?.override
+  );
   const shellOverlays = (
     <>
+      <PageProtectionGuards
+        protections={{
+          blockClipboard: protections.blockClipboard && working,
+          blockPrint: protections.blockPrint && working,
+          fullscreen: protections.fullscreen && working,
+        }}
+        wholePage
+      />
       {/* Resume prompt — covers the player on first render after a teacher
           unlock so the student knows what happened before they touch
           anything. */}

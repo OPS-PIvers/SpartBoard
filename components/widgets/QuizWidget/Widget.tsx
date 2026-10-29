@@ -237,9 +237,9 @@ const QuizStudentView = lazy(() =>
  * tab warnings, no bonuses, no result reveal) — none of them have meaning
  * when there are no submissions to score or compare.
  */
-// Review's board size never applies to a view-only share.
+// Review's board size and the focus level never apply to a view-only share.
 const VIEW_ONLY_SESSION_OPTIONS: Required<
-  Omit<QuizSessionOptions, 'boardRankLimit'>
+  Omit<QuizSessionOptions, 'boardRankLimit' | 'focusLevel'>
 > = {
   tabWarningsEnabled: false,
   tabWarningThreshold: 'off',
@@ -248,6 +248,7 @@ const VIEW_ONLY_SESSION_OPTIONS: Required<
   tabAwayAutoSubmit: false,
   readAloudAll: false,
   blockCopyPaste: false,
+  blockPrint: false,
   allowStimulusQuotes: false,
   showResultToStudent: false,
   showCorrectAnswerToStudent: false,

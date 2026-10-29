@@ -82,6 +82,7 @@ import { EMPTY_ASSIGN_TARGETING_VALUE } from '@/utils/studentTargetRef';
 import { formatShortDate, isPlcSheetUrlInvalid } from './newAssignmentHelpers';
 import { useLastVideoAssignSettings } from '@/hooks/useLastVideoAssignSettings';
 import { videoRuleStepDefs } from '@/components/common/library/assignStepper/videoRuleStepDefs';
+import { useQuizRuleGates } from '@/components/common/library/assignStepper/QuizRuleStepGates';
 import {
   DEFAULT_VIDEO_PLAYER_SETTINGS,
   videoRulesPrefill,
@@ -106,6 +107,7 @@ interface VaAssignOptions {
 export const PlcNewVideoActivityAssignmentModal: React.FC<
   PlcNewVideoActivityAssignmentModalProps
 > = ({ plc, assignmentMode = 'submissions', onClose, onCreated }) => {
+  const { pageProtectionsOn } = useQuizRuleGates();
   const { t } = useTranslation();
   const { user, ensureGoogleScope, canAccessFeature } = useAuth();
   const { addToast, rosters } = useDashboard();
@@ -477,7 +479,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
   // Waits for last-used rules so an early Assign can't overwrite them with the activity's.
   if (rulesOnAssign && !lastRules.loaded) return null;
   const ruleSteps = rules
-    ? videoRuleStepDefs({ value: rules, onChange: setRules })
+    ? videoRuleStepDefs({ value: rules, onChange: setRules, pageProtectionsOn })
     : [];
   return (
     <AssignStepper

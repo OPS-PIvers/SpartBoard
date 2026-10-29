@@ -4990,6 +4990,9 @@ export type QuizWidgetKind = 'quiz' | 'review';
  * semantics across widgets belong here; widget-specific knobs go on the
  * per-widget extension type.
  */
+/** Monitor, Redirect or Lock (docs/plans/CHROME_EXTENSION.md F2). */
+export type FocusLevel = 'monitor' | 'redirect' | 'lock';
+
 export interface BaseSessionOptions {
   tabWarningsEnabled?: boolean;
   /** Tab-away limit in seconds (5-300); stamped only with the tab-away-timer flag. */
@@ -5003,6 +5006,10 @@ export interface BaseSessionOptions {
    * Default false (copy/paste allowed) preserves the pre-existing behavior.
    */
   blockCopyPaste?: boolean;
+  /** Block printing the student page; stamped only with the focus-sessions flag. */
+  blockPrint?: boolean;
+  /** Focus level (Chrome extension plan F2); 'lock' asks for fullscreen on the student page. */
+  focusLevel?: FocusLevel;
   showResultToStudent?: boolean;
   showCorrectAnswerToStudent?: boolean;
   showCorrectOnBoard?: boolean;
@@ -5403,6 +5410,10 @@ export interface QuizSession
    * client doesn't need a second fetch.
    */
   blockCopyPaste?: boolean;
+  /** Mirrors `BaseSessionOptions.blockPrint`. */
+  blockPrint?: boolean;
+  /** Mirrors `BaseSessionOptions.focusLevel`. */
+  focusLevel?: FocusLevel;
   /** Stamped only with the quiz-stimulus-quotes flag; absent = no quote button. */
   allowStimulusQuotes?: boolean;
   /** Show right/wrong indicator to students after they submit (default false) */
@@ -6810,6 +6821,8 @@ export interface StudentOverride {
   tabWarningThreshold?: number | 'off'; // quiz only (during-taking system)
   tabAwayLimit?: number | 'off'; // quiz only; seconds to auto-submit at, or 'off' for no auto-submit
   readAloud?: boolean; // quiz only; signed-in students, needs 'quiz-read-aloud'
+  /** Block (true) or allow (false) copy, paste and print for this student; absent = the session's rule. */
+  blockCopyPaste?: boolean;
   openAt?: number;
   closeAt?: number; // per-student window shift (epoch ms)
   /** BCP-47 code, e.g. 'es' | 'so' | 'hmn'. Absent = English. Shape-validated only. */
@@ -10667,7 +10680,9 @@ export type GlobalFeature =
   /** Teachers add their own YouTube songs to the Music widget's station list. */
   | 'music-my-songs'
   /** Timer button on the Music widget that opens a Timer linked to it. */
-  | 'music-timer-link';
+  | 'music-timer-link'
+  /** Copy, paste and print blocking and fullscreen on quiz and video activity pages (CHROME_EXTENSION.md F14). */
+  | 'focus-sessions';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

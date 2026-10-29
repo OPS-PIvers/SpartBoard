@@ -265,6 +265,8 @@ function parseStudentOverride(raw: unknown): StudentOverride | null {
     override.tabAwayLimit = o.tabAwayLimit;
   }
   if (o.readAloud === true) override.readAloud = true;
+  if (typeof o.blockCopyPaste === 'boolean')
+    override.blockCopyPaste = o.blockCopyPaste;
   if (typeof o.openAt === 'number') override.openAt = o.openAt;
   if (typeof o.closeAt === 'number') override.closeAt = o.closeAt;
   // Shape only, mirroring the server sanitizer; membership is enforced downstream.

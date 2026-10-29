@@ -39,7 +39,7 @@ export function quizRuleStepDefs({
     {
       id: 'integrity',
       title: title('integrity'),
-      value: formatQuizIntegrityValue(value),
+      value: formatQuizIntegrityValue(value, gates),
       body: <QuizIntegrityStep value={value} onChange={onChange} />,
     },
     {

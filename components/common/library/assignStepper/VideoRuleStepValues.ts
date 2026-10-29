@@ -4,6 +4,7 @@ import type {
   VideoActivitySessionOptions,
   VideoActivitySessionSettings,
 } from '@/types';
+import { sessionRequiresFullscreen } from '@/utils/pageProtections';
 
 /** The player honors shuffle, right and wrong, and reveal answer on sessions stamped `answerRulesSet`. */
 export const VIDEO_ANSWER_ROWS_READY = true;
@@ -101,10 +102,18 @@ export function formatVideoPlaybackValue(
 }
 
 /** Collapsed value for "Integrity". */
-export function formatVideoIntegrityValue(value: VideoAssignRules): string {
-  return (value.behavior.sessionOptions.tabWarningsEnabled ?? true)
-    ? 'Focus mode'
-    : 'Off';
+export function formatVideoIntegrityValue(
+  value: VideoAssignRules,
+  pageProtectionsOn = false
+): string {
+  const o = value.behavior.sessionOptions;
+  const parts: string[] = [];
+  if (o.tabWarningsEnabled ?? true) parts.push('Focus mode');
+  if (pageProtectionsOn && sessionRequiresFullscreen(o))
+    parts.push('Fullscreen');
+  if (pageProtectionsOn && (o.blockCopyPaste ?? false))
+    parts.push('No copy, paste or print');
+  return parts.join(', ') || 'Off';
 }
 
 /** Collapsed value for "What students see". */

@@ -21,10 +21,13 @@ export function videoRuleStepDefs({
   value,
   onChange,
   answerRows = VIDEO_ANSWER_ROWS_READY,
+  pageProtectionsOn = false,
 }: {
   value: VideoAssignRules;
   onChange: (next: VideoAssignRules) => void;
   answerRows?: boolean;
+  /** The focus-sessions flag; without it the summary never names fullscreen or print. */
+  pageProtectionsOn?: boolean;
 }): AssignStepDef[] {
   const title = (id: 'attempts' | 'video' | 'integrity' | 'feedback') =>
     getAssignStepTitle(id, 'video', { kind: 'work' });
@@ -45,7 +48,7 @@ export function videoRuleStepDefs({
     {
       id: 'integrity',
       title: title('integrity'),
-      value: formatVideoIntegrityValue(value),
+      value: formatVideoIntegrityValue(value, pageProtectionsOn),
       body: <VideoIntegrityStep {...props} />,
     },
   ];

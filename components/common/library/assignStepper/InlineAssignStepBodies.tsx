@@ -66,7 +66,11 @@ export const InlineAssignStepBodies: React.FC<InlineAssignStepBodiesProps> = ({
           handRaiseMode,
         })
       : activity === 'video' && videoRules && onVideoRulesChange
-        ? videoRuleStepDefs({ value: videoRules, onChange: onVideoRulesChange })
+        ? videoRuleStepDefs({
+            value: videoRules,
+            onChange: onVideoRulesChange,
+            pageProtectionsOn: gates.pageProtectionsOn,
+          })
         : [];
   const scheduleLabel = t('assignTargeting.scheduleLabel', 'Schedule');
   return (

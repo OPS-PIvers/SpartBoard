@@ -23,6 +23,7 @@ import {
 import { AssignWhenStep } from '@/components/common/library/assignStepper/AssignWhenStep';
 import { formatWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
 import { videoRuleStepDefs } from '@/components/common/library/assignStepper/videoRuleStepDefs';
+import { useQuizRuleGates } from '@/components/common/library/assignStepper/QuizRuleStepGates';
 import type { VideoAssignRules } from '@/components/common/library/assignStepper/VideoRuleStepValues';
 import {
   videoRulesFromAssignment,
@@ -50,6 +51,7 @@ function assignedRosters(
 export const VideoAssignmentSettingsModal: React.FC<
   VideoAssignmentSettingsModalProps
 > = ({ assignment, rosters, onClose, onSave }) => {
+  const { pageProtectionsOn } = useQuizRuleGates();
   const { t } = useTranslation();
   const [classes] = useState(() => assignedRosters(assignment, rosters));
   const [initialRules] = useState<VideoAssignRules>(() =>
@@ -199,7 +201,11 @@ export const VideoAssignmentSettingsModal: React.FC<
       title={assignment.activityTitle}
       steps={[
         whenStep,
-        ...videoRuleStepDefs({ value: rules, onChange: setRules }),
+        ...videoRuleStepDefs({
+          value: rules,
+          onChange: setRules,
+          pageProtectionsOn,
+        }),
       ]}
       submitLabel="Save"
       submitIcon={Save}
