@@ -26,6 +26,7 @@ import {
   MAX_QUESTIONS,
   checkImporter,
   inboxDoc,
+  inboxItemId,
   parseInboxPayload,
   receiveQuiz,
   type Importer,
@@ -384,5 +385,16 @@ describe('receiveQuiz', () => {
     expect(calls.at(-1)).toBe(
       'clear schoology_import/uid-1/testQuiz_8629405092/send-1/'
     );
+  });
+});
+
+describe('inboxItemId', () => {
+  it('keeps a classic bank apart from an item bank with the same id', () => {
+    expect(inboxItemId({ kind: 'questionBank', itemId: '9' })).toBe(
+      'questionBank_9'
+    );
+    expect(
+      inboxItemId({ kind: 'questionBank', itemId: '9', collectionId: '7' })
+    ).toBe('questionBank_7_9');
   });
 });

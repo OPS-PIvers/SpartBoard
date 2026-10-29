@@ -314,9 +314,11 @@ export function parseInboxPayload(body: unknown): InboxPayload {
   };
 }
 
-/** One inbox entry per Schoology item, so sending it again replaces the unsaved copy. */
+/** One inbox entry per Schoology item, so sending it again replaces the unsaved copy; a classic bank adds its collection so its folder id can't collide with an item bank's id. */
 export const inboxItemId = (source: InboxSource): string =>
-  `${source.kind}_${source.itemId}`;
+  source.collectionId
+    ? `${source.kind}_${source.collectionId}_${source.itemId}`
+    : `${source.kind}_${source.itemId}`;
 
 export const picturePrefix = (uid: string, itemId: string): string =>
   `schoology_import/${uid}/${itemId}/`;
