@@ -227,6 +227,11 @@ district key (2026-10-29, statuses and field names only):
   explains the one-click button; otherwise walks through Schoology Export (course or Resources) with
   screenshots, then takes the `.imscc` into the existing cartridge reader.
 - New controls get `tourAttr` anchors and a tour surface entry.
+- Built (PR 5): no separate menu item. The Import wizard's `.imscc` tile in both libraries is now
+  "From Schoology", with a "How to export from Schoology" toggle (course and Resources steps for
+  quizzes, Resources only for banks) and, when a staff extension answers the ping, a line pointing to
+  Send to SpartBoard. Steps are text, not screenshots. `schoology-quiz-import` now also opens the
+  tile; `quiz-imscc-import` and `question-bank-imscc-import` are marked to retire once it opens.
 - Built (PR 3): the review is a modal in the Quiz widget (`SchoologyInboxModal`), opened by a
   "N from Schoology" button in the Quiz library toolbar or by `?schoologyImport=1` (the first Quiz
   widget on the board claims it). Provenance is `QuizData.source` / `QuestionBankData.source`, mirrored

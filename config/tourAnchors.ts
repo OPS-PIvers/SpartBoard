@@ -15097,6 +15097,11 @@ export const TOUR_ANCHORS = {
       'Choose file button on the bulk export tile in the Import wizard (Schoology .imscc)',
     panel: true,
   },
+  'import-wizard.schoology-steps': {
+    label:
+      'How to export from Schoology toggle on the From Schoology tile in the Import wizard',
+    panel: true,
+  },
   'import-wizard.pick-sheet': {
     label: 'Choose Google Sheet button in the Import wizard',
     panel: true,
