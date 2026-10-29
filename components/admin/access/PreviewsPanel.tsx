@@ -7,6 +7,8 @@ import { rolloutSwitchKey, type RolloutSwitch } from '@/config/rolloutSwitches';
 import { TOOLS } from '@/config/tools';
 import { Toggle } from '@/components/common/Toggle';
 import { AccessFeatureRow } from './AccessFeatureRow';
+import { FocusHoursRow } from './FocusHoursRow';
+import { FOCUS_HOURS_SEARCH_FIELDS } from '@/config/focusSessions';
 import { AccessSearchEmpty, AdminSearchField } from './AdminSearchField';
 import {
   ROLLOUT_ONLY_SWITCHES,
@@ -188,6 +190,8 @@ export const PreviewsPanel: React.FC = () => {
   const rolloutOnly = ROLLOUT_ONLY_SWITCHES.filter((sw) =>
     matchesSearch(query, rolloutSearchFields(sw))
   );
+  const focusHours = matchesSearch(query, FOCUS_HOURS_SEARCH_FIELDS);
+  const district = rolloutOnly.length > 0 || focusHours;
 
   if (editor.loading) {
     return (
@@ -200,7 +204,7 @@ export const PreviewsPanel: React.FC = () => {
   return (
     <div className="space-y-3">
       <AdminSearchField tab="previews" placeholder="Search previews" />
-      {features.length === 0 && rolloutOnly.length === 0 ? (
+      {features.length === 0 && !district ? (
         <AccessSearchEmpty
           tab="previews"
           fallback="Nothing in preview."
@@ -215,16 +219,17 @@ export const PreviewsPanel: React.FC = () => {
               ))}
             </div>
           )}
-          {rolloutOnly.length > 0 && (
+          {district && (
             <h3 className="pt-3 text-xs font-bold uppercase tracking-widest text-slate-500">
               District switches
             </h3>
           )}
-          {rolloutOnly.length > 0 && (
+          {district && (
             <div className="divide-y divide-slate-200 border-y border-slate-200">
               {rolloutOnly.map((sw) => (
                 <RolloutOnlyRow key={rolloutSwitchKey(sw)} sw={sw} />
               ))}
+              {focusHours && <FocusHoursRow />}
             </div>
           )}
         </>

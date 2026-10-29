@@ -314,6 +314,9 @@ export {
   webTourRunV1,
 } from './webTourExtension';
 
+// Focus sessions: the student's extension checks its session and reports status (docs/plans/CHROME_EXTENSION.md F3).
+export { focusStatusV1, focusReportV1 } from './focus/studentEndpoints';
+
 // ── One-shot PLC migration (arrays→members map, orgId inference, aggregates
 // skeleton). Admin-only callable; see functions/src/migratePlcs.ts. ─────────
 export { migratePlcs } from './migratePlcs';

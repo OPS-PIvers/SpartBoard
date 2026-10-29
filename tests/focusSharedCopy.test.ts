@@ -7,7 +7,11 @@ import * as client from '@/utils/focus/allowlist';
 import * as copy from '@/functions/src/focus/shared.gen';
 
 // Order matters: each file only uses names from the files before it.
-const SOURCES = ['utils/focus/contract.ts', 'utils/focus/allowlist.ts'];
+const SOURCES = [
+  'utils/focus/contract.ts',
+  'utils/focus/allowlist.ts',
+  'utils/focus/settings.ts',
+];
 
 const FILE = resolve(process.cwd(), 'functions/src/focus/shared.gen.ts');
 

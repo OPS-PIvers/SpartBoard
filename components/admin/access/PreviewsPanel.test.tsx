@@ -13,6 +13,7 @@ const snapshotData: Record<string, Record<string, unknown> | undefined> = {
   quiz_document_import: undefined,
   sub_launch_as_teacher: undefined,
   view_as: undefined,
+  focus_sessions: undefined,
 };
 
 vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
@@ -290,5 +291,58 @@ describe('PreviewsPanel', () => {
     expect(
       await screen.findByText(/insufficient permissions/)
     ).toBeInTheDocument();
+  });
+
+  it('offers the Focus live-site switch, off, and merges showLiveSite into the Focus doc', async () => {
+    await renderPanel();
+    const sw = district("Show each student's current site in Focus");
+    expect(sw).toHaveAttribute('aria-checked', 'false');
+    fireEvent.click(sw);
+    await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
+    expect(setDocMock.mock.calls[0][0].path).toBe(
+      'admin_settings/focus_sessions'
+    );
+    expect(setDocMock.mock.calls[0][1]).toEqual({ showLiveSite: true });
+    expect(setDocMock.mock.calls[0][2]).toEqual({ merge: true });
+  });
+
+  it('edits Focus session hours and saves only a valid window', async () => {
+    await renderPanel();
+    const save = screen.getByRole('button', { name: 'Save' });
+    expect(save).toBeDisabled();
+    expect(screen.getByLabelText('Start time')).toHaveValue('07:00');
+    fireEvent.click(screen.getByRole('button', { name: 'Friday' }));
+    fireEvent.change(screen.getByLabelText('End time'), {
+      target: { value: '15:30' },
+    });
+    fireEvent.click(save);
+    await waitFor(() => expect(setDocMock).toHaveBeenCalledOnce());
+    expect(setDocMock.mock.calls[0][0].path).toBe(
+      'admin_settings/focus_sessions'
+    );
+    expect(setDocMock.mock.calls[0][1]).toEqual({
+      window: {
+        start: '07:00',
+        end: '15:30',
+        days: [1, 2, 3, 4],
+        timeZone: 'America/Chicago',
+      },
+    });
+    fireEvent.change(screen.getByLabelText('End time'), {
+      target: { value: '06:00' },
+    });
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+  });
+
+  it('locks Focus session hours for an org admin', async () => {
+    authState.superAdmins = [];
+    try {
+      await renderPanel();
+      expect(screen.getByLabelText('Start time')).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Monday' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    } finally {
+      authState.superAdmins = ['admin@test.com'];
+    }
   });
 });

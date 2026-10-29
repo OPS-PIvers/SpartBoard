@@ -96,6 +96,9 @@ export interface FocusSessionDoc {
   /** Set when the session ends (End, the window closing, or time running out). */
   endedAt: number | null;
   endReason: 'teacher' | 'time' | 'window' | null;
+  /** Subs whose share for this class was checked by the server; rules let them read until `subMonitorUntil` (F8). */
+  subMonitorUids?: string[];
+  subMonitorUntil?: number;
   [FOCUS_TTL_FIELD]?: unknown;
 }
 
