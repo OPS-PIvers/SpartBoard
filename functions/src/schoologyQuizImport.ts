@@ -1,4 +1,4 @@
-// Schoology quiz import inbox (docs/plans/SCHOOLOGY_QUIZ_IMPORT.md Q8, Q14): the extension posts read quizzes with a Google token.
+// Schoology quiz import inbox (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q8, Q14): the extension posts read quizzes with a Google token.
 import './functionsInit';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
