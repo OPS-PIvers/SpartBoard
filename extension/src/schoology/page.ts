@@ -160,12 +160,12 @@ export function resourcesItems(
     const bankId = /^\/common-assessment-question-banks\/(\d+)/.exec(
       link?.getAttribute('href') ?? ''
     )?.[1];
+    // No collection on an item bank, so it shares one inbox entry with a send from its own page.
     if (bankId && row.querySelector('.common-assessment-question-bank-icon'))
       items.push({
         kind: 'questionBank',
         bank: 'item',
         itemId: bankId,
-        collectionId,
         title,
       });
   }

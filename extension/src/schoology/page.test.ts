@@ -144,7 +144,6 @@ describe('question banks in Resources', () => {
         kind: 'questionBank',
         bank: 'item',
         itemId: '191500786',
-        collectionId: '7',
         title: '9.2.1.1',
       },
     ]);
