@@ -5,7 +5,17 @@ import {
   type WebTourPortPost,
 } from '@/components/tours/web/extensionProtocol';
 import { createExternalHandler } from './handler';
-import { getChromeProfile } from './profile';
+import { getChromeEmail, getChromeProfile } from './profile';
+import { FOCUS_PROTOCOL } from '@/components/tours/web/extensionProtocol';
+import { createFocusClient } from './focus/focusClient';
+import {
+  chromeFocusDeps,
+  chromePushSubscription,
+  ensureFocusCheckAlarm,
+  FOCUS_CHECK_ALARM,
+  FOCUS_TICK_ALARM,
+  type PushScope,
+} from './focus/chromeFocus';
 import {
   INTAKE_PORT,
   RECORDER_PORT,
@@ -50,6 +60,9 @@ declare const __SPART_ORIGINS__: readonly string[];
 const origins = __SPART_ORIGINS__;
 // This listing's SpartBoard functions (WEB_TOURS_HELP_PANEL.md H7).
 declare const __SPART_FUNCTIONS__: string;
+
+// This listing's focus-push public key; empty until FS5, so student devices poll only.
+declare const __SPART_VAPID_KEY__: string;
 
 const api: ApiDeps = {
   base: __SPART_FUNCTIONS__,
@@ -119,10 +132,28 @@ const tourList = createTourListWorker({
       ? chrome.storage.local.set({ [TOUR_LIST_KEY]: list })
       : chrome.storage.local.remove(TOUR_LIST_KEY),
   tabs: () => chrome.tabs.query({}),
-  setBadge: (tabId, text) => chrome.action.setBadgeText({ tabId, text }),
+  // No text clears the tab's own badge back to the global one, which a student's focus countdown uses.
+  setBadge: (tabId, text) =>
+    chrome.action.setBadgeText(text ? { tabId, text } : { tabId }),
   now: () => Date.now(),
 });
 
+// Focus sessions (CHROME_EXTENSION.md F3, F5): student profiles pull their session; staff never enforce.
+const scope = self as unknown as PushScope & {
+  addEventListener(
+    type: 'push' | 'pushsubscriptionchange',
+    listener: (event: { waitUntil(p: Promise<unknown>): void }) => void
+  ): void;
+};
+const focus = createFocusClient({
+  ...chromeFocusDeps,
+  origins,
+  protocol: FOCUS_PROTOCOL,
+  email: getChromeEmail,
+  status: (body) => callSpartBoard(api, 'focusStatusV1', body),
+  report: (body) => callSpartBoard(api, 'focusReportV1', body),
+  pushSubscription: () => chromePushSubscription(scope, __SPART_VAPID_KEY__),
+});
 const handle = createExternalHandler({
   origins,
   version: chrome.runtime.getManifest().version,
@@ -235,6 +266,8 @@ chrome.webNavigation.onReferenceFragmentUpdated.addListener(
 chrome.alarms.onAlarm.addListener(({ name }) => {
   if (name === PLAYBACK_ALARM) void playback.sweep();
   if (name === TOUR_LIST_ALARM) void tourList.refresh();
+  if (name === FOCUS_CHECK_ALARM) void focus.check();
+  if (name === FOCUS_TICK_ALARM) void focus.tick();
 });
 
 // The Tours tab (H5): only our own side panel, an extension page rather than a tab, may ask.
@@ -269,12 +302,32 @@ void chrome.alarms.get(TOUR_LIST_ALARM).then((alarm) => {
     periodInMinutes: TOUR_LIST_REFRESH_MINUTES,
   });
 });
-chrome.runtime.onStartup.addListener(() => void tourList.refresh());
-chrome.runtime.onInstalled.addListener(() => void tourList.refresh());
+chrome.runtime.onStartup.addListener(() => {
+  void tourList.refresh();
+  void focus.check();
+});
+chrome.runtime.onInstalled.addListener(() => {
+  void tourList.refresh();
+  void focus.check();
+});
 chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
   if (change.url !== undefined || change.status === 'complete')
     void tourList.badge(tabId, tab.url);
+  if (change.url !== undefined && tab.active) void focus.observe();
 });
 chrome.tabs.onRemoved.addListener((tabId) => {
   void playback.tabClosed(tabId);
+});
+
+// Focus sessions: the 5-minute check, a push wake-up, sign-in and tab changes.
+void ensureFocusCheckAlarm();
+// A push carries no data; it only means "check now" (F5).
+scope.addEventListener('push', (event) => event.waitUntil(focus.check()));
+scope.addEventListener('pushsubscriptionchange', (event) =>
+  event.waitUntil(focus.check())
+);
+chrome.identity.onSignInChanged.addListener(() => void focus.check());
+chrome.tabs.onActivated.addListener(() => void focus.observe());
+chrome.windows.onFocusChanged.addListener((windowId) => {
+  if (windowId !== chrome.windows.WINDOW_ID_NONE) void focus.observe();
 });

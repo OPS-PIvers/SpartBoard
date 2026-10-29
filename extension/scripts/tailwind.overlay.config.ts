@@ -8,12 +8,13 @@ const root = fileURLToPath(new URL('../../', import.meta.url)).replace(
   '/'
 );
 
-// The app's theme, scanned only over the overlay and the tour components it reuses.
+// The app's theme, scanned only over the overlay, the extension pages and the tour components it reuses.
 export default {
   presets: [rootConfig],
   content: [
     `${root}extension/src/overlay/**/*.{ts,tsx}`,
     `${root}extension/src/sidepanel/**/*.{ts,tsx}`,
+    `${root}extension/src/focus/**/*.{ts,tsx}`,
     `${root}components/tours/Tour{Bar,Spotlight,Tip}.tsx`,
     `${root}components/common/lightChrome.ts`,
     `${root}components/tours/web/BlurBoxes.tsx`,

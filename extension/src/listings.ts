@@ -10,6 +10,8 @@ export interface Listing {
   functionsBase: string;
   /** The listing's "Chrome extension" OAuth client (H8); keep equal to functions/src/webTourExtension.ts. */
   oauthClientId: string;
+  /** Public half of the project's focus-push VAPID key (F5); empty until FS5 sets it, so devices only poll. */
+  vapidPublicKey: string;
 }
 
 const LOCALHOST_PORTS = [3000, 3001, 3002, 3003, 3004];
@@ -24,6 +26,7 @@ export const LISTINGS: Record<ListingId, Listing> = {
     functionsBase: 'https://us-central1-spartboard.cloudfunctions.net',
     oauthClientId:
       '759666600376-3588aon892pctctjtosfpurqksup9hk5.apps.googleusercontent.com',
+    vapidPublicKey: '',
   },
   dev: {
     name: 'SpartBoard (dev)',
@@ -36,6 +39,7 @@ export const LISTINGS: Record<ListingId, Listing> = {
     functionsBase: 'https://us-central1-spartboard-dev.cloudfunctions.net',
     oauthClientId:
       '258543092004-9mfh4nls8a7edmift5dkh9l93jp7pdk1.apps.googleusercontent.com',
+    vapidPublicKey: '',
   },
 };
 
