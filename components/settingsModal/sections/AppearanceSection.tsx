@@ -153,7 +153,7 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
               className="grid grid-cols-1 gap-1 p-1 bg-slate-50 rounded-xl border border-slate-200"
             >
               {FONT_OPTIONS.map((f) => (
-                <button
+                <button // no-tour-anchor: option inside appearance.font-list
                   key={f.id}
                   onClick={() => {
                     setField('fontFamily', f.id);
@@ -229,7 +229,7 @@ export const AppearanceSection: React.FC<AppearanceSectionProps> = ({
               label: t('style.cornerExtra', { defaultValue: 'Extra' }),
             },
           ].map((r) => (
-            <button
+            <button // no-tour-anchor: option inside appearance.corners
               key={r.id}
               onClick={() =>
                 setField(

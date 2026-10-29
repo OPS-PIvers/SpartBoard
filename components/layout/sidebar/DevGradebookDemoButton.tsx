@@ -88,21 +88,21 @@ export const DevGradebookDemoButton: React.FC = () => {
   if (confirming) {
     return (
       <div className="flex items-center gap-2">
-        <button
+        <button // no-tour-anchor: dev-site only tool
           type="button"
           onClick={() => void run('seed')}
           className="text-xxs font-bold text-brand-blue-primary hover:underline"
         >
           {t('sidebar.devGradebookDemo.seed', { defaultValue: 'Seed' })}
         </button>
-        <button
+        <button // no-tour-anchor: dev-site only tool
           type="button"
           onClick={() => void run('remove')}
           className="text-xxs font-bold text-brand-red-primary hover:underline"
         >
           {t('sidebar.devGradebookDemo.remove', { defaultValue: 'Remove' })}
         </button>
-        <button
+        <button // no-tour-anchor: dev-site only tool
           type="button"
           onClick={() => setConfirming(false)}
           className="text-xxs text-slate-500 hover:underline"
@@ -114,7 +114,7 @@ export const DevGradebookDemoButton: React.FC = () => {
   }
 
   return (
-    <button
+    <button // no-tour-anchor: dev-site only tool
       type="button"
       onClick={() => setConfirming(true)}
       disabled={busy !== null}
