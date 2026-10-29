@@ -10695,8 +10695,6 @@ export type GlobalFeature =
   | 'document-camera-pro'
   /** Drawing zoom and pan, highlighter, laser pointer, sticky notes, shape polish and copy/paste (pro-grade-2/WHITEBOARD_PLAN.md). */
   | 'whiteboard-pro'
-  /** My Classes and My Teams sidebar lists as divider rows with full names and a row actions menu. */
-  | 'sidebar-list-rows'
   /** Flashcards Speak study mode (docs/multilingual-pronunciation-engine.md F15). Fail-closed for admins too. */
   | 'flashcards-speak'
   /** Widget Library fills most of the screen instead of a small fixed box. */

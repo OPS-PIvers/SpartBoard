@@ -66,7 +66,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'document-camera-pro',
   'whiteboard-pro',
   'widget-library-large',
-  'sidebar-list-rows',
   'alignment-guides',
   'spell-check-setting',
   'music-my-songs',
