@@ -10681,8 +10681,6 @@ export type GlobalFeature =
   | 'activity-wall-timeline-dates'
   /** Checklist empty state with an Add button, larger footer buttons hidden on small cards. */
   | 'checklist-small-card'
-  /** Synced and View-Only collection sharing (docs/plans/COLLECTION_SHARING.md). */
-  | 'collection-sync-sharing'
   /** Seating Chart saved seating plans, shuffle rules and print (poll-pro/SEATING_CHART_PLAN.md). */
   | 'seating-chart-plans'
   /** Scoreboard undo, score history, point buttons, leader marker and score motion. */

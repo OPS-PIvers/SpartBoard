@@ -93,7 +93,10 @@ vi.mock('@/hooks/useCollections', () => ({
 }));
 
 vi.mock('@/hooks/useLinkedCollection', () => ({
-  useLinkedCollection: () => ({ createLinkedCollection: vi.fn() }),
+  useLinkedCollection: () => ({
+    createLinkedCollection: vi.fn(),
+    subscribeLinkedCollection: vi.fn(() => () => {}),
+  }),
   LINKED_COLLECTION_MAX_BOARDS: 200,
   LINKED_COLLECTION_MAX_SECTIONS: 200,
 }));

@@ -58,7 +58,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'weather-details',
   'activity-wall-timeline-dates',
   'checklist-small-card',
-  'collection-sync-sharing',
   'seating-chart-plans',
   'scoreboard-pro',
   'poll-pro',
