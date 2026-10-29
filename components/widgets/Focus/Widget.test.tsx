@@ -114,18 +114,17 @@ const student = (patch: Partial<FocusStudentDoc>): FocusStudentDoc => ({
   ...patch,
 });
 
-const widget = (config: FocusConfig = {}): WidgetData =>
-  ({
-    id: 'w1',
-    type: 'focus',
-    x: 0,
-    y: 0,
-    w: 460,
-    h: 560,
-    z: 1,
-    flipped: false,
-    config: { rosterId: 'r1', ...config },
-  }) as WidgetData;
+const widget = (config: FocusConfig = {}): WidgetData => ({
+  id: 'w1',
+  type: 'focus',
+  x: 0,
+  y: 0,
+  w: 460,
+  h: 560,
+  z: 1,
+  flipped: false,
+  config: { rosterId: 'r1', ...config },
+});
 
 const NAMES = { u1: 'Ada Lovelace', u2: 'Grace Hopper' };
 const renderTeacher = (config?: FocusConfig) =>
