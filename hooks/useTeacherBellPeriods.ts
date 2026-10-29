@@ -28,13 +28,14 @@ export function useTeacherBellPeriodOptions(): BuildingBellPeriodOption[] {
   }, [featurePermissions, selectedBuildings, buildings]);
 }
 
-/** The assign modal's per-period context. */
+/** The assign modal's per-period context, or undefined when the teacher's buildings list no class periods. */
 export function useAssignPeriodAccess(
   updateRoster: (id: string, updates: Partial<ClassRoster>) => Promise<void>
-): AssignPeriodAccessContext {
+): AssignPeriodAccessContext | undefined {
   const { featurePermissions } = useAuth();
   const bellOptions = useTeacherBellPeriodOptions();
   return useMemo(() => {
+    if (bellOptions.length === 0) return undefined;
     return {
       bellOptions,
       bellWindow: (roster, date) =>
