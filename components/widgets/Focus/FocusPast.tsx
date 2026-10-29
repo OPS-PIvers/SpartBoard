@@ -125,8 +125,9 @@ export const FocusPastDetail: React.FC<{
   students: FocusStudentRow[];
   loading: boolean;
   nameOf: (uid: string) => string | null;
+  hideNames: boolean;
   onBack: () => void;
-}> = ({ widgetId, session, students, loading, nameOf, onBack }) => {
+}> = ({ widgetId, session, students, loading, nameOf, hideNames, onBack }) => {
   const rows = students
     .map((r) => {
       const d = r.doc;
@@ -163,7 +164,23 @@ export const FocusPastDetail: React.FC<{
           {session.className} · {FOCUS_LEVEL_TEXT[session.level].label} ·{' '}
           {lengthText(session)}
         </p>
-        {loading ? null : (
+        {loading ? null : hideNames ? (
+          <p
+            className="text-slate-600"
+            style={{
+              fontSize: 'min(15px, 4.6cqmin)',
+              padding: `min(8px, 2cqmin) min(15px, 3.6cqmin) 0`,
+            }}
+          >
+            {[
+              `${rows.filter((r) => r.connected).length} connected`,
+              `${rows.filter((r) => r.awayMs > 0).length} away at some point`,
+              `${rows.reduce((n, r) => n + r.blocked, 0)} blocked attempts`,
+            ].join(' · ')}
+            . Student names are hidden. Turn them back on in this widget’s
+            settings.
+          </p>
+        ) : (
           <ul
             className="divide-y divide-slate-200"
             style={{ marginTop: 'min(4px, 1cqmin)' }}

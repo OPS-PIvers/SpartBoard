@@ -12,6 +12,7 @@ import {
   FOCUS_MAX_SITES,
   type FocusSite,
 } from '@/utils/focus/contract';
+import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { tourAttr } from '@/config/tourAnchors';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
@@ -41,6 +42,8 @@ export const FocusSetup: React.FC<{
   onChange: (patch: Partial<FocusConfig>) => void;
   onStart: () => void;
   starting: boolean;
+  /** Still checking for a running session: Start waits. */
+  checking: boolean;
   error: string | null;
   pastCount: number;
   onOpenPast: () => void;
@@ -52,6 +55,7 @@ export const FocusSetup: React.FC<{
   onChange,
   onStart,
   starting,
+  checking,
   error,
   pastCount,
   onOpenPast,
@@ -68,7 +72,7 @@ export const FocusSetup: React.FC<{
 
   const setSites = (next: FocusSite[]) => onChange({ sites: next });
 
-  const canStart = !!selected && sites.length > 0 && !starting;
+  const canStart = !!selected && sites.length > 0 && !starting && !checking;
   let startHint: string | null = null;
   if (!selected) startHint = 'Pick a class to start.';
   else if (sites.length === 0) startHint = 'Add at least one site to start.';
@@ -207,6 +211,11 @@ export const FocusSetup: React.FC<{
           <div
             className="grid grid-cols-3 overflow-hidden rounded-lg border border-slate-300"
             {...tourAttr('focus.level', widget.id)}
+            onKeyDown={(e) =>
+              handleRadioGroupKeyDown(e, FOCUS_LEVELS, (l) =>
+                onChange({ level: l })
+              )
+            }
           >
             {FOCUS_LEVELS.map((l, i) => (
               // no-tour-anchor: tours point at the whole group (focus.level)
@@ -215,6 +224,7 @@ export const FocusSetup: React.FC<{
                 type="button"
                 role="radio"
                 aria-checked={level === l}
+                tabIndex={level === l ? 0 : -1}
                 onClick={() => onChange({ level: l })}
                 className={`font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary ${
                   i > 0 ? 'border-l border-slate-300' : ''

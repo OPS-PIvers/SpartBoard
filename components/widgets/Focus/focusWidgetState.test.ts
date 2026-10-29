@@ -91,7 +91,7 @@ describe('focusRowStatus', () => {
 });
 
 describe('roster summary and order', () => {
-  it('counts connecting students as not connected', () => {
+  it('counts connecting students apart from not connected', () => {
     expect(
       focusCounts([
         { kind: 'on-task' },
@@ -103,7 +103,8 @@ describe('roster summary and order', () => {
     ).toEqual({
       onTask: 1,
       away: 1,
-      notConnected: 2,
+      notConnected: 1,
+      connecting: 1,
       released: 1,
       otherSession: 0,
     });

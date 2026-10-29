@@ -33,8 +33,8 @@ import {
 } from '@/utils/focus/contract';
 import type { FocusSessionRow } from './focusWidgetState';
 
-/** Sessions the teacher can read for one class, newest first; ended ones are the 30-day history. */
-const SESSION_HISTORY_LIMIT = 30;
+/** Sessions the teacher can read for one class, newest first; TTL keeps it to 30 days. */
+const SESSION_HISTORY_LIMIT = 200;
 
 export interface FocusListState<T> {
   rows: T[];

@@ -96,6 +96,7 @@ export interface FocusCounts {
   onTask: number;
   away: number;
   notConnected: number;
+  connecting: number;
   released: number;
   otherSession: number;
 }
@@ -105,14 +106,15 @@ export function focusCounts(statuses: readonly FocusRowStatus[]): FocusCounts {
     onTask: 0,
     away: 0,
     notConnected: 0,
+    connecting: 0,
     released: 0,
     otherSession: 0,
   };
   for (const s of statuses) {
     if (s.kind === 'on-task') c.onTask++;
     else if (s.kind === 'away') c.away++;
-    else if (s.kind === 'not-connected' || s.kind === 'connecting')
-      c.notConnected++;
+    else if (s.kind === 'not-connected') c.notConnected++;
+    else if (s.kind === 'connecting') c.connecting++;
     else if (s.kind === 'released') c.released++;
     else c.otherSession++;
   }

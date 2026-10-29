@@ -126,7 +126,7 @@ const FocusTeacherView: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     } catch (err) {
       if (isRunningConflict(err)) opener.recheck();
       setError({
-        at: live ? 'live' : 'setup',
+        at: live?.id ?? 'setup',
         message: focusErrorMessage(err),
       });
       return false;
@@ -213,7 +213,7 @@ const FocusTeacherView: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         isSub={false}
         now={now}
         busy={busy}
-        error={error?.at === 'live' ? error.message : null}
+        error={error?.at === live.id ? error.message : null}
         actions={actions}
         compact={compact}
         presenting={!!widget.maximized}
@@ -242,6 +242,7 @@ const FocusTeacherView: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         students={students.rows}
         loading={students.loading}
         nameOf={nameOf}
+        hideNames={!!config.hideNames}
         onBack={() => setView({ kind: 'past-list' })}
       />
     );
@@ -264,7 +265,8 @@ const FocusTeacherView: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       rosters={classRosters}
       boardWidgets={boardWidgets ?? []}
       onChange={update}
-      starting={busy === 'start' || opener.checking}
+      starting={busy === 'start'}
+      checking={opener.checking}
       error={
         error?.at === 'setup'
           ? error.message

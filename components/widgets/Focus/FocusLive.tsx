@@ -145,6 +145,7 @@ export const FocusLive: React.FC<{
     `${counts.onTask} on task`,
     `${counts.away} away`,
     `${counts.notConnected} not connected`,
+    counts.connecting ? `${counts.connecting} connecting` : null,
     counts.released ? `${counts.released} released` : null,
     counts.otherSession ? `${counts.otherSession} in another session` : null,
   ]
@@ -408,7 +409,7 @@ export const FocusLive: React.FC<{
                 widgetId={widgetId}
                 live
                 label="Add a site for everyone"
-                disabled={busy === 'site'}
+                disabled={!!busy}
                 fullMessage={
                   session.sites.length >= FOCUS_MAX_SITES
                     ? `A session allows up to ${FOCUS_MAX_SITES} sites.`
