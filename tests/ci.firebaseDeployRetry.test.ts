@@ -378,10 +378,22 @@ describe('firebase-deploy-with-retry.sh rules release retry', () => {
     const { status, releases } = runRulesRelease([
       {
         exit: 1,
-        log: 'ERROR: every release request shape was rejected:\n  PATCH /projects/demo/releases/cloud.firestore -> 400 {"code": 400}',
+        log: 'POST /projects/demo:test -> 503; retrying in 2s (attempt 1/4)\nERROR: every release request shape was rejected:\n  PATCH /projects/demo/releases/cloud.firestore -> 400 {"code": 400}',
       },
     ]);
     expect(status).toBe(1);
     expect(releases).toBe(1);
+  });
+
+  it('retries a release whose connection dropped', () => {
+    const { status, releases } = runRulesRelease([
+      {
+        exit: 1,
+        log: 'ERROR: GET /projects/demo/releases/cloud.firestore -> fetch failed',
+      },
+      { exit: 0, log: 'released' },
+    ]);
+    expect(status).toBe(0);
+    expect(releases).toBe(2);
   });
 });

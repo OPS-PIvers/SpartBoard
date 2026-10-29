@@ -102,7 +102,8 @@ release_firestore_rules() {
     if [[ "$code" -eq 0 ]]; then
       return 0
     fi
-    if [[ "$wait" -eq 0 ]] || ! grep -qE ' -> (429|5[0-9][0-9])' "$LOG_FILE"; then
+    # Only the final ERROR counts; earlier lines can show blips the script recovered from.
+    if [[ "$wait" -eq 0 ]] || ! sed -n '/^ERROR: /,$p' "$LOG_FILE" | grep -qE ' -> (429|5[0-9][0-9]|fetch failed)( |$)'; then
       break
     fi
     echo "::warning::firebaserules API unavailable; retrying the firestore.rules release in ${wait}s."
