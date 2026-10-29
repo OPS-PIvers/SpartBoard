@@ -6841,7 +6841,7 @@ service cloud.firestore {
       allow read: if ownsUserTeacher(userId);
     }
 
-    // Schoology quiz import inbox (docs/plans/SCHOOLOGY_QUIZ_IMPORT.md Q8): server-written; the owner reviews, then deletes.
+    // Schoology quiz import inbox (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q8): server-written; the owner reviews, then deletes.
     match /users/{userId}/schoology_import_inbox/{itemId} {
       allow read, delete: if ownsUserTeacher(userId);
     }

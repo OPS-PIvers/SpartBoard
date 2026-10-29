@@ -1,4 +1,4 @@
-// Opens the Schoology review the extension asks for (docs/plans/SCHOOLOGY_QUIZ_IMPORT.md Q8), adding a Quiz widget when none takes it.
+// Opens the Schoology review the extension asks for (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q8), adding a Quiz widget when none takes it.
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';

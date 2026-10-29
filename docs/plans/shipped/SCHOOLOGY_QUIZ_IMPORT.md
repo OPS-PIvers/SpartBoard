@@ -1,6 +1,6 @@
 # Schoology quiz import
 
-Status: planned 2026-10-29 (grill with Paul). PR 1 (readers), PR 2 (flag + server inbox), PR 3 (review screen) and PR 4 (extension buttons) built.
+Status: built 2026-10-29. PR 1 readers (#4849), PR 2 inbox (#4851), PR 3 review (#4855), PR 4 extension buttons (#4858), question banks (#4864) and PR 5 guided `.imscc` route (#4865) merged to dev-paul; extension 0.1.23 (#4868). Release steps are in `TODO.md`; the wider import work is `docs/plans/IMPORT.md`.
 
 ## Goal
 
@@ -279,7 +279,7 @@ The extension button needs the published store listing. Until then teachers have
 
 ## Out of scope
 
-- Pages, files, links, discussions, rubrics, media albums.
+- Pages, files, links, discussions, rubrics, media albums (now planned in `docs/plans/IMPORT.md`).
 - Managed Assessments (AMP).
 - Linking imported quizzes to Schoology gradebook columns (tool-columns work).
 - Any write back to Schoology.

@@ -1,4 +1,4 @@
-// Turns Schoology import inbox entries (docs/plans/SCHOOLOGY_QUIZ_IMPORT.md Q8) into review rows and saved copies.
+// Turns Schoology import inbox entries (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q8) into review rows and saved copies.
 
 import type {
   ImportSource,

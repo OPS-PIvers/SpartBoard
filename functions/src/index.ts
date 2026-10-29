@@ -314,7 +314,7 @@ export {
   webTourRunV1,
 } from './webTourExtension';
 
-// Schoology quiz import: the extension posts read quizzes to the teacher's review inbox (docs/plans/SCHOOLOGY_QUIZ_IMPORT.md Q8).
+// Schoology quiz import: the extension posts read quizzes to the teacher's review inbox (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q8).
 export {
   schoologyImportStatusV1,
   schoologyImportInboxV1,

@@ -1,4 +1,4 @@
-// Live list of quizzes the Chrome extension sent from Schoology (docs/plans/SCHOOLOGY_QUIZ_IMPORT.md Q8).
+// Live list of quizzes the Chrome extension sent from Schoology (docs/plans/shipped/SCHOOLOGY_QUIZ_IMPORT.md Q8).
 import { useCallback, useEffect, useState } from 'react';
 import {
   Timestamp,
