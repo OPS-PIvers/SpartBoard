@@ -32,9 +32,9 @@ const writeMap = (storageKey: string | null, map: CrossedOutMap) => {
 
 export const crossOutStorageKey = (
   sessionId: string,
-  studentUid: string | undefined,
+  studentUid: string,
   attempt: number
-): string => `sb_quiz_crossout:${sessionId}:${studentUid ?? 'anon'}:${attempt}`;
+): string => `sb_quiz_crossout:${sessionId}:${studentUid}:${attempt}`;
 
 export interface CrossedOutChoices {
   isCrossedOut: (questionId: string, choice: string) => boolean;

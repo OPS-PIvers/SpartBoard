@@ -2334,12 +2334,15 @@ export const ActiveQuiz: React.FC<{
     stimulusTextById: session.readAloudTextByStimulusId,
   });
   const readAloudOn = readAloud.enabled;
-  const crossOutOn = session.allowCrossOut === true;
+  // Waits for the response doc so a cross-out never lands under a placeholder key.
+  const crossOutUid =
+    session.allowCrossOut === true ? myResponse?.studentUid : undefined;
+  const crossOutOn = !!crossOutUid;
   const crossedOut = useCrossedOutChoices(
-    crossOutOn
+    crossOutUid
       ? crossOutStorageKey(
           session.id,
-          myResponse?.studentUid,
+          crossOutUid,
           myResponse?.completedAttempts ?? 0
         )
       : null
