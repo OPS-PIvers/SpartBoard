@@ -1,0 +1,231 @@
+{
+  "title": "Sample Test/Quiz",
+  "questions": [
+    {
+      "type": "true_false",
+      "entries": [
+        ["weight", "1"],
+        [
+          "title",
+          "<p dir=\"ltr\">Here is a sample True/False question</p>\n<p dir=\"ltr\"><img src=\"https://orono.schoology.com/file_download/d709093d-adc9-4446-815c-22f7e5cc2aa8\" alt=\"\" class=\"sgy-upload\" /></p>"
+        ],
+        ["true_text", "True"],
+        ["false_text", "False"],
+        ["correct", "f"],
+        ["correction_weight", "50"],
+        ["time_limit", "0"],
+        ["points", "1"],
+        ["enable_outcomes", "1"],
+        ["item_nid", "2335605993"],
+        ["filters", "on"]
+      ]
+    },
+    {
+      "type": "multiple_choice",
+      "entries": [
+        ["weight", "2"],
+        ["title", "<p dir=\"ltr\">Multiple choice question text</p>"],
+        [
+          "multiple_choice[choice][0][text]",
+          "<p dir=\"ltr\">choice 1 (correct answer selected)</p>\n<p dir=\"ltr\"><img src=\"https://orono.schoology.com/file_download/3aa46b22-b1e5-4bc5-a3bb-a001c303a2c8\" alt=\"\" class=\"sgy-upload\"></p>"
+        ],
+        ["multiple_choice[choice][0][richtext]", "1"],
+        ["multiple_choice[choice][0][is_answer]", "1"],
+        ["multiple_choice[choice][0][weight]", "0"],
+        ["multiple_choice[choice][1][text]", "choice 2"],
+        ["multiple_choice[choice][1][weight]", "0"],
+        ["multiple_choice[choice][2][text]", "choice 3"],
+        ["multiple_choice[choice][2][weight]", "0"],
+        ["multiple_choice[choice][3][text]", "choice 4"],
+        ["multiple_choice[choice][3][weight]", "0"],
+        ["num_choices", "1"],
+        ["partial_credit", "1"],
+        ["time_limit", "0"],
+        ["points", "1"],
+        ["enable_outcomes", "1"],
+        ["item_nid", "2335606272"],
+        ["filters", "on"]
+      ]
+    },
+    {
+      "type": "ordering",
+      "entries": [
+        ["weight", "3"],
+        ["title", "<p dir=\"ltr\">Ordering question type question text.</p>"],
+        ["ordering[choices][0][text]", "Item 1"],
+        ["ordering[choices][0][el_id]", "1"],
+        ["ordering[choices][0][weight]", "-200"],
+        ["ordering[choices][1][text]", "Item 2"],
+        ["ordering[choices][1][el_id]", "2"],
+        ["ordering[choices][1][weight]", "-199"],
+        ["ordering[choices][2][text]", "Item 3"],
+        ["ordering[choices][2][el_id]", "3"],
+        ["ordering[choices][2][weight]", "-198"],
+        ["ordering[choices][3][text]", "Item 4"],
+        ["ordering[choices][3][el_id]", "4"],
+        ["ordering[choices][3][weight]", "-197"],
+        ["num_choices", "1"],
+        ["partial_credit", "1"],
+        ["min_subsequence", "2"],
+        ["time_limit", "0"],
+        ["points", "2"],
+        ["enable_outcomes", "1"],
+        ["item_nid", "2335606505"],
+        ["filters", "on"]
+      ]
+    },
+    {
+      "type": "essay",
+      "entries": [
+        ["weight", "4"],
+        [
+          "title",
+          "<p dir=\"ltr\">Short Answer/Essay type question text</p>"
+        ],
+        ["character_limit", "400"],
+        ["time_limit", "0"],
+        ["printing_options", "1"],
+        ["points", "5"],
+        ["grading_scale_id", "0"],
+        ["option_show_scale", "1"],
+        ["district_mastery_grading_scale_id", "0"],
+        ["enable_outcomes", "1"],
+        ["item_nid", "2335606663"],
+        ["filters", "on"]
+      ]
+    },
+    {
+      "type": "fitb",
+      "entries": [
+        ["weight", "5"],
+        [
+          "title",
+          "<p dir=\"ltr\">Fill in the blank question text with one _ that has two possibilities.</p>"
+        ],
+        ["blanks[delta][0][answer][0]", "answer"],
+        ["blanks[delta][0][answer][1]", "response"],
+        ["time_limit", "0"],
+        ["points", "1"],
+        ["enable_outcomes", "1"],
+        ["item_nid", "2335606827"],
+        ["filters", "on"]
+      ]
+    },
+    {
+      "type": "matching",
+      "entries": [
+        ["weight", "6"],
+        ["title", "<p dir=\"ltr\">Matching question type question text</p>"],
+        ["rows[delta][0][question]", "Question A"],
+        ["rows[delta][0][answer]", "Answer A"],
+        ["rows[delta][0][weight]", "0"],
+        ["rows[delta][1][question]", "Question B"],
+        ["rows[delta][1][answer]", "Answer B"],
+        ["rows[delta][1][weight]", "0"],
+        ["rows[delta][2][question]", "Question C"],
+        ["rows[delta][2][answer]", "Answer C"],
+        ["rows[delta][2][weight]", "0"],
+        ["rows[delta][3][question]", "Question D"],
+        ["rows[delta][3][answer]", "Answer D"],
+        ["rows[delta][3][weight]", "0"],
+        ["num_choices", "1"],
+        ["fillword_rows[delta][0][question]", "Filler Word E"],
+        ["fillword_rows[delta][1][question]", "Filler Word F"],
+        ["time_limit", "0"],
+        ["points", "1"],
+        ["enable_outcomes", "1"],
+        ["item_nid", "2335607077"],
+        ["filters", "on"]
+      ]
+    },
+    {
+      "type": "multiple_choice",
+      "entries": [
+        ["weight", "7"],
+        [
+          "title",
+          "<p dir=\"ltr\">Multiple choice with image in question text:</p>\n<p dir=\"ltr\"><img src=\"https://orono.schoology.com/file_download/b31b0076-7a8a-4a1f-b05a-8eb343515fb0\" alt=\"\" class=\"sgy-upload\" /></p>"
+        ],
+        ["multiple_choice[choice][0][text]", "choice 1 (correct answer)"],
+        ["multiple_choice[choice][0][is_answer]", "1"],
+        ["multiple_choice[choice][0][weight]", "0"],
+        ["multiple_choice[choice][1][text]", "choice 2"],
+        ["multiple_choice[choice][1][weight]", "0"],
+        ["multiple_choice[choice][2][text]", "choice 3"],
+        ["multiple_choice[choice][2][weight]", "0"],
+        ["multiple_choice[choice][3][text]", "choice 4"],
+        ["multiple_choice[choice][3][weight]", "0"],
+        ["num_choices", "1"],
+        ["time_limit", "0"],
+        ["points", "1"],
+        ["enable_outcomes", "1"],
+        ["item_nid", "2335610880"],
+        ["filters", "on"]
+      ]
+    },
+    {
+      "type": "multiple_choice",
+      "entries": [
+        ["weight", "8"],
+        [
+          "title",
+          "<p dir=\"ltr\">multiple choice multiselected correct answers.</p>"
+        ],
+        ["multiple_choice[choice][0][text]", "choice 1"],
+        ["multiple_choice[choice][0][is_answer]", "1"],
+        ["multiple_choice[choice][0][weight]", "0"],
+        ["multiple_choice[choice][1][text]", "choice 2"],
+        ["multiple_choice[choice][1][is_answer]", "1"],
+        ["multiple_choice[choice][1][weight]", "0"],
+        [
+          "multiple_choice[choice][2][text]",
+          "<p dir=\"ltr\">choice 3 with image</p>\n<p dir=\"ltr\"><img src=\"https://orono.schoology.com/file_download/d769b9a6-d42c-4fb1-aac1-382521978690\" alt=\"\" class=\"sgy-upload\" /></p>"
+        ],
+        ["multiple_choice[choice][2][richtext]", "1"],
+        ["multiple_choice[choice][2][weight]", "0"],
+        ["multiple_choice[choice][3][text]", "choice 4"],
+        ["multiple_choice[choice][3][weight]", "0"],
+        ["multiple_choice[choice][4][text]", "choice 5"],
+        ["multiple_choice[choice][4][weight]", "0"],
+        ["num_choices", "1"],
+        ["time_limit", "0"],
+        ["points", "1"],
+        ["enable_outcomes", "1"],
+        ["item_nid", "2335611307"],
+        ["filters", "on"]
+      ]
+    },
+    {
+      "type": "fitb",
+      "entries": [
+        ["weight", "9"],
+        [
+          "title",
+          "<p dir=\"ltr\">Fill in the blank with _ blanks in _ sentence.</p>"
+        ],
+        ["blanks[delta][0][answer][0]", "two"],
+        ["blanks[delta][1][answer][0]", "one"],
+        ["time_limit", "0"],
+        ["points", "1"],
+        ["enable_outcomes", "1"],
+        ["item_nid", "2335611812"],
+        ["filters", "on"]
+      ]
+    }
+  ],
+  "settings": [
+    ["availability", "1"],
+    ["has_time_limit", "0"],
+    ["time_limit", "0"],
+    ["attempts", "1"],
+    ["attempts_scoring", "1"],
+    ["randomize_order", "0"],
+    ["paging", "1"],
+    ["review", "0"],
+    ["resumable", "0"],
+    ["student_view", "0"],
+    ["short_answer_lines", "5"],
+    ["whole_pages", "0"],
+    ["partial_page_percent", "50"]
+  ]
+}

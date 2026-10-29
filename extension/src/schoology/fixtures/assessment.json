@@ -1,0 +1,122 @@
+{
+  "assessment": {
+    "data": {
+      "commonAssessment": {
+        "title": "Sample Assessment",
+        "assessment_type": 200,
+        "active_version_id": 239532487,
+        "common_assessment_settings_domain": {
+          "attempts": 1,
+          "attempts_scoring": 2,
+          "randomize_order": null,
+          "time_limit": null,
+          "paging": 1,
+          "resumable": 1,
+          "reviewable": 0,
+          "hide_points": 0
+        }
+      }
+    }
+  },
+  "components": {
+    "data": {
+      "components": [
+        {
+          "position": "a",
+          "ref_type": 1,
+          "num_questions": 1,
+          "metadata": {
+            "points": 1,
+            "question_domain": {
+              "type": 2,
+              "subjective": null,
+              "is_passage_question": null,
+              "current_version": {
+                "definition": "{\"type\":\"mcq\",\"stimulus\":\"Sample MC question text\",\"options\":[{\"label\":\"option A (correct answer selected)\",\"value\":\"0\"},{\"label\":\"option B\",\"value\":\"1\"},{\"label\":\"Option C\",\"value\":\"2\"},{\"label\":\"Option D\",\"value\":\"3\"}],\"ui_style\":{\"choice_label\":\"upper-alpha\",\"type\":\"horizontal\"},\"validation\":{\"scoring_type\":\"exactMatch\",\"valid_response\":{\"score\":100,\"value\":[\"0\"]},\"penalty\":100},\"metadata\":{\"requires_correction_if_false\":false,\"requires_correction_if_false_text\":\"\"}}",
+                "question_type": 2,
+                "stimulus": "Sample MC question text",
+                "scoring_instructions": null
+              }
+            }
+          }
+        },
+        {
+          "position": "b",
+          "ref_type": 1,
+          "num_questions": 1,
+          "metadata": {
+            "points": 1,
+            "question_domain": {
+              "type": 6,
+              "subjective": null,
+              "is_passage_question": null,
+              "current_version": {
+                "definition": "{\"options\":null,\"type\":\"association\",\"stimulus\":\"Sample Matching Question Type\",\"stimulus_list\":[\"Question A\",\"Question B\",\"Question C\",\"Question D\"],\"possible_responses\":[\"Answer A\",\"Answer B\",\"Answer C\",\"Answer D\"],\"ui_style\":{\"validation_stem_numeration\":\"upper-alpha\"},\"validation\":{\"scoring_type\":\"exactMatch\",\"valid_response\":{\"score\":100,\"value\":[\"Answer A\",\"Answer B\",\"Answer C\",\"Answer D\"]}},\"metadata\":[]}",
+                "question_type": 6,
+                "stimulus": "Sample Matching Question Type",
+                "scoring_instructions": null
+              }
+            }
+          }
+        },
+        {
+          "position": "c",
+          "ref_type": 1,
+          "num_questions": 1,
+          "metadata": {
+            "points": 1,
+            "question_domain": {
+              "type": 3,
+              "subjective": null,
+              "is_passage_question": null,
+              "current_version": {
+                "definition": "{\"options\":null,\"type\":\"orderlist\",\"stimulus\":\"Ordering question type question text\",\"list\":[\"Item 1\",\"Item 2\",\"Item 3\",\"Item 4\"],\"validation\":{\"scoring_type\":\"exactMatch\",\"valid_response\":{\"score\":100,\"value\":[0,1,2,3]}},\"metadata\":[]}",
+                "question_type": 3,
+                "stimulus": "Ordering question type question text",
+                "scoring_instructions": null
+              }
+            }
+          }
+        },
+        {
+          "position": "d",
+          "ref_type": 1,
+          "num_questions": 1,
+          "metadata": {
+            "points": 1,
+            "question_domain": {
+              "type": 5,
+              "subjective": null,
+              "is_passage_question": null,
+              "current_version": {
+                "definition": "{\"options\":null,\"type\":\"clozetext\",\"ui_style\":{\"choice_label\":\"upper-alpha\"},\"max_length\":40,\"validation\":{\"scoring_type\":\"exactMatch\",\"valid_response\":{\"score\":100,\"value\":[\"answer\"]}},\"template\":\"Fill in the blank question type with one&nbsp;{{response}}.\",\"metadata\":[]}",
+                "question_type": 5,
+                "stimulus": "Fill in the blank question type with one _.",
+                "scoring_instructions": null
+              }
+            }
+          }
+        },
+        {
+          "position": "e",
+          "ref_type": 1,
+          "num_questions": 1,
+          "metadata": {
+            "points": 1,
+            "question_domain": {
+              "type": 40,
+              "subjective": null,
+              "is_passage_question": null,
+              "current_version": {
+                "definition": "{\"options\":null,\"type\":\"longtextV2\",\"stimulus\":\"Short Answer\\/Essay question type question text.\",\"metadata\":[]}",
+                "question_type": 40,
+                "stimulus": "Short Answer/Essay question type question text.",
+                "scoring_instructions": null
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
