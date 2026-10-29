@@ -26,6 +26,17 @@ vi.mock('@/context/useDashboard', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ canAccessWidget: () => quizAllowed }),
 }));
+const extension = {
+  canConnect: false,
+  signedIn: false as boolean | null,
+  connect: vi.fn(() => Promise.resolve(true)),
+};
+vi.mock('@/components/tours/web/extensionClient', () => ({
+  pingExtension: () => Promise.resolve({ kind: 'none' }),
+  canConnectSchoology: () => extension.canConnect,
+  extensionSignedIn: () => Promise.resolve(extension.signedIn),
+  connectExtension: () => extension.connect(),
+}));
 vi.mock('@/context/dashboardCanvasStore', () => ({
   useIsActiveBoardReadOnly: () => readOnly,
 }));
@@ -50,6 +61,10 @@ describe('SchoologyReviewHost', () => {
     widgets = [];
     readOnly = false;
     quizAllowed = true;
+    extension.canConnect = false;
+    extension.signedIn = false;
+    extension.connect.mockClear();
+    localStorage.clear();
     claimSchoologyReview();
   });
   afterEach(() => {
@@ -102,5 +117,48 @@ describe('SchoologyReviewHost', () => {
     expect(addWidget).not.toHaveBeenCalled();
     expect(addToast).toHaveBeenCalledOnce();
     expect(schoologyReviewPending()).toBe(false);
+  });
+
+  describe('connecting the extension', () => {
+    const settle = () => act(async () => {});
+    type Action = {
+      onClick: () => void;
+      secondary: { onClick: () => void };
+    };
+    const offer = () => addToast.mock.calls[0]?.[2] as Action | undefined;
+
+    it('offers once when a staff extension has no sign-in, and connects on click', async () => {
+      extension.canConnect = true;
+      render(<SchoologyReviewHost />);
+      await settle();
+      expect(addToast).toHaveBeenCalledOnce();
+      offer()?.onClick();
+      await settle();
+      expect(extension.connect).toHaveBeenCalledOnce();
+      expect(addToast).toHaveBeenLastCalledWith(
+        expect.stringContaining('Reload your Schoology page'),
+        'success'
+      );
+    });
+
+    it('stays quiet when signed in, without a staff extension, or after Not now', async () => {
+      extension.canConnect = true;
+      extension.signedIn = true;
+      render(<SchoologyReviewHost />).unmount();
+      await settle();
+      extension.signedIn = false;
+      extension.canConnect = false;
+      render(<SchoologyReviewHost />).unmount();
+      await settle();
+      expect(addToast).not.toHaveBeenCalled();
+      extension.canConnect = true;
+      render(<SchoologyReviewHost />).unmount();
+      await settle();
+      offer()?.secondary.onClick();
+      addToast.mockClear();
+      render(<SchoologyReviewHost />);
+      await settle();
+      expect(addToast).not.toHaveBeenCalled();
+    });
   });
 });

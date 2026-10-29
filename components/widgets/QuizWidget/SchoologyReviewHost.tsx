@@ -10,9 +10,33 @@ import {
   schoologyReviewPending,
   subscribeSchoologyReview,
 } from '@/utils/schoologyInbox';
+import {
+  canConnectSchoology,
+  connectExtension,
+  extensionSignedIn,
+  pingExtension,
+} from '@/components/tours/web/extensionClient';
 
 /** How long a Quiz widget already on the board (its code may still be loading) gets to take the request. */
 export const SCHOOLOGY_REVIEW_WAIT_MS = 6000;
+
+const CONNECT_DISMISSED_KEY = 'spart:schoologyConnectDismissed';
+
+const connectDismissed = () => {
+  try {
+    return localStorage.getItem(CONNECT_DISMISSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
+
+const dismissConnect = () => {
+  try {
+    localStorage.setItem(CONNECT_DISMISSED_KEY, '1');
+  } catch {
+    // Without storage the offer comes back next time.
+  }
+};
 
 export const SchoologyReviewHost: React.FC = () => {
   const pending = useSyncExternalStore(
@@ -26,6 +50,7 @@ export const SchoologyReviewHost: React.FC = () => {
   const hasQuiz = !!activeDashboard?.widgets.some((w) => w.type === 'quiz');
   const canAddQuiz = canAccessWidget('quiz');
   const added = useRef(false);
+  const connectChecked = useRef(false);
 
   // The extension fires this in a SpartBoard tab that is already open; cancelling it tells the extension it was heard.
   useEffect(() => {
@@ -36,6 +61,34 @@ export const SchoologyReviewHost: React.FC = () => {
     window.addEventListener(SCHOOLOGY_REVIEW_EVENT, onRequest);
     return () => window.removeEventListener(SCHOOLOGY_REVIEW_EVENT, onRequest);
   }, []);
+
+  // The extension can't check the flag until it holds a Google sign-in, so its Schoology button stays hidden until then.
+  useEffect(() => {
+    if (connectChecked.current || connectDismissed()) return;
+    connectChecked.current = true;
+    void (async () => {
+      if (!canConnectSchoology(await pingExtension())) return;
+      if ((await extensionSignedIn()) !== false) return;
+      addToast(
+        'Connect the SpartBoard extension so Send to SpartBoard shows in Schoology.',
+        'info',
+        {
+          label: 'Connect',
+          onClick: () => {
+            void connectExtension().then((ok) =>
+              addToast(
+                ok
+                  ? 'Connected. Reload your Schoology page to see Send to SpartBoard.'
+                  : "Couldn't connect the extension.",
+                ok ? 'success' : 'error'
+              )
+            );
+          },
+          secondary: { label: 'Not now', onClick: dismissConnect },
+        }
+      );
+    })();
+  }, [addToast]);
 
   // A Quiz widget the teacher owns on this board takes the request at once; otherwise it is placed or dropped here, never left for a later board.
   useEffect(() => {

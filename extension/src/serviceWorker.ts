@@ -267,6 +267,12 @@ const handle = createExternalHandler({
     const opened = await openPublished(setId);
     return opened.ok ? opened.tabId : null;
   },
+  // A new sign-in drops the cached "no", so the next Schoology page asks SpartBoard again.
+  signIn: async (ask) => {
+    const signedIn = !!(await chromeTokens.getToken(ask));
+    if (ask && signedIn) await chrome.storage.session.remove(STATUS_KEY);
+    return signedIn;
+  },
 });
 
 chrome.runtime.onMessageExternal.addListener(
