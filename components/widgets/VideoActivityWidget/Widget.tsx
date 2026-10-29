@@ -32,6 +32,7 @@ import {
 } from '@/types';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import { AssignmentClassesModal } from '@/components/common/library/AssignmentClassesModal';
+import { VideoAssignmentSettingsModal } from './components/VideoAssignmentSettingsModal';
 import { AssignToClassroomModal } from '@/components/classroomAddon/AssignToClassroomModal';
 import { requestClassroomFinalGradeToken } from '@/components/classroomAddon/gisOAuth';
 import {
@@ -222,9 +223,12 @@ const TeacherVideoActivityWidget: React.FC<{
     publishAssignmentScores,
     unpublishAssignmentScores,
     setAssignmentClasses,
+    updateAssignmentSettings,
   } = useVideoActivityAssignments(user?.uid);
 
   const [editingClasses, setEditingClasses] =
+    useState<VideoActivityAssignment | null>(null);
+  const [editingSettings, setEditingSettings] =
     useState<VideoActivityAssignment | null>(null);
   const [publishingAssignment, setPublishingAssignment] =
     useState<VideoActivityAssignment | null>(null);
@@ -1275,6 +1279,7 @@ const TeacherVideoActivityWidget: React.FC<{
           }
         }}
         onArchiveEditClasses={setEditingClasses}
+        onArchiveEditSettings={setEditingSettings}
         onShareWithPlc={(meta) => {
           if (plcs.length === 0) {
             addToast(
@@ -1300,6 +1305,24 @@ const TeacherVideoActivityWidget: React.FC<{
                 assignmentId: editingClasses.id,
               });
               addToast("Couldn't save classes.", 'error');
+              throw err;
+            }
+          }}
+        />
+      )}
+      {editingSettings && (
+        <VideoAssignmentSettingsModal
+          rosters={rosters}
+          assignment={editingSettings}
+          onClose={() => setEditingSettings(null)}
+          onSave={async (patch) => {
+            try {
+              await updateAssignmentSettings(editingSettings.id, patch);
+            } catch (err) {
+              logError('VideoActivityWidget.editSettings', err, {
+                assignmentId: editingSettings.id,
+              });
+              addToast("Couldn't save settings.", 'error');
               throw err;
             }
           }}

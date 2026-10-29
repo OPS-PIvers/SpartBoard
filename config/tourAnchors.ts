@@ -10517,6 +10517,10 @@ export const TOUR_ANCHORS = {
   'video-activity.selection-toggle': {
     label: 'Select toggle in the video activity library',
   },
+  'video-activity.archive-settings': {
+    label: 'Settings item in a video activity assignment row menu',
+    panel: true,
+  },
   'video-activity.settings-score-visibility': {
     label: 'Score visibility option in video activity behavior settings',
     perField: true,
