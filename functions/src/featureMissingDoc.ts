@@ -34,6 +34,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'guided-learning-ai',
   'routine-guide',
   'blooms-ai',
+  'blooms-question-starters',
   'plc-meeting-ai-notes',
   'sparty',
   'google-tasks-sync',

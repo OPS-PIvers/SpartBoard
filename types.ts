@@ -10632,6 +10632,7 @@ export type GlobalFeature =
   | 'drawing-ai'
   | 'webcam-ai'
   | 'blooms-ai'
+  | 'blooms-question-starters'
   | 'dashboard-layout'
   | 'instructional-routine'
   | 'ocr'

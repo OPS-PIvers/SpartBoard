@@ -12649,6 +12649,10 @@ export const TOUR_ANCHORS = {
     label: 'Open in new tab button in First 5',
     perWidget: true,
   },
+  'blooms-taxonomy.level': {
+    label: "Level tab in Bloom's Taxonomy",
+    perField: true,
+  },
   'talking-tool.category': {
     label: 'Category tab in Talking Tool',
     perField: true,
