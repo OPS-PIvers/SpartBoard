@@ -829,4 +829,12 @@ describe('push wake-ups (F5)', () => {
     await sweepFocusSessions(db, now, waking.wake);
     expect(woken).toEqual([s(['s1', 's2', 's3'])]);
   });
+
+  it('wakes once for every session the sweep ends', async () => {
+    const first = await start();
+    await start(otherTeacher, { classId: OTHER_CLASS, minutes: 10 });
+    now = first.endsAt;
+    await sweepFocusSessions(db, now, waking.wake);
+    expect(woken).toEqual([s(['s1', 's2', 's3', 's4'])]);
+  });
 });

@@ -19,7 +19,10 @@ const PUSH_HOSTS = new Set(['fcm.googleapis.com', 'android.googleapis.com']);
 /** A wake older than this is useless; the 5-minute check covers a device that was offline. */
 const PUSH_TTL_SECONDS = 60;
 const SEND_TIMEOUT_MS = 5_000;
-const SEND_CONCURRENCY = 25;
+/** The most a wake may add to a teacher's action or the sweep. */
+const WAKE_DEADLINE_MS = 4_000;
+const KEY_RETRY_MS = 60_000;
+const SEND_CONCURRENCY = 50;
 const GET_ALL_CHUNK = 100;
 const KEY_CACHE_MS = 10 * 60_000;
 const JWT_LIFETIME_S = 12 * 3600;
@@ -135,9 +138,31 @@ export async function wakeFocusStudents(
   const result: FocusWakeResult = { sent: 0, dropped: 0, failed: 0 };
   const uids = [...new Set(studentUids)];
   if (uids.length === 0) return result;
+  const deadline = AbortSignal.timeout(WAKE_DEADLINE_MS);
+  const expired = new Promise<'expired'>((resolve) =>
+    deadline.addEventListener('abort', () => resolve('expired'), {
+      once: true,
+    })
+  );
+  const work = sendWakes(db, uids, deps, result, deadline);
+  if ((await Promise.race([work, expired])) === 'expired') {
+    result.failed += 1;
+    console.log('[focusPush] wake hit its deadline');
+  }
+  if (result.failed || result.dropped) console.log('[focusPush]', result);
+  return result;
+}
+
+async function sendWakes(
+  db: Firestore,
+  uids: readonly string[],
+  deps: FocusPushDeps,
+  result: FocusWakeResult,
+  deadline: AbortSignal
+): Promise<void> {
   try {
     const key = await deps.vapidKey();
-    if (!key) return result;
+    if (!key) return;
     const col = db.collection(FOCUS_PUSH_COLLECTION);
     const subs: {
       ref: admin.firestore.DocumentReference;
@@ -156,6 +181,7 @@ export async function wakeFocusStudents(
     const jwts = new Map<string, string>();
     const now = deps.now();
     await eachLimited(subs, SEND_CONCURRENCY, async (sub) => {
+      if (deadline.aborted) return;
       let jwt = jwts.get(sub.audience);
       if (!jwt) {
         jwt = cachedJwt(key, sub.audience, now);
@@ -169,7 +195,11 @@ export async function wakeFocusStudents(
             Urgency: 'high',
             Authorization: `vapid t=${jwt}, k=${key.publicKey}`,
           },
-          signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
+          redirect: 'error',
+          signal: AbortSignal.any([
+            deadline,
+            AbortSignal.timeout(SEND_TIMEOUT_MS),
+          ]),
         });
         if (res.ok) {
           result.sent += 1;
@@ -187,8 +217,6 @@ export async function wakeFocusStudents(
     console.error('[focusPush] wake failed', (err as Error)?.name ?? 'Error');
     result.failed += 1;
   }
-  if (result.failed || result.dropped) console.log('[focusPush]', result);
-  return result;
 }
 
 /** A device may have re-subscribed while the send was out; keep the newer subscription. */
@@ -248,7 +276,10 @@ export async function loadVapidKeyFromSecretManager(
       // 403/404: the secret or its grant isn't set up yet; devices fall back to their 5-minute check.
       if (status !== 403 && status !== 404) {
         console.error('[focusPush] VAPID secret read failed', status ?? '');
-        return null;
+        // Keep the last good key through a Secret Manager hiccup, and retry in a minute.
+        const stale = keyCache?.key ?? null;
+        keyCache = { key: stale, at: now - KEY_CACHE_MS + KEY_RETRY_MS };
+        return stale;
       }
     }
   }

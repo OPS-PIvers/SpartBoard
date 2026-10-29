@@ -716,7 +716,8 @@ export async function endFocusSession(
   db: Firestore,
   ref: DocRef,
   reason: NonNullable<FocusSessionDoc['endReason']>,
-  now: number
+  now: number,
+  wake?: FocusDeps['wake']
 ): Promise<number> {
   const ended = await db.runTransaction(async (tx) => {
     const fresh = readSession(await tx.get(ref));
@@ -727,7 +728,14 @@ export async function endFocusSession(
     tx.update(ref, { endedAt, endReason: reason });
     return { endedAt, session: fresh };
   });
-  await finishFocusEnd(db, ref, ended.session.studentUids, ended.endedAt, now);
+  await finishFocusEnd(
+    db,
+    ref,
+    ended.session.studentUids,
+    ended.endedAt,
+    now,
+    wake
+  );
   return ended.endedAt;
 }
 
@@ -740,7 +748,8 @@ async function finishFocusEnd(
   ref: DocRef,
   studentUids: readonly string[],
   endedAt: number,
-  now: number
+  now: number,
+  wake?: FocusDeps['wake']
 ): Promise<void> {
   const expiresAt = finalExpiry(endedAt);
   const students = await studentsCol(ref).get();
@@ -757,6 +766,8 @@ async function finishFocusEnd(
     await batch.commit();
   }
   await refreshFocusConflicts(db, studentUids, now);
+  // A repeat finish with nothing left to collapse changed nothing a device shows.
+  if (open.length > 0) await wake?.(studentUids);
   await ref.update({ [FOCUS_TTL_FIELD]: expiresAt });
 }
 
@@ -782,9 +793,7 @@ export async function handleFocusEnd(
   const now = deps.now();
   const reason: NonNullable<FocusSessionDoc['endReason']> =
     session.endedAt === null && session.endsAt <= now ? 'time' : 'teacher';
-  const endedAt = await endFocusSession(db, ref, reason, now);
-  if (session.endedAt === null) await deps.wake?.(session.studentUids);
-  return { endedAt };
+  return { endedAt: await endFocusSession(db, ref, reason, now, deps.wake) };
 }
 
 /** Why a still-open session should end now, or null (F6: time ran out, or the window closed or moved). */
@@ -810,15 +819,22 @@ export async function sweepFocusSessions(
 ): Promise<{ ended: number; failed: number }> {
   const window = await loadWindow(db);
   const open = await sessionsCol(db).where('endedAt', '==', null).get();
+  // One wake for every session ended or finished here, so a slow push service can't stall the loop.
+  const toWake = new Set<string>();
+  const collect = wake
+    ? (uids: readonly string[]) => {
+        uids.forEach((u) => toWake.add(u));
+        return Promise.resolve();
+      }
+    : undefined;
   let ended = 0;
   let failed = 0;
   for (const doc of open.docs) {
     const reason = focusEndReasonAt(doc.data() as FocusSessionDoc, now, window);
     if (!reason) continue;
     try {
-      await endFocusSession(db, doc.ref, reason, now);
+      await endFocusSession(db, doc.ref, reason, now, collect);
       ended += 1;
-      await wake?.((doc.data() as FocusSessionDoc).studentUids);
     } catch (err) {
       failed += 1;
       console.error('[focusSweep] end failed', doc.id, err);
@@ -836,13 +852,15 @@ export async function sweepFocusSessions(
         doc.ref,
         session.studentUids,
         session.endedAt as number,
-        now
+        now,
+        collect
       );
     } catch (err) {
       failed += 1;
       console.error('[focusSweep] finishing end failed', doc.id, err);
     }
   }
+  if (wake && toWake.size > 0) await wake([...toWake]);
   return { ended, failed };
 }
 

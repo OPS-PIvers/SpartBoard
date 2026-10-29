@@ -197,3 +197,26 @@ describe('wakeFocusStudents', () => {
     log.mockRestore();
   });
 });
+
+describe('wake deadline', () => {
+  it('returns within its deadline when the push service hangs', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const db = await seed({ a: { endpoint: FCM } });
+    const d = deps(() => new Response(null, { status: 201 }));
+    d.fetch = (_url, init) =>
+      new Promise((_resolve, reject) =>
+        init?.signal?.addEventListener('abort', () => reject(new Error('x')))
+      );
+    const started = Date.now();
+    expect((await wakeFocusStudents(db, ['a'], d)).sent).toBe(0);
+    expect(Date.now() - started).toBeLessThan(4_500);
+    log.mockRestore();
+  }, 10_000);
+
+  it('refuses redirects', async () => {
+    const db = await seed({ a: { endpoint: FCM } });
+    const d = deps(() => new Response(null, { status: 201 }));
+    await wakeFocusStudents(db, ['a'], d);
+    expect(d.calls[0].init.redirect).toBe('error');
+  });
+});
