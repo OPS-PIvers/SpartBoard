@@ -98,7 +98,6 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/plans/shipped/PER_PERIOD_ASSIGNMENT_ACCESS.md`
 
-
 #### `docs/plans/shipped/PLC_DELEGATED_PAPER_PRINTING.md`
 
 - [ ] Flip admin_settings/plc_delegated_printing (Rollouts switch) to Public in prod after Paul tests it live, per the flag-release convention. (S)
