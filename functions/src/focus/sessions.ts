@@ -112,7 +112,7 @@ function cleanName(value: unknown, fallback: string): string {
 }
 
 /** A verified district staff account; students, anonymous and unverified accounts are refused. */
-function verifyTeacher(caller: FocusCaller | null): {
+export function verifyTeacher(caller: FocusCaller | null): {
   caller: FocusCaller;
   email: string;
 } {

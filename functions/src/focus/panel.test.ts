@@ -32,13 +32,15 @@ const deps: FocusDeps = {
     const list = CLASSES[email]?.[classId];
     return Promise.resolve(list ? new Set(list) : null);
   },
-  mockClassesOpen: () => true,
+  mockClassesOpen: () => mockOpen,
 };
+let mockOpen = true;
 
 let db: admin.firestore.Firestore;
 
 beforeEach(async () => {
   now = NOW;
+  mockOpen = true;
   db = createMemoryFirestore();
   await db
     .doc('organizations/orono/domains/main')
@@ -153,6 +155,29 @@ describe('focusPanelV1', () => {
     expect(
       ((await call({ action: 'list' })) as FocusPanelListReply).sessions
     ).toEqual([]);
+  });
+
+  it('lists mock classes only on dev or for admins', async () => {
+    mockOpen = false;
+    expect(
+      ((await call({ action: 'list' })) as FocusPanelListReply).classes
+    ).toHaveLength(2);
+    await db.doc('admins/teacher@orono.k12.mn.us').delete();
+    await db
+      .doc('feature_permissions/focus')
+      .set({ enabled: true, accessLevel: 'public' });
+    expect(
+      ((await call({ action: 'list' })) as FocusPanelListReply).classes
+    ).toEqual([{ classId: CLASS, name: 'Period 3 Math' }]);
+  });
+
+  it('refuses student and anonymous callers before any action', async () => {
+    await expect(
+      call({ action: 'list' }, teacher({ studentRole: true }))
+    ).rejects.toThrow('Focus sessions are for teacher accounts.');
+    await expect(
+      call({ action: 'list' }, teacher({ anonymous: true }))
+    ).rejects.toThrow('Focus sessions are for teacher accounts.');
   });
 
   it('refuses unknown actions', async () => {

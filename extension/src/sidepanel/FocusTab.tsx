@@ -32,6 +32,7 @@ const LENGTHS = [10, 15, 20, 30, 45, 60];
 const DEFAULT_LENGTH = 30;
 const TICK_MS = 15_000;
 const REFRESH_MS = 60_000;
+const ARM_MS = 5_000;
 
 const card = 'rounded-2xl border border-slate-200 bg-white shadow-sm';
 const disabledLook = 'disabled:cursor-not-allowed disabled:opacity-50';
@@ -74,15 +75,20 @@ const SessionRow: React.FC<{
   session: FocusPanelSession;
   now: number;
   busy: string | null;
+  armed: string | null;
   onAct: (action: 'extend' | 'release' | 'end', s: FocusPanelSession) => void;
-}> = ({ session, now, busy, onAct }) => {
+}> = ({ session, now, busy, armed, onAct }) => {
   const [first, ...rest] = session.sites;
   const sites = first
     ? `${siteLabel(first)}${rest.length ? ` and ${rest.length} more` : ''}`
     : '';
   const disabled = busy !== null;
-  const label = (action: string, text: string) =>
-    busy === `${action}:${session.sessionId}` ? 'Working...' : text;
+  const label = (action: string, text: string, ask = text) =>
+    busy === `${action}:${session.sessionId}`
+      ? 'Working...'
+      : armed === `${action}:${session.sessionId}`
+        ? ask
+        : text;
   return (
     <li className={`flex flex-col gap-2 p-3 ${card}`}>
       <span className="min-w-0">
@@ -111,7 +117,7 @@ const SessionRow: React.FC<{
           disabled={disabled}
           onClick={() => onAct('release', session)}
         >
-          {label('release', 'Release all')}
+          {label('release', 'Release all', 'Release everyone?')}
         </button>
         <button
           type="button"
@@ -119,7 +125,7 @@ const SessionRow: React.FC<{
           disabled={disabled}
           onClick={() => onAct('end', session)}
         >
-          {label('end', 'End')}
+          {label('end', 'End', 'End now?')}
         </button>
       </span>
     </li>
@@ -139,8 +145,11 @@ export const FocusTab: React.FC<{
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [now, setNow] = useState(() => Date.now());
+  const [armed, setArmed] = useState<string | null>(null);
 
   useEffect(() => {
+    // Catches up on sessions started or ended elsewhere since the panel opened.
+    void onReload();
     const tick = setInterval(() => setNow(Date.now()), TICK_MS);
     const refresh = setInterval(() => void onReload(), REFRESH_MS);
     return () => {
@@ -199,15 +208,16 @@ export const FocusTab: React.FC<{
     setEdited(null);
   };
 
+  // Release and End take a second press, since side panels may not show confirm dialogs.
   const act = (action: 'extend' | 'release' | 'end', s: FocusPanelSession) => {
-    if (
-      action === 'release' &&
-      !window.confirm(`Release everyone in ${s.className}?`)
-    )
+    const key = `${action}:${s.sessionId}`;
+    if (action !== 'extend' && armed !== key) {
+      setArmed(key);
+      setTimeout(() => setArmed((cur) => (cur === key ? null : cur)), ARM_MS);
       return;
-    if (action === 'end' && !window.confirm(`End focus for ${s.className}?`))
-      return;
-    void run(`${action}:${s.sessionId}`, { action, sessionId: s.sessionId });
+    }
+    setArmed(null);
+    void run(key, { action, sessionId: s.sessionId });
   };
 
   return (
@@ -349,6 +359,7 @@ export const FocusTab: React.FC<{
                 session={s}
                 now={now}
                 busy={busy}
+                armed={armed}
                 onAct={act}
               />
             ))}

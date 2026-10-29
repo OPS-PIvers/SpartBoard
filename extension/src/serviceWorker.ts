@@ -310,7 +310,13 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
   if (!msg) return false;
   const answer = async (): Promise<FocusPanelReply> =>
     (await getChromeProfile()) === 'staff'
-      ? callSpartBoard(api, 'focusPanelV1', msg.body, true)
+      ? // Only a button press may show Chrome's sign-in prompt; opening the panel lists quietly.
+        callSpartBoard(
+          api,
+          'focusPanelV1',
+          msg.body,
+          msg.body.action !== 'list'
+        )
       : { ok: false, why: 'signed-out' };
   answer().then(reply, () => reply({ ok: false, why: 'offline' }));
   return true;

@@ -7,6 +7,7 @@ import {
   handleFocusExtend,
   handleFocusRelease,
   handleFocusStart,
+  verifyTeacher,
   type FocusCaller,
   type FocusDeps,
 } from './sessions';
@@ -26,16 +27,18 @@ const MAX_CLASSES = 100;
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : '');
 
-/** The teacher's classes, from their ClassLink and mock-class rosters, one row per class. */
+/** The teacher's classes, from their ClassLink rosters (and mock-class ones where the server allows them), one row per class. */
 export async function panelClasses(
   db: Firestore,
-  uid: string
+  uid: string,
+  includeMock: boolean
 ): Promise<FocusPanelClass[]> {
   const snap = await db.collection(`users/${uid}/rosters`).get();
   const byId = new Map<string, FocusPanelClass>();
   for (const doc of snap.docs) {
     const data = doc.data();
-    const classId = str(data.classlinkClassId) || str(data.testClassId);
+    const classId =
+      str(data.classlinkClassId) || (includeMock ? str(data.testClassId) : '');
     if (!classId || classId.length > MAX_CLASS_ID || classId.includes('/'))
       continue;
     if (byId.has(classId)) continue;
@@ -82,16 +85,21 @@ export async function handleFocusPanel(
   body: unknown,
   deps: FocusDeps
 ): Promise<unknown> {
+  const { email } = verifyTeacher(caller);
   const input = (body ?? {}) as Record<string, unknown>;
   switch (input.action) {
     case 'list': {
-      if (!(await canUseFocusWidget(db, (caller.email ?? '').toLowerCase())))
+      if (!(await canUseFocusWidget(db, email)))
         throw new HttpsError(
           'permission-denied',
           'Focus is not turned on for your account.'
         );
+      // Mock classes start only on dev or for admins (taughtClassStudentUids), so list them only then.
+      const includeMock =
+        deps.mockClassesOpen() ||
+        (await db.doc(`admins/${email}`).get()).exists;
       const [classes, sessions] = await Promise.all([
-        panelClasses(db, caller.uid),
+        panelClasses(db, caller.uid, includeMock),
         panelSessions(db, caller.uid, deps.now()),
       ]);
       return { classes, sessions } satisfies FocusPanelListReply;
