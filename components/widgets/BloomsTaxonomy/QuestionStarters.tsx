@@ -26,7 +26,7 @@ export const BloomsQuestionStarters: React.FC<{
       >
         <div
           className="border-b border-slate-200"
-          style={{ padding: '3cqmin' }}
+          style={{ padding: '2cqmin' }}
         >
           <span
             className="font-black uppercase text-slate-400 tracking-widest block"
@@ -54,7 +54,7 @@ export const BloomsQuestionStarters: React.FC<{
 
         <div
           className="flex-1 flex flex-col-reverse overflow-y-auto custom-scrollbar"
-          style={{ padding: '2cqmin', gap: '2cqmin' }}
+          style={{ padding: '1.5cqmin', gap: '1.5cqmin' }}
         >
           {BLOOMS_QUESTION_STARTERS.map((lvl) => {
             const isActive = lvl.level === active.level;
@@ -76,7 +76,7 @@ export const BloomsQuestionStarters: React.FC<{
                 }`}
                 style={{
                   minHeight: '11cqmin',
-                  padding: '1.5cqmin',
+                  padding: '1cqmin',
                   borderRadius: '3cqmin',
                   ...(isActive
                     ? { backgroundColor: color, borderColor: color }
@@ -86,7 +86,7 @@ export const BloomsQuestionStarters: React.FC<{
                 <span
                   className="font-black leading-none"
                   style={{
-                    fontSize: '5cqmin',
+                    fontSize: '4cqmin',
                     color: isActive ? '#ffffff' : color,
                     marginBottom: '1cqmin',
                   }}
