@@ -2012,10 +2012,15 @@
       "tabAway": "Límite fuera: {{seconds}} s",
       "windowShifted": "Horario ajustado",
       "readAloud": "Lectura en voz alta",
-      "language": "{{language}}"
+      "language": "{{language}}",
+      "copyPastePrintBlocked": "Sin copiar, pegar ni imprimir",
+      "copyPastePrintAllowed": "Copiar, pegar e imprimir permitido"
     },
     "language": "Idioma",
-    "noChanges": "Sin cambios"
+    "noChanges": "Sin cambios",
+    "copyPastePrint": "Copiar, pegar e imprimir",
+    "copyPastePrintBlock": "Bloquear",
+    "copyPastePrintAllow": "Permitir"
   },
   "assignTargeting": {
     "expandAffordance": "Editar o añadir adaptaciones",

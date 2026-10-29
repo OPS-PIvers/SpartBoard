@@ -3623,6 +3623,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "assign#mini-app-show-results",
       "assign#raise-hand",
       "assign#read-aloud",
+      "assign#require-fullscreen",
       "assign#reveal-correct",
       "assign#rewind-on-wrong",
       "assign#score-on-submit",
@@ -55166,6 +55167,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "override-row.read-aloud",
     "label": "Read aloud checkbox in the override editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.override-row",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "override-row.copy-paste-print",
+    "label": "Copy, paste and print choice in the override editor",
     "scope": "board",
     "panel": true,
     "routes": [

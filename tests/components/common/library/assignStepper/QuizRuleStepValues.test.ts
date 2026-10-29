@@ -62,6 +62,14 @@ describe('formatQuizIntegrityValue', () => {
       'Off'
     );
   });
+
+  it('lists fullscreen and print blocking from the focus-sessions rows', () => {
+    expect(
+      formatQuizIntegrityValue(
+        make({ focusLevel: 'lock', blockCopyPaste: true, blockPrint: true })
+      )
+    ).toBe('Focus mode, Fullscreen, No copy, paste or print');
+  });
 });
 
 describe('formatQuizFeedbackValue', () => {

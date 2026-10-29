@@ -27,6 +27,7 @@ import {
   clampTabAwaySeconds,
 } from '@/utils/tabAwayLimit';
 import { QUIZ_TRANSLATION_LANGUAGES } from '@/config/quizTranslation';
+import { PAGE_PROTECTIONS_FEATURE } from '@/utils/pageProtections';
 import { useQuizTranslationSettings } from '@/hooks/useQuizTranslationSettings';
 
 export interface OverrideEditorQuestionOption {
@@ -148,6 +149,8 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
     authContext?.canAccessFeature?.('quiz-translation') === true;
   const tabAwayTimerOn =
     authContext?.canAccessFeature?.('tab-away-timer') === true;
+  const pageProtectionsOn =
+    authContext?.canAccessFeature?.(PAGE_PROTECTIONS_FEATURE) === true;
   const { languages: enabledLanguages } =
     useQuizTranslationSettings(translationAvailable);
   // A student already on a now-disabled code must still render their choice.
@@ -367,6 +370,54 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
               />
             </div>
           </div>
+
+          {pageProtectionsOn && (
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                {t('studentOverride.copyPastePrint', 'Copy, paste and print')}
+              </span>
+              <div className="mt-1">
+                <SegmentedControl
+                  anchor={tourAttr('override-row.copy-paste-print')}
+                  ariaLabel={t(
+                    'studentOverride.copyPastePrint',
+                    'Copy, paste and print'
+                  )}
+                  value={
+                    override.blockCopyPaste === true
+                      ? 'block'
+                      : override.blockCopyPaste === false
+                        ? 'allow'
+                        : 'default'
+                  }
+                  onChange={(id) =>
+                    patch({
+                      blockCopyPaste:
+                        id === 'block'
+                          ? true
+                          : id === 'allow'
+                            ? false
+                            : undefined,
+                    })
+                  }
+                  options={[
+                    {
+                      value: 'default',
+                      label: t('studentOverride.default', 'Default'),
+                    },
+                    {
+                      value: 'block',
+                      label: t('studentOverride.copyPastePrintBlock', 'Block'),
+                    },
+                    {
+                      value: 'allow',
+                      label: t('studentOverride.copyPastePrintAllow', 'Allow'),
+                    },
+                  ]}
+                />
+              </div>
+            </div>
+          )}
 
           {quizMode && readAloudAvailable && (
             <div>

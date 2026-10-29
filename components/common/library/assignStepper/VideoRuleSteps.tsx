@@ -1,7 +1,8 @@
 // Video Activity rule step bodies: only rows the VA player honors (va-quiz-alignment V4, V5).
 import React from 'react';
 import { AttemptLimitRow } from '../AssignmentSettingsToggleGroup';
-import { FocusModeRows } from './QuizIntegrityStep';
+import { BlockCopyPasteRow, FocusModeRows } from './QuizIntegrityStep';
+import { useQuizRuleGates } from './QuizRuleStepGates';
 import { StepToggleRow } from './QuizStepRows';
 import {
   VIDEO_ANSWER_ROWS_READY,
@@ -91,18 +92,26 @@ export const VideoPlaybackStep: React.FC<VideoRuleStepProps> = ({
   );
 };
 
-/** "Integrity": focus mode with its two auto-submit rows. */
+/** "Integrity": focus mode with its auto-submit rows; copy, paste and print with the focus-sessions flag. */
 export const VideoIntegrityStep: React.FC<VideoRuleStepProps> = ({
   value,
   onChange,
-}) => (
-  <div className="space-y-1.5">
-    <FocusModeRows
-      options={value.behavior.sessionOptions}
-      patch={(next) => onChange(patchVideoBehaviorOptions(value, next))}
-    />
-  </div>
-);
+}) => {
+  const { pageProtectionsOn } = useQuizRuleGates();
+  const patch = (next: Parameters<typeof patchVideoBehaviorOptions>[1]) =>
+    onChange(patchVideoBehaviorOptions(value, next));
+  return (
+    <div className="space-y-1.5">
+      <FocusModeRows options={value.behavior.sessionOptions} patch={patch} />
+      {pageProtectionsOn && (
+        <BlockCopyPasteRow
+          options={value.behavior.sessionOptions}
+          patch={patch}
+        />
+      )}
+    </div>
+  );
+};
 
 /** "What students see": right and wrong after each answer, and the correct answer. */
 export const VideoFeedbackStep: React.FC<VideoRuleStepProps> = ({

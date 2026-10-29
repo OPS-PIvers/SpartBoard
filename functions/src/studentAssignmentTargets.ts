@@ -161,6 +161,7 @@ export interface StudentOverride {
   tabWarningThreshold?: number | 'off';
   tabAwayLimit?: number | 'off';
   readAloud?: boolean;
+  blockCopyPaste?: boolean;
   openAt?: number;
   closeAt?: number;
   /** BCP-47 code. Shape-validated only — membership in the org list is enforced elsewhere. */
@@ -453,6 +454,8 @@ export function sanitizeOverride(raw: unknown): StudentOverride | null {
     out.tabAwayLimit = Math.min(300, Math.max(5, Math.round(awayLimit)));
 
   if (src.readAloud === true) out.readAloud = true;
+  if (typeof src.blockCopyPaste === 'boolean')
+    out.blockCopyPaste = src.blockCopyPaste;
 
   if (typeof src.openAt === 'number' && Number.isFinite(src.openAt))
     out.openAt = src.openAt;

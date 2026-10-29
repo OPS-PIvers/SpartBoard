@@ -278,6 +278,8 @@ import {
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
 import { resolveEffectiveWindow } from '@/utils/assignmentWindow';
+import { effectivePageProtections } from '@/utils/pageProtections';
+import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
 import {
   getScoreSuffix,
   isGamificationActive,
@@ -1421,252 +1423,283 @@ const QuizJoinFlow: React.FC<{
       sessionNeedsMic(session, session.publicQuestions ?? []),
   });
 
-  switch (screen.kind) {
-    case 'listenerError': {
-      const light = isStudentRole || session.sessionMode === 'student';
-      return (
-        <div
-          className={`min-h-screen flex flex-col items-center justify-center gap-4 p-6 ${
-            light ? 'bg-gradient-to-b from-white to-slate-100' : 'bg-slate-900'
-          }`}
-        >
-          <AlertCircle
-            className={`w-10 h-10 ${light ? 'text-red-500' : 'text-red-400'}`}
-          />
-          <p
-            className={`text-sm text-center max-w-sm ${light ? 'text-slate-600' : 'text-slate-300'}`}
-          >
-            {error}
-          </p>
-        </div>
-      );
-    }
+  // Copy, paste and print blocking and fullscreen while the student is working (CHROME_EXTENSION.md F14).
+  const protections = effectivePageProtections(session, myOverride);
+  const working =
+    screen.kind === 'answering' ||
+    screen.kind === 'reviewing' ||
+    screen.kind === 'heldAtStop';
+  const guards = (
+    <PageProtectionGuards
+      protections={{
+        blockClipboard: protections.blockClipboard,
+        blockPrint:
+          protections.blockPrint && (working || screen.kind === 'game'),
+        fullscreen: protections.fullscreen && working && !isViewOnly,
+      }}
+    />
+  );
 
-    // Per-period session whose period isn't open for this student: a locked
-    // card before they start, the paused screen once they have (answers kept).
-    case 'periodLocked':
-      return screen.started ? (
-        <QuizPausedPlaceholder session={session} pin={pin} periodClosed />
-      ) : (
-        <QuizPeriodLockedScreen
-          session={session}
-          opensAt={nextScheduledOpen(session, periodKeys, periodNow)}
-          pin={pin}
-        />
-      );
-
-    case 'loadingQuestions':
-      return (
-        <div className="min-h-screen bg-brand-blue-dark flex items-center justify-center">
-          <Loader2
-            className="w-8 h-8 text-white/70 animate-spin"
-            aria-label="Loading questions"
-          />
-        </div>
-      );
-
-    // Self-paced Review game: its own clock, queue and screens (QUIZ_REVIEW_SPLIT.md PR 4).
-    case 'game':
-      return (
-        <React.Suspense fallback={<FullPageLoader message="Loading…" light />}>
-          <QuizGamePlay
-            session={session}
-            myResponse={screen.response}
-            servedQuestions={servedPublicQuestions}
-            override={myOverride}
-            pin={pin}
-            onSetHandRaised={setHandRaised}
-            reportTabSwitch={reportTabSwitch}
-          />
-        </React.Suspense>
-      );
-
-    // The teacher paused the session; submissions are blocked until Resume.
-    case 'paused':
-      return <QuizPausedPlaceholder session={session} pin={pin} />;
-
-    case 'waiting':
-      return (
-        <WaitingRoom
-          session={session}
-          pin={pin}
-          totalQuestions={servedTotalQuestions}
-          locale={myOverride?.language}
-        />
-      );
-
-    // Turned in, or at the attempt cap whatever the response status says.
-    // Published results show at once, even while the session is still active,
-    // so an async assignment no live teacher ends still reaches its score.
-    case 'submitted': {
-      const published = resolveResultsVisibility(session, screen.response);
-      if (published.visibility !== 'none' && screen.completed) {
+  const content = (() => {
+    switch (screen.kind) {
+      case 'listenerError': {
+        const light = isStudentRole || session.sessionMode === 'student';
         return (
-          <PublishedScoreReview
+          <div
+            className={`min-h-screen flex flex-col items-center justify-center gap-4 p-6 ${
+              light
+                ? 'bg-gradient-to-b from-white to-slate-100'
+                : 'bg-slate-900'
+            }`}
+          >
+            <AlertCircle
+              className={`w-10 h-10 ${light ? 'text-red-500' : 'text-red-400'}`}
+            />
+            <p
+              className={`text-sm text-center max-w-sm ${light ? 'text-slate-600' : 'text-slate-300'}`}
+            >
+              {error}
+            </p>
+          </div>
+        );
+      }
+
+      // Per-period session whose period isn't open for this student: a locked
+      // card before they start, the paused screen once they have (answers kept).
+      case 'periodLocked':
+        return screen.started ? (
+          <QuizPausedPlaceholder session={session} pin={pin} periodClosed />
+        ) : (
+          <QuizPeriodLockedScreen
+            session={session}
+            opensAt={nextScheduledOpen(session, periodKeys, periodNow)}
+            pin={pin}
+          />
+        );
+
+      case 'loadingQuestions':
+        return (
+          <div className="min-h-screen bg-brand-blue-dark flex items-center justify-center">
+            <Loader2
+              className="w-8 h-8 text-white/70 animate-spin"
+              aria-label="Loading questions"
+            />
+          </div>
+        );
+
+      // Self-paced Review game: its own clock, queue and screens (QUIZ_REVIEW_SPLIT.md PR 4).
+      case 'game':
+        return (
+          <React.Suspense
+            fallback={<FullPageLoader message="Loading…" light />}
+          >
+            <QuizGamePlay
+              session={session}
+              myResponse={screen.response}
+              servedQuestions={servedPublicQuestions}
+              override={myOverride}
+              pin={pin}
+              onSetHandRaised={setHandRaised}
+              reportTabSwitch={reportTabSwitch}
+            />
+          </React.Suspense>
+        );
+
+      // The teacher paused the session; submissions are blocked until Resume.
+      case 'paused':
+        return <QuizPausedPlaceholder session={session} pin={pin} />;
+
+      case 'waiting':
+        return (
+          <WaitingRoom
+            session={session}
+            pin={pin}
+            totalQuestions={servedTotalQuestions}
+            locale={myOverride?.language}
+          />
+        );
+
+      // Turned in, or at the attempt cap whatever the response status says.
+      // Published results show at once, even while the session is still active,
+      // so an async assignment no live teacher ends still reaches its score.
+      case 'submitted': {
+        const published = resolveResultsVisibility(session, screen.response);
+        if (published.visibility !== 'none' && screen.completed) {
+          return (
+            <PublishedScoreReview
+              session={session}
+              myResponse={screen.response}
+              visibility={published.visibility}
+              revealedAnswers={published.revealedAnswers}
+              revealedRubricExamples={published.revealedRubricExamples}
+              publishedAt={published.publishedAt}
+              protection={published.protection}
+              pin={pin}
+              embedded={embedded}
+              watermarkNameOverride={watermarkNameOverride}
+              override={myOverride}
+              drawIds={drawIds}
+            />
+          );
+        }
+        return (
+          <QuizSubmittedWaitScreen
             session={session}
             myResponse={screen.response}
-            visibility={published.visibility}
-            revealedAnswers={published.revealedAnswers}
-            revealedRubricExamples={published.revealedRubricExamples}
-            publishedAt={published.publishedAt}
-            protection={published.protection}
             pin={pin}
+            answeredCount={myAnsweredCount}
+            totalQuestions={servedTotalQuestions}
+            pointerTabWarningThreshold={myOverride?.tabWarningThreshold}
+          />
+        );
+      }
+
+      case 'loadingResponse': {
+        // Self-paced / async loads onto the LIGHT quiz that follows; live stays dark.
+        const lightLoad = session.sessionMode === 'student';
+        return (
+          <div
+            className={`min-h-screen flex flex-col items-center justify-center p-6 text-center ${
+              lightLoad
+                ? 'bg-gradient-to-b from-white to-slate-100'
+                : 'bg-slate-900'
+            }`}
+          >
+            <div
+              className={`w-12 h-12 border-2 rounded-full animate-spin mb-4 ${
+                lightLoad
+                  ? 'border-brand-blue-primary/30 border-t-brand-blue-primary'
+                  : 'border-violet-500/30 border-t-violet-400'
+              }`}
+            />
+            <p
+              className={`text-sm ${lightLoad ? 'text-slate-500' : 'text-slate-400'}`}
+            >
+              Loading your quiz…
+            </p>
+          </div>
+        );
+      }
+
+      // A student held at a Stop waits here until the teacher opens the next part.
+      case 'heldAtStop':
+        return (
+          <QuizStopScreen
+            nextPart={screen.nextPart}
+            ready={screen.ready}
+            onStart={resumePart}
+            pin={pin}
+          />
+        );
+
+      // Leaderboard / answer review between questions.
+      case 'reviewing':
+        return (
+          <ReviewPhase
+            session={session}
+            currentQuestion={screen.question}
+            myResponse={screen.response}
+            totalQuestions={servedTotalQuestions}
+            servedLocale={myOverride?.language}
+          />
+        );
+
+      case 'micCheck': {
+        const publicQuestions = session.publicQuestions ?? [];
+        return (
+          <RecordingNoticeDrawingContext.Provider
+            value={noticeDrawingForSession(session, publicQuestions)}
+          >
+            {recordingNotice.loaded ? (
+              <MicrophoneGate
+                light={session.sessionMode === 'student'}
+                noticeRequired={noticeRequired}
+                noticeAckedAt={noticeAckedAt}
+                onAcknowledgeNotice={handleAcknowledgeNotice}
+                onReady={handleMicReady}
+              />
+            ) : (
+              <div
+                className={`h-screen [height:100dvh] ${
+                  session.sessionMode === 'student'
+                    ? 'bg-gradient-to-b from-white to-slate-100'
+                    : 'bg-slate-900'
+                }`}
+              />
+            )}
+          </RecordingNoticeDrawingContext.Provider>
+        );
+      }
+
+      case 'answering':
+        return (
+          <RecordingNoticeDrawingContext.Provider
+            value={noticeDrawingForSession(
+              session,
+              session.publicQuestions ?? []
+            )}
+          >
+            <ActiveQuiz
+              session={session}
+              currentQuestion={screen.question}
+              alreadyAnswered={screen.alreadyAnswered}
+              myResponse={screen.response}
+              onAnswer={handleAnswer}
+              onCommitRecording={handleCommitRecording}
+              onCommitWhiteboard={handleCommitWhiteboard}
+              onRetryRecordingUpload={handleRetryRecordingUpload}
+              canRetryRecordingUpload={canRetryRecordingUpload}
+              onMarkUnresponded={handleMarkUnresponded}
+              noticeAckedAt={noticeAckedAt}
+              onAcknowledgeNotice={handleAcknowledgeNotice}
+              noticeRequired={noticeRequired}
+              onComplete={handleComplete}
+              reportTabSwitch={reportTabSwitch}
+              saveTabExits={saveTabExits}
+              onSetHandRaised={setHandRaised}
+              onStartAttemptClock={isViewOnly ? undefined : startAttemptClock}
+              onSubmitPart={isViewOnly ? undefined : submitPart}
+              handRaised={!!screen.response.handRaisedAt}
+              warningCount={warningCount}
+              onRecordStimulusPlay={recordStimulusPlay}
+              onReportStimulusError={reportStimulusError}
+              pointerTabWarningThreshold={myOverride?.tabWarningThreshold}
+              override={myOverride}
+              drawIds={drawIds}
+              effectiveCloseAt={myEffectiveWindow.closeAt}
+              readAloudRequested={
+                isStudentRole &&
+                (myOverride?.readAloud === true ||
+                  session.readAloudAll === true)
+              }
+            />
+          </RecordingNoticeDrawingContext.Provider>
+        );
+
+      case 'results':
+        return (
+          <ResultsScreen
+            session={session}
+            myResponse={myResponse}
+            answeredCount={myAnsweredCount}
+            totalQuestions={servedTotalQuestions}
+            pin={pin}
+            myStudentUid={myResponse?.studentUid}
             embedded={embedded}
             watermarkNameOverride={watermarkNameOverride}
             override={myOverride}
             drawIds={drawIds}
           />
         );
-      }
-      return (
-        <QuizSubmittedWaitScreen
-          session={session}
-          myResponse={screen.response}
-          pin={pin}
-          answeredCount={myAnsweredCount}
-          totalQuestions={servedTotalQuestions}
-          pointerTabWarningThreshold={myOverride?.tabWarningThreshold}
-        />
-      );
     }
+  })();
 
-    case 'loadingResponse': {
-      // Self-paced / async loads onto the LIGHT quiz that follows; live stays dark.
-      const lightLoad = session.sessionMode === 'student';
-      return (
-        <div
-          className={`min-h-screen flex flex-col items-center justify-center p-6 text-center ${
-            lightLoad
-              ? 'bg-gradient-to-b from-white to-slate-100'
-              : 'bg-slate-900'
-          }`}
-        >
-          <div
-            className={`w-12 h-12 border-2 rounded-full animate-spin mb-4 ${
-              lightLoad
-                ? 'border-brand-blue-primary/30 border-t-brand-blue-primary'
-                : 'border-violet-500/30 border-t-violet-400'
-            }`}
-          />
-          <p
-            className={`text-sm ${lightLoad ? 'text-slate-500' : 'text-slate-400'}`}
-          >
-            Loading your quiz…
-          </p>
-        </div>
-      );
-    }
-
-    // A student held at a Stop waits here until the teacher opens the next part.
-    case 'heldAtStop':
-      return (
-        <QuizStopScreen
-          nextPart={screen.nextPart}
-          ready={screen.ready}
-          onStart={resumePart}
-          pin={pin}
-        />
-      );
-
-    // Leaderboard / answer review between questions.
-    case 'reviewing':
-      return (
-        <ReviewPhase
-          session={session}
-          currentQuestion={screen.question}
-          myResponse={screen.response}
-          totalQuestions={servedTotalQuestions}
-          servedLocale={myOverride?.language}
-        />
-      );
-
-    case 'micCheck': {
-      const publicQuestions = session.publicQuestions ?? [];
-      return (
-        <RecordingNoticeDrawingContext.Provider
-          value={noticeDrawingForSession(session, publicQuestions)}
-        >
-          {recordingNotice.loaded ? (
-            <MicrophoneGate
-              light={session.sessionMode === 'student'}
-              noticeRequired={noticeRequired}
-              noticeAckedAt={noticeAckedAt}
-              onAcknowledgeNotice={handleAcknowledgeNotice}
-              onReady={handleMicReady}
-            />
-          ) : (
-            <div
-              className={`h-screen [height:100dvh] ${
-                session.sessionMode === 'student'
-                  ? 'bg-gradient-to-b from-white to-slate-100'
-                  : 'bg-slate-900'
-              }`}
-            />
-          )}
-        </RecordingNoticeDrawingContext.Provider>
-      );
-    }
-
-    case 'answering':
-      return (
-        <RecordingNoticeDrawingContext.Provider
-          value={noticeDrawingForSession(
-            session,
-            session.publicQuestions ?? []
-          )}
-        >
-          <ActiveQuiz
-            session={session}
-            currentQuestion={screen.question}
-            alreadyAnswered={screen.alreadyAnswered}
-            myResponse={screen.response}
-            onAnswer={handleAnswer}
-            onCommitRecording={handleCommitRecording}
-            onCommitWhiteboard={handleCommitWhiteboard}
-            onRetryRecordingUpload={handleRetryRecordingUpload}
-            canRetryRecordingUpload={canRetryRecordingUpload}
-            onMarkUnresponded={handleMarkUnresponded}
-            noticeAckedAt={noticeAckedAt}
-            onAcknowledgeNotice={handleAcknowledgeNotice}
-            noticeRequired={noticeRequired}
-            onComplete={handleComplete}
-            reportTabSwitch={reportTabSwitch}
-            saveTabExits={saveTabExits}
-            onSetHandRaised={setHandRaised}
-            onStartAttemptClock={isViewOnly ? undefined : startAttemptClock}
-            onSubmitPart={isViewOnly ? undefined : submitPart}
-            handRaised={!!screen.response.handRaisedAt}
-            warningCount={warningCount}
-            onRecordStimulusPlay={recordStimulusPlay}
-            onReportStimulusError={reportStimulusError}
-            pointerTabWarningThreshold={myOverride?.tabWarningThreshold}
-            override={myOverride}
-            drawIds={drawIds}
-            effectiveCloseAt={myEffectiveWindow.closeAt}
-            readAloudRequested={
-              isStudentRole &&
-              (myOverride?.readAloud === true || session.readAloudAll === true)
-            }
-          />
-        </RecordingNoticeDrawingContext.Provider>
-      );
-
-    case 'results':
-      return (
-        <ResultsScreen
-          session={session}
-          myResponse={myResponse}
-          answeredCount={myAnsweredCount}
-          totalQuestions={servedTotalQuestions}
-          pin={pin}
-          myStudentUid={myResponse?.studentUid}
-          embedded={embedded}
-          watermarkNameOverride={watermarkNameOverride}
-          override={myOverride}
-          drawIds={drawIds}
-        />
-      );
-  }
+  return (
+    <>
+      {guards}
+      {content}
+    </>
+  );
 };
 
 // ─── Waiting room ─────────────────────────────────────────────────────────────
@@ -2026,7 +2059,10 @@ export const ActiveQuiz: React.FC<{
   // (clipboard allowed). The drop guard is safe alongside the Matching/
   // Ordering inputs because those use dnd-kit's pointer sensors, not native
   // HTML5 drag events.
-  const blockCopyPaste = session.blockCopyPaste === true;
+  const blockCopyPaste = effectivePageProtections(
+    session,
+    override
+  ).blockClipboard;
   const quoteEditorRef = useRef<WrittenResponseEditorHandle | null>(null);
   const handleBlockedClipboard = (e: React.ClipboardEvent<HTMLDivElement>) =>
     e.preventDefault();

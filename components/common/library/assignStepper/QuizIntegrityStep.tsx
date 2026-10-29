@@ -24,7 +24,12 @@ import { tourFieldAttr } from '@/config/tourAnchors';
 
 export interface FocusModeOptions extends Pick<
   BaseSessionOptions,
-  'tabWarningsEnabled' | 'tabAwayLimitSeconds' | 'tabAwayAutoSubmit'
+  | 'tabWarningsEnabled'
+  | 'tabAwayLimitSeconds'
+  | 'tabAwayAutoSubmit'
+  | 'focusLevel'
+  | 'blockCopyPaste'
+  | 'blockPrint'
 > {
   tabWarningThreshold?: number | 'off';
 }
@@ -34,7 +39,7 @@ export const FocusModeRows: React.FC<{
   options: FocusModeOptions;
   patch: (next: Partial<FocusModeOptions>) => void;
 }> = ({ options: o, patch }) => {
-  const { tabAwayTimerOn } = useQuizRuleGates();
+  const { tabAwayTimerOn, pageProtectionsOn } = useQuizRuleGates();
   const focus = o.tabWarningsEnabled ?? true;
   const threshold = o.tabWarningThreshold ?? DEFAULT_TAB_WARNING_THRESHOLD;
   const awaySeconds = clampTabAwaySeconds(
@@ -120,9 +125,48 @@ export const FocusModeRows: React.FC<{
               }
             />
           )}
+          {pageProtectionsOn && (
+            <StepToggleRow
+              sub
+              label="Require fullscreen"
+              anchor={tourFieldAttr(
+                'assign-rule.toggle',
+                'assign',
+                'require-fullscreen'
+              )}
+              checked={o.focusLevel === 'lock'}
+              onChange={(on) => patch({ focusLevel: on ? 'lock' : undefined })}
+            />
+          )}
         </StepSubRows>
       )}
     </>
+  );
+};
+
+/** Block copy and paste; with the focus-sessions flag it also blocks printing. */
+export const BlockCopyPasteRow: React.FC<{
+  options: FocusModeOptions;
+  patch: (next: Partial<FocusModeOptions>) => void;
+}> = ({ options: o, patch }) => {
+  const { pageProtectionsOn } = useQuizRuleGates();
+  return (
+    <StepToggleRow
+      label={
+        pageProtectionsOn
+          ? 'Block copy, paste and print'
+          : 'Block copy and paste'
+      }
+      anchor={tourFieldAttr('assign-rule.toggle', 'assign', 'block-copy-paste')}
+      checked={o.blockCopyPaste ?? false}
+      onChange={(blockCopyPaste) =>
+        patch(
+          pageProtectionsOn
+            ? { blockCopyPaste, blockPrint: blockCopyPaste }
+            : { blockCopyPaste }
+        )
+      }
+    />
   );
 };
 
@@ -139,16 +183,7 @@ export const QuizIntegrityStep: React.FC<QuizRuleStepProps> = ({
   return (
     <div className="space-y-1.5">
       <FocusModeRows options={o} patch={patch} />
-      <StepToggleRow
-        label="Block copy and paste"
-        anchor={tourFieldAttr(
-          'assign-rule.toggle',
-          'assign',
-          'block-copy-paste'
-        )}
-        checked={o.blockCopyPaste ?? false}
-        onChange={(blockCopyPaste) => patch({ blockCopyPaste })}
-      />
+      <BlockCopyPasteRow options={o} patch={patch} />
       {stimulusQuotesOn && (
         <StepToggleRow
           label="Let students quote from passages"

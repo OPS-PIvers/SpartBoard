@@ -12197,6 +12197,10 @@ export const TOUR_ANCHORS = {
     label: 'Read aloud checkbox in the override editor',
     panel: true,
   },
+  'override-row.copy-paste-print': {
+    label: 'Copy, paste and print choice in the override editor',
+    panel: true,
+  },
   'override-row.language': {
     label: 'Language picker in the override editor',
     panel: true,
