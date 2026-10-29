@@ -24,6 +24,10 @@ import {
 } from '@/components/common/library/assignStepper/ModificationsView';
 import { AssignWhenStep } from '@/components/common/library/assignStepper/AssignWhenStep';
 import {
+  useAssignAudience,
+  withAudienceSwitch,
+} from '@/components/common/library/assignStepper/assignAudience';
+import {
   defaultWhenValue,
   formatWhenValue,
   whenBackwards,
@@ -135,10 +139,16 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
   };
 
   const form = { ...check, collectSubmission: kind === 'work' };
+  const audienceState = useAssignAudience();
+  const staff = audienceState.audience === 'staff';
   const pickedRosters = useMemo(
     () =>
-      rosters.filter((r) => !r.loadError && classes.classIds.includes(r.id)),
-    [rosters, classes.classIds]
+      staff
+        ? []
+        : rosters.filter(
+            (r) => !r.loadError && classes.classIds.includes(r.id)
+          ),
+    [rosters, classes.classIds, staff]
   );
   const formError = validateFlashcardAssignForm(form, cardCount);
   const hasSsoClass = pickedRosters.some(rosterHasSsoClass);
@@ -147,7 +157,7 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
       ? 'Add cards to this set before assigning it.'
       : formError === 'no-test-types'
         ? 'Choose at least one question type.'
-        : !hasSsoClass
+        : !hasSsoClass && !staff
           ? 'Choose at least one ClassLink class.'
           : whenBackwards(when, pickedRosters, periodAccess?.bellWindow, kind)
             ? t(
@@ -240,25 +250,26 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
   const steps: AssignStepDef[] = getAssignSteps('flashcards', ctx).flatMap(
     (id) => {
       const step = bodies[id];
-      return step
-        ? [
-            {
-              id,
-              title:
-                id === 'speak'
-                  ? t('flashcards.speak.assign.stepTitle', 'Speak')
-                  : getAssignStepTitle(id, 'flashcards', ctx),
-              ...step,
-            },
-          ]
-        : [];
+      if (!step) return [];
+      const def: AssignStepDef = {
+        id,
+        title:
+          id === 'speak'
+            ? t('flashcards.speak.assign.stepTitle', 'Speak')
+            : getAssignStepTitle(id, 'flashcards', ctx),
+        ...step,
+      };
+      return [id === 'classes' ? withAudienceSwitch(def, audienceState) : def];
     }
   );
 
   const handleSubmit = async () => {
-    const manualStart = manualAvailable && when.mode === 'manual';
+    const manualStart = !staff && manualAvailable && when.mode === 'manual';
     const resolved = applyWhen(
-      { ...targeting, availability: when.availability },
+      {
+        ...(staff ? EMPTY_ASSIGN_TARGETING_VALUE : targeting),
+        availability: when.availability,
+      },
       {
         mode: when.mode,
         rosters: pickedRosters,
@@ -270,12 +281,13 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
       set,
       form,
       rosters,
-      rosterIds: classes.classIds,
+      rosterIds: staff ? [] : classes.classIds,
       targeting: resolved.targeting,
       bellWindow: periodAccess?.bellWindow,
-      classes,
+      classes: staff ? { classIds: [], studentsByClass: {} } : classes,
       manualStart,
     });
+    if (staff) submission.input.audience = 'staff';
     const studySpeak = speakAvailable && kind === 'resource';
     const ok = await onAssign(
       studySpeak

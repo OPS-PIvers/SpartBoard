@@ -208,6 +208,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'assign-step.continue': ['library.assign-stepper'],
     'assign-stepper.cancel': ['library.assign-stepper'],
     'assign-stepper.submit': ['library.assign-stepper'],
+    'assign-audience.switch': ['library.assign-stepper'],
     'assign-top.pacing': ['library.video-activity.assign'],
     'flashcards-check.mode': ['library.flashcards.assign'],
     'flashcards-check.show-first': ['library.flashcards.assign'],

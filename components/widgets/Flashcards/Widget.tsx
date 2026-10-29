@@ -67,6 +67,7 @@ import {
   type PublishableFlashcardVisibility,
 } from './results/FlashcardPublishScoresModal';
 import { createFlashcardImportAdapter } from './adapters/flashcardImportAdapter';
+import { flashcardAssignmentUrl } from '@/utils/staffAudience';
 import {
   FlashcardPlayer,
   FlashcardShareModal,
@@ -421,7 +422,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       });
       setAssigningSet(null);
 
-      const url = `${window.location.origin}/flashcards/a/${sessionId}`;
+      const url = flashcardAssignmentUrl(sessionId, input.audience);
       try {
         await navigator.clipboard.writeText(url);
         addToast(
@@ -444,7 +445,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   };
 
   const assignmentLink = (assignment: FlashcardAssignment): string =>
-    `${window.location.origin}/flashcards/a/${assignment.sessionId}`;
+    flashcardAssignmentUrl(assignment.sessionId, assignment.audience);
 
   const copyAssignmentLink = async (
     assignment: FlashcardAssignment

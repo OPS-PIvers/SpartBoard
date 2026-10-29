@@ -210,6 +210,7 @@ import {
   sameReadAloudPart,
 } from './readAloud/readAloudHighlight';
 import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
+import { useStaffAudienceGate } from '@/components/student/useStaffAudienceGate';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
 import { ResultsWatermark } from './ResultsWatermark';
 import { ResultsTabWarningModal } from './ResultsTabWarningModal';
@@ -502,6 +503,10 @@ const QuizJoinFlow: React.FC<{
   // below from triggering twice in StrictMode and keeps the form invisible
   // while the lookup+join is in flight.
   const ssoAutoJoinStartedRef = useRef(false);
+  // A Staff-audience link: district Google sign-in, then the same no-PIN join as SSO.
+  const [staffLink, setStaffLink] = useState(false);
+  const staffGate = useStaffAudienceGate(staffLink);
+  const autoJoin = isStudentRole || staffGate.status === 'ok';
 
   const {
     session,
@@ -587,7 +592,7 @@ const QuizJoinFlow: React.FC<{
   // monitor view can resolve a student's period from their classId via the
   // roster if it needs to group by period.
   useEffect(() => {
-    if (!isStudentRole) return;
+    if (!autoJoin) return;
     if (!urlCode) return;
     if (joined) return;
     if (ssoAutoJoinStartedRef.current) return;
@@ -673,7 +678,7 @@ const QuizJoinFlow: React.FC<{
     };
     void run();
   }, [
-    isStudentRole,
+    autoJoin,
     urlCode,
     urlTeacher,
     joined,
@@ -712,6 +717,7 @@ const QuizJoinFlow: React.FC<{
       try {
         const info = await lookupSession(urlCode);
         if (cancelled) return;
+        if (info?.staffAudience) setStaffLink(true);
         const ssoOffered = shouldGateToSso({
           flagEnabled: QUIZ_SSO_REDIRECT_ENABLED,
           isStudentRole,
@@ -1265,7 +1271,8 @@ const QuizJoinFlow: React.FC<{
     // enroll you" hint on a class-gate denial), then the auto-join error (which
     // captures lookupSession failures the hook never sees).
     if (previewSessionId) return <FullPageLoader message="Loading…" />;
-    if (isStudentRole) {
+    if (staffGate.screen) return staffGate.screen;
+    if (autoJoin) {
       const ssoError = flow.terminalError ?? error ?? flow.autoJoinError;
       if (ssoError) {
         // SSO students arrive from /my-assignments or the Classroom add-on —

@@ -5,11 +5,12 @@ import type {
   MiniAppManifestQuestion,
   QuizQuestion,
   QuizResponse,
+  StaffResponseFields,
 } from '@/types';
 
 const SCORE_ID = '__score';
 
-export interface MiniAppExportRow {
+export interface MiniAppExportRow extends StaffResponseFields {
   id: string;
   best: MiniAppBestAttempt | null;
   lastSubmittedAt: number;
@@ -43,6 +44,9 @@ export function exportMiniAppResults(
   };
   const responses = rows.map((r) => ({
     studentUid: r.id,
+    ...(r.staffEmail
+      ? { staffEmail: r.staffEmail, staffName: r.staffName ?? '' }
+      : {}),
     pin: '',
     joinedAt: r.lastSubmittedAt,
     status: 'completed' as const,

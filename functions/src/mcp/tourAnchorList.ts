@@ -3922,6 +3922,20 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "assign-audience.switch",
+    "label": "Students or Staff switch in the Classes step of the Assign dialog",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.assign-stepper",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "assign-top.pacing",
     "label": "Pacing switch at the top of the Assign dialog",
     "scope": "board",

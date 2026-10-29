@@ -20,6 +20,10 @@ import {
 } from '@/components/common/library/assignStepper/assignClassesValue';
 import { AssignWhenStep } from '@/components/common/library/assignStepper/AssignWhenStep';
 import {
+  useAssignAudience,
+  withAudienceSwitch,
+} from '@/components/common/library/assignStepper/assignAudience';
+import {
   defaultWhenValue,
   formatWhenValue,
   whenBackwards,
@@ -96,8 +100,12 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
     resultsDefault
   );
   const resultsStepOn = !!results && kind === 'work';
+  const audienceState = useAssignAudience();
+  const staff = audienceState.audience === 'staff';
 
-  const pickedRosters = rosters.filter((r) => classes.classIds.includes(r.id));
+  const pickedRosters = staff
+    ? []
+    : rosters.filter((r) => classes.classIds.includes(r.id));
   const variant = kind === 'resource' ? 'available' : 'when';
   const ctx = { kind };
   const nameMissing = assignmentName.trim().length === 0;
@@ -157,12 +165,15 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
   };
   const steps: AssignStepDef[] = getAssignSteps('miniapp', ctx)
     .filter((id): id is 'classes' | 'when' => id === 'classes' || id === 'when')
-    .map((id) => ({
-      id,
-      title: getAssignStepTitle(id, 'miniapp', ctx),
-      value: values[id],
-      body: bodies[id],
-    }));
+    .map((id) => {
+      const step: AssignStepDef = {
+        id,
+        title: getAssignStepTitle(id, 'miniapp', ctx),
+        value: values[id],
+        body: bodies[id],
+      };
+      return id === 'classes' ? withAudienceSwitch(step, audienceState) : step;
+    });
   if (resultsStepOn && results)
     steps.push({
       id: 'attempts',
@@ -217,7 +228,15 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
       }
       onSubmit={() =>
         onSubmit(
-          { kind, classes, when, targeting },
+          staff
+            ? {
+                kind,
+                classes: { classIds: [], studentsByClass: {} },
+                when,
+                targeting: EMPTY_ASSIGN_TARGETING_VALUE,
+                audience: 'staff',
+              }
+            : { kind, classes, when, targeting },
           resultsStepOn ? results : undefined
         )
       }

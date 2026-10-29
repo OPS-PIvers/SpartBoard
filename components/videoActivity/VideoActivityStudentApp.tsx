@@ -63,6 +63,8 @@ import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
 import { ResultsProtectionGate } from '@/components/student/ResultsProtectionGate';
 import { isQuestionClosedError } from '@/utils/videoActivityLiveStudent';
 import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
+import { useStaffAudienceGate } from '@/components/student/useStaffAudienceGate';
+import { isStaffAudience } from '@/utils/staffAudience';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
 import { useTabAwayTracker } from '@/hooks/useTabAwayTracker';
 import { getEffectiveTabAwayRule } from '@/utils/tabAwayLimit';
@@ -414,6 +416,11 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   // a double-tap could fan out parallel requests.
   const [lookingUp, setLookingUp] = useState(false);
 
+  // A Staff-audience link: district Google sign-in, then the same no-PIN join as SSO.
+  const [staffLink, setStaffLink] = useState(false);
+  const staffGate = useStaffAudienceGate(staffLink);
+  const autoJoin = isStudentRole || staffGate.status === 'ok';
+
   // PIN joiners learn up front whether the teacher allows no-sign-in joins.
   const [anonGate, setAnonGate] = useState<'pending' | 'blocked' | 'open'>(
     () =>
@@ -427,8 +434,9 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     void (async () => {
       try {
         const info = await lookupSession(sessionId);
-        if (!cancelled)
-          setAnonGate(isAnonymousJoinBlocked(info) ? 'blocked' : 'open');
+        if (cancelled) return;
+        if (isStaffAudience(info)) setStaffLink(true);
+        setAnonGate(isAnonymousJoinBlocked(info) ? 'blocked' : 'open');
       } catch {
         if (!cancelled) setAnonGate('open');
       }
@@ -465,7 +473,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   }, [previewKey, sessionId, previewResponse]);
 
   useEffect(() => {
-    if (!isStudentRole || !sessionId || previewKey) return;
+    if (!autoJoin || !sessionId || previewKey) return;
     if (ssoAutoJoinStartedRef.current) return;
     if (joinStatus === 'joined' || joinStatus === 'loading') return;
     // Wait for the pointer to resolve, and never join for a skipped student.
@@ -492,7 +500,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       }
     })();
   }, [
-    isStudentRole,
+    autoJoin,
     sessionId,
     ssoClassIds,
     lookupSession,
@@ -900,7 +908,8 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     // SSO students are auto-joining via the effect above — show the loader
     // (or any error surfaced from the auto-join attempt) instead of the
     // PIN form. Anonymous joiners fall through to the PIN form below.
-    if (isStudentRole) {
+    if (staffGate.screen) return staffGate.screen;
+    if (autoJoin) {
       if (ssoAutoJoinError || error) {
         // Prefer the hook's specific error (e.g. "session ended", "PIN
         // rejected") over the generic auto-join wrapper message. Mirrors

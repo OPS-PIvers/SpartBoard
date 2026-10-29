@@ -58,6 +58,12 @@ import {
 } from '@/types';
 import { useSeatedPeriodContent } from '@/hooks/useSeatedPeriodContent';
 import { useServerNow } from '@/hooks/useServerNow';
+import { useStaffAudienceGate } from '@/components/student/useStaffAudienceGate';
+import {
+  isStaffAudience,
+  readStaffIdentity,
+  staffResponseFields,
+} from '@/utils/staffAudience';
 import {
   hasPeriodAccess,
   studentCanEnter,
@@ -153,6 +159,9 @@ const SessionLoader: React.FC = () => {
   });
 
   const isInvalidId = !sessionId || sessionId.includes('/');
+  const staffGate = useStaffAudienceGate(
+    load.kind === 'loaded' && isStaffAudience(load.session)
+  );
 
   useEffect(() => {
     // Don't subscribe if the session ID is obviously invalid
@@ -192,6 +201,7 @@ const SessionLoader: React.FC = () => {
   }
 
   const { session } = load;
+  if (staffGate.screen) return staffGate.screen;
 
   if (session.status === 'ended') {
     return <EndedScreen appTitle={session.appTitle} />;
@@ -407,22 +417,38 @@ function getCachedPseudonym(
   return promise;
 }
 
+/** A Staff-audience submission's name and email, from the signed-in staff member's token. */
+async function staffFieldsFor(session: MiniAppSession, currentUser: User) {
+  if (!isStaffAudience(session)) return {};
+  return staffResponseFields(await readStaffIdentity(currentUser));
+}
+
 // v1 "I'm Done": mergeFields keeps any payload the app already saved.
-async function writeDoneMarker(sessionId: string, currentUser: User) {
+async function writeDoneMarker(session: MiniAppSession, currentUser: User) {
+  const sessionId = session.id;
   const tokenResult = await currentUser.getIdTokenResult();
   const isStudentRole = tokenResult.claims?.studentRole === true;
   const docId = isStudentRole
     ? await getCachedPseudonym(sessionId, currentUser.uid)
     : currentUser.uid;
+  const staff = await staffFieldsFor(session, currentUser);
   const completion: MiniAppSubmission = {
     submittedAt: Date.now(),
     studentUid: currentUser.uid,
     payload: { completed: true },
+    ...staff,
   };
   await setDoc(
     doc(db, SESSIONS_COLLECTION, sessionId, 'submissions', docId),
     completion,
-    { mergeFields: ['submittedAt', 'studentUid', 'payload.completed'] }
+    {
+      mergeFields: [
+        'submittedAt',
+        'studentUid',
+        'payload.completed',
+        ...Object.keys(staff),
+      ],
+    }
   );
 }
 
@@ -638,6 +664,7 @@ const AppViewer: React.FC<{
           submittedAt: Date.now(),
           studentUid: currentUser.uid,
           payload: normalisedPayload,
+          ...(await staffFieldsFor(session, currentUser)),
         };
 
         await setDoc(
@@ -650,7 +677,7 @@ const AppViewer: React.FC<{
         dispatch({ type: 'saveFailed', payload });
       }
     },
-    [session.id]
+    [session]
   );
 
   const submit = useCallback(
@@ -810,7 +837,7 @@ const AppViewer: React.FC<{
       if (isV2) {
         await submitMiniAppResult(session.id, 'done', null);
       } else {
-        await writeDoneMarker(session.id, currentUser);
+        await writeDoneMarker(session, currentUser);
       }
       dispatch({ type: 'saveSucceeded', at: Date.now() });
     } catch (err) {
@@ -826,7 +853,7 @@ const AppViewer: React.FC<{
         ? submitV2(queued.payload, { kind: 'legacy' })
         : submit(queued.payload));
     }
-  }, [session.id, hasSubmitted, paused, isV2, submit, submitV2]);
+  }, [session, hasSubmitted, paused, isV2, submit, submitV2]);
 
   const handleMessage = useCallback(
     (event: MessageEvent) => {

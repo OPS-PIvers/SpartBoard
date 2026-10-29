@@ -1,7 +1,7 @@
 // Guided Learning's assign dialog on the stepper (docs/plans/ASSIGN_STEPPER.md D2, D4).
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ClassRoster } from '@/types';
+import type { AssignmentAudience, ClassRoster } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
 import { AssignStepper } from '@/components/common/library/assignStepper/AssignStepper';
 import { AssignTopSwitch } from '@/components/common/library/assignStepper/AssignTopSwitch';
@@ -24,6 +24,10 @@ import {
 } from '@/components/common/library/assignStepper/ModificationsView';
 import { AssignWhenStep } from '@/components/common/library/assignStepper/AssignWhenStep';
 import {
+  useAssignAudience,
+  withAudienceSwitch,
+} from '@/components/common/library/assignStepper/assignAudience';
+import {
   defaultWhenValue,
   formatWhenValue,
   whenBackwards,
@@ -41,6 +45,7 @@ export interface GuidedLearningStepperAssign {
   targeting: AssignTargetingValue;
   /** Manual: every picked class gets a closed gate the teacher starts. */
   manualStart: boolean;
+  audience: AssignmentAudience;
 }
 
 export const GuidedLearningAssignStepper: React.FC<{
@@ -88,8 +93,12 @@ export const GuidedLearningAssignStepper: React.FC<{
     })
   );
   const [modificationsOpen, setModificationsOpen] = useState(false);
+  const audienceState = useAssignAudience();
+  const staff = audienceState.audience === 'staff';
 
-  const picked = visibleRosters.filter((r) => classes.classIds.includes(r.id));
+  const picked = staff
+    ? []
+    : visibleRosters.filter((r) => classes.classIds.includes(r.id));
   const ctx = { kind };
   const whenVariant = kind === 'resource' ? 'available' : 'when';
 
@@ -105,42 +114,47 @@ export const GuidedLearningAssignStepper: React.FC<{
       }
     );
     await onAssign({
-      classes,
-      targeting: resolved,
-      manualStart: kind === 'work' && when.mode === 'manual' && manualAvailable,
+      classes: staff ? { classIds: [], studentsByClass: {} } : classes,
+      targeting: staff ? { ...resolved, periodPlan: undefined } : resolved,
+      manualStart:
+        !staff && kind === 'work' && when.mode === 'manual' && manualAvailable,
+      audience: audienceState.audience,
     });
   };
 
   const steps: AssignStepDef[] = getAssignSteps('gl', ctx).map((id) => {
     const stepTitle = getAssignStepTitle(id, 'gl', ctx);
     if (id === 'classes') {
-      return {
-        id,
-        title: stepTitle,
-        value: formatClassesValue(classes, visibleRosters),
-        body: (
-          <div className="space-y-3">
-            <ClassPickerMenu
-              rosters={visibleRosters}
-              value={classes}
-              onChange={setClasses}
-            />
-            <StudentPickMenu
-              rosters={visibleRosters}
-              value={classes}
-              onChange={setClasses}
-            />
-            {picked.length > 0 && (
-              <ModificationsLink
+      return withAudienceSwitch(
+        {
+          id,
+          title: stepTitle,
+          value: formatClassesValue(classes, visibleRosters),
+          body: (
+            <div className="space-y-3">
+              <ClassPickerMenu
                 rosters={visibleRosters}
-                selectedRosterIds={classes.classIds}
-                value={targeting}
-                onOpen={() => setModificationsOpen(true)}
+                value={classes}
+                onChange={setClasses}
               />
-            )}
-          </div>
-        ),
-      };
+              <StudentPickMenu
+                rosters={visibleRosters}
+                value={classes}
+                onChange={setClasses}
+              />
+              {picked.length > 0 && (
+                <ModificationsLink
+                  rosters={visibleRosters}
+                  selectedRosterIds={classes.classIds}
+                  value={targeting}
+                  onOpen={() => setModificationsOpen(true)}
+                />
+              )}
+            </div>
+          ),
+        },
+        audienceState
+      );
     }
     return {
       id,

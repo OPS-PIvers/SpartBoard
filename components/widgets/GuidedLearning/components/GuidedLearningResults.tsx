@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { staffResultsLabel } from '@/utils/staffAudience';
 import {
   BarChart2,
   Download,
@@ -499,9 +500,10 @@ export const GuidedLearningResults: React.FC<Props> = ({
       parity && sessionClassIds.includes(selectedClass) ? [selectedClass] : [],
       orgId
     );
-  const nameFor = (uid: string, pin?: string) =>
-    formatStudentName(byStudentUid.get(uid)) ||
-    (pin ? `PIN: ${pin}` : 'Anonymous');
+  const nameFor = (uid: string, r?: GuidedLearningResponse) =>
+    staffResultsLabel(r) ??
+    (formatStudentName(byStudentUid.get(uid)) ||
+      (r?.pin ? `PIN: ${r.pin}` : 'Anonymous'));
   // A response's own class wins, so a student in two picked classes shows once.
   const inPickedClass = (uid: string, r?: GuidedLearningResponse) =>
     !selectedClass ||
@@ -519,7 +521,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
       const bucket: BucketKey = r.completedAt !== null ? 'done' : 'inProgress';
       monitorRows.push({
         key: r.studentAnonymousId,
-        name: nameFor(r.studentAnonymousId, r.pin),
+        name: nameFor(r.studentAnonymousId, r),
         bucket,
         response: r,
         qCorrect,
@@ -1081,8 +1083,9 @@ export const GuidedLearningResults: React.FC<Props> = ({
                         byStudentUid.get(r.studentAnonymousId)
                       );
                       const label =
-                        classLinkName ||
-                        (r.pin ? `PIN: ${r.pin}` : 'Anonymous');
+                        staffResultsLabel(r) ??
+                        (classLinkName ||
+                          (r.pin ? `PIN: ${r.pin}` : 'Anonymous'));
                       return (
                         <div
                           key={r.studentAnonymousId}

@@ -30,7 +30,12 @@ import {
 } from '@/hooks/useAssignmentPseudonyms';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
-import type { MiniAppBestAttempt, MiniAppSession } from '@/types';
+import type {
+  MiniAppBestAttempt,
+  MiniAppSession,
+  StaffResponseFields,
+} from '@/types';
+import { staffResultsLabel } from '@/utils/staffAudience';
 import {
   MiniAppResultsView,
   type MiniAppAttemptView,
@@ -42,7 +47,7 @@ import { PeriodAccessControls } from '@/components/common/sessionViews/PeriodAcc
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { MiniAppSubmissionsMonitor } from './MiniAppSubmissionsMonitor';
 
-interface SubmissionRow {
+interface SubmissionRow extends StaffResponseFields {
   id: string;
   submittedAt: number;
   payload: unknown;
@@ -84,11 +89,24 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
     rosters
   );
   const {
-    byAssignmentPseudonym,
+    byAssignmentPseudonym: rosterNames,
     loading: namesLoading,
     error: namesError,
   } = useAssignmentPseudonymsMulti(sessionId, classIds ?? null, orgId);
   const [allSubmissions, setSubmissions] = useState<SubmissionRow[]>([]);
+  // Staff-audience submissions carry their own name and email.
+  const byAssignmentPseudonym = useMemo(() => {
+    const staff = allSubmissions.filter((s) => s.staffEmail);
+    if (staff.length === 0) return rosterNames;
+    const merged = new Map(rosterNames);
+    for (const s of staff) {
+      merged.set(s.id, {
+        givenName: staffResultsLabel(s) ?? '',
+        familyName: '',
+      });
+    }
+    return merged;
+  }, [allSubmissions, rosterNames]);
   // Submissions carry no class, so a removed class is found by its students' pseudonyms.
   const removedClassIds = session?.removedClasses?.classIds ?? null;
   const removedNames = useAssignmentPseudonymsMulti(
@@ -142,6 +160,9 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
                 typeof data.lastSubmittedAt === 'number'
                   ? data.lastSubmittedAt
                   : undefined,
+              ...(typeof data.staffEmail === 'string'
+                ? { staffEmail: data.staffEmail, staffName: data.staffName }
+                : {}),
             };
           })
         );
@@ -245,6 +266,8 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
                         id: s.id,
                         best: s.best ?? null,
                         lastSubmittedAt: s.lastSubmittedAt ?? s.submittedAt,
+                        staffEmail: s.staffEmail,
+                        staffName: s.staffName,
                       })),
                       session.manifest?.questions ?? [],
                       byAssignmentPseudonym

@@ -815,3 +815,46 @@ describe('applyRating', () => {
     }
   );
 });
+
+describe('handleSubmitFlashcardCheck staff audience', () => {
+  const staff: FlashcardCheckCaller = {
+    uid: UID,
+    studentRole: false,
+    classIds: [],
+    staff: { staffEmail: 'pat@orono.k12.mn.us', staffName: 'Pat T' },
+  };
+  const input = { assignmentId: 'a1', answerLog: writeLog({}) };
+
+  it('grades district staff on a staff session and names their progress', async () => {
+    const docs: Record<string, Doc> = {
+      [SESSION_PATH]: session({ audience: 'staff', classIds: [] }),
+    };
+    await handleSubmitFlashcardCheck(makeDb(docs), staff, input, NOW);
+    expect(docs[PROGRESS_PATH]).toMatchObject({
+      staffEmail: 'pat@orono.k12.mn.us',
+      staffName: 'Pat T',
+      score: CARDS.length,
+    });
+  });
+
+  it('refuses students on a staff session and staff on a student session', async () => {
+    await expectCode(
+      handleSubmitFlashcardCheck(
+        makeDb({ [SESSION_PATH]: session({ audience: 'staff' }) }),
+        student,
+        input,
+        NOW
+      ),
+      'permission-denied'
+    );
+    await expectCode(
+      handleSubmitFlashcardCheck(
+        makeDb({ [SESSION_PATH]: session() }),
+        staff,
+        input,
+        NOW
+      ),
+      'permission-denied'
+    );
+  });
+});

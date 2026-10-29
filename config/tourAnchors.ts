@@ -897,6 +897,11 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'assign-audience.switch': {
+    label: 'Students or Staff switch in the Classes step of the Assign dialog',
+    persists: true,
+    panel: true,
+  },
   // Assign dialogs round 2: switches, rule toggles and numbers.
   'assign-top.pacing': {
     label: 'Pacing switch at the top of the Assign dialog',

@@ -15,6 +15,7 @@
  */
 
 import type {
+  StaffResponseFields,
   GradeResult,
   QuizQuestion,
   QuizResponseAnswer,
@@ -25,6 +26,7 @@ import type {
 } from '@/types';
 import { resolvePinName } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { logError } from '@/utils/logError';
+import { hasStaffRows, staffDisplayName } from '@/utils/staffAudience';
 import { formatTabAwayTotal } from '@/utils/tabExits';
 import { selectRepresentativeAnswers } from '@/utils/answerTakeOrdering';
 import { displayFibAnswer } from '@/utils/quizFibBlanks';
@@ -39,7 +41,7 @@ export function formatExportPoints(points: number): string {
 }
 
 /** Minimum response shape the export reads. */
-export interface ExportableResponse {
+export interface ExportableResponse extends StaffResponseFields {
   pin?: string;
   studentUid: string;
   classPeriod?: string;
@@ -217,7 +219,10 @@ export function buildResultsSheetData<
   // PIN. Both cases hit the generic 'Student' label. Logged once per
   // export below so a regression is visible in ops triage.
   let unresolvedAnonymousCount = 0;
+  // Staff-audience rows add an Email column; student exports keep their columns.
+  const staffRows = hasStaffRows(responses);
   const resolveStudent = (r: R): string => {
+    if (r.staffEmail) return staffDisplayName(r) ?? r.staffEmail;
     const sso = byStudentUid?.get(r.studentUid);
     if (sso) {
       const full = `${sso.givenName ?? ''} ${sso.familyName ?? ''}`.trim();
@@ -258,6 +263,7 @@ export function buildResultsSheetData<
     'Teacher',
     'Class Period',
     'Student',
+    ...(staffRows ? ['Email'] : []),
     'PIN',
     ...(options?.attemptColumn ? [options.attemptColumn.header] : []),
     'Status',
@@ -362,6 +368,7 @@ export function buildResultsSheetData<
       teacherName,
       r.classPeriod ?? '',
       resolveStudent(r),
+      ...(staffRows ? [r.staffEmail ?? ''] : []),
       r.pin ?? '',
       ...(options?.attemptColumn ? [options.attemptColumn.cell(r)] : []),
       r.status,

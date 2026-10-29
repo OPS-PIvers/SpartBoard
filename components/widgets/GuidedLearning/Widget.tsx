@@ -11,6 +11,7 @@ import React, {
 import { doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import {
+  AssignmentAudience,
   AssignmentMode,
   WidgetData,
   GuidedLearningConfig,
@@ -23,6 +24,7 @@ import {
   RESULTS_PROTECTION_DEFAULTS,
 } from '@/types';
 import { db, functions } from '@/config/firebase';
+import { audienceSessionFields } from '@/utils/staffAudience';
 import { useDashboard } from '@/context/useDashboard';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { buildPeriodGate, DEFAULT_PERIOD_PLAN } from '@/utils/periodPlan';
@@ -782,6 +784,7 @@ const TeacherGuidedLearningWidget: React.FC<{
         classes?: AssignClassesValue;
         /** The stepper's Manual: one class also gets a closed gate. */
         manualStart?: boolean;
+        audience?: AssignmentAudience;
       }
     ): Promise<string | null> => {
       const silent = options?.silent === true;
@@ -817,7 +820,7 @@ const TeacherGuidedLearningWidget: React.FC<{
             closeAt: periodGate ? undefined : targeting.closeAt,
             dueAt: targeting.dueAt,
           },
-          { workKind: targeting.workKind },
+          { workKind: targeting.workKind, audience: options?.audience },
           periodGate
         );
         const sessionId = url.split('/').pop() ?? '';
@@ -840,6 +843,7 @@ const TeacherGuidedLearningWidget: React.FC<{
               closeAt: periodGate ? undefined : expandedTargeting.closeAt,
               dueAt: expandedTargeting.dueAt,
               ...(periodGate ? { periodGate } : {}),
+              ...audienceSessionFields(options?.audience),
               answerKeys: answerKeysForSteps(data.steps),
               stepTargets: stepTargetsForSteps(data.steps),
             });
@@ -1046,6 +1050,7 @@ const TeacherGuidedLearningWidget: React.FC<{
     classes,
     targeting,
     manualStart,
+    audience,
   }: GuidedLearningStepperAssign): Promise<void> => {
     if (!assignTarget) return;
     const { set, source, originSetId } = assignTarget;
@@ -1053,6 +1058,7 @@ const TeacherGuidedLearningWidget: React.FC<{
     await performAssign(set, source, originSetId, classes.classIds, targeting, {
       classes,
       manualStart,
+      audience,
     });
   };
 

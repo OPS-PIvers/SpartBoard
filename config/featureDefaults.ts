@@ -1365,6 +1365,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Assign to Staff: the link needs district Google sign-in and results show each person's name and email.
+  'staff-audience': {
+    label: 'Assign to staff',
+    icon: UsersRound,
+    description:
+      'Assign quizzes, videos, mini apps, flashcards and guided learning to district staff.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'sharing',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */
