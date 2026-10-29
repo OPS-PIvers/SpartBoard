@@ -178,6 +178,102 @@ describe('classic reader edges', () => {
     });
   });
 
+  it('keeps a plain-text choice like x<y whole', () => {
+    const read = readClassicQuiz({
+      title: 'X',
+      questions: [
+        {
+          type: 'multiple_choice',
+          entries: [
+            ['title', 'Which is true?'],
+            ['multiple_choice[choice][0][text]', 'x<y & y>z'],
+            ['multiple_choice[choice][0][is_answer]', '1'],
+            ['multiple_choice[choice][1][text]', '&lt;b&gt;'],
+          ],
+        },
+      ],
+    });
+    expect(read.quiz.questions[0].options.map((o) => o.text)).toEqual([
+      'x<y & y>z',
+      '&lt;b&gt;',
+    ]);
+    expect(read.quiz.questions[0].correctAnswer).toBe('x<y & y>z');
+  });
+
+  it('keeps a picture-only ordering item, its picture and its place', () => {
+    const read = readClassicQuiz({
+      title: 'X',
+      questions: [
+        {
+          type: 'ordering',
+          entries: [
+            ['title', 'Order these'],
+            ['ordering[choices][0][text]', 'first'],
+            ['ordering[choices][0][weight]', '-1'],
+            [
+              'ordering[choices][1][text]',
+              '<p><img src="https://orono.schoology.com/file_download/p"></p>',
+            ],
+            ['ordering[choices][1][richtext]', '1'],
+            ['ordering[choices][1][weight]', '0'],
+            ['ordering[choices][2][text]', 'last'],
+            ['ordering[choices][2][weight]', '1'],
+          ],
+        },
+      ],
+    });
+    const question = read.quiz.questions[0];
+    expect(question.correctAnswer).toBe('first|Item B (picture)|last');
+    expect(question.imageIds).toEqual([
+      'https://orono.schoology.com/file_download/p',
+    ]);
+    expect(question.warnings[0]).toMatch(/Item B had a picture/);
+  });
+
+  it('sorts an ordering item with weight 0 among weights on both sides', () => {
+    const read = readClassicQuiz({
+      title: 'X',
+      questions: [
+        {
+          type: 'ordering',
+          entries: [
+            ['ordering[choices][0][text]', 'c'],
+            ['ordering[choices][0][weight]', '1'],
+            ['ordering[choices][1][text]', 'd'],
+            ['ordering[choices][1][weight]', '2'],
+            ['ordering[choices][2][text]', 'a'],
+            ['ordering[choices][2][weight]', '-1'],
+            ['ordering[choices][3][text]', 'b'],
+            ['ordering[choices][3][weight]', '0'],
+          ],
+        },
+      ],
+    });
+    expect(read.quiz.questions[0].correctAnswer).toBe('a|b|c|d');
+  });
+
+  it('keeps a matching pair whose answer is a picture', () => {
+    const read = readClassicQuiz({
+      title: 'X',
+      questions: [
+        {
+          type: 'matching',
+          entries: [
+            ['rows[delta][0][question]', 'Heart'],
+            ['rows[delta][0][answer]', '<img src="/file_download/h">'],
+            ['rows[delta][0][richtext]', '1'],
+          ],
+        },
+      ],
+      origin: 'https://orono.schoology.com',
+    });
+    const question = read.quiz.questions[0];
+    expect(question.correctAnswer).toBe('Heart:Match A (picture)');
+    expect(question.imageIds).toEqual([
+      'https://orono.schoology.com/file_download/h',
+    ]);
+  });
+
   it('refuses a quiz with no questions', () => {
     expect(() => readClassicQuiz({ title: 'X', questions: [] })).toThrow(
       SchoologyReadError

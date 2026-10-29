@@ -46,6 +46,37 @@ export function htmlContent(html: string, origin?: string): HtmlContent {
   return { text: readableText(doc.body), imageUrls };
 }
 
+/** A plain-text field as-is; only rich text is parsed as HTML, so a typed `x<y` survives. */
+export const plainContent = (value: string): HtmlContent => ({
+  text: value.trim(),
+  imageUrls: [],
+});
+
+export interface ItemTexts {
+  texts: string[];
+  imageUrls: string[];
+  warnings: string[];
+}
+
+/** Choices, items or pairs as text; their pictures move onto the question with a note, and a picture-only one is named. */
+export function itemTexts(
+  contents: readonly HtmlContent[],
+  noun: string
+): ItemTexts {
+  const imageUrls: string[] = [];
+  const warnings: string[] = [];
+  const texts = contents.map((content, index) => {
+    const label = `${noun} ${LETTERS[index] ?? index + 1}`;
+    if (content.imageUrls.length === 0) return content.text;
+    imageUrls.push(...content.imageUrls);
+    warnings.push(
+      `${label} had a picture, which was added to the question because ${noun.toLowerCase()}s are text only.`
+    );
+    return content.text || `${label} (picture)`;
+  });
+  return { texts, imageUrls, warnings };
+}
+
 function absoluteUrl(src: string, origin?: string): string {
   if (!origin) return src;
   try {
@@ -89,7 +120,13 @@ export function matchingKey(pairs: readonly (readonly [string, string])[]): {
   const kept: string[] = [];
   const warnings: string[] = [];
   for (const [term, match] of pairs) {
-    if (!term || !match) continue;
+    if (!term && !match) continue;
+    if (!term || !match) {
+      warnings.push(
+        `The pair "${term || match}" is missing its other half, so it was left out. Add it in the editor.`
+      );
+      continue;
+    }
     if (/[:|]/.test(term) || match.includes('|')) {
       warnings.push(
         `The pair "${term}" contains a colon or a pipe, which this quiz uses to separate pairs, so it was left out. Add it in the editor.`

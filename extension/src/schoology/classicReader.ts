@@ -7,10 +7,13 @@ import {
   asOptions,
   finishRead,
   htmlContent,
+  itemTexts,
   matchingKey,
+  plainContent,
   orderingKey,
   placeholderQuestion,
   SchoologyReadError,
+  type HtmlContent,
   type SchoologyQuizSettings,
   type SchoologyRead,
 } from './readResult';
@@ -106,6 +109,16 @@ function indexed(
   return [...byIndex.entries()].sort((a, b) => a[0] - b[0]).map(([, r]) => r);
 }
 
+/** A row's field, parsed as HTML only when Schoology marked the row rich text. */
+const rowContent = (
+  row: Record<string, string>,
+  key: string,
+  origin?: string
+): HtmlContent =>
+  row.richtext === '1'
+    ? htmlContent(row[key] ?? '', origin)
+    : plainContent(row[key] ?? '');
+
 const pointsOf = (entries: FormEntries): number | undefined => {
   const points = Number.parseFloat(field(entries, 'points'));
   return Number.isFinite(points) ? points : undefined;
@@ -153,16 +166,13 @@ function multipleChoice(
     entries,
     /^multiple_choice\[choice\]\[(\d+)\]\[(\w+)\]$/
   ).filter((c) => (c.text ?? '').trim());
-  const texts = choices.map((choice, index) => {
-    const content = htmlContent(choice.text ?? '', origin);
-    if (content.imageUrls.length > 0) {
-      imageIds.push(...content.imageUrls);
-      warnings.push(
-        `Choice ${String.fromCharCode(65 + index)} had a picture, which was added to the question because choices are text only.`
-      );
-    }
-    return content.text || `Picture ${String.fromCharCode(65 + index)}`;
-  });
+  const items = itemTexts(
+    choices.map((c) => rowContent(c, 'text', origin)),
+    'Choice'
+  );
+  imageIds.push(...items.imageUrls);
+  warnings.push(...items.warnings);
+  const texts = items.texts;
   const right = texts.filter((_, i) => choices[i].is_answer === '1');
   const multi = right.length > 1;
   return {
@@ -185,25 +195,28 @@ function ordering(
   origin?: string
 ): ExtractedQuestion {
   const prompt = htmlContent(field(entries, 'title'), origin);
-  const items = indexed(entries, /^ordering\[choices\]\[(\d+)\]\[(\w+)\]$/)
-    .map((row, index) => ({
-      text: htmlContent(row.text ?? '', origin).text,
-      weight: Number.parseFloat(row.weight ?? '') || index,
-    }))
-    .filter((item) => item.text)
-    .sort((a, b) => a.weight - b.weight)
-    .map((item) => item.text);
+  const rows = indexed(entries, /^ordering\[choices\]\[(\d+)\]\[(\w+)\]$/)
+    .filter((row) => (row.text ?? '').trim())
+    .map((row, index) => {
+      const weight = Number.parseFloat(row.weight ?? '');
+      return { row, weight: Number.isFinite(weight) ? weight : index };
+    })
+    .sort((a, b) => a.weight - b.weight);
+  const items = itemTexts(
+    rows.map(({ row }) => rowContent(row, 'text', origin)),
+    'Item'
+  );
   return {
     number,
     text: prompt.text,
     type: 'Ordering',
-    options: asOptions(items),
-    correctAnswer: orderingKey(items),
-    imageIds: prompt.imageUrls,
+    options: asOptions(items.texts),
+    correctAnswer: orderingKey(items.texts),
+    imageIds: [...prompt.imageUrls, ...items.imageUrls],
     ...(field(entries, 'partial_credit') === '1'
       ? { allowPartialCredit: true }
       : {}),
-    warnings: [],
+    warnings: items.warnings,
   };
 }
 
@@ -213,29 +226,44 @@ function matching(
   origin?: string
 ): ExtractedQuestion {
   const prompt = htmlContent(field(entries, 'title'), origin);
-  const pairs = indexed(entries, /^rows\[delta\]\[(\d+)\]\[(\w+)\]$/).map(
-    (row) =>
-      [
-        htmlContent(row.question ?? '', origin).text,
-        htmlContent(row.answer ?? '', origin).text,
-      ] as const
+  const rows = indexed(entries, /^rows\[delta\]\[(\d+)\]\[(\w+)\]$/);
+  const terms = itemTexts(
+    rows.map((row) => rowContent(row, 'question', origin)),
+    'Term'
   );
-  const key = matchingKey(pairs);
-  const distractors = indexed(
-    entries,
-    /^fillword_rows\[delta\]\[(\d+)\]\[(\w+)\]$/
-  )
-    .map((row) => htmlContent(row.question ?? '', origin).text)
-    .filter(Boolean);
+  const matches = itemTexts(
+    rows.map((row) => rowContent(row, 'answer', origin)),
+    'Match'
+  );
+  const key = matchingKey(
+    terms.texts.map((term, i) => [term, matches.texts[i] ?? ''] as const)
+  );
+  const fillers = itemTexts(
+    indexed(entries, /^fillword_rows\[delta\]\[(\d+)\]\[(\w+)\]$/).map((row) =>
+      rowContent(row, 'question', origin)
+    ),
+    'Filler word'
+  );
+  const distractors = fillers.texts.filter(Boolean);
   return {
     number,
     text: prompt.text,
     type: 'Matching',
     options: [],
     correctAnswer: key.answer,
-    imageIds: prompt.imageUrls,
+    imageIds: [
+      ...prompt.imageUrls,
+      ...terms.imageUrls,
+      ...matches.imageUrls,
+      ...fillers.imageUrls,
+    ],
     ...(distractors.length > 0 ? { matchingDistractors: distractors } : {}),
-    warnings: key.warnings,
+    warnings: [
+      ...terms.warnings,
+      ...matches.warnings,
+      ...fillers.warnings,
+      ...key.warnings,
+    ],
   };
 }
 

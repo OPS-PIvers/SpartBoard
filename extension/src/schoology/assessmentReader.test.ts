@@ -137,6 +137,26 @@ describe('Learnosity types beyond the fixture', () => {
     expect(read.quiz.questions[0].matchingDistractors).toEqual(['three']);
   });
 
+  it('keeps a picture-only matching response and its picture', () => {
+    const picture = '<img src="https://orono.schoology.com/file_download/h">';
+    const read = readAssessment(
+      single({
+        type: 'association',
+        stimulus_list: ['Heart', 'Lung'],
+        possible_responses: [picture, 'breathing', 'spare'],
+        validation: { valid_response: { value: [picture, 'breathing'] } },
+      })
+    );
+    const question = read.quiz.questions[0];
+    expect(question.correctAnswer).toBe(
+      'Heart:Match A (picture)|Lung:breathing'
+    );
+    expect(question.matchingDistractors).toEqual(['spare']);
+    expect(question.imageIds).toEqual([
+      'https://orono.schoology.com/file_download/h',
+    ]);
+  });
+
   it('reads a short-text key', () => {
     const read = readAssessment(
       single({

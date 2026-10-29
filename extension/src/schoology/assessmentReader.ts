@@ -7,6 +7,7 @@ import {
   asOptions,
   finishRead,
   htmlContent,
+  itemTexts,
   matchingKey,
   orderingKey,
   placeholderQuestion,
@@ -108,21 +109,17 @@ function mcq(
   origin?: string
 ): ExtractedQuestion {
   const prompt = htmlContent(def.stimulus ?? '', origin);
-  const warnings: string[] = [];
-  const imageIds = [...prompt.imageUrls];
-  const options = (def.options ?? []).map((option, index) => {
-    const content = htmlContent(option.label ?? '', origin);
-    if (content.imageUrls.length > 0) {
-      imageIds.push(...content.imageUrls);
-      warnings.push(
-        `Choice ${String.fromCharCode(65 + index)} had a picture, which was added to the question because choices are text only.`
-      );
-    }
-    return {
-      value: option.value ?? String(index),
-      text: content.text || `Picture ${String.fromCharCode(65 + index)}`,
-    };
-  });
+  const raw = def.options ?? [];
+  const items = itemTexts(
+    raw.map((option) => htmlContent(option.label ?? '', origin)),
+    'Choice'
+  );
+  const imageIds = [...prompt.imageUrls, ...items.imageUrls];
+  const warnings = items.warnings;
+  const options = raw.map((option, index) => ({
+    value: option.value ?? String(index),
+    text: items.texts[index],
+  }));
   const keyed = new Set(strings(def.validation?.valid_response?.value));
   const right = options.filter((o) => keyed.has(o.value)).map((o) => o.text);
   const multi =
@@ -144,26 +141,43 @@ function association(
   origin?: string
 ): ExtractedQuestion {
   const prompt = htmlContent(def.stimulus ?? '', origin);
-  const terms = strings(def.stimulus_list).map(
-    (t) => htmlContent(t, origin).text
+  const terms = itemTexts(
+    strings(def.stimulus_list).map((t) => htmlContent(t, origin)),
+    'Term'
   );
-  const matches = strings(def.validation?.valid_response?.value).map(
-    (m) => htmlContent(m, origin).text
+  // The key names responses by their raw value, so map each to its readable text by position.
+  const responses = strings(def.possible_responses);
+  const responseTexts = itemTexts(
+    responses.map((r) => htmlContent(r, origin)),
+    'Match'
   );
-  const key = matchingKey(terms.map((t, i) => [t, matches[i] ?? ''] as const));
-  const used = new Set(matches);
-  const distractors = strings(def.possible_responses)
-    .map((r) => htmlContent(r, origin).text)
-    .filter((r) => r && !used.has(r));
+  const keyed = strings(def.validation?.valid_response?.value);
+  const usedIndexes = new Set(keyed.map((v) => responses.indexOf(v)));
+  const matches = keyed.map((value) => {
+    const index = responses.indexOf(value);
+    return index >= 0
+      ? responseTexts.texts[index]
+      : htmlContent(value, origin).text;
+  });
+  const key = matchingKey(
+    terms.texts.map((t, i) => [t, matches[i] ?? ''] as const)
+  );
+  const distractors = responseTexts.texts.filter(
+    (r, i) => r && !usedIndexes.has(i)
+  );
   return {
     number,
     text: prompt.text,
     type: 'Matching',
     options: [],
     correctAnswer: key.answer,
-    imageIds: prompt.imageUrls,
+    imageIds: [
+      ...prompt.imageUrls,
+      ...terms.imageUrls,
+      ...responseTexts.imageUrls,
+    ],
     ...(distractors.length > 0 ? { matchingDistractors: distractors } : {}),
-    warnings: key.warnings,
+    warnings: [...terms.warnings, ...responseTexts.warnings, ...key.warnings],
   };
 }
 
@@ -173,7 +187,11 @@ function orderlist(
   origin?: string
 ): ExtractedQuestion {
   const prompt = htmlContent(def.stimulus ?? '', origin);
-  const list = strings(def.list).map((item) => htmlContent(item, origin).text);
+  const items = itemTexts(
+    strings(def.list).map((item) => htmlContent(item, origin)),
+    'Item'
+  );
+  const list = items.texts;
   const order = (def.validation?.valid_response?.value as unknown[]) ?? [];
   const inOrder = Array.isArray(order)
     ? order.map((i) => list[Number(i)]).filter((x): x is string => !!x)
@@ -185,8 +203,8 @@ function orderlist(
     type: 'Ordering',
     options: asOptions(list),
     correctAnswer: keyed ? orderingKey(inOrder) : '',
-    imageIds: prompt.imageUrls,
-    warnings: [],
+    imageIds: [...prompt.imageUrls, ...items.imageUrls],
+    warnings: items.warnings,
   };
 }
 
