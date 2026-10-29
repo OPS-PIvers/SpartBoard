@@ -1,0 +1,66 @@
+import React from 'react';
+import { describe, expect, it } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import type { FocusActiveSession } from '@/utils/focus/contract';
+import type { FocusLocalState } from '../focusState';
+import { FocusView } from './FocusPage';
+
+const session: FocusActiveSession = {
+  sessionId: 's1',
+  teacherName: 'Ms. Rivera',
+  level: 'redirect',
+  sites: [
+    { host: 'desmos.com', path: '' },
+    { host: 'docs.google.com', path: '/document/d/abc' },
+  ],
+  endsAt: 10 * 60_000,
+  released: false,
+  showLiveSite: false,
+};
+
+const state = (over: Partial<FocusActiveSession> = {}): FocusLocalState => ({
+  session: { ...session, ...over },
+  offsetMs: 0,
+  reported: null,
+  reportedAt: 0,
+  reportedHost: null,
+  blockedTries: 0,
+});
+
+describe('FocusView', () => {
+  it('shows the teacher, minutes left and a button per site', () => {
+    render(<FocusView state={state()} now={0} />);
+    expect(
+      screen.getByText(/Ms\. Rivera started focus time\. 10 minutes left\./)
+    ).toBeTruthy();
+    const links = screen.getAllByRole('link');
+    expect(links.map((a) => a.getAttribute('href'))).toEqual([
+      'https://desmos.com',
+      'https://docs.google.com/document/d/abc',
+    ]);
+    expect(screen.queryByText(/can see which site/)).toBeNull();
+  });
+
+  it('says so when the teacher can see the site', () => {
+    render(
+      <FocusView state={state({ showLiveSite: true })} now={9 * 60_000 + 1} />
+    );
+    expect(screen.getByText(/1 minute left\./)).toBeTruthy();
+    expect(
+      screen.getByText("Your teacher can see which site you're on.")
+    ).toBeTruthy();
+  });
+
+  it('ends for a released student and when time is up', () => {
+    const { rerender } = render(
+      <FocusView state={state({ released: true })} now={0} />
+    );
+    expect(
+      screen.getByText('Your teacher released you from focus time.')
+    ).toBeTruthy();
+    rerender(<FocusView state={state()} now={session.endsAt} />);
+    expect(screen.getByText('Focus time is over.')).toBeTruthy();
+    rerender(<FocusView state={null} now={0} />);
+    expect(screen.getByText('Focus time is over.')).toBeTruthy();
+  });
+});
