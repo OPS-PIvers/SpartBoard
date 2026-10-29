@@ -364,7 +364,7 @@ chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
     void tourList.badge(tabId, tab.url);
   if (change.url !== undefined && tab.active) void focus.observe();
   // Catches what the navigation events can't, such as a prerendered page being shown.
-  if (change.url !== undefined) blockedNavigation(tabId, change.url);
+  if (change.url !== undefined) blockedNavigation(tabId, change.url, true);
   if (change.status === 'complete') void enforcer.tabShown(tabId);
 });
 chrome.tabs.onRemoved.addListener((tabId) => {
@@ -399,9 +399,10 @@ chrome.windows.onBoundsChanged.addListener(() => {
 function blockedNavigation(
   tabId: number,
   url: string,
+  committed: boolean,
   currentUrl?: string
 ): void {
-  enforcer.navigated(tabId, url, currentUrl).then(
+  enforcer.navigated(tabId, url, currentUrl, committed).then(
     (blocked) => {
       if (blocked) void focus.blocked();
     },
@@ -414,13 +415,13 @@ chrome.webNavigation.onBeforeNavigate.addListener((d) => {
   if (!isShownTopFrame(d)) return;
   // The tab still shows the page it is leaving, which is where Redirect sends it back.
   void chrome.tabs.get(d.tabId).then(
-    (tab) => blockedNavigation(d.tabId, d.url, tab.url),
-    () => blockedNavigation(d.tabId, d.url)
+    (tab) => blockedNavigation(d.tabId, d.url, false, tab.url),
+    () => blockedNavigation(d.tabId, d.url, false)
   );
 });
 chrome.webNavigation.onCommitted.addListener((d) => {
-  if (isShownTopFrame(d)) blockedNavigation(d.tabId, d.url);
+  if (isShownTopFrame(d)) blockedNavigation(d.tabId, d.url, true);
 });
 chrome.webNavigation.onHistoryStateUpdated.addListener((d) => {
-  if (isShownTopFrame(d)) blockedNavigation(d.tabId, d.url);
+  if (isShownTopFrame(d)) blockedNavigation(d.tabId, d.url, true);
 });

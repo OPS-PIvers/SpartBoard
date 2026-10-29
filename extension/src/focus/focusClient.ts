@@ -49,6 +49,9 @@ export interface FocusClientDeps {
   enforce(state: FocusLocalState | null | undefined): Promise<void>;
   openFocusPage(): Promise<void>;
   setBadge(text: string): Promise<void>;
+  /** Blocked tries kept per session across a restart, so the server's max doesn't swallow new ones. */
+  loadTries(sessionId: string): Promise<number>;
+  saveTries(sessionId: string, tries: number): Promise<void>;
   /** Turns the once-a-minute badge and report alarm on or off. */
   setTicking(on: boolean): Promise<void>;
   now(): number;
@@ -171,7 +174,9 @@ export function createFocusClient(deps: FocusClientDeps) {
       reported: same ? prev.reported : null,
       reportedAt: same ? prev.reportedAt : 0,
       reportedHost: same ? prev.reportedHost : null,
-      blockedTries: same ? prev.blockedTries : 0,
+      blockedTries: same
+        ? prev.blockedTries
+        : await deps.loadTries(reply.session.sessionId).catch(() => 0),
       reportedTries: same ? prev.reportedTries : 0,
     };
     await deps.save(next);
@@ -194,7 +199,11 @@ export function createFocusClient(deps: FocusClientDeps) {
       serial(async () => {
         const state = await deps.load();
         if (!state || !isEnforcing(state, deps.now())) return;
-        await deps.save({ ...state, blockedTries: state.blockedTries + 1 });
+        const tries = state.blockedTries + 1;
+        await deps.save({ ...state, blockedTries: tries });
+        await deps
+          .saveTries(state.session.sessionId, tries)
+          .catch(() => undefined);
         await observe(false);
       }),
     /** The once-a-minute alarm: redraw the badge, report, and check once the time is up. */
@@ -202,7 +211,8 @@ export function createFocusClient(deps: FocusClientDeps) {
       serial(async () => {
         const state = await deps.load();
         if (!state || !isEnforcing(state, deps.now())) {
-          await (state ? check() : redraw(null));
+          // No state means not checked yet, never "over": that takes a check.
+          await (state ? check() : redraw(undefined));
           return;
         }
         await redraw(state);

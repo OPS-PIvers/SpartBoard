@@ -39,6 +39,14 @@ interface LockRecord {
   windows: Record<string, string>;
 }
 
+/** Tabs the Lock cover was put on; kept in session storage so a restarted worker can still take it off. */
+const COVERED_KEY = 'focusCovered';
+
+/** Fullscreen, or ChromeOS locked mode (a locked quiz), which is at least as strict. */
+const isFull = (state: string | undefined) =>
+  state === chrome.windows.WindowState.FULLSCREEN ||
+  state === chrome.windows.WindowState.LOCKED_FULLSCREEN;
+
 /** The state a window goes back to; one that was already fullscreen comes back maximized. */
 const restoredState = (prev: string): chrome.windows.WindowState => {
   const { WindowState } = chrome.windows;
@@ -154,7 +162,12 @@ export function createChromeEnforcer(deps: {
   const base = chrome.runtime.getURL('focus/index.html');
   // Tabs sent back to a page that should show the notice once it loads; lost with the worker, which only skips a notice.
   const noticeOnLoad = new Set<number>();
-  const covered = new Set<number>();
+  const loadCovered = async () => {
+    const value = (await chrome.storage.session.get(COVERED_KEY))[COVERED_KEY];
+    return Array.isArray(value)
+      ? value.filter((v): v is number => typeof v === 'number')
+      : [];
+  };
   const recent = new Map<number, { url: string; at: number }>();
   const restoring = new Map<number, number>();
 
@@ -185,7 +198,7 @@ export function createChromeEnforcer(deps: {
   const fullscreen = async (windowId: number, lock: LockRecord) => {
     const win = await chrome.windows.get(windowId).catch(() => undefined);
     if (!win || win.type !== chrome.windows.WindowType.NORMAL) return;
-    if (win.state === chrome.windows.WindowState.FULLSCREEN) return;
+    if (isFull(win.state)) return;
     lock.windows[String(windowId)] ??= win.state ?? 'normal';
     await chrome.storage.session.set({ [LOCK_KEY]: lock });
     await chrome.windows
@@ -199,20 +212,23 @@ export function createChromeEnforcer(deps: {
     const win = isLocking(state, deps.now())
       ? await lastNormalWindow()
       : undefined;
-    const needs =
-      win !== undefined && win.state !== chrome.windows.WindowState.FULLSCREEN;
+    const needs = win !== undefined && !isFull(win.state);
+    const covered = await loadCovered();
     if (needs && win.id !== undefined) {
       const [tab] = await chrome.tabs.query({ active: true, windowId: win.id });
       // Our own pages carry their own fullscreen button and can't be scripted.
       if (tab?.id !== undefined && tab.url !== undefined) {
-        covered.add(tab.id);
+        if (!covered.includes(tab.id))
+          await chrome.storage.session.set({
+            [COVERED_KEY]: [...covered, tab.id],
+          });
         await inject(tab.id, 'cover');
       }
       return;
     }
-    const ids = [...covered];
-    covered.clear();
-    await Promise.all(ids.map((id) => inject(id, 'none')));
+    if (!covered.length) return;
+    await chrome.storage.session.remove(COVERED_KEY);
+    await Promise.all(covered.map((id) => inject(id, 'none')));
   };
 
   const releaseLock = async () => {
@@ -226,9 +242,9 @@ export function createChromeEnforcer(deps: {
           .update(win.id ?? Number(id), { state: restoredState(prev) })
           .catch(() => undefined);
     }
-    // Covers left by a worker that restarted mid-session aren't in `covered`; clear every web tab.
+    // Clears every web tab, in case a cover was injected that the record missed.
     const tabs = await allTabs();
-    covered.clear();
+    await chrome.storage.session.remove(COVERED_KEY);
     await Promise.all(
       tabs
         .filter((t) => /^https?:/.test(t.url))
@@ -238,6 +254,8 @@ export function createChromeEnforcer(deps: {
 
   /** Brings tabs, rules and fullscreen in line with the session; runs after every state change and each minute. */
   const sync = async (state: FocusLocalState | null | undefined) => {
+    // Not checked yet (after a restart): parked tabs keep waiting for the first answer.
+    if (state === undefined) return;
     const now = deps.now();
     const blocking = isBlocking(state, now) ? state : null;
     const locking = isLocking(state, now) ? state : null;
@@ -305,7 +323,8 @@ export function createChromeEnforcer(deps: {
   const navigated = async (
     tabId: number,
     url: string,
-    currentUrl: string | undefined
+    currentUrl: string | undefined,
+    committed: boolean
   ): Promise<boolean> => {
     const state = await deps.load();
     const now = deps.now();
@@ -314,7 +333,8 @@ export function createChromeEnforcer(deps: {
     if (since !== undefined && now - since < RESTORING_MS) return false;
     if (!isBlockedUrl(url, state, deps.origins)) {
       // Remember where an allowed tab is, so a late event can still send it back there rather than close it.
-      if (/^https?:/i.test(url)) await rememberTab(tabId, url);
+      // Only a page the tab actually showed, so a redirecting address can't become the way back.
+      if (committed && /^https?:/i.test(url)) await rememberTab(tabId, url);
       return false;
     }
     const last = recent.get(tabId);
@@ -370,8 +390,12 @@ export function createChromeEnforcer(deps: {
   return {
     sync: (state: FocusLocalState | null | undefined) =>
       serial(() => sync(state)),
-    navigated: (tabId: number, url: string, currentUrl: string | undefined) =>
-      perTab(tabId, () => navigated(tabId, url, currentUrl)),
+    navigated: (
+      tabId: number,
+      url: string,
+      currentUrl: string | undefined,
+      committed: boolean
+    ) => perTab(tabId, () => navigated(tabId, url, currentUrl, committed)),
     /** A tab finished loading or became active: show a pending notice, and cover it in Lock outside fullscreen. */
     tabShown: async (tabId: number) => {
       if (noticeOnLoad.delete(tabId)) await inject(tabId, 'notice');
@@ -380,7 +404,6 @@ export function createChromeEnforcer(deps: {
     windowChanged: () => serial(cover),
     tabClosed: (tabId: number) => {
       noticeOnLoad.delete(tabId);
-      covered.delete(tabId);
       recent.delete(tabId);
       restoring.delete(tabId);
       void chrome.storage.session
@@ -401,7 +424,7 @@ export function createChromeEnforcer(deps: {
     /** Whether the student's window is fullscreen; Lock counts time outside it as away (F2). */
     activeFullscreen: async () => {
       const win = await lastNormalWindow();
-      return !win || win.state === chrome.windows.WindowState.FULLSCREEN;
+      return !win || isFull(win.state);
     },
   };
 }

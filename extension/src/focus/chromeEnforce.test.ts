@@ -75,6 +75,7 @@ function fakeChrome(
         MINIMIZED: 'minimized',
         MAXIMIZED: 'maximized',
         FULLSCREEN: 'fullscreen',
+        LOCKED_FULLSCREEN: 'locked-fullscreen',
       },
       get: (id: number) => {
         const w = windows.find((x) => x.id === id);
@@ -292,16 +293,21 @@ describe('createChromeEnforcer navigated', () => {
     const e = enforcer();
     current = local(session());
     expect(
-      await e.navigated(1, 'https://games.example/', 'https://desmos.com/')
+      await e.navigated(
+        1,
+        'https://games.example/',
+        'https://desmos.com/',
+        true
+      )
     ).toBe(true);
     expect(c.updates.at(-1)).toEqual({
       id: 1,
       props: { url: 'https://desmos.com/' },
     });
     // The same address reported again by a later event is the same try.
-    expect(await e.navigated(1, 'https://games.example/', undefined)).toBe(
-      false
-    );
+    expect(
+      await e.navigated(1, 'https://games.example/', undefined, true)
+    ).toBe(false);
     await e.tabShown(1);
     expect(c.injected.at(-1)).toEqual({ tabId: 1, kind: 'notice' });
   });
@@ -319,9 +325,9 @@ describe('createChromeEnforcer navigated', () => {
     ];
     const c = fakeChrome(tabs, [{ id: 1, type: 'normal', state: 'normal' }]);
     current = local(session());
-    expect(await enforcer().navigated(2, 'https://games.example/', '')).toBe(
-      true
-    );
+    expect(
+      await enforcer().navigated(2, 'https://games.example/', '', true)
+    ).toBe(true);
     expect(c.removed).toEqual([2]);
     expect(c.updates).toContainEqual({ id: 1, props: { active: true } });
     expect(c.injected.at(-1)).toEqual({ tabId: 1, kind: 'notice' });
@@ -330,19 +336,19 @@ describe('createChromeEnforcer navigated', () => {
   it('ignores allowed sites, Monitor and no session', async () => {
     const c = fakeChrome([], []);
     const e = enforcer();
-    expect(await e.navigated(1, 'https://games.example/', undefined)).toBe(
-      false
-    );
-    current = local(session({ level: 'monitor' }));
-    expect(await e.navigated(1, 'https://games.example/', undefined)).toBe(
-      false
-    );
-    current = local(session());
-    expect(await e.navigated(1, 'https://www.desmos.com/x', undefined)).toBe(
-      false
-    );
     expect(
-      await e.navigated(1, 'https://spartboard.web.app/q', undefined)
+      await e.navigated(1, 'https://games.example/', undefined, true)
+    ).toBe(false);
+    current = local(session({ level: 'monitor' }));
+    expect(
+      await e.navigated(1, 'https://games.example/', undefined, true)
+    ).toBe(false);
+    current = local(session());
+    expect(
+      await e.navigated(1, 'https://www.desmos.com/x', undefined, true)
+    ).toBe(false);
+    expect(
+      await e.navigated(1, 'https://spartboard.web.app/q', undefined, true)
     ).toBe(false);
     expect(c.updates).toEqual([]);
   });
@@ -360,13 +366,18 @@ describe('createChromeEnforcer navigated', () => {
     const c = fakeChrome(tabs, [{ id: 1, type: 'normal', state: 'normal' }]);
     const e = enforcer();
     current = local(session());
-    await e.navigated(1, 'https://desmos.com/', undefined);
+    await e.navigated(1, 'https://desmos.com/', undefined, true);
     expect(
-      await e.navigated(1, 'https://games.example/', 'https://desmos.com/')
+      await e.navigated(
+        1,
+        'https://games.example/',
+        'https://desmos.com/',
+        true
+      )
     ).toBe(true);
-    expect(await e.navigated(1, 'https://games.example/', undefined)).toBe(
-      false
-    );
+    expect(
+      await e.navigated(1, 'https://games.example/', undefined, true)
+    ).toBe(false);
     expect(
       c.updates.filter((u) => u.props.url === 'https://desmos.com/')
     ).toHaveLength(2);
@@ -393,10 +404,10 @@ describe('createChromeEnforcer navigated', () => {
     const c = fakeChrome(tabs, [{ id: 1, type: 'normal', state: 'normal' }]);
     const e = enforcer();
     current = local(session());
-    await e.navigated(1, 'https://desmos.com/a', undefined);
-    expect(await e.navigated(1, 'https://sso.example/login', undefined)).toBe(
-      true
-    );
+    await e.navigated(1, 'https://desmos.com/a', undefined, true);
+    expect(
+      await e.navigated(1, 'https://sso.example/login', undefined, true)
+    ).toBe(true);
     expect(c.removed).toEqual([]);
     expect(c.updates.at(-1)).toEqual({
       id: 1,
@@ -423,7 +434,7 @@ describe('createChromeEnforcer navigated', () => {
     );
     current = local(session());
     expect(
-      await enforcer().navigated(1, 'https://games.example/x', undefined)
+      await enforcer().navigated(1, 'https://games.example/x', undefined, true)
     ).toBe(true);
     expect(c.removed).toEqual([]);
     expect(c.updates.at(-1)).toEqual({ id: 1, props: { url: parked } });
@@ -444,9 +455,91 @@ describe('createChromeEnforcer navigated', () => {
     current = undefined;
     await e.sync(null);
     expect(tabs[0].url).toBe('https://games.example/x');
-    expect(await e.navigated(1, 'https://games.example/x', undefined)).toBe(
+    expect(
+      await e.navigated(1, 'https://games.example/x', undefined, true)
+    ).toBe(false);
+    expect(c.removed).toEqual([]);
+  });
+
+  it('never makes a redirecting address the way back', async () => {
+    const tabs: FakeTab[] = [
+      {
+        id: 1,
+        windowId: 1,
+        url: 'https://desmos.com/a',
+        active: true,
+        lastAccessed: 1,
+      },
+    ];
+    const c = fakeChrome(tabs, [{ id: 1, type: 'normal', state: 'normal' }]);
+    const e = enforcer();
+    current = local(session());
+    await e.navigated(1, 'https://desmos.com/a', undefined, true);
+    // Allowed short link seen before it commits, then its blocked target commits.
+    await e.navigated(
+      1,
+      'https://desmos.com/go',
+      'https://desmos.com/a',
       false
     );
-    expect(c.removed).toEqual([]);
+    expect(
+      await e.navigated(1, 'https://games.example/', undefined, true)
+    ).toBe(true);
+    expect(c.updates.at(-1)).toEqual({
+      id: 1,
+      props: { url: 'https://desmos.com/a' },
+    });
+  });
+});
+
+describe('createChromeEnforcer restart and locked mode', () => {
+  it('keeps parked tabs parked until a check answers', async () => {
+    const parked = parkedUrl(BASE, 'https://games.example/x');
+    const tabs: FakeTab[] = [
+      { id: 1, windowId: 1, url: parked, active: true, lastAccessed: 1 },
+    ];
+    fakeChrome(tabs, [{ id: 1, type: 'normal', state: 'normal' }]);
+    await enforcer().sync(undefined);
+    expect(tabs[0].url).toBe(parked);
+  });
+
+  it('takes the cover off after the worker restarted', async () => {
+    const tabs: FakeTab[] = [
+      {
+        id: 1,
+        windowId: 1,
+        url: 'https://desmos.com/',
+        active: true,
+        lastAccessed: 1,
+      },
+    ];
+    const windows = [{ id: 1, type: 'normal', state: 'normal' }];
+    const c = fakeChrome(tabs, windows);
+    current = local(session({ level: 'lock' }));
+    await enforcer().windowChanged();
+    expect(c.injected.at(-1)).toEqual({ tabId: 1, kind: 'cover' });
+    windows[0].state = 'fullscreen';
+    await enforcer().windowChanged();
+    expect(c.injected.at(-1)).toEqual({ tabId: 1, kind: 'none' });
+  });
+
+  it('counts ChromeOS locked mode as fullscreen', async () => {
+    const tabs: FakeTab[] = [
+      {
+        id: 1,
+        windowId: 1,
+        url: 'https://desmos.com/',
+        active: true,
+        lastAccessed: 1,
+      },
+    ];
+    const c = fakeChrome(tabs, [
+      { id: 1, type: 'normal', state: 'locked-fullscreen' },
+    ]);
+    current = local(session({ level: 'lock' }));
+    const e = enforcer();
+    await e.windowChanged();
+    expect(c.injected).toEqual([]);
+    expect(await e.activeFullscreen()).toBe(true);
   });
 });

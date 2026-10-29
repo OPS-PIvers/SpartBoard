@@ -35,6 +35,7 @@ function setup(over: Partial<FocusClientDeps> = {}) {
   let now = 0;
   let url: string | undefined = 'https://www.desmos.com/calculator';
   let fullscreen = true;
+  let savedTries: { sessionId: string; tries: number } | undefined;
   let statusReply: ApiResult<unknown> = {
     ok: true,
     value: { session, serverNow: 0 },
@@ -72,6 +73,14 @@ function setup(over: Partial<FocusClientDeps> = {}) {
     },
     activeUrl: () => Promise.resolve(url),
     activeFullscreen: () => Promise.resolve(fullscreen),
+    loadTries: (sessionId: string) =>
+      Promise.resolve(
+        savedTries?.sessionId === sessionId ? savedTries.tries : 0
+      ),
+    saveTries: (sessionId: string, tries: number) => {
+      savedTries = { sessionId, tries };
+      return Promise.resolve();
+    },
     enforce: vi.fn((_s: FocusLocalState | null | undefined) =>
       Promise.resolve()
     ),
@@ -391,5 +400,26 @@ describe('createFocusClient enforcement (FS7)', () => {
     t.setNow(2_000);
     await t.client.observe();
     expect(t.reports.at(-1)?.status).toBe('on-task');
+  });
+});
+
+describe('createFocusClient restart (FS7 review)', () => {
+  it('keeps the blocked tries of the same session across a restart', async () => {
+    const t = setup();
+    await t.client.check();
+    await t.client.blocked();
+    await t.client.blocked();
+    await t.deps.save(null);
+    await t.client.check();
+    expect(t.state()?.blockedTries).toBe(2);
+  });
+
+  it('never tells enforcement the session is over before a check answers', async () => {
+    const t = setup();
+    await t.client.tick();
+    expect(t.deps.enforce).toHaveBeenLastCalledWith(undefined);
+    t.setStatus({ ok: false, why: 'offline' });
+    await t.client.check();
+    expect(t.deps.enforce).toHaveBeenLastCalledWith(undefined);
   });
 });
