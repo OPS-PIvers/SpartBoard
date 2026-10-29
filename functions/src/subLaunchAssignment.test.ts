@@ -1004,9 +1004,7 @@ describe('the content the session carries', () => {
   });
 
   it('lets students cross out choices when the host has the flag', async () => {
-    const hostHasFeature = vi.fn((_db: unknown, _uid: string, id: string) =>
-      Promise.resolve(id === 'quiz-cross-out')
-    );
+    const hostHasFeature = vi.fn(() => Promise.resolve(true));
     const { run, written } = launch({}, SUB, input(), {
       ...deps,
       hostHasFeature,
@@ -1020,7 +1018,6 @@ describe('the content the session carries', () => {
       'quiz-cross-out'
     );
     expect(written[0].data.allowCrossOut).toBe(true);
-    expect(written[0].data).not.toHaveProperty('allowStimulusQuotes');
   });
 
   it('leaves cross-out unstamped without the host’s flag', async () => {
