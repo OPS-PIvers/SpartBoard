@@ -13,6 +13,7 @@ import {
   FlashcardsConfig,
   ProjectsConfig,
   ArtsLettersAgendaConfig,
+  FocusConfig,
 } from '@/types';
 import { STICKY_NOTE_COLORS } from './colors';
 import {
@@ -748,5 +749,14 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       cardColor: '#ffffff',
       cardOpacity: 0.85,
     } satisfies ArtsLettersAgendaConfig,
+  },
+  focus: {
+    w: 460,
+    h: 560,
+    config: {
+      sites: [],
+      level: 'redirect',
+      minutes: 30,
+    } satisfies FocusConfig,
   },
 };

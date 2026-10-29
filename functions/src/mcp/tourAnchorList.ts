@@ -742,6 +742,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "countdown#includeWeekends",
       "drawing#shapeFill",
       "flashcards#presentShuffle",
+      "focus#hideNames",
       "lunchCount#isManualMode",
       "nextUp#autoStartTimer",
       "numberLine#showArrows",
@@ -831,6 +832,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "expectations#behavior",
       "first-5#content",
       "flashcards#behavior",
+      "focus#behavior",
       "graphic-organizer#content",
       "guided-learning#behavior",
       "hotspot-image#content",
@@ -3197,6 +3199,401 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "widgets.checklist.face",
         "kind": "widget",
         "widget_type": "checklist",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.class",
+    "label": "Class picker in Focus",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.open-classes",
+    "label": "Open Classes button in Focus",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.site-input",
+    "label": "Add a site box in Focus",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.add-site",
+    "label": "Add site button in Focus",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.remove-site",
+    "label": "Remove site button in the Focus site list",
+    "scope": "widget",
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.sites-from-board",
+    "label": "Add sites from this board's Links and Embed widgets in Focus",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.saved-lists",
+    "label": "Saved lists button in Focus",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.save-list",
+    "label": "Save these sites button in Focus saved lists",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.load-list",
+    "label": "Use button on a Focus saved list",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.delete-list",
+    "label": "Delete button on a Focus saved list",
+    "scope": "widget",
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.level",
+    "label": "Level choice (Monitor, Redirect, Lock) in Focus",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.length",
+    "label": "Session length picker in Focus",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.start",
+    "label": "Start focus session button in Focus",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.past-sessions",
+    "label": "Past sessions button in Focus",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.past-session",
+    "label": "A past session in the Focus past sessions list",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.past-back",
+    "label": "Back button in Focus past sessions",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.extend",
+    "label": "Add 10 minutes button in a running Focus session",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.release-student",
+    "label": "Release one student button in the Focus roster",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.release-class",
+    "label": "Release class button in a running Focus session",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.open-add-site",
+    "label": "Add a site button in a running Focus session",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.live-site-input",
+    "label": "Add a site box in a running Focus session",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.live-add-site",
+    "label": "Add site button in a running Focus session",
+    "scope": "widget",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.end",
+    "label": "End session button in a running Focus session",
+    "scope": "widget",
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "focus.sub-check",
+    "label": "Check again button in Focus on a substitute's board",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.focus.face",
+        "kind": "widget",
+        "widget_type": "focus",
         "path": [],
         "needs": [
           "widget-on-stage"

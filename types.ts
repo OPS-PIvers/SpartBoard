@@ -1,4 +1,5 @@
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
+import type { FocusSite } from '@/utils/focus/contract';
 
 export type WidgetType =
   | 'clock'
@@ -68,7 +69,8 @@ export type WidgetType =
   | 'projects'
   | 'review'
   | 'routineGuide'
-  | 'arts-letters-agenda';
+  | 'arts-letters-agenda'
+  | 'focus';
 
 // --- ROSTER SYSTEM TYPES ---
 
@@ -2052,6 +2054,29 @@ export interface ChecklistConfig {
 export type ArtsLettersAgendaPartId = string;
 
 export type ArtsLettersAgendaVersion = 'simple' | 'detailed';
+
+/** A named list of focus sites; lives only in the profile's `savedWidgetPresets.focus`, never on a widget. */
+export interface FocusSavedSiteList {
+  id: string;
+  name: string;
+  sites: FocusSite[];
+  createdAt: number;
+}
+
+/** Focus widget (CHROME_EXTENSION.md F12); the session itself lives in `focus_sessions`. */
+export interface FocusConfig {
+  /** The teacher's roster for the class; must carry a ClassLink or mock class id. */
+  rosterId?: string;
+  /** That roster's class id, kept so a sub on a shared copy of the board can find the running session. */
+  classId?: string;
+  className?: string;
+  sites?: FocusSite[];
+  level?: FocusLevel;
+  minutes?: number;
+  savedSiteLists?: FocusSavedSiteList[];
+  /** Counts only on the face, for projecting. */
+  hideNames?: boolean;
+}
 
 export interface ArtsLettersAgendaConfig {
   version?: ArtsLettersAgendaVersion;
@@ -9886,7 +9911,8 @@ export type WidgetConfig =
   | StationsConfig
   | FlashcardsConfig
   | ProjectsConfig
-  | ArtsLettersAgendaConfig;
+  | ArtsLettersAgendaConfig
+  | FocusConfig;
 
 // Helper type to get config type for a specific widget
 export type ConfigForWidget<T extends WidgetType> = T extends 'url'
@@ -10025,7 +10051,9 @@ export type ConfigForWidget<T extends WidgetType> = T extends 'url'
                                                                                                                                       ? RoutineGuideConfig
                                                                                                                                       : T extends 'arts-letters-agenda'
                                                                                                                                         ? ArtsLettersAgendaConfig
-                                                                                                                                        : never;
+                                                                                                                                        : T extends 'focus'
+                                                                                                                                          ? FocusConfig
+                                                                                                                                          : never;
 
 export interface WidgetComponentProps {
   widget: WidgetData;
