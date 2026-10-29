@@ -5477,6 +5477,8 @@ export interface QuizSession
   focusLevel?: FocusLevel;
   /** Stamped only with the quiz-stimulus-quotes flag; absent = no quote button. */
   allowStimulusQuotes?: boolean;
+  /** Stamped only with the quiz-cross-out flag; absent = no cross-out buttons. */
+  allowCrossOut?: boolean;
   /** Show right/wrong indicator to students after they submit (default false) */
   showResultToStudent?: boolean;
   /** Reveal the correct answer text to students after submit (default false) */
@@ -10632,6 +10634,8 @@ export type GlobalFeature =
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
   | 'quiz-stimulus-quotes'
+  /** Students cross out multiple-choice options while they work; display only, never graded. */
+  | 'quiz-cross-out'
   /** Desmos calculator stimulus on quiz questions. */
   | 'quiz-calculator-stimulus'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */

@@ -204,6 +204,11 @@ import {
   type ReadAloudItemControls,
 } from './readAloud/useQuizReadAloud';
 import { ReadAloudButton } from './readAloud/ReadAloudButton';
+import { CrossOutChoiceButton } from './CrossOutChoiceButton';
+import {
+  crossOutStorageKey,
+  useCrossedOutChoices,
+} from './useCrossedOutChoices';
 import { StudentAccommodationBar } from './StudentAccommodationBar';
 import {
   highlightClass,
@@ -2336,6 +2341,19 @@ export const ActiveQuiz: React.FC<{
     stimulusTextById: session.readAloudTextByStimulusId,
   });
   const readAloudOn = readAloud.enabled;
+  // Waits for the response doc so a cross-out never lands under a placeholder key.
+  const crossOutUid =
+    session.allowCrossOut === true ? myResponse?.studentUid : undefined;
+  const crossOutOn = !!crossOutUid;
+  const crossedOut = useCrossedOutChoices(
+    crossOutUid
+      ? crossOutStorageKey(
+          session.id,
+          crossOutUid,
+          `${myResponse?.completedAttempts ?? 0}-${myResponse?.joinedAt ?? 0}`
+        )
+      : null
+  );
   // Speaker + text pane only for image/pdf stimuli with reviewed text (plan §6.2).
   const stimulusReadAloudFor = (
     s: QuizStimulus
@@ -3640,6 +3658,9 @@ export const ActiveQuiz: React.FC<{
   const mcSelectedCls = light
     ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary'
     : 'border-violet-500 bg-violet-500/20 text-white';
+  const mcCrossedOutCls = light
+    ? 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+    : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500';
   const mcUnselectedCls = light
     ? 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
     : 'border-slate-700 bg-slate-800 text-slate-300 hover:border-slate-500 hover:bg-slate-700/50';
@@ -4232,8 +4253,23 @@ export const ActiveQuiz: React.FC<{
                             ) === opt;
                       let cls =
                         'w-full text-left px-5 py-4 rounded-2xl border-2 text-sm font-medium transition-all ';
+                      const canonicalOpt = toCanonicalAnswer(
+                        currentQuestion,
+                        activeLocale,
+                        opt
+                      );
+                      const isCrossedOut =
+                        crossOutOn &&
+                        crossedOut.isCrossedOut(
+                          currentQuestion.id,
+                          canonicalOpt
+                        );
                       if (!isLocked) {
-                        cls += isSelected ? mcSelectedCls : mcUnselectedCls;
+                        cls += isSelected
+                          ? mcSelectedCls
+                          : isCrossedOut
+                            ? mcCrossedOutCls
+                            : mcUnselectedCls;
                       } else {
                         cls += isSelected
                           ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
@@ -4241,6 +4277,9 @@ export const ActiveQuiz: React.FC<{
                       }
                       const pick = () => {
                         if (isLocked) return;
+                        // Choosing a crossed-out option brings it back.
+                        if (isCrossedOut)
+                          crossedOut.restore(currentQuestion.id, canonicalOpt);
                         if (multiPicked) toggleMultiOption(opt);
                         else
                           setCacheForCurrent(
@@ -4276,12 +4315,38 @@ export const ActiveQuiz: React.FC<{
                               />
                             )}
                           </span>
-                          <span className="min-w-0 break-words">{opt}</span>
+                          <span
+                            className={`min-w-0 break-words ${isCrossedOut ? 'line-through decoration-2' : ''}`}
+                          >
+                            {opt}
+                          </span>
                         </span>
+                      ) : isCrossedOut ? (
+                        <span className="line-through decoration-2">{opt}</span>
                       ) : (
                         opt
                       );
-                      if (!readAloudOn) {
+                      const crossOutLabel = isCrossedOut && (
+                        <span className="sr-only">
+                          {' '}
+                          {t('quizCrossOut.crossedOut', '(crossed out)')}
+                        </span>
+                      );
+                      const shownIndex = options.indexOf(opt) + 1;
+                      // A picked option can't be crossed out; picking a crossed-out one restores it.
+                      const crossOutButton = crossOutOn && !isLocked && (
+                        <CrossOutChoiceButton
+                          n={shownIndex}
+                          crossedOut={isCrossedOut}
+                          light={light}
+                          disabled={submitting || isSelected}
+                          onToggle={() =>
+                            crossedOut.toggle(currentQuestion.id, canonicalOpt)
+                          }
+                          className="self-center"
+                        />
+                      );
+                      if (!readAloudOn && !crossOutOn) {
                         return (
                           <button
                             key={opt}
@@ -4296,8 +4361,9 @@ export const ActiveQuiz: React.FC<{
                         );
                       }
                       // D2: speaker beside the row, never inside the answer button.
-                      const choicePart = readAloud.choicePart(opt);
-                      const shownIndex = options.indexOf(opt) + 1;
+                      const choicePart = readAloudOn
+                        ? readAloud.choicePart(opt)
+                        : null;
                       return (
                         <div
                           key={opt}
@@ -4311,6 +4377,7 @@ export const ActiveQuiz: React.FC<{
                             className={`${cls} flex-1`}
                           >
                             {content}
+                            {crossOutLabel}
                           </button>
                           {choicePart && (
                             <ReadAloudButton
@@ -4324,6 +4391,7 @@ export const ActiveQuiz: React.FC<{
                               className="self-center"
                             />
                           )}
+                          {crossOutButton}
                         </div>
                       );
                     })}

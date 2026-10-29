@@ -52,6 +52,7 @@ import {
   Wand2,
   Zap,
   Quote,
+  Strikethrough,
   Calculator,
   Utensils,
   CloudSun,
@@ -618,6 +619,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Quote,
     description:
       'Students add selected passage or PDF text to a written answer as a quote.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Cross out answer choices. Admin-only until Paul has tested it in prod.
+  'quiz-cross-out': {
+    label: 'Cross out answer choices',
+    icon: Strikethrough,
+    description:
+      'Students cross out multiple-choice options they have ruled out.',
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'students',
