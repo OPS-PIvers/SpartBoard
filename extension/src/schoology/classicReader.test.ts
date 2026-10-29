@@ -157,6 +157,27 @@ describe('classic reader edges', () => {
     expect(toQuizQuestion(read.quiz.questions[0]).needsKey).toBe(true);
   });
 
+  it('keeps the first accepted answer first when the form lists them out of order', () => {
+    const read = readClassicQuiz({
+      title: 'X',
+      questions: [
+        {
+          type: 'fitb',
+          entries: [
+            ['title', 'A _ day'],
+            ['blanks[delta][0][answer][10]', 'tenth'],
+            ['blanks[delta][0][answer][2]', 'second'],
+            ['blanks[delta][0][answer][0]', 'first'],
+          ],
+        },
+      ],
+    });
+    expect(read.quiz.questions[0]).toMatchObject({
+      correctAnswer: 'first',
+      blankAlternates: [['second', 'tenth']],
+    });
+  });
+
   it('refuses a quiz with no questions', () => {
     expect(() => readClassicQuiz({ title: 'X', questions: [] })).toThrow(
       SchoologyReadError

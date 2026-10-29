@@ -248,11 +248,11 @@ function fillInBlank(
   const warnings: string[] = [];
   const blanks = indexed(
     entries,
-    /^blanks\[delta\]\[(\d+)\]\[(answer\]\[\d+)\]$/
+    /^blanks\[delta\]\[(\d+)\]\[answer\]\[(\d+)\]$/
   );
   const accepted = blanks.map((row) =>
     Object.keys(row)
-      .sort((a, b) => Number(a.split('[').pop()) - Number(b.split('[').pop()))
+      .sort((a, b) => Number(a) - Number(b))
       .map((k) => row[k].trim())
       .filter(Boolean)
   );
