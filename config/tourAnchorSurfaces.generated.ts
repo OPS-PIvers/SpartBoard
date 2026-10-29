@@ -2502,6 +2502,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'video-activity.timeline-add': ['library.video-activity.editor'],
     'video-activity.empty-create': ['library.video-activity'],
     'video-activity.selection-toggle': ['library.video-activity'],
+    'video-activity.archive-settings': ['library.video-activity'],
     'video-activity.settings-score-visibility': [
       'library.video-activity.editor',
     ],

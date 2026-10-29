@@ -46815,6 +46815,23 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "video-activity.archive-settings",
+    "label": "Settings item in a video activity assignment row menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.video-activity",
+        "kind": "widget",
+        "widget_type": "video-activity",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "video-activity.settings-score-visibility",
     "label": "Score visibility option in video activity behavior settings",
     "scope": "field",
