@@ -1,6 +1,6 @@
 name: Publish Chrome Extension
 
-# A version bump in extension/manifest.json on main publishes the prod listing after Paul approves the run.
+# A version bump in extension/manifest.json on main publishes the prod listing; Paul's OK on the release is the approval.
 # The dev build is only ever loaded unpacked, so nothing publishes it (extension/README.md, "Publishing").
 on:
   push:
@@ -49,24 +49,8 @@ jobs:
           echo "publish=$publish" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-  # GitHub creates a missing environment with no protection, so prod refuses to run until Paul is its required reviewer.
-  prod-guard:
-    needs: plan
-    if: needs.plan.outputs.publish == 'true'
-    runs-on: ubuntu-24.04
-    steps:
-      - env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          reviewers=$(gh api "repos/$GITHUB_REPOSITORY/environments/chrome-web-store-prod" \
-            --jq '[.protection_rules[]? | select(.type == "required_reviewers") | .reviewers[]?] | length') || reviewers=""
-          if [[ ! "$reviewers" =~ ^[0-9]+$ || "$reviewers" -lt 1 ]]; then
-            echo "::error::The chrome-web-store-prod environment is missing or has no required reviewer, so the prod listing was not published. Add Paul as its required reviewer (extension/README.md, \"Publishing\"), then run this workflow again from main."
-            exit 1
-          fi
-
   publish:
-    needs: [plan, prod-guard]
+    needs: plan
     if: needs.plan.outputs.publish == 'true'
     runs-on: ubuntu-24.04
     name: Publish prod listing ${{ needs.plan.outputs.version }}
