@@ -56857,6 +56857,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "blooms-taxonomy.level",
+    "label": "Level tab in Bloom's Taxonomy",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.blooms-taxonomy.face",
+        "kind": "widget",
+        "widget_type": "blooms-taxonomy",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "talking-tool.category",
     "label": "Category tab in Talking Tool",
     "scope": "field",

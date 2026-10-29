@@ -14,7 +14,7 @@ export const BloomsQuestionStarters: React.FC<{ widgetType: string }> = ({
   const activeColor = BLOOMS_COLORS[active.level];
 
   return (
-    <div className="flex h-full w-full select-none overflow-hidden rounded-[var(--window-radius,0px)] bg-white">
+    <div className="flex h-full w-full select-none overflow-hidden rounded-[var(--window-radius,0px)]">
       <div
         className="flex flex-col border-r border-slate-200 shrink-0"
         style={{ width: 'min(180px, 30cqw)' }}
