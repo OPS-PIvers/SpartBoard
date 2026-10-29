@@ -74,7 +74,7 @@ export const DockSection: React.FC<DockSectionProps> = ({ editor }) => {
           {dockOptions.map((option) => {
             const active = dockPosition === option.value;
             return (
-              <button
+              <button // no-tour-anchor: option inside dock.position
                 key={option.value}
                 type="button"
                 role="radio"
@@ -151,7 +151,7 @@ export const DockSection: React.FC<DockSectionProps> = ({ editor }) => {
               label: t('style.cornerFull', { defaultValue: 'Full' }),
             },
           ].map((r) => (
-            <button
+            <button // no-tour-anchor: option inside dock.corners
               key={r.id}
               onClick={() =>
                 setField(

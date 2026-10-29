@@ -65,7 +65,7 @@ interface PlcRowProps {
  * Click-affordance design: the entire card is a single click target that
  * opens the PLC Dashboard. Secondary actions (edit/view, delete/leave)
  * collapse into a kebab popover. Implemented as an absolute-positioned
- * backdrop `<button>` (the row click) with the visible content + kebab
+ * backdrop button element (the row click) with the visible content + kebab
  * layered above. `pointer-events-none` on the static visual content lets
  * clicks fall through to the backdrop; `pointer-events-auto` on the kebab
  * captures its own clicks. This avoids the invalid nested-button HTML
