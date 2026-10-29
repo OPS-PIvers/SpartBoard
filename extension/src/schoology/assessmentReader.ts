@@ -125,7 +125,8 @@ function mcq(
   });
   const keyed = new Set(strings(def.validation?.valid_response?.value));
   const right = options.filter((o) => keyed.has(o.value)).map((o) => o.text);
-  const multi = right.length > 1 || (def.multiple_responses && right.length > 0);
+  const multi =
+    right.length > 1 || (def.multiple_responses && right.length > 0);
   return {
     number,
     text: prompt.text,
@@ -143,7 +144,9 @@ function association(
   origin?: string
 ): ExtractedQuestion {
   const prompt = htmlContent(def.stimulus ?? '', origin);
-  const terms = strings(def.stimulus_list).map((t) => htmlContent(t, origin).text);
+  const terms = strings(def.stimulus_list).map(
+    (t) => htmlContent(t, origin).text
+  );
   const matches = strings(def.validation?.valid_response?.value).map(
     (m) => htmlContent(m, origin).text
   );
@@ -229,7 +232,9 @@ function clozedropdown(
   return fibFrom(
     number,
     def,
-    ['Schoology showed a dropdown for each blank; students type the answers here.'],
+    [
+      'Schoology showed a dropdown for each blank; students type the answers here.',
+    ],
     origin
   );
 }
@@ -249,7 +254,9 @@ const READERS: Record<string, Reader> = {
     fibFrom(
       n,
       d,
-      ['Schoology had students drag words into the blanks; students type them here.'],
+      [
+        'Schoology had students drag words into the blanks; students type them here.',
+      ],
       o
     ),
   clozedropdown,
@@ -298,15 +305,24 @@ export function readAssessment(input: AssessmentInput): SchoologyRead {
   const quiz = at(input.assessment, 'data', 'commonAssessment');
   const components = at(input.components, 'data', 'components');
   if (!isRecord(quiz) || !Array.isArray(components)) {
-    throw new SchoologyReadError('Schoology sent the assessment in a shape this reader does not know.');
+    throw new SchoologyReadError(
+      'Schoology sent the assessment in a shape this reader does not know.'
+    );
   }
   const warnings: string[] = [];
   const unsupported: number[] = [];
   const questions: ExtractedQuestion[] = [];
   for (const component of components) {
-    const version = at(component, 'metadata', 'question_domain', 'current_version');
+    const version = at(
+      component,
+      'metadata',
+      'question_domain',
+      'current_version'
+    );
     if (!isRecord(version)) {
-      warnings.push('One item on the assessment was not a question and was left out.');
+      warnings.push(
+        'One item on the assessment was not a question and was left out.'
+      );
       continue;
     }
     const number = questions.length + 1;
@@ -317,9 +333,15 @@ export function readAssessment(input: AssessmentInput): SchoologyRead {
     if (!def || !reader) {
       unsupported.push(number);
       const prompt =
-        def?.stimulus ?? (typeof version.stimulus === 'string' ? version.stimulus : '');
+        def?.stimulus ??
+        (typeof version.stimulus === 'string' ? version.stimulus : '');
       questions.push(
-        placeholderQuestion(number, htmlContent(prompt, input.origin), def?.type ?? 'unknown', points)
+        placeholderQuestion(
+          number,
+          htmlContent(prompt, input.origin),
+          def?.type ?? 'unknown',
+          points
+        )
       );
       continue;
     }

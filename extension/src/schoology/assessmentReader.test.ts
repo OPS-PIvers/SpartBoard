@@ -169,7 +169,10 @@ describe('Learnosity types beyond the fixture', () => {
 
   it('collects pictures with the page origin', () => {
     const read = readAssessment({
-      ...single({ type: 'longtextV2', stimulus: '<img src="/file_download/x">' }),
+      ...single({
+        type: 'longtextV2',
+        stimulus: '<img src="/file_download/x">',
+      }),
       origin: 'https://orono.schoology.com',
     });
     expect(read.imageUrls).toEqual([

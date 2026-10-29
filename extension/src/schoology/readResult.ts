@@ -82,9 +82,10 @@ export function placeholderQuestion(
 }
 
 /** `term:match` pairs; a colon or pipe would break the stored key, so those pairs are left out. */
-export function matchingKey(
-  pairs: readonly (readonly [string, string])[]
-): { answer: string; warnings: string[] } {
+export function matchingKey(pairs: readonly (readonly [string, string])[]): {
+  answer: string;
+  warnings: string[];
+} {
   const kept: string[] = [];
   const warnings: string[] = [];
   for (const [term, match] of pairs) {

@@ -97,7 +97,9 @@ describe('readClassicQuiz on the Sample Test/Quiz', () => {
   });
 
   it('reads a question with two blanks', () => {
-    expect(q[8].text).toBe('Fill in the blank with ___ blanks in ___ sentence.');
+    expect(q[8].text).toBe(
+      'Fill in the blank with ___ blanks in ___ sentence.'
+    );
     expect(splitBlanks(q[8].correctAnswer)).toEqual(['two', 'one']);
     expect(q[8].warnings).toEqual([]);
   });

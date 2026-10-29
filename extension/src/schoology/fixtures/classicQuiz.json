@@ -78,10 +78,7 @@
       "type": "essay",
       "entries": [
         ["weight", "4"],
-        [
-          "title",
-          "<p dir=\"ltr\">Short Answer/Essay type question text</p>"
-        ],
+        ["title", "<p dir=\"ltr\">Short Answer/Essay type question text</p>"],
         ["character_limit", "400"],
         ["time_limit", "0"],
         ["printing_options", "1"],

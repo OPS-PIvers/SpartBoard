@@ -46,7 +46,9 @@ export function classicQuestionList(html: string): ClassicListRow[] {
     doc.querySelectorAll('.component-summary-wrapper')
   )) {
     const type = Array.from(row.classList)
-      .find((c) => c.startsWith('component-') && c !== 'component-summary-wrapper')
+      .find(
+        (c) => c.startsWith('component-') && c !== 'component-summary-wrapper'
+      )
       ?.slice('component-'.length);
     const href =
       row.querySelector('a[href*="edit_question/"]')?.getAttribute('href') ??
@@ -132,7 +134,8 @@ function trueFalse(
     text: prompt.text,
     type: 'MC',
     options: asOptions([trueText, falseText]),
-    correctAnswer: correct === 't' ? trueText : correct === 'f' ? falseText : '',
+    correctAnswer:
+      correct === 't' ? trueText : correct === 'f' ? falseText : '',
     imageIds: prompt.imageUrls,
     warnings,
   };
@@ -243,12 +246,13 @@ function fillInBlank(
 ): ExtractedQuestion {
   const prompt = htmlContent(field(entries, 'title'), origin);
   const warnings: string[] = [];
-  const blanks = indexed(entries, /^blanks\[delta\]\[(\d+)\]\[(answer\]\[\d+)\]$/);
+  const blanks = indexed(
+    entries,
+    /^blanks\[delta\]\[(\d+)\]\[(answer\]\[\d+)\]$/
+  );
   const accepted = blanks.map((row) =>
     Object.keys(row)
-      .sort(
-        (a, b) => Number(a.split('[').pop()) - Number(b.split('[').pop())
-      )
+      .sort((a, b) => Number(a.split('[').pop()) - Number(b.split('[').pop()))
       .map((k) => row[k].trim())
       .filter(Boolean)
   );
@@ -316,7 +320,9 @@ const READERS: Record<
   essay,
 };
 
-function classicSettings(entries: FormEntries | undefined): SchoologyQuizSettings {
+function classicSettings(
+  entries: FormEntries | undefined
+): SchoologyQuizSettings {
   if (!entries) return {};
   const minutes = Number.parseInt(field(entries, 'time_limit'), 10);
   const attempts = Number.parseInt(field(entries, 'attempts'), 10);
