@@ -331,6 +331,7 @@ export {
   focusReleaseV1,
   focusAddSiteV1,
   focusEndV1,
+  focusOpenV1,
   focusSweepSessions,
 } from './focus/sessionCallables';
 export { expireActivityWallShares } from './expireActivityWallShares';

@@ -5,7 +5,7 @@ type Data = Record<string, unknown>;
 
 interface Filter {
   field: string;
-  op: '==' | 'array-contains-any';
+  op: '==' | '>=' | 'array-contains-any';
   value: unknown;
 }
 
@@ -39,7 +39,10 @@ export function createMemoryFirestore(): admin.firestore.Firestore & {
     path,
     parent: {
       id: path.split('/').slice(-2)[0],
-      parent: { id: path.split('/').slice(-3)[0] },
+      get parent() {
+        const up = path.split('/').slice(0, -2);
+        return up.length >= 2 ? docRef(up.join('/')) : null;
+      },
     },
     get: () => Promise.resolve(snap(path)),
     set: (data: Data) => {
@@ -62,6 +65,7 @@ export function createMemoryFirestore(): admin.firestore.Firestore & {
   const matches = (data: Data, f: Filter) => {
     const v = data[f.field];
     if (f.op === '==') return v === f.value;
+    if (f.op === '>=') return typeof v === 'number' && v >= (f.value as number);
     return (
       Array.isArray(v) &&
       (f.value as unknown[]).some((x) => (v as unknown[]).includes(x))
@@ -142,25 +146,33 @@ export function createMemoryFirestore(): admin.firestore.Firestore & {
       };
       return b;
     },
-    runTransaction: async <T>(
-      fn: (tx: Record<string, unknown>) => Promise<T>
-    ) => {
-      const ops: Array<() => Promise<void>> = [];
-      const tx = {
-        get: (ref: { get: () => Promise<unknown> }) => ref.get(),
-        update: (ref: { update: (d: Data) => Promise<void> }, d: Data) => {
-          ops.push(() => ref.update(d));
-        },
-        set: (ref: { set: (d: Data) => Promise<void> }, d: Data) => {
-          ops.push(() => ref.set(d));
-        },
-      };
-      const out = await fn(tx);
-      for (const op of ops) await op();
-      return out;
+    // Transactions run one at a time, which is what Firestore's retries amount to for these tests.
+    runTransaction: <T>(fn: (tx: Record<string, unknown>) => Promise<T>) => {
+      const run = txQueue.then(() => runOne(fn));
+      txQueue = run.then(
+        () => undefined,
+        () => undefined
+      );
+      return run;
     },
     dump: () => store,
   };
+  let txQueue: Promise<void> = Promise.resolve();
+  async function runOne<T>(fn: (tx: Record<string, unknown>) => Promise<T>) {
+    const ops: Array<() => Promise<void>> = [];
+    const tx = {
+      get: (ref: { get: () => Promise<unknown> }) => ref.get(),
+      update: (ref: { update: (d: Data) => Promise<void> }, d: Data) => {
+        ops.push(() => ref.update(d));
+      },
+      set: (ref: { set: (d: Data) => Promise<void> }, d: Data) => {
+        ops.push(() => ref.set(d));
+      },
+    };
+    const out = await fn(tx);
+    for (const op of ops) await op();
+    return out;
+  }
   return db as unknown as admin.firestore.Firestore & {
     dump: () => Map<string, Data>;
   };

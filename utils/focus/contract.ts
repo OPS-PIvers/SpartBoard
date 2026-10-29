@@ -234,3 +234,13 @@ export interface FocusEndRequest {
 export interface FocusEndReply {
   endedAt: number;
 }
+
+/** Body of `focusOpenV1`: a co-teacher, or a substitute naming their share, finds the class's running session. */
+export interface FocusOpenRequest {
+  classId: string;
+  shareId?: string;
+}
+
+export interface FocusOpenReply {
+  sessionId: string | null;
+}

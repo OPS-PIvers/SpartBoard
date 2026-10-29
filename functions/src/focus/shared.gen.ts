@@ -236,6 +236,16 @@ export interface FocusEndReply {
   endedAt: number;
 }
 
+/** Body of `focusOpenV1`: a co-teacher, or a substitute naming their share, finds the class's running session. */
+export interface FocusOpenRequest {
+  classId: string;
+  shareId?: string;
+}
+
+export interface FocusOpenReply {
+  sessionId: string | null;
+}
+
 // Focus allowlist parsing and matching (docs/plans/CHROME_EXTENSION.md F9); copied into functions/src/focus/shared.gen.ts.
 
 const GOOGLE_FILE_HOSTS = new Set([

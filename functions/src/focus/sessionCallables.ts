@@ -16,6 +16,7 @@ import {
   handleFocusAddSite,
   handleFocusEnd,
   handleFocusExtend,
+  handleFocusOpen,
   handleFocusRelease,
   handleFocusStart,
   sweepFocusSessions,
@@ -32,6 +33,7 @@ const liveDeps: FocusDeps = {
       classlinkClientSecret: CLASSLINK_CLIENT_SECRET.value(),
       tenantUrl: CLASSLINK_TENANT_URL.value(),
     }),
+  mockClassesOpen: () => process.env.GCLOUD_PROJECT === 'spartboard-dev',
 };
 
 function callerOf(request: CallableRequest): FocusCaller | null {
@@ -95,6 +97,17 @@ export const focusReleaseV1 = onCall(OPTIONS, async (request) => {
 export const focusAddSiteV1 = onCall(OPTIONS, async (request) => {
   assertViewAsAllowed(request, { outward: true });
   return handleFocusAddSite(
+    admin.firestore(),
+    callerOf(request),
+    request.data,
+    liveDeps
+  );
+});
+
+// Read-only for the session's content; it only adds the caller as a reader.
+export const focusOpenV1 = onCall(OPTIONS, async (request) => {
+  assertViewAsAllowed(request, { read: true });
+  return handleFocusOpen(
     admin.firestore(),
     callerOf(request),
     request.data,

@@ -29,6 +29,7 @@ import {
   type FocusEndReply,
   type FocusExtendReply,
   type FocusLevel,
+  type FocusOpenReply,
   type FocusReleaseReply,
   type FocusSessionDoc,
   type FocusSite,
@@ -56,6 +57,16 @@ const MAX_NAME_LENGTH = 100;
 const CONFLICT_CHUNK = 30;
 const BATCH_LIMIT = 450;
 const DAY_MS = 86_400_000;
+/** Per-class lock that makes "one running session per class" hold under concurrent starts. */
+export const FOCUS_CLASS_LOCKS_COLLECTION = 'focus_class_locks';
+/** How long the sweep keeps finishing ends that died partway. */
+const UNFINISHED_END_LOOKBACK_MS = 60 * 60_000;
+
+/** Expiry stamped at creation, so docs from a start or end that died partway are still deleted. */
+const provisionalExpiry = (startedAt: number) =>
+  Timestamp.fromMillis(startedAt + (FOCUS_RETENTION_DAYS + 1) * DAY_MS);
+const finalExpiry = (endedAt: number) =>
+  Timestamp.fromMillis(endedAt + FOCUS_RETENTION_DAYS * DAY_MS);
 
 export interface FocusCaller extends SubShareCaller {
   name: string | null;
@@ -69,6 +80,8 @@ export interface FocusDeps {
     teacherEmail: string,
     classId: string
   ) => Promise<Set<string> | null>;
+  /** Dev: any teacher who owns a roster for a mock class may use it; elsewhere only admins (F3). */
+  mockClassesOpen: () => boolean;
 }
 
 const bad = (message: string): never => {
@@ -140,6 +153,12 @@ export async function canUseFocusWidget(
   return isBetaTeacher(db, betaUsers, emailLower);
 }
 
+/** Start, Extend and Add site follow the widget permission; Release and End never do, so a session can always be stopped. */
+async function requireFocusWidget(db: Firestore, email: string): Promise<void> {
+  if (!(await canUseFocusWidget(db, email)))
+    denied('Focus sessions are not turned on for your account.');
+}
+
 async function loadWindow(db: Firestore): Promise<FocusWindow> {
   const snap = await db.doc(`admin_settings/${FOCUS_SETTINGS_DOC}`).get();
   return parseFocusWindow(snap.data()?.window);
@@ -173,6 +192,11 @@ export async function taughtClassStudentUids(
         .get(),
     ]);
     if (!member.exists || owned.empty) return null;
+    if (
+      !deps.mockClassesOpen() &&
+      !(await db.doc(`admins/${caller.email}`).get()).exists
+    )
+      return null;
     const raw: unknown = testClass.data()?.memberEmails;
     const emails = Array.isArray(raw)
       ? raw.filter((e): e is string => typeof e === 'string' && e.length > 0)
@@ -230,10 +254,15 @@ async function authorizeSessionSub(
   caller: FocusCaller,
   shareIdInput: unknown,
   now: number
-): Promise<void> {
+): Promise<{ expiresAt: number }> {
   const { email } = verifySubCaller(caller);
   const shareId = shortId(shareIdInput, 'shareId');
-  const { share, hostUid } = await verifySubShare(db, shareId, email, now);
+  const { share, hostUid, expiresAt } = await verifySubShare(
+    db,
+    shareId,
+    email,
+    now
+  );
   if (!session.teacherUids.includes(hostUid))
     denied('That share is not from a teacher of this class.');
   const rosterIds = (
@@ -256,6 +285,7 @@ async function authorizeSessionSub(
     );
   });
   if (!covers) denied('That share does not cover this class.');
+  return { expiresAt };
 }
 
 /** Teachers act on their own; a substitute passes `shareId` and may only release and end (F8). */
@@ -344,7 +374,7 @@ export async function refreshFocusConflicts(
   );
   const snaps = await Promise.all(pairs.map((p) => p.ref.get()));
   const holders = new Map<string, FocusSessionDoc>();
-  const writes: Array<[DocRef, Partial<FocusStudentDoc>]> = [];
+  const writes: OpenStudentPatch[] = [];
   // `pairs` keeps each student's sessions in start order, so the first unreleased one holds them.
   pairs.forEach((pair, i) => {
     const student = snaps[i].data() as FocusStudentDoc | undefined;
@@ -353,10 +383,13 @@ export async function refreshFocusConflicts(
     if (!holder) {
       holders.set(pair.uid, pair.session);
       if (student.status === 'other-session')
-        writes.push([
-          pair.ref,
-          { status: 'waiting', otherSessionEndsAt: null },
-        ]);
+        writes.push({
+          ref: pair.ref,
+          patch: (cur) =>
+            cur.status === 'other-session'
+              ? { status: 'waiting', otherSessionEndsAt: null }
+              : null,
+        });
       return;
     }
     if (
@@ -364,24 +397,55 @@ export async function refreshFocusConflicts(
       student.otherSessionEndsAt === holder.endsAt
     )
       return;
-    writes.push([
-      pair.ref,
-      {
-        status: 'other-session',
-        otherSessionEndsAt: holder.endsAt,
-        liveHost: null,
-        ...settleAway(student, now),
-      },
-    ]);
+    writes.push({
+      ref: pair.ref,
+      patch: (cur) =>
+        cur.status === 'released'
+          ? null
+          : {
+              status: 'other-session',
+              otherSessionEndsAt: holder.endsAt,
+              liveHost: null,
+              ...settleAway(cur, now),
+            },
+    });
   });
-  for (const part of chunks(writes, BATCH_LIMIT)) {
-    const batch = db.batch();
-    for (const [ref, data] of part) batch.update(ref, data);
-    await batch.commit();
-  }
+  await patchOpenStudents(db, writes);
 }
 
-const freshStudent = (): FocusStudentDoc => ({
+interface OpenStudentPatch {
+  ref: DocRef;
+  patch: (current: FocusStudentDoc) => Partial<FocusStudentDoc> | null;
+}
+
+/** Applies each patch to the student's current doc in its own transaction, skipping sessions that ended meanwhile so a collapsed summary is never rewritten. */
+async function patchOpenStudents(
+  db: Firestore,
+  patches: readonly OpenStudentPatch[]
+): Promise<string[]> {
+  const applied = await Promise.all(
+    patches.map(({ ref, patch }) =>
+      db.runTransaction(async (tx) => {
+        const sessionRef = ref.parent.parent as DocRef;
+        const [session, student] = await Promise.all([
+          tx.get(sessionRef),
+          tx.get(ref),
+        ]);
+        if (!session.exists || session.get('endedAt') !== null) return null;
+        if (!student.exists) return null;
+        const data = student.data() as FocusStudentDoc;
+        if (data.status === ('ended' as string)) return null;
+        const next = patch(data);
+        if (!next) return null;
+        tx.update(ref, next);
+        return ref.id;
+      })
+    )
+  );
+  return applied.filter((id): id is string => id !== null);
+}
+
+const freshStudent = (expiresAt: Timestamp): FocusStudentDoc => ({
   status: 'waiting',
   awaySince: null,
   awayMs: 0,
@@ -390,7 +454,26 @@ const freshStudent = (): FocusStudentDoc => ({
   protocol: null,
   liveHost: null,
   otherSessionEndsAt: null,
+  [FOCUS_TTL_FIELD]: expiresAt,
 });
+
+const classLockRef = (db: Firestore, orgId: string, classId: string) =>
+  db.collection(FOCUS_CLASS_LOCKS_COLLECTION).doc(`${orgId}__${classId}`);
+
+/** The class's running session id, read through its lock. */
+async function runningSessionFor(
+  read: (ref: DocRef) => Promise<admin.firestore.DocumentSnapshot>,
+  db: Firestore,
+  lock: admin.firestore.DocumentSnapshot,
+  now: number
+): Promise<string | null> {
+  const id: unknown = lock.get('sessionId');
+  if (typeof id !== 'string' || !id) return null;
+  const snap = await read(sessionsCol(db).doc(id));
+  return snap.exists && isActive(snap.data() as FocusSessionDoc, now)
+    ? id
+    : null;
+}
 
 export async function handleFocusStart(
   db: Firestore,
@@ -406,8 +489,7 @@ export async function handleFocusStart(
   const minutes = input.minutes;
   if (typeof minutes !== 'number') bad('minutes must be a number.');
 
-  if (!(await canUseFocusWidget(db, email)))
-    denied('Focus sessions are not turned on for your account.');
+  await requireFocusWidget(db, email);
 
   const now = deps.now();
   const window = await loadWindow(db);
@@ -433,19 +515,11 @@ export async function handleFocusStart(
   if (studentUids.length > FOCUS_MAX_STUDENTS)
     precondition('That class is too large for one focus session.');
 
-  const running = await sessionsCol(db)
-    .where('classId', '==', classId)
-    .where('endedAt', '==', null)
-    .get();
-  if (
-    running.docs.some(
-      (d) =>
-        (d.data() as FocusSessionDoc).orgId === orgId &&
-        isActive(d.data() as FocusSessionDoc, now)
-    )
-  ) {
-    precondition('That class already has a focus session running.');
-  }
+  const lockRef = classLockRef(db, orgId, classId);
+  const running = 'That class already has a focus session running.';
+  // Cheap check first, so a refused start writes no student docs.
+  if (await runningSessionFor((r) => r.get(), db, await lockRef.get(), now))
+    precondition(running);
 
   const ref = sessionsCol(db).doc();
   const session: FocusSessionDoc = {
@@ -462,15 +536,25 @@ export async function handleFocusStart(
     endsAt,
     endedAt: null,
     endReason: null,
+    [FOCUS_TTL_FIELD]: provisionalExpiry(now),
   };
   // Students first, so a status check that finds the session also finds their doc.
   for (const part of chunks(studentUids, BATCH_LIMIT)) {
     const batch = db.batch();
     for (const uid of part)
-      batch.set(studentsCol(ref).doc(uid), freshStudent());
+      batch.set(
+        studentsCol(ref).doc(uid),
+        freshStudent(provisionalExpiry(now))
+      );
     await batch.commit();
   }
-  await ref.set(session);
+  await db.runTransaction(async (tx) => {
+    const lock = await tx.get(lockRef);
+    if (await runningSessionFor((r) => tx.get(r), db, lock, now))
+      precondition(running);
+    tx.set(lockRef, { sessionId: ref.id, startedAt: now });
+    tx.set(ref, session);
+  });
   await refreshFocusConflicts(db, studentUids, now);
 
   const others = await Promise.all(
@@ -512,6 +596,7 @@ export async function handleFocusExtend(
   const { caller, email } = verifyTeacher(callerIn);
   const { ref, session } = await loadActive(db, data, deps.now());
   await authorizeSessionTeacher(db, ref, session, caller, email, deps);
+  await requireFocusWidget(db, email);
   const window = await loadWindow(db);
   const endsAt = await db.runTransaction(async (tx) => {
     const fresh = readSession(await tx.get(ref));
@@ -554,31 +639,24 @@ export async function handleFocusRelease(
     targets = [uid];
   }
   const now = deps.now();
-  const snaps = await Promise.all(
-    targets.map((uid) => studentsCol(ref).doc(uid).get())
-  );
-  const pending = snaps.filter(
-    (s) => s.exists && (s.data() as FocusStudentDoc).status !== 'released'
-  );
-  for (const part of chunks(pending, BATCH_LIMIT)) {
-    const batch = db.batch();
-    for (const snap of part) {
-      batch.update(snap.ref, {
-        status: 'released',
-        liveHost: null,
-        otherSessionEndsAt: null,
-        ...settleAway(snap.data() as FocusStudentDoc, now),
-      });
-    }
-    await batch.commit();
-  }
-  // A student released here may now belong to a later session (F7).
-  await refreshFocusConflicts(
+  const released = await patchOpenStudents(
     db,
-    pending.map((s) => s.id),
-    now
+    targets.map((uid) => ({
+      ref: studentsCol(ref).doc(uid),
+      patch: (cur) =>
+        cur.status === 'released'
+          ? null
+          : {
+              status: 'released',
+              liveHost: null,
+              otherSessionEndsAt: null,
+              ...settleAway(cur, now),
+            },
+    }))
   );
-  return { released: pending.length };
+  // A student released here may now belong to a later session (F7).
+  await refreshFocusConflicts(db, released, now);
+  return { released: released.length };
 }
 
 export async function handleFocusAddSite(
@@ -592,6 +670,7 @@ export async function handleFocusAddSite(
   if (!isFocusSite(input.site)) bad('That is not a web address.');
   const site = input.site as FocusSite;
   await authorizeSessionTeacher(db, ref, session, caller, email, deps);
+  await requireFocusWidget(db, email);
   const sites = await db.runTransaction(async (tx) => {
     const fresh = readSession(await tx.get(ref));
     if (!isActive(fresh, deps.now())) precondition('That session has ended.');
@@ -625,28 +704,38 @@ export function summarizeFocusStudent(
   };
 }
 
-/** Ends a session once (later calls return the first end time), collapses every student doc and frees students other sessions wait on. */
+/** Ends a session once (later calls return the first end time), then finishes the end. */
 export async function endFocusSession(
   db: Firestore,
   ref: DocRef,
   reason: NonNullable<FocusSessionDoc['endReason']>,
   now: number
 ): Promise<number> {
-  const expiresAt = Timestamp.fromMillis(now + FOCUS_RETENTION_DAYS * DAY_MS);
   const ended = await db.runTransaction(async (tx) => {
     const fresh = readSession(await tx.get(ref));
     if (fresh.endedAt !== null)
-      return { endedAt: fresh.endedAt, first: false, session: fresh };
+      return { endedAt: fresh.endedAt, session: fresh };
     // Ending after time ran out records when it ran out, not when the sweep noticed.
     const endedAt = Math.min(now, fresh.endsAt);
-    tx.update(ref, {
-      endedAt,
-      endReason: reason,
-      [FOCUS_TTL_FIELD]: expiresAt,
-    });
-    return { endedAt, first: true, session: fresh };
+    tx.update(ref, { endedAt, endReason: reason });
+    return { endedAt, session: fresh };
   });
-  // Re-collapse even on a repeat call, so an end that died mid-collapse is finished by the next one.
+  await finishFocusEnd(db, ref, ended.session.studentUids, ended.endedAt, now);
+  return ended.endedAt;
+}
+
+/**
+ * Collapses every student doc (F11), frees students later sessions wait on (F7), and only then sets the
+ * session's final expiry, which marks the end finished; safe to repeat, and the sweep repeats it until then.
+ */
+async function finishFocusEnd(
+  db: Firestore,
+  ref: DocRef,
+  studentUids: readonly string[],
+  endedAt: number,
+  now: number
+): Promise<void> {
+  const expiresAt = finalExpiry(endedAt);
   const students = await studentsCol(ref).get();
   const open = students.docs.filter(
     (d) => (d.data() as { status?: unknown }).status !== 'ended'
@@ -656,17 +745,21 @@ export async function endFocusSession(
     for (const doc of part)
       batch.set(
         doc.ref,
-        summarizeFocusStudent(
-          doc.data() as FocusStudentDoc,
-          ended.endedAt,
-          expiresAt
-        )
+        summarizeFocusStudent(doc.data() as FocusStudentDoc, endedAt, expiresAt)
       );
     await batch.commit();
   }
-  if (ended.first)
-    await refreshFocusConflicts(db, ended.session.studentUids, now);
-  return ended.endedAt;
+  await refreshFocusConflicts(db, studentUids, now);
+  await ref.update({ [FOCUS_TTL_FIELD]: expiresAt });
+}
+
+function isEndFinished(session: FocusSessionDoc): boolean {
+  const ttl = session[FOCUS_TTL_FIELD];
+  return (
+    session.endedAt !== null &&
+    ttl instanceof Timestamp &&
+    ttl.toMillis() === finalExpiry(session.endedAt).toMillis()
+  );
 }
 
 export async function handleFocusEnd(
@@ -720,5 +813,77 @@ export async function sweepFocusSessions(
       console.error('[focusSweep] end failed', doc.id, err);
     }
   }
+  const recent = await sessionsCol(db)
+    .where('endedAt', '>=', now - UNFINISHED_END_LOOKBACK_MS)
+    .get();
+  for (const doc of recent.docs) {
+    const session = doc.data() as FocusSessionDoc;
+    if (isEndFinished(session)) continue;
+    try {
+      await finishFocusEnd(
+        db,
+        doc.ref,
+        session.studentUids,
+        session.endedAt as number,
+        now
+      );
+    } catch (err) {
+      failed += 1;
+      console.error('[focusSweep] finishing end failed', doc.id, err);
+    }
+  }
   return { ended, failed };
+}
+
+/**
+ * Finds the class's running session for a co-teacher (added to `teacherUids`, F1) or a substitute
+ * (stamped as a sub monitor until their share expires, F8), so the session rules let them read it.
+ */
+export async function handleFocusOpen(
+  db: Firestore,
+  caller: FocusCaller | null,
+  data: unknown,
+  deps: FocusDeps
+): Promise<FocusOpenReply> {
+  const input = (data ?? {}) as Record<string, unknown>;
+  const classId = shortId(input.classId, 'classId');
+  const now = deps.now();
+  const sub = input.shareId !== undefined && input.shareId !== null;
+  const email = sub
+    ? verifySubCaller(caller).email
+    : verifyTeacher(caller).email;
+  const domain = normalizeEmailDomain(email);
+  const orgId = domain ? await resolveOrgIdForDomain(db, domain) : null;
+  if (!orgId) denied('Your account is not part of a school on SpartBoard.');
+  const lock = await classLockRef(db, orgId as string, classId).get();
+  const sessionId = await runningSessionFor((r) => r.get(), db, lock, now);
+  if (!sessionId) return { sessionId: null };
+  const ref = sessionsCol(db).doc(sessionId);
+  const session = readSession(await ref.get());
+  const who = caller as FocusCaller;
+  if (!sub) {
+    await authorizeSessionTeacher(db, ref, session, who, email, deps);
+    return { sessionId };
+  }
+  const { expiresAt } = await authorizeSessionSub(
+    db,
+    session,
+    who,
+    input.shareId,
+    now
+  );
+  await db.runTransaction(async (tx) => {
+    const fresh = (await tx.get(ref)).data() ?? {};
+    const raw: unknown = fresh.subMonitorUids;
+    const uids = Array.isArray(raw)
+      ? raw.filter((u): u is string => typeof u === 'string')
+      : [];
+    const until =
+      typeof fresh.subMonitorUntil === 'number' ? fresh.subMonitorUntil : 0;
+    tx.update(ref, {
+      subMonitorUids: uids.includes(who.uid) ? uids : [...uids, who.uid],
+      subMonitorUntil: Math.max(until, expiresAt),
+    });
+  });
+  return { sessionId };
 }

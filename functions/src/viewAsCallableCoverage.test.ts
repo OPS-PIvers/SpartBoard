@@ -11,6 +11,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   fetchExternalProxy: 'read',
   fetchImportImage: 'read',
   fetchLinkPreview: 'read',
+  focusOpenV1: 'read',
   getActiveStudentsV1: 'read',
   getAiProviderStatusV1: 'read',
   getAssignmentPseudonymV1: 'read',

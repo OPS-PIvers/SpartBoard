@@ -7,6 +7,7 @@ import {
   handleFocusAddSite,
   handleFocusEnd,
   handleFocusExtend,
+  handleFocusOpen,
   handleFocusRelease,
   handleFocusStart,
   sweepFocusSessions,
@@ -41,6 +42,7 @@ const coTeacher = teacher({
   email: 'co@orono.k12.mn.us',
   name: 'Mr. Co',
 });
+const coTeacherAdmin = () => coTeacher;
 const otherTeacher = teacher({
   uid: 'teacher-3',
   email: 'other@orono.k12.mn.us',
@@ -67,7 +69,9 @@ const deps: FocusDeps = {
     const list = CLASSES[email]?.[classId];
     return Promise.resolve(list ? new Set(list) : null);
   },
+  mockClassesOpen: () => mockOpen,
 };
+let mockOpen = true;
 
 const desmos = { host: 'desmos.com', path: '' };
 const startInput = (over: Record<string, unknown> = {}) => ({
@@ -88,6 +92,9 @@ async function seed() {
       admin.initializeApp({ projectId: 'demo-spartboard' });
     db = admin.firestore();
     await db.recursiveDelete(db.collection('focus_sessions'));
+    await db.recursiveDelete(db.collection('focus_class_locks'));
+    await db.recursiveDelete(db.collection('users'));
+    await db.recursiveDelete(db.collection('organizations'));
   } else {
     db = createMemoryFirestore();
   }
@@ -96,6 +103,7 @@ async function seed() {
     .set({ domain: '@orono.k12.mn.us', status: 'verified' });
   await db.doc('admins/teacher@orono.k12.mn.us').set({ roleId: 'super_admin' });
   await db.doc('admins/other@orono.k12.mn.us').set({ roleId: 'super_admin' });
+  await db.doc('admins/co@orono.k12.mn.us').delete();
   await db.doc('admin_settings/focus_sessions').delete();
   await db.doc('feature_permissions/focus').delete();
 }
@@ -114,6 +122,7 @@ const start = (caller = teacher(), over: Record<string, unknown> = {}) =>
 // The emulator's first call waits on a metadata lookup.
 beforeEach(async () => {
   now = NOW;
+  mockOpen = true;
   await seed();
 }, 30_000);
 
@@ -226,8 +235,24 @@ describe('focusStartV1', () => {
   });
 
   it('refuses a second session for the same class', async () => {
-    await start();
+    const first = await start();
     await expect(start()).rejects.toThrow(/already has/);
+    await handleFocusEnd(db, teacher(), { sessionId: first.sessionId }, deps);
+    await expect(start()).resolves.toMatchObject({ studentCount: 3 });
+  });
+
+  it('lets only one of two simultaneous starts through', async () => {
+    await db.doc('admins/co@orono.k12.mn.us').set({ roleId: 'super_admin' });
+    const results = await Promise.allSettled([
+      start(),
+      start(coTeacherAdmin()),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const open = await db
+      .collection('focus_sessions')
+      .where('endedAt', '==', null)
+      .get();
+    expect(open.docs).toHaveLength(1);
   });
 
   it('uses the mock class for a teacher who owns its roster', async () => {
@@ -247,6 +272,28 @@ describe('focusStartV1', () => {
     expect((await sessionDoc(reply.sessionId)).studentUids).toEqual([
       computeStudentUid('test:kid@students.orono.k12.mn.us', HMAC),
     ]);
+  });
+
+  it('keeps mock classes to admins outside dev', async () => {
+    mockOpen = false;
+    await db
+      .doc('organizations/orono/testClasses/mock-1')
+      .set({ memberEmails: ['kid@students.orono.k12.mn.us'] });
+    for (const t of [teacher(), coTeacher]) {
+      await db
+        .doc(`organizations/orono/members/${t.email}`)
+        .set({ roleId: 'teacher' });
+      await db.doc(`users/${t.uid}/rosters/r1`).set({ testClassId: 'mock-1' });
+    }
+    await db
+      .doc('feature_permissions/focus')
+      .set({ widgetType: 'focus', enabled: true, accessLevel: 'public' });
+    await expect(start(coTeacher, { classId: 'mock-1' })).rejects.toThrow(
+      /do not teach/
+    );
+    await expect(
+      start(teacher(), { classId: 'mock-1' })
+    ).resolves.toMatchObject({ studentCount: 1 });
   });
 });
 
@@ -333,11 +380,64 @@ describe('focusExtendV1', () => {
 
   it('adds a co-teacher of the class to the session on first use', async () => {
     const { sessionId } = await start();
+    await db
+      .doc('feature_permissions/focus')
+      .set({ widgetType: 'focus', enabled: true, accessLevel: 'public' });
     await handleFocusExtend(db, coTeacher, { sessionId }, deps);
     expect((await sessionDoc(sessionId)).teacherUids).toEqual([
       'teacher-1',
       'teacher-2',
     ]);
+  });
+});
+
+describe('turning the widget off mid-session', () => {
+  it('stops extend and add site but never release or end', async () => {
+    const { sessionId } = await start();
+    await db
+      .doc('feature_permissions/focus')
+      .set({ widgetType: 'focus', enabled: false, accessLevel: 'public' });
+    await expect(
+      handleFocusExtend(db, teacher(), { sessionId }, deps)
+    ).rejects.toThrow(/not turned on/);
+    await expect(
+      handleFocusAddSite(
+        db,
+        teacher(),
+        { sessionId, site: { host: 'more.com', path: '' } },
+        deps
+      )
+    ).rejects.toThrow(/not turned on/);
+    await expect(
+      handleFocusRelease(db, teacher(), { sessionId }, deps)
+    ).resolves.toEqual({ released: 3 });
+    await expect(
+      handleFocusEnd(db, teacher(), { sessionId }, deps)
+    ).resolves.toEqual({ endedAt: NOW });
+  });
+});
+
+describe('focusOpenV1', () => {
+  it('adds a co-teacher who opens the class session and refuses others', async () => {
+    const { sessionId } = await start();
+    await expect(
+      handleFocusOpen(db, coTeacher, { classId: CLASS }, deps)
+    ).resolves.toEqual({ sessionId });
+    expect((await sessionDoc(sessionId)).teacherUids).toEqual([
+      'teacher-1',
+      'teacher-2',
+    ]);
+    await expect(
+      handleFocusOpen(db, otherTeacher, { classId: CLASS }, deps)
+    ).rejects.toThrow(/do not teach/);
+    await expect(
+      handleFocusOpen(
+        db,
+        teacher({ studentRole: true }),
+        { classId: CLASS },
+        deps
+      )
+    ).rejects.toThrow(/teacher accounts/);
   });
 });
 
@@ -444,6 +544,26 @@ describe('substitutes (F8)', () => {
     await expect(
       handleFocusEnd(db, sub, { sessionId, shareId: 'share-1' }, deps)
     ).rejects.toThrow(/not from a teacher/);
+  });
+
+  it('stamps a sub as a reader when they open the class session', async () => {
+    await expect(
+      handleFocusOpen(db, sub, { classId: CLASS, shareId: 'share-1' }, deps)
+    ).resolves.toEqual({ sessionId: null });
+    const { sessionId } = await start();
+    await shareFor(CLASS);
+    await expect(
+      handleFocusOpen(db, sub, { classId: CLASS, shareId: 'share-1' }, deps)
+    ).resolves.toEqual({ sessionId });
+    expect(await sessionDoc(sessionId)).toMatchObject({
+      subMonitorUids: ['sub-1'],
+      subMonitorUntil: NOW + 86_400_000,
+      teacherUids: ['teacher-1'],
+    });
+    await shareFor(OTHER_CLASS);
+    await expect(
+      handleFocusOpen(db, sub, { classId: CLASS, shareId: 'share-1' }, deps)
+    ).rejects.toThrow(/does not cover/);
   });
 
   it('never lets a sub add sites', async () => {
@@ -571,6 +691,48 @@ describe('scheduled ender', () => {
     expect(await sessionDoc(cut.sessionId)).toMatchObject({
       endReason: 'window',
       endedAt: WINDOW_END,
+    });
+  });
+
+  it('finishes an end that died before the collapse', async () => {
+    const first = await start();
+    now += 60_000;
+    const second = await start(otherTeacher, { classId: OTHER_CLASS });
+    // The end transaction committed, then the function died.
+    await db
+      .doc(`focus_sessions/${first.sessionId}`)
+      .update({ endedAt: now, endReason: 'teacher' });
+    expect(await studentDoc(first.sessionId, 's1')).toMatchObject({
+      status: 'waiting',
+    });
+    expect(await sweepFocusSessions(db, now + 60_000)).toEqual({
+      ended: 0,
+      failed: 0,
+    });
+    expect(await studentDoc(first.sessionId, 's1')).toMatchObject({
+      status: 'ended',
+    });
+    expect(await studentDoc(second.sessionId, 's2')).toMatchObject({
+      status: 'waiting',
+    });
+    const ttl = (await sessionDoc(first.sessionId)).focusExpiresAt as Timestamp;
+    expect(ttl.toMillis()).toBe(now + 30 * 86_400_000);
+  });
+
+  it('stamps an expiry at creation so a broken start still gets deleted', async () => {
+    const { sessionId } = await start();
+    const ttl = (await studentDoc(sessionId, 's1')).focusExpiresAt as Timestamp;
+    expect(ttl.toMillis()).toBe(NOW + 31 * 86_400_000);
+  });
+
+  it('never rewrites a collapsed summary', async () => {
+    const { sessionId } = await start();
+    await handleFocusEnd(db, teacher(), { sessionId }, deps);
+    await expect(
+      handleFocusRelease(db, teacher(), { sessionId }, deps)
+    ).rejects.toThrow(/has ended/);
+    expect(await studentDoc(sessionId, 's1')).toMatchObject({
+      status: 'ended',
     });
   });
 
