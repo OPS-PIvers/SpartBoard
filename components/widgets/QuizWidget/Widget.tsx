@@ -1944,7 +1944,12 @@ const TeacherQuizWidget: React.FC<{
             description:
               'Choose a Schoology export (.imscc). Every question bank in it comes in as its own bank.',
             accept: '.imscc',
-            guide: <SchoologyExportGuide kind="banks" />,
+            guide: (
+              <SchoologyExportGuide
+                kind="banks"
+                canSend={canImportFromSchoology}
+              />
+            ),
             onFile: (file: File) => {
               setBankImportOpen(false);
               setBankCartridge(file);
@@ -2004,7 +2009,12 @@ const TeacherQuizWidget: React.FC<{
             description:
               'Choose a Schoology export (.imscc). Every quiz and test in it comes in as its own quiz.',
             accept: '.imscc',
-            guide: <SchoologyExportGuide kind="quizzes" />,
+            guide: (
+              <SchoologyExportGuide
+                kind="quizzes"
+                canSend={canImportFromSchoology}
+              />
+            ),
             onFile: (file: File) => setQuizCartridge(file),
           },
         }

@@ -38,13 +38,16 @@ const Steps: React.FC<{ heading: string; steps: string[] }> = ({
   </div>
 );
 
-export const SchoologyExportGuide: React.FC<{ kind: SchoologyExportKind }> = ({
-  kind,
-}) => {
+export const SchoologyExportGuide: React.FC<{
+  kind: SchoologyExportKind;
+  /** The teacher has the extension route (schoology-quiz-import), not just the .imscc flags. */
+  canSend: boolean;
+}> = ({ kind, canSend }) => {
   const [open, setOpen] = useState(false);
   const [hasExtension, setHasExtension] = useState(false);
 
   useEffect(() => {
+    if (!canSend) return;
     let live = true;
     void pingExtension().then((status) => {
       if (live) setHasExtension(canConnectSchoology(status));
@@ -52,7 +55,7 @@ export const SchoologyExportGuide: React.FC<{ kind: SchoologyExportKind }> = ({
     return () => {
       live = false;
     };
-  }, []);
+  }, [canSend]);
 
   const routes =
     kind === 'banks'
@@ -64,10 +67,10 @@ export const SchoologyExportGuide: React.FC<{ kind: SchoologyExportKind }> = ({
 
   return (
     <div className="w-full text-left" data-testid="schoology-export-guide">
-      {hasExtension && (
+      {canSend && hasExtension && (
         <p className="text-xs text-slate-600">
-          Or open the {kind === 'banks' ? 'question bank' : 'quiz'} in
-          Schoology and select <strong>Send to SpartBoard</strong>.
+          Or open the {kind === 'banks' ? 'question bank' : 'quiz'} in Schoology
+          and select <strong>Send to SpartBoard</strong>.
         </p>
       )}
       <button

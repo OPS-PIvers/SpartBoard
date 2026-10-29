@@ -20,7 +20,7 @@ describe('SchoologyExportGuide', () => {
   });
 
   it('shows both export routes for quizzes once opened', () => {
-    render(<SchoologyExportGuide kind="quizzes" />);
+    render(<SchoologyExportGuide kind="quizzes" canSend />);
     expect(screen.queryByText('From a course')).not.toBeInTheDocument();
     fireEvent.click(
       screen.getByRole('button', { name: /How to export from Schoology/ })
@@ -30,7 +30,7 @@ describe('SchoologyExportGuide', () => {
   });
 
   it('shows only the Resources route for question banks', () => {
-    render(<SchoologyExportGuide kind="banks" />);
+    render(<SchoologyExportGuide kind="banks" canSend />);
     fireEvent.click(
       screen.getByRole('button', { name: /How to export from Schoology/ })
     );
@@ -45,15 +45,28 @@ describe('SchoologyExportGuide', () => {
       protocol: 99,
       version: '0.1.22',
     });
-    render(<SchoologyExportGuide kind="banks" />);
+    render(<SchoologyExportGuide kind="banks" canSend />);
     await waitFor(() =>
       expect(screen.getByText('Send to SpartBoard')).toBeInTheDocument()
     );
   });
 
   it('says nothing about the Send button without the extension', async () => {
-    render(<SchoologyExportGuide kind="quizzes" />);
+    render(<SchoologyExportGuide kind="quizzes" canSend />);
     await waitFor(() => expect(ping).toHaveBeenCalled());
+    expect(screen.queryByText('Send to SpartBoard')).not.toBeInTheDocument();
+  });
+
+  it('leaves out the Send button without the extension route', async () => {
+    ping.mockResolvedValue({
+      kind: 'ready',
+      profile: 'staff',
+      protocol: 99,
+      version: '0.1.22',
+    });
+    render(<SchoologyExportGuide kind="quizzes" canSend={false} />);
+    await Promise.resolve();
+    expect(ping).not.toHaveBeenCalled();
     expect(screen.queryByText('Send to SpartBoard')).not.toBeInTheDocument();
   });
 });
