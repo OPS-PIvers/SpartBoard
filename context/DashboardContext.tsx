@@ -622,7 +622,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     setupCompleted,
     lastActiveCollectionId,
     lastBoardIdByCollection,
-    canAccessFeature,
   } = useAuth();
   const { driveService, userDomain } = useGoogleDrive();
   const {
@@ -5807,11 +5806,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     holdBoardName,
     pushBoardName,
   } = useLinkedCollectionSync({
-    // Optional call: many useAuth test doubles leave canAccessFeature out.
-    enabled:
-      canAccessFeature?.('collection-sync-sharing') === true &&
-      !isViewAsTab &&
-      !loading,
+    enabled: !isViewAsTab && !loading,
     uid: user?.uid ?? null,
     displayName: linkedSyncDisplayName,
     collections,
