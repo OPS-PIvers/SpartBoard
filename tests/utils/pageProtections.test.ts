@@ -17,10 +17,10 @@ describe('pageProtectionSessionFields', () => {
     ).toEqual({});
   });
 
-  it('stamps print blocking and a valid focus level with the flag', () => {
+  it('stamps print blocking with copy and paste, and a valid focus level, with the flag', () => {
     expect(
       pageProtectionSessionFields(true, {
-        blockPrint: true,
+        blockCopyPaste: true,
         focusLevel: 'lock',
       })
     ).toEqual({ blockPrint: true, focusLevel: 'lock' });
@@ -42,9 +42,13 @@ describe('withPageProtectionGate', () => {
     ).toEqual({ tabWarningsEnabled: true });
   });
 
-  it('passes everything through with the flag', () => {
-    const options = { blockCopyPaste: true, focusLevel: 'lock' as const };
-    expect(withPageProtectionGate(true, options)).toBe(options);
+  it('keeps everything with the flag and makes print follow copy and paste', () => {
+    expect(
+      withPageProtectionGate(true, {
+        blockCopyPaste: true,
+        focusLevel: 'lock' as const,
+      })
+    ).toEqual({ blockCopyPaste: true, blockPrint: true, focusLevel: 'lock' });
   });
 });
 

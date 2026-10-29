@@ -17,26 +17,27 @@ type ProtectionOptions = Pick<
   'blockCopyPaste' | 'blockPrint' | 'focusLevel'
 >;
 
-/** Session fields stamped at assign time; without the flag `blockPrint` and `focusLevel` never reach a session. */
+/** Session fields stamped at assign time; with the flag print follows copy and paste, without it neither key is written. */
 export function pageProtectionSessionFields(
   flagOn: boolean,
   options: ProtectionOptions
 ): Pick<BaseSessionOptions, 'blockPrint' | 'focusLevel'> {
   if (!flagOn) return {};
   return {
-    blockPrint: options.blockPrint === true,
+    blockPrint: options.blockCopyPaste === true,
     ...(isFocusLevel(options.focusLevel)
       ? { focusLevel: options.focusLevel }
       : {}),
   };
 }
 
-/** Drops the protection keys from a Video Activity options bag when the teacher lacks the flag. */
+/** Video Activity options bag: drops the protection keys without the flag; with it print follows copy and paste. */
 export function withPageProtectionGate<T extends ProtectionOptions>(
   flagOn: boolean,
   options: T
 ): T {
-  if (flagOn) return options;
+  if (flagOn)
+    return { ...options, blockPrint: options.blockCopyPaste === true };
   const rest = { ...options };
   delete rest.blockCopyPaste;
   delete rest.blockPrint;

@@ -6,8 +6,8 @@ import { PageProtectionGuards } from '@/components/common/PageProtectionGuards';
 const OFF = { blockClipboard: false, blockPrint: false, fullscreen: false };
 
 let fullscreenElement: Element | null = null;
-let requestFullscreen: ReturnType<typeof vi.fn>;
-let exitFullscreen: ReturnType<typeof vi.fn>;
+let requestFullscreen: ReturnType<typeof vi.fn<() => Promise<void>>>;
+let exitFullscreen: ReturnType<typeof vi.fn<() => Promise<void>>>;
 
 beforeEach(() => {
   fullscreenElement = null;
@@ -19,12 +19,12 @@ beforeEach(() => {
     configurable: true,
     get: () => fullscreenElement,
   });
-  requestFullscreen = vi.fn(() => {
+  requestFullscreen = vi.fn<() => Promise<void>>(() => {
     fullscreenElement = document.documentElement;
     document.dispatchEvent(new Event('fullscreenchange'));
     return Promise.resolve();
   });
-  exitFullscreen = vi.fn(() => {
+  exitFullscreen = vi.fn<() => Promise<void>>(() => {
     fullscreenElement = null;
     document.dispatchEvent(new Event('fullscreenchange'));
     return Promise.resolve();
@@ -132,8 +132,8 @@ describe('FullscreenCover', () => {
   });
 
   it('shows a retry line when the browser refuses', async () => {
-    document.documentElement.requestFullscreen = vi.fn(() =>
-      Promise.reject(new Error('denied'))
+    document.documentElement.requestFullscreen = vi.fn<() => Promise<void>>(
+      () => Promise.reject(new Error('denied'))
     );
     render(<PageProtectionGuards protections={{ ...OFF, fullscreen: true }} />);
     await act(async () => {

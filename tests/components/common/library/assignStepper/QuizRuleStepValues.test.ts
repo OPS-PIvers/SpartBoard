@@ -66,9 +66,15 @@ describe('formatQuizIntegrityValue', () => {
   it('lists fullscreen and print blocking from the focus-sessions rows', () => {
     expect(
       formatQuizIntegrityValue(
-        make({ focusLevel: 'lock', blockCopyPaste: true, blockPrint: true })
+        make({ focusLevel: 'lock', blockCopyPaste: true }),
+        { pageProtectionsOn: true }
       )
     ).toBe('Focus mode, Fullscreen, No copy, paste or print');
+    expect(
+      formatQuizIntegrityValue(
+        make({ focusLevel: 'lock', blockCopyPaste: true })
+      )
+    ).toBe('Focus mode, No copy and paste');
   });
 });
 

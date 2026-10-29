@@ -102,12 +102,17 @@ export function formatVideoPlaybackValue(
 }
 
 /** Collapsed value for "Integrity". */
-export function formatVideoIntegrityValue(value: VideoAssignRules): string {
+export function formatVideoIntegrityValue(
+  value: VideoAssignRules,
+  pageProtectionsOn = false
+): string {
   const o = value.behavior.sessionOptions;
   const parts: string[] = [];
   if (o.tabWarningsEnabled ?? true) parts.push('Focus mode');
-  if (sessionRequiresFullscreen(o)) parts.push('Fullscreen');
-  if (o.blockCopyPaste ?? false) parts.push('No copy, paste or print');
+  if (pageProtectionsOn && sessionRequiresFullscreen(o))
+    parts.push('Fullscreen');
+  if (pageProtectionsOn && (o.blockCopyPaste ?? false))
+    parts.push('No copy, paste or print');
   return parts.join(', ') || 'Off';
 }
 

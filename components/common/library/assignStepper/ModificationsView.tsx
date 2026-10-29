@@ -47,6 +47,8 @@ export interface ModificationsListProps extends ModificationsScope {
   quizMode: boolean;
   quizContext?: ModificationsQuizContext;
   readAloudAvailable?: boolean;
+  /** Quiz and Video Activity: shows the copy, paste and print choice (focus-sessions flag). */
+  pageProtectionsAvailable?: boolean;
   /** False when the host has no class picker, changing the empty-state copy. */
   canPickClasses?: boolean;
   /** Sizes text with `cqmin` for the one consumer inside a container-query face. */
@@ -68,6 +70,7 @@ const StudentModificationRow: React.FC<{
   onSkipChange: (skipped: boolean) => void;
   quizMode: boolean;
   readAloudAvailable: boolean;
+  pageProtectionsAvailable: boolean;
   questions: OverrideEditorQuestion[];
   rubrics: Rubric[];
   peers: OverrideEditorPeer[];
@@ -81,6 +84,7 @@ const StudentModificationRow: React.FC<{
   onSkipChange,
   quizMode,
   readAloudAvailable,
+  pageProtectionsAvailable,
   questions,
   rubrics,
   peers,
@@ -129,6 +133,7 @@ const StudentModificationRow: React.FC<{
           onChange={onOverrideChange}
           quizMode={quizMode}
           readAloudAvailable={readAloudAvailable}
+          pageProtectionsAvailable={pageProtectionsAvailable}
           questions={questions}
           rubrics={rubrics}
           peers={peers}
@@ -148,6 +153,7 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
   quizMode,
   quizContext,
   readAloudAvailable = false,
+  pageProtectionsAvailable = false,
   canPickClasses = true,
   cqScaled = false,
   showAll: showAllProp,
@@ -418,6 +424,7 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
                 onExpandedChange={(next) => setOpenKey(next ? row.key : null)}
                 quizMode={quizMode}
                 readAloudAvailable={readAloudAvailable}
+                pageProtectionsAvailable={pageProtectionsAvailable}
                 questions={quizContext?.questions ?? []}
                 rubrics={quizContext?.rubrics ?? []}
                 peers={viewRows
@@ -555,6 +562,7 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
                     onSkipChange={(skipped) => setSkipped(row.ref, skipped)}
                     quizMode={quizMode}
                     readAloudAvailable={readAloudAvailable}
+                    pageProtectionsAvailable={pageProtectionsAvailable}
                     questions={quizContext?.questions ?? []}
                     rubrics={quizContext?.rubrics ?? []}
                     peers={visibleRows

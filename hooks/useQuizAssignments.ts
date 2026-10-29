@@ -754,7 +754,7 @@ function sessionOptionsToSessionPatch(
     patch.tabAwayAutoSubmit = o.tabAwayAutoSubmit;
   if (o.blockCopyPaste !== undefined) patch.blockCopyPaste = o.blockCopyPaste;
   if (gates.pageProtectionsOn) {
-    if (o.blockPrint !== undefined) patch.blockPrint = o.blockPrint;
+    if (o.blockCopyPaste !== undefined) patch.blockPrint = o.blockCopyPaste;
     // Turning "Require fullscreen" off sends the key as undefined.
     if ('focusLevel' in o)
       patch.focusLevel = isFocusLevel(o.focusLevel)

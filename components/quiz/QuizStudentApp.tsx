@@ -1425,14 +1425,18 @@ const QuizJoinFlow: React.FC<{
 
   // Copy, paste and print blocking and fullscreen while the student is working (CHROME_EXTENSION.md F14).
   const protections = effectivePageProtections(session, myOverride);
+  // A pause or a closed period keeps fullscreen so students don't have to re-enter it.
   const working =
     screen.kind === 'answering' ||
     screen.kind === 'reviewing' ||
-    screen.kind === 'heldAtStop';
+    screen.kind === 'heldAtStop' ||
+    screen.kind === 'paused' ||
+    (screen.kind === 'periodLocked' && screen.started);
   const guards = (
     <PageProtectionGuards
       protections={{
-        blockClipboard: protections.blockClipboard,
+        // ActiveQuiz and the game block the clipboard on their own answer areas.
+        blockClipboard: false,
         blockPrint:
           protections.blockPrint && (working || screen.kind === 'game'),
         fullscreen: protections.fullscreen && working && !isViewOnly,

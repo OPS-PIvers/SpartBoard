@@ -68,6 +68,8 @@ export interface OverrideEditorRowProps {
   defaultExpanded?: boolean;
   /** Quiz only. Shows the "Read aloud" checkbox; the host resolves the 'quiz-read-aloud' gate. */
   readAloudAvailable?: boolean;
+  /** Quiz and Video Activity only; the row also needs the focus-sessions flag. */
+  pageProtectionsAvailable?: boolean;
   /** Set false on standing-default surfaces (e.g. roster accommodations) where openAt/closeAt are absolute timestamps that must never be copied onto future assignments. */
   allowWindowShift?: boolean;
   /** Controlled open state; uncontrolled when omitted. */
@@ -134,6 +136,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   peers = [],
   defaultExpanded = false,
   readAloudAvailable = false,
+  pageProtectionsAvailable = false,
   allowWindowShift = true,
   expanded: expandedProp,
   onExpandedChange,
@@ -150,6 +153,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
   const tabAwayTimerOn =
     authContext?.canAccessFeature?.('tab-away-timer') === true;
   const pageProtectionsOn =
+    pageProtectionsAvailable &&
     authContext?.canAccessFeature?.(PAGE_PROTECTIONS_FEATURE) === true;
   const { languages: enabledLanguages } =
     useQuizTranslationSettings(translationAvailable);

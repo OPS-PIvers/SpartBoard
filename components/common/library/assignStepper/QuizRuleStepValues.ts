@@ -53,13 +53,17 @@ export function formatQuizAttemptsValue(
 }
 
 /** Collapsed value for "Quiz integrity". */
-export function formatQuizIntegrityValue(value: QuizBehaviorSettings): string {
+export function formatQuizIntegrityValue(
+  value: QuizBehaviorSettings,
+  context: Pick<QuizRuleGates, 'pageProtectionsOn'> = {}
+): string {
   const o = value.sessionOptions;
+  const on = context.pageProtectionsOn === true;
   const parts: string[] = [];
   if (o.tabWarningsEnabled ?? true) parts.push('Focus mode');
-  if (sessionRequiresFullscreen(o)) parts.push('Fullscreen');
+  if (on && sessionRequiresFullscreen(o)) parts.push('Fullscreen');
   if (o.blockCopyPaste ?? false)
-    parts.push(o.blockPrint ? 'No copy, paste or print' : 'No copy and paste');
+    parts.push(on ? 'No copy, paste or print' : 'No copy and paste');
   return parts.join(', ') || 'Off';
 }
 
