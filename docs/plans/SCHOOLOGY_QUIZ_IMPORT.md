@@ -1,6 +1,6 @@
 # Schoology quiz import
 
-Status: planned 2026-10-29 (grill with Paul). PR 1 (readers), PR 2 (flag + server inbox) and PR 3 (review screen) built.
+Status: planned 2026-10-29 (grill with Paul). PR 1 (readers), PR 2 (flag + server inbox), PR 3 (review screen) and PR 4 (extension buttons) built.
 
 ## Goal
 
@@ -189,6 +189,16 @@ district key (2026-10-29, statuses and field names only):
 - If a reader finds no questions (Schoology changed its page), the button says "Couldn't read this
   quiz" and links to the `.imscc` route.
 
+- Built (PR 4): no always-on content script (T8). The service worker injects `schoology.js` after a
+  top-frame navigation to a Test/Quiz (`/assignment/{id}`, confirmed by its questions link), an
+  Assessment (`/course/{sid}/assessments/{id}`, whose HTML embeds `"assessmentId"`) or a course
+  Materials page, and only for a staff profile whose `schoologyImportStatusV1` answer (cached 30
+  minutes, 5 after a no) says enabled. Reads are plain GETs 250 ms apart; pictures from Schoology's
+  own origin are copied, others are left for the server's missing-picture note. The folder is the
+  course name from the page header.
+- Not in PR 4: question banks and Resources folders. Neither has a fixture page or a reader yet, so
+  the button skips them; they need a probe on a real bank before they can be read.
+
 ### Server side
 
 - `schoologyImportInboxV1` (HTTP, Google access token verified like `webTourExtension.ts`, district
@@ -226,6 +236,11 @@ district key (2026-10-29, statuses and field names only):
   unchanged. A new quiz gets Schoology's time limit, attempts and shuffle as its saved settings. If
   no Quiz widget is on the board, `?schoologyImport=1` does nothing yet; PR 4 decides what the
   extension opens.
+- Built (PR 4): "Review in SpartBoard" focuses the most recent open board tab and fires
+  `spartboard:schoology-review` in it (no reload, so a live lesson isn't interrupted); with no board
+  tab it opens `/?schoologyImport=1`. Either way the Quiz widget on the board being shown opens the
+  review, and `SchoologyReviewHost` adds a Quiz widget when that board has none (not on a read-only
+  board). A Quiz widget on a hidden board never takes the request.
 
 ## PR sequence
 

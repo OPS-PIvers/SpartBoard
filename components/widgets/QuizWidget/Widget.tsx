@@ -80,7 +80,10 @@ import { fetchImageThroughServer } from '@/utils/quizDocumentImport/remoteImageF
 import { CartridgeBankImportModal } from './components/CartridgeBankImportModal';
 import { SchoologyInboxModal } from './components/SchoologyInboxModal';
 import { useSchoologyInbox } from '@/hooks/useSchoologyInbox';
-import { claimSchoologyReviewParam } from '@/utils/schoologyInbox';
+import {
+  claimSchoologyReview,
+  subscribeSchoologyReview,
+} from '@/utils/schoologyInbox';
 import {
   callLeaveSyncedQuizGroup,
   createSyncedQuizGroup,
@@ -527,11 +530,22 @@ const TeacherQuizWidget: React.FC<{
   const canImportFromSchoology = canAccessFeature('schoology-quiz-import');
   const schoologyInbox = useSchoologyInbox(user?.uid, canImportFromSchoology);
   const [schoologyReviewOpen, setSchoologyReviewOpen] = useState(false);
-  // The extension opens SpartBoard with `?schoologyImport=1` after a send; the URL is outside React.
+  // The extension asks for the review by URL or by an event in an open tab; both are outside React.
+  // Only a Quiz widget on the board being shown takes it; other boards stay mounted while hidden.
+  const takesSchoologyReview =
+    canImportFromSchoology &&
+    variant === 'quiz' &&
+    !local &&
+    !!activeDashboard?.widgets.some((w) => w.id === widget.id);
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- runs once on mount after reading the page URL
-    if (claimSchoologyReviewParam()) setSchoologyReviewOpen(true);
-  }, []);
+    if (!takesSchoologyReview) return;
+    const open = () => {
+      if (claimSchoologyReview()) setSchoologyReviewOpen(true);
+    };
+
+    open();
+    return subscribeSchoologyReview(open);
+  }, [takesSchoologyReview]);
   const [editingBankMeta, setEditingBankMeta] =
     useState<QuestionBankMetadata | null>(null);
   const [shareBankTarget, setShareBankTarget] =

@@ -2,11 +2,14 @@ import { describe, it, expect } from 'vitest';
 import type { QuizQuestion } from '@/types';
 import {
   behaviorFromSettings,
-  claimSchoologyReviewParam,
+  claimSchoologyReview,
   keepQuestionTags,
   parseInboxItem,
   planInboxRows,
+  requestSchoologyReview,
+  schoologyReviewPending,
   settingsSummary,
+  subscribeSchoologyReview,
 } from './schoologyInbox';
 
 const doc = (over: Record<string, unknown> = {}) => ({
@@ -145,12 +148,23 @@ describe('keepQuestionTags', () => {
   });
 });
 
-describe('claimSchoologyReviewParam', () => {
-  it('opens once and strips the parameter', () => {
+describe('Schoology review requests', () => {
+  it('opens once from the URL and strips the parameter', () => {
     window.history.replaceState(null, '', '/?schoologyImport=1&x=2');
-    expect(claimSchoologyReviewParam()).toBe(true);
+    expect(schoologyReviewPending()).toBe(true);
+    expect(claimSchoologyReview()).toBe(true);
     expect(window.location.search).toBe('?x=2');
-    window.history.replaceState(null, '', '/?schoologyImport=1');
-    expect(claimSchoologyReviewParam()).toBe(false);
+    expect(claimSchoologyReview()).toBe(false);
+  });
+
+  it('tells listeners about a later request, which one claim takes', () => {
+    const heard: number[] = [];
+    const stop = subscribeSchoologyReview(() => heard.push(1));
+    requestSchoologyReview();
+    stop();
+    requestSchoologyReview();
+    expect(heard).toEqual([1]);
+    expect(claimSchoologyReview()).toBe(true);
+    expect(claimSchoologyReview()).toBe(false);
   });
 });
