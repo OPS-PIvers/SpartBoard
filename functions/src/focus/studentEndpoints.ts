@@ -147,8 +147,19 @@ async function studentUid(
   return uid;
 }
 
-const pushFingerprint = (p: { endpoint: string; keys: object } | null) =>
-  p ? sha256(JSON.stringify([p.endpoint, p.keys])) : '';
+// Fixed field order: Firestore returns map keys sorted, the client sends them in its own order.
+const pushFingerprint = (
+  p: { endpoint: unknown; keys?: { p256dh?: unknown; auth?: unknown } } | null
+) =>
+  p
+    ? sha256(
+        JSON.stringify([
+          String(p.endpoint),
+          String(p.keys?.p256dh),
+          String(p.keys?.auth),
+        ])
+      )
+    : '';
 
 function firestoreStore(db: Firestore): FocusStudentStore {
   const sessions = db.collection(FOCUS_SESSIONS_COLLECTION);
@@ -203,8 +214,8 @@ function firestoreStore(db: Firestore): FocusStudentStore {
       const snap = await ref.get();
       const stored = snap.exists
         ? pushFingerprint({
-            endpoint: String(snap.get('endpoint')),
-            keys: snap.get('keys') as object,
+            endpoint: snap.get('endpoint') as unknown,
+            keys: snap.get('keys') as { p256dh?: unknown; auth?: unknown },
           })
         : '';
       if (stored !== print) {
