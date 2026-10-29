@@ -8,6 +8,7 @@ import type {
 } from '@/types';
 import { DEFAULT_QUIZ_BEHAVIOR } from '@/utils/quizBehavior';
 import { importSourceKey } from '@/utils/importSource';
+import { SCHOOLOGY_REVIEW_PARAM } from '@/utils/schoologyReviewProtocol';
 import {
   questionNeedsKey,
   type ExtractedQuestion,
@@ -296,18 +297,42 @@ export function keepQuestionTags(
   });
 }
 
-/** The URL parameter the extension opens SpartBoard with to show the review. */
-export const SCHOOLOGY_REVIEW_PARAM = 'schoologyImport';
+let reviewRequested: boolean | null = null;
+const reviewListeners = new Set<() => void>();
 
-let reviewParamClaimed = false;
+const urlAsksForReview = (): boolean =>
+  typeof window !== 'undefined' &&
+  new URL(window.location.href).searchParams.has(SCHOOLOGY_REVIEW_PARAM);
 
-/** True once per page load when the URL asks for the review; strips the parameter so only one Quiz widget opens it. */
-export function claimSchoologyReviewParam(): boolean {
-  if (reviewParamClaimed || typeof window === 'undefined') return false;
-  const url = new URL(window.location.href);
-  if (!url.searchParams.has(SCHOOLOGY_REVIEW_PARAM)) return false;
-  reviewParamClaimed = true;
-  url.searchParams.delete(SCHOOLOGY_REVIEW_PARAM);
-  window.history.replaceState(window.history.state, '', url.toString());
+/** True while a review request (the URL parameter or the extension's event) waits for a Quiz widget to open it. */
+export function schoologyReviewPending(): boolean {
+  reviewRequested ??= urlAsksForReview();
+  return reviewRequested;
+}
+
+const notifyReview = () => {
+  for (const listener of [...reviewListeners]) listener();
+};
+
+export function requestSchoologyReview(): void {
+  reviewRequested = true;
+  notifyReview();
+}
+
+export function subscribeSchoologyReview(listener: () => void): () => void {
+  reviewListeners.add(listener);
+  return () => reviewListeners.delete(listener);
+}
+
+/** True for the one Quiz widget that takes a waiting request; strips the URL parameter. */
+export function claimSchoologyReview(): boolean {
+  if (!schoologyReviewPending()) return false;
+  reviewRequested = false;
+  if (urlAsksForReview()) {
+    const url = new URL(window.location.href);
+    url.searchParams.delete(SCHOOLOGY_REVIEW_PARAM);
+    window.history.replaceState(window.history.state, '', url.toString());
+  }
+  notifyReview();
   return true;
 }

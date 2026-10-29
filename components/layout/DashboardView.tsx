@@ -36,6 +36,7 @@ import { AnnotationOverlay } from './AnnotationOverlay';
 import { BoardNavFab } from './BoardNavFab';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
 import { GroupReminderHost } from '@/components/groupReminders/GroupReminderHost';
+import { SchoologyReviewHost } from '@/components/widgets/QuizWidget/SchoologyReviewHost';
 import { MountedBoardsLayer } from './MountedBoardsLayer';
 import { tourAttr } from '@/config/tourAnchors';
 import { HelpCenterModal } from '@/components/help/HelpCenterModal';
@@ -1733,6 +1734,7 @@ export const DashboardView: React.FC = () => {
       <ToastContainer />
       <AnnouncementOverlay />
       {canAccessFeature('group-reminders') && <GroupReminderHost />}
+      {canAccessFeature('schoology-quiz-import') && <SchoologyReviewHost />}
       <ShareStatusBanner />
       <ImportShareModePicker />
       {pendingSharedCollectionId && (

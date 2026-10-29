@@ -48,6 +48,11 @@ const ENTRIES: { entry: string; fileName: string; format: 'es' | 'iife' }[] = [
     fileName: 'locator.js',
     format: 'iife',
   },
+  {
+    entry: 'src/schoology/contentScript.ts',
+    fileName: 'schoology.js',
+    format: 'iife',
+  },
 ];
 
 // `--bench` builds the dev listing with perf marks on, plus the clue capturer the harness injects.
