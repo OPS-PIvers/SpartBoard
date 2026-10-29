@@ -80,17 +80,17 @@ This is the reverse of [SCHOOLOGY_TOOL_COLUMNS.md](SCHOOLOGY_TOOL_COLUMNS.md), w
   - the `final_grade` / `period` shape;
   - that `timestamp` filtering works;
   - paging and 429 behavior.
-  It stores nothing and logs no grades.
+    It stores nothing and logs no grades.
 - **D20.** Four stacked PRs, then a prod pilot (below).
 
 ## Data model (proposed; finalize in PR 1)
 
-| Path                                            | Written by  | Purpose                                                                                                                                                                                         |
-| ----------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Path                                                 | Written by  | Purpose                                                                                                                                                                                                                 |
+| ---------------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `grade_index/sgy_{sectionId}_{itemId}__{studentUid}` | server only | Ordinary index row with `kind: 'schoology'`, `rawPct`, `points`, `max`, `state`, `published`, plus `sgy: { sectionId, itemId, type, exception, comment, commentVisible, gradingPeriodId, categoryTitle, countInGrade }` |
-| `schoology_imports/{rosterId}`                  | server only | Per-class sync state: `sectionId`, `ownerUid`, `lastSyncAt`, `lastTimestamp`, `status`, `unmatchedCount`, item list (`itemId`, title, type, max, due, period, category, published)              |
-| `schoology_imports/{rosterId}/final/{studentUid}` | server only | D14 reference grades per period                                                                                                                                                                  |
-| `gradebook_columns/sgy_{sectionId}_{itemId}`    | teacher     | Existing column config doc: category, `countsTowardOverall`, targets, hidden; `deletedAt` for the 30-day keep (D7, D8)                                                                           |
+| `schoology_imports/{rosterId}`                       | server only | Per-class sync state: `sectionId`, `ownerUid`, `lastSyncAt`, `lastTimestamp`, `status`, `unmatchedCount`, item list (`itemId`, title, type, max, due, period, category, published)                                      |
+| `schoology_imports/{rosterId}/final/{studentUid}`    | server only | D14 reference grades per period                                                                                                                                                                                         |
+| `gradebook_columns/sgy_{sectionId}_{itemId}`         | teacher     | Existing column config doc: category, `countsTowardOverall`, targets, hidden; `deletedAt` for the 30-day keep (D7, D8)                                                                                                  |
 
 `'schoology'` joins `GradebookKind`; it is never a Resource, has no attempts and no session doc. Rules for the new server-only collections: teacher reads where `ownerUid == authUid()`; no client writes. Check `pnpm run check:rules-size`.
 
