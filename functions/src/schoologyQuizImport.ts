@@ -24,7 +24,7 @@ export const MAX_QUESTIONS = 500;
 export const MAX_IMAGES = 200;
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export const MAX_IMAGE_CHARS = Math.ceil(MAX_IMAGE_BYTES / 3) * 4;
-// Under Cloud Run's 32 MiB request cap, leaving room for the quiz JSON.
+// Under Cloud Run's 32 MiB request cap (functions-framework parses bodies up to 1024mb), leaving room for the quiz JSON.
 export const MAX_IMAGE_TOTAL_CHARS = 24 * 1024 * 1024;
 const MAX_DOC_BYTES = 900_000;
 const SIGN_IN = 'Sign in to Chrome with your Orono account.';
