@@ -104,11 +104,6 @@ Each item names the plan it came from; the plan holds the detail.
 
 - [ ] Flip admin_settings/plc_delegated_printing (Rollouts switch) to Public in prod after Paul tests it live, per the flag-release convention. (S)
 
-#### `docs/plans/shipped/PLC_NORMING_FLAGS.md`
-
-- [ ] Paul tests the feature in prod on his own account and flips 'plc-norming-flags' from admin/preview to Public in Admin Settings > Access > Previews. (S)
-- [ ] Once Public, per afterLaunch:'retire', delete the feature gate and registry entry and add the changelog note. (S)
-
 #### `docs/plans/PLC_RENAME_QUIZZES_TO_ASSESSMENTS.md`
 
 - [ ] Hold grilling session with Paul to settle scope/wording (teacher-side Quiz widget rename? video activities/rubrics as kinds under Assessments? student-facing copy?). (S)

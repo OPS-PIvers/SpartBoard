@@ -15,7 +15,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'tab-away-timer',
   'live-tour-editing-v2',
   'per-period-access',
-  'plc-norming-flags',
   'standards-from-question-text',
   'quiz-results-tools',
   'paper-handwritten-responses',
