@@ -196,6 +196,37 @@ beforeEach(() => {
 });
 
 describe('get_my_account', () => {
+  beforeEach(() => {
+    mocks.isAdmin.mockResolvedValue(false);
+    mocks.boardsOn.mockResolvedValue(false);
+  });
+
+  it('lists only the base content types when no extra feature is on', async () => {
+    const res = await (await connect(fakeDb().db))('get_my_account');
+    expect(res.content_types).not.toContain('guided_learning');
+    expect(res.content_types).not.toContain('boards');
+    expect(res.content_types).not.toContain('live_tours');
+    expect(res.daily_board_change_limit).toBeUndefined();
+  });
+
+  it('adds Guided Learning, boards, meeting notes and tours when they are on', async () => {
+    mocks.speakGranted.mockResolvedValue(true);
+    mocks.boardsOn.mockResolvedValue(true);
+    mocks.isAdmin.mockResolvedValue(true);
+    const res = await (await connect(fakeDb().db))('get_my_account');
+    mocks.speakGranted.mockResolvedValue(false);
+    expect(res.content_types).toEqual(
+      expect.arrayContaining([
+        'guided_learning',
+        'boards',
+        'meeting_notes',
+        'live_tours',
+        'web_tours',
+      ])
+    );
+    expect(res.daily_board_change_limit).toBe(500);
+  });
+
   it('reports the teacher, limits and the results wording when results are off', async () => {
     const call = await connect(fakeDb().db);
     const res = await call('get_my_account');
@@ -1119,7 +1150,6 @@ describe('hiddenToolsFor', () => {
       'get_board_guide',
       'get_live_tour',
       'get_mini_app_results_summary',
-      'get_mini_app_spec',
       'get_web_tour',
       'get_web_tour_step_picture',
       'list_boards',
@@ -1143,6 +1173,7 @@ describe('hiddenToolsFor', () => {
     const hidden = await hiddenToolsFor(ctxFor(fakeDb().db));
     expect(hidden.has('create_live_tour')).toBe(true);
     expect(hidden.has('get_board')).toBe(true);
-    expect(hidden.has('get_mini_app_spec')).toBe(true);
+    expect(hidden.has('get_mini_app_results_summary')).toBe(true);
+    expect(hidden.has('get_mini_app_spec')).toBe(false);
   });
 });

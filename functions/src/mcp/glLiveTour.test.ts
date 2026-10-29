@@ -151,9 +151,9 @@ describe('live tour tools', () => {
     }
   });
 
-  it('hides the Mini App results tools while results are off', async () => {
+  it('hides the Mini App results summary while results are off, never the spec', async () => {
     const hidden = await hiddenToolsFor(ctxFor(false));
-    expect(hidden.has('get_mini_app_spec')).toBe(true);
+    expect(hidden.has('get_mini_app_spec')).toBe(false);
     expect(hidden.has('get_mini_app_results_summary')).toBe(true);
     resultsOn.value = true;
     const shown = await hiddenToolsFor(ctxFor(false));
