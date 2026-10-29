@@ -17,9 +17,11 @@ const show = (kind: PageNoticeKind) =>
     FOCUS_FULLSCREEN_MESSAGE
   );
 const host = () => document.getElementById('spartboard-focus-notice');
+const coverHost = () => document.getElementById('spartboard-focus-cover');
 
 afterEach(() => {
   host()?.remove();
+  coverHost()?.remove();
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
@@ -51,16 +53,19 @@ describe('showPageNotice', () => {
     });
     show('cover');
     show('cover');
-    expect(document.querySelectorAll('#spartboard-focus-notice')).toHaveLength(
+    expect(document.querySelectorAll('#spartboard-focus-cover')).toHaveLength(
       1
     );
     const root = roots.at(-1);
+    // A notice on the same page leaves the cover in place.
+    show('notice');
+    expect(coverHost()).not.toBeNull();
     expect(root?.textContent).toContain(COVER_TEXT);
     root?.querySelector('button')?.click();
     expect(sendMessage).toHaveBeenCalledWith({
       type: FOCUS_FULLSCREEN_MESSAGE,
     });
     show('none');
-    expect(host()).toBeNull();
+    expect(coverHost()).toBeNull();
   });
 });

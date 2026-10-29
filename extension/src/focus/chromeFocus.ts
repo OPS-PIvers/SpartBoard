@@ -104,7 +104,9 @@ export const chromeFocusDeps: Pick<
   },
   openFocusPage: async () => {
     const url = chrome.runtime.getURL(FOCUS_PAGE_PATH);
-    const open = [...(await ownPageUrls())].find(([, u]) => u === url);
+    const open = [...(await ownPageUrls())].find(
+      ([, u]) => u === url || u.startsWith(`${url}?notice=`)
+    );
     if (open) {
       const tab = await chrome.tabs.update(open[0], { active: true });
       if (tab?.windowId !== undefined)

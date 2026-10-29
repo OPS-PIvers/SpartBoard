@@ -77,8 +77,7 @@ export function createFocusClient(deps: FocusClientDeps) {
   };
 
   const clear = async () => {
-    // Lock's rules come off before parked pages see the end and restore themselves.
-    await deps.enforce(null).catch(() => undefined);
+    // Saved first, so navigations made by restoring tabs never read the old session as still running.
     await deps.save(null);
     await redraw(null);
   };

@@ -71,7 +71,7 @@ export type ReturnPlan =
  */
 export function returnPlan(
   tabId: number,
-  /** The tab's committed address before the blocked navigation, if it is known. */
+  /** Where the tab was before the blocked navigation (an allowed page or our own page), if known. */
   currentUrl: string | undefined,
   tabs: readonly TabInfo[],
   state: FocusLocalState,
@@ -81,7 +81,7 @@ export function returnPlan(
   const isWeb = (u: string) => /^https?:/i.test(u);
   const goodWeb = (u: string) =>
     isWeb(u) && matchFocusUrl(u, state.session.sites, origins) === 'allowed';
-  if (currentUrl && goodWeb(currentUrl))
+  if (currentUrl && (goodWeb(currentUrl) || isFocusPage(currentUrl, base)))
     return { kind: 'reload', tabId, url: currentUrl };
   const others = tabs
     .filter(

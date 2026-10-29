@@ -21,7 +21,9 @@ export function showPageNotice(
   coverText: string,
   message: string
 ): void {
-  const HOST_ID = 'spartboard-focus-notice';
+  // Separate hosts, so a notice never replaces a cover.
+  const HOST_ID =
+    kind === 'notice' ? 'spartboard-focus-notice' : 'spartboard-focus-cover';
   document.getElementById(HOST_ID)?.remove();
   if (kind === 'none') return;
   const host = document.createElement('div');

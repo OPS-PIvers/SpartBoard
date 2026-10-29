@@ -23,7 +23,11 @@ interface FakeWindow {
   state: string;
 }
 
-function fakeChrome(tabs: FakeTab[], windows: FakeWindow[]) {
+function fakeChrome(
+  tabs: FakeTab[],
+  windows: FakeWindow[],
+  own: [number, string][] = []
+) {
   const session = new Map<string, unknown>();
   let rules: chrome.declarativeNetRequest.Rule[] = [];
   const injected: { tabId: number; kind: unknown }[] = [];
@@ -33,7 +37,10 @@ function fakeChrome(tabs: FakeTab[], windows: FakeWindow[]) {
     runtime: {
       getURL: (p: string) => `chrome-extension://ext/${p}`,
       ContextType: { TAB: 'TAB' },
-      getContexts: () => Promise.resolve([]),
+      getContexts: () =>
+        Promise.resolve(
+          own.map(([tabId, documentUrl]) => ({ tabId, documentUrl }))
+        ),
     },
     tabs: {
       TAB_ID_NONE: -1,
@@ -82,14 +89,19 @@ function fakeChrome(tabs: FakeTab[], windows: FakeWindow[]) {
     },
     storage: {
       session: {
-        get: (key: string) => Promise.resolve({ [key]: session.get(key) }),
+        get: (key: string | null) =>
+          Promise.resolve(
+            key === null
+              ? Object.fromEntries(session)
+              : { [key]: session.get(key) }
+          ),
         set: (items: Record<string, unknown>) => {
           for (const [k, v] of Object.entries(items))
             session.set(k, structuredClone(v));
           return Promise.resolve();
         },
-        remove: (key: string) => {
-          session.delete(key);
+        remove: (key: string | string[]) => {
+          for (const k of [key].flat()) session.delete(k);
           return Promise.resolve();
         },
       },
@@ -333,5 +345,108 @@ describe('createChromeEnforcer navigated', () => {
       await e.navigated(1, 'https://spartboard.web.app/q', undefined)
     ).toBe(false);
     expect(c.updates).toEqual([]);
+  });
+
+  it('sends the same address back again within the window but counts it once', async () => {
+    const tabs: FakeTab[] = [
+      {
+        id: 1,
+        windowId: 1,
+        url: 'https://desmos.com/',
+        active: true,
+        lastAccessed: 1,
+      },
+    ];
+    const c = fakeChrome(tabs, [{ id: 1, type: 'normal', state: 'normal' }]);
+    const e = enforcer();
+    current = local(session());
+    await e.navigated(1, 'https://desmos.com/', undefined);
+    expect(
+      await e.navigated(1, 'https://games.example/', 'https://desmos.com/')
+    ).toBe(true);
+    expect(await e.navigated(1, 'https://games.example/', undefined)).toBe(
+      false
+    );
+    expect(
+      c.updates.filter((u) => u.props.url === 'https://desmos.com/')
+    ).toHaveLength(2);
+    expect(c.removed).toEqual([]);
+  });
+
+  it('sends a late event back to the last allowed address instead of closing the tab', async () => {
+    const tabs: FakeTab[] = [
+      {
+        id: 1,
+        windowId: 1,
+        url: 'https://desmos.com/a',
+        active: true,
+        lastAccessed: 1,
+      },
+      {
+        id: 2,
+        windowId: 1,
+        url: 'https://desmos.com/b',
+        active: false,
+        lastAccessed: 2,
+      },
+    ];
+    const c = fakeChrome(tabs, [{ id: 1, type: 'normal', state: 'normal' }]);
+    const e = enforcer();
+    current = local(session());
+    await e.navigated(1, 'https://desmos.com/a', undefined);
+    expect(await e.navigated(1, 'https://sso.example/login', undefined)).toBe(
+      true
+    );
+    expect(c.removed).toEqual([]);
+    expect(c.updates.at(-1)).toEqual({
+      id: 1,
+      props: { url: 'https://desmos.com/a' },
+    });
+  });
+
+  it('sends a parked tab back to its own parked page, keeping its address', async () => {
+    const parked = parkedUrl(BASE, 'https://games.example/x');
+    const tabs: FakeTab[] = [
+      { id: 1, windowId: 1, url: '', active: true, lastAccessed: 1 },
+      {
+        id: 2,
+        windowId: 1,
+        url: 'https://desmos.com/',
+        active: false,
+        lastAccessed: 2,
+      },
+    ];
+    const c = fakeChrome(
+      tabs,
+      [{ id: 1, type: 'normal', state: 'normal' }],
+      [[1, parked]]
+    );
+    current = local(session());
+    expect(
+      await enforcer().navigated(1, 'https://games.example/x', undefined)
+    ).toBe(true);
+    expect(c.removed).toEqual([]);
+    expect(c.updates.at(-1)).toEqual({ id: 1, props: { url: parked } });
+  });
+
+  it('leaves restored tabs alone once the session is over', async () => {
+    const tabs: FakeTab[] = [
+      {
+        id: 1,
+        windowId: 1,
+        url: parkedUrl(BASE, 'https://games.example/x'),
+        active: true,
+        lastAccessed: 1,
+      },
+    ];
+    const c = fakeChrome(tabs, [{ id: 1, type: 'normal', state: 'normal' }]);
+    const e = enforcer();
+    current = undefined;
+    await e.sync(null);
+    expect(tabs[0].url).toBe('https://games.example/x');
+    expect(await e.navigated(1, 'https://games.example/x', undefined)).toBe(
+      false
+    );
+    expect(c.removed).toEqual([]);
   });
 });
