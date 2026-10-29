@@ -46,7 +46,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'agenda-versions',
   'embed-reload',
   'schoology-tool-columns',
-  'widget-whats-new',
   'mini-app-results',
   'quiz-monitor-declutter',
   'monitor-parity',
