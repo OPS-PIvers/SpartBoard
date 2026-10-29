@@ -26,6 +26,17 @@ vi.mock('@/context/useDashboard', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ canAccessWidget: () => quizAllowed }),
 }));
+const extension = {
+  canConnect: false,
+  signedIn: false as boolean | null,
+  connect: vi.fn(() => Promise.resolve(true)),
+};
+vi.mock('@/components/tours/web/extensionClient', () => ({
+  pingExtension: () => Promise.resolve({ kind: 'none' }),
+  canConnectSchoology: () => extension.canConnect,
+  extensionSignedIn: () => Promise.resolve(extension.signedIn),
+  connectExtension: () => extension.connect(),
+}));
 vi.mock('@/context/dashboardCanvasStore', () => ({
   useIsActiveBoardReadOnly: () => readOnly,
 }));
@@ -50,6 +61,10 @@ describe('SchoologyReviewHost', () => {
     widgets = [];
     readOnly = false;
     quizAllowed = true;
+    extension.canConnect = false;
+    extension.signedIn = false;
+    extension.connect.mockClear();
+    localStorage.clear();
     claimSchoologyReview();
   });
   afterEach(() => {
@@ -102,5 +117,63 @@ describe('SchoologyReviewHost', () => {
     expect(addWidget).not.toHaveBeenCalled();
     expect(addToast).toHaveBeenCalledOnce();
     expect(schoologyReviewPending()).toBe(false);
+  });
+
+  describe('connecting the extension', () => {
+    const settle = () => act(() => Promise.resolve());
+    type Action = {
+      onClick: () => void;
+    };
+    const offer = () => addToast.mock.calls[0]?.[2] as Action | undefined;
+
+    it('offers once when a staff extension has no sign-in, and connects on click', async () => {
+      extension.canConnect = true;
+      render(<SchoologyReviewHost />);
+      await settle();
+      expect(addToast).toHaveBeenCalledOnce();
+      offer()?.onClick();
+      await settle();
+      expect(extension.connect).toHaveBeenCalledOnce();
+      expect(addToast).toHaveBeenLastCalledWith(
+        expect.stringContaining('Reload your Schoology page'),
+        'success'
+      );
+    });
+
+    it('stays quiet when signed in or without a staff extension', async () => {
+      extension.canConnect = true;
+      extension.signedIn = true;
+      render(<SchoologyReviewHost />).unmount();
+      await settle();
+      extension.signedIn = false;
+      extension.canConnect = false;
+      render(<SchoologyReviewHost />).unmount();
+      await settle();
+      expect(addToast).not.toHaveBeenCalled();
+    });
+
+    it('offers only once per browser, however the toast closes', async () => {
+      extension.canConnect = true;
+      render(<SchoologyReviewHost />).unmount();
+      await settle();
+      expect(addToast).toHaveBeenCalledOnce();
+      render(<SchoologyReviewHost />);
+      await settle();
+      expect(addToast).toHaveBeenCalledOnce();
+    });
+
+    it('offers a retry when Google sign-in fails', async () => {
+      extension.canConnect = true;
+      extension.connect.mockResolvedValueOnce(false);
+      render(<SchoologyReviewHost />);
+      await settle();
+      offer()?.onClick();
+      await settle();
+      expect(addToast).toHaveBeenLastCalledWith(
+        "Couldn't connect the extension.",
+        'error',
+        expect.objectContaining({ label: 'Try again' })
+      );
+    });
   });
 });

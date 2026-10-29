@@ -11,7 +11,7 @@ import {
 } from '@/types';
 
 /** Bumped additively when a message type is added; the page checks it before using a feature. */
-export const EXTENSION_PROTOCOL_VERSION = 10;
+export const EXTENSION_PROTOCOL_VERSION = 11;
 
 /** Protocol 4: locators may carry `heading`, `pageTitle` and `attrs`, and steps report `score` matches. */
 export const SCORED_MATCH_PROTOCOL = 4;
@@ -33,6 +33,9 @@ export const FOCUS_PROTOCOL = 9;
 
 /** Protocol 10: the extension enforces Redirect and Lock (F2) and parks tabs (F10); a lower protocol only monitors. */
 export const FOCUS_ENFORCE_PROTOCOL = 10;
+
+/** Protocol 11: `schoology/signed-in` and `schoology/connect` let a page get the extension signed in, so its Schoology button can check the flag. */
+export const SCHOOLOGY_CONNECT_PROTOCOL = 11;
 
 /** Staff Google accounts; `@students.orono.k12.mn.us` does not match. */
 export const STAFF_EMAIL_DOMAIN = 'orono.k12.mn.us';
@@ -91,6 +94,16 @@ export interface WebTourCheckStartMessage {
 export interface WebTourOpenMessage {
   type: 'web-tour/open';
   setId: string;
+}
+
+/** Protocol 11, staff only: whether the extension holds a Google sign-in; `connect` asks Google for one. */
+export interface SchoologySignInMessage {
+  type: 'schoology/signed-in' | 'schoology/connect';
+}
+
+export interface SchoologySignInReply {
+  ok: true;
+  signedIn: boolean;
 }
 
 export interface WebTourStartReply {
@@ -157,7 +170,8 @@ export type ExtensionMessage =
   | PingMessage
   | WebTourStartMessage
   | WebTourCheckStartMessage
-  | WebTourOpenMessage;
+  | WebTourOpenMessage
+  | SchoologySignInMessage;
 export type ExtensionMessageType = ExtensionMessage['type'];
 
 export interface PingReply {
@@ -177,7 +191,7 @@ export interface ExtensionErrorReply {
 }
 
 export type ExtensionReply =
-  PingReply | WebTourStartReply | ExtensionErrorReply;
+  PingReply | WebTourStartReply | SchoologySignInReply | ExtensionErrorReply;
 
 interface MessageSpec {
   /** Refused unless the Chrome profile is a staff account (D3). */
@@ -211,6 +225,8 @@ const MESSAGE_SPECS: Record<ExtensionMessageType, MessageSpec> = {
     fields: { ...START_SPEC.fields, runId: isCheckRunId },
   },
   'web-tour/open': { staffOnly: true, fields: { setId: isTourSetId } },
+  'schoology/signed-in': { staffOnly: true, fields: {} },
+  'schoology/connect': { staffOnly: true, fields: {} },
 };
 
 export type ParsedMessage =
