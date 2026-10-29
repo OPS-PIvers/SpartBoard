@@ -1156,16 +1156,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'widget-whats-new': {
-    label: "Widget what's new",
-    icon: Sparkles,
-    description: "A What's new button under a widget after its look changes.",
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Inert while Mini App assignments are view-only in Organization settings.
   'mini-app-results': {
     label: 'Mini App results',

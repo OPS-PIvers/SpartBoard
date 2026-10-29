@@ -1,9 +1,8 @@
-import React, { useContext, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Footprints, Sparkles, X } from 'lucide-react';
 import type { WidgetType } from '@/types';
 import { IconButton } from '@/components/common/IconButton';
-import { AuthContext } from '@/context/AuthContextValue';
 import { useWidgetWhatsNew } from '@/hooks/useWidgetWhatsNew';
 import { useHasLiveTour } from '@/components/tours/useTourOffers';
 import { requestStartTour } from '@/components/tours/tourState';
@@ -117,13 +116,8 @@ interface WidgetWhatsNewProps {
   zIndex: number;
 }
 
-/** A widget's what's-new button below its window, with the note opening beside it; gated by `widget-whats-new`. */
-export const WidgetWhatsNew: React.FC<WidgetWhatsNewProps> = (props) =>
-  useContext(AuthContext)?.canAccessFeature('widget-whats-new') ? (
-    <WidgetWhatsNewNotice {...props} />
-  ) : null;
-
-const WidgetWhatsNewNotice: React.FC<WidgetWhatsNewProps> = ({
+/** A widget's what's-new button below its window, with the note opening beside it. */
+export const WidgetWhatsNew: React.FC<WidgetWhatsNewProps> = ({
   widgetType,
   box,
   zIndex,
