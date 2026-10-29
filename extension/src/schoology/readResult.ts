@@ -20,6 +20,8 @@ export interface SchoologyRead {
   /** Question numbers imported as "needs a look" placeholders (Q6). */
   unsupported: number[];
   settings: SchoologyQuizSettings;
+  /** A Resources item's folders, collection first; course items file under the course name instead. */
+  folderPath?: string[];
 }
 
 /** Thrown when Schoology's page or data no longer has the shape a reader expects. */

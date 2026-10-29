@@ -196,8 +196,16 @@ district key (2026-10-29, statuses and field names only):
   minutes, 5 after a no) says enabled. Reads are plain GETs 250 ms apart; pictures from Schoology's
   own origin are copied, others are left for the server's missing-picture note. The folder is the
   course name from the page header.
-- Not in PR 4: question banks and Resources folders. Neither has a fixture page or a reader yet, so
-  the button skips them; they need a probe on a real bank before they can be read.
+- Built (banks): a classic question bank is a Resources folder (`/resources/my/{collection}?f={folder}`)
+  whose `?ajax=1` JSON holds the folder HTML: a `#collection-title` trail and rows
+  `tr.component-type-{type}` with `/resources/my/{collection}/edit/{nid}` edit forms named like a
+  Test/Quiz's, so the classic reader takes them as is. An item bank (`/common-assessment-question-banks/{id}`)
+  embeds its title, collection and folder in its HTML, and `/iapi2/common-assessment-question-banks/{id}/question-list`
+  returns the same question records an Assessment's components carry; only `active` ones are read.
+  Both file under the Resources trail, collection first. A Resources folder gets the checklist for the
+  banks it lists. Resources moves between folders in the page (the address after `#`), so the worker
+  also injects on fragment changes and the button waits for that folder's own links.
+- Not built: Tests/Quizzes saved in Resources (not probed).
 
 ### Server side
 

@@ -1,12 +1,15 @@
-// The Send to SpartBoard button on Schoology quiz pages and the checklist on Materials (SCHOOLOGY_QUIZ_IMPORT Q4, Q5).
+// The Send to SpartBoard button on Schoology quiz and bank pages, and the checklist on Materials and Resources folders (SCHOOLOGY_QUIZ_IMPORT Q4, Q5).
 
 import { readFromSchoology, type ReadDeps } from './fetchRead';
 import type { SchoologyMessage, SendReply } from './messages';
 import {
   courseOf,
+  isClassicBankPage,
   isClassicQuizPage,
   materialsItems,
   pageTitle,
+  resourcesCrumbs,
+  resourcesItems,
   schoologyPage,
   type SchoologyItem,
 } from './page';
@@ -29,10 +32,15 @@ const readDeps = (onProgress?: ReadDeps['onProgress']): ReadDeps => ({
 const ask = <T>(message: SchoologyMessage) =>
   chrome.runtime.sendMessage<SchoologyMessage, T>(message);
 
-const itemUrl = (item: SchoologyItem) =>
-  item.kind === 'testQuiz'
-    ? `${location.origin}/assignment/${item.itemId}`
-    : `${location.origin}/course/${item.sectionId ?? ''}/assessments/${item.itemId}`;
+function itemUrl(item: SchoologyItem): string {
+  if (item.kind === 'testQuiz')
+    return `${location.origin}/assignment/${item.itemId}`;
+  if (item.kind === 'questionBank')
+    return item.bank === 'item'
+      ? `${location.origin}/common-assessment-question-banks/${item.itemId}`
+      : `${location.origin}/resources/my/${item.collectionId ?? ''}?f=${item.itemId}`;
+  return `${location.origin}/course/${item.sectionId ?? ''}/assessments/${item.itemId}`;
+}
 
 /** Reads one quiz, copies its pictures and posts it to the inbox. */
 async function sendItem(
@@ -143,11 +151,12 @@ function singleButton(
 function checklist(
   wrap: HTMLDivElement,
   items: SchoologyItem[],
-  courseName: string | null
+  courseName: string | null,
+  labels: { open: string; header: string }
 ) {
   const opener = el('button', {
     className: 'main',
-    textContent: 'Send quizzes to SpartBoard',
+    textContent: labels.open,
   });
   const panel = el('div', { className: 'panel', hidden: true });
   const boxes = items.map((item) => {
@@ -188,7 +197,7 @@ function checklist(
   });
   const footer = el('footer', {}, close, send, review);
   panel.append(
-    el('header', { textContent: 'Tests/Quizzes and Assessments' }),
+    el('header', { textContent: labels.header }),
     el('div', { className: 'list' }, ...boxes.map((b) => b.row)),
     footer
   );
@@ -224,17 +233,79 @@ function checklist(
   wrap.append(panel, opener);
 }
 
-function render() {
+const QUIZ_LABELS = {
+  open: 'Send quizzes to SpartBoard',
+  header: 'Tests/Quizzes and Assessments',
+};
+const BANK_LABELS = {
+  open: 'Send question banks to SpartBoard',
+  header: 'Question banks',
+};
+
+/** Resources fills a folder in after the URL changes; waits up to 10 seconds for this folder's own links. */
+function folderShown(folderId: string | undefined): Promise<boolean> {
+  const ready = () =>
+    !!document.querySelector(
+      '#collection-view-contents, table.collection-question-bank'
+    ) &&
+    (!folderId ||
+      !!document.querySelector(`a[href$="/bulk_move?f=${folderId}"]`));
+  if (ready()) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const observer = new MutationObserver(() => {
+      if (!ready()) return;
+      observer.disconnect();
+      clearTimeout(timer);
+      resolve(true);
+    });
+    const timer = setTimeout(() => {
+      observer.disconnect();
+      resolve(false);
+    }, 10_000);
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+}
+
+let rendering = 0;
+
+async function render() {
+  const run = ++rendering;
   const page = schoologyPage(location.href);
   const course = courseOf(document);
-  if (!page) {
-    document.getElementById(HOST_ID)?.remove();
-    return;
-  }
+  document.getElementById(HOST_ID)?.remove();
+  if (!page) return;
   if (page.kind === 'materials') {
     const items = materialsItems(document, page.sectionId);
     if (items.length === 0) return;
-    checklist(mount(), items, course?.name ?? null);
+    checklist(mount(), items, course?.name ?? null, QUIZ_LABELS);
+    return;
+  }
+  if (page.kind === 'resources') {
+    // Moving between folders swaps the content in place, so wait for this folder's.
+    if (!(await folderShown(page.folderId)) || run !== rendering) return;
+    if (isClassicBankPage(document)) {
+      if (!page.folderId) return;
+      const crumbs = resourcesCrumbs(document);
+      singleButton(
+        mount(),
+        {
+          kind: 'questionBank',
+          bank: 'classic',
+          itemId: page.folderId,
+          collectionId: page.collectionId,
+          title: crumbs.at(-1) ?? 'Question bank',
+        },
+        null
+      );
+      return;
+    }
+    const items = resourcesItems(document, page.collectionId);
+    if (items.length === 0) return;
+    checklist(mount(), items, null, BANK_LABELS);
+    return;
+  }
+  if (page.kind === 'questionBank') {
+    singleButton(mount(), { ...page, title: pageTitle(document) }, null);
     return;
   }
   if (page.kind === 'testQuiz' && !isClassicQuizPage(document, page.itemId))
@@ -250,4 +321,10 @@ function render() {
   );
 }
 
-render();
+// The service worker injects again after Resources moves to another folder in the page; one listener is enough.
+const injected = globalThis as { spartSchoologyListening?: boolean };
+if (!injected.spartSchoologyListening) {
+  injected.spartSchoologyListening = true;
+  addEventListener('hashchange', () => void render());
+}
+void render();

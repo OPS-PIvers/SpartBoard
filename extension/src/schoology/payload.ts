@@ -34,6 +34,7 @@ export interface InboxRequest {
     kind: SchoologyItem['kind'];
     itemId: string;
     sectionId?: string;
+    collectionId?: string;
     url: string;
   };
   folderPath: string[];
@@ -92,14 +93,20 @@ export function inboxRequest(
   pictures: InboxPicture[],
   url: string
 ): InboxRequest {
+  // The server takes up to 10 folders of 200 characters.
+  const folderPath = (read.folderPath ?? (courseName ? [courseName] : []))
+    .map((name) => name.trim().slice(0, 200))
+    .filter(Boolean)
+    .slice(0, 10);
   return {
     source: {
       kind: item.kind,
       itemId: item.itemId,
       ...(item.sectionId ? { sectionId: item.sectionId } : {}),
+      ...(item.collectionId ? { collectionId: item.collectionId } : {}),
       url,
     },
-    folderPath: courseName ? [courseName.slice(0, 200)] : [],
+    folderPath,
     quiz: {
       title: read.quiz.title.slice(0, 500),
       questions: read.quiz.questions,

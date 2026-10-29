@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   courseOf,
+  isClassicBankPage,
   isClassicQuizPage,
   materialsItems,
   pageTitle,
+  resourcesCrumbs,
+  resourcesItems,
   schoologyPage,
 } from './page';
 
@@ -88,5 +91,66 @@ describe('page details', () => {
       { kind: 'testQuiz', itemId: '2', sectionId: '9', title: 'Unit quiz' },
       { kind: 'assessment', itemId: '4', sectionId: '9', title: 'Final' },
     ]);
+  });
+});
+
+describe('question banks in Resources', () => {
+  it('reads the folder from the address, including after in-page moves', () => {
+    expect(
+      schoologyPage(
+        'https://orono.schoology.com/resources/my/7637440413?f=358645304'
+      )
+    ).toEqual({
+      kind: 'resources',
+      collectionId: '7637440413',
+      folderId: '358645304',
+    });
+    expect(
+      schoologyPage(
+        'https://orono.schoology.com/resources/my/7637440413?f=358645304#/resources/my/7637440413?f=358645270'
+      )
+    ).toMatchObject({ folderId: '358645270' });
+    expect(
+      schoologyPage(
+        'https://orono.schoology.com/resources#/resources/7637440413'
+      )
+    ).toEqual({ kind: 'resources', collectionId: '7637440413' });
+    expect(
+      schoologyPage(
+        'https://orono.schoology.com/common-assessment-question-banks/191500786?f=358645270'
+      )
+    ).toEqual({ kind: 'questionBank', bank: 'item', itemId: '191500786' });
+    expect(schoologyPage('https://orono.schoology.com/resources')).toBeNull();
+  });
+
+  const crumb = `<div id="collection-title"><a href="/resources/my/7">MCAs</a> <span class="arrow"></span> <a class="breadcrumb-link" href="/resources/my/7?f=1">High School</a> <span class="arrow"></span> <span class="active"><span class="inline-icon"></span>Algebra</span></div>`;
+
+  it('lists both kinds of bank in a folder, and the trail above it', () => {
+    const page = doc(`${crumb}<table id="collection-view-contents"><tbody>
+      <tr id="f-358645304" class="collection-template-item-row collection-row-folder"><td class="collection-item-icon"><span class="inline-icon testquiz-question-bank-icon"></span></td><td class="collection-item-title"><a href="/resources/my/7?f=358645304">9.2.1.9</a></td></tr>
+      <tr id="t-1" class="collection-template-item-row collection-row-template"><td class="collection-item-icon"><span class="inline-icon common-assessment-question-bank-icon"></span></td><td class="collection-item-title"><a href="/common-assessment-question-banks/191500786?f=358645270">9.2.1.1</a></td></tr>
+      <tr id="f-2" class="collection-template-item-row collection-row-folder"><td class="collection-item-icon"><span class="inline-icon folder-icon"></span></td><td class="collection-item-title"><a href="/resources/my/7?f=2">Plain folder</a></td></tr>
+    </tbody></table>`);
+    expect(resourcesCrumbs(page)).toEqual(['MCAs', 'High School', 'Algebra']);
+    expect(resourcesItems(page, '7')).toEqual([
+      {
+        kind: 'questionBank',
+        bank: 'classic',
+        itemId: '358645304',
+        collectionId: '7',
+        title: '9.2.1.9',
+      },
+      {
+        kind: 'questionBank',
+        bank: 'item',
+        itemId: '191500786',
+        collectionId: '7',
+        title: '9.2.1.1',
+      },
+    ]);
+    expect(isClassicBankPage(page)).toBe(false);
+    expect(
+      isClassicBankPage(doc('<table class="collection-question-bank"></table>'))
+    ).toBe(true);
   });
 });
