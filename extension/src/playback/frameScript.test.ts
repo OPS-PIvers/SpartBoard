@@ -1,6 +1,6 @@
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  installFrameSeeker,
+  installFrameSeeker as installSeeker,
   isFrameCommand,
   type FrameReport,
 } from './frameScript';
@@ -13,7 +13,16 @@ Element.prototype.getBoundingClientRect = function () {
     : new DOMRect();
 };
 
+// Stopped after each test so no observer or timer outlives the environment.
+const installed: ReturnType<typeof installSeeker>[] = [];
+const installFrameSeeker: typeof installSeeker = (...args) => {
+  const run = installSeeker(...args);
+  installed.push(run);
+  return run;
+};
+
 afterEach(() => {
+  for (const run of installed.splice(0)) run({ type: 'wt:stop' });
   document.body.innerHTML = '';
   vi.useRealTimers();
   globalThis.__sbWebTourFrame = undefined;

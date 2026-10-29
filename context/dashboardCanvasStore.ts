@@ -48,7 +48,12 @@ import {
   useRef,
   useSyncExternalStore,
 } from 'react';
-import type { Dashboard, GlobalStyle, TourLayoutKeyframe } from '@/types';
+import type {
+  ClassRoster,
+  Dashboard,
+  GlobalStyle,
+  TourLayoutKeyframe,
+} from '@/types';
 import { DEFAULT_GLOBAL_STYLE } from '@/types';
 import {
   DashboardContext,
@@ -66,6 +71,8 @@ export interface DashboardCanvasState {
   groupBuildMode: boolean;
   zoom: number;
   isActiveBoardReadOnly: boolean;
+  /** The teacher's classes; absent in test hosts that build the slice by hand. */
+  rosters?: ClassRoster[];
 }
 
 /**
@@ -112,7 +119,8 @@ export function createDashboardCanvasStore(
         Object.is(state.selectedWidgetIds, next.selectedWidgetIds) &&
         Object.is(state.groupBuildMode, next.groupBuildMode) &&
         Object.is(state.zoom, next.zoom) &&
-        Object.is(state.isActiveBoardReadOnly, next.isActiveBoardReadOnly)
+        Object.is(state.isActiveBoardReadOnly, next.isActiveBoardReadOnly) &&
+        Object.is(state.rosters, next.rosters)
       ) {
         return;
       }
@@ -164,7 +172,7 @@ export const DashboardActionsContext = createContext<DashboardActions | null>(
 export const DashboardCanvasStoreContext =
   createContext<DashboardCanvasStore | null>(null);
 
-/** Picks the 6 hot fields off the full legacy context value (fallback mode). */
+/** Picks the hot fields off the full legacy context value (fallback mode). */
 const sliceFromLegacy = (
   value: DashboardContextValue
 ): DashboardCanvasState => ({
@@ -174,6 +182,7 @@ const sliceFromLegacy = (
   groupBuildMode: value.groupBuildMode,
   zoom: value.zoom,
   isActiveBoardReadOnly: value.isActiveBoardReadOnly,
+  rosters: value.rosters,
 });
 
 /** No-op subscribe used when no store is mounted (legacy fallback hosts). */

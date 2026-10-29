@@ -1457,6 +1457,10 @@
       "ripple": "Ripple",
       "colorTheme": "Color theme"
     },
+    "focus": {
+      "hideNames": "Hide student names",
+      "hideNamesHelp": "The face shows counts only, for showing on a projector."
+    },
     "mathTools": {
       "dpiCalibration": "Palette DPI calibration (px / inch)"
     },

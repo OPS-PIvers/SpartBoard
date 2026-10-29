@@ -71,6 +71,7 @@ const ALL_WIDGET_TYPES = [
   'review',
   'routineGuide',
   'arts-letters-agenda',
+  'focus',
 ] as const;
 
 // Compile-time guard — adding a WidgetType without updating this array fails to compile.

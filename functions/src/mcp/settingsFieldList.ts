@@ -1615,6 +1615,17 @@ export const SETTINGS_FIELD_LIST: Readonly<
       kind: 'surfaceColor',
     },
   ],
+  focus: [
+    {
+      anchor: 'settings.group:focus#behavior',
+      label: 'Behavior',
+    },
+    {
+      anchor: 'settings.toggle:focus#hideNames',
+      label: 'Hide student names',
+      kind: 'toggle',
+    },
+  ],
   mathTools: [
     {
       anchor: 'settings.group:mathTools#behavior',

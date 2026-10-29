@@ -246,4 +246,8 @@ export const WIDGET_CATALOGUE: Readonly<
     name: 'Arts & Letters Agenda',
     category: 'Instruction',
   },
+  focus: {
+    name: 'Focus',
+    category: 'Management',
+  },
 };
