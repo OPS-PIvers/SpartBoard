@@ -169,11 +169,58 @@ describe('parseInboxPayload', () => {
         ],
       }),
       body({ pictures: [{ id: PIC, mime: 'image/png', data: 'not base64!' }] }),
-      body({ settings: { timeLimitMinutes: 0 } }),
+      body({ settings: { shuffleQuestions: 'yes' } }),
       body({ folderPath: ['  '] }),
     ];
     for (const c of cases)
       expect(await statusOf(() => parseInboxPayload(c))).toBe(400);
+  });
+
+  it('stores blank alternates as maps, since Firestore has no nested arrays', () => {
+    const q = body().quiz;
+    const fib = {
+      ...q.questions[0],
+      type: 'FIB',
+      blankAlternates: [['a', 'b'], []],
+    };
+    const p = parseInboxPayload(body({ quiz: { ...q, questions: [fib] } }));
+    expect(p.questions[0].blankAlternates).toEqual([
+      { answers: ['a', 'b'] },
+      { answers: [] },
+    ]);
+    const hasNested = (v: unknown): boolean =>
+      Array.isArray(v)
+        ? v.some((x) => Array.isArray(x) || hasNested(x))
+        : !!v && typeof v === 'object' && Object.values(v).some(hasNested);
+    expect(hasNested(inboxDoc(p, 'uid-1', 'testQuiz_1', 'send-1', 5))).toBe(
+      false
+    );
+  });
+
+  it('keeps a long dropdown, drops unholdable settings and inline picture ids', () => {
+    const q = body().quiz;
+    const options = Array.from({ length: 30 }, (_, i) => ({
+      text: `Choice ${i}`,
+    }));
+    const p = parseInboxPayload(
+      body({
+        quiz: {
+          ...q,
+          questions: [
+            {
+              ...q.questions[0],
+              options,
+              imageIds: [`data:image/png;base64,${'A'.repeat(3000)}`],
+            },
+          ],
+        },
+        settings: { timeLimitMinutes: 5000, attempts: 2 },
+        pictures: [],
+      })
+    );
+    expect(p.questions[0].options).toHaveLength(30);
+    expect(p.questions[0].imageIds).toEqual([]);
+    expect(p.settings).toEqual({ attempts: 2 });
   });
 
   it('refuses too many questions with 413', async () => {
@@ -248,7 +295,7 @@ describe('receiveQuiz', () => {
     const calls: string[] = [];
     const store: InboxStore = {
       count: () => Promise.resolve(0),
-      exists: () => Promise.resolve(false),
+      previousSend: () => Promise.resolve(null),
       clearPictures: (prefix) => (
         calls.push(`clear ${prefix}`),
         Promise.resolve()
@@ -271,10 +318,27 @@ describe('receiveQuiz', () => {
       pictures: 1,
     });
     expect(calls).toEqual([
-      'clear schoology_import/uid-1/testQuiz_8629405092/',
       'save schoology_import/uid-1/testQuiz_8629405092/send-1/0',
       `write uid-1/testQuiz_8629405092 ${1000 + INBOX_TTL_MS}`,
     ]);
+  });
+
+  it('clears the replaced entry pictures only after the new entry is written', async () => {
+    const { store, calls } = memoryStore({
+      previousSend: () => Promise.resolve('old'),
+    });
+    await receiveQuiz(body(), importer, store, 1000, 'send-1');
+    expect(calls.at(-1)).toBe(
+      'clear schoology_import/uid-1/testQuiz_8629405092/old/'
+    );
+    const failing = memoryStore({
+      previousSend: () => Promise.resolve('old'),
+      write: () => Promise.reject(new Error('down')),
+    });
+    await expect(
+      receiveQuiz(body(), importer, failing.store, 1, 'send-1')
+    ).rejects.toThrow('down');
+    expect(failing.calls.some((c) => c.includes('/old/'))).toBe(false);
   });
 
   it('refuses without the flag or a SpartBoard account', async () => {
@@ -292,7 +356,7 @@ describe('receiveQuiz', () => {
     expect(await status(receiveQuiz(body(), importer, full.store))).toBe(429);
     const again = memoryStore({
       count: () => Promise.resolve(MAX_INBOX_ITEMS),
-      exists: () => Promise.resolve(true),
+      previousSend: () => Promise.resolve('old'),
     });
     expect(await status(receiveQuiz(body(), importer, again.store))).toBe(200);
   });

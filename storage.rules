@@ -379,7 +379,7 @@ service firebase.storage {
 
     // Schoology quiz import pictures: only schoologyImportInboxV1 writes; the owning teacher reads them on the review screen.
     match /schoology_import/{uid}/{itemId}/{sendId}/{fileName} {
-      allow read: if request.auth != null &&
+      allow read: if request.auth != null && viewAsReadOk() &&
         request.auth.uid == uid &&
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
         request.auth.token.get('studentRole', false) != true;

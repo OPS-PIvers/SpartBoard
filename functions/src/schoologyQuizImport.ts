@@ -98,7 +98,8 @@ export interface InboxQuestion {
   points?: number;
   matchingDistractors?: string[];
   allowPartialCredit?: boolean;
-  blankAlternates?: string[][];
+  /** Firestore has no nested arrays, so each blank's answers sit in a map (as on QuizQuestion). */
+  blankAlternates?: { answers: string[] }[];
 }
 
 export interface InboxSettings {
@@ -176,7 +177,7 @@ function parseQuestion(v: unknown, i: number): InboxQuestion {
   if (!isObj(v) || typeof v.type !== 'string' || !TYPES.has(v.type))
     throw malformed(what);
   const options = v.options ?? [];
-  if (!Array.isArray(options) || options.length > 26) throw malformed(what);
+  if (!Array.isArray(options) || options.length > 100) throw malformed(what);
   const points = v.points;
   if (
     points !== undefined &&
@@ -202,12 +203,15 @@ function parseQuestion(v: unknown, i: number): InboxQuestion {
     options: options.map((o) => {
       if (!isObj(o)) throw malformed(what);
       return {
-        letter: text(o.letter, 3, what),
+        letter: text(o.letter ?? '', 3, what),
         text: text(o.text, 5000, what),
       };
     }),
     correctAnswer: text(v.correctAnswer ?? '', 20_000, what),
-    imageIds: texts(v.imageIds, 50, 2048, what),
+    // An over-long id (an inline data: picture) is dropped here, so the question gets the missing-picture note.
+    imageIds: texts(v.imageIds, 50, Infinity, what).filter(
+      (id) => id.length <= 2048
+    ),
     warnings: texts(v.warnings, 50, 2000, what),
     ...(points !== undefined ? { points } : {}),
     ...(v.matchingDistractors !== undefined
@@ -217,7 +221,11 @@ function parseQuestion(v: unknown, i: number): InboxQuestion {
       ? { allowPartialCredit: v.allowPartialCredit }
       : {}),
     ...(alternates !== undefined
-      ? { blankAlternates: alternates.map((a) => texts(a, 50, 500, what)) }
+      ? {
+          blankAlternates: alternates.map((a) => ({
+            answers: texts(a, 50, 500, what),
+          })),
+        }
       : {}),
   };
 }
@@ -230,16 +238,13 @@ function parseSettings(v: unknown): InboxSettings {
     Number.isInteger(n) && (n as number) >= lo && (n as number) <= hi;
   if (shuffleQuestions !== undefined && typeof shuffleQuestions !== 'boolean')
     throw malformed('settings');
-  if (timeLimitMinutes !== undefined && !intIn(timeLimitMinutes, 1, 1440))
-    throw malformed('settings');
-  if (attempts !== undefined && !intIn(attempts, 0, 100))
-    throw malformed('settings');
+  // A setting SpartBoard can't hold is dropped, not fatal; the review screen names what didn't come across.
   return {
     ...(shuffleQuestions !== undefined ? { shuffleQuestions } : {}),
-    ...(timeLimitMinutes !== undefined
+    ...(intIn(timeLimitMinutes, 1, 1440)
       ? { timeLimitMinutes: timeLimitMinutes as number }
       : {}),
-    ...(attempts !== undefined ? { attempts: attempts as number } : {}),
+    ...(intIn(attempts, 0, 100) ? { attempts: attempts as number } : {}),
   };
 }
 
@@ -362,7 +367,8 @@ export function inboxDoc(
 
 export interface InboxStore {
   count: (uid: string) => Promise<number>;
-  exists: (uid: string, itemId: string) => Promise<boolean>;
+  /** The waiting entry's send id: null when there is no entry. */
+  previousSend: (uid: string, itemId: string) => Promise<string | null>;
   clearPictures: (prefix: string) => Promise<void>;
   savePicture: (path: string, picture: InboxPicture) => Promise<void>;
   write: (
@@ -392,12 +398,9 @@ export async function receiveQuiz(
   const payload = parseInboxPayload(body);
   const itemId = inboxItemId(payload.source);
   const doc = inboxDoc(payload, uid, itemId, sendId, now);
-  if (
-    !(await store.exists(uid, itemId)) &&
-    (await store.count(uid)) >= MAX_INBOX_ITEMS
-  )
+  const previous = await store.previousSend(uid, itemId);
+  if (previous === null && (await store.count(uid)) >= MAX_INBOX_ITEMS)
     throw fail(429, 'Review the quizzes already waiting in SpartBoard first.');
-  await store.clearPictures(picturePrefix(uid, itemId));
   try {
     for (const [i, picture] of payload.pictures.entries())
       await store.savePicture(doc.images[i].path, picture);
@@ -408,6 +411,11 @@ export async function receiveQuiz(
       .catch(() => undefined);
     throw error;
   }
+  // The replaced entry's pictures go only once the new entry is written.
+  if (previous)
+    await store
+      .clearPictures(sendPrefix(uid, itemId, previous))
+      .catch(() => undefined);
   return {
     id: itemId,
     questions: doc.questionCount,
@@ -445,8 +453,12 @@ function defaultStore(db: Firestore): InboxStore {
   const bucket = admin.storage().bucket();
   return {
     count: async (uid) => (await inboxRef(db, uid).count().get()).data().count,
-    exists: async (uid, itemId) =>
-      (await inboxRef(db, uid).doc(itemId).get()).exists,
+    previousSend: async (uid, itemId) => {
+      const snap = await inboxRef(db, uid).doc(itemId).get();
+      if (!snap.exists) return null;
+      const sendId: unknown = snap.get('sendId');
+      return typeof sendId === 'string' ? sendId : '';
+    },
     clearPictures: (prefix) => bucket.deleteFiles({ prefix }),
     savePicture: (path, picture) =>
       bucket.file(path).save(picture.bytes, {

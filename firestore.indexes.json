@@ -913,12 +913,6 @@
       ]
     },
     {
-      "collectionGroup": "schoology_import_inbox",
-      "fieldPath": "expireAt",
-      "ttl": true,
-      "indexes": []
-    },
-    {
       "collectionGroup": "focus_sessions",
       "queryScope": "COLLECTION",
       "fields": [
@@ -1101,6 +1095,12 @@
           "queryScope": "COLLECTION_GROUP"
         }
       ]
+    },
+    {
+      "collectionGroup": "schoology_import_inbox",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
     },
     {
       "collectionGroup": "pin_login_attempts",
