@@ -10,6 +10,7 @@ import {
   STUDENT_PSEUDONYM_HMAC_SECRET,
 } from '../secrets';
 import {
+  DISTRICT_DOMAIN,
   EXTENSION_OAUTH_CLIENTS,
   ExtensionCallError,
   bearerToken,
@@ -70,7 +71,8 @@ const sha256 = (value: string) =>
 // Instance memory only: each student device checks every 5 minutes, so Google and ClassLink see a fraction of the calls.
 const tokenCache = new BoundedCache<{ email: string; until: number }>();
 const uidCache = new BoundedCache<{ uid: string | null; until: number }>();
-const pushCache = new BoundedCache<string>();
+const pushCache = new BoundedCache<{ print: string; until: number }>();
+const PUSH_CACHE_MS = 10 * 60_000;
 let settingsCache: { showLiveSite: boolean; until: number } | null = null;
 
 async function tokenEmail(
@@ -123,8 +125,15 @@ async function studentUid(
   }
   let uid: string | null;
   try {
-    uid = (await resolveStudentByEmail(db, { email }, secrets, 'focusStudent'))
-      .uid;
+    uid = (
+      await resolveStudentByEmail(
+        db,
+        // Access-token tokeninfo has no `hd`; students sit in the district Workspace, which studentLoginV1 sees as `hd`.
+        { email, hd: DISTRICT_DOMAIN },
+        secrets,
+        'focusStudent'
+      )
+    ).uid;
   } catch (err) {
     if (!(err instanceof StudentLookupError)) throw err;
     if (err.reason === 'roster-unavailable')
@@ -146,10 +155,11 @@ function firestoreStore(db: Firestore): FocusStudentStore {
   const studentRef = (sessionId: string, uid: string) =>
     sessions.doc(sessionId).collection(FOCUS_STUDENTS_SUBCOLLECTION).doc(uid);
   return {
-    async openSessionsFor(uid) {
+    async openSessionsFor(uid, now) {
       const snap = await sessions
         .where('studentUids', 'array-contains', uid)
         .where('endedAt', '==', null)
+        .where('endsAt', '>', now)
         .limit(MAX_OPEN_SESSIONS)
         .get();
       if (snap.empty) return [];
@@ -173,16 +183,22 @@ function firestoreStore(db: Firestore): FocusStudentStore {
         if (
           !session.exists ||
           !isSessionRunning(session.data() as FocusSessionDoc, now) ||
-          student.get('status') !== 'other-session'
+          !student.exists
         )
           return false;
+        const status: unknown = student.get('status');
+        // Another check may have handed the student over a moment ago.
+        if (status === 'waiting' || status === 'on-task' || status === 'away')
+          return true;
+        if (status !== 'other-session') return false;
         tx.update(student.ref, { status: 'waiting', otherSessionEndsAt: null });
         return true;
       });
     },
     async savePush(uid, push, now) {
       const print = pushFingerprint(push);
-      if (pushCache.get(uid) === print) return;
+      const hit = pushCache.get(uid);
+      if (hit && hit.print === print && hit.until > now) return;
       const ref = db.collection(FOCUS_PUSH_COLLECTION).doc(uid);
       const snap = await ref.get();
       const stored = snap.exists
@@ -195,7 +211,7 @@ function firestoreStore(db: Firestore): FocusStudentStore {
         if (push) await ref.set({ ...push, updatedAt: now });
         else await ref.delete();
       }
-      pushCache.set(uid, print);
+      pushCache.set(uid, { print, until: now + PUSH_CACHE_MS });
     },
     async showLiveSite() {
       const now = Date.now();

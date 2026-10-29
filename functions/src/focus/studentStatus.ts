@@ -26,7 +26,7 @@ const fail = (status: number, message: string) =>
 const SESSION_ID = /^[A-Za-z0-9_-]{1,128}$/;
 const MAX_PROTOCOL = 10_000;
 const MAX_BLOCKED_TRIES = 100_000;
-/** A report inside this gap after the last one is dropped, even with a new status. */
+/** A report inside this gap after the last one is dropped unless its status changed. */
 export const FOCUS_REPORT_BURST_MS = 5_000;
 /** Slack under the once-a-minute report so a slightly early alarm still lands. */
 const REPORT_SLACK_MS = 10_000;
@@ -203,8 +203,12 @@ export function applyReport(
       blockedTries !== prevTries ||
       liveHost !== (prev?.liveHost ?? null);
     const gap = now - last;
-    if (gap < FOCUS_REPORT_BURST_MS) return { write: null, active: true };
-    if (!changed && gap < FOCUS_REPORT_MIN_INTERVAL_MS - REPORT_SLACK_MS)
+    // A status change always lands, or away time would be lost or counted twice.
+    if (
+      prevStatus === req.status &&
+      (gap < FOCUS_REPORT_BURST_MS ||
+        (!changed && gap < FOCUS_REPORT_MIN_INTERVAL_MS - REPORT_SLACK_MS))
+    )
       return { write: null, active: true };
   }
   let awayMs = typeof prev?.awayMs === 'number' ? prev.awayMs : 0;
@@ -232,9 +236,9 @@ export function applyReport(
 
 /** Firestore behind the two endpoints, so the handlers can be tested without it. */
 export interface FocusStudentStore {
-  /** Sessions listing this student that haven't been marked ended. */
-  openSessionsFor: (uid: string) => Promise<SessionCandidate[]>;
-  /** F7 hand-over in a transaction; false when the session or the student moved on meanwhile. */
+  /** Sessions listing this student that haven't been marked ended and haven't run out. */
+  openSessionsFor: (uid: string, now: number) => Promise<SessionCandidate[]>;
+  /** F7 hand-over in a transaction; true when the student is (now) in the running session, also after a concurrent hand-over. */
   promote: (sessionId: string, uid: string, now: number) => Promise<boolean>;
   savePush: (
     uid: string,
@@ -261,9 +265,17 @@ export async function focusStatus(
 ): Promise<FocusStatusReply> {
   const req = parseStatusRequest(body);
   const [candidates, showLiveSite] = await Promise.all([
-    store.openSessionsFor(uid),
+    store.openSessionsFor(uid, now),
     store.showLiveSite(),
-    req.push === undefined ? null : store.savePush(uid, req.push, now),
+    // A failed save only delays push wake-ups; the check itself still answers.
+    req.push === undefined
+      ? null
+      : store.savePush(uid, req.push, now).catch((err: unknown) => {
+          console.error(
+            '[focusStudent] push save failed:',
+            err instanceof Error ? err.name : 'unknown'
+          );
+        }),
   ]);
   const picked = pickSession(candidates, now);
   if (!picked) return { session: null, serverNow: now };

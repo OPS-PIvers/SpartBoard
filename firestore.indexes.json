@@ -923,6 +923,10 @@
         {
           "fieldPath": "endedAt",
           "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "endsAt",
+          "order": "ASCENDING"
         }
       ]
     }

@@ -252,7 +252,7 @@ describe('applyReport', () => {
     expect(r.write).toMatchObject({ awaySince: NOW - 120_000, awayMs: 0 });
   });
 
-  it('drops an unchanged report inside a minute and any report inside the burst gap', () => {
+  it('drops an unchanged report inside a minute and other changes inside the burst gap', () => {
     const prev = student({ status: 'on-task', lastReportAt: NOW - 30_000 });
     expect(applyReport(prev, report(), NOW, false)).toEqual({
       write: null,
@@ -266,7 +266,7 @@ describe('applyReport', () => {
       lastReportAt: NOW - FOCUS_REPORT_BURST_MS + 1,
     });
     expect(
-      applyReport(recent, report({ status: 'away' }), NOW, false).write
+      applyReport(recent, report({ blockedTries: 3 }), NOW, false).write
     ).toBeNull();
     expect(
       applyReport(
@@ -276,6 +276,23 @@ describe('applyReport', () => {
         false
       ).write
     ).not.toBeNull();
+  });
+
+  it('always applies a status change, so away time is neither lost nor counted twice', () => {
+    const left = applyReport(
+      student({ status: 'on-task', lastReportAt: NOW - 3_000 }),
+      report({ status: 'away' }),
+      NOW,
+      false
+    ).write;
+    expect(left).toMatchObject({ status: 'away', awaySince: NOW });
+    const back = applyReport(
+      student({ ...left }),
+      report({ status: 'on-task' }),
+      NOW + 2_000,
+      false
+    ).write;
+    expect(back).toMatchObject({ status: 'on-task', awayMs: 2_000 });
   });
 
   it('never lowers blocked tries and counts a rise as a change', () => {

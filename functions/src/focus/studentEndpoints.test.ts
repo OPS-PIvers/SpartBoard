@@ -1,12 +1,20 @@
 // The student endpoints' outer checks: method, Chrome token, student domain, roster lookup and error bodies.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const h = vi.hoisted(() => ({
-  tokenInfo: null as Record<string, unknown> | null,
+interface Hoisted {
+  tokenInfo: Record<string, unknown> | null;
+  lookups: number;
+  lookup: 'roster' | 'not-in-roster' | 'roster-unavailable';
+  sessions: Array<{ id: string; data: Record<string, unknown> }>;
+  errors: unknown[][];
+}
+
+const h = vi.hoisted((): Hoisted => ({
+  tokenInfo: null,
   lookups: 0,
   lookup: 'roster',
-  sessions: [] as Array<{ id: string; data: Record<string, unknown> }>,
-  errors: [] as unknown[][],
+  sessions: [],
+  errors: [],
 }));
 
 vi.mock('../functionsInit', () => ({}));
@@ -88,8 +96,9 @@ type Endpoint = (req: unknown, res: unknown) => Promise<void>;
 const call = async (
   fn: unknown,
   body: unknown,
-  { method = 'POST', auth = 'Bearer tok' } = {}
+  opts: { method?: string; auth?: string | null } = {}
 ) => {
+  const { method = 'POST', auth = 'Bearer tok' } = opts;
   const out = { status: 200, body: undefined as unknown };
   const res = {
     status(code: number) {
