@@ -328,6 +328,15 @@ export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 export { expireSubShares } from './expireSubShares';
 export { launchSubAssignmentV1 } from './subLaunchAssignment';
 export { controlSubAssignmentV1 } from './subControlAssignment';
+export {
+  focusStartV1,
+  focusExtendV1,
+  focusReleaseV1,
+  focusAddSiteV1,
+  focusEndV1,
+  focusOpenV1,
+  focusSweepSessions,
+} from './focus/sessionCallables';
 export { expireActivityWallShares } from './expireActivityWallShares';
 export { saveSharedActivityWallV1 } from './sharedActivityWallEdit';
 export { finalizeIdleQuizAttempts } from './finalizeIdleQuizAttempts';

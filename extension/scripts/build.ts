@@ -39,6 +39,11 @@ const ENTRIES: { entry: string; fileName: string; format: 'es' | 'iife' }[] = [
     format: 'iife',
   },
   {
+    entry: 'src/focus/page/main.tsx',
+    fileName: 'focus/focus.js',
+    format: 'iife',
+  },
+  {
     entry: 'src/playback/frameEntry.ts',
     fileName: 'locator.js',
     format: 'iife',
@@ -67,6 +72,7 @@ const configFor = (
   define: {
     __SPART_ORIGINS__: JSON.stringify(LISTINGS[listing].origins),
     __SPART_FUNCTIONS__: JSON.stringify(LISTINGS[listing].functionsBase),
+    __SPART_VAPID_KEY__: JSON.stringify(LISTINGS[listing].vapidPublicKey),
     __SPART_BENCH__: JSON.stringify(bench),
     'process.env.NODE_ENV': JSON.stringify('production'),
   },
@@ -109,6 +115,10 @@ async function buildListing(listing: ListingId, zip: boolean, bench = false) {
   copyFileSync(
     path.join(extDir, 'src/sidepanel/index.html'),
     path.join(outDir, 'sidepanel/index.html')
+  );
+  copyFileSync(
+    path.join(extDir, 'src/focus/page/index.html'),
+    path.join(outDir, 'focus/index.html')
   );
   copyFileSync(
     path.join(repoRoot, 'public/icon-128.png'),

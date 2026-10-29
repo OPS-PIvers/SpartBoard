@@ -11,7 +11,7 @@ import {
 } from '@/types';
 
 /** Bumped additively when a message type is added; the page checks it before using a feature. */
-export const EXTENSION_PROTOCOL_VERSION = 8;
+export const EXTENSION_PROTOCOL_VERSION = 9;
 
 /** Protocol 4: locators may carry `heading`, `pageTitle` and `attrs`, and steps report `score` matches. */
 export const SCORED_MATCH_PROTOCOL = 4;
@@ -27,6 +27,9 @@ export const SUGGEST_PROTOCOL = 7;
 
 /** Protocol 8: `web-tour/open` sends only a set id; the extension loads the tour, waits through sign-in and records the run (WEB_TOURS_HELP_PANEL.md H4). */
 export const OPEN_PROTOCOL = 8;
+
+/** Protocol 9: student profiles pull focus sessions (CHROME_EXTENSION.md F3); `focusStatusV1` and `focusReportV1` carry it, and pages see no new messages. */
+export const FOCUS_PROTOCOL = 9;
 
 /** Staff Google accounts; `@students.orono.k12.mn.us` does not match. */
 export const STAFF_EMAIL_DOMAIN = 'orono.k12.mn.us';
