@@ -12,6 +12,7 @@ import {
 } from '../secrets';
 import { loadTaughtClassEnrollment } from '../studentIdentity';
 import { assertViewAsAllowed } from '../viewAsGuard';
+import { liveFocusPushDeps, wakeFocusStudents } from './push';
 import {
   handleFocusAddSite,
   handleFocusEnd,
@@ -34,6 +35,7 @@ const liveDeps: FocusDeps = {
       tenantUrl: CLASSLINK_TENANT_URL.value(),
     }),
   mockClassesOpen: () => process.env.GCLOUD_PROJECT === 'spartboard-dev',
+  wake: (uids) => wakeFocusStudents(admin.firestore(), uids, liveFocusPushDeps),
 };
 
 function callerOf(request: CallableRequest): FocusCaller | null {
@@ -131,7 +133,8 @@ export const focusSweepSessions = onSchedule(
   async () => {
     const { ended, failed } = await sweepFocusSessions(
       admin.firestore(),
-      Date.now()
+      Date.now(),
+      liveDeps.wake
     );
     if (ended || failed) console.log('[focusSweep]', { ended, failed });
   }

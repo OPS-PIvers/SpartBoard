@@ -129,6 +129,8 @@ export function createMemoryFirestore(): admin.firestore.Firestore & {
     }),
     doc: (path: string) => docRef(path),
     collection: (path: string) => collectionRef(path),
+    getAll: (...refs: Array<{ get: () => Promise<unknown> }>) =>
+      Promise.all(refs.map((r) => r.get())),
     batch: () => {
       const ops: Array<() => Promise<void>> = [];
       const b = {
@@ -167,6 +169,9 @@ export function createMemoryFirestore(): admin.firestore.Firestore & {
       },
       set: (ref: { set: (d: Data) => Promise<void> }, d: Data) => {
         ops.push(() => ref.set(d));
+      },
+      delete: (ref: { delete: () => Promise<void> }) => {
+        ops.push(() => ref.delete());
       },
     };
     const out = await fn(tx);

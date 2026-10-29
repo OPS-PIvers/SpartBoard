@@ -82,6 +82,8 @@ export interface FocusDeps {
   ) => Promise<Set<string> | null>;
   /** Dev: any teacher who owns a roster for a mock class may use it; elsewhere only admins (F3). */
   mockClassesOpen: () => boolean;
+  /** F5: data-free push so these students' devices check now; must not throw. */
+  wake?: (studentUids: readonly string[]) => Promise<unknown>;
 }
 
 const bad = (message: string): never => {
@@ -556,6 +558,7 @@ export async function handleFocusStart(
     tx.set(ref, session);
   });
   await refreshFocusConflicts(db, studentUids, now);
+  await deps.wake?.(studentUids);
 
   const others = await Promise.all(
     studentUids.map((uid) => studentsCol(ref).doc(uid).get())
@@ -610,6 +613,7 @@ export async function handleFocusExtend(
     return value;
   });
   await refreshFocusConflicts(db, session.studentUids, deps.now());
+  await deps.wake?.(session.studentUids);
   return { endsAt };
 }
 
@@ -656,6 +660,7 @@ export async function handleFocusRelease(
   );
   // A student released here may now belong to a later session (F7).
   await refreshFocusConflicts(db, released, now);
+  await deps.wake?.(released);
   return { released: released.length };
 }
 
@@ -682,6 +687,8 @@ export async function handleFocusAddSite(
     tx.update(ref, { sites: next });
     return next;
   });
+  if (sites.length !== session.sites.length)
+    await deps.wake?.(session.studentUids);
   return { sites };
 }
 
@@ -775,7 +782,9 @@ export async function handleFocusEnd(
   const now = deps.now();
   const reason: NonNullable<FocusSessionDoc['endReason']> =
     session.endedAt === null && session.endsAt <= now ? 'time' : 'teacher';
-  return { endedAt: await endFocusSession(db, ref, reason, now) };
+  const endedAt = await endFocusSession(db, ref, reason, now);
+  if (session.endedAt === null) await deps.wake?.(session.studentUids);
+  return { endedAt };
 }
 
 /** Why a still-open session should end now, or null (F6: time ran out, or the window closed or moved). */
@@ -796,7 +805,8 @@ export function focusEndReasonAt(
 /** The scheduled ender: closes every open session whose time or window is up. */
 export async function sweepFocusSessions(
   db: Firestore,
-  now: number
+  now: number,
+  wake?: FocusDeps['wake']
 ): Promise<{ ended: number; failed: number }> {
   const window = await loadWindow(db);
   const open = await sessionsCol(db).where('endedAt', '==', null).get();
@@ -808,6 +818,7 @@ export async function sweepFocusSessions(
     try {
       await endFocusSession(db, doc.ref, reason, now);
       ended += 1;
+      await wake?.((doc.data() as FocusSessionDoc).studentUids);
     } catch (err) {
       failed += 1;
       console.error('[focusSweep] end failed', doc.id, err);
