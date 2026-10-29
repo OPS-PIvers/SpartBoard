@@ -41,6 +41,6 @@ describe('BloomsQuestionStarters text size', () => {
     );
     const pane = screen.getByText('Level 1: Recall/Knowledge/Memory')
       .parentElement?.parentElement;
-    expect(pane?.style.fontSize).toMatch(/^5\.25\d*cqmin$/);
+    expect(pane?.style.fontSize).toMatch(/^max\(16\.25px, 5\.25\d*cqmin\)$/);
   });
 });

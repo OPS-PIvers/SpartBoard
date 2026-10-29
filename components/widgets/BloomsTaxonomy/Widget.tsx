@@ -171,6 +171,8 @@ export const BloomsTaxonomyWidget: React.FC<{ widget: WidgetData }> = ({
       <BloomsQuestionStarters
         widgetType={widget.type}
         baseTextSize={widget.baseTextSize}
+        cardColor={config.cardColor}
+        cardOpacity={config.cardOpacity}
       />
     );
   }

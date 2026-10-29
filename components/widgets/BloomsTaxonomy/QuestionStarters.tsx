@@ -3,13 +3,19 @@ import { Triangle } from 'lucide-react';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { resolveBaseTextScale } from '@/config/widgetAppearance';
 import type { WidgetData } from '@/types';
+import { hexToRgba } from '@/utils/styles';
 import { BLOOMS_COLORS, type BloomsLevel } from './constants';
 import { BLOOMS_QUESTION_STARTERS } from './questionStarters';
 
 export const BloomsQuestionStarters: React.FC<{
   widgetType: string;
   baseTextSize?: WidgetData['baseTextSize'];
-}> = ({ widgetType, baseTextSize }) => {
+  cardColor?: string;
+  cardOpacity?: number;
+}> = ({ widgetType, baseTextSize, cardColor, cardOpacity }) => {
+  const surfaceBg = cardColor
+    ? hexToRgba(cardColor, cardOpacity ?? 1)
+    : undefined;
   // Window text size scales the starters; the rail only grows with the widget.
   const textScale = resolveBaseTextScale(baseTextSize);
   const [activeLevel, setActiveLevel] = useState<BloomsLevel>('remember');
@@ -19,7 +25,10 @@ export const BloomsQuestionStarters: React.FC<{
   const activeColor = BLOOMS_COLORS[active.level];
 
   return (
-    <div className="flex h-full w-full select-none overflow-hidden rounded-[var(--window-radius,0px)]">
+    <div
+      className="flex h-full w-full select-none overflow-hidden rounded-[var(--window-radius,0px)]"
+      style={{ backgroundColor: surfaceBg }}
+    >
       <div
         className="flex flex-col border-r border-slate-200 shrink-0"
         style={{ width: 'min(max(140px, 30cqmin), 30cqw)' }}
@@ -31,7 +40,7 @@ export const BloomsQuestionStarters: React.FC<{
           <span
             className="font-black uppercase text-slate-400 tracking-widest block"
             style={{
-              fontSize: '2.2cqmin',
+              fontSize: 'max(9px, 2.2cqmin)',
               marginBottom: '1cqmin',
             }}
           >
@@ -39,13 +48,13 @@ export const BloomsQuestionStarters: React.FC<{
           </span>
           <div
             className="flex items-center text-slate-700 font-bold uppercase tracking-tight"
-            style={{ gap: '1.5cqmin', fontSize: '3cqmin' }}
+            style={{ gap: '1.5cqmin', fontSize: 'max(11px, 3cqmin)' }}
           >
             <Triangle
               className="text-slate-400"
               style={{
-                width: '3.5cqmin',
-                height: '3.5cqmin',
+                width: 'max(12px, 3.5cqmin)',
+                height: 'max(12px, 3.5cqmin)',
               }}
             />
             Levels
@@ -86,7 +95,7 @@ export const BloomsQuestionStarters: React.FC<{
                 <span
                   className="font-black leading-none"
                   style={{
-                    fontSize: '4cqmin',
+                    fontSize: 'max(14px, 4cqmin)',
                     color: isActive ? '#ffffff' : color,
                     marginBottom: '1cqmin',
                   }}
@@ -95,7 +104,7 @@ export const BloomsQuestionStarters: React.FC<{
                 </span>
                 <span
                   className="font-bold text-center leading-tight uppercase tracking-tight"
-                  style={{ fontSize: '2.8cqmin' }}
+                  style={{ fontSize: 'max(10px, 2.8cqmin)' }}
                 >
                   {lvl.label}
                 </span>
@@ -107,7 +116,10 @@ export const BloomsQuestionStarters: React.FC<{
 
       <div
         className="flex-1 overflow-y-auto custom-scrollbar"
-        style={{ padding: '5cqmin', fontSize: `${4.2 * textScale}cqmin` }}
+        style={{
+          padding: '5cqmin',
+          fontSize: `max(${13 * textScale}px, ${4.2 * textScale}cqmin)`,
+        }}
       >
         <div
           key={active.level}
@@ -170,7 +182,7 @@ export const BloomsQuestionStarters: React.FC<{
             <div
               className="font-black uppercase text-slate-400 tracking-widest"
               style={{
-                fontSize: '0.62em',
+                fontSize: '0.77em',
                 marginBottom: '0.36em',
               }}
             >
