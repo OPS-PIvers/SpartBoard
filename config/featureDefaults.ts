@@ -490,6 +490,20 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'schoology-quiz-import': {
+    label: 'Send quizzes from Schoology',
+    icon: FileUp,
+    description:
+      'Bring Schoology Tests/Quizzes, Assessments and question banks into SpartBoard with the Chrome extension.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    modalLabel: 'Send quizzes from Schoology',
+    group: 'building',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // AI reading of an imported test document; also requires quiz-document-import
   // and gemini-functions. Fail-closed, so nobody gets it until it is saved.
   'quiz-document-ai-reader': {

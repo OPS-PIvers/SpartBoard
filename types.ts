@@ -10565,6 +10565,8 @@ export type GlobalFeature =
   /** Import every question bank in a Schoology collection export (.imscc) at once. */
   | 'question-bank-imscc-import'
   | 'quiz-imscc-import'
+  /** Import Schoology Tests/Quizzes, Assessments and question banks (docs/plans/SCHOOLOGY_QUIZ_IMPORT.md Q14). */
+  | 'schoology-quiz-import'
   /** Paper answer sheets; only meaningful while the district switch is on. */
   | 'paper-answer-sheets'
   /** Saved class groups inside board widgets; AND-ed with the district switch. */

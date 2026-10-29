@@ -1097,6 +1097,12 @@
       ]
     },
     {
+      "collectionGroup": "schoology_import_inbox",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
       "collectionGroup": "pin_login_attempts",
       "fieldPath": "expireAt",
       "ttl": true,
