@@ -77,7 +77,7 @@ A widget note puts a What's new button under every open widget of that type. Not
 - Without `feature`, the note shows for 30 days from `date`.
 - With `feature`, the note waits until the teacher can use that flag, then shows for 30 days from the first time they see it (and never more than 180 days after `date`). Admins see it as soon as it ships. When a flag is retired, drop `feature` from notes that name it.
 - `tourSetId` adds a Show me button when that set has a live tour.
-- Keep `text` to one or two sentences under the rules below. The whole feature is behind the `widget-whats-new` flag.
+- Keep `text` to one or two sentences under the rules below.
 
 Every release PR (`dev-paul` into `main`) runs the **Release Widget Notes** check. It lists each widget whose files changed since `main` and fails until each one has a new note, or the PR description has a line `no-widget-note: <widget> <why>` saying why teachers will not notice (e.g. `no-widget-note: quiz internal refactor`). `pnpm changelog:draft` prints a placeholder note for each changed widget.
 

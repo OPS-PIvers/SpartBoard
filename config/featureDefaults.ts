@@ -55,7 +55,6 @@ import {
   Volume2,
   Wand2,
   Zap,
-  BookMarked,
   Quote,
   Calculator,
   Utensils,
@@ -649,16 +648,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'standards-from-question-text': {
-    label: 'Standards typed in questions',
-    icon: BookMarked,
-    description: 'Codes in question text become Learning targets.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Quiz results teacher tools. Admin-only until Paul has used them on a real class.
   'quiz-results-tools': {
     label: 'Quiz results teacher tools',
@@ -766,18 +755,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Home,
     description:
       'PLC teams open on a Home page with results over time and team tools. Data overview becomes its own tab.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Team layout's Landing page picker lists every page that is switched on, not only the hub page.
-  'team-landing-any-page': {
-    label: 'Team landing page choice',
-    icon: Home,
-    description:
-      'Team leads can pick any page that is switched on as the page the team opens on.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1140,16 +1117,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'retire',
     group: 'assigning',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'widget-whats-new': {
-    label: "Widget what's new",
-    icon: Sparkles,
-    description: "A What's new button under a widget after its look changes.",
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
