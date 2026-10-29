@@ -327,7 +327,7 @@ export function ImportWizard<TData>({
       !matchesAccept(file.name, uploadAccept)
     ) {
       setParseError(
-        `That file can’t be imported here. Choose a ${uploadHint === 'File' ? 'supported' : uploadHint} file${bulkSource ? ` or a ${bulkSource.title}` : ''}.`
+        `That file can’t be imported here. Choose a ${uploadHint === 'File' ? 'supported' : uploadHint} file${bulkSource ? ` or a ${bulkSource.accept} file` : ''}.`
       );
       return;
     }

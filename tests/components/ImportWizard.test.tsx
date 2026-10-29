@@ -851,6 +851,25 @@ describe('ImportWizard', () => {
     expect(parseSpy).not.toHaveBeenCalled();
   });
 
+  it('names the bulk export by its file type when refusing a file', async () => {
+    const { adapter } = makeAdapter({ supportedSources: ['csv'] });
+    adapter.bulkSource = {
+      title: 'From Schoology',
+      description: 'Every question bank.',
+      accept: '.imscc',
+      onFile: vi.fn(),
+    };
+    renderWizard(adapter);
+    fireEvent.change(screen.getByLabelText('Upload import file'), {
+      target: { files: [makeFile('notes.pdf', 'x')] },
+    });
+    expect(
+      await screen.findByText(
+        'That file can’t be imported here. Choose a CSV file or a .imscc file.'
+      )
+    ).toBeInTheDocument();
+  });
+
   it('sends a collection export picked on the main upload to the bulk source', () => {
     const { adapter, parseSpy } = makeAdapter({ supportedSources: ['csv'] });
     const onFile = vi.fn();
