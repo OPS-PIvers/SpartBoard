@@ -7,7 +7,7 @@ import {
   FOCUS_HOURS_TITLE,
   FOCUS_SESSIONS_SETTINGS_DOC,
 } from '@/config/focusSessions';
-import type { FocusWindow } from '@/utils/focus/contract';
+import { DEFAULT_FOCUS_WINDOW, type FocusWindow } from '@/utils/focus/contract';
 import { parseFocusSettings, validFocusWindow } from '@/utils/focus/settings';
 import { useAuth } from '@/context/useAuth';
 import { isSuperAdminActor } from '@/utils/superAdmin';
@@ -60,7 +60,9 @@ export const FocusHoursRow: React.FC = () => {
   const valid = shown ? validFocusWindow(shown) : null;
   const dirty = !!draft && !!saved && !sameWindow(draft, saved);
   const edit = (patch: Partial<FocusWindow>) => {
-    if (shown) setDraft({ ...shown, ...patch });
+    if (!shown) return;
+    setError(null);
+    setDraft({ ...shown, ...patch, timeZone: DEFAULT_FOCUS_WINDOW.timeZone });
   };
   const toggleDay = (day: number) => {
     if (!shown) return;
