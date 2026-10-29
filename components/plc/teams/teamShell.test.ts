@@ -66,13 +66,9 @@ describe('resolveTeamRoute', () => {
   });
 
   it('gives PLC Home only to teams with a Data overview page', () => {
-    expect(teamUsesPlcHome(plcLayout, true)).toBe(true);
-    expect(teamUsesPlcHome(plcLayout, false)).toBe(false);
+    expect(teamUsesPlcHome(plcLayout)).toBe(true);
     expect(
-      teamUsesPlcHome(
-        { pages: BUILT_IN_TEAM_TYPE_PRESETS.department.pages },
-        true
-      )
+      teamUsesPlcHome({ pages: BUILT_IN_TEAM_TYPE_PRESETS.department.pages })
     ).toBe(false);
   });
 

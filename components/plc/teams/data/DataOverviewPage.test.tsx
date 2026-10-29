@@ -9,10 +9,6 @@ import {
 import type { ResolvedTeamLayout } from '@/utils/teamLayout';
 import DataOverviewPage from './DataOverviewPage';
 
-const mockFlags = vi.hoisted(() => ({ plcHome: true }));
-vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ canAccessFeature: () => mockFlags.plcHome }),
-}));
 vi.mock('@/hooks/usePlcAggregate', () => ({ usePlcAggregate: vi.fn() }));
 vi.mock('@/hooks/usePlcAssessments', () => ({ usePlcAssessments: vi.fn() }));
 vi.mock('@/hooks/useLearningTargets', () => ({
@@ -142,13 +138,6 @@ describe('DataOverviewPage cards', () => {
     expect(viewProps.cards).toEqual(
       TEAM_LANDING_CARD_CATALOG.dataOverview
     );
-  });
-
-  it('follows the cards when it is the landing page', () => {
-    mockFlags.plcHome = false;
-    render(<DataOverviewPage plc={plc} layout={offLayout} isLead />);
-    expect(viewProps.cards).toEqual(['hero', 'goals']);
-    mockFlags.plcHome = true;
   });
 
   it('drops All assessments when the Assessments page is off', () => {

@@ -10653,8 +10653,6 @@ export type GlobalFeature =
   | 'library-folder-reorder'
   /** Simple/Detailed choice in Arts & Letters Agenda settings. */
   | 'agenda-versions'
-  /** PLC teams open on a Home page; Data overview becomes a regular tab. */
-  | 'plc-home-tab'
   /** Team leads pick any page that is switched on as the team's landing page. */
   | 'team-landing-any-page'
   /** AI coach that checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22). */

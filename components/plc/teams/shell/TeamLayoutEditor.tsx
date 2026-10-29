@@ -153,9 +153,7 @@ export const TeamLayoutEditor: React.FC<{
       pinGroups={pinGroups}
       newerFor={(ref) => selectNewerHeroData(ref, aggregates, assessments)}
       isLead={isLead}
-      plcHome={
-        getPlcGroupType(plc) === 'plc' && canAccessFeature('plc-home-tab')
-      }
+      plcHome={getPlcGroupType(plc) === 'plc'}
       anyLanding={canAccessFeature('team-landing-any-page')}
       pinner={heroPinner(user)}
       saving={saving}
