@@ -3044,6 +3044,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'url.upload-image': ['widgets.url.link-style'],
     'url.remove-image': ['widgets.url.link-style'],
     'first5.open-link': ['widgets.first-5.face'],
+    'blooms-taxonomy.level': ['widgets.blooms-taxonomy.face'],
     'talking-tool.category': ['widgets.talking-tool.face'],
     'work-symbols.symbol': ['widgets.work-symbols.face'],
     'number-line.add-marker': ['widgets.number-line.face'],

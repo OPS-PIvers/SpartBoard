@@ -55,6 +55,7 @@ import {
   Calculator,
   Utensils,
   CloudSun,
+  Triangle,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -1011,6 +1012,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     description: 'Writes question stems for a topic.',
     stage: 'permanent',
     afterLaunch: 'keep',
+    widget: 'blooms-taxonomy',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'blooms-question-starters': {
+    label: "Bloom's Taxonomy: question starters",
+    icon: Triangle,
+    description: 'Level tabs with question starters and key words.',
+    stage: 'preview',
+    afterLaunch: 'retire',
     widget: 'blooms-taxonomy',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
