@@ -10,6 +10,7 @@ import { DEFAULT_TALKING_TOOL_CATEGORIES } from '@/config/talkingToolData';
 import { getIcon } from './constants';
 import { hexToRgba } from '@/utils/styles';
 import { tourFieldAttr } from '@/config/tourAnchors';
+import { resolveBaseTextScale } from '@/config/widgetAppearance';
 
 export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
   widget,
@@ -19,6 +20,8 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
   const cardColor = widgetConfig.cardColor ?? '#ffffff';
   const cardOpacity = widgetConfig.cardOpacity ?? 1;
   const surfaceBg = hexToRgba(cardColor, cardOpacity);
+  // Window text size scales the stems; the sidebar only grows with the widget.
+  const textScale = resolveBaseTextScale(widget.baseTextSize);
 
   // Get config from feature permissions
   const permission = featurePermissions.find(
@@ -55,30 +58,33 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
       {/* Sidebar Navigation */}
       <div
         className="flex flex-col border-r border-slate-200 shrink-0"
-        style={{ width: 'min(140px, 35cqw)', backgroundColor: surfaceBg }}
+        style={{
+          width: 'min(max(140px, 35cqmin), 35cqw)',
+          backgroundColor: surfaceBg,
+        }}
       >
         <div
           className="border-b border-slate-200"
-          style={{ padding: 'min(12px, 3cqmin)' }}
+          style={{ padding: '3cqmin' }}
         >
           <label
-            className="font-black uppercase text-slate-400 tracking-widest block"
+            className="font-black uppercase text-slate-400 tracking-widest leading-normal block"
             style={{
-              fontSize: 'min(10px, 2.2cqmin)',
-              marginBottom: 'min(4px, 1cqmin)',
+              fontSize: '2.2cqmin',
+              marginBottom: '1cqmin',
             }}
           >
             Scaffolding
           </label>
           <div
-            className="flex items-center text-slate-700 font-bold uppercase tracking-tight"
-            style={{ gap: 'min(6px, 1.5cqmin)', fontSize: 'min(12px, 3cqmin)' }}
+            className="flex items-center text-slate-700 font-bold uppercase tracking-tight leading-normal"
+            style={{ gap: '1.5cqmin', fontSize: '3cqmin' }}
           >
             <Quote
               className="text-slate-400"
               style={{
-                width: 'min(14px, 3.5cqmin)',
-                height: 'min(14px, 3.5cqmin)',
+                width: '3.5cqmin',
+                height: '3.5cqmin',
               }}
             />
             Stems
@@ -87,7 +93,7 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
 
         <div
           className="flex-1 overflow-y-auto custom-scrollbar"
-          style={{ padding: 'min(8px, 2cqmin)' }}
+          style={{ padding: '2cqmin' }}
         >
           {categories.map((cat) => {
             const isActive = activeTab === cat.id;
@@ -105,9 +111,9 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
                     : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-100 scale-95'
                 }`}
                 style={{
-                  padding: 'min(12px, 3cqmin)',
-                  borderRadius: 'min(12px, 3cqmin)',
-                  marginBottom: 'min(8px, 2cqmin)',
+                  padding: '3cqmin',
+                  borderRadius: '3cqmin',
+                  marginBottom: '2cqmin',
                   ...(isActive
                     ? { backgroundColor: cat.color, borderColor: cat.color }
                     : {
@@ -118,15 +124,15 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
               >
                 <Icon
                   style={{
-                    width: 'min(22px, 5.5cqmin)',
-                    height: 'min(22px, 5.5cqmin)',
+                    width: '5.5cqmin',
+                    height: '5.5cqmin',
                     color: isActive ? '#ffffff' : cat.color,
-                    marginBottom: 'min(8px, 2cqmin)',
+                    marginBottom: '2cqmin',
                   }}
                 />
                 <span
                   className="font-bold text-center leading-tight uppercase tracking-tight"
-                  style={{ fontSize: 'min(11px, 2.8cqmin)' }}
+                  style={{ fontSize: '2.8cqmin' }}
                 >
                   {cat.label}
                 </span>
@@ -139,37 +145,40 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
       {/* Main Content Area */}
       <div
         className="flex-1 overflow-y-auto custom-scrollbar"
-        style={{ padding: 'min(20px, 5cqmin)', backgroundColor: surfaceBg }}
+        style={{
+          padding: '5cqmin',
+          backgroundColor: surfaceBg,
+          fontSize: `${3.5 * textScale}cqmin`,
+        }}
       >
         <div className="animate-in fade-in slide-in-from-right-2 duration-300">
           <h3
-            className="font-black uppercase tracking-tight flex items-center"
+            className="font-black uppercase tracking-tight leading-normal flex items-center"
             style={{
               color: activeCat.color,
-              fontSize: 'min(18px, 4.5cqmin)',
-              gap: 'min(8px, 2cqmin)',
-              marginBottom: 'min(16px, 4cqmin)',
+              fontSize: '1.29em',
+              gap: '0.44em',
+              marginBottom: '0.89em',
             }}
           >
             {React.createElement(getIcon(activeCat.icon), {
               style: {
-                width: 'min(20px, 5cqmin)',
-                height: 'min(20px, 5cqmin)',
+                width: '1.11em',
+                height: '1.11em',
               },
             })}
             {activeCat.label}
           </h3>
-          <ul className="flex flex-col" style={{ gap: 'min(12px, 3cqmin)' }}>
+          <ul className="flex flex-col" style={{ gap: '0.85em' }}>
             {activeCat.stems.map((stem) => (
               <li
                 key={stem.id}
                 className="font-medium text-slate-700 border-l-4 leading-relaxed shadow-sm bg-slate-50 rounded-r-lg"
                 style={{
                   borderLeftColor: activeCat.color,
-                  fontSize: 'min(14px, 3.5cqmin)',
-                  paddingLeft: 'min(16px, 4cqmin)',
-                  paddingTop: 'min(8px, 2cqmin)',
-                  paddingBottom: 'min(8px, 2cqmin)',
+                  paddingLeft: '1.14em',
+                  paddingTop: '0.57em',
+                  paddingBottom: '0.57em',
                 }}
               >
                 {stem.text}
