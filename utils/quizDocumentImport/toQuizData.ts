@@ -49,10 +49,12 @@ function fibAlternates(
   q: ExtractedQuestion
 ): Pick<QuizQuestion, 'alternateAnswers' | 'blankAlternates'> {
   const alternates = q.blankAlternates;
-  if (q.type !== 'FIB' || !alternates?.some((a) => a.length > 0)) return {};
-  if (alternates.length === 1) return { alternateAnswers: [...alternates[0]] };
+  if (q.type !== 'FIB' || !alternates?.some((a) => a.answers.length > 0))
+    return {};
+  if (alternates.length === 1)
+    return { alternateAnswers: [...alternates[0].answers] };
   return {
-    blankAlternates: alternates.map((answers) => ({ answers: [...answers] })),
+    blankAlternates: alternates.map((a) => ({ answers: [...a.answers] })),
   };
 }
 

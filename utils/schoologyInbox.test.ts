@@ -60,7 +60,10 @@ describe('parseInboxItem', () => {
   it('reads questions, unpacks blank answers and drops unknown types', () => {
     const item = parseInboxItem('testQuiz_8629405092', doc());
     expect(item?.quiz.questions).toHaveLength(2);
-    expect(item?.quiz.questions[1].blankAlternates).toEqual([['sky'], []]);
+    expect(item?.quiz.questions[1].blankAlternates).toEqual([
+      { answers: ['sky'] },
+      { answers: [] },
+    ]);
     expect(item?.quiz.questions[0].points).toBe(2);
     expect(item?.images[0].path).toContain('schoology_import/');
   });

@@ -176,12 +176,12 @@ describe('parseInboxPayload', () => {
       expect(await statusOf(() => parseInboxPayload(c))).toBe(400);
   });
 
-  it('stores blank alternates as maps, since Firestore has no nested arrays', () => {
+  it('keeps blank alternates as maps, since Firestore has no nested arrays', () => {
     const q = body().quiz;
     const fib = {
       ...q.questions[0],
       type: 'FIB',
-      blankAlternates: [['a', 'b'], []],
+      blankAlternates: [{ answers: ['a', 'b'] }, { answers: [] }],
     };
     const p = parseInboxPayload(body({ quiz: { ...q, questions: [fib] } }));
     expect(p.questions[0].blankAlternates).toEqual([
@@ -303,7 +303,7 @@ describe('receiveQuiz', () => {
       savePicture: (path) => (calls.push(`save ${path}`), Promise.resolve()),
       write: (uid, id, _doc, expireAt) => (
         calls.push(`write ${uid}/${id} ${expireAt}`),
-        Promise.resolve()
+        store.previousSend(uid, id)
       ),
       ...over,
     };
@@ -339,6 +339,19 @@ describe('receiveQuiz', () => {
       receiveQuiz(body(), importer, failing.store, 1, 'send-1')
     ).rejects.toThrow('down');
     expect(failing.calls.some((c) => c.includes('/old/'))).toBe(false);
+  });
+
+  it('clears the send a concurrent write replaced, not the one read earlier', async () => {
+    const { store, calls } = memoryStore({
+      write: (uid, id, _doc, expireAt) => (
+        calls.push(`write ${uid}/${id} ${expireAt}`),
+        Promise.resolve('racing')
+      ),
+    });
+    await receiveQuiz(body(), importer, store, 1000, 'send-1');
+    expect(calls.at(-1)).toBe(
+      'clear schoology_import/uid-1/testQuiz_8629405092/racing/'
+    );
   });
 
   it('refuses without the flag or a SpartBoard account', async () => {

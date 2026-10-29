@@ -1,6 +1,12 @@
 // Live list of quizzes the Chrome extension sent from Schoology (docs/plans/SCHOOLOGY_QUIZ_IMPORT.md Q8).
 import { useCallback, useEffect, useState } from 'react';
-import { collection, deleteDoc, doc, onSnapshot } from 'firebase/firestore';
+import {
+  Timestamp,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+} from 'firebase/firestore';
 import { getBlob, ref } from 'firebase/storage';
 import { db, storage } from '@/config/firebase';
 import type { ExtractedImage } from '@/utils/quizDocumentImport/types';
@@ -18,6 +24,9 @@ export interface SchoologyInbox {
   loadImages: (item: SchoologyInboxItem) => Promise<ExtractedImage[]>;
 }
 
+const isExpired = (expireAt: unknown): boolean =>
+  expireAt instanceof Timestamp && expireAt.toMillis() <= Date.now();
+
 export function useSchoologyInbox(
   uid: string | undefined,
   enabled: boolean
@@ -32,8 +41,16 @@ export function useSchoologyInbox(
       (snap) =>
         setItems(
           snap.docs
+            // Expired entries wait for the TTL sweep with their pictures already gone.
+            .filter((d) => !isExpired(d.get('expireAt')))
             .map((d) => parseInboxItem(d.id, d.data()))
             .filter((item): item is SchoologyInboxItem => item !== null)
+            .map((item) => ({
+              ...item,
+              images: item.images.filter((img) =>
+                img.path.startsWith(`schoology_import/${uid}/`)
+              ),
+            }))
         ),
       (err) => {
         console.error('[useSchoologyInbox] listener failed', err);

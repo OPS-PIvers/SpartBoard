@@ -105,7 +105,10 @@ describe('Learnosity types beyond the fixture', () => {
     );
     const question = read.quiz.questions[0];
     expect(splitBlanks(question.correctAnswer)).toEqual(['red', 'blue']);
-    expect(question.blankAlternates).toEqual([['Red'], []]);
+    expect(question.blankAlternates).toEqual([
+      { answers: ['Red'] },
+      { answers: [] },
+    ]);
   });
 
   it('turns a one-blank dropdown into multiple choice', () => {
@@ -151,7 +154,7 @@ describe('Learnosity types beyond the fixture', () => {
     expect(read.quiz.questions[0]).toMatchObject({
       type: 'FIB',
       correctAnswer: 'Paris',
-      blankAlternates: [['paris']],
+      blankAlternates: [{ answers: ['paris'] }],
     });
   });
 
