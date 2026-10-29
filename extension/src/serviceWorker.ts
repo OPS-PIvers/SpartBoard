@@ -222,6 +222,12 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
 chrome.webNavigation.onCommitted.addListener(({ tabId, frameId, url }) => {
   void schoology.navigated(tabId, frameId, url);
 });
+// Resources moves between folders in the page, changing only the part after `#`.
+chrome.webNavigation.onReferenceFragmentUpdated.addListener(
+  ({ tabId, frameId, url }) => {
+    void schoology.navigated(tabId, frameId, url);
+  }
+);
 
 // Focus sessions (CHROME_EXTENSION.md F3, F5): student profiles pull their session; staff never enforce.
 const scope = self as unknown as PushScope & {

@@ -130,4 +130,41 @@ describe('inboxRequest', () => {
       pictures: [],
     });
   });
+
+  it('files a Resources bank under its own trail and keeps its collection', () => {
+    const read: SchoologyRead = {
+      quiz: { title: 'Bank', questions: [], images: [], warnings: [] },
+      imageUrls: [],
+      unsupported: [],
+      settings: {},
+      folderPath: [
+        'MCAs',
+        ' ',
+        'x'.repeat(250),
+        ...Array<string>(12).fill('Deep'),
+      ],
+    };
+    const request = inboxRequest(
+      {
+        kind: 'questionBank',
+        bank: 'classic',
+        itemId: '55',
+        collectionId: '7',
+        title: 'Bank',
+      },
+      read,
+      null,
+      [],
+      `${origin}/resources/my/7?f=55`
+    );
+    expect(request.source).toEqual({
+      kind: 'questionBank',
+      itemId: '55',
+      collectionId: '7',
+      url: `${origin}/resources/my/7?f=55`,
+    });
+    expect(request.folderPath).toHaveLength(10);
+    expect(request.folderPath[0]).toBe('MCAs');
+    expect(request.folderPath[1]).toHaveLength(200);
+  });
 });

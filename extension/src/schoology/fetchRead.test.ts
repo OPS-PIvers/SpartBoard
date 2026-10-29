@@ -5,8 +5,11 @@ import { readAssessment } from './assessmentReader';
 import { readClassicQuiz, type FormEntries } from './classicReader';
 import {
   assessmentIdIn,
+  itemBankPropsIn,
   readAssessmentFromSchoology,
+  readClassicBankFromSchoology,
   readClassicFromSchoology,
+  readItemBankFromSchoology,
 } from './fetchRead';
 import { SchoologyReadError } from './readResult';
 
@@ -122,5 +125,105 @@ describe('readAssessmentFromSchoology', () => {
     await expect(readAssessmentFromSchoology('9', '42', deps)).rejects.toThrow(
       /assessment editor/
     );
+  });
+});
+
+const crumbs = (names: string[], current: string) =>
+  `<div id="collection-title">${names
+    .map(
+      (n, i) =>
+        `<a href="/resources/my/7?f=${i}">${n}</a> <span class="arrow"></span> `
+    )
+    .join(
+      ''
+    )}<span class="active"><span class="inline-icon"></span>${current}</span></div>`;
+
+describe('readClassicBankFromSchoology', () => {
+  const rows = classic.questions
+    .map(
+      (q, i) =>
+        `<tr class="collection-template-item-row component-summary component-type-${q.type}"><td><a class="action-edit-template" href="/resources/my/7/edit/${i + 100}?resources=1">Edit</a></td></tr>`
+    )
+    .join('');
+  const pages: Record<string, string | object> = {
+    '/resources/my/7?f=55&ajax=1': {
+      output: `${crumbs(['MCAs', 'Algebra'], '9.2.1.9')}<table class="collection-question-bank"><tbody>${rows}<tr class="collection-template-item-row component-type-fitb"><td><a class="action-edit-template" href="https://evil.test/x">Edit</a></td></tr></tbody></table>`,
+    },
+  };
+  classic.questions.forEach((q, i) => {
+    pages[`/resources/my/7/edit/${i + 100}?resources=1`] = form(q.entries);
+  });
+
+  it('reads every question form in the folder and files it under the trail', async () => {
+    const { asked, deps } = fakeSite(pages);
+    const read = await readClassicBankFromSchoology('7', '55', deps);
+    expect(read).toEqual({
+      ...readClassicQuiz({
+        title: '9.2.1.9',
+        questions: classic.questions.map((q) => ({
+          type: q.type,
+          entries: q.entries as FormEntries,
+        })),
+        origin: 'https://orono.schoology.com',
+      }),
+      settings: {},
+      folderPath: ['MCAs', 'Algebra'],
+    });
+    expect(asked.some((p) => p.includes('evil'))).toBe(false);
+  });
+});
+
+describe('readItemBankFromSchoology', () => {
+  const domains = assessment.components.data.components.map(
+    (c) => c.metadata.question_domain
+  );
+  const page = `<script>React.createElement(sgyAssessmentManager.ItemBankManager, ${JSON.stringify(
+    {
+      breadcrumbs: [
+        { label: 'Resources', link: '/resources/7' },
+        { label: 'Algebra', link: '/resources/7?f=9' },
+        { label: '9.2.1.1', link: '#' },
+      ],
+      questionBank: {
+        id: 191500786,
+        title: '9.2.1.1 {braces}',
+        collection_nid: 7,
+        folder_id: 9,
+      },
+    }
+  )}))</script>`;
+  const list = {
+    data: {
+      questions: [
+        ...domains.map((d) => ({ ...d, status: 'active', deleted_at: null })),
+        { ...domains[0], status: 'retired', deleted_at: null },
+      ],
+    },
+  };
+
+  it('reads the active questions as an assessment would, filed under the folder trail', async () => {
+    const { deps } = fakeSite({
+      '/common-assessment-question-banks/191500786': page,
+      '/iapi2/common-assessment-question-banks/191500786/question-list': list,
+      '/resources/my/7?f=9&ajax=1': {
+        output: crumbs(['MCAs', 'High School'], 'Algebra'),
+      },
+    });
+    const read = await readItemBankFromSchoology('191500786', deps);
+    expect(read.quiz.title).toBe('9.2.1.1 {braces}');
+    expect(read.quiz.questions).toHaveLength(domains.length);
+    expect(read.folderPath).toEqual(['MCAs', 'High School', 'Algebra']);
+    expect(read.settings).toEqual({});
+  });
+
+  it("falls back to the page's own trail when the folder can't be read", async () => {
+    const { deps } = fakeSite({
+      '/common-assessment-question-banks/191500786': page,
+      '/iapi2/common-assessment-question-banks/191500786/question-list': list,
+    });
+    await expect(
+      readItemBankFromSchoology('191500786', deps)
+    ).resolves.toMatchObject({ folderPath: ['Algebra'] });
+    expect(itemBankPropsIn('<p>nothing</p>')).toBeNull();
   });
 });
