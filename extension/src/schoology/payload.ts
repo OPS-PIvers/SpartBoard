@@ -3,15 +3,24 @@
 import type { SchoologyItem } from './page';
 import type { SchoologyRead } from './readResult';
 
-// Match the server's caps: 5 MB per picture, 24 MB of base64 per request.
+// Match the server's caps: 200 pictures, 5 MB each, 24 MB of base64 per request.
+export const MAX_PICTURES = 200;
 export const MAX_PICTURE_BYTES = 5 * 1024 * 1024;
 export const MAX_PICTURE_CHARS = 24 * 1024 * 1024;
-const PICTURE_TYPES = new Set([
-  'image/png',
-  'image/jpeg',
-  'image/gif',
-  'image/webp',
-]);
+
+const startsWith = (b: Uint8Array, bytes: number[], at = 0) =>
+  bytes.every((x, i) => b[at + i] === x);
+const ascii = (s: string) => Array.from(s, (c) => c.charCodeAt(0));
+
+/** The picture's type from its first bytes, as the server checks it; Schoology labels files by name, not content. */
+export function sniffPicture(b: Uint8Array): string | null {
+  if (startsWith(b, [0x89, 0x50, 0x4e, 0x47])) return 'image/png';
+  if (startsWith(b, [0xff, 0xd8, 0xff])) return 'image/jpeg';
+  if (startsWith(b, ascii('GIF8'))) return 'image/gif';
+  if (startsWith(b, ascii('RIFF')) && startsWith(b, ascii('WEBP'), 8))
+    return 'image/webp';
+  return null;
+}
 
 export interface InboxPicture {
   id: string;
@@ -58,13 +67,14 @@ export async function collectPictures(
     }
     // Only Schoology's own files; another site's picture would need its own sign-in.
     if (parsed.origin !== origin || url.length > 2048) continue;
+    if (pictures.length >= MAX_PICTURES) break;
     try {
       const res = await get(url);
       if (!res.ok) continue;
-      const blob = await res.blob();
-      const mime = blob.type.split(';')[0].trim().toLowerCase();
-      if (!PICTURE_TYPES.has(mime) || blob.size > MAX_PICTURE_BYTES) continue;
-      const data = toBase64(new Uint8Array(await blob.arrayBuffer()));
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      const mime = sniffPicture(bytes);
+      if (!mime || bytes.length > MAX_PICTURE_BYTES) continue;
+      const data = toBase64(bytes);
       if (total + data.length > MAX_PICTURE_CHARS) continue;
       total += data.length;
       pictures.push({ id: url, mime, name: `Picture ${i + 1}`, data });

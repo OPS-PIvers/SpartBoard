@@ -1,42 +1,78 @@
-// Opens the Schoology review the extension asks for (docs/plans/SCHOOLOGY_QUIZ_IMPORT.md Q8), adding a Quiz widget when the board has none.
+// Opens the Schoology review the extension asks for (docs/plans/SCHOOLOGY_QUIZ_IMPORT.md Q8), adding a Quiz widget when none takes it.
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { useIsActiveBoardReadOnly } from '@/context/dashboardCanvasStore';
 import { SCHOOLOGY_REVIEW_EVENT } from '@/utils/schoologyReviewProtocol';
 import {
+  claimSchoologyReview,
   requestSchoologyReview,
   schoologyReviewPending,
   subscribeSchoologyReview,
 } from '@/utils/schoologyInbox';
+
+/** How long a Quiz widget already on the board (its code may still be loading) gets to take the request. */
+export const SCHOOLOGY_REVIEW_WAIT_MS = 6000;
 
 export const SchoologyReviewHost: React.FC = () => {
   const pending = useSyncExternalStore(
     subscribeSchoologyReview,
     schoologyReviewPending
   );
-  const { activeDashboard, addWidget } = useDashboard();
+  const { activeDashboard, addWidget, addToast } = useDashboard();
+  const { canAccessWidget } = useAuth();
   const readOnly = useIsActiveBoardReadOnly();
   const boardId = activeDashboard?.id ?? null;
   const hasQuiz = !!activeDashboard?.widgets.some((w) => w.type === 'quiz');
-  const addedTo = useRef<string | null>(null);
+  const canAddQuiz = canAccessWidget('quiz');
+  const added = useRef(false);
 
-  // The extension fires this in a SpartBoard tab that is already open, instead of reloading it.
+  // The extension fires this in a SpartBoard tab that is already open; cancelling it tells the extension it was heard.
   useEffect(() => {
-    const onRequest = () => requestSchoologyReview();
+    const onRequest = (event: Event) => {
+      event.preventDefault();
+      requestSchoologyReview();
+    };
     window.addEventListener(SCHOOLOGY_REVIEW_EVENT, onRequest);
     return () => window.removeEventListener(SCHOOLOGY_REVIEW_EVENT, onRequest);
   }, []);
 
+  // A Quiz widget the teacher owns on this board takes the request at once; otherwise it is placed or dropped here, never left for a later board.
   useEffect(() => {
     if (!pending) {
-      addedTo.current = null;
+      added.current = false;
       return;
     }
-    if (!boardId || readOnly || hasQuiz || addedTo.current === boardId) return;
-    // The new widget takes the waiting request when it mounts.
-    addedTo.current = boardId;
-    addWidget('quiz');
-  }, [pending, boardId, readOnly, hasQuiz, addWidget]);
+    if (!boardId) return;
+    const timer = window.setTimeout(
+      () => {
+        if (!schoologyReviewPending()) return;
+        // The widget added for this request never took it.
+        if (added.current) {
+          claimSchoologyReview();
+          return;
+        }
+        if (readOnly) {
+          claimSchoologyReview();
+          addToast(
+            'Switch to one of your own boards to review quizzes from Schoology.',
+            'info'
+          );
+          return;
+        }
+        if (!canAddQuiz) {
+          claimSchoologyReview();
+          addToast('The Quiz widget is not available on your account.', 'info');
+          return;
+        }
+        // The new widget takes the waiting request when it mounts.
+        added.current = true;
+        addWidget('quiz');
+      },
+      hasQuiz ? SCHOOLOGY_REVIEW_WAIT_MS : 0
+    );
+    return () => window.clearTimeout(timer);
+  }, [pending, boardId, hasQuiz, readOnly, canAddQuiz, addWidget, addToast]);
 
   return null;
 };

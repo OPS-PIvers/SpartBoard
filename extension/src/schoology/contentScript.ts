@@ -72,6 +72,7 @@ button:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
 .row input { width: 18px; height: 18px; accent-color: #2d3f89; }
 .row .state { margin-left: auto; font-size: 12px; color: #475569; white-space: nowrap; }
 .row .bad { color: #ad2122; }
+.reason { color: #ad2122; font-size: 12px; padding: 0 8px 6px 36px; }
 .panel footer { padding: 8px 16px 14px; display: flex; gap: 8px; justify-content: flex-end; border-top: 1px solid #f1f5f9; }
 .note { background: #fff; border-radius: 10px; padding: 10px 14px; max-width: 320px; box-shadow: 0 6px 20px rgb(15 23 42 / .2); }
 .note.bad { color: #ad2122; }
@@ -152,18 +153,26 @@ function checklist(
   const boxes = items.map((item) => {
     const box = el('input', { type: 'checkbox', checked: true });
     const state = el('span', { className: 'state' });
+    const reason = el('div', { className: 'reason', hidden: true });
     const row = el(
-      'label',
-      { className: 'row' },
-      box,
-      el('span', { textContent: item.title }),
-      state
+      'div',
+      {},
+      el(
+        'label',
+        { className: 'row' },
+        box,
+        el('span', { textContent: item.title }),
+        state
+      ),
+      reason
     );
-    return { item, box, state, row };
+    return { item, box, state, reason, row, sent: false };
   });
   const send = el('button', { className: 'main' });
+  const review = reviewButton();
+  review.hidden = true;
   const count = () => {
-    const n = boxes.filter((b) => b.box.checked).length;
+    const n = boxes.filter((b) => b.box.checked && !b.sent).length;
     send.textContent = `Send ${n}`;
     send.disabled = n === 0;
   };
@@ -177,7 +186,7 @@ function checklist(
       opener.hidden = false;
     },
   });
-  const footer = el('footer', {}, close, send);
+  const footer = el('footer', {}, close, send, review);
   panel.append(
     el('header', { textContent: 'Tests/Quizzes and Assessments' }),
     el('div', { className: 'list' }, ...boxes.map((b) => b.row)),
@@ -188,24 +197,29 @@ function checklist(
     panel.hidden = false;
   };
   send.onclick = async () => {
-    const chosen = boxes.filter((b) => b.box.checked);
+    const chosen = boxes.filter((b) => b.box.checked && !b.sent);
     send.disabled = true;
     close.disabled = true;
     for (const b of boxes) b.box.disabled = true;
-    let sent = 0;
     // One at a time keeps Schoology's request rate low (Q5).
     for (const [i, b] of chosen.entries()) {
       send.textContent = `Sending ${i + 1} of ${chosen.length}…`;
       b.state.className = 'state';
       b.state.textContent = 'Reading…';
+      b.reason.hidden = true;
       const outcome = await sendItem(b.item, courseName);
+      b.sent = outcome.ok;
       b.state.className = outcome.ok ? 'state' : 'state bad';
       b.state.textContent = outcome.ok ? 'Sent' : 'Not sent';
-      b.state.title = outcome.text;
-      if (outcome.ok) sent++;
+      b.reason.textContent = outcome.ok ? '' : outcome.text;
+      b.reason.hidden = outcome.ok;
     }
     close.disabled = false;
-    send.replaceWith(sent > 0 ? reviewButton() : el('span'));
+    // Sent rows stay locked; the rest can be sent again.
+    for (const b of boxes) b.box.disabled = b.sent;
+    review.hidden = !boxes.some((b) => b.sent);
+    send.hidden = boxes.every((b) => b.sent);
+    count();
   };
   wrap.append(panel, opener);
 }

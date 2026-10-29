@@ -179,7 +179,12 @@ const schoology = createSchoologyWorker({
             (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0) ||
             Number(b.active) - Number(a.active)
         )
-        .map((t) => ({ id: t.id as number, windowId: t.windowId }))
+        .map((t) => ({
+          id: t.id as number,
+          windowId: t.windowId,
+          origin: new URL(t.url as string).origin,
+          ready: t.status === 'complete' && !t.discarded,
+        }))
     );
   },
   focus: async ({ id, windowId }) => {
@@ -187,12 +192,18 @@ const schoology = createSchoologyWorker({
     await chrome.windows.update(windowId, { focused: true });
   },
   askForReview: async (tabId) => {
-    await chrome.scripting.executeScript({
+    const [result] = await chrome.scripting.executeScript({
       target: { tabId },
       world: 'MAIN',
-      func: (name: string) => window.dispatchEvent(new CustomEvent(name)),
+      // SchoologyReviewHost cancels the event when it hears it.
+      func: (name: string) =>
+        !window.dispatchEvent(new CustomEvent(name, { cancelable: true })),
       args: [SCHOOLOGY_REVIEW_EVENT],
     });
+    return result?.result === true;
+  },
+  navigate: async (tabId, url) => {
+    await chrome.tabs.update(tabId, { url, active: true });
   },
   openTab: async (url) => {
     await chrome.tabs.create({ url });

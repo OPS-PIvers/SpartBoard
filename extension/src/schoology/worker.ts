@@ -9,6 +9,14 @@ export const STATUS_KEY = 'schoologyImportStatus';
 const STATUS_MINUTES = 30;
 const FAILED_STATUS_MINUTES = 5;
 
+export interface BoardTab {
+  id: number;
+  windowId: number;
+  origin: string;
+  /** Loaded and not discarded, so a script can run in it now. */
+  ready: boolean;
+}
+
 interface StatusCache {
   enabled: boolean;
   at: number;
@@ -26,10 +34,12 @@ export interface SchoologyWorkerDeps {
   saveStatus: (status: StatusCache) => Promise<void>;
   inject: (tabId: number) => Promise<void>;
   /** Open SpartBoard tabs showing a board, most recent first. */
-  boardTabs: () => Promise<{ id: number; windowId: number }[]>;
-  focus: (tab: { id: number; windowId: number }) => Promise<void>;
-  /** Tells an open board to show the review without reloading it. */
-  askForReview: (tabId: number) => Promise<void>;
+  boardTabs: () => Promise<BoardTab[]>;
+  focus: (tab: BoardTab) => Promise<void>;
+  /** Fires the review event in a loaded board; true only when the page heard it. */
+  askForReview: (tabId: number) => Promise<boolean>;
+  /** Loads `url` in the tab, for a board that was discarded, loading or not listening yet. */
+  navigate: (tabId: number, url: string) => Promise<void>;
   openTab: (url: string) => Promise<void>;
   now: () => number;
 }
@@ -53,14 +63,19 @@ export function createSchoologyWorker(deps: SchoologyWorkerDeps) {
     if (await enabled()) await deps.inject(tabId);
   }
 
+  const reviewUrl = (origin: string) => `${origin}/?schoologyImport=1`;
+
   async function openReview(): Promise<void> {
     const [tab] = await deps.boardTabs();
-    if (tab) {
-      await deps.focus(tab);
-      await deps.askForReview(tab.id);
+    if (!tab) {
+      await deps.openTab(reviewUrl(deps.origins[0]));
       return;
     }
-    await deps.openTab(`${deps.origins[0]}/?schoologyImport=1`);
+    await deps.focus(tab);
+    // An open board hears the event without reloading; a tab that can't, loads the review URL instead.
+    const heard =
+      tab.ready && (await deps.askForReview(tab.id).catch(() => false));
+    if (!heard) await deps.navigate(tab.id, reviewUrl(tab.origin));
   }
 
   /** Handles a message from the content script; null when it isn't one, so another listener may answer. */

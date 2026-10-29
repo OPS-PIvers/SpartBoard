@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { collectPictures, inboxRequest, toBase64 } from './payload';
+import {
+  MAX_PICTURES,
+  collectPictures,
+  inboxRequest,
+  sniffPicture,
+  toBase64,
+} from './payload';
 import type { SchoologyRead } from './readResult';
 
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]);
@@ -41,6 +47,56 @@ describe('collectPictures', () => {
       },
     ]);
     expect(asked).not.toContain('https://elsewhere.test/b.png');
+  });
+});
+
+describe('picture checks the server repeats', () => {
+  const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
+  const WEBP = new Uint8Array(
+    [...'RIFF']
+      .map((c) => c.charCodeAt(0))
+      .concat(
+        [0, 0, 0, 0],
+        [...'WEBP'].map((c) => c.charCodeAt(0))
+      )
+  );
+
+  it('takes the type from the bytes, not the label', async () => {
+    expect(sniffPicture(WEBP)).toBe('image/webp');
+    expect(sniffPicture(new Uint8Array())).toBeNull();
+    const labelled = (body: Uint8Array<ArrayBuffer>) => () =>
+      Promise.resolve(
+        new Response(body, { headers: { 'Content-Type': 'image/jpeg' } })
+      );
+    const [webp] = await collectPictures(
+      [`${origin}/a`],
+      labelled(WEBP),
+      origin
+    );
+    expect(webp.mime).toBe('image/webp');
+    expect(
+      await collectPictures([`${origin}/b`], labelled(new Uint8Array()), origin)
+    ).toEqual([]);
+    expect(
+      await collectPictures(
+        [`${origin}/c`],
+        labelled(new Uint8Array([1, 2, 3])),
+        origin
+      )
+    ).toEqual([]);
+  });
+
+  it("stops at the server's picture count", async () => {
+    const urls = Array.from(
+      { length: MAX_PICTURES + 5 },
+      (_, i) => `${origin}/p${i}`
+    );
+    const pictures = await collectPictures(
+      urls,
+      () => Promise.resolve(new Response(JPEG)),
+      origin
+    );
+    expect(pictures).toHaveLength(MAX_PICTURES);
   });
 });
 
