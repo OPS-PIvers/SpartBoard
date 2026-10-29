@@ -78,6 +78,9 @@ import {
 import { readTestAndKey } from '@/utils/quizDocumentImport/readTestAndKey';
 import { fetchImageThroughServer } from '@/utils/quizDocumentImport/remoteImageFetcher';
 import { CartridgeBankImportModal } from './components/CartridgeBankImportModal';
+import { SchoologyInboxModal } from './components/SchoologyInboxModal';
+import { useSchoologyInbox } from '@/hooks/useSchoologyInbox';
+import { claimSchoologyReviewParam } from '@/utils/schoologyInbox';
 import {
   callLeaveSyncedQuizGroup,
   createSyncedQuizGroup,
@@ -521,6 +524,14 @@ const TeacherQuizWidget: React.FC<{
   const [quizCartridge, setQuizCartridge] = useState<File | null>(null);
   // Quizzes a Schoology import already saved, so a retry only re-runs the folder move.
   const savedCartridgeQuizzes = useRef(new Map<string, string>());
+  const canImportFromSchoology = canAccessFeature('schoology-quiz-import');
+  const schoologyInbox = useSchoologyInbox(user?.uid, canImportFromSchoology);
+  const [schoologyReviewOpen, setSchoologyReviewOpen] = useState(false);
+  // The extension opens SpartBoard with `?schoologyImport=1` after a send; the URL is outside React.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- runs once on mount after reading the page URL
+    if (claimSchoologyReviewParam()) setSchoologyReviewOpen(true);
+  }, []);
   const [editingBankMeta, setEditingBankMeta] =
     useState<QuestionBankMetadata | null>(null);
   const [shareBankTarget, setShareBankTarget] =
@@ -1753,6 +1764,63 @@ const TeacherQuizWidget: React.FC<{
     pickSheet,
     canUseAi: canUseQuizAi,
   };
+
+  if (schoologyReviewOpen && canImportFromSchoology) {
+    return (
+      <SchoologyInboxModal
+        items={schoologyInbox.items}
+        quizzes={{
+          existing: quizzes,
+          folders: quizFolders,
+          createFolder: createQuizFolder,
+          load: (existing) => loadQuizData(existing.driveFileId),
+          save: async (data, { folderId, replaces, behavior }) => {
+            if (replaces) {
+              await saveQuiz(data, replaces.driveFileId);
+              return;
+            }
+            const meta = await saveQuiz(data, undefined, behavior);
+            if (folderId) await moveQuizItem(meta.id, folderId);
+          },
+        }}
+        banks={{
+          existing: banks,
+          folders: bankFolders,
+          createFolder: createBankFolder,
+          load: (existing) => loadBankData(existing.driveFileId),
+          save: async (data, { folderId, replaces }) => {
+            const {
+              order: _order,
+              sections: _sections,
+              bankSlots: _bankSlots,
+              paperSheetStimuli: _paper,
+              ...bank
+            } = data;
+            await saveBank(
+              bank,
+              replaces?.driveFileId,
+              folderId && !replaces ? { folderId } : undefined
+            );
+          },
+        }}
+        loadImages={schoologyInbox.loadImages}
+        removeItem={schoologyInbox.remove}
+        attachPictures={(quiz, images) =>
+          attachImagesToQuiz(quiz, images, stimulusUploader)
+        }
+        canUploadPictures={!!driveService}
+        onClose={(summary) => {
+          setSchoologyReviewOpen(false);
+          if (summary && summary.saved > 0) {
+            addToast(
+              `${summary.saved} ${summary.saved === 1 ? 'item' : 'items'} saved from Schoology.`,
+              'success'
+            );
+          }
+        }}
+      />
+    );
+  }
 
   if (bankCartridge) {
     return (
@@ -3111,6 +3179,8 @@ const TeacherQuizWidget: React.FC<{
         banksLoading={banksLoading}
         sharedBankSources={sharedBankSources}
         onImportBank={() => setBankImportOpen(true)}
+        schoologyInboxCount={schoologyInbox.items.length}
+        onOpenSchoologyInbox={() => setSchoologyReviewOpen(true)}
         onNewBank={() => {
           const now = Date.now();
           setEditingBankMeta(null);

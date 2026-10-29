@@ -136,6 +136,7 @@ describe('tour anchor registry', () => {
       'publish-scores.cancel',
       'assignment-classes.cancel',
       'quiz-import.cartridge-share-pictures',
+      'quiz-import.schoology-share-pictures',
       'quiz-import.paper-assignment',
       'quiz-banks.shared-preview',
       'quiz-results.student-delete-cancel',

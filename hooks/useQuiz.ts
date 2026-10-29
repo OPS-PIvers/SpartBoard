@@ -43,6 +43,7 @@ import {
   SyncedQuizVersionConflictError,
 } from './useSyncedQuizGroups';
 import { migrateQuizMetadataShape } from '@/utils/quizSyncMigration';
+import { importSourceKey } from '@/utils/importSource';
 import { buildQuizSearchText } from '@/utils/quizSearchText';
 import { quizServedQuestionCount } from '@/utils/questionBanks';
 import {
@@ -388,6 +389,11 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           : {}),
         ...(translations ? { translations } : {}),
         ...(updatedQuiz.language ? { language: updatedQuiz.language } : {}),
+        ...(updatedQuiz.source
+          ? { sourceKey: importSourceKey(updatedQuiz.source) }
+          : existingMeta?.sourceKey
+            ? { sourceKey: existingMeta.sourceKey }
+            : {}),
       };
 
       await setDoc(metaRef, metadata);
