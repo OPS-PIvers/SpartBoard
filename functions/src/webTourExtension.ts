@@ -71,12 +71,13 @@ export function bearerToken(header: unknown): string {
   return token;
 }
 
-/** Checks the token's client, its verified district email and the web-tours flag. */
-export async function verifyCaller(
+/** Checks a token belongs to this listing's client and a verified address on `domain`; returns it lowercased. */
+export async function verifiedTokenEmail(
   token: string,
-  deps: ExtensionDeps
-): Promise<ExtensionCaller> {
-  if (!deps.clientId) throw fail(503, 'Web tours are not set up yet.');
+  deps: Pick<ExtensionDeps, 'clientId' | 'tokenInfo'>,
+  domain: string,
+  message: string
+): Promise<string> {
   const info = await deps.tokenInfo(token).catch(() => null);
   const email = typeof info?.email === 'string' ? info.email.toLowerCase() : '';
   if (
@@ -85,12 +86,24 @@ export async function verifyCaller(
     (info.azp !== undefined && info.azp !== deps.clientId) ||
     !(Number(info.expires_in) > 0)
   )
-    throw fail(401, 'Sign in to Chrome with your Orono account.');
-  if (
-    String(info.email_verified) !== 'true' ||
-    !email.endsWith(`@${DISTRICT_DOMAIN}`)
-  )
-    throw fail(403, 'Sign in to Chrome with your Orono account.');
+    throw fail(401, message);
+  if (String(info.email_verified) !== 'true' || !email.endsWith(`@${domain}`))
+    throw fail(403, message);
+  return email;
+}
+
+/** Checks the token's client, its verified district email and the web-tours flag. */
+export async function verifyCaller(
+  token: string,
+  deps: ExtensionDeps
+): Promise<ExtensionCaller> {
+  if (!deps.clientId) throw fail(503, 'Web tours are not set up yet.');
+  const email = await verifiedTokenEmail(
+    token,
+    deps,
+    DISTRICT_DOMAIN,
+    'Sign in to Chrome with your Orono account.'
+  );
   const uid = await deps.uidForEmail(email);
   if (!(await deps.allowed(email, uid)))
     throw fail(403, "Web tours aren't available for your account yet.");
@@ -309,17 +322,20 @@ export function parseSetId(body: unknown): string {
   return setId;
 }
 
+/** Google's tokeninfo for an access token, or null when Google refuses it. */
+export async function fetchTokenInfo(token: string): Promise<TokenInfo | null> {
+  const res = await fetch('https://oauth2.googleapis.com/tokeninfo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ access_token: token }).toString(),
+  });
+  return res.ok ? ((await res.json()) as TokenInfo) : null;
+}
+
 function defaultDeps(db: Firestore): ExtensionDeps {
   return {
     clientId: EXTENSION_OAUTH_CLIENTS[process.env.GCLOUD_PROJECT ?? ''] ?? '',
-    tokenInfo: async (token) => {
-      const res = await fetch('https://oauth2.googleapis.com/tokeninfo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ access_token: token }).toString(),
-      });
-      return res.ok ? ((await res.json()) as TokenInfo) : null;
-    },
+    tokenInfo: fetchTokenInfo,
     uidForEmail: async (email) => {
       try {
         return (await admin.auth().getUserByEmail(email)).uid;

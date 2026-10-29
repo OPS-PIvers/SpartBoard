@@ -3877,6 +3877,8 @@ describe('index barrel — deployed export set', () => {
     'webToursListV1',
     'webTourLoadV1',
     'webTourRunV1',
+    'focusStatusV1',
+    'focusReportV1',
     // Dev-only prod → dev materials sync
     'syncMyMaterialsFromProdV1',
     'gradebookDemoV1',

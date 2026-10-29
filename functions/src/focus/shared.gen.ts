@@ -24,6 +24,8 @@ export const FOCUS_SESSIONS_COLLECTION = 'focus_sessions';
 export const FOCUS_STUDENTS_SUBCOLLECTION = 'students';
 /** F11 TTL field on both collection groups; `sessions/{id}/students` docs share the group and never use this name. */
 export const FOCUS_TTL_FIELD = 'focusExpiresAt';
+/** F5: one Web Push subscription per student, `focus_push_subscriptions/{studentUid}`, server-only. */
+export const FOCUS_PUSH_COLLECTION = 'focus_push_subscriptions';
 /** F4/F6 district settings doc, `admin_settings/{id}`. */
 export const FOCUS_SETTINGS_DOC = 'focus_sessions';
 
