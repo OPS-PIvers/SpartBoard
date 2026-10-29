@@ -3028,6 +3028,8 @@ export type BloomsContent = Partial<
 
 export interface BloomsTaxonomyConfig {
   enabledCategories?: BloomsCategoryKey[];
+  cardColor?: string;
+  cardOpacity?: number;
   aiTopic?: string;
   themeColor?: string;
 }

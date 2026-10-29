@@ -33,3 +33,14 @@ describe('BloomsQuestionStarters', () => {
     }
   });
 });
+
+describe('BloomsQuestionStarters text size', () => {
+  it('scales the starters pane with the window text size', () => {
+    render(
+      <BloomsQuestionStarters widgetType="blooms-taxonomy" baseTextSize="xl" />
+    );
+    const pane = screen.getByText('Level 1: Recall/Knowledge/Memory')
+      .parentElement?.parentElement;
+    expect(pane?.style.fontSize).toMatch(/^max\(16\.25px, 5\.25\d*cqmin\)$/);
+  });
+});
