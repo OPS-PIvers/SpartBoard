@@ -197,6 +197,7 @@ describe('inboxDoc', () => {
       parseInboxPayload(body({ pictures: [] })),
       'uid-1',
       'testQuiz_1',
+      'send-1',
       5
     );
     expect(doc.quiz.questions[0].imageIds).toEqual([]);
@@ -204,11 +205,17 @@ describe('inboxDoc', () => {
   });
 
   it('stores pictures under the item prefix', () => {
-    const doc = inboxDoc(parseInboxPayload(body()), 'uid-1', 'testQuiz_1', 5);
+    const doc = inboxDoc(
+      parseInboxPayload(body()),
+      'uid-1',
+      'testQuiz_1',
+      'send-1',
+      5
+    );
     expect(doc.images).toEqual([
       {
         id: PIC,
-        path: 'schoology_import/uid-1/testQuiz_1/0',
+        path: 'schoology_import/uid-1/testQuiz_1/send-1/0',
         contentType: 'image/png',
         name: 'Picture 1',
       },
@@ -224,7 +231,9 @@ describe('inboxDoc', () => {
       })
     );
     expect(
-      await statusOf(() => inboxDoc(payload, 'uid-1', 'testQuiz_1', 5))
+      await statusOf(() =>
+        inboxDoc(payload, 'uid-1', 'testQuiz_1', 'send-1', 5)
+      )
     ).toBe(413);
   });
 });
@@ -256,14 +265,14 @@ describe('receiveQuiz', () => {
 
   it('replaces the item and its pictures, expiring in seven days', async () => {
     const { store, calls } = memoryStore();
-    expect(await receiveQuiz(body(), importer, store, 1000)).toEqual({
+    expect(await receiveQuiz(body(), importer, store, 1000, 'send-1')).toEqual({
       id: 'testQuiz_8629405092',
       questions: 1,
       pictures: 1,
     });
     expect(calls).toEqual([
       'clear schoology_import/uid-1/testQuiz_8629405092/',
-      'save schoology_import/uid-1/testQuiz_8629405092/0',
+      'save schoology_import/uid-1/testQuiz_8629405092/send-1/0',
       `write uid-1/testQuiz_8629405092 ${1000 + INBOX_TTL_MS}`,
     ]);
   });
@@ -292,9 +301,11 @@ describe('receiveQuiz', () => {
     const { store, calls } = memoryStore({
       write: () => Promise.reject(new Error('down')),
     });
-    await expect(receiveQuiz(body(), importer, store)).rejects.toThrow('down');
+    await expect(
+      receiveQuiz(body(), importer, store, 1, 'send-1')
+    ).rejects.toThrow('down');
     expect(calls.at(-1)).toBe(
-      'clear schoology_import/uid-1/testQuiz_8629405092/'
+      'clear schoology_import/uid-1/testQuiz_8629405092/send-1/'
     );
   });
 });

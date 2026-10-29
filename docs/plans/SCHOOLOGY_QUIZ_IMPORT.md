@@ -201,8 +201,9 @@ district key (2026-10-29, statuses and field names only):
 - Built (PR 2): the inbox lives at `users/{uid}/schoology_import_inbox/{kind}_{itemId}` with a TTL on
   `expireAt`, not `schoology_import_inbox/{uid}/items/...`: a TTL policy is per collection-group name,
   and `items` is too generic to put one on. One entry per Schoology item, so sending it again
-  replaces the unsaved copy. Pictures sit at `schoology_import/{uid}/{itemId}/{n}` (owner read
-  only); `schoologyImportInboxCleanup` deletes them when the entry is deleted, saved or expired.
+  replaces the unsaved copy. Pictures sit at `schoology_import/{uid}/{itemId}/{sendId}/{n}` (owner read
+  only); `schoologyImportInboxCleanup` deletes that send's folder when the entry is deleted, saved or expired,
+  so a quick re-send never loses its pictures to the old entry's cleanup.
   One request carries a quiz and its pictures: 5 MB per picture, 24 MB of pictures per request.
 
 ### SpartBoard side

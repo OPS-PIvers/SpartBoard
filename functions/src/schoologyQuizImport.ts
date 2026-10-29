@@ -3,6 +3,7 @@ import './functionsInit';
 import { onRequest } from 'firebase-functions/v2/https';
 import { onDocumentDeleted } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
+import { randomUUID } from 'node:crypto';
 import {
   DISTRICT_DOMAIN,
   EXTENSION_OAUTH_CLIENTS,
@@ -314,6 +315,10 @@ export const inboxItemId = (source: InboxSource): string =>
 export const picturePrefix = (uid: string, itemId: string): string =>
   `schoology_import/${uid}/${itemId}/`;
 
+// Each send has its own folder, so cleanup for a deleted entry never touches a newer send's pictures.
+export const sendPrefix = (uid: string, itemId: string, sendId: string) =>
+  `${picturePrefix(uid, itemId)}${sendId}/`;
+
 const MISSING_PICTURE =
   "A picture couldn't be copied from Schoology. Add it in the editor.";
 
@@ -322,9 +327,10 @@ export function inboxDoc(
   payload: InboxPayload,
   uid: string,
   itemId: string,
+  sendId: string,
   now: number
 ) {
-  const prefix = picturePrefix(uid, itemId);
+  const prefix = sendPrefix(uid, itemId, sendId);
   const images = payload.pictures.map((p, i) => ({
     id: p.id,
     path: `${prefix}${i}`,
@@ -346,6 +352,7 @@ export function inboxDoc(
     settings: payload.settings,
     images,
     questionCount: questions.length,
+    sendId,
     receivedAt: now,
   };
   if (Buffer.byteLength(JSON.stringify(doc)) > MAX_DOC_BYTES)
@@ -371,7 +378,8 @@ export async function receiveQuiz(
   body: unknown,
   importer: Importer,
   store: InboxStore,
-  now = Date.now()
+  now = Date.now(),
+  sendId: string = randomUUID()
 ): Promise<{ id: string; questions: number; pictures: number }> {
   if (!importer.enabled)
     throw fail(403, "Schoology import isn't available for your account yet.");
@@ -383,20 +391,21 @@ export async function receiveQuiz(
   const uid = importer.uid;
   const payload = parseInboxPayload(body);
   const itemId = inboxItemId(payload.source);
-  const doc = inboxDoc(payload, uid, itemId, now);
+  const doc = inboxDoc(payload, uid, itemId, sendId, now);
   if (
     !(await store.exists(uid, itemId)) &&
     (await store.count(uid)) >= MAX_INBOX_ITEMS
   )
     throw fail(429, 'Review the quizzes already waiting in SpartBoard first.');
-  const prefix = picturePrefix(uid, itemId);
-  await store.clearPictures(prefix);
+  await store.clearPictures(picturePrefix(uid, itemId));
   try {
     for (const [i, picture] of payload.pictures.entries())
       await store.savePicture(doc.images[i].path, picture);
     await store.write(uid, itemId, doc, now + INBOX_TTL_MS);
   } catch (error) {
-    await store.clearPictures(prefix).catch(() => undefined);
+    await store
+      .clearPictures(sendPrefix(uid, itemId, sendId))
+      .catch(() => undefined);
     throw error;
   }
   return {
@@ -502,9 +511,11 @@ export const schoologyImportInboxCleanup = onDocumentDeleted(
   `users/{uid}/${INBOX_COLLECTION}/{itemId}`,
   async (event) => {
     const { uid, itemId } = event.params;
+    const sendId: unknown = event.data?.get('sendId');
+    if (typeof sendId !== 'string' || !sendId) return;
     await admin
       .storage()
       .bucket()
-      .deleteFiles({ prefix: picturePrefix(uid, itemId) });
+      .deleteFiles({ prefix: sendPrefix(uid, itemId, sendId) });
   }
 );
