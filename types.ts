@@ -10591,8 +10591,6 @@ export type GlobalFeature =
   | 'quiz-calculator-stimulus'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
-  /** Per-period start/pause and windows on assignments shared by several classes. */
-  | 'per-period-access'
   /** Flag free-response answers so an anonymized copy appears on the PLC page for norming. */
   | 'plc-norming-flags'
   /** Standard codes typed in or imported with a question text become Learning targets tags. */

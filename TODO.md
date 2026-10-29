@@ -98,7 +98,6 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/plans/shipped/PER_PERIOD_ASSIGNMENT_ACCESS.md`
 
-- [ ] Paul runs a real class through per-period access in prod on his own account, then flips 'per-period-access' from admin to Public in Admin Settings > Access > Global Settings. (S)
 
 #### `docs/plans/shipped/PLC_DELEGATED_PAPER_PRINTING.md`
 

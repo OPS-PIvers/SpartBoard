@@ -19,14 +19,6 @@ vi.mock('@/hooks/useAdminBuildings', () => ({
   useAdminBuildings: () => mockUseAdminBuildings(),
 }));
 
-const flags = vi.hoisted(() => ({ perPeriod: false }));
-vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({
-    canAccessFeature: (f: string) =>
-      f === 'per-period-access' && flags.perPeriod,
-  }),
-}));
-
 describe('ScheduleConfigurationPanel', () => {
   const mockConfig: ScheduleGlobalConfig = {
     buildingDefaults: {
@@ -296,24 +288,6 @@ describe('ScheduleConfigurationPanel', () => {
   });
 
   describe('per-period access fields', () => {
-    beforeEach(() => {
-      flags.perPeriod = true;
-    });
-    afterEach(() => {
-      flags.perPeriod = false;
-    });
-
-    it('hides the period fields while the flag is off', () => {
-      flags.perPeriod = false;
-      render(
-        <ScheduleConfigurationPanel
-          config={mockConfig}
-          onChange={mockOnChange}
-        />
-      );
-      expect(screen.queryByText('Special days')).toBeNull();
-    });
-
     it('marks an item as a class period by giving it an id', () => {
       render(
         <ScheduleConfigurationPanel
