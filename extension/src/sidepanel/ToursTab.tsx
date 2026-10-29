@@ -31,7 +31,7 @@ export const FAILURE_TEXT: Record<ApiFailure, string> = {
 };
 
 /** The active tab in this panel's window, kept current as the person moves between tabs and pages. */
-function useActiveTab(): chrome.tabs.Tab | null {
+export function useActiveTab(): chrome.tabs.Tab | null {
   const [tab, setTab] = useState<chrome.tabs.Tab | null>(null);
   useEffect(() => {
     const read = () =>

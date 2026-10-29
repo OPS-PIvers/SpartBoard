@@ -5,7 +5,22 @@ export type ApiFailure =
   'signed-out' | 'no-access' | 'not-set-up' | 'not-found' | 'offline';
 
 export type ApiResult<T> =
-  { ok: true; value: T } | { ok: false; why: ApiFailure };
+  | { ok: true; value: T }
+  /** `message` is the server's own wording for a refusal, when it sent one. */
+  | { ok: false; why: ApiFailure; message?: string };
+
+const MAX_MESSAGE_CHARS = 200;
+
+/** The `{ error }` text SpartBoard's functions send with a refusal, if any. */
+async function refusalMessage(res: Response): Promise<string | undefined> {
+  try {
+    const body = (await res.json()) as { error?: unknown } | null;
+    const text = typeof body?.error === 'string' ? body.error.trim() : '';
+    return text ? text.slice(0, MAX_MESSAGE_CHARS) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export interface ApiDeps {
   base: string;
@@ -59,7 +74,14 @@ export async function callSpartBoard<T>(
       await deps.dropToken(token).catch(() => undefined);
       continue;
     }
-    if (!res.ok) return { ok: false, why: failureFor(res.status) };
+    if (!res.ok) {
+      const message = res.status < 500 ? await refusalMessage(res) : undefined;
+      return {
+        ok: false,
+        why: failureFor(res.status),
+        ...(message ? { message } : {}),
+      };
+    }
     try {
       return { ok: true, value: (await res.json()) as T };
     } catch {
