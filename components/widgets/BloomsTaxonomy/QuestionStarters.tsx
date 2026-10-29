@@ -48,7 +48,7 @@ export const BloomsQuestionStarters: React.FC<{ widgetType: string }> = ({
         </div>
 
         <div
-          className="flex-1 flex flex-col overflow-y-auto custom-scrollbar"
+          className="flex-1 flex flex-col-reverse overflow-y-auto custom-scrollbar"
           style={{ padding: 'min(8px, 2cqmin)', gap: 'min(8px, 2cqmin)' }}
         >
           {BLOOMS_QUESTION_STARTERS.map((lvl) => {
