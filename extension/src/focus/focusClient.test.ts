@@ -34,6 +34,7 @@ function setup(over: Partial<FocusClientDeps> = {}) {
   let pushSent: PushSent | undefined;
   let now = 0;
   let url: string | undefined = 'https://www.desmos.com/calculator';
+  let fullscreen = true;
   let statusReply: ApiResult<unknown> = {
     ok: true,
     value: { session, serverNow: 0 },
@@ -70,6 +71,10 @@ function setup(over: Partial<FocusClientDeps> = {}) {
       return Promise.resolve();
     },
     activeUrl: () => Promise.resolve(url),
+    activeFullscreen: () => Promise.resolve(fullscreen),
+    enforce: vi.fn((_s: FocusLocalState | null | undefined) =>
+      Promise.resolve()
+    ),
     openFocusPage: vi.fn(() => Promise.resolve()),
     setBadge: vi.fn((_text: string) => Promise.resolve()),
     setTicking: vi.fn((_on: boolean) => Promise.resolve()),
@@ -88,6 +93,9 @@ function setup(over: Partial<FocusClientDeps> = {}) {
     },
     setUrl: (u: string | undefined) => {
       url = u;
+    },
+    setFullscreen: (f: boolean) => {
+      fullscreen = f;
     },
     setStatus: (r: ApiResult<unknown>) => {
       statusReply = r;
@@ -308,5 +316,80 @@ describe('createFocusClient review fixes', () => {
     t.setReport({ ok: true, value: { ok: true, active: false } });
     await t.client.check();
     expect(t.deps.status).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('createFocusClient enforcement (FS7)', () => {
+  it('hands every state change to enforcement, including the end', async () => {
+    const t = setup();
+    await t.client.check();
+    expect(t.deps.enforce).toHaveBeenLastCalledWith(
+      expect.objectContaining({ session })
+    );
+    t.setStatus({ ok: true, value: { session: null, serverNow: 0 } });
+    await t.client.check();
+    expect(t.deps.enforce).toHaveBeenLastCalledWith(null);
+  });
+
+  it('keeps the badge and reports going when enforcement fails', async () => {
+    const t = setup({ enforce: () => Promise.reject(new Error('no rules')) });
+    await t.client.check();
+    expect(t.deps.setBadge).toHaveBeenLastCalledWith('30m');
+    expect(t.reports).toHaveLength(1);
+  });
+
+  it('counts blocked tries and reports a new one after the burst gap', async () => {
+    const t = setup();
+    await t.client.check();
+    t.setNow(1_000);
+    await t.client.blocked();
+    expect(t.state()?.blockedTries).toBe(1);
+    expect(t.reports).toHaveLength(1);
+    t.setNow(6_000);
+    await t.client.observe();
+    expect(t.reports.at(-1)?.blockedTries).toBe(1);
+    expect(t.reports).toHaveLength(2);
+    await t.client.observe();
+    expect(t.reports).toHaveLength(2);
+  });
+
+  it('ignores a blocked try once the session no longer holds the student', async () => {
+    const t = setup();
+    await t.client.blocked();
+    expect(t.state()).toBeUndefined();
+  });
+
+  it('starts a new session at zero tries', async () => {
+    const t = setup();
+    await t.client.check();
+    await t.client.blocked();
+    t.setStatus({
+      ok: true,
+      value: { session: { ...session, sessionId: 's2' }, serverNow: 0 },
+    });
+    await t.client.check();
+    expect(t.state()?.blockedTries).toBe(0);
+    expect(t.reports.at(-1)).toMatchObject({
+      sessionId: 's2',
+      blockedTries: 0,
+    });
+  });
+
+  it('counts time outside fullscreen as away at Lock only', async () => {
+    const t = setup();
+    t.setFullscreen(false);
+    await t.client.check();
+    expect(t.reports.at(-1)?.status).toBe('on-task');
+    t.setStatus({
+      ok: true,
+      value: { session: { ...session, level: 'lock' }, serverNow: 0 },
+    });
+    t.setNow(1_000);
+    await t.client.check();
+    expect(t.reports.at(-1)?.status).toBe('away');
+    t.setFullscreen(true);
+    t.setNow(2_000);
+    await t.client.observe();
+    expect(t.reports.at(-1)?.status).toBe('on-task');
   });
 });

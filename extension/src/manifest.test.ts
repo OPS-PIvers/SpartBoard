@@ -15,6 +15,7 @@ describe('manifest', () => {
       'sidePanel',
       'identity',
       'identity.email',
+      'declarativeNetRequestWithHostAccess',
     ]);
     expect(base.host_permissions).toEqual(['<all_urls>']);
     expect(base.minimum_chrome_version).toBe('116');

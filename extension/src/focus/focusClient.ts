@@ -16,6 +16,9 @@ import {
   type FocusLocalState,
 } from './focusState';
 
+/** A new blocked try is reported once this long has passed since the last report (the server's burst limit). */
+export const TRIES_REPORT_GAP_MS = 5_000;
+
 /** A subscription already sent is sent again after this long, in case the server dropped it. */
 export const PUSH_RESEND_MS = 24 * 60 * 60_000;
 
@@ -40,6 +43,10 @@ export interface FocusClientDeps {
   savePushSent(sent: PushSent): Promise<void>;
   /** The address of the active tab in the last focused window. */
   activeUrl(): Promise<string | undefined>;
+  /** Whether the student's window is fullscreen; Lock counts time outside it as away. */
+  activeFullscreen(): Promise<boolean>;
+  /** Redirect and Lock (FS7): parks and restores tabs, sets the Lock rules and fullscreen to match the state. */
+  enforce(state: FocusLocalState | null | undefined): Promise<void>;
   openFocusPage(): Promise<void>;
   setBadge(text: string): Promise<void>;
   /** Turns the once-a-minute badge and report alarm on or off. */
@@ -63,11 +70,15 @@ export function createFocusClient(deps: FocusClientDeps) {
 
   const redraw = async (state: FocusLocalState | null | undefined) => {
     const now = deps.now();
+    // Enforcement must never stop the badge, the reports or the next check.
+    await deps.enforce(state).catch(() => undefined);
     await deps.setTicking(isEnforcing(state, now));
     await deps.setBadge(badgeText(state, now));
   };
 
   const clear = async () => {
+    // Lock's rules come off before parked pages see the end and restore themselves.
+    await deps.enforce(null).catch(() => undefined);
     await deps.save(null);
     await redraw(null);
   };
@@ -87,13 +98,18 @@ export function createFocusClient(deps: FocusClientDeps) {
     const now = deps.now();
     if (!state || !isEnforcing(state, now)) return;
     const url = await deps.activeUrl().catch(() => undefined);
-    const status = statusFor(url, state.session, deps.origins);
+    const fullscreen =
+      state.session.level !== 'lock' ||
+      (await deps.activeFullscreen().catch(() => true));
+    const status = statusFor(url, state.session, deps.origins, fullscreen);
     const host = liveHostFor(url, state.session);
     // A few seconds' slack, so the once-a-minute alarm doesn't skip every other report.
     const due =
       force ||
       status !== state.reported ||
       host !== state.reportedHost ||
+      (state.blockedTries !== (state.reportedTries ?? 0) &&
+        now - state.reportedAt >= TRIES_REPORT_GAP_MS) ||
       now - state.reportedAt >= FOCUS_REPORT_MIN_INTERVAL_MS - 5_000;
     if (!due) return;
     const res = await deps.report({
@@ -109,6 +125,7 @@ export function createFocusClient(deps: FocusClientDeps) {
       reported: status,
       reportedAt: now,
       reportedHost: host,
+      reportedTries: state.blockedTries,
     });
     // The session ended or released this student since the last check.
     if (recheck && isActiveFalse(res.value)) await check();
@@ -156,6 +173,7 @@ export function createFocusClient(deps: FocusClientDeps) {
       reportedAt: same ? prev.reportedAt : 0,
       reportedHost: same ? prev.reportedHost : null,
       blockedTries: same ? prev.blockedTries : 0,
+      reportedTries: same ? prev.reportedTries : 0,
     };
     await deps.save(next);
     await redraw(next);
@@ -172,6 +190,14 @@ export function createFocusClient(deps: FocusClientDeps) {
     check: () => serial(check),
     /** Reports on a status change, or when a minute has passed since the last report. */
     observe: () => serial(() => observe(false)),
+    /** Redirect or Lock sent a blocked navigation back (F4 Blocked tries). */
+    blocked: () =>
+      serial(async () => {
+        const state = await deps.load();
+        if (!state || !isEnforcing(state, deps.now())) return;
+        await deps.save({ ...state, blockedTries: state.blockedTries + 1 });
+        await observe(false);
+      }),
     /** The once-a-minute alarm: redraw the badge, report, and check once the time is up. */
     tick: () =>
       serial(async () => {

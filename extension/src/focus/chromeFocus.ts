@@ -2,6 +2,7 @@
 import type { FocusPushSubscription } from '@/utils/focus/contract';
 import { FOCUS_CHECK_MINUTES } from '@/utils/focus/contract';
 import type { FocusClientDeps, PushSent } from './focusClient';
+import { ownPageUrls } from './chromeEnforce';
 import {
   FOCUS_ENDED_KEY,
   FOCUS_STATE_KEY,
@@ -103,11 +104,11 @@ export const chromeFocusDeps: Pick<
   },
   openFocusPage: async () => {
     const url = chrome.runtime.getURL(FOCUS_PAGE_PATH);
-    const open = (await chrome.tabs.query({})).find((t) => t.url === url);
-    if (open?.id !== undefined) {
-      await chrome.tabs.update(open.id, { active: true });
-      if (open.windowId !== undefined)
-        await chrome.windows.update(open.windowId, { focused: true });
+    const open = [...(await ownPageUrls())].find(([, u]) => u === url);
+    if (open) {
+      const tab = await chrome.tabs.update(open[0], { active: true });
+      if (tab?.windowId !== undefined)
+        await chrome.windows.update(tab.windowId, { focused: true });
       return;
     }
     await chrome.tabs.create({ url, active: true });

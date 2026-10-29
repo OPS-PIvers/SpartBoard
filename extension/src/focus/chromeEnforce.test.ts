@@ -1,0 +1,337 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { FocusActiveSession } from '@/utils/focus/contract';
+import type { FocusLocalState } from './focusState';
+import {
+  createChromeEnforcer,
+  FOCUS_ALLOW_RULE_ID,
+  FOCUS_BLOCK_RULE_ID,
+} from './chromeEnforce';
+import { parkedUrl } from './enforce';
+
+const BASE = 'chrome-extension://ext/focus/index.html';
+
+interface FakeTab {
+  id: number;
+  windowId: number;
+  url: string;
+  active: boolean;
+  lastAccessed: number;
+}
+interface FakeWindow {
+  id: number;
+  type: string;
+  state: string;
+}
+
+function fakeChrome(tabs: FakeTab[], windows: FakeWindow[]) {
+  const session = new Map<string, unknown>();
+  let rules: chrome.declarativeNetRequest.Rule[] = [];
+  const injected: { tabId: number; kind: unknown }[] = [];
+  const updates: { id: number; props: Record<string, unknown> }[] = [];
+  const removed: number[] = [];
+  const api = {
+    runtime: {
+      getURL: (p: string) => `chrome-extension://ext/${p}`,
+      ContextType: { TAB: 'TAB' },
+      getContexts: () => Promise.resolve([]),
+    },
+    tabs: {
+      TAB_ID_NONE: -1,
+      query: vi.fn((q: { active?: boolean; windowId?: number }) =>
+        Promise.resolve(
+          tabs.filter(
+            (t) =>
+              (q.active === undefined || t.active === q.active) &&
+              (q.windowId === undefined || t.windowId === q.windowId)
+          )
+        )
+      ),
+      get: (id: number) => {
+        const t = tabs.find((x) => x.id === id);
+        return t ? Promise.resolve(t) : Promise.reject(new Error('gone'));
+      },
+      update: vi.fn((id: number, props: Record<string, unknown>) => {
+        updates.push({ id, props });
+        const t = tabs.find((x) => x.id === id);
+        if (t && typeof props.url === 'string') t.url = props.url;
+        return Promise.resolve(t);
+      }),
+      remove: vi.fn((id: number) => {
+        removed.push(id);
+        return Promise.resolve();
+      }),
+    },
+    windows: {
+      WindowType: { NORMAL: 'normal' },
+      WindowState: {
+        NORMAL: 'normal',
+        MINIMIZED: 'minimized',
+        MAXIMIZED: 'maximized',
+        FULLSCREEN: 'fullscreen',
+      },
+      get: (id: number) => {
+        const w = windows.find((x) => x.id === id);
+        return w ? Promise.resolve(w) : Promise.reject(new Error('gone'));
+      },
+      getLastFocused: () => Promise.resolve(windows[0]),
+      update: vi.fn((id: number, props: { state?: string }) => {
+        const w = windows.find((x) => x.id === id);
+        if (w && props.state) w.state = props.state;
+        return Promise.resolve(w);
+      }),
+    },
+    storage: {
+      session: {
+        get: (key: string) => Promise.resolve({ [key]: session.get(key) }),
+        set: (items: Record<string, unknown>) => {
+          for (const [k, v] of Object.entries(items))
+            session.set(k, structuredClone(v));
+          return Promise.resolve();
+        },
+        remove: (key: string) => {
+          session.delete(key);
+          return Promise.resolve();
+        },
+      },
+    },
+    declarativeNetRequest: {
+      ResourceType: { MAIN_FRAME: 'main_frame' },
+      RuleActionType: { ALLOW: 'allow', BLOCK: 'block' },
+      getSessionRules: () => Promise.resolve(structuredClone(rules)),
+      updateSessionRules: vi.fn(
+        (o: {
+          removeRuleIds: number[];
+          addRules: chrome.declarativeNetRequest.Rule[];
+        }) => {
+          rules = [
+            ...rules.filter((r) => !o.removeRuleIds.includes(r.id)),
+            ...o.addRules,
+          ];
+          return Promise.resolve();
+        }
+      ),
+    },
+    scripting: {
+      executeScript: vi.fn(
+        (o: { target: { tabId: number }; args: unknown[] }) => {
+          injected.push({ tabId: o.target.tabId, kind: o.args[0] });
+          return Promise.resolve([]);
+        }
+      ),
+    },
+  };
+  vi.stubGlobal('chrome', api);
+  return { api, rules: () => rules, injected, updates, removed, session };
+}
+
+const session = (
+  over: Partial<FocusActiveSession> = {}
+): FocusActiveSession => ({
+  sessionId: 's1',
+  teacherName: 'Ms. Rivera',
+  level: 'redirect',
+  sites: [{ host: 'desmos.com', path: '' }],
+  endsAt: 10 * 60_000,
+  released: false,
+  showLiveSite: false,
+  ...over,
+});
+
+const local = (s: FocusActiveSession): FocusLocalState => ({
+  session: s,
+  offsetMs: 0,
+  reported: null,
+  reportedAt: 0,
+  reportedHost: null,
+  blockedTries: 0,
+});
+
+let current: FocusLocalState | undefined;
+const enforcer = () =>
+  createChromeEnforcer({
+    origins: ['https://spartboard.web.app'],
+    load: () => Promise.resolve(current),
+    now: () => 0,
+  });
+
+beforeEach(() => {
+  current = undefined;
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe('createChromeEnforcer sync', () => {
+  it('parks blocked tabs at Redirect without rules or fullscreen, and restores them at the end', async () => {
+    const tabs: FakeTab[] = [
+      {
+        id: 1,
+        windowId: 1,
+        url: 'https://desmos.com/',
+        active: true,
+        lastAccessed: 1,
+      },
+      {
+        id: 2,
+        windowId: 1,
+        url: 'https://games.example/x',
+        active: false,
+        lastAccessed: 2,
+      },
+    ];
+    const windows = [{ id: 1, type: 'normal', state: 'maximized' }];
+    const c = fakeChrome(tabs, windows);
+    const e = enforcer();
+    current = local(session());
+    await e.sync(current);
+    expect(tabs[1].url).toBe(parkedUrl(BASE, 'https://games.example/x'));
+    expect(tabs[0].url).toBe('https://desmos.com/');
+    expect(c.rules()).toEqual([]);
+    expect(windows[0].state).toBe('maximized');
+
+    current = undefined;
+    await e.sync(null);
+    expect(tabs[1].url).toBe('https://games.example/x');
+  });
+
+  it('leaves Monitor alone', async () => {
+    const tabs: FakeTab[] = [
+      {
+        id: 2,
+        windowId: 1,
+        url: 'https://games.example/x',
+        active: true,
+        lastAccessed: 2,
+      },
+    ];
+    const c = fakeChrome(tabs, [{ id: 1, type: 'normal', state: 'normal' }]);
+    current = local(session({ level: 'monitor' }));
+    await enforcer().sync(current);
+    expect(tabs[0].url).toBe('https://games.example/x');
+    expect(
+      c.api.declarativeNetRequest.updateSessionRules
+    ).not.toHaveBeenCalled();
+  });
+
+  it('Lock blocks other pages, goes fullscreen once and puts everything back at the end', async () => {
+    const tabs: FakeTab[] = [
+      {
+        id: 1,
+        windowId: 1,
+        url: 'https://desmos.com/',
+        active: true,
+        lastAccessed: 1,
+      },
+    ];
+    const windows = [{ id: 1, type: 'normal', state: 'maximized' }];
+    const c = fakeChrome(tabs, windows);
+    const e = enforcer();
+    current = local(session({ level: 'lock' }));
+    await e.sync(current);
+    expect(c.rules().map((r) => [r.id, r.action.type])).toEqual([
+      [FOCUS_ALLOW_RULE_ID, 'allow'],
+      [FOCUS_BLOCK_RULE_ID, 'block'],
+    ]);
+    expect(c.rules()[0].condition.requestDomains).toContain('desmos.com');
+    expect(windows[0].state).toBe('fullscreen');
+
+    // The student leaves fullscreen: the next sync covers the page instead of forcing it back.
+    windows[0].state = 'normal';
+    await e.sync(current);
+    expect(windows[0].state).toBe('normal');
+    expect(c.injected.at(-1)).toEqual({ tabId: 1, kind: 'cover' });
+    expect(
+      c.api.declarativeNetRequest.updateSessionRules
+    ).toHaveBeenCalledTimes(1);
+
+    await e.returnToFullscreen(1);
+    expect(windows[0].state).toBe('fullscreen');
+    await e.windowChanged();
+    expect(c.injected.at(-1)).toEqual({ tabId: 1, kind: 'none' });
+
+    current = undefined;
+    await e.sync(null);
+    expect(c.rules()).toEqual([]);
+    expect(windows[0].state).toBe('maximized');
+    expect(c.session.has('focusLock')).toBe(false);
+  });
+
+  it('does nothing for the fullscreen button outside Lock', async () => {
+    const windows = [{ id: 1, type: 'normal', state: 'normal' }];
+    fakeChrome([], windows);
+    current = local(session());
+    await enforcer().returnToFullscreen(1);
+    expect(windows[0].state).toBe('normal');
+  });
+});
+
+describe('createChromeEnforcer navigated', () => {
+  it('sends a blocked navigation back once and counts it', async () => {
+    const tabs: FakeTab[] = [
+      {
+        id: 1,
+        windowId: 1,
+        url: 'https://desmos.com/',
+        active: true,
+        lastAccessed: 1,
+      },
+    ];
+    const c = fakeChrome(tabs, [{ id: 1, type: 'normal', state: 'normal' }]);
+    const e = enforcer();
+    current = local(session());
+    expect(
+      await e.navigated(1, 'https://games.example/', 'https://desmos.com/')
+    ).toBe(true);
+    expect(c.updates.at(-1)).toEqual({
+      id: 1,
+      props: { url: 'https://desmos.com/' },
+    });
+    // The same address reported again by a later event is the same try.
+    expect(await e.navigated(1, 'https://games.example/', undefined)).toBe(
+      false
+    );
+    await e.tabShown(1);
+    expect(c.injected.at(-1)).toEqual({ tabId: 1, kind: 'notice' });
+  });
+
+  it('closes a blocked new tab and switches to the allowed one', async () => {
+    const tabs: FakeTab[] = [
+      {
+        id: 1,
+        windowId: 1,
+        url: 'https://desmos.com/',
+        active: false,
+        lastAccessed: 1,
+      },
+      { id: 2, windowId: 1, url: '', active: true, lastAccessed: 2 },
+    ];
+    const c = fakeChrome(tabs, [{ id: 1, type: 'normal', state: 'normal' }]);
+    current = local(session());
+    expect(await enforcer().navigated(2, 'https://games.example/', '')).toBe(
+      true
+    );
+    expect(c.removed).toEqual([2]);
+    expect(c.updates).toContainEqual({ id: 1, props: { active: true } });
+    expect(c.injected.at(-1)).toEqual({ tabId: 1, kind: 'notice' });
+  });
+
+  it('ignores allowed sites, Monitor and no session', async () => {
+    const c = fakeChrome([], []);
+    const e = enforcer();
+    expect(await e.navigated(1, 'https://games.example/', undefined)).toBe(
+      false
+    );
+    current = local(session({ level: 'monitor' }));
+    expect(await e.navigated(1, 'https://games.example/', undefined)).toBe(
+      false
+    );
+    current = local(session());
+    expect(await e.navigated(1, 'https://www.desmos.com/x', undefined)).toBe(
+      false
+    );
+    expect(
+      await e.navigated(1, 'https://spartboard.web.app/q', undefined)
+    ).toBe(false);
+    expect(c.updates).toEqual([]);
+  });
+});

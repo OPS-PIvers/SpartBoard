@@ -11,7 +11,7 @@ import {
 } from '@/types';
 
 /** Bumped additively when a message type is added; the page checks it before using a feature. */
-export const EXTENSION_PROTOCOL_VERSION = 9;
+export const EXTENSION_PROTOCOL_VERSION = 10;
 
 /** Protocol 4: locators may carry `heading`, `pageTitle` and `attrs`, and steps report `score` matches. */
 export const SCORED_MATCH_PROTOCOL = 4;
@@ -30,6 +30,9 @@ export const OPEN_PROTOCOL = 8;
 
 /** Protocol 9: student profiles pull focus sessions (CHROME_EXTENSION.md F3); `focusStatusV1` and `focusReportV1` carry it, and pages see no new messages. */
 export const FOCUS_PROTOCOL = 9;
+
+/** Protocol 10: the extension enforces Redirect and Lock (F2) and parks tabs (F10); a lower protocol only monitors. */
+export const FOCUS_ENFORCE_PROTOCOL = 10;
 
 /** Staff Google accounts; `@students.orono.k12.mn.us` does not match. */
 export const STAFF_EMAIL_DOMAIN = 'orono.k12.mn.us';

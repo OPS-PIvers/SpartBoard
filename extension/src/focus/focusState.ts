@@ -23,8 +23,10 @@ export interface FocusLocalState {
   reported: FocusReportedStatus | null;
   reportedAt: number;
   reportedHost: string | null;
-  /** FS7 counts blocked navigations; Monitor never blocks. */
+  /** Blocked navigations this session (Redirect and Lock; Monitor never blocks). Resets on restart; the server keeps the max. */
   blockedTries: number;
+  /** `blockedTries` as last reported; absent in state saved before FS7. */
+  reportedTries?: number;
 }
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
@@ -97,12 +99,15 @@ export const badgeText = (
     ? `${minutesLeft(state, deviceNow)}m`
     : '';
 
-/** On task unless the top-level page is a web page outside the allowlist; extension and browser pages count as on task. */
+/** On task unless the top-level page is a web page outside the allowlist, or Lock's window left fullscreen (F2); extension and browser pages count as on task. */
 export function statusFor(
   url: string | undefined,
   session: FocusActiveSession,
-  origins: readonly string[]
+  origins: readonly string[],
+  fullscreen = true
 ): FocusReportedStatus {
+  if (session.level === 'lock' && !session.released && !fullscreen)
+    return 'away';
   return url && matchFocusUrl(url, session.sites, origins) === 'blocked'
     ? 'away'
     : 'on-task';
