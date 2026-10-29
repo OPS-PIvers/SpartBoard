@@ -7,6 +7,7 @@ import {
 } from '@/config/buildings';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { BuildingSelector } from './BuildingSelector';
+import { DraftNumberField } from './DraftNumberField';
 import { TimeToolGlobalConfig, BuildingTimeToolDefaults } from '@/types';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
@@ -162,8 +163,7 @@ export const TimeToolConfigurationPanel: React.FC<
             aria-labelledby={defaultDurationLabelId}
           >
             <div className="flex items-center gap-1">
-              <input
-                type="number"
+              <DraftNumberField
                 {...tourFieldAttr(
                   'admin.widget-config.field',
                   'time-tool',
@@ -172,21 +172,16 @@ export const TimeToolConfigurationPanel: React.FC<
                 min="0"
                 max="999"
                 value={durationMinutes}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  handleDurationChange(
-                    isNaN(val) ? 0 : val,
-                    durationRemainingSeconds
-                  );
-                }}
+                onCommit={(n) =>
+                  handleDurationChange(n, durationRemainingSeconds)
+                }
                 className="w-16 px-2 py-1.5 text-xs text-center border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none"
               />
               <span className="text-xxs text-slate-500 font-bold">min</span>
             </div>
             <span className="text-slate-400">:</span>
             <div className="flex items-center gap-1">
-              <input
-                type="number"
+              <DraftNumberField
                 {...tourFieldAttr(
                   'admin.widget-config.field',
                   'time-tool',
@@ -195,13 +190,9 @@ export const TimeToolConfigurationPanel: React.FC<
                 min="0"
                 max="59"
                 value={durationRemainingSeconds}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  handleDurationChange(
-                    durationMinutes,
-                    isNaN(val) ? 0 : Math.min(59, val)
-                  );
-                }}
+                onCommit={(n) =>
+                  handleDurationChange(durationMinutes, Math.min(59, n))
+                }
                 className="w-16 px-2 py-1.5 text-xs text-center border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none"
               />
               <span className="text-xxs text-slate-500 font-bold">sec</span>
