@@ -12,7 +12,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, getDoc, doc } from 'firebase/firestore';
+import { setDoc, getDoc, doc, updateDoc } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-staff-audience';
 const TEACHER_UID = 'teacher-uid-sa';
@@ -282,6 +282,91 @@ describe('flashcards: staff session reads', () => {
     await assertFails(getDoc(doc(asStaff(), 'flashcard_sessions/s2')));
     await assertFails(
       getDoc(doc(asGoogle(STAFF_UID, 'pat@gmail.com'), 'flashcard_sessions/s1'))
+    );
+  });
+});
+
+describe('flashcards: student joins and locked audience', () => {
+  const session = { ...KINDS[4].session, classIds: ['c1'] };
+  const progress = (session: string) =>
+    `flashcard_sessions/${session}/progress/${STAFF_UID}`;
+  const asClassStudent = (classIds: string[]) =>
+    testEnv
+      .authenticatedContext(STAFF_UID, {
+        studentRole: true,
+        classIds,
+        firebase: { sign_in_provider: 'custom' },
+      })
+      .firestore();
+
+  beforeEach(async () => {
+    await testEnv.clearFirestore();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'flashcard_sessions/s1'), {
+        ...session,
+        audience: 'staff',
+      });
+      await setDoc(doc(db, 'flashcard_sessions/s2'), session);
+      await setDoc(doc(db, 'flashcard_sessions/s3'), {
+        ...session,
+        classIds: [],
+      });
+      await setDoc(doc(db, `student_assignments/${STAFF_UID}/items/s3`), {
+        sessionId: 's3',
+      });
+    });
+  });
+
+  it('still takes a class student and a pointed-to student on a student session', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(asClassStudent(['c1']), progress('s2')),
+        KINDS[4].join(STAFF_UID)
+      )
+    );
+    await assertSucceeds(
+      setDoc(doc(asClassStudent([]), progress('s3')), KINDS[4].join(STAFF_UID))
+    );
+    await assertFails(
+      setDoc(
+        doc(asClassStudent(['c9']), progress('s2')),
+        KINDS[4].join(STAFF_UID)
+      )
+    );
+  });
+
+  it('refuses a staff account on a student session', async () => {
+    await assertFails(
+      setDoc(doc(asStaff(), progress('s2')), KINDS[4].join(STAFF_UID))
+    );
+  });
+
+  it('keeps staff fields fixed on a progress update', async () => {
+    await assertSucceeds(
+      setDoc(doc(asStaff(), progress('s1')), {
+        ...KINDS[4].join(STAFF_UID),
+        ...staffFields,
+      })
+    );
+    await assertSucceeds(
+      updateDoc(doc(asStaff(), progress('s1')), { lastActiveAt: 2 })
+    );
+    await assertFails(
+      updateDoc(doc(asStaff(), progress('s1')), { staffName: 'Someone Else' })
+    );
+  });
+
+  it("refuses a teacher switching a session's audience", async () => {
+    const teacher = asGoogle(TEACHER_UID, 'teacher@orono.k12.mn.us');
+    await assertFails(
+      updateDoc(doc(teacher, 'flashcard_sessions/s2'), { audience: 'staff' })
+    );
+    await assertFails(
+      updateDoc(doc(teacher, 'flashcard_sessions/s1'), { audience: 'students' })
+    );
+    await assertSucceeds(
+      updateDoc(doc(teacher, 'flashcard_sessions/s2'), { status: 'ended' })
     );
   });
 });

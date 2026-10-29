@@ -6954,6 +6954,8 @@ service cloud.firestore {
                     && subMonitorStampUnchanged()
                     && unchanged('teacherUid')
                     && unchanged('kind')
+                    // Audience is fixed at create, so live joiners' progress writes keep passing.
+                    && incoming().get('audience', '') == existing().get('audience', '')
                     && incoming().status in ['active', 'ended'];
       allow delete: if fcTeacherSignedIn() && existing().teacherUid == authUid();
 
