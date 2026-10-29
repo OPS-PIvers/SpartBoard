@@ -104,10 +104,73 @@ district key (2026-10-29, statuses and field names only):
   server answers whether the signed-in teacher has it), the inbox endpoint, the review screen and
   the "From Schoology" Import-menu entry. `quiz-imscc-import` and `question-bank-imscc-import`
   fold into it: their entry points check the new flag, and the old ids are retired when it opens.
-- **Q15 Fixture.** Paul adds to test course 7660186912 one Test/Quiz and one Assessment containing
-  every Schoology question type (with images and an answer key), plus one Resources question bank.
-  The agent inspects those pages read-only in Paul's Chrome to write the readers. No other
-  Schoology pages are read.
+- **Q15 Fixture.** Paul's "Model Course: Hour 1" (section 7595131723) holds "Sample Test/Quiz"
+  (assignment 8629405092: all six classic types, images, keys) and "Sample Assessment"
+  (8629413961: MC, Matching, Ordering, Fill in the blank, Essay). Paul will not build a fixture for
+  every type by hand; the remaining Assessment types are written from Learnosity's published
+  question schemas and checked against Paul's real quizzes in the prod pilot. Only these fixture
+  pages are read during the build.
+
+## Page probe (2026-10-29, read-only, Paul's signed-in Chrome)
+
+### Classic Test/Quiz: the edit form holds the whole question
+
+- The question list `/assignment/{id}/assessment_questions` is server-rendered HTML. Each row has
+  the type in its class (`component-summary-wrapper component-{type}`) and an edit link
+  `/assignment/{id}/assessment_questions/edit_question/{qid}`. The list shows prompts only.
+- A plain GET of that edit form (no save) returns every field, keyed by type:
+
+  | Schoology type (`component-*`) | Fields                                                                                                                                     |
+  | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+  | `true_false`                   | `title`, `correct` (`t`/`f`), `true_text`, `false_text`                                                                                    |
+  | `multiple_choice`              | `multiple_choice[choice][n][text]` (HTML), `[is_answer]` (checked = correct, several allowed), `[feedback]`, `randomize`, `partial_credit` |
+  | `ordering`                     | `ordering[choices][n][text]` in correct order, `partial_credit`                                                                            |
+  | `matching`                     | `rows[delta][n][question]` / `[answer]` pairs, `fillword_rows[delta][n][question]` distractors                                             |
+  | `fitb`                         | `title` with `_` per blank, `blanks[delta][n][answer][m]` accepted answers, `case_sensitive`, `word_bank`                                  |
+  | `essay`                        | `title`, `character_limit`, `allow_media_answer`, rubric id                                                                                |
+
+  Every type has `points`. The Add Question menu has only these six, plus Text blocks, Page
+  Breaks and "From Question Banks". There are no formula or hotspot types in classic Test/Quiz.
+
+- Quiz settings come from GET `/assignment/{id}/assessment_settings`: `instructions`,
+  `time_limit`, `attempts`, `randomize_order`, `paging`, `review`, `resumable`.
+- Images inside question or choice HTML point at same-site `/file_download/{uuid}`. The
+  extension fetches them with the teacher's session.
+
+### Assessment: internal JSON in Learnosity format
+
+- The editor loads `/iapi2/test-quiz/{commonAssessmentId}`, which carries the title, settings and
+  `active_version_id`. It then loads `/iapi2/test-quiz/{versionId}/components`.
+- Each component carries `metadata.points` and `metadata.question_domain.current_version.definition`,
+  a JSON string in Learnosity question format with the answer key in `validation.valid_response`:
+
+  | Learnosity `type` | Seen as            | Key                                                         |
+  | ----------------- | ------------------ | ----------------------------------------------------------- |
+  | `mcq`             | Multiple choice    | `valid_response.value` = option values                      |
+  | `association`     | Matching           | `stimulus_list` / `possible_responses`, value in stem order |
+  | `orderlist`       | Ordering           | `list`, value = correct index order                         |
+  | `clozetext`       | Fill in the blank  | `template` with blanks, value per blank                     |
+  | `longtextV2`      | Short answer/Essay | none (subjective)                                           |
+
+- The Assessment editor offers more types than classic. These are mapped from Learnosity's schema
+  under Q6 and confirmed in the pilot:
+  - True/False
+  - Fill in the Blank Dropdown (`clozedropdown`)
+  - Fill in the Blank Drag and Drop (`clozeassociation`)
+  - Label Image
+  - Highlight Hotspot / Image / Text
+  - Math Short Answer
+  - Number Line, Chart, Audio, Video, File Upload
+- `question_domain.question_bank_id` shows that Assessment questions live in an item bank, which
+  is separate from classic Resources question banks.
+
+### What this changes in the design
+
+- The classic reader reads the edit forms; the Assessment reader reads the `/iapi2` JSON. Neither
+  needs scraping of rendered question views, and both give the answer key.
+- A teacher-side GET of the edit form does not save anything. The reader never submits a form.
+- `/iapi2` is undocumented and may change. The reader validates the shape and falls back to
+  "Couldn't read this quiz".
 
 ## Design
 
