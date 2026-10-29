@@ -13,14 +13,10 @@ const layout: PlcTeamLayout = {
   hero: { mode: 'default' },
 };
 
-const renderEditor = (
-  districtDefault: PlcTeamLayout | null,
-  anyLanding = true
-) =>
+const renderEditor = (districtDefault: PlcTeamLayout | null) =>
   render(
     <LayoutEditorView
       groupType="plc"
-      anyLanding={anyLanding}
       layout={layout}
       heroRule="latestAssessment"
       districtDefault={districtDefault}
@@ -64,11 +60,6 @@ describe('LayoutEditorView landing page', () => {
     ]);
   });
 
-  it('offers only the hub page when the flag is off', () => {
-    renderEditor(layout, false);
-    expect(options()).toEqual(['Data overview']);
-  });
-
   it('calls a Data overview landing Home when PLC Home is on', () => {
     render(
       <LayoutEditorView
@@ -79,7 +70,6 @@ describe('LayoutEditorView landing page', () => {
         pinGroups={[]}
         isLead
         plcHome
-        anyLanding
         onSave={vi.fn()}
         onClose={vi.fn()}
       />

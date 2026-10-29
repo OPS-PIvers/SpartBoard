@@ -53,8 +53,6 @@ export interface LayoutEditorViewProps {
   isLead: boolean;
   /** PLC Home is on, so a Data overview landing opens on Home instead. */
   plcHome?: boolean;
-  /** `team-landing-any-page`: any page that is on can be the landing page. */
-  anyLanding?: boolean;
   /** Written as `pinnedBy` when this save pins a new item. */
   pinner?: TeamHeroPinner;
   saving?: boolean;
@@ -71,7 +69,6 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
   newerFor,
   isLead,
   plcHome = false,
-  anyLanding = false,
   pinner,
   saving = false,
   onSave,
@@ -97,7 +94,7 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
     draft.heroKey && refByKey.has(draft.heroKey) ? draft.heroKey : firstKey;
   const selectedRef = selectedKey ? refByKey.get(selectedKey) : undefined;
   const newer = selectedRef && newerFor ? newerFor(selectedRef) : null;
-  const landings = landingOptions(draft.pages, draft.landing, anyLanding);
+  const landings = landingOptions(draft.pages);
   // The hero sits on the hub page, so it is only the first thing seen when the team lands there.
   const heroHeading =
     draft.landing === teamTypeHubPage(groupType) &&
