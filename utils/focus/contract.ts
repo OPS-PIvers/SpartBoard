@@ -249,3 +249,37 @@ export interface FocusOpenRequest {
 export interface FocusOpenReply {
   sessionId: string | null;
 }
+
+/** Body of `focusPanelV1`, the extension side panel's Focus tab (F12), signed in with the teacher's Chrome Google token (H7). */
+export type FocusPanelRequest =
+  | { action: 'list' }
+  | {
+      action: 'start';
+      classId: string;
+      className: string;
+      minutes: number;
+      sites: FocusSite[];
+    }
+  | { action: 'extend' | 'release' | 'end'; sessionId: string };
+
+/** A class the teacher has a ClassLink (or dev mock-class) roster for. */
+export interface FocusPanelClass {
+  classId: string;
+  name: string;
+}
+
+/** A running session the teacher is on; the full roster stays in the widget. */
+export interface FocusPanelSession {
+  sessionId: string;
+  classId: string;
+  className: string;
+  level: FocusLevel;
+  sites: FocusSite[];
+  endsAt: number;
+  studentCount: number;
+}
+
+export interface FocusPanelListReply {
+  classes: FocusPanelClass[];
+  sessions: FocusPanelSession[];
+}

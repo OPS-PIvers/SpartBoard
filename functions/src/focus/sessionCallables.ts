@@ -1,5 +1,10 @@
 // onCall wrappers and the scheduled ender for teacher focus sessions; the logic is in sessions.ts.
-import { onCall, type CallableRequest } from 'firebase-functions/v2/https';
+import {
+  HttpsError,
+  onCall,
+  onRequest,
+  type CallableRequest,
+} from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as admin from 'firebase-admin';
 import '../functionsInit';
@@ -12,6 +17,15 @@ import {
 } from '../secrets';
 import { loadTaughtClassEnrollment } from '../studentIdentity';
 import { assertViewAsAllowed } from '../viewAsGuard';
+import {
+  DISTRICT_DOMAIN,
+  EXTENSION_OAUTH_CLIENTS,
+  ExtensionCallError,
+  bearerToken,
+  fetchTokenInfo,
+  verifiedTokenEmail,
+} from '../webTourExtension';
+import { handleFocusPanel } from './panel';
 import {
   handleFocusAddSite,
   handleFocusEnd,
@@ -124,6 +138,68 @@ export const focusEndV1 = onCall(OPTIONS, async (request) => {
     liveDeps
   );
 });
+
+const SIGN_IN = 'Sign in to Chrome with your Orono account.';
+
+/** The staff member a side panel token belongs to, as the callables see a signed-in teacher (H7). */
+async function panelCaller(token: string): Promise<FocusCaller> {
+  const clientId = EXTENSION_OAUTH_CLIENTS[process.env.GCLOUD_PROJECT ?? ''];
+  if (!clientId) throw new ExtensionCallError(503, 'Focus is not set up yet.');
+  const email = await verifiedTokenEmail(
+    token,
+    { clientId, tokenInfo: fetchTokenInfo },
+    DISTRICT_DOMAIN,
+    SIGN_IN
+  );
+  const user = await admin
+    .auth()
+    .getUserByEmail(email)
+    .catch(() => null);
+  if (!user || user.disabled)
+    throw new ExtensionCallError(
+      403,
+      'Sign in to SpartBoard once, then try again.'
+    );
+  return {
+    uid: user.uid,
+    email,
+    emailVerified: true,
+    anonymous: false,
+    studentRole: user.customClaims?.studentRole === true,
+    name: user.displayName ?? null,
+  };
+}
+
+// The side panel's Focus tab (F12): the teacher's Chrome Google token, never Firebase auth, so no View as.
+export const focusPanelV1 = onRequest(
+  {
+    memory: OPTIONS.memory,
+    timeoutSeconds: OPTIONS.timeoutSeconds,
+    secrets: OPTIONS.secrets,
+    invoker: 'public',
+    maxInstances: 20,
+  },
+  async (req, res) => {
+    try {
+      if (req.method !== 'POST') throw new ExtensionCallError(405, 'Use POST.');
+      const caller = await panelCaller(bearerToken(req.get('authorization')));
+      res.json(
+        await handleFocusPanel(admin.firestore(), caller, req.body, liveDeps)
+      );
+    } catch (error) {
+      if (error instanceof ExtensionCallError) {
+        res.status(error.status).json({ error: error.message });
+        return;
+      }
+      if (error instanceof HttpsError && error.httpErrorCode.status < 500) {
+        res.status(error.httpErrorCode.status).json({ error: error.message });
+        return;
+      }
+      console.error('[focusPanel] failed:', error);
+      res.status(500).json({ error: 'Something went wrong.' });
+    }
+  }
+);
 
 /** F6: ends sessions whose time ran out or whose window closed; status checks already treat a passed `endsAt` as over. */
 export const focusSweepSessions = onSchedule(

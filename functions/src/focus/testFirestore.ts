@@ -5,7 +5,7 @@ type Data = Record<string, unknown>;
 
 interface Filter {
   field: string;
-  op: '==' | '>=' | 'array-contains-any';
+  op: '==' | '>=' | 'array-contains' | 'array-contains-any';
   value: unknown;
 }
 
@@ -66,6 +66,8 @@ export function createMemoryFirestore(): admin.firestore.Firestore & {
     const v = data[f.field];
     if (f.op === '==') return v === f.value;
     if (f.op === '>=') return typeof v === 'number' && v >= (f.value as number);
+    if (f.op === 'array-contains')
+      return Array.isArray(v) && (v as unknown[]).includes(f.value);
     return (
       Array.isArray(v) &&
       (f.value as unknown[]).some((x) => (v as unknown[]).includes(x))
